@@ -674,7 +674,7 @@ Registering directly on `hook_manager` (below) affects every agent in the proces
 
 ```python
 def register_my_hooks(hm: HookManager) -> None:
-    hm.register(my_hook, events=[HookEvent.SESSION_START])
+    hm.add_hook(my_hook, events=[HookEvent.SESSION_START])
 
 chat.append_hook_factory(register_my_hooks)
 ```
@@ -703,7 +703,7 @@ async def block_production_writes(context: HookContext) -> HookResult:
     return HookResult(success=True)
 
 # Register the hook
-hook_manager.register(block_production_writes, events=[HookEvent.PRE_TOOL_USE])
+hook_manager.add_hook(block_production_writes, events=[HookEvent.PRE_TOOL_USE])
 ```
 
 ### Programmatic Hook with Priority
@@ -722,7 +722,7 @@ async def critical_security_check(context: HookContext) -> HookResult:
     # ... security check logic ...
     return HookResult(success=True)
 
-hook_manager.register(
+hook_manager.add_hook(
     critical_security_check,
     events=[HookEvent.PRE_TOOL_USE],
     config=HookConfig(

@@ -59,7 +59,7 @@ async def test_python_hook_execution():
         executed.append(context)
         return HookResult(success=True)
 
-    manager.register(my_hook, events=[HookEvent.SESSION_START])
+    manager.add_hook(my_hook, events=[HookEvent.SESSION_START])
 
     await manager.execute_hooks_simple(HookEvent.SESSION_START, {"test": "data"})
 
@@ -114,7 +114,7 @@ async def test_hooks_globally_disabled_by_config(monkeypatch):
         fired.append(context.event.value)
         return HookResult(success=True)
 
-    manager.register(my_hook, events=[HookEvent.SESSION_START])
+    manager.add_hook(my_hook, events=[HookEvent.SESSION_START])
 
     results = await manager.execute_hooks(HookEvent.SESSION_START, {})
     assert results == []
@@ -171,7 +171,7 @@ async def test_pre_tool_use_modification():
             )
         return HookResult(success=True)
 
-    manager.register(modifier_hook, events=[HookEvent.PRE_TOOL_USE])
+    manager.add_hook(modifier_hook, events=[HookEvent.PRE_TOOL_USE])
 
     results = await manager.execute_hooks_simple(
         HookEvent.PRE_TOOL_USE, {"tool": "my_tool", "args": {"original": "value"}}

@@ -125,14 +125,18 @@ class HookManager(HookManagerLoading):
         return self._registry
 
     @property
-    def search_dirs(self) -> list[str | Path] | None:
-        """Directories scanned for hook files; ``None`` means "ask the config".
+    def search_dirs(self) -> list[str | Path]:
+        """Directories scanned for hook files, in precedence order.
 
-        Assigning invalidates the load, so the next access rescans — which is
-        how a caller points an already-constructed manager somewhere else (an
-        empty list being the way to say "discover nothing").
+        The explicit override passed at construction (or set here), or the
+        standard project and user locations when none was given. Assigning
+        invalidates the load, so the next access rescans — which is how a
+        caller points an already-constructed manager somewhere else (an empty
+        list being the way to say "discover nothing").
         """
-        return self._search_dirs
+        if self._search_dirs is not None:
+            return list(self._search_dirs)
+        return self._default_search_dirs()
 
     @search_dirs.setter
     def search_dirs(self, value: list[str | Path] | None) -> None:
@@ -148,7 +152,7 @@ class HookManager(HookManagerLoading):
     def reload(self):
         """Force re-scan hooks. Use after CFG changes or hook file updates."""
         self._loaded = False
-        self._registry.clear_manual()
+        self._registry.clear()
         # _ensure_loaded -> _scan_and_load already runs _hook_factories; no
         # separate loop here, or every factory would run twice.
         self._ensure_loaded()
@@ -165,14 +169,10 @@ class HookManager(HookManagerLoading):
         for factory in self._hook_factories:
             factory(self)
 
-        target_search_dirs = self._search_dirs
-        if target_search_dirs is None:
-            target_search_dirs = self.get_search_directories()
-
-        for search_dir in target_search_dirs:
+        for search_dir in self.search_dirs:
             self._load_from_path(search_dir)
 
-    def register(
+    def add_hook(
         self,
         hook: HookCallable,
         events: list[HookEvent] | None = None,
@@ -183,7 +183,7 @@ class HookManager(HookManagerLoading):
         If events is None or empty, the hook is treated as a global hook (runs on all events).
         Otherwise, it is registered for the specific events.
         """
-        self._registry.register(hook, events, config)
+        self._registry.add_hook(hook, events, config)
 
     def remove_hook(self, hook: HookCallable) -> None:
         """Unregister *hook* from every event and the global list."""
@@ -595,9 +595,7 @@ class HookManager(HookManagerLoading):
         This method can be called manually to add filesystem hooks.
         Does NOT clear manually registered hooks.
         """
-        target_search_dirs = search_dirs
-        if target_search_dirs is None:
-            target_search_dirs = self.get_search_directories()
+        target_search_dirs = search_dirs if search_dirs is not None else self.search_dirs
 
         for factory in self._hook_factories:
             factory(self)
@@ -607,7 +605,7 @@ class HookManager(HookManagerLoading):
 
         self._loaded = True
 
-    def get_search_directories(self) -> list[str | Path]:
+    def _default_search_dirs(self) -> list[str | Path]:
         """Directories searched for hook definitions, in precedence order.
 
         Project-level locations come before user-level ones, so a project hook

@@ -15,9 +15,9 @@ from zrb.util.dir_search import BUILTIN_PLUGIN_DIR, get_upward_dirs, scan_plugin
 class SubAgentManagerSearch:
     """Builds the search-directory list scanned by the loading collaborator.
 
-    Stateless: `root_dir` is owned by `SubAgentManager` and passed in per call
-    rather than cached here, since it can change after construction (e.g. a
-    test retargeting `manager.root_dir`).
+    Stateless: `root_dir` is owned by `SubAgentManager.scan_root` and passed in
+    per call rather than cached here, since it can change after construction
+    (e.g. a test retargeting `manager.scan_root`).
     """
 
     def get_search_directories(self, root_dir: str) -> list[str | Path]:

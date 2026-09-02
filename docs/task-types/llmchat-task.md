@@ -160,12 +160,20 @@ See **[Programming the Prompt](../advanced-topics/programming-the-prompt.md)** f
 
 After construction, `LLMChatTask` provides a fluent builder API for incremental configuration. All methods are available on the task instance.
 
+Every ordered collection below (tools, toolsets, factories, processors, policies,
+handlers, formatters, triggers, custom commands, UIs) exposes the full R5 verb
+set: `append_X`, `prepend_X`, `set_X`s, `remove_X` — see
+[Framework Conventions](../advanced-topics/framework-conventions.md). The
+snippets below show one or two verbs per collection for brevity, not the
+complete set.
+
 ### UI Configuration
 
 ```python
-chat.set_ui(my_ui)
-chat.append_ui(another_ui)
-chat.set_ui_factory(lambda: MyUI())
+chat.append_ui(my_ui)
+chat.prepend_ui(another_ui)
+chat.set_uis([my_ui, another_ui])
+chat.ui_factories = [lambda: MyUI()]   # settable property
 chat.append_ui_factory(lambda: OtherUI())
 ```
 
@@ -210,8 +218,8 @@ chat.append_history_processor(my_processor)
 ### Hook Factories
 
 ```python
-chat.append_hook_factory(lambda hm: hm.register(my_hook, events=[HookEvent.SESSION_START]))
-chat.append_hook_factory(lambda hm: hm.register(other_hook, events=[HookEvent.SESSION_END]))
+chat.append_hook_factory(lambda hm: hm.add_hook(my_hook, events=[HookEvent.SESSION_START]))
+chat.append_hook_factory(lambda hm: hm.add_hook(other_hook, events=[HookEvent.SESSION_END]))
 ```
 
 > **Isolation differs from `LLMTask`.** `LLMChatTask` builds a **fresh** `HookManager` per execution and replays every registered factory onto it each time, so one session's hooks never leak into the next. `LLMTask` instead holds a **persistent** manager — on `LLMTask`, the *first* `append_hook_factory` call swaps the process-wide default for a fresh task-local manager (later calls apply to that same manager), unless a manager was passed explicitly to the constructor, which is never swapped. See [ADR-0072](../adr/adr-0072.md) and [Hooks — Defining Hooks Programmatically](../advanced-topics/hooks.md#defining-hooks-programmatically-python) for the full rationale.
@@ -219,7 +227,7 @@ chat.append_hook_factory(lambda hm: hm.register(other_hook, events=[HookEvent.SE
 ### Approval & Policy
 
 ```python
-chat.set_approval_channel(channel)
+chat.approval_channels = [channel]   # settable property
 chat.append_approval_channel(channel)
 chat.prepend_tool_policy(policy)
 chat.prepend_response_handler(handler)
@@ -240,7 +248,7 @@ chat.append_custom_command(my_command)
 ### History Manager
 
 ```python
-chat.set_history_manager(FileHistoryManager(history_dir="./my-history/"))
+chat.history_manager = FileHistoryManager(history_dir="./my-history/")
 ```
 
 `history_manager`, `conversation_name`/`render_conversation_name` are also readable as one group via the `history_config` read-only property (a `HistoryConfig`, computed fresh on every read — never cached, so a `history_manager` reassignment is immediately visible through it):

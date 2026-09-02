@@ -172,7 +172,7 @@ class TestRegistration:
 
         task = LLMTask(name="test-task", message="hello")
         task.append_hook_factory(
-            lambda mgr: mgr.register(my_hook, events=[HookEvent.SESSION_START])
+            lambda mgr: mgr.add_hook(my_hook, events=[HookEvent.SESSION_START])
         )
 
         with (

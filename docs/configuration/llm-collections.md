@@ -38,13 +38,12 @@ The registry **stores** everything the family knows; the manager **consumes** it
 | Tools | `tool_registry` | agent hosts | **Ordered** list | `append_tool` / `prepend_tool` / `set_tools` / `remove_tool` (+ `*_tool_factory`, `*_toolset_factory`) | `LLM_TOOLS` | **Name allowlist**: non-empty keeps only the named static tools visible to agents |
 | Skills | `skill_registry` | `SkillManager` | **Unordered**, name-keyed | `add_skill` / `set_skills` / `remove_skill(name)` | `LLM_SKILLS` | **Name allowlist**: non-empty keeps only the named skills in the catalogue |
 | Sub-agents | `sub_agent_registry` | `SubAgentManager` | **Unordered**, name-keyed | `add_agent` / `set_agents` / `remove_agent(name)` | `LLM_AGENTS` | **Name allowlist**: non-empty keeps only the named agents in the roster |
-| Hooks | `hook_registry` | `HookManager` | **Event-keyed** accumulation | `register` / `set_hooks(event, hooks)` / `remove_hook` | `LLM_HOOKS` | **Name allowlist**: non-empty dispatches only the named hooks |
+| Hooks | `hook_registry` | `HookManager` | **Event-keyed** accumulation | `add_hook` / `set_hooks(event, hooks)` / `remove_hook` | `LLM_HOOKS` | **Name allowlist**: non-empty dispatches only the named hooks |
 
 The verbs differ by collection kind, and the split is deliberate:
 
 - **Ordered** collections (prompts, tools) — *order is the semantics*. Appends land at the end, prepends at the front; there is no `add_` alias because `add` couldn't say where.
-- **Unordered, name-keyed** collections (skills, agents) — *names are the identity*. `add_skill(mine)` is idempotent by name, and `remove_skill("mine")` takes a name.
-- **Hooks** are neither: many sources co-register onto the same lifecycle event, so the surface is `register` (append onto an event) plus `set_hooks` for a deliberate clean-slate swap of one event.
+- **Unordered, name-keyed** collections (skills, agents) and **event-keyed** collections (hooks) — *names (or events) are the identity*. `add_skill(mine)` is idempotent by name, and `remove_skill("mine")` takes a name; `add_hook` accumulates onto an event the same way, with `set_hooks(event, hooks)` for a deliberate clean-slate swap of one event.
 
 ## Three configuration channels
 
@@ -90,7 +89,7 @@ sub_agent_registry.add_agent(
 async def guard(ctx) -> HookResult:
     return HookResult(success=True, output="ok")
 
-hook_registry.register(guard, events=[HookEvent.PRE_TOOL_USE])
+hook_registry.add_hook(guard, events=[HookEvent.PRE_TOOL_USE])
 ```
 
 Replace wholesale:

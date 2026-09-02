@@ -59,7 +59,7 @@ class SimpleUI(BaseUI):
         # In your zrb_init.py:
         from zrb.llm.ui import create_ui_factory
 
-        llm_chat.set_ui_factory(create_ui_factory(MyUI))
+        llm_chat.ui_factories = [create_ui_factory(MyUI)]
     """
 
     def __init__(

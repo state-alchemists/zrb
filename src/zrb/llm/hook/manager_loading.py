@@ -46,7 +46,7 @@ class HookManagerLoading:
 
         def _hydrate_hook(self, config: HookConfig) -> "HookCallable": ...
 
-        def register(
+        def add_hook(
             self,
             hook: "HookCallable",
             events: list[HookEvent] | None = None,
@@ -229,7 +229,7 @@ class HookManagerLoading:
                         )
 
                         hook_callable = self._hydrate_hook(hook_config)
-                        self.register(hook_callable, hook_config.events, hook_config)
+                        self.add_hook(hook_callable, hook_config.events, hook_config)
                         logger.debug(
                             f"Registered Claude hook '{hook_name}' for {event.value}"
                         )
@@ -255,7 +255,7 @@ class HookManagerLoading:
         if not config.enabled:
             return
         hook_callable = self._hydrate_hook(config)
-        self.register(hook_callable, config.events, config)
+        self.add_hook(hook_callable, config.events, config)
         logger.info(f"Registered hook '{config.name}' from {source}")
 
     def _create_hook_config(self, data: dict, source: str | None = None) -> HookConfig:

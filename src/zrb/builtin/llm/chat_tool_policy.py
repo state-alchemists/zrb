@@ -61,7 +61,7 @@ def approve_if_path_inside_skill_or_plugin_dir(args: dict[str, Any]) -> bool:
 
     abs_path = os.path.abspath(os.path.expanduser(str(path)))
     # 1. Check resolved skill search directories (builtin + home + project + extras)
-    for search_dir in skill_manager.get_search_directories():
+    for search_dir in skill_manager.search_dirs:
         if path_inside_parent(abs_path, str(search_dir)):
             return True
     # 2. Check explicit plugin directories (both env-var and programmatically set)

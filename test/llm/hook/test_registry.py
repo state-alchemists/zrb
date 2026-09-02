@@ -72,27 +72,27 @@ def test_singleton_is_hook_registry():
 
 def test_register_event_hook(manager, registry):
     hook = _hook()
-    manager.register(hook, events=[HookEvent.NOTIFICATION])
+    manager.add_hook(hook, events=[HookEvent.NOTIFICATION])
     assert registry.get_hooks(HookEvent.NOTIFICATION) == [hook]
     assert registry.get_global_hooks() == []
 
 
 def test_register_global_hook(manager, registry):
     hook = _hook()
-    manager.register(hook)
+    manager.add_hook(hook)
     assert registry.get_global_hooks() == [hook]
     assert registry.get_hooks(HookEvent.NOTIFICATION) == []
 
 
 def test_register_global_with_empty_events(manager, registry):
     hook = _hook()
-    manager.register(hook, events=[])
+    manager.add_hook(hook, events=[])
     assert registry.get_global_hooks() == [hook]
 
 
 def test_register_hook_multiple_events(manager, registry):
     hook = _hook()
-    manager.register(hook, events=[HookEvent.STOP, HookEvent.SESSION_END])
+    manager.add_hook(hook, events=[HookEvent.STOP, HookEvent.SESSION_END])
     assert registry.get_hooks(HookEvent.STOP) == [hook]
     assert registry.get_hooks(HookEvent.SESSION_END) == [hook]
 
@@ -100,7 +100,7 @@ def test_register_hook_multiple_events(manager, registry):
 def test_hook_with_config_recorded(manager, registry):
     hook = _hook()
     config = _config(HookEvent.NOTIFICATION, priority=5)
-    manager.register(hook, events=[HookEvent.NOTIFICATION], config=config)
+    manager.add_hook(hook, events=[HookEvent.NOTIFICATION], config=config)
     assert registry.get_hook_config(hook) is config
 
 
@@ -117,7 +117,7 @@ def test_record_config_for_debugging(registry):
 
 def test_remove_hook_drops_everywhere(manager, registry):
     hook = _hook()
-    manager.register(hook, events=[HookEvent.STOP, HookEvent.SESSION_END])
+    manager.add_hook(hook, events=[HookEvent.STOP, HookEvent.SESSION_END])
     manager.remove_hook(hook)
     assert registry.get_hooks(HookEvent.STOP) == []
     assert registry.get_hooks(HookEvent.SESSION_END) == []
@@ -126,7 +126,7 @@ def test_remove_hook_drops_everywhere(manager, registry):
 
 def test_remove_global_hook(manager, registry):
     hook = _hook()
-    manager.register(hook)
+    manager.add_hook(hook)
     manager.remove_hook(hook)
     assert registry.get_global_hooks() == []
 
@@ -134,8 +134,8 @@ def test_remove_global_hook(manager, registry):
 def test_remove_event_hooks_keeps_global(manager, registry):
     event_hook = _hook("event")
     global_hook = _hook("global")
-    manager.register(event_hook, events=[HookEvent.NOTIFICATION])
-    manager.register(global_hook)
+    manager.add_hook(event_hook, events=[HookEvent.NOTIFICATION])
+    manager.add_hook(global_hook)
     manager.remove_event_hooks(HookEvent.NOTIFICATION)
     assert registry.get_hooks(HookEvent.NOTIFICATION) == []
     assert registry.get_global_hooks() == [global_hook]
@@ -153,7 +153,7 @@ def test_remove_hook_unknown_is_noop(manager):
 def test_set_hooks_replaces_event(manager, registry):
     old = _hook("old")
     new_hook = _hook("new")
-    manager.register(old, events=[HookEvent.NOTIFICATION])
+    manager.add_hook(old, events=[HookEvent.NOTIFICATION])
     manager.set_hooks(HookEvent.NOTIFICATION, [new_hook])
     assert registry.get_hooks(HookEvent.NOTIFICATION) == [new_hook]
     assert old not in registry.get_hooks(HookEvent.NOTIFICATION)
@@ -170,7 +170,7 @@ def test_set_hooks_prunes_stale_configs(manager, registry):
     old = _hook("old")
     new_hook = _hook("new")
     config = _config(HookEvent.NOTIFICATION)
-    manager.register(old, events=[HookEvent.NOTIFICATION], config=config)
+    manager.add_hook(old, events=[HookEvent.NOTIFICATION], config=config)
     manager.set_hooks(HookEvent.NOTIFICATION, [new_hook])
     assert registry.get_hook_config(old) is None
 
@@ -178,7 +178,7 @@ def test_set_hooks_prunes_stale_configs(manager, registry):
 def test_remove_event_hooks_prunes_stale_configs(manager, registry):
     hook = _hook("h")
     config = _config(HookEvent.NOTIFICATION)
-    manager.register(hook, events=[HookEvent.NOTIFICATION], config=config)
+    manager.add_hook(hook, events=[HookEvent.NOTIFICATION], config=config)
     manager.remove_event_hooks(HookEvent.NOTIFICATION)
     assert registry.get_hook_config(hook) is None
 
@@ -190,7 +190,7 @@ def test_remove_event_hooks_prunes_stale_configs(manager, registry):
 
 def test_reload_clears_registered_hooks(manager, registry):
     hook = _hook()
-    manager.register(hook, events=[HookEvent.NOTIFICATION])
+    manager.add_hook(hook, events=[HookEvent.NOTIFICATION])
     manager.reload()
     # reload rescans nothing (search_dirs=[]) so the registry is empty
     assert registry.get_hooks(HookEvent.NOTIFICATION) == []
@@ -204,10 +204,10 @@ def test_reload_clears_registered_hooks(manager, registry):
 def test_llm_hooks_allowlist_filters_event_and_global(registry, monkeypatch):
     event = HookEvent.SESSION_START
     alpha, beta = _hook("alpha"), _hook("beta")
-    registry.register(alpha, events=[event])
-    registry.register(beta, events=[event])
+    registry.add_hook(alpha, events=[event])
+    registry.add_hook(beta, events=[event])
     gamma = _hook("gamma")
-    registry.register(gamma)
+    registry.add_hook(gamma)
     monkeypatch.setenv("ZRB_LLM_HOOKS", "beta,gamma")
     assert registry.get_hooks(event) == [beta]
     assert registry.get_global_hooks() == [gamma]
@@ -223,7 +223,7 @@ def test_llm_hooks_allowlist_uses_config_name(registry, monkeypatch):
         return HookResult(success=True, output="x")
 
     config = _config(event)
-    registry.register(hook, events=[event], config=config)
+    registry.add_hook(hook, events=[event], config=config)
     monkeypatch.setenv("ZRB_LLM_HOOKS", "cfg")
     assert registry.get_hooks(event) == [hook]
     monkeypatch.setenv("ZRB_LLM_HOOKS", "not-cfg")

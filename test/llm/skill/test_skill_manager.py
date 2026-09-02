@@ -346,7 +346,7 @@ def test_skill_manager_get_search_directories_project_hierarchy(tmp_path):
         mock_cfg.LLM_SEARCH_HOME = True
         mock_cfg.LLM_SEARCH_PROJECT = True
         mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
-        dirs = [str(d) for d in manager.get_search_directories()]
+        dirs = [str(d) for d in manager.search_dirs]
         assert any("root/.zrb/skills" in d for d in dirs)
         assert any("mid/.claude/skills" in d for d in dirs)
         assert any("leaf/.zrb/skills" in d for d in dirs)
@@ -364,7 +364,7 @@ def test_skill_manager_get_search_directories_plugins(skill_manager, tmp_path):
         mock_cfg.LLM_SEARCH_PROJECT = True
         mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
         mock_cfg.LLM_EXTRA_SKILL_DIRS = [str(skill_dir)]
-        dirs = skill_manager.get_search_directories()
+        dirs = skill_manager.search_dirs
         assert any(str(skill_dir) == str(d) for d in dirs)
 
 
@@ -383,7 +383,7 @@ def test_skill_manager_get_search_directories_with_plugins(skill_manager, tmp_pa
         mock_cfg.LLM_SEARCH_PROJECT = True
         mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
         mock_cfg.LLM_PLUGIN_DIRS = [str(plugin_root)]
-        dirs = skill_manager.get_search_directories()
+        dirs = skill_manager.search_dirs
         # Should find skills inside plugins
         assert any("my-plugin/skills" in str(d) for d in dirs)
 
@@ -415,7 +415,7 @@ def test_builtin_core_skills_dir_always_in_search_dirs(tmp_path):
     manager = SkillManager(root_dir=str(tmp_path))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         _builtin_mock_cfg(mock_cfg, enable_builtin_skills=False)
-        dirs = [str(d).replace("\\", "/") for d in manager.get_search_directories()]
+        dirs = [str(d).replace("\\", "/") for d in manager.search_dirs]
     assert any(d.endswith("llm_plugin/core_skills") for d in dirs)
     assert not any(d.endswith("llm_plugin/skills") for d in dirs)
 
@@ -424,7 +424,7 @@ def test_builtin_skills_dir_present_when_enabled(tmp_path):
     manager = SkillManager(root_dir=str(tmp_path))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         _builtin_mock_cfg(mock_cfg, enable_builtin_skills=True)
-        dirs = [str(d).replace("\\", "/") for d in manager.get_search_directories()]
+        dirs = [str(d).replace("\\", "/") for d in manager.search_dirs]
     assert any(d.endswith("llm_plugin/core_skills") for d in dirs)
     assert any(d.endswith("llm_plugin/skills") for d in dirs)
 
@@ -847,6 +847,32 @@ def _mock_cfg(mock_cfg, **overrides):
         setattr(mock_cfg, key, value)
 
 
+def test_search_dirs_property_override_and_default(tmp_path):
+    """`search_dirs` returns the explicit override when set, else the
+    computed defaults (R7 — the deleted `get_search_directories()` used to
+    be the only way to reach the latter)."""
+    manager = SkillManager()
+    assert manager.search_dirs != []  # computed defaults, non-empty
+
+    manager.search_dirs = [str(tmp_path)]
+    assert manager.search_dirs == [str(tmp_path)]
+
+    manager.search_dirs = None  # falls back to computed defaults again
+    assert manager.search_dirs != [str(tmp_path)]
+
+
+def test_search_dirs_setter_invalidates_a_completed_scan(tmp_path):
+    skill_dir = tmp_path / "new-skill"
+    skill_dir.mkdir()
+    (skill_dir / "SKILL.md").write_text("# New Skill\nDescription")
+
+    manager = SkillManager(search_dirs=[])
+    assert manager.get_skills() == []  # scanned with no dirs to look in
+
+    manager.search_dirs = [str(tmp_path)]  # reassigning must trigger a rescan
+    assert any(s.name == "New Skill" for s in manager.get_skills())
+
+
 def test_get_search_directories_home(tmp_path):
     home = tmp_path / "home"
     (home / ".claude" / "skills").mkdir(parents=True)
@@ -854,7 +880,7 @@ def test_get_search_directories_home(tmp_path):
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         _mock_cfg(mock_cfg, LLM_SEARCH_HOME=True)
         with patch("zrb.llm.skill.manager.Path.home", return_value=home):
-            dirs = [str(d).replace("\\", "/") for d in manager.get_search_directories()]
+            dirs = [str(d).replace("\\", "/") for d in manager.search_dirs]
     assert any(d.endswith("home/.claude/skills") for d in dirs)
 
 
@@ -866,7 +892,7 @@ def test_get_search_directories_project(tmp_path):
     manager = SkillManager(root_dir=str(leaf))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         _mock_cfg(mock_cfg, LLM_SEARCH_PROJECT=True)
-        dirs = [str(d).replace("\\", "/") for d in manager.get_search_directories()]
+        dirs = [str(d).replace("\\", "/") for d in manager.search_dirs]
     assert any(d.endswith("root/.zrb/skills") for d in dirs)
 
 
@@ -876,7 +902,7 @@ def test_get_search_directories_base_dirs(tmp_path):
     manager = SkillManager(root_dir=str(tmp_path))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         _mock_cfg(mock_cfg, LLM_BASE_SEARCH_DIRS=[str(base)])
-        dirs = [str(d).replace("\\", "/") for d in manager.get_search_directories()]
+        dirs = [str(d).replace("\\", "/") for d in manager.search_dirs]
     assert any(d.endswith("base/skills") for d in dirs)
 
 
@@ -886,7 +912,7 @@ def test_get_search_directories_extra_skill_dirs(tmp_path):
     manager = SkillManager(root_dir=str(tmp_path))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         _mock_cfg(mock_cfg, LLM_EXTRA_SKILL_DIRS=[str(extra)])
-        dirs = [str(d) for d in manager.get_search_directories()]
+        dirs = [str(d) for d in manager.search_dirs]
     assert any(str(extra) == str(d) for d in dirs)
 
 
@@ -899,7 +925,7 @@ def test_get_search_directories_plugin_dirs(tmp_path):
     manager = SkillManager(root_dir=str(tmp_path))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         _mock_cfg(mock_cfg, LLM_PLUGIN_DIRS=[str(plugin_root)])
-        dirs = [str(d).replace("\\", "/") for d in manager.get_search_directories()]
+        dirs = [str(d).replace("\\", "/") for d in manager.search_dirs]
     assert any(d.endswith("p1/skills") for d in dirs)
 
 
@@ -913,7 +939,7 @@ def test_get_search_directories_home_plugins(tmp_path):
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         _mock_cfg(mock_cfg, LLM_SEARCH_HOME=True)
         with patch("zrb.llm.skill.manager.Path.home", return_value=home):
-            dirs = [str(d).replace("\\", "/") for d in manager.get_search_directories()]
+            dirs = [str(d).replace("\\", "/") for d in manager.search_dirs]
     assert any(d.endswith("hp/skills") for d in dirs)
 
 
@@ -921,7 +947,7 @@ def test_get_search_directories_includes_root(tmp_path):
     manager = SkillManager(root_dir=str(tmp_path))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         _mock_cfg(mock_cfg)
-        dirs = [str(d) for d in manager.get_search_directories()]
+        dirs = [str(d) for d in manager.search_dirs]
     assert str(tmp_path) in dirs
 
 
@@ -934,7 +960,7 @@ def test_builtin_core_skills_always_searched(tmp_path):
     manager = SkillManager(root_dir=str(tmp_path))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         _mock_cfg(mock_cfg, LLM_ENABLE_BUILTIN_SKILLS=False)
-        dirs = [str(d).replace("\\", "/") for d in manager.get_search_directories()]
+        dirs = [str(d).replace("\\", "/") for d in manager.search_dirs]
     assert any(d.endswith("llm_plugin/core_skills") for d in dirs)
     assert not any(d.endswith("llm_plugin/skills") for d in dirs)
 
@@ -977,6 +1003,6 @@ def test_builtin_utility_skills_searched_when_enabled(tmp_path):
     manager = SkillManager(root_dir=str(tmp_path))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         _mock_cfg(mock_cfg, LLM_ENABLE_BUILTIN_SKILLS=True)
-        dirs = [str(d).replace("\\", "/") for d in manager.get_search_directories()]
+        dirs = [str(d).replace("\\", "/") for d in manager.search_dirs]
     assert any(d.endswith("llm_plugin/core_skills") for d in dirs)
     assert any(d.endswith("llm_plugin/skills") for d in dirs)

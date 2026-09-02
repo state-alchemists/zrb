@@ -186,7 +186,7 @@ class LLMTaskBuilding:
         """Register one or more hook factories on this task's hook manager.
 
         Each factory is applied immediately, receiving the `HookManager` so it
-        can call `manager.register(hook, events=[...])`.
+        can call `manager.add_hook(hook, events=[...])`.
 
         Isolation by default: a task starts on the shared global hook manager,
         but the first call here swaps in a fresh per-task `HookManager` so these

@@ -21,7 +21,7 @@ class MultiplexApprovalChannel(ApprovalChannel):
             TerminalApprovalChannel(),
             TelegramApprovalChannel(bot, chat_id),
         ])
-        llm_chat.set_approval_channel(channel)
+        llm_chat.approval_channels = [channel]
     """
 
     def __init__(self, channels: list[ApprovalChannel]):

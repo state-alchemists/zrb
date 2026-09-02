@@ -70,6 +70,18 @@ if TYPE_CHECKING:
     from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 
+def _remove_first(items: list, item: Any) -> None:
+    """Drop the first entry of *items* equal (or identical) to *item*, in place.
+
+    A no-op when nothing matches — removal from an ordered collection never
+    errors on a not-present item.
+    """
+    for index, existing in enumerate(items):
+        if existing is item or existing == item:
+            del items[index]
+            return
+
+
 class LLMChatTask(BaseTask):
 
     def __init__(
@@ -418,25 +430,37 @@ class LLMChatTask(BaseTask):
             raise ValueError(f"Task {self.name} doesn't have prompt_manager")
         return self._prompt_manager
 
-    def set_ui(self, ui: "UIProtocol | list[UIProtocol] | None") -> None:
-        """Set the UI protocol(s) for this task."""
-        self._uis = [] if ui is None else (ui if isinstance(ui, list) else [ui])
+    # UIs (ordered) -----------------------------------------------------------
 
     def append_ui(self, ui: "UIProtocol") -> None:
-        """Append a UI to the list of UIs."""
+        """Append a UI, keeping those already attached."""
         self._uis.append(ui)
 
-    def set_ui_factory(self, ui_factory: "Callable[..., UIProtocol] | None") -> None:
-        """Set a factory function to instantiate the UI dynamically during execution."""
-        self._ui_factories = [] if ui_factory is None else [ui_factory]
+    def prepend_ui(self, ui: "UIProtocol") -> None:
+        """Attach *ui* ahead of those already attached."""
+        self._uis.insert(0, ui)
+
+    def set_uis(self, uis: "list[UIProtocol]") -> None:
+        """Replace every attached UI wholesale."""
+        self._uis = list(uis)
+
+    def remove_ui(self, ui: "UIProtocol") -> None:
+        """Detach *ui*. A no-op if it is not attached."""
+        _remove_first(self._uis, ui)
+
+    # UI factories (ordered) ---------------------------------------------------
 
     def append_ui_factory(self, factory: "Callable[..., UIProtocol]") -> None:
-        """Append a UI factory to the list of factories."""
+        """Append a factory building a UI once the run's context is known."""
         self._ui_factories.append(factory)
 
-    def set_history_manager(self, history_manager: AnyHistoryManager) -> None:
-        """Set the history manager for this task."""
-        self._history_manager = history_manager
+    def prepend_ui_factory(self, factory: "Callable[..., UIProtocol]") -> None:
+        """Add *factory* ahead of those already registered."""
+        self._ui_factories.insert(0, factory)
+
+    def remove_ui_factory(self, factory: "Callable[..., UIProtocol]") -> None:
+        """Drop *factory*. A no-op if it is not registered."""
+        _remove_first(self._ui_factories, factory)
 
     @property
     def custom_model_names(self) -> StrListAttr | None:
@@ -448,17 +472,37 @@ class LLMChatTask(BaseTask):
         """Replace the custom model-name list."""
         self._custom_model_names = value
 
-    def set_approval_channel(self, channel: "ApprovalChannel | None") -> None:
-        """Set the approval channel for tool confirmations."""
-        self._approval_channels = [] if channel is None else [channel]
+    # Approval channels (ordered) -----------------------------------------------
 
     def append_approval_channel(self, channel: "ApprovalChannel") -> None:
         """Append an approval channel to the list."""
         self._approval_channels.append(channel)
 
-    def append_toolset(self, *toolset: "AbstractToolset") -> None:
+    def prepend_approval_channel(self, channel: "ApprovalChannel") -> None:
+        """Add *channel* ahead of those already registered."""
+        self._approval_channels.insert(0, channel)
+
+    def remove_approval_channel(self, channel: "ApprovalChannel") -> None:
+        """Drop *channel*. A no-op if it is not registered."""
+        _remove_first(self._approval_channels, channel)
+
+    # Toolsets (ordered) --------------------------------------------------------
+
+    def append_toolset(self, *toolset: "AbstractToolset[None]") -> None:
         """Add pydantic-ai toolsets whose tools the agent may call."""
         self._toolsets += list(toolset)
+
+    def prepend_toolset(self, *toolset: "AbstractToolset[None]") -> None:
+        """Add toolsets ahead of those already registered."""
+        self._toolsets[0:0] = toolset
+
+    def set_toolsets(self, toolsets: "list[AbstractToolset[None]]") -> None:
+        """Replace the toolset list wholesale."""
+        self._toolsets = list(toolsets)
+
+    def remove_toolset(self, toolset: "AbstractToolset[None]") -> None:
+        """Drop *toolset*. A no-op if it is not registered."""
+        _remove_first(self._toolsets, toolset)
 
     def append_toolset_factory(
         self, *factory: "Callable[[AnyContext], AbstractToolset[None]]"
@@ -466,9 +510,41 @@ class LLMChatTask(BaseTask):
         """Add factories building toolsets per run, from the task context."""
         self._toolset_factories += list(factory)
 
+    def prepend_toolset_factory(
+        self, *factory: "Callable[[AnyContext], AbstractToolset[None]]"
+    ) -> None:
+        """Add toolset factories ahead of those already registered."""
+        self._toolset_factories[0:0] = factory
+
+    def set_toolset_factories(
+        self, factories: "list[Callable[[AnyContext], AbstractToolset[None]]]"
+    ) -> None:
+        """Replace the toolset-factory list wholesale."""
+        self._toolset_factories = list(factories)
+
+    def remove_toolset_factory(
+        self, factory: "Callable[[AnyContext], AbstractToolset[None]]"
+    ) -> None:
+        """Drop *factory*. A no-op if it is not registered."""
+        _remove_first(self._toolset_factories, factory)
+
+    # Tools (ordered) -------------------------------------------------------
+
     def append_tool(self, *tool: "Tool | ToolFuncEither") -> None:
         """Add tools the agent may call."""
         self._tools += list(tool)
+
+    def prepend_tool(self, *tool: "Tool | ToolFuncEither") -> None:
+        """Add tools ahead of those already registered."""
+        self._tools[0:0] = tool
+
+    def set_tools(self, tools: "list[Tool | ToolFuncEither]") -> None:
+        """Replace the tool list wholesale."""
+        self._tools = list(tools)
+
+    def remove_tool(self, tool: "Tool | ToolFuncEither") -> None:
+        """Drop *tool*. A no-op if it is not registered."""
+        _remove_first(self._tools, tool)
 
     def append_tool_factory(
         self,
@@ -477,29 +553,138 @@ class LLMChatTask(BaseTask):
         """Add factories building tools per run, from the task context."""
         self._tool_factories += list(factory)
 
+    def prepend_tool_factory(
+        self,
+        *factory: "Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]",
+    ) -> None:
+        """Add tool factories ahead of those already registered."""
+        self._tool_factories[0:0] = factory
+
+    def set_tool_factories(
+        self,
+        factories: "list[Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]]",
+    ) -> None:
+        """Replace the tool-factory list wholesale."""
+        self._tool_factories = list(factories)
+
+    def remove_tool_factory(
+        self,
+        factory: "Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]",
+    ) -> None:
+        """Drop *factory*. A no-op if it is not registered."""
+        _remove_first(self._tool_factories, factory)
+
+    # Hook factories (ordered) -----------------------------------------------
+
     def append_hook_factory(self, *factory: Callable[[HookManager], None]) -> None:
         """Add factories registering hooks on this task's hook manager."""
         self._hook_factories += list(factory)
+
+    def prepend_hook_factory(self, *factory: Callable[[HookManager], None]) -> None:
+        """Add hook factories ahead of those already registered."""
+        self._hook_factories[0:0] = factory
+
+    def set_hook_factories(
+        self, factories: list[Callable[[HookManager], None]]
+    ) -> None:
+        """Replace the hook-factory list wholesale."""
+        self._hook_factories = list(factories)
+
+    def remove_hook_factory(self, factory: Callable[[HookManager], None]) -> None:
+        """Drop *factory*. A no-op if it is not registered."""
+        _remove_first(self._hook_factories, factory)
+
+    # History processors (ordered) -------------------------------------------
 
     def append_history_processor(self, *processor: "HistoryProcessor") -> None:
         """Add processors that rewrite conversation history before each request."""
         self._history_processors += list(processor)
 
+    def prepend_history_processor(self, *processor: "HistoryProcessor") -> None:
+        """Add processors ahead of those already registered."""
+        self._history_processors[0:0] = processor
+
+    def set_history_processors(self, processors: "list[HistoryProcessor]") -> None:
+        """Replace the history-processor list wholesale."""
+        self._history_processors = list(processors)
+
+    def remove_history_processor(self, processor: "HistoryProcessor") -> None:
+        """Drop *processor*. A no-op if it is not registered."""
+        _remove_first(self._history_processors, processor)
+
+    # Response handlers (ordered) --------------------------------------------
+
+    def append_response_handler(self, *handler: ResponseHandler) -> None:
+        """Add handlers after those already registered."""
+        self._response_handlers += list(handler)
+
     def prepend_response_handler(self, *handler: ResponseHandler) -> None:
         """Add handlers that post-process a tool's result before the model sees it."""
         self._response_handlers = list(handler) + self._response_handlers
+
+    def set_response_handlers(self, handlers: list[ResponseHandler]) -> None:
+        """Replace the response-handler list wholesale."""
+        self._response_handlers = list(handlers)
+
+    def remove_response_handler(self, handler: ResponseHandler) -> None:
+        """Drop *handler*. A no-op if it is not registered."""
+        _remove_first(self._response_handlers, handler)
+
+    # Tool policies (ordered) -------------------------------------------------
+
+    def append_tool_policy(self, *policy: ToolPolicy) -> None:
+        """Add policies after those already registered."""
+        self._tool_policies += list(policy)
 
     def prepend_tool_policy(self, *policy: ToolPolicy) -> None:
         """Add policies deciding whether a tool call is allowed, denied, or confirmed."""
         self._tool_policies = list(policy) + self._tool_policies
 
+    def set_tool_policies(self, policies: list[ToolPolicy]) -> None:
+        """Replace the tool-policy list wholesale."""
+        self._tool_policies = list(policies)
+
+    def remove_tool_policy(self, policy: ToolPolicy) -> None:
+        """Drop *policy*. A no-op if it is not registered."""
+        _remove_first(self._tool_policies, policy)
+
+    # Argument formatters (ordered) -------------------------------------------
+
+    def append_argument_formatter(self, *formatter: ArgumentFormatter) -> None:
+        """Add formatters after those already registered."""
+        self._argument_formatters += list(formatter)
+
     def prepend_argument_formatter(self, *formatter: ArgumentFormatter) -> None:
         """Add formatters controlling how a tool call's arguments are displayed."""
         self._argument_formatters = list(formatter) + self._argument_formatters
 
+    def set_argument_formatters(self, formatters: list[ArgumentFormatter]) -> None:
+        """Replace the argument-formatter list wholesale."""
+        self._argument_formatters = list(formatters)
+
+    def remove_argument_formatter(self, formatter: ArgumentFormatter) -> None:
+        """Drop *formatter*. A no-op if it is not registered."""
+        _remove_first(self._argument_formatters, formatter)
+
+    # Triggers (ordered) ------------------------------------------------------
+
     def append_trigger(self, *trigger: Callable[[], AsyncIterable[Any]]) -> None:
         """Add sources that feed messages into the chat loop unprompted."""
         self._triggers += trigger
+
+    def prepend_trigger(self, *trigger: Callable[[], AsyncIterable[Any]]) -> None:
+        """Add triggers ahead of those already registered."""
+        self._triggers[0:0] = trigger
+
+    def set_triggers(self, triggers: list[Callable[[], AsyncIterable[Any]]]) -> None:
+        """Replace the trigger list wholesale."""
+        self._triggers = list(triggers)
+
+    def remove_trigger(self, trigger: Callable[[], AsyncIterable[Any]]) -> None:
+        """Drop *trigger*. A no-op if it is not registered."""
+        _remove_first(self._triggers, trigger)
+
+    # Custom commands (ordered) ------------------------------------------------
 
     def append_custom_command(
         self,
@@ -509,6 +694,33 @@ class LLMChatTask(BaseTask):
     ) -> None:
         """Add slash commands available inside the chat session."""
         self._custom_commands += list(custom_command)
+
+    def prepend_custom_command(
+        self,
+        *custom_command: (
+            AnyCustomCommand | Callable[[], AnyCustomCommand | list[AnyCustomCommand]]
+        ),
+    ) -> None:
+        """Add custom commands ahead of those already registered."""
+        self._custom_commands[0:0] = custom_command
+
+    def set_custom_commands(
+        self,
+        custom_commands: (
+            "list[AnyCustomCommand | Callable[[], AnyCustomCommand | list[AnyCustomCommand]]]"
+        ),
+    ) -> None:
+        """Replace the custom-command list wholesale."""
+        self._custom_commands = list(custom_commands)
+
+    def remove_custom_command(
+        self,
+        custom_command: (
+            AnyCustomCommand | Callable[[], AnyCustomCommand | list[AnyCustomCommand]]
+        ),
+    ) -> None:
+        """Drop *custom_command*. A no-op if it is not registered."""
+        _remove_first(self._custom_commands, custom_command)
 
     # --- Construction-time config (own fields, read/written directly) -------
 
