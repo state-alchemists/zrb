@@ -32,7 +32,37 @@ def test_sub_agent_manager_scan():
     manager = SubAgentManager()
     # Scan with empty list should not crash
     manager.scan([])
-    assert isinstance(manager.get_search_directories(), list)
+    assert isinstance(manager.search_dirs, list)
+
+
+def test_sub_agent_manager_search_dirs_override_and_default():
+    """`search_dirs` returns the explicit override when set, else the
+    computed defaults (R7 — the deleted `get_search_directories()` used to
+    be the only way to reach the latter)."""
+    manager = SubAgentManager()
+    assert manager.search_dirs != []  # computed defaults, non-empty
+
+    manager.search_dirs = ["/nonexistent"]
+    assert manager.search_dirs == ["/nonexistent"]
+
+    manager.search_dirs = None  # falls back to computed defaults again
+    assert manager.search_dirs != ["/nonexistent"]
+
+
+def test_sub_agent_manager_search_dirs_setter_invalidates_a_completed_scan(
+    tmp_path,
+):
+    agent_dir = tmp_path / "new-agent"
+    agent_dir.mkdir()
+    (agent_dir / "new-agent.agent.md").write_text(
+        "---\nname: new-agent\ndescription: d\n---\np"
+    )
+
+    manager = SubAgentManager(search_dirs=[])
+    assert manager.get_agents() == []  # scanned with no dirs to look in
+
+    manager.search_dirs = [str(tmp_path)]  # reassigning must trigger a rescan
+    assert any(a.name == "new-agent" for a in manager.get_agents())
 
 
 def test_sub_agent_manager_create_agent_config():

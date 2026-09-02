@@ -51,7 +51,7 @@ class SubAgentManager:
     def __init__(
         self,
         tool_registry: "dict[str, Callable | Tool] | None" = None,
-        root_dir: str = ".",
+        scan_root: str = ".",
         search_dirs: list[str | Path] | None = None,
         max_depth: int = 1,
         ignore_dirs: list[str] | None = None,
@@ -60,18 +60,19 @@ class SubAgentManager:
         # Lightweight: just assign properties, no heavy operations
         """Discover sub-agent definitions and build agents from them.
 
-        Decomposed: the manager owns discovery (`scan`,
-        `get_search_directories`) and agent construction, and composes a
-        `SubAgentRegistry` for the canonical definition collection. All
-        definition query and mutation methods delegate to the registry, so a
-        manual `add_agent`/`set_agents` survives a later scan.
+        Decomposed: the manager owns discovery (`scan`, `search_dirs`) and
+        agent construction, and composes a `SubAgentRegistry` for the
+        canonical definition collection. All definition query and mutation
+        methods delegate to the registry, so a manual `add_agent`/`set_agents`
+        survives a later scan.
 
         Args:
             tool_registry: Tools available to sub-agents, by name. Defaults to
                 the shared common-tool registry.
-            root_dir: Directory the project-level search starts from.
+            scan_root: Directory the project-level search starts from, and the
+                recursive scan target.
             search_dirs: Explicit directories to scan, replacing the defaults
-                derived from `root_dir`.
+                derived from `scan_root`.
             max_depth: How many directory levels below each search directory to
                 descend.
             ignore_dirs: Directory names skipped while scanning.
@@ -90,7 +91,7 @@ class SubAgentManager:
         self._toolset_factories: list[Callable[[AnyContext], AbstractToolset[None]]] = (
             []
         )
-        self._root_dir = root_dir
+        self._scan_root = scan_root
         self._search_dirs = search_dirs
         self._max_depth = max_depth
         self._scanned_agents: dict[str, SubAgentDefinition] = {}
@@ -107,13 +108,14 @@ class SubAgentManager:
         return self._registry
 
     @property
-    def root_dir(self) -> str:
-        """Directory the project-level search starts from."""
-        return self._root_dir
+    def scan_root(self) -> str:
+        """Directory the project-level search starts from, and the recursive
+        scan target — not to be confused with `search_dirs`."""
+        return self._scan_root
 
-    @root_dir.setter
-    def root_dir(self, value: str) -> None:
-        self._root_dir = value
+    @scan_root.setter
+    def scan_root(self, value: str) -> None:
+        self._scan_root = value
 
     def reload(self):
         """Force re-scan agents. Use after CFG changes or agent file updates.
@@ -124,10 +126,22 @@ class SubAgentManager:
         self._registry.clear_discovered()
         self._ensure_loaded()
 
-    def get_search_directories(self) -> list[str | Path]:
-        """All agent search directories in priority order. See
-        `SubAgentManagerSearch.get_search_directories` for the full order."""
-        return self._search.get_search_directories(self._root_dir)
+    @property
+    def search_dirs(self) -> list[str | Path]:
+        """Directories scanned for sub-agent definitions, in priority order.
+
+        The explicit override passed at construction (or set here), or the
+        computed defaults when none was given. See
+        `SubAgentManagerSearch.get_search_directories` for the full order.
+        """
+        if self._search_dirs is not None:
+            return list(self._search_dirs)
+        return self._search.get_search_directories(self._scan_root)
+
+    @search_dirs.setter
+    def search_dirs(self, value: list[str | Path] | None) -> None:
+        self._search_dirs = value
+        self._loaded = False
 
     def append_tool(self, *tool: "Callable | Tool"):
         """Append tools."""
@@ -163,17 +177,11 @@ class SubAgentManager:
         Manually-registered definitions are kept; a manual registration wins a
         name collision with a discovered one.
         """
-        target_search_dirs = search_dirs
-        if target_search_dirs is None:
-            target_search_dirs = (
-                self._search_dirs
-                if self._search_dirs is not None
-                else self.get_search_directories()
-            )
+        target_search_dirs = search_dirs if search_dirs is not None else self.search_dirs
         self._scanned_agents.clear()
         for search_dir in target_search_dirs:
             self._loading.scan_dir(
-                Path(search_dir), max_depth=self._max_depth, root_dir=self._root_dir
+                Path(search_dir), max_depth=self._max_depth, root_dir=self._scan_root
             )
         self._registry.set_discovered(list(self._scanned_agents.values()))
         self._loaded = True
@@ -437,13 +445,10 @@ class SubAgentManager:
 
     def _scan_and_load(self):
         """Internal: scan filesystem and load agents without resetting existing ones."""
-        target_search_dirs = self._search_dirs
-        if target_search_dirs is None:
-            target_search_dirs = self.get_search_directories()
         self._scanned_agents.clear()
-        for search_dir in target_search_dirs:
+        for search_dir in self.search_dirs:
             self._loading.scan_dir(
-                Path(search_dir), max_depth=self._max_depth, root_dir=self._root_dir
+                Path(search_dir), max_depth=self._max_depth, root_dir=self._scan_root
             )
         self._registry.set_discovered(list(self._scanned_agents.values()))
 

@@ -91,10 +91,10 @@ Single Channel (CLI only):
             initial_attachments=initial_attachments,
         )
 
-    llm_chat.set_ui_factory(my_factory)
+    llm_chat.ui_factories = [my_factory]
 
     # Or use create_ui_factory helper (recommended)
-    llm_chat.set_ui_factory(create_ui_factory(MyUI))
+    llm_chat.ui_factories = [create_ui_factory(MyUI)]
 
     # See examples/chat-minimal-ui/
 

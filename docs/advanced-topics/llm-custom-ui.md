@@ -73,7 +73,7 @@ class MyUI(SimpleUI):
         return await asyncio.to_thread(input, prompt or "You> ")
 
 # One-line registration
-llm_chat.set_ui_factory(create_ui_factory(MyUI))
+llm_chat.ui_factories = [create_ui_factory(MyUI)]
 ```
 
 **That's it!** Just 2 methods:
@@ -186,7 +186,7 @@ class CLI(SimpleUI):
     async def get_input(self, prompt: str) -> str:
         return await asyncio.to_thread(input, prompt or "You> ")
 
-llm_chat.set_ui_factory(create_ui_factory(CLI))
+llm_chat.ui_factories = [create_ui_factory(CLI)]
 ```
 
 ### Example: File Logger
@@ -213,11 +213,11 @@ class LoggingUI(SimpleUI):
     async def get_input(self, prompt: str) -> str:
         return await asyncio.to_thread(input, prompt or "You> ")
 
-llm_chat.set_ui_factory(
+llm_chat.ui_factories = [
     lambda ctx, task, hm, **kw: LoggingUI(
         ctx=ctx, llm_task=task, history_manager=hm, log_file="session.log"
     )
-)
+]
 ```
 
 ### Example: Structured Logging UI
@@ -248,7 +248,7 @@ class StructuredLogUI(SimpleUI):
     async def get_input(self, prompt: str) -> str:
         return await asyncio.to_thread(input, prompt or "You> ")
 
-llm_chat.set_ui_factory(create_ui_factory(StructuredLogUI))
+llm_chat.ui_factories = [create_ui_factory(StructuredLogUI)]
 ```
 
 ---
@@ -361,9 +361,9 @@ class TelegramUI(EventDrivenUI):
         return chunks
 
 # Register - ONE line!
-llm_chat.set_ui_factory(
+llm_chat.ui_factories = [
     create_ui_factory(TelegramUI, bot_token=BOT_TOKEN, chat_id=CHAT_ID)
-)
+]
 ```
 
 ### Example: Discord Bot
@@ -411,9 +411,9 @@ class DiscordUI(EventDrivenUI):
         await self._client.start(self.token)
 
 # Register
-llm_chat.set_ui_factory(
+llm_chat.ui_factories = [
     create_ui_factory(DiscordUI, token=DISCORD_TOKEN, channel_id=CHANNEL_ID)
-)
+]
 ```
 
 ---
@@ -795,7 +795,7 @@ config = UIConfig(
 )
 
 # Pass to factory
-llm_chat.set_ui_factory(create_ui_factory(MyUI, config=config))
+llm_chat.ui_factories = [create_ui_factory(MyUI, config=config)]
 ```
 
 ### UIConfig Fields
@@ -847,7 +847,7 @@ def create_my_ui(
         # ... and 8 more command extractions
     )
 
-llm_chat.set_ui_factory(create_my_ui)
+llm_chat.ui_factories = [create_my_ui]
 ```
 
 ### The Solution: Automatic Parameter Handling
@@ -857,9 +857,9 @@ from zrb.llm.ui import create_ui_factory, UIConfig
 
 # One-line registration with automatic parameter mapping
 config = UIConfig(assistant_name="MyBot", is_yolo=True)
-llm_chat.set_ui_factory(
+llm_chat.ui_factories = [
     create_ui_factory(MyUI, config=config, bot_token=TOKEN, chat_id=12345)
-)
+]
 ```
 
 `create_ui_factory()` automatically:
@@ -948,7 +948,7 @@ class MyUI(SimpleUI):
         return await asyncio.to_thread(input, prompt or "You> ")
 
 # Registration
-llm_chat.set_ui_factory(create_ui_factory(MyUI))
+llm_chat.ui_factories = [create_ui_factory(MyUI)]
 ```
 
 **Actual reduction: ~17 fewer lines of boilerplate.**
@@ -1050,7 +1050,7 @@ class TelegramApprovalChannel(ApprovalChannel):
         await self.bot.send_message(self.chat_id, remove_style(message))
 
 # Register
-llm_chat.set_approval_channel(TelegramApprovalChannel(bot, CHAT_ID))
+llm_chat.approval_channels = [TelegramApprovalChannel(bot, CHAT_ID)]
 ```
 
 ### ApprovalChannel Interface
@@ -1085,11 +1085,11 @@ llm_chat.set_approval_channel(TelegramApprovalChannel(bot, CHAT_ID))
 from zrb.llm.approval import NullApprovalChannel
 
 # Auto-approve all tool calls
-llm_chat.set_approval_channel(NullApprovalChannel())
+llm_chat.approval_channels = [NullApprovalChannel()]
 
 # Or enable via UIConfig
 config = UIConfig(is_yolo=True)
-llm_chat.set_ui_factory(create_ui_factory(MyUI, config=config))
+llm_chat.ui_factories = [create_ui_factory(MyUI, config=config)]
 ```
 
 ---

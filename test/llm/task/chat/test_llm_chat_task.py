@@ -114,7 +114,7 @@ async def test_interactive_teardown_fires_terminal_session_end():
         return HookResult()
 
     manager = HookManager(search_dirs=[])
-    manager.register(record, events=[HookEvent.SESSION_END])
+    manager.add_hook(record, events=[HookEvent.SESSION_END])
 
     task = LLMChatTask(name="teardown-task")
     task.active_hook_manager = manager
@@ -271,42 +271,93 @@ async def test_llm_chat_task_setters():
         assert mock_run_agent.called
 
 
-def test_llm_chat_task_set_approval_channel():
-    """Test that set_approval_channel works on LLMChatTask."""
+def test_llm_chat_task_approval_channels_property():
+    """Test that the approval_channels property works on LLMChatTask."""
     task = LLMChatTask(name="test-task")
 
     # Set approval channel programmatically
     channel = NullApprovalChannel()
-    task.set_approval_channel(channel)
+    task.approval_channels = [channel]
 
-    # Verify the setter works without error - behavior is tested through async_run
-    assert True  # If set_approval_channel works, the test passes
+    assert task.approval_channels == [channel]
 
 
-def test_llm_chat_task_set_ui():
-    """Test that set_ui works on LLMChatTask."""
+def test_llm_chat_task_set_uis():
+    """Test that set_uis works on LLMChatTask."""
     task = LLMChatTask(name="test-task")
 
     # Set UI programmatically
     mock_ui = MagicMock(spec=UIProtocol)
-    task.set_ui(mock_ui)
+    task.set_uis([mock_ui])
 
-    # Verify the setter works without error - behavior is tested through async_run
-    assert True  # If set_ui works, the test passes
+    assert task.uis == [mock_ui]
 
 
-def test_llm_chat_task_set_ui_factory():
-    """Test that set_ui_factory works on LLMChatTask."""
+def test_llm_chat_task_ui_factories_property():
+    """Test that the ui_factories property works on LLMChatTask."""
     task = LLMChatTask(name="test-task")
 
     # Set UI factory programmatically
     def mock_factory(*args, **kwargs):
         return MagicMock(spec=UIProtocol)
 
-    task.set_ui_factory(mock_factory)
+    task.ui_factories = [mock_factory]
 
-    # Verify the setter works without error - behavior is tested through async_run
-    assert True  # If set_ui_factory works, the test passes
+    assert task.ui_factories == [mock_factory]
+
+
+ORDERED_COLLECTION_STEMS = [
+    ("tool", "tools"),
+    ("tool_factory", "tool_factories"),
+    ("toolset", "toolsets"),
+    ("toolset_factory", "toolset_factories"),
+    ("history_processor", "history_processors"),
+    ("trigger", "triggers"),
+    ("custom_command", "custom_commands"),
+    ("hook_factory", "hook_factories"),
+    ("tool_policy", "tool_policies"),
+    ("response_handler", "response_handlers"),
+    ("argument_formatter", "argument_formatters"),
+    ("ui", "uis"),
+    ("ui_factory", "ui_factories"),
+    ("approval_channel", "approval_channels"),
+]
+
+
+@pytest.mark.parametrize("stem,plural", ORDERED_COLLECTION_STEMS)
+def test_ordered_collection_verbs_round_trip(stem, plural):
+    """append_X/prepend_X/set_X/remove_X round-trip on every R5 collection.
+
+    `argument_formatters` starts with two built-in defaults already appended
+    at construction (`replace_in_file_formatter`, `write_file_formatter`), so
+    assertions are relative to whatever was already there rather than
+    assuming an empty list.
+    """
+    task = LLMChatTask(name="t")
+    before = list(getattr(task, plural))
+    a, b = object(), object()
+
+    getattr(task, f"append_{stem}")(a)
+    assert list(getattr(task, plural)) == before + [a]
+
+    getattr(task, f"prepend_{stem}")(b)
+    assert list(getattr(task, plural)) == [b] + before + [a]
+
+    getattr(task, f"remove_{stem}")(b)
+    assert list(getattr(task, plural)) == before + [a]
+
+    getattr(task, f"remove_{stem}")(b)  # not present: no-op, not an error
+    assert list(getattr(task, plural)) == before + [a]
+
+    # ui_factories/approval_channels replace wholesale through their already
+    # settable property rather than a set_X() method (R7 — see
+    # framework-conventions.md's "Component slot vs. collection").
+    c = object()
+    if hasattr(task, f"set_{plural}"):
+        getattr(task, f"set_{plural}")([c])
+    else:
+        setattr(task, plural, [c])
+    assert list(getattr(task, plural)) == [c]
 
 
 def test_llm_chat_task_init_with_approval_channel():

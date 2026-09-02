@@ -43,7 +43,7 @@ class HookRegistry:
 
     # --- Registration ------------------------------------------------------
 
-    def register(
+    def add_hook(
         self,
         hook: HookCallable,
         events: list[HookEvent] | None = None,
@@ -111,7 +111,7 @@ class HookRegistry:
             if hook in registered
         }
 
-    def clear_manual(self) -> None:
+    def clear(self) -> None:
         """Drop the entire collection. Used by a reload to restart from scan."""
         self._hooks = defaultdict(list)
         self._global_hooks = []

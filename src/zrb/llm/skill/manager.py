@@ -95,11 +95,10 @@ class Skill:
 class SkillManager:
     """Discover and resolve skills against a `SkillRegistry`.
 
-    Decomposed: the manager owns discovery (`scan`, `reload`,
-    `get_search_directories`) and content resolution, and composes a
-    `SkillRegistry` for the canonical collection. All query and mutation
-    methods delegate to the registry, so a manual `add_skill`/`set_skills`
-    survives a later scan.
+    Decomposed: the manager owns discovery (`scan`, `reload`, `search_dirs`)
+    and content resolution, and composes a `SkillRegistry` for the canonical
+    collection. All query and mutation methods delegate to the registry, so a
+    manual `add_skill`/`set_skills` survives a later scan.
     """
 
     def __init__(
@@ -134,6 +133,22 @@ class SkillManager:
         """The canonical collection this manager reads and writes."""
         return self._registry
 
+    @property
+    def search_dirs(self) -> list[str | Path]:
+        """Directories scanned for skills, in priority order.
+
+        The explicit override passed at construction (or set here), or the
+        computed defaults when none was given.
+        """
+        if self._search_dirs is not None:
+            return list(self._search_dirs)
+        return self._default_search_dirs()
+
+    @search_dirs.setter
+    def search_dirs(self, value: list[str | Path] | None) -> None:
+        self._search_dirs = value
+        self._scanned = False
+
     def reload(self):
         """Force re-scan skills. Use after CFG changes or skill file updates.
 
@@ -150,21 +165,14 @@ class SkillManager:
         name collision with a discovered one.
 
         Args:
-            search_dirs: Directories to scan. Defaults to those passed at
-                construction, otherwise `get_search_directories()`.
+            search_dirs: Directories to scan. Defaults to `self.search_dirs`.
 
         Returns:
             Every skill in the effective collection, in discovery order.
         """
         self._registry.clear_discovered()
         self._scan_results: dict[str, Skill] = {}
-        target_search_dirs = search_dirs
-        if target_search_dirs is None:
-            target_search_dirs = (
-                self._search_dirs
-                if self._search_dirs is not None
-                else self.get_search_directories()
-            )
+        target_search_dirs = search_dirs if search_dirs is not None else self.search_dirs
         # Scan in order of precedence: global -> project
         # We iterate in normal order to allow later skills (project) to override earlier ones (global)
         for search_dir in target_search_dirs:
@@ -176,8 +184,8 @@ class SkillManager:
     _SKILL_ASSET = "skills"
     _PLUGIN_ASSET = "plugins"
 
-    def get_search_directories(self) -> list[str | Path]:
-        """Get all skill search directories in priority order.
+    def _default_search_dirs(self) -> list[str | Path]:
+        """Compute the default skill search directories in priority order.
 
         Priority (high → low):
         1. User home (~/.claude/, ~/.zrb/)

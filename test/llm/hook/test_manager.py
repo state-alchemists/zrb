@@ -56,33 +56,32 @@ class TestHookManagerLifecycle:
 
     @pytest.mark.asyncio
     async def test_scan_default_paths(self, manager):
-        # Mocking search directories to be empty to avoid loading real hooks
-        with patch.object(manager, "get_search_directories", return_value=[]):
-            manager.scan()
-            # Calling twice should be fine
-            manager.scan()
+        # The fixture already sets search_dirs=[] to avoid loading real hooks
+        manager.scan()
+        # Calling twice should be fine
+        manager.scan()
 
     @pytest.mark.asyncio
     async def test_reload_clears_registered_hooks(self, manager):
         async def my_hook(ctx):
             return HookResult(success=True)
 
-        manager.register(my_hook, events=[HookEvent.SESSION_START])
+        manager.add_hook(my_hook, events=[HookEvent.SESSION_START])
 
         # Verify it's there
         results = await manager.execute_hooks(HookEvent.SESSION_START, {})
         assert len(results) == 1
 
-        # Reload should clear manually registered hooks
-        with patch.object(manager, "get_search_directories", return_value=[]):
-            manager.reload()
-            results = await manager.execute_hooks(HookEvent.SESSION_START, {})
-            # Journaling hook is disabled in test fixture
-            assert len(results) == 0
+        # Reload should clear manually registered hooks. The fixture's
+        # search_dirs=[] override already keeps this hermetic.
+        manager.reload()
+        results = await manager.execute_hooks(HookEvent.SESSION_START, {})
+        # Journaling hook is disabled in test fixture
+        assert len(results) == 0
 
     @pytest.mark.asyncio
     async def test_get_search_directories_includes_various_locations(
-        self, manager, tmp_path
+        self, tmp_path
     ):
         fake_home = tmp_path / "home"
         fake_home.mkdir()
@@ -90,12 +89,13 @@ class TestHookManagerLifecycle:
         (fake_home / ".claude" / "hooks.json").touch()
 
         with patch("pathlib.Path.home", return_value=fake_home):
-            dirs = manager.get_search_directories()
+            # No search_dirs override, so this exercises the computed default.
+            dirs = HookManager().search_dirs
             assert isinstance(dirs, list)
             assert any(".claude" in str(d) for d in dirs)
 
     @pytest.mark.asyncio
-    async def test_get_search_directories_project_hierarchy(self, manager, tmp_path):
+    async def test_get_search_directories_project_hierarchy(self, tmp_path):
         root = tmp_path / "root"
         leaf = root / "leaf"
         leaf.mkdir(parents=True)
@@ -107,12 +107,12 @@ class TestHookManagerLifecycle:
             patch("pathlib.Path.cwd", return_value=leaf),
             patch.dict(os.environ, {"ZRB_ROOT_GROUP_NAME": "zrb"}),
         ):
-            dirs = manager.get_search_directories()
+            dirs = HookManager().search_dirs
             assert any("root/.zrb/hooks" in str(d) for d in dirs)
             assert any("leaf/.claude/hooks" in str(d) for d in dirs)
 
     @pytest.mark.asyncio
-    async def test_get_search_directories_plugins(self, manager, tmp_path):
+    async def test_get_search_directories_plugins(self, tmp_path):
         plugin_dir = tmp_path / "plugin"
         (plugin_dir / "hooks").mkdir(parents=True)
         (plugin_dir / "hooks.json").touch()
@@ -120,7 +120,7 @@ class TestHookManagerLifecycle:
         with patch("zrb.llm.hook.hook_loader.CFG") as mock_cfg:
             mock_cfg.ROOT_GROUP_NAME = "zrb"
             mock_cfg.LLM_PLUGIN_DIRS = [str(plugin_dir)]
-            dirs = manager.get_search_directories()
+            dirs = HookManager().search_dirs
             assert any(str(plugin_dir / "hooks") == str(d) for d in dirs)
             assert any(str(plugin_dir / "hooks.json") == str(d) for d in dirs)
 
@@ -168,7 +168,7 @@ class TestHookManagerRegistration:
         async def h2(ctx):
             return HookResult(success=True, output="P100")
 
-        manager.register(
+        manager.add_hook(
             h1,
             config=HookConfig(
                 name="low",
@@ -178,7 +178,7 @@ class TestHookManagerRegistration:
                 priority=10,
             ),
         )
-        manager.register(
+        manager.add_hook(
             h2,
             config=HookConfig(
                 name="high",
@@ -201,7 +201,7 @@ class TestHookManagerRegistration:
             executed.append(ctx.event)
             return HookResult(success=True)
 
-        manager.register(global_hook)  # No events = global
+        manager.add_hook(global_hook)  # No events = global
 
         await manager.execute_hooks(HookEvent.SESSION_START, {})
         await manager.execute_hooks(HookEvent.NOTIFICATION, {})
@@ -225,8 +225,8 @@ class TestHookManagerExecution:
             return HookResult(success=True)
 
         # PRE_TOOL_USE is a blocking-capable event, so a block halts the chain.
-        manager.register(blocking_hook, events=[HookEvent.PRE_TOOL_USE])
-        manager.register(subsequent_hook, events=[HookEvent.PRE_TOOL_USE])
+        manager.add_hook(blocking_hook, events=[HookEvent.PRE_TOOL_USE])
+        manager.add_hook(subsequent_hook, events=[HookEvent.PRE_TOOL_USE])
 
         results = await manager.execute_hooks(HookEvent.PRE_TOOL_USE, {})
         assert "blocking" in executed
@@ -248,8 +248,8 @@ class TestHookManagerExecution:
             executed.append("subsequent")
             return HookResult(success=True)
 
-        manager.register(blocking_hook, events=[HookEvent.NOTIFICATION])
-        manager.register(subsequent_hook, events=[HookEvent.NOTIFICATION])
+        manager.add_hook(blocking_hook, events=[HookEvent.NOTIFICATION])
+        manager.add_hook(subsequent_hook, events=[HookEvent.NOTIFICATION])
 
         await manager.execute_hooks(HookEvent.NOTIFICATION, {})
         assert executed == ["blocking", "subsequent"]
@@ -266,8 +266,8 @@ class TestHookManagerExecution:
             executed.append("subsequent")
             return HookResult(success=True)
 
-        manager.register(stop_hook, events=[HookEvent.SESSION_START])
-        manager.register(subsequent_hook, events=[HookEvent.SESSION_START])
+        manager.add_hook(stop_hook, events=[HookEvent.SESSION_START])
+        manager.add_hook(subsequent_hook, events=[HookEvent.SESSION_START])
 
         results = await manager.execute_hooks(HookEvent.SESSION_START, {})
         assert "stop" in executed
@@ -279,7 +279,7 @@ class TestHookManagerExecution:
         async def failing_hook(ctx):
             raise ValueError("Intentional Failure")
 
-        manager.register(failing_hook, events=[HookEvent.SESSION_START])
+        manager.add_hook(failing_hook, events=[HookEvent.SESSION_START])
         results = await manager.execute_hooks(HookEvent.SESSION_START, {})
         assert len(results) == 1
         assert results[0].success is False
@@ -288,7 +288,7 @@ class TestHookManagerExecution:
     @pytest.mark.asyncio
     async def test_execute_hooks_simple_format(self, manager):
         hook = AsyncMock(return_value=HookResult(success=True, output="simple"))
-        manager.register(hook, events=[HookEvent.SESSION_START])
+        manager.add_hook(hook, events=[HookEvent.SESSION_START])
 
         results = await manager.execute_hooks_simple(HookEvent.SESSION_START, {})
         assert len(results) == 1
@@ -382,7 +382,7 @@ class TestHookManagerFormats:
     async def test_load_python_hook(self, manager, tmp_path):
         f = tmp_path / "test.hook.py"
         f.write_text(
-            "from zrb.llm.hook.interface import HookResult\ndef register(manager):\n    async def h(ctx): return HookResult(success=True, output='py')\n    manager.register(h, events=['SessionStart'])"
+            "from zrb.llm.hook.interface import HookResult\ndef register(manager):\n    async def h(ctx): return HookResult(success=True, output='py')\n    manager.add_hook(h, events=['SessionStart'])"
         )
         manager.scan(search_dirs=[str(tmp_path)])
         results = await manager.execute_hooks(HookEvent.SESSION_START, {})

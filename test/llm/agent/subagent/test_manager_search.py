@@ -41,7 +41,7 @@ def test_get_search_directories_includes_extra_agent_dirs(manager, tmp_path):
         cfg.LLM_PLUGIN_DIRS = []
         cfg.LLM_BASE_SEARCH_DIRS = []
         cfg.LLM_EXTRA_AGENT_DIRS = [str(extra)]
-        dirs = [str(d) for d in manager.get_search_directories()]
+        dirs = [str(d) for d in manager.search_dirs]
     assert any(str(extra) in d for d in dirs)
 
 
@@ -53,7 +53,7 @@ def test_get_search_directories_skips_missing_extra_dir(manager, tmp_path):
         cfg.LLM_PLUGIN_DIRS = []
         cfg.LLM_BASE_SEARCH_DIRS = []
         cfg.LLM_EXTRA_AGENT_DIRS = [str(tmp_path / "ghost")]
-        dirs = [str(d) for d in manager.get_search_directories()]
+        dirs = [str(d) for d in manager.search_dirs]
     # ghost path is silently skipped
     assert not any("ghost" in d for d in dirs)
 
@@ -71,7 +71,7 @@ def test_get_search_directories_includes_plugin_agents(manager, tmp_path):
         cfg.LLM_PLUGIN_DIRS = [str(plugins_root)]
         cfg.LLM_BASE_SEARCH_DIRS = []
         cfg.LLM_EXTRA_AGENT_DIRS = []
-        dirs = [str(d) for d in manager.get_search_directories()]
+        dirs = [str(d) for d in manager.search_dirs]
 
     # Plugin with /agents shows up; plugin without doesn't
     assert any("with-agents/agents" in d for d in dirs)
@@ -82,7 +82,7 @@ def test_get_search_directories_walks_project_hierarchy(manager, tmp_path):
     nested = tmp_path / "a" / "b"
     nested.mkdir(parents=True)
     _project_with_agents(tmp_path / "a")
-    manager.root_dir = str(nested)
+    manager.scan_root = str(nested)
 
     with patch("zrb.llm.agent.subagent.manager_search.CFG") as cfg:
         cfg.LLM_SEARCH_HOME = False
@@ -91,7 +91,7 @@ def test_get_search_directories_walks_project_hierarchy(manager, tmp_path):
         cfg.LLM_PLUGIN_DIRS = []
         cfg.LLM_BASE_SEARCH_DIRS = []
         cfg.LLM_EXTRA_AGENT_DIRS = []
-        dirs = [str(d) for d in manager.get_search_directories()]
+        dirs = [str(d) for d in manager.search_dirs]
 
     # The nested /agents dir from the project traversal shows up
     assert any(".zrb/agents" in d for d in dirs)
@@ -108,7 +108,7 @@ def test_get_search_directories_includes_builtin_agents_when_enabled(manager):
         cfg.LLM_BASE_SEARCH_DIRS = []
         cfg.LLM_EXTRA_AGENT_DIRS = []
         cfg.LLM_ENABLE_BUILTIN_AGENTS = True
-        dirs = [str(d) for d in manager.get_search_directories()]
+        dirs = [str(d) for d in manager.search_dirs]
     assert any(d.replace("\\", "/").endswith("llm_plugin/agents") for d in dirs)
 
 
@@ -121,6 +121,6 @@ def test_get_search_directories_excludes_builtin_agents_when_disabled(manager):
         cfg.LLM_BASE_SEARCH_DIRS = []
         cfg.LLM_EXTRA_AGENT_DIRS = []
         cfg.LLM_ENABLE_BUILTIN_AGENTS = False
-        dirs = [str(d) for d in manager.get_search_directories()]
+        dirs = [str(d) for d in manager.search_dirs]
     assert any(d.replace("\\", "/").endswith("llm_plugin/core_agents") for d in dirs)
     assert not any(d.replace("\\", "/").endswith("llm_plugin/agents") for d in dirs)

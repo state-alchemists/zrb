@@ -24,7 +24,11 @@ SRC = REPO_ROOT / "src" / "zrb"
 # just to make the test pass.
 FACADE_BUDGETS = {
     "llm/ui/base/ui.py": 1450,
-    "llm/task/chat/task.py": 900,
+    # Phase 3 (R5): LLMChatTask's mutator API grew from 1 verb per ordered
+    # collection to the full append/prepend/set/remove set — this file's own
+    # docstring keeps that API on the task itself rather than delegating to a
+    # part, since it is this task's own construction-time data (ADR-0035).
+    "llm/task/chat/task.py": 1100,
     "llm/task/llm_task.py": 900,
 }
 

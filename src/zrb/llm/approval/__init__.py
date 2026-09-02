@@ -21,7 +21,7 @@ APPROVAL CHANNEL HIERARCHY
     │                                                                        │
     │ NullApprovalChannel                                                    │
     │   - Auto-approves all tool calls (YOLO mode)                           │
-    │   - Use: llm_chat.set_approval_channel(NullApprovalChannel())          │
+    │   - Use: llm_chat.approval_channels = [NullApprovalChannel()]          │
     │                                                                        │
     │ MultiplexApprovalChannel                                               │
     │   - Combines multiple approval channels                                │
@@ -48,7 +48,7 @@ Basic implementation (just approve/deny):
 
     # Register
     from zrb.builtin.llm.chat import llm_chat
-    llm_chat.set_approval_channel(MyApprovalChannel(...))
+    llm_chat.approval_channels = [MyApprovalChannel(...)]
 
 DUAL-MODE APPROVAL (CLI + External Channel)
 ═════════════════════════════════════════════════════════════════════════════
