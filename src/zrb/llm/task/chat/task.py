@@ -418,8 +418,7 @@ class LLMChatTask(BaseTask):
     def prompt_manager(self) -> PromptManager:
         """The `PromptManager` composing this task's system prompt.
 
-        Never `None` — the constructor always builds a default one when
-        none is passed in.
+        The constructor always builds a default one when none is passed in.
         """
         return self._prompt_manager
 
