@@ -98,7 +98,10 @@ class Config(  # noqa: E501  # Sibling parts TYPE_CHECKING-declare ENV_PREFIX/RO
         message = f"CFG has no setting named {name!r}."
         if suggestions:
             message += " Did you mean " + " / ".join(suggestions) + "?"
-        return message + f" ({len(known)} settings; see `zrb config explain`.)"
+        return (
+            message
+            + f" ({len(known)} settings; see `{self.ROOT_GROUP_NAME} config explain`.)"
+        )
 
     def is_env_set(self, name: str) -> bool:
         """Whether the user set the environment variable behind `CFG.<name>`.
