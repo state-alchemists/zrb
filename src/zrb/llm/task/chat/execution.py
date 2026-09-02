@@ -20,7 +20,7 @@ way `self.name`, `self.envs` (`BaseTask` properties), and
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, fields, replace
 from typing import TYPE_CHECKING, Any, Callable, cast
 
 from zrb.config.config import CFG
@@ -43,7 +43,6 @@ from zrb.llm.permission import (
 )
 from zrb.llm.sandbox import coerce_sandbox
 from zrb.llm.summarizer import create_summarizer_history_processor
-from zrb.llm.task.chat.ui_commands import UI_COMMAND_CFG_ATTRS
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.task.shared_getters import (
     resolve_all_tools,
@@ -135,9 +134,10 @@ class ChatExecution:
         initial_conversation_name = self._get_initial_conversation_name(ctx)
         raw_yolo = get_attr(ctx, self._llm_chat_task.yolo, "", True)
         initial_yolo = parse_yolo_value(raw_yolo)
-        if self._llm_chat_task.yolo_xcom_key not in ctx.xcom:
-            ctx.xcom[self._llm_chat_task.yolo_xcom_key] = Xcom()
-        ctx.xcom[self._llm_chat_task.yolo_xcom_key].set(initial_yolo)
+        yolo_xcom_key = self._llm_chat_task.ui_config.yolo_xcom_key
+        if yolo_xcom_key not in ctx.xcom:
+            ctx.xcom[yolo_xcom_key] = Xcom()
+        ctx.xcom[yolo_xcom_key].set(initial_yolo)
 
         initial_message = get_attr(
             ctx, self._llm_chat_task.message, "", self._llm_chat_task.render_message
@@ -336,11 +336,16 @@ class ChatExecution:
         )
 
     def _get_ui_commands(self) -> dict[str, list[str]]:
-        """Resolve UI slash-command aliases from the overrides or CFG."""
-        overrides = self._llm_chat_task.ui_command_overrides
+        """The task's UI slash-command aliases, as a dict — the shape
+        `create_ui_factory`-built UIs expect (`UIConfig.merge_commands`).
+        Each field already resolved the task's own override, else CFG, when
+        `ui_config` was built/materialized, so there is nothing left to merge
+        here."""
+        ui_config = self._llm_chat_task.ui_config
         return {
-            key: overrides.get(key) or getattr(CFG, cfg_attr)
-            for key, cfg_attr in UI_COMMAND_CFG_ATTRS.items()
+            field.name.removesuffix("_commands"): list(getattr(ui_config, field.name))
+            for field in fields(ui_config)
+            if field.name.endswith("_commands")
         }
 
     def _create_llm_task_core(
@@ -476,9 +481,10 @@ class ChatExecution:
                     if result == ASK:
                         return False  # explicit policy ASK is a 'hard ask'
                 # fallback to YOLO only if policy has no matching rule
-            if llm_chat_task.yolo_xcom_key not in ctx.xcom:
+            yolo_xcom_key = llm_chat_task.ui_config.yolo_xcom_key
+            if yolo_xcom_key not in ctx.xcom:
                 return False
-            yolo_value = ctx.xcom[llm_chat_task.yolo_xcom_key].get(False)
+            yolo_value = ctx.xcom[yolo_xcom_key].get(False)
             if isinstance(yolo_value, bool):
                 return yolo_value
             if isinstance(yolo_value, frozenset):

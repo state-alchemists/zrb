@@ -38,7 +38,6 @@ from zrb.llm.hook.manager import HookManager
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.task.chat.execution import ChatExecution
 from zrb.llm.task.chat.running import ChatRunning
-from zrb.llm.task.chat.ui_commands import UICommands
 from zrb.llm.task.history_config import HistoryConfig
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool_call import (
@@ -68,6 +67,7 @@ if TYPE_CHECKING:
     from zrb.llm.permission import PermissionPolicyInput
     from zrb.llm.sandbox import SandboxInput
     from zrb.llm.tool_call.ui_protocol import UIProtocol
+    from zrb.llm.ui.ui_config import UIConfig
 
 
 def _remove_first(items: list, item: Any) -> None:
@@ -97,6 +97,7 @@ class LLMChatTask(BaseTask):
         system_prompt: Callable[[AnyContext], str | fstring | None] | str | None = None,
         render_system_prompt: bool = False,
         prompt_manager: PromptManager | None = None,
+        hook_manager: HookManager | None = None,
         active_skills: StrListAttr | None = None,
         render_active_skills: bool = True,
         tools: list[Tool | ToolFuncEither] | None = None,
@@ -113,7 +114,6 @@ class LLMChatTask(BaseTask):
         toolset_factories: (
             list[Callable[[AnyContext], AbstractToolset[None]]] | None
         ) = None,
-        hook_manager: HookManager | None = None,
         message: StrAttr | None = None,
         render_message: bool = True,
         attachment: (
@@ -138,6 +138,9 @@ class LLMChatTask(BaseTask):
         render_conversation_name: bool = True,
         history_manager: AnyHistoryManager | None = None,
         tool_confirmation: AnyToolConfirmation = None,
+        permissions: "PermissionPolicyInput" = None,
+        sandbox: "SandboxInput | BoolAttr" = None,
+        yolo: BoolAttr = False,
         ui: UIProtocol | None = None,
         ui_factory: (
             Callable[
@@ -156,11 +159,7 @@ class LLMChatTask(BaseTask):
             | None
         ) = None,
         approval_channel: ApprovalChannel | None = None,
-        permissions: "PermissionPolicyInput" = None,
-        sandbox: "SandboxInput | BoolAttr" = None,
-        yolo: BoolAttr = False,
-        yolo_xcom_key: str = "yolo",
-        ui_commands: UICommands | None = None,
+        ui_config: "UIConfig | None" = None,
         custom_commands: (
             list[
                 AnyCustomCommand
@@ -185,8 +184,6 @@ class LLMChatTask(BaseTask):
         snapshot_dir: StrAttr | None = None,
         include_default_ui: bool = True,
         interactive: BoolAttr = True,
-        show_ollama_models: bool | None = None,
-        show_pydantic_ai_models: bool | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 0,
         retry_period: float = 0,
@@ -229,10 +226,6 @@ class LLMChatTask(BaseTask):
             model_settings: Provider settings such as temperature.
             custom_model_names: Extra names offered by the model picker, beyond the
                 detected ones.
-            show_ollama_models: Whether the picker lists locally-installed Ollama
-                models. Defaults to the config setting.
-            show_pydantic_ai_models: Whether the picker lists models known to
-                pydantic-ai. Defaults to the config setting.
             llm_config: Credentials and endpoint settings. Defaults to the shared
                 `llm_config`.
             llm_limiter: Rate and token limiter. Defaults to the shared
@@ -262,8 +255,10 @@ class LLMChatTask(BaseTask):
             sandbox: Whether, and how, tool calls run sandboxed.
             yolo: Skip tool confirmation. True for all tools, or a comma-separated
                 string or set naming the tools to auto-approve.
-            yolo_xcom_key: xcom key the session reads and writes when the user
-                toggles yolo mode at run time.
+            ui_config: Slash-command aliases and other UI-backend settings
+                (`UIConfig`) — the xcom key yolo mode toggles through, whether the
+                model picker lists Ollama/pydantic-ai models, and one field per
+                command family. Each field left unset keeps its `CFG` default.
             conversation_name: Name the conversation is stored under.
             render_conversation_name: Whether to render `conversation_name` as a
                 template.
@@ -281,9 +276,6 @@ class LLMChatTask(BaseTask):
                 alongside any supplied one.
             interactive: Whether the session prompts the user. Set False to run
                 `message` and exit.
-            ui_commands: Slash-command alias overrides, as a `UICommands`, e.g.
-                `UICommands(exit="/quit", save=["/save", "/w"])`. Commands left
-                unset keep their configured defaults.
             custom_commands: Extra slash commands, as `AnyCustomCommand`s or
                 callables returning them.
             ui_greeting: Text shown when the session starts.
@@ -376,14 +368,13 @@ class LLMChatTask(BaseTask):
         self._permissions = permissions
         self._sandbox = sandbox
         self._yolo = yolo
-        self._yolo_xcom_key = yolo_xcom_key
-        # Slash-command alias overrides, keyed as ChatExecution._get_ui_commands
-        # and the UIs consume them. A missing key means "no override" — CFG
-        # supplies the default at resolve time, not here, so a later env change
-        # still wins.
-        self._ui_command_overrides = (
-            ui_commands.to_overrides() if ui_commands is not None else {}
-        )
+        # Materialized lazily (see the `ui_config` property) — constructing a
+        # UIConfig imports zrb.llm.ui, which transitively loads pydantic_ai,
+        # prompt_toolkit, pdfplumber and playwright; the built-in `llm_chat`
+        # task is built at `import zrb` time, so doing this eagerly here would
+        # put that whole cost on every `import zrb`, not just chat sessions
+        # that actually build a UI.
+        self._ui_config = ui_config
         self._custom_commands = custom_commands or []
         # (value, render) per UI text; ChatRunning renders the block as one.
         self._ui_texts: dict[str, tuple[StrAttr | None, bool]] = {
@@ -404,8 +395,6 @@ class LLMChatTask(BaseTask):
         self._snapshot_dir = snapshot_dir
         self._include_default_ui = include_default_ui
         self._interactive = interactive
-        self._show_ollama_models = show_ollama_models
-        self._show_pydantic_ai_models = show_pydantic_ai_models
         self._running = ChatRunning(self)
         self._execution = ChatExecution(self)
 
@@ -881,11 +870,6 @@ class LLMChatTask(BaseTask):
         return self._yolo
 
     @property
-    def yolo_xcom_key(self) -> str:
-        """xcom key the session reads/writes when yolo mode is toggled at run time."""
-        return self._yolo_xcom_key
-
-    @property
     def system_prompt(self):
         """The raw `system_prompt` attribute."""
         return self._system_prompt
@@ -966,9 +950,34 @@ class LLMChatTask(BaseTask):
         return self._model_settings
 
     @property
-    def ui_command_overrides(self) -> dict[str, list[str]]:
-        """Slash-command alias overrides, keyed by command name."""
-        return self._ui_command_overrides
+    def ui_config(self) -> "UIConfig":
+        """Slash-command aliases and other UI-backend settings this task
+        builds its UI with. Materialized lazily on first read — see the
+        `__init__` comment on `self._ui_config` for why."""
+        if self._ui_config is None:
+            # lazy: zrb.llm.ui.ui_config transitively loads pydantic_ai,
+            # prompt_toolkit, pdfplumber and playwright, via its package
+            # __init__.
+            from zrb.llm.ui.ui_config import UIConfig
+
+            self._ui_config = UIConfig()
+        return self._ui_config
+
+    @ui_config.setter
+    def ui_config(self, value: "UIConfig") -> None:
+        """Replace the UI config wholesale."""
+        # lazy: zrb.llm.ui.ui_config transitively loads pydantic_ai,
+        # prompt_toolkit, pdfplumber and playwright, via its package __init__
+        # — but a caller assigning a UIConfig instance has necessarily
+        # already imported it themselves, so this costs nothing extra here.
+        from zrb.llm.ui.ui_config import UIConfig
+
+        if not isinstance(value, UIConfig):
+            raise TypeError(
+                f"{self.name}.ui_config must be a UIConfig, "
+                f"got {type(value).__name__}."
+            )
+        self._ui_config = value
 
     @property
     def ui_texts(self) -> "dict[str, tuple[StrAttr | None, bool]]":
@@ -991,16 +1000,6 @@ class LLMChatTask(BaseTask):
         the only guard.
         """
         self._markdown_theme = value
-
-    @property
-    def show_ollama_models(self) -> bool | None:
-        """Whether the model picker lists Ollama models, or None for the config default."""
-        return self._show_ollama_models
-
-    @property
-    def show_pydantic_ai_models(self) -> bool | None:
-        """Whether the model picker lists pydantic-ai models, or None for the config default."""
-        return self._show_pydantic_ai_models
 
     @property
     def tool_confirmation(self) -> AnyToolConfirmation:

@@ -63,6 +63,7 @@ SLOTS = {
         "history_manager",
         "sandbox",
         "permissions",
+        "ui_config",
     ],
 }
 

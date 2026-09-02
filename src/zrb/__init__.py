@@ -85,7 +85,6 @@ from zrb.llm.skill import Skill, SkillRegistry
 from zrb.llm.skill.manager import SkillManager, skill_manager
 from zrb.llm.skill.registry import skill_registry
 from zrb.llm.task.chat.task import LLMChatTask
-from zrb.llm.task.chat.ui_commands import UICommands
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool.registry import ToolRegistry, tool_registry
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
@@ -190,7 +189,6 @@ __all__ = [
     "Xcom",
     "LLMTask",
     "LLMChatTask",
-    "UICommands",
     "LLMConfig",
     "llm_config",
     "LLMLimiter",

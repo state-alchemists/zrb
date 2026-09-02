@@ -61,6 +61,7 @@ from zrb.llm.ui.base.system_info import BaseUISystemInfo
 from zrb.llm.ui.base.usage import BaseUIUsage
 from zrb.llm.ui.base.voice_state import BaseUIVoiceState
 from zrb.llm.ui.multi_ui import MultiUI
+from zrb.llm.ui.ui_config import UIConfig
 from zrb.session.any_session import AnySession
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
@@ -96,19 +97,15 @@ def _default_list(value: "Any") -> list:
 
 def _command_alias_property(key: str, label: str) -> property:
     """A `list[str]` slash-command-alias property backed by
-    `self._command_aliases[key]`, in place of one hand-written getter/setter
-    pair per command. Same 16 command names as `UI_COMMAND_CFG_ATTRS` in
-    `zrb.llm.task.chat.ui_commands` (that module maps each to its `CFG`
-    default; this one exposes the resolved value on the running UI) — kept as
-    a sibling list rather than imported, so `llm/ui` (presentation) doesn't
-    depend on `llm/task/chat` (a specific task type built on top of it).
+    `self._ui_config.{key}_commands`, in place of one hand-written
+    getter/setter pair per command.
     """
 
     def getter(self: "BaseUI") -> list[str]:
-        return self._command_aliases[key]
+        return getattr(self._ui_config, f"{key}_commands")
 
     def setter(self: "BaseUI", value: list[str]) -> None:
-        self._command_aliases[key] = value
+        setattr(self._ui_config, f"{key}_commands", value)
 
     getter.__doc__ = f"Get the list of {label} commands."
     return property(getter, setter)
@@ -191,49 +188,34 @@ class BaseUI:
     def __init__(
         self,
         ctx: AnyContext,
-        yolo_xcom_key: str,
-        assistant_name: str,
         llm_task: LLMTask,
         history_manager: AnyHistoryManager,
         initial_message: Any = "",
         initial_attachments: "list[UserContent] | None" = None,
-        conversation_session_name: str = "",
-        is_yolo: bool | frozenset = False,
+        ui_config: UIConfig | None = None,
         triggers: list[Callable[[], AsyncIterable[Any]]] | None = None,
         response_handlers: list[ResponseHandler] | None = None,
         tool_policies: list[ToolPolicy] | None = None,
         argument_formatters: list[ArgumentFormatter] | None = None,
         markdown_theme: "Theme | None" = None,
-        summarize_commands: list[str] | None = None,
-        attach_commands: list[str] | None = None,
-        exit_commands: list[str] | None = None,
-        info_commands: list[str] | None = None,
-        save_commands: list[str] | None = None,
-        load_commands: list[str] | None = None,
-        rewind_commands: list[str] | None = None,
-        redirect_output_commands: list[str] | None = None,
-        yolo_toggle_commands: list[str] | None = None,
-        set_model_commands: list[str] | None = None,
-        exec_commands: list[str] | None = None,
-        btw_commands: list[str] | None = None,
-        plan_commands: list[str] | None = None,
-        copy_commands: list[str] | None = None,
-        voice_commands: list[str] | None = None,
-        photo_commands: list[str] | None = None,
         custom_commands: list[AnyCustomCommand] | None = None,
         model: "Model | str | None" = None,
         enable_rewind: bool = False,
         snapshot_dir: str = "",
     ):
+        self._ui_config = ui_config or UIConfig()
         self._ctx = ctx
-        self._yolo_xcom_key = yolo_xcom_key
+        # Falls back to a per-instance key so ad-hoc UIs (SimpleUI and
+        # friends, built without an LLMChatTask-provided key) never collide
+        # on the same xcom slot.
+        self._yolo_xcom_key = self._ui_config.yolo_xcom_key or f"_yolo_{id(self)}"
         self._is_thinking = False
         self._running_llm_task: asyncio.Task | None = None
         self._llm_task = llm_task
         self._history_manager = history_manager
-        self._assistant_name = assistant_name or CFG.LLM_ASSISTANT_NAME
+        self._assistant_name = self._ui_config.assistant_name
         self._initial_message = initial_message
-        self._conversation_session_name = conversation_session_name
+        self._conversation_session_name = self._ui_config.conversation_session_name
         if not self._conversation_session_name:
             self._conversation_session_name = get_random_name()
         self._model = model
@@ -242,27 +224,6 @@ class BaseUI:
         self._base_persona = BaseUIPersonaState()
         self._triggers = _default_list(triggers)
         self._markdown_theme = markdown_theme
-        # One dict for all 16 slash-command alias lists instead of one attribute
-        # each — adding a command touches one line here and one property line
-        # below, not two independent 9-line blocks. See _command_alias_property.
-        self._command_aliases: dict[str, list[str]] = {
-            "summarize": _default_list(summarize_commands),
-            "attach": _default_list(attach_commands),
-            "exit": _default_list(exit_commands),
-            "info": _default_list(info_commands),
-            "save": _default_list(save_commands),
-            "load": _default_list(load_commands),
-            "rewind": _default_list(rewind_commands),
-            "redirect_output": _default_list(redirect_output_commands),
-            "yolo_toggle": _default_list(yolo_toggle_commands),
-            "set_model": _default_list(set_model_commands),
-            "exec": _default_list(exec_commands),
-            "btw": _default_list(btw_commands),
-            "plan": _default_list(plan_commands),
-            "copy": _default_list(copy_commands),
-            "voice": _default_list(voice_commands),
-            "photo": _default_list(photo_commands),
-        }
         self._custom_commands = _default_list(custom_commands)
         self._plan_mode_active = False
         self._base_voice = BaseUIVoiceState()
@@ -309,8 +270,8 @@ class BaseUI:
         self._base_replay = BaseUIReplay(self)
         self._base_system_info = BaseUISystemInfo(self)
 
-        if is_yolo:
-            self.yolo = is_yolo
+        if self._ui_config.is_yolo:
+            self.yolo = self._ui_config.is_yolo
 
     # =========================================================================
     # Construction-time / runtime state (own fields, read/written directly)
@@ -393,6 +354,11 @@ class BaseUI:
     def assistant_name(self) -> str:
         """Get the assistant name."""
         return self._assistant_name
+
+    @property
+    def ui_config(self) -> UIConfig:
+        """The command names and UI behavior flags this UI was built with."""
+        return self._ui_config
 
     @property
     def initial_message(self) -> Any:
