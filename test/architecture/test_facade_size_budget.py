@@ -35,6 +35,10 @@ FACADE_BUDGETS = {
     # level hook slots (`model_getter`, `model_renderer`), each with its own
     # settable+typed property.
     "llm/task/llm_task.py": 910,
+    # Phase 7 (ADR-0035): construction (create_agent, create_llm_chat_task,
+    # resolve_agent_build, the tool/toolset getters) moved to the new
+    # SubAgentBuilding part; this file dropped from 490 lines to roster-only.
+    "llm/agent/subagent/manager.py": 310,
 }
 
 

@@ -1330,13 +1330,16 @@
         "compose_prompt",
         "create_live_context",
         "create_live_context_async",
+        "get_live_contexts",
         "include_sections",
         "model",
         "prepend_prompt",
         "prompt_registry",
         "prompts",
+        "remove_live_context",
         "remove_prompt",
-        "reset"
+        "reset",
+        "set_live_contexts"
       ]
     },
     "PromptRegistry": {
@@ -1759,7 +1762,11 @@
         "scan",
         "scan_root",
         "search_dirs",
-        "set_agents"
+        "set_agents",
+        "tool_factory_overrides",
+        "tool_registry_overrides",
+        "toolset_factory_overrides",
+        "toolset_overrides"
       ]
     },
     "SubAgentRegistry": {
