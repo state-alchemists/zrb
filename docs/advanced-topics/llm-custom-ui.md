@@ -4,6 +4,31 @@
 
 Zrb's LLM tasks support custom UI and approval channels for non-terminal interfaces like Telegram, Slack, Discord, or web applications.
 
+---
+
+## Table of Contents
+
+- [Mental Model: How the UI Works](#mental-model-how-the-ui-works)
+- [Quick Start](#quick-start)
+- [UI Extension Levels](#ui-extension-levels)
+- [Dual Mode: CLI + External Channel](#dual-mode-cli-external-channel)
+- [Level 1: SimpleUI (Request-Response Pattern)](#level-1-simpleui-request-response-pattern)
+- [Level 2: EventDrivenUI (Callback Pattern)](#level-2-eventdrivenui-callback-pattern)
+- [Level 3: PollingUI (Queue-Based Pattern)](#level-3-pollingui-queue-based-pattern)
+- [Level 4: BaseUI (Full Control)](#level-4-baseui-full-control)
+- [BufferedOutputMixin (Rate-Limited Backends)](#bufferedoutputmixin-rate-limited-backends)
+- [UIConfig: Cleaner Configuration](#uiconfig-cleaner-configuration)
+- [create_ui_factory(): One-Line Registration](#create_ui_factory-one-line-registration)
+- [Migration Guide: BaseUI → SimpleUI](#migration-guide-baseui-simpleui)
+- [Multi-Channel Support (Multiple UIs)](#multi-channel-support-multiple-uis)
+- [Approval Channels](#approval-channels)
+- [Working Examples](#working-examples)
+- [Pattern Selection Guide](#pattern-selection-guide)
+- [Important Notes](#important-notes)
+- [Summary](#summary)
+
+---
+
 ## Mental Model: How the UI Works
 
 ### The Core Message Loop
@@ -539,7 +564,7 @@ flowchart TB
             Impl["YOU IMPLEMENT:\nappend_to_output()\nask_user()\nrun_interactive_command()\nrun_async()"]
         end
 
-        subgraph ApprovalChannel["ApprovalChannel (Inject separately)"]
+        subgraph ApprovalChannel["AnyApprovalChannel (Inject separately)"]
             Request["request_approval()"]
             Notify["notify()"]
         end
@@ -1013,12 +1038,12 @@ See `examples/chat-telegram/` for a complete implementation.
 
 ## Approval Channels
 
-For tool confirmations, implement `ApprovalChannel`:
+For tool confirmations, implement `AnyApprovalChannel`:
 
 ```python
-from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
+from zrb.llm.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
 
-class TelegramApprovalChannel(ApprovalChannel):
+class TelegramApprovalChannel(AnyApprovalChannel):
     """Send approval requests to Telegram."""
 
     def __init__(self, bot, chat_id: int):
@@ -1056,7 +1081,7 @@ class TelegramApprovalChannel(ApprovalChannel):
 llm_chat.approval_channels = [TelegramApprovalChannel(bot, CHAT_ID)]
 ```
 
-### ApprovalChannel Interface
+### AnyApprovalChannel Interface
 
 | Method | Purpose |
 |--------|---------|

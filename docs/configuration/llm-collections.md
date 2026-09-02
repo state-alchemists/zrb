@@ -65,7 +65,11 @@ export ZRB_LLM_TOOLS="Shell,Read,Write,Grep,Glob"
 export ZRB_LLM_PROMPT="Always answer in British English.,Prefer git over GUI."
 ```
 
-An **empty** twin (the default) means **everything**: all built-in and discovered skills/agents/hooks/tools. Set it to list only what you want. The twin restricts only the *discovered/default* layer: something you `add_*`/`set_*` in `zrb_init.py` is manual content and always visible for skills and agents (env sets the baseline, code builds on it). Hooks form a single-layer registry, so `LLM_HOOKS` governs the whole hook registry. `LLM_TOOLS` is narrower — it filters the registry's **static** tools only. Per-run tools (`EnterPlanMode` / `AskUserQuestion` on interactive runs, the journal tools, `RunZrbTask`, `ActivateSkill`, `MonitorProcess`, and every MCP toolset) are not statically named and keep their own gates (interactive, journal, spill, MCP config) regardless of the allowlist; restricting *those* needs `tool_registry.remove_tool(...)` / `set_tools()` in `zrb_init.py`. `LLM_TOOLS` and the rosters still honor their independent toggles — `LLM_ENABLE_BUILTIN_AGENTS`, `LLM_ENABLE_BUILTIN_SKILLS`, `HOOKS_ENABLED` — which gate the built-in bulk independently of the allowlist.
+An **empty** twin (the default) means **everything**: all built-in and discovered skills/agents/hooks/tools. Set it to list only what you want. The twin restricts only the *discovered/default* layer: something you `add_*`/`set_*` in `zrb_init.py` is manual content and always visible for skills and agents (env sets the baseline, code builds on it). Hooks form a single-layer registry, so `LLM_HOOKS` governs the whole hook registry.
+
+`LLM_TOOLS` is narrower — it filters the registry's **static** tools only. Per-run tools (`EnterPlanMode` / `AskUserQuestion` on interactive runs, the journal tools, `RunZrbTask`, `ActivateSkill`, `MonitorProcess`, and every MCP toolset) are not statically named and keep their own gates (interactive, journal, spill, MCP config) regardless of the allowlist; restricting *those* needs `tool_registry.remove_tool(...)` / `set_tools()` in `zrb_init.py`.
+
+`LLM_TOOLS` and the rosters still honor their independent toggles — `LLM_ENABLE_BUILTIN_AGENTS`, `LLM_ENABLE_BUILTIN_SKILLS`, `HOOKS_ENABLED` — which gate the built-in bulk independently of the allowlist.
 
 ### 2. `zrb_init.py` — *build and replace things*
 
