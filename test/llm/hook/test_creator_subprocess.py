@@ -24,6 +24,8 @@ from zrb.llm.hook.types import HookEvent
 
 _PROCESS_STOP_TIMEOUT_SECONDS = 1.0
 _PROCESS_STOP_POLL_SECONDS = 0.05
+_SENTINEL_TIMEOUT_SECONDS = 5.0
+_SENTINEL_POLL_SECONDS = 0.05
 
 
 def _background_sleep_command(pid_path: str, *, exit_immediately: bool = False) -> str:
@@ -184,7 +186,13 @@ async def test_command_hook_returns_when_the_child_exits_not_at_pipe_eof():
         assert result.modifications.get("additionalContext") == "ok"
 
         # Past the descendant's sleep: a successful hook's background work lives.
-        await asyncio.sleep(1.3)
+        # Polled rather than a single fixed sleep — under heavy parallel test
+        # load the descendant's 1s sleep can itself be scheduled late, and a
+        # bare `sleep(1.3); assert` has no margin for that.
+        for _ in range(int(_SENTINEL_TIMEOUT_SECONDS / _SENTINEL_POLL_SECONDS)):
+            if os.path.exists(sentinel):
+                break
+            await asyncio.sleep(_SENTINEL_POLL_SECONDS)
         assert os.path.exists(sentinel), "background work was killed off"
 
 
