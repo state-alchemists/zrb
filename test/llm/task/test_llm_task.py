@@ -110,17 +110,13 @@ class TestLLMTaskExecution:
     @pytest.mark.asyncio
     async def test_model_getter_is_called_with_base_model(self, session):
         # Arrange: getter receives the base model and returns a different one
-        from zrb.llm.config.config import LLMConfig
-
         received = []
 
         def getter(m):
             received.append(m)
             return "overridden-model"
 
-        config = LLMConfig()
-        config.model_getter = getter
-        task = LLMTask(name="test-task", message="hello", llm_config=config)
+        task = LLMTask(name="test-task", message="hello", model_getter=getter)
 
         with (
             patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent,
@@ -140,20 +136,16 @@ class TestLLMTaskExecution:
     @pytest.mark.asyncio
     async def test_model_renderer_transforms_model_passed_to_agent(self, session):
         # Arrange: renderer wraps model name in a mock Model object
-        from zrb.llm.config.config import LLMConfig
-
         sentinel = MagicMock()
 
         def renderer(_m):
             return sentinel
 
-        config = LLMConfig()
-        config.model_renderer = renderer
         task = LLMTask(
             name="test-task",
             message="hello",
             model="base-model",
-            llm_config=config,
+            model_renderer=renderer,
         )
 
         with (
@@ -171,17 +163,13 @@ class TestLLMTaskExecution:
     @pytest.mark.asyncio
     async def test_model_getter_result_updates_ui_model(self, session):
         # Arrange: getter returns a new model name; UI should reflect it
-        from zrb.llm.config.config import LLMConfig
-
         ui = MagicMock()
         ui.model = "original-model"
 
-        config = LLMConfig()
-        config.model_getter = lambda m: "updated-by-getter"
         task = LLMTask(
             name="test-task",
             message="hello",
-            llm_config=config,
+            model_getter=lambda m: "updated-by-getter",
         )
         task.set_ui(ui)
 
@@ -199,16 +187,12 @@ class TestLLMTaskExecution:
     @pytest.mark.asyncio
     async def test_getter_then_renderer_pipeline(self, session):
         # Arrange: getter overrides, renderer wraps — final model passed to create_agent
-        from zrb.llm.config.config import LLMConfig
-
         sentinel = MagicMock()
-        config = LLMConfig()
-        config.model_getter = lambda m: "getter-result"
-        config.model_renderer = lambda m: sentinel
         task = LLMTask(
             name="test-task",
             message="hello",
-            llm_config=config,
+            model_getter=lambda m: "getter-result",
+            model_renderer=lambda m: sentinel,
         )
 
         with (

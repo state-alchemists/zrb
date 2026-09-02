@@ -57,13 +57,14 @@ SLOTS = {
     "zrb.builtin.llm.chat:llm_chat": [
         "prompt_manager",
         "hook_manager",
-        "llm_config",
         "llm_limiter",
         "markdown_theme",
         "history_manager",
         "sandbox",
         "permissions",
         "ui_config",
+        "model_getter",
+        "model_renderer",
     ],
 }
 
@@ -152,6 +153,28 @@ def _singularize(plural: str) -> str:
     if plural.endswith("s"):
         return plural[:-1]
     return plural
+
+
+# TODO(follow-up): web_auth_config is a genuine hybrid — real user-list
+# storage plus auth callbacks, not a thin CFG.WEB_AUTH_* wrapper — so folding
+# it into CFG is out of scope for Phase 6 (R12, ADR-0090/0091). Exempted here
+# until that follow-up lands.
+_R12_EXEMPT = {"web_auth_config"}
+
+
+def test_there_is_exactly_one_configuration_object():
+    """`CFG` is the only config object. A second one means a user has to guess."""
+    import zrb
+
+    offenders = [
+        name
+        for name in zrb.__all__
+        if name.endswith("_config") and name != "CFG" and name not in _R12_EXEMPT
+    ]
+    assert not offenders, (
+        f"{offenders} are exported alongside CFG. Scalars live on CFG "
+        "(ADR-0021/0022); components live in registries or slots (ADR-0090). R12."
+    )
 
 
 def test_no_concept_is_reachable_by_two_names():

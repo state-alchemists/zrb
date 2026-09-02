@@ -15,7 +15,9 @@ import asyncio
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.custom_command.resolver import resolve_custom_command
+from zrb.llm.task.shared_getters import apply_model_hooks
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.util.cli.style import stylize_error, stylize_muted
 
@@ -208,9 +210,11 @@ class BaseUIExecCommands:
             model = (
                 self._base_ui.model
                 if self._base_ui.model
-                else llm_task.llm_config.model
+                else resolve_configured_model()
             )
-            final_model = llm_task.llm_config.resolve_model(model)
+            final_model = apply_model_hooks(
+                model, llm_task.model_getter, llm_task.model_renderer
+            )
             agent = create_agent(
                 model=final_model,
                 system_prompt=_sys_prompt,

@@ -12,7 +12,8 @@ example of writing your own agent hook; this module is what actually runs.
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.config.config import llm_config as default_llm_config
+from zrb.llm.agent_state import get_current_small_model
+from zrb.llm.config.model_resolver import resolve_configured_small_model
 from zrb.llm.hook.schema import AgentHookConfig, HookConfig, MatcherConfig
 from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
 from zrb.llm.prompt.prompt import get_prompt
@@ -34,9 +35,10 @@ _TIMEOUT_SECONDS = 60
 
 
 def build_journal_compliance_hook_config() -> HookConfig:
-    """The judge's `HookConfig` — `default_llm_config.small_model` keeps it a
-    cheap/fast model by default (the same model summarization already uses),
-    not the potentially expensive main model.
+    """The judge's `HookConfig` — the small/fast model keeps it cheap by
+    default (the same model summarization already uses), not the potentially
+    expensive main model. Resolved from the current run's UI-level override
+    (`/model small ...`) when there is one, else `CFG.LLM_SMALL_MODEL`.
 
     The system prompt is loaded fresh via `get_prompt("journal_compliance")`
     (not a module constant) so it goes through the normal prompt-override
@@ -50,7 +52,7 @@ def build_journal_compliance_hook_config() -> HookConfig:
         config=AgentHookConfig(
             system_prompt=get_prompt("journal_compliance"),
             tools=["LogActivity", "WriteJournalNote", "SearchJournal"],
-            model=str(default_llm_config.small_model),
+            model=str(resolve_configured_small_model(get_current_small_model())),
         ),
         matchers=[
             MatcherConfig(

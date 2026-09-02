@@ -465,9 +465,11 @@ def test_create_llm_chat_task_builds_task_from_resolved_persona():
     mock_task = MagicMock()
     with (
         patch("zrb.llm.task.chat.task.LLMChatTask", return_value=mock_task) as MockTask,
-        patch("zrb.llm.agent.subagent.manager.default_llm_config") as mock_llm_config,
+        patch(
+            "zrb.llm.agent.subagent.manager.resolve_configured_model",
+            return_value="resolved-test-model",
+        ),
     ):
-        mock_llm_config.resolve_model.return_value = "resolved-test-model"
         result = manager.create_llm_chat_task("stub-researcher")
 
     assert result is mock_task

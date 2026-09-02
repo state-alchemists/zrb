@@ -29,8 +29,6 @@ from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.llm.agent import AnyToolConfirmation
-from zrb.llm.config.config import LLMConfig
-from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
@@ -124,7 +122,6 @@ class LLMChatTask(BaseTask):
         ) = None,  # noqa
         history_processors: list[HistoryProcessor] | None = None,
         capabilities: "list[AbstractCapability[Any]] | None" = None,
-        llm_config: LLMConfig | None = None,
         llm_limiter: LLMLimiter | None = None,
         model: (
             Callable[[AnyContext], Model | str | fstring | None] | Model | None
@@ -132,6 +129,12 @@ class LLMChatTask(BaseTask):
         render_model: bool = True,
         model_settings: (
             ModelSettings | Callable[[AnyContext], ModelSettings] | None
+        ) = None,
+        model_getter: (
+            "Callable[[str | Model | None], str | Model | None] | None"
+        ) = None,
+        model_renderer: (
+            "Callable[[str | Model | None], str | Model | None] | None"
         ) = None,
         custom_model_names: StrListAttr | None = None,
         conversation_name: StrAttr | None = None,
@@ -221,13 +224,17 @@ class LLMChatTask(BaseTask):
             active_skills: Names of skills to pre-activate for the session.
             render_active_skills: Whether to render `active_skills` as templates.
             model: The model to use, as a name or a pydantic-ai `Model`. Defaults
-                to the one from `llm_config`.
+                to `CFG.LLM_MODEL`.
             render_model: Whether to render `model` as a template.
             model_settings: Provider settings such as temperature.
+            model_getter: Callable transforming the resolved base model into the
+                active model (e.g. tier switching, A/B testing) — applied before
+                `model_renderer`.
+            model_renderer: Callable transforming the active model into the
+                final pydantic-ai model (e.g. wrapping a tier name into a real
+                model string).
             custom_model_names: Extra names offered by the model picker, beyond the
                 detected ones.
-            llm_config: Credentials and endpoint settings. Defaults to the shared
-                `llm_config`.
             llm_limiter: Rate and token limiter. Defaults to the shared
                 `llm_limiter`.
             capabilities: pydantic-ai capabilities to enable for the run.
@@ -316,7 +323,6 @@ class LLMChatTask(BaseTask):
             successor=successor,
             print_fn=print_fn,
         )
-        self._llm_config = default_llm_config if llm_config is None else llm_config
         self._llm_limiter = llm_limiter
         if prompt_manager is None:
             prompt_manager = PromptManager(
@@ -351,6 +357,8 @@ class LLMChatTask(BaseTask):
         self._model = model
         self._render_model = render_model
         self._model_settings = model_settings
+        self._model_getter = model_getter
+        self._model_renderer = model_renderer
         self._custom_model_names = custom_model_names
         self._conversation_name = conversation_name
         self._render_conversation_name = render_conversation_name
@@ -716,19 +724,45 @@ class LLMChatTask(BaseTask):
     # --- Construction-time config (own fields, read/written directly) -------
 
     @property
-    def llm_config(self) -> LLMConfig:
-        """Model, credentials, and endpoint settings backing this task."""
-        return self._llm_config
+    def model_getter(
+        self,
+    ) -> "Callable[[str | Model | None], str | Model | None] | None":
+        """Callable transforming the resolved base model into the active
+        model (e.g. tier switching, A/B testing) — applied before
+        `model_renderer`."""
+        return self._model_getter
 
-    @llm_config.setter
-    def llm_config(self, value: LLMConfig) -> None:
-        """Replace the LLM config wholesale."""
-        if not isinstance(value, LLMConfig):
+    @model_getter.setter
+    def model_getter(
+        self, value: "Callable[[str | Model | None], str | Model | None] | None"
+    ) -> None:
+        """Replace the model-getter hook, or None to remove it."""
+        if value is not None and not callable(value):
             raise TypeError(
-                f"{self.name}.llm_config must be an LLMConfig, "
+                f"{self.name}.model_getter must be a callable or None, "
                 f"got {type(value).__name__}."
             )
-        self._llm_config = value
+        self._model_getter = value
+
+    @property
+    def model_renderer(
+        self,
+    ) -> "Callable[[str | Model | None], str | Model | None] | None":
+        """Callable transforming the active model into the final
+        pydantic-ai model — applied after `model_getter`."""
+        return self._model_renderer
+
+    @model_renderer.setter
+    def model_renderer(
+        self, value: "Callable[[str | Model | None], str | Model | None] | None"
+    ) -> None:
+        """Replace the model-renderer hook, or None to remove it."""
+        if value is not None and not callable(value):
+            raise TypeError(
+                f"{self.name}.model_renderer must be a callable or None, "
+                f"got {type(value).__name__}."
+            )
+        self._model_renderer = value
 
     @property
     def llm_limiter(self) -> "LLMLimiter | None":

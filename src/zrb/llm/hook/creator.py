@@ -17,7 +17,7 @@ import signal
 import subprocess
 
 from zrb.config.config import CFG
-from zrb.llm.config.config import llm_config
+from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.process_io import read_hook_output, run_detached
 from zrb.llm.hook.process_kill import kill_process_tree, read_process_group
@@ -389,7 +389,7 @@ async def run_llm_hook(
             return HookResult(success=False, output="No LLM model configured")
 
         agent = create_agent(
-            model=llm_config.resolve_model(model_name),
+            model=resolve_configured_model(model_name),
             system_prompt=system_prompt,
             tools=tools or [],
             resolve_model=False,  # already resolved above

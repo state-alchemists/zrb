@@ -21,11 +21,15 @@ class LLMCoreMixin:
     ENV_PREFIX: str
 
     def __init__(self):
-        self.DEFAULT_LLM_MODEL: str = ""
+        # The one place this default lives — every resolution path (the
+        # model picker, ModelResolver's resolve_configured_model(), …) reads
+        # it from here rather than carrying a second hardcoded fallback.
+        self.DEFAULT_LLM_MODEL: str = "openai-chat:gpt-4o"
         self.DEFAULT_LLM_SMALL_MODEL: str = ""
         self.DEFAULT_LLM_MULTIMODAL_MODEL: str = ""
         self.DEFAULT_LLM_BASE_URL: str = ""
         self.DEFAULT_LLM_API_KEY: str = ""
+        self.DEFAULT_LLM_PROVIDER: str = ""
         self.DEFAULT_LLM_SHOW_OLLAMA_MODELS: str = "on"
         self.DEFAULT_LLM_SHOW_PYDANTIC_AI_MODELS: str = "on"
         self.DEFAULT_LLM_PERMISSIONS: str = ""
@@ -34,8 +38,7 @@ class LLMCoreMixin:
 
     LLM_MODEL = EnvField(
         str,
-        nullable=True,
-        doc="Primary LLM model identifier (e.g. openai:gpt-4o). Unset uses the provider default.",
+        doc="Primary LLM model identifier (e.g. openai:gpt-4o). Unset uses DEFAULT_LLM_MODEL.",
     )
 
     LLM_SMALL_MODEL = EnvField(
@@ -61,6 +64,16 @@ class LLMCoreMixin:
         nullable=True,
         secret=True,
         doc="API key for the LLM provider. Unset defers to the provider's own env var (e.g. OPENAI_API_KEY).",
+    )
+
+    LLM_PROVIDER = EnvField(
+        str,
+        nullable=True,
+        doc=(
+            "Provider name for the LLM model (e.g. 'openai', 'anthropic'). Unset "
+            "infers from the model string's own prefix, falling back to an "
+            "OpenAI-compatible provider when LLM_API_KEY/LLM_BASE_URL are set."
+        ),
     )
 
     LLM_SHOW_OLLAMA_MODELS = EnvField(

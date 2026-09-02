@@ -21,7 +21,7 @@ from zrb.llm.agent.subagent.tool_resolver import (
 )
 from zrb.llm.agent.subagent.yolo import make_yolo_inheritance_checker
 from zrb.llm.common_tools import apply_common_tools
-from zrb.llm.config.config import llm_config as default_llm_config
+from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.prompt.live_context import render_journal_index
 from zrb.llm.summarizer import create_summarizer_history_processor
@@ -293,8 +293,8 @@ class SubAgentManager:
             tools=resolved.tools,
             toolsets=resolved.toolsets,
             model=resolved.model,
-            # resolved.model is already final (default_llm_config.resolve_model
-            # ran above) — rendering it as a template would be wrong for a
+            # resolved.model is already final (resolve_configured_model ran
+            # above) — rendering it as a template would be wrong for a
             # non-string Model instance and is a no-op-at-best for a plain
             # model-id string, so skip it, mirroring create_agent's
             # resolve_model=False.
@@ -360,7 +360,7 @@ class SubAgentManager:
             effective_yolo = make_yolo_inheritance_checker()
 
         # Resolve model so section factories can use it
-        final_model = default_llm_config.resolve_model(definition.model)
+        final_model = resolve_configured_model(definition.model)
 
         # Inherited sections (persona, workflow, system_context, ...) come from
         # the main-agent PromptManager composition. Sub-agents that need the

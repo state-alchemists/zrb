@@ -434,24 +434,16 @@ def test_llm_chat_task_custom_model_names_setter():
     assert task.custom_model_names == ["updated-model"]
 
 
-def test_llm_chat_task_model_getter_via_config():
-    from zrb.llm.config.config import LLMConfig
-
+def test_llm_chat_task_model_getter_constructor_and_property():
     getter = lambda m: "fixed-model"
-    config = LLMConfig()
-    config.model_getter = getter
-    task = LLMChatTask(name="test-task", llm_config=config)
-    assert task.llm_config.model_getter is getter
+    task = LLMChatTask(name="test-task", model_getter=getter)
+    assert task.model_getter is getter
 
 
-def test_llm_chat_task_model_renderer_via_config():
-    from zrb.llm.config.config import LLMConfig
-
+def test_llm_chat_task_model_renderer_constructor_and_property():
     renderer = lambda m: m
-    config = LLMConfig()
-    config.model_renderer = renderer
-    task = LLMChatTask(name="test-task", llm_config=config)
-    assert task.llm_config.model_renderer is renderer
+    task = LLMChatTask(name="test-task", model_renderer=renderer)
+    assert task.model_renderer is renderer
 
 
 def test_llm_chat_task_custom_model_names_none_by_default():
@@ -461,18 +453,14 @@ def test_llm_chat_task_custom_model_names_none_by_default():
 
 @pytest.mark.asyncio
 async def test_llm_chat_task_passes_getter_renderer_to_summarizer():
-    """LLMChatTask forwards effective getter/renderer to create_summarizer_history_processor via config."""
-    from zrb.llm.config.config import LLMConfig
-
+    """LLMChatTask forwards its model_getter/model_renderer to create_summarizer_history_processor."""
     getter = lambda m: "getter-model"
     renderer = lambda m: "renderer-model"
 
-    config = LLMConfig()
-    config.model_getter = getter
-    config.model_renderer = renderer
     task = LLMChatTask(
         name="test-task",
-        llm_config=config,
+        model_getter=getter,
+        model_renderer=renderer,
         interactive=False,
     )
 

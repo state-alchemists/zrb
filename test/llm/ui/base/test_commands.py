@@ -415,27 +415,15 @@ def test_handle_set_model_command(ui):
     assert "switched" in "".join(ui.outputs)
 
 
-@pytest.fixture
-def restore_llm_models():
-    """Save/restore the real llm_config model fields the /model command mutates."""
-    from zrb.llm.config.config import llm_config
-
-    saved = (llm_config.small_model, llm_config.multimodal_model)
-    yield llm_config
-    llm_config.small_model, llm_config.multimodal_model = saved
-
-
-def test_handle_set_model_command_small_variant(ui, restore_llm_models):
+def test_handle_set_model_command_small_variant(ui):
     assert ui.handle_set_model_command("/model small gpt-4o-mini") is True
     assert ui.small_model == "gpt-4o-mini"
-    assert restore_llm_models.small_model == "gpt-4o-mini"
     assert "Small model switched to: gpt-4o-mini" in "".join(ui.outputs)
 
 
-def test_handle_set_model_command_multimodal_variant(ui, restore_llm_models):
+def test_handle_set_model_command_multimodal_variant(ui):
     assert ui.handle_set_model_command("/model multimodal gemini-flash") is True
     assert ui.multimodal_model == "gemini-flash"
-    assert restore_llm_models.multimodal_model == "gemini-flash"
     assert "Multimodal model switched to: gemini-flash" in "".join(ui.outputs)
 
 

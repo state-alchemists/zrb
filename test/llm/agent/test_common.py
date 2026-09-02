@@ -792,55 +792,56 @@ def testcreate_safe_wrapper_preserves_function_name():
 
 
 def test_create_agent_uses_default_model_when_none():
-    """Test create_agent uses default model when model=None."""
+    """Test create_agent uses CFG.LLM_MODEL when model=None."""
     from unittest.mock import MagicMock, patch
 
     from zrb.llm.agent.common import create_agent
 
     mock_agent_class = MagicMock()
-    mock_config = MagicMock()
-    mock_config.model = "default-model"
 
-    with patch("zrb.llm.agent.common.default_llm_config", mock_config):
+    with patch(
+        "zrb.llm.agent.common.resolve_configured_model",
+        return_value="default-model",
+    ) as mock_resolve:
         with patch("pydantic_ai.Agent", mock_agent_class):
             try:
                 create_agent(model=None, system_prompt="test", yolo=True)
             except Exception:
                 pass  # May fail due to mocking
 
-    # Verify the default model was fetched
-    _ = mock_config.model
+    # None falls back to CFG.LLM_MODEL before resolution.
+    mock_resolve.assert_called_once_with(CFG.LLM_MODEL)
 
 
 def test_create_agent_resolves_model_once_by_default():
-    """With the default resolve_model=True, create_agent runs the config's
-    resolve_model (model_getter/model_renderer) exactly once."""
+    """With the default resolve_model=True, create_agent resolves the model
+    (via resolve_configured_model) exactly once."""
     from unittest.mock import MagicMock, patch
 
     from zrb.llm.agent.common import create_agent
 
-    mock_config = MagicMock()
-    mock_config.resolve_model.return_value = "resolved-model"
-
-    with patch("zrb.llm.agent.common.default_llm_config", mock_config):
+    with patch(
+        "zrb.llm.agent.common.resolve_configured_model",
+        return_value="resolved-model",
+    ) as mock_resolve:
         with patch("pydantic_ai.Agent", MagicMock()):
             create_agent(model="base-model", system_prompt="test", yolo=True)
 
-    mock_config.resolve_model.assert_called_once_with("base-model")
+    mock_resolve.assert_called_once_with("base-model")
 
 
 def test_create_agent_skips_resolution_when_resolve_model_false():
     """Resolve_model=False means the caller already resolved the model, so
-    create_agent must NOT call resolve_model again (which would double-fire
+    create_agent must NOT resolve it again (which would double-fire
     model_getter/model_renderer, potentially feeding a Model object into a
     getter that expects a tier string)."""
     from unittest.mock import MagicMock, patch
 
     from zrb.llm.agent.common import create_agent
 
-    mock_config = MagicMock()
-
-    with patch("zrb.llm.agent.common.default_llm_config", mock_config):
+    with patch(
+        "zrb.llm.agent.common.resolve_configured_model"
+    ) as mock_resolve:
         with patch("pydantic_ai.Agent", MagicMock()) as mock_agent_class:
             create_agent(
                 model="already-resolved",
@@ -849,7 +850,7 @@ def test_create_agent_skips_resolution_when_resolve_model_false():
                 resolve_model=False,
             )
 
-    mock_config.resolve_model.assert_not_called()
+    mock_resolve.assert_not_called()
     # The pre-resolved model is passed straight through to the Agent.
     assert mock_agent_class.call_args.kwargs["model"] == "already-resolved"
 

@@ -93,14 +93,14 @@ class TestVoiceEngine:
                 with pytest.raises(RuntimeError, match="missing dependencies"):
                     asyncio_run(engine.get_transcriber())
 
-    def test_get_transcriber_multimodal_requires_model(self, engine):
+    def test_get_transcriber_multimodal_requires_model(self, engine, monkeypatch):
         """When multimodal model is None, multimodal mode raises."""
         engine.transcriber = None
+        monkeypatch.delenv("ZRB_LLM_MULTIMODAL_MODEL", raising=False)
         with (
-            patch("zrb.llm.config.config.llm_config") as mock_cfg,
+            patch("zrb.llm.agent_state.get_current_multimodal_model", return_value=None),
             patch.dict(os.environ, {"ZRB_LLM_VOICE_MODE": "multimodal"}),
         ):
-            mock_cfg.multimodal_model = None
             with pytest.raises(RuntimeError, match="LLM_MULTIMODAL_MODEL"):
                 asyncio_run(engine.get_transcriber())
 
@@ -108,13 +108,18 @@ class TestVoiceEngine:
         """With a non-OpenAI multimodal model, transcribes via agent."""
         engine.transcriber = None
         with (
-            patch("zrb.llm.config.config.llm_config") as mock_cfg,
+            patch(
+                "zrb.llm.agent_state.get_current_multimodal_model",
+                return_value="gemini:gemini-2.5-flash",
+            ),
+            patch(
+                "zrb.llm.config.model_resolver.resolve_configured_multimodal_model",
+                return_value="gemini:gemini-2.5-flash",
+            ),
             patch("zrb.llm.agent.create_agent") as mock_create,
             patch("zrb.llm.agent.run_agent", new_callable=AsyncMock) as mock_run,
             patch.dict(os.environ, {"ZRB_LLM_VOICE_MODE": "multimodal"}),
         ):
-            mock_cfg.multimodal_model = "gemini:gemini-2.5-flash"
-            mock_cfg.resolve_model.return_value = "gemini:gemini-2.5-flash"
             mock_create.return_value = "mock-agent"
             mock_run.return_value = ("hello world", None)
 
@@ -127,11 +132,16 @@ class TestVoiceEngine:
         """OpenAI models raise a helpful RuntimeError in multimodal mode."""
         engine.transcriber = None
         with (
-            patch("zrb.llm.config.config.llm_config") as mock_cfg,
+            patch(
+                "zrb.llm.agent_state.get_current_multimodal_model",
+                return_value="openai:gpt-4o",
+            ),
+            patch(
+                "zrb.llm.config.model_resolver.resolve_configured_multimodal_model",
+                return_value="openai:gpt-4o",
+            ),
             patch.dict(os.environ, {"ZRB_LLM_VOICE_MODE": "multimodal"}),
         ):
-            mock_cfg.multimodal_model = "openai:gpt-4o"
-            mock_cfg.resolve_model.return_value = "openai:gpt-4o"
             with pytest.raises(RuntimeError, match="does not accept audio"):
                 asyncio_run(engine.get_transcriber())
 
@@ -518,12 +528,17 @@ class TestMultimodalCapabilityGate:
         engine = VoiceEngine()
         engine.transcriber = None
         with (
-            patch("zrb.llm.config.config.llm_config") as mock_cfg,
+            patch(
+                "zrb.llm.agent_state.get_current_multimodal_model",
+                return_value="gemini:gemini-2.5-flash",
+            ),
+            patch(
+                "zrb.llm.config.model_resolver.resolve_configured_multimodal_model",
+                return_value="gemini:gemini-2.5-flash",
+            ),
             patch("zrb.llm.util.capabilities.model_capabilities") as mock_caps,
             patch.dict(os.environ, {"ZRB_LLM_VOICE_MODE": "multimodal"}),
         ):
-            mock_cfg.multimodal_model = "gemini:gemini-2.5-flash"
-            mock_cfg.resolve_model.return_value = "gemini:gemini-2.5-flash"
             mock_caps.supports_modality.return_value = False
             with pytest.raises(RuntimeError, match="does not support audio"):
                 asyncio_run(engine.get_transcriber())

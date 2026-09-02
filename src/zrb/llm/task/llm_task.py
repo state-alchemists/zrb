@@ -28,8 +28,6 @@ from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.llm.agent import AnyToolConfirmation, create_agent, run_agent
-from zrb.llm.config.config import LLMConfig
-from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
@@ -50,6 +48,7 @@ from zrb.llm.summarizer import summarize_history
 from zrb.llm.task.building import LLMTaskBuilding
 from zrb.llm.task.history import LLMTaskHistory
 from zrb.llm.task.history_config import HistoryConfig
+from zrb.llm.task.shared_getters import apply_model_hooks
 from zrb.llm.util.attachment import get_attachments
 from zrb.task.any_task import AnyTask
 from zrb.task.base.base_task import BaseTask
@@ -112,7 +111,6 @@ class LLMTask(BaseTask):
         ) = None,  # noqa
         history_processors: list[HistoryProcessor] | None = None,
         capabilities: "list[AbstractCapability[Any]] | None" = None,
-        llm_config: LLMConfig | None = None,
         llm_limiter: LLMLimiter | None = None,
         model: (
             Callable[[AnyContext], Model | str | fstring | None] | Model | None
@@ -120,6 +118,12 @@ class LLMTask(BaseTask):
         render_model: bool = True,
         model_settings: (
             ModelSettings | Callable[[AnyContext], ModelSettings] | None
+        ) = None,
+        model_getter: (
+            "Callable[[str | Model | None], str | Model | None] | None"
+        ) = None,
+        model_renderer: (
+            "Callable[[str | Model | None], str | Model | None] | None"
         ) = None,
         custom_model_names: StrListAttr | None = None,
         conversation_name: StrAttr | None = None,
@@ -170,14 +174,18 @@ class LLMTask(BaseTask):
             active_skills: Names of skills to pre-activate for this task.
             render_active_skills: Whether to render `active_skills` as templates.
             model: The model to use, as a name or a pydantic-ai `Model`. Defaults
-                to the one from `llm_config`.
+                to `CFG.LLM_MODEL`.
             render_model: Whether to render `model` as a template.
             model_settings: Provider settings such as temperature, or a callable
                 taking the context.
+            model_getter: Callable transforming the resolved base model into the
+                active model (e.g. tier switching, A/B testing) — applied before
+                `model_renderer`.
+            model_renderer: Callable transforming the active model into the
+                final pydantic-ai model (e.g. wrapping a tier name into a real
+                model string).
             custom_model_names: Extra model names to offer beyond the detected
                 ones.
-            llm_config: Credentials and endpoint settings. Defaults to the shared
-                `llm_config`.
             llm_limiter: Rate and token limiter. Defaults to the shared
                 `llm_limiter`.
             capabilities: pydantic-ai capabilities to enable for the run.
@@ -236,7 +244,6 @@ class LLMTask(BaseTask):
             successor=successor,
             print_fn=print_fn,
         )
-        self._llm_config = default_llm_config if llm_config is None else llm_config
         self._llm_limiter = default_llm_limiter if llm_limiter is None else llm_limiter
         if prompt_manager is None:
             prompt_manager = PromptManager(
@@ -266,6 +273,8 @@ class LLMTask(BaseTask):
         self._model = model
         self._render_model = render_model
         self._model_settings = model_settings
+        self._model_getter = model_getter
+        self._model_renderer = model_renderer
         self._custom_model_names = custom_model_names
         self._conversation_name = conversation_name
         self._render_conversation_name = render_conversation_name
@@ -625,9 +634,45 @@ class LLMTask(BaseTask):
         return self._history.post_process_output(output)
 
     @property
-    def llm_config(self) -> LLMConfig:
-        """Model, credentials, and endpoint settings backing this task."""
-        return self._llm_config
+    def model_getter(
+        self,
+    ) -> "Callable[[str | Model | None], str | Model | None] | None":
+        """Callable transforming the resolved base model into the active
+        model (e.g. tier switching, A/B testing) — applied before
+        `model_renderer`."""
+        return self._model_getter
+
+    @model_getter.setter
+    def model_getter(
+        self, value: "Callable[[str | Model | None], str | Model | None] | None"
+    ) -> None:
+        """Replace the model-getter hook, or None to remove it."""
+        if value is not None and not callable(value):
+            raise TypeError(
+                f"{self.name}.model_getter must be a callable or None, "
+                f"got {type(value).__name__}."
+            )
+        self._model_getter = value
+
+    @property
+    def model_renderer(
+        self,
+    ) -> "Callable[[str | Model | None], str | Model | None] | None":
+        """Callable transforming the active model into the final
+        pydantic-ai model — applied after `model_getter`."""
+        return self._model_renderer
+
+    @model_renderer.setter
+    def model_renderer(
+        self, value: "Callable[[str | Model | None], str | Model | None] | None"
+    ) -> None:
+        """Replace the model-renderer hook, or None to remove it."""
+        if value is not None and not callable(value):
+            raise TypeError(
+                f"{self.name}.model_renderer must be a callable or None, "
+                f"got {type(value).__name__}."
+            )
+        self._model_renderer = value
 
     @property
     def llm_limiter(self) -> LLMLimiter:
@@ -841,7 +886,9 @@ class LLMTask(BaseTask):
         )
 
         base_model = self.get_model(ctx)
-        final_model = self._llm_config.resolve_model(base_model)
+        final_model = apply_model_hooks(
+            base_model, self._model_getter, self._model_renderer
+        )
 
         for ui in self._uis:
             if hasattr(ui, "model"):

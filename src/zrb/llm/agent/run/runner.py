@@ -65,13 +65,16 @@ from zrb.llm.agent_state import (
     AnyToolConfirmation,
     current_agent_run_scope,
     current_hook_manager,
+    current_multimodal_model,
+    current_small_model,
     current_tool_confirmation,
     current_ui,
     current_yolo,
+    get_current_multimodal_model,
 )
 from zrb.llm.approval.approval_channel import ApprovalChannel, current_approval_channel
-from zrb.llm.config.config import llm_config
 from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.config.model_resolver import resolve_configured_multimodal_model
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.turn_evidence import turn_states_preference, turn_wrote_files
 from zrb.llm.hook.types import HookEvent
@@ -180,6 +183,18 @@ async def run_agent(
         bind_contextvar(stack, current_tool_confirmation, effective_tool_confirmation)
         bind_contextvar(stack, current_yolo, effective_yolo)
         bind_contextvar(stack, current_hook_manager, effective_hook_manager)
+        # The UI's own `small_model`/`multimodal_model` (set by `/model small
+        # ...` / `/model multimodal ...`) — None when the UI has neither, in
+        # which case a reader falls back to CFG. getattr, not a UIProtocol
+        # method: most UIs (StdUI, a bare MultiUI) never set these.
+        bind_contextvar(
+            stack, current_small_model, getattr(effective_ui, "small_model", None)
+        )
+        bind_contextvar(
+            stack,
+            current_multimodal_model,
+            getattr(effective_ui, "multimodal_model", None),
+        )
         bind_contextvar(stack, current_agent_run_scope, run_scope or uuid.uuid4().hex)
         bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         bind_contextvar(stack, current_permission_policy, effective_policy)
@@ -941,6 +956,8 @@ async def _apply_multimodal_fallback(
     return await replace_unsupported_attachments(
         prompt_content,
         main_model=main_model,
-        multimodal_model=llm_config.multimodal_model,
+        multimodal_model=resolve_configured_multimodal_model(
+            get_current_multimodal_model()
+        ),
         print_fn=print_fn,
     )

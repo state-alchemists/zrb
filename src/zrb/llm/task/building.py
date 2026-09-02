@@ -320,15 +320,12 @@ class LLMTaskBuilding:
         )
 
     def get_model_settings(self, ctx: AnyContext) -> ModelSettings | None:
-        """The task's model settings, falling back to the LLM config's."""
+        """The task's model settings, or None (pydantic-ai's own defaults apply)."""
         model_settings = self._llm_task.model_settings_attr
-        rendered_model_settings = get_attr(ctx, model_settings, None)
-        if rendered_model_settings is not None:
-            return rendered_model_settings
-        return self._llm_task.llm_config.model_settings
+        return get_attr(ctx, model_settings, None)
 
     def get_model(self, ctx: AnyContext) -> str | Model:
-        """The task's model, rendered against *ctx*, falling back to the config's.
+        """The task's model, rendered against *ctx*, falling back to `CFG.LLM_MODEL`.
 
         A blank render counts as unset, so an empty ``--model`` input does not
         shadow the configured model with an empty string.
@@ -337,5 +334,4 @@ class LLMTaskBuilding:
             ctx,
             self._llm_task.model_attr,
             self._llm_task.render_model,
-            self._llm_task.llm_config,
         )

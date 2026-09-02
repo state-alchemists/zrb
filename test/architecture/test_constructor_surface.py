@@ -18,8 +18,11 @@ from zrb.llm.ui.base.ui import BaseUI
 # Max __init__ parameters per class. Lower these as the surface shrinks; a
 # raise needs a one-line reason in the same diff, like the facade budgets.
 PARAM_BUDGETS = {
-    LLMChatTask: 70,
-    LLMTask: 52,
+    # Phase 6 (ADR-0090/0091, R12): removed the single `llm_config` param,
+    # added the two task-level hooks it used to carry (`model_getter`,
+    # `model_renderer`) as direct constructor slots — net +1.
+    LLMChatTask: 71,
+    LLMTask: 53,
     BaseUI: 15,
 }
 

@@ -131,10 +131,10 @@ task.append_tool(my_special_tool)   # this task only
 Per-instance mutations (`task.append_tool`, `task.prompt_manager.append_prompt`) affect **that** manager's resolved list and never reach the shared registry.
 
 **Single-component slots work the same way, after construction.** A task's
-component slots (`prompt_manager`, `hook_manager`, `llm_config`, `llm_limiter`,
-`history_manager`, `sandbox`, `permissions`, `markdown_theme`) are settable
-properties, so a `zrb_init.py` that runs after a built-in task is already
-defined can still replace one wholesale:
+component slots (`prompt_manager`, `hook_manager`, `llm_limiter`,
+`history_manager`, `sandbox`, `permissions`, `markdown_theme`, `model_getter`,
+`model_renderer`) are settable properties, so a `zrb_init.py` that runs after
+a built-in task is already defined can still replace one wholesale:
 
 ```python
 from zrb import llm_chat
