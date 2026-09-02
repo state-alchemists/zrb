@@ -1,7 +1,7 @@
 """Re-exported pydantic-ai types for use elsewhere in zrb.
 
 `create_agent()` (`agent/common.py`) is the one place that constructs a real
-`pydantic_ai.Agent` (ADR-0036). This module is its companion for the far more
+`pydantic_ai.Agent`. This module is its companion for the far more
 common case: a file that only needs a pydantic-ai *type* — for an annotation,
 an `isinstance` check, or building a message part — with no `Agent`
 construction or run-loop logic of its own. Importing from here instead of
@@ -10,12 +10,12 @@ construction or run-loop logic of its own. Importing from here instead of
 Deliberately excluded: concrete model/provider classes and the `Agent` class
 itself (`OpenAIChatModel`, `Provider`, `known_model_names`, `Agent`, ...).
 Re-exporting the former would start to look like the "bespoke provider
-abstraction" ADR-0037 rejects; `Agent` construction stays exclusively at
-`create_agent()` so there is one place, not two, that builds a real agent.
-`Model` itself is re-exported below because it's used purely as an
+abstraction" that is deliberately rejected; `Agent` construction stays
+exclusively at `create_agent()` so there is one place, not two, that builds a
+real agent. `Model` itself is re-exported below because it's used purely as an
 annotation everywhere it appears in zrb — actual provider/model
-*resolution* stays exactly where ADR-0037 leaves it, in
-`llm/config/config.py`, importing `pydantic_ai` directly.
+*resolution* stays exactly where it is, in `llm/config/config.py`, importing
+`pydantic_ai` directly.
 
 Every name here is a plain re-export — zero logic, zero behavior change.
 These are real (not `TYPE_CHECKING`-guarded) imports: this module pays
@@ -24,7 +24,7 @@ pydantic-ai's import cost when *it* is first imported, same as the direct
 eagerly at start-up, so callers must still guard their own import of it the
 same way they guarded the `pydantic_ai` import it replaces: inside
 `if TYPE_CHECKING:` for annotation-only use, or behind a justified
-in-function import for runtime use (ADR-0033's lazy-import categories).
+in-function import for runtime use (the lazy-import categories).
 """
 
 from __future__ import annotations

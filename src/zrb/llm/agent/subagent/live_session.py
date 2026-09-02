@@ -7,12 +7,12 @@ and must stay that way. This registry holds live object references — a
 `BufferedUI`, the sub-agent's own accumulated pydantic-ai message history —
 scoped to the current process/session only, so a human can navigate into a
 currently running (or just-finished) sub-agent's own view and keep talking to
-it. Also distinct from the disk-persisted `/load` resume path (ADR-0083),
+it. Also distinct from the disk-persisted `/load` resume path,
 which survives a process restart; this one does not and isn't meant to.
 
 Two ways a message reaches the sub-agent, tried in order by `send_message`:
 - The sub-agent's turn is still in flight: `steer_into_live_run` injects the
-  message into the live pydantic-ai run via `RunContext.enqueue()` (ADR-0078)
+  message into the live pydantic-ai run via `RunContext.enqueue()`
   — the exact mechanism the main agent already uses for mid-turn steering.
   `_execution_loop` already sets `active_run_context` on every sub-agent's
   `BufferedUI` via a UI-agnostic `setattr`; nothing previously read it back.

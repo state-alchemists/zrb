@@ -13,17 +13,19 @@ from zrb.llm.agent.common import create_agent
 from zrb.llm.agent.subagent.definition import SubAgentDefinition
 from zrb.llm.agent.subagent.manager_loading import SubAgentManagerLoading
 from zrb.llm.agent.subagent.manager_search import SubAgentManagerSearch
+from zrb.llm.agent.subagent.registry import SubAgentRegistry, sub_agent_registry
 from zrb.llm.agent.subagent.tool_resolver import (
     canonical_tool_name,
     resolve_tools_by_name,
     resolved_tool_name,
 )
 from zrb.llm.agent.subagent.yolo import make_yolo_inheritance_checker
-from zrb.llm.common_tools import defer_common_tools, ensure_common_tools
+from zrb.llm.common_tools import apply_common_tools
 from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.prompt.live_context import render_journal_index
 from zrb.llm.summarizer import create_summarizer_history_processor
+from zrb.llm.tool.registry import tool_registry
 from zrb.util.asset_scanner import IGNORE_DIRS
 
 if TYPE_CHECKING:
@@ -53,9 +55,16 @@ class SubAgentManager:
         search_dirs: list[str | Path] | None = None,
         max_depth: int = 1,
         ignore_dirs: list[str] | None = None,
+        registry: SubAgentRegistry | None = None,
     ):
         # Lightweight: just assign properties, no heavy operations
         """Discover sub-agent definitions and build agents from them.
+
+        Decomposed: the manager owns discovery (`scan`,
+        `get_search_directories`) and agent construction, and composes a
+        `SubAgentRegistry` for the canonical definition collection. All
+        definition query and mutation methods delegate to the registry, so a
+        manual `add_agent`/`set_agents` survives a later scan.
 
         Args:
             tool_registry: Tools available to sub-agents, by name. Defaults to
@@ -66,7 +75,10 @@ class SubAgentManager:
             max_depth: How many directory levels below each search directory to
                 descend.
             ignore_dirs: Directory names skipped while scanning.
+            registry: The canonical `SubAgentRegistry` of definitions to read
+                and write. A fresh registry is created when `None`.
         """
+        self._registry = registry if registry is not None else SubAgentRegistry()
         self._tool_registry = tool_registry if tool_registry is not None else {}
         self._tool_factories: list[
             Callable[
@@ -81,13 +93,18 @@ class SubAgentManager:
         self._root_dir = root_dir
         self._search_dirs = search_dirs
         self._max_depth = max_depth
-        self._agents: dict[str, SubAgentDefinition] = {}
+        self._scanned_agents: dict[str, SubAgentDefinition] = {}
         self._ignore_dirs = IGNORE_DIRS if ignore_dirs is None else ignore_dirs
         self._loaded: bool = False
         self._loading = SubAgentManagerLoading(
-            ignore_dirs=self._ignore_dirs, agents=self._agents
+            ignore_dirs=self._ignore_dirs, agents=self._scanned_agents
         )
         self._search = SubAgentManagerSearch()
+
+    @property
+    def registry(self) -> SubAgentRegistry:
+        """The canonical definition collection this manager reads and writes."""
+        return self._registry
 
     @property
     def root_dir(self) -> str:
@@ -99,11 +116,12 @@ class SubAgentManager:
         self._root_dir = value
 
     def reload(self):
-        """Force re-scan agents. Use after CFG changes or agent file updates."""
+        """Force re-scan agents. Use after CFG changes or agent file updates.
+
+        Manual registrations survive; only the discovered layer is refreshed.
+        """
         self._loaded = False
-        # Cleared in place (not reassigned): `self._loading` holds a reference
-        # to this same dict, which a reassignment would orphan.
-        self._agents.clear()
+        self._registry.clear_discovered()
         self._ensure_loaded()
 
     def get_search_directories(self) -> list[str | Path]:
@@ -119,7 +137,9 @@ class SubAgentManager:
 
     def append_tool_factory(
         self,
-        *factory: "Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]",
+        *factory: (
+            "Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]"
+        ),
     ):
         """Append tool factories."""
         for single_factory in factory:
@@ -138,7 +158,11 @@ class SubAgentManager:
     def scan(
         self, search_dirs: list[str | Path] | None = None
     ) -> list[SubAgentDefinition]:
-        """Scan default and provided directories. Doesn't clear manual registrations."""
+        """Scan default and provided directories. Doesn't clear manual registrations.
+
+        Manually-registered definitions are kept; a manual registration wins a
+        name collision with a discovered one.
+        """
         target_search_dirs = search_dirs
         if target_search_dirs is None:
             target_search_dirs = (
@@ -146,16 +170,36 @@ class SubAgentManager:
                 if self._search_dirs is not None
                 else self.get_search_directories()
             )
+        self._scanned_agents.clear()
         for search_dir in target_search_dirs:
             self._loading.scan_dir(
                 Path(search_dir), max_depth=self._max_depth, root_dir=self._root_dir
             )
+        self._registry.set_discovered(list(self._scanned_agents.values()))
         self._loaded = True
-        return list(self._agents.values())
+        return self.get_agents()
 
     def add_agent(self, definition: SubAgentDefinition):
-        """Manually register a sub-agent definition."""
-        self._agents[definition.name] = definition
+        """Manually register a sub-agent definition. Survives a later scan."""
+        self._registry.add_agent(definition)
+
+    def remove_agent(self, name: str) -> None:
+        """Drop a sub-agent definition by name (manual and discovered)."""
+        self._ensure_loaded()
+        self._registry.remove_agent(name)
+
+    def set_agents(self, agents):
+        """Replace the whole definition collection with *agents*.
+
+        *agents* may be a list of `SubAgentDefinition` or a deferred callable
+        returning one. Like `add_agent`, this registration survives a later scan.
+        """
+        self._registry.set_agents(agents)
+
+    def get_agents(self) -> list[SubAgentDefinition]:
+        """Return all sub-agent definitions, loading lazily on first call."""
+        self._ensure_loaded()
+        return self._registry.get_agents()
 
     def get_agent_definition(self, name: str) -> SubAgentDefinition | None:
         """Look up a sub-agent definition, loading them first if needed.
@@ -164,13 +208,7 @@ class SubAgentManager:
         name or path. Returns None when nothing matches.
         """
         self._ensure_loaded()
-        agent = self._agents.get(name)
-        if not agent:
-            for a in self._agents.values():
-                if a.name == name or a.path == name:
-                    agent = a
-                    break
-        return agent
+        return self._registry.get_agent_definition(name)
 
     def create_agent(
         self, name: str, ctx: AnyContext | None = None, yolo: bool | None = None
@@ -187,7 +225,6 @@ class SubAgentManager:
         Returns:
             The agent, or None when `name` matches no definition.
         """
-        ensure_common_tools(self)
         definition = self.get_agent_definition(name)
         if not definition:
             return None
@@ -288,17 +325,9 @@ class SubAgentManager:
                 icon="🤖",
             )
 
-        registry = self.get_tool_registry()
-        resolved_tools = resolve_tools_by_name(definition.tools, registry)
-
-        for factory in self._tool_factories:
-            tool = factory(ctx)
-            if isinstance(tool, list):
-                for single_tool in tool:
-                    if not getattr(single_tool, "zrb_is_delegate_tool", False):
-                        resolved_tools.append(single_tool)
-            elif not getattr(tool, "zrb_is_delegate_tool", False):
-                resolved_tools.append(tool)
+        resolved_tools = resolve_tools_by_name(
+            definition.tools, self.get_tool_registry(), self._tool_factories, ctx
+        )
 
         if definition.disallowed_tools:
             disallowed = {
@@ -411,15 +440,26 @@ class SubAgentManager:
         target_search_dirs = self._search_dirs
         if target_search_dirs is None:
             target_search_dirs = self.get_search_directories()
+        self._scanned_agents.clear()
         for search_dir in target_search_dirs:
             self._loading.scan_dir(
                 Path(search_dir), max_depth=self._max_depth, root_dir=self._root_dir
             )
+        self._registry.set_discovered(list(self._scanned_agents.values()))
 
     def get_tool_registry(self) -> "dict[str, Callable | Tool]":
-        """Statically-registered tools, keyed by name. Public — hook/creator.py's
-        agent-hook tool resolution reads this from outside the class."""
-        return self._tool_registry
+        """Static tools keyed by name, including the shared zrb tools.
+
+        The shared registry is resolved lazily on the first call, so the heavy
+        tool imports still stay off ``import zrb``. Manually registered tools
+        win name collisions with the shared set.
+        """
+        registry = dict(self._tool_registry)
+        for tool in tool_registry.get_tools():
+            name = resolved_tool_name(tool)
+            if name is not None:
+                registry.setdefault(name, tool)
+        return registry
 
     def get_tool_factories(
         self,
@@ -434,10 +474,9 @@ class SubAgentManager:
 
 
 # Module-level singleton - lightweight, agents loaded on first access
-sub_agent_manager = SubAgentManager()
+sub_agent_manager = SubAgentManager(registry=sub_agent_registry)
 
-# Deferred (not applied now): applying pulls in pydantic_ai via the tool
-# imports. ``create_agent`` calls ``ensure_common_tools(self)`` before it reads
-# the tool surface, so the heavy import lands on the first agent build instead
-# of on ``import zrb``.
-defer_common_tools(sub_agent_manager)
+# Give the singleton the shared zrb-shipped tool surface. The provider appends
+# are pure storage; nothing resolves (and the transitively-imported
+# `pydantic_ai` does not load) until the first agent build.
+apply_common_tools(sub_agent_manager)

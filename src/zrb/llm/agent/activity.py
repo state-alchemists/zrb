@@ -1,8 +1,8 @@
 """Live registry of running sub-agents, surfaced as a status panel.
 
-Mirrors the state model opencode/Claude expose (see ADR note in the chat
-lifecycle doc): the *what is running* is tracked separately from the text
-stream, so any UI backend can render it however it can.
+Mirrors the state model opencode/Claude expose: the *what is running* is
+tracked separately from the text stream, so any UI backend can render it
+however it can.
 
 The parent UI's render loop and a sub-agent's run coroutine live in different
 asyncio tasks, so this is a process-global singleton rather than a ContextVar

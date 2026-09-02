@@ -1,8 +1,7 @@
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from zrb.llm.agent.subagent.manager import SubAgentDefinition, SubAgentManager
+from zrb.llm.common_tools import apply_common_tools
 
 
 def test_sub_agent_manager_add_tool():
@@ -218,9 +217,11 @@ def test_sub_agent_manager_reload():
     manager.add_agent(agent_def)
     assert manager.get_agent_definition("test") == agent_def
 
+    # Reload refreshes the discovered layer only; a manual registration
+    # survives (ADR-0090 Part 1: discovery *plus* code).
     with patch.object(manager, "_scan_and_load"):
         manager.reload()
-    assert manager.get_agent_definition("test") is None
+    assert manager.get_agent_definition("test") == agent_def
 
 
 def test_sub_agent_manager_add_toolset():
@@ -447,3 +448,28 @@ def test_create_llm_chat_task_builds_task_from_resolved_persona():
     assert delegate_tool not in call_kwargs["tools"]
     assert call_kwargs["model"] == "resolved-test-model"
     assert call_kwargs["name"] == "resumed-stub-researcher"
+
+
+def test_common_tools_are_name_gated_for_sub_agents():
+    manager = SubAgentManager()
+    apply_common_tools(manager)
+    manager.add_agent(
+        SubAgentDefinition(
+            name="read-only",
+            path=".",
+            description="Read-only agent",
+            system_prompt="Read files only.",
+            tools=["Read"],
+        )
+    )
+
+    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create_agent:
+        manager.create_agent("read-only")
+        resolved_tools = mock_create_agent.call_args.kwargs["tools"]
+
+    names = {
+        getattr(tool, "name", getattr(tool, "__name__", "")) for tool in resolved_tools
+    }
+    assert "Read" in names
+    assert "Write" not in names
+    assert "Shell" not in names

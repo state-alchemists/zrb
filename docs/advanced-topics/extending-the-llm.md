@@ -161,6 +161,8 @@ my_chat_task.prompt_manager.append_prompt(
 
 You can extend the assistant's capabilities with your own Python functions.
 
+> **Where to put your extension.** Everything below mutates a *per-task* host (`my_task.append_tool`, `my_task.prompt_manager.append_prompt`, a manager bound to a fresh registry). To change the shipped behavior **globally** — every `zrb llm chat` and every `LLMTask` in the project — configure the shared registries instead: `tool_registry`, `skill_registry`, `sub_agent_registry`, `hook_registry`, `prompt_registry` plus their `ZRB_LLM_TOOLS` / `ZRB_LLM_SKILLS` / `ZRB_LLM_AGENTS` / `ZRB_LLM_HOOKS` / `ZRB_LLM_PROMPT` env twins. One mental model, three channels (env vars name things, `zrb_init.py` builds things, task args override one host) — see [LLM Component Collections](../configuration/llm-collections.md).
+
 ### Custom Python Tools
 
 Any Python function can be registered as a tool. The assistant automatically understands the function's purpose from its docstring and type annotations.
@@ -203,22 +205,20 @@ my_chat_task.append_tool_factory(_deferred)
 
 ### Equipping a custom host with the shipped tool surface
 
-If you build your own `LLMTask` / `LLMChatTask` and want it to have zrb's standard tools (Read/Write/Shell/Grep/…), guidance, and the MCP toolset factory — the same set the built-in `chat` agent gets — use **`defer_common_tools(host)`**, not `apply_common_tools(host)`:
+If you build your own `LLMTask` / `LLMChatTask` and want it to have zrb's standard tools (Read/Write/Shell/Grep/…), guidance, and the MCP toolset factory — the same set the built-in `chat` agent gets — call **`apply_common_tools(host)`**:
 
 ```python
 from zrb import LLMTask
-from zrb.llm.common_tools import defer_common_tools
+from zrb.llm.common_tools import apply_common_tools
 
 my_task = LLMTask(name="my-agent", ...)
-defer_common_tools(my_task)   # register shipped tools + guidance, lazily
+apply_common_tools(my_task)   # register shipped tools + guidance, lazily
 my_task.append_tool(get_weather) # then layer on your own
 ```
 
-**Why deferred is the default.** `apply_common_tools` transitively imports `pydantic_ai` (~1.7s) as a side effect of resolving the shipped tools. Task-definition modules are imported on **every** `zrb` CLI invocation — so calling `apply_common_tools` at module scope makes every `zrb` command in your project (even unrelated ones like `zrb --help`) pay that import cost. `defer_common_tools` registers the same tools/guidance but delays the heavy import until the task actually runs its first turn. Constructing the task and adding your own plain-function tools stay import-cheap.
+**Why this stays import-cheap.** `apply_common_tools` is *storage-only*: it appends per-run tool/toolset providers through the host's own public append API, exactly like appending any other custom tool. None of the shipped tools are resolved at apply time — the host's build-time resolution (its `get_all_tools` / `get_all_toolsets`) runs those providers against a fresh per-run list each run, and only then does the registry's lazy seed materialize. The `pydantic_ai` import (~1.7s) that resolving ships tools triggers therefore lands on the first agent build / first run — not on the `import zrb` path, even though task-definition modules are imported on **every** CLI invocation. Constructing the task and adding your own plain-function tools stay import-cheap; call `apply_common_tools(host)` once, when you construct the host. Hosts with an approval channel also receive the shell-safety policy; programmatic hosts (no channel) get the tools without it.
 
-`defer_common_tools` works on `LLMChatTask`, `LLMTask`, and `SubAgentManager` — they each drain the deferred registration on their first run. The built-in `chat` agent and sub-agents already have it deferred, so you only need this for hosts you construct yourself. Call it once per host.
-
-> **When to use eager `apply_common_tools` instead:** only if you built a *custom* host type (one that is not an `LLMChatTask`/`LLMTask`/`SubAgentManager`) — those have no run-time trigger to drain a deferred registration, so they must apply eagerly. You can also use it if you genuinely need the tools registered before the first run (e.g. to introspect the tool list at import time), accepting the eager `pydantic_ai` import.
+`apply_common_tools` works on `LLMChatTask`, `LLMTask`, and `SubAgentManager`. A `SubAgentManager` resolves tools *by name* from agent definitions (read-only agents are name-gated), so its `get_tool_registry` includes the shipped static set lazily and manual registrations win name collisions. Its factory/toolset providers are resolved by the names requested in each agent definition. The built-in `chat` agent and `sub_agent_manager` already have it applied — you only need this for hosts you construct yourself.
 
 ### Sub-agents
 

@@ -41,7 +41,6 @@ def create_ui_factory(
                 conversation_session_name=initial_conversation_name,
                 is_yolo=initial_yolo, initial_attachments=initial_attachments,
                 exit_commands=ui_commands.get("exit", ["/exit"]),
-                # ... 10+ more lines
             )
 
         # After (one liner):

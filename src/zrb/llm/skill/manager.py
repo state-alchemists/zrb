@@ -5,6 +5,7 @@ from pathlib import Path
 
 from zrb.config.config import CFG
 from zrb.llm.hook.manager import hook_manager
+from zrb.llm.skill.registry import SkillRegistry, skill_registry
 from zrb.llm.skill.util import discover_companion_files
 from zrb.util.asset_scanner import IGNORE_DIRS, scan_files
 from zrb.util.dir_search import BUILTIN_PLUGIN_DIR, get_upward_dirs, scan_plugin_dirs
@@ -92,14 +93,24 @@ class Skill:
 
 
 class SkillManager:
+    """Discover and resolve skills against a `SkillRegistry`.
+
+    Decomposed: the manager owns discovery (`scan`, `reload`,
+    `get_search_directories`) and content resolution, and composes a
+    `SkillRegistry` for the canonical collection. All query and mutation
+    methods delegate to the registry, so a manual `add_skill`/`set_skills`
+    survives a later scan.
+    """
+
     def __init__(
         self,
         root_dir: str = ".",
         search_dirs: list[str | Path] | None = None,
         max_depth: int = 2,
         ignore_dirs: list[str] | None = None,
+        registry: SkillRegistry | None = None,
     ):
-        """Discover and serve agent skills.
+        """Create a skill manager over *registry*.
 
         Args:
             root_dir: Directory the project-level search starts from.
@@ -108,31 +119,45 @@ class SkillManager:
             max_depth: How many directory levels below each search directory to
                 descend.
             ignore_dirs: Directory names skipped while scanning.
+            registry: The canonical `SkillRegistry` to read and write. A fresh
+                registry is created when `None`, giving an isolated view.
         """
+        self._registry = registry if registry is not None else SkillRegistry()
         self._root_dir = root_dir
         self._search_dirs = search_dirs
         self._max_depth = max_depth
-        self._skills: dict[str, Skill] = {}
         self._ignore_dirs = IGNORE_DIRS if ignore_dirs is None else ignore_dirs
         self._scanned = False
 
+    @property
+    def registry(self) -> SkillRegistry:
+        """The canonical collection this manager reads and writes."""
+        return self._registry
+
     def reload(self):
-        """Force re-scan skills. Use after CFG changes or skill file updates."""
+        """Force re-scan skills. Use after CFG changes or skill file updates.
+
+        Manual registrations survive; only the discovered layer is refreshed.
+        """
         self._scanned = False
-        self._skills = {}
+        self._registry.clear_discovered()
         self._ensure_scanned()
 
     def scan(self, search_dirs: list[str | Path] | None = None) -> list[Skill]:
-        """Discover skills on disk, replacing anything previously scanned.
+        """Discover skills on disk, replacing anything previously discovered.
+
+        Manually-registered skills are kept; a manual registration wins a
+        name collision with a discovered one.
 
         Args:
             search_dirs: Directories to scan. Defaults to those passed at
                 construction, otherwise `get_search_directories()`.
 
         Returns:
-            Every skill found, in discovery order.
+            Every skill in the effective collection, in discovery order.
         """
-        self._skills = {}
+        self._registry.clear_discovered()
+        self._scan_results: dict[str, Skill] = {}
         target_search_dirs = search_dirs
         if target_search_dirs is None:
             target_search_dirs = (
@@ -144,8 +169,9 @@ class SkillManager:
         # We iterate in normal order to allow later skills (project) to override earlier ones (global)
         for search_dir in target_search_dirs:
             self._scan_dir(Path(search_dir), max_depth=self._max_depth)
+        self._registry.set_discovered(list(self._scan_results.values()))
         self._scanned = True
-        return list(self._skills.values())
+        return self.get_skills()
 
     _SKILL_ASSET = "skills"
     _PLUGIN_ASSET = "plugins"
@@ -173,14 +199,27 @@ class SkillManager:
 
     def add_skill(self, skill: Skill):
         """
-        Manually register a skill.
+        Manually register a skill. Survives a later scan/reload.
         """
-        self._skills[skill.name] = skill
+        self._registry.add_skill(skill)
+
+    def remove_skill(self, name: str) -> None:
+        """Drop a skill by name from the collection (manual and discovered)."""
+        self._ensure_scanned()
+        self._registry.remove_skill(name)
+
+    def set_skills(self, skills):
+        """Replace the whole collection with *skills*.
+
+        *skills* may be a list of `Skill` or a deferred callable returning
+        one. Like `add_skill`, this registration survives a later scan.
+        """
+        self._registry.set_skills(skills)
 
     def get_skills(self) -> list[Skill]:
-        """Return all scanned skills, scanning lazily on first call."""
+        """Return all skills, scanning lazily on first call."""
         self._ensure_scanned()
-        return list(self._skills.values())
+        return self._registry.get_skills()
 
     def get_skill(self, name: str) -> Skill | None:
         """Look up one skill, scanning first if that has not happened yet.
@@ -189,14 +228,7 @@ class SkillManager:
         name or path. Returns None when nothing matches.
         """
         self._ensure_scanned()
-        skill = self._skills.get(name)
-        if not skill:
-            # Try partial match or path match
-            for s in self._skills.values():
-                if s.name == name or s.path == name:
-                    skill = s
-                    break
-        return skill
+        return self._registry.get_skill(name)
 
     def get_skill_content(self, name: str) -> str | None:
         """Return a skill's instruction text, or None if the skill is unknown.
@@ -351,13 +383,13 @@ class SkillManager:
 
             if isinstance(skill_obj, Skill):
                 skill_obj.companion_files = discover_companion_files(full_path)
-                self._skills[skill_obj.name] = skill_obj
+                self._scan_results[skill_obj.name] = skill_obj
             elif hasattr(module, "get_skill") and callable(module.get_skill):
                 # Factory function that returns a Skill
                 skill_obj = module.get_skill()
                 if isinstance(skill_obj, Skill):
                     skill_obj.companion_files = discover_companion_files(full_path)
-                    self._skills[skill_obj.name] = skill_obj
+                    self._scan_results[skill_obj.name] = skill_obj
 
         except Exception as e:
             CFG.LOGGER.warning(f"Failed to load Python skill from {full_path}: {e}")
@@ -438,7 +470,7 @@ class SkillManager:
                         break
 
             # Use name as key, handle duplicates by overriding (precedence handled by scan order)
-            self._skills[name] = Skill(
+            self._scan_results[name] = Skill(
                 name=name,
                 path=full_path,
                 description=description,
@@ -456,4 +488,4 @@ class SkillManager:
             CFG.LOGGER.warning(f"Failed to load Markdown skill from {full_path}: {e}")
 
 
-skill_manager = SkillManager()
+skill_manager = SkillManager(registry=skill_registry)

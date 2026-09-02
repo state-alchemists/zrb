@@ -1,4 +1,4 @@
-"""The history-related knobs `LLMTask` and `LLMChatTask` both expose (ADR-0072),
+"""The history-related knobs `LLMTask` and `LLMChatTask` both expose,
 grouped so they travel together across the wrap boundary in
 `chat/execution.py::_create_llm_task_core`.
 

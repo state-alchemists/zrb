@@ -178,8 +178,7 @@ def _get_prompt_replacements_cached(
     The journal index *content* is deliberately NOT included here. Embedding the
     mutable index in this cached system-prompt section invalidated the cacheable
     prefix every time the agent journaled mid-session; the snapshot is now
-    injected into the ``<live-context>`` block instead (see ``live_context.py``
-    and ADR-0042)."""
+    injected into the ``<live-context>`` block instead (see ``live_context.py``)."""
     replacements: dict[str, str] = {}
     cfg_values = {
         "LLM_JOURNAL_DIR": journal_dir,

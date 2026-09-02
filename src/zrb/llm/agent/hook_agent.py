@@ -18,7 +18,6 @@ from zrb.context.shared_context import SharedContext
 from zrb.llm.agent.common import wrap_tool
 from zrb.llm.agent.subagent.manager import sub_agent_manager
 from zrb.llm.agent.subagent.tool_resolver import resolve_tools_by_name
-from zrb.llm.common_tools import ensure_common_tools
 from zrb.llm.hook.agent_hook_registry import register_agent_hook_builder
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.schema import AgentHookConfig
@@ -71,7 +70,6 @@ def resolve_agent_hook_tools(names: list[str]) -> list:
     registry."""
     if not names:
         return []
-    ensure_common_tools(sub_agent_manager)
     # Mirrors resolve_agent_build's own ctx-less fallback (subagent/manager.py)
     # — a hook fires outside any task run, so there is no real ctx to reuse.
     ctx = Context(
@@ -93,7 +91,7 @@ def resolve_agent_hook_tools(names: list[str]) -> list:
 def _undeferred(tool: Any) -> Any:
     """Strip `defer_loading` from *tool* if the shared registry/factories set
     it (e.g. the journal tools, deferred for the main agent's rare use —
-    see `common_tools.py::_register_tool_factories`).
+    see `common_tools.py::_seed_tool_factories`).
 
     A hook names its tools explicitly in its own config; there is no big
     catalogue for `defer_loading` to hide a rare tool inside, so all it would

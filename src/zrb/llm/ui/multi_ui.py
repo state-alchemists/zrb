@@ -168,7 +168,7 @@ class MultiUI:
         `RunContext` for the turn currently streaming through this MultiUI, or
         None between turns / while a turn is suspended. Read by
         `submit_user_message` to steer a new message into the live turn
-        instead of queuing it (ADR-0078)."""
+        instead of queuing it."""
         return self._active_run_context
 
     @active_run_context.setter
@@ -551,7 +551,7 @@ class MultiUI:
 
     def submit_message(self, user_message: str) -> None:
         """Queue *user_message* for the shared agent turn (steer into the live
-        run when one is in flight, ADR-0078). Uses the shared queue's own task
+        run when one is in flight). Uses the shared queue's own task
         — sub-agent continuation code calls this to hand the main agent a
         synthesized report."""
         self.submit_user_message(self._llm_task, user_message)

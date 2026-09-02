@@ -8,7 +8,7 @@ from zrb.builtin.llm.chat_tool_policy import (
 from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
-from zrb.llm.common_tools import defer_common_tools
+from zrb.llm.common_tools import apply_common_tools
 from zrb.llm.custom_command import get_skill_custom_command
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.profile import MINIMAL_PROFILE, active_profile
@@ -89,13 +89,13 @@ llm_chat = LLMChatTask(
     ui_jargon=lambda ctx: CFG.LLM_ASSISTANT_JARGON,
 )
 
-# Register zrb-shipped default tools, factories, and guidance — deferred to the
-# first exec (ChatExecution.exec_action calls ensure_common_tools) so applying it,
-# which transitively imports pydantic_ai, stays off the `import zrb` path. The
-# same deferral is set on `sub_agent_manager` at the bottom of
-# `zrb/llm/agent/subagent/manager.py`, so the main agent and sub-agents
-# share their tool surface and guidance.
-defer_common_tools(llm_chat)
+# Give the singleton the zrb-shipped default tools, factories, and guidance.
+# `apply_common_tools` is storage-only — it appends per-run providers the
+# host's build-time resolution runs against a fresh list, so nothing resolves
+# (and the transitively-imported `pydantic_ai` does not load) until the first
+# exec / agent build. `sub_agent_manager` opts in the same way at the bottom
+# of `zrb/llm/agent/subagent/manager.py`, so both share the tool surface.
+apply_common_tools(llm_chat)
 
 
 def _tool_factory(tool, defer_loading: bool = True):

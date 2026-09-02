@@ -258,8 +258,8 @@ async def run_agent_task(
 
 
 def persist_subagent_history(conversation_name: str, history: list) -> None:
-    """Save a delegated sub-agent's transcript under its own conversation name
-    (ADR item 4, Phase A), always — there is no opt-out knob.
+    """Save a delegated sub-agent's transcript under its own conversation name,
+    always — there is no opt-out knob.
 
     Best-effort: persisting the transcript is not this tool's primary job, so
     a failure here (disk full, permissions) must not surface as a delegation
@@ -521,7 +521,7 @@ async def _run_parallel(
     others; a shared lock serializes any approval prompts back to the parent UI.
 
     A task with ``isolate_worktree: true`` runs inside its own git worktree
-    (ADR-0068) instead of the shared working tree — opt-in, since fanning out
+    instead of the shared working tree — opt-in, since fanning out
     concurrent *writes* onto one tree corrupts them into each other. `asyncio.gather`
     schedules each `run_single_agent` coroutine as its own `Task`, which copies
     `contextvars` at creation time, so each task's `active_worktree` is isolated

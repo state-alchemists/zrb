@@ -43,6 +43,7 @@ from zrb.llm.tool.plan import (
     write_todos,
 )
 from zrb.llm.tool.rag import create_rag_from_directory
+from zrb.llm.tool.registry import ToolRegistry, tool_name, tool_registry
 from zrb.llm.tool.shell import run_shell_command
 from zrb.llm.tool.shell_background import create_monitor_process_tool
 from zrb.llm.tool.skill import (
@@ -54,6 +55,9 @@ from zrb.llm.tool.zrb_task import create_list_zrb_task_tool, create_run_zrb_task
 
 __all__ = [
     "run_shell_command",
+    "ToolRegistry",
+    "tool_name",
+    "tool_registry",
     "glob_files",
     "list_files",
     "read_file",

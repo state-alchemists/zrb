@@ -1,10 +1,29 @@
 """Shared default-tool registration for zrb-shipped agents.
 
-`apply_common_tools(host)` registers the standard zrb-shipped tools, toolset
-factories, and the shell-safety policy on any host that conforms to
-``CommonToolHost`` — used by ``LLMChatTask`` (main agent), ``LLMTask``
-(programmatic agents), and ``SubAgentManager`` (sub-agents) so they share the
-same tool surface.
+`apply_common_tools(host)` gives any ``CommonToolHost`` the standard
+zrb-shipped tools, toolset factories, and the shell-safety policy — used by
+``LLMChatTask`` (main agent), ``LLMTask`` (programmatic agents), and
+``SubAgentManager`` (sub-agents) so they share the same tool surface.
+
+Application is *storage-only*: it appends per-run tool/toolset providers onto
+the host through its own public append API, exactly like appending any other
+custom tool. Nothing resolves at apply time — the host's build-time resolution
+(`get_all_tools` / `resolve_agent_build`) runs those providers against a fresh
+per-run list each time, and only then does the registry's lazy seed
+materialize. That is what keeps the ``pydantic_ai`` import off ``import zrb``:
+call `apply_common_tools(host)` once when you construct ``llm_chat`` /
+``sub_agent_manager`` (or your own task) and the heavy import lands on the
+first agent build instead of at module load.
+
+``SubAgentManager`` resolves its tools *by name* from sub-agent definitions
+(read-only agents are name-gated), rather than consuming a flat merged list the
+way a task can. Its manager always includes the shared static registry lazily;
+the per-run factory/toolset content still arrives through the same providers.
+
+The canonical set lives in ``tool_registry`` (see ``registry.py``): this
+module owns its lazy *seed* (the built-in tool content, wired via
+``tool_registry.set_seed``) and the host-application glue — a host is fed
+from the registry rather than staying a hardwired copy of it.
 
 There is no prompt-side tool catalogue. What a tool does, what its arguments
 mean, and which tool to reach for instead all live in the tool's own docstring,
@@ -29,6 +48,7 @@ from typing import TYPE_CHECKING, Any, Callable, Protocol, runtime_checkable
 
 from zrb.config.config import CFG
 from zrb.llm.permission import Capability, tag
+from zrb.llm.tool.registry import tool_name, tool_registry
 from zrb.llm.tool_call.tool_policy.bash_validation import (
     bash_safe_command_policy,
 )
@@ -36,12 +56,12 @@ from zrb.llm.util.git import is_inside_git_dir
 from zrb.util.string.conversion import to_boolean
 
 # NOTE: `zrb.llm.tool` and `zrb.llm.lsp.tools` are imported lazily inside the
-# registration functions below — not to dodge a circular import (there isn't
-# one: `zrb.llm.tool/__init__.py` doesn't eagerly re-export anything, see its
-# own docstring), but because both transitively load `pydantic_ai`. Deferring
-# them until `apply_common_tools`/`ensure_common_tools` is actually called
-# keeps that cold-start cost off `import zrb` for callers that never build an
-# agent.
+# seed function below — not to dodge a circular import (there isn't one:
+# `zrb.llm.tool/__init__.py` doesn't eagerly re-export anything, see its own
+# docstring), but because both transitively load `pydantic_ai`. Deferring
+# them until the registry's seed is first resolved (i.e. the first
+# `apply_common_tools` call) keeps that cold-start cost off `import zrb`
+# for callers that never build an agent.
 
 if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext
@@ -50,7 +70,7 @@ if TYPE_CHECKING:
 
 @runtime_checkable
 class CommonToolHost(Protocol):
-    """Minimal interface needed by ``apply_common_tools``.
+    """Minimal interface `apply_common_tools` needs from a host.
 
     Satisfied by ``LLMChatTask``, ``LLMTask``, and ``SubAgentManager``.
     """
@@ -64,13 +84,22 @@ class CommonToolHost(Protocol):
 
 
 def apply_common_tools(host: CommonToolHost) -> None:
-    """Register zrb-shipped default tools, factories, and guidance on ``host``.
+    """Give *host* the zrb-shipped tools, factories, and shell-safety policy.
 
-    Idempotent only if called once per host — calling twice will register
-    everything twice.
+    Storage only: appends per-run providers, never resolves the registry seed,
+    so calling it at construction (as the ``llm_chat`` / ``sub_agent_manager``
+    singletons do) keeps ``pydantic_ai`` off ``import zrb``. The host's
+    build-time resolution runs the providers against a fresh per-run list each
+    run, materializing the seed (and with it the heavy import) on the first
+    agent build. Call once per host, when you construct it.
+
+    ``LLMChatTask`` / ``LLMTask`` resolve the providers as a flat list.
+    ``SubAgentManager`` resolves the same providers against each sub-agent's
+    ``tools:`` list, so a read-only agent that omits ``Write``/``Edit``/``Shell``
+    keeps them out.
     """
-    _register_tools(host)
-    _register_tool_factories(host)
+    host.append_tool_factory(_common_tools_provider)
+    host.append_toolset_factory(_common_toolsets_provider)
     # Shell safety travels with the shell tools rather than with one builtin
     # task: the allowlist in bash_safe_command_policy IS the git approval rule
     # (read-only subcommands auto-approve, `commit`/`push`/`reset` reach the
@@ -83,22 +112,51 @@ def apply_common_tools(host: CommonToolHost) -> None:
         add_policy(bash_safe_command_policy())
 
 
-def tool_name(tool: "Callable | Tool | Any") -> str:
-    """Registered name of *tool*, whether it is a bare function or a ``Tool``.
+def _common_tools_provider(
+    ctx: "AnyContext",
+) -> "list[Callable | Tool]":
+    """Per-run provider: the full common tool surface (statics + factories).
 
-    A ``Tool`` wraps the function it was built from, and zrb's tools carry their
-    PascalCase name on ``__name__`` (ADR-0056), so both layers have to be tried.
+    Appended by `apply_common_tools` to every host. Runs at every agent build
+    against a fresh list, so env gates (``LLM_JOURNAL_ENABLED``,
+    interactivity) and the ``LLM_TOOLS`` allowlist are re-evaluated per run
+    rather than frozen at apply time. ``SubAgentManager`` name-gates the
+    output against each sub-agent's ``tools:`` list, same as its registry.
     """
-    fn = getattr(tool, "function", tool)
-    return getattr(fn, "__name__", "") or getattr(tool, "name", "") or ""
+    tools = list(tool_registry.get_tools())
+    for factory in tool_registry.get_tool_factories():
+        produced = factory(ctx)
+        tools.extend(produced if isinstance(produced, list) else [produced])
+    return tools
 
 
-def _register_tools(host: CommonToolHost) -> None:
-    """Register the statically-known tools, tagged with their capabilities.
+def _common_toolsets_provider(ctx: "AnyContext") -> list:
+    """Per-run provider: the common toolset content (e.g. MCP servers)."""
+    produced: list = []
+    for factory in tool_registry.get_toolset_factories():
+        items = factory(ctx)
+        produced.extend(items if isinstance(items, list) else [items])
+    return produced
 
-    A new tool under `llm/tool/` must be imported here, `tag()`-ed with a
-    `Capability` (below), and appended to the `tools` list — or it silently
-    resolves to `Capability.UNKNOWN` (denied in plan mode) with no error.
+
+def _seed_default_tool_registry() -> None:
+    """Wire the built-in tool content into ``tool_registry`` as its lazy seed.
+
+    Idempotent and side-effect-light: installs a callable the registry
+    withholds until its first resolution, so the heavy ``pydantic_ai`` imports
+    inside ``_seed_default_tools`` run on the first agent build, not on
+    ``import zrb``.
+    """
+    tool_registry.set_seed(_seed_default_tools)
+
+
+def _seed_default_tools() -> tuple[list, list, list]:
+    """The built-in tool content: (tools, tool_factories, toolset_factories).
+
+    Runs only on the seed's first resolution (first agent build). A new tool
+    under `llm/tool/` must be imported here, `tag()`-ed with a `Capability`
+    (below), and appended to the `tools` list — or it silently resolves to
+    `Capability.UNKNOWN` (denied in plan mode) with no error.
     """
     # lazy + import from source modules directly. Going through the
     # ``zrb.llm.tool`` re-export would deadlock: that package's __init__
@@ -200,11 +258,12 @@ def _register_tools(host: CommonToolHost) -> None:
         *(Tool(_fn, defer_loading=True) for _fn in lsp_tools),
         *plan_tools,
     ]
-    host.append_tool(*tools)
+    factories, toolset_factories = _seed_tool_factories()
+    return tools, factories, toolset_factories
 
 
-def _register_tool_factories(host: CommonToolHost) -> None:
-    """Register the tools whose availability is only known per run.
+def _seed_tool_factories() -> tuple[list, list]:
+    """The per-run tool factories + toolset factories of the built-in seed.
 
     A factory is re-evaluated against the resolved context on every run, which
     is what lets interactivity and ``LLM_JOURNAL_ENABLED`` gate a tool without
@@ -215,7 +274,7 @@ def _register_tool_factories(host: CommonToolHost) -> None:
     from zrb.llm.agent.types import Tool
 
     # lazy: zrb.llm.tool.* transitively load pydantic_ai — same reason as the
-    # import block in _register_tools.
+    # import block in _seed_default_tools.
     from zrb.llm.permission import Capability, tag
     from zrb.llm.tool.ask import ask_user_question
     from zrb.llm.tool.journal import search_journal
@@ -274,7 +333,7 @@ def _register_tool_factories(host: CommonToolHost) -> None:
         #
         # Deferred loading: the main agent only touches these on a small
         # minority of turns, so hide their schemas until search_tools — same
-        # rationale as analyze_code/analyze_file in _register_tools above. The
+        # rationale as analyze_code/analyze_file in _seed_default_tools above. The
         # journal-compliance hook (agent/hook_agent.py) names these tools
         # explicitly rather than discovering them, so defer_loading would only
         # cost it an extra search-then-call round trip on every run with no
@@ -303,43 +362,17 @@ def _register_tool_factories(host: CommonToolHost) -> None:
         # catalogue the prompt truncates, so it ships alongside the activator.
         lambda ctx: tag(create_search_skill_tool(), Capability.META),
         # Deferred loading: only needed after monitoring a background process —
-        # see the rationale on analyze_code/analyze_file in _register_tools.
+        # see the rationale on analyze_code/analyze_file in _seed_default_tools.
         lambda ctx: Tool(
             tag(create_monitor_process_tool(), Capability.EXECUTE),
             defer_loading=True,
         ),
     ]
-    host.append_tool_factory(*factories)
     # MCP servers vary widely in tool count, so they remain deferred.
-    host.append_toolset_factory(
+    toolset_factories: list["Callable[[AnyContext], Any]"] = [
         lambda ctx: [toolset.defer_loading() for toolset in load_mcp_config()]
-    )
-
-
-def defer_common_tools(host: CommonToolHost) -> None:
-    """Register ``apply_common_tools(host)`` to run on first use instead of now.
-
-    ``apply_common_tools`` transitively imports ``pydantic_ai`` (via the
-    ``zrb.llm.tool.*`` functions and the ``Tool`` class). Calling it while the
-    ``llm_chat`` / ``sub_agent_manager`` singletons are constructed would drag
-    that ~1.7s import onto every ``import zrb``. Deferring it to the
-    first agent build (``ensure_common_tools`` at the top of the exec /
-    ``create_agent`` entry points) keeps the heavy import off the cold path for
-    callers that never run an agent. See ``ensure_common_tools``.
-    """
-    setattr(host, "_pending_common_tools", True)
-
-
-def ensure_common_tools(host: CommonToolHost) -> None:
-    """Run the deferred ``apply_common_tools`` once, if one is pending.
-
-    No-op for hosts that never called ``defer_common_tools`` (e.g. bare
-    ``LLMChatTask`` instances that are not the ``llm_chat`` singleton), so the
-    deferral stays scoped to the hosts that asked for it.
-    """
-    if getattr(host, "_pending_common_tools", False):
-        setattr(host, "_pending_common_tools", False)
-        apply_common_tools(host)
+    ]
+    return factories, toolset_factories
 
 
 def _resolve_interactive(ctx: "AnyContext") -> bool:
@@ -362,3 +395,9 @@ def _resolve_interactive(ctx: "AnyContext") -> bool:
     if isinstance(val, str):
         return to_boolean(val)
     return get_interactive_mode()
+
+
+# Wire the built-in tool content into the global registry as a lazy seed at
+# module load — stored, not resolved, so the heavy imports stay deferred until
+# the first agent build (the first ``apply_common_tools`` call).
+_seed_default_tool_registry()

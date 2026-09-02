@@ -5,7 +5,7 @@ validation and execution when a human edits a tool call during approval, but
 it never rewrites the `ToolCallPart` already sitting in the model's own turn
 in message history. Left alone, the model's next turn sees its own original
 request next to a `ToolReturnPart` that doesn't match it, with no signal that
-a human intervened — see docs/adr/adr-0085.md.
+a human intervened.
 
 `record_override` is called once approval resolves to an edited
 `ToolApproved` (`agent/run/deferred_calls.py::process_deferred_requests`).

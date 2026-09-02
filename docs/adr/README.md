@@ -155,4 +155,9 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0085** — [An edited tool call tells the model what actually ran](adr-0085.md)
 - **ADR-0086** — [The agent-type hook builder is installed through a registry, not imported directly](adr-0086.md)
 
+### Configuration and component model
+
+- **ADR-0090** — [Registries, managers, and a single resolution order for configurable components](adr-0090.md)
+- **ADR-0091** — [Three configuration channels, five component families, one mental model](adr-0091.md)
+
 🔖 [Documentation Home](../../README.md)

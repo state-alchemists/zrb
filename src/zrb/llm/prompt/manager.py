@@ -12,6 +12,13 @@ from zrb.llm.prompt.claude import (
 from zrb.llm.prompt.live_context import render_live_context, render_live_context_async
 from zrb.llm.prompt.profile import active_profile
 from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.prompt.registry import (
+    PromptDelta,
+    PromptList,
+    PromptRegistry,
+    PromptSetValue,
+)
+from zrb.llm.prompt.registry import prompt_registry as default_prompt_registry
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.skill.manager import SkillManager
 from zrb.llm.skill.manager import skill_manager as default_skill_manager
@@ -92,13 +99,14 @@ class PromptManager:
 
     def __init__(
         self,
-        prompts: list[PromptMiddleware | str] | None = None,
+        prompts: PromptSetValue = None,
         assistant_name: str | Callable[[AnyContext], str] | None = None,
         include_sections: list[str] | None = None,
         skill_manager: SkillManager | None = None,
         active_skills: StrListAttr | None = None,
         render_active_skills: bool = True,
         render: bool = False,
+        prompt_registry: PromptRegistry | None = None,
     ):
         """Build a prompt manager.
 
@@ -106,10 +114,17 @@ class PromptManager:
         section list against the shipped prompt files.
 
         Args:
-            prompts: Extra content emitted *after* every built-in section. Each
-                entry is a string, a `Callable[[AnyContext], str]`, or a full
-                middleware `Callable[[ctx, current, next], str]` that may
-                rewrite the whole assembled prompt (detected by arity, 3+).
+            prompt_registry: Source of the default appended prompts when
+                *prompts* is ``None``. Defaults to the global
+                `prompt_registry`.
+            prompts: Extra content emitted *after* every built-in section.
+                Each entry is a string, a `Callable[[AnyContext], str]`, or a
+                full middleware
+                `Callable[[ctx, current, next], str]` that may rewrite the
+                whole assembled prompt (detected by arity, 3+). May instead
+                be a zero-arg callable resolving to that list, evaluated at
+                compose time. ``None`` defers to
+                *prompt_registry*.
             assistant_name: Name substituted for `{ASSISTANT_NAME}`. A callable
                 is resolved against the active context. Defaults to
                 `CFG.LLM_ASSISTANT_NAME`.
@@ -123,8 +138,14 @@ class PromptManager:
                 templates against the context.
             render: Whether string prompts in `prompts` are rendered as
                 templates against the context.
+            prompt_registry: Source of default prompts when `prompts` is
+                ``None``. Defaults to the global `prompt_registry`.
         """
-        self._middlewares = prompts or []
+        self._prompt_registry = prompt_registry or default_prompt_registry
+        self._middlewares: PromptSetValue = prompts
+        # Ordered append/prepend/remove ops layered over the resolved base
+        # (own value, else the registry's) at query time (ADR-0090).
+        self._deltas = PromptDelta()
         self._assistant_name = assistant_name
         self._include_sections = include_sections  # None means "use CFG default"
         self._skill_manager = skill_manager or default_skill_manager
@@ -141,14 +162,21 @@ class PromptManager:
         self._model: Any = None
 
     @property
-    def prompts(self) -> list["PromptMiddleware | str"]:
-        """The extra prompts appended after the built-in sections."""
-        return self._middlewares
+    def prompt_registry(self) -> PromptRegistry:
+        """The registry this manager reads default prompts from."""
+        return self._prompt_registry
+
+    @property
+    def prompts(self) -> PromptList:
+        """The extra prompts appended after the built-in sections, resolved."""
+        return self._effective_prompts()
 
     @prompts.setter
-    def prompts(self, value: list[PromptMiddleware | str]):
-        """Replace the appended prompts wholesale."""
+    def prompts(self, value: PromptSetValue):
+        """Replace the appended prompts wholesale. ``None`` re-defers to the
+        default registry. Clears all pending instance delta ops."""
         self._middlewares = value
+        self._deltas.clear()
 
     @property
     def active_skills(self) -> StrListAttr | None:
@@ -204,16 +232,45 @@ class PromptManager:
         self._model = value
 
     def reset(self):
-        """Drop every appended prompt, keeping the built-in sections."""
-        self._middlewares = []
+        """Drop every instance-appended prompt, returning to the default
+        registry's prompt list."""
+        self._middlewares = None
+        self._deltas.clear()
+
+    def _effective_prompts(self) -> PromptList:
+        """The instance's resolved prompt list: its own explicit set (when
+        set), or — when deferring — the default registry's *current* prompts,
+        layered with this instance's ``append``/``prepend``/``remove`` ops."""
+        if self._middlewares is None:
+            base = self._prompt_registry.get_prompts()
+        else:
+            base = self._resolve_own_prompts(self._middlewares)
+        return self._deltas.apply(base)
+
+    def _resolve_own_prompts(self, value: PromptSetValue) -> PromptList:
+        """Resolve this instance's own prompt value to a concrete list."""
+        if callable(value):
+            value = value()
+        return [] if value is None else list(value)
 
     def append_prompt(self, *middleware: PromptMiddleware | str):
         """Append content emitted after all built-in sections.
 
         Accepts a static string, a `Callable[[AnyContext], str]`, or a full
-        middleware `Callable[[ctx, current, next], str]`.
+        middleware `Callable[[ctx, current, next], str]`. The op is stored
+        and layered over the resolved base each time the prompts are read,
+        so a deferring manager keeps following its registry live.
         """
-        self._middlewares.extend(middleware)
+        self._deltas.append(*middleware)
+
+    def prepend_prompt(self, *middleware: PromptMiddleware | str):
+        """Prepend content run before the current instance prompts."""
+        self._deltas.prepend(*middleware)
+
+    def remove_prompt(self, middleware: PromptMiddleware | str) -> None:
+        """Drop the first occurrence of the exact *middleware* from this
+        instance's prompts, layered over the resolved base."""
+        self._deltas.remove(middleware)
 
     def add_live_context(self, name: str, provider: SimplePrompt) -> None:
         """Register a dynamic per-turn live context provider.
@@ -246,7 +303,7 @@ class PromptManager:
         the built-in rendering, in registration order.
 
         The journal index snapshot rides here rather than the cached system
-        prompt (ADR-0042). *inject_journal_index* picks the moment (first turn);
+        prompt. *inject_journal_index* picks the moment (first turn);
         ``render_journal_index`` itself checks ``LLM_JOURNAL_ENABLED``, so a
         disabled journal emits nothing regardless of what callers ask for.
         """
@@ -410,7 +467,7 @@ class PromptManager:
                 )
 
         # User custom prompts always last
-        middlewares.extend(self._middlewares)
+        middlewares.extend(self._effective_prompts())
         return middlewares
 
     def _file_section_middleware(
@@ -423,7 +480,7 @@ class PromptManager:
 
         Resolves *name* via ``get_prompt`` at compose time,
         preferring the *profile* variant (``{name}.{profile}.md``) with fallback
-        to the base file (ADR-0049). When nothing resolves (no registered
+        to the base file. When nothing resolves (no registered
         provider, no markdown file), the section is empty — a warning
         is logged so a misspelled name in ``include_sections`` /
         ``ZRB_LLM_INCLUDE_SECTIONS`` is diagnosable instead of silently dropped.

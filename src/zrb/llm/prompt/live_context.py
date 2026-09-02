@@ -243,7 +243,7 @@ def render_journal_index(first_message: str | None = None) -> str | None:
 
     Kept out of the cached system prompt on purpose: embedding the mutable index
     in the cached prefix invalidated it every time the agent journaled
-    mid-session (ADR-0042). It is injected into the conversation instead, at the
+    mid-session. It is injected into the conversation instead, at the
     two — and only two — moments it can otherwise be absent: the first turn
     (``render_live_context(inject_journal_index=True)``) and each summarization
     (baked into the summary by ``summarize_history``). Returns ``None`` when the
@@ -256,9 +256,9 @@ def render_journal_index(first_message: str | None = None) -> str | None:
     independently by ``LLM_JOURNAL_AUTO_SEARCH_ENABLED``.
 
     A missing block is therefore not proof of an empty journal — and nothing
-    tells the model so, since ADR-0055 leaves the journal as three tools and no
-    prose. Left as a known gap rather than papered over: the only places it
-    could go are the prompt (which ADR-0055 deliberately keeps empty of journal
+    tells the model so: the journal is deliberately exposed as three tools and
+    no prose. Left as a known gap rather than papered over: the only places it
+    could go are the prompt (which is deliberately kept empty of journal
     prose) or ``SearchJournal``'s docstring, and a
     docstring ships with its schema on *every* request, so a caveat about a
     config most deployments never touch would be paid for on every turn

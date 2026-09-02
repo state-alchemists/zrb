@@ -6,6 +6,7 @@ from zrb.llm.hook.executor import (
 )
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.manager import HookManager, hook_manager
+from zrb.llm.hook.registry import HookRegistry, hook_registry
 from zrb.llm.hook.schema import (
     AgentHookConfig,
     CommandHookConfig,
@@ -30,6 +31,8 @@ __all__ = [
     "AgentHookConfig",
     "HookManager",
     "hook_manager",
+    "HookRegistry",
+    "hook_registry",
     "ThreadPoolHookExecutor",
     "get_hook_executor",
     "shutdown_hook_executor",

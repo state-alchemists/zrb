@@ -202,8 +202,8 @@ class UISelection:
                     for i in checked
                     if 0 <= i < len(options)
                 )
-            self.end_choice()  # clears prefix/question...
-            self._choice_freetext_prefix = prefix  # ...then arm free-text capture
+            self.end_choice()
+            self._choice_freetext_prefix = prefix
             self._choice_freetext_question = question
             self._append_now("\n  ✎ Type your answer and press Enter:\n")
             self._invalidate()

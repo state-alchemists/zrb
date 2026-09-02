@@ -35,6 +35,7 @@
     "HookContext",
     "HookEvent",
     "HookManager",
+    "HookRegistry",
     "HookResult",
     "HttpCheck",
     "IntAttr",
@@ -47,6 +48,7 @@
     "PasswordInput",
     "PermissionPolicy",
     "PromptManager",
+    "PromptRegistry",
     "RsyncTask",
     "Rule",
     "Scaffolder",
@@ -55,15 +57,18 @@
     "SharedContext",
     "Skill",
     "SkillManager",
+    "SkillRegistry",
     "StrAttr",
     "StrDictAttr",
     "StrInput",
     "StrListAttr",
     "SubAgentDefinition",
     "SubAgentManager",
+    "SubAgentRegistry",
     "Task",
     "TcpCheck",
     "TextInput",
+    "ToolRegistry",
     "UICommands",
     "User",
     "Xcom",
@@ -71,17 +76,22 @@
     "cli",
     "fstring",
     "hook_manager",
+    "hook_registry",
     "llm_config",
     "llm_limiter",
     "load_file",
     "load_module",
     "make_task",
     "model_capabilities",
+    "prompt_registry",
     "register_always_auto_approve",
     "register_theme",
     "skill_manager",
+    "skill_registry",
     "sub_agent_manager",
+    "sub_agent_registry",
     "to_infinite_stream",
+    "tool_registry",
     "web_auth_config"
   ],
   "classes": {
@@ -734,7 +744,8 @@
       "init": [
         "search_dirs:POSITIONAL_OR_KEYWORD:1",
         "max_depth:POSITIONAL_OR_KEYWORD:1",
-        "ignore_dirs:POSITIONAL_OR_KEYWORD:1"
+        "ignore_dirs:POSITIONAL_OR_KEYWORD:1",
+        "registry:POSITIONAL_OR_KEYWORD:1"
       ],
       "members": [
         "add_hook_factory",
@@ -747,10 +758,29 @@
         "parse_claude_format",
         "register",
         "register_hook_config",
+        "registry",
         "reload",
+        "remove_event_hooks",
+        "remove_hook",
         "scan",
         "search_dirs",
+        "set_hooks",
         "shutdown"
+      ]
+    },
+    "HookRegistry": {
+      "init": [],
+      "members": [
+        "clear_manual",
+        "get_configs",
+        "get_global_hooks",
+        "get_hook_config",
+        "get_hooks",
+        "record_config",
+        "register",
+        "remove_event_hooks",
+        "remove_hook",
+        "set_hooks"
       ]
     },
     "HookResult": {
@@ -1267,7 +1297,8 @@
         "skill_manager:POSITIONAL_OR_KEYWORD:1",
         "active_skills:POSITIONAL_OR_KEYWORD:1",
         "render_active_skills:POSITIONAL_OR_KEYWORD:1",
-        "render:POSITIONAL_OR_KEYWORD:1"
+        "render:POSITIONAL_OR_KEYWORD:1",
+        "prompt_registry:POSITIONAL_OR_KEYWORD:1"
       ],
       "members": [
         "active_sections",
@@ -1279,8 +1310,24 @@
         "create_live_context_async",
         "include_sections",
         "model",
+        "prepend_prompt",
+        "prompt_registry",
         "prompts",
+        "remove_prompt",
         "reset"
+      ]
+    },
+    "PromptRegistry": {
+      "init": [
+        "default:POSITIONAL_OR_KEYWORD:1"
+      ],
+      "members": [
+        "append_prompt",
+        "clear",
+        "get_prompts",
+        "prepend_prompt",
+        "remove_prompt",
+        "set_prompts"
       ]
     },
     "RsyncTask": {
@@ -1592,7 +1639,8 @@
         "root_dir:POSITIONAL_OR_KEYWORD:1",
         "search_dirs:POSITIONAL_OR_KEYWORD:1",
         "max_depth:POSITIONAL_OR_KEYWORD:1",
-        "ignore_dirs:POSITIONAL_OR_KEYWORD:1"
+        "ignore_dirs:POSITIONAL_OR_KEYWORD:1",
+        "registry:POSITIONAL_OR_KEYWORD:1"
       ],
       "members": [
         "add_skill",
@@ -1600,8 +1648,25 @@
         "get_skill",
         "get_skill_content",
         "get_skills",
+        "registry",
         "reload",
-        "scan"
+        "remove_skill",
+        "scan",
+        "set_skills"
+      ]
+    },
+    "SkillRegistry": {
+      "init": [
+        "skills:POSITIONAL_OR_KEYWORD:1"
+      ],
+      "members": [
+        "add_skill",
+        "clear_discovered",
+        "get_skill",
+        "get_skills",
+        "remove_skill",
+        "set_discovered",
+        "set_skills"
       ]
     },
     "StrInput": {
@@ -1649,7 +1714,8 @@
         "root_dir:POSITIONAL_OR_KEYWORD:1",
         "search_dirs:POSITIONAL_OR_KEYWORD:1",
         "max_depth:POSITIONAL_OR_KEYWORD:1",
-        "ignore_dirs:POSITIONAL_OR_KEYWORD:1"
+        "ignore_dirs:POSITIONAL_OR_KEYWORD:1",
+        "registry:POSITIONAL_OR_KEYWORD:1"
       ],
       "members": [
         "add_agent",
@@ -1660,14 +1726,32 @@
         "create_agent",
         "create_llm_chat_task",
         "get_agent_definition",
+        "get_agents",
         "get_all_toolsets",
         "get_search_directories",
         "get_tool_factories",
         "get_tool_registry",
+        "registry",
         "reload",
+        "remove_agent",
         "resolve_agent_build",
         "root_dir",
-        "scan"
+        "scan",
+        "set_agents"
+      ]
+    },
+    "SubAgentRegistry": {
+      "init": [
+        "agents:POSITIONAL_OR_KEYWORD:1"
+      ],
+      "members": [
+        "add_agent",
+        "clear_discovered",
+        "get_agent_definition",
+        "get_agents",
+        "remove_agent",
+        "set_agents",
+        "set_discovered"
       ]
     },
     "Task": {
@@ -1812,6 +1896,30 @@
         "prompt_message",
         "to_html",
         "update_shared_context"
+      ]
+    },
+    "ToolRegistry": {
+      "init": [
+        "default:POSITIONAL_OR_KEYWORD:1"
+      ],
+      "members": [
+        "append_tool",
+        "append_tool_factory",
+        "append_toolset_factory",
+        "apply_to",
+        "get_tool_factories",
+        "get_tools",
+        "get_toolset_factories",
+        "prepend_tool",
+        "prepend_tool_factory",
+        "prepend_toolset_factory",
+        "remove_tool",
+        "remove_tool_factory",
+        "remove_toolset_factory",
+        "set_seed",
+        "set_tool_factories",
+        "set_tools",
+        "set_toolset_factories"
       ]
     },
     "UICommands": {

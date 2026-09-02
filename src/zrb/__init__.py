@@ -72,17 +72,22 @@ from zrb.llm.agent.subagent.manager import (
     SubAgentManager,
     sub_agent_manager,
 )
+from zrb.llm.agent.subagent.registry import SubAgentRegistry, sub_agent_registry
 from zrb.llm.config.config import LLMConfig, llm_config
 from zrb.llm.config.limiter import LLMLimiter, llm_limiter
 from zrb.llm.hook import HookContext, HookEvent, HookResult
 from zrb.llm.hook.manager import HookManager, hook_manager
+from zrb.llm.hook.registry import HookRegistry, hook_registry
 from zrb.llm.permission import ALLOW, ASK, DENY, PermissionPolicy, Rule
 from zrb.llm.prompt.manager import PromptManager
-from zrb.llm.skill import Skill
+from zrb.llm.prompt.registry import PromptRegistry, prompt_registry
+from zrb.llm.skill import Skill, SkillRegistry
 from zrb.llm.skill.manager import SkillManager, skill_manager
+from zrb.llm.skill.registry import skill_registry
 from zrb.llm.task.chat.task import LLMChatTask
 from zrb.llm.task.chat.ui_commands import UICommands
 from zrb.llm.task.llm_task import LLMTask
+from zrb.llm.tool.registry import ToolRegistry, tool_registry
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
 from zrb.llm.util.capabilities import model_capabilities
 
@@ -120,8 +125,11 @@ cli: Cli = cli
 llm_config: LLMConfig = llm_config
 llm_limiter: LLMLimiter = llm_limiter
 sub_agent_manager: SubAgentManager = sub_agent_manager
+sub_agent_registry: SubAgentRegistry = sub_agent_registry
 hook_manager: HookManager = hook_manager
+hook_registry: HookRegistry = hook_registry
 skill_manager: SkillManager = skill_manager
+skill_registry: SkillRegistry = skill_registry
 
 __all__ = [
     "builtin",
@@ -190,15 +198,25 @@ __all__ = [
     "SubAgentManager",
     "sub_agent_manager",
     "SubAgentDefinition",
+    "SubAgentRegistry",
+    "sub_agent_registry",
     "HookManager",
     "hook_manager",
     "HookEvent",
     "HookContext",
     "HookResult",
+    "HookRegistry",
+    "hook_registry",
     "SkillManager",
     "skill_manager",
     "Skill",
+    "SkillRegistry",
+    "skill_registry",
     "PromptManager",
+    "PromptRegistry",
+    "prompt_registry",
+    "ToolRegistry",
+    "tool_registry",
     "model_capabilities",
     "register_theme",
     "register_always_auto_approve",

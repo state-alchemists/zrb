@@ -5,9 +5,8 @@ Binds the `current_ui`, `current_tool_confirmation`, `current_yolo`,
 `ContextVar`s on entry to `run_agent()`, resets them in `finally`. The vars
 themselves are defined in `zrb.llm.agent_state` (not here, and not nested
 under `zrb.llm.agent` at all — `setup.py`, which `runner.py` imports at the
-top, needs them too, and so does code outside this package entirely; see
-ADR-0088 for why that module lives at the top level of `zrb.llm` instead of
-inside `agent/`). Every other module reads them through the wrappers there
+top, needs them too, and so does code outside this package entirely). Every
+other module reads them through the wrappers there
 (re-exported from `zrb.contextvars`).
 
 Sibling files in this package each own one concern:
@@ -478,8 +477,8 @@ async def _do_agent_run(
     `Agent.run` is a heavily overloaded generic method, and pyright re-runs its
     overload resolution on every fixed-point pass of the loop's control-flow
     narrowing when this call is inlined there — that combination alone took
-    ~7 minutes to check (see docs/adr — sandbox gate ADR-0069's history).
-    Moving the call to its own ordinary function drops it to ~2 seconds.
+    ~7 minutes to check. Moving the call to its own ordinary function drops it
+    to ~2 seconds.
     """
     # lazy: heavy third-party
     from pydantic_ai import UsageLimits
@@ -791,7 +790,7 @@ def _build_event_stream_handler(
     Registers the live `RunContext` on `effective_ui` for the duration of the
     call so `BaseUI`/`MultiUI._submit_user_message` can steer a mid-turn
     message into this run via `ctx.enqueue(..., priority="asap")` instead of
-    queuing it (ADR-0078). Registration is cleared by the caller once
+    queuing it. Registration is cleared by the caller once
     `agent.run()` returns or raises, not from inside here — the handler fires
     once per graph node (every model-request/tool-call round shares the same
     underlying pending-message queue), so re-registering each time is

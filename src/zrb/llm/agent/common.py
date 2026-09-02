@@ -151,8 +151,8 @@ def _apply_tool_result_limit(tool_name: str, result: Any) -> Any:
 def _oversize_metadata(value: Any) -> dict[str, Any]:
     """Flag an oversized tool result in metadata, without rewriting it.
 
-    ``CFG.LLM_MAX_TOOL_RESULT_CHARS`` does not bound what the model reads (see
-    ADR-0043): the field that becomes the tool-result message goes through
+    ``CFG.LLM_MAX_TOOL_RESULT_CHARS`` does not bound what the model reads:
+    the field that becomes the tool-result message goes through
     whole. The size is recorded and the value is passed through untouched.
 
     Metadata never reaches the model; it is there so a real cap can be decided

@@ -58,8 +58,6 @@ class BaseTaskExecution:
         token = current_ctx.set(ctx)
         try:
             if not session.is_allowed_to_run(task):
-                # Task is not allowed to run, skip it for now.
-                # This will be triggered later if dependencies are met.
                 ctx.log_info("Not allowed to run")
                 return
             if not self.check_execute_condition(session):

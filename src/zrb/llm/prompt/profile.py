@@ -4,7 +4,7 @@ Profiles adjust the final ``profile`` section — ``profile.minimal.md``,
 ``profile.standard.md``, or ``profile.capable.md`` — and one tool:
 ``minimal`` registers no delegate (sub-agent) tools. They do not infer model
 capability beyond the explicit ``auto`` mode, alter the core sections, or
-otherwise change the tool surface (ADR-0049).
+otherwise change the tool surface.
 """
 
 from __future__ import annotations

@@ -17,12 +17,23 @@ from zrb.llm.tool.delegate_background import (
     create_background_delegate_tool,
     get_background_registry,
 )
+from zrb.llm.tool.registry import tool_name
 
 
 def _names(profile: str, model: str | None = None) -> list[str]:
     with patch.dict("os.environ", {"ZRB_LLM_PROFILE": profile}):
         context = SharedContext(input={"model": model or ""})
-        return [tool.name for tool in llm_chat.get_all_tools(context)]
+        delegate_names = {
+            "DelegateToAgent",
+            "SearchAgent",
+            "DelegateToAgentBackground",
+            "GetDelegationResult",
+        }
+        return [
+            name
+            for tool in llm_chat.get_all_tools(context)
+            if (name := tool_name(tool)) in delegate_names
+        ]
 
 
 def test_standard_profile_registers_the_delegate_tools():

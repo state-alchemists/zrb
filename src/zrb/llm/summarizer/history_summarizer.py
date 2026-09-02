@@ -230,7 +230,7 @@ async def summarize_history(
     When `force=True`, compression is performed even if the conversation is within
     the normal token/window limits (e.g. triggered by an explicit /compress command).
 
-    The journal index is re-seeded into the summary (ADR-0042);
+    The journal index is re-seeded into the summary;
     ``render_journal_index`` returns nothing when journaling is off.
     """
     try:
