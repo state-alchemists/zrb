@@ -691,8 +691,9 @@ async def handle_connection(websocket, path):
         ctx=...,  # Your context
         llm_task=llm_chat,
         history_manager=...,  # Your history manager
-        yolo_xcom_key="yolo",
-        assistant_name="AI",
+        # In zrb 3.x, per-field kwargs like `yolo_xcom_key`/`assistant_name`
+        # were folded into a single `ui_config` object.
+        ui_config=UIConfig(yolo_xcom_key="yolo", assistant_name="AI"),
     )
     await ui.run_async()
 
@@ -852,6 +853,9 @@ An `LLMChatTask` (`llm_chat` included) exposes the same object as a settable
 Without `create_ui_factory()`, you need to handle 8 parameters:
 
 ```python
+from zrb.llm.ui import UIConfig
+
+
 def create_my_ui(
     ctx,                          # Task context
     llm_task,                     # LLM task instance
@@ -867,13 +871,13 @@ def create_my_ui(
         llm_task=llm_task,
         history_manager=history_manager,
         initial_message=initial_message,
-        conversation_session_name=initial_conversation_name,
-        is_yolo=initial_yolo,
         initial_attachments=initial_attachments,
-        # Plus extract commands from ui_commands...
-        exit_commands=ui_commands.get("exit", ["/exit"]),
-        info_commands=ui_commands.get("info", ["/help"]),
-        # ... and 8 more command extractions
+        # Build a UIConfig by hand and merge the task's command lists...
+        ui_config=UIConfig(
+            conversation_session_name=initial_conversation_name,
+            is_yolo=initial_yolo,
+            # ... and merge exit/info/... commands out of ui_commands manually
+        ),
     )
 
 llm_chat.ui_factories = [create_my_ui]

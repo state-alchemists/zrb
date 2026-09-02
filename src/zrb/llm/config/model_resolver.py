@@ -73,12 +73,28 @@ class ModelResolver:
         base_url: str | None,
         provider: "str | Provider",
     ) -> "str | Model":
-        provider_name = "openai"
+        provider_name, has_prefix = "openai", False
         if ":" in model_name:
-            provider_name = model_name.split(":", 1)[0]
-        # Special case: "openai" always goes through resolve logic when API config is set
-        # (OpenAIProvider handles both OpenAI and OpenAI-compatible APIs)
-        if provider_name == "openai":
+            provider_name, has_prefix = model_name.split(":", 1)[0], True
+        # Special case: the OpenAI backend goes through resolve logic when API
+        # config is set (OpenAIProvider handles both OpenAI and OpenAI-compatible
+        # APIs). "openai-chat" — pydantic-ai's model-prefix form, mirrored by the
+        # shipped default ("openai:gpt-5.6-luna") with its plain "openai" prefix
+        # — is the same backend, so neither must slip past this branch and
+        # silently ignore a custom LLM_API_KEY/LLM_BASE_URL.
+        if provider_name in ("openai", "openai-chat"):
+            # An explicit `LLM_PROVIDER` on a bare model name (no provider prefix)
+            # with no API key/base URL to pin an OpenAIProvider: honor it, so
+            # `ZRB_LLM_PROVIDER=anthropic` + `ZRB_LLM_MODEL=claude-x` isn't
+            # silently dropped. An explicit `openai:`/`openai-chat:` prefix, or
+            # API credentials present, takes the normal OpenAI path below.
+            if (
+                isinstance(provider, str)
+                and provider
+                and not has_prefix
+                and not (api_key or base_url)
+            ):
+                return f"{provider}:{model_name}"
             if api_key or base_url:
                 return self._resolve_model(model_name, provider)
             return model_name

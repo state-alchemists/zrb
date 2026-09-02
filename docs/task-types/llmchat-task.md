@@ -194,8 +194,11 @@ naming the expected class, at the assignment site.
 chat.append_ui(my_ui)
 chat.prepend_ui(another_ui)
 chat.set_uis([my_ui, another_ui])
-chat.ui_factories = [lambda: MyUI()]   # settable property
-chat.append_ui_factory(lambda: OtherUI())
+# Factories are invoked with 8 kwargs (ctx, llm_task, history_manager,
+# ui_commands, initial_message, initial_conversation_name, initial_yolo,
+# initial_attachments) — accept **kwargs, or use create_ui_factory to wire them.
+chat.ui_factories = [lambda **kw: MyUI(**kw)]   # settable property
+chat.append_ui_factory(lambda **kw: OtherUI(**kw))
 ```
 
 ### Tools & Toolsets

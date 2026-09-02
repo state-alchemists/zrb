@@ -410,37 +410,17 @@ if BOT_TOKEN and CHAT_ID:
     bot = TelegramBot.get(BOT_TOKEN)
     telegram_approval = TelegramApproval(bot, CHAT_ID)
 
-    # Create a factory that wires up the approval channel
-    def telegram_ui_factory(
-        ctx,
-        llm_task,
-        history_manager,
-        ui_commands,
-        initial_message,
-        initial_conversation_name,
-        initial_yolo,
-        initial_attachments,
-        custom_commands=None,
-    ):
-        from zrb.llm.ui import UIConfig
+    # create_ui_factory wires the 8 standard factory kwargs (ctx, llm_task,
+    # history_manager, ui_commands, initial_*, ...) to TelegramUI for us, so we
+    # only add the per-instance approval-channel wiring on top.
+    from zrb.llm.ui import create_ui_factory
 
-        cfg = UIConfig.default()
-        if ui_commands:
-            cfg = cfg.merge_commands(ui_commands)
-        cfg.is_yolo = initial_yolo
-        cfg.conversation_session_name = initial_conversation_name
-        ui = TelegramUI(
-            ctx=ctx,
-            llm_task=llm_task,
-            history_manager=history_manager,
-            config=cfg,
-            initial_message=initial_message,
-            initial_attachments=initial_attachments,
-            custom_commands=custom_commands,
-            bot=bot,
-            chat_id=CHAT_ID,
-            skip_kinds=SKIP_KINDS,
-        )
+    _telegram_ui_factory = create_ui_factory(
+        TelegramUI, bot=bot, chat_id=CHAT_ID, skip_kinds=SKIP_KINDS
+    )
+
+    def telegram_ui_factory(*args, **kwargs):
+        ui = _telegram_ui_factory(*args, **kwargs)
         ui.set_approval_channel(telegram_approval)
         return ui
 

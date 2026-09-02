@@ -123,4 +123,6 @@ class UIConfig:
             is_yolo=self.is_yolo,
             yolo_xcom_key=self.yolo_xcom_key,
             conversation_session_name=self.conversation_session_name,
+            show_ollama_models=self.show_ollama_models,
+            show_pydantic_ai_models=self.show_pydantic_ai_models,
         )

@@ -98,8 +98,18 @@ class Config(
         super().__setattr__(name, value)
 
     def _unknown_knob_message(self, name: str) -> str:
+        def _is_assignable(n: str) -> bool:
+            attr = getattr(type(self), n, None)
+            if isinstance(attr, EnvField):
+                return True
+            # A read-write @property; a read-only one (e.g. LOGGER) has no setter
+            # and thus no path for `CFG.<n> = ...`, so it must not be suggested.
+            return isinstance(attr, property) and attr.fset is not None
+
         known = sorted(
-            n for n in dir(type(self)) if n.isupper() and not n.startswith("DEFAULT_")
+            n
+            for n in dir(type(self))
+            if n.isupper() and not n.startswith("DEFAULT_") and _is_assignable(n)
         )
         suggestions = difflib.get_close_matches(name, known, n=3, cutoff=0.6)
         message = f"CFG has no setting named {name!r}."

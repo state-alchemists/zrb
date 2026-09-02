@@ -94,7 +94,7 @@ class MinimalUI(SimpleUI):
 # =============================================================================
 
 # The simplest way: use create_ui_factory
-llm_chat.set_ui_factory(create_ui_factory(MinimalUI, log_file=LOG_FILE))
+llm_chat.ui_factories = [create_ui_factory(MinimalUI, log_file=LOG_FILE)]
 
 # That's it! When user runs `zrb llm chat`, it uses MinimalUI.
 # No need to handle the factory parameters - create_ui_factory does it for you.

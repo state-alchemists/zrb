@@ -62,7 +62,7 @@ class MinimalUI(SimpleUI):
 
 
 # create_ui_factory wires the factory parameters for you — one line.
-llm_chat.set_ui_factory(create_ui_factory(MinimalUI))
+llm_chat.ui_factories = [create_ui_factory(MinimalUI)]
 
 # User runs: zrb llm chat
 ```

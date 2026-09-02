@@ -88,4 +88,4 @@ llm_chat.prompt_manager.add_live_context(
 - [`docs/advanced-topics/programming-the-agent.md`](../../docs/advanced-topics/programming-the-agent.md#per-turn-live-context-providers) — Per-turn live context providers
 - `src/zrb/llm/prompt/live_context.py` — the built-in live-context rendering
 - `src/zrb/llm/prompt/manager.py` — `add_live_context` / `append_prompt` / `create_live_context`
-- `examples/model-tiering/` — another `llm_config` / prompt-manager customization
+- `examples/model-tiering/` — another `model_getter` / `model_renderer` / prompt-manager customization

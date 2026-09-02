@@ -13,7 +13,7 @@ def test_llm_model(monkeypatch):
 def test_llm_model_default(monkeypatch):
     monkeypatch.delenv("ZRB_LLM_MODEL", raising=False)
     config = Config()
-    assert config.LLM_MODEL == "openai-chat:gpt-4o"
+    assert config.LLM_MODEL == "openai:gpt-5.6-luna"
 
 
 def test_llm_provider(monkeypatch):

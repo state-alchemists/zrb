@@ -24,7 +24,7 @@ class LLMCoreMixin:
         # The one place this default lives — every resolution path (the
         # model picker, ModelResolver's resolve_configured_model(), …) reads
         # it from here rather than carrying a second hardcoded fallback.
-        self.DEFAULT_LLM_MODEL: str = "openai-chat:gpt-4o"
+        self.DEFAULT_LLM_MODEL: str = "openai:gpt-5.6-luna"
         self.DEFAULT_LLM_SMALL_MODEL: str = ""
         self.DEFAULT_LLM_MULTIMODAL_MODEL: str = ""
         self.DEFAULT_LLM_BASE_URL: str = ""
@@ -38,7 +38,7 @@ class LLMCoreMixin:
 
     LLM_MODEL = EnvField(
         str,
-        doc="Primary LLM model identifier (e.g. openai:gpt-4o). Unset uses DEFAULT_LLM_MODEL.",
+        doc="Primary LLM model identifier (e.g. openai:gpt-5.6-luna). Unset uses DEFAULT_LLM_MODEL.",
     )
 
     LLM_SMALL_MODEL = EnvField(

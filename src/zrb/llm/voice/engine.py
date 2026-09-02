@@ -382,7 +382,7 @@ def is_openai_chat_model(model: object) -> bool:
     """True for OpenAI chat models that cannot receive audio as content blocks.
 
     Checks both pydantic-ai :class:`~pydantic_ai.models.openai.OpenAIChatModel`
-    instances and string model identifiers (``openai:gpt-4o``, ``gpt-4o``, etc.)
+    instances and string model identifiers (``openai:gpt-5.6-luna``, ``gpt-4o``, etc.)
     """
     # lazy: heavy third-party
     try:

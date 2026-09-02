@@ -129,7 +129,8 @@ The changelog lives in index and directory under `docs/`:
 | Path | Scope |
 |------|-------|
 | `changelog.md` | Index page listing every minor version with links. |
-| `changelog-v2/` | Directory of per-minor-version files (e.g. `2.38.0.md`, `2.35.0-2.35.3.md`). |
+| `changelog-v2/` | Directory of per-minor-version files for the 2.x line (e.g. `2.38.0.md`, `2.35.0-2.35.3.md`). |
+| `changelog-v3/` | Directory of per-minor-version files for the 3.x line (e.g. `3.0.0.md`). |
 | `changelog-v1.md` | Archive of the 1.x line (and the 1.0.0 rewrite from 0.x). |
 
 ### Writing an entry
@@ -150,7 +151,7 @@ Use one flat `- **<Category>: <Title>** (`paths`): <prose>` bullet per change �
 
 ### Collapsing (compaction)
 
-To keep the changelog readable as it grows, old entries are periodically compacted. Each minor version has its own file under `changelog-v2/`. **Keep only two entries per minor version** — the minor bump and its final revision — producing this retained sequence:
+To keep the changelog readable as it grows, old entries are periodically compacted. Each minor version has its own file under its version line's directory (`changelog-v2/` for 2.x, `changelog-v3/` for 3.x). **Keep only two entries per minor version** — the minor bump and its final revision — producing this retained sequence:
 
 ```mermaid
 flowchart LR

@@ -141,6 +141,19 @@ class MultiUI(AnyUI):
         return self._uis[self._main_ui_index] if self._uis else None
 
     @property
+    def small_model(self):
+        """The main child's `/model small ...` override (delegated so the agent
+        runner's `run_agent` binds `current_small_model` from the MultiUI itself
+        rather than seeing `None` and falling back to CFG)."""
+        return getattr(self.main_ui, "small_model", None)
+
+    @property
+    def multimodal_model(self):
+        """The main child's `/model multimodal ...` override — same delegation
+        rationale as `small_model`."""
+        return getattr(self.main_ui, "multimodal_model", None)
+
+    @property
     def message_queue(self) -> "MessageQueue":
         """The shared queue every child UI's turn is submitted through."""
         return self._message_queue
