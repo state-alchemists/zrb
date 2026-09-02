@@ -177,7 +177,9 @@ class SubAgentManager:
         Manually-registered definitions are kept; a manual registration wins a
         name collision with a discovered one.
         """
-        target_search_dirs = search_dirs if search_dirs is not None else self.search_dirs
+        target_search_dirs = (
+            search_dirs if search_dirs is not None else self.search_dirs
+        )
         self._scanned_agents.clear()
         for search_dir in target_search_dirs:
             self._loading.scan_dir(

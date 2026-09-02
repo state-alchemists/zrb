@@ -203,4 +203,32 @@ EOF
 Both reproductions raise, the message names the closest real knob, and
 `./zrb-test.sh` is green with coverage ≥ 90%.
 
+## As implemented (divergences from this plan)
+
+Landed as `28e4f45fa` (Phase 1), `23e892776`, `fda03207f`. Four corrections
+the implementation forced, none changing the phase's outcome:
+
+- **`DEFAULT_*` constants are instance attributes, not class attributes.**
+  Each mixin's `__init__` sets its own `DEFAULT_LLM_MODEL` etc. fresh, so
+  `Config.__setattr__` needed an explicit `not name.startswith("DEFAULT_")`
+  exemption — without it, `Config()` couldn't even construct itself (its own
+  `__init__` assigning `self.DEFAULT_X = ...` would trip the new check). §1.1's
+  claim that they are class attributes is wrong; the exemption is still
+  correct, just for a different reason.
+- **The knob name in this plan's own reproduction script and Step 1.4 test is
+  wrong.** `LLM_MAX_REQUESTS_PER_MINUTE` (plural) does not exist; the real
+  field is `LLM_MAX_REQUEST_PER_MINUTE` (singular). The shipped test uses the
+  correct name.
+- **The error message points at `{ROOT_GROUP_NAME} config explain`, not
+  `zrb config list`.** First landed as `zrb config explain` (Step 1.1's `list`
+  guess was wrong — `explain` is the real subcommand); then `fda03207f`
+  replaced the hardcoded `"zrb"` with `self.ROOT_GROUP_NAME`, because a fixed
+  name breaks white-labeled deployments (`docs/advanced-topics/white-labeling.md`)
+  — a concern this plan never raised.
+- **The changelog entry's target file needed a decision the plan didn't
+  anticipate.** `2.69.0` had already shipped by the time this step ran, so
+  `23e892776` created `docs/changelog-v2/2.70.0.md` and added it to
+  `docs/changelog.md`'s index, rather than appending to an existing
+  in-progress file as §1.5 assumed.
+
 🔖 [Plan](README.md)

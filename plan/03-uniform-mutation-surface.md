@@ -290,4 +290,36 @@ grep -rn "get_search_directories\|set_history_manager\|set_approval_channel" src
 `test_mutation_surface.py` passes with no exemptions, no deleted name survives
 outside the changelogs, and `./zrb-test.sh` is green at ≥ 90%.
 
+## As implemented (divergences from this plan)
+
+Landed as `1f6db0d5f` (Phase 3) plus `0e3976093` (docs follow-up). Four real
+divergences, one of them an unflagged scope narrowing worth knowing about:
+
+- **`LLMTask` (the base, non-chat task) was not touched at all.** §3.2
+  explicitly says to fill in the verb set "in `src/zrb/llm/task/chat/task.py`
+  and `src/zrb/llm/task/llm_task.py`." The actual diff only changes
+  `chat/task.py` — `prepend_tool`/`set_tools`/`remove_tool` etc. exist on
+  `LLMChatTask` only; plain `LLMTask` keeps its pre-existing `append_tool`/
+  `append_history_processor` with no `prepend_`/`set_`/`remove_` added. This
+  narrowing is not documented anywhere in the commit or the plan.
+- **Keyed collections got a 3-verb minimum, not the plan's 5-verb "full" set.**
+  §3.5's `test_every_keyed_collection_has_the_full_verb_set` required
+  `add_X`/`set_Xs`/`remove_X`/`get_X`/`get_Xs`. The shipped test — renamed
+  `test_every_keyed_collection_has_the_minimum_verb_set` — checks only
+  `add_X`/`remove_X`/`set_Xs`. Reason, recorded in the test file's own
+  docstring: `SubAgentManager` already has `create_agent`, so a `get_agent`
+  would collide in meaning with `get_agent_definition`; hooks are keyed by
+  *event*, not by name, so there is no `get_hook(name)` to require. See
+  `framework-conventions.md`'s R7 note.
+- **`ORDERED_COLLECTIONS["...llm_chat"]` covers 14 stems, not 12.** §3.5's own
+  code sketch for the ratchet omits `tool_factory`/`toolset_factory`, even
+  though §3.2's inventory table lists them — the shipped ratchet includes
+  both.
+- **The `get_search_directories()` rename landed in the same commit as
+  everything else**, not as its own reviewable commit as §3.3 asked for.
+
+Everything else — the canonical-spelling decisions, the part+delegator
+template, `remove_x` as a no-op, the hook-family verb fixes, the docs sweep —
+landed as written.
+
 🔖 [Plan](README.md)

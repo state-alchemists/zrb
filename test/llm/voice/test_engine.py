@@ -98,7 +98,9 @@ class TestVoiceEngine:
         engine.transcriber = None
         monkeypatch.delenv("ZRB_LLM_MULTIMODAL_MODEL", raising=False)
         with (
-            patch("zrb.llm.agent_state.get_current_multimodal_model", return_value=None),
+            patch(
+                "zrb.llm.agent_state.get_current_multimodal_model", return_value=None
+            ),
             patch.dict(os.environ, {"ZRB_LLM_VOICE_MODE": "multimodal"}),
         ):
             with pytest.raises(RuntimeError, match="LLM_MULTIMODAL_MODEL"):

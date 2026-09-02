@@ -705,9 +705,7 @@ class LLMChatTask(BaseTask):
 
     def set_custom_commands(
         self,
-        custom_commands: (
-            "list[AnyCustomCommand | Callable[[], AnyCustomCommand | list[AnyCustomCommand]]]"
-        ),
+        custom_commands: "list[AnyCustomCommand | Callable[[], AnyCustomCommand | list[AnyCustomCommand]]]",
     ) -> None:
         """Replace the custom-command list wholesale."""
         self._custom_commands = list(custom_commands)

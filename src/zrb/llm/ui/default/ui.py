@@ -12,7 +12,6 @@ from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.tool_call import ArgumentFormatter, ResponseHandler, ToolPolicy
 from zrb.llm.ui.base.ui import BaseUI
-from zrb.llm.ui.ui_config import UIConfig
 from zrb.llm.ui.default.agent_picker import UIAgentPicker
 from zrb.llm.ui.default.app.keybinding import create_output_keybindings
 from zrb.llm.ui.default.app.layout import (
@@ -28,6 +27,7 @@ from zrb.llm.ui.default.lifecycle import UILifecycle
 from zrb.llm.ui.default.message_editing import UIMessageEditing
 from zrb.llm.ui.default.output import UIOutput
 from zrb.llm.ui.default.selection import UISelection
+from zrb.llm.ui.ui_config import UIConfig
 from zrb.util.ascii_art.banner import get_ascii_art
 from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.terminal import get_terminal_size

@@ -839,9 +839,7 @@ def test_create_agent_skips_resolution_when_resolve_model_false():
 
     from zrb.llm.agent.common import create_agent
 
-    with patch(
-        "zrb.llm.agent.common.resolve_configured_model"
-    ) as mock_resolve:
+    with patch("zrb.llm.agent.common.resolve_configured_model") as mock_resolve:
         with patch("pydantic_ai.Agent", MagicMock()) as mock_agent_class:
             create_agent(
                 model="already-resolved",

@@ -119,7 +119,9 @@ async def test_factory_fires_via_the_normal_lazy_load_path():
 
         agent_cls = _mock_agent_cls()
         with (
-            patch("zrb.llm.hook.creator.resolve_configured_model") as mock_resolve_model,
+            patch(
+                "zrb.llm.hook.creator.resolve_configured_model"
+            ) as mock_resolve_model,
             patch.dict("sys.modules", {"pydantic_ai": MagicMock(Agent=agent_cls)}),
         ):
             mock_resolve_model.return_value = "resolved"

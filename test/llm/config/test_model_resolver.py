@@ -55,9 +55,7 @@ def test_resolve_unknown_provider_with_api_key_resolves_to_model_object(
 ):
     from pydantic_ai.models.openai import OpenAIChatModel
 
-    resolved = resolver.resolve(
-        "totally-unknown-provider:some-model", api_key="secret"
-    )
+    resolved = resolver.resolve("totally-unknown-provider:some-model", api_key="secret")
 
     assert isinstance(resolved, OpenAIChatModel)
 

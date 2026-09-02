@@ -80,9 +80,7 @@ class TestHookManagerLifecycle:
         assert len(results) == 0
 
     @pytest.mark.asyncio
-    async def test_get_search_directories_includes_various_locations(
-        self, tmp_path
-    ):
+    async def test_get_search_directories_includes_various_locations(self, tmp_path):
         fake_home = tmp_path / "home"
         fake_home.mkdir()
         (fake_home / ".claude").mkdir()

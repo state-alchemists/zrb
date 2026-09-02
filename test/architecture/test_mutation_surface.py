@@ -75,7 +75,7 @@ def _load(spec: str):
 
 
 def _has_set(host, plural: str) -> bool:
-    """"Replace wholesale" as either a `set_<plural>()` method or an already
+    """ "Replace wholesale" as either a `set_<plural>()` method or an already
     settable `<plural>` property (`ui_factories`, `approval_channels`) — R7
     keeps whichever one already existed rather than adding a second name for
     the same replace-wholesale operation."""
