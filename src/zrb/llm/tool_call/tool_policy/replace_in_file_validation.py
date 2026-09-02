@@ -3,16 +3,16 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from zrb.llm.tool.file_edit import find_fuzzy_match
 from zrb.llm.tool_call.args import parse_tool_args
-from zrb.llm.tool_call.handler import UIProtocol
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart
+    from zrb.llm.ui.any_ui import AnyUI
 
 
 async def replace_in_file_validation_policy(
-    ui: UIProtocol,
+    ui: "AnyUI",
     call: "ToolCallPart",
-    next_handler: Callable[[UIProtocol, "ToolCallPart"], Awaitable[Any]],
+    next_handler: Callable[["AnyUI", "ToolCallPart"], Awaitable[Any]],
 ) -> Any:
     """
     Validates 'Edit' (replace_in_file) tool calls.

@@ -4,17 +4,17 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from zrb.config.config import CFG
 from zrb.llm.tool_call.args import parse_tool_args
-from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart
+    from zrb.llm.ui.any_ui import AnyUI
 
 
 async def replace_in_file_response_handler(
-    ui: UIProtocol,
+    ui: "AnyUI",
     call: "ToolCallPart",
     response: str,
-    next_handler: Callable[[UIProtocol, Any, str], Awaitable[Any]],
+    next_handler: Callable[["AnyUI", Any, str], Awaitable[Any]],
 ) -> Any:
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ToolApproved

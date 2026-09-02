@@ -3,8 +3,9 @@ from collections.abc import Sequence
 from functools import partial
 
 from zrb.attr.type import BoolAttr, IntAttr, StrAttr
+from zrb.cmd.any_cmd_val import AnyCmdVal
 from zrb.cmd.cmd_result import CmdResult
-from zrb.cmd.cmd_val import AnyCmdVal, CmdVal, SingleCmdVal
+from zrb.cmd.cmd_val import CmdVal, SingleCmdVal
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn

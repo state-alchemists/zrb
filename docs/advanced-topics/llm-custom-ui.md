@@ -4,6 +4,31 @@
 
 Zrb's LLM tasks support custom UI and approval channels for non-terminal interfaces like Telegram, Slack, Discord, or web applications.
 
+---
+
+## Table of Contents
+
+- [Mental Model: How the UI Works](#mental-model-how-the-ui-works)
+- [Quick Start](#quick-start)
+- [UI Extension Levels](#ui-extension-levels)
+- [Dual Mode: CLI + External Channel](#dual-mode-cli-external-channel)
+- [Level 1: SimpleUI (Request-Response Pattern)](#level-1-simpleui-request-response-pattern)
+- [Level 2: EventDrivenUI (Callback Pattern)](#level-2-eventdrivenui-callback-pattern)
+- [Level 3: PollingUI (Queue-Based Pattern)](#level-3-pollingui-queue-based-pattern)
+- [Level 4: BaseUI (Full Control)](#level-4-baseui-full-control)
+- [BufferedOutputMixin (Rate-Limited Backends)](#bufferedoutputmixin-rate-limited-backends)
+- [UIConfig: Cleaner Configuration](#uiconfig-cleaner-configuration)
+- [create_ui_factory(): One-Line Registration](#create_ui_factory-one-line-registration)
+- [Migration Guide: BaseUI → SimpleUI](#migration-guide-baseui-simpleui)
+- [Multi-Channel Support (Multiple UIs)](#multi-channel-support-multiple-uis)
+- [Approval Channels](#approval-channels)
+- [Working Examples](#working-examples)
+- [Pattern Selection Guide](#pattern-selection-guide)
+- [Important Notes](#important-notes)
+- [Summary](#summary)
+
+---
+
 ## Mental Model: How the UI Works
 
 ### The Core Message Loop
@@ -46,8 +71,8 @@ flowchart TB
 
 | Level | What You Implement | What You Get For Free |
 |-------|-------------------|----------------------|
-| **BaseUI** | `__init__`, `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Message loop, command handling, LLM interaction |
-| **SimpleUI** | 2 methods (`print`, `get_input`) | All of BaseUI + simplified `__init__` (UIConfig), default `run_async()` |
+| **BaseUI** | `__init__`, `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Message loop, command handling, LLM interaction, `UIConfig`-based settings |
+| **SimpleUI** | 2 methods (`print`, `get_input`) | All of BaseUI, plus a default `run_async()` and `__init__` |
 | **EventDrivenUI** | 2 methods (`print`, `start_event_loop`) | All of SimpleUI + input queue + message routing |
 | **PollingUI** | 0-1 methods (optional `print`) | All of SimpleUI + input/output queues for external polling |
 
@@ -73,7 +98,7 @@ class MyUI(SimpleUI):
         return await asyncio.to_thread(input, prompt or "You> ")
 
 # One-line registration
-llm_chat.set_ui_factory(create_ui_factory(MyUI))
+llm_chat.ui_factories = [create_ui_factory(MyUI)]
 ```
 
 **That's it!** Just 2 methods:
@@ -186,7 +211,7 @@ class CLI(SimpleUI):
     async def get_input(self, prompt: str) -> str:
         return await asyncio.to_thread(input, prompt or "You> ")
 
-llm_chat.set_ui_factory(create_ui_factory(CLI))
+llm_chat.ui_factories = [create_ui_factory(CLI)]
 ```
 
 ### Example: File Logger
@@ -213,11 +238,11 @@ class LoggingUI(SimpleUI):
     async def get_input(self, prompt: str) -> str:
         return await asyncio.to_thread(input, prompt or "You> ")
 
-llm_chat.set_ui_factory(
+llm_chat.ui_factories = [
     lambda ctx, task, hm, **kw: LoggingUI(
         ctx=ctx, llm_task=task, history_manager=hm, log_file="session.log"
     )
-)
+]
 ```
 
 ### Example: Structured Logging UI
@@ -248,7 +273,7 @@ class StructuredLogUI(SimpleUI):
     async def get_input(self, prompt: str) -> str:
         return await asyncio.to_thread(input, prompt or "You> ")
 
-llm_chat.set_ui_factory(create_ui_factory(StructuredLogUI))
+llm_chat.ui_factories = [create_ui_factory(StructuredLogUI)]
 ```
 
 ---
@@ -361,9 +386,9 @@ class TelegramUI(EventDrivenUI):
         return chunks
 
 # Register - ONE line!
-llm_chat.set_ui_factory(
+llm_chat.ui_factories = [
     create_ui_factory(TelegramUI, bot_token=BOT_TOKEN, chat_id=CHAT_ID)
-)
+]
 ```
 
 ### Example: Discord Bot
@@ -411,9 +436,9 @@ class DiscordUI(EventDrivenUI):
         await self._client.start(self.token)
 
 # Register
-llm_chat.set_ui_factory(
+llm_chat.ui_factories = [
     create_ui_factory(DiscordUI, token=DISCORD_TOKEN, channel_id=CHANNEL_ID)
-)
+]
 ```
 
 ---
@@ -539,7 +564,7 @@ flowchart TB
             Impl["YOU IMPLEMENT:\nappend_to_output()\nask_user()\nrun_interactive_command()\nrun_async()"]
         end
 
-        subgraph ApprovalChannel["ApprovalChannel (Inject separately)"]
+        subgraph ApprovalChannel["AnyApprovalChannel (Inject separately)"]
             Request["request_approval()"]
             Notify["notify()"]
         end
@@ -563,7 +588,7 @@ flowchart TB
 
 | Item | Purpose | Complexity |
 |------|---------|-------------|
-| `__init__()` | Initialize with 25+ parameters | Medium (boilerplate) |
+| `__init__()` | Initialize with `ctx`, `llm_task`, `history_manager`, a `ui_config`, and a handful of others | Medium (boilerplate) |
 | `append_to_output(*values, sep, end, file, flush)` | Display output | Low |
 | `ask_user(prompt: str)` | Block for user input | Medium |
 | `run_interactive_command(cmd, shell)` | Execute shell commands | Low (or return error) |
@@ -584,6 +609,7 @@ flowchart TB
 |--------|---------|---------|
 | `invalidate_ui()` | No-op | Redraw/refresh UI |
 | `on_exit()` | No-op | Cleanup on shutdown |
+| `ask_user_choice(spec)` | Formats the spec as numbered text and delegates to `ask_user` | Override for an arrow-key-selectable widget |
 | `stream_to_parent()` | Calls `append_to_output` | For multiplexed UIs |
 | `_get_output_field_width()` | None | Custom text width for formatting (exposed publicly as the `output_field_width` property, which is what the diff/markdown formatters read) |
 | `record_tool_call_block(collapsed, full)` | Falls back to `append_to_output(collapsed, end="", kind="tool_call")` | Print a tool-call/result line that a toggle-capable UI can later expand in place |
@@ -665,8 +691,9 @@ async def handle_connection(websocket, path):
         ctx=...,  # Your context
         llm_task=llm_chat,
         history_manager=...,  # Your history manager
-        yolo_xcom_key="yolo",
-        assistant_name="AI",
+        # In zrb 3.x, per-field kwargs like `yolo_xcom_key`/`assistant_name`
+        # were folded into a single `ui_config` object.
+        ui_config=UIConfig(yolo_xcom_key="yolo", assistant_name="AI"),
     )
     await ui.run_async()
 
@@ -758,24 +785,13 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
 
 ## UIConfig: Cleaner Configuration
 
-### The Problem: BaseUI Has 25+ `__init__` Parameters
-
-```python
-# BaseUI __init__ signature (simplified)
-def __init__(
-    self, ctx, llm_task, history_manager,
-    yolo_xcom_key, assistant_name, initial_message, initial_attachments,
-    conversation_session_name, is_yolo, triggers, response_handlers,
-    tool_policies, argument_formatters, markdown_theme,
-    summarize_commands, attach_commands, exit_commands, info_commands,
-    save_commands, load_commands, redirect_output_commands,
-    yolo_toggle_commands, set_model_commands, exec_commands,
-    custom_commands, model,
-):
-    ...
-```
-
-### The Solution: UIConfig Dataclass
+`UIConfig` is **the** UI configuration object — `BaseUI.__init__` itself takes
+one `ui_config: UIConfig | None` parameter (not 25 individual ones), and every
+concrete UI (`SimpleUI`, `EventDrivenUI`, `PollingUI`, the built-in TUI, the
+web UI) is built from it. Each field defaults from its `CFG.LLM_UI_COMMAND_*`
+env twin (`docs/configuration/env-vars.md`), read lazily so a `zrb_init.py`
+change still wins — so every UI backend agrees on the shipped command aliases
+without each one re-deriving them.
 
 ```python
 from zrb.llm.ui import UIConfig, create_ui_factory
@@ -795,24 +811,38 @@ config = UIConfig(
 )
 
 # Pass to factory
-llm_chat.set_ui_factory(create_ui_factory(MyUI, config=config))
+llm_chat.ui_factories = [create_ui_factory(MyUI, config=config)]
 ```
 
 ### UIConfig Fields
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `assistant_name` | `"Assistant"` | Name shown in prompts |
-| `exit_commands` | `["/exit", "/quit"]` | Commands to exit |
-| `info_commands` | `["/help", "/?"]` | Show help |
-| `save_commands` | `["/save"]` | Save conversation |
-| `load_commands` | `["/load"]` | Load conversation |
-| `attach_commands` | `["/attach"]` | Attach files |
-| `yolo_toggle_commands` | `["/yolo"]` | Toggle auto-approve |
-| `set_model_commands` | `["/model"]` | Switch model |
-| `exec_commands` | `["/exec"]` | Run shell commands |
+| `assistant_name` | `CFG.LLM_ASSISTANT_NAME` | Name shown in prompts |
+| `exit_commands` | `CFG.LLM_UI_COMMAND_EXIT` | Commands to exit |
+| `info_commands` | `CFG.LLM_UI_COMMAND_INFO` | Show help |
+| `save_commands` | `CFG.LLM_UI_COMMAND_SAVE` | Save conversation |
+| `load_commands` | `CFG.LLM_UI_COMMAND_LOAD` | Load conversation |
+| `attach_commands` | `CFG.LLM_UI_COMMAND_ATTACH` | Attach files |
+| `rewind_commands` | `CFG.LLM_UI_COMMAND_REWIND` | Rewind to a previous turn |
+| `redirect_output_commands` | `CFG.LLM_UI_COMMAND_REDIRECT_OUTPUT` | Copy/save the last response |
+| `yolo_toggle_commands` | `CFG.LLM_UI_COMMAND_YOLO_TOGGLE` | Toggle auto-approve |
+| `set_model_commands` | `CFG.LLM_UI_COMMAND_SET_MODEL` | Switch model |
+| `exec_commands` | `CFG.LLM_UI_COMMAND_EXEC` | Run shell commands |
+| `btw_commands` | `CFG.LLM_UI_COMMAND_BTW` | Side-channel message |
+| `plan_commands` | `CFG.LLM_UI_COMMAND_PLAN_TOGGLE` | Toggle plan mode |
+| `copy_commands` | `CFG.LLM_UI_COMMAND_COPY` | Copy the transcript |
+| `voice_commands` | `CFG.LLM_UI_COMMAND_VOICE` | Toggle voice dictation |
+| `photo_commands` | `CFG.LLM_UI_COMMAND_PHOTO` | Attach a photo |
+| `summarize_commands` | `CFG.LLM_UI_COMMAND_SUMMARIZE` | Summarize/compress history |
 | `is_yolo` | `False` | Auto-approve mode: `True` for all tools, or comma-separated names (e.g., `"Write,Edit"`) for selective |
+| `yolo_xcom_key` | `"yolo"` | xcom key the session reads/writes when yolo is toggled at run time |
+| `show_ollama_models` | `CFG.LLM_SHOW_OLLAMA_MODELS` | Whether the model picker lists local Ollama models |
+| `show_pydantic_ai_models` | `CFG.LLM_SHOW_PYDANTIC_AI_MODELS` | Whether the model picker lists models known to pydantic-ai |
 | `conversation_session_name` | `""` | Session name (empty = random) |
+
+An `LLMChatTask` (`llm_chat` included) exposes the same object as a settable
+`ui_config` property — see [LLM Component Collections](../configuration/llm-collections.md#3-per-task--instance-arguments--override-one-host).
 
 ---
 
@@ -823,6 +853,9 @@ llm_chat.set_ui_factory(create_ui_factory(MyUI, config=config))
 Without `create_ui_factory()`, you need to handle 8 parameters:
 
 ```python
+from zrb.llm.ui import UIConfig
+
+
 def create_my_ui(
     ctx,                          # Task context
     llm_task,                     # LLM task instance
@@ -838,16 +871,16 @@ def create_my_ui(
         llm_task=llm_task,
         history_manager=history_manager,
         initial_message=initial_message,
-        conversation_session_name=initial_conversation_name,
-        is_yolo=initial_yolo,
         initial_attachments=initial_attachments,
-        # Plus extract commands from ui_commands...
-        exit_commands=ui_commands.get("exit", ["/exit"]),
-        info_commands=ui_commands.get("info", ["/help"]),
-        # ... and 8 more command extractions
+        # Build a UIConfig by hand and merge the task's command lists...
+        ui_config=UIConfig(
+            conversation_session_name=initial_conversation_name,
+            is_yolo=initial_yolo,
+            # ... and merge exit/info/... commands out of ui_commands manually
+        ),
     )
 
-llm_chat.set_ui_factory(create_my_ui)
+llm_chat.ui_factories = [create_my_ui]
 ```
 
 ### The Solution: Automatic Parameter Handling
@@ -857,9 +890,9 @@ from zrb.llm.ui import create_ui_factory, UIConfig
 
 # One-line registration with automatic parameter mapping
 config = UIConfig(assistant_name="MyBot", is_yolo=True)
-llm_chat.set_ui_factory(
+llm_chat.ui_factories = [
     create_ui_factory(MyUI, config=config, bot_token=TOKEN, chat_id=12345)
-)
+]
 ```
 
 `create_ui_factory()` automatically:
@@ -876,7 +909,7 @@ llm_chat.set_ui_factory(
 | Aspect | BaseUI | SimpleUI | Savings |
 |--------|---------|----------|---------|
 | **Items to implement** | 5: `__init__`, `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | 2: `print()`, `get_input()` | 60% fewer items |
-| **`__init__` parameters** | 25+ params | Config object + kwargs | Cleaner initialization |
+| **`__init__` parameters** | ~15 params, one of them `ui_config` | Config object + kwargs | Cleaner initialization |
 | **`__init__` boilerplate** | 20+ lines | 1 `super().__init__()` call | Less code |
 | **Event loop management** | You write `run_async()` | Handled by default | 30+ lines saved |
 | **Shell command handling** | You implement | Shows warning | Optional feature |
@@ -948,7 +981,7 @@ class MyUI(SimpleUI):
         return await asyncio.to_thread(input, prompt or "You> ")
 
 # Registration
-llm_chat.set_ui_factory(create_ui_factory(MyUI))
+llm_chat.ui_factories = [create_ui_factory(MyUI)]
 ```
 
 **Actual reduction: ~17 fewer lines of boilerplate.**
@@ -1010,12 +1043,12 @@ See `examples/chat-telegram/` for a complete implementation.
 
 ## Approval Channels
 
-For tool confirmations, implement `ApprovalChannel`:
+For tool confirmations, implement `AnyApprovalChannel`:
 
 ```python
-from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
+from zrb.llm.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
 
-class TelegramApprovalChannel(ApprovalChannel):
+class TelegramApprovalChannel(AnyApprovalChannel):
     """Send approval requests to Telegram."""
 
     def __init__(self, bot, chat_id: int):
@@ -1050,10 +1083,10 @@ class TelegramApprovalChannel(ApprovalChannel):
         await self.bot.send_message(self.chat_id, remove_style(message))
 
 # Register
-llm_chat.set_approval_channel(TelegramApprovalChannel(bot, CHAT_ID))
+llm_chat.approval_channels = [TelegramApprovalChannel(bot, CHAT_ID)]
 ```
 
-### ApprovalChannel Interface
+### AnyApprovalChannel Interface
 
 | Method | Purpose |
 |--------|---------|
@@ -1085,11 +1118,11 @@ llm_chat.set_approval_channel(TelegramApprovalChannel(bot, CHAT_ID))
 from zrb.llm.approval import NullApprovalChannel
 
 # Auto-approve all tool calls
-llm_chat.set_approval_channel(NullApprovalChannel())
+llm_chat.approval_channels = [NullApprovalChannel()]
 
 # Or enable via UIConfig
 config = UIConfig(is_yolo=True)
-llm_chat.set_ui_factory(create_ui_factory(MyUI, config=config))
+llm_chat.ui_factories = [create_ui_factory(MyUI, config=config)]
 ```
 
 ---

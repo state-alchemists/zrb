@@ -349,7 +349,7 @@ async def test_delegate_fires_subagent_start_stop(mock_sub_agent_manager):
         return HookResult()
 
     manager = HookManager(search_dirs=[])
-    manager.register(rec, events=[HookEvent.SUBAGENT_START, HookEvent.SUBAGENT_STOP])
+    manager.add_hook(rec, events=[HookEvent.SUBAGENT_START, HookEvent.SUBAGENT_STOP])
 
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
     token = current_hook_manager.set(manager)

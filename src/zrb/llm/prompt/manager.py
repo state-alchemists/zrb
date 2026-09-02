@@ -10,6 +10,7 @@ from zrb.llm.prompt.claude import (
     create_project_context_prompt,
 )
 from zrb.llm.prompt.live_context import render_live_context, render_live_context_async
+from zrb.llm.prompt.live_context_providers import LiveContextProviders, SimplePrompt
 from zrb.llm.prompt.profile import active_profile
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.prompt.registry import (
@@ -24,8 +25,6 @@ from zrb.llm.skill.manager import SkillManager
 from zrb.llm.skill.manager import skill_manager as default_skill_manager
 from zrb.util.attr import get_str_attr, get_str_list_attr
 
-# Simple prompt: just takes context and returns a string
-SimplePrompt = Callable[[AnyContext], str | None]
 # Full middleware: takes context, current prompt, and next handler
 FullMiddleware = Callable[[AnyContext, str, Callable[[AnyContext, str], str]], str]
 # Flexible middleware: can be either simple or full
@@ -33,45 +32,6 @@ PromptMiddleware = SimplePrompt | FullMiddleware
 # The five file-backed rule sections. `system_context` and `project_context`
 # are composed separately: they are data sections built in Python, not files.
 _SECTION_NAMES = frozenset({"persona", "principle", "workflow", "example", "profile"})
-
-
-class _ProviderRegistry:
-    """Named dynamic providers, composed in registration order.
-
-    One shape used by live context: providers registered via
-    ``add_live_context`` are called every turn and their non-empty output is
-    appended to the block. A downstream provider that throws must never take
-    the prompt down with it, so each is called under a try/except and skipped.
-    """
-
-    def __init__(self, label: str) -> None:
-        self._label = label
-        self._providers: list[tuple[str, SimplePrompt]] = []
-
-    def set(self, name: str, provider: SimplePrompt) -> None:
-        """Register *provider* under *name*, replacing any previous one."""
-        for i, (existing, _) in enumerate(self._providers):
-            if existing == name:
-                self._providers[i] = (name, provider)
-                return
-        self._providers.append((name, provider))
-
-    def render(self, ctx: AnyContext) -> list[str]:
-        """Every provider's non-empty output, in registration order.
-
-        A provider that raises is logged and skipped: these are downstream
-        extension points, and one bad plugin must not cost the whole prompt.
-        """
-        parts: list[str] = []
-        for name, provider in self._providers:
-            try:
-                extra = provider(ctx)
-            except Exception as e:
-                CFG.LOGGER.debug(f"{self._label} provider '{name}' failed: {e}")
-                continue
-            if extra:
-                parts.append(extra)
-        return parts
 
 
 class PromptManager:
@@ -154,7 +114,7 @@ class PromptManager:
         self._render = render
         # Live context providers: per-turn dynamic state injected into the
         # <live-context> block after built-in rendering.
-        self._live_context_providers = _ProviderRegistry("Live-context")
+        self._live_context_providers = LiveContextProviders()
         # Resolved current model — used by the system_context section to
         # surface model-specific capabilities (e.g. parallel tool call
         # support). Set by the task runner before each compose_prompt(),
@@ -280,7 +240,20 @@ class PromptManager:
         (or ``None`` / ``""`` to emit nothing). Re-registering the same *name*
         overwrites the previous provider.
         """
-        self._live_context_providers.set(name, provider)
+        self._live_context_providers.add_provider(name, provider)
+
+    def remove_live_context(self, name: str) -> None:
+        """Drop the live-context provider registered under *name*. No-op if
+        absent."""
+        self._live_context_providers.remove_provider(name)
+
+    def set_live_contexts(self, providers: "list[tuple[str, SimplePrompt]]") -> None:
+        """Replace the whole live-context provider list wholesale."""
+        self._live_context_providers.set_providers(providers)
+
+    def get_live_contexts(self) -> "list[tuple[str, SimplePrompt]]":
+        """The `(name, provider)` pairs, in registration order."""
+        return self._live_context_providers.get_providers()
 
     def create_live_context(
         self,

@@ -14,8 +14,8 @@ abstraction" that is deliberately rejected; `Agent` construction stays
 exclusively at `create_agent()` so there is one place, not two, that builds a
 real agent. `Model` itself is re-exported below because it's used purely as an
 annotation everywhere it appears in zrb — actual provider/model
-*resolution* stays exactly where it is, in `llm/config/config.py`, importing
-`pydantic_ai` directly.
+*resolution* stays exactly where it is, in `llm/config/model_resolver.py`,
+importing `pydantic_ai` directly.
 
 Every name here is a plain re-export — zero logic, zero behavior change.
 These are real (not `TYPE_CHECKING`-guarded) imports: this module pays

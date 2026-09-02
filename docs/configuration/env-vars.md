@@ -8,6 +8,13 @@ Zrb can be heavily customized using environment variables. These control everyth
 
 > **Note on White-labeling:** If you have customized `_ZRB_ENV_PREFIX` (e.g., in `__main__.py` for a custom CLI), remember to replace `ZRB_` with your custom prefix (e.g., `ACME_LOGGING_LEVEL`).
 
+## Mistakes fail fast
+
+`zrb_init.py` is configured by assigning to `CFG` directly, so two common mistakes are caught at the assignment itself rather than surfacing as a silent no-op or a confusing error somewhere else:
+
+- Assigning a name `CFG` doesn't define (`CFG.LLM_MODELL = "..."`, a typo) raises `AttributeError` naming the closest real knob.
+- Assigning a value the setting can't accept (`CFG.LLM_MAX_REQUEST_PER_MINUTE = "not-a-number"`) raises `ValueError` right there, not on the next unrelated read.
+
 ---
 
 ## Table of Contents
@@ -49,6 +56,8 @@ Zrb can be heavily customized using environment variables. These control everyth
 | `ZRB_ENABLE_BUILTIN_TASKS` | Whether to load pre-packaged tasks (Git, UUID, base64, etc.) | `on` |
 | `ZRB_SHOW_UNRECOMMENDED_COMMAND_WARNING` | Show warnings for potentially unsafe shell commands | `on` (true) |
 | `ZRB_MCP_CONFIG_FILE` | Path to the MCP server config file | `mcp-config.json` |
+
+> 💡 **A broken init file is reported, not hidden — and not fatal.** If a discovered `zrb_init.py`, an `ZRB_INIT_SCRIPTS` entry, or an `ZRB_INIT_MODULES` entry raises while loading, zrb prints the file, the line and the exception type to stderr, then continues: whatever that source already did before failing stays in effect, the rest of startup (further init sources, then the CLI itself) still runs, and the printed error is what tells you to fix it and rerun.
 
 ---
 

@@ -64,7 +64,7 @@ from typing import Any
 from aiohttp import web
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
+from zrb.llm.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
 from zrb.llm.ui import EventDrivenUI
 from zrb.llm.util.history_formatter import format_history_as_text
 from zrb.util.cli.style import remove_style
@@ -319,7 +319,7 @@ class SSEServer:
 # =============================================================================
 
 
-class SSEApproval(ApprovalChannel):
+class SSEApproval(AnyApprovalChannel):
     """SSE approval channel supporting approve/deny/edit via text messages.
 
     Similar to TelegramApproval but using plain text responses:
@@ -625,41 +625,12 @@ server = SSEServer.get()
 sse_approval = SSEApproval(server)
 server.set_approval_channel(sse_approval)
 
-
-def sse_ui_factory(
-    ctx,
-    llm_task,
-    history_manager,
-    ui_commands,
-    initial_message,
-    initial_conversation_name,
-    initial_yolo,
-    initial_attachments,
-    custom_commands=None,
-):
-    from zrb.llm.ui import UIConfig
-
-    cfg = UIConfig.default()
-    if ui_commands:
-        cfg = cfg.merge_commands(ui_commands)
-    cfg.is_yolo = initial_yolo
-    cfg.conversation_session_name = initial_conversation_name
-
-    ui = SSEUI(
-        ctx=ctx,
-        llm_task=llm_task,
-        history_manager=history_manager,
-        config=cfg,
-        initial_message=initial_message,
-        initial_attachments=initial_attachments,
-        custom_commands=custom_commands,
-        server=server,
-    )
-    return ui
-
+# create_ui_factory wires the 8 standard factory kwargs to the UI for us —
+# no hand-rolled factory boilerplate.
+from zrb.llm.ui import create_ui_factory
 
 # Add SSE UI alongside default terminal UI (dual mode)
-llm_chat.append_ui_factory(sse_ui_factory)
+llm_chat.append_ui_factory(create_ui_factory(SSEUI, server=server))
 
 # Add approval channels:
 # - SSE first (gets priority in race conditions)

@@ -129,7 +129,8 @@ The changelog lives in index and directory under `docs/`:
 | Path | Scope |
 |------|-------|
 | `changelog.md` | Index page listing every minor version with links. |
-| `changelog-v2/` | Directory of per-minor-version files (e.g. `2.38.0.md`, `2.35.0-2.35.3.md`). |
+| `changelog-v2/` | Directory of per-minor-version files for the 2.x line (e.g. `2.38.0.md`, `2.35.0-2.35.3.md`). |
+| `changelog-v3/` | Directory of per-minor-version files for the 3.x line (e.g. `3.0.0.md`). |
 | `changelog-v1.md` | Archive of the 1.x line (and the 1.0.0 rewrite from 0.x). |
 
 ### Writing an entry
@@ -150,7 +151,7 @@ Use one flat `- **<Category>: <Title>** (`paths`): <prose>` bullet per change �
 
 ### Collapsing (compaction)
 
-To keep the changelog readable as it grows, old entries are periodically compacted. Each minor version has its own file under `changelog-v2/`. **Keep only two entries per minor version** — the minor bump and its final revision — producing this retained sequence:
+To keep the changelog readable as it grows, old entries are periodically compacted. Each minor version has its own file under its version line's directory (`changelog-v2/` for 2.x, `changelog-v3/` for 3.x). **Keep only two entries per minor version** — the minor bump and its final revision — producing this retained sequence:
 
 ```mermaid
 flowchart LR
@@ -289,7 +290,7 @@ To understand Zrb's core design decisions (such as the strict use of `asyncio`, 
 
 ## Context Propagation Internals
 
-Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are fourteen `ContextVar` instances across the codebase, split into five layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
+Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are sixteen `ContextVar` instances across the codebase, split into five layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
 
 ### The Five Layers
 
@@ -305,14 +306,16 @@ Holds the active `Context` for the currently executing task. Set at the start of
 
 | Variable | Type | Purpose |
 |---|---|---|
-| `current_ui` | `UIProtocol \| None` | Active UI for output and user interaction |
+| `current_ui` | `AnyUI \| None` | Active UI for output and user interaction |
 | `current_tool_confirmation` | `AnyToolConfirmation` | Tool approval policy |
 | `current_yolo` | `bool` | Auto-approve all tool calls |
-| `current_approval_channel` | `ApprovalChannel \| None` | Remote approval handler |
+| `current_approval_channel` | `AnyApprovalChannel \| None` | Remote approval handler |
 | `current_hook_manager` | `HookManager \| None` | Hook manager for the run; nested tools (e.g. delegate) fire SubagentStart/Stop on it |
 | `current_agent_run_scope` | `str` | Identifies this specific agent run to nested tools needing per-conversation state (e.g. `file_observation.py`'s read-before-overwrite tracking) — the session name for a top-level run, a fresh per-delegation id for a sub-agent, so a sub-agent never inherits what its parent or siblings observed |
+| `current_small_model` | `str \| Model \| None` | The UI's own `small_model` (set by `/model small ...`), so `journal_compliance.py`'s judge model and other small-tier consumers resolve per-session instead of leaking one process-wide value across concurrent chat sessions |
+| `current_multimodal_model` | `str \| Model \| None` | The UI's own `multimodal_model` (set by `/model multimodal ...`), read by the attachment-description pipeline and voice engine for the same per-session reason |
 
-All six are set at the start of `run_agent()` and reset in its `finally` block.
+All eight are set at the start of `run_agent()` and reset in its `finally` block.
 
 **Layer 3 — Permission state** (`src/zrb/llm/permission/state.py`):
 

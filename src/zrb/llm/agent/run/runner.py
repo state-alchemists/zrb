@@ -65,13 +65,16 @@ from zrb.llm.agent_state import (
     AnyToolConfirmation,
     current_agent_run_scope,
     current_hook_manager,
+    current_multimodal_model,
+    current_small_model,
     current_tool_confirmation,
     current_ui,
     current_yolo,
+    get_current_multimodal_model,
 )
-from zrb.llm.approval.approval_channel import ApprovalChannel, current_approval_channel
-from zrb.llm.config.config import llm_config
+from zrb.llm.approval.approval_channel import current_approval_channel
 from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.config.model_resolver import resolve_configured_multimodal_model
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.turn_evidence import turn_states_preference, turn_wrote_files
 from zrb.llm.hook.types import HookEvent
@@ -84,11 +87,13 @@ from zrb.llm.permission.state import (
 from zrb.llm.prompt.live_context import append_live_context
 from zrb.llm.sandbox.state import current_sandbox_policy, get_effective_sandbox_policy
 from zrb.llm.tool.worktree import active_worktree
-from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.util.prompt import expand_prompt
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
+
+    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.ui.any_ui import AnyUI
 
 # Process-wide guard: the OpenAI serialization patch is global and idempotent,
 # so it only needs to run once per process. The check-then-set is safe under
@@ -106,13 +111,13 @@ async def run_agent(
     print_fn: Callable[[str], Any] = print,
     event_handler: Callable[[Any], Any] | None = None,
     tool_confirmation: AnyToolConfirmation = None,
-    ui: UIProtocol | list[UIProtocol] | None = None,
+    ui: AnyUI | list[AnyUI] | None = None,
     hook_manager: HookManager | None = None,
     # None = inherit from the parent run's YOLO context (what an unconfigured
     # nested helper agent wants); False = force approval prompts even inside a
     # YOLO parent; True = skip confirmations outright.
     yolo: bool | None = None,
-    approval_channel: "ApprovalChannel | None" = None,
+    approval_channel: "AnyApprovalChannel | None" = None,
     system_prompt: str = "",
     live_context: str = "",
     permission_policy: Any = None,
@@ -180,6 +185,18 @@ async def run_agent(
         bind_contextvar(stack, current_tool_confirmation, effective_tool_confirmation)
         bind_contextvar(stack, current_yolo, effective_yolo)
         bind_contextvar(stack, current_hook_manager, effective_hook_manager)
+        # The UI's own `small_model`/`multimodal_model` (set by `/model small
+        # ...` / `/model multimodal ...`) — None when the UI has neither, in
+        # which case a reader falls back to CFG. getattr, not an AnyUI
+        # method: most UIs (StdUI, a bare MultiUI) never set these.
+        bind_contextvar(
+            stack, current_small_model, getattr(effective_ui, "small_model", None)
+        )
+        bind_contextvar(
+            stack,
+            current_multimodal_model,
+            getattr(effective_ui, "multimodal_model", None),
+        )
         bind_contextvar(stack, current_agent_run_scope, run_scope or uuid.uuid4().hex)
         bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         bind_contextvar(stack, current_permission_policy, effective_policy)
@@ -504,9 +521,9 @@ async def _execution_loop(
     print_fn: Callable[[str], Any],
     effective_event_handler: Callable[[Any], Any] | None,
     effective_tool_confirmation: AnyToolConfirmation,
-    effective_ui: UIProtocol | None,
+    effective_ui: AnyUI | None,
     effective_hook_manager: HookManager,
-    effective_approval_channel: "ApprovalChannel | None",
+    effective_approval_channel: "AnyApprovalChannel | None",
     checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None = None,
     sandbox_deps: Any = None,
 ) -> tuple[Any, list[Any]]:
@@ -608,9 +625,9 @@ async def _execution_loop(
                 CFG.LOGGER.debug(
                     "Got DeferredToolRequests, calling process_deferred_requests"
                 )
-                # effective_ui is typed as UIProtocol | None but by this point in
+                # effective_ui is typed as AnyUI | None but by this point in
                 # the loop we are past all the setup guards; the function it is
-                # passed to expects a concrete UIProtocol.
+                # passed to expects a concrete AnyUI.
                 assert effective_ui is not None
                 cursor.results = await process_deferred_requests(
                     cursor.output,
@@ -778,7 +795,7 @@ async def _await_pending_checkpoints(
 
 
 def _build_event_stream_handler(
-    effective_ui: UIProtocol | None,
+    effective_ui: AnyUI | None,
     effective_event_handler: Callable[[Any], Any] | None,
     partial_run: PartialRunAccumulator,
     checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None = None,
@@ -839,8 +856,8 @@ def _is_checkpoint_boundary(messages: list[Any], last_checkpoint_len: int) -> bo
     )
 
 
-def _set_active_run_context(effective_ui: UIProtocol | None, ctx: Any) -> None:
-    """Best-effort: not every `UIProtocol` implementer supports steering."""
+def _set_active_run_context(effective_ui: AnyUI | None, ctx: Any) -> None:
+    """Best-effort: not every `AnyUI` implementer supports steering."""
     if effective_ui is None:
         return
     try:
@@ -941,6 +958,8 @@ async def _apply_multimodal_fallback(
     return await replace_unsupported_attachments(
         prompt_content,
         main_model=main_model,
-        multimodal_model=llm_config.multimodal_model,
+        multimodal_model=resolve_configured_multimodal_model(
+            get_current_multimodal_model()
+        ),
         print_fn=print_fn,
     )

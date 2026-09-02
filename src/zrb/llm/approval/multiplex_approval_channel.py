@@ -3,14 +3,14 @@ import sys
 import traceback
 
 from zrb.config.config import CFG
-from zrb.llm.approval.approval_channel import (
-    ApprovalChannel,
+from zrb.llm.approval.any_approval_channel import (
+    AnyApprovalChannel,
     ApprovalContext,
     ApprovalResult,
 )
 
 
-class MultiplexApprovalChannel(ApprovalChannel):
+class MultiplexApprovalChannel(AnyApprovalChannel):
     """Approval channel that broadcasts approval requests to multiple channels.
 
     All channels receive the approval request simultaneously.
@@ -21,10 +21,10 @@ class MultiplexApprovalChannel(ApprovalChannel):
             TerminalApprovalChannel(),
             TelegramApprovalChannel(bot, chat_id),
         ])
-        llm_chat.set_approval_channel(channel)
+        llm_chat.approval_channels = [channel]
     """
 
-    def __init__(self, channels: list[ApprovalChannel]):
+    def __init__(self, channels: list[AnyApprovalChannel]):
         self._channels = channels
 
     async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
@@ -42,7 +42,7 @@ class MultiplexApprovalChannel(ApprovalChannel):
         loop = asyncio.get_running_loop()
         future: asyncio.Future[ApprovalResult] = loop.create_future()
 
-        async def request_from_channel(channel: ApprovalChannel):
+        async def request_from_channel(channel: AnyApprovalChannel):
             try:
                 result = await channel.request_approval(context)
                 CFG.LOGGER.debug(
@@ -113,8 +113,8 @@ def is_shutdown_requested() -> bool:
 
 
 def resolve_approval_channel(
-    channels: list[ApprovalChannel],
-) -> ApprovalChannel | None:
+    channels: list[AnyApprovalChannel],
+) -> AnyApprovalChannel | None:
     """Pick the single channel, wrap 2+ in `MultiplexApprovalChannel`, or `None`."""
     if len(channels) == 1:
         return channels[0]

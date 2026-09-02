@@ -9,10 +9,10 @@ import pytest
 from zrb.llm.tool.ask import (
     ask_user_question,
     build_choice_spec,
-    format_choice_spec,
     get_interactive_mode,
     set_interactive_mode,
 )
+from zrb.llm.tool_call.choice_spec_format import format_choice_spec
 
 
 @pytest.fixture(autouse=True)
@@ -247,27 +247,6 @@ async def test_empty_answer_renders_no_answer_marker():
             [{"question": "x?", "options": [{"label": "A"}]}]
         )
     assert "(no answer)" in result
-
-
-@pytest.mark.asyncio
-async def test_falls_back_to_ask_user_when_choice_unsupported():
-    """A UI predating ask_user_choice still works via the text path."""
-
-    class LegacyUI:
-        def __init__(self):
-            self.prompts: list[str] = []
-
-        async def ask_user(self, prompt: str) -> str:
-            self.prompts.append(prompt)
-            return "1"
-
-    fake_ui = LegacyUI()
-    with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
-        result = await ask_user_question(
-            [{"question": "Pick?", "options": [{"label": "Yes"}, {"label": "No"}]}]
-        )
-    assert "Yes" in result
-    assert fake_ui.prompts and "[Q1] Pick?" in fake_ui.prompts[0]
 
 
 @pytest.mark.asyncio

@@ -4,6 +4,10 @@
 
 This directory records **why** zrb is built the way it is. Every record describes a decision **that is currently in force**, with the alternatives that were rejected and why.
 
+**You are not expected to read this log.** It is a lookup table: find the record for the thing you are changing, read that one, and follow its "Where it lives" into the code.
+
+New here? [Which pattern do I reach for?](../advanced-topics/which-pattern.md) is a one-page lookup table that answers most "which ADR applies to what I'm adding" questions without reading the log; [Framework Conventions](../advanced-topics/framework-conventions.md) lists the enforced R1–R12 rules.
+
 ## How to read an entry
 
 Every ADR has the same shape:

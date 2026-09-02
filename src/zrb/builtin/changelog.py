@@ -4,7 +4,7 @@ import re
 from zrb.builtin.group import git_changelog_group
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
-from zrb.llm.config.config import llm_config
+from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.task.make_task import make_task
 from zrb.util.cli.style import stylize_green, stylize_muted, stylize_yellow
 from zrb.util.cmd.command import run_command
@@ -69,7 +69,7 @@ _EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 )
 async def generate_changelog(ctx: AnyContext):
     repo_dir = await get_repo_dir(print_method=ctx.print)
-    model = str(ctx.input.model).strip() or llm_config.model
+    model = str(ctx.input.model).strip() or resolve_configured_model()
     os.makedirs(ctx.input.dir, exist_ok=True)
     with open(ctx.input.template) as f:
         template = f.read()
@@ -101,7 +101,10 @@ async def _matching_tags(ctx, repo_dir, sort, regex):
         print_method=lambda *_: None,
     )
     if code != 0:
-        raise Exception(f"git tag failed with exit code {code}")
+        raise RuntimeError(
+            f"`git tag` exited {code}. Check that the tag does not already exist "
+            f"and that the working tree is clean."
+        )
     # splitlines(), not split("\n"): run_command yields CRLF, and a trailing
     # \r both breaks the `$`-anchored regex and produces "ambiguous argument"
     # if it leaks into a `tag..tag` range.

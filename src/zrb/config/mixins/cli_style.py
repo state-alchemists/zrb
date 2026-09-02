@@ -12,7 +12,7 @@ from zrb.config.env_field import EnvField
 from zrb.config.theme import theme_default
 
 
-class ConfigCLIStyle:
+class CLIStyleMixin:
     if TYPE_CHECKING:
         # Every field below defaults via theme_default(), whose returned
         # factory reads this sibling-owned attribute at call time.

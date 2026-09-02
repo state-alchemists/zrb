@@ -28,7 +28,7 @@ def create_ui_factory(
         **extra_kwargs: Additional kwargs passed to the constructor
 
     Returns:
-        A factory function compatible with llm_chat.set_ui_factory()
+        A factory function compatible with llm_chat.ui_factories
 
     Example:
         # Before (repetitive):
@@ -47,7 +47,7 @@ def create_ui_factory(
         from zrb.llm.ui import create_ui_factory, UIConfig
 
         config = UIConfig(assistant_name="MyBot")
-        llm_chat.set_ui_factory(create_ui_factory(MyUI, config=config, bot=my_bot))
+        llm_chat.ui_factories = [create_ui_factory(MyUI, config=config, bot=my_bot)]
     """
 
     def factory(

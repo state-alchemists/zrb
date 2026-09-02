@@ -8,8 +8,8 @@ from pydantic import Field
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.llm.agent import create_agent, run_agent
-from zrb.llm.config.config import llm_config
 from zrb.llm.config.limiter import llm_limiter
+from zrb.llm.config.model_resolver import resolve_configured_model
 
 # LSP integration for semantic pre-analysis
 from zrb.llm.lsp.manager import lsp_manager
@@ -324,9 +324,9 @@ async def extract_info(
     token_limit: int,
 ) -> list[str]:
     agent = create_agent(
-        # Already resolved here; resolve_model=False avoids a second
-        # model_getter/model_renderer pass inside create_agent.
-        model=llm_config.resolve_model(),
+        # Already resolved here; resolve_model=False avoids resolving twice
+        # inside create_agent.
+        model=resolve_configured_model(),
         system_prompt=get_prompt("repo_extractor"),
         resolve_model=False,
     )
@@ -405,9 +405,9 @@ async def _summarize_info(
     token_limit: int,
 ) -> list[str]:
     agent = create_agent(
-        # Already resolved here; resolve_model=False avoids a second
-        # model_getter/model_renderer pass inside create_agent.
-        model=llm_config.resolve_model(),
+        # Already resolved here; resolve_model=False avoids resolving twice
+        # inside create_agent.
+        model=resolve_configured_model(),
         system_prompt=get_prompt("repo_summarizer"),
         resolve_model=False,
     )

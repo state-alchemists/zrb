@@ -22,7 +22,7 @@ def registry():
 
 @pytest.fixture
 def manager(registry):
-    manager = SubAgentManager(registry=registry, root_dir="/nonexistent")
+    manager = SubAgentManager(registry=registry, scan_root="/nonexistent")
     manager.scan(search_dirs=[])
     return manager
 
@@ -140,7 +140,7 @@ def test_set_agents_deferred_resolves_at_query_time(registry):
 
 def test_manual_survives_scan(tmp_path):
     manager = SubAgentManager(
-        registry=SubAgentRegistry(), root_dir="/nonexistent", max_depth=3
+        registry=SubAgentRegistry(), scan_root="/nonexistent", max_depth=3
     )
     manager.scan(search_dirs=[])
     manager.add_agent(_agent("alpha"))
@@ -153,7 +153,7 @@ def test_manual_survives_scan(tmp_path):
 
 def test_manual_wins_name_collision_with_discovered(tmp_path):
     manager = SubAgentManager(
-        registry=SubAgentRegistry(), root_dir="/nonexistent", max_depth=3
+        registry=SubAgentRegistry(), scan_root="/nonexistent", max_depth=3
     )
     manager.scan(search_dirs=[])
     manager.add_agent(_agent("alpha", path="/p/manual"))

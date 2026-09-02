@@ -641,6 +641,8 @@ class TestBaseUICommandHandlers:
         ui.exec_commands = []
         ui.plan_commands = []
         ui.copy_commands = []
+        ui.btw_commands = []
+        ui.voice_commands = []
         ui.custom_commands = []
 
         help_text = ui.get_help_text()

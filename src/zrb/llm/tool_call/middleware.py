@@ -2,29 +2,28 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
-from zrb.llm.tool_call.ui_protocol import UIProtocol
-
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart
+    from zrb.llm.ui.any_ui import AnyUI
 
 
 ResponseHandler = Callable[
     [
-        UIProtocol,
+        "AnyUI",
         "ToolCallPart",
         str,
-        Callable[[UIProtocol, "ToolCallPart", str], Awaitable[Any]],
+        Callable[["AnyUI", "ToolCallPart", str], Awaitable[Any]],
     ],
     Awaitable[Any],
 ]
 
 ToolPolicy = Callable[
     [
-        UIProtocol,
+        "AnyUI",
         "ToolCallPart",
-        Callable[[UIProtocol, "ToolCallPart"], Awaitable[Any]],
+        Callable[["AnyUI", "ToolCallPart"], Awaitable[Any]],
     ],
     Awaitable[Any],
 ]
 
-ArgumentFormatter = Callable[[UIProtocol, "ToolCallPart", str], Awaitable[str | None]]
+ArgumentFormatter = Callable[["AnyUI", "ToolCallPart", str], Awaitable[str | None]]

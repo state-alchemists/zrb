@@ -59,7 +59,7 @@ async def test_python_hook_execution():
         executed.append(context)
         return HookResult(success=True)
 
-    manager.register(my_hook, events=[HookEvent.SESSION_START])
+    manager.add_hook(my_hook, events=[HookEvent.SESSION_START])
 
     await manager.execute_hooks_simple(HookEvent.SESSION_START, {"test": "data"})
 
@@ -114,7 +114,7 @@ async def test_hooks_globally_disabled_by_config(monkeypatch):
         fired.append(context.event.value)
         return HookResult(success=True)
 
-    manager.register(my_hook, events=[HookEvent.SESSION_START])
+    manager.add_hook(my_hook, events=[HookEvent.SESSION_START])
 
     results = await manager.execute_hooks(HookEvent.SESSION_START, {})
     assert results == []
@@ -171,7 +171,7 @@ async def test_pre_tool_use_modification():
             )
         return HookResult(success=True)
 
-    manager.register(modifier_hook, events=[HookEvent.PRE_TOOL_USE])
+    manager.add_hook(modifier_hook, events=[HookEvent.PRE_TOOL_USE])
 
     results = await manager.execute_hooks_simple(
         HookEvent.PRE_TOOL_USE, {"tool": "my_tool", "args": {"original": "value"}}
@@ -329,10 +329,10 @@ async def test_async_agent_hook_is_non_blocking():
     agent_cls = MagicMock(return_value=agent_instance)
 
     with (
-        patch("zrb.llm.hook.creator.llm_config") as mock_llm_config,
+        patch("zrb.llm.hook.creator.resolve_configured_model") as mock_resolve_model,
         patch.dict("sys.modules", {"pydantic_ai": MagicMock(Agent=agent_cls)}),
     ):
-        mock_llm_config.resolve_model.return_value = "resolved"
+        mock_resolve_model.return_value = "resolved"
         start = time.monotonic()
         results = await manager.execute_hooks(HookEvent.STOP, {})
         elapsed = time.monotonic() - start
@@ -625,10 +625,10 @@ async def test_shutdown_drain_extends_for_an_agent_hooks_own_timeout():
     agent_cls = MagicMock(return_value=agent_instance)
 
     with (
-        patch("zrb.llm.hook.creator.llm_config") as mock_llm_config,
+        patch("zrb.llm.hook.creator.resolve_configured_model") as mock_resolve_model,
         patch.dict("sys.modules", {"pydantic_ai": MagicMock(Agent=agent_cls)}),
     ):
-        mock_llm_config.resolve_model.return_value = "resolved"
+        mock_resolve_model.return_value = "resolved"
         await manager.execute_hooks(HookEvent.STOP, {})
         # A short caller-supplied grace_seconds would normally cut this off
         # before the 0.4s sleep finishes — only the hook's own 5s `timeout`

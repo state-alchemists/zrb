@@ -232,7 +232,7 @@ Sub-agent files are discovered from (in priority order):
 5. Paths in `ZRB_LLM_EXTRA_AGENT_DIRS`
 6. Zrb's built-in `core_agents/` — always included
 7. Zrb's optional built-in `agents/` — included when `LLM_ENABLE_BUILTIN_AGENTS` is enabled
-8. `self._root_dir` (recursive scan target)
+8. `self._scan_root` (recursive scan target, exposed as `scan_root`)
 
 Core agents are shown before optional agents in the `AVAILABLE AGENTS` roster and in `SearchAgent` results. `generalist` is currently the built-in core agent, so it remains available even when optional built-in agents are disabled.
 

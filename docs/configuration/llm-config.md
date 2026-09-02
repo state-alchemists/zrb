@@ -47,6 +47,7 @@ These variables define which LLM Zrb uses for its primary reasoning and how it c
 | `ZRB_LLM_MULTIMODAL_MODEL` | Model for multimodal tasks (image analysis) | `None` (no fallback) |
 | `ZRB_LLM_API_KEY` | API key for your LLM provider | None |
 | `ZRB_LLM_BASE_URL` | Custom endpoint URL | None |
+| `ZRB_LLM_PROVIDER` | Explicit pydantic-ai provider name or object override — normally inferred from `ZRB_LLM_MODEL`'s `provider:` prefix, or from `ZRB_LLM_API_KEY`/`ZRB_LLM_BASE_URL` being set | None (inferred) |
 | `ZRB_LLM_PERMISSIONS` | Tool permission ruleset. Empty keeps legacy yolo behavior. Accepts a shorthand (`allow`/`ask`/`deny`) or a comma-separated `key:action` list (e.g. `edit:deny,Shell:ask,*:allow`). First match wins. | (empty) |
 | `ZRB_LLM_THINKING` | Cross-provider reasoning/thinking level — `minimal`/`low`/`medium`/`high`/`xhigh` for a specific effort, or `true`/`false` to enable/disable at the provider's default effort. Maps to pydantic-ai's unified `ModelSettings.thinking`, so it applies across OpenAI/Anthropic/Google/etc. without a per-provider setting. A provider-specific setting passed via a task's own `model_settings` (e.g. `openai_reasoning_effort`) still wins over this. | (unset — provider default) |
 
@@ -102,17 +103,17 @@ Anything `ZRB_LLM_MODEL` names as `provider:model` is resolved by pydantic-ai, s
 
 ### Python API: Model Getter & Renderer
 
-For advanced scenarios — model tiering, A/B routing, or custom provider wrapping — `LLMConfig` exposes two callable hooks that are applied throughout the entire model pipeline:
+For advanced scenarios — model tiering, A/B routing, or custom provider wrapping — `LLMTask`/`LLMChatTask` expose two settable callable hooks, applied in sequence to the task's own model right before it is handed to the agent:
 
 | Property | Receives | Returns | Purpose |
 |----------|----------|---------|---------|
 | `model_getter` | Base model (`str \| Model`) | Active model | Decide which model to actually use per request (e.g., tier switching, A/B testing) |
 | `model_renderer` | Active model | Final pydantic-ai model | Wrap the model into a pydantic-ai `Model` object or translate tier names to real model strings |
 
-`resolve_model(base_model=None)` applies both in sequence and is used internally throughout all agent creation paths.
+Both are task-scoped — there is no global hook that reaches every agent zrb creates (sub-agents, the summarizer, tool-internal agents resolve `CFG.LLM_*` directly via `zrb.llm.config.model_resolver`). Set them per task:
 
 ```python
-from zrb.llm.config.config import llm_config
+from zrb import LLMChatTask
 
 # Example: translate a logical tier name to the real configured model
 def my_renderer(model):
@@ -122,29 +123,10 @@ def my_renderer(model):
     }
     return tier_map.get(model, model)
 
-llm_config.model_renderer = my_renderer
-```
-
-Setting hooks on `llm_config` applies them **globally** to every agent Zrb creates, including:
-
-- The main `LLMTask` / `LLMChatTask` agent (when no task-level hooks override them)
-- Background summarizer agents (conversational history compressor, per-message compressor)
-- Sub-agent tools: web-page summarizer (`open_web_page`), code analyzer (`analyze_code`), file extractor
-- Sub-agent manager agents
-
-Task-level `model_getter` / `model_renderer` (set directly on an `LLMTask` or `LLMChatTask`) take **precedence** over the config-level defaults.
-
-```python
-from zrb import LLMChatTask
-from zrb.llm.config.config import llm_config
-
-# Config-level: affects all agents (including sub-agents)
-llm_config.model_getter = lambda m: "openai:gpt-4o-mini"
-
-# Task-level: overrides only this task's main agent; sub-agents still use config-level
 task = LLMChatTask(
     name="chat",
-    model_getter=lambda m: "openai:gpt-4o",  # overrides config for this task only
+    model_getter=lambda m: "my:model-pro",
+    model_renderer=my_renderer,
 )
 ```
 
@@ -337,7 +319,7 @@ task.prompt_manager.add_live_context(
 )
 ```
 
-A live-context provider is an extension point, so it must never take the prompt down with it: a provider that throws is logged and skipped.
+A live-context provider is an extension point, so it must never take the prompt down with it: a provider that throws is logged and skipped. Re-registering the same *name* replaces the previous provider; `remove_live_context(name)` drops one, `get_live_contexts()` returns the `(name, provider)` pairs in registration order, and `set_live_contexts(pairs)` replaces the whole list wholesale.
 
 **3. Override a built-in prompt file** — wording ships as files, so the no-Python way to change it is to place a same-named file higher on the lookup path (project dir → `ZRB_LLM_PROMPT_<NAME>` → base dir → package; the overridable names are listed under [Overridable Prompts](#overridable-prompts)). For example, put `persona.md` in the directory `ZRB_LLM_PROMPT_DIR` points to and it replaces the packaged persona wording. A *new* name in `include_sections` does not resolve to a file — the built-in section set is fixed, and an unknown name is warned and skipped (ADR-0044).
 
@@ -472,11 +454,12 @@ When using the `/model` command in LLM chat, Zrb provides autocomplete suggestio
 
 ```python
 from zrb import LLMChatTask
+from zrb.llm.ui.ui_config import UIConfig
 
 task = LLMChatTask(
     name="chat",
-    show_ollama_models=False,        # None → falls back to ZRB_LLM_SHOW_OLLAMA_MODELS
-    show_pydantic_ai_models=False,    # None → falls back to ZRB_LLM_SHOW_PYDANTIC_AI_MODELS
+    # Unset fields fall back to ZRB_LLM_SHOW_OLLAMA_MODELS / ZRB_LLM_SHOW_PYDANTIC_AI_MODELS.
+    ui_config=UIConfig(show_ollama_models=False, show_pydantic_ai_models=False),
 )
 ```
 

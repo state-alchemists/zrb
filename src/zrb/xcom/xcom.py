@@ -112,7 +112,11 @@ class Xcom(deque):
         if len(self) > 0:
             return self[0]
         else:
-            raise IndexError("Xcom is empty")
+            raise IndexError(
+                "Xcom is empty: peek()/pop() need a prior push() or the task's "
+                "own return value. Check the upstream task actually ran and "
+                "produced a value before reading it here."
+            )
 
     def get(self, default_value: Any = None) -> Any:
         """Return the newest value without removing it, or `default_value`.

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
-from zrb.llm.approval.approval_channel import ApprovalContext, ApprovalResult
+from zrb.llm.approval.any_approval_channel import (
+    AnyApprovalChannel,
+    ApprovalContext,
+    ApprovalResult,
+)
 
 
-class NullApprovalChannel:
+class NullApprovalChannel(AnyApprovalChannel):
     """Approval channel that auto-approves everything.
 
     Useful for YOLO mode or when running in non-interactive environments

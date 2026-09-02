@@ -5,6 +5,12 @@ from typing import NoReturn
 import requests
 
 
+class SearchToolError(RuntimeError):
+    """A search backend failed in a way the agent should report and route
+    around — a failed operation (bad credentials, rate limit, transient
+    network failure), not a bad argument, hence `RuntimeError` as the base."""
+
+
 def raise_http_error(
     response: requests.Response,
     service_name: str,
@@ -21,7 +27,7 @@ def raise_http_error(
     error_body = response.text[:500] if response.text else "No error details provided"
     status_code = response.status_code
     if status_code == 401:
-        raise Exception(
+        raise SearchToolError(
             f"Error: {service_name} authentication failed (status code: {status_code}). "
             f"Response: {error_body}. "
             f"[SYSTEM SUGGESTION]: The API key is invalid or expired. Ask the user to "
@@ -29,14 +35,14 @@ def raise_http_error(
             f"'api_key' parameter."
         )
     elif status_code == 429:
-        raise Exception(
+        raise SearchToolError(
             f"Error: {service_name} rate limit exceeded (status code: {status_code}). "
             f"Response: {error_body}. "
             f"[SYSTEM SUGGESTION]: You have exceeded your {service_name} plan limits. "
             f"Wait before retrying, or ask the user to upgrade their plan."
         )
     elif 400 <= status_code < 500:
-        raise Exception(
+        raise SearchToolError(
             f"Error: {service_name} request failed (status code: {status_code}). "
             f"Response: {error_body}. "
             f"[SYSTEM SUGGESTION]: Check your search parameters. The 'language', "
@@ -44,7 +50,7 @@ def raise_http_error(
             f"using default parameters."
         )
     else:
-        raise Exception(
+        raise SearchToolError(
             f"Error: {service_name} server error (status code: {status_code}). "
             f"Response: {error_body}. "
             f"[SYSTEM SUGGESTION]: This is likely a temporary {service_name} server "

@@ -65,6 +65,18 @@ def test_load_file_broken_script_returns_none():
         os.remove(path)
 
 
+def test_load_file_broken_script_raises_when_raise_on_error():
+    """The fatal-load call site (zrb_init.py) opts into the real exception."""
+    with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+        f.write("raise RuntimeError('boom')")
+        path = f.name
+    try:
+        with pytest.raises(RuntimeError, match="boom"):
+            load_file(path, raise_on_error=True)
+    finally:
+        os.remove(path)
+
+
 def test_load_module_from_path_success(temp_script):
     module = load_module_from_path("my_loaded_mod", temp_script)
     assert module is not None

@@ -2,10 +2,11 @@ import re
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from zrb.llm.tool_call.args import parse_tool_args
-from zrb.llm.tool_call.handler import ToolPolicy, UIProtocol
+from zrb.llm.tool_call.handler import ToolPolicy
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart
+    from zrb.llm.ui.any_ui import AnyUI
 
 
 def auto_approve(  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
@@ -23,9 +24,9 @@ def auto_approve(  # noqa: C901 -- registration/factory fn; mccabe sums nested h
         kwargs_patterns = {}
 
     async def approve_tool_call_policy(
-        ui: UIProtocol,
+        ui: "AnyUI",
         call: "ToolCallPart",
-        next_handler: Callable[[UIProtocol, "ToolCallPart"], Awaitable[Any]],
+        next_handler: Callable[["AnyUI", "ToolCallPart"], Awaitable[Any]],
     ) -> Any:
         # lazy: zrb internal (heavy via transitive)
         from zrb.llm.agent.types import ToolApproved

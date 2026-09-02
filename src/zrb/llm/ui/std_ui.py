@@ -4,10 +4,11 @@ import sys
 from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.config.config import CFG
+from zrb.llm.ui.any_ui import AnyUI
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
-    from zrb.llm.tool_call.ui_protocol import ChoiceOption, ChoiceSpec
+    from zrb.llm.ui.any_ui import ChoiceOption, ChoiceSpec
 
 # Sentinel value for the synthetic "type my own answer" option.
 FREE_TEXT = "__zrb_free_text__"
@@ -36,8 +37,8 @@ def resolve_choice_selection(spec: "ChoiceSpec", selection: Any) -> str:
     return ", ".join(labels)
 
 
-class StdUI:
-    """Standard UI implementation of UIProtocol for terminal environments."""
+class StdUI(AnyUI):
+    """Standard UI implementation of AnyUI for terminal environments."""
 
     def __init__(self, assistant_name: str | None = None):
         raw = assistant_name if assistant_name else CFG.LLM_ASSISTANT_NAME
@@ -171,7 +172,7 @@ class StdUI:
         return await asyncio.to_thread(_run)
 
     async def run_async(self) -> Any:
-        """No-op event loop for `UIProtocol` conformance.
+        """No-op event loop for `AnyUI` conformance.
 
         `StdUI` is a non-interactive, stateless stdout/stderr adapter: it has no
         persistent loop to run (unlike the full-screen interactive UIs). It is

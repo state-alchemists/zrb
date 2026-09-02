@@ -9,11 +9,11 @@ UI CLASS HIERARCHY
 The UI system is organized into levels based on complexity and use case:
 
     ┌────────────────────────────────────────────────────────────────────────┐
-    │ Protocol Level (minimal interface)                                     │
+    │ AnyUI Level (minimal interface)                                        │
     ├────────────────────────────────────────────────────────────────────────┤
-    │ UIProtocol (zrb.llm.tool_call.ui_protocol)                             │
-    │   - 4 methods: ask_user, append_to_output, stream_to_parent,           │
-    │                 run_interactive_command                                │
+    │ AnyUI (zrb.llm.ui.any_ui)                                              │
+    │   - 6 methods: ask_user, ask_user_choice, append_to_output,            │
+    │                 stream_to_parent, run_interactive_command, run_async   │
     │   - Used for tool confirmations in non-chat contexts                   │
     │   - Implemented by: StdUI (zrb.llm.ui.std_ui)                          │
     ├────────────────────────────────────────────────────────────────────────┤
@@ -91,10 +91,10 @@ Single Channel (CLI only):
             initial_attachments=initial_attachments,
         )
 
-    llm_chat.set_ui_factory(my_factory)
+    llm_chat.ui_factories = [my_factory]
 
     # Or use create_ui_factory helper (recommended)
-    llm_chat.set_ui_factory(create_ui_factory(MyUI))
+    llm_chat.ui_factories = [create_ui_factory(MyUI)]
 
     # See examples/chat-minimal-ui/
 

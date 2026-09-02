@@ -45,11 +45,10 @@ chat = LLMChatTask(
     render_model: bool = True,
     model_settings: ModelSettings | None = None,
     capabilities: list[AbstractCapability] | None = None,
-    llm_config: LLMConfig | None = None,
     llm_limiter: LLMLimiter | None = None,
+    model_getter: Callable | None = None,
+    model_renderer: Callable | None = None,
     custom_model_names: StrListAttr | None = None,
-    show_ollama_models: bool | None = None,
-    show_pydantic_ai_models: bool | None = None,
     # Conversation management
     conversation_name: StrAttr | None = None,
     render_conversation_name: bool = True,
@@ -63,8 +62,7 @@ chat = LLMChatTask(
     # Tool confirmation & approval
     tool_confirmation: AnyToolConfirmation = None,
     yolo: BoolAttr = False,
-    yolo_xcom_key: str = "yolo",
-    approval_channel: ApprovalChannel | None = None,
+    approval_channel: AnyApprovalChannel | None = None,
     permissions: PermissionPolicyInput = None,
     sandbox: SandboxInput = None,
     tool_policies: list[ToolPolicy] | None = None,
@@ -73,7 +71,7 @@ chat = LLMChatTask(
     # Hooks — see Hook System, below
     hook_manager: HookManager | None = None,
     # UI & identity
-    ui: UIProtocol | None = None,
+    ui: AnyUI | None = None,
     ui_factory: Callable | None = None,
     include_default_ui: bool = True,
     interactive: BoolAttr = True,
@@ -83,8 +81,8 @@ chat = LLMChatTask(
     ui_jargon: StrAttr | None = None,
     ui_ascii_art: StrAttr | None = None,
     # each ui_* text field above has a matching render_ui_* flag (default True)
-    # Slash-command alias overrides, e.g. UICommands(exit="/quit")
-    ui_commands: UICommands | None = None,
+    # Slash-command aliases, yolo_xcom_key, show_*_models — see UIConfig, below
+    ui_config: UIConfig | None = None,
     # Extra commands & external drivers — see Custom UI Guide
     custom_commands: list[AnyCustomCommand] | None = None,
     triggers: list[Callable] | None = None,
@@ -109,13 +107,13 @@ chat = LLMChatTask(
 
 `model`, `model_settings`, and `capabilities` are pydantic-ai's own types, passed straight through unchanged (ADR-0036) — zrb doesn't wrap or reinterpret them. For what `Model`/`ModelSettings` accept per provider, and the full catalogue of capability classes, see [pydantic-ai's documentation](https://ai.pydantic.dev).
 
-- **`model`** — a model name string (`"openai:gpt-4o"`) or a pydantic-ai `Model` instance. See [LLM & Rate Limiter Configuration](../configuration/llm-config.md) for the supported-provider list, credentials, and the `model_getter`/`model_renderer` hooks `LLMConfig` exposes for tiering or A/B routing.
+- **`model`** — a model name string (`"openai:gpt-4o"`) or a pydantic-ai `Model` instance. See [LLM & Rate Limiter Configuration](../configuration/llm-config.md) for the supported-provider list, credentials, and the task's own `model_getter`/`model_renderer` hooks for tiering or A/B routing.
 - **`model_settings`** — a pydantic-ai `ModelSettings` (temperature, `openai_reasoning_effort`, …), or a callable taking the context for per-run values. See [Core LLM Routing](../configuration/llm-config.md#1-core-llm-routing) for the defaults zrb layers on top (`ZRB_LLM_THINKING`, `openai_reasoning_summary`, …).
 - **`capabilities`** — a list of pydantic-ai `AbstractCapability` instances (`ProcessHistory`, `Thinking`, `WebSearch`, `PrepareTools`, …), pydantic-ai's own agent-extension mechanism. It replaced the `Agent(history_processors=...)` constructor kwarg pydantic-ai itself carried before 2.36 (see [ADR-0041](../adr/adr-0041.md)). Do not confuse it with either of these zrb-specific things that share part of the name:
   - `history_processors` (below) — zrb's **own** history-rewriting pipeline (`append_history_processor`), which predates and is independent of pydantic-ai's `capabilities`/`ProcessHistory`.
   - the [Model Capabilities registry](../advanced-topics/extending-the-llm.md#model-capabilities) — zrb's per-model table of modality/parallel-tool-call support, unrelated to this constructor argument.
 
-`custom_model_names`, `show_ollama_models`, and `show_pydantic_ai_models` only affect the `/model` picker's autocomplete list in the chat TUI — see [Model Autocomplete](../configuration/llm-config.md#8-model-autocomplete).
+`custom_model_names`, and `ui_config`'s `show_ollama_models`/`show_pydantic_ai_models` fields, only affect the `/model` picker's autocomplete list in the chat TUI — see [Model Autocomplete](../configuration/llm-config.md#8-model-autocomplete).
 
 `active_skills`/`render_active_skills` pre-activate named skills for the session (skipping their normal on-demand discovery), rendered as templates by default; see the skill catalogue notes under [System Prompts & Identity](../configuration/llm-config.md#4-system-prompts--identity).
 
@@ -160,13 +158,47 @@ See **[Programming the Prompt](../advanced-topics/programming-the-prompt.md)** f
 
 After construction, `LLMChatTask` provides a fluent builder API for incremental configuration. All methods are available on the task instance.
 
+Every ordered collection below (tools, toolsets, factories, processors, policies,
+handlers, formatters, triggers, custom commands, UIs) exposes the full R5 verb
+set: `append_X`, `prepend_X`, `set_X`s, `remove_X` — see
+[Framework Conventions](../advanced-topics/framework-conventions.md). The
+snippets below show one or two verbs per collection for brevity, not the
+complete set.
+
+### Component Slots
+
+Every component a task may hold exactly one of is a settable property (R8) —
+this works even on an already-defined task, such as the built-in `llm_chat`
+from `zrb_init.py`:
+
+```python
+from zrb import llm_chat
+from zrb.llm.prompt.manager import PromptManager
+
+llm_chat.prompt_manager = PromptManager(prompts=["Just this one bot."])
+llm_chat.hook_manager = my_hook_manager      # or None to go back to "fresh per run"
+llm_chat.llm_limiter = my_llm_limiter        # or None to remove the limit
+llm_chat.markdown_theme = my_rich_theme      # or None for the default
+llm_chat.ui_config = UIConfig(exit_commands=["/bye"])
+llm_chat.model_getter = my_model_getter      # or None to remove the hook
+llm_chat.model_renderer = my_model_renderer  # or None to remove the hook
+```
+
+`history_manager`, `sandbox`, and `permissions` are the same kind of slot —
+see their own sections below. Assigning the wrong type raises `TypeError`
+naming the expected class, at the assignment site.
+
 ### UI Configuration
 
 ```python
-chat.set_ui(my_ui)
-chat.append_ui(another_ui)
-chat.set_ui_factory(lambda: MyUI())
-chat.append_ui_factory(lambda: OtherUI())
+chat.append_ui(my_ui)
+chat.prepend_ui(another_ui)
+chat.set_uis([my_ui, another_ui])
+# Factories are invoked with 8 kwargs (ctx, llm_task, history_manager,
+# ui_commands, initial_message, initial_conversation_name, initial_yolo,
+# initial_attachments) — accept **kwargs, or use create_ui_factory to wire them.
+chat.ui_factories = [lambda **kw: MyUI(**kw)]   # settable property
+chat.append_ui_factory(lambda **kw: OtherUI(**kw))
 ```
 
 ### Tools & Toolsets
@@ -210,8 +242,8 @@ chat.append_history_processor(my_processor)
 ### Hook Factories
 
 ```python
-chat.append_hook_factory(lambda hm: hm.register(my_hook, events=[HookEvent.SESSION_START]))
-chat.append_hook_factory(lambda hm: hm.register(other_hook, events=[HookEvent.SESSION_END]))
+chat.append_hook_factory(lambda hm: hm.add_hook(my_hook, events=[HookEvent.SESSION_START]))
+chat.append_hook_factory(lambda hm: hm.add_hook(other_hook, events=[HookEvent.SESSION_END]))
 ```
 
 > **Isolation differs from `LLMTask`.** `LLMChatTask` builds a **fresh** `HookManager` per execution and replays every registered factory onto it each time, so one session's hooks never leak into the next. `LLMTask` instead holds a **persistent** manager — on `LLMTask`, the *first* `append_hook_factory` call swaps the process-wide default for a fresh task-local manager (later calls apply to that same manager), unless a manager was passed explicitly to the constructor, which is never swapped. See [ADR-0072](../adr/adr-0072.md) and [Hooks — Defining Hooks Programmatically](../advanced-topics/hooks.md#defining-hooks-programmatically-python) for the full rationale.
@@ -219,7 +251,7 @@ chat.append_hook_factory(lambda hm: hm.register(other_hook, events=[HookEvent.SE
 ### Approval & Policy
 
 ```python
-chat.set_approval_channel(channel)
+chat.approval_channels = [channel]   # settable property
 chat.append_approval_channel(channel)
 chat.prepend_tool_policy(policy)
 chat.prepend_response_handler(handler)
@@ -240,7 +272,7 @@ chat.append_custom_command(my_command)
 ### History Manager
 
 ```python
-chat.set_history_manager(FileHistoryManager(history_dir="./my-history/"))
+chat.history_manager = FileHistoryManager(history_dir="./my-history/")
 ```
 
 `history_manager`, `conversation_name`/`render_conversation_name` are also readable as one group via the `history_config` read-only property (a `HistoryConfig`, computed fresh on every read — never cached, so a `history_manager` reassignment is immediately visible through it):

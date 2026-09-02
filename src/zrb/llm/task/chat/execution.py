@@ -20,7 +20,7 @@ way `self.name`, `self.envs` (`BaseTask` properties), and
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, fields, replace
 from typing import TYPE_CHECKING, Any, Callable, cast
 
 from zrb.config.config import CFG
@@ -43,7 +43,6 @@ from zrb.llm.permission import (
 )
 from zrb.llm.sandbox import coerce_sandbox
 from zrb.llm.summarizer import create_summarizer_history_processor
-from zrb.llm.task.chat.ui_commands import UI_COMMAND_CFG_ATTRS
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.task.shared_getters import (
     resolve_all_tools,
@@ -69,12 +68,12 @@ if TYPE_CHECKING:
         Tool,
         ToolFuncEither,
     )
-    from zrb.llm.approval.approval_channel import ApprovalChannel
+    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.sandbox import SandboxPolicy
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.task.history_config import HistoryConfig
-    from zrb.llm.tool_call.ui_protocol import UIProtocol
+    from zrb.llm.ui.any_ui import AnyUI
 
 
 def parse_yolo_value(value: Any) -> "bool | frozenset[str]":
@@ -112,8 +111,8 @@ class _InnerTaskResolution:
     """
 
     tool_confirmation: "AnyToolConfirmation"
-    ui: "UIProtocol | None"
-    approval_channel: "ApprovalChannel | None"
+    ui: "AnyUI | None"
+    approval_channel: "AnyApprovalChannel | None"
     hook_manager: HookManager
     sandbox: "SandboxPolicy | None"
     history: "HistoryConfig"
@@ -127,25 +126,18 @@ class ChatExecution:
         self._llm_chat_task = llm_chat_task
 
     def get_system_prompt(self, ctx: AnyContext) -> str:
-        """Compose the full system prompt for this run.
-
-        Returns the empty string when the task has no prompt manager.
-        """
-        prompt_manager = (
-            self._llm_chat_task.prompt_manager
-            if self._llm_chat_task.has_prompt_manager
-            else None
-        )
-        return resolve_system_prompt(ctx, prompt_manager)
+        """Compose the full system prompt for this run."""
+        return resolve_system_prompt(ctx, self._llm_chat_task.prompt_manager)
 
     async def exec_action(self, ctx: AnyContext) -> Any:
         # 1. Resolve inputs/attributes
         initial_conversation_name = self._get_initial_conversation_name(ctx)
         raw_yolo = get_attr(ctx, self._llm_chat_task.yolo, "", True)
         initial_yolo = parse_yolo_value(raw_yolo)
-        if self._llm_chat_task.yolo_xcom_key not in ctx.xcom:
-            ctx.xcom[self._llm_chat_task.yolo_xcom_key] = Xcom()
-        ctx.xcom[self._llm_chat_task.yolo_xcom_key].set(initial_yolo)
+        yolo_xcom_key = self._llm_chat_task.ui_config.yolo_xcom_key
+        if yolo_xcom_key not in ctx.xcom:
+            ctx.xcom[yolo_xcom_key] = Xcom()
+        ctx.xcom[yolo_xcom_key].set(initial_yolo)
 
         initial_message = get_attr(
             ctx, self._llm_chat_task.message, "", self._llm_chat_task.render_message
@@ -179,8 +171,7 @@ class ChatExecution:
         # model-specific capability notes (e.g. lack of parallel tool-call
         # support). Re-set on every exec — `/model` switches update
         # ctx.input.model, which flows through get_model(ctx).
-        if self._llm_chat_task.has_prompt_manager:
-            self._llm_chat_task.prompt_manager.model = self.get_model(ctx)
+        self._llm_chat_task.prompt_manager.model = self.get_model(ctx)
 
         # 5. Create core LLM task
         llm_task_core = self._create_llm_task_core(
@@ -345,11 +336,16 @@ class ChatExecution:
         )
 
     def _get_ui_commands(self) -> dict[str, list[str]]:
-        """Resolve UI slash-command aliases from the overrides or CFG."""
-        overrides = self._llm_chat_task.ui_command_overrides
+        """The task's UI slash-command aliases, as a dict — the shape
+        `create_ui_factory`-built UIs expect (`UIConfig.merge_commands`).
+        Each field already resolved the task's own override, else CFG, when
+        `ui_config` was built/materialized, so there is nothing left to merge
+        here."""
+        ui_config = self._llm_chat_task.ui_config
         return {
-            key: overrides.get(key) or getattr(CFG, cfg_attr)
-            for key, cfg_attr in UI_COMMAND_CFG_ATTRS.items()
+            field.name.removesuffix("_commands"): list(getattr(ui_config, field.name))
+            for field in fields(ui_config)
+            if field.name.endswith("_commands")
         }
 
     def _create_llm_task_core(
@@ -381,11 +377,7 @@ class ChatExecution:
             env=cast(list[AnyEnv | None], llm_chat_task.envs),
             system_prompt=llm_chat_task.system_prompt,
             render_system_prompt=llm_chat_task.render_system_prompt,
-            prompt_manager=(
-                llm_chat_task.prompt_manager
-                if llm_chat_task.has_prompt_manager
-                else None
-            ),
+            prompt_manager=llm_chat_task.prompt_manager,
             active_skills=llm_chat_task.active_skills,
             render_active_skills=llm_chat_task.render_active_skills,
             tools=resolved_tools,
@@ -394,7 +386,6 @@ class ChatExecution:
             history_processors=llm_chat_task.history_processors
             + [create_summarizer_history_processor()],
             capabilities=capabilities,
-            llm_config=llm_chat_task.llm_config,
             llm_limiter=llm_chat_task.llm_limiter,
             history_manager=resolved.history.history_manager,
             hook_manager=resolved.hook_manager,
@@ -412,8 +403,11 @@ class ChatExecution:
             model=lambda ctx: ctx.input.get("model"),
             render_model=False,
             # Without this, LLMChatTask(model_settings=...) is accepted but
-            # silently ignored: the inner task falls back to llm_config's.
+            # silently ignored: the inner LLMTask would otherwise use its own
+            # (unset) default.
             model_settings=llm_chat_task.model_settings,
+            model_getter=llm_chat_task.model_getter,
+            model_renderer=llm_chat_task.model_renderer,
             summarize_commands=summarize_commands,
         )
 
@@ -489,9 +483,10 @@ class ChatExecution:
                     if result == ASK:
                         return False  # explicit policy ASK is a 'hard ask'
                 # fallback to YOLO only if policy has no matching rule
-            if llm_chat_task.yolo_xcom_key not in ctx.xcom:
+            yolo_xcom_key = llm_chat_task.ui_config.yolo_xcom_key
+            if yolo_xcom_key not in ctx.xcom:
                 return False
-            yolo_value = ctx.xcom[llm_chat_task.yolo_xcom_key].get(False)
+            yolo_value = ctx.xcom[yolo_xcom_key].get(False)
             if isinstance(yolo_value, bool):
                 return yolo_value
             if isinstance(yolo_value, frozenset):
@@ -543,7 +538,7 @@ class ChatExecution:
 
         return _InnerTaskResolution(
             tool_confirmation=tool_confirmation,
-            ui=cast("UIProtocol | None", ui),
+            ui=cast("AnyUI | None", ui),
             approval_channel=effective_approval_channel,
             hook_manager=hook_manager,
             sandbox=resolved_sandbox,
@@ -566,7 +561,7 @@ class ChatExecution:
         )
 
     def get_ui_conversation_name(
-        self, ui: "UIProtocol", initial_conversation_name: str
+        self, ui: "AnyUI", initial_conversation_name: str
     ) -> str:
         """Get the current conversation name from UI or fallback to initial name."""
         if isinstance(ui, BaseUI):
@@ -577,12 +572,10 @@ class ChatExecution:
         """Resolve the model to use for this run.
 
         A templated model name is rendered against `ctx` when the task was
-        built with `render_model`. An empty result falls back to the model from
-        `llm_config`.
+        built with `render_model`. An empty result falls back to `CFG.LLM_MODEL`.
         """
         return resolve_model(
             ctx,
             self._llm_chat_task.model,
             self._llm_chat_task.render_model,
-            self._llm_chat_task.llm_config,
         )

@@ -29,8 +29,6 @@ from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.llm.agent import AnyToolConfirmation
-from zrb.llm.config.config import LLMConfig
-from zrb.llm.config.config import llm_config as default_llm_config
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
@@ -38,7 +36,6 @@ from zrb.llm.hook.manager import HookManager
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.task.chat.execution import ChatExecution
 from zrb.llm.task.chat.running import ChatRunning
-from zrb.llm.task.chat.ui_commands import UICommands
 from zrb.llm.task.history_config import HistoryConfig
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool_call import (
@@ -64,10 +61,23 @@ if TYPE_CHECKING:
         ToolFuncEither,
         UserContent,
     )
-    from zrb.llm.approval.approval_channel import ApprovalChannel
+    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
     from zrb.llm.permission import PermissionPolicyInput
     from zrb.llm.sandbox import SandboxInput
-    from zrb.llm.tool_call.ui_protocol import UIProtocol
+    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.ui.ui_config import UIConfig
+
+
+def _remove_first(items: list, item: Any) -> None:
+    """Drop the first entry of *items* equal (or identical) to *item*, in place.
+
+    A no-op when nothing matches — removal from an ordered collection never
+    errors on a not-present item.
+    """
+    for index, existing in enumerate(items):
+        if existing is item or existing == item:
+            del items[index]
+            return
 
 
 class LLMChatTask(BaseTask):
@@ -85,6 +95,7 @@ class LLMChatTask(BaseTask):
         system_prompt: Callable[[AnyContext], str | fstring | None] | str | None = None,
         render_system_prompt: bool = False,
         prompt_manager: PromptManager | None = None,
+        hook_manager: HookManager | None = None,
         active_skills: StrListAttr | None = None,
         render_active_skills: bool = True,
         tools: list[Tool | ToolFuncEither] | None = None,
@@ -101,7 +112,6 @@ class LLMChatTask(BaseTask):
         toolset_factories: (
             list[Callable[[AnyContext], AbstractToolset[None]]] | None
         ) = None,
-        hook_manager: HookManager | None = None,
         message: StrAttr | None = None,
         render_message: bool = True,
         attachment: (
@@ -112,7 +122,6 @@ class LLMChatTask(BaseTask):
         ) = None,  # noqa
         history_processors: list[HistoryProcessor] | None = None,
         capabilities: "list[AbstractCapability[Any]] | None" = None,
-        llm_config: LLMConfig | None = None,
         llm_limiter: LLMLimiter | None = None,
         model: (
             Callable[[AnyContext], Model | str | fstring | None] | Model | None
@@ -121,12 +130,21 @@ class LLMChatTask(BaseTask):
         model_settings: (
             ModelSettings | Callable[[AnyContext], ModelSettings] | None
         ) = None,
+        model_getter: (
+            "Callable[[str | Model | None], str | Model | None] | None"
+        ) = None,
+        model_renderer: (
+            "Callable[[str | Model | None], str | Model | None] | None"
+        ) = None,
         custom_model_names: StrListAttr | None = None,
         conversation_name: StrAttr | None = None,
         render_conversation_name: bool = True,
         history_manager: AnyHistoryManager | None = None,
         tool_confirmation: AnyToolConfirmation = None,
-        ui: UIProtocol | None = None,
+        permissions: "PermissionPolicyInput" = None,
+        sandbox: "SandboxInput | BoolAttr" = None,
+        yolo: BoolAttr = False,
+        ui: AnyUI | None = None,
         ui_factory: (
             Callable[
                 [
@@ -139,16 +157,12 @@ class LLMChatTask(BaseTask):
                     bool,
                     list[UserContent],
                 ],
-                UIProtocol,
+                AnyUI,
             ]
             | None
         ) = None,
-        approval_channel: ApprovalChannel | None = None,
-        permissions: "PermissionPolicyInput" = None,
-        sandbox: "SandboxInput | BoolAttr" = None,
-        yolo: BoolAttr = False,
-        yolo_xcom_key: str = "yolo",
-        ui_commands: UICommands | None = None,
+        approval_channel: AnyApprovalChannel | None = None,
+        ui_config: "UIConfig | None" = None,
         custom_commands: (
             list[
                 AnyCustomCommand
@@ -173,8 +187,6 @@ class LLMChatTask(BaseTask):
         snapshot_dir: StrAttr | None = None,
         include_default_ui: bool = True,
         interactive: BoolAttr = True,
-        show_ollama_models: bool | None = None,
-        show_pydantic_ai_models: bool | None = None,
         execute_condition: bool | str | Callable[[AnyContext], bool] = True,
         retries: int = 0,
         retry_period: float = 0,
@@ -212,17 +224,17 @@ class LLMChatTask(BaseTask):
             active_skills: Names of skills to pre-activate for the session.
             render_active_skills: Whether to render `active_skills` as templates.
             model: The model to use, as a name or a pydantic-ai `Model`. Defaults
-                to the one from `llm_config`.
+                to `CFG.LLM_MODEL`.
             render_model: Whether to render `model` as a template.
             model_settings: Provider settings such as temperature.
+            model_getter: Callable transforming the resolved base model into the
+                active model (e.g. tier switching, A/B testing) — applied before
+                `model_renderer`.
+            model_renderer: Callable transforming the active model into the
+                final pydantic-ai model (e.g. wrapping a tier name into a real
+                model string).
             custom_model_names: Extra names offered by the model picker, beyond the
                 detected ones.
-            show_ollama_models: Whether the picker lists locally-installed Ollama
-                models. Defaults to the config setting.
-            show_pydantic_ai_models: Whether the picker lists models known to
-                pydantic-ai. Defaults to the config setting.
-            llm_config: Credentials and endpoint settings. Defaults to the shared
-                `llm_config`.
             llm_limiter: Rate and token limiter. Defaults to the shared
                 `llm_limiter`.
             capabilities: pydantic-ai capabilities to enable for the run.
@@ -250,8 +262,10 @@ class LLMChatTask(BaseTask):
             sandbox: Whether, and how, tool calls run sandboxed.
             yolo: Skip tool confirmation. True for all tools, or a comma-separated
                 string or set naming the tools to auto-approve.
-            yolo_xcom_key: xcom key the session reads and writes when the user
-                toggles yolo mode at run time.
+            ui_config: Slash-command aliases and other UI-backend settings
+                (`UIConfig`) — the xcom key yolo mode toggles through, whether the
+                model picker lists Ollama/pydantic-ai models, and one field per
+                command family. Each field left unset keeps its `CFG` default.
             conversation_name: Name the conversation is stored under.
             render_conversation_name: Whether to render `conversation_name` as a
                 template.
@@ -269,9 +283,6 @@ class LLMChatTask(BaseTask):
                 alongside any supplied one.
             interactive: Whether the session prompts the user. Set False to run
                 `message` and exit.
-            ui_commands: Slash-command alias overrides, as a `UICommands`, e.g.
-                `UICommands(exit="/quit", save=["/save", "/w"])`. Commands left
-                unset keep their configured defaults.
             custom_commands: Extra slash commands, as `AnyCustomCommand`s or
                 callables returning them.
             ui_greeting: Text shown when the session starts.
@@ -312,7 +323,6 @@ class LLMChatTask(BaseTask):
             successor=successor,
             print_fn=print_fn,
         )
-        self._llm_config = default_llm_config if llm_config is None else llm_config
         self._llm_limiter = llm_limiter
         if prompt_manager is None:
             prompt_manager = PromptManager(
@@ -347,31 +357,32 @@ class LLMChatTask(BaseTask):
         self._model = model
         self._render_model = render_model
         self._model_settings = model_settings
+        self._model_getter = model_getter
+        self._model_renderer = model_renderer
         self._custom_model_names = custom_model_names
         self._conversation_name = conversation_name
         self._render_conversation_name = render_conversation_name
         self._history_manager = history_manager
         self._tool_confirmation = tool_confirmation
-        self._uis: list["UIProtocol"] = []
+        self._uis: list["AnyUI"] = []
         if ui is not None:
             self._uis.append(ui)
-        self._ui_factories: list[Callable[..., "UIProtocol"]] = []
+        self._ui_factories: list[Callable[..., "AnyUI"]] = []
         if ui_factory is not None:
             self._ui_factories.append(ui_factory)
-        self._approval_channels: list["ApprovalChannel"] = []
+        self._approval_channels: list["AnyApprovalChannel"] = []
         if approval_channel is not None:
             self._approval_channels.append(approval_channel)
         self._permissions = permissions
         self._sandbox = sandbox
         self._yolo = yolo
-        self._yolo_xcom_key = yolo_xcom_key
-        # Slash-command alias overrides, keyed as ChatExecution._get_ui_commands
-        # and the UIs consume them. A missing key means "no override" — CFG
-        # supplies the default at resolve time, not here, so a later env change
-        # still wins.
-        self._ui_command_overrides = (
-            ui_commands.to_overrides() if ui_commands is not None else {}
-        )
+        # Materialized lazily (see the `ui_config` property) — constructing a
+        # UIConfig imports zrb.llm.ui, which transitively loads pydantic_ai,
+        # prompt_toolkit, pdfplumber and playwright; the built-in `llm_chat`
+        # task is built at `import zrb` time, so doing this eagerly here would
+        # put that whole cost on every `import zrb`, not just chat sessions
+        # that actually build a UI.
+        self._ui_config = ui_config
         self._custom_commands = custom_commands or []
         # (value, render) per UI text; ChatRunning renders the block as one.
         self._ui_texts: dict[str, tuple[StrAttr | None, bool]] = {
@@ -392,8 +403,6 @@ class LLMChatTask(BaseTask):
         self._snapshot_dir = snapshot_dir
         self._include_default_ui = include_default_ui
         self._interactive = interactive
-        self._show_ollama_models = show_ollama_models
-        self._show_pydantic_ai_models = show_pydantic_ai_models
         self._running = ChatRunning(self)
         self._execution = ChatExecution(self)
 
@@ -403,40 +412,54 @@ class LLMChatTask(BaseTask):
     # data, and a class method mutating its own field needs no collaborator.
 
     @property
-    def has_prompt_manager(self) -> bool:
-        """Whether this task was built with a `PromptManager`."""
-        return self._prompt_manager is not None
-
-    @property
     def prompt_manager(self) -> PromptManager:
         """The `PromptManager` composing this task's system prompt.
 
-        Raises:
-            ValueError: If the task was built without one.
+        The constructor always builds a default one when none is passed in.
         """
-        if self._prompt_manager is None:
-            raise ValueError(f"Task {self.name} doesn't have prompt_manager")
         return self._prompt_manager
 
-    def set_ui(self, ui: "UIProtocol | list[UIProtocol] | None") -> None:
-        """Set the UI protocol(s) for this task."""
-        self._uis = [] if ui is None else (ui if isinstance(ui, list) else [ui])
+    @prompt_manager.setter
+    def prompt_manager(self, value: PromptManager) -> None:
+        """Replace the prompt manager wholesale."""
+        if not isinstance(value, PromptManager):
+            raise TypeError(
+                f"{self.name}.prompt_manager must be a PromptManager, "
+                f"got {type(value).__name__}."
+            )
+        self._prompt_manager = value
 
-    def append_ui(self, ui: "UIProtocol") -> None:
-        """Append a UI to the list of UIs."""
+    # UIs (ordered) -----------------------------------------------------------
+
+    def append_ui(self, ui: "AnyUI") -> None:
+        """Append a UI, keeping those already attached."""
         self._uis.append(ui)
 
-    def set_ui_factory(self, ui_factory: "Callable[..., UIProtocol] | None") -> None:
-        """Set a factory function to instantiate the UI dynamically during execution."""
-        self._ui_factories = [] if ui_factory is None else [ui_factory]
+    def prepend_ui(self, ui: "AnyUI") -> None:
+        """Attach *ui* ahead of those already attached."""
+        self._uis.insert(0, ui)
 
-    def append_ui_factory(self, factory: "Callable[..., UIProtocol]") -> None:
-        """Append a UI factory to the list of factories."""
+    def set_uis(self, uis: "list[AnyUI]") -> None:
+        """Replace every attached UI wholesale."""
+        self._uis = list(uis)
+
+    def remove_ui(self, ui: "AnyUI") -> None:
+        """Detach *ui*. A no-op if it is not attached."""
+        _remove_first(self._uis, ui)
+
+    # UI factories (ordered) ---------------------------------------------------
+
+    def append_ui_factory(self, factory: "Callable[..., AnyUI]") -> None:
+        """Append a factory building a UI once the run's context is known."""
         self._ui_factories.append(factory)
 
-    def set_history_manager(self, history_manager: AnyHistoryManager) -> None:
-        """Set the history manager for this task."""
-        self._history_manager = history_manager
+    def prepend_ui_factory(self, factory: "Callable[..., AnyUI]") -> None:
+        """Add *factory* ahead of those already registered."""
+        self._ui_factories.insert(0, factory)
+
+    def remove_ui_factory(self, factory: "Callable[..., AnyUI]") -> None:
+        """Drop *factory*. A no-op if it is not registered."""
+        _remove_first(self._ui_factories, factory)
 
     @property
     def custom_model_names(self) -> StrListAttr | None:
@@ -448,17 +471,37 @@ class LLMChatTask(BaseTask):
         """Replace the custom model-name list."""
         self._custom_model_names = value
 
-    def set_approval_channel(self, channel: "ApprovalChannel | None") -> None:
-        """Set the approval channel for tool confirmations."""
-        self._approval_channels = [] if channel is None else [channel]
+    # Approval channels (ordered) -----------------------------------------------
 
-    def append_approval_channel(self, channel: "ApprovalChannel") -> None:
+    def append_approval_channel(self, channel: "AnyApprovalChannel") -> None:
         """Append an approval channel to the list."""
         self._approval_channels.append(channel)
 
-    def append_toolset(self, *toolset: "AbstractToolset") -> None:
+    def prepend_approval_channel(self, channel: "AnyApprovalChannel") -> None:
+        """Add *channel* ahead of those already registered."""
+        self._approval_channels.insert(0, channel)
+
+    def remove_approval_channel(self, channel: "AnyApprovalChannel") -> None:
+        """Drop *channel*. A no-op if it is not registered."""
+        _remove_first(self._approval_channels, channel)
+
+    # Toolsets (ordered) --------------------------------------------------------
+
+    def append_toolset(self, *toolset: "AbstractToolset[None]") -> None:
         """Add pydantic-ai toolsets whose tools the agent may call."""
         self._toolsets += list(toolset)
+
+    def prepend_toolset(self, *toolset: "AbstractToolset[None]") -> None:
+        """Add toolsets ahead of those already registered."""
+        self._toolsets[0:0] = toolset
+
+    def set_toolsets(self, toolsets: "list[AbstractToolset[None]]") -> None:
+        """Replace the toolset list wholesale."""
+        self._toolsets = list(toolsets)
+
+    def remove_toolset(self, toolset: "AbstractToolset[None]") -> None:
+        """Drop *toolset*. A no-op if it is not registered."""
+        _remove_first(self._toolsets, toolset)
 
     def append_toolset_factory(
         self, *factory: "Callable[[AnyContext], AbstractToolset[None]]"
@@ -466,9 +509,41 @@ class LLMChatTask(BaseTask):
         """Add factories building toolsets per run, from the task context."""
         self._toolset_factories += list(factory)
 
+    def prepend_toolset_factory(
+        self, *factory: "Callable[[AnyContext], AbstractToolset[None]]"
+    ) -> None:
+        """Add toolset factories ahead of those already registered."""
+        self._toolset_factories[0:0] = factory
+
+    def set_toolset_factories(
+        self, factories: "list[Callable[[AnyContext], AbstractToolset[None]]]"
+    ) -> None:
+        """Replace the toolset-factory list wholesale."""
+        self._toolset_factories = list(factories)
+
+    def remove_toolset_factory(
+        self, factory: "Callable[[AnyContext], AbstractToolset[None]]"
+    ) -> None:
+        """Drop *factory*. A no-op if it is not registered."""
+        _remove_first(self._toolset_factories, factory)
+
+    # Tools (ordered) -------------------------------------------------------
+
     def append_tool(self, *tool: "Tool | ToolFuncEither") -> None:
         """Add tools the agent may call."""
         self._tools += list(tool)
+
+    def prepend_tool(self, *tool: "Tool | ToolFuncEither") -> None:
+        """Add tools ahead of those already registered."""
+        self._tools[0:0] = tool
+
+    def set_tools(self, tools: "list[Tool | ToolFuncEither]") -> None:
+        """Replace the tool list wholesale."""
+        self._tools = list(tools)
+
+    def remove_tool(self, tool: "Tool | ToolFuncEither") -> None:
+        """Drop *tool*. A no-op if it is not registered."""
+        _remove_first(self._tools, tool)
 
     def append_tool_factory(
         self,
@@ -477,29 +552,138 @@ class LLMChatTask(BaseTask):
         """Add factories building tools per run, from the task context."""
         self._tool_factories += list(factory)
 
+    def prepend_tool_factory(
+        self,
+        *factory: "Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]",
+    ) -> None:
+        """Add tool factories ahead of those already registered."""
+        self._tool_factories[0:0] = factory
+
+    def set_tool_factories(
+        self,
+        factories: "list[Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]]",
+    ) -> None:
+        """Replace the tool-factory list wholesale."""
+        self._tool_factories = list(factories)
+
+    def remove_tool_factory(
+        self,
+        factory: "Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]",
+    ) -> None:
+        """Drop *factory*. A no-op if it is not registered."""
+        _remove_first(self._tool_factories, factory)
+
+    # Hook factories (ordered) -----------------------------------------------
+
     def append_hook_factory(self, *factory: Callable[[HookManager], None]) -> None:
         """Add factories registering hooks on this task's hook manager."""
         self._hook_factories += list(factory)
+
+    def prepend_hook_factory(self, *factory: Callable[[HookManager], None]) -> None:
+        """Add hook factories ahead of those already registered."""
+        self._hook_factories[0:0] = factory
+
+    def set_hook_factories(
+        self, factories: list[Callable[[HookManager], None]]
+    ) -> None:
+        """Replace the hook-factory list wholesale."""
+        self._hook_factories = list(factories)
+
+    def remove_hook_factory(self, factory: Callable[[HookManager], None]) -> None:
+        """Drop *factory*. A no-op if it is not registered."""
+        _remove_first(self._hook_factories, factory)
+
+    # History processors (ordered) -------------------------------------------
 
     def append_history_processor(self, *processor: "HistoryProcessor") -> None:
         """Add processors that rewrite conversation history before each request."""
         self._history_processors += list(processor)
 
+    def prepend_history_processor(self, *processor: "HistoryProcessor") -> None:
+        """Add processors ahead of those already registered."""
+        self._history_processors[0:0] = processor
+
+    def set_history_processors(self, processors: "list[HistoryProcessor]") -> None:
+        """Replace the history-processor list wholesale."""
+        self._history_processors = list(processors)
+
+    def remove_history_processor(self, processor: "HistoryProcessor") -> None:
+        """Drop *processor*. A no-op if it is not registered."""
+        _remove_first(self._history_processors, processor)
+
+    # Response handlers (ordered) --------------------------------------------
+
+    def append_response_handler(self, *handler: ResponseHandler) -> None:
+        """Add handlers after those already registered."""
+        self._response_handlers += list(handler)
+
     def prepend_response_handler(self, *handler: ResponseHandler) -> None:
         """Add handlers that post-process a tool's result before the model sees it."""
         self._response_handlers = list(handler) + self._response_handlers
+
+    def set_response_handlers(self, handlers: list[ResponseHandler]) -> None:
+        """Replace the response-handler list wholesale."""
+        self._response_handlers = list(handlers)
+
+    def remove_response_handler(self, handler: ResponseHandler) -> None:
+        """Drop *handler*. A no-op if it is not registered."""
+        _remove_first(self._response_handlers, handler)
+
+    # Tool policies (ordered) -------------------------------------------------
+
+    def append_tool_policy(self, *policy: ToolPolicy) -> None:
+        """Add policies after those already registered."""
+        self._tool_policies += list(policy)
 
     def prepend_tool_policy(self, *policy: ToolPolicy) -> None:
         """Add policies deciding whether a tool call is allowed, denied, or confirmed."""
         self._tool_policies = list(policy) + self._tool_policies
 
+    def set_tool_policies(self, policies: list[ToolPolicy]) -> None:
+        """Replace the tool-policy list wholesale."""
+        self._tool_policies = list(policies)
+
+    def remove_tool_policy(self, policy: ToolPolicy) -> None:
+        """Drop *policy*. A no-op if it is not registered."""
+        _remove_first(self._tool_policies, policy)
+
+    # Argument formatters (ordered) -------------------------------------------
+
+    def append_argument_formatter(self, *formatter: ArgumentFormatter) -> None:
+        """Add formatters after those already registered."""
+        self._argument_formatters += list(formatter)
+
     def prepend_argument_formatter(self, *formatter: ArgumentFormatter) -> None:
         """Add formatters controlling how a tool call's arguments are displayed."""
         self._argument_formatters = list(formatter) + self._argument_formatters
 
+    def set_argument_formatters(self, formatters: list[ArgumentFormatter]) -> None:
+        """Replace the argument-formatter list wholesale."""
+        self._argument_formatters = list(formatters)
+
+    def remove_argument_formatter(self, formatter: ArgumentFormatter) -> None:
+        """Drop *formatter*. A no-op if it is not registered."""
+        _remove_first(self._argument_formatters, formatter)
+
+    # Triggers (ordered) ------------------------------------------------------
+
     def append_trigger(self, *trigger: Callable[[], AsyncIterable[Any]]) -> None:
         """Add sources that feed messages into the chat loop unprompted."""
         self._triggers += trigger
+
+    def prepend_trigger(self, *trigger: Callable[[], AsyncIterable[Any]]) -> None:
+        """Add triggers ahead of those already registered."""
+        self._triggers[0:0] = trigger
+
+    def set_triggers(self, triggers: list[Callable[[], AsyncIterable[Any]]]) -> None:
+        """Replace the trigger list wholesale."""
+        self._triggers = list(triggers)
+
+    def remove_trigger(self, trigger: Callable[[], AsyncIterable[Any]]) -> None:
+        """Drop *trigger*. A no-op if it is not registered."""
+        _remove_first(self._triggers, trigger)
+
+    # Custom commands (ordered) ------------------------------------------------
 
     def append_custom_command(
         self,
@@ -510,17 +694,88 @@ class LLMChatTask(BaseTask):
         """Add slash commands available inside the chat session."""
         self._custom_commands += list(custom_command)
 
+    def prepend_custom_command(
+        self,
+        *custom_command: (
+            AnyCustomCommand | Callable[[], AnyCustomCommand | list[AnyCustomCommand]]
+        ),
+    ) -> None:
+        """Add custom commands ahead of those already registered."""
+        self._custom_commands[0:0] = custom_command
+
+    def set_custom_commands(
+        self,
+        custom_commands: "list[AnyCustomCommand | Callable[[], AnyCustomCommand | list[AnyCustomCommand]]]",
+    ) -> None:
+        """Replace the custom-command list wholesale."""
+        self._custom_commands = list(custom_commands)
+
+    def remove_custom_command(
+        self,
+        custom_command: (
+            AnyCustomCommand | Callable[[], AnyCustomCommand | list[AnyCustomCommand]]
+        ),
+    ) -> None:
+        """Drop *custom_command*. A no-op if it is not registered."""
+        _remove_first(self._custom_commands, custom_command)
+
     # --- Construction-time config (own fields, read/written directly) -------
 
     @property
-    def llm_config(self) -> LLMConfig:
-        """Model, credentials, and endpoint settings backing this task."""
-        return self._llm_config
+    def model_getter(
+        self,
+    ) -> "Callable[[str | Model | None], str | Model | None] | None":
+        """Callable transforming the resolved base model into the active
+        model (e.g. tier switching, A/B testing) — applied before
+        `model_renderer`."""
+        return self._model_getter
+
+    @model_getter.setter
+    def model_getter(
+        self, value: "Callable[[str | Model | None], str | Model | None] | None"
+    ) -> None:
+        """Replace the model-getter hook, or None to remove it."""
+        if value is not None and not callable(value):
+            raise TypeError(
+                f"{self.name}.model_getter must be a callable or None, "
+                f"got {type(value).__name__}."
+            )
+        self._model_getter = value
+
+    @property
+    def model_renderer(
+        self,
+    ) -> "Callable[[str | Model | None], str | Model | None] | None":
+        """Callable transforming the active model into the final
+        pydantic-ai model — applied after `model_getter`."""
+        return self._model_renderer
+
+    @model_renderer.setter
+    def model_renderer(
+        self, value: "Callable[[str | Model | None], str | Model | None] | None"
+    ) -> None:
+        """Replace the model-renderer hook, or None to remove it."""
+        if value is not None and not callable(value):
+            raise TypeError(
+                f"{self.name}.model_renderer must be a callable or None, "
+                f"got {type(value).__name__}."
+            )
+        self._model_renderer = value
 
     @property
     def llm_limiter(self) -> "LLMLimiter | None":
         """Rate and token limiter throttling requests, or None if unlimited."""
         return self._llm_limiter
+
+    @llm_limiter.setter
+    def llm_limiter(self, value: "LLMLimiter | None") -> None:
+        """Replace the rate/token limiter, or None to remove it."""
+        if value is not None and not isinstance(value, LLMLimiter):
+            raise TypeError(
+                f"{self.name}.llm_limiter must be an LLMLimiter or None, "
+                f"got {type(value).__name__}."
+            )
+        self._llm_limiter = value
 
     @property
     def permissions(self) -> "PermissionPolicyInput":
@@ -529,7 +784,13 @@ class LLMChatTask(BaseTask):
 
     @permissions.setter
     def permissions(self, value: "PermissionPolicyInput") -> None:
-        """Replace the permission policy."""
+        """Replace the permission policy.
+
+        No `isinstance` guard: `PermissionPolicyInput` is deliberately a
+        union of convenient shapes (`PermissionPolicy | str |
+        Sequence[Rule | dict] | None`), not one concrete class — that
+        flexibility is the design, not a gap.
+        """
         self._permissions = value
 
     @property
@@ -539,7 +800,12 @@ class LLMChatTask(BaseTask):
 
     @sandbox.setter
     def sandbox(self, value: "SandboxInput | BoolAttr") -> None:
-        """Replace the sandbox configuration."""
+        """Replace the sandbox configuration.
+
+        No `isinstance` guard: `SandboxInput` is deliberately a union
+        (`SandboxPolicy | bool | None`), not one concrete class — that
+        flexibility is the design, not a gap.
+        """
         self._sandbox = value
 
     @property
@@ -549,7 +815,13 @@ class LLMChatTask(BaseTask):
 
     @history_manager.setter
     def history_manager(self, value: AnyHistoryManager | None) -> None:
-        """Set the history manager."""
+        """Set the history manager, or None for the default file-backed store."""
+        if value is not None and not isinstance(value, AnyHistoryManager):
+            raise TypeError(
+                f"{self.name}.history_manager must be an AnyHistoryManager or "
+                f"None, got {type(value).__name__}. Subclass "
+                f"zrb.llm.history_manager.any_history_manager.AnyHistoryManager."
+            )
         self._history_manager = value
 
     @property
@@ -565,22 +837,22 @@ class LLMChatTask(BaseTask):
         )
 
     @property
-    def ui_factories(self) -> "list[Callable[..., UIProtocol]]":
+    def ui_factories(self) -> "list[Callable[..., AnyUI]]":
         """Get the UI factories."""
         return self._ui_factories
 
     @ui_factories.setter
-    def ui_factories(self, value: "list[Callable[..., UIProtocol]]") -> None:
+    def ui_factories(self, value: "list[Callable[..., AnyUI]]") -> None:
         """Set the UI factories."""
         self._ui_factories = value
 
     @property
-    def approval_channels(self) -> "list[ApprovalChannel]":
+    def approval_channels(self) -> "list[AnyApprovalChannel]":
         """Get the approval channels."""
         return self._approval_channels
 
     @approval_channels.setter
-    def approval_channels(self, value: "list[ApprovalChannel]") -> None:
+    def approval_channels(self, value: "list[AnyApprovalChannel]") -> None:
         """Set the approval channels."""
         self._approval_channels = value
 
@@ -595,7 +867,7 @@ class LLMChatTask(BaseTask):
         self._include_default_ui = value
 
     @property
-    def uis(self) -> "list[UIProtocol]":
+    def uis(self) -> "list[AnyUI]":
         """The UI protocol(s) attached so far."""
         return self._uis
 
@@ -603,6 +875,16 @@ class LLMChatTask(BaseTask):
     def hook_manager(self) -> "HookManager | None":
         """The `HookManager` passed at construction, or None for "fresh per run"."""
         return self._hook_manager
+
+    @hook_manager.setter
+    def hook_manager(self, value: "HookManager | None") -> None:
+        """Replace the hook manager, or None to go back to "fresh per run"."""
+        if value is not None and not isinstance(value, HookManager):
+            raise TypeError(
+                f"{self.name}.hook_manager must be a HookManager or None, "
+                f"got {type(value).__name__}."
+            )
+        self._hook_manager = value
 
     @property
     def active_hook_manager(self) -> "HookManager | None":
@@ -618,11 +900,6 @@ class LLMChatTask(BaseTask):
     def yolo(self) -> BoolAttr:
         """The raw `yolo` attribute (unevaluated bool/template/callable)."""
         return self._yolo
-
-    @property
-    def yolo_xcom_key(self) -> str:
-        """xcom key the session reads/writes when yolo mode is toggled at run time."""
-        return self._yolo_xcom_key
 
     @property
     def system_prompt(self):
@@ -705,9 +982,34 @@ class LLMChatTask(BaseTask):
         return self._model_settings
 
     @property
-    def ui_command_overrides(self) -> dict[str, list[str]]:
-        """Slash-command alias overrides, keyed by command name."""
-        return self._ui_command_overrides
+    def ui_config(self) -> "UIConfig":
+        """Slash-command aliases and other UI-backend settings this task
+        builds its UI with. Materialized lazily on first read — see the
+        `__init__` comment on `self._ui_config` for why."""
+        if self._ui_config is None:
+            # lazy: zrb.llm.ui.ui_config transitively loads pydantic_ai,
+            # prompt_toolkit, pdfplumber and playwright, via its package
+            # __init__.
+            from zrb.llm.ui.ui_config import UIConfig
+
+            self._ui_config = UIConfig()
+        return self._ui_config
+
+    @ui_config.setter
+    def ui_config(self, value: "UIConfig") -> None:
+        """Replace the UI config wholesale."""
+        # lazy: zrb.llm.ui.ui_config transitively loads pydantic_ai,
+        # prompt_toolkit, pdfplumber and playwright, via its package __init__
+        # — but a caller assigning a UIConfig instance has necessarily
+        # already imported it themselves, so this costs nothing extra here.
+        from zrb.llm.ui.ui_config import UIConfig
+
+        if not isinstance(value, UIConfig):
+            raise TypeError(
+                f"{self.name}.ui_config must be a UIConfig, "
+                f"got {type(value).__name__}."
+            )
+        self._ui_config = value
 
     @property
     def ui_texts(self) -> "dict[str, tuple[StrAttr | None, bool]]":
@@ -719,15 +1021,17 @@ class LLMChatTask(BaseTask):
         """Rich theme used to render the assistant's markdown."""
         return self._markdown_theme
 
-    @property
-    def show_ollama_models(self) -> bool | None:
-        """Whether the model picker lists Ollama models, or None for the config default."""
-        return self._show_ollama_models
+    @markdown_theme.setter
+    def markdown_theme(self, value: "Theme | None") -> None:
+        """Replace the markdown theme, or None for the default.
 
-    @property
-    def show_pydantic_ai_models(self) -> bool | None:
-        """Whether the model picker lists pydantic-ai models, or None for the config default."""
-        return self._show_pydantic_ai_models
+        No `isinstance` guard here (unlike the other slots): `rich.theme.Theme`
+        is only imported under `TYPE_CHECKING` — every module that touches it
+        does the same — so validating against the real class would force an
+        eager `rich` import (~12ms) on every `import zrb`. The type hint is
+        the only guard.
+        """
+        self._markdown_theme = value
 
     @property
     def tool_confirmation(self) -> AnyToolConfirmation:
@@ -835,7 +1139,7 @@ class LLMChatTask(BaseTask):
         return self._execution.get_model(ctx)
 
     def get_ui_conversation_name(
-        self, ui: "UIProtocol", initial_conversation_name: str
+        self, ui: "AnyUI", initial_conversation_name: str
     ) -> str:
         """Get the current conversation name from UI or fallback to initial name."""
         return self._execution.get_ui_conversation_name(ui, initial_conversation_name)

@@ -306,19 +306,20 @@ class VoiceEngine:
         # empirically (nothing zrb.llm.agent's package __init__ imports at
         # module level reaches zrb.llm.voice).
         from zrb.llm.agent import create_agent, run_agent
-        from zrb.llm.config.config import llm_config
+        from zrb.llm.agent_state import get_current_multimodal_model
         from zrb.llm.config.limiter import llm_limiter
+        from zrb.llm.config.model_resolver import resolve_configured_multimodal_model
         from zrb.llm.prompt.prompt import get_prompt
         from zrb.llm.util.capabilities import model_capabilities
 
-        multimodal_model = llm_config.multimodal_model
-        if multimodal_model is None:
+        multimodal_model = get_current_multimodal_model() or CFG.LLM_MULTIMODAL_MODEL
+        if not multimodal_model:
             raise RuntimeError(
                 "LLM_MULTIMODAL_MODEL is not configured. "
                 f"Set {CFG.ENV_PREFIX}_LLM_MULTIMODAL_MODEL or switch to a different voice backend."
             )
 
-        resolved = llm_config.resolve_model(multimodal_model)
+        resolved = resolve_configured_multimodal_model(multimodal_model)
         if is_openai_chat_model(resolved):
             name = model_name(multimodal_model)
             raise RuntimeError(
@@ -381,7 +382,7 @@ def is_openai_chat_model(model: object) -> bool:
     """True for OpenAI chat models that cannot receive audio as content blocks.
 
     Checks both pydantic-ai :class:`~pydantic_ai.models.openai.OpenAIChatModel`
-    instances and string model identifiers (``openai:gpt-4o``, ``gpt-4o``, etc.)
+    instances and string model identifiers (``openai:gpt-5.6-luna``, ``gpt-4o``, etc.)
     """
     # lazy: heavy third-party
     try:

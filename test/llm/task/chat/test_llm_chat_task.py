@@ -4,9 +4,12 @@ import pytest
 
 from zrb.context.shared_context import SharedContext
 from zrb.llm.approval import NullApprovalChannel
+from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.prompt.registry import PromptRegistry
 from zrb.llm.task.chat.execution import parse_yolo_value
 from zrb.llm.task.chat.task import LLMChatTask
-from zrb.llm.tool_call.ui_protocol import UIProtocol
+from zrb.llm.ui.any_ui import AnyUI
 from zrb.session.session import Session
 
 
@@ -114,7 +117,7 @@ async def test_interactive_teardown_fires_terminal_session_end():
         return HookResult()
 
     manager = HookManager(search_dirs=[])
-    manager.register(record, events=[HookEvent.SESSION_END])
+    manager.add_hook(record, events=[HookEvent.SESSION_END])
 
     task = LLMChatTask(name="teardown-task")
     task.active_hook_manager = manager
@@ -271,42 +274,134 @@ async def test_llm_chat_task_setters():
         assert mock_run_agent.called
 
 
-def test_llm_chat_task_set_approval_channel():
-    """Test that set_approval_channel works on LLMChatTask."""
+def test_llm_chat_task_approval_channels_property():
+    """Test that the approval_channels property works on LLMChatTask."""
     task = LLMChatTask(name="test-task")
 
     # Set approval channel programmatically
     channel = NullApprovalChannel()
-    task.set_approval_channel(channel)
+    task.approval_channels = [channel]
 
-    # Verify the setter works without error - behavior is tested through async_run
-    assert True  # If set_approval_channel works, the test passes
+    assert task.approval_channels == [channel]
 
 
-def test_llm_chat_task_set_ui():
-    """Test that set_ui works on LLMChatTask."""
+def test_llm_chat_task_set_uis():
+    """Test that set_uis works on LLMChatTask."""
     task = LLMChatTask(name="test-task")
 
     # Set UI programmatically
-    mock_ui = MagicMock(spec=UIProtocol)
-    task.set_ui(mock_ui)
+    mock_ui = MagicMock(spec=AnyUI)
+    task.set_uis([mock_ui])
 
-    # Verify the setter works without error - behavior is tested through async_run
-    assert True  # If set_ui works, the test passes
+    assert task.uis == [mock_ui]
 
 
-def test_llm_chat_task_set_ui_factory():
-    """Test that set_ui_factory works on LLMChatTask."""
+def test_llm_chat_task_ui_factories_property():
+    """Test that the ui_factories property works on LLMChatTask."""
     task = LLMChatTask(name="test-task")
 
     # Set UI factory programmatically
     def mock_factory(*args, **kwargs):
-        return MagicMock(spec=UIProtocol)
+        return MagicMock(spec=AnyUI)
 
-    task.set_ui_factory(mock_factory)
+    task.ui_factories = [mock_factory]
 
-    # Verify the setter works without error - behavior is tested through async_run
-    assert True  # If set_ui_factory works, the test passes
+    assert task.ui_factories == [mock_factory]
+
+
+ORDERED_COLLECTION_STEMS = [
+    ("tool", "tools"),
+    ("tool_factory", "tool_factories"),
+    ("toolset", "toolsets"),
+    ("toolset_factory", "toolset_factories"),
+    ("history_processor", "history_processors"),
+    ("trigger", "triggers"),
+    ("custom_command", "custom_commands"),
+    ("hook_factory", "hook_factories"),
+    ("tool_policy", "tool_policies"),
+    ("response_handler", "response_handlers"),
+    ("argument_formatter", "argument_formatters"),
+    ("ui", "uis"),
+    ("ui_factory", "ui_factories"),
+    ("approval_channel", "approval_channels"),
+]
+
+
+@pytest.mark.parametrize("stem,plural", ORDERED_COLLECTION_STEMS)
+def test_ordered_collection_verbs_round_trip(stem, plural):
+    """append_X/prepend_X/set_X/remove_X round-trip on every R5 collection.
+
+    `argument_formatters` starts with two built-in defaults already appended
+    at construction (`replace_in_file_formatter`, `write_file_formatter`), so
+    assertions are relative to whatever was already there rather than
+    assuming an empty list.
+    """
+    task = LLMChatTask(name="t")
+    before = list(getattr(task, plural))
+    a, b = object(), object()
+
+    getattr(task, f"append_{stem}")(a)
+    assert list(getattr(task, plural)) == before + [a]
+
+    getattr(task, f"prepend_{stem}")(b)
+    assert list(getattr(task, plural)) == [b] + before + [a]
+
+    getattr(task, f"remove_{stem}")(b)
+    assert list(getattr(task, plural)) == before + [a]
+
+    getattr(task, f"remove_{stem}")(b)  # not present: no-op, not an error
+    assert list(getattr(task, plural)) == before + [a]
+
+    # ui_factories/approval_channels replace wholesale through their already
+    # settable property rather than a set_X() method (R7 — see
+    # framework-conventions.md's "Component slot vs. collection").
+    c = object()
+    if hasattr(task, f"set_{plural}"):
+        getattr(task, f"set_{plural}")([c])
+    else:
+        setattr(task, plural, [c])
+    assert list(getattr(task, plural)) == [c]
+
+
+# --- R8: the three ADR-0091 configuration channels, each named -------------
+
+
+def test_a_user_can_swap_the_prompt_manager_after_the_task_is_defined():
+    """Channel 3 — a per-task argument overrides one host."""
+    # Arrange — a task defined before any user config, as builtin/ does
+    task = LLMChatTask(name="chat")
+    replacement = PromptManager(prompt_registry=PromptRegistry())
+
+    # Act — what a zrb_init.py does
+    task.prompt_manager = replacement
+
+    # Assert
+    assert task.prompt_manager is replacement
+
+
+def test_a_registry_delta_reaches_a_task_built_around_it():
+    """Channel 2 — zrb_init.py builds/replaces things on a registry."""
+    registry = PromptRegistry()
+    registry.append_prompt("Always answer in British English.")
+
+    task = LLMChatTask(
+        name="chat", prompt_manager=PromptManager(prompt_registry=registry)
+    )
+
+    composed = task.prompt_manager.compose_prompt()(SharedContext())
+    assert "Always answer in British English." in composed
+
+
+def test_a_cfg_scalar_reaches_a_task_that_defers_to_the_registry(monkeypatch):
+    """Channel 1 — an env var / CFG twin narrows or seeds the default layer a
+    task defers to, with no code change on the task itself."""
+    from zrb.config.config import CFG
+
+    monkeypatch.setattr(CFG, "LLM_PROMPT", ["Prefer git over GUI."])
+    task = LLMChatTask(name="chat")  # no prompt_manager passed -> defers to CFG
+
+    composed = task.prompt_manager.compose_prompt()(SharedContext())
+    assert "Prefer git over GUI." in composed
 
 
 def test_llm_chat_task_init_with_approval_channel():
@@ -320,7 +415,7 @@ def test_llm_chat_task_init_with_approval_channel():
 
 def test_llm_chat_task_init_with_ui():
     """Test that LLMChatTask accepts ui parameter."""
-    mock_ui = MagicMock(spec=UIProtocol)
+    mock_ui = MagicMock(spec=AnyUI)
     task = LLMChatTask(name="test-task", ui=mock_ui)
 
     # Verify initialization works - behavior tested through async_run
@@ -339,24 +434,16 @@ def test_llm_chat_task_custom_model_names_setter():
     assert task.custom_model_names == ["updated-model"]
 
 
-def test_llm_chat_task_model_getter_via_config():
-    from zrb.llm.config.config import LLMConfig
-
+def test_llm_chat_task_model_getter_constructor_and_property():
     getter = lambda m: "fixed-model"
-    config = LLMConfig()
-    config.model_getter = getter
-    task = LLMChatTask(name="test-task", llm_config=config)
-    assert task.llm_config.model_getter is getter
+    task = LLMChatTask(name="test-task", model_getter=getter)
+    assert task.model_getter is getter
 
 
-def test_llm_chat_task_model_renderer_via_config():
-    from zrb.llm.config.config import LLMConfig
-
+def test_llm_chat_task_model_renderer_constructor_and_property():
     renderer = lambda m: m
-    config = LLMConfig()
-    config.model_renderer = renderer
-    task = LLMChatTask(name="test-task", llm_config=config)
-    assert task.llm_config.model_renderer is renderer
+    task = LLMChatTask(name="test-task", model_renderer=renderer)
+    assert task.model_renderer is renderer
 
 
 def test_llm_chat_task_custom_model_names_none_by_default():
@@ -366,18 +453,14 @@ def test_llm_chat_task_custom_model_names_none_by_default():
 
 @pytest.mark.asyncio
 async def test_llm_chat_task_passes_getter_renderer_to_summarizer():
-    """LLMChatTask forwards effective getter/renderer to create_summarizer_history_processor via config."""
-    from zrb.llm.config.config import LLMConfig
-
+    """LLMChatTask forwards its model_getter/model_renderer to create_summarizer_history_processor."""
     getter = lambda m: "getter-model"
     renderer = lambda m: "renderer-model"
 
-    config = LLMConfig()
-    config.model_getter = getter
-    config.model_renderer = renderer
     task = LLMChatTask(
         name="test-task",
-        llm_config=config,
+        model_getter=getter,
+        model_renderer=renderer,
         interactive=False,
     )
 
@@ -462,9 +545,15 @@ def test_llm_chat_task_history_config_reflects_constructor_values():
 
 def test_llm_chat_task_history_config_reflects_history_manager_setter_immediately():
     task = LLMChatTask(name="test-task")
-    new_manager = MagicMock()
+    new_manager = MagicMock(spec=AnyHistoryManager)
     task.history_manager = new_manager
     assert task.history_config.history_manager is new_manager
+
+
+def test_llm_chat_task_history_manager_setter_rejects_wrong_type():
+    task = LLMChatTask(name="test-task")
+    with pytest.raises(TypeError, match="AnyHistoryManager"):
+        task.history_manager = "not a manager"
 
 
 def test_llm_chat_task_sandbox_constructor_and_property():

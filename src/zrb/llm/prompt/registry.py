@@ -88,7 +88,7 @@ class PromptRegistry:
     all delta ops. ``append_prompt`` / ``prepend_prompt`` /
     ``remove_prompt`` layer ops on top of the current base.
 
-    The default itself may be *deferred*: ``default`` (constructor genomic
+    The default itself may be *deferred*: ``default`` (constructor keyword
     argument) — and ``set_prompts`` — accept a zero-argument callable that
     resolves at query time. The module singleton's default
     is a lazy ``CFG.LLM_PROMPT`` read, so env vars keep working without the

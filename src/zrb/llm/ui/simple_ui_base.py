@@ -59,7 +59,7 @@ class SimpleUI(BaseUI):
         # In your zrb_init.py:
         from zrb.llm.ui import create_ui_factory
 
-        llm_chat.set_ui_factory(create_ui_factory(MyUI))
+        llm_chat.ui_factories = [create_ui_factory(MyUI)]
     """
 
     def __init__(
@@ -79,36 +79,18 @@ class SimpleUI(BaseUI):
     ):
         self._config = config or UIConfig.default()
 
-        yolo_key = self._config.yolo_xcom_key or f"_yolo_{id(self)}"
-
         super().__init__(
             ctx=ctx,
             llm_task=llm_task,
             history_manager=history_manager,
-            yolo_xcom_key=yolo_key,
-            assistant_name=self._config.assistant_name,
             initial_message=initial_message,
             initial_attachments=initial_attachments or [],
-            conversation_session_name=self._config.conversation_session_name,
-            is_yolo=self._config.is_yolo,
+            ui_config=self._config,
             triggers=[],  # Empty list for triggers
             response_handlers=response_handlers or [],
             tool_policies=tool_policies or [],
             argument_formatters=argument_formatters or [],
             markdown_theme=None,
-            summarize_commands=self._config.summarize_commands,
-            attach_commands=self._config.attach_commands,
-            photo_commands=self._config.photo_commands,
-            exit_commands=self._config.exit_commands,
-            info_commands=self._config.info_commands,
-            save_commands=self._config.save_commands,
-            load_commands=self._config.load_commands,
-            redirect_output_commands=self._config.redirect_output_commands,
-            copy_commands=self._config.copy_commands,
-            yolo_toggle_commands=self._config.yolo_toggle_commands,
-            set_model_commands=self._config.set_model_commands,
-            exec_commands=self._config.exec_commands,
-            plan_commands=self._config.plan_commands,
             custom_commands=custom_commands or [],
             model=model,
         )

@@ -362,7 +362,7 @@ class TestHookResultProcessing:
             return HookResult()
 
         manager = HookManager(search_dirs=[])
-        manager.register(
+        manager.add_hook(
             tracking_hook,
             events=[
                 HookEvent.SESSION_START,
@@ -391,7 +391,7 @@ class TestHookResultProcessing:
             )
 
         manager = HookManager(search_dirs=[])
-        manager.register(context_hook, events=[HookEvent.SESSION_START])
+        manager.add_hook(context_hook, events=[HookEvent.SESSION_START])
 
         results = await manager.execute_hooks(
             HookEvent.SESSION_START, {"message": "test", "history": []}
@@ -413,7 +413,7 @@ class TestHookResultProcessing:
             )
 
         manager = HookManager(search_dirs=[])
-        manager.register(context_hook, events=[HookEvent.USER_PROMPT_SUBMIT])
+        manager.add_hook(context_hook, events=[HookEvent.USER_PROMPT_SUBMIT])
 
         results = await manager.execute_hooks(
             HookEvent.USER_PROMPT_SUBMIT,

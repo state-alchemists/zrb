@@ -15,7 +15,10 @@ class TodoTaskModel:
         completion_date: datetime.date | None = None,
     ):
         if priority is not None and not re.match(r"^[A-Z]$", priority):
-            raise ValueError("Invalid priority format")
+            raise ValueError(
+                f"Invalid priority {priority!r}: must be a single uppercase "
+                "letter A-Z, e.g. 'A' for todo.txt's highest priority."
+            )
         if completion_date and not creation_date:
             raise ValueError(
                 "creation_date must be specified if completion_date is set."

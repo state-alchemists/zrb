@@ -14,7 +14,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.config.config import llm_config as _llm_config
 from zrb.llm.permission.state import AgentMode, set_current_agent_mode
 from zrb.util.cli.style import stylize_muted
 
@@ -142,8 +141,10 @@ class BaseUIModelCommands:
                     model_name = arg[6:].strip()
                     if not model_name:
                         continue
+                    # Read by run_agent (current_small_model, agent_state.py)
+                    # for the rest of this session — see journal_compliance.py
+                    # / voice/engine.py, the two consumers.
                     self._base_ui.small_model = model_name
-                    _llm_config.small_model = model_name
                     self._base_ui.append_to_output(
                         stylize_muted(f"\n  🤖 Small model switched to: {model_name}\n")
                     )
@@ -151,8 +152,9 @@ class BaseUIModelCommands:
                     model_name = arg[11:].strip()
                     if not model_name:
                         continue
+                    # Read by run_agent (current_multimodal_model,
+                    # agent_state.py) for the rest of this session.
                     self._base_ui.multimodal_model = model_name
-                    _llm_config.multimodal_model = model_name
                     self._base_ui.append_to_output(
                         stylize_muted(
                             f"\n  🤖 Multimodal model switched to: {model_name}\n"

@@ -4,6 +4,7 @@ from typing import Any
 import requests
 
 from zrb.config.config import CFG
+from zrb.llm.tool.search.http_errors import SearchToolError
 
 
 def is_docker_installed() -> bool:
@@ -57,7 +58,7 @@ def search_internet(
                 response.text[:500] if response.text else "No error details provided"
             )
             content_type = response.headers.get("Content-Type", "unknown")
-            raise Exception(
+            raise SearchToolError(
                 f"Error: Unable to retrieve search results from Searxng "
                 f"(status code: {response.status_code}, content type: {content_type}). "
                 f"Response: {error_body}"
@@ -84,7 +85,7 @@ def search_internet(
             suggestion = "[SYSTEM SUGGESTION]: Searxng is not running and Docker is not installed. Please install Docker first to run Searxng locally."
             error_msg += f"\n\n{suggestion}"
 
-        raise Exception(error_msg) from e
+        raise SearchToolError(error_msg) from e
 
     except requests.exceptions.Timeout as e:
         error_msg = f"Error: Connection to Searxng at {CFG.SEARXNG_BASE_URL} timed out."
@@ -97,7 +98,7 @@ def search_internet(
             suggestion = f"[SYSTEM SUGGESTION]: Searxng may not be running. You can start it with: {root_group} searxng start"
             error_msg += f"\n\n{suggestion}"
 
-        raise Exception(error_msg) from e
+        raise SearchToolError(error_msg) from e
 
     except Exception:
         # Re-raise other exceptions without modification

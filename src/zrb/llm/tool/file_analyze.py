@@ -21,8 +21,8 @@ async def analyze_file(
     # imports inside the function preserves cold-start latency for callers
     # that import this module but never invoke analyze_file.
     from zrb.llm.agent import create_agent, run_agent
-    from zrb.llm.config.config import llm_config
     from zrb.llm.config.limiter import llm_limiter
+    from zrb.llm.config.model_resolver import resolve_configured_model
     from zrb.llm.prompt.prompt import get_prompt
 
     abs_path = os.path.abspath(os.path.expanduser(path))
@@ -45,9 +45,9 @@ async def analyze_file(
     system_prompt = get_prompt("file_extractor")
 
     agent = create_agent(
-        # Already resolved here; resolve_model=False avoids a second
-        # model_getter/model_renderer pass inside create_agent.
-        model=llm_config.resolve_model(),
+        # Already resolved here; resolve_model=False avoids resolving twice
+        # inside create_agent.
+        model=resolve_configured_model(),
         system_prompt=system_prompt,
         tools=[
             read_file,

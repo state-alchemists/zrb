@@ -176,7 +176,7 @@ class TestApproveIfPathInsideSkillOrPluginDir:
         child = str(skill_subdir / "my-skill.py")
 
         with patch("zrb.llm.skill.manager.skill_manager") as mock_mgr:
-            mock_mgr.get_search_directories.return_value = [str(skill_subdir)]
+            mock_mgr.search_dirs = [str(skill_subdir)]
             result = approve_if_path_inside_skill_or_plugin_dir({"path": child})
         assert result is True
 
@@ -190,7 +190,7 @@ class TestApproveIfPathInsideSkillOrPluginDir:
             patch("zrb.llm.skill.manager.skill_manager") as mock_mgr,
             patch("zrb.builtin.llm.chat_tool_policy.CFG") as mock_cfg,
         ):
-            mock_mgr.get_search_directories.return_value = []
+            mock_mgr.search_dirs = []
             mock_cfg.LLM_PLUGIN_DIRS = [str(plugin_dir)]
             result = approve_if_path_inside_skill_or_plugin_dir({"path": child})
         assert result is True
@@ -203,7 +203,7 @@ class TestApproveIfPathInsideSkillOrPluginDir:
             patch("zrb.llm.skill.manager.skill_manager") as mock_mgr,
             patch("zrb.builtin.llm.chat_tool_policy.CFG") as mock_cfg,
         ):
-            mock_mgr.get_search_directories.return_value = []
+            mock_mgr.search_dirs = []
             mock_cfg.LLM_PLUGIN_DIRS = []
             result = approve_if_path_inside_skill_or_plugin_dir({"path": child})
         assert result is False

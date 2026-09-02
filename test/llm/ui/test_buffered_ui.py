@@ -275,7 +275,7 @@ def test_buffered_ui_accumulate_usage_drops_context_usage():
 
 
 def test_buffered_ui_accumulate_usage_noop_when_wrapped_lacks_it():
-    """A wrapped UI without accumulate_usage (e.g. a bare UIProtocol stub)
+    """A wrapped UI without accumulate_usage (e.g. a bare AnyUI stub)
     must not raise."""
 
     class _Parent:

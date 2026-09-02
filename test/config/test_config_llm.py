@@ -10,10 +10,22 @@ def test_llm_model(monkeypatch):
     assert config.LLM_MODEL == "my-model"
 
 
-def test_llm_model_none(monkeypatch):
+def test_llm_model_default(monkeypatch):
     monkeypatch.delenv("ZRB_LLM_MODEL", raising=False)
     config = Config()
-    assert config.LLM_MODEL is None
+    assert config.LLM_MODEL == "openai:gpt-5.6-luna"
+
+
+def test_llm_provider(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_PROVIDER", "anthropic")
+    config = Config()
+    assert config.LLM_PROVIDER == "anthropic"
+
+
+def test_llm_provider_none(monkeypatch):
+    monkeypatch.delenv("ZRB_LLM_PROVIDER", raising=False)
+    config = Config()
+    assert config.LLM_PROVIDER is None
 
 
 def test_llm_base_url(monkeypatch):

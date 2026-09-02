@@ -146,7 +146,7 @@ async def test_run_agent_precompact_block_skips_history_processors():
         return HookResult.block("preserve everything")
 
     manager = HookManager(search_dirs=[])
-    manager.register(blocking_precompact, events=[HookEvent.PRE_COMPACT])
+    manager.add_hook(blocking_precompact, events=[HookEvent.PRE_COMPACT])
 
     result, _ = await run_agent(
         agent=agent,
@@ -471,7 +471,7 @@ async def test_run_agent_fires_stop_on_natural_completion():
         return HookResult(success=True)
 
     manager = HookManager(search_dirs=[])
-    manager.register(record, events=[HookEvent.STOP])
+    manager.add_hook(record, events=[HookEvent.STOP])
 
     agent = MagicMock()
     mock_result = MagicMock()
@@ -516,7 +516,7 @@ async def test_stop_event_data_carries_turn_slice_and_wrote_files_flag():
         return HookResult(success=True)
 
     manager = HookManager(search_dirs=[])
-    manager.register(record, events=[HookEvent.STOP])
+    manager.add_hook(record, events=[HookEvent.STOP])
 
     # A dangling ToolCallPart (no matching return) is stripped by
     # sanitize_history's orphan-call cleanup, so the return is included here —
@@ -574,7 +574,7 @@ async def test_stop_event_data_wrote_files_false_for_read_only_turn():
         return HookResult(success=True)
 
     manager = HookManager(search_dirs=[])
-    manager.register(record, events=[HookEvent.STOP])
+    manager.add_hook(record, events=[HookEvent.STOP])
 
     turn_messages = [
         ModelResponse(
@@ -763,7 +763,7 @@ async def test_stop_event_wrote_files_true_after_deferred_tool_approval():
         return HookResult(success=True)
 
     manager = HookManager(search_dirs=[])
-    manager.register(record, events=[HookEvent.STOP])
+    manager.add_hook(record, events=[HookEvent.STOP])
 
     agent = MagicMock()
 
@@ -1066,7 +1066,7 @@ async def test_stop_event_turn_slice_correct_after_empty_completion_retry():
         return HookResult(success=True)
 
     manager = HookManager(search_dirs=[])
-    manager.register(record, events=[HookEvent.STOP])
+    manager.add_hook(record, events=[HookEvent.STOP])
 
     agent = MagicMock()
     empty = MagicMock()
@@ -1210,7 +1210,7 @@ async def test_run_agent_stop_replace_response_false():
             return HookResult()
 
     manager = HookManager(search_dirs=[])
-    manager.register(OnceHook(), events=[HookEvent.STOP])
+    manager.add_hook(OnceHook(), events=[HookEvent.STOP])
 
     result, history = await run_agent(
         agent=agent,
@@ -1271,7 +1271,7 @@ async def test_run_agent_stop_replace_response_true():
             return HookResult()
 
     manager = HookManager(search_dirs=[])
-    manager.register(OnceHook(), events=[HookEvent.STOP])
+    manager.add_hook(OnceHook(), events=[HookEvent.STOP])
 
     result, history = await run_agent(
         agent=agent,
@@ -1312,7 +1312,7 @@ async def test_session_start_source_startup_vs_resume():
         return HookResult()
 
     manager = HookManager(search_dirs=[])
-    manager.register(rec, events=[HookEvent.SESSION_START])
+    manager.add_hook(rec, events=[HookEvent.SESSION_START])
 
     await run_agent(
         agent=_single_turn_agent(),
@@ -1344,7 +1344,7 @@ async def test_user_prompt_submit_populates_prompt_field():
         return HookResult()
 
     manager = HookManager(search_dirs=[])
-    manager.register(rec, events=[HookEvent.USER_PROMPT_SUBMIT])
+    manager.add_hook(rec, events=[HookEvent.USER_PROMPT_SUBMIT])
 
     await run_agent(
         agent=_single_turn_agent(),
@@ -1372,7 +1372,7 @@ async def test_pre_compact_trigger_and_additional_context():
         return HookResult()
 
     manager = HookManager(search_dirs=[])
-    manager.register(rec, events=[HookEvent.PRE_COMPACT])
+    manager.add_hook(rec, events=[HookEvent.PRE_COMPACT])
 
     await run_agent(
         agent=_single_turn_agent(),
@@ -1398,7 +1398,7 @@ async def test_post_compact_fires_after_processing():
         return HookResult()
 
     manager = HookManager(search_dirs=[])
-    manager.register(rec, events=[HookEvent.POST_COMPACT])
+    manager.add_hook(rec, events=[HookEvent.POST_COMPACT])
 
     await run_agent(
         agent=_single_turn_agent(),
@@ -1425,7 +1425,7 @@ async def test_stop_failure_fires_on_unrecoverable_error():
         return HookResult()
 
     manager = HookManager(search_dirs=[])
-    manager.register(rec, events=[HookEvent.STOP_FAILURE])
+    manager.add_hook(rec, events=[HookEvent.STOP_FAILURE])
 
     agent = MagicMock()
 
@@ -1463,7 +1463,7 @@ async def test_run_agent_user_prompt_submit_block_ends_turn():
         return HookResult()
 
     manager = HookManager(search_dirs=[])
-    manager.register(blocking_hook, events=[HookEvent.USER_PROMPT_SUBMIT])
+    manager.add_hook(blocking_hook, events=[HookEvent.USER_PROMPT_SUBMIT])
 
     result, history = await run_agent(
         agent=agent,
@@ -1512,7 +1512,7 @@ async def test_run_agent_stop_block_continues_turn():
             return HookResult()
 
     manager = HookManager(search_dirs=[])
-    manager.register(BlockOnce(), events=[HookEvent.STOP])
+    manager.add_hook(BlockOnce(), events=[HookEvent.STOP])
 
     result, history = await run_agent(
         agent=agent,
@@ -1556,7 +1556,7 @@ async def test_run_agent_stop_block_cap_prevents_infinite_loop():
         return HookResult()
 
     manager = HookManager(search_dirs=[])
-    manager.register(always_block, events=[HookEvent.STOP])
+    manager.add_hook(always_block, events=[HookEvent.STOP])
 
     result, history = await run_agent(
         agent=agent,
@@ -1591,7 +1591,7 @@ async def test_run_agent_session_start_context_prepending():
             success=True, modifications={"additionalContext": "INIT_CONTEXT"}
         )
 
-    manager.register(session_start_hook, events=[HookEvent.SESSION_START])
+    manager.add_hook(session_start_hook, events=[HookEvent.SESSION_START])
 
     limiter = MagicMock(spec=LLMLimiter)
     limiter.count_tokens.return_value = 10
@@ -1637,7 +1637,7 @@ async def test_run_agent_user_prompt_context_prepending():
             success=True, modifications={"additionalContext": "PROMPT_CONTEXT"}
         )
 
-    manager.register(prompt_hook, events=[HookEvent.USER_PROMPT_SUBMIT])
+    manager.add_hook(prompt_hook, events=[HookEvent.USER_PROMPT_SUBMIT])
 
     limiter = MagicMock(spec=LLMLimiter)
     limiter.count_tokens.return_value = 10

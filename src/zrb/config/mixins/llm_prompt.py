@@ -13,7 +13,7 @@ def _include_sections_serialize(value: list[str] | str) -> str:
     return ",".join(value) if isinstance(value, list) else value
 
 
-class ConfigLLMPrompt:
+class LLMPromptMixin:
     if TYPE_CHECKING:
         # Attributes supplied by sibling mixins on the composed Config class.
         ENV_PREFIX: str  # FoundationMixin

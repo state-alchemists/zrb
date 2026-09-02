@@ -1,6 +1,8 @@
 import logging
 import os
 
+import pytest
+
 from zrb.config.config import Config
 
 
@@ -362,11 +364,11 @@ class TestConfigSetters:
         config.LLM_MODEL = "model"
         assert os.environ["ZRB_LLM_MODEL"] == "model"
 
-    def test_llm_model_setter_with_none(self, monkeypatch):
+    def test_llm_model_setter_with_none_raises(self, monkeypatch):
         config = Config()
         config.LLM_MODEL = "model"
-        config.LLM_MODEL = None
-        assert "ZRB_LLM_MODEL" not in os.environ
+        with pytest.raises(ValueError):
+            config.LLM_MODEL = None
 
     def test_llm_small_model_setter_with_value(self, monkeypatch):
         config = Config()

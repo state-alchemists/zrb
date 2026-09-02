@@ -45,6 +45,37 @@ def test_live_context_remains_outside_system_sections():
     assert context.startswith("<live-context>")
 
 
+def test_add_live_context_is_rendered_into_the_block():
+    manager = PromptManager(include_sections=[])
+    manager.add_live_context("sprint", lambda ctx: "Active sprint: 42")
+    context = manager.create_live_context(SharedContext())
+    assert "Active sprint: 42" in context
+
+
+def test_get_live_contexts_returns_registered_pairs():
+    manager = PromptManager(include_sections=[])
+    provider = lambda ctx: "x"
+    manager.add_live_context("x", provider)
+    assert manager.get_live_contexts() == [("x", provider)]
+
+
+def test_remove_live_context_drops_it():
+    manager = PromptManager(include_sections=[])
+    manager.add_live_context("x", lambda ctx: "hello")
+    manager.remove_live_context("x")
+    assert manager.get_live_contexts() == []
+    assert "hello" not in manager.create_live_context(SharedContext())
+
+
+def test_set_live_contexts_replaces_wholesale():
+    manager = PromptManager(include_sections=[])
+    manager.add_live_context("old", lambda ctx: "old")
+    manager.set_live_contexts([("new", lambda ctx: "new-value")])
+    context = manager.create_live_context(SharedContext())
+    assert "old" not in context
+    assert "new-value" in context
+
+
 def test_default_prompt_carries_system_and_project_context():
     prompt = PromptManager(skill_manager=None).compose_prompt()(SharedContext())
     assert "# System Context" in prompt

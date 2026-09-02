@@ -46,7 +46,7 @@ def copy_searxng_setting(ctx: AnyContext):
 start_searxng = searxng_group.add_task(
     CmdTask(
         name="start-searxng",
-        input=IntInput(name="port", default=CFG.SEARXNG_PORT),
+        input=IntInput(name="port", default=lambda _: CFG.SEARXNG_PORT),
         upstream=copy_searxng_setting,
         cwd=os.path.expanduser("~"),
         cmd="docker run --rm -p {ctx.input.port}:8080 -e SEARXNG_LIMITER=false -v ./.config/searxng/:/etc/searxng/ docker.io/searxng/searxng:2026.5.6-36bcd6b55 -d",  # noqa

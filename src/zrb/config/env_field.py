@@ -228,7 +228,34 @@ class EnvField(Generic[T]):
 
     def __set__(self, obj: Any, value: Any) -> None:
         key = self.env_key(obj.ENV_PREFIX)
-        if value is None and self._nullable:
-            os.environ.pop(key, None)
-            return
-        os.environ[key] = self._serialize(value)
+        if value is None:
+            if self._nullable:
+                os.environ.pop(key, None)
+                return
+            raise ValueError(
+                f"CFG.{self._name} cannot be None — this setting has no null form. "
+                f"Assign a {self._cast.__name__} value instead."
+            )
+        raw = self._serialize(value)
+        try:
+            round_tripped = self._cast(raw)
+        except (ValueError, TypeError) as error:
+            raise ValueError(
+                f"CFG.{self._name} = {value!r} is not valid: it serializes to "
+                f"{raw!r}, which {self._cast.__name__}() rejects ({error})."
+            ) from error
+        # Guard against a non-idempotent serialize/cast pair silently rewriting
+        # the value. Two cases to catch, one to allow:
+        #   - ok: a bare string assigned to any field (e.g. "INFO" -> 20 for a
+        #     log-level field, or "A,B" -> ["A","B"] for a list field) — a str is
+        #     always the canonical env form, so this is documented coercion.
+        #   - catch: a non-string value (a Model, a list, a bare int) that
+        #     serializes/parseaways into a different shape.
+        if round_tripped != value and not isinstance(value, str):
+            raise ValueError(
+                f"CFG.{self._name} = {value!r} is not a value this field can "
+                f"round-trip: it serializes to {raw!r} but reads back as "
+                f"{round_tripped!r}. Assign a {self._cast.__name__}-shaped "
+                "value instead (e.g. a model name string, not a Model object)."
+            )
+        os.environ[key] = raw

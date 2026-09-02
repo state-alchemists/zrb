@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.task.llm_task import LLMTask
-    from zrb.llm.tool_call.ui_protocol import UIProtocol
+    from zrb.llm.ui.any_ui import AnyUI
 
 
 class ChatRunning:
@@ -161,10 +161,6 @@ class ChatRunning:
         enable_rewind: bool = False,
         snapshot_dir: str = "",
     ) -> Any:
-        # lazy: zrb.llm.ui.base.ui transitively loads pydantic_ai,
-        # prompt_toolkit, pdfplumber and playwright.
-        from zrb.llm.ui.base.ui import BaseUI
-
         # Mirror run_non_interactive_session's slash-command resolution.
         # Resolved once here and reused by _build_default_ui_kwargs below,
         # instead of re-resolving self._llm_chat_task.custom_commands a second
@@ -181,7 +177,7 @@ class ChatRunning:
 
         # Note: AsyncExitStack is handled by LLMTask._exec_action
         # 1. Resolve UIs from factories
-        resolved_uis: list["UIProtocol"] = list(self._llm_chat_task.uis)
+        resolved_uis: list["AnyUI"] = list(self._llm_chat_task.uis)
         for factory in self._llm_chat_task.ui_factories:
             factory_ui = factory(
                 ctx=ctx,
@@ -204,7 +200,6 @@ class ChatRunning:
             ctx=ctx,
             llm_task_core=llm_task_core,
             history_manager=history_manager,
-            ui_commands=ui_commands,
             initial_message=initial_message,
             initial_conversation_name=initial_conversation_name,
             initial_yolo=initial_yolo,
@@ -222,12 +217,7 @@ class ChatRunning:
             self.load_session_history(ui, history_manager, initial_conversation_name)
 
         # 5. Run the UI
-        if ui is None:
-            raise ValueError("No UI available")
-        if isinstance(ui, BaseUI) or hasattr(ui, "run_async"):
-            await ui.run_async()
-        else:
-            raise ValueError(f"UI {type(ui)} does not implement run_async")
+        await ui.run_async()
         last_output = getattr(ui, "last_output", "")
         final_conversation_name = self._llm_chat_task.get_ui_conversation_name(
             ui, initial_conversation_name
@@ -240,7 +230,6 @@ class ChatRunning:
         ctx: "AnyContext",
         llm_task_core: "LLMTask",
         history_manager: "AnyHistoryManager",
-        ui_commands: dict[str, list[str]],
         initial_message: Any,
         initial_conversation_name: str,
         initial_yolo: "bool | frozenset[str]",
@@ -250,6 +239,10 @@ class ChatRunning:
         resolved_custom_commands: "list[AnyCustomCommand] | None" = None,
     ) -> dict[str, Any]:
         """Build keyword arguments shared by all default UI constructor calls."""
+        # lazy: zrb.llm.ui.ui_config transitively loads pydantic_ai,
+        # prompt_toolkit, pdfplumber and playwright, via its package __init__.
+        from dataclasses import replace
+
         resolved_custom_model_names = (
             get_attr(ctx, self._llm_chat_task.custom_model_names, []) or []
         )
@@ -259,66 +252,51 @@ class ChatRunning:
         if resolved_custom_commands is None:
             resolved_custom_commands = self._resolve_custom_commands()
 
-        effective_show_ollama_models = (
-            CFG.LLM_SHOW_OLLAMA_MODELS
-            if self._llm_chat_task.show_ollama_models is None
-            else self._llm_chat_task.show_ollama_models
-        )
-        effective_show_pydantic_ai_models = (
-            CFG.LLM_SHOW_PYDANTIC_AI_MODELS
-            if self._llm_chat_task.show_pydantic_ai_models is None
-            else self._llm_chat_task.show_pydantic_ai_models
-        )
+        ui_texts = {
+            key: get_str_attr(ctx, value, "", render)
+            for key, (value, render) in self._llm_chat_task.ui_texts.items()
+        }
+
+        # Layer this run's resolved values (yolo state, session name, and — if
+        # set — a per-task-instance assistant name) over the task's own
+        # ui_config, which already carries the command lists / yolo_xcom_key /
+        # show_*_models resolved at construction (task override, else CFG).
+        ui_config_overrides: dict[str, Any] = {
+            "is_yolo": initial_yolo,
+            "conversation_session_name": initial_conversation_name,
+        }
+        if ui_texts["assistant_name"]:
+            ui_config_overrides["assistant_name"] = ui_texts["assistant_name"]
+        ui_config = replace(self._llm_chat_task.ui_config, **ui_config_overrides)
 
         return {
             "ctx": ctx,
-            "yolo_xcom_key": self._llm_chat_task.yolo_xcom_key,
-            **{
-                key: get_str_attr(ctx, value, "", render)
-                for key, (value, render) in self._llm_chat_task.ui_texts.items()
-            },
+            "greeting": ui_texts["greeting"],
+            "ascii_art": ui_texts["ascii_art"],
+            "jargon": ui_texts["jargon"],
             "output_lexer": None,  # resolved lazily to avoid early import
             "llm_task": llm_task_core,
             "history_manager": history_manager,
             "initial_message": initial_message,
             "initial_attachments": initial_attachments,
-            "conversation_session_name": initial_conversation_name,
-            "is_yolo": initial_yolo,
+            "ui_config": ui_config,
             "triggers": self._llm_chat_task.triggers,
             "response_handlers": self._llm_chat_task.response_handlers,
             "tool_policies": self._llm_chat_task.tool_policies,
             "argument_formatters": self._llm_chat_task.argument_formatters,
             "markdown_theme": self._llm_chat_task.markdown_theme,
-            "summarize_commands": ui_commands["summarize"],
-            "attach_commands": ui_commands["attach"],
-            "exit_commands": ui_commands["exit"],
-            "info_commands": ui_commands["info"],
-            "save_commands": ui_commands["save"],
-            "load_commands": ui_commands["load"],
-            "rewind_commands": ui_commands["rewind"],
-            "yolo_toggle_commands": ui_commands["yolo_toggle"],
-            "set_model_commands": ui_commands["set_model"],
-            "redirect_output_commands": ui_commands["redirect_output"],
-            "exec_commands": ui_commands["exec"],
-            "btw_commands": ui_commands["btw"],
-            "plan_commands": ui_commands["plan"],
-            "copy_commands": ui_commands["copy"],
-            "voice_commands": ui_commands["voice"],
-            "photo_commands": ui_commands["photo"],
             "custom_commands": resolved_custom_commands,
             "model": self._llm_chat_task.get_model(ctx),
             "custom_model_names": resolved_custom_model_names,
-            "show_ollama_models": effective_show_ollama_models,
-            "show_pydantic_ai_models": effective_show_pydantic_ai_models,
             "enable_rewind": enable_rewind,
             "snapshot_dir": snapshot_dir,
         }
 
     def _resolve_ui(
         self,
-        resolved_uis: "list[UIProtocol]",
+        resolved_uis: "list[AnyUI]",
         default_kwargs: dict[str, Any],
-    ) -> "UIProtocol":
+    ) -> "AnyUI":
         """Determine the UI to use: factory-only, combined, or default-only."""
         # lazy: zrb.llm.ui.default.ui and zrb.llm.ui.multi_ui transitively
         # load prompt_toolkit, pydantic_ai, pdfplumber and vosk.
@@ -364,7 +342,7 @@ class ChatRunning:
 
     def load_session_history(
         self,
-        ui: "UIProtocol",
+        ui: "AnyUI",
         history_manager: "AnyHistoryManager",
         conversation_name: str,
     ) -> None:

@@ -279,7 +279,7 @@ async def test_describe_runs_sub_agent_and_returns_text_for_image():
         patch("zrb.llm.agent.create_agent", side_effect=fake_create_agent),
         patch("zrb.llm.agent.run_agent", side_effect=fake_run_agent),
         patch(
-            "zrb.llm.config.config.llm_config.resolve_model",
+            "zrb.llm.config.model_resolver.resolve_configured_model",
             side_effect=lambda m: f"resolved:{m}",
         ),
     ):
@@ -310,7 +310,7 @@ async def test_describe_uses_audio_prompt_for_audio_binary():
         patch("zrb.llm.agent.create_agent", side_effect=fake_create_agent),
         patch("zrb.llm.agent.run_agent", side_effect=fake_run_agent),
         patch(
-            "zrb.llm.config.config.llm_config.resolve_model",
+            "zrb.llm.config.model_resolver.resolve_configured_model",
             side_effect=lambda m: m,
         ),
     ):
@@ -333,7 +333,7 @@ async def test_describe_returns_none_when_sub_agent_run_fails():
         patch("zrb.llm.agent.create_agent", return_value=MagicMock()),
         patch("zrb.llm.agent.run_agent", side_effect=failing_run_agent),
         patch(
-            "zrb.llm.config.config.llm_config.resolve_model",
+            "zrb.llm.config.model_resolver.resolve_configured_model",
             side_effect=lambda m: m,
         ),
     ):

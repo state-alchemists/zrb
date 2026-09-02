@@ -43,12 +43,12 @@ if TYPE_CHECKING:
         Tool,
         ToolFuncEither,
     )
-    from zrb.llm.approval.approval_channel import ApprovalChannel
+    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.permission import PermissionPolicyInput
     from zrb.llm.sandbox import SandboxInput
     from zrb.llm.task.llm_task import LLMTask
-    from zrb.llm.tool_call.ui_protocol import UIProtocol
+    from zrb.llm.ui.any_ui import AnyUI
 
 
 class LLMTaskBuilding:
@@ -105,11 +105,11 @@ class LLMTaskBuilding:
         """Replace the toolset list wholesale (see `tools` setter)."""
         self._llm_task.toolsets = value
 
-    def set_ui(self, ui: UIProtocol | None):
+    def set_ui(self, ui: AnyUI | None):
         """Replace every attached UI with `ui`, or detach all when None."""
         self._llm_task.uis = [] if ui is None else [ui]
 
-    def append_ui(self, ui: UIProtocol) -> None:
+    def append_ui(self, ui: AnyUI) -> None:
         """Attach one more UI, keeping those already attached.
 
         Every attached UI receives the same stream of events, which is how
@@ -117,7 +117,7 @@ class LLMTaskBuilding:
         """
         self._llm_task.uis.append(ui)
 
-    def get_uis(self) -> list[UIProtocol]:
+    def get_uis(self) -> list[AnyUI]:
         """Return a copy of every currently attached UI."""
         return list(self._llm_task.uis)
 
@@ -132,7 +132,7 @@ class LLMTaskBuilding:
         self._llm_task.tool_confirmation = value
 
     @property
-    def approval_channel(self) -> ApprovalChannel | None:
+    def approval_channel(self) -> AnyApprovalChannel | None:
         """Channel carrying approval requests to whoever answers them.
 
         None when the task runs unattended, in which case a tool call needing
@@ -141,7 +141,7 @@ class LLMTaskBuilding:
         return self._llm_task.approval_channel
 
     @approval_channel.setter
-    def approval_channel(self, value: ApprovalChannel | None):
+    def approval_channel(self, value: AnyApprovalChannel | None):
         """Replace the approval channel."""
         self._llm_task.approval_channel = value
 
@@ -186,7 +186,7 @@ class LLMTaskBuilding:
         """Register one or more hook factories on this task's hook manager.
 
         Each factory is applied immediately, receiving the `HookManager` so it
-        can call `manager.register(hook, events=[...])`.
+        can call `manager.add_hook(hook, events=[...])`.
 
         Isolation by default: a task starts on the shared global hook manager,
         but the first call here swaps in a fresh per-task `HookManager` so these
@@ -320,15 +320,12 @@ class LLMTaskBuilding:
         )
 
     def get_model_settings(self, ctx: AnyContext) -> ModelSettings | None:
-        """The task's model settings, falling back to the LLM config's."""
+        """The task's model settings, or None (pydantic-ai's own defaults apply)."""
         model_settings = self._llm_task.model_settings_attr
-        rendered_model_settings = get_attr(ctx, model_settings, None)
-        if rendered_model_settings is not None:
-            return rendered_model_settings
-        return self._llm_task.llm_config.model_settings
+        return get_attr(ctx, model_settings, None)
 
     def get_model(self, ctx: AnyContext) -> str | Model:
-        """The task's model, rendered against *ctx*, falling back to the config's.
+        """The task's model, rendered against *ctx*, falling back to `CFG.LLM_MODEL`.
 
         A blank render counts as unset, so an empty ``--model`` input does not
         shadow the configured model with an empty string.
@@ -337,5 +334,4 @@ class LLMTaskBuilding:
             ctx,
             self._llm_task.model_attr,
             self._llm_task.render_model,
-            self._llm_task.llm_config,
         )

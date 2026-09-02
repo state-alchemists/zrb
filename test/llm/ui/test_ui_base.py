@@ -10,13 +10,21 @@ def test_ui_public_methods(mock_ui_deps):
     # Test toggle_yolo
     # Test toggle_yolo
     assert (
-        not mock_ui_deps["ctx"].xcom.get(mock_ui_deps["yolo_xcom_key"], {}).get(False)
+        not mock_ui_deps["ctx"]
+        .xcom.get(mock_ui_deps["ui_config"].yolo_xcom_key, {})
+        .get(False)
     )
     ui.toggle_yolo()
-    assert mock_ui_deps["ctx"].xcom.get(mock_ui_deps["yolo_xcom_key"], {}).get(False)
+    assert (
+        mock_ui_deps["ctx"]
+        .xcom.get(mock_ui_deps["ui_config"].yolo_xcom_key, {})
+        .get(False)
+    )
     ui.toggle_yolo()
     assert (
-        not mock_ui_deps["ctx"].xcom.get(mock_ui_deps["yolo_xcom_key"], {}).get(False)
+        not mock_ui_deps["ctx"]
+        .xcom.get(mock_ui_deps["ui_config"].yolo_xcom_key, {})
+        .get(False)
     )
 
     # Test append_to_output

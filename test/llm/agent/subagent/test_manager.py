@@ -22,7 +22,7 @@ def test_sub_agent_manager_add_tool():
     )
     manager.add_agent(agent_def)
 
-    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create_agent:
+    with patch("zrb.llm.agent.subagent.building.create_agent") as mock_create_agent:
         manager.create_agent("test-agent")
         resolved_tools = mock_create_agent.call_args.kwargs["tools"]
         assert my_tool in resolved_tools
@@ -32,7 +32,37 @@ def test_sub_agent_manager_scan():
     manager = SubAgentManager()
     # Scan with empty list should not crash
     manager.scan([])
-    assert isinstance(manager.get_search_directories(), list)
+    assert isinstance(manager.search_dirs, list)
+
+
+def test_sub_agent_manager_search_dirs_override_and_default():
+    """`search_dirs` returns the explicit override when set, else the
+    computed defaults (R7 — the deleted `get_search_directories()` used to
+    be the only way to reach the latter)."""
+    manager = SubAgentManager()
+    assert manager.search_dirs != []  # computed defaults, non-empty
+
+    manager.search_dirs = ["/nonexistent"]
+    assert manager.search_dirs == ["/nonexistent"]
+
+    manager.search_dirs = None  # falls back to computed defaults again
+    assert manager.search_dirs != ["/nonexistent"]
+
+
+def test_sub_agent_manager_search_dirs_setter_invalidates_a_completed_scan(
+    tmp_path,
+):
+    agent_dir = tmp_path / "new-agent"
+    agent_dir.mkdir()
+    (agent_dir / "new-agent.agent.md").write_text(
+        "---\nname: new-agent\ndescription: d\n---\np"
+    )
+
+    manager = SubAgentManager(search_dirs=[])
+    assert manager.get_agents() == []  # scanned with no dirs to look in
+
+    manager.search_dirs = [str(tmp_path)]  # reassigning must trigger a rescan
+    assert any(a.name == "new-agent" for a in manager.get_agents())
 
 
 def test_sub_agent_manager_create_agent_config():
@@ -74,7 +104,7 @@ def test_sub_agent_manager_filter_delegate_tools():
     manager.add_agent(agent_def)
 
     # 4. Create the agent and check tools
-    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create_agent:
+    with patch("zrb.llm.agent.subagent.building.create_agent") as mock_create_agent:
         manager.create_agent("test-agent")
         mock_create_agent.assert_called_once()
         call_kwargs = mock_create_agent.call_args.kwargs
@@ -109,7 +139,7 @@ def test_sub_agent_manager_maps_bash_tool_to_shell():
     )
     manager.add_agent(agent_def)
 
-    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create_agent:
+    with patch("zrb.llm.agent.subagent.building.create_agent") as mock_create_agent:
         manager.create_agent("claude-agent")
         resolved_tools = mock_create_agent.call_args.kwargs["tools"]
         assert shell_tool in resolved_tools
@@ -136,7 +166,7 @@ def test_sub_agent_manager_maps_bash_disallowed_tool_to_shell():
     )
     manager.add_agent(agent_def)
 
-    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create_agent:
+    with patch("zrb.llm.agent.subagent.building.create_agent") as mock_create_agent:
         manager.create_agent("claude-agent")
         resolved_tools = mock_create_agent.call_args.kwargs["tools"]
         assert shell_tool not in resolved_tools
@@ -163,7 +193,7 @@ def test_sub_agent_manager_filter_delegate_tools_from_factory():
     )
     manager.add_agent(agent_def)
 
-    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create_agent:
+    with patch("zrb.llm.agent.subagent.building.create_agent") as mock_create_agent:
         manager.create_agent("test-agent")
         resolved_tools = mock_create_agent.call_args.kwargs["tools"]
         assert delegate_tool not in resolved_tools
@@ -232,7 +262,7 @@ def test_sub_agent_manager_add_toolset():
     agent_def = SubAgentDefinition("test", ".", "d", "p")
     manager.add_agent(agent_def)
 
-    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create:
+    with patch("zrb.llm.agent.subagent.building.create_agent") as mock_create:
         manager.create_agent("test")
         resolved_ts = mock_create.call_args.kwargs["toolsets"]
         assert ts in resolved_ts
@@ -247,7 +277,7 @@ def test_sub_agent_manager_add_toolset_factory():
     agent_def = SubAgentDefinition("test", ".", "d", "p")
     manager.add_agent(agent_def)
 
-    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create:
+    with patch("zrb.llm.agent.subagent.building.create_agent") as mock_create:
         manager.create_agent("test")
         resolved_ts = mock_create.call_args.kwargs["toolsets"]
         assert ts in resolved_ts
@@ -278,7 +308,7 @@ def test_sub_agent_manager_without_inherit_sections_skips_inheritance():
     )
     manager.add_agent(agent_def)
 
-    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create:
+    with patch("zrb.llm.agent.subagent.building.create_agent") as mock_create:
         manager.create_agent("standalone")
         prompt = mock_create.call_args.kwargs["system_prompt"]
     assert "You are a standalone agent. Do X." in prompt
@@ -299,7 +329,7 @@ def test_sub_agent_manager_inherit_sections_composes_parent_sections():
     )
     manager.add_agent(agent_def)
 
-    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create:
+    with patch("zrb.llm.agent.subagent.building.create_agent") as mock_create:
         manager.create_agent("inheriting")
         prompt = mock_create.call_args.kwargs["system_prompt"]
 
@@ -331,10 +361,10 @@ def test_sub_agent_manager_inherits_journal_index():
     journal_block = "<journal-index>\nProject Hub\n</journal-index>"
     with (
         patch(
-            "zrb.llm.agent.subagent.manager.render_journal_index",
+            "zrb.llm.agent.subagent.building.render_journal_index",
             return_value=journal_block,
         ),
-        patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create,
+        patch("zrb.llm.agent.subagent.building.create_agent") as mock_create,
     ):
         manager.create_agent("journaler")
         prompt = mock_create.call_args.kwargs["system_prompt"]
@@ -354,7 +384,7 @@ def test_sub_agent_manager_inherit_sections_empty_list_means_opt_out():
     )
     manager.add_agent(agent_def)
 
-    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create:
+    with patch("zrb.llm.agent.subagent.building.create_agent") as mock_create:
         manager.create_agent("optout")
         prompt = mock_create.call_args.kwargs["system_prompt"]
     assert "# Persona" not in prompt
@@ -435,9 +465,11 @@ def test_create_llm_chat_task_builds_task_from_resolved_persona():
     mock_task = MagicMock()
     with (
         patch("zrb.llm.task.chat.task.LLMChatTask", return_value=mock_task) as MockTask,
-        patch("zrb.llm.agent.subagent.manager.default_llm_config") as mock_llm_config,
+        patch(
+            "zrb.llm.agent.subagent.building.resolve_configured_model",
+            return_value="resolved-test-model",
+        ),
     ):
-        mock_llm_config.resolve_model.return_value = "resolved-test-model"
         result = manager.create_llm_chat_task("stub-researcher")
 
     assert result is mock_task
@@ -463,7 +495,7 @@ def test_common_tools_are_name_gated_for_sub_agents():
         )
     )
 
-    with patch("zrb.llm.agent.subagent.manager.create_agent") as mock_create_agent:
+    with patch("zrb.llm.agent.subagent.building.create_agent") as mock_create_agent:
         manager.create_agent("read-only")
         resolved_tools = mock_create_agent.call_args.kwargs["tools"]
 

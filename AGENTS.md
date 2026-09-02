@@ -88,6 +88,9 @@ Lives under `docs/`: `changelog.md` (index), `changelog-v2/` (per-minor files, e
 
 ## Development Conventions
 
+> New here? Start at [Which pattern do I reach for?](docs/advanced-topics/which-pattern.md).
+> The enforced rule list is [Framework Conventions](docs/advanced-topics/framework-conventions.md) (R1–R12). Cite rule numbers in review.
+
 ### Code Style
 
 - Follow existing project conventions (formatting, naming, typing).

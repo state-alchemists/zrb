@@ -17,7 +17,7 @@ from zrb.config.env_field import (
 from zrb.util.string.conversion import to_boolean
 
 
-class ConfigLLMSearch:
+class LLMSearchMixin:
     if TYPE_CHECKING:
         # Attributes supplied by sibling mixins on the composed Config class.
         ENV_PREFIX: str  # FoundationMixin

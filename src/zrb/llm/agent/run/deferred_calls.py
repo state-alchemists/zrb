@@ -29,7 +29,7 @@ from zrb.llm.agent.run.hook_result_extractor import (
     extract_permission_decision,
     extract_pre_tool_decision,
 )
-from zrb.llm.approval.approval_channel import ApprovalContext
+from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission import ASK
@@ -38,12 +38,12 @@ from zrb.llm.tool_call.always_approve import is_always_auto_approve
 from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.tool_call.override_registry import discard_override, record_override
-from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 if TYPE_CHECKING:
     from pydantic_ai import DeferredToolRequests, DeferredToolResults
 
-    from zrb.llm.approval.approval_channel import ApprovalChannel
+    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.ui.any_ui import AnyUI
 
 
 def _as_tool_input(args: Any) -> Any:
@@ -90,9 +90,9 @@ def _record_override_if_edited(call, result: Any) -> None:
 async def process_deferred_requests(
     result_output: "DeferredToolRequests",
     effective_tool_confirmation: Any,
-    ui: UIProtocol,
+    ui: AnyUI,
     hook_manager: HookManager,
-    approval_channel: "ApprovalChannel | None" = None,
+    approval_channel: "AnyApprovalChannel | None" = None,
 ) -> "DeferredToolResults | None":
     """Run approval flow for each deferred call. Returns None if there are no requests."""
     # lazy: heavy third-party
@@ -206,9 +206,9 @@ def rebuild_for_denials(
 
 async def _resolve_approval(
     call,
-    ui: UIProtocol,
+    ui: AnyUI,
     effective_tool_confirmation: Any,
-    approval_channel: "ApprovalChannel | None",
+    approval_channel: "AnyApprovalChannel | None",
     hook_manager: "HookManager | None" = None,
     force_ask: bool = False,
 ):
