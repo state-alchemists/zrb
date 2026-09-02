@@ -59,7 +59,10 @@ async def git_pull_subtree(ctx: AnyContext) -> None:
     repo_dir = await get_repo_dir(print_method=ctx.print)
     config = load_config(repo_dir)
     if not config.data:
-        raise ValueError("No subtree config found")
+        raise ValueError(
+            f"No subtrees.json in {repo_dir!r}. Run "
+            "`zrb git-subtree add` to register one before pulling/pushing it."
+        )
     first_err: Exception | None = None
     for name, detail in config.data.items():
         try:
@@ -91,7 +94,10 @@ async def git_push_subtree(ctx: AnyContext) -> None:
     repo_dir = await get_repo_dir(print_method=ctx.print)
     config = load_config(repo_dir)
     if not config.data:
-        raise ValueError("No subtree config found")
+        raise ValueError(
+            f"No subtrees.json in {repo_dir!r}. Run "
+            "`zrb git-subtree add` to register one before pulling/pushing it."
+        )
     first_err: Exception | None = None
     for name, detail in config.data.items():
         try:

@@ -171,7 +171,7 @@ async def test_git_pull_subtree_no_config(
         # Get the task object
         pull_subtree_task = git_subtree_module.git_pull_subtree
 
-        with pytest.raises(ValueError, match="No subtree config found"):
+        with pytest.raises(ValueError, match="No subtrees.json"):
             await pull_subtree_task.async_run(session=session)
 
         # Ensure upstream git_commit was called
@@ -306,7 +306,7 @@ async def test_git_push_subtree_no_config(
         # Get the task object
         push_subtree_task = git_subtree_module.git_push_subtree
 
-        with pytest.raises(ValueError, match="No subtree config found"):
+        with pytest.raises(ValueError, match="No subtrees.json"):
             await push_subtree_task.async_run(session=session)
 
         # Ensure upstream git_commit was called

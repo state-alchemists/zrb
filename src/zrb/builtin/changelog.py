@@ -101,7 +101,10 @@ async def _matching_tags(ctx, repo_dir, sort, regex):
         print_method=lambda *_: None,
     )
     if code != 0:
-        raise Exception(f"git tag failed with exit code {code}")
+        raise RuntimeError(
+            f"`git tag` exited {code}. Check that the tag does not already exist "
+            f"and that the working tree is clean."
+        )
     # splitlines(), not split("\n"): run_command yields CRLF, and a trailing
     # \r both breaks the `$`-anchored regex and produces "ambiguous argument"
     # if it leaks into a `tag..tag` range.

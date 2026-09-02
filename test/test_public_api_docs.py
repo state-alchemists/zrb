@@ -31,7 +31,20 @@ EXPORTED_CLASSES = sorted(
 EXPORTED_DATACLASSES = sorted(
     name for name in EXPORTED_CLASSES if dataclasses.is_dataclass(getattr(zrb, name))
 )
-EXPORTED_NON_DATACLASSES = sorted(set(EXPORTED_CLASSES) - set(EXPORTED_DATACLASSES))
+# A Protocol's `__init__` is `typing`'s own `_no_init_or_replace_init`
+# ((*args, **kwargs)), injected into every Protocol subclass's __dict__ — not
+# something an author wrote or could document meaningfully. Protocols cannot
+# even be instantiated (`AnyUI()` raises `TypeError: Protocols cannot be
+# instantiated`), so "does the constructor document the parameters it adds"
+# does not apply. Excluded the same way EXPORTED_DATACLASSES is.
+EXPORTED_PROTOCOLS = sorted(
+    name
+    for name in EXPORTED_CLASSES
+    if getattr(getattr(zrb, name), "_is_protocol", False)
+)
+EXPORTED_NON_DATACLASSES = sorted(
+    set(EXPORTED_CLASSES) - set(EXPORTED_DATACLASSES) - set(EXPORTED_PROTOCOLS)
+)
 
 
 def _defines_init(cls: type) -> bool:

@@ -146,7 +146,7 @@ async def test_generate_changelog_raises_on_tag_failure(session, tmp_path):
             "zrb.builtin.changelog.run_command",
             new=_run_command_factory("", tag_code=1),
         ),
-        pytest.raises(Exception, match="git tag failed"),
+        pytest.raises(RuntimeError, match="`git tag` exited"),
     ):
         await changelog_module.generate_changelog.async_run(
             session=session, kwargs={"dir": str(tmp_path / "cl")}

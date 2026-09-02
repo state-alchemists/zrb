@@ -6,6 +6,21 @@ Getting Zrb set up is straightforward, but it offers a few powerful options depe
 
 ---
 
+## Table of Contents
+
+- [🚀 Quick Start](#quick-start)
+- [Which Method Should I Choose?](#which-method-should-i-choose)
+- [1. Standard Installation Methods](#1-standard-installation-methods)
+- [2. Advanced Installation Methods](#2-advanced-installation-methods)
+- [3. Verify Installation](#3-verify-installation)
+- [4. Shell Autocomplete](#4-shell-autocomplete)
+- [5. Upgrade Zrb](#5-upgrade-zrb)
+- [6. Uninstall Zrb](#6-uninstall-zrb)
+- [7. Troubleshooting](#7-troubleshooting)
+- [8. General Configuration](#8-general-configuration)
+
+---
+
 ## 🚀 Quick Start
 
 **Already have Python installed? Get started in seconds:**

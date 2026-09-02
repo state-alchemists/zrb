@@ -8,16 +8,17 @@ from typing import TYPE_CHECKING, Any, TextIO
 if TYPE_CHECKING:
     from zrb.llm.agent.types import RequestUsage, RunUsage
 
-    from zrb.llm.tool_call.ui_protocol import ChoiceSpec
+    from zrb.llm.ui.any_ui import ChoiceSpec
 
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
-from zrb.llm.approval.approval_channel import ApprovalContext
+from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.permission.state import (
     AgentMode,
     get_current_agent_mode,
     set_current_agent_mode,
 )
+from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.base.message_queue import MessageQueue, submit_user_message_via_queue
 from zrb.session.session import Session
 from zrb.util.cli.markdown import render_markdown
@@ -26,10 +27,10 @@ from zrb.util.cli.style import stylize_muted
 logger = logging.getLogger(__name__)
 
 
-class MultiUI:
+class MultiUI(AnyUI):
     """UI wrapper that broadcasts output to multiple UIs and waits for first response.
 
-    This class implements UIProtocol and delegates to multiple child UIs:
+    This class implements AnyUI and delegates to multiple child UIs:
     - Output is broadcast to ALL child UIs
     - Input waits for FIRST response from ANY child UI
     - All child UIs share a SINGLE message queue (shared state)
@@ -526,7 +527,11 @@ class MultiUI:
         if self._uis and hasattr(self._uis[0], "tool_call_handler"):
             return await self._uis[0].tool_call_handler.handle(self, call)
 
-        raise RuntimeError("No UI available for tool confirmation")
+        raise RuntimeError(
+            "MultiUI has no attached UI and no approval channel that can "
+            "confirm this tool call — construct it with at least one UI, or "
+            "call set_approval_channel(...) before running."
+        )
 
     def submit_user_message(self, llm_task: Any, user_message: str):
         """Submit user message to shared queue.

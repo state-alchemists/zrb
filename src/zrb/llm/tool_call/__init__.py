@@ -19,7 +19,6 @@ from zrb.llm.tool_call.tool_policy.bash_validation import bash_safe_command_poli
 from zrb.llm.tool_call.tool_policy.read_file_validation import (
     read_file_validation_policy,
 )
-from zrb.llm.tool_call.ui_protocol import UIProtocol
 
 # NOTE: `replace_in_file_validation_policy` is NOT re-exported here (unlike its
 # sibling policies) — it's the one tool_policy module that reaches into
@@ -39,7 +38,6 @@ __all__ = [
     "ArgumentFormatter",
     "ResponseHandler",
     "ToolPolicy",
-    "UIProtocol",
     "default_response_handler",
     "replace_in_file_response_handler",
     "replace_in_file_formatter",

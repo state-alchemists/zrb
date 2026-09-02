@@ -139,7 +139,7 @@ Tool approval flow:
 - If `current_yolo` is `True` (or the tool is in the selective YOLO set), the tool runs immediately.
 - Otherwise the call goes through `current_tool_confirmation` (terminal) or `current_approval_channel` (remote). For HTTP chat, `MultiplexApprovalChannel` lets the SSE backend handle the prompt.
 
-UI streaming uses `prompt_toolkit` for the default TUI; HTTP chat uses SSE. Both implement the same `UIProtocol`. See `src/zrb/llm/ui/base/ui.py` for the contract; [llm-custom-ui.md](./llm-custom-ui.md) for authoring.
+UI streaming uses `prompt_toolkit` for the default TUI; HTTP chat uses SSE. Both implement the same `AnyUI`. See `src/zrb/llm/ui/base/ui.py` for the contract; [llm-custom-ui.md](./llm-custom-ui.md) for authoring.
 
 Hook events fire at well-defined points (USER_PROMPT_SUBMIT, PRE_TOOL_USE, POST_TOOL_USE, POST_TOOL_USE_FAILURE, NOTIFICATION, SESSION_START, SESSION_END, …). See [hooks.md](./hooks.md) for the full event list and authoring patterns.
 

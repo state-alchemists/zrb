@@ -58,7 +58,7 @@ def notify(message: str) -> None:
     Without this, a fetch/search is a silent black box between the tool-call
     start line and its (up to ~60s away, Playwright + HTTP-fallback timeouts
     stacked) result — indistinguishable from a hang to the user. Uses
-    ``stream_to_parent`` (part of ``UIProtocol``, already implemented by every
+    ``stream_to_parent`` (part of ``AnyUI``, already implemented by every
     UI including ``BufferedUI`` for sub-agents) so it reaches the activity
     panel too. A missing/incompatible UI, or any failure here, must never
     break the actual fetch — this is a courtesy message, not the result.

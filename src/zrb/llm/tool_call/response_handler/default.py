@@ -5,18 +5,18 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable
 from zrb.context.any_context import zrb_print
 from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.handler import MAX_DENIAL_REASON_CHARS
-from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.util.truncate import truncate_chars
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolApproved, ToolCallPart, ToolDenied
+    from zrb.llm.ui.any_ui import AnyUI
 
 
 async def default_response_handler(
-    ui: UIProtocol,
+    ui: AnyUI,
     call: ToolCallPart,
     user_response: str,
-    next_handler: Callable[[UIProtocol, ToolCallPart, str], Awaitable[Any]],
+    next_handler: Callable[[AnyUI, ToolCallPart, str], Awaitable[Any]],
 ) -> ToolApproved | ToolDenied | None:
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ToolApproved, ToolDenied

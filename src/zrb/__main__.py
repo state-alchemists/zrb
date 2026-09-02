@@ -24,12 +24,17 @@ class FaintFormatter(logging.Formatter):
         return stylize_muted(log_msg)
 
 
-def _load_or_die(label: str, load: "Callable[[], Any]") -> None:
-    """Load one init module/script, or report it precisely and exit non-zero.
+def _load_or_warn(label: str, load: "Callable[[], Any]") -> None:
+    """Load one init module/script, or report it precisely and move on.
 
-    A partially applied config is worse than no config: the symptom shows up
-    somewhere unrelated. So a failure here is fatal, and the message carries
-    the file, the line and the exception type the user needs.
+    The error is never hidden — file, line, and exception type always print
+    to stderr — but it is not fatal. A broken init source only ran up to its
+    own failure point; whatever it already did (a `CFG` assignment, a task
+    registration) before raising stays in effect, and whatever comes after
+    that point in the same source is skipped. Startup continues with the
+    next init source and then the CLI itself, since a user who can see the
+    error and still run zrb can fix it and rerun, while a user who can't run
+    zrb at all has a strictly worse time diagnosing the same error.
     """
     try:
         load()
@@ -45,7 +50,6 @@ def _load_or_die(label: str, load: "Callable[[], Any]") -> None:
             ),
             file=sys.stderr,
         )
-        sys.exit(1)
 
 
 def serve_cli():
@@ -59,7 +63,7 @@ def serve_cli():
     try:
         for init_module in CFG.INIT_MODULES:
             CFG.LOGGER.info(f"Loading {init_module}")
-            _load_or_die(
+            _load_or_warn(
                 f"init module {init_module}", lambda m=init_module: load_module(m)
             )
         zrb_init_path_list = get_init_path_list()
@@ -67,13 +71,13 @@ def serve_cli():
             abs_init_script = os.path.abspath(os.path.expanduser(init_script))
             if abs_init_script not in zrb_init_path_list:
                 CFG.LOGGER.info(f"Loading {abs_init_script}")
-                _load_or_die(
+                _load_or_warn(
                     f"init script {abs_init_script}",
                     lambda p=abs_init_script: load_file(p, raise_on_error=True),
                 )
         for zrb_init_path in zrb_init_path_list:
             CFG.LOGGER.info(f"Loading {zrb_init_path}")
-            _load_or_die(
+            _load_or_warn(
                 f"{zrb_init_path}",
                 lambda p=zrb_init_path: load_file(p, raise_on_error=True),
             )

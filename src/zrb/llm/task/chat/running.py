@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.task.llm_task import LLMTask
-    from zrb.llm.tool_call.ui_protocol import UIProtocol
+    from zrb.llm.ui.any_ui import AnyUI
 
 
 class ChatRunning:
@@ -181,7 +181,7 @@ class ChatRunning:
 
         # Note: AsyncExitStack is handled by LLMTask._exec_action
         # 1. Resolve UIs from factories
-        resolved_uis: list["UIProtocol"] = list(self._llm_chat_task.uis)
+        resolved_uis: list["AnyUI"] = list(self._llm_chat_task.uis)
         for factory in self._llm_chat_task.ui_factories:
             factory_ui = factory(
                 ctx=ctx,
@@ -221,8 +221,6 @@ class ChatRunning:
             self.load_session_history(ui, history_manager, initial_conversation_name)
 
         # 5. Run the UI
-        if ui is None:
-            raise ValueError("No UI available")
         if isinstance(ui, BaseUI) or hasattr(ui, "run_async"):
             await ui.run_async()
         else:
@@ -303,9 +301,9 @@ class ChatRunning:
 
     def _resolve_ui(
         self,
-        resolved_uis: "list[UIProtocol]",
+        resolved_uis: "list[AnyUI]",
         default_kwargs: dict[str, Any],
-    ) -> "UIProtocol":
+    ) -> "AnyUI":
         """Determine the UI to use: factory-only, combined, or default-only."""
         # lazy: zrb.llm.ui.default.ui and zrb.llm.ui.multi_ui transitively
         # load prompt_toolkit, pydantic_ai, pdfplumber and vosk.
@@ -351,7 +349,7 @@ class ChatRunning:
 
     def load_session_history(
         self,
-        ui: "UIProtocol",
+        ui: "AnyUI",
         history_manager: "AnyHistoryManager",
         conversation_name: str,
     ) -> None:

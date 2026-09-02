@@ -61,10 +61,10 @@ if TYPE_CHECKING:
         ToolFuncEither,
         UserContent,
     )
-    from zrb.llm.approval.approval_channel import ApprovalChannel
+    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
     from zrb.llm.permission import PermissionPolicyInput
     from zrb.llm.sandbox import SandboxInput
-    from zrb.llm.tool_call.ui_protocol import UIProtocol
+    from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.ui.ui_config import UIConfig
 
 
@@ -144,7 +144,7 @@ class LLMChatTask(BaseTask):
         permissions: "PermissionPolicyInput" = None,
         sandbox: "SandboxInput | BoolAttr" = None,
         yolo: BoolAttr = False,
-        ui: UIProtocol | None = None,
+        ui: AnyUI | None = None,
         ui_factory: (
             Callable[
                 [
@@ -157,11 +157,11 @@ class LLMChatTask(BaseTask):
                     bool,
                     list[UserContent],
                 ],
-                UIProtocol,
+                AnyUI,
             ]
             | None
         ) = None,
-        approval_channel: ApprovalChannel | None = None,
+        approval_channel: AnyApprovalChannel | None = None,
         ui_config: "UIConfig | None" = None,
         custom_commands: (
             list[
@@ -364,13 +364,13 @@ class LLMChatTask(BaseTask):
         self._render_conversation_name = render_conversation_name
         self._history_manager = history_manager
         self._tool_confirmation = tool_confirmation
-        self._uis: list["UIProtocol"] = []
+        self._uis: list["AnyUI"] = []
         if ui is not None:
             self._uis.append(ui)
-        self._ui_factories: list[Callable[..., "UIProtocol"]] = []
+        self._ui_factories: list[Callable[..., "AnyUI"]] = []
         if ui_factory is not None:
             self._ui_factories.append(ui_factory)
-        self._approval_channels: list["ApprovalChannel"] = []
+        self._approval_channels: list["AnyApprovalChannel"] = []
         if approval_channel is not None:
             self._approval_channels.append(approval_channel)
         self._permissions = permissions
@@ -431,33 +431,33 @@ class LLMChatTask(BaseTask):
 
     # UIs (ordered) -----------------------------------------------------------
 
-    def append_ui(self, ui: "UIProtocol") -> None:
+    def append_ui(self, ui: "AnyUI") -> None:
         """Append a UI, keeping those already attached."""
         self._uis.append(ui)
 
-    def prepend_ui(self, ui: "UIProtocol") -> None:
+    def prepend_ui(self, ui: "AnyUI") -> None:
         """Attach *ui* ahead of those already attached."""
         self._uis.insert(0, ui)
 
-    def set_uis(self, uis: "list[UIProtocol]") -> None:
+    def set_uis(self, uis: "list[AnyUI]") -> None:
         """Replace every attached UI wholesale."""
         self._uis = list(uis)
 
-    def remove_ui(self, ui: "UIProtocol") -> None:
+    def remove_ui(self, ui: "AnyUI") -> None:
         """Detach *ui*. A no-op if it is not attached."""
         _remove_first(self._uis, ui)
 
     # UI factories (ordered) ---------------------------------------------------
 
-    def append_ui_factory(self, factory: "Callable[..., UIProtocol]") -> None:
+    def append_ui_factory(self, factory: "Callable[..., AnyUI]") -> None:
         """Append a factory building a UI once the run's context is known."""
         self._ui_factories.append(factory)
 
-    def prepend_ui_factory(self, factory: "Callable[..., UIProtocol]") -> None:
+    def prepend_ui_factory(self, factory: "Callable[..., AnyUI]") -> None:
         """Add *factory* ahead of those already registered."""
         self._ui_factories.insert(0, factory)
 
-    def remove_ui_factory(self, factory: "Callable[..., UIProtocol]") -> None:
+    def remove_ui_factory(self, factory: "Callable[..., AnyUI]") -> None:
         """Drop *factory*. A no-op if it is not registered."""
         _remove_first(self._ui_factories, factory)
 
@@ -473,15 +473,15 @@ class LLMChatTask(BaseTask):
 
     # Approval channels (ordered) -----------------------------------------------
 
-    def append_approval_channel(self, channel: "ApprovalChannel") -> None:
+    def append_approval_channel(self, channel: "AnyApprovalChannel") -> None:
         """Append an approval channel to the list."""
         self._approval_channels.append(channel)
 
-    def prepend_approval_channel(self, channel: "ApprovalChannel") -> None:
+    def prepend_approval_channel(self, channel: "AnyApprovalChannel") -> None:
         """Add *channel* ahead of those already registered."""
         self._approval_channels.insert(0, channel)
 
-    def remove_approval_channel(self, channel: "ApprovalChannel") -> None:
+    def remove_approval_channel(self, channel: "AnyApprovalChannel") -> None:
         """Drop *channel*. A no-op if it is not registered."""
         _remove_first(self._approval_channels, channel)
 
@@ -837,22 +837,22 @@ class LLMChatTask(BaseTask):
         )
 
     @property
-    def ui_factories(self) -> "list[Callable[..., UIProtocol]]":
+    def ui_factories(self) -> "list[Callable[..., AnyUI]]":
         """Get the UI factories."""
         return self._ui_factories
 
     @ui_factories.setter
-    def ui_factories(self, value: "list[Callable[..., UIProtocol]]") -> None:
+    def ui_factories(self, value: "list[Callable[..., AnyUI]]") -> None:
         """Set the UI factories."""
         self._ui_factories = value
 
     @property
-    def approval_channels(self) -> "list[ApprovalChannel]":
+    def approval_channels(self) -> "list[AnyApprovalChannel]":
         """Get the approval channels."""
         return self._approval_channels
 
     @approval_channels.setter
-    def approval_channels(self, value: "list[ApprovalChannel]") -> None:
+    def approval_channels(self, value: "list[AnyApprovalChannel]") -> None:
         """Set the approval channels."""
         self._approval_channels = value
 
@@ -867,7 +867,7 @@ class LLMChatTask(BaseTask):
         self._include_default_ui = value
 
     @property
-    def uis(self) -> "list[UIProtocol]":
+    def uis(self) -> "list[AnyUI]":
         """The UI protocol(s) attached so far."""
         return self._uis
 
@@ -1139,7 +1139,7 @@ class LLMChatTask(BaseTask):
         return self._execution.get_model(ctx)
 
     def get_ui_conversation_name(
-        self, ui: "UIProtocol", initial_conversation_name: str
+        self, ui: "AnyUI", initial_conversation_name: str
     ) -> str:
         """Get the current conversation name from UI or fallback to initial name."""
         return self._execution.get_ui_conversation_name(ui, initial_conversation_name)

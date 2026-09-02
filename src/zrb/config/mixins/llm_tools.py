@@ -5,7 +5,7 @@ from __future__ import annotations
 from zrb.config.env_field import EnvField, comma_join, comma_list
 
 
-class ConfigLLMTools:
+class LLMToolsMixin:
     def __init__(self):
         self.DEFAULT_LLM_TOOLS: str = ""
         super().__init__()

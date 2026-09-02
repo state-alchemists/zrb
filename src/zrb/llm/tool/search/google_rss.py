@@ -11,6 +11,9 @@ def search_internet(query: str, page: int = 1) -> dict:
     # lazy: heavy third-party
     import requests
 
+    # lazy: transitively heavy via internal — http_errors.py imports requests
+    from zrb.llm.tool.search.http_errors import SearchToolError
+
     url = (
         f"https://news.google.com/rss/search"
         f"?q={quote_plus(query)}&hl=en-US&gl=US&ceid=US:en"
@@ -22,14 +25,14 @@ def search_internet(query: str, page: int = 1) -> dict:
             timeout=10,
         )
     except requests.exceptions.ConnectionError as e:
-        raise Exception(
+        raise SearchToolError(
             "Error: Unable to connect to Google News RSS. Connection refused. "
             "[SYSTEM SUGGESTION]: This is likely a transient network issue or a "
             "firewall blocking news.google.com. Retry the search, or try a "
             "different search backend."
         ) from e
     except requests.exceptions.Timeout as e:
-        raise Exception(
+        raise SearchToolError(
             "Error: Connection to Google News RSS timed out. "
             "[SYSTEM SUGGESTION]: This is likely a transient network issue. Retry "
             "the search, or try a different search backend."

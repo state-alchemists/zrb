@@ -7,14 +7,14 @@ import pytest
 from pydantic_ai import ToolApproved, ToolDenied
 
 from zrb.llm.approval import (
-    ApprovalChannel,
+    AnyApprovalChannel,
     ApprovalContext,
     ApprovalResult,
     NullApprovalChannel,
     TerminalApprovalChannel,
     current_approval_channel,
 )
-from zrb.llm.tool_call.ui_protocol import UIProtocol
+from zrb.llm.ui.any_ui import AnyUI
 
 
 class TestApprovalContext:
@@ -134,7 +134,7 @@ class TestTerminalApprovalChannel:
     @pytest.mark.asyncio
     async def test_terminal_channel_approves_on_yes(self):
         """Test that TerminalApprovalChannel approves when UI returns 'y'."""
-        mock_ui = MagicMock(spec=UIProtocol)
+        mock_ui = MagicMock(spec=AnyUI)
         mock_ui.ask_user = AsyncMock(return_value="y")
         mock_ui.append_to_output = MagicMock()
 
@@ -153,7 +153,7 @@ class TestTerminalApprovalChannel:
     @pytest.mark.asyncio
     async def test_terminal_channel_denies_on_no(self):
         """Test that TerminalApprovalChannel denies when UI returns 'n'."""
-        mock_ui = MagicMock(spec=UIProtocol)
+        mock_ui = MagicMock(spec=AnyUI)
         mock_ui.ask_user = AsyncMock(return_value="n")
         mock_ui.append_to_output = MagicMock()
 
@@ -172,7 +172,7 @@ class TestTerminalApprovalChannel:
     @pytest.mark.asyncio
     async def test_terminal_channel_empty_response_approves(self):
         """Test that TerminalApprovalChannel approves on empty response."""
-        mock_ui = MagicMock(spec=UIProtocol)
+        mock_ui = MagicMock(spec=AnyUI)
         mock_ui.ask_user = AsyncMock(return_value="")
         mock_ui.append_to_output = MagicMock()
 
@@ -190,7 +190,7 @@ class TestTerminalApprovalChannel:
     @pytest.mark.asyncio
     async def test_terminal_channel_uses_notify(self):
         """Test that TerminalApprovalChannel uses UI for notifications."""
-        mock_ui = MagicMock(spec=UIProtocol)
+        mock_ui = MagicMock(spec=AnyUI)
         mock_ui.ask_user = AsyncMock(return_value="y")
 
         channel = TerminalApprovalChannel(ui=mock_ui)
@@ -215,7 +215,7 @@ class TestCurrentApprovalChannelContextVar:
     @pytest.mark.asyncio
     async def test_set_and_get_context_var(self):
         """Test setting and getting the approval channel context."""
-        mock_channel = MagicMock(spec=ApprovalChannel)
+        mock_channel = MagicMock(spec=AnyApprovalChannel)
 
         token = current_approval_channel.set(mock_channel)
         try:
@@ -226,7 +226,7 @@ class TestCurrentApprovalChannelContextVar:
     @pytest.mark.asyncio
     async def test_context_var_propagation(self):
         """Test that context var can be propagated to nested contexts."""
-        mock_channel = MagicMock(spec=ApprovalChannel)
+        mock_channel = MagicMock(spec=AnyApprovalChannel)
 
         async def inner():
             return current_approval_channel.get()
@@ -240,11 +240,11 @@ class TestCurrentApprovalChannelContextVar:
 
 
 class TestApprovalChannelProtocol:
-    """Tests for ApprovalChannel protocol compliance."""
+    """Tests for AnyApprovalChannel protocol compliance."""
 
     def test_terminal_channel_implements_protocol(self):
-        """Test that TerminalApprovalChannel implements ApprovalChannel protocol."""
-        mock_ui = MagicMock(spec=UIProtocol)
+        """Test that TerminalApprovalChannel implements AnyApprovalChannel protocol."""
+        mock_ui = MagicMock(spec=AnyUI)
         channel = TerminalApprovalChannel(ui=mock_ui)
 
         # Check protocol methods exist
@@ -254,7 +254,7 @@ class TestApprovalChannelProtocol:
         assert callable(channel.notify)
 
     def test_null_channel_implements_protocol(self):
-        """Test that NullApprovalChannel implements ApprovalChannel protocol."""
+        """Test that NullApprovalChannel implements AnyApprovalChannel protocol."""
         channel = NullApprovalChannel()
 
         # Check protocol methods exist
@@ -274,7 +274,7 @@ class TestIntegrationWithRunAgent:
         from zrb.llm.config.limiter import LLMLimiter
 
         # Create a mock channel
-        mock_channel = MagicMock(spec=ApprovalChannel)
+        mock_channel = MagicMock(spec=AnyApprovalChannel)
         mock_channel.request_approval = AsyncMock(
             return_value=ApprovalResult(approved=True, message="Test approval")
         )
@@ -302,7 +302,7 @@ class TestApprovalChannelInLLMTask:
         """Test that LLMTask accepts approval_channel parameter."""
         from zrb.llm.task.llm_task import LLMTask
 
-        mock_channel = MagicMock(spec=ApprovalChannel)
+        mock_channel = MagicMock(spec=AnyApprovalChannel)
 
         task = LLMTask(
             name="test_task",
@@ -319,7 +319,7 @@ class TestApprovalChannelInLLMTask:
 
         assert task.approval_channel is None
 
-        mock_channel = MagicMock(spec=ApprovalChannel)
+        mock_channel = MagicMock(spec=AnyApprovalChannel)
         task.approval_channel = mock_channel
 
         assert task.approval_channel is mock_channel
@@ -329,7 +329,7 @@ class TestApprovalChannelInLLMTask:
 @pytest.fixture
 def mock_ui():
     """Create a mock UI for testing."""
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     ui.ask_user = AsyncMock(return_value="y")
     return ui
 
@@ -351,7 +351,7 @@ class TestTerminalApprovalChannelWithHandler:
     @pytest.mark.asyncio
     async def test_uses_ui_handler_with_formatters(self):
         """Test that TerminalApprovalChannel uses UI's _tool_call_handler when available."""
-        mock_ui = MagicMock(spec=UIProtocol)
+        mock_ui = MagicMock(spec=AnyUI)
         mock_ui.ask_user = AsyncMock(return_value="y")
         mock_ui.append_to_output = MagicMock()
 
@@ -377,7 +377,7 @@ class TestTerminalApprovalChannelWithHandler:
     @pytest.mark.asyncio
     async def test_edit_response_triggers_response_handler_chain(self):
         """Test that 'e' response triggers response handler chain."""
-        mock_ui = MagicMock(spec=UIProtocol)
+        mock_ui = MagicMock(spec=AnyUI)
         mock_ui.ask_user = AsyncMock(return_value="e")
         mock_ui.append_to_output = MagicMock()
         mock_ui.run_interactive_command = AsyncMock()
@@ -408,7 +408,7 @@ class TestTerminalApprovalChannelWithHandler:
     @pytest.mark.asyncio
     async def test_unknown_response_denies(self):
         """Test that unknown response denies the tool."""
-        mock_ui = MagicMock(spec=UIProtocol)
+        mock_ui = MagicMock(spec=AnyUI)
         mock_ui.ask_user = AsyncMock(return_value="unknown")
         mock_ui.append_to_output = MagicMock()
 
@@ -427,7 +427,7 @@ class TestTerminalApprovalChannelWithHandler:
     @pytest.mark.asyncio
     async def test_notify_calls_ui_append_to_output(self):
         """Test that notify method uses UI's append_to_output."""
-        mock_ui = MagicMock(spec=UIProtocol)
+        mock_ui = MagicMock(spec=AnyUI)
         mock_ui.append_to_output = MagicMock()
 
         channel = TerminalApprovalChannel(ui=mock_ui)
@@ -444,7 +444,7 @@ class TestTerminalApprovalChannelWithHandler:
     @pytest.mark.asyncio
     async def test_edit_response_falls_back_to_handle_edit(self):
         """Test that 'e' response falls back to _handle_edit when no handler."""
-        mock_ui = MagicMock(spec=UIProtocol)
+        mock_ui = MagicMock(spec=AnyUI)
         mock_ui.ask_user = AsyncMock(return_value="e")
         mock_ui.append_to_output = MagicMock()
         mock_ui.run_interactive_command = AsyncMock(return_value=0)
@@ -466,7 +466,7 @@ class TestMultiplexApprovalChannel:
     @pytest.fixture
     def mock_channel(self):
         """Create a mock approval channel."""
-        channel = MagicMock(spec=ApprovalChannel)
+        channel = MagicMock(spec=AnyApprovalChannel)
         channel.request_approval = AsyncMock(
             return_value=ApprovalResult(approved=True, message="Approved")
         )
@@ -476,7 +476,7 @@ class TestMultiplexApprovalChannel:
     @pytest.fixture
     def deny_channel(self):
         """Create a mock approval channel that denies."""
-        channel = MagicMock(spec=ApprovalChannel)
+        channel = MagicMock(spec=AnyApprovalChannel)
         channel.request_approval = AsyncMock(
             return_value=ApprovalResult(approved=False, message="Denied")
         )
@@ -600,10 +600,10 @@ class TestMultiplexApprovalChannel:
         async def working_channel(ctx):
             return ApprovalResult(approved=True, message="Working")
 
-        failing_mock = MagicMock(spec=ApprovalChannel)
+        failing_mock = MagicMock(spec=AnyApprovalChannel)
         failing_mock.request_approval = failing_channel
 
-        working_mock = MagicMock(spec=ApprovalChannel)
+        working_mock = MagicMock(spec=AnyApprovalChannel)
         working_mock.request_approval = working_channel
 
         channel = MultiplexApprovalChannel([failing_mock, working_mock])
@@ -635,9 +635,9 @@ class TestMultiplexApprovalChannel:
             await asyncio.sleep(0.05)
             return ApprovalResult(approved=True, message="Human approved")
 
-        broken = MagicMock(spec=ApprovalChannel)
+        broken = MagicMock(spec=AnyApprovalChannel)
         broken.request_approval = broken_channel
-        human = MagicMock(spec=ApprovalChannel)
+        human = MagicMock(spec=AnyApprovalChannel)
         human.request_approval = human_channel
 
         channel = MultiplexApprovalChannel([broken, human])
@@ -660,9 +660,9 @@ class TestMultiplexApprovalChannel:
         async def broken_channel(ctx):
             raise Exception("bad token")
 
-        broken1 = MagicMock(spec=ApprovalChannel)
+        broken1 = MagicMock(spec=AnyApprovalChannel)
         broken1.request_approval = broken_channel
-        broken2 = MagicMock(spec=ApprovalChannel)
+        broken2 = MagicMock(spec=AnyApprovalChannel)
         broken2.request_approval = broken_channel
 
         channel = MultiplexApprovalChannel([broken1, broken2])
@@ -704,7 +704,7 @@ class TestMultiplexApprovalChannel:
 
         mock_channel.notify = failing_notify
 
-        deny_channel = MagicMock(spec=ApprovalChannel)
+        deny_channel = MagicMock(spec=AnyApprovalChannel)
 
         async def working_notify(msg, ctx):
             return None
@@ -736,7 +736,7 @@ class TestMultiplexApprovalChannel:
         try:
             setattr(sys, "zrb_shutdown_requested", True)
 
-            mock_channel = MagicMock(spec=ApprovalChannel)
+            mock_channel = MagicMock(spec=AnyApprovalChannel)
             mock_channel.request_approval = AsyncMock(
                 return_value=ApprovalResult(approved=True, message="Approved")
             )
@@ -769,7 +769,7 @@ class TestMultiplexApprovalChannel:
         try:
             setattr(sys, "zrb_shutdown_requested", True)
 
-            mock_channel = MagicMock(spec=ApprovalChannel)
+            mock_channel = MagicMock(spec=AnyApprovalChannel)
             mock_channel.notify = AsyncMock()
 
             channel = MultiplexApprovalChannel([mock_channel])
@@ -812,7 +812,7 @@ class TestMultiplexApprovalChannel:
             await asyncio.sleep(10)  # Would block forever
             return ApprovalResult(approved=True, message="Never")
 
-        mock_channel = MagicMock(spec=ApprovalChannel)
+        mock_channel = MagicMock(spec=AnyApprovalChannel)
         mock_channel.request_approval = slow_channel
 
         channel = MultiplexApprovalChannel([mock_channel])
@@ -878,7 +878,7 @@ class TestResolveApprovalChannel:
             resolve_approval_channel,
         )
 
-        channel = MagicMock(spec=ApprovalChannel)
+        channel = MagicMock(spec=AnyApprovalChannel)
         assert resolve_approval_channel([channel]) is channel
 
     @pytest.mark.asyncio
@@ -888,9 +888,9 @@ class TestResolveApprovalChannel:
             resolve_approval_channel,
         )
 
-        channel_a = MagicMock(spec=ApprovalChannel)
+        channel_a = MagicMock(spec=AnyApprovalChannel)
         channel_a.notify = AsyncMock(return_value=None)
-        channel_b = MagicMock(spec=ApprovalChannel)
+        channel_b = MagicMock(spec=AnyApprovalChannel)
         channel_b.notify = AsyncMock(return_value=None)
         result = resolve_approval_channel([channel_a, channel_b])
 

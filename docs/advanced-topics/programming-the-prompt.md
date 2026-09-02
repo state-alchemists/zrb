@@ -6,6 +6,24 @@ Both `LLMTask` and `LLMChatTask` are "just" tasks, and everything the model read
 
 You climb the ladder only as far as your problem requires. Every rung is a superset of the one below it, so nothing you learn early is wasted.
 
+---
+
+## Table of Contents
+
+- [The one mental model: message vs. system prompt](#the-one-mental-model-message-vs-system-prompt)
+- [The ladder at a glance](#the-ladder-at-a-glance)
+- [Rung 1 — a plain string](#rung-1-a-plain-string)
+- [Rung 2 — a template (inject data with `{ }`)](#rung-2-a-template-inject-data-with)
+- [Rung 3 — a callable](#rung-3-a-callable)
+- [Rung 4 — the system prompt](#rung-4-the-system-prompt)
+- [Rung 5 — composing sections with `PromptManager`](#rung-5-composing-sections-with-promptmanager)
+- [Rung 6 — sections that reflect live state](#rung-6-sections-that-reflect-live-state)
+- [Rung 7 — file-backed sections and profiles](#rung-7-file-backed-sections-and-profiles)
+- [Which rung should I use?](#which-rung-should-i-use)
+- [See also](#see-also)
+
+---
+
 ## The one mental model: message vs. system prompt
 
 Before the ladder, the distinction that everything else hangs on:

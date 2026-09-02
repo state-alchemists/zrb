@@ -10,6 +10,7 @@
     "AnyInput",
     "AnySharedContext",
     "AnyTask",
+    "AnyUI",
     "BaseInput",
     "BaseTask",
     "BaseTrigger",
@@ -225,6 +226,17 @@
         "successors",
         "to_function",
         "upstreams"
+      ]
+    },
+    "AnyUI": {
+      "init": [],
+      "members": [
+        "append_to_output",
+        "ask_user",
+        "ask_user_choice",
+        "run_async",
+        "run_interactive_command",
+        "stream_to_parent"
       ]
     },
     "BaseInput": {

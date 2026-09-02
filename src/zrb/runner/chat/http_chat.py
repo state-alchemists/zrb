@@ -3,8 +3,8 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.llm.approval.approval_channel import (
-    ApprovalChannel,
+from zrb.llm.approval.any_approval_channel import (
+    AnyApprovalChannel,
     ApprovalContext,
     ApprovalResult,
 )
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
 
-class HTTPChatApprovalChannel(ApprovalChannel):
+class HTTPChatApprovalChannel(AnyApprovalChannel):
     def __init__(self, session_manager: "ChatSessionManager", session_id: str):
         self.session_manager = session_manager
         self.session_id = session_id

@@ -3,7 +3,7 @@ from typing import Any
 import requests
 
 from zrb.config.config import CFG
-from zrb.llm.tool.search.http_errors import raise_http_error
+from zrb.llm.tool.search.http_errors import SearchToolError, raise_http_error
 
 
 def search_internet(
@@ -25,7 +25,7 @@ def search_internet(
     effective_api_key = api_key or CFG.SERPAPI_KEY
 
     if not effective_api_key:
-        raise Exception(
+        raise SearchToolError(
             "Error: SerpApi key not configured. "
             "[SYSTEM SUGGESTION]: Ask the user to provide their SerpApi key. Pass it via the 'api_key' parameter in your next search_internet call."
         )

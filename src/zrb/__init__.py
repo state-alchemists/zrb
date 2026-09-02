@@ -88,6 +88,7 @@ from zrb.llm.task.chat.task import LLMChatTask
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool.registry import ToolRegistry, tool_registry
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
+from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.util.capabilities import model_capabilities
 
 # --- Runner (CLI + web schemas) ------------------------------------------
@@ -215,6 +216,7 @@ __all__ = [
     "prompt_registry",
     "ToolRegistry",
     "tool_registry",
+    "AnyUI",
     "model_capabilities",
     "register_theme",
     "register_always_auto_approve",
