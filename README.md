@@ -321,6 +321,7 @@ All task types available in Zrb, from basic to advanced.
 - [Claude Code Compatibility](docs/advanced-topics/claude-compatibility.md)
 
 ### IV. Advanced Topics
+- [Which pattern do I reach for?](docs/advanced-topics/which-pattern.md) — lookup table for the pattern zrb expects when adding new code
 - [Architecture & Conventions](docs/advanced-topics/architecture.md) — for maintainers and contributors
 - [Web UI Guide](docs/advanced-topics/web-ui.md)
 - [White-labeling: Create a Custom CLI](docs/advanced-topics/white-labeling.md)
