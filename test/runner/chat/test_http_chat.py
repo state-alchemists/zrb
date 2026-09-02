@@ -112,7 +112,7 @@ class TestHTTPChatApprovalChannelWithData:
 
     @pytest.mark.asyncio
     async def test_pending_approvals_lifecycle(self, mock_session_manager):
-        from zrb.llm.approval.approval_channel import ApprovalContext
+        from zrb.llm.approval.any_approval_channel import ApprovalContext
         from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 
         channel = HTTPChatApprovalChannel(
@@ -157,7 +157,7 @@ class TestHTTPChatApprovalChannelMore:
 
     @pytest.mark.asyncio
     async def test_request_approval_and_cancel(self, channel):
-        from zrb.llm.approval.approval_channel import ApprovalContext
+        from zrb.llm.approval.any_approval_channel import ApprovalContext
 
         ctx = ApprovalContext("tool1", {"k": "v"}, "id1")
 
@@ -182,7 +182,7 @@ class TestHTTPChatApprovalChannelMore:
 
     @pytest.mark.asyncio
     async def test_handle_edit_response(self, channel):
-        from zrb.llm.approval.approval_channel import ApprovalContext
+        from zrb.llm.approval.any_approval_channel import ApprovalContext
 
         ctx = ApprovalContext("tool", {}, "id1")
         task = asyncio.create_task(channel.request_approval(ctx))
@@ -202,7 +202,7 @@ class TestHTTPChatApprovalChannelMore:
 
     @pytest.mark.asyncio
     async def test_handle_edit_response_obj(self, channel):
-        from zrb.llm.approval.approval_channel import ApprovalContext
+        from zrb.llm.approval.any_approval_channel import ApprovalContext
 
         ctx = ApprovalContext("tool", {}, "id1")
         task = asyncio.create_task(channel.request_approval(ctx))
@@ -219,7 +219,7 @@ class TestHTTPChatApprovalChannelMore:
     @pytest.mark.asyncio
     async def test_handle_response_deny(self, channel):
         """`n` triggers the deny branch and broadcasts a [DENIED] message."""
-        from zrb.llm.approval.approval_channel import ApprovalContext
+        from zrb.llm.approval.any_approval_channel import ApprovalContext
 
         ctx = ApprovalContext("tool", {}, "id1")
         task = asyncio.create_task(channel.request_approval(ctx))
@@ -233,7 +233,7 @@ class TestHTTPChatApprovalChannelMore:
     @pytest.mark.asyncio
     async def test_handle_response_unknown_treated_as_deny(self, channel):
         """Unknown responses are denied with the raw text included."""
-        from zrb.llm.approval.approval_channel import ApprovalContext
+        from zrb.llm.approval.any_approval_channel import ApprovalContext
 
         ctx = ApprovalContext("tool", {}, "id1")
         task = asyncio.create_task(channel.request_approval(ctx))
@@ -247,7 +247,7 @@ class TestHTTPChatApprovalChannelMore:
     @pytest.mark.asyncio
     async def test_handle_response_non_string_type(self, channel):
         """Non-string responses are rejected with an [ERROR] broadcast."""
-        from zrb.llm.approval.approval_channel import ApprovalContext
+        from zrb.llm.approval.any_approval_channel import ApprovalContext
 
         ctx = ApprovalContext("tool", {}, "id1")
         task = asyncio.create_task(channel.request_approval(ctx))
@@ -262,7 +262,7 @@ class TestHTTPChatApprovalChannelMore:
     @pytest.mark.asyncio
     async def test_handle_response_fallback_when_one_pending(self, channel):
         """When exactly one approval is pending, omitting tool_call_id still applies."""
-        from zrb.llm.approval.approval_channel import ApprovalContext
+        from zrb.llm.approval.any_approval_channel import ApprovalContext
 
         ctx = ApprovalContext("tool", {}, "id1")
         task = asyncio.create_task(channel.request_approval(ctx))
@@ -276,7 +276,7 @@ class TestHTTPChatApprovalChannelMore:
     @pytest.mark.asyncio
     async def test_handle_edit_response_invalid_format(self, channel):
         """Garbage edit content denies the call with an [Invalid format] message."""
-        from zrb.llm.approval.approval_channel import ApprovalContext
+        from zrb.llm.approval.any_approval_channel import ApprovalContext
 
         ctx = ApprovalContext("tool", {}, "id1")
         task = asyncio.create_task(channel.request_approval(ctx))
@@ -290,7 +290,7 @@ class TestHTTPChatApprovalChannelMore:
     @pytest.mark.asyncio
     async def test_parse_edited_content_via_yaml(self, channel):
         """Edit content that is valid YAML (but not JSON) parses through the yaml path."""
-        from zrb.llm.approval.approval_channel import ApprovalContext
+        from zrb.llm.approval.any_approval_channel import ApprovalContext
 
         ctx = ApprovalContext("tool", {}, "id1")
         task = asyncio.create_task(channel.request_approval(ctx))
@@ -305,7 +305,7 @@ class TestHTTPChatApprovalChannelMore:
     @pytest.mark.asyncio
     async def test_parse_edited_content_strips_code_fence(self, channel):
         """Edit content wrapped in ``` fences still parses."""
-        from zrb.llm.approval.approval_channel import ApprovalContext
+        from zrb.llm.approval.any_approval_channel import ApprovalContext
 
         ctx = ApprovalContext("tool", {}, "id1")
         task = asyncio.create_task(channel.request_approval(ctx))
@@ -318,7 +318,7 @@ class TestHTTPChatApprovalChannelMore:
 
     def test_get_editing_args_returns_args_when_waiting(self, mock_session_manager):
         """get_editing_args surfaces the pending args once edit mode is active."""
-        from zrb.llm.approval.approval_channel import ApprovalContext
+        from zrb.llm.approval.any_approval_channel import ApprovalContext
         from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 
         ch = HTTPChatApprovalChannel(mock_session_manager, "s")
@@ -365,7 +365,7 @@ class TestHTTPChatApprovalChannelEditModeRecovery:
         return HTTPChatApprovalChannel(mock_session_manager, "sess1")
 
     async def _start_edit_mode(self, channel, tool_call_id):
-        from zrb.llm.approval.approval_channel import ApprovalContext
+        from zrb.llm.approval.any_approval_channel import ApprovalContext
 
         ctx = ApprovalContext("Write", {"path": "a.txt"}, tool_call_id)
         task = asyncio.create_task(channel.request_approval(ctx))
@@ -387,7 +387,7 @@ class TestHTTPChatApprovalChannelEditModeRecovery:
 
     @pytest.mark.asyncio
     async def test_next_approval_answered_after_cancel_during_edit(self, channel):
-        from zrb.llm.approval.approval_channel import ApprovalContext
+        from zrb.llm.approval.any_approval_channel import ApprovalContext
 
         cancelled = await self._start_edit_mode(channel, "call-1")
         cancelled.cancel()
@@ -406,7 +406,7 @@ class TestHTTPChatApprovalChannelEditModeRecovery:
     @pytest.mark.asyncio
     async def test_stale_edit_slot_falls_through_to_pending_approval(self, channel):
         """A stale slot must not swallow the answer meant for a live call."""
-        from zrb.llm.approval.approval_channel import ApprovalContext
+        from zrb.llm.approval.any_approval_channel import ApprovalContext
 
         task = await self._start_edit_mode(channel, "call-1")
         # Drop the future the way cancellation does, but leave the slot set.
@@ -437,7 +437,7 @@ class TestHTTPChatApprovalChannelEditModeRecovery:
     @pytest.mark.asyncio
     async def test_broadcast_tasks_are_retained_until_complete(self, channel):
         """Broadcasts must hold a strong ref so the loop cannot GC them."""
-        from zrb.llm.approval.approval_channel import ApprovalContext
+        from zrb.llm.approval.any_approval_channel import ApprovalContext
 
         ctx = ApprovalContext("Bash", {"cmd": "ls"}, "call-1")
         task = asyncio.create_task(channel.request_approval(ctx))

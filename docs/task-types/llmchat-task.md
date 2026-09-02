@@ -71,7 +71,7 @@ chat = LLMChatTask(
     # Hooks — see Hook System, below
     hook_manager: HookManager | None = None,
     # UI & identity
-    ui: UIProtocol | None = None,
+    ui: AnyUI | None = None,
     ui_factory: Callable | None = None,
     include_default_ui: bool = True,
     interactive: BoolAttr = True,

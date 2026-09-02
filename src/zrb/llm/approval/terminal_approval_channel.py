@@ -1,24 +1,26 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.llm.approval.approval_channel import ApprovalContext, ApprovalResult
+from zrb.llm.approval.any_approval_channel import ApprovalContext, ApprovalResult
 from zrb.llm.tool_call.edit_util import edit_content_via_editor
 from zrb.llm.tool_call.handler import ToolCallHandler
-from zrb.llm.tool_call.ui_protocol import UIProtocol
+
+if TYPE_CHECKING:
+    from zrb.llm.ui.any_ui import AnyUI
 
 
 class TerminalApprovalChannel:
     """Default approval channel using terminal input.
 
-    This wraps the existing UIProtocol.ask_user() pattern for backward
-    compatibility while conforming to the ApprovalChannel protocol.
+    This wraps the existing AnyUI.ask_user() pattern for backward
+    compatibility while conforming to the AnyApprovalChannel protocol.
     """
 
-    def __init__(self, ui: "UIProtocol"):
-        """Initialize with a UIProtocol instance.
+    def __init__(self, ui: "AnyUI"):
+        """Initialize with an AnyUI instance.
 
         Args:
             ui: The UI to use for terminal interaction.

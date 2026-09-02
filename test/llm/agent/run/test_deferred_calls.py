@@ -11,7 +11,7 @@ from zrb.llm.hook.executor import HookExecutionResult
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.tool_call.handler import ToolCallHandler
-from zrb.llm.tool_call.ui_protocol import UIProtocol
+from zrb.llm.ui.any_ui import AnyUI
 
 
 # Mock pydantic_ai classes
@@ -44,7 +44,7 @@ def mock_pydantic_ai_imports():
 
 @pytest.mark.asyncio
 async def test_process_deferred_requests_empty():
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     result_output = MagicMock()
     result_output.calls = []
@@ -56,7 +56,7 @@ async def test_process_deferred_requests_empty():
 
 @pytest.mark.asyncio
 async def test_process_deferred_requests_approved_by_policy():
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -94,7 +94,7 @@ async def test_process_deferred_requests_approved_by_policy():
 @pytest.mark.asyncio
 async def test_process_deferred_requests_denied_by_hook():
     """A PreToolUse hook with permissionDecision="deny" cancels the call."""
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_result = HookExecutionResult(
         success=True,
@@ -122,7 +122,7 @@ async def test_process_deferred_requests_denied_by_hook():
 async def test_process_deferred_requests_allowed_by_hook():
     """A PreToolUse hook with permissionDecision="allow" skips the approval
     cascade entirely (the tool handler is never consulted)."""
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_result = HookExecutionResult(success=True, permission_decision="allow")
     hook_manager.execute_hooks = AsyncMock(return_value=[hook_result])
@@ -150,7 +150,7 @@ async def test_process_deferred_requests_allowed_by_hook():
 @pytest.mark.asyncio
 async def test_process_deferred_requests_modified_by_hook():
     """A PreToolUse hook with updatedInput rewrites the tool arguments."""
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_result = HookExecutionResult(success=True, updated_input={"arg1": "modified"})
     hook_manager.execute_hooks = AsyncMock(side_effect=[[hook_result], []])
@@ -178,7 +178,7 @@ async def test_process_deferred_requests_modified_by_hook():
 
 @pytest.mark.asyncio
 async def test_process_deferred_requests_approval_channel():
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -219,7 +219,7 @@ def _permission_request_calls(hook_manager):
 async def test_permission_request_fired_when_user_is_prompted():
     """Reaching an interactive approval (here, the approval channel) fires
     PermissionRequest so input-required hooks/sounds ring."""
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -250,7 +250,7 @@ async def test_permission_request_fired_when_user_is_prompted():
 async def test_permission_request_not_fired_when_auto_approved():
     """An auto-approved call (tool policy) never prompts, so PermissionRequest
     must NOT fire — no false "needs approval" ding."""
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -282,7 +282,7 @@ def _route_execute_hooks(mapping):
 async def test_permission_request_hook_auto_allows():
     """A PermissionRequest hook returning decision.behavior="allow" approves the
     call without consulting the interactive approval channel."""
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     allow = HookExecutionResult(
         success=True, hook_specific_output={"decision": {"behavior": "allow"}}
@@ -315,7 +315,7 @@ async def test_permission_request_hook_auto_allows():
 async def test_permission_request_hook_auto_denies():
     """A PermissionRequest hook returning decision.behavior="deny" denies the
     call without consulting the interactive approval channel."""
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     deny = HookExecutionResult(
         success=True, hook_specific_output={"decision": {"behavior": "deny"}}
@@ -350,7 +350,7 @@ async def test_permission_request_not_fired_when_auto_approved_via_bound_method(
     When the underlying handler auto-approves, PermissionRequest must NOT fire
     even though effective_tool_confirmation is a bound method, not a
     ToolCallHandler directly."""
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -385,7 +385,7 @@ async def test_permission_request_not_fired_when_auto_approved_via_bound_method(
 
 @pytest.mark.asyncio
 async def test_process_deferred_requests_cli_fallback_handler():
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -413,7 +413,7 @@ async def test_process_deferred_requests_cli_fallback_handler():
 
 @pytest.mark.asyncio
 async def test_process_deferred_requests_cli_fallback_callable():
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -449,7 +449,7 @@ async def test_process_deferred_requests_always_auto_approve_bypasses_handler():
 
     register_always_auto_approve("MyInteractiveTool")
 
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -524,7 +524,7 @@ def test_rebuild_for_denials_discards_overrides_for_cleared_calls():
 
 @pytest.mark.asyncio
 async def test_process_deferred_requests_denied_removes_from_calls():
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -573,7 +573,7 @@ async def test_noninteractive_exit_plan_mode_is_auto_approved():
     """Non-interactive + hard-ASK on ExitPlanMode auto-approves instead of
     blocking on a stdin prompt no one can answer. The plan gate is a no-op
     without a user to read the plan. See ADR-0062."""
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -613,7 +613,7 @@ async def test_noninteractive_other_ask_tool_is_denied():
     """Non-interactive + hard-ASK on a non-plan tool denies rather than running
     it unattended (preserving the hard-ASK safety design) or blocking forever.
     See ADR-0062."""
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -649,7 +649,7 @@ async def test_noninteractive_other_ask_tool_is_denied():
 async def test_pretooluse_ask_forces_prompt_over_auto_approve():
     """A PreToolUse hook returning permissionDecision="ask" forces the interactive
     prompt even when a tool policy would otherwise auto-approve the call."""
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     ask = HookExecutionResult(success=True, permission_decision="ask")
     hook_manager.execute_hooks = _route_execute_hooks({HookEvent.PRE_TOOL_USE: [ask]})
@@ -688,7 +688,7 @@ async def test_pretooluse_ask_forces_prompt_over_auto_approve():
 async def test_pretooluse_hook_with_invalid_json_string_args():
     """_as_tool_input: when call.args is a non-JSON string, it is passed to the
     hook unchanged (lines 54-55)."""
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -723,7 +723,7 @@ async def test_pretooluse_hook_with_invalid_json_string_args():
 async def test_hook_deny_removes_preexisting_call_entry():
     """A PreToolUse deny drops a matching entry from current_results.calls
     (line 108)."""
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_result = HookExecutionResult(
         success=True, permission_decision="deny", permission_decision_reason="no"
@@ -757,7 +757,7 @@ async def test_hook_deny_removes_preexisting_call_entry():
 async def test_policy_deny_removes_preexisting_call_entry():
     """A cascade DENY drops a matching entry from current_results.calls
     (line 134)."""
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -793,7 +793,7 @@ async def test_permission_policy_allow_auto_approves():
     240-250), including coercing string args to a dict."""
     from zrb.llm.permission import ALLOW
 
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -825,7 +825,7 @@ async def test_permission_policy_deny_blocks():
     """Priority 2: a permission policy returning DENY blocks (lines 251-255)."""
     from zrb.llm.permission import DENY
 
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -856,7 +856,7 @@ async def test_permission_policy_deny_blocks():
 async def test_yolo_auto_approves_with_no_policy_opinion():
     """Priority 3: YOLO=True auto-approves when no policy has an opinion (lines
     289-291)."""
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -894,7 +894,7 @@ async def test_yolo_auto_approves_with_no_policy_opinion():
 async def test_approval_channel_with_invalid_json_string_args():
     """Priority 4: a non-JSON string args value yields empty tool_args on the
     ApprovalContext (lines 330-331)."""
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -932,7 +932,7 @@ async def test_approval_channel_with_invalid_json_string_args():
 async def test_no_approval_mechanism_with_hard_ask_denies():
     """Fallthrough: hard-ASK policy with no approval channel and no CLI
     confirmation denies rather than silently approving (lines 359-364)."""
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -965,7 +965,7 @@ async def test_no_approval_mechanism_with_hard_ask_denies():
 async def test_no_approval_mechanism_without_ask_returns_none():
     """Fallthrough: no policy opinion and no approval mechanism returns None,
     which becomes the approval result for the call (line 366)."""
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -996,7 +996,7 @@ async def test_no_approval_mechanism_without_ask_returns_none():
 async def test_interactive_exit_plan_mode_still_prompts():
     """Interactive mode must NOT short-circuit the plan gate: ExitPlanMode's
     ASK still flows to the CLI confirmation handler so the user can approve."""
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -1036,7 +1036,7 @@ async def test_edited_approval_records_override_note_for_execution():
     (override_registry, see docs/adr/adr-0085.md)."""
     from zrb.llm.tool_call.override_registry import pop_override_note
 
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -1071,7 +1071,7 @@ async def test_unedited_approval_does_not_record_override_note():
     """override_args left unset (approved as-is) must not touch the registry."""
     from zrb.llm.tool_call.override_registry import pop_override_note
 
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 
@@ -1103,7 +1103,7 @@ async def test_edited_approval_with_unparseable_original_args_still_records_note
     even without a clean "before" baseline to diff against."""
     from zrb.llm.tool_call.override_registry import pop_override_note
 
-    ui = MagicMock(spec=UIProtocol)
+    ui = MagicMock(spec=AnyUI)
     hook_manager = MagicMock(spec=HookManager)
     hook_manager.execute_hooks = AsyncMock(return_value=[])
 

@@ -4,7 +4,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from zrb.cmd.cmd_val import AnyCmdVal, Cmd, CmdPath
+from zrb.cmd.any_cmd_val import AnyCmdVal
+from zrb.cmd.cmd_val import Cmd, CmdPath
 from zrb.context.context import Context
 
 

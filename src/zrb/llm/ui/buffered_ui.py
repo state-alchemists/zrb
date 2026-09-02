@@ -1,4 +1,4 @@
-"""A `UIProtocol` that buffers its output instead of writing it through.
+"""An `AnyUI` that buffers its output instead of writing it through.
 
 Used when several sub-agents run in parallel: each gets one of these, so their
 interleaved output is collected and flushed as a block rather than shredded
@@ -15,21 +15,21 @@ import asyncio
 from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.llm.agent.activity import agent_activity_registry
-from zrb.llm.tool_call.ui_protocol import UIProtocol
+from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.output_chunk import CollapsibleBlockSource, merge_output_chunk
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import RequestUsage, RunUsage
-    from zrb.llm.tool_call.ui_protocol import ChoiceSpec
+    from zrb.llm.ui.any_ui import ChoiceSpec
 
 
-class BufferedUI(UIProtocol):
+class BufferedUI(AnyUI):
     """UI wrapper that buffers all output and forwards asks to parent sequentially."""
 
     def __init__(
         self,
-        wrapped_ui: UIProtocol,
+        wrapped_ui: AnyUI,
         prefix: str = "",
         shared_lock: asyncio.Lock | None = None,
         session_id: str = "",
@@ -75,7 +75,7 @@ class BufferedUI(UIProtocol):
         return self._prefix.strip()
 
     @property
-    def parent_ui(self) -> UIProtocol:
+    def parent_ui(self) -> AnyUI:
         """The UI this buffer flushes to (the parent agent's UI).
 
         Public counterpart of the ``wrapped_ui`` constructor argument, so the

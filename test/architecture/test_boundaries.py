@@ -1,4 +1,4 @@
-"""Locks in two conventions AGENTS.md documents but nothing previously
+"""Locks in three conventions AGENTS.md documents but nothing previously
 enforced mechanically, repo-wide:
 
 1. A part reaches its owner or a sibling only through a public property or
@@ -10,6 +10,12 @@ enforced mechanically, repo-wide:
    agent/tool/permission/history/hook machinery, builtins, ...) is consumed
    by both the CLI and the web runner, so it cannot depend on either's
    framework.
+3. Every extension point (an ABC or Protocol a user implements to plug into
+   zrb) is `Any<Thing>` in `any_<thing>.py` — R9. `AnyTask`, `AnyInput`,
+   `AnyUI`, `AnyApprovalChannel`, ... are the pattern; a capability-check
+   Protocol used only for a local `isinstance` probe, or a callback-signature
+   Protocol, is not an extension point (see `EXTENSION_POINT_EXCEPTIONS` and
+   `_is_callable_only_protocol`).
 
 Verified clean against the whole tree before being turned into a test: rule 1
 trips on exactly 3 legitimate patterns (`super()` delegation, the singleton
@@ -21,6 +27,7 @@ the private-name check itself, that's the whole point of the rule.
 """
 
 import ast
+import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parents[2]
@@ -35,6 +42,27 @@ MONKEYPATCH_EXCEPTIONS = {
 # Directories that ARE the presentation layer, exempt from rule 2.
 FRAMEWORK_EXEMPT_DIRS = ("llm/ui", "llm/app", "runner", "input")
 FORBIDDEN_IMPORT_PREFIXES = ("fastapi", "starlette", "prompt_toolkit")
+
+# One-off, by-name exceptions to rule 3 (R9) — see
+# test_every_extension_point_is_named_any_thing_in_any_thing_py's docstring.
+# Each is a @runtime_checkable Protocol used for a local isinstance-based
+# capability check on an ad-hoc object, never exposed as a settable/
+# constructor slot type on any public object — the "structural annotation,
+# not an extension point" case the ratchet's own design doc calls out. Keep
+# this short; if it grows past three, the rule is wrong, not the exemptions.
+EXTENSION_POINT_EXCEPTIONS = {
+    # apply_common_tools's minimal duck-typed host requirement — no public
+    # object exposes a "host: CommonToolHost" slot.
+    "CommonToolHost",
+    # llm/agent/spill.py's payload store — only LocalFileStore implements it
+    # today, and default_spill_store is a hardcoded module singleton with no
+    # public way to swap it yet (dead extensibility, like the old
+    # LLMConfig.model_settings Phase 6 found and deleted).
+    "OverflowStore",
+    # run_agent_task's isinstance check for "can this UI feed the activity
+    # panel" — a capability probe, not a slot any task/UI constructor takes.
+    "HasActivityTracking",
+}
 
 
 def _iter_py_files():
@@ -140,3 +168,78 @@ def test_business_logic_stays_free_of_presentation_frameworks():
         if found:
             offenders[rel] = found
     assert not offenders, f"Framework import found in business logic: {offenders}"
+
+
+def _base_name(node: ast.expr) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    return None
+
+
+def _is_extension_point(node: ast.ClassDef) -> bool:
+    """An ABC or a `Protocol`, by direct base name (or `metaclass=ABCMeta`).
+
+    Syntactic, not semantic: it does not resolve imports or walk the MRO, so
+    a class that is *transitively* an ABC through a non-ABC-named parent
+    (`AnyContext(AnySharedContext)`) is not caught here — matching the scope
+    of this check everywhere else in the file (single-file AST parse, no
+    cross-module resolution).
+    """
+    for base in node.bases:
+        if _base_name(base) in ("ABC", "Protocol"):
+            return True
+    return any(
+        kw.arg == "metaclass" and _base_name(kw.value) == "ABCMeta"
+        for kw in node.keywords
+    )
+
+
+def _is_callable_only_protocol(node: ast.ClassDef) -> bool:
+    """A `Protocol` whose only member is `__call__` types a function
+    signature (a callback shape), not an object with swappable behavior —
+    the plan's "file-like or callback signature" exemption case, encoded as
+    a rule rather than a per-name exception since any future callback
+    Protocol is the same shape."""
+    methods = [
+        n.name
+        for n in node.body
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+    ]
+    return methods == ["__call__"]
+
+
+def _snake(name: str) -> str:
+    s1 = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", name)
+    return re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
+
+
+def test_every_extension_point_is_named_any_thing_in_any_thing_py():
+    """R9. An ABC/Protocol that names a slot on a public object — the thing a
+    user implements to plug into zrb — is `Any<Thing>` in `any_<thing>.py`,
+    matching `AnyTask`, `AnyInput`, `AnyUI`, `AnyApprovalChannel`, etc. Two
+    kinds of Protocol are not extension points and are excluded rather than
+    flagged: a callback-signature Protocol (`_is_callable_only_protocol`) and
+    the three named, commented cases in `EXTENSION_POINT_EXCEPTIONS`.
+    """
+    offenders = []
+    for path in _iter_py_files():
+        tree = ast.parse(path.read_text(), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef) or not _is_extension_point(node):
+                continue
+            if (
+                _is_callable_only_protocol(node)
+                or node.name in EXTENSION_POINT_EXCEPTIONS
+            ):
+                continue
+            expected_file = f"any_{_snake(node.name.removeprefix('Any'))}.py"
+            if not node.name.startswith("Any") or path.name != expected_file:
+                offenders.append(
+                    f"{path.relative_to(SRC)}:{node.lineno} {node.name}"
+                )
+    assert not offenders, (
+        "Extension point(s) not named Any<Thing> in any_<thing>.py (R9): "
+        f"{offenders}"
+    )

@@ -3,9 +3,9 @@ that can't render an interactive picker (`BaseUI.ask_user_choice` in
 `ui/base/ui.py`) and by `AskUserQuestion`'s own duck-typed-UI fallback in
 `tool/ask.py`.
 
-Depends only on `ChoiceSpec`'s shape (`tool_call/ui_protocol.py`, which
-itself has zero `zrb.llm.*` imports), so both sides can import this at
-module scope without needing the other.
+Depends only on `ChoiceSpec`'s shape (`ui/any_ui.py`, which itself has zero
+`zrb.llm.*` imports), so both sides can import this at module scope without
+needing the other.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from zrb.llm.tool_call.ui_protocol import ChoiceSpec
+    from zrb.llm.ui.any_ui import ChoiceSpec
 
 
 def format_choice_spec(spec: "ChoiceSpec | dict[str, Any]") -> str:

@@ -83,7 +83,7 @@ if TYPE_CHECKING:
         UserContent,
     )
     from zrb.llm.task.llm_task import LLMTask
-    from zrb.llm.tool_call.ui_protocol import ChoiceSpec
+    from zrb.llm.ui.any_ui import ChoiceSpec
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +138,7 @@ class BaseUI:
 
     Extension Levels:
         ┌─────────────────────────────────────────────────────────────────┐
-        │ Level 0: UIProtocol (minimal, 4 methods)                        │
+        │ Level 0: AnyUI (minimal, 4 methods)                        │
         │         - For tool confirmations only                           │
         ├─────────────────────────────────────────────────────────────────┤
         │ Level 1: BaseUI (base class for full implementations)           │

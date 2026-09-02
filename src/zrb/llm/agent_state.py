@@ -30,18 +30,16 @@ from __future__ import annotations
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias
 
-from zrb.llm.approval.approval_channel import (
-    ApprovalChannel,
-    current_approval_channel,
-)
+from zrb.llm.approval.approval_channel import current_approval_channel
 
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
 
     from zrb.llm.agent.types import ToolApproved, ToolCallPart, ToolDenied
+    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
     from zrb.llm.hook.manager import HookManager
     from zrb.llm.tool_call.handler import ToolCallHandler
-    from zrb.llm.tool_call.ui_protocol import UIProtocol
+    from zrb.llm.ui.any_ui import AnyUI
 
     AnyToolConfirmation: TypeAlias = (
         Callable[
@@ -54,7 +52,7 @@ if TYPE_CHECKING:
 else:
     AnyToolConfirmation: TypeAlias = Any
 
-current_ui: ContextVar["UIProtocol | None"] = ContextVar("current_ui", default=None)
+current_ui: ContextVar["AnyUI | None"] = ContextVar("current_ui", default=None)
 current_tool_confirmation: ContextVar[AnyToolConfirmation] = ContextVar(
     "current_tool_confirmation", default=None
 )
@@ -95,7 +93,7 @@ current_multimodal_model: ContextVar["str | Model | None"] = ContextVar(
 )
 
 
-def get_current_ui() -> "UIProtocol | None":
+def get_current_ui() -> "AnyUI | None":
     """Return the UI active for the current agent run, or None if unset."""
     return current_ui.get()
 
@@ -110,7 +108,7 @@ def get_current_yolo() -> bool:
     return current_yolo.get()
 
 
-def get_current_approval_channel() -> "ApprovalChannel | None":
+def get_current_approval_channel() -> "AnyApprovalChannel | None":
     """Return the approval channel active for the current agent run, or None."""
     return current_approval_channel.get()
 

@@ -9,7 +9,7 @@ from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.registry import PromptRegistry
 from zrb.llm.task.chat.execution import parse_yolo_value
 from zrb.llm.task.chat.task import LLMChatTask
-from zrb.llm.tool_call.ui_protocol import UIProtocol
+from zrb.llm.ui.any_ui import AnyUI
 from zrb.session.session import Session
 
 
@@ -290,7 +290,7 @@ def test_llm_chat_task_set_uis():
     task = LLMChatTask(name="test-task")
 
     # Set UI programmatically
-    mock_ui = MagicMock(spec=UIProtocol)
+    mock_ui = MagicMock(spec=AnyUI)
     task.set_uis([mock_ui])
 
     assert task.uis == [mock_ui]
@@ -302,7 +302,7 @@ def test_llm_chat_task_ui_factories_property():
 
     # Set UI factory programmatically
     def mock_factory(*args, **kwargs):
-        return MagicMock(spec=UIProtocol)
+        return MagicMock(spec=AnyUI)
 
     task.ui_factories = [mock_factory]
 
@@ -415,7 +415,7 @@ def test_llm_chat_task_init_with_approval_channel():
 
 def test_llm_chat_task_init_with_ui():
     """Test that LLMChatTask accepts ui parameter."""
-    mock_ui = MagicMock(spec=UIProtocol)
+    mock_ui = MagicMock(spec=AnyUI)
     task = LLMChatTask(name="test-task", ui=mock_ui)
 
     # Verify initialization works - behavior tested through async_run

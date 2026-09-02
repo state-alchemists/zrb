@@ -305,7 +305,7 @@ Holds the active `Context` for the currently executing task. Set at the start of
 
 | Variable | Type | Purpose |
 |---|---|---|
-| `current_ui` | `UIProtocol \| None` | Active UI for output and user interaction |
+| `current_ui` | `AnyUI \| None` | Active UI for output and user interaction |
 | `current_tool_confirmation` | `AnyToolConfirmation` | Tool approval policy |
 | `current_yolo` | `bool` | Auto-approve all tool calls |
 | `current_approval_channel` | `ApprovalChannel \| None` | Remote approval handler |

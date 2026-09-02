@@ -1,7 +1,7 @@
 """Interactive user-question tool.
 
 `ask_user_question` lets the model pose structured multiple-choice questions
-to the user mid-turn. Renders through the active `UIProtocol.ask_user`. In
+to the user mid-turn. Renders through the active `AnyUI.ask_user`. In
 non-interactive mode (`zrb llm chat --interactive false`) the tool
 short-circuits with a `[SYSTEM SUGGESTION]` error so the model never blocks
 on stdin in a non-interactive run. That suggestion offers two terminal exits
@@ -30,7 +30,7 @@ from zrb.llm.tool_call.always_approve import register_always_auto_approve
 from zrb.llm.tool_call.choice_spec_format import format_choice_spec
 
 if TYPE_CHECKING:
-    from zrb.llm.tool_call.ui_protocol import ChoiceSpec
+    from zrb.llm.ui.any_ui import ChoiceSpec
 
 interactive_mode: ContextVar[bool] = ContextVar("zrb_interactive_mode", default=True)
 

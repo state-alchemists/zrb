@@ -8,11 +8,11 @@ from typing import TYPE_CHECKING, Any, TextIO
 if TYPE_CHECKING:
     from zrb.llm.agent.types import RequestUsage, RunUsage
 
-    from zrb.llm.tool_call.ui_protocol import ChoiceSpec
+    from zrb.llm.ui.any_ui import ChoiceSpec
 
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
-from zrb.llm.approval.approval_channel import ApprovalContext
+from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.permission.state import (
     AgentMode,
     get_current_agent_mode,
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 class MultiUI:
     """UI wrapper that broadcasts output to multiple UIs and waits for first response.
 
-    This class implements UIProtocol and delegates to multiple child UIs:
+    This class implements AnyUI and delegates to multiple child UIs:
     - Output is broadcast to ALL child UIs
     - Input waits for FIRST response from ANY child UI
     - All child UIs share a SINGLE message queue (shared state)

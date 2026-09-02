@@ -8,7 +8,7 @@ APPROVAL CHANNEL HIERARCHY
 ═════════════════════════════════════════════════════════════════════════════
 
     ┌────────────────────────────────────────────────────────────────────────┐
-    │ ApprovalChannel (Protocol)                                             │
+    │ AnyApprovalChannel (Protocol)                                             │
     │   - request_approval(context): Wait for user approval                  │
     │   - notify(message, context): Send informational message               │
     │   - Implement for custom backends                                      │
@@ -16,7 +16,7 @@ APPROVAL CHANNEL HIERARCHY
     │ Built-in Implementations:                                              │
     ├────────────────────────────────────────────────────────────────────────┤
     │ TerminalApprovalChannel                                                │
-    │   - Uses UIProtocol for terminal interaction                           │
+    │   - Uses AnyUI for terminal interaction                           │
     │   - Default when no custom channel is set                              │
     │                                                                        │
     │ NullApprovalChannel                                                    │
@@ -34,9 +34,9 @@ SIMPLE APPROVAL CHANNEL
 
 Basic implementation (just approve/deny):
 
-    from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
+    from zrb.llm.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
 
-    class MyApprovalChannel(ApprovalChannel):
+    class MyApprovalChannel(AnyApprovalChannel):
         async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
             # Send approval request (e.g., via Telegram button, webhook)
             ...
@@ -70,12 +70,12 @@ For dual-mode (CLI + Telegram/SSE), add multiple approval channels:
     # See examples/chat-telegram/ for complete implementation
 """
 
-from zrb.llm.approval.approval_channel import (
-    ApprovalChannel,
+from zrb.llm.approval.any_approval_channel import (
+    AnyApprovalChannel,
     ApprovalContext,
     ApprovalResult,
-    current_approval_channel,
 )
+from zrb.llm.approval.approval_channel import current_approval_channel
 from zrb.llm.approval.multiplex_approval_channel import (
     MultiplexApprovalChannel,
     resolve_approval_channel,
@@ -84,7 +84,7 @@ from zrb.llm.approval.null_approval_channel import NullApprovalChannel
 from zrb.llm.approval.terminal_approval_channel import TerminalApprovalChannel
 
 __all__ = [
-    "ApprovalChannel",
+    "AnyApprovalChannel",
     "ApprovalContext",
     "ApprovalResult",
     "current_approval_channel",

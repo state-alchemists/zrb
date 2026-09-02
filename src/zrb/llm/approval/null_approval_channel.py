@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from zrb.llm.approval.approval_channel import ApprovalContext, ApprovalResult
+from zrb.llm.approval.any_approval_channel import ApprovalContext, ApprovalResult
 
 
 class NullApprovalChannel:

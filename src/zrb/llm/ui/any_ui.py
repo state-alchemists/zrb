@@ -25,17 +25,31 @@ class ChoiceSpec(TypedDict, total=False):
     total: int
 
 
-class UIProtocol(Protocol):
+class AnyUI(Protocol):
+    """The UI contract every task's `ui` slot is typed against.
+
+    A `Protocol`, not an ABC: a UI is structural (six duck-typed methods),
+    and nothing should have to inherit from this class to count as one —
+    `StdUI`, `BaseUI` and every custom UI in `docs/advanced-topics/
+    llm-custom-ui.md` satisfy it by shape alone. Do not "fix" this into an
+    ABC for consistency with the other `Any*` types; most of those are
+    genuine base classes, this one is deliberately not.
+    """
+
     async def ask_user(
         self,
         prompt: str,
         output_to_parent: str = "",
         agent_id: str | None = None,
-    ) -> str: ...
+    ) -> str:
+        """Ask the user a free-text question and return their answer."""
+        ...
 
     async def ask_user_choice(
         self, spec: ChoiceSpec, agent_id: str | None = None
-    ) -> str: ...
+    ) -> str:
+        """Ask the user a multiple-choice question and return their pick."""
+        ...
 
     def append_to_output(
         self,
@@ -45,7 +59,9 @@ class UIProtocol(Protocol):
         file: TextIO | None = None,
         flush: bool = False,
         kind: str = "text",
-    ): ...
+    ):
+        """Write output the way `print()` would, kept for later replay."""
+        ...
 
     def stream_to_parent(
         self,
@@ -55,10 +71,16 @@ class UIProtocol(Protocol):
         file: TextIO | None = None,
         flush: bool = False,
         kind: str = "text",
-    ): ...
+    ):
+        """Write output to a delegating parent UI, not this UI's own stream."""
+        ...
 
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
-    ) -> Any: ...
+    ) -> Any:
+        """Run an interactive shell command, handing it the real terminal."""
+        ...
 
-    async def run_async(self) -> Any: ...
+    async def run_async(self) -> Any:
+        """Drive this UI's own event loop until the session ends."""
+        ...

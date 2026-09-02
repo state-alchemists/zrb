@@ -6,7 +6,7 @@ import os
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 from pydantic import Field
 
@@ -35,9 +35,11 @@ from zrb.llm.tool.ambient_state import (
     get_session_ownership_key,
 )
 from zrb.llm.tool.worktree import enter_worktree, exit_worktree
-from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.llm.ui.buffered_ui import BufferedUI
 from zrb.llm.ui.std_ui import StdUI
+
+if TYPE_CHECKING:
+    from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.util.subagent_session_naming import (
     format_delegated_session_name,
     parse_delegated_session,
@@ -108,7 +110,7 @@ async def run_agent_task(
     task: str,
     additional_context: str,
     sub_agent_manager: SubAgentManager,
-    ui: UIProtocol,
+    ui: AnyUI,
     flush_ui: bool = False,
     yolo: bool | None = None,
 ) -> AgentTaskResult:

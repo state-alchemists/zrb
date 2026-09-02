@@ -1,18 +1,10 @@
-from abc import ABC, abstractmethod
 from collections.abc import Callable
 
 from zrb.attr.type import StrAttr, fstring
+from zrb.cmd.any_cmd_val import AnyCmdVal
 from zrb.context.any_context import AnyContext
 from zrb.util.attr import get_str_attr
 from zrb.util.file import read_file
-
-
-class AnyCmdVal(ABC):
-    """A shell command resolved against a task context at run time."""
-
-    @abstractmethod
-    def to_str(self, ctx: AnyContext) -> str:
-        """Resolve this value into the command string to execute."""
 
 
 class CmdPath(AnyCmdVal):

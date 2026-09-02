@@ -43,12 +43,12 @@ if TYPE_CHECKING:
         Tool,
         ToolFuncEither,
     )
-    from zrb.llm.approval.approval_channel import ApprovalChannel
+    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.permission import PermissionPolicyInput
     from zrb.llm.sandbox import SandboxInput
     from zrb.llm.task.llm_task import LLMTask
-    from zrb.llm.tool_call.ui_protocol import UIProtocol
+    from zrb.llm.ui.any_ui import AnyUI
 
 
 class LLMTaskBuilding:
@@ -105,11 +105,11 @@ class LLMTaskBuilding:
         """Replace the toolset list wholesale (see `tools` setter)."""
         self._llm_task.toolsets = value
 
-    def set_ui(self, ui: UIProtocol | None):
+    def set_ui(self, ui: AnyUI | None):
         """Replace every attached UI with `ui`, or detach all when None."""
         self._llm_task.uis = [] if ui is None else [ui]
 
-    def append_ui(self, ui: UIProtocol) -> None:
+    def append_ui(self, ui: AnyUI) -> None:
         """Attach one more UI, keeping those already attached.
 
         Every attached UI receives the same stream of events, which is how
@@ -117,7 +117,7 @@ class LLMTaskBuilding:
         """
         self._llm_task.uis.append(ui)
 
-    def get_uis(self) -> list[UIProtocol]:
+    def get_uis(self) -> list[AnyUI]:
         """Return a copy of every currently attached UI."""
         return list(self._llm_task.uis)
 
@@ -132,7 +132,7 @@ class LLMTaskBuilding:
         self._llm_task.tool_confirmation = value
 
     @property
-    def approval_channel(self) -> ApprovalChannel | None:
+    def approval_channel(self) -> AnyApprovalChannel | None:
         """Channel carrying approval requests to whoever answers them.
 
         None when the task runs unattended, in which case a tool call needing
@@ -141,7 +141,7 @@ class LLMTaskBuilding:
         return self._llm_task.approval_channel
 
     @approval_channel.setter
-    def approval_channel(self, value: ApprovalChannel | None):
+    def approval_channel(self, value: AnyApprovalChannel | None):
         """Replace the approval channel."""
         self._llm_task.approval_channel = value
 

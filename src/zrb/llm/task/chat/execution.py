@@ -68,12 +68,12 @@ if TYPE_CHECKING:
         Tool,
         ToolFuncEither,
     )
-    from zrb.llm.approval.approval_channel import ApprovalChannel
+    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.sandbox import SandboxPolicy
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.task.history_config import HistoryConfig
-    from zrb.llm.tool_call.ui_protocol import UIProtocol
+    from zrb.llm.ui.any_ui import AnyUI
 
 
 def parse_yolo_value(value: Any) -> "bool | frozenset[str]":
@@ -111,8 +111,8 @@ class _InnerTaskResolution:
     """
 
     tool_confirmation: "AnyToolConfirmation"
-    ui: "UIProtocol | None"
-    approval_channel: "ApprovalChannel | None"
+    ui: "AnyUI | None"
+    approval_channel: "AnyApprovalChannel | None"
     hook_manager: HookManager
     sandbox: "SandboxPolicy | None"
     history: "HistoryConfig"
@@ -538,7 +538,7 @@ class ChatExecution:
 
         return _InnerTaskResolution(
             tool_confirmation=tool_confirmation,
-            ui=cast("UIProtocol | None", ui),
+            ui=cast("AnyUI | None", ui),
             approval_channel=effective_approval_channel,
             hook_manager=hook_manager,
             sandbox=resolved_sandbox,
@@ -561,7 +561,7 @@ class ChatExecution:
         )
 
     def get_ui_conversation_name(
-        self, ui: "UIProtocol", initial_conversation_name: str
+        self, ui: "AnyUI", initial_conversation_name: str
     ) -> str:
         """Get the current conversation name from UI or fallback to initial name."""
         if isinstance(ui, BaseUI):
