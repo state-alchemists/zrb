@@ -47,6 +47,25 @@ KEYED_COLLECTIONS = {
     "zrb.llm.hook.registry:hook_registry": [("hook", "hooks")],
 }
 
+# Every component a user may replace (R8, Phase 4) — a single-value slot
+# holding a *Manager/*Config/*Limiter or Any* ABC instance. A `list`/`dict`
+# collection (even a settable one, like `ui_factories`) belongs to Phase 3's
+# verb-set ratchet above, not here — see framework-conventions.md's R7 note
+# on why those two stay settable properties instead of gaining a `set_X()`.
+# Adding a slot means adding it here in the same diff.
+SLOTS = {
+    "zrb.builtin.llm.chat:llm_chat": [
+        "prompt_manager",
+        "hook_manager",
+        "llm_config",
+        "llm_limiter",
+        "markdown_theme",
+        "history_manager",
+        "sandbox",
+        "permissions",
+    ],
+}
+
 
 def _load(spec: str):
     module_path, attr = spec.split(":")
@@ -91,6 +110,38 @@ def test_every_keyed_collection_has_the_minimum_verb_set():
                 violations.append(f"{spec} missing set_{plural} (R6)")
             if hasattr(host, f"append_{stem}"):
                 violations.append(f"{spec} has append_{stem} — R6 forbids the alias")
+    assert not violations, "\n".join(violations)
+
+
+# A setter typed against one of these is the exact regression R8 guards
+# against — the surface degrading back to "no help from the type checker".
+_BARE_ANY = {"Any", "typing.Any", "Any | None", "Optional[Any]"}
+
+
+def test_every_declared_slot_is_settable_and_typed():
+    """R8: every slot in SLOTS is a real settable property, typed as
+    something more specific than `Any`.
+
+    Deliberately reads the raw (unresolved) annotation string rather than
+    calling `typing.get_type_hints()`: a couple of slot types (e.g.
+    `rich.theme.Theme` on `markdown_theme`) are only imported under
+    `TYPE_CHECKING` to stay import-cheap — resolving the forward reference
+    for real would force that import just to run this test. The raw string
+    is enough to catch the one thing this ratchet cares about.
+    """
+    violations = []
+    for spec, slots in SLOTS.items():
+        host = _load(spec)
+        for slot in slots:
+            prop = getattr(type(host), slot, None)
+            if not isinstance(prop, property) or prop.fset is None:
+                violations.append(f"{spec}.{slot} is not a settable property (R8)")
+                continue
+            annotation = prop.fset.__annotations__.get("value", "")
+            if annotation in _BARE_ANY:
+                violations.append(
+                    f"{spec}.{slot}'s setter is typed Any — give it a real type (R8)"
+                )
     assert not violations, "\n".join(violations)
 
 

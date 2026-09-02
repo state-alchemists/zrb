@@ -4,6 +4,9 @@ import pytest
 
 from zrb.context.shared_context import SharedContext
 from zrb.llm.approval import NullApprovalChannel
+from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.prompt.registry import PromptRegistry
 from zrb.llm.task.chat.execution import parse_yolo_value
 from zrb.llm.task.chat.task import LLMChatTask
 from zrb.llm.tool_call.ui_protocol import UIProtocol
@@ -360,6 +363,47 @@ def test_ordered_collection_verbs_round_trip(stem, plural):
     assert list(getattr(task, plural)) == [c]
 
 
+# --- R8: the three ADR-0091 configuration channels, each named -------------
+
+
+def test_a_user_can_swap_the_prompt_manager_after_the_task_is_defined():
+    """Channel 3 — a per-task argument overrides one host."""
+    # Arrange — a task defined before any user config, as builtin/ does
+    task = LLMChatTask(name="chat")
+    replacement = PromptManager(prompt_registry=PromptRegistry())
+
+    # Act — what a zrb_init.py does
+    task.prompt_manager = replacement
+
+    # Assert
+    assert task.prompt_manager is replacement
+
+
+def test_a_registry_delta_reaches_a_task_built_around_it():
+    """Channel 2 — zrb_init.py builds/replaces things on a registry."""
+    registry = PromptRegistry()
+    registry.append_prompt("Always answer in British English.")
+
+    task = LLMChatTask(
+        name="chat", prompt_manager=PromptManager(prompt_registry=registry)
+    )
+
+    composed = task.prompt_manager.compose_prompt()(SharedContext())
+    assert "Always answer in British English." in composed
+
+
+def test_a_cfg_scalar_reaches_a_task_that_defers_to_the_registry(monkeypatch):
+    """Channel 1 — an env var / CFG twin narrows or seeds the default layer a
+    task defers to, with no code change on the task itself."""
+    from zrb.config.config import CFG
+
+    monkeypatch.setattr(CFG, "LLM_PROMPT", ["Prefer git over GUI."])
+    task = LLMChatTask(name="chat")  # no prompt_manager passed -> defers to CFG
+
+    composed = task.prompt_manager.compose_prompt()(SharedContext())
+    assert "Prefer git over GUI." in composed
+
+
 def test_llm_chat_task_init_with_approval_channel():
     """Test that LLMChatTask accepts approval_channel parameter."""
     channel = NullApprovalChannel()
@@ -513,9 +557,15 @@ def test_llm_chat_task_history_config_reflects_constructor_values():
 
 def test_llm_chat_task_history_config_reflects_history_manager_setter_immediately():
     task = LLMChatTask(name="test-task")
-    new_manager = MagicMock()
+    new_manager = MagicMock(spec=AnyHistoryManager)
     task.history_manager = new_manager
     assert task.history_config.history_manager is new_manager
+
+
+def test_llm_chat_task_history_manager_setter_rejects_wrong_type():
+    task = LLMChatTask(name="test-task")
+    with pytest.raises(TypeError, match="AnyHistoryManager"):
+        task.history_manager = "not a manager"
 
 
 def test_llm_chat_task_sandbox_constructor_and_property():

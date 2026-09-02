@@ -167,6 +167,27 @@ set: `append_X`, `prepend_X`, `set_X`s, `remove_X` — see
 snippets below show one or two verbs per collection for brevity, not the
 complete set.
 
+### Component Slots
+
+Every component a task may hold exactly one of is a settable property (R8) —
+this works even on an already-defined task, such as the built-in `llm_chat`
+from `zrb_init.py`:
+
+```python
+from zrb import llm_chat
+from zrb.llm.prompt.manager import PromptManager
+
+llm_chat.prompt_manager = PromptManager(prompts=["Just this one bot."])
+llm_chat.hook_manager = my_hook_manager      # or None to go back to "fresh per run"
+llm_chat.llm_config = my_llm_config
+llm_chat.llm_limiter = my_llm_limiter        # or None to remove the limit
+llm_chat.markdown_theme = my_rich_theme      # or None for the default
+```
+
+`history_manager`, `sandbox`, and `permissions` are the same kind of slot —
+see their own sections below. Assigning the wrong type raises `TypeError`
+naming the expected class, at the assignment site.
+
 ### UI Configuration
 
 ```python

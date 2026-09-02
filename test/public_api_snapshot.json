@@ -995,7 +995,6 @@
         "get_model",
         "get_system_prompt",
         "get_ui_conversation_name",
-        "has_prompt_manager",
         "history_config",
         "history_manager",
         "history_processors",

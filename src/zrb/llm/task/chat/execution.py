@@ -127,16 +127,8 @@ class ChatExecution:
         self._llm_chat_task = llm_chat_task
 
     def get_system_prompt(self, ctx: AnyContext) -> str:
-        """Compose the full system prompt for this run.
-
-        Returns the empty string when the task has no prompt manager.
-        """
-        prompt_manager = (
-            self._llm_chat_task.prompt_manager
-            if self._llm_chat_task.has_prompt_manager
-            else None
-        )
-        return resolve_system_prompt(ctx, prompt_manager)
+        """Compose the full system prompt for this run."""
+        return resolve_system_prompt(ctx, self._llm_chat_task.prompt_manager)
 
     async def exec_action(self, ctx: AnyContext) -> Any:
         # 1. Resolve inputs/attributes
@@ -179,8 +171,7 @@ class ChatExecution:
         # model-specific capability notes (e.g. lack of parallel tool-call
         # support). Re-set on every exec — `/model` switches update
         # ctx.input.model, which flows through get_model(ctx).
-        if self._llm_chat_task.has_prompt_manager:
-            self._llm_chat_task.prompt_manager.model = self.get_model(ctx)
+        self._llm_chat_task.prompt_manager.model = self.get_model(ctx)
 
         # 5. Create core LLM task
         llm_task_core = self._create_llm_task_core(
@@ -381,11 +372,7 @@ class ChatExecution:
             env=cast(list[AnyEnv | None], llm_chat_task.envs),
             system_prompt=llm_chat_task.system_prompt,
             render_system_prompt=llm_chat_task.render_system_prompt,
-            prompt_manager=(
-                llm_chat_task.prompt_manager
-                if llm_chat_task.has_prompt_manager
-                else None
-            ),
+            prompt_manager=llm_chat_task.prompt_manager,
             active_skills=llm_chat_task.active_skills,
             render_active_skills=llm_chat_task.render_active_skills,
             tools=resolved_tools,
