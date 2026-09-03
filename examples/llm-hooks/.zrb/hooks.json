@@ -226,7 +226,7 @@
 
   {
     "name": "security-review-agent-example",
-    "description": "WORKED EXAMPLE — a different agent-hook use case from zrb's built-in journal-compliance judge (see docs/advanced-topics/hooks.md's 'Built-in example' section for that one). This one reviews a tool call *before* it runs: a small sub-agent reads the pending call and its arguments and can veto it by replying with a decision the main agent should heed. Shows an agent hook on PreToolUse rather than Stop, and a different tool set (read-only inspection tools, not the journal ones).",
+    "description": "WORKED EXAMPLE — a different agent-hook use case from zrb's built-in journal-compliance judge (see docs/llm/hooks.md's 'Built-in example' section for that one). This one reviews a tool call *before* it runs: a small sub-agent reads the pending call and its arguments and can veto it by replying with a decision the main agent should heed. Shows an agent hook on PreToolUse rather than Stop, and a different tool set (read-only inspection tools, not the journal ones).",
     "events": ["PreToolUse"],
     "type": "agent",
     "config": {

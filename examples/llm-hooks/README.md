@@ -140,7 +140,7 @@ return HookResult.block(reason="I need more information before concluding.")
 ## Example Files
 
 - `zrb_init.py` — Programmatic hook registration
-- `.zrb/hooks.json` — JSON-based command hooks, plus a worked agent-hook example (YAML is also supported — see [hooks.md](../../docs/advanced-topics/hooks.md))
+- `.zrb/hooks.json` — JSON-based command hooks, plus a worked agent-hook example (YAML is also supported — see [hooks.md](../../docs/llm/hooks.md))
 - `custom_hook.hook.py` — Python hook module
 
 ## Running
@@ -156,4 +156,4 @@ Then interact with the LLM and observe hook behavior.
 
 - `src/zrb/llm/hook/types.py` — HookEvent enum
 - `src/zrb/llm/hook/interface.py` — HookResult class
-- `docs/advanced-topics/hooks.md` — Full hooks documentation
+- `docs/llm/hooks.md` — Full hooks documentation

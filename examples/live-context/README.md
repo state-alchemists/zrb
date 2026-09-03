@@ -81,11 +81,11 @@ llm_chat.prompt_manager.add_live_context(
 
 **Use the context** — the `ctx` argument is the active `AnyContext`; read `ctx.env.*` or inputs to tailor the line.
 
-**Prefer the system prompt instead?** For content that's stable within a session, use `prompt_manager.append_prompt(...)` so it joins the cached prefix — see [Programming the Agent](../../docs/advanced-topics/programming-the-agent.md#dynamic-event-driven-prompts).
+**Prefer the system prompt instead?** For content that's stable within a session, use `prompt_manager.append_prompt(...)` so it joins the cached prefix — see [Programming the Agent](../../docs/llm/programming-the-agent.md#dynamic-event-driven-prompts).
 
 ## See Also
 
-- [`docs/advanced-topics/programming-the-agent.md`](../../docs/advanced-topics/programming-the-agent.md#per-turn-live-context-providers) — Per-turn live context providers
+- [`docs/llm/programming-the-agent.md`](../../docs/llm/programming-the-agent.md#per-turn-live-context-providers) — Per-turn live context providers
 - `src/zrb/llm/prompt/live_context.py` — the built-in live-context rendering
 - `src/zrb/llm/prompt/manager.py` — `add_live_context` / `append_prompt` / `create_live_context`
 - `examples/model-tiering/` — another `model_getter` / `model_renderer` / prompt-manager customization

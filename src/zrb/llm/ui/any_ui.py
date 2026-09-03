@@ -34,7 +34,7 @@ class AnyUI(ABC):
     `PollingUI`/the default `UI`) explicitly inherits this class, so a
     subclass missing a method fails at instantiation (`TypeError`) rather
     than at first use, deep in a session. A custom UI written per
-    `docs/advanced-topics/llm-custom-ui.md` gets this for free by
+    `docs/llm/llm-custom-ui.md` gets this for free by
     subclassing `SimpleUI`/`EventDrivenUI`/`PollingUI`/`BaseUI` — none of
     zrb's own docs show implementing this class directly.
     """

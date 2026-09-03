@@ -1,0 +1,400 @@
+🔖 [Documentation Home](../../README.md) > [LLM](./) > LSP Support
+
+# LSP (Language Server Protocol) Support
+
+Zrb includes native LSP integration for semantic code intelligence. When LSP servers are installed, zrb's AI assistant can understand your code at a deeper level—providing IDE-like features such as go-to-definition, find-references, and diagnostics.
+
+---
+
+## Table of Contents
+
+- [What is LSP?](#what-is-lsp)
+- [Supported Languages](#supported-languages)
+- [Installation](#installation)
+- [Auto-Detection](#auto-detection)
+- [Custom LSP Servers](#custom-lsp-servers)
+- [Available Tools](#available-tools)
+- [Usage Examples](#usage-examples)
+- [How It Works](#how-it-works)
+- [Troubleshooting](#troubleshooting)
+
+---
+
+## What is LSP?
+
+The Language Server Protocol (LSP) is a protocol for communication between editors and language servers. It provides:
+
+| Feature | Description |
+|---------|-------------|
+| **Go to Definition** | Jump to where a symbol is defined |
+| **Find References** | Find all usages of a symbol |
+| **Document Symbols** | List all classes, functions, variables in a file |
+| **Diagnostics** | Get errors, warnings, and hints |
+| **Hover Info** | Type information and documentation |
+| **Rename** | Safely rename symbols across a project |
+
+> 💡 **Why LSP for AI?** LSP provides structured semantic information that's much more token-efficient than reading entire files. Instead of parsing code text, the AI receives precise symbol names, locations, and types.
+
+---
+
+## Supported Languages
+
+Zrb supports **21+ Language Servers** out of the box:
+
+| Language | LSP Server | Install Command |
+|----------|------------|-----------------|
+| **Python** | pylsp | `pip install python-lsp-server` |
+| **Python** | pyright | `npm install -g pyright` |
+| **Python** | jedi-language-server | `pip install jedi-language-server` |
+| **Go** | gopls | `go install golang.org/x/tools/gopls@latest` |
+| **TypeScript/JavaScript** | typescript-language-server | `npm install -g typescript-language-server typescript` |
+| **Rust** | rust-analyzer | `rustup component add rust-analyzer` |
+| **C/C++** | clangd | `sudo apt install clangd` or `brew install llvm` |
+| **Java** | jdtls | Download from [Eclipse](https://download.eclipse.org/jdtls/) |
+| **PHP** | intelephense | `npm install -g intelephense` |
+| **C#** | omnisharp | `dotnet tool install -g OmniSharp` |
+| **Ruby** | ruby-lsp | `gem install ruby-lsp` |
+| **Ruby** | solargraph | `gem install solargraph` |
+| **Swift** | sourcekit-lsp | Included with Xcode/Swift |
+| **Kotlin** | kotlin-language-server | Download from [GitHub](https://github.com/fwcd/kotlin-language-server) |
+| **Scala** | metals | Install via [coursier](https://coursier.io/) |
+| **Lua** | lua-language-server | `brew install lua-language-server` |
+| **YAML** | yaml-language-server | `npm install -g yaml-language-server` |
+| **JSON** | vscode-json-languageserver | `npm install -g vscode-json-languageserver` |
+| **HTML** | html-languageserver | `npm install -g html-languageserver` |
+| **CSS** | css-languageserver | `npm install -g css-languageserver` |
+
+---
+
+## Installation
+
+### Quick Start
+
+Install the LSP server(s) for your language:
+
+```bash
+# Python
+pip install python-lsp-server
+
+# Go
+go install golang.org/x/tools/gopls@latest
+
+# TypeScript/JavaScript
+npm install -g typescript-language-server typescript
+
+# Rust
+rustup component add rust-analyzer
+```
+
+### Verify Installation
+
+Check which LSP servers are detected:
+
+```python
+from zrb.llm.lsp.server import detect_available_lsp_servers
+
+servers = detect_available_lsp_servers()
+for name, path in servers.items():
+    print(f"✅ {name}: {path}")
+```
+
+### Verify in Chat
+
+Start `zrb llm chat` and ask:
+
+```
+What LSP servers are available on my system?
+```
+
+The assistant will use the `LspListServers` tool to show detected servers.
+
+---
+
+## Auto-Detection
+
+Zrb automatically detects installed LSP servers using the system PATH. No configuration required!
+
+### Detection Flow
+
+```mermaid
+flowchart TD
+    S1([zrb starts, or an LSP tool is used]) --> S2["detect_available_lsp_servers() scans PATH"]
+    S2 --> S3["found servers cached for the session"]
+    S3 --> S4["file matched to a server by extension"]
+    S4 --> S5["server started on demand, per project root"]
+```
+
+### File Extension Matching
+
+| File Extension | LSP Server |
+|----------------|------------|
+| `.py`, `.pyi`, `.pyw` | pylsp, pyright, or jedi |
+| `.go` | gopls |
+| `.ts`, `.tsx`, `.js`, `.jsx` | typescript-language-server |
+| `.rs` | rust-analyzer |
+| `.c`, `.cpp`, `.h`, `.hpp` | clangd |
+| `.java` | jdtls |
+| `.rb`, `.rake` | ruby-lsp or solargraph |
+| ... | ... |
+
+### Multiple Servers for Same Language
+
+If multiple LSP servers are installed for the same language, zrb picks one automatically. The order is determined by which server is detected first in the PATH.
+
+---
+
+## Custom LSP Servers
+
+The built-in catalogue (`LSP_SERVER_CONFIGS`) covers 21+ servers, but you can teach zrb about any other LSP server — a language not in the table, an in-house server, or a custom binary — by registering it from your `zrb_init.py`:
+
+```python
+from zrb.llm.lsp.configs import LSPServerConfig
+from zrb.llm.lsp.manager import lsp_manager
+
+lsp_manager.register_lsp_server(
+    "zls",  # unique key, also usable in ZRB_LLM_LSP_PREFERRED_SERVERS
+    LSPServerConfig(
+        name="zls",
+        command=["zls"],            # how to launch it (must be on PATH)
+        language_ids=["zig"],       # LSP language identifiers
+        file_extensions=[".zig"],   # files this server handles
+    ),
+)
+```
+
+Registered servers behave exactly like built-ins:
+
+- **Auto-detection** — `detect_available_lsp_servers()` reports them when `command[0]` is on `PATH` (via `shutil.which`).
+- **File matching** — a file whose extension is in `file_extensions` resolves to this server.
+- **Selection / preference** — the name participates in `ZRB_LLM_LSP_PREFERRED_SERVERS` and per-call `preferred_servers` ordering.
+- **Override** — registering a name that already exists (e.g. `"pyright"`) replaces the built-in config for that name.
+
+Registration goes through a single module-level registry (`lsp_server_configs`); user entries are merged over the built-in table. Call `register_lsp_server()` once at startup, before the first LSP query.
+
+👉 Runnable end-to-end example: [`examples/lsp-config`](../../examples/lsp-config).
+
+---
+
+## Available Tools
+
+The following LSP tools are available in `zrb llm chat`:
+
+| Tool | Description |
+|------|-------------|
+| `LspFindDefinition` | Find where a symbol is defined |
+| `LspFindReferences` | Find all usages of a symbol |
+| `LspGetDiagnostics` | Get errors, warnings, hints for a file |
+| `LspGetDocumentSymbols` | List all symbols in a file |
+| `LspGetWorkspaceSymbols` | Search symbols across workspace |
+| `LspGetHoverInfo` | Get type info and docs at position |
+| `LspRenameSymbol` | Rename a symbol across the project |
+| `LspListServers` | List detected LSP servers |
+
+---
+
+## Usage Examples
+
+### In Chat
+
+Ask the assistant to use LSP:
+
+```
+# Find a definition
+Where is the LSPManager class defined?
+
+# Show file structure
+Show me all symbols in src/zrb/llm/lsp/manager.py
+
+# Get diagnostics
+Are there any errors in server.py?
+
+# Find references
+Find all references to find_definition
+
+# List available servers
+What LSP servers are available?
+```
+
+### In AnalyzeCode
+
+LSP is automatically used in `AnalyzeCode` for token-efficient analysis:
+
+```python
+from zrb.llm.tool.code import analyze_code
+
+# LSP pre-analyzes Python files for symbol structure
+result = await analyze_code("./src", "What classes are defined?")
+```
+
+### Programmatic Usage
+
+```python
+from zrb.llm.lsp.manager import lsp_manager
+
+# List available servers
+servers = lsp_manager.list_available_servers()
+
+# Get document symbols
+symbols = await lsp_manager.get_document_symbols("src/my_file.py")
+
+# Find definition
+result = await lsp_manager.find_definition("MyClass", "src/my_file.py")
+
+# Get diagnostics
+diags = await lsp_manager.get_diagnostics("src/my_file.py")
+
+# Clean up
+await lsp_manager.shutdown_all()
+```
+
+---
+
+## How It Works
+
+### Architecture
+
+```mermaid
+flowchart TB
+    Tools["LSP Tools<br />(LspGetInfo)"] <--> Manager["LSP Manager<br />(Singleton)"]
+    Manager -->|spawns| Server["LSP Server<br />(pylsp, gopls...)"]
+    Server -->|JSON-RPC| Codebase["Your Codebase"]
+```
+
+### Symbol-Based API
+
+Unlike traditional LSP clients that use line/column positions, zrb provides a **symbol-based API**:
+
+```python
+# Traditional LSP (positions)
+await lsp.goto_definition(file_path, line=42, character=10)
+
+# zrb LSP Manager (symbol names)
+await lsp_manager.find_definition("MyClass", "src/my_file.py")
+```
+
+> 💡 **Why symbol-based?** LLMs think in terms of "find class MyClass" not "go to line 42, column 10". The symbol-based API handles position resolution automatically.
+
+### Lazy Initialization
+
+LSP servers are started **on-demand** per project root:
+
+1. First LSP call → detect project root (`.git`, `pyproject.toml`, etc.)
+2. Start server process for that root
+3. Cache server instance for subsequent calls
+4. Shutdown on `lsp_manager.shutdown_all()`
+
+---
+
+## Troubleshooting
+
+### LSP Server Not Detected
+
+**Symptom:** `LspListServers` shows fewer servers than expected.
+
+**Solution:** Ensure the LSP server binary is in your PATH:
+
+```bash
+# Check if binary is accessible
+which pylsp
+which gopls
+which typescript-language-server
+
+# Add to PATH if needed
+export PATH="$HOME/.local/bin:$PATH"  # for pip-installed
+export PATH="$HOME/go/bin:$PATH"        # for Go
+export PATH="$(npm bin -g):$PATH"       # for npm -g
+```
+
+### LSP Server Start Failure
+
+**Symptom:** Error messages when using LSP tools.
+
+**Solution:** Test the LSP server manually:
+
+```bash
+# Test pylsp
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"rootUri":"file:///tmp"}}' | pylsp
+
+# Test gopls
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"rootUri":"file:///tmp"}}' | gopls serve
+```
+
+### Project Root Not Detected
+
+**Symptom:** LSP works for some files but not others.
+
+**Solution:** Ensure your project has a root marker:
+
+- `.git/` directory
+- `pyproject.toml`, `setup.py`
+- `go.mod`
+- `Cargo.toml`
+- `package.json`
+- Or create a `.zrb-root` file
+
+### Multiple LSP Servers Conflict
+
+**Symptom:** Wrong LSP server is used for a file.
+
+**How selection works.** When the agent uses an LSP tool, the manager picks a server for the file in this order:
+
+1. **Your configured preference** — `ZRB_LLM_LSP_PREFERRED_SERVERS` (see below), tried in order; names that don't match the file's language are skipped.
+2. **First *installed* server matching the file's extension**, in the order the servers are declared in the built-in registry (`LSP_SERVER_CONFIGS` in `src/zrb/llm/lsp/configs.py`).
+
+"Installed" means the server's command is on `PATH` (`detect_available_lsp_servers()` uses `shutil.which`).
+
+**Solution — set `ZRB_LLM_LSP_PREFERRED_SERVERS`.** A comma-separated, ordered list of server names the agent should prefer. It applies to the agent's LSP tools (and any other caller) without code changes:
+
+```bash
+# Prefer pyright over pylsp for Python; gopls is used for Go (non-matching names skip)
+export ZRB_LLM_LSP_PREFERRED_SERVERS="pyright,gopls"
+```
+
+```python
+# or programmatically
+from zrb import CFG
+CFG.LLM_LSP_PREFERRED_SERVERS = ["pyright", "gopls"]
+```
+
+Names that don't match a given file are ignored, so one flat list can cover several languages. Anything not listed falls back to installation/registry order. Installing only the server you want for a language still works as a coarser lever.
+
+**Per-call override (programmatic callers).** A direct `get_server` call may pass an explicit list, which overrides both the env var and the default ordering:
+
+```python
+from zrb.llm.lsp.manager import lsp_manager
+
+server = await lsp_manager.get_server(
+    "src/zrb/example.py",
+    preferred_servers=["pyright", "pylsp", "jedi-language-server"],
+)
+```
+
+---
+
+## Related Topics
+
+- [LLM Integration](./llm-integration.md) - AI assistant overview
+- [AnalyzeCode Tool](#) - Using LSP in code analysis
+- [Custom Tools](./extending-the-llm.md#custom-tools-and-sub-agents) - Adding your own tools
+
+---
+
+## Quick Reference
+
+| Task | Command / Tool |
+|------|----------------|
+| Check available LSP servers | `LspListServers` |
+| Find symbol definition | `LspFindDefinition` |
+| Find symbol references | `LspFindReferences` |
+| Get file symbols | `LspGetDocumentSymbols` |
+| Get diagnostics | `LspGetDiagnostics` |
+| Rename symbol | `LspRenameSymbol` |
+
+| Python Import | Use |
+|---------------|-----|
+| `from zrb.llm.lsp.manager import lsp_manager` | Programmatic LSP access |
+| `from zrb.llm.lsp.server import detect_available_lsp_servers` | Detection check |
+
+---
+
+🔖 [Documentation Home](../../README.md) > [LLM](./) > LSP Support

@@ -21,7 +21,7 @@ Termux and a proot guest, since that path is the same real location either
 way -- no proot detection needed.
 
 WSL2 camera capture has two separate, layered failure modes -- see
-`docs/advanced-topics/llm-integration.md#troubleshooting-voice--photo` for
+`docs/llm/llm-integration.md#troubleshooting-voice--photo` for
 the full write-up, this is the short version for future maintainers:
 
 1. The stock `microsoft-standard-WSL2` kernel ships with *no* camera driver
@@ -414,7 +414,7 @@ def missing_tool_hint() -> str:
     elif is_wsl():
         doc_url = (
             "https://github.com/state-alchemists/zrb/blob/main/docs/"
-            "advanced-topics/llm-integration.md#troubleshooting-voice--photo"
+            "llm/llm-integration.md#troubleshooting-voice--photo"
         )
         if glob.glob("/dev/video*"):
             # The device node exists, so usbipd-win + the kernel driver are
