@@ -87,7 +87,10 @@ def _reset_current_tool_session():
     ``test/llm/tool/test_delegate_tool.py``. This fixture makes the leak
     self-healing regardless of whether a future test remembers to clean up.
     """
-    from zrb.llm.tool.ambient_state import get_current_context_session, set_current_session
+    from zrb.llm.tool.ambient_state import (
+        get_current_context_session,
+        set_current_session,
+    )
 
     saved = get_current_context_session()
     try:
