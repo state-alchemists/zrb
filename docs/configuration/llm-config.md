@@ -110,7 +110,7 @@ For advanced scenarios — model tiering, A/B routing, or custom provider wrappi
 | `model_getter` | Base model (`str \| Model`) | Active model | Decide which model to actually use per request (e.g., tier switching, A/B testing) |
 | `model_renderer` | Active model | Final pydantic-ai model | Wrap the model into a pydantic-ai `Model` object or translate tier names to real model strings |
 
-Both are task-scoped — there is no global hook that reaches every agent zrb creates (sub-agents, the summarizer, tool-internal agents resolve `CFG.LLM_*` directly via `zrb.llm.config.model_resolver`). Set them per task:
+These are task-scoped — they only affect the one task they're set on. Set them per task:
 
 ```python
 from zrb import LLMChatTask
@@ -129,6 +129,19 @@ task = LLMChatTask(
     model_renderer=my_renderer,
 )
 ```
+
+#### Global fallback: `model_resolver.model_getter` / `model_renderer`
+
+A task-level hook only reaches that task's own agent. Sub-agent delegation (`DelegateToAgent`), the summarizer, and any other internal agent zrb builds have no task of their own to set a hook on — they resolve `CFG.LLM_*` directly via `zrb.llm.config.model_resolver.resolve_configured_model()` (and its `_small`/`_multimodal` siblings). For a hook that reaches those too, set the same pair on the `model_resolver` singleton instead — once, for the whole process:
+
+```python
+from zrb.llm.config.model_resolver import model_resolver
+
+model_resolver.model_getter = my_model_getter
+model_resolver.model_renderer = my_renderer
+```
+
+This is applied inside `resolve_configured_model()`/`resolve_configured_small_model()`/`resolve_configured_multimodal_model()`, so it covers the main chat task, every `LLMTask`/`LLMChatTask` that doesn't set its own model, *and* sub-agent delegation. A task's own `model_getter`/`model_renderer`, when set, still applies on top of (after) this global default for that task specifically — set only the global pair unless a particular task genuinely needs to override it.
 
 ---
 

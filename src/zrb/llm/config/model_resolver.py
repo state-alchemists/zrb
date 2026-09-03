@@ -10,9 +10,20 @@ used to hold (`model`, `small_model`, `multimodal_model`, `api_key`,
 This module is what's left: turning a `"provider:name"` string plus
 credentials into a `pydantic_ai` `Model` object. It has nothing to do with
 configuration, so it does not become part of `CFG`.
+
+`ModelResolver` also holds its own `model_getter`/`model_renderer` pair — a
+*global* fallback for the same two hooks, applied by every
+`resolve_configured_*` function. A task's own `model_getter`/`model_renderer`
+only reaches that one task; this reaches every call site that resolves
+through `CFG.LLM_MODEL` et al., including sub-agent delegation
+(`SubAgentBuilding.resolve_agent_build`), which has no task of its own to
+hold a per-task hook. Set once in `zrb_init.py` for a process-wide default —
+see `docs/changelog-v3/3.0.0.md` for why the old `llm_config.model_getter`/
+`model_renderer` (process-wide by accident, on a config object) became this
+(process-wide on purpose, on the resolver whose job it actually extends).
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from zrb.config.config import CFG
 
@@ -20,21 +31,60 @@ if TYPE_CHECKING:
     from pydantic_ai.models import Model
     from pydantic_ai.providers import Provider
 
+    ModelHook = Callable[["str | Model | None"], "str | Model | None"]
+
 
 class ModelResolver:
     """Turns a model name plus credentials into a pydantic-ai `Model`.
 
-    Pure resolution: it reads nothing and stores nothing except a small
-    provider-support cache (`_is_native_provider`'s memoization — the
-    pydantic-ai provider registry it queries doesn't change at runtime, so
-    caching costs nothing real). Give it a name and the credentials to use;
-    it returns a `Model` (or the name unchanged when the provider is a plain
-    string, or `model` itself unchanged when it isn't a string at all — an
-    already-resolved `Model` object, or `None`).
+    Pure resolution plus two optional global hooks: it reads nothing and
+    stores nothing besides a small provider-support cache
+    (`_is_native_provider`'s memoization — the pydantic-ai provider registry
+    it queries doesn't change at runtime, so caching costs nothing real) and
+    the `model_getter`/`model_renderer` pair below. Give it a name and the
+    credentials to use; it returns a `Model` (or the name unchanged when the
+    provider is a plain string, or `model` itself unchanged when it isn't a
+    string at all — an already-resolved `Model` object, or `None`).
     """
 
     def __init__(self) -> None:
         self._native_provider_cache: dict[str, bool] = {}
+        self._model_getter: "ModelHook | None" = None
+        self._model_renderer: "ModelHook | None" = None
+
+    @property
+    def model_getter(
+        self,
+    ) -> "ModelHook | None":
+        """Global default `model_getter`, applied to every `resolve_configured_*`
+        result before `model_renderer`. See the module docstring for scope."""
+        return self._model_getter
+
+    @model_getter.setter
+    def model_getter(self, value: "ModelHook | None") -> None:
+        if value is not None and not callable(value):
+            raise TypeError(
+                "model_resolver.model_getter must be a callable or None, "
+                f"got {type(value).__name__}"
+            )
+        self._model_getter = value
+
+    @property
+    def model_renderer(
+        self,
+    ) -> "ModelHook | None":
+        """Global default `model_renderer`, applied to every `resolve_configured_*`
+        result after `model_getter`. See the module docstring for scope."""
+        return self._model_renderer
+
+    @model_renderer.setter
+    def model_renderer(self, value: "ModelHook | None") -> None:
+        if value is not None and not callable(value):
+            raise TypeError(
+                "model_resolver.model_renderer must be a callable or None, "
+                f"got {type(value).__name__}"
+            )
+        self._model_renderer = value
 
     def resolve(
         self,
@@ -44,11 +94,19 @@ class ModelResolver:
         base_url: str | None = None,
         provider: "str | Provider | None" = None,
     ) -> "str | Model | None":
-        """Resolve *model* into a `pydantic_ai` `Model` using the given credentials."""
+        """Resolve *model* into a `pydantic_ai` `Model` using the given
+        credentials, then apply `model_getter`/`model_renderer` if set."""
         if not isinstance(model, str):
             return model
         resolved_provider = self._resolve_provider(provider, api_key, base_url)
-        return self._resolve_model_by_name(model, api_key, base_url, resolved_provider)
+        resolved = self._resolve_model_by_name(
+            model, api_key, base_url, resolved_provider
+        )
+        return self._apply_hooks(resolved)
+
+    def _apply_hooks(self, model: "str | Model") -> "str | Model | None":
+        active = self._model_getter(model) if self._model_getter else model
+        return self._model_renderer(active) if self._model_renderer else active
 
     def _resolve_provider(
         self,

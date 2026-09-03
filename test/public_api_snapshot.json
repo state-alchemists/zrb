@@ -1263,6 +1263,8 @@
     "ModelResolver": {
       "init": [],
       "members": [
+        "model_getter",
+        "model_renderer",
         "resolve"
       ]
     },
