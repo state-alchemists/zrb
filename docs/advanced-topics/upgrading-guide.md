@@ -208,7 +208,7 @@ task.prompt_manager.append_prompt(
 )
 ```
 
-A block added with `append_prompt` always renders after all built-in sections — there's no positioning control, since it isn't a named section you could place in `ZRB_LLM_INCLUDE_SECTIONS`. If you need it somewhere else in the prompt, put it in a `workflow.md` override instead (see [Programming the Prompt](programming-the-prompt.md)).
+A block added with `append_prompt` always renders after all built-in sections — there's no positioning control, since it isn't a named section you could place in `ZRB_LLM_INCLUDE_SECTIONS`. If you need it somewhere else in the prompt, put it in a `workflow.md` override instead (see [Programming the Prompt](../llm/programming-the-prompt.md)).
 
 ### Four prompt sections were retired
 
@@ -277,7 +277,7 @@ These are additions, not breaking changes, but worth knowing:
 | Multiple UIs | `llm_chat.append_ui_factory(...)` — broadcast to CLI + Telegram simultaneously |
 | Approval channels | `llm_chat.append_approval_channel(...)` — first approval from any channel wins |
 | Rewind/Snapshot | `/rewind` command in TUI; `enable_rewind=True` on `LLMChatTask` |
-| MCP servers | `mcp-config.json` — see [MCP Support](mcp-support.md) |
+| MCP servers | `mcp-config.json` — see [MCP Support](../llm/mcp-support.md) |
 | Worktree tools | `EnterWorktree` / `ExitWorktree` tools available in agent sessions |
 | PowerShell autocomplete | `zrb shell autocomplete powershell` |
 

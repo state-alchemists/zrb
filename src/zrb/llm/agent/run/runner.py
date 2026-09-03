@@ -17,7 +17,7 @@ Sibling files in this package each own one concern:
   deferred_calls.py   - resume after deferred tool requests
 
 For the *why* behind history sanitization and the OpenAI patch, see
-docs/advanced-topics/maintainer-guide.md#llm-history-sanitization-layer.
+docs/contributing/maintainer-guide.md#llm-history-sanitization-layer.
 """
 
 from __future__ import annotations

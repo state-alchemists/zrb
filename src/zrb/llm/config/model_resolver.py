@@ -5,7 +5,7 @@ Job 1 (the override-layer-over-`CFG` half) is gone: every scalar `LLMConfig`
 used to hold (`model`, `small_model`, `multimodal_model`, `api_key`,
 `base_url`, `provider`) is a `CFG.LLM_*` knob now, and the two callable hooks
 (`model_getter`, `model_renderer`) are settable slots directly on `LLMTask`/
-`LLMChatTask` — see `docs/changelog-v2/3.0.0.md` for the migration table.
+`LLMChatTask` — see `docs/changelog/v3/3.0.0.md` for the migration table.
 
 This module is what's left: turning a `"provider:name"` string plus
 credentials into a `pydantic_ai` `Model` object. It has nothing to do with
@@ -18,7 +18,7 @@ only reaches that one task; this reaches every call site that resolves
 through `CFG.LLM_MODEL` et al., including sub-agent delegation
 (`SubAgentBuilding.resolve_agent_build`), which has no task of its own to
 hold a per-task hook. Set once in `zrb_init.py` for a process-wide default —
-see `docs/changelog-v3/3.0.0.md` for why the old `llm_config.model_getter`/
+see `docs/changelog/v3/3.0.0.md` for why the old `llm_config.model_getter`/
 `model_renderer` (process-wide by accident, on a config object) became this
 (process-wide on purpose, on the resolver whose job it actually extends).
 """

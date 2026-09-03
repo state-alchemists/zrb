@@ -6,7 +6,7 @@ type-specific factories (command/prompt/agent) live in `zrb.llm.hook.creator`;
 matcher operator semantics live in `zrb.llm.hook.matcher`.
 
 For the public hook authoring guide (formats, events, examples), see:
-  docs/advanced-topics/hooks.md
+  docs/llm/hooks.md
 """
 
 import asyncio

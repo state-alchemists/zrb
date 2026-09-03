@@ -13,7 +13,7 @@ info, hook execution, and the slash-command dispatch (composed via
 
 For how slash commands are dispatched, see `commands.py`. For how a
 single chat turn flows from CLI down through this class, see
-docs/advanced-topics/llm-chat-lifecycle.md.
+docs/llm/llm-chat-lifecycle.md.
 """
 
 from __future__ import annotations

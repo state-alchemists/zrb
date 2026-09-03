@@ -6,7 +6,7 @@ invokes. The subprocess machinery a command hook needs lives in the siblings
 (tree kills).
 
 For the public hook authoring guide (formats, events, examples), see:
-  docs/advanced-topics/hooks.md
+  docs/llm/hooks.md
 """
 
 import asyncio

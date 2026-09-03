@@ -111,7 +111,7 @@ chat = LLMChatTask(
 - **`model_settings`** — a pydantic-ai `ModelSettings` (temperature, `openai_reasoning_effort`, …), or a callable taking the context for per-run values. See [Core LLM Routing](../configuration/llm-config.md#1-core-llm-routing) for the defaults zrb layers on top (`ZRB_LLM_THINKING`, `openai_reasoning_summary`, …).
 - **`capabilities`** — a list of pydantic-ai `AbstractCapability` instances (`ProcessHistory`, `Thinking`, `WebSearch`, `PrepareTools`, …), pydantic-ai's own agent-extension mechanism. It replaced the `Agent(history_processors=...)` constructor kwarg pydantic-ai itself carried before 2.36 (see [ADR-0041](../adr/adr-0041.md)). Do not confuse it with either of these zrb-specific things that share part of the name:
   - `history_processors` (below) — zrb's **own** history-rewriting pipeline (`append_history_processor`), which predates and is independent of pydantic-ai's `capabilities`/`ProcessHistory`.
-  - the [Model Capabilities registry](../advanced-topics/extending-the-llm.md#model-capabilities) — zrb's per-model table of modality/parallel-tool-call support, unrelated to this constructor argument.
+  - the [Model Capabilities registry](../llm/extending-the-llm.md#model-capabilities) — zrb's per-model table of modality/parallel-tool-call support, unrelated to this constructor argument.
 
 `custom_model_names`, and `ui_config`'s `show_ollama_models`/`show_pydantic_ai_models` fields, only affect the `/model` picker's autocomplete list in the chat TUI — see [Model Autocomplete](../configuration/llm-config.md#8-model-autocomplete).
 
@@ -150,7 +150,7 @@ status >> chat
 
 > **Note:** `system_prompt` is **not** rendered by default (`render_system_prompt=False`), so `{ ... }` in a system-prompt *string* stays literal. Pass a callable (as above) or set `render_system_prompt=True`. `message` **is** rendered by default.
 
-See **[Programming the Prompt](../advanced-topics/programming-the-prompt.md)** for the full string → template → callable → `PromptManager` ladder.
+See **[Programming the Prompt](../llm/programming-the-prompt.md)** for the full string → template → callable → `PromptManager` ladder.
 
 ---
 
@@ -161,7 +161,7 @@ After construction, `LLMChatTask` provides a fluent builder API for incremental 
 Every ordered collection below (tools, toolsets, factories, processors, policies,
 handlers, formatters, triggers, custom commands, UIs) exposes the full R5 verb
 set: `append_X`, `prepend_X`, `set_X`s, `remove_X` — see
-[Framework Conventions](../advanced-topics/framework-conventions.md). The
+[Framework Conventions](../contributing/framework-conventions.md). The
 snippets below show one or two verbs per collection for brevity, not the
 complete set.
 
@@ -246,7 +246,7 @@ chat.append_hook_factory(lambda hm: hm.add_hook(my_hook, events=[HookEvent.SESSI
 chat.append_hook_factory(lambda hm: hm.add_hook(other_hook, events=[HookEvent.SESSION_END]))
 ```
 
-> **Isolation differs from `LLMTask`.** `LLMChatTask` builds a **fresh** `HookManager` per execution and replays every registered factory onto it each time, so one session's hooks never leak into the next. `LLMTask` instead holds a **persistent** manager — on `LLMTask`, the *first* `append_hook_factory` call swaps the process-wide default for a fresh task-local manager (later calls apply to that same manager), unless a manager was passed explicitly to the constructor, which is never swapped. See [ADR-0072](../adr/adr-0072.md) and [Hooks — Defining Hooks Programmatically](../advanced-topics/hooks.md#defining-hooks-programmatically-python) for the full rationale.
+> **Isolation differs from `LLMTask`.** `LLMChatTask` builds a **fresh** `HookManager` per execution and replays every registered factory onto it each time, so one session's hooks never leak into the next. `LLMTask` instead holds a **persistent** manager — on `LLMTask`, the *first* `append_hook_factory` call swaps the process-wide default for a fresh task-local manager (later calls apply to that same manager), unless a manager was passed explicitly to the constructor, which is never swapped. See [ADR-0072](../adr/adr-0072.md) and [Hooks — Defining Hooks Programmatically](../llm/hooks.md#defining-hooks-programmatically-python) for the full rationale.
 
 ### Approval & Policy
 
@@ -260,7 +260,7 @@ chat.permissions = my_permission_policy  # read/write property; also a construct
 chat.sandbox = my_sandbox_policy         # read/write property; also a constructor arg
 ```
 
-See [Permission Policy](../advanced-topics/permission-policy.md) and [Sandbox](../advanced-topics/sandbox.md) for the accepted policy shapes.
+See [Permission Policy](../llm/permission-policy.md) and [Sandbox](../llm/sandbox.md) for the accepted policy shapes.
 
 ### Triggers & Custom Commands
 

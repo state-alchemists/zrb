@@ -6,7 +6,7 @@ Zrb (Zaruba) is a Python task automation framework (v2.x). Pure-Python task defi
 
 ## Development Setup
 
-See [Maintainer Guide → Getting Started](docs/advanced-topics/maintainer-guide.md#getting-started) for environment setup, running tests, and troubleshooting a failing `zrb-test.sh`.
+See [Maintainer Guide → Getting Started](docs/contributing/maintainer-guide.md#getting-started) for environment setup, running tests, and troubleshooting a failing `zrb-test.sh`.
 
 ## Where the code lives
 
@@ -57,7 +57,7 @@ Inside `llm/`:
 
 `hook/manager.py` builds a `HookType.AGENT` hook through a registration seam (`hook/agent_hook_registry.py`) rather than importing `zrb.llm.agent` directly, since that subsystem itself depends on `hook.manager` — a genuine circular dependency, not just a circular import. `zrb.llm.agent`'s package `__init__` registers the real builder (`agent/hook_agent.py`) as an import side effect; if it's ever missing, `hook/manager.py` logs a warning and returns a failed `HookResult` instead of crashing.
 
-> For a top-down tour of `zrb llm chat "..."` (CLI → task → agent run → UI → history), see `docs/advanced-topics/llm-chat-lifecycle.md`.
+> For a top-down tour of `zrb llm chat "..."` (CLI → task → agent run → UI → history), see `docs/llm/llm-chat-lifecycle.md`.
 
 ## LLM Prompt System
 
@@ -84,12 +84,12 @@ Record a decision as an ADR in `docs/adr/` when it is **non-trivial** (a reasona
 
 ## Changelog
 
-Lives under `docs/`: `changelog.md` (index), `changelog-v2/` (per-minor files, e.g. `2.54.0.md`, `2.50.0-2.50.9.md`), `changelog-v1.md` (1.x archive). Entry format and the compaction procedure are in [Maintainer Guide → Changelog](docs/advanced-topics/maintainer-guide.md#changelog).
+Lives under `docs/changelog/`: `README.md` (index), `v1.md` (1.x archive), `v2/` (per-minor files for the 2.x line, e.g. `2.54.0.md`, `2.50.0-2.50.9.md`), `v3/` (per-minor files for the 3.x line). Entry format and the compaction procedure are in [Maintainer Guide → Changelog](docs/contributing/maintainer-guide.md#changelog).
 
 ## Development Conventions
 
-> New here? Start at [Which pattern do I reach for?](docs/advanced-topics/which-pattern.md).
-> The enforced rule list is [Framework Conventions](docs/advanced-topics/framework-conventions.md) (R1–R12). Cite rule numbers in review.
+> New here? Start at [Which pattern do I reach for?](docs/contributing/which-pattern.md).
+> The enforced rule list is [Framework Conventions](docs/contributing/framework-conventions.md) (R1–R12). Cite rule numbers in review.
 
 ### Code Style
 

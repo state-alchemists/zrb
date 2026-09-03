@@ -4,7 +4,7 @@ The sandbox is **off by default** (see the default-off invariant in
 ``zrb.llm.permission``). When enabled it constrains LLM tool calls in two
 layers: a Python-level filesystem gate for in-process file tools, and an
 OS-level wrapper (Seatbelt on macOS, bubblewrap on Linux) for shell commands.
-See ``zrb.llm.sandbox`` and docs/advanced-topics/sandbox.md.
+See ``zrb.llm.sandbox`` and docs/llm/sandbox.md.
 """
 
 from __future__ import annotations

@@ -45,4 +45,4 @@ TEAM: oncall
 - Swap the printed routing in `route` for a real action — page oncall, open a ticket, send a Slack message.
 - Add a fourth step downstream that only runs when `PRIORITY: P1`, using an `execute_condition`.
 
-See **[Programming the Agent](../../docs/advanced-topics/programming-the-agent.md)** for the full set of hooks you can program in Python.
+See **[Programming the Agent](../../docs/llm/programming-the-agent.md)** for the full set of hooks you can program in Python.

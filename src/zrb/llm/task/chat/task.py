@@ -15,7 +15,7 @@ files below hold genuinely separate behavior:
 For the public API and authoring patterns, see:
   docs/task-types/llmchat-task.md
 For the end-to-end request lifecycle (CLI -> LLMChatTask -> agent run -> UI),
-see docs/advanced-topics/llm-chat-lifecycle.md.
+see docs/llm/llm-chat-lifecycle.md.
 """
 
 from __future__ import annotations

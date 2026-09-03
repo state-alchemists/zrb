@@ -4,7 +4,7 @@
 Registered as a hook factory (`add_hook_factory`) on the default `hook_manager`
 singleton, so any code path that reaches the lazy-loaded default gets it for
 free. It mirrors the `journal-compliance-judge` recipe documented in
-`docs/advanced-topics/hooks.md` and shipped (disabled) in
+`docs/llm/hooks.md` and shipped (disabled) in
 `examples/llm-hooks/.zrb/hooks.json` — that JSON entry stays as a worked
 example of writing your own agent hook; this module is what actually runs.
 """

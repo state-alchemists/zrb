@@ -206,7 +206,7 @@ By default, the server binds to `127.0.0.1`, so the UI is reachable only from th
 
 ## 💬 Interact with an LLM Directly
 
-Zrb brings AI capabilities right to your command line. For full details on configuring and using the AI assistant, see the [LLM Integration Guide](docs/advanced-topics/llm-integration.md).
+Zrb brings AI capabilities right to your command line. For full details on configuring and using the AI assistant, see the [LLM Integration Guide](docs/llm/llm-integration.md).
 
 ### Interactive Chat
 
@@ -257,7 +257,7 @@ Because an `LLMTask` is just a Zrb task, you can wire it between deterministic s
 fetch_ticket >> triage_with_llm >> route_to_team
 ```
 
-👉 Full walkthrough and every hook in one place: **[Programming the Agent](docs/advanced-topics/programming-the-agent.md)**. Runnable example: **[`examples/agent-in-pipeline`](examples/agent-in-pipeline)**.
+👉 Full walkthrough and every hook in one place: **[Programming the Agent](docs/llm/programming-the-agent.md)**. Runnable example: **[`examples/agent-in-pipeline`](examples/agent-in-pipeline)**.
 
 ---
 
@@ -305,41 +305,47 @@ All task types available in Zrb, from basic to advanced.
 - [Built-in Helper Tasks](docs/task-types/builtin-helpers.md) (Git, Base64, UUID, HTTP, etc.)
 
 ### III. LLM & AI Integration
-- [Choosing Between Agent Harnesses](docs/advanced-topics/harness-comparison.md) — zrb `llm chat` vs Claude Code, opencode, DeepSeek Harness, and Pi: when each is the right tool
-- [Programming the Agent](docs/advanced-topics/programming-the-agent.md) — the overview: every way to shape agent behavior in Python (tools, hooks, dynamic prompts, history processors, agent-as-pipeline-node)
-- [Programming the Prompt](docs/advanced-topics/programming-the-prompt.md) — the ladder from a plain-string `message` up to a composed `PromptManager`; feeding a `CmdTask`'s output into `LLMTask`/`LLMChatTask`
-- [LLM Assistant & AI Tasks](docs/advanced-topics/llm-integration.md) — interactive chat, `LLMTask`/`LLMChatTask` usage, troubleshooting
-- [Extending the LLM](docs/advanced-topics/extending-the-llm.md) — built-in tools, custom tools, sub-agents, model capabilities, context management
-- [Permission Policy System](docs/advanced-topics/permission-policy.md) — fine-grained tool control & security gates
-- [Plan Mode](docs/advanced-topics/plan-mode.md) — read-only discovery & strategy phase
+- [Choosing Between Agent Harnesses](docs/llm/harness-comparison.md) — zrb `llm chat` vs Claude Code, opencode, DeepSeek Harness, and Pi: when each is the right tool
+- [Programming the Agent](docs/llm/programming-the-agent.md) — the overview: every way to shape agent behavior in Python (tools, hooks, dynamic prompts, history processors, agent-as-pipeline-node)
+- [Programming the Prompt](docs/llm/programming-the-prompt.md) — the ladder from a plain-string `message` up to a composed `PromptManager`; feeding a `CmdTask`'s output into `LLMTask`/`LLMChatTask`
+- [LLM Assistant & AI Tasks](docs/llm/llm-integration.md) — interactive chat, `LLMTask`/`LLMChatTask` usage, troubleshooting
+- [Extending the LLM](docs/llm/extending-the-llm.md) — built-in tools, custom tools, sub-agents, model capabilities, context management
+- [Custom UI](docs/llm/llm-custom-ui.md) — build a TUI, web/SSE, or chat-bot front end for `LLMChatTask`
+- [Permission Policy System](docs/llm/permission-policy.md) — fine-grained tool control & security gates
+- [Sandbox](docs/llm/sandbox.md) — filesystem containment for LLM tool calls
+- [Plan Mode](docs/llm/plan-mode.md) — read-only discovery & strategy phase
 - [LLMChatTask API Reference](docs/task-types/llmchat-task.md) — builder API, TUI configuration
-- [LLM Chat Request Lifecycle](docs/advanced-topics/llm-chat-lifecycle.md) — end-to-end tour: CLI → agent run → UI → history persistence
-- [Hook System (Claude Code Compatible)](docs/advanced-topics/hooks.md)
-- [MCP Support (Model Context Protocol)](docs/advanced-topics/mcp-support.md)
-- [LSP Support (Language Server Protocol)](docs/advanced-topics/lsp-support.md)
+- [LLM Chat Request Lifecycle](docs/llm/llm-chat-lifecycle.md) — end-to-end tour: CLI → agent run → UI → history persistence
+- [Hook System (Claude Code Compatible)](docs/llm/hooks.md)
+- [MCP Support (Model Context Protocol)](docs/llm/mcp-support.md)
+- [LSP Support (Language Server Protocol)](docs/llm/lsp-support.md)
 - [Technical Spec: LLM Journal System](docs/technical-specs/llm-context.md)
-- [Claude Code Compatibility](docs/advanced-topics/claude-compatibility.md)
+- [Claude Code Compatibility](docs/llm/claude-compatibility.md)
 
 ### IV. Advanced Topics
-- [Which pattern do I reach for?](docs/advanced-topics/which-pattern.md) — lookup table for the pattern zrb expects when adding new code
-- [Architecture & Conventions](docs/advanced-topics/architecture.md) — for maintainers and contributors
 - [Web UI Guide](docs/advanced-topics/web-ui.md)
 - [White-labeling: Create a Custom CLI](docs/advanced-topics/white-labeling.md)
 - [CI/CD Integration](docs/advanced-topics/ci-cd.md)
+- [Logging](docs/advanced-topics/logging.md) — Python logging vs. task-level context logging
 - [Testing Zrb Tasks](docs/advanced-topics/testing-tasks.md) — mocking context, testing pipelines
 - [Upgrading Guide](docs/advanced-topics/upgrading-guide.md)
-- [Maintainer Guide](docs/advanced-topics/maintainer-guide.md) — start here to contribute code
 
-### V. Configuration
+### V. Contributing
+- [Which pattern do I reach for?](docs/contributing/which-pattern.md) — lookup table for the pattern zrb expects when adding new code
+- [Architecture & Conventions](docs/contributing/architecture.md) — for maintainers and contributors
+- [Framework Conventions](docs/contributing/framework-conventions.md) — the enforced R1–R12 rules
+- [Maintainer Guide](docs/contributing/maintainer-guide.md) — start here to contribute code
+
+### VI. Configuration
 - [Environment Variables & Overrides](docs/configuration/env-vars.md)
 - [LLM & Rate Limiter Configuration](docs/configuration/llm-config.md)
 - [LLM Component Collections](docs/configuration/llm-collections.md) — registries, managers, and the three configuration channels for skills, agents, hooks, prompts, and tools
 
-### VI. Examples
+### VII. Examples
 - [`examples/`](examples/README.md) — runnable `zrb_init.py` for every topic above, grouped by category
 
-### VII. Changelog
-- [Changelog](docs/changelog.md) — full release history
+### VIII. Changelog
+- [Changelog](docs/changelog/README.md) — full release history
 
 ---
 

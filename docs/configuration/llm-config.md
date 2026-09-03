@@ -373,7 +373,7 @@ task.prompt_manager.append_prompt(
 export ZRB_LLM_TOOLS="Shell,Read,Write,Grep,Glob,TodoWrite"
 ```
 
-The names are the registered PascalCase tool names (the `Tool` column in [Built-in LLM Tools](../advanced-topics/extending-the-llm.md#built-in-llm-tools)). Per-run factory and toolset tools are not name-known statically, so the allowlist governs the static set only. Finer edits — add a custom tool, drop a shipped one — belong in `zrb_init.py` via `tool_registry`; see [LLM Component Collections](./llm-collections.md).
+The names are the registered PascalCase tool names (the `Tool` column in [Built-in LLM Tools](../llm/extending-the-llm.md#built-in-llm-tools)). Per-run factory and toolset tools are not name-known statically, so the allowlist governs the static set only. Finer edits — add a custom tool, drop a shipped one — belong in `zrb_init.py` via `tool_registry`; see [LLM Component Collections](./llm-collections.md).
 
 ---
 
@@ -728,7 +728,7 @@ from zrb import CFG
 CFG.LLM_LSP_PREFERRED_SERVERS = ["pyright", "gopls"]
 ```
 
-Empty (default) keeps the previous installation/registry-order behavior. See [LSP Support](../advanced-topics/lsp-support.md) for the full selection rules and a per-call programmatic override.
+Empty (default) keeps the previous installation/registry-order behavior. See [LSP Support](../llm/lsp-support.md) for the full selection rules and a per-call programmatic override.
 
 ---
 
@@ -854,7 +854,7 @@ To create your own theme, copy one of the example files and adjust the `ZRB_LLM_
 
 ## 21. Sandbox Configuration
 
-Opt-in filesystem containment for LLM tool calls — see [Sandbox](../advanced-topics/sandbox.md) for the full model (two enforcement layers, platform matrix, escape hatch).
+Opt-in filesystem containment for LLM tool calls — see [Sandbox](../llm/sandbox.md) for the full model (two enforcement layers, platform matrix, escape hatch).
 
 | Variable | Description | Default |
 |----------|-------------|---------|
