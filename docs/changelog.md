@@ -2,7 +2,7 @@
 
 # Changelog
 
-- [3.0.0a1](changelog-v3/3.0.0.md) — unreleased
+- [3.0.0a1 - 3.0.0a2](changelog-v3/3.0.0.md) — September 3, 2026–unreleased
 - [2.69.0](changelog-v2/2.69.0.md) — September 2, 2026
 - [2.68.0](changelog-v2/2.68.0.md) — September 1, 2026
 - [2.67.0 - 2.67.7](changelog-v2/2.67.0-2.67.7.md) — August 27, 2026–August 31, 2026

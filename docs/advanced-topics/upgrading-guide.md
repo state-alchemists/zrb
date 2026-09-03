@@ -32,7 +32,16 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 | `llm_config.model_renderer = f` | `task.model_renderer = f` (per task, not process-wide) |
 | `LLMTask(llm_config=...)` | `LLMTask(model_getter=..., model_renderer=...)` |
 
-`llm_config.model_settings` had no real reader and has no replacement. `model_getter`/`model_renderer` are now **task-scoped**: a `zrb_init.py` that set them once to affect every agent process-wide must set them per task instead.
+`llm_config.model_settings` had no real reader and has no replacement. `model_getter`/`model_renderer` are now **task-scoped**: a `zrb_init.py` that set them once to affect every agent process-wide must set them per task instead — *or* set them once on `model_resolver` (`zrb.llm.config.model_resolver.model_resolver`) for a process-wide default that also reaches sub-agent delegation, which has no task of its own:
+
+```python
+from zrb.llm.config.model_resolver import model_resolver
+
+model_resolver.model_getter = my_model_getter
+model_resolver.model_renderer = my_model_renderer
+```
+
+A task's own `model_getter`/`model_renderer`, when set, still applies on top of this default for that task specifically.
 
 ### `UIConfig` replaces individual UI constructor parameters
 

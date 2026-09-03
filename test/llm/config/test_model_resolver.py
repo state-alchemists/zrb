@@ -170,3 +170,75 @@ def test_module_singleton_is_model_resolver_instance():
     from zrb.llm.config.model_resolver import model_resolver
 
     assert isinstance(model_resolver, ModelResolver)
+
+
+# --- model_getter / model_renderer (global hooks) ---------------------------
+
+
+def test_hooks_default_to_none(resolver: ModelResolver):
+    assert resolver.model_getter is None
+    assert resolver.model_renderer is None
+
+
+def test_model_getter_setter_rejects_non_callable(resolver: ModelResolver):
+    with pytest.raises(TypeError, match="model_getter"):
+        resolver.model_getter = "not-callable"
+
+
+def test_model_renderer_setter_rejects_non_callable(resolver: ModelResolver):
+    with pytest.raises(TypeError, match="model_renderer"):
+        resolver.model_renderer = "not-callable"
+
+
+def test_model_getter_setter_accepts_none(resolver: ModelResolver):
+    resolver.model_getter = lambda m: m
+    resolver.model_getter = None
+    assert resolver.model_getter is None
+
+
+def test_resolve_applies_model_getter_then_model_renderer(resolver: ModelResolver):
+    calls = []
+
+    def getter(model):
+        calls.append(("getter", model))
+        return f"got:{model}"
+
+    def renderer(model):
+        calls.append(("renderer", model))
+        return f"rendered:{model}"
+
+    resolver.model_getter = getter
+    resolver.model_renderer = renderer
+
+    resolved = resolver.resolve("totally-unknown-provider:some-model")
+
+    assert resolved == "rendered:got:totally-unknown-provider:some-model"
+    assert calls == [
+        ("getter", "totally-unknown-provider:some-model"),
+        ("renderer", "got:totally-unknown-provider:some-model"),
+    ]
+
+
+def test_resolve_without_hooks_is_unaffected(resolver: ModelResolver):
+    assert resolver.resolve("anthropic:claude-3-opus") == "anthropic:claude-3-opus"
+
+
+def test_resolve_hooks_do_not_fire_for_non_string_model(resolver: ModelResolver):
+    marker = object()
+    resolver.model_getter = lambda m: pytest.fail("model_getter must not run")
+    resolver.model_renderer = lambda m: pytest.fail("model_renderer must not run")
+
+    assert resolver.resolve(marker) is marker
+
+
+def test_resolve_configured_model_applies_global_hooks(monkeypatch):
+    from zrb.llm.config.model_resolver import model_resolver
+
+    monkeypatch.setattr(CFG, "LLM_MODEL", "bsim:gemini-3.5-flash")
+    monkeypatch.setattr(CFG, "LLM_API_KEY", None)
+    monkeypatch.setattr(CFG, "LLM_BASE_URL", None)
+    monkeypatch.setattr(CFG, "LLM_PROVIDER", None)
+    monkeypatch.setattr(model_resolver, "_model_getter", None)
+    monkeypatch.setattr(model_resolver, "_model_renderer", lambda m: f"proxy:{m}")
+
+    assert resolve_configured_model() == "proxy:bsim:gemini-3.5-flash"
