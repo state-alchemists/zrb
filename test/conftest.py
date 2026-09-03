@@ -67,6 +67,35 @@ def _hermetic_environment():
         os.environ.update(saved)
 
 
+@pytest.fixture(autouse=True)
+def _reset_current_tool_session():
+    """Restore the ambient tool session (``_current_session`` in
+    ``zrb.llm.tool.ambient_state``) after every test.
+
+    ``set_current_session`` does a bare, unscoped ``ContextVar.set()`` — by
+    design, it is meant to be called once for a process's lifetime (see its
+    own docstring), so it has no ``scoped()``/token-based reset counterpart
+    (``zrb.util.contextvar_scope``). A test that calls it directly and
+    forgets to reset (three did, in ``test/llm/tool/test_plan.py``) leaks the
+    value into every later test sharing this worker process — not just tests
+    that touch this ContextVar themselves, but any test whose code path reads
+    ``get_current_tool_session()``/``get_session_ownership_key()`` and
+    assumes the default ("default"), such as ``DelegateToAgent``'s live
+    session registry lookup. That leak caused exactly this: rare,
+    worker-assignment-dependent failures in unrelated tests, previously
+    misread as async-cancellation timing flakiness in
+    ``test/llm/tool/test_delegate_tool.py``. This fixture makes the leak
+    self-healing regardless of whether a future test remembers to clean up.
+    """
+    from zrb.llm.tool.ambient_state import get_current_context_session, set_current_session
+
+    saved = get_current_context_session()
+    try:
+        yield
+    finally:
+        set_current_session(saved)
+
+
 @pytest.fixture(autouse=True, scope="session")
 def _disable_real_filesystem_hooks():
     """Keep *every* ``HookManager`` from discovering the developer's real
