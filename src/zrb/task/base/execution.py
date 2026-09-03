@@ -312,7 +312,7 @@ class BaseTaskExecution:
                     continue
                 else:
                     ctx.log_error("Marked as permanently failed")
-                    ctx.log_error(traceback.format_exc())
+                    ctx.log_debug(traceback.format_exc())
                     session.get_task_status(task).mark_as_permanently_failed()
                     self.skip_successors(session)
                     await run_async(self.execute_fallbacks(session))

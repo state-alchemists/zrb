@@ -16,7 +16,7 @@ Zrb provides two primary building blocks for creating automations: `Task` (for P
 
 ## 1. `Task` (or `BaseTask`)
 
-The `Task` class is the workhorse for running custom Python code within your Zrb workflows. It is an alias for the foundational `BaseTask` class.
+The `Task` class is the workhorse for running custom Python code within your Zrb workflows. It's a plain subclass of the foundational `BaseTask` class, adding nothing on top — you can use either interchangeably.
 
 ### When to Use
 

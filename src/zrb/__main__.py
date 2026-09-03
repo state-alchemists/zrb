@@ -87,12 +87,28 @@ def serve_cli():
         print(stylize_warning("\nStopped"), file=sys.stderr)
         pass
     except RuntimeError as e:
-        if f"{e}".lower() != "event loop is closed":
-            raise e
-        sys.exit(1)
+        if f"{e}".lower() == "event loop is closed":
+            sys.exit(1)
+        _handle_uncaught(e)
     except NodeNotFoundError as e:
         print(stylize_error(f"{e}"), file=sys.stderr)
         sys.exit(1)
+    except Exception as e:
+        _handle_uncaught(e)
+
+
+def _handle_uncaught(error: Exception) -> None:
+    """Report an exception that escaped task-level handling, or re-raise it.
+
+    A permanently-failed task already logged its own clean summary (see
+    `BaseTaskExecution.execute_action_with_retry`); letting it propagate here
+    would just dump the same failure again as a raw traceback. Keep the full
+    traceback available on demand via DEBUG, same as execution.py.
+    """
+    if CFG.LOGGER.isEnabledFor(logging.DEBUG):
+        raise error
+    print(stylize_error(f"{type(error).__name__}: {error}"), file=sys.stderr)
+    sys.exit(1)
 
 
 if __name__ == "__main__":

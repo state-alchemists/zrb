@@ -42,7 +42,7 @@ These variables define which LLM Zrb uses for its primary reasoning and how it c
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_MODEL` | Primary LLM model (`provider:model-name`) | `openai-chat:gpt-4o` (if unset) |
+| `ZRB_LLM_MODEL` | Primary LLM model (`provider:model-name`) | `openai:gpt-5.6-luna` (if unset) |
 | `ZRB_LLM_SMALL_MODEL` | Faster model for background tasks | Falls back to `ZRB_LLM_MODEL` |
 | `ZRB_LLM_MULTIMODAL_MODEL` | Model for multimodal tasks (image analysis) | `None` (no fallback) |
 | `ZRB_LLM_API_KEY` | API key for your LLM provider | None |
@@ -266,7 +266,7 @@ These are the **built-in** sections. A name that is not one of them resolves to 
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_PROFILE` | Prompt profile: `minimal`, `standard`, `capable`, or `auto` | `standard` |
+| `ZRB_LLM_PROFILE` | Prompt profile: `minimal`, `standard`, `capable`, or `auto` | `auto` |
 
 | Profile | `profile` section | Delegate tools |
 |---------|-------------------|----------------|
@@ -687,7 +687,7 @@ Each value is a **comma-separated list of alias tokens**, and setting one *repla
 | `ZRB_LLM_UI_COMMAND_EXIT` | Leave the chat session | `/q, :q, /bye, /quit, /exit` |
 | `ZRB_LLM_UI_COMMAND_INFO` | Show session info and the command list | `/info, /help` |
 | `ZRB_LLM_UI_COMMAND_LOAD` | Resume a saved conversation | `/load, /resume` |
-| `ZRB_LLM_UI_COMMAND_PHOTO` | `<cmd> [device]` — capture a photo from the camera and attach it to the conversation (device is optional; auto-detected per platform) | `/photo` |
+| `ZRB_LLM_UI_COMMAND_PHOTO` | `<cmd> [device]` — capture a photo from the camera and attach it to the conversation (device is optional; auto-detected per platform) | `/photo, /p` |
 | `ZRB_LLM_UI_COMMAND_PLAN_TOGGLE` | Toggle Plan Mode | `/plan` |
 | `ZRB_LLM_UI_COMMAND_REDIRECT_OUTPUT` | Bare: copy the **last response** to the clipboard. `<cmd> <path>`: write that response to a file | `>, /redirect` |
 | `ZRB_LLM_UI_COMMAND_REWIND` | Rewind to a previous turn | `/rewind` |

@@ -141,7 +141,7 @@ component slots (`prompt_manager`, `hook_manager`, `llm_limiter`,
 a built-in task is already defined can still replace one wholesale:
 
 ```python
-from zrb import llm_chat
+from zrb.builtin import llm_chat
 from zrb.llm.prompt.manager import PromptManager
 
 llm_chat.prompt_manager = PromptManager(prompts=["Just this one bot."])

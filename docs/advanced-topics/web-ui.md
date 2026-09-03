@@ -146,7 +146,7 @@ You can customize the visual styling of the Web UI using environment variables.
 |----------|---------|-------------|
 | `ZRB_WEB_HTTP_HOST` | `127.0.0.1` | Server bind host; non-loopback exposes the server to the network |
 | `ZRB_WEB_HTTP_PORT` | `21213` | Server port |
-| `ZRB_WEB_AUTH_ENABLED` | `0` | Enable authentication |
+| `ZRB_WEB_AUTH_ENABLED` | `off` | Enable authentication |
 | `ZRB_WEB_COLOR` | `` (empty) | Theme color |
 
 ---

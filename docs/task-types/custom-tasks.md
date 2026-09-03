@@ -48,7 +48,7 @@ zrb greet
 # Output: Hello from greet!
 ```
 
-> **Note:** `Task` is an alias for `BaseTask`. You can subclass either one.
+> **Note:** `Task` is a plain subclass of `BaseTask` that adds nothing on top. You can subclass either one.
 >
 > ⚠️ **Do not override `run()` or `async_run()`** — those are the synchronous and asynchronous *entry points* used by the CLI and have the signature `(self, session=None, str_kwargs=None, kwargs=None)`. Overriding them would break task invocation. The hook for your custom logic is `_exec_action(self, ctx)`, which all built-in subclasses (`CmdTask`, `HttpCheck`, `Scaffolder`, `Scheduler`, ...) override.
 
