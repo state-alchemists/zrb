@@ -134,6 +134,16 @@ async def test_execute_action_with_retry_failure():
         assert status.mark_as_failed.called
         assert status.mark_as_permanently_failed.called
 
+        # The full traceback goes to log_debug (silent at default log level),
+        # never to log_error, so a permanently-failed task doesn't dump a raw
+        # traceback to the console by default.
+        assert any(
+            "Traceback (most recent call last)" in call.args[0]
+            for call in ctx.log_debug.call_args_list
+        )
+        for call in ctx.log_error.call_args_list:
+            assert "Traceback (most recent call last)" not in call.args[0]
+
 
 @pytest.mark.asyncio
 async def test_run_default_action_callable():

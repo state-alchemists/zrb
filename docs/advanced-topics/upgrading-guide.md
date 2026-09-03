@@ -208,7 +208,7 @@ task.prompt_manager.append_prompt(
 )
 ```
 
-Then place `tool_policy` in `ZRB_LLM_INCLUDE_SECTIONS` at the position you want.
+A block added with `append_prompt` always renders after all built-in sections — there's no positioning control, since it isn't a named section you could place in `ZRB_LLM_INCLUDE_SECTIONS`. If you need it somewhere else in the prompt, put it in a `workflow.md` override instead (see [Programming the Prompt](programming-the-prompt.md)).
 
 ### Four prompt sections were retired
 
@@ -229,7 +229,7 @@ A pinned `ZRB_LLM_INCLUDE_SECTIONS` or sub-agent `inherit_sections` naming any o
 Either way, update the list to the new defaults:
 
 ```bash
-export ZRB_LLM_INCLUDE_SECTIONS="persona,workflow,examples,system_context,project_context"
+export ZRB_LLM_INCLUDE_SECTIONS="persona,workflow,example,system_context,project_context"
 ```
 
 `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` is removed along with its hook; the journal tools make the reminder unnecessary. `ZRB_LLM_JOURNAL_ENABLED` still works and now unregisters the three journal tools instead of dropping a prompt section.

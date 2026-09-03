@@ -83,9 +83,10 @@ class LLMPromptMixin:
     LLM_PROFILE = EnvField(
         str,
         doc=(
-            "Prompt profile: 'minimal', 'standard' (default), or 'capable'. "
-            "It selects profile.<name>.md; 'minimal' additionally registers no "
-            "delegate (sub-agent) tools. 'auto' derives one from the model id: "
+            "Prompt profile: 'minimal', 'standard', 'capable', or 'auto' "
+            "(default). It selects profile.<name>.md; 'minimal' additionally "
+            "registers no delegate (sub-agent) tools. 'auto' derives one from "
+            "the model id: "
             "a declared size of 4B or less selects 'minimal', 5-14B 'standard', "
             "above 14B 'capable'; an id declaring nothing falls back to "
             "'standard'. Override per model with ZRB_LLM_PROFILE.\n"

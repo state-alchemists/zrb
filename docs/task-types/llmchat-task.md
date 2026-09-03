@@ -35,15 +35,15 @@ chat = LLMChatTask(
     message: StrAttr | None = None,
     render_message: bool = True,
     attachment: UserContent | list[UserContent] | Callable | None = None,
-    system_prompt: str | None = None,
+    system_prompt: Callable[[AnyContext], str | fstring | None] | str | None = None,
     render_system_prompt: bool = False,
     prompt_manager: PromptManager | None = None,
     active_skills: StrListAttr | None = None,
     render_active_skills: bool = True,
     # Model — see Model, Model Settings & Capabilities, below
-    model: Model | str | None = None,
+    model: Callable[[AnyContext], Model | str | fstring | None] | Model | None = None,
     render_model: bool = True,
-    model_settings: ModelSettings | None = None,
+    model_settings: ModelSettings | Callable[[AnyContext], ModelSettings] | None = None,
     capabilities: list[AbstractCapability] | None = None,
     llm_limiter: LLMLimiter | None = None,
     model_getter: Callable | None = None,
@@ -55,7 +55,7 @@ chat = LLMChatTask(
     history_manager: AnyHistoryManager | None = None,
     history_processors: list[HistoryProcessor] | None = None,
     # Tools
-    tools: list[Tool] | None = None,
+    tools: list[Tool | ToolFuncEither] | None = None,
     toolsets: list[AbstractToolset] | None = None,
     tool_factories: list[Callable] | None = None,
     toolset_factories: list[Callable] | None = None,
@@ -64,7 +64,7 @@ chat = LLMChatTask(
     yolo: BoolAttr = False,
     approval_channel: AnyApprovalChannel | None = None,
     permissions: PermissionPolicyInput = None,
-    sandbox: SandboxInput = None,
+    sandbox: SandboxInput | BoolAttr = None,
     tool_policies: list[ToolPolicy] | None = None,
     response_handlers: list[ResponseHandler] | None = None,
     argument_formatters: list[ArgumentFormatter] | None = None,
@@ -76,7 +76,7 @@ chat = LLMChatTask(
     include_default_ui: bool = True,
     interactive: BoolAttr = True,
     markdown_theme: Theme | None = None,
-    ui_greeting: str | None = None,
+    ui_greeting: StrAttr | None = None,
     ui_assistant_name: StrAttr | None = None,
     ui_jargon: StrAttr | None = None,
     ui_ascii_art: StrAttr | None = None,
@@ -172,7 +172,7 @@ this works even on an already-defined task, such as the built-in `llm_chat`
 from `zrb_init.py`:
 
 ```python
-from zrb import llm_chat
+from zrb.builtin import llm_chat
 from zrb.llm.prompt.manager import PromptManager
 
 llm_chat.prompt_manager = PromptManager(prompts=["Just this one bot."])
