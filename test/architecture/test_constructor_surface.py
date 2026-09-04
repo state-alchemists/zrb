@@ -1,12 +1,11 @@
-"""Guards against constructor-parameter-count drift (R8-adjacent, Phase 5).
+"""Guards against constructor-parameter-count drift (R8-adjacent).
 
 `LLMTask.__init__` and `LLMChatTask.__init__` share ~50 parameters that must
 stay in the same relative order (`test_the_two_task_classes_agree_on_their_shared_parameters`)
 so muscle memory built on one transfers to the other; a name present in both
 signatures but reordered relative to the other is exactly the drift this file
-exists to catch. `BaseUI` is the other host measured here — see
-plan/05-constructor-surface.md for the Phase 5 migration that shrank it from
-34 parameters to 15 by routing UI-backend settings through `UIConfig`.
+exists to catch. `BaseUI` is the other host measured here; routing its
+UI-backend settings through `UIConfig` shrank it from 34 parameters to 15.
 """
 
 import inspect
@@ -18,7 +17,7 @@ from zrb.llm.ui.base.ui import BaseUI
 # Max __init__ parameters per class. Lower these as the surface shrinks; a
 # raise needs a one-line reason in the same diff, like the facade budgets.
 PARAM_BUDGETS = {
-    # Phase 6 (ADR-0090/0091, R12): removed the single `llm_config` param,
+    # ADR-0090/0091 (R12): removed the single `llm_config` param,
     # added the two task-level hooks it used to carry (`model_getter`,
     # `model_renderer`) as direct constructor slots — net +1.
     LLMChatTask: 71,
@@ -48,7 +47,7 @@ def test_the_two_task_classes_agree_on_their_shared_parameters():
     """A name that appears in both `LLMTask.__init__` and
     `LLMChatTask.__init__` must sit in the same relative order in both — the
     drift `hook_manager` and the `ui`/`approval_channel`/`permissions`/
-    `sandbox`/`yolo` cluster had before Phase 5."""
+    `sandbox`/`yolo` cluster once had."""
     llm_task_params = _params(LLMTask)
     chat_task_params = _params(LLMChatTask)
     shared = set(llm_task_params) & set(chat_task_params)

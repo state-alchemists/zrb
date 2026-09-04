@@ -104,7 +104,7 @@ class TestChatSessionManagerListing:
                 manager.set_history_manager(original_hm)
 
     def test_get_sessions_parses_delegated_subagent_session_name(self, tmp_path):
-        """A persisted sub-agent transcript (Item 4, Phase A naming:
+        """A persisted sub-agent transcript (see `subagent_session_naming.py`:
         `{parent}-sub-{agent_name}-{agent_id}`, stored under
         `subagent/{agent_type}/`) must surface its parent session and agent
         name in the listing, with zero new registry."""

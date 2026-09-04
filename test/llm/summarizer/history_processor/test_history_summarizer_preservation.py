@@ -1,79 +1,14 @@
-from dataclasses import dataclass, field
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-try:
-    from pydantic_ai.messages import (
-        AudioUrl,
-        BinaryContent,
-        DocumentUrl,
-        ImageUrl,
-        ModelRequest,
-        ModelResponse,
-        SystemPromptPart,
-        TextPart,
-        ToolCallPart,
-        ToolReturnPart,
-        UserPromptPart,
-        VideoUrl,
-    )
-except ImportError:
-
-    @dataclass
-    class ModelRequest:
-        parts: list[Any] = field(default_factory=list)
-
-    @dataclass
-    class ModelResponse:
-        parts: list[Any] = field(default_factory=list)
-
-    @dataclass
-    class TextPart:
-        content: str
-
-    @dataclass
-    class UserPromptPart:
-        content: Any
-
-    @dataclass
-    class SystemPromptPart:
-        content: str
-
-    @dataclass
-    class ToolReturnPart:
-        content: str
-        tool_name: str = "test"
-        tool_call_id: str = "123"
-
-    @dataclass
-    class ToolCallPart:
-        tool_name: str
-        args: dict[str, Any]
-        tool_call_id: str
-
-    @dataclass
-    class BinaryContent:
-        data: bytes
-        media_type: str
-
-    @dataclass
-    class ImageUrl:
-        url: str
-
-    @dataclass
-    class AudioUrl:
-        url: str
-
-    @dataclass
-    class VideoUrl:
-        url: str
-
-    @dataclass
-    class DocumentUrl:
-        url: str
-
+from pydantic_ai.messages import (
+    ModelRequest,
+    ModelResponse,
+    TextPart,
+    ToolCallPart,
+    ToolReturnPart,
+    UserPromptPart,
+)
 
 from zrb.llm.summarizer import (
     find_safe_split_index,
@@ -172,7 +107,10 @@ async def test_summarize_history_second_round_preserves_the_true_first_user_mess
         ),
     ):
         round1_result = await summarize_history(
-            round1_messages, agent=agent, limiter=limiter, force=True
+            round1_messages,
+            agent=agent,
+            limiter=limiter,
+            force=True,
         )
 
     round2_messages = round1_result + [
@@ -191,7 +129,10 @@ async def test_summarize_history_second_round_preserves_the_true_first_user_mess
         ),
     ):
         round2_result = await summarize_history(
-            round2_messages, agent=agent, limiter=limiter, force=True
+            round2_messages,
+            agent=agent,
+            limiter=limiter,
+            force=True,
         )
 
     combined = "\n".join(message_to_text(m) for m in round2_result)

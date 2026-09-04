@@ -3,8 +3,6 @@
 import os
 import tempfile
 
-import pytest
-
 from zrb.llm.util.prompt import (
     expand_prompt,
     get_path_references,

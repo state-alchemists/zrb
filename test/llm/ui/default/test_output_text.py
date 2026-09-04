@@ -112,7 +112,7 @@ def test_output_text_property():
 
 
 def test_get_agent_activity_text_scopes_by_conversation_session_name():
-    """Item 4, Phase D: the activity panel must read only this UI's own
+    """The activity panel must read only this UI's own
     session's entries, not bleed in another session's running sub-agents."""
     from zrb.llm.agent.activity import AgentActivityRegistry
 
@@ -169,7 +169,7 @@ def test_get_info_bar_text_omits_persona_when_driving_main_agent():
 
 
 def test_get_info_bar_text_shows_active_subagent_persona():
-    """Item 4, Phase D: the UI clue that /load swapped which persona is
+    """The UI clue that /load swapped which persona is
     driving new messages."""
     from prompt_toolkit.formatted_text import to_formatted_text
 

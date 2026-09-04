@@ -4,51 +4,17 @@ These tests verify that summarization preserves tool call/return pairs
 as required by Pydantic AI.
 """
 
-from dataclasses import dataclass, field
-from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-
-try:
-    from pydantic_ai.messages import (
-        ModelRequest,
-        ModelResponse,
-        TextPart,
-        ToolCallPart,
-        ToolReturnPart,
-        UserPromptPart,
-    )
-except ImportError:
-
-    @dataclass
-    class ModelRequest:
-        parts: list[Any] = field(default_factory=list)
-
-    @dataclass
-    class ModelResponse:
-        parts: list[Any] = field(default_factory=list)
-
-    @dataclass
-    class TextPart:
-        content: str
-
-    @dataclass
-    class UserPromptPart:
-        content: str
-
-    @dataclass
-    class ToolReturnPart:
-        content: str
-        tool_name: str = "test"
-        tool_call_id: str = "123"
-
-    @dataclass
-    class ToolCallPart:
-        tool_name: str
-        args: dict[str, Any]
-        tool_call_id: str
-
+from pydantic_ai.messages import (
+    ModelRequest,
+    ModelResponse,
+    TextPart,
+    ToolCallPart,
+    ToolReturnPart,
+    UserPromptPart,
+)
 
 from zrb.llm.message import validate_tool_pair_integrity
 from zrb.llm.summarizer.history_splitter import (

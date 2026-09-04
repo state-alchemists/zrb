@@ -250,7 +250,7 @@ class SubAgentManager:
         """Shared resolution logic behind `create_agent`/`create_llm_chat_task`.
 
         See `SubAgentBuilding.resolve_agent_build`. Public — the CLI TUI's
-        persona-swap-on-`/load` (Item 4, Phase D) calls it directly, outside
+        persona-swap-on-`/load` calls it directly, outside
         this module, to mutate a running task's persona in place.
         """
         return self._building.resolve_agent_build(definition, ctx, yolo)

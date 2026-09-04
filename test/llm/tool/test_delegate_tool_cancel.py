@@ -150,6 +150,7 @@ async def test_delegate_cancelled_view_shows_no_done_marker(mock_sub_agent_manag
 
 def test_docstring_lists_all_agents_without_policy(two_agent_manager):
     tool = create_delegate_to_agent_tool(two_agent_manager)
+    assert tool.__doc__ is not None
     assert "explorer" in tool.__doc__
     assert "builder" in tool.__doc__
 
@@ -171,12 +172,14 @@ def test_docstring_filters_denied_agent(two_agent_manager):
     finally:
         current_permission_policy.reset(token)
 
+    assert tool.__doc__ is not None
     assert "explorer" in tool.__doc__
     assert "builder" not in tool.__doc__
 
 
 def test_delegate_docstring_mentions_fan_out(two_agent_manager):
     tool = create_delegate_to_agent_tool(two_agent_manager)
+    assert tool.__doc__ is not None
     assert "FAN OUT" in tool.__doc__
     assert "tasks" in tool.__doc__
 

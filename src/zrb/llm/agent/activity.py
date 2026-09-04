@@ -11,9 +11,7 @@ asyncio tasks, so this is a process-global singleton rather than a ContextVar
 Entries are keyed by ``session_id`` (defaulting to ``""``, the single-session
 CLI case) so a process hosting multiple independent chat sessions — the web
 runner, one process serving many browser tabs — doesn't bleed one session's
-running sub-agents into another's activity panel/listing. Was a single flat
-dict until Item 4 Phase D; the `ponytail:` note that used to live here is
-resolved by this session-id parameter.
+running sub-agents into another's activity panel/listing.
 """
 
 from __future__ import annotations

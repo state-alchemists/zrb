@@ -350,7 +350,7 @@ def test_buffered_ui_stream_to_parent_routes_into_own_buffer():
 
 
 def test_buffered_ui_passes_its_session_id_to_activity_updates():
-    """Item 4, Phase D: the session that started this delegation must scope
+    """The session that started this delegation must scope
     every activity-registry update, so a process hosting multiple sessions
     doesn't bleed one session's activity into another's."""
     mock_wrapped = MagicMock()
@@ -366,7 +366,7 @@ def test_buffered_ui_passes_its_session_id_to_activity_updates():
 
 
 def test_buffered_ui_defaults_to_empty_session_id():
-    """No session_id passed -> default bucket, matching the pre-Phase-D
+    """No session_id passed -> default bucket
     single-session behavior every existing caller relies on."""
     mock_wrapped = MagicMock()
     ui = BufferedUI(mock_wrapped)

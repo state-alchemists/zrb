@@ -1,14 +1,14 @@
-"""Guards the ADR log against the drift Phase 10 reflowed away: average
+"""Guards the ADR log against wall-of-text drift: average
 paragraph length tripled from 226 chars (ADR-0001-0030) to 615
 (ADR-0061-0091) before anyone measured it, and 126 paragraphs across 42
 files had crossed 700 characters — a wall a reader has to stop and re-read.
 This holds the line at the reflowed maximum (692), rounded up.
 
-Also guards the two other density facts measured before Phase 10: the
+Also guards the two other density facts measured at the same time: the
 non-ADR, non-changelog docs already average 154-228 chars per paragraph
 (no rewrite needed there — this just stops it drifting), and 26 of 29 long
 pages already carry a table of contents (the other three gained one in
-Phase 10 Part B).
+the reflow).
 
 Changelogs are excluded from both paragraph checks on purpose: they are
 append-only history, never re-read start to finish, so density there is
@@ -28,7 +28,7 @@ MIN_LINES_REQUIRING_TOC = 150
 # A paragraph that legitimately can't shrink further (a long quoted error
 # message, a pinned config block not recognized as fenced) goes here by
 # exact file path, with a reason. Empty on purpose — every real offender
-# found while writing this ratchet fit one of Phase 10's three reflow moves
+# found while writing this ratchet fit one of the three reflow moves
 # instead. A growing list here means the threshold, not the paragraph, is
 # wrong.
 DENSITY_EXCEPTIONS: dict[str, set[int]] = {}
@@ -104,8 +104,8 @@ def test_no_adr_paragraph_is_a_wall():
     assert not offenders, (
         "ADR paragraph(s) over "
         f"{MAX_ADR_PARAGRAPH_CHARS} chars — reflow with one of the three "
-        f"moves in plan/10-adr-and-docs-readability.md (numbered-list-is-"
-        f"a-section, prose-is-a-table, split-the-sentence-chain): {offenders}"
+        f"moves this file's docstring describes (numbered-list-is-a-section, "
+        f"prose-is-a-table, split-the-sentence-chain): {offenders}"
     )
 
 

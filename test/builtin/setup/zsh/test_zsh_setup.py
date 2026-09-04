@@ -1,7 +1,4 @@
-import os
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from zrb.builtin.setup.zsh.zsh import setup_zsh
 

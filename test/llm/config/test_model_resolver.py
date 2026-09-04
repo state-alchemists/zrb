@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 
 from zrb.config.config import CFG
@@ -18,7 +20,7 @@ def resolver() -> ModelResolver:
 
 
 def test_resolve_non_string_model_passed_through(resolver: ModelResolver):
-    marker = object()
+    marker: Any = object()
     assert resolver.resolve(marker) is marker
 
 
@@ -247,12 +249,12 @@ def test_hooks_default_to_none(resolver: ModelResolver):
 
 def test_model_getter_setter_rejects_non_callable(resolver: ModelResolver):
     with pytest.raises(TypeError, match="model_getter"):
-        resolver.model_getter = "not-callable"
+        resolver.model_getter = "not-callable"  # type: ignore[assignment]
 
 
 def test_model_renderer_setter_rejects_non_callable(resolver: ModelResolver):
     with pytest.raises(TypeError, match="model_renderer"):
-        resolver.model_renderer = "not-callable"
+        resolver.model_renderer = "not-callable"  # type: ignore[assignment]
 
 
 def test_model_getter_setter_accepts_none(resolver: ModelResolver):
@@ -289,7 +291,7 @@ def test_resolve_without_hooks_is_unaffected(resolver: ModelResolver):
 
 
 def test_resolve_hooks_do_not_fire_for_non_string_model(resolver: ModelResolver):
-    marker = object()
+    marker: Any = object()
     resolver.model_getter = lambda m: pytest.fail("model_getter must not run")
     resolver.model_renderer = lambda m: pytest.fail("model_renderer must not run")
 

@@ -1,7 +1,4 @@
-import os
 from unittest.mock import MagicMock
-
-import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.util.attachment import (

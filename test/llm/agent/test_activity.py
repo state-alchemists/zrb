@@ -92,7 +92,7 @@ def test_buffered_ui_feeds_registry():
     agent_activity_registry.clear()
 
 
-# ── Session scoping (Item 4, Phase D): a process hosting multiple sessions
+# ── Session scoping: a process hosting multiple sessions
 # (the web runner) must not bleed one session's running sub-agents into
 # another's activity panel/listing. ──
 

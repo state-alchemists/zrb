@@ -67,7 +67,7 @@ EXTENSION_POINT_EXCEPTIONS = {
     # llm/agent/spill.py's payload store — only LocalFileStore implements it
     # today, and default_spill_store is a hardcoded module singleton with no
     # public way to swap it yet (dead extensibility, like the old
-    # LLMConfig.model_settings Phase 6 found and deleted).
+    # LLMConfig.model_settings, which R12 found and deleted).
     "OverflowStore",
     # run_agent_task's isinstance check for "can this UI feed the activity
     # panel" — a capability probe, not a slot any task/UI constructor takes.

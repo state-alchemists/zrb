@@ -205,7 +205,7 @@ async def test_replace_in_file_validation_read_error(tmp_path, monkeypatch):
             raise PermissionError("permission denied")
         return original_open(path, *args, **kwargs)
 
-    monkeypatch.setattr(builtins, "open", mock_open)
+    monkeypatch.setattr(builtins, "open", mock_open, raising=False)
 
     result = await replace_in_file_validation_policy(ui, call, next_handler)
 

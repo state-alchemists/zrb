@@ -191,7 +191,7 @@ class ModelResolver:
     ) -> "str | Model":
         # Strip existing provider prefix if present
         clean_model_name = model_name.split(":", 1)[-1]
-        # 1. Provider is an Object (e.g. OpenAIProvider created from custom config)
+        # Provider is an Object (e.g. OpenAIProvider created from custom config)
         # We check specific types we know how to wrap
         try:
             # lazy: heavy third-party
@@ -202,10 +202,10 @@ class ModelResolver:
                 return OpenAIChatModel(model_name=clean_model_name, provider=provider)
         except ImportError:
             pass
-        # 2. Provider is a String
+        # Provider is a String
         if isinstance(provider, str):
             return f"{provider}:{clean_model_name}"
-        # 3. Fallback (Provider is None or unknown object)
+        # Fallback (Provider is None or unknown object)
         return model_name
 
 

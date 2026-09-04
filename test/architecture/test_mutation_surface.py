@@ -47,9 +47,9 @@ KEYED_COLLECTIONS = {
     "zrb.llm.hook.registry:hook_registry": [("hook", "hooks")],
 }
 
-# Every component a user may replace (R8, Phase 4) — a single-value slot
+# Every component a user may replace (R8) — a single-value slot
 # holding a *Manager/*Config/*Limiter or Any* ABC instance. A `list`/`dict`
-# collection (even a settable one, like `ui_factories`) belongs to Phase 3's
+# collection (even a settable one, like `ui_factories`) belongs to the
 # verb-set ratchet above, not here — see framework-conventions.md's R7 note
 # on why those two stay settable properties instead of gaining a `set_X()`.
 # Adding a slot means adding it here in the same diff.
@@ -157,7 +157,7 @@ def _singularize(plural: str) -> str:
 
 # TODO(follow-up): web_auth_config is a genuine hybrid — real user-list
 # storage plus auth callbacks, not a thin CFG.WEB_AUTH_* wrapper — so folding
-# it into CFG is out of scope for Phase 6 (R12, ADR-0090/0091). Exempted here
+# it into CFG is out of scope here (R12, ADR-0090/0091). Exempted
 # until that follow-up lands.
 _R12_EXEMPT = {"web_auth_config"}
 

@@ -1,79 +1,20 @@
-from dataclasses import dataclass, field
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-try:
-    from pydantic_ai.messages import (
-        AudioUrl,
-        BinaryContent,
-        DocumentUrl,
-        ImageUrl,
-        ModelRequest,
-        ModelResponse,
-        SystemPromptPart,
-        TextPart,
-        ToolCallPart,
-        ToolReturnPart,
-        UserPromptPart,
-        VideoUrl,
-    )
-except ImportError:
-
-    @dataclass
-    class ModelRequest:
-        parts: list[Any] = field(default_factory=list)
-
-    @dataclass
-    class ModelResponse:
-        parts: list[Any] = field(default_factory=list)
-
-    @dataclass
-    class TextPart:
-        content: str
-
-    @dataclass
-    class UserPromptPart:
-        content: Any
-
-    @dataclass
-    class SystemPromptPart:
-        content: str
-
-    @dataclass
-    class ToolReturnPart:
-        content: str
-        tool_name: str = "test"
-        tool_call_id: str = "123"
-
-    @dataclass
-    class ToolCallPart:
-        tool_name: str
-        args: dict[str, Any]
-        tool_call_id: str
-
-    @dataclass
-    class BinaryContent:
-        data: bytes
-        media_type: str
-
-    @dataclass
-    class ImageUrl:
-        url: str
-
-    @dataclass
-    class AudioUrl:
-        url: str
-
-    @dataclass
-    class VideoUrl:
-        url: str
-
-    @dataclass
-    class DocumentUrl:
-        url: str
-
+from pydantic_ai.messages import (
+    AudioUrl,
+    BinaryContent,
+    DocumentUrl,
+    ImageUrl,
+    ModelRequest,
+    ModelResponse,
+    SystemPromptPart,
+    TextPart,
+    ToolCallPart,
+    ToolReturnPart,
+    UserPromptPart,
+    VideoUrl,
+)
 
 from zrb.llm.summarizer import (
     create_summarizer_history_processor,
@@ -121,7 +62,10 @@ async def test_summarize_fat_tool_results():
 
     # Threshold 50
     new_messages = await summarize_messages(
-        [msg], agent=agent, limiter=limiter, message_token_threshold=50
+        [msg],
+        agent=agent,
+        limiter=limiter,
+        message_token_threshold=50,
     )
 
     assert len(new_messages) == 1

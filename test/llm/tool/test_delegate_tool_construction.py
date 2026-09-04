@@ -50,6 +50,7 @@ def _many_agents(count: int) -> list[SubAgentDefinition]:
 
 def test_create_delegate_tool_docstring(mock_sub_agent_manager):
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+    assert tool.__doc__ is not None
     assert "test-agent" in tool.__doc__
     assert "A test agent" in tool.__doc__
 

@@ -87,7 +87,7 @@ class TestProperties:
         assert task.sandbox is policy
 
     def test_prompt_manager_setter_replaces_wholesale(self):
-        """Item 4, Phase D: swapping a running task's persona (e.g. the CLI
+        """Swapping a running task's persona (e.g. the CLI
         TUI's /load on a delegated sub-agent session) needs to replace the
         whole PromptManager, not just mutate its model."""
         from zrb.llm.prompt.manager import PromptManager
@@ -228,7 +228,8 @@ class TestAssembly:
 
         assert not isinstance(resolved, str)
         assert resolved.model_name == "switched-model"
-        assert resolved.client.base_url.host == "localhost"
+        assert resolved.base_url is not None
+        assert resolved.base_url.startswith("http://localhost:1234")
 
     def test_get_model_applies_global_model_hooks(self, monkeypatch):
         """`model_resolver`'s process-wide hooks must reach an explicitly set
