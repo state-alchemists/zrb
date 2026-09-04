@@ -19,7 +19,13 @@ def _cleanup_registry():
     Tests that call ``register_lsp_server`` write to the module-level
     ``lsp_server_configs`` singleton. Clearing before each test prevents
     cross-test pollution of the global config registry.
+
+    Cleared after as well: clearing only on the way in protects *these* tests
+    from everyone else while leaking their own registrations into whichever
+    unrelated test pytest-xdist runs next in this worker.
     """
+    lsp_server_configs.clear()
+    yield
     lsp_server_configs.clear()
 
 

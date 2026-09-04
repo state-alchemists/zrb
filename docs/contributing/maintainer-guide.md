@@ -15,6 +15,7 @@ This guide is for developers who contribute to or maintain the Zrb project itsel
 - [Inspecting Import Performance](#inspecting-import-performance)
 - [Profiling Zrb](#profiling-zrb)
 - [Testing Strategies](#testing-strategies)
+  - [Process-wide state and pytest-xdist](#process-wide-state-and-pytest-xdist)
 - [Evaluating the LLM Agent](#evaluating-and-improving-the-llm-agent)
   - [One-on-One LLM Session](#one-on-one-llm-session)
 - [Architecture & Philosophy](#architecture--philosophy)
@@ -58,10 +59,11 @@ A scoped run and a full run check different things — `zrb-test.sh` gates in th
 | `test/architecture/test_complexity_ratchet.py` (mccabe, via flake8) | A per-function complexity ratchet | Your function raised the *worst-in-repo* score — simplify it, or ask whether it's a registration/keybinding table (an accepted exception per `AGENTS.md` — mark it `# noqa: C901` with a one-line reason) |
 | `test/architecture/test_complexity_ratchet.py` (radon) | Same idea as above, scored per-function instead of summed into the enclosing function | Same fix as above |
 | `test/architecture/test_private_test_access_ratchet.py` | Counts `test/` references into another object's private (`_foo`) attributes | You accessed a private member in a test — expose a public accessor instead (see `AGENTS.md` → Test Guidelines), or this is a rare accepted exception (see the test file's own docstring) |
+| `test/architecture/test_sys_modules_patch_allowlist.py` | Every module name shadowed by a `patch.dict("sys.modules", ...)` is on a reviewed allowlist | You shadowed a new module. `patch.dict` restores `sys.modules` by clear-and-update, which *deletes* anything first imported inside the block — unrecoverably so for a C extension. Check whether the guarded code can trigger a real first-time import; if so, warm that module in `test/conftest.py`, then list the name (see the test file's own docstring) |
 | `pyright src/zrb` (full run only) | Static type check | Fix the reported type error |
 | `pytest ... --cov-fail-under=90` (full run only) | ≥90% coverage | Add a test for the uncovered branch |
 
-The three ratchet gates run as ordinary pytest tests under `test/architecture/` (part of the `pytest` invocation below), not as separate shell steps — each file's own docstring documents its exact numbers and rationale; read it if a failure message alone isn't enough. `zrb-test.sh` itself only runs the `flake8 --select=F` step directly.
+The four ratchet gates run as ordinary pytest tests under `test/architecture/` (part of the `pytest` invocation below), not as separate shell steps — each file's own docstring documents its exact numbers and rationale; read it if a failure message alone isn't enough. `zrb-test.sh` itself only runs the `flake8 --select=F` step directly.
 
 **One gotcha that isn't a `zrb-test.sh` gate but bites often:** adding a new test file that shares a basename with one in another directory (e.g. two `test_manager.py` files) fails pytest *collection*, not a specific test — pytest imports rootdir-relative, so two bare files with the same name collide. Fix: add an empty `__init__.py` to the new test directory (see `AGENTS.md` → Test Guidelines for the full explanation).
 
@@ -225,6 +227,18 @@ python -m cProfile -o .cprofile.prof -m zrb --help
 The test suite uses `pytest` fixtures and `unittest.mock.patch` (as decorators or context managers) to isolate components and ensure correctness.
 
 Refer to existing tests in the `test/` directory for examples.
+
+### Process-wide state and `pytest-xdist`
+
+`zrb-test.sh` runs `pytest -n auto`, whose default `--dist load` hands out tests **individually** — so which tests share a worker process, and in what order, changes from run to run. Anything a test leaves behind in process-wide state is therefore read by an unpredictable set of later tests, and the failure surfaces as an intermittent error in a test that never touched that state. Every flake found in this suite so far has been this shape.
+
+`test/conftest.py`'s autouse fixtures already neutralize the known carriers — `os.environ`, the unscoped ambient `ContextVar`s, the memoized environment probes in `zrb.llm.prompt`, `current_agent_mode`'s shared mutable default, and filesystem hook discovery. When adding a test that mutates something process-wide, either restore it or add it there. Three specifics worth knowing:
+
+- **A cleanup fixture must clear on the way *out*, not just on the way in.** Clearing a shared registry before each test protects *your* tests from everyone else while leaking yours into whoever runs next.
+- **An `lru_cache` keyed more narrowly than its inputs will be poisoned by a mock.** If the cached function consults something outside its key (`$PATH`, an env var, a global), an answer computed under a `patch` sticks for the rest of the worker. Fix the key, not the symptom: make it cover everything the answer depends on, and the mock yields a different key instead of a wrong answer. Correspondingly, prefer driving a real input (a `tmp_path` CWD, a throwaway `$PATH`) over stubbing a stdlib global — the test gets more precise at the same time. Do not add a public `reset_*` seam just so a test can clear a cache; that is a public API existing only for tests.
+- **`patch.dict("sys.modules", ...)` deletes real imports.** See the `test_sys_modules_patch_allowlist.py` row in the gate table above.
+
+To reproduce a suspected order dependence, run the two tests together in one process (`pytest a::test_x b::test_y`) rather than chasing it through a full parallel run.
 
 ---
 

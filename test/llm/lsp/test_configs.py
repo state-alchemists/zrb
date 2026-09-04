@@ -19,7 +19,15 @@ def _cleanup_global_registry():
     Tests in other modules (e.g. ``test_lsp_manager.py``) may call
     ``register_lsp_server`` on the shared singleton. Clearing before
     each test here keeps delegation tests deterministic.
+
+    Cleared after as well, not just before: clearing only on the way in
+    protects *these* tests from everyone else while leaking their own
+    registrations — and the ``_detected`` PATH scan these tests cache under a
+    mocked ``shutil.which`` — into whichever unrelated test pytest-xdist runs
+    next in this worker.
     """
+    lsp_server_configs.clear()
+    yield
     lsp_server_configs.clear()
 
 

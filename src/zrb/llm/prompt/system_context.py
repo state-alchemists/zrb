@@ -97,7 +97,12 @@ def system_context(
     project_types = _detect_project_types(cwd)
     infra_types = _detect_infra_types(cwd, home)
     found_markers = list(_detect_project_markers(cwd))
-    found_tools = _resolve_available_tools(project_types, infra_types)
+    # `.get("PATH")` with no default on purpose: `None` (PATH unset) is a
+    # distinct state `shutil.which` resolves via `CS_PATH`/`os.defpath`, and
+    # passing "" instead would make it match nothing (bpo-35755).
+    found_tools = _resolve_available_tools(
+        project_types, infra_types, os.environ.get("PATH")
+    )
 
     parts: list[str] = [
         f"- OS: {platform.platform()}",
@@ -200,10 +205,17 @@ def _format_model_line(model: "Any") -> str | None:
     return f"- Model: {name}"
 
 
+@lru_cache(maxsize=8)
 def _resolve_available_tools(
-    project_types: tuple[str, ...], infra_types: tuple[str, ...]
-) -> list[str]:
-    """Resolve the available tool labels by checking project/infra types + PATH."""
+    project_types: tuple[str, ...], infra_types: tuple[str, ...], path: str | None
+) -> tuple[str, ...]:
+    """Resolve the available tool labels by checking project/infra types + PATH.
+
+    Cached here rather than around the individual `shutil.which` probe so the
+    key covers every input the answer depends on — including `$PATH`, which
+    `shutil.which` reads but a per-command key could not see. One entry per
+    (project, infra, PATH) shape replaces ~21 per-command entries.
+    """
     extra_tools: list[tuple[str, str]] = []
     for pt in project_types:
         if pt in _PROJECT_TOOLS:
@@ -215,16 +227,10 @@ def _resolve_available_tools(
     found_tools: list[str] = []
     seen_labels: set[str] = set()
     for cmd, label in _DEFAULT_TOOLS + _UTILITY_TOOLS + extra_tools:
-        if label not in seen_labels and _which(cmd):
+        if label not in seen_labels and shutil.which(cmd, path=path):
             found_tools.append(label)
             seen_labels.add(label)
-    return found_tools
-
-
-@lru_cache(maxsize=32)
-def _which(cmd: str) -> bool:
-    """Check tool availability once per command — tools don't appear/disappear mid-session."""
-    return bool(shutil.which(cmd))
+    return tuple(found_tools)
 
 
 @lru_cache(maxsize=8)
