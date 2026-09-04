@@ -1,6 +1,5 @@
 """Tests for llm/util/git.py - Git utility functions."""
 
-import os
 import subprocess
 from unittest.mock import MagicMock, patch
 
@@ -107,22 +106,18 @@ class TestIsInsideGitDir:
             result = is_inside_git_dir()
             assert result is False
 
-    def test_actually_inside_git_repo(self):
+    def test_actually_inside_git_repo(self, monkeypatch):
         """Test is_inside_git_dir in actual git repo (integration test)."""
-        import os
         from pathlib import Path
 
         from zrb.llm.util.git import is_inside_git_dir
 
-        original_cwd = os.getcwd()
-        try:
-            test_file = Path(__file__).resolve()
-            repo_root = test_file.parent.parent.parent
-            os.chdir(repo_root)
-            result = is_inside_git_dir()
-            assert result is True
-        finally:
-            os.chdir(original_cwd)
+        # monkeypatch.chdir, not a bare os.chdir in try/finally: pytest
+        # restores the cwd even when the body dies in a way `finally` cannot
+        # catch, so a failure here can't leave every later test in this
+        # xdist worker running from the wrong directory.
+        monkeypatch.chdir(Path(__file__).resolve().parent.parent.parent)
+        assert is_inside_git_dir() is True
 
     def test_probe_timeout_is_not_memoized(self):
         """A transient stall must not stick as "not a git dir" for the process.

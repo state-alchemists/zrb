@@ -97,7 +97,9 @@ def system_context(
     project_types = _detect_project_types(cwd)
     infra_types = _detect_infra_types(cwd, home)
     found_markers = list(_detect_project_markers(cwd))
-    found_tools = _resolve_available_tools(project_types, infra_types)
+    found_tools = _resolve_available_tools(
+        project_types, infra_types, os.environ.get("PATH", "")
+    )
 
     parts: list[str] = [
         f"- OS: {platform.platform()}",
@@ -201,7 +203,7 @@ def _format_model_line(model: "Any") -> str | None:
 
 
 def _resolve_available_tools(
-    project_types: tuple[str, ...], infra_types: tuple[str, ...]
+    project_types: tuple[str, ...], infra_types: tuple[str, ...], path: str
 ) -> list[str]:
     """Resolve the available tool labels by checking project/infra types + PATH."""
     extra_tools: list[tuple[str, str]] = []
@@ -215,15 +217,24 @@ def _resolve_available_tools(
     found_tools: list[str] = []
     seen_labels: set[str] = set()
     for cmd, label in _DEFAULT_TOOLS + _UTILITY_TOOLS + extra_tools:
-        if label not in seen_labels and _which(cmd):
+        if label not in seen_labels and _which(cmd, path):
             found_tools.append(label)
             seen_labels.add(label)
     return found_tools
 
 
 @lru_cache(maxsize=32)
-def _which(cmd: str) -> bool:
-    """Check tool availability once per command — tools don't appear/disappear mid-session."""
+def _which(cmd: str, path: str) -> bool:
+    """Check tool availability once per (command, PATH) pair.
+
+    `path` is not used in the body — `shutil.which` reads `$PATH` itself — but
+    it must stay in the signature, because it is what the answer actually
+    depends on and therefore what the cache must be keyed on. Keying on `cmd`
+    alone made this the one probe in this module whose key was narrower than
+    its inputs, so a caller that changed `$PATH` (or stubbed the lookup) got a
+    stale answer forever. The other probes here already key on everything they
+    read (`cwd`, `home`), which is why they never had that failure mode.
+    """
     return bool(shutil.which(cmd))
 
 

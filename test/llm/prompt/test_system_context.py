@@ -109,8 +109,23 @@ class TestSystemContext:
         assert "<live-context>" in enriched
         assert "authoritative" in enriched
 
-    def test_system_context_includes_tools(self):
-        """system_context should include installed tools."""
+    def test_system_context_includes_tools(self, tmp_path, monkeypatch):
+        """system_context reports exactly the tools it can find on $PATH.
+
+        Drives a real `$PATH` containing one real executable rather than
+        stubbing `shutil.which`. Two reasons: the assertion gets to be exact
+        (only `docker` is present, so only Docker may be listed) instead of a
+        bare "Tools:" substring check, and the probe's cache is keyed on
+        `(cmd, PATH)` — so this test's throwaway `$PATH` gets its own entries
+        and cannot leave a fabricated answer behind for the real one.
+        """
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        docker = bin_dir / "docker"
+        docker.write_text("#!/bin/sh\nexit 0\n")
+        docker.chmod(0o755)
+        monkeypatch.setenv("PATH", str(bin_dir))
+
         ctx = MagicMock(spec=AnyContext)
         received = []
 
@@ -118,20 +133,26 @@ class TestSystemContext:
             received.append(prompt)
             return "ok"
 
-        with patch("shutil.which") as mock_which:
-            mock_which.return_value = "/usr/bin/python"
-            with patch("subprocess.run") as mock_run:
-                mock_result = MagicMock()
-                mock_result.returncode = 0
-                mock_result.stdout = "Python 3.14.0"
-                mock_run.return_value = mock_result
-                system_context(ctx, "test", next_handler)
+        system_context(ctx, "test", next_handler)
 
-        enriched = received[0]
-        assert "Tools:" in enriched
+        tools_line = next(
+            line for line in received[0].splitlines() if line.startswith("- Tools:")
+        )
+        assert "Docker" in tools_line
+        assert "Node" not in tools_line
+        assert "Go" not in tools_line
 
-    def test_system_context_includes_project_markers(self):
-        """system_context should include detected project types."""
+    def test_system_context_includes_project_markers(self, tmp_path, monkeypatch):
+        """system_context reports project markers found in the CWD.
+
+        Creates a real marker file in a real directory rather than stubbing
+        `os.path.exists` — the detection probes are keyed on `cwd`, so a
+        `tmp_path` CWD is isolated by construction, and the assertion can name
+        the marker instead of checking for a bare "Project:" substring.
+        """
+        (tmp_path / "Dockerfile").write_text("FROM scratch\n")
+        monkeypatch.chdir(tmp_path)
+
         ctx = MagicMock(spec=AnyContext)
         received = []
 
@@ -139,12 +160,12 @@ class TestSystemContext:
             received.append(prompt)
             return "ok"
 
-        with patch("os.path.exists") as mock_exists:
-            mock_exists.return_value = True
-            system_context(ctx, "test", next_handler)
+        system_context(ctx, "test", next_handler)
 
-        enriched = received[0]
-        assert "Project:" in enriched
+        project_line = next(
+            line for line in received[0].splitlines() if line.startswith("- Project:")
+        )
+        assert "Docker" in project_line
 
     def test_system_context_omits_model_line_when_model_is_none(self):
         """Default callers (no model bound) get no Model line — back-compat."""
