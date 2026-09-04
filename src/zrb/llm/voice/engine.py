@@ -318,8 +318,7 @@ class VoiceEngine:
                 f"Set {CFG.ENV_PREFIX}_LLM_MULTIMODAL_MODEL or switch to a different voice backend."
             )
 
-        resolved = multimodal_model
-        if is_openai_chat_model(resolved):
+        if is_openai_chat_model(multimodal_model):
             name = model_name(multimodal_model)
             raise RuntimeError(
                 f"Multimodal model {name!r} is from OpenAI, which does not "
@@ -346,7 +345,7 @@ class VoiceEngine:
             from zrb.llm.agent.types import BinaryContent
 
             agent = create_agent(
-                model=resolved,
+                model=multimodal_model,
                 system_prompt=system_prompt,
                 yolo=True,
                 resolve_model=False,
