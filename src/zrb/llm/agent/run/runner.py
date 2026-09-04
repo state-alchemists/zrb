@@ -65,12 +65,12 @@ from zrb.llm.agent_state import (
     AnyToolConfirmation,
     current_agent_run_scope,
     current_hook_manager,
+    current_model,
     current_multimodal_model,
     current_small_model,
     current_tool_confirmation,
     current_ui,
     current_yolo,
-    get_current_multimodal_model,
 )
 from zrb.llm.approval.approval_channel import current_approval_channel
 from zrb.llm.config.limiter import LLMLimiter
@@ -197,6 +197,11 @@ async def run_agent(
             current_multimodal_model,
             getattr(effective_ui, "multimodal_model", None),
         )
+        # The main model this run actually uses, so a helper that needs a model
+        # of its own (the summarizer, the journal judge) can fall back to it
+        # rather than to `CFG.LLM_MODEL` — which after a `/model` switch is a
+        # different model, often on a provider whose credentials are unset.
+        bind_contextvar(stack, current_model, getattr(agent, "model", None))
         bind_contextvar(stack, current_agent_run_scope, run_scope or uuid.uuid4().hex)
         bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         bind_contextvar(stack, current_permission_policy, effective_policy)
@@ -958,8 +963,6 @@ async def _apply_multimodal_fallback(
     return await replace_unsupported_attachments(
         prompt_content,
         main_model=main_model,
-        multimodal_model=resolve_configured_multimodal_model(
-            get_current_multimodal_model()
-        ),
+        multimodal_model=resolve_configured_multimodal_model(),
         print_fn=print_fn,
     )

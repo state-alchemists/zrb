@@ -112,3 +112,24 @@ def test_split_history_resilience():
         assert isinstance(to_keep, list)
     except TypeError as e:
         pytest.fail(f"split_history crashed with TypeError: {e}")
+
+
+@pytest.mark.asyncio
+async def test_processor_survives_unbuildable_summarizer(monkeypatch):
+    """A small model whose provider has no credentials must cost the history its
+    summarization, not the whole turn: `create_*_summarizer_agent` raising is a
+    construction failure outside the try/except each summarization stage
+    already has."""
+    import zrb.llm.summarizer.history_summarizer as hs
+
+    def explode():
+        raise Exception("Set the `OPENAI_API_KEY` environment variable")
+
+    monkeypatch.setattr(hs, "create_message_summarizer_agent", explode)
+    monkeypatch.setattr(hs, "create_conversational_summarizer_agent", explode)
+    messages = [ModelRequest(parts=[UserPromptPart(content="hi")])]
+
+    processor = create_summarizer_history_processor(limiter=MockLimiter())
+    result = await processor(messages)
+
+    assert result == messages

@@ -59,17 +59,23 @@ def resolve_model(
     """The task's model, rendered against *ctx*, falling back to `CFG.LLM_MODEL`.
 
     A blank render counts as unset, so an empty ``--model`` input does not
-    shadow the configured model with an empty string. The task's own explicit
-    `model` is returned as-is (matching the pre-Phase-6 behavior — only the
-    `CFG` fallback goes through provider resolution); resolve it yourself via
-    `zrb.llm.config.model_resolver.model_resolver` if you need that too.
+    shadow the configured model with an empty string.
+
+    Every branch goes through `resolve_configured_model`, so an explicitly set
+    name is resolved against `CFG.LLM_API_KEY`/`LLM_BASE_URL`/`LLM_PROVIDER`
+    exactly like the `CFG` fallback is. This is the single resolution point for
+    a task's main model, which is what makes a mid-session `/model <name>`
+    switch behave like a configured one: the UI stores the typed name
+    (`BaseUI.model`), the name reaches the core task as `ctx.input["model"]`,
+    and this call resolves it afresh on every turn. Resolution is idempotent —
+    `ModelResolver.resolve` returns a non-`str` (already-resolved `Model`)
+    unchanged — so a value that round-trips back through the UI is not
+    re-wrapped.
     """
     rendered_model = get_attr(ctx, model, None, auto_render=render_model)
     if isinstance(rendered_model, str) and rendered_model.strip() == "":
         rendered_model = None
-    if rendered_model is not None:
-        return rendered_model
-    return resolve_configured_model()
+    return resolve_configured_model(rendered_model)
 
 
 def apply_model_hooks(

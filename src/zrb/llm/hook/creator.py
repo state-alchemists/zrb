@@ -17,6 +17,7 @@ import signal
 import subprocess
 
 from zrb.config.config import CFG
+from zrb.llm.agent_state import get_current_model
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.process_io import read_hook_output, run_detached
@@ -383,7 +384,10 @@ async def run_llm_hook(
         # prompt/agent hook actually fires.
         from zrb.llm.agent import create_agent
 
-        model_name = model or CFG.LLM_MODEL
+        # A hook agent is a nested agent inside a run, so an unconfigured one
+        # inherits that run's model (a `/model` switch, `--model`) before
+        # falling back to the static default — same reason the summarizer does.
+        model_name = model or get_current_model() or CFG.LLM_MODEL
         if not model_name:
             logger.error(f"No LLM model configured for {kind} hook")
             return HookResult(success=False, output="No LLM model configured")

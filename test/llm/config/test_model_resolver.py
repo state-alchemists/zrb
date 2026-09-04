@@ -126,6 +126,40 @@ def test_resolve_configured_small_model_falls_back_to_main_model(monkeypatch):
     assert resolve_configured_small_model() == "openai:gpt-4o"
 
 
+def test_resolve_configured_small_model_prefers_current_run_model(monkeypatch):
+    """A `/model deepseek:...` switch must carry the summarizer/journal with it:
+    falling back to CFG.LLM_MODEL would demand the default provider's
+    credentials on a run that never uses it."""
+    from zrb.llm.agent_state import current_model
+
+    monkeypatch.setattr(CFG, "LLM_MODEL", "openai:gpt-4o")
+    monkeypatch.setattr(CFG, "LLM_SMALL_MODEL", None)
+    monkeypatch.setattr(CFG, "LLM_API_KEY", None)
+    monkeypatch.setattr(CFG, "LLM_BASE_URL", None)
+    monkeypatch.setattr(CFG, "LLM_PROVIDER", None)
+    token = current_model.set("deepseek:deepseek-chat")
+    try:
+        assert resolve_configured_small_model() == "deepseek:deepseek-chat"
+    finally:
+        current_model.reset(token)
+
+
+def test_resolve_configured_small_model_cfg_small_model_beats_run_model(monkeypatch):
+    """An explicitly configured small model still outranks the run's model."""
+    from zrb.llm.agent_state import current_model
+
+    monkeypatch.setattr(CFG, "LLM_MODEL", "openai:gpt-4o")
+    monkeypatch.setattr(CFG, "LLM_SMALL_MODEL", "anthropic:claude-3-haiku")
+    monkeypatch.setattr(CFG, "LLM_API_KEY", None)
+    monkeypatch.setattr(CFG, "LLM_BASE_URL", None)
+    monkeypatch.setattr(CFG, "LLM_PROVIDER", None)
+    token = current_model.set("deepseek:deepseek-chat")
+    try:
+        assert resolve_configured_small_model() == "anthropic:claude-3-haiku"
+    finally:
+        current_model.reset(token)
+
+
 def test_resolve_configured_small_model_explicit_override_wins(monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MODEL", "openai:gpt-4o")
     monkeypatch.setattr(CFG, "LLM_SMALL_MODEL", "anthropic:claude-3-haiku")
@@ -137,6 +171,37 @@ def test_resolve_configured_small_model_explicit_override_wins(monkeypatch):
 
 
 # --- resolve_configured_multimodal_model ------------------------------------
+
+
+def test_resolve_configured_multimodal_model_prefers_run_override(monkeypatch):
+    """`/model multimodal <name>` outranks `CFG.LLM_MULTIMODAL_MODEL`."""
+    from zrb.llm.agent_state import current_multimodal_model
+
+    monkeypatch.setattr(CFG, "LLM_MULTIMODAL_MODEL", "openai:gpt-4o")
+    monkeypatch.setattr(CFG, "LLM_API_KEY", None)
+    monkeypatch.setattr(CFG, "LLM_BASE_URL", None)
+    monkeypatch.setattr(CFG, "LLM_PROVIDER", None)
+    token = current_multimodal_model.set("google-gla:gemini-2.5-flash")
+    try:
+        assert resolve_configured_multimodal_model() == "google-gla:gemini-2.5-flash"
+    finally:
+        current_multimodal_model.reset(token)
+
+
+def test_resolve_configured_multimodal_model_never_falls_back_to_main_model(
+    monkeypatch,
+):
+    """No multimodal model configured stays `None` — a text-only main model
+    cannot read the attachment, which is why this tier exists at all."""
+    from zrb.llm.agent_state import current_model
+
+    monkeypatch.setattr(CFG, "LLM_MULTIMODAL_MODEL", "")
+    monkeypatch.setattr(CFG, "LLM_MODEL", "openai:gpt-4o")
+    token = current_model.set("deepseek:deepseek-chat")
+    try:
+        assert resolve_configured_multimodal_model() is None
+    finally:
+        current_model.reset(token)
 
 
 def test_resolve_configured_multimodal_model_none_when_unconfigured(monkeypatch):

@@ -176,7 +176,6 @@ class ChatRunning:
                     initial_message = mentioned
 
         # Note: AsyncExitStack is handled by LLMTask._exec_action
-        # 1. Resolve UIs from factories
         resolved_uis: list["AnyUI"] = list(self._llm_chat_task.uis)
         for factory in self._llm_chat_task.ui_factories:
             factory_ui = factory(
@@ -195,7 +194,6 @@ class ChatRunning:
             else:
                 resolved_uis.append(factory_ui)
 
-        # 2. Resolve shared UI attributes
         default_ui_kwargs = self._build_default_ui_kwargs(
             ctx=ctx,
             llm_task_core=llm_task_core,
@@ -209,14 +207,11 @@ class ChatRunning:
             resolved_custom_commands=resolved_custom_commands,
         )
 
-        # 3. Determine the UI to use
         ui = self._resolve_ui(resolved_uis, default_ui_kwargs)
 
-        # 4. Load and display session history
         if initial_conversation_name:
             self.load_session_history(ui, history_manager, initial_conversation_name)
 
-        # 5. Run the UI
         await ui.run_async()
         last_output = getattr(ui, "last_output", "")
         final_conversation_name = self._llm_chat_task.get_ui_conversation_name(

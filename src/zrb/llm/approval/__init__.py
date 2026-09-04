@@ -1,73 +1,16 @@
-"""Multi-channel approval system for Zrb.
+"""Multi-channel approval for tool calls.
 
-This module provides a flexible approval channel system that allows tool call
-approvals to be routed through different channels (Terminal, Telegram, Web, etc.)
-instead of only terminal input.
+Routes a tool-call approval request somewhere other than terminal stdin —
+Telegram, a web UI, Slack — through one contract, `AnyApprovalChannel`
+(`request_approval` + `notify`). `TerminalApprovalChannel` is the default,
+`NullApprovalChannel` auto-approves (YOLO), and `MultiplexApprovalChannel`
+combines several channels first-response-wins; zrb builds that one itself when
+a task carries more than one channel.
 
-APPROVAL CHANNEL HIERARCHY
-═════════════════════════════════════════════════════════════════════════════
-
-    ┌────────────────────────────────────────────────────────────────────────┐
-    │ AnyApprovalChannel (ABC)                                               │
-    │   - request_approval(context): Wait for user approval                  │
-    │   - notify(message, context): Send informational message               │
-    │   - Implement for custom backends                                      │
-    ├────────────────────────────────────────────────────────────────────────┤
-    │ Built-in Implementations:                                              │
-    ├────────────────────────────────────────────────────────────────────────┤
-    │ TerminalApprovalChannel                                                │
-    │   - Uses AnyUI for terminal interaction                                │
-    │   - Default when no custom channel is set                              │
-    │                                                                        │
-    │ NullApprovalChannel                                                    │
-    │   - Auto-approves all tool calls (YOLO mode)                           │
-    │   - Use: llm_chat.approval_channels = [NullApprovalChannel()]          │
-    │                                                                        │
-    │ MultiplexApprovalChannel                                               │
-    │   - Combines multiple approval channels                                │
-    │   - First response wins (any channel can approve)                      │
-    │   - Auto-created when multiple channels are added                      │
-    └────────────────────────────────────────────────────────────────────────┘
-
-SIMPLE APPROVAL CHANNEL
-═════════════════════════════════════════════════════════════════════════════
-
-Basic implementation (just approve/deny):
-
-    from zrb.llm.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
-
-    class MyApprovalChannel(AnyApprovalChannel):
-        async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
-            # Send approval request (e.g., via Telegram button, webhook)
-            ...
-            return ApprovalResult(approved=True)  # or False
-
-        async def notify(self, message: str, context: ApprovalContext = None):
-            # Send notification
-            ...
-
-    # Register
-    from zrb.builtin.llm.chat import llm_chat
-    llm_chat.approval_channels = [MyApprovalChannel(...)]
-
-DUAL-MODE APPROVAL (CLI + External Channel)
-═════════════════════════════════════════════════════════════════════════════
-
-For dual-mode (CLI + Telegram/SSE), add multiple approval channels:
-
-    from zrb.llm.approval import (
-        MultiplexApprovalChannel,
-        TerminalApprovalChannel,
-    )
-    from zrb.builtin.llm.chat import llm_chat
-
-    # Add Telegram approval channel
-    llm_chat.append_approval_channel(TelegramApprovalChannel(bot, chat_id))
-
-    # Terminal approval is handled automatically
-    # Framework creates MultiplexApprovalChannel automatically
-
-    # See examples/chat-telegram/ for complete implementation
+`docs/llm/llm-custom-ui.md` (section "Approval Channels") owns the how-to —
+the interface, `ApprovalContext` fields, and dual-mode CLI-plus-external
+wiring — with `examples/chat-telegram/` and `examples/chat-sse/` as the
+runnable versions.
 """
 
 from zrb.llm.approval.any_approval_channel import (
