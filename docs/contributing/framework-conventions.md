@@ -23,21 +23,8 @@ See also: [Which pattern do I reach for?](which-pattern.md) — a lookup table f
 
 ## R7, two specific cases
 
-- **Search directories.** Every manager that scans a filesystem (`HookManager`,
-  `SkillManager`, `SubAgentManager`) exposes exactly one settable `search_dirs`
-  property: reading it returns the explicit override if one was set (at
-  construction or by assignment), else the computed defaults; there is no
-  separate `get_search_directories()`. `SubAgentManager`'s `root_dir` — a
-  *different* concept, the scan root, not a search directory — is
-  `scan_root`, so it cannot be confused with `search_dirs`.
-- **Component slot vs. collection.** A settable property (`history_manager`,
-  `prompt_manager`), not a `set_X()` method, when the slot holds exactly one
-  thing. `set_X()` is for *collections* — it means "replace the whole list"
-  (ADR-0090 Part 2) — so a single-value slot never gets both. Two collections
-  (`ui_factories`, `approval_channels`) already had a settable plural property
-  before this rule existed; R7 keeps that property as their "replace
-  wholesale" spelling rather than adding a `set_X()` that would just be a
-  second name for the same thing.
+- **Search directories.** Every manager that scans a filesystem (`HookManager`, `SkillManager`, `SubAgentManager`) exposes exactly one settable `search_dirs` property: reading it returns the explicit override if one was set (at construction or by assignment), else the computed defaults; there is no separate `get_search_directories()`. `SubAgentManager`'s `root_dir` — a *different* concept, the scan root, not a search directory — is `scan_root`, so it cannot be confused with `search_dirs`.
+- **Component slot vs. collection.** A settable property (`history_manager`, `prompt_manager`), not a `set_X()` method, when the slot holds exactly one thing. `set_X()` is for *collections* — it means "replace the whole list" (ADR-0090 Part 2) — so a single-value slot never gets both. Two collections (`ui_factories`, `approval_channels`) already had a settable plural property before this rule existed; R7 keeps that property as their "replace wholesale" spelling rather than adding a `set_X()` that would just be a second name for the same thing.
 
 ---
 
