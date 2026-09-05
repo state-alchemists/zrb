@@ -112,7 +112,7 @@ def test_check_unrecommended_commands():
     assert violations["echo"] == "echo isn't consistent across OS; use printf instead"
 
     violations = check_unrecommended_commands("ls -la")
-    assert r"\bls " in violations
+    assert r"(?:^|[|;&]\s*)ls\s" in violations
 
     violations = check_unrecommended_commands("cat file | sort -V")
     assert r"sort.*-V" in violations
