@@ -57,9 +57,13 @@ def test_strip_to_text_only_parallel_tool_calls():
 
     # ModelRequest: three UserPromptParts (one per return), no ToolReturnParts.
     assert isinstance(result[2], ModelRequest)
-    assert all(isinstance(p, UserPromptPart) for p in result[2].parts)
     # UserPromptParts carry no tool_call_id, so no cross-reference survives.
-    contents = [p.content for p in result[2].parts]
+    contents = [
+        p.content
+        for p in result[2].parts
+        if isinstance(p, UserPromptPart) and isinstance(p.content, str)
+    ]
+    assert len(contents) == len(result[2].parts)
     assert all("(sanitized-history)" in c for c in contents)
     assert "c" in contents[0] and "rc" in contents[0]
     assert "a" in contents[1] and "ra" in contents[1]
@@ -166,6 +170,7 @@ def test_strip_thinking_parts_removes_thinking_but_keeps_text():
     out = result[0]
     assert isinstance(out, ModelResponse)
     assert [type(p).__name__ for p in out.parts] == ["TextPart"]
+    assert isinstance(out.parts[0], TextPart)
     assert out.parts[0].content == "hello"
 
 
@@ -213,6 +218,7 @@ def test_sanitize_history_debug_logging_detects_problems():
         ModelResponse(parts=[]),
         # Nil-content thinking-only response: nil content + no-text/no-tool +
         # consecutive-same-role (two ModelResponses in a row) all detected.
+        # pyright: ignore[reportArgumentType]
         ModelResponse(parts=[ThinkingPart(content=None)]),
         # Orphaned tool return so validate_tool_pair_integrity yields problems.
         ModelRequest(
@@ -277,6 +283,7 @@ def test_strip_to_text_only_native_tool_call_yields_placeholder():
 
     out = result[0]
     assert isinstance(out, ModelResponse)
+    assert isinstance(out.parts[0], TextPart)
     assert out.parts[0].content == TOOL_CALL_PLACEHOLDER
 
 
@@ -339,9 +346,10 @@ def test_close_dangling_tool_calls_synthesizes_returns():
     closing = result[2]
     assert isinstance(closing, ModelRequest)
     assert len(closing.parts) == 2
-    assert all(isinstance(p, ToolReturnPart) for p in closing.parts)
-    assert {p.tool_call_id for p in closing.parts} == {"c1", "c2"}
-    assert all(p.content == "[SYSTEM] Interrupted." for p in closing.parts)
+    returns = [p for p in closing.parts if isinstance(p, ToolReturnPart)]
+    assert len(returns) == len(closing.parts)
+    assert {p.tool_call_id for p in returns} == {"c1", "c2"}
+    assert all(p.content == "[SYSTEM] Interrupted." for p in returns)
 
 
 def test_close_dangling_tool_calls_noop_on_complete_history():
@@ -390,6 +398,7 @@ def test_strip_to_text_only_truncates_long_retry_prompt():
     out_part = result[0].parts[0]
     assert isinstance(out_part, UserPromptPart)
     text = out_part.content
+    assert isinstance(text, str)
     assert "(sanitized-history)" in text
     assert "bad_tool" in text
     assert text.endswith("...")

@@ -2,17 +2,16 @@ from unittest.mock import patch
 
 import pytest
 from pydantic_ai.messages import (
+    ModelMessage,
     ModelRequest,
+    ModelResponse,
     ToolCallPart,
     ToolReturnPart,
     UserPromptPart,
 )
 
 from zrb.llm.message import get_tool_pairs
-from zrb.llm.summarizer.history_splitter import (
-    is_split_safe,
-    split_history,
-)
+from zrb.llm.summarizer.history_splitter import is_split_safe, split_history
 
 
 class MockLimiter:
@@ -29,8 +28,8 @@ class MockLimiter:
 
 
 def test_get_tool_pairs_complex():
-    messages = [
-        ModelRequest(parts=[ToolCallPart(tool_name="t1", args={}, tool_call_id="c1")]),
+    messages: list[ModelMessage] = [
+        ModelResponse(parts=[ToolCallPart(tool_name="t1", args={}, tool_call_id="c1")]),
         ModelRequest(
             parts=[ToolReturnPart(content="r1", tool_name="t1", tool_call_id="c1")]
         ),
@@ -51,8 +50,8 @@ def test_get_tool_pairs_complex():
 
 
 def test_is_split_safe():
-    messages = [
-        ModelRequest(parts=[ToolCallPart(tool_name="t1", args={}, tool_call_id="c1")]),
+    messages: list[ModelMessage] = [
+        ModelResponse(parts=[ToolCallPart(tool_name="t1", args={}, tool_call_id="c1")]),
         ModelRequest(
             parts=[ToolReturnPart(content="r1", tool_name="t1", tool_call_id="c1")]
         ),
@@ -68,7 +67,7 @@ def test_is_split_safe():
 @pytest.mark.asyncio
 async def test_split_history_token_limit_trigger():
     limiter = MockLimiter(token_per_msg=100)
-    messages = [
+    messages: list[ModelMessage] = [
         ModelRequest(parts=[UserPromptPart(content="m1")]),
         ModelRequest(parts=[UserPromptPart(content="m2")]),
         ModelRequest(parts=[UserPromptPart(content="m3")]),
@@ -99,7 +98,7 @@ async def test_split_history_token_limit_trigger():
 @pytest.mark.asyncio
 async def test_split_history_fallback():
     limiter = MockLimiter(token_per_msg=10)
-    messages = [
+    messages: list[ModelMessage] = [
         ModelRequest(parts=[UserPromptPart(content="m1")]),
         ModelRequest(parts=[UserPromptPart(content="m2")]),
     ]

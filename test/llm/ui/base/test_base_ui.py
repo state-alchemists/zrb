@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
 from zrb.llm.ui.base.ui import BaseUI
@@ -39,7 +40,7 @@ class ConcreteUI(BaseUI):
 
 @pytest.fixture
 def base_ui():
-    ctx = SharedContext()
+    ctx = Context(SharedContext(), "test", 0, "")
     llm_task = MagicMock()
     history_manager = MagicMock()
     return ConcreteUI(
@@ -291,7 +292,7 @@ class RecordingUI(ConcreteUI):
 
 def make_ui():
     return RecordingUI(
-        ctx=SharedContext(),
+        ctx=Context(SharedContext(), "test", 0, ""),
         llm_task=MagicMock(),
         history_manager=MagicMock(),
     )

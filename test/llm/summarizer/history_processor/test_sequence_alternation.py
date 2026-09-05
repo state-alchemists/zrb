@@ -62,25 +62,11 @@ async def test_summarize_history_consecutive_user_messages():
     # contain the Summary, the preserved opening turn (User 1), and User 2's
     # content — all merged into one ModelRequest by ensure_alternating_roles.
     assert len(new_history[0].parts) == 3
-    assert any(
-        "SYSTEM: Automated Context Restoration" in part.content
-        for part in new_history[0].parts
-        if hasattr(part, "content")
-    )
-    assert any(
-        "User 1" in part.content
-        for part in new_history[0].parts
-        if hasattr(part, "content")
-    )
-    assert any(
-        "User 2" in part.content
-        for part in new_history[0].parts
-        if hasattr(part, "content")
-    )
+    first_contents = [str(getattr(p, "content", "")) for p in new_history[0].parts]
+    assert any("SYSTEM: Automated Context Restoration" in c for c in first_contents)
+    assert any("User 1" in c for c in first_contents)
+    assert any("User 2" in c for c in first_contents)
 
     # Check that second message is the kept assistant message
-    assert any(
-        "AI 2" in part.content
-        for part in new_history[1].parts
-        if hasattr(part, "content")
-    )
+    second_contents = [str(getattr(p, "content", "")) for p in new_history[1].parts]
+    assert any("AI 2" in c for c in second_contents)

@@ -110,11 +110,7 @@ class TestEffectivePrompt:
         # "[SYSTEM]" turns appended by error recovery and tool-return-only
         # requests are not user turns — the real user turn behind them is
         # the one compared against.
-        from pydantic_ai.messages import (
-            ModelRequest,
-            ToolReturnPart,
-            UserPromptPart,
-        )
+        from pydantic_ai.messages import ModelRequest, ToolReturnPart, UserPromptPart
 
         task = LLMTask(name="t")
         ctx = MagicMock()
@@ -333,7 +329,9 @@ class TestHandleRunError:
         # Last message should be the partial summary
         last = saved[-1]
         assert isinstance(last, ModelRequest)
+        assert isinstance(last.parts[0], UserPromptPart)
         content = last.parts[0].content
+        assert isinstance(content, str)
         assert "search" in content
         assert "Found foo.py" in content
 
@@ -396,6 +394,7 @@ class TestHandleRunError:
         assert isinstance(closing, ModelRequest)
         assert isinstance(closing.parts[0], ToolReturnPart)
         assert closing.parts[0].tool_call_id == "c1"
+        assert isinstance(closing.parts[0].content, str)
         assert "connection reset" in closing.parts[0].content
         assert isinstance(saved[-1], ModelRequest)
         assert "Error occurred" in saved[-1].parts[0].content

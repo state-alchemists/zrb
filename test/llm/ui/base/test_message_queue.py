@@ -2,6 +2,7 @@ import asyncio
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic_ai.messages import UserContent
 
 from zrb.llm.ui.base.message_queue import (
     MessageQueue,
@@ -169,7 +170,7 @@ def test_steer_into_live_run_false_without_active_run():
 
 def test_steer_into_live_run_delivers_via_enqueue():
     run_context = MagicMock()
-    attachments = ["image-bytes"]
+    attachments: list[UserContent] = ["image-bytes"]
 
     assert steer_into_live_run(run_context, "hello", attachments) is True
 

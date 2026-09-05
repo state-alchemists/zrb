@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pydantic_ai.messages import (
+    ModelMessage,
     ModelRequest,
     ModelResponse,
     TextPart,
@@ -51,7 +52,7 @@ async def test_summarize_history_preserves_first_user_message():
     agent.run = AsyncMock(return_value=mock_result)
 
     opening_request = "refactor the parser and fix the failing test"
-    messages = [
+    messages: list[ModelMessage] = [
         ModelRequest(parts=[UserPromptPart(content=opening_request)]),
         ModelRequest(parts=[UserPromptPart(content="b" * 50)]),
         ModelRequest(parts=[UserPromptPart(content="c" * 50)]),
@@ -89,7 +90,7 @@ async def test_summarize_history_second_round_preserves_the_true_first_user_mess
     agent.run = AsyncMock(return_value=mock_result)
 
     opening_request = "refactor the parser and fix the failing test"
-    round1_messages = [
+    round1_messages: list[ModelMessage] = [
         ModelRequest(parts=[UserPromptPart(content=opening_request)]),
         ModelRequest(parts=[UserPromptPart(content="b" * 50)]),
         ModelRequest(parts=[UserPromptPart(content="c" * 50)]),
@@ -146,7 +147,7 @@ async def test_summarize_history_second_round_preserves_the_true_first_user_mess
 async def test_find_safe_split_index_no_safe_split():
     limiter = MockLimiter()
     messages = [
-        ModelRequest(parts=[ToolCallPart(tool_name="t", args={}, tool_call_id="1")]),
+        ModelResponse(parts=[ToolCallPart(tool_name="t", args={}, tool_call_id="1")]),
         ModelRequest(parts=[UserPromptPart(content="Waiting...")]),
     ]
     idx = find_safe_split_index(messages, limiter, 5)
@@ -242,7 +243,7 @@ async def test_summarize_history_error_handling():
     agent = MagicMock()
     agent.run = AsyncMock(side_effect=Exception("Summarizer failed"))
 
-    messages = [
+    messages: list[ModelMessage] = [
         ModelRequest(parts=[UserPromptPart(content="a" * 100)]),
         ModelRequest(parts=[UserPromptPart(content="b" * 100)]),
     ]
@@ -324,7 +325,7 @@ async def test_find_best_effort_split_complex():
     # 3. Orphaned return (can break)
 
     messages = [
-        ModelRequest(
+        ModelResponse(
             parts=[ToolCallPart(tool_name="complete", args={}, tool_call_id="c1")]
         ),  # 0
         ModelResponse(parts=[TextPart(content="Working...")]),  # 1
@@ -333,7 +334,7 @@ async def test_find_best_effort_split_complex():
                 ToolReturnPart(content="done", tool_name="complete", tool_call_id="c1")
             ]
         ),  # 2
-        ModelRequest(
+        ModelResponse(
             parts=[ToolCallPart(tool_name="incomplete", args={}, tool_call_id="i1")]
         ),  # 3
         ModelRequest(parts=[UserPromptPart(content="last message")]),  # 4
@@ -368,7 +369,7 @@ def test_validate_tool_pair_integrity_problems():
 
     # 1. Call without return
     messages = [
-        ModelRequest(parts=[ToolCallPart(tool_name="t", args={}, tool_call_id="c1")])
+        ModelResponse(parts=[ToolCallPart(tool_name="t", args={}, tool_call_id="c1")])
     ]
     is_valid, problems = validate_tool_pair_integrity(messages)
     assert not is_valid

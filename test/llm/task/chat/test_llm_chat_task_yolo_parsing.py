@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.approval import NullApprovalChannel
 from zrb.llm.prompt.manager import PromptManager
@@ -382,7 +383,9 @@ def test_a_registry_delta_reaches_a_task_built_around_it():
         name="chat", prompt_manager=PromptManager(prompt_registry=registry)
     )
 
-    composed = task.prompt_manager.compose_prompt()(SharedContext())
+    composed = task.prompt_manager.compose_prompt()(
+        Context(SharedContext(), "test", 0, "")
+    )
     assert "Always answer in British English." in composed
 
 
@@ -394,7 +397,9 @@ def test_a_cfg_scalar_reaches_a_task_that_defers_to_the_registry(monkeypatch):
     monkeypatch.setattr(CFG, "LLM_PROMPT", ["Prefer git over GUI."])
     task = LLMChatTask(name="chat")  # no prompt_manager passed -> defers to CFG
 
-    composed = task.prompt_manager.compose_prompt()(SharedContext())
+    composed = task.prompt_manager.compose_prompt()(
+        Context(SharedContext(), "test", 0, "")
+    )
     assert "Prefer git over GUI." in composed
 
 

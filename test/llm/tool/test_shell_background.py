@@ -189,28 +189,55 @@ async def test_poll_truncates_large_output_and_reports_recoverable_path(
     assert full_output.count("A") == 500
 
 
+async def _poll_until(registry, handle: str, needle: str, timeout: float = 10.0) -> str:
+    """Poll until *needle* shows up in the response, and return that response.
+
+    Polling is the only way to observe a background process, and it is not
+    itself a wall-clock wait: `poll` consumes nothing while the process is
+    still running, so retrying is free.
+    """
+    deadline = asyncio.get_running_loop().time() + timeout
+    result = ""
+    while asyncio.get_running_loop().time() < deadline:
+        result = registry.poll(handle)
+        if needle in result:
+            return result
+        await asyncio.sleep(0.02)
+    raise AssertionError(f"{needle!r} never appeared; last poll was:\n{result}")
+
+
 @pytest.mark.asyncio
 async def test_poll_reuses_same_spill_path_across_polls(tmp_path, monkeypatch):
     # Regression guard: a naive per-poll dump (mirroring shell.py's
     # foreground _dump_full_output) would leak a new temp file every call.
     monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 10)
+    # Two floods separated by a gate the test opens, then a sleep that outlives
+    # the test. Both details are load-bearing: `poll` *consumes* the handle once
+    # the process has exited and drained, so a command that can finish before
+    # either poll turns that poll's successor into "Unknown handle"; and gating
+    # the second flood on a file (rather than a `sleep`) is what makes "output
+    # grew between the two polls" a fact instead of a race.
+    gate = tmp_path / "gate"
     command = (
-        "for i in 1 2 3; do head -c 50 /dev/zero | tr '\\0' 'X'; echo; sleep 0.3; done"
+        "head -c 50 /dev/zero | tr '\\0' 'X'; echo; "
+        f"while [ ! -f {gate} ]; do sleep 0.02; done; "
+        "head -c 50 /dev/zero | tr '\\0' 'Y'; echo; "
+        "sleep 30"
     )
     handle = await _start_bg(command, "chunked", str(tmp_path))
     registry = get_shell_background_registry()
 
     try:
-        await asyncio.sleep(0.4)
-        first = registry.poll(handle)
+        first = await _poll_until(registry, handle, "X")
         first_path = _extract_spill_path(first, "stdout")
         assert first_path is not None
 
-        await asyncio.sleep(0.4)
-        second = registry.poll(handle)
-        second_path = _extract_spill_path(second, "stdout")
+        # Let the second flood through: a per-poll dump would have had every
+        # reason to open a fresh file for the grown output.
+        gate.touch()
+        second = await _poll_until(registry, handle, "Y")
 
-        assert second_path == first_path
+        assert _extract_spill_path(second, "stdout") == first_path
     finally:
         await registry.cancel_all()
 

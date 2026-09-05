@@ -2,6 +2,7 @@
 
 import pytest
 
+from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.profile import PROFILES
@@ -21,7 +22,9 @@ def test_profile_has_its_own_adjustment_file(profile):
 
 
 def test_default_prompt_uses_the_shipped_sections_in_order():
-    prompt = PromptManager(skill_manager=None).compose_prompt()(SharedContext())
+    prompt = PromptManager(skill_manager=None).compose_prompt()(
+        Context(SharedContext(), "test", 0, "")
+    )
     headings = [
         "# Persona",
         "# Principle",

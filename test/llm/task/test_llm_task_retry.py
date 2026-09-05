@@ -6,6 +6,7 @@ from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
     ToolCallPart,
+    UserContent,
     UserPromptPart,
 )
 
@@ -122,7 +123,7 @@ async def test_llm_task_retry_preserves_attachments_multimodal():
 
     # Create a mock BinaryContent attachment
     mock_attachment = BinaryContent(data=b"fake_image_data", media_type="image/png")
-    attachments = [mock_attachment]
+    attachments: list[UserContent] = [mock_attachment]
 
     # IMPORTANT: Pass attachment via task's attachment parameter (like LLMChatTask does)
     task = LLMTask(

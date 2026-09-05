@@ -2,6 +2,7 @@ import json
 import os
 
 import pytest
+from pydantic_ai.messages import TextPart, UserPromptPart
 
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 
@@ -54,6 +55,7 @@ def test_filter_part_with_empty_content_skipped(temp_history_dir):
     # Only the valid text part should remain
     assert len(result) == 1
     assert len(result[0].parts) == 1
+    assert isinstance(result[0].parts[0], TextPart)
     assert result[0].parts[0].content == "valid text"
 
 
@@ -127,6 +129,7 @@ def test_delegated_history_saved_under_subagent_subdirectory(temp_history_dir):
 
     loaded = FileHistoryManager(temp_history_dir).load(name)
     assert len(loaded) == 2
+    assert isinstance(loaded[0].parts[0], UserPromptPart)
     assert loaded[0].parts[0].content == "hello"
 
 

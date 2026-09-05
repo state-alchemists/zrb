@@ -3,7 +3,12 @@ import io
 from zrb.llm.util.image_scale import ScaleResult, scale_image_bytes
 
 
-def _png_bytes(width: int, height: int, mode: str = "RGB", color="red") -> bytes:
+def _png_bytes(
+    width: int,
+    height: int,
+    mode: str = "RGB",
+    color: str | tuple[int, ...] = "red",
+) -> bytes:
     from PIL import Image
 
     buf = io.BytesIO()

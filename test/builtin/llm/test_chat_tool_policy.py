@@ -1,9 +1,6 @@
 """Tests for builtin/llm/chat_tool_policy.py."""
 
-import os
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from zrb.builtin.llm.chat_tool_policy import (
     approve_if_mv_inside_journal_dir,

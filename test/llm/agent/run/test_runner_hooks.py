@@ -61,7 +61,7 @@ def _single_turn_agent(output="ok"):
 async def test_session_start_source_startup_vs_resume():
     """SESSION_START reports source=startup for a fresh history and resume for a
     populated one, so Claude-style startup/resume matchers work."""
-    captured: list[str] = []
+    captured: list[str | None] = []
 
     async def rec(context: HookContext) -> HookResult:
         if context.event == HookEvent.SESSION_START:

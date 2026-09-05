@@ -5,12 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.ui.std_ui import (
-    FREE_TEXT,
-    StdUI,
-    option_text,
-    resolve_choice_selection,
-)
+from zrb.llm.ui.any_ui import ChoiceOption, ChoiceSpec
+from zrb.llm.ui.std_ui import FREE_TEXT, StdUI, option_text, resolve_choice_selection
 
 
 def test_stdui_append_to_output():
@@ -165,7 +161,9 @@ def test_stdui_stream_to_parent_writes_like_append(capsys):
 # --- ask_user_choice ----------------------------------------------------
 
 
-def _spec(options, multi=False, index=1, total=1):
+def _spec(
+    options: list[ChoiceOption], multi: bool = False, index: int = 1, total: int = 1
+) -> ChoiceSpec:
     return {
         "question": "Pick?",
         "options": options,

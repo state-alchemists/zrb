@@ -34,7 +34,7 @@ def make_task(
     print_fn: PrintFn | None = None,
     group: AnyGroup | None = None,
     alias: str | None = None,
-) -> Callable[[Callable[[AnyContext], Any]], AnyTask]:
+) -> Callable[[Callable[[AnyContext], Any]], BaseTask]:
     """Turn a function into a task, as a decorator.
 
     The decorated function becomes the task's `action`, so it takes the task
@@ -69,7 +69,7 @@ def make_task(
         A decorator that replaces the function with the built task.
     """
 
-    def _make_task(fn: Callable[[AnyContext], Any]) -> AnyTask:
+    def _make_task(fn: Callable[[AnyContext], Any]) -> BaseTask:
         task = BaseTask(
             name=name,
             color=color,
