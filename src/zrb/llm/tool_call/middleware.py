@@ -4,26 +4,28 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.ui.any_agent_output import AnyAgentOutput
 
 
 ResponseHandler = Callable[
     [
-        "AnyUI",
+        "AnyAgentOutput",
         "ToolCallPart",
         str,
-        Callable[["AnyUI", "ToolCallPart", str], Awaitable[Any]],
+        Callable[["AnyAgentOutput", "ToolCallPart", str], Awaitable[Any]],
     ],
     Awaitable[Any],
 ]
 
 ToolPolicy = Callable[
     [
-        "AnyUI",
+        "AnyAgentOutput",
         "ToolCallPart",
-        Callable[["AnyUI", "ToolCallPart"], Awaitable[Any]],
+        Callable[["AnyAgentOutput", "ToolCallPart"], Awaitable[Any]],
     ],
     Awaitable[Any],
 ]
 
-ArgumentFormatter = Callable[["AnyUI", "ToolCallPart", str], Awaitable[str | None]]
+ArgumentFormatter = Callable[
+    ["AnyAgentOutput", "ToolCallPart", str], Awaitable[str | None]
+]

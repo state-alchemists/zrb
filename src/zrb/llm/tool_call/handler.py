@@ -15,7 +15,7 @@ from zrb.util.yaml import yaml_dump
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolApproved, ToolCallPart, ToolDenied
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.ui.any_agent_output import AnyAgentOutput
 
 # A denial reason is a short human-typed note. Clamp it so a mis-submitted
 # payload (e.g. a whole screen buffer) can never enter the conversation
@@ -25,10 +25,10 @@ MAX_DENIAL_REASON_CHARS = 500
 
 async def check_tool_policies(
     policies: list[ToolPolicy],
-    ui: AnyUI,
+    ui: AnyAgentOutput,
     call: ToolCallPart,
 ) -> ToolApproved | ToolDenied | None:
-    async def _next_policy(ui: AnyUI, call: ToolCallPart, index: int) -> Any:
+    async def _next_policy(ui: AnyAgentOutput, call: ToolCallPart, index: int) -> Any:
         if index >= len(policies):
             return None
         policy = policies[index]
@@ -63,7 +63,7 @@ class ToolCallHandler:
 
     async def handle(
         self,
-        ui: AnyUI,
+        ui: AnyAgentOutput,
         call: ToolCallPart,
     ) -> ToolApproved | ToolDenied | None:
         # lazy: zrb internal (heavy via transitive)
@@ -86,7 +86,7 @@ class ToolCallHandler:
 
             # Response Handlers (Post-confirmation)
             async def _next_handler(
-                ui: AnyUI,
+                ui: AnyAgentOutput,
                 call: ToolCallPart,
                 response: str,
                 index: int,
@@ -116,14 +116,14 @@ class ToolCallHandler:
 
     async def check_policies(
         self,
-        ui: AnyUI,
+        ui: AnyAgentOutput,
         call: ToolCallPart,
     ) -> ToolApproved | ToolDenied | None:
         return await check_tool_policies(self._tool_policies, ui, call)
 
     async def format_approval_message(
         self,
-        ui: AnyUI,
+        ui: AnyAgentOutput,
         call: ToolCallPart,
         approval_instruction: str | None = None,
     ) -> str:
@@ -171,7 +171,7 @@ class ToolCallHandler:
 
     async def _get_confirm_user_message(
         self,
-        ui: AnyUI,
+        ui: AnyAgentOutput,
         call: ToolCallPart,
     ) -> str:
         return await self.format_approval_message(ui, call)

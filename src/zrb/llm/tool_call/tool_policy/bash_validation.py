@@ -5,7 +5,7 @@ from zrb.llm.tool_call.handler import ToolPolicy
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.ui.any_agent_output import AnyAgentOutput
 
 # Shell metacharacters that could indicate state-changing operations.
 # Checked as plain substrings (conservative: even inside quotes triggers approval).
@@ -115,9 +115,9 @@ def bash_safe_command_policy() -> ToolPolicy:
     """
 
     async def _policy(
-        ui: "AnyUI",
+        ui: "AnyAgentOutput",
         call: "ToolCallPart",
-        next_handler: Callable[["AnyUI", "ToolCallPart"], Awaitable[Any]],
+        next_handler: Callable[["AnyAgentOutput", "ToolCallPart"], Awaitable[Any]],
     ) -> Any:
         # lazy: zrb internal (heavy via transitive)
         from zrb.llm.agent.types import ToolApproved
