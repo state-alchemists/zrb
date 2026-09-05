@@ -1,4 +1,3 @@
-import os
 from unittest import mock
 
 from zrb.context.shared_context import SharedContext

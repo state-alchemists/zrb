@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 
 from zrb.config.config import CFG
@@ -18,7 +20,7 @@ def resolver() -> ModelResolver:
 
 
 def test_resolve_non_string_model_passed_through(resolver: ModelResolver):
-    marker = object()
+    marker: Any = object()
     assert resolver.resolve(marker) is marker
 
 
@@ -126,6 +128,40 @@ def test_resolve_configured_small_model_falls_back_to_main_model(monkeypatch):
     assert resolve_configured_small_model() == "openai:gpt-4o"
 
 
+def test_resolve_configured_small_model_prefers_current_run_model(monkeypatch):
+    """A `/model deepseek:...` switch must carry the summarizer/journal with it:
+    falling back to CFG.LLM_MODEL would demand the default provider's
+    credentials on a run that never uses it."""
+    from zrb.llm.agent_state import current_model
+
+    monkeypatch.setattr(CFG, "LLM_MODEL", "openai:gpt-4o")
+    monkeypatch.setattr(CFG, "LLM_SMALL_MODEL", None)
+    monkeypatch.setattr(CFG, "LLM_API_KEY", None)
+    monkeypatch.setattr(CFG, "LLM_BASE_URL", None)
+    monkeypatch.setattr(CFG, "LLM_PROVIDER", None)
+    token = current_model.set("deepseek:deepseek-chat")
+    try:
+        assert resolve_configured_small_model() == "deepseek:deepseek-chat"
+    finally:
+        current_model.reset(token)
+
+
+def test_resolve_configured_small_model_cfg_small_model_beats_run_model(monkeypatch):
+    """An explicitly configured small model still outranks the run's model."""
+    from zrb.llm.agent_state import current_model
+
+    monkeypatch.setattr(CFG, "LLM_MODEL", "openai:gpt-4o")
+    monkeypatch.setattr(CFG, "LLM_SMALL_MODEL", "anthropic:claude-3-haiku")
+    monkeypatch.setattr(CFG, "LLM_API_KEY", None)
+    monkeypatch.setattr(CFG, "LLM_BASE_URL", None)
+    monkeypatch.setattr(CFG, "LLM_PROVIDER", None)
+    token = current_model.set("deepseek:deepseek-chat")
+    try:
+        assert resolve_configured_small_model() == "anthropic:claude-3-haiku"
+    finally:
+        current_model.reset(token)
+
+
 def test_resolve_configured_small_model_explicit_override_wins(monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MODEL", "openai:gpt-4o")
     monkeypatch.setattr(CFG, "LLM_SMALL_MODEL", "anthropic:claude-3-haiku")
@@ -137,6 +173,37 @@ def test_resolve_configured_small_model_explicit_override_wins(monkeypatch):
 
 
 # --- resolve_configured_multimodal_model ------------------------------------
+
+
+def test_resolve_configured_multimodal_model_prefers_run_override(monkeypatch):
+    """`/model multimodal <name>` outranks `CFG.LLM_MULTIMODAL_MODEL`."""
+    from zrb.llm.agent_state import current_multimodal_model
+
+    monkeypatch.setattr(CFG, "LLM_MULTIMODAL_MODEL", "openai:gpt-4o")
+    monkeypatch.setattr(CFG, "LLM_API_KEY", None)
+    monkeypatch.setattr(CFG, "LLM_BASE_URL", None)
+    monkeypatch.setattr(CFG, "LLM_PROVIDER", None)
+    token = current_multimodal_model.set("google-gla:gemini-2.5-flash")
+    try:
+        assert resolve_configured_multimodal_model() == "google-gla:gemini-2.5-flash"
+    finally:
+        current_multimodal_model.reset(token)
+
+
+def test_resolve_configured_multimodal_model_never_falls_back_to_main_model(
+    monkeypatch,
+):
+    """No multimodal model configured stays `None` — a text-only main model
+    cannot read the attachment, which is why this tier exists at all."""
+    from zrb.llm.agent_state import current_model
+
+    monkeypatch.setattr(CFG, "LLM_MULTIMODAL_MODEL", "")
+    monkeypatch.setattr(CFG, "LLM_MODEL", "openai:gpt-4o")
+    token = current_model.set("deepseek:deepseek-chat")
+    try:
+        assert resolve_configured_multimodal_model() is None
+    finally:
+        current_model.reset(token)
 
 
 def test_resolve_configured_multimodal_model_none_when_unconfigured(monkeypatch):
@@ -182,12 +249,12 @@ def test_hooks_default_to_none(resolver: ModelResolver):
 
 def test_model_getter_setter_rejects_non_callable(resolver: ModelResolver):
     with pytest.raises(TypeError, match="model_getter"):
-        resolver.model_getter = "not-callable"
+        resolver.model_getter = "not-callable"  # type: ignore[assignment]
 
 
 def test_model_renderer_setter_rejects_non_callable(resolver: ModelResolver):
     with pytest.raises(TypeError, match="model_renderer"):
-        resolver.model_renderer = "not-callable"
+        resolver.model_renderer = "not-callable"  # type: ignore[assignment]
 
 
 def test_model_getter_setter_accepts_none(resolver: ModelResolver):
@@ -224,7 +291,7 @@ def test_resolve_without_hooks_is_unaffected(resolver: ModelResolver):
 
 
 def test_resolve_hooks_do_not_fire_for_non_string_model(resolver: ModelResolver):
-    marker = object()
+    marker: Any = object()
     resolver.model_getter = lambda m: pytest.fail("model_getter must not run")
     resolver.model_renderer = lambda m: pytest.fail("model_renderer must not run")
 

@@ -25,7 +25,11 @@ def test_hook_config_shape():
     assert config.name == "journal-compliance-judge"
     assert config.events == [HookEvent.STOP]
     assert config.type == HookType.AGENT
-    assert config.config.tools == ["LogActivity", "WriteJournalNote", "SearchJournal"]
+    assert config.config.tools == [
+        "LogActivity",
+        "WriteJournalNote",
+        "SearchJournal",
+    ]
     assert config.is_async is True
     assert len(config.matchers) == 1
     matcher = config.matchers[0]

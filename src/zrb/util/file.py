@@ -111,7 +111,6 @@ def walk_files(
     if excluded_patterns is None:
         excluded_patterns = []
     all_files: list[str] = []
-    patterns_to_exclude = excluded_patterns
     if depth <= 0:
         depth = 1
 
@@ -125,16 +124,16 @@ def walk_files(
             d
             for d in dirs
             if (include_hidden or not d.startswith("."))
-            and not is_path_excluded(d, patterns_to_exclude)
+            and not is_path_excluded(d, excluded_patterns)
         ]
 
         for filename in files:
             if (
                 include_hidden or not filename.startswith(".")
-            ) and not is_path_excluded(filename, patterns_to_exclude):
+            ) and not is_path_excluded(filename, excluded_patterns):
                 full_path = os.path.join(root, filename)
                 rel_full_path = os.path.relpath(full_path, abs_path)
-                if not is_path_excluded(rel_full_path, patterns_to_exclude):
+                if not is_path_excluded(rel_full_path, excluded_patterns):
                     all_files.append(rel_full_path)
     return sorted(all_files)
 

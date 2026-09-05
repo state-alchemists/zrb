@@ -24,20 +24,8 @@ SRC = REPO_ROOT / "src" / "zrb"
 # just to make the test pass.
 FACADE_BUDGETS = {
     "llm/ui/base/ui.py": 1450,
-    # Phase 3 (R5): LLMChatTask's mutator API grew from 1 verb per ordered
-    # collection to the full append/prepend/set/remove set — this file's own
-    # docstring keeps that API on the task itself rather than delegating to a
-    # part, since it is this task's own construction-time data (ADR-0035).
-    # Phase 4 (R8): 5 component slots gained a real settable+typed property
-    # (prompt_manager, hook_manager, llm_config, llm_limiter, markdown_theme).
     "llm/task/chat/task.py": 1150,
-    # Phase 6 (R12): `llm_config` (1 property+setter) replaced by two task-
-    # level hook slots (`model_getter`, `model_renderer`), each with its own
-    # settable+typed property.
-    "llm/task/llm_task.py": 910,
-    # Phase 7 (ADR-0035): construction (create_agent, create_llm_chat_task,
-    # resolve_agent_build, the tool/toolset getters) moved to the new
-    # SubAgentBuilding part; this file dropped from 490 lines to roster-only.
+    "llm/task/llm_task.py": 915,
     "llm/agent/subagent/manager.py": 310,
 }
 

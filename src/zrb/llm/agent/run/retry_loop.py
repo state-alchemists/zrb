@@ -236,7 +236,6 @@ async def handle_stream_error(
             sanitized = list(sanitized) + [
                 ModelRequest(parts=[UserPromptPart(content=explainer)])
             ]
-            fallback_message = current_message
             print_fn(
                 "\n[SYSTEM] Model response rejected by provider — "
                 "collapsing history to text-only and retrying..."
@@ -247,7 +246,7 @@ async def handle_stream_error(
             return RetryOutcome(
                 should_retry=True,
                 new_history=sanitized,
-                new_message=fallback_message,
+                new_message=current_message,
             )
 
     # Deferred-tool-results mismatch after history compression.

@@ -15,7 +15,7 @@ from zrb.llm.prompt.live_context import split_live_context
 # Re-exported: existing callers (chat_api_route.py) and tests import
 # parse_delegated_session from this module; the definition itself lives in
 # subagent_session_naming.py, shared with delegate.py (which formats the
-# name) and the CLI TUI's persona-swap-on-/load (Phase D), without dragging
+# name) and the CLI TUI's persona-swap-on-/load, without dragging
 # delegate.py's heavy transitive imports into the web session lister.
 from zrb.llm.util.subagent_session_naming import (
     parse_delegated_session,
@@ -257,8 +257,8 @@ class ChatSessionManager:
             # Otherwise this session's (now-empty) activity bucket and
             # counter outlive it in agent_activity_registry for the rest of
             # the process's life — a per-session-id leak, one dict entry per
-            # session ever seen (Item 4, Phase D's session-scoping fix traded
-            # cross-session bleed for this; this closes it).
+            # session ever seen (keying the registry by session traded
+            # cross-session bleed for this leak; this closes it).
             agent_activity_registry.clear(session_id=session_id)
             # lazy: transitively heavy via internal — live_session.py imports
             # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai;

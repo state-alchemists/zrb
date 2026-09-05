@@ -91,6 +91,16 @@ current_small_model: ContextVar["str | Model | None"] = ContextVar(
 current_multimodal_model: ContextVar["str | Model | None"] = ContextVar(
     "current_multimodal_model", default=None
 )
+# The main model the current run is actually using — `run_agent` binds it from
+# the agent it was handed, so it reflects a `/model <name>` switch or a
+# `--model` argument, not just `CFG.LLM_MODEL`. Read by
+# `resolve_configured_small_model` as the fallback *before* `CFG.LLM_MODEL`:
+# when no small model is configured, "the model this run uses" is the right
+# stand-in, and the configured default may well be a different provider whose
+# credentials the user never set.
+current_model: ContextVar["str | Model | None"] = ContextVar(
+    "current_model", default=None
+)
 
 
 def get_current_ui() -> "AnyUI | None":
@@ -130,6 +140,12 @@ def get_current_small_model() -> "str | Model | None":
     return current_small_model.get()
 
 
+def get_current_model() -> "str | Model | None":
+    """Return the main model the current agent run is using, or None outside a
+    run — callers fall back to `CFG.LLM_MODEL`."""
+    return current_model.get()
+
+
 def get_current_multimodal_model() -> "str | Model | None":
     """Return the current run's multimodal-model override, or None if unset
     — callers fall back to `resolve_configured_multimodal_model()`."""
@@ -145,6 +161,7 @@ __all__ = [
     "current_agent_run_scope",
     "current_small_model",
     "current_multimodal_model",
+    "current_model",
     "get_current_ui",
     "get_current_tool_confirmation",
     "get_current_yolo",
@@ -152,5 +169,6 @@ __all__ = [
     "get_current_hook_manager",
     "get_current_agent_run_scope",
     "get_current_small_model",
+    "get_current_model",
     "get_current_multimodal_model",
 ]

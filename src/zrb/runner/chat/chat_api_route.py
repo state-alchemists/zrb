@@ -51,8 +51,8 @@ async def resolve_llm_chat_task_for_session(
     """The task to drive *session_id* with, and the message to broadcast if
     none could be built.
 
-    A session_id shaped like a delegated sub-agent transcript (Item 4, Phase
-    A/C naming: `{parent}-sub-{agent_name}-{agent_id}`) resumes driven by that
+    A session_id shaped like a delegated sub-agent transcript
+    (`{parent}-sub-{agent_name}-{agent_id}`) resumes driven by that
     sub-agent's own persona via `create_llm_chat_task` — not the shared main
     `llm chat` task every ordinary session uses.
     """

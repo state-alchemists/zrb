@@ -75,7 +75,7 @@ class LLMTaskBuilding:
         Used to swap a running task's persona wholesale — e.g. the CLI TUI's
         `/load` on a delegated sub-agent session rebuilding a fresh, isolated
         `PromptManager` from that sub-agent's own resolved system prompt
-        (Item 4, Phase D), mirroring the fresh `LLMChatTask` the web resume
+        mirroring the fresh `LLMChatTask` the web resume
         path builds via `SubAgentManager.create_llm_chat_task`.
         """
         self._llm_task.prompt_manager_attr = value

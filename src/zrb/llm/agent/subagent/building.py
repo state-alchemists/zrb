@@ -108,8 +108,7 @@ class SubAgentBuilding:
         wrapped in the zrb `Task` type the web chat runner needs (`.async_run`,
         `.history_manager`, `.ui_factories`, ...) instead of a bare pydantic-ai
         `Agent` — this is what lets a human resume/continue a delegated
-        session driven by the actual sub-agent, not the main agent (Item 4,
-        Phase C).
+        session driven by the actual sub-agent, not the main agent.
 
         A definition built from `agent_instance`/`agent_factory` (a pre-built
         pydantic-ai `Agent`, not a system_prompt/tools/model triple) has
@@ -163,7 +162,7 @@ class SubAgentBuilding:
         tools (registry + factories, minus delegate tools and disallowed
         names), toolsets, resolved model, and the effective system prompt
         (inherited sections + the definition's own body). Public — the CLI
-        TUI's persona-swap-on-`/load` (Item 4, Phase D) calls it directly,
+        TUI's persona-swap-on-`/load` calls it directly,
         outside this module, to mutate a running task's persona in place."""
         if ctx is None:
             ctx = Context(

@@ -113,7 +113,11 @@ class LLMTask(BaseTask):
         capabilities: "list[AbstractCapability[Any]] | None" = None,
         llm_limiter: LLMLimiter | None = None,
         model: (
-            Callable[[AnyContext], Model | str | fstring | None] | Model | None
+            Callable[[AnyContext], Model | str | fstring | None]
+            | Model
+            | str
+            | fstring
+            | None
         ) = None,
         render_model: bool = True,
         model_settings: (

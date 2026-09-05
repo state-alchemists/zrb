@@ -43,7 +43,7 @@ def complete_load_arg(
 ) -> Iterable[Completion]:
     """Existing session names matching `arg_prefix`.
 
-    A delegated sub-agent transcript (Item 4, Phase A naming) is labeled
+    A delegated sub-agent transcript (see `subagent_session_naming.py`) is labeled
     "Sub-agent: <name>" rather than the generic "Session Name" — otherwise
     it's indistinguishable from an ordinary saved session in the completion
     dropdown, and there is no other discovery mechanism in the CLI TUI for

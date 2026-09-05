@@ -636,7 +636,7 @@ class UIOutput:
             ("bold", "Session:"),
             ("", f" {self._ui.conversation_session_name} "),
         ]
-        # Item 4, Phase D: the UI clue that /load swapped which persona is
+        # The UI clue that /load swapped which persona is
         # driving new messages — absent (bar unchanged) while driving the
         # main agent, mirroring how the activity panel collapses when idle.
         # Extended (same wording) to announce the sub-agent whose live view

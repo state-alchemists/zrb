@@ -1,8 +1,7 @@
 """Tests for the history_formatter module."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 
-import pytest
 from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,

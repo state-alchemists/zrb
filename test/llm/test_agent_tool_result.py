@@ -7,6 +7,8 @@ invariant end-to-end: whatever a zrb-wrapped tool returns appears once, in the
 tool-result message, and no user turn follows it.
 """
 
+from typing import Any, cast
+
 import pytest
 
 PAYLOAD = "PAYLOAD-MARKER-9f3a1c"
@@ -76,9 +78,12 @@ async def test_toolset_result_reaches_model_once_and_adds_no_user_turn():
     def probe(x: str) -> dict:
         return {"payload": PAYLOAD}
 
-    agent = Agent(
-        _function_model(captured),
-        toolsets=[wrap_toolset(FunctionToolset(tools=[probe]))],
+    agent = cast(
+        Any,
+        Agent(
+            _function_model(captured),
+            toolsets=[wrap_toolset(FunctionToolset(tools=[probe]))],
+        ),
     )
 
     result = await agent.run("go")

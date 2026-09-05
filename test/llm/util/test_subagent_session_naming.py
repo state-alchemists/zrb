@@ -1,5 +1,5 @@
 """Tests for llm/util/subagent_session_naming.py — the single source of truth
-for the delegated sub-agent conversation-name shape (Item 4, Phase A/D)."""
+for the delegated sub-agent conversation-name shape."""
 
 import os
 

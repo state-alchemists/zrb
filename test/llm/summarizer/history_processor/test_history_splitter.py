@@ -1,10 +1,8 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from pydantic_ai.messages import (
     ModelRequest,
-    ModelResponse,
-    TextPart,
     ToolCallPart,
     ToolReturnPart,
     UserPromptPart,

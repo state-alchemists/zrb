@@ -130,7 +130,6 @@ class ChatExecution:
         return resolve_system_prompt(ctx, self._llm_chat_task.prompt_manager)
 
     async def exec_action(self, ctx: AnyContext) -> Any:
-        # 1. Resolve inputs/attributes
         initial_conversation_name = self._get_initial_conversation_name(ctx)
         raw_yolo = get_attr(ctx, self._llm_chat_task.yolo, "", True)
         initial_yolo = parse_yolo_value(raw_yolo)
@@ -150,7 +149,6 @@ class ChatExecution:
             else self._llm_chat_task.history_manager
         )
 
-        # 2. Resolve rewind settings
         effective_enable_rewind = (
             CFG.LLM_ENABLE_REWIND
             if self._llm_chat_task.enable_rewind is None
@@ -160,20 +158,19 @@ class ChatExecution:
             ctx, self._llm_chat_task.snapshot_dir, CFG.LLM_SNAPSHOT_DIR, True
         )
 
-        # 3. Resolve UI Commands
         ui_commands = self._get_ui_commands()
 
-        # 4. Resolve tools/toolsets from factories using parent context
+        # Resolved against the *parent* context, so a tool factory sees the
+        # chat task's inputs rather than the inner task's.
         resolved_tools = self.get_all_tools(ctx)
         resolved_toolsets = self.get_all_toolsets(ctx)
 
-        # 4a. Wire the resolved model so the system_context section can surface
+        # Wire the resolved model so the system_context section can surface
         # model-specific capability notes (e.g. lack of parallel tool-call
         # support). Re-set on every exec — `/model` switches update
         # ctx.input.model, which flows through get_model(ctx).
         self._llm_chat_task.prompt_manager.model = self.get_model(ctx)
 
-        # 5. Create core LLM task
         llm_task_core = self._create_llm_task_core(
             ctx,
             ui_commands["summarize"],
@@ -184,8 +181,7 @@ class ChatExecution:
             self._llm_chat_task.capabilities,
         )
 
-        # 6. Run Interactive or Non-Interactive
-        # Note: AsyncExitStack for toolsets is handled by LLMTask._exec_action
+        # AsyncExitStack for toolsets is handled by LLMTask._exec_action.
         if not interactive:
             try:
                 return await self._llm_chat_task.run_non_interactive_session(

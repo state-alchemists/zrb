@@ -307,7 +307,6 @@ class TestBaseTaskToFunction:
 
     def test_to_function_signature(self):
         """Test to_function creates proper signature."""
-        import inspect
 
         from zrb.input.str_input import StrInput
 

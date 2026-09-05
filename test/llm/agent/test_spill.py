@@ -1,6 +1,5 @@
 """Tests for the lossless tool-result spill store (ADR-0089)."""
 
-from typing import Any, cast
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -275,9 +274,7 @@ async def test_toolset_spills_oversized_when_enabled(monkeypatch, spill_store):
         ),
     ):
         mock_cfg.LLM_MAX_TOOL_RESULT_CHARS = 1000
-        result = await cast(Any, wrapped_toolset).call_tool(
-            "external_tool", {}, None, None
-        )
+        result = await wrapped_toolset.call_tool("external_tool", {}, None, None)
 
     assert isinstance(result, ToolReturn)
     assert isinstance(result.return_value, str)
@@ -305,9 +302,7 @@ async def test_read_tool_result_does_not_spill_its_page(monkeypatch, spill_store
         ),
     ):
         mock_cfg.LLM_MAX_TOOL_RESULT_CHARS = 1
-        result = await cast(Any, wrapped_toolset).call_tool(
-            "ReadToolResult", {}, None, None
-        )
+        result = await wrapped_toolset.call_tool("ReadToolResult", {}, None, None)
 
     assert isinstance(result, ToolReturn)
     assert result.return_value == page

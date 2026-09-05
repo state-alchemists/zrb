@@ -206,12 +206,10 @@ class BaseUIExecCommands:
                 llm_task.get_system_prompt(self._base_ui.ctx)
                 + "\n\nAnswer the user's question concisely using this information when relevant."
             )
-            # Use the UI's selected model if set (from /model command), otherwise fallback
-            model = (
-                self._base_ui.model
-                if self._base_ui.model
-                else resolve_configured_model()
-            )
+            # The UI's selected model if set (from /model), else CFG's — either
+            # way resolved against the configured credentials, since `/model`
+            # stores the name the user typed.
+            model = resolve_configured_model(self._base_ui.model or None)
             final_model = apply_model_hooks(
                 model, llm_task.model_getter, llm_task.model_renderer
             )

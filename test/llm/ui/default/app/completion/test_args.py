@@ -29,7 +29,7 @@ def test_complete_load_arg_caps_at_ten_results():
 
 
 def test_complete_load_arg_labels_delegated_subagent_sessions():
-    """Item 4, Phase D: without this, a delegated sub-agent transcript is
+    """Without this, a delegated sub-agent transcript is
     indistinguishable from an ordinary session in the /load dropdown -- the
     only discovery mechanism the CLI TUI has for "what sub-agent sessions
     exist"."""

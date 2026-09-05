@@ -1345,11 +1345,9 @@ class BaseUI(AnyUI):
     ):
         """Handle external triggers and submit user message when trigger activated"""
         try:
-            # 1. Get the iterator
             iterator = trigger_factory()
             if inspect.isawaitable(iterator):
                 iterator = await iterator
-            # 2. Iterate
             if hasattr(iterator, "__aiter__"):
                 # Async Iterator
                 async_iter = iterator.__aiter__()

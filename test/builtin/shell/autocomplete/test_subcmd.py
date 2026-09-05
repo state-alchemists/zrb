@@ -1,7 +1,5 @@
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from zrb.builtin.shell.autocomplete.subcmd import get_shell_subcommands
 
 

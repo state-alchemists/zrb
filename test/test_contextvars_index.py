@@ -37,6 +37,8 @@ def test_index_exports_all_wrappers():
         "get_current_agent_run_scope",
         "current_small_model",
         "get_current_small_model",
+        "current_model",
+        "get_current_model",
         "current_multimodal_model",
         "get_current_multimodal_model",
         "current_permission_policy",

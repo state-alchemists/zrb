@@ -235,13 +235,10 @@ class LLMLimiter:
         Acquires permission to proceed with the given content.
         Calculates token count internally and waits if rate limits are exceeded.
         """
-        # Calculate tokens once
         estimated_tokens = self._count_tokens(content)
 
-        # 1. Prune logs older than 60 seconds
         self.prune_logs()
 
-        # 2. Check limits loop
         notified = False
         while not self.can_proceed(estimated_tokens):
             wait_time = self.calculate_wait_time(estimated_tokens)
@@ -249,7 +246,6 @@ class LLMLimiter:
 
             if notifier:
                 msg = f"Rate Limit reached: {reason}. Waiting {wait_time:.1f}s..."
-                # Only notify once or if status changes? Simple is better.
                 notifier(stylize_info(msg))
                 notified = True
 
@@ -259,7 +255,6 @@ class LLMLimiter:
         if notified and notifier:
             notifier("\n")  # Clear status
 
-        # 3. Record usage
         now = time.time()
         self.request_log.append(now)
         self.token_log.append((now, estimated_tokens))

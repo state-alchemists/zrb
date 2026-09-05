@@ -58,10 +58,25 @@ def create_summarizer_history_processor(
     ) -> "list[ModelMessage]":
         # Create fresh summarizer agents each call so model changes
         # from /model small take effect immediately.
-        active_message_agent = message_agent or create_message_summarizer_agent()
-        active_conversational_agent = (
-            conversational_agent or create_conversational_summarizer_agent()
-        )
+        #
+        # Guarded: both helpers below already treat a *failed* summarization as
+        # "keep the original messages", but until this guard the construction
+        # itself sat outside that tolerance — so a small model whose provider
+        # has no credentials killed the whole turn, on a summarization pass that
+        # may not even have been needed.
+        try:
+            active_message_agent = message_agent or create_message_summarizer_agent()
+            active_conversational_agent = (
+                conversational_agent or create_conversational_summarizer_agent()
+            )
+        except Exception as e:
+            zrb_print(
+                stylize_error(
+                    f"  Summarizer unavailable, history left unsummarized: {e}"
+                ),
+                plain=True,
+            )
+            return messages
 
         messages = await _summarize_fat_messages(
             messages,
@@ -234,7 +249,6 @@ async def summarize_history(
     ``render_journal_index`` returns nothing when journaling is off.
     """
     try:
-        # 1. Setup Configs
         llm_limiter = limiter or default_llm_limiter
         if conversational_token_threshold is None:
             conversational_token_threshold = (
@@ -251,7 +265,6 @@ async def summarize_history(
             # Force mode: compress everything regardless of limits
             to_summarize = messages
             to_keep = []
-        # 2. Iterative Summarization of Historical turns
         summarizer_agent = agent or create_conversational_summarizer_agent()
         summary_text = await chunk_and_summarize(
             to_summarize,
@@ -260,7 +273,6 @@ async def summarize_history(
             conversational_token_threshold,
             include_last_user_intent_instruction=(len(to_keep) == 0),
         )
-        # 3. Final Aggregation and potential re-summarization
         final_summary_tokens = llm_limiter.count_tokens(summary_text)
         has_multiple_snapshots = summary_text.count("<state_snapshot>") > 1
         is_near_threshold = final_summary_tokens > (
@@ -274,7 +286,7 @@ async def summarize_history(
                 has_multiple_snapshots,
                 limiter=llm_limiter,
             )
-        # 4. Create Result. Re-seed the journal index into the summary so it
+        # Re-seed the journal index into the summary so it
         # survives compaction — summarization is one of exactly two moments the
         # index can otherwise vanish (the other being a fresh session, handled by
         # the first-turn live-context). Baking it into the summary message keeps

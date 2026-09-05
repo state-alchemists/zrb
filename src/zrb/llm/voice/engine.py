@@ -306,21 +306,19 @@ class VoiceEngine:
         # empirically (nothing zrb.llm.agent's package __init__ imports at
         # module level reaches zrb.llm.voice).
         from zrb.llm.agent import create_agent, run_agent
-        from zrb.llm.agent_state import get_current_multimodal_model
         from zrb.llm.config.limiter import llm_limiter
         from zrb.llm.config.model_resolver import resolve_configured_multimodal_model
         from zrb.llm.prompt.prompt import get_prompt
         from zrb.llm.util.capabilities import model_capabilities
 
-        multimodal_model = get_current_multimodal_model() or CFG.LLM_MULTIMODAL_MODEL
+        multimodal_model = resolve_configured_multimodal_model()
         if not multimodal_model:
             raise RuntimeError(
                 "LLM_MULTIMODAL_MODEL is not configured. "
                 f"Set {CFG.ENV_PREFIX}_LLM_MULTIMODAL_MODEL or switch to a different voice backend."
             )
 
-        resolved = resolve_configured_multimodal_model(multimodal_model)
-        if is_openai_chat_model(resolved):
+        if is_openai_chat_model(multimodal_model):
             name = model_name(multimodal_model)
             raise RuntimeError(
                 f"Multimodal model {name!r} is from OpenAI, which does not "
@@ -347,7 +345,7 @@ class VoiceEngine:
             from zrb.llm.agent.types import BinaryContent
 
             agent = create_agent(
-                model=resolved,
+                model=multimodal_model,
                 system_prompt=system_prompt,
                 yolo=True,
                 resolve_model=False,

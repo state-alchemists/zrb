@@ -12,7 +12,6 @@ example of writing your own agent hook; this module is what actually runs.
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.agent_state import get_current_small_model
 from zrb.llm.config.model_resolver import resolve_configured_small_model
 from zrb.llm.hook.schema import AgentHookConfig, HookConfig, MatcherConfig
 from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
@@ -52,7 +51,7 @@ def build_journal_compliance_hook_config() -> HookConfig:
         config=AgentHookConfig(
             system_prompt=get_prompt("journal_compliance"),
             tools=["LogActivity", "WriteJournalNote", "SearchJournal"],
-            model=str(resolve_configured_small_model(get_current_small_model())),
+            model=str(resolve_configured_small_model()),
         ),
         matchers=[
             MatcherConfig(

@@ -158,13 +158,10 @@ class LLMTaskHistory:
             history_manager.save(conversation_name)
             return
         # Append error information to history so it's available on next retry
-        # 1. Handle dangling tool calls if necessary
         new_history = close_dangling_tool_calls(new_history, reason=f"Error: {error}")
 
-        # 2. Append general error information
         error_msg = f"[SYSTEM] Error occurred: {str(error)}"
         new_history.append(ModelRequest(parts=[UserPromptPart(content=error_msg)]))
-        # 3. Append partial run summary if available and meaningful
         if partial_run is not None and partial_run.completed_tools:
             summary = partial_run.build_summary()
             new_history.append(ModelRequest(parts=[UserPromptPart(content=summary)]))

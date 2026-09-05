@@ -26,6 +26,11 @@ see `docs/changelog/v3/3.0.0.md` for why the old `llm_config.model_getter`/
 from typing import TYPE_CHECKING, Callable
 
 from zrb.config.config import CFG
+from zrb.llm.agent_state import (
+    get_current_model,
+    get_current_multimodal_model,
+    get_current_small_model,
+)
 
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
@@ -186,7 +191,7 @@ class ModelResolver:
     ) -> "str | Model":
         # Strip existing provider prefix if present
         clean_model_name = model_name.split(":", 1)[-1]
-        # 1. Provider is an Object (e.g. OpenAIProvider created from custom config)
+        # Provider is an Object (e.g. OpenAIProvider created from custom config)
         # We check specific types we know how to wrap
         try:
             # lazy: heavy third-party
@@ -197,10 +202,10 @@ class ModelResolver:
                 return OpenAIChatModel(model_name=clean_model_name, provider=provider)
         except ImportError:
             pass
-        # 2. Provider is a String
+        # Provider is a String
         if isinstance(provider, str):
             return f"{provider}:{clean_model_name}"
-        # 3. Fallback (Provider is None or unknown object)
+        # Fallback (Provider is None or unknown object)
         return model_name
 
 
@@ -223,9 +228,31 @@ def resolve_configured_model(model: "str | Model | None" = None) -> "str | Model
 
 def resolve_configured_small_model(model: "str | Model | None" = None) -> "str | Model":
     """Resolve *model* (or `CFG.LLM_SMALL_MODEL`, or the main model) using the
-    configured credentials."""
+    configured credentials.
+
+    Precedence, highest first:
+
+    1. the explicit *model* argument,
+    2. `get_current_small_model()` — this run's `/model small <name>`,
+    3. `CFG.LLM_SMALL_MODEL`,
+    4. `get_current_model()` — the model this run is actually using, i.e. a
+       `/model <name>` switch or `--model`,
+    5. `CFG.LLM_MODEL`.
+
+    The chain lives here rather than at each call site, which is what the
+    summarizer got wrong: it called this with no argument, so `/model small`
+    never reached the one consumer users most expect it to reach. A live slash
+    command outranks static config (2 before 3) for the same reason `/model`
+    outranks `CFG.LLM_MODEL`, and the run's own model outranks
+    `CFG.LLM_MODEL` (4 before 5) because the configured default may well be a
+    different provider whose credentials the user never set.
+    """
     resolved = model_resolver.resolve(
-        model or CFG.LLM_SMALL_MODEL or CFG.LLM_MODEL,
+        model
+        or get_current_small_model()
+        or CFG.LLM_SMALL_MODEL
+        or get_current_model()
+        or CFG.LLM_MODEL,
         api_key=CFG.LLM_API_KEY,
         base_url=CFG.LLM_BASE_URL,
         provider=CFG.LLM_PROVIDER,
@@ -240,8 +267,14 @@ def resolve_configured_multimodal_model(
     """Resolve *model* (or `CFG.LLM_MULTIMODAL_MODEL`) using the configured
     credentials, or `None` when no multimodal model is configured — callers
     fall back to dropping the attachment with a warning rather than silently
-    sending binary content a text-only model cannot interpret."""
-    resolved = model or CFG.LLM_MULTIMODAL_MODEL
+    sending binary content a text-only model cannot interpret.
+
+    Precedence, highest first: the explicit *model* argument,
+    `get_current_multimodal_model()` (this run's `/model multimodal <name>`),
+    then `CFG.LLM_MULTIMODAL_MODEL`. There is no fall back to the main model:
+    a text-only model cannot read the attachment, which is the whole reason
+    this tier exists."""
+    resolved = model or get_current_multimodal_model() or CFG.LLM_MULTIMODAL_MODEL
     if not resolved:
         return None
     return model_resolver.resolve(

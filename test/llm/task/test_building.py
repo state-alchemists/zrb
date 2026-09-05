@@ -87,7 +87,7 @@ class TestProperties:
         assert task.sandbox is policy
 
     def test_prompt_manager_setter_replaces_wholesale(self):
-        """Item 4, Phase D: swapping a running task's persona (e.g. the CLI
+        """Swapping a running task's persona (e.g. the CLI
         TUI's /load on a delegated sub-agent session) needs to replace the
         whole PromptManager, not just mutate its model."""
         from zrb.llm.prompt.manager import PromptManager
@@ -205,8 +205,42 @@ class TestAssembly:
         assert task.get_model(MagicMock()) == resolve_configured_model()
 
     def test_get_model_uses_explicit_model(self):
+        from zrb.llm.config.model_resolver import resolve_configured_model
+
         task = LLMTask(name="test-task", model="explicit-model", render_model=False)
-        assert task.get_model(MagicMock()) == "explicit-model"
+        # An explicit name is resolved with the configured credentials, the
+        # same as the CFG fallback above.
+        assert task.get_model(MagicMock()) == resolve_configured_model("explicit-model")
+
+    def test_get_model_resolves_explicit_model_with_configured_credentials(
+        self, monkeypatch
+    ):
+        """A mid-session `/model <name>` reaches the core task as
+        `ctx.input["model"]`; it must be resolved against LLM_API_KEY /
+        LLM_BASE_URL rather than handed to pydantic-ai as a bare string."""
+        from zrb.config.config import CFG
+
+        monkeypatch.setattr(CFG, "LLM_API_KEY", "test-key")
+        monkeypatch.setattr(CFG, "LLM_BASE_URL", "http://localhost:1234/v1")
+        task = LLMTask(name="test-task", model="switched-model", render_model=False)
+
+        resolved = task.get_model(MagicMock())
+
+        assert not isinstance(resolved, str)
+        assert resolved.model_name == "switched-model"
+        assert resolved.base_url is not None
+        assert resolved.base_url.startswith("http://localhost:1234")
+
+    def test_get_model_applies_global_model_hooks(self, monkeypatch):
+        """`model_resolver`'s process-wide hooks must reach an explicitly set
+        model too, not just the CFG fallback."""
+        from zrb.llm.config.model_resolver import model_resolver
+
+        monkeypatch.setattr(model_resolver, "model_getter", lambda m: "getter-model")
+        monkeypatch.setattr(model_resolver, "model_renderer", lambda m: f"{m}-rendered")
+        task = LLMTask(name="test-task", model="switched-model", render_model=False)
+
+        assert task.get_model(MagicMock()) == "getter-model-rendered"
 
     def test_get_model_treats_blank_string_as_unset(self):
         from zrb.llm.config.model_resolver import resolve_configured_model

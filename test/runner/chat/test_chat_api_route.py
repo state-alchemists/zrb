@@ -1,4 +1,4 @@
-"""Tests for chat_api_route.py's LLM-task resolution (Item 4, Phase C)."""
+"""Tests for chat_api_route.py's LLM-task resolution."""
 
 from unittest.mock import MagicMock, patch
 

@@ -3,7 +3,7 @@ persisted conversation.
 
 Single source of truth for the `{parent_session}-sub-{agent_name}-{agent_id}`
 shape `zrb.llm.tool.delegate.run_agent_task` derives for every completed
-delegation (Item 4, Phase A), and for where those transcripts live on disk:
+delegation, and for where those transcripts live on disk:
 `{LLM_HISTORY_DIR}/subagent/{agent_type}/`, separate from ordinary
 main-agent conversations (which stay flat in the history root) so a history
 listing/backup/prune never mixes the two. Kept stdlib-only and
@@ -11,7 +11,7 @@ dependency-free so both the delegate tool (which formats the name) and
 consumers that only ever *parse* it — the web session lister
 (`runner.chat.chat_session_manager`), the web resume router
 (`runner.chat.chat_api_route`), the CLI TUI's persona-swap-on-`/load`
-(Phase D), and `FileHistoryManager` (which resolves the layout) — can import
+and `FileHistoryManager` (which resolves the layout) — can import
 it without dragging in delegate.py's heavy transitive imports (pydantic_ai et
 al.) just to recognize a name shape.
 

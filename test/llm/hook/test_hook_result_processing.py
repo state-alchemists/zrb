@@ -4,9 +4,6 @@ These tests verify that hook results (systemMessage, additionalContext)
 are properly extracted and processed by run_agent.
 """
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
 
 from zrb.llm.agent.run.hook_result_extractor import (

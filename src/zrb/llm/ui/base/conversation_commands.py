@@ -148,10 +148,10 @@ class BaseUIConversationCommands:
                 return True
         return False
 
-    # --- Item 4, Phase D: persona-swap-on-/load ----------------------------
+    # --- persona-swap-on-/load ---------------------------------------------
     #
     # /load already switches which history is replayed; loading a delegated
-    # sub-agent's transcript (Item 4, Phase A naming) additionally swaps which
+    # sub-agent's transcript (see `subagent_session_naming.py`) additionally swaps which
     # persona drives new messages, so continuing the conversation actually
     # talks to that sub-agent rather than the main agent. Loading back to an
     # ordinary session name restores the main agent — /load is the single,
