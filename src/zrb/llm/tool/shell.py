@@ -307,8 +307,8 @@ def _make_live_shell_output_pusher(
                 key,
                 _format_live_shell_output(_combined_echo(stdout_cap, stderr_cap)),
             )
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as e:  # noqa: BLE001
+            CFG.LOGGER.debug(f"Live shell output push failed: {e}")
 
     return _push
 
@@ -331,8 +331,8 @@ def _finish_shell_output(
         char_count = len(full.strip())
         collapsed = _format_live_shell_output(f"🖥️ Output ({char_count} chars)")
         ui.finish_shell_output(key, collapsed, _format_live_shell_output(full))
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as e:  # noqa: BLE001
+        CFG.LOGGER.debug(f"Final shell output capture failed: {e}")
 
 
 def _prepare_command(command: str, use_pid_tracking: bool) -> tuple[str, str | None]:

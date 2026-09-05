@@ -53,12 +53,6 @@ def test_check_unrecommended_commands_grep_P():
     assert r"grep.* -P" in violations
 
 
-def test_check_unrecommended_commands_grep_long():
-    """Test detection of grep long options."""
-    violations = check_unrecommended_commands("grep --color pattern file")
-    assert r"grep[^|]+--\w{2,}" in violations
-
-
 def test_check_unrecommended_commands_sort_V():
     """Test detection of sort -V."""
     violations = check_unrecommended_commands("sort -V file")
@@ -222,11 +216,6 @@ class TestCheckUnrecommendedCommandsEdgeCases:
         violations = check_unrecommended_commands("sort --sort-versions file")
         assert r"sort.*--sort-versions" in violations
 
-    def test_check_test_command(self):
-        """Test detection of ' test' command."""
-        violations = check_unrecommended_commands("if test -f file; then echo; fi")
-        assert " test" in violations
-
     def test_check_empty_script(self):
         """Test empty command script."""
         violations = check_unrecommended_commands("")
@@ -236,3 +225,39 @@ class TestCheckUnrecommendedCommandsEdgeCases:
         """Test script with no violations."""
         violations = check_unrecommended_commands("printf 'hello world'")
         assert violations == {}
+
+
+@pytest.mark.parametrize(
+    "cmd_script",
+    [
+        "npm test",
+        "cargo test",
+        "go test ./...",
+        "make test",
+        "pip install open-source-lib",
+        "aws s3 ls s3://bucket",
+        "grep --color foo bar",
+        "pytest -k test_thing",
+        "dotnet test",
+    ],
+)
+def test_check_unrecommended_commands_no_false_positive(cmd_script):
+    """Real-world commands that must not trigger a warning."""
+    assert check_unrecommended_commands(cmd_script) == {}
+
+
+@pytest.mark.parametrize(
+    "cmd_script",
+    [
+        "echo hi",
+        "source ./env.sh",
+        "which python",
+        "eval $x",
+        "diff <(a) <(b)",
+        "ls -la",
+        "realpath .",
+    ],
+)
+def test_check_unrecommended_commands_still_warns(cmd_script):
+    """Real violations must still be caught after tightening the matcher."""
+    assert check_unrecommended_commands(cmd_script) != {}

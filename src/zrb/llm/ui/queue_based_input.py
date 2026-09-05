@@ -1,9 +1,8 @@
-"""Shared queue-based input handling for event-driven/polling UI backends.
+"""Shared queue-based input handling for event-driven UI backends.
 
-Composed into `EventDrivenUI` and `PollingUI`, which both need "block on
-`get_input()` until a message arrives via `handle_incoming_message()`" but
-differ in how they push output (event callback vs. polled queue) — see those
-two classes for what each still owns.
+Composed into `EventDrivenUI`, which needs "block on `get_input()` until a
+message arrives via `handle_incoming_message()`" — see that class for what
+it still owns.
 """
 
 from __future__ import annotations
@@ -21,7 +20,7 @@ class QueueBasedInput:
     """`input_queue`/`get_input`/`handle_incoming_message`, shared verbatim.
 
     Owns the queue and the waiting flag itself rather than reaching into
-    `EventDrivenUI`/`PollingUI` state: only `print()`, `submit_message()` and
+    `EventDrivenUI` state: only `print()`, `submit_message()` and
     `custom_commands` are read from `self._simple_ui`, and those are already
     public. `_llm_task` is reassignable via the `llm_task` property after
     construction on the owner, not this part.

@@ -164,10 +164,11 @@ class BaseTaskMonitoring:
                 current = asyncio.current_task()
                 if current is not None and current.cancelling() > 0:
                     raise
-            except Exception:
+            except Exception as e:
                 # The action we just cancelled may surface its own error while
-                # unwinding; it's already handled by the retry loop — ignore here.
-                pass
+                # unwinding; it's already handled by the retry loop (logged and
+                # marked failed there) — just make the swallow itself debuggable.
+                ctx.log_debug(f"Cancelled action's own error handling: {e}")
 
         ctx.log_info("Resetting task status.")
         session.get_task_status(task).reset()

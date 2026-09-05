@@ -1,11 +1,11 @@
 """UI implementations for LLM chat applications.
 
-Five levels of abstraction over the same contract, in increasing order of
+Four levels of abstraction over the same contract, in increasing order of
 control: `SimpleUI` (implement `print`/`get_input`), `EventDrivenUI`
-(callback-driven backends: Telegram, Discord), `PollingUI` (queue-driven
-backends: HTTP, WebSocket), `BaseUI` (full control), and the default
-prompt_toolkit `UI`. `AnyUI` (`any_ui.py`) is the minimal contract all of them
-satisfy; `MultiUI` fans one session out to several channels at once.
+(callback-driven backends: Telegram, Discord, HTTP/WebSocket), `BaseUI` (full
+control), and the default prompt_toolkit `UI`. `AnyUI` (`any_ui.py`) is the
+minimal contract all of them satisfy; `MultiUI` fans one session out to
+several channels at once.
 
 `docs/llm/llm-custom-ui.md` owns the how-to — per-level method contracts,
 dual-mode (CLI + external channel) wiring, and complete examples — with
@@ -23,14 +23,9 @@ if TYPE_CHECKING:
     from zrb.llm.ui.default.ui import UI  # noqa: F401 — lazy-loaded via __getattr__
 from zrb.llm.ui.event_driven_ui import EventDrivenUI
 from zrb.llm.ui.multi_ui import MultiUI
-from zrb.llm.ui.polling_ui import PollingUI
 from zrb.llm.ui.simple_ui_base import SimpleUI
 from zrb.llm.ui.ui_config import UIConfig
-from zrb.llm.ui.ui_factory import (
-    create_bot_ui_factory,
-    create_http_ui_factory,
-    create_ui_factory,
-)
+from zrb.llm.ui.ui_factory import create_ui_factory
 
 __all__ = [
     "BufferedOutputMixin",
@@ -38,12 +33,8 @@ __all__ = [
     # Simple API (RECOMMENDED)
     "SimpleUI",
     "EventDrivenUI",
-    "PollingUI",
     "UIConfig",
     "create_ui_factory",
-    # Factory helpers for common patterns
-    "create_bot_ui_factory",
-    "create_http_ui_factory",
     # Advanced API
     "BaseUI",
     "UI",
