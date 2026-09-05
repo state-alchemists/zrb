@@ -5,13 +5,13 @@ from zrb.llm.tool_call.args import parse_tool_args
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.ui.any_agent_output import AnyAgentOutput
 
 
 async def read_file_validation_policy(
-    ui: "AnyUI",
+    ui: "AnyAgentOutput",
     call: "ToolCallPart",
-    next_handler: Callable[["AnyUI", "ToolCallPart"], Awaitable[Any]],
+    next_handler: Callable[["AnyAgentOutput", "ToolCallPart"], Awaitable[Any]],
 ) -> Any:
     """
     Validates 'Read' (read_file) tool calls.

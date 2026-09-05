@@ -10,11 +10,11 @@ from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.ui.any_agent_output import AnyAgentOutput
 
 
 async def write_file_formatter(
-    ui: "AnyUI",
+    ui: "AnyAgentOutput",
     call: "ToolCallPart",
     args_section: str,
 ) -> str | None:

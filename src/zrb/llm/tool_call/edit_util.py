@@ -11,11 +11,11 @@ from zrb.config.config import CFG
 from zrb.util.yaml import yaml_dump
 
 if TYPE_CHECKING:
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.ui.any_agent_output import AnyAgentOutput
 
 
 async def edit_content_via_editor(
-    ui: "AnyUI",
+    ui: "AnyAgentOutput",
     content: dict,
     text_editor: str | None = None,
 ) -> dict | None:

@@ -9,14 +9,14 @@ from zrb.util.truncate import truncate_chars
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolApproved, ToolCallPart, ToolDenied
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.ui.any_agent_output import AnyAgentOutput
 
 
 async def default_response_handler(
-    ui: AnyUI,
+    ui: AnyAgentOutput,
     call: ToolCallPart,
     user_response: str,
-    next_handler: Callable[[AnyUI, ToolCallPart, str], Awaitable[Any]],
+    next_handler: Callable[[AnyAgentOutput, ToolCallPart, str], Awaitable[Any]],
 ) -> ToolApproved | ToolDenied | None:
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ToolApproved, ToolDenied
