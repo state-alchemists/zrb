@@ -214,6 +214,22 @@ class MultiUI(AnyUI):
             except Exception as e:
                 CFG.LOGGER.debug(f"Child UI append_to_output failed: {e}")
 
+    def _fanout(self, method_name: str, /, *args, **kwargs) -> None:
+        """Call `method_name` on every child that implements it.
+
+        Children are best-effort: one child raising must not stop the others,
+        because a MultiUI fans one agent run out to independent channels (TUI,
+        SSE, Telegram) and a dead channel is not a dead run.
+        """
+        for ui in self._uis:
+            fn = getattr(ui, method_name, None)
+            if not callable(fn):
+                continue
+            try:
+                fn(*args, **kwargs)
+            except Exception as e:
+                CFG.LOGGER.debug(f"Child UI {method_name} failed: {e}")
+
     def accumulate_usage(
         self, usage: "RunUsage", context_usage: "RequestUsage | None" = None
     ) -> None:
@@ -224,13 +240,7 @@ class MultiUI(AnyUI):
         forwarding, session token totals never accumulate on child UIs and the
         terminal status-bar meter stays empty.
         """
-        for ui in self._uis:
-            accumulate = getattr(ui, "accumulate_usage", None)
-            if callable(accumulate):
-                try:
-                    accumulate(usage, context_usage)
-                except Exception as e:
-                    CFG.LOGGER.debug(f"Child UI accumulate_usage failed: {e}")
+        self._fanout("accumulate_usage", usage, context_usage)
 
     def record_tool_call_block(self, collapsed: str, full: str) -> None:
         """Give every child its tool-call/result line.
@@ -267,86 +277,38 @@ class MultiUI(AnyUI):
         it later. A child that doesn't support it just keeps showing that
         thinking text uncollapsed, which is a harmless default.
         """
-        for ui in self._uis:
-            mark = getattr(ui, "mark_thinking_block_start", None)
-            if callable(mark):
-                try:
-                    mark()
-                except Exception as e:
-                    CFG.LOGGER.debug(f"Child UI mark_thinking_block_start failed: {e}")
+        self._fanout("mark_thinking_block_start")
 
     def collapse_thinking_block(self, collapsed: str, full: str) -> None:
         """Counterpart to `mark_thinking_block_start` — see its docstring."""
-        for ui in self._uis:
-            collapse = getattr(ui, "collapse_thinking_block", None)
-            if callable(collapse):
-                try:
-                    collapse(collapsed, full)
-                except Exception as e:
-                    CFG.LOGGER.debug(f"Child UI collapse_thinking_block failed: {e}")
+        self._fanout("collapse_thinking_block", collapsed, full)
 
     def mark_text_block_start(self) -> None:
         """Counterpart to `mark_thinking_block_start` for the assistant's
         final-text reply instead of its reasoning — same fallback story."""
-        for ui in self._uis:
-            mark = getattr(ui, "mark_text_block_start", None)
-            if callable(mark):
-                try:
-                    mark()
-                except Exception as e:
-                    CFG.LOGGER.debug(f"Child UI mark_text_block_start failed: {e}")
+        self._fanout("mark_text_block_start")
 
     def collapse_text_block(self, collapsed: str, full: str) -> None:
         """Counterpart to `mark_text_block_start` — see its docstring."""
-        for ui in self._uis:
-            collapse = getattr(ui, "collapse_text_block", None)
-            if callable(collapse):
-                try:
-                    collapse(collapsed, full)
-                except Exception as e:
-                    CFG.LOGGER.debug(f"Child UI collapse_text_block failed: {e}")
+        self._fanout("collapse_text_block", collapsed, full)
 
     def update_tool_prepare(self, key: str, text: str) -> None:
         """Forward a tool call's "Prepare tool parameters" update to whichever
         children support it — same fallback story as `mark_thinking_block_start`."""
-        for ui in self._uis:
-            update = getattr(ui, "update_tool_prepare", None)
-            if callable(update):
-                try:
-                    update(key, text)
-                except Exception as e:
-                    CFG.LOGGER.debug(f"Child UI update_tool_prepare failed: {e}")
+        self._fanout("update_tool_prepare", key, text)
 
     def update_shell_output(self, key: str, text: str) -> None:
         """Forward to whichever children support it — same fallback story
         as `update_tool_prepare`."""
-        for ui in self._uis:
-            update = getattr(ui, "update_shell_output", None)
-            if callable(update):
-                try:
-                    update(key, text)
-                except Exception as e:
-                    CFG.LOGGER.debug(f"Child UI update_shell_output failed: {e}")
+        self._fanout("update_shell_output", key, text)
 
     def finish_shell_output(self, key: str, collapsed: str, full: str) -> None:
         """Counterpart to `update_shell_output` — see its docstring."""
-        for ui in self._uis:
-            finish = getattr(ui, "finish_shell_output", None)
-            if callable(finish):
-                try:
-                    finish(key, collapsed, full)
-                except Exception as e:
-                    CFG.LOGGER.debug(f"Child UI finish_shell_output failed: {e}")
+        self._fanout("finish_shell_output", key, collapsed, full)
 
     def replay_history(self, messages: list) -> None:
         """Replay loaded history on every child UI that supports it."""
-        for ui in self._uis:
-            replay = getattr(ui, "replay_history", None)
-            if callable(replay):
-                try:
-                    replay(messages)
-                except Exception as e:
-                    CFG.LOGGER.debug(f"Child UI history replay failed: {e}")
+        self._fanout("replay_history", messages)
 
     async def stream_ai_response(
         self,
