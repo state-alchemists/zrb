@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 from zrb.config.config import CFG
+from zrb.llm.agent.common import create_agent
 
 
 def _settings_of(mock_agent_class) -> dict:
@@ -30,8 +31,6 @@ def test_create_agent_leaves_unknown_models_unchanged():
     The request deadline is not a capability constraint — it applies to every
     model — so it is present here while ``parallel_tool_calls`` is not.
     """
-    from zrb.llm.agent.common import create_agent
-
     mock_agent_class = MagicMock()
     with patch("pydantic_ai.Agent", mock_agent_class):
         create_agent(model="openai:gpt-4o", system_prompt="test", yolo=True)
@@ -42,8 +41,6 @@ def test_create_agent_leaves_unknown_models_unchanged():
 
 
 def test_create_agent_applies_the_configured_request_timeout(monkeypatch):
-    from zrb.llm.agent.common import create_agent
-
     monkeypatch.setattr(CFG, "DEFAULT_LLM_REQUEST_TIMEOUT", "45000")
     monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_REQUEST_TIMEOUT", raising=False)
     mock_agent_class = MagicMock()
@@ -71,14 +68,16 @@ def test_create_agent_lets_the_caller_own_the_timeout():
 
 def test_create_agent_lets_the_caller_own_reasoning_defaults():
     """Caller-supplied openai_reasoning_summary/prompt_cache_retention win."""
-    from zrb.llm.agent.common import create_agent
+    from pydantic_ai.models.openai import OpenAIResponsesModelSettings
 
     mock_agent_class = MagicMock()
     with patch("pydantic_ai.Agent", mock_agent_class):
         create_agent(
             model="openai:gpt-4o",
             system_prompt="test",
-            model_settings={"openai_reasoning_summary": "detailed"},
+            model_settings=OpenAIResponsesModelSettings(
+                openai_reasoning_summary="detailed"
+            ),
             yolo=True,
         )
 
@@ -88,15 +87,14 @@ def test_create_agent_lets_the_caller_own_reasoning_defaults():
 
 
 def test_create_agent_lets_the_caller_own_anthropic_cache():
-    """Caller-supplied anthropic_cache wins over the "5m" default."""
-    from zrb.llm.agent.common import create_agent
+    from pydantic_ai.models.anthropic import AnthropicModelSettings
 
     mock_agent_class = MagicMock()
     with patch("pydantic_ai.Agent", mock_agent_class):
         create_agent(
             model="anthropic:claude-sonnet-4-5",
             system_prompt="test",
-            model_settings={"anthropic_cache": "1h"},
+            model_settings=AnthropicModelSettings(anthropic_cache="1h"),
             yolo=True,
         )
 
@@ -107,8 +105,6 @@ def test_create_agent_lets_the_caller_own_anthropic_cache():
 
 def test_create_agent_applies_configured_thinking_level(monkeypatch):
     """CFG.LLM_THINKING maps onto pydantic-ai's unified `thinking` setting."""
-    from zrb.llm.agent.common import create_agent
-
     monkeypatch.setattr(CFG, "DEFAULT_LLM_THINKING", "high")
     monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_THINKING", raising=False)
     mock_agent_class = MagicMock()
@@ -121,8 +117,6 @@ def test_create_agent_applies_configured_thinking_level(monkeypatch):
 def test_create_agent_omits_thinking_when_unset(monkeypatch):
     """LLM_THINKING unset (the default) leaves `thinking` out entirely, so
     each provider's own default behavior applies untouched."""
-    from zrb.llm.agent.common import create_agent
-
     monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_THINKING", raising=False)
     mock_agent_class = MagicMock()
     with patch("pydantic_ai.Agent", mock_agent_class):
@@ -135,8 +129,6 @@ def test_create_agent_defaults_thinking_true_for_gemini_2_5_and_3(monkeypatch):
     """Gemini 2.5/3 bill `thoughts_tokens` unconditionally but only return a
     readable summary when `thinking` is set — default it on for just this
     model family so the summary is visible without a manual LLM_THINKING."""
-    from zrb.llm.agent.common import create_agent
-
     monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_THINKING", raising=False)
     mock_agent_class = MagicMock()
     with patch("pydantic_ai.Agent", mock_agent_class):
@@ -150,8 +142,6 @@ def test_create_agent_defaults_thinking_true_for_gemini_2_5_and_3(monkeypatch):
 def test_create_agent_omits_thinking_default_for_non_thinking_gemini(monkeypatch):
     """Gemini 2.0 and earlier don't get the `thinking=True` nudge — they
     aren't in the `supports_thinking_summary` capability list."""
-    from zrb.llm.agent.common import create_agent
-
     monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_THINKING", raising=False)
     mock_agent_class = MagicMock()
     with patch("pydantic_ai.Agent", mock_agent_class):
@@ -166,8 +156,6 @@ def test_create_agent_configured_thinking_level_wins_over_gemini_default(
     monkeypatch,
 ):
     """An explicit LLM_THINKING level always wins over the Gemini `True` default."""
-    from zrb.llm.agent.common import create_agent
-
     monkeypatch.setattr(CFG, "DEFAULT_LLM_THINKING", "high")
     monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_THINKING", raising=False)
     mock_agent_class = MagicMock()
@@ -181,8 +169,6 @@ def test_create_agent_configured_thinking_level_wins_over_gemini_default(
 
 def test_create_agent_lets_the_caller_own_thinking_for_gemini(monkeypatch):
     """Caller-supplied `thinking` wins over the Gemini `True` default."""
-    from zrb.llm.agent.common import create_agent
-
     monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_THINKING", raising=False)
     mock_agent_class = MagicMock()
     with patch("pydantic_ai.Agent", mock_agent_class):
@@ -198,8 +184,6 @@ def test_create_agent_lets_the_caller_own_thinking_for_gemini(monkeypatch):
 
 def test_create_agent_omits_the_timeout_when_disabled(monkeypatch):
     """A non-positive timeout means "no deadline", not "expire immediately"."""
-    from zrb.llm.agent.common import create_agent
-
     monkeypatch.setattr(CFG, "DEFAULT_LLM_REQUEST_TIMEOUT", "0")
     monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_REQUEST_TIMEOUT", raising=False)
     mock_agent_class = MagicMock()

@@ -168,7 +168,7 @@ async def run_command(
     max_output_line: int = 1000,
     max_error_line: int = 1000,
     max_display_line: int | None = None,
-    timeout: int = 3600,
+    timeout: float = 3600,
     is_interactive: bool = False,
 ) -> tuple[CmdResult, int]:
     """

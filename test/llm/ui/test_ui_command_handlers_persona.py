@@ -9,6 +9,7 @@ class TestBaseUIPersonaSwap:
     @pytest.fixture
     def simple_ui_instance(self):
         """Create a SimpleUI instance for testing BaseUI methods."""
+        from zrb.context.context import Context
         from zrb.context.shared_context import SharedContext
         from zrb.llm.ui import SimpleUI, UIConfig
 
@@ -19,7 +20,7 @@ class TestBaseUIPersonaSwap:
             async def get_input(self, prompt: str) -> str:
                 return "test"
 
-        ctx = SharedContext()
+        ctx = Context(SharedContext(), "test", 0, "")
         return TestSimpleUI(
             ctx=ctx,
             llm_task=MagicMock(),

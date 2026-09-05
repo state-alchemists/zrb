@@ -6,17 +6,14 @@ from typing import TYPE_CHECKING, Sequence
 
 from zrb.config.config import CFG
 from zrb.llm.tool_call.args import parse_tool_args_value
-from zrb.llm.util.tool_args import (
-    is_empty_tool_args,
-    truncate_tool_args_values,
-)
+from zrb.llm.util.tool_args import is_empty_tool_args, truncate_tool_args_values
 from zrb.util.truncate import truncate_display
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ModelMessage
 
 
-def extract_last_response_text(messages: "list[ModelMessage]") -> str:
+def extract_last_response_text(messages: "Sequence[ModelMessage]") -> str:
     """Return the text of the most recent assistant response, or ``""``.
 
     Scans messages newest-first and returns the joined ``TextPart`` contents
@@ -41,7 +38,10 @@ def extract_last_response_text(messages: "list[ModelMessage]") -> str:
 
 
 def format_history_as_text(
-    messages: "list[ModelMessage]", max_length: int | None = None, *, full: bool = False
+    messages: "Sequence[ModelMessage]",
+    max_length: int | None = None,
+    *,
+    full: bool = False,
 ) -> str:
     """Format pydantic-ai conversation history as human-readable text.
 

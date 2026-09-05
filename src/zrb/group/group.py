@@ -6,10 +6,12 @@ A `Group` is one word in a command line. Nesting groups nests the words, so
 the same task object can appear under two names without being redefined.
 """
 
-from typing import Any
+from typing import Any, TypeVar
 
 from zrb.group.any_group import AnyGroup, NodeNotFoundError
 from zrb.task.any_task import AnyTask
+
+_T = TypeVar("_T", bound=AnyTask)
 
 
 class Group(AnyGroup):
@@ -96,7 +98,7 @@ class Group(AnyGroup):
         self._groups[alias] = real_group
         return real_group
 
-    def add_task(self, task: AnyTask, alias: str | None = None) -> AnyTask:
+    def add_task(self, task: _T, alias: str | None = None) -> _T:
         """Register *task* under this group and return it, so calls can chain.
 
         Args:

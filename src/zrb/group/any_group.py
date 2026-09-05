@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
+from typing import TypeVar
 
 from zrb.task.any_task import AnyTask
+
+_T = TypeVar("_T", bound=AnyTask)
 
 
 class NodeNotFoundError(ValueError):
@@ -59,7 +62,7 @@ class AnyGroup(ABC):
         """
 
     @abstractmethod
-    def add_task(self, task: "AnyTask", alias: str | None = None) -> "AnyTask":
+    def add_task(self, task: _T, alias: str | None = None) -> _T:
         """Register a task in this group.
 
         Args:

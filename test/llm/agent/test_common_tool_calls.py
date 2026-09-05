@@ -243,6 +243,7 @@ async def test_call_tool_appends_override_note_when_args_were_edited():
         res = await wrapped_ts.call_tool("t", {"path": "b.txt"}, ctx, None)
 
     assert isinstance(res, ToolReturn)
+    assert isinstance(res.return_value, str)
     assert "ok" in res.return_value
     assert "[SYSTEM NOTE]" in res.return_value
     assert "b.txt" in res.return_value

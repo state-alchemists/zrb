@@ -57,6 +57,7 @@ async def test_call_tool_override_note_is_one_shot_and_reaches_error_results():
 
     assert isinstance(res, ToolReturn)
     assert res.metadata.get("error") is True
+    assert isinstance(res.return_value, str)
     assert "[SYSTEM NOTE]" in res.return_value
 
     # Second call for the same tool_call_id: nothing left to consume.

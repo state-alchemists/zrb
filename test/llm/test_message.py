@@ -29,6 +29,8 @@ def test_alternating_roles_merge_user_requests():
     assert len(result) == 1
     assert isinstance(result[0], ModelRequest)
     assert len(result[0].parts) == 2
+    assert isinstance(result[0].parts[0], UserPromptPart)
+    assert isinstance(result[0].parts[1], UserPromptPart)
     assert result[0].parts[0].content == "Hello"
     assert result[0].parts[1].content == "World"
 
@@ -58,6 +60,8 @@ def test_alternating_roles_merge_model_responses():
     assert len(result) == 1
     assert isinstance(result[0], ModelResponse)
     assert len(result[0].parts) == 2
+    assert isinstance(result[0].parts[0], TextPart)
+    assert isinstance(result[0].parts[1], TextPart)
     assert result[0].parts[0].content == "Thinking..."
     assert result[0].parts[1].content == "Answer"
 

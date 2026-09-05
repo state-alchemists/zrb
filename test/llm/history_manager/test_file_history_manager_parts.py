@@ -2,6 +2,7 @@ import json
 import os
 
 import pytest
+from pydantic_ai.messages import TextPart, ToolCallPart, UserPromptPart
 
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 
@@ -112,6 +113,7 @@ def test_load_tool_call_part_with_tool_call_id(temp_history_dir):
         json.dump(data, f)
     result = manager.load("tool_call_with_id")
     assert len(result) == 1
+    assert isinstance(result[0].parts[0], ToolCallPart)
     assert result[0].parts[0].tool_name == "my_tool"
 
 
@@ -143,6 +145,7 @@ def test_load_tool_call_part_with_none_tool_name_filtered(temp_history_dir):
     # The invalid tool-call is removed; text part survives
     assert len(result) == 1
     assert len(result[0].parts) == 1
+    assert isinstance(result[0].parts[0], TextPart)
     assert result[0].parts[0].content == "a valid part"
 
 
@@ -231,10 +234,10 @@ def test_save_creates_backup_with_conflict_resolution(temp_history_dir):
     from datetime import datetime
     from unittest.mock import patch
 
-    from pydantic_ai.messages import ModelRequest, UserPromptPart
+    from pydantic_ai.messages import ModelMessage, ModelRequest, UserPromptPart
 
     manager = FileHistoryManager(temp_history_dir)
-    messages = [ModelRequest(parts=[UserPromptPart(content="hi")])]
+    messages: list[ModelMessage] = [ModelRequest(parts=[UserPromptPart(content="hi")])]
 
     frozen_time = datetime(2026, 1, 1, 10, 0, 0)
     # Pre-create the backup path that would normally be created first
@@ -257,10 +260,10 @@ def test_save_write_backup_false_skips_backup_file(temp_history_dir):
     """A mid-turn checkpoint save (write_backup=False) writes the live file
     but no timestamped backup, regardless of LLM_HISTORY_BACKUP_RETAIN — a
     backup per tool call would spam the history dir for no benefit."""
-    from pydantic_ai.messages import ModelRequest, UserPromptPart
+    from pydantic_ai.messages import ModelMessage, ModelRequest, UserPromptPart
 
     manager = FileHistoryManager(temp_history_dir)
-    messages = [ModelRequest(parts=[UserPromptPart(content="hi")])]
+    messages: list[ModelMessage] = [ModelRequest(parts=[UserPromptPart(content="hi")])]
 
     manager.update("test-session", messages)
     manager.save("test-session", write_backup=False)
@@ -281,10 +284,12 @@ def test_save_does_nothing_when_session_not_in_cache(temp_history_dir):
 
 def test_save_handles_os_error(temp_history_dir):
     """Lines 339-340: OSError during save is caught and does not propagate."""
-    from pydantic_ai.messages import ModelRequest, UserPromptPart
+    from pydantic_ai.messages import ModelMessage, ModelRequest, UserPromptPart
 
     manager = FileHistoryManager(temp_history_dir)
-    messages = [ModelRequest(parts=[UserPromptPart(content="hello")])]
+    messages: list[ModelMessage] = [
+        ModelRequest(parts=[UserPromptPart(content="hello")])
+    ]
     manager.update("os-error-session", messages)
     mtime_before = manager.cache_sync_mtime("os-error-session")
 
@@ -336,10 +341,12 @@ def test_save_validation_error_does_not_save_file(temp_history_dir):
     from unittest.mock import patch
 
     from pydantic import ValidationError
-    from pydantic_ai.messages import ModelRequest, UserPromptPart
+    from pydantic_ai.messages import ModelMessage, ModelRequest, UserPromptPart
 
     manager = FileHistoryManager(temp_history_dir)
-    messages = [ModelRequest(parts=[UserPromptPart(content="hello")])]
+    messages: list[ModelMessage] = [
+        ModelRequest(parts=[UserPromptPart(content="hello")])
+    ]
     manager.update("val-error-session", messages)
 
     # Force validate_python to raise a ValidationError
@@ -390,6 +397,7 @@ def test_load_user_prompt_with_all_non_string_list_items(temp_history_dir):
         json.dump(data, f)
     result = manager.load("all_non_str")
     assert len(result) == 1
+    assert isinstance(result[0].parts[0], UserPromptPart)
     assert isinstance(result[0].parts[0].content, str)
 
 

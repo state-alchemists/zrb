@@ -18,6 +18,11 @@ from zrb.llm.agent.run.history_utils import (
 )
 
 
+def _content(part) -> object:
+    """The `content` a part carries, whatever part class it turned out to be."""
+    return getattr(part, "content", None)
+
+
 class UnknownMessage:
     pass
 
@@ -62,6 +67,8 @@ def test_drop_oldest_turn_min_turns():
 
 
 def test_filter_nil_content():
+    # `content=None` is illegal per the part types and deliberate here: it is
+    # what a misbehaving provider sends, and normalizing it is the whole point.
     # Test ModelRequest filtering
     msg1 = ModelRequest(
         parts=[
@@ -69,15 +76,16 @@ def test_filter_nil_content():
             ToolCallPart(
                 tool_name="", args="{}"
             ),  # Should be dropped if it doesn't have tool_name (actually wait, my mock tool_name isn't used, but the logic says `if part.tool_name:`
+            # pyright: ignore[reportArgumentType]
             ToolReturnPart(tool_name="tool1", content=None, tool_call_id="1"),
             ToolReturnPart(tool_name="tool1", content="result", tool_call_id="2"),
-            ThinkingPart(content=None),
+            ThinkingPart(content=None),  # pyright: ignore[reportArgumentType]
             ThinkingPart(content="think"),
-            TextPart(content=None),
+            TextPart(content=None),  # pyright: ignore[reportArgumentType]
             TextPart(content="text"),
-            UserPromptPart(content=None),
+            UserPromptPart(content=None),  # pyright: ignore[reportArgumentType]
             UserPromptPart(content="prompt"),
-            SystemPromptPart(content=None),
+            SystemPromptPart(content=None),  # pyright: ignore[reportArgumentType]
             SystemPromptPart(content="sys"),
             PartWithoutContent(),
         ]
@@ -86,10 +94,10 @@ def test_filter_nil_content():
     # Test ModelResponse filtering
     msg2 = ModelResponse(
         parts=[
-            TextPart(content=None),
+            TextPart(content=None),  # pyright: ignore[reportArgumentType]
             TextPart(content="res_text"),
             ToolCallPart(tool_name="tool2", args="{}"),
-            ThinkingPart(content=None),
+            ThinkingPart(content=None),  # pyright: ignore[reportArgumentType]
             ThinkingPart(content="res_think"),
             PartWithoutContent(),
         ]
@@ -110,17 +118,17 @@ def test_filter_nil_content():
     m1 = filtered[0]
     assert isinstance(m1, ModelRequest)
     assert len(m1.parts) == 12  # ToolCallPart with no tool_name is dropped
-    assert m1.parts[1].content == "null"
-    assert m1.parts[3].content == "(empty)"
-    assert m1.parts[5].content == "(empty)"
-    assert m1.parts[7].content == "(empty)"
-    assert m1.parts[9].content == "(empty)"
+    assert _content(m1.parts[1]) == "null"
+    assert _content(m1.parts[3]) == "(empty)"
+    assert _content(m1.parts[5]) == "(empty)"
+    assert _content(m1.parts[7]) == "(empty)"
+    assert _content(m1.parts[9]) == "(empty)"
 
     # Check msg2
     m2 = filtered[1]
     assert isinstance(m2, ModelResponse)
     assert len(m2.parts) == 6
-    assert m2.parts[0].content == "(empty)"
+    assert _content(m2.parts[0]) == "(empty)"
 
     # Check msg3 — a tool-call-only response is valid without text, so NO
     # "(tool call)" placeholder is injected (it would otherwise leak into
@@ -229,7 +237,7 @@ def test_strip_to_text_only_converts_all_non_text_parts():
     assert len(result[3].parts) == 2
     assert isinstance(result[3].parts[0], TextPart)
     assert result[3].parts[0].content == "verifying"
-    assert result[3].parts[1].content == "Done, deployment running"
+    assert _content(result[3].parts[1]) == "Done, deployment running"
 
 
 def test_strip_to_text_only_normalizes_null_content():
@@ -237,7 +245,7 @@ def test_strip_to_text_only_normalizes_null_content():
     history = [
         ModelRequest(
             parts=[
-                UserPromptPart(content=None),
+                UserPromptPart(content=None),  # pyright: ignore[reportArgumentType]
                 ToolReturnPart(tool_name="t1", content=None, tool_call_id="c1"),
             ]
         ),
@@ -405,10 +413,7 @@ def test_strip_to_text_only_never_puts_textpart_in_modelrequest():
     with ``AssertionError: Expected code to be unreachable, but got:
     TextPart(content='[Result (...): ...]')``.
     """
-    from pydantic_ai.messages import (
-        RetryPromptPart,
-        SystemPromptPart,
-    )
+    from pydantic_ai.messages import RetryPromptPart, SystemPromptPart
 
     history = [
         ModelRequest(

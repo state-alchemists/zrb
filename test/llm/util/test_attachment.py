@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock
 
+from pydantic_ai.messages import UserContent
+
 from zrb.config.config import CFG
 from zrb.llm.util.attachment import (
     check_attachment_bytes,
@@ -36,8 +38,8 @@ def test_get_attachments_list():
 
 def test_get_attachments_callable():
     ctx = MagicMock()
-    callback = lambda c: ["f1", "f2"]
-    assert get_attachments(ctx, callback) == ["f1", "f2"]
+    files: list[UserContent] = ["f1", "f2"]
+    assert get_attachments(ctx, lambda c: files) == ["f1", "f2"]
 
 
 def test_normalize_attachments_string_path(tmp_path):

@@ -5,6 +5,7 @@ import tempfile
 from unittest.mock import patch
 
 import pytest
+from pydantic_ai.messages import ToolCallPart
 
 
 class MockUI:
@@ -17,12 +18,9 @@ class MockUI:
         self.outputs.append(text)
 
 
-class MockCall:
-    """Mock ToolCallPart for testing."""
-
-    def __init__(self, args, tool_name="Write"):
-        self.args = args
-        self.tool_name = tool_name
+def _call(args, tool_name="Write") -> ToolCallPart:
+    """The real ToolCallPart the formatter is handed in production."""
+    return ToolCallPart(tool_name=tool_name, args=args)
 
 
 class TestWriteFileFormatter:
@@ -36,7 +34,7 @@ class TestWriteFileFormatter:
         )
 
         ui = MockUI()
-        call = MockCall({"path": "/tmp/test"}, tool_name="Read")
+        call = _call({"path": "/tmp/test"}, tool_name="Read")
 
         result = await write_file_formatter(ui, call, "")
         assert result is None
@@ -49,7 +47,7 @@ class TestWriteFileFormatter:
         )
 
         ui = MockUI()
-        call = MockCall({"content": "test content"})
+        call = _call({"content": "test content"})
 
         result = await write_file_formatter(ui, call, "")
         assert result is None
@@ -62,7 +60,7 @@ class TestWriteFileFormatter:
         )
 
         ui = MockUI()
-        call = MockCall({"path": "/tmp/test.txt"})
+        call = _call({"path": "/tmp/test.txt"})
 
         result = await write_file_formatter(ui, call, "")
         assert result is None
@@ -75,7 +73,7 @@ class TestWriteFileFormatter:
         )
 
         ui = MockUI()
-        call = MockCall(
+        call = _call(
             {
                 "path": "/tmp/newfile.txt",
                 "content": "Hello World",
@@ -112,7 +110,7 @@ class TestWriteFileFormatter:
             temp_path = f.name
 
         try:
-            call = MockCall(
+            call = _call(
                 {
                     "path": temp_path,
                     "content": "new content",
@@ -149,7 +147,7 @@ class TestWriteFileFormatter:
             temp_path = f.name
 
         try:
-            call = MockCall(
+            call = _call(
                 {
                     "path": temp_path,
                     "content": " appended",
@@ -181,7 +179,7 @@ class TestWriteFileFormatter:
 
         ui = MockUI()
         args_str = '{"path": "/tmp/test.txt", "content": "test"}'
-        call = MockCall(args_str)
+        call = _call(args_str)
 
         with patch(
             "zrb.llm.tool_call.argument_formatter.write_file_formatter.format_diff"

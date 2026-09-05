@@ -21,7 +21,7 @@ import asyncio
 from collections import deque
 from collections.abc import Awaitable, Callable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Sequence
 
 from zrb.config.config import CFG
 
@@ -202,7 +202,7 @@ def submit_user_message_via_queue(
 
 
 def steer_into_live_run(
-    run_context: Any, text: str, attachments: "list[UserContent]"
+    run_context: Any, text: str, attachments: "Sequence[UserContent]"
 ) -> bool:
     """Try to inject `text`/`attachments` into the turn `run_context` belongs to.
 

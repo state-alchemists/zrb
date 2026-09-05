@@ -6,6 +6,7 @@ from pydantic_ai.messages import (
     BinaryContent,
     DocumentUrl,
     ImageUrl,
+    ModelMessage,
     ModelRequest,
     ModelResponse,
     SystemPromptPart,
@@ -69,8 +70,11 @@ async def test_summarize_fat_tool_results():
     )
 
     assert len(new_messages) == 1
-    assert "SUMMARY OF TOOL RESULT:" in new_messages[0].parts[0].content
-    assert "Short summary" in new_messages[0].parts[0].content
+    summarized = new_messages[0].parts[0]
+    assert isinstance(summarized, ToolReturnPart)
+    assert isinstance(summarized.content, str)
+    assert "SUMMARY OF TOOL RESULT:" in summarized.content
+    assert "Short summary" in summarized.content
 
 
 def test_message_to_text():
@@ -95,7 +99,7 @@ def test_model_request_to_text_complex():
                 AudioUrl(url="http://audio"),
                 VideoUrl(url="http://video"),
                 DocumentUrl(url="http://doc"),
-                123,
+                123,  # pyright: ignore[reportArgumentType]
             ]
         ),
     ]
@@ -130,7 +134,7 @@ def test_model_response_to_text_complex():
 @pytest.mark.asyncio
 async def test_summarizer_early_exit():
     limiter = MockLimiter()
-    messages = [ModelRequest(parts=[UserPromptPart(content="hi")])]
+    messages: list[ModelMessage] = [ModelRequest(parts=[UserPromptPart(content="hi")])]
 
     # Within limits
     # Since limiter returns 1000 for list, we need higher threshold
@@ -159,7 +163,7 @@ async def test_summarizer_does_not_skip_when_to_summarize_tokens_exceed_threshol
     #   Fixed:   count_tokens(to_summarize)=32 > 30 → proceeds to summarize (correct)
     limiter = MockLimiter()
     content = "x" * 8  # 8 tokens each per MockLimiter
-    messages = [
+    messages: list[ModelMessage] = [
         ModelRequest(parts=[UserPromptPart(content=content)]),
         ModelRequest(parts=[UserPromptPart(content=content)]),
         ModelRequest(parts=[UserPromptPart(content=content)]),
@@ -208,7 +212,7 @@ async def test_create_summarizer_history_processor_flow():
         summary_window=0,
     )
 
-    messages = [
+    messages: list[ModelMessage] = [
         ModelRequest(
             parts=[
                 ToolReturnPart(
@@ -270,7 +274,7 @@ async def test_summarize_history_with_multiple_snapshots():
     mock_result.output = "Consolidated summary <state_snapshot>...</state_snapshot>"
     agent.run = AsyncMock(return_value=mock_result)
 
-    messages = [
+    messages: list[ModelMessage] = [
         ModelRequest(parts=[UserPromptPart(content="a" * 50)]),
         ModelRequest(parts=[UserPromptPart(content="b" * 50)]),
         ModelRequest(parts=[UserPromptPart(content="c" * 50)]),
@@ -302,7 +306,7 @@ async def test_summarize_history_bakes_journal_index_into_summary():
     mock_result.output = "summary text"
     agent.run = AsyncMock(return_value=mock_result)
 
-    messages = [
+    messages: list[ModelMessage] = [
         ModelRequest(parts=[UserPromptPart(content="a" * 50)]),
         ModelRequest(parts=[UserPromptPart(content="b" * 50)]),
     ]
@@ -336,7 +340,9 @@ async def test_summarize_history_without_journal_index_is_unaffected():
     mock_result.output = "summary text"
     agent.run = AsyncMock(return_value=mock_result)
 
-    messages = [ModelRequest(parts=[UserPromptPart(content="a" * 50)])]
+    messages: list[ModelMessage] = [
+        ModelRequest(parts=[UserPromptPart(content="a" * 50)])
+    ]
 
     with (
         patch("zrb.llm.config.limiter.is_turn_start", return_value=True),

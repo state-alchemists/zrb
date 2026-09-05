@@ -4,6 +4,13 @@ from unittest.mock import MagicMock, mock_open, patch
 from zrb.builtin.searxng.start import copy_searxng_setting
 
 
+def _action(task):
+    """`task.action` narrowed to the callable `@make_task` always sets."""
+    action = task.action
+    assert callable(action)
+    return action
+
+
 def test_copy_searxng_setting(tmp_path):
     ctx = MagicMock()
     mock_home = str(tmp_path / "home")
@@ -19,7 +26,7 @@ def test_copy_searxng_setting(tmp_path):
         patch("shutil.copy") as mock_copy,
     ):
 
-        copy_searxng_setting.action(ctx)
+        _action(copy_searxng_setting)(ctx)
 
         assert ctx.print.called
         mock_file.assert_called()

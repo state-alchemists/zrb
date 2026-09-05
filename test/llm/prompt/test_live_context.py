@@ -7,6 +7,8 @@ session knows about the user.
 
 from unittest.mock import patch
 
+from zrb.context.context import Context
+from zrb.context.shared_context import SharedContext
 from zrb.llm.prompt.live_context import render_journal_index, split_live_context
 
 
@@ -198,22 +200,17 @@ def test_negative_injects_the_whole_index_uncapped(tmp_path):
 # ── Injected context is closed under the preset's tool surface (ADR-0049) ──
 
 
-class _Ctx:
-    """Minimal stand-in for the context ``render_live_context`` reads.
-
-    ``SharedContext.input`` is a read-only property, so the real class cannot
-    carry the interactivity flag this needs to steer.
-    """
-
-    def __init__(self, interactive: bool):
-        self.input = type("_Input", (), {"interactive": interactive, "session": "t"})()
+def _ctx(interactive: bool) -> Context:
+    """A real task context carrying the interactivity flag the render reads."""
+    shared_ctx = SharedContext(input={"interactive": interactive, "session": "t"})
+    return Context(shared_ctx, "test", 0, "")
 
 
 def _live_context(model: str, *, interactive: bool = True) -> str:
     """Render a live-context block as *model*'s preset would receive it."""
     from zrb.llm.prompt.live_context import render_live_context
 
-    return render_live_context(_Ctx(interactive), model, inject_journal_index=True)
+    return render_live_context(_ctx(interactive), model, inject_journal_index=True)
 
 
 def test_the_non_interactive_line_forbids_no_tool_by_name():
@@ -266,5 +263,6 @@ def test_split_live_context_handles_nested_journal_index():
     )
     message, block = split_live_context(content)
     assert message == "hello"
+    assert block is not None
     assert "<journal-index>" in block
     assert block.endswith("</live-context>")

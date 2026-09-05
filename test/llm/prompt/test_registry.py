@@ -1,12 +1,14 @@
 """Public PromptRegistry behavior (ADR-0090 split from PromptManager)."""
 
+from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.prompt.manager import PromptManager, new_prompt
 from zrb.llm.prompt.registry import PromptRegistry, prompt_registry
 
 
-def _ctx():
-    return SharedContext()
+def _ctx() -> Context:
+    """A real task context — what production hands the prompt system."""
+    return Context(SharedContext(), "test", 0, "")
 
 
 def _manager(registry):
@@ -162,7 +164,7 @@ def test_manager_append_prompt_preserves_order():
     manager.append_prompt("First")
     manager.append_prompt(new_prompt("Middleware"))
     assert manager.prompts[0] == "First"
-    assert manager.prompts[1](SharedContext(), "", lambda c, p: p) == "\nMiddleware"
+    assert manager.prompts[1](_ctx(), "", lambda c, p: p) == "\nMiddleware"
 
 
 def test_reset_returns_to_registry_default():

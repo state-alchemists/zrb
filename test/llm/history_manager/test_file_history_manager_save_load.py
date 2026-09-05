@@ -2,6 +2,7 @@ import json
 import os
 
 import pytest
+from pydantic_ai.messages import TextPart, UserPromptPart
 
 from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 
@@ -38,6 +39,7 @@ def test_file_history_manager_save_load(temp_history_dir):
     manager2 = FileHistoryManager(temp_history_dir)
     loaded = manager2.load("session1")
     assert len(loaded) == 2
+    assert isinstance(loaded[0].parts[0], UserPromptPart)
     assert loaded[0].parts[0].content == "hello"
 
 
@@ -77,11 +79,13 @@ def test_clean_corrupted_content_preserves_structural_fields(temp_history_dir):
     loaded = FileHistoryManager(temp_history_dir).load("structural")
 
     thinking = loaded[0].parts[0]
+    assert isinstance(thinking, ThinkingPart)
     assert thinking.content == "reasoning"
     assert thinking.signature == "sig-abc"
     assert thinking.id == "th-1"
 
     retry = loaded[1].parts[0]
+    assert isinstance(retry, RetryPromptPart)
     assert retry.tool_name == "mytool"
     assert retry.tool_call_id == "call-9"
 
@@ -159,6 +163,7 @@ def test_file_history_manager_load_validation_error(temp_history_dir):
     # With proactive cleaning, dictionary should be converted to JSON string
     result = manager.load("corrupted")
     assert len(result) == 1
+    assert isinstance(result[0].parts[0], UserPromptPart)
     assert (
         result[0].parts[0].content == '{"summary": "test", "results": []}'
     )  # Converted to JSON string
@@ -193,6 +198,7 @@ def test_file_history_manager_load_validation_error_boolean(temp_history_dir):
     # With proactive cleaning, boolean should be converted to string
     result = manager.load("corrupted_bool")
     assert len(result) == 1
+    assert isinstance(result[0].parts[0], UserPromptPart)
     assert result[0].parts[0].content == "True"  # Converted to string
 
 
@@ -225,6 +231,7 @@ def test_file_history_manager_load_validation_error_number(temp_history_dir):
     # With proactive cleaning, number should be converted to string
     result = manager.load("corrupted_number")
     assert len(result) == 1
+    assert isinstance(result[0].parts[0], UserPromptPart)
     assert result[0].parts[0].content == "42"  # Converted to string
 
 
@@ -233,12 +240,12 @@ def test_file_history_manager_save_with_corrupted_data(temp_history_dir):
     manager = FileHistoryManager(temp_history_dir)
 
     # Create messages with corrupted content (simulating the bug)
-    from pydantic_ai.messages import ModelRequest, UserPromptPart
+    from pydantic_ai.messages import ModelMessage, ModelRequest, UserPromptPart
 
     # Create a corrupted message (this would normally fail validation)
     # We'll simulate the corruption by creating a message with dictionary content
     # In reality, this would come from a bug in pydantic-ai
-    messages = [
+    messages: list[ModelMessage] = [
         ModelRequest(parts=[UserPromptPart(content="normal message")]),
     ]
 
@@ -252,6 +259,7 @@ def test_file_history_manager_save_with_corrupted_data(temp_history_dir):
     # Load it back
     loaded = manager.load("test_session")
     assert len(loaded) == 1
+    assert isinstance(loaded[0].parts[0], UserPromptPart)
     assert loaded[0].parts[0].content == "normal message"
 
 
@@ -268,6 +276,7 @@ def test_file_history_manager_clean_corrupted_content_via_load(temp_history_dir)
     }
     json.dump([{"kind": "request", "parts": [data]}], open(file_path, "w"))
     result = manager.load("test_dict")
+    assert isinstance(result[0].parts[0], UserPromptPart)
     assert result[0].parts[0].content == '{"key": "value"}'
 
 
@@ -415,6 +424,7 @@ def test_load_user_prompt_with_list_of_non_strings(temp_history_dir):
     result = manager.load("list_content")
     # Non-string list items should be converted to a single string
     assert len(result) == 1
+    assert isinstance(result[0].parts[0], UserPromptPart)
     assert isinstance(result[0].parts[0].content, str)
 
 
@@ -439,4 +449,5 @@ def test_load_text_part_with_non_string_content(temp_history_dir):
         json.dump(data, f)
     result = manager.load("text_nonstring")
     assert len(result) == 1
+    assert isinstance(result[0].parts[0], TextPart)
     assert result[0].parts[0].content == "99"

@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
@@ -12,7 +12,8 @@ if TYPE_CHECKING:
 
 
 def normalize_attachments(
-    attachments: "list[UserContent]", print_fn: Callable[[str], Any] = print
+    attachments: "Sequence[UserContent | None]",
+    print_fn: Callable[[str], Any] = print,
 ) -> "list[UserContent]":
 
     # lazy: zrb internal (heavy via transitive)
@@ -126,7 +127,7 @@ def check_attachment_bytes(data: bytes, media_type: str) -> str | None:
 
 def get_attachments(
     ctx: AnyContext,
-    attachment: "UserContent | list[UserContent] | Callable[[AnyContext], UserContent | list[UserContent]] | None" = None,  # noqa
+    attachment: "UserContent | list[UserContent] | Callable[[AnyContext], UserContent | list[UserContent] | None] | None" = None,  # noqa
 ) -> "list[UserContent]":
     if attachment is None:
         return []

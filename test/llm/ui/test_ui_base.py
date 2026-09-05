@@ -35,7 +35,12 @@ def test_ui_public_methods(mock_ui_deps):
     assert ui.output_buffer.text is not None
 
 
-def _usage(input_tokens=0, output_tokens=0, cache_read_tokens=0, cache_write_tokens=0):
+def _usage(
+    input_tokens: int | None = 0,
+    output_tokens: int | None = 0,
+    cache_read_tokens: int | None = 0,
+    cache_write_tokens: int | None = 0,
+):
     return MagicMock(
         input_tokens=input_tokens,
         output_tokens=output_tokens,

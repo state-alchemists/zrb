@@ -17,6 +17,7 @@ from unittest.mock import patch
 import pytest
 
 from zrb.config.config import CFG
+from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.prompt.manager import PromptManager
 
@@ -60,7 +61,7 @@ def test_environment_variable_overrides():
 
 def test_prompt_manager_uses_config_defaults():
     """Test that PromptManager uses config defaults when include_sections is None."""
-    ctx = SharedContext()
+    ctx = Context(SharedContext(), "test", 0, "")
 
     # include_sections=None means use CFG defaults
     manager = PromptManager()
@@ -72,7 +73,7 @@ def test_prompt_manager_uses_config_defaults():
 
 def test_prompt_manager_mini_overrides():
     """Test that explicit include_sections overrides config defaults."""
-    ctx = SharedContext()
+    ctx = Context(SharedContext(), "test", 0, "")
 
     # Explicit include_sections takes precedence
     manager = PromptManager(
@@ -86,7 +87,7 @@ def test_prompt_manager_mini_overrides():
 
 def test_prompt_manager_include_sections_mini_subset():
     """Explicit include_sections selects only listed sections."""
-    ctx = SharedContext()
+    ctx = Context(SharedContext(), "test", 0, "")
 
     manager = PromptManager(
         include_sections=["persona", "example"],
@@ -99,7 +100,7 @@ def test_prompt_manager_include_sections_mini_subset():
 
 def test_prompt_manager_include_sections_ordering():
     """Section ordering follows include_sections order."""
-    ctx = SharedContext()
+    ctx = Context(SharedContext(), "test", 0, "")
 
     manager = PromptManager(
         include_sections=["workflow", "persona"],
@@ -113,7 +114,7 @@ def test_prompt_manager_include_sections_ordering():
 @pytest.mark.asyncio
 async def test_prompt_manager_integration():
     """Integration test - verify PromptManager works end-to-end with config."""
-    ctx = SharedContext()
+    ctx = Context(SharedContext(), "test", 0, "")
 
     # Test 1: Default behavior (use CFG defaults)
     manager1 = PromptManager()
@@ -136,7 +137,7 @@ async def test_prompt_manager_integration():
 
 def test_prompt_manager_empty_sections_produces_no_builtin_content():
     """include_sections=[] means no built-in sections."""
-    ctx = SharedContext()
+    ctx = Context(SharedContext(), "test", 0, "")
 
     manager = PromptManager(include_sections=[])
     prompt = manager.compose_prompt()(ctx)

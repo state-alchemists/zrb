@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from zrb.builtin.llm.chat import llm_chat
+from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.tool.delegate import AgentTaskResult
 from zrb.llm.tool.delegate_background import (
@@ -22,7 +23,7 @@ from zrb.llm.tool.registry import tool_name
 
 def _names(profile: str, model: str | None = None) -> list[str]:
     with patch.dict("os.environ", {"ZRB_LLM_PROFILE": profile}):
-        context = SharedContext(input={"model": model or ""})
+        context = Context(SharedContext(input={"model": model or ""}), "test", 0, "")
         delegate_names = {
             "DelegateToAgent",
             "SearchAgent",
@@ -89,7 +90,9 @@ async def test_background_delegation_notice_reaches_the_chat_live_context():
                 await asyncio.sleep(0)
 
         handle = msg.split("Handle:")[1].split(".")[0].strip()
-        live_context = llm_chat.prompt_manager.create_live_context(SharedContext())
+        live_context = llm_chat.prompt_manager.create_live_context(
+            Context(SharedContext(), "test", 0, "")
+        )
         assert handle in live_context
         assert "GetDelegationResult" in live_context
     finally:

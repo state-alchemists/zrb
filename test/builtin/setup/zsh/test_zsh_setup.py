@@ -3,6 +3,13 @@ from unittest.mock import MagicMock, patch
 from zrb.builtin.setup.zsh.zsh import setup_zsh
 
 
+def _action(task):
+    """`task.action` narrowed to the callable `@make_task` always sets."""
+    action = task.action
+    assert callable(action)
+    return action
+
+
 def test_setup_zsh_new_file():
     ctx = MagicMock()
     ctx.input = {"zsh-config": "/tmp/.zshrc"}
@@ -18,7 +25,7 @@ def test_setup_zsh_new_file():
         patch("zrb.builtin.setup.config_file_helper.write_file") as mock_write,
     ):
 
-        setup_zsh.action(ctx)
+        _action(setup_zsh)(ctx)
 
         assert mock_write.call_count == 2
         assert ctx.print.called
@@ -41,7 +48,7 @@ def test_setup_zsh_existing_config():
         patch("zrb.builtin.setup.config_file_helper.write_file") as mock_write,
     ):
 
-        setup_zsh.action(ctx)
+        _action(setup_zsh)(ctx)
 
         assert mock_write.call_count == 0
         assert not ctx.print.called
