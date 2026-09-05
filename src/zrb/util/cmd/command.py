@@ -25,9 +25,6 @@ def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
         dict[str, str]: A dictionary where keys are the violating commands/patterns
             and values are the reasons they are unrecommended.
     """
-    # Matched as whole words, not substrings: "source" must not fire on
-    # "open-source", and "ls" must not fire on "tools". `<(` is punctuation
-    # and has no word boundary, so it stays a substring check.
     banned_commands = {
         "column": "Command isn't included in Ubuntu packages and is not POSIX compliant",
         "echo": "echo isn't consistent across OS; use printf instead",
