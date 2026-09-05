@@ -64,9 +64,13 @@ class _InterleavingStreamReader:
 
 
 @pytest.mark.asyncio
-async def test_shell_output_collapse_swallows_a_broken_uis_exception(monkeypatch):
+async def test_shell_output_collapse_swallows_a_broken_uis_exception(
+    monkeypatch, caplog
+):
     """A UI whose hooks raise must never break the actual command — same
-    contract as `_notify`'s broken-UI test."""
+    contract as `_notify`'s broken-UI test. The swallow is still debuggable:
+    both the live-push and the final-collapse failure reach the log instead
+    of vanishing silently."""
     mock_ui = MagicMock()
     mock_ui.update_shell_output.side_effect = RuntimeError("ui exploded")
     mock_ui.finish_shell_output.side_effect = RuntimeError("ui exploded")
@@ -78,9 +82,12 @@ async def test_shell_output_collapse_swallows_a_broken_uis_exception(monkeypatch
         AsyncMock(return_value=mock_proc),
     )
 
-    res = await run_shell_command("emit", shell="node")  # must not raise
+    with caplog.at_level("DEBUG"):
+        res = await run_shell_command("emit", shell="node")  # must not raise
 
     assert "hello" in res
+    assert "Live shell output push failed: ui exploded" in caplog.text
+    assert "Final shell output capture failed: ui exploded" in caplog.text
 
 
 @pytest.mark.asyncio
