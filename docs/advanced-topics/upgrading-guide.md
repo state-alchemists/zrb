@@ -105,7 +105,7 @@ Both are now **ABCs** — a custom implementation must subclass them (an incompl
 |---|---|
 | `from zrb.llm.tool_call.ui_protocol import UIProtocol` | `from zrb import AnyUI` |
 | `from zrb.llm.approval.approval_channel import ApprovalChannel` | `from zrb.llm.approval import AnyApprovalChannel` |
-| `class MyUI(UIProtocol):` | `class MyUI(AnyUI):` (or subclass `BaseUI`/`SimpleUI`/`EventDrivenUI`/`PollingUI`, which already do) |
+| `class MyUI(UIProtocol):` | `class MyUI(AnyUI):` (or subclass `BaseUI`/`SimpleUI`/`EventDrivenUI`, which already do) |
 | `class MyChannel(ApprovalChannel):` | `class MyChannel(AnyApprovalChannel):` |
 
 If you only use the built-in `llm_chat` task and never subclassed these directly, no change is needed — every built-in UI and approval channel already inherits the new base.

@@ -31,12 +31,7 @@ Extension Levels:
     │ Level 2: EventDrivenUI (event-driven)                           │
     │         - Implement: print(), start_event_loop()                │
     │         - Call handle_incoming_message() on events              │
-    │         - For Telegram, Discord, WhatsApp                       │
-    ├─────────────────────────────────────────────────────────────────┤
-    │ Level 3: PollingUI (polling-based)                              │
-    │         - Implement: print()                                    │
-    │         - Use output_queue / input_queue                        │
-    │         - For HTTP API, WebSocket polling                       │
+    │         - For Telegram, Discord, WhatsApp, HTTP API, WebSocket  │
     └─────────────────────────────────────────────────────────────────┘
 """
 

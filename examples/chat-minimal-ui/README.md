@@ -16,22 +16,20 @@ control (and effort). Pick the lowest level that fits your backend:
 flowchart TB
     AnyUI["AnyUI<br/>6 methods - tool confirmations only (non-chat)"]
     Level1["Level 1: SimpleUI<br/>THIS EXAMPLE - print() + get_input()"]
-    Level2["Level 2: EventDrivenUI<br/>print() + start_event_loop() (Telegram/Discord)"]
-    Level3["Level 3: PollingUI<br/>print() + input_queue/output_queue (HTTP, WebSocket)"]
-    Level4["Level 4: BaseUI<br/>Full control - custom architectures"]
-    Level5["Level 5: UI<br/>Default terminal TUI (prompt_toolkit)"]
+    Level2["Level 2: EventDrivenUI<br/>print() + start_event_loop() (Telegram/Discord/HTTP/WebSocket)"]
+    Level3["Level 3: BaseUI<br/>Full control - custom architectures"]
+    Level4["Level 4: UI<br/>Default terminal TUI (prompt_toolkit)"]
 
-    AnyUI --> Level1 --> Level2 --> Level3 --> Level4 --> Level5
+    AnyUI --> Level1 --> Level2 --> Level3 --> Level4
 ```
 
 | Level | Base Class | Implement | Best for |
 |-------|------------|-----------|----------|
 | — | `AnyUI` | 6 methods | Tool confirmations in non-chat contexts |
 | **1** | `SimpleUI` | `print()`, `get_input()` | **THIS EXAMPLE** — CLI, file logging, simple backends |
-| **2** | `EventDrivenUI` | `print()`, `start_event_loop()` | Telegram, Discord, WhatsApp (callback-based) |
-| **3** | `PollingUI` | `print()` | HTTP API, WebSocket polling |
-| **4** | `BaseUI` | `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Maximum flexibility, custom architectures |
-| **5** | `UI` | — | Default terminal TUI (used when no custom UI is set) |
+| **2** | `EventDrivenUI` | `print()`, `start_event_loop()` | Telegram, Discord, WhatsApp, HTTP API, WebSocket (callback/queue-based) |
+| **3** | `BaseUI` | `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Maximum flexibility, custom architectures |
+| **4** | `UI` | — | Default terminal TUI (used when no custom UI is set) |
 
 ## How It Works
 
@@ -105,8 +103,10 @@ ZRB_CHAT_LOG_FILE=chat.log zrb llm chat
 
 - **Event-driven backends** (Telegram, Discord) — extend `EventDrivenUI` and
   implement `start_event_loop()`. See [`examples/chat-telegram/`](../chat-telegram/).
-- **Polling/streaming backends** (HTTP, SSE) — extend `PollingUI` and use the
-  built-in `input_queue` / `output_queue`. See [`examples/chat-sse/`](../chat-sse/).
+- **HTTP/streaming backends** (HTTP, SSE) — also extend `EventDrivenUI`; drive
+  `handle_incoming_message()` from your request handler instead of a bot
+  callback. See [`examples/chat-sse/`](../chat-sse/) and
+  `zrb.runner.chat.http_ui.create_http_ui_factory` for the built-in example.
 - **Dual mode** (CLI *and* an external channel) — use
   `llm_chat.append_ui_factory(...)` to broadcast to multiple channels at once.
 

@@ -14,8 +14,7 @@ Zrb's LLM tasks support custom UI and approval channels for non-terminal interfa
 - [Dual Mode: CLI + External Channel](#dual-mode-cli-external-channel)
 - [Level 1: SimpleUI (Request-Response Pattern)](#level-1-simpleui-request-response-pattern)
 - [Level 2: EventDrivenUI (Callback Pattern)](#level-2-eventdrivenui-callback-pattern)
-- [Level 3: PollingUI (Queue-Based Pattern)](#level-3-pollingui-queue-based-pattern)
-- [Level 4: BaseUI (Full Control)](#level-4-baseui-full-control)
+- [Level 3: BaseUI (Full Control)](#level-3-baseui-full-control)
 - [BufferedOutputMixin (Rate-Limited Backends)](#bufferedoutputmixin-rate-limited-backends)
 - [UIConfig: Cleaner Configuration](#uiconfig-cleaner-configuration)
 - [create_ui_factory(): One-Line Registration](#create_ui_factory-one-line-registration)
@@ -52,7 +51,6 @@ flowchart TB
         BaseImpl["BaseUI: append_to_output(), ask_user(), run_interactive_cmd()"]
         SimpleImpl["SimpleUI: print(), get_input()"]
         EventImpl["EventDrivenUI: print(), start_event_loop() + handle_incoming_message()"]
-        PollImpl["PollingUI: print() + built-in queues"]
     end
 ```
 
@@ -74,7 +72,6 @@ flowchart TB
 | **BaseUI** | `__init__`, `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Message loop, command handling, LLM interaction, `UIConfig`-based settings |
 | **SimpleUI** | 2 methods (`print`, `get_input`) | All of BaseUI, plus a default `run_async()` and `__init__` |
 | **EventDrivenUI** | 2 methods (`print`, `start_event_loop`) | All of SimpleUI + input queue + message routing |
-| **PollingUI** | 0-1 methods (optional `print`) | All of SimpleUI + input/output queues for external polling |
 
 **Key insight:** Each level builds on the previous, reducing what you must implement. `BaseUI` requires understanding the full architecture. `SimpleUI` lets you focus on just input/output.
 
@@ -114,11 +111,10 @@ Choose your starting point based on your backend type:
 | Level | Base Class | Required Methods | Best For |
 |-------|-------------|------------------|----------|
 | **1** | `SimpleUI` | `print()`, `get_input()` | CLI, file-based, synchronous I/O |
-| **2** | `EventDrivenUI` | `print()`, `start_event_loop()` | Telegram, Discord, WhatsApp (callbacks) |
-| **3** | `PollingUI` | `print()` (optional) | HTTP API, WebSocket (external polling) |
-| **4** | `BaseUI` | `__init__`, `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Full control, custom architecture |
+| **2** | `EventDrivenUI` | `print()`, `start_event_loop()` | Telegram, Discord, WhatsApp (callbacks); HTTP API, WebSocket (`handle_incoming_message()` also drives an externally-driven backend, see `zrb.runner.chat.http_ui.create_http_ui_factory` for the built-in example) |
+| **3** | `BaseUI` | `__init__`, `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Full control, custom architecture |
 
-**Recommendation:** Start with `SimpleUI`. Upgrade to `EventDrivenUI` or `PollingUI` if your backend requires it. Use `BaseUI` only for advanced custom architectures.
+**Recommendation:** Start with `SimpleUI`. Upgrade to `EventDrivenUI` if your backend requires it. Use `BaseUI` only for advanced custom architectures.
 
 ---
 
@@ -137,7 +133,7 @@ When you use `append_ui_factory()`:
 
 ```python
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui import EventDrivenUI, create_bot_ui_factory
+from zrb.llm.ui import EventDrivenUI, create_ui_factory
 
 class TelegramUI(EventDrivenUI):
     def __init__(self, bot_token, chat_id, **kwargs):
@@ -154,7 +150,7 @@ class TelegramUI(EventDrivenUI):
 
 # Use append_ui_factory() for dual mode!
 llm_chat.append_ui_factory(
-    create_bot_ui_factory(
+    create_ui_factory(
         TelegramUI,
         bot_token="TOKEN",
         chat_id=12345
@@ -165,12 +161,9 @@ llm_chat.append_ui_factory(
 llm_chat.append_approval_channel(TelegramApprovalChannel(bot, chat_id))
 ```
 
-### Factory Helpers
-
-| Helper | Best For | Example |
-|--------|----------|---------|
-| `create_bot_ui_factory()` | Telegram, Discord, WhatsApp | `create_bot_ui_factory(MyBotUI, token=..., chat_id=...)` |
-| `create_http_ui_factory()` | SSE, WebSocket, REST API | `create_http_ui_factory(MyHTTPUI, host="localhost", port=8000)` |
+For an HTTP/SSE backend, see `zrb.runner.chat.http_ui.create_http_ui_factory`
+— the built-in factory the FastAPI chat session runner uses to wire an
+`EventDrivenUI` up to server-sent events.
 
 ### Complete Examples
 
@@ -441,113 +434,20 @@ llm_chat.ui_factories = [
 ]
 ```
 
----
+### Example: HTTP API / WebSocket
 
-## Level 3: PollingUI (Queue-Based Pattern)
-
-For backends where **external systems poll for messages** (HTTP API, WebSocket), use `PollingUI`. It provides built-in queues that external code can use.
-
-### Built-in Queues
-
-```mermaid
-flowchart TB
-    subgraph PollingUI["PollingUI"]
-        Print["print()"]
-        Queue["output_queue"]
-        GetInput["get_input()"]
-        InputQ["input_queue"]
-        RunAsync["run_async()"]
-    end
-
-    Print -->|"queues output"| Queue
-    Queue -->|"poll for AI responses"| External["External Code"]
-    External -->|"put user responses"| InputQ
-    InputQ -->|"receives"| GetInput
-    RunAsync -->|"starts"| GetInput
-```
-
-### Minimal Implementation
-
-```python
-from zrb.llm.ui import PollingUI
-
-class APIUI(PollingUI):
-    """HTTP/WebSocket API using PollingUI's queues."""
-    # print() already queues to output_queue!
-    # get_input() already blocks on input_queue!
-    # No additional methods needed!
-    pass
-```
-
-### Example: HTTP API with aiohttp
-
-```python
-import asyncio
-import uuid
-from aiohttp import web
-from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui import PollingUI, create_ui_factory
-
-# Session storage
-sessions: dict[str, PollingUI] = {}
-
-class APIUI(PollingUI):
-    """HTTP API UI - no additional methods needed."""
-    pass
-
-async def handle_create_session(request):
-    """Create new chat session."""
-    data = await request.json()
-    session_id = str(uuid.uuid4())[:8]
-
-    ui = APIUI(
-        ctx=request.app["ctx"],  # Your context
-        llm_task=llm_chat,
-        history_manager=request.app["history_manager"],
-        initial_message=data.get("message", ""),  # Optional first message
-    )
-
-    sessions[session_id] = ui
-    asyncio.create_task(ui.run_async())  # Start message processing
-
-    return web.json_response({"session_id": session_id})
-
-async def handle_poll_responses(request):
-    """Poll for AI responses."""
-    session_id = request.query.get("session")
-    ui = sessions.get(session_id)
-    if not ui:
-        return web.json_response({"error": "Invalid session"}, status=404)
-
-    messages = []
-    while not ui.output_queue.empty():
-        messages.append(await ui.output_queue.get())
-
-    return web.json_response({"messages": messages})
-
-async def handle_send_message(request):
-    """Send user message."""
-    data = await request.json()
-    ui = sessions.get(data.get("session"))
-    if not ui:
-        return web.json_response({"error": "Invalid session"}, status=404)
-
-    # Put message in input queue - get_input() will receive it
-    await ui.input_queue.put(data.get("text", ""))
-    return web.json_response({"status": "ok"})
-
-# Setup
-app = web.Application()
-app.add_routes([
-    web.post("/session", handle_create_session),
-    web.get("/poll", handle_poll_responses),
-    web.post("/message", handle_send_message),
-])
-```
+`EventDrivenUI` also fits externally-driven backends — an HTTP or WebSocket
+handler calls `handle_incoming_message()` the same way a bot callback does.
+`zrb.runner.chat.http_ui.create_http_ui_factory` is the built-in example: it
+subclasses `EventDrivenUI`, broadcasts `print()` output over server-sent
+events, and routes `handle_incoming_message()` from the request handler into
+an `asyncio.Queue` that `get_input()` awaits. Use it directly, or read it as
+the reference implementation for your own HTTP/WebSocket backend. See
+`examples/chat-sse/` for the runnable version.
 
 ---
 
-## Level 4: BaseUI (Full Control)
+## Level 3: BaseUI (Full Control)
 
 Use `BaseUI` when you need complete control over the message loop or have custom architecture requirements.
 
@@ -787,7 +687,7 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
 
 `UIConfig` is **the** UI configuration object — `BaseUI.__init__` itself takes
 one `ui_config: UIConfig | None` parameter (not 25 individual ones), and every
-concrete UI (`SimpleUI`, `EventDrivenUI`, `PollingUI`, the built-in TUI, the
+concrete UI (`SimpleUI`, `EventDrivenUI`, the built-in TUI, the
 web UI) is built from it. Each field defaults from its `CFG.LLM_UI_COMMAND_*`
 env twin (`docs/configuration/env-vars.md`), read lazily so a `zrb_init.py`
 change still wins — so every UI backend agrees on the shipped command aliases
@@ -1134,7 +1034,7 @@ llm_chat.ui_factories = [create_ui_factory(MyUI, config=config)]
 | Minimal CLI | `examples/chat-minimal-ui/` | 1 | SimpleUI |
 | Telegram Bot | `examples/chat-telegram/` | 2 | EventDrivenUI + BufferedOutputMixin |
 | Telegram + CLI | `examples/chat-telegram/` | 2+ | Multi-UI (multiple channels) |
-| HTTP API | `examples/chat-sse/` | 3 | PollingUI |
+| HTTP API | `examples/chat-sse/` | 2 | EventDrivenUI |
 
 ---
 
@@ -1149,8 +1049,8 @@ llm_chat.ui_factories = [create_ui_factory(MyUI, config=config)]
 | Telegram Bot | `EventDrivenUI` + `BufferedOutputMixin` | Callbacks + rate limits |
 | Discord Bot | `EventDrivenUI` + `BufferedOutputMixin` | Callbacks + rate limits |
 | WhatsApp | `EventDrivenUI` | Webhook callbacks |
-| HTTP API | `PollingUI` | External polling |
-| WebSocket Server | `PollingUI` | External reads/writes |
+| HTTP API | `EventDrivenUI` | See `zrb.runner.chat.http_ui.create_http_ui_factory` |
+| WebSocket Server | `EventDrivenUI` | Same shape as HTTP API |
 | Custom Multiplexer | `BaseUI` | Full control needed |
 
 ### By Feature Need
@@ -1159,7 +1059,6 @@ llm_chat.ui_factories = [create_ui_factory(MyUI, config=config)]
 |------|-----|
 | Standard CLI | `SimpleUI` |
 | Event-driven messaging | `EventDrivenUI` |
-| External polling | `PollingUI` |
 | Custom event loop | `BaseUI` |
 | Multi-channel input | Use `append_ui()` and `append_approval_channel()` |
 | Rate limit protection | Add `BufferedOutputMixin` |
@@ -1268,8 +1167,7 @@ Use `create_ui_factory()` to handle this automatically.
 | Level | Implements | Best For | Complexity |
 |-------|------------|----------|------------|
 | `SimpleUI` | `print()`, `get_input()` | CLI, file logging | Low |
-| `EventDrivenUI` | `print()`, `start_event_loop()` | Telegram, Discord | Medium |
-| `PollingUI` | `print()` (optional) | HTTP API, WebSocket | Low |
+| `EventDrivenUI` | `print()`, `start_event_loop()` | Telegram, Discord, HTTP API, WebSocket | Medium |
 | `BaseUI` | `__init__`, `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Custom architectures | High |
 
 **Start with `SimpleUI`**. Upgrade only when your backend requires it.
