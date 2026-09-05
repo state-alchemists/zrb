@@ -283,3 +283,62 @@ async def test_log_session_state_cancelled():
         await lifecycle.log_session_state(session)
 
     assert session.state_logger.write.call_count >= 1
+
+
+@pytest.mark.asyncio
+async def test_log_session_state_cancelled_logs_when_ctx_logging_fails(caplog):
+    """A broken diagnostic log (e.g. a stream closing mid-shutdown) must not
+    propagate, but the swallow itself must now be observable."""
+    task = BaseTask(name="task")
+    ctx_mock = MagicMock()
+    ctx_mock.log_debug.side_effect = RuntimeError("stream closed")
+    task.get_ctx = MagicMock(return_value=ctx_mock)
+    lifecycle = BaseTaskLifecycle(task, BaseTaskContext(task))
+
+    session = MagicMock(spec=Session)
+    session.is_terminated = False
+    session.state_logger = MagicMock()
+
+    async def cancel_immediately(_):
+        raise asyncio.CancelledError()
+
+    with caplog.at_level("DEBUG"):
+        with patch("asyncio.sleep", new=cancel_immediately):
+            # Should not propagate — neither the CancelledError nor the
+            # secondary failure from ctx.log_debug itself.
+            await lifecycle.log_session_state(session)
+
+    assert "Session state logger cleanup failed: stream closed" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_log_session_state_exception_logs_when_ctx_logging_fails(caplog):
+    """Same guarantee on the general-exception path: a broken `ctx.log_error`
+    must not mask the fact that something failed."""
+    task = BaseTask(name="task")
+    ctx_mock = MagicMock()
+    ctx_mock.log_error.side_effect = RuntimeError("stream closed")
+    task.get_ctx = MagicMock(return_value=ctx_mock)
+    lifecycle = BaseTaskLifecycle(task, BaseTaskContext(task))
+
+    session = MagicMock(spec=Session)
+    session.is_terminated = False
+    session.state_logger = MagicMock()
+    call_count = 0
+
+    def write_side_effect(state):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise Exception("log error")
+
+    session.state_logger.write.side_effect = write_side_effect
+
+    async def mock_sleep(_):
+        session.is_terminated = True
+
+    with caplog.at_level("DEBUG"):
+        with patch("asyncio.sleep", new=mock_sleep):
+            await lifecycle.log_session_state(session)
+
+    assert "Session state logger cleanup failed: stream closed" in caplog.text

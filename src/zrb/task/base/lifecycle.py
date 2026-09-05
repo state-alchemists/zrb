@@ -9,6 +9,7 @@ before the root tasks execute.
 import asyncio
 from typing import TYPE_CHECKING, Any
 
+from zrb.config.config import CFG
 from zrb.context.print_fn import PrintFn
 from zrb.context.shared_context import SharedContext
 from zrb.session.any_session import AnySession
@@ -189,11 +190,14 @@ class BaseTaskLifecycle:
             try:
                 ctx = task.get_ctx(session)
                 ctx.log_debug("Session state logger cancelled.")
-            except Exception:
-                pass  # Context may be unavailable during shutdown
+            except Exception as log_exc:
+                # Context lookup is normally exception-free; this is really
+                # guarding ctx.log_debug's write to a stream that may already
+                # be closing during interpreter shutdown.
+                CFG.LOGGER.debug(f"Session state logger cleanup failed: {log_exc}")
         except Exception as e:
             try:
                 ctx = task.get_ctx(session)
                 ctx.log_error(f"Error in session state logger: {e}")
-            except Exception:
-                pass  # Context may be unavailable during shutdown
+            except Exception as log_exc:
+                CFG.LOGGER.debug(f"Session state logger cleanup failed: {log_exc}")
