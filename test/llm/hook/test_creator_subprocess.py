@@ -39,10 +39,27 @@ def _background_sleep_command(pid_path: str, *, exit_immediately: bool = False) 
 
 
 def _started_chatter_command(ready_path: str) -> str:
-    """Start a pipe-writing child that signals it is scheduled before the shell exits."""
+    """Start a pipe-writing child that signals readiness only *after* it has
+    already written and flushed real output.
+
+    Regression: the previous version touched `ready_path` and only then
+    `os.execvp('yes', ...)` — readiness meant "about to exec", not "already
+    writing". Under heavy scheduler contention the newly-exec'd `yes` can go
+    unscheduled past the reader's first ~50ms drain poll, which sees a quiet
+    interval and (correctly, by its own contract) concludes the child is
+    done — reporting success instead of forcing the timeout this test
+    exists to exercise. Writing-then-flushing before the touch, in the same
+    already-running process (no new process to schedule), closes that gap.
+    """
     script = (
-        "from pathlib import Path; import os; "
-        f"Path({ready_path!r}).touch(); os.execvp('yes', ['yes', 'chatter'])"
+        "import sys, time\n"
+        "from pathlib import Path\n"
+        "sys.stdout.write('chatter\\n'); sys.stdout.flush()\n"
+        f"Path({ready_path!r}).touch()\n"
+        "while True:\n"
+        "    sys.stdout.write('chatter\\n')\n"
+        "    sys.stdout.flush()\n"
+        "    time.sleep(0.001)\n"
     )
     return f"{shlex.quote(sys.executable)} -c {shlex.quote(script)} &"
 
