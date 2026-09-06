@@ -113,10 +113,29 @@ class BaseInput(AnyInput):
         return str_value
 
     def prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
-        """Prompting user to input the value"""
-        value = self._prompt_cli_str(shared_ctx)
-        while not self._allow_empty and value == "":
+        """Prompt the user for this input's value.
+
+        Raises:
+            ValueError: When stdin is exhausted, the input has no default, and
+                empty is not allowed — there is no value to fall back on.
+        """
+        try:
             value = self._prompt_cli_str(shared_ctx)
+            while not self._allow_empty and value == "":
+                value = self._prompt_cli_str(shared_ctx)
+        except EOFError:
+            # Stdin is exhausted — CI, cron, `< /dev/null`. No further read can
+            # ever succeed, so the retry loop above must never see this: take
+            # the default if there is one, accept empty where that is allowed,
+            # and otherwise fail naming the flag to pass. Returning "" into the
+            # loop instead would spin, re-printing the prompt without end.
+            value = self.get_default_str(shared_ctx)
+            if value == "" and not self._allow_empty:
+                raise ValueError(
+                    f"Cannot read input '{self.name}': stdin is not available "
+                    "(non-interactive) and the input has no default. Pass it "
+                    f"explicitly with --{self.name} <value>."
+                ) from None
         return value
 
     def _prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:

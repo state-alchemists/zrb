@@ -98,7 +98,7 @@ def _wrap_description(description: str, width: int) -> list[str]:
                 raw_line,
                 width=width,
                 initial_indent=_INDENT,
-                subsequent_indent=_INDENT + "  ",
+                subsequent_indent=_INDENT,
             )
             or [_INDENT + raw_line.strip()]
         )
@@ -158,6 +158,6 @@ def explain_config(ctx: AnyContext) -> None:
     # so nothing is elided — this is how a shortened value in the list view is
     # recovered in full.
     if len(entries) == 1:
-        ctx.print(_render_detail(*entries[0]))
+        ctx.print(_render_detail(*entries[0]), plain=True)
         return
-    ctx.print(_render_entries(entries))
+    ctx.print(_render_entries(entries), plain=True)
