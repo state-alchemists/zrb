@@ -15,8 +15,8 @@ from zrb.task.any_task import AnyTask
 from zrb.task.base.base_task import BaseTask
 from zrb.util.attr import get_int_attr, get_str_attr
 from zrb.util.cmd.command import check_unrecommended_commands, run_command
-from zrb.util.secret import redact_env_map
 from zrb.util.cmd.remote import get_remote_cmd_script
+from zrb.util.secret import redact_env_map
 from zrb.xcom.xcom import Xcom
 
 
