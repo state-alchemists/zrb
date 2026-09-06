@@ -132,9 +132,7 @@ class SubAgentBuilding:
             system_prompt=resolved.system_prompt,
             tools=resolved.tools,
             toolsets=resolved.toolsets,
-            # resolved.model is already final (resolve_configured_model ran
-            # above), and a plain value is never rendered, so it passes
-            # straight through.
+            # Already final: resolve_configured_model ran above.
             model=resolved.model,
             history_processors=[create_summarizer_history_processor()],
             # These four mirror builtin/llm/chat.py's bindings exactly: the web

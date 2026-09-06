@@ -32,8 +32,8 @@ class BaseInput(AnyInput):
                 `ctx.input.project_name`.
             description: Help text. Defaults to `name`.
             prompt: Message shown when prompting. Defaults to `name`.
-            default: Default value. May be a literal, an f-string template
-                rendered against the context, or a callable taking it.
+            default: Default value. A literal, a `Tpl` rendered against the
+                context, or a callable taking it.
             allow_empty: Whether an empty answer is accepted. When False, the
                 prompt repeats until something is entered.
             allow_positional_parsing: Whether this input may be given as a bare

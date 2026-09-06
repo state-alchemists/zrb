@@ -16,8 +16,8 @@ class EnvFile(EnvMap):
         """Load environment variables for a task from a dotenv file.
 
         Args:
-            path: Path to the `.env` file. A template rendered against the
-                context, or a callable taking it.
+            path: Path to the `.env` file. A literal, a `Tpl` rendered against
+                the context, or a callable taking it.
             link_to_os: Whether an OS variable of the same name overrides the
                 file's value.
             os_prefix: Prefix for the OS lookup, so `DEV` reads `DEV_DB_HOST` for

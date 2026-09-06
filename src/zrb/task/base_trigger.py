@@ -71,16 +71,9 @@ class BaseTrigger(BaseTask):
             execute_condition: A condition that must be met for the task to execute.
             queue_name: The name of the XCom queue used for data
                 exchange with callbacks. Whenever any data is added
-                to xcom[queue_name], the callback will be triggered.
-                Deliberately a plain `str` and never a `Tpl`: it is read
-                through the `queue_name` property, which has no context to
-                render against, and it is the identifier *pairing* this
-                trigger with its callbacks — each one names the same key in
-                its own `input_mapping` (`Tpl("{ctx.xcom['<queue_name>']
-                .pop()}")`). A per-run value would leave those templates
-                pointing at a queue that no longer exists. Build the name
-                eagerly instead (an f-string at definition time) if it needs
-                to vary.
+                to xcom[queue_name], the callback will be triggered. Read
+                through the `queue_name` property, which has no context, so it
+                is a plain `str` — build it eagerly if it needs to vary.
             callback: A single or list of callbacks to be executed after the trigger action.
             retries: The number of times to retry the task on failure.
             retry_period: The time to wait between retries.

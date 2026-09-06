@@ -6,10 +6,6 @@ active context when the attribute is resolved.
 
     CmdTask(cmd=Tpl("echo {ctx.input.name}"))
 
-`Tpl` is resolved through the same branch as any other callable — `get_attr`
-dispatches on `callable(attr)` — so it needs no special handling and fits the
-existing `Callable[..., str]` arm of every `*Attr` alias.
-
 Prefer `Tpl` over a lambda when the value comes from the context, since a
 closure captures the *variable* and not its value:
 
@@ -22,7 +18,11 @@ from zrb.context.any_shared_context import AnySharedContext
 
 
 class Tpl:
-    """A template string rendered against the context when resolved."""
+    """A template string rendered against the context when resolved.
+
+    `Tpl` is callable, so it resolves through `get_attr`'s `callable(attr)`
+    branch like any other deferred attribute.
+    """
 
     def __init__(self, template: str):
         """Wrap `template` for deferred rendering.

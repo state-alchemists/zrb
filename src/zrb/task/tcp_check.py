@@ -37,8 +37,8 @@ class TcpCheck(BaseTask):
         Typically used as another task's `readiness_check`.
 
         Args:
-            host: Host to connect to. A template rendered against the context, or
-                a callable taking it.
+            host: Host to connect to. A literal, a `Tpl` rendered against the
+                context, or a callable taking it.
             port: Port to connect to.
             interval: Seconds between attempts. Defaults to the readiness check
                 period.

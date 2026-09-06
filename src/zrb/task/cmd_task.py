@@ -62,14 +62,13 @@ class CmdTask(BaseTask):
     ):
         """Define a task that runs a shell command, locally or over SSH.
 
-        A `render_x` flag controls whether `x` is treated as an f-string template
-        rendered against the task context. Set it False to pass a literal value
-        containing braces.
+        Every value below is a literal unless it is a `Tpl` or a callable, in
+        which case it is resolved against the task context at run time.
 
         Args:
-            cmd: The command to run. A string, an f-string template, a callable
-                taking the context, a `Cmd`/`CmdPath`, or a list of any of these
-                joined as separate lines.
+            cmd: The command to run. A string, a `Tpl`, a callable taking the
+                context, a `Cmd`/`CmdPath`, or a list of any of these joined as
+                separate lines.
             cwd: Working directory for the command. Defaults to the process's
                 current working directory, i.e. where `zrb` was invoked.
             shell: Shell binary to run under. Defaults to `CFG.SHELL`.

@@ -60,9 +60,8 @@ class RsyncTask(CmdTask):
         `local_destination_path` to download. The SSH connection reuses `CmdTask`'s
         `remote_*` parameters.
 
-        A `render_x` flag controls whether `x` is treated as an f-string template
-        rendered against the task context. Set it False to pass a literal value
-        containing braces.
+        Every value below is a literal unless it is a `Tpl` or a callable, in
+        which case it is resolved against the task context at run time.
 
         Args:
             local_source_path: Path on this machine to copy from.
@@ -73,10 +72,10 @@ class RsyncTask(CmdTask):
                 through as `--exclude-from`.
 
         Every parameter `CmdTask` accepts is also accepted here and behaves
-        identically, except for the three that only make sense for a
-        user-supplied command: `cmd` and `render_cmd`, which are generated here
-        from the paths above, and `warn_unrecommended_command`, which screens a
-        command you wrote.
+        identically, except for the two that only make sense for a
+        user-supplied command: `cmd`, which is generated here from the paths
+        above, and `warn_unrecommended_command`, which screens a command you
+        wrote.
         """
         super().__init__(
             name=name,

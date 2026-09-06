@@ -41,8 +41,8 @@ class HttpCheck(BaseTask):
         Typically used as another task's `readiness_check`.
 
         Args:
-            url: URL to poll. A template rendered against the context, or a
-                callable taking it.
+            url: URL to poll. A literal, a `Tpl` rendered against the context,
+                or a callable taking it.
             http_method: HTTP method to send.
             interval: Seconds between polls. Defaults to the readiness check
                 period.

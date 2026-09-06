@@ -496,7 +496,7 @@ class PromptManager:
         return len(params) >= 3
 
     def _wrap_simple_prompt(self, prompt: str | SimplePrompt) -> FullMiddleware:
-        """Wrap a simple string or callable into a full middleware with rendering support."""
+        """Wrap a simple string or callable into a full middleware."""
 
         def middleware(
             ctx: AnyContext, current: str, next_fn: Callable[[AnyContext, str], str]

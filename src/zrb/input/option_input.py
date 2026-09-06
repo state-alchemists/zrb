@@ -27,7 +27,7 @@ class OptionInput(BaseInput):
 
         Args:
             options: The allowed values, or a callable returning them. Each value
-                may be a template rendered against the context.
+                may be a `Tpl` rendered against the context.
 
         Every other parameter is `BaseInput`'s and behaves identically.
         """

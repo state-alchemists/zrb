@@ -1,14 +1,16 @@
 import os
 from collections.abc import Callable
 
+from zrb.attr.type import StrAttr
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.env.any_env import AnyEnv
+from zrb.util.attr import get_str_attr
 
 
 class EnvMap(AnyEnv):
     def __init__(
         self,
-        vars: dict[str, str] | Callable[[AnySharedContext], dict[str, str]],
+        vars: dict[str, StrAttr] | Callable[[AnySharedContext], dict[str, str]],
         link_to_os: bool = True,
         os_prefix: str | None = None,
     ):
@@ -16,7 +18,8 @@ class EnvMap(AnyEnv):
 
         Args:
             vars: The variables by name, or a callable taking the shared context
-                and returning them.
+                and returning them. Each value is a literal unless it is a
+                `Tpl` or a callable.
             link_to_os: Whether an OS variable of the same name takes precedence.
             os_prefix: Prefix for the OS lookup, so `DEV` reads `DEV_DB_HOST` for
                 an entry named `DB_HOST`.
@@ -40,6 +43,5 @@ class EnvMap(AnyEnv):
         if callable(self._env_map):
             return self._env_map(shared_ctx)
         return {
-            key: val(shared_ctx) if callable(val) else val
-            for key, val in self._env_map.items()
+            key: get_str_attr(shared_ctx, val, "") for key, val in self._env_map.items()
         }

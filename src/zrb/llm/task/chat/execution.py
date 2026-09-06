@@ -516,9 +516,7 @@ class ChatExecution:
         # The inner task's conversation identity is always the active chat
         # session, never llm_chat_task's own conversation_name — every field
         # here is an explicit override, not a passthrough of
-        # llm_chat_task.history_config. The session value is a `Tpl` because it
-        # only resolves correctly when rendered, regardless of what
-        # llm_chat_task itself was configured with.
+        # llm_chat_task.history_config.
         resolved_history = replace(
             llm_chat_task.history_config,
             history_manager=history_manager,

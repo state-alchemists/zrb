@@ -956,7 +956,7 @@ class LLMChatTask(BaseTask):
 
     @property
     def ui_texts(self) -> "dict[str, StrAttr | None]":
-        """(value, render) per UI text block (greeting, assistant_name, ...)."""
+        """The raw attribute per UI text block (greeting, assistant_name, ...)."""
         return self._ui_texts
 
     @property

@@ -18,8 +18,8 @@ class Env(AnyEnv):
 
         Args:
             name: Variable name as the task sees it on `ctx.env`.
-            default: Value used when the OS does not provide one. A template
-                rendered against the context, or a callable taking it.
+            default: Value used when the OS does not provide one. A literal, a
+                `Tpl` rendered against the context, or a callable taking it.
             link_to_os: Whether to read the value from the OS environment. When
                 False, only `default` is used.
             os_name: OS variable to read instead of `name`, letting a task see

@@ -8,8 +8,7 @@ itself, or a callable resolved at run time against the active context.
 template in `Tpl`, which every alias names explicitly. `Tpl` renders to *text*,
 so it is listed alongside `bool`/`int`/`float` rather than folded into their
 `Callable[..., bool | None]` arms — the typed getter coerces the rendered
-string (`get_bool_attr` via `to_boolean`, `get_int_attr` via `int`). This is
-what the old `fstring = str` alias documented, now as a real distinct type.
+string (`get_bool_attr` via `to_boolean`, `get_int_attr` via `int`).
 
     CmdTask(cmd="echo {literal braces}")        # runs verbatim
     CmdTask(cmd=Tpl("echo {ctx.input.name}"))   # rendered against ctx
