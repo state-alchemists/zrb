@@ -108,8 +108,7 @@ def test_circular_import_workarounds_match_the_allowlist():
 # the package's own import closure and nothing else, which is the thing whose
 # self-sufficiency this asserts.
 
-_ISOLATED_IMPORT = textwrap.dedent(
-    """
+_ISOLATED_IMPORT = textwrap.dedent("""
     import importlib
     import pathlib
     import sys
@@ -127,8 +126,7 @@ _ISOLATED_IMPORT = textwrap.dedent(
         module.__path__ = [str(root.joinpath(*parts[:i]))]
         sys.modules[name] = module
     importlib.import_module(target)
-    """
-)
+    """)
 
 
 def _all_packages() -> list[str]:

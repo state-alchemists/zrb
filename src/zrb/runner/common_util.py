@@ -75,7 +75,5 @@ def _reject_unknown_kwargs(task: AnyTask, str_kwargs: dict[str, str]) -> None:
         else "(this task takes no options)"
     )
     raise ValueError(
-        f"Unknown option for task '{task.name}': {details} "
-        f"Available: {known_str}"
+        f"Unknown option for task '{task.name}': {details} Available: {known_str}"
     )
-

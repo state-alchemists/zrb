@@ -9,7 +9,6 @@ from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
 from zrb.util.cli.style import stylize_cyan, stylize_green, stylize_muted
 
-
 _INDENT = "    "
 _MIN_WIDTH = 60
 
