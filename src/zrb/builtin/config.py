@@ -1,48 +1,109 @@
+import shutil
+import textwrap
+
 from zrb.builtin.group import config_group
 from zrb.config.config import CFG
 from zrb.config.env_field import EnvField
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
+from zrb.util.cli.style import stylize_cyan, stylize_green, stylize_muted
 
 
-def _render_table(entries: list[tuple[str, str, str]]) -> str:
-    """Render entries with rich's ``Table`` (not a markdown table).
+_INDENT = "    "
+_MIN_WIDTH = 60
 
-    Descriptions carry intentional newlines — e.g. a knob with several options
-    documents them as a bulleted list. A markdown table cannot hold a line break
-    in a cell — it would collapse every description onto one line, turning
-    bullets into inline ``-`` fragments. ``Table`` cells honor ``\\n``, so the
-    structure survives.
 
-    Cells are wrapped in ``Text`` so their content is rendered literally: rich
-    parses ``[...]`` in a plain string as console markup, which would silently
-    swallow a value like ``[set]`` / ``[unset]`` (it looks like a style tag).
+def _terminal_width() -> int:
+    """Usable width, floored so a narrow or unknown terminal still reads."""
+    return max(shutil.get_terminal_size(fallback=(100, 24)).columns, _MIN_WIDTH)
+
+
+def _render_entries(entries: list[tuple[str, str, str]]) -> str:
+    """Render entries as a definition list, one knob per block::
+
+        ZRB_LLM_MODEL = openai:gpt-5.6-luna
+            Primary LLM model identifier.
+
+    A definition list rather than columns because names run to 52 characters:
+    a column wide enough to hold one unwrapped leaves roughly ten for the
+    description on an 80-column terminal. Stacking gives every field the full
+    width, and the name — the thing being looked up — never wraps.
+
+    Descriptions carry intentional newlines (a knob with several options
+    documents them as a bulleted list), so each line wraps independently;
+    reflowing the whole description as one paragraph would run the bullets
+    together.
     """
-    # lazy: heavy third-party
-    from rich import box
-    from rich.console import Console
-    from rich.table import Table
-    from rich.text import Text
-
-    # SIMPLE_HEAD: no top/bottom border, just a header underline. The task runner
-    # prepends a status prefix to the first printed line; a box with a top border
-    # would put a full-width rule on that line and overflow it. SIMPLE_HEAD opens
-    # with a blank line instead, so the prefix sits clear of the table.
-    table = Table(box=box.SIMPLE_HEAD, show_lines=True, pad_edge=False, expand=False)
-    table.add_column("Environment Variable", style="bold bright_cyan", no_wrap=True)
-    table.add_column("Value", style="green")
-    table.add_column("Description")
+    width = _terminal_width()
+    truncated_any = False
+    blocks: list[str] = []
     for env_var, value, description in entries:
-        table.add_row(Text(env_var), Text(value), Text(description))
+        flat, was_truncated = _one_line_value(value, width - len(env_var) - 3)
+        truncated_any = truncated_any or was_truncated
+        header = stylize_cyan(env_var)
+        if flat:
+            header = f"{header} = {stylize_green(flat)}"
+        lines = [header]
+        lines.extend(_wrap_description(description, width))
+        blocks.append("\n".join(lines))
+    rendered = "\n\n".join(blocks)
+    if truncated_any:
+        rendered += "\n\n" + stylize_muted(
+            "Some values are shortened. Run `zrb config explain <NAME>` "
+            "for one knob to see its full value."
+        )
+    return rendered
 
-    console = Console(force_terminal=True)
-    with console.capture() as capture:
-        console.print(table)
-    # Drop rich's trailing space-padding on each line (it pads cells out to the
-    # console width). rstrip only removes whitespace, so ANSI styling — which
-    # ends in 'm' — is left intact.
-    return "\n".join(line.rstrip() for line in capture.get().splitlines())
+
+def _render_detail(env_var: str, value: str, description: str) -> str:
+    """Full, untruncated view of a single knob.
+
+    Reached when a filter narrows to one entry, which makes it the escape
+    hatch for the list view's shortening. Value lines are emitted verbatim
+    under their own heading, so a multi-line value such as ``ZRB_BANNER``
+    keeps its shape instead of being flattened to fit beside a name.
+    """
+    lines = [stylize_cyan(env_var), ""]
+    lines.append(stylize_muted("Value:"))
+    if value == "":
+        lines.append(f"{_INDENT}{stylize_muted('(empty)')}")
+    else:
+        lines.extend(
+            f"{_INDENT}{stylize_green(line)}" for line in value.splitlines() or [""]
+        )
+    if description.strip():
+        lines.extend(["", stylize_muted("Description:")])
+        lines.extend(_wrap_description(description, _terminal_width()))
+    return "\n".join(lines)
+
+
+def _one_line_value(value: str, budget: int) -> tuple[str, bool]:
+    """Collapse *value* to a single line within *budget*, flagging truncation."""
+    flat = " ".join(value.split())
+    budget = max(budget, 20)
+    if len(flat) <= budget:
+        return flat, len(flat) != len(value.strip())
+    return flat[: budget - 1] + "…", True
+
+
+def _wrap_description(description: str, width: int) -> list[str]:
+    """Wrap each source line separately so bulleted options stay bulleted."""
+    out: list[str] = []
+    for raw_line in description.splitlines():
+        if not raw_line.strip():
+            out.append("")
+            continue
+        out.extend(
+            textwrap.wrap(
+                raw_line,
+                width=width,
+                initial_indent=_INDENT,
+                subsequent_indent=_INDENT + "  ",
+            )
+            or [_INDENT + raw_line.strip()]
+        )
+    return out
 
 
 def _collect_entries(keyword: str) -> list[tuple[str, str, str]]:
@@ -80,7 +141,7 @@ def _collect_entries(keyword: str) -> list[tuple[str, str, str]]:
     description="📖 Show configuration reference",
     input=StrInput(
         name="keyword",
-        description="Filter keyword (optional)",
+        description="Filter by name or description (optional)",
         prompt="Keyword to filter (leave empty for all)",
         default="",
         always_prompt=False,
@@ -94,4 +155,10 @@ def explain_config(ctx: AnyContext) -> None:
     if not entries:
         ctx.print("No matching configuration entries found.")
         return
-    ctx.print(_render_table(entries))
+    # A filter that narrows to exactly one knob is a request to see that knob,
+    # so nothing is elided — this is how a shortened value in the list view is
+    # recovered in full.
+    if len(entries) == 1:
+        ctx.print(_render_detail(*entries[0]))
+        return
+    ctx.print(_render_entries(entries))

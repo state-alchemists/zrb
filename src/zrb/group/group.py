@@ -10,6 +10,7 @@ from typing import Any, TypeVar
 
 from zrb.group.any_group import AnyGroup, NodeNotFoundError
 from zrb.task.any_task import AnyTask
+from zrb.util.string.suggestion import format_suggestion
 
 _T = TypeVar("_T", bound=AnyTask)
 
@@ -100,6 +101,14 @@ class Group(AnyGroup):
 
     def add_task(self, task: _T, alias: str | None = None) -> _T:
         """Register *task* under this group and return it, so calls can chain.
+
+        Registering a second task under an alias already in use **replaces**
+        the first, silently and by design: it is how a project shadows a
+        built-in, as [CI/CD](../../docs/advanced-topics/ci-cd.md) describes for
+        `zrb test` and `zrb lint`. The flip side is that two of your own tasks
+        sharing a name means the later one wins with no warning — if a task
+        seems to have vanished, look for a duplicate `name=` before anything
+        else.
 
         Args:
             task: The task to expose.
@@ -252,8 +261,17 @@ class Group(AnyGroup):
             ):
                 group = None
             if task is None and group is None:
+                # `node` is always a group here: the loop breaks as soon as
+                # it resolves to a task. The isinstance narrows it for the
+                # type checker, which cannot see that from the loop body.
+                candidates = (
+                    sorted([*node.subtasks, *node.subgroups])
+                    if isinstance(node, AnyGroup)
+                    else []
+                )
                 raise NodeNotFoundError(
-                    f"Invalid subcommand: {self.name} {' '.join(args)}"
+                    f"Invalid subcommand: {self.name} {' '.join(args)}."
+                    f"{format_suggestion(name, candidates)}"
                 )
             node_path.append(name)
             if group is not None:

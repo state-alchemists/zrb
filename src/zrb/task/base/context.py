@@ -65,6 +65,14 @@ class BaseTaskContext:
 
     def __init__(self, task: "BaseTask") -> None:
         self._task = task
+        # Re-entrancy guards for the two upstream walks below. Each task owns
+        # exactly one BaseTaskContext, so finding the flag already set means
+        # this task was reached from itself — a cycle. Clearing it on the way
+        # out keeps the guard path-scoped, so a diamond (one upstream reached
+        # via two branches) resolves normally. Both walks are fully
+        # synchronous, so no await can interleave between set and clear.
+        self._walking_envs = False
+        self._walking_inputs = False
 
     def build_context(self, session: AnySession) -> AnyContext:
         """
@@ -113,10 +121,21 @@ class BaseTaskContext:
     ) -> list[AnyEnv]:
         """
         Aggregates environment variables from the task and its upstreams.
+
+        Raises:
+            ValueError: if the task appears in its own upstream chain.
         """
+        if self._walking_envs:
+            raise ValueError(
+                f"Circular task dependency detected involving '{self._task.name}'"
+            )
         envs: list[AnyEnv] = []
-        for upstream in self._task.upstreams:
-            _combine_envs(envs, upstream.envs)
+        self._walking_envs = True
+        try:
+            for upstream in self._task.upstreams:
+                _combine_envs(envs, upstream.envs)
+        finally:
+            self._walking_envs = False
 
         if task_envs is not None:
             _combine_envs(envs, task_envs)
@@ -129,10 +148,21 @@ class BaseTaskContext:
     ) -> list[AnyInput]:
         """
         Aggregates inputs from the task and its upstreams, avoiding duplicates.
+
+        Raises:
+            ValueError: if the task appears in its own upstream chain.
         """
+        if self._walking_inputs:
+            raise ValueError(
+                f"Circular task dependency detected involving '{self._task.name}'"
+            )
         inputs: list[AnyInput] = []
-        for upstream in self._task.upstreams:
-            _combine_inputs(inputs, upstream.inputs)
+        self._walking_inputs = True
+        try:
+            for upstream in self._task.upstreams:
+                _combine_inputs(inputs, upstream.inputs)
+        finally:
+            self._walking_inputs = False
 
         if task_inputs is not None:
             _combine_inputs(inputs, task_inputs)
