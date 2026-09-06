@@ -44,7 +44,6 @@ class TestCallbackBehavior:
         callback = Callback(
             task=mock_task,
             input_mapping={"key": "value"},
-            render_input_mapping=False,
         )
 
         # Act

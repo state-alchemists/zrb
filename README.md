@@ -121,7 +121,7 @@ Add the following to your existing `zrb_init.py` file (or create a new one if yo
 
 ```python
 # zrb_init.py (continued)
-from zrb import cli, LLMTask, CmdTask, StrInput, Group
+from zrb import cli, LLMTask, CmdTask, StrInput, Group, Tpl
 from zrb.llm.tool.code import analyze_code
 from zrb.llm.tool.file import write_file
 
@@ -158,8 +158,8 @@ make_mermaid_image = mermaid_group.add_task(
             StrInput(name="dir", default="./"),
             StrInput(name="diagram", default="state-diagram"),
         ],
-        cmd="mmdc -i '{ctx.input.diagram}.mmd' -o '{ctx.input.diagram}.png'",
-        cwd="{ctx.input.dir}",
+        cmd=Tpl("mmdc -i '{ctx.input.diagram}.mmd' -o '{ctx.input.diagram}.png'"),
+        cwd=Tpl("{ctx.input.dir}"),
     )
 )
 

@@ -105,7 +105,7 @@ fetch_ticket >> triage_with_llm >> route_to_team
 **Often you need no tool at all.** When a deterministic step already produced the context, hand it to the model through its `message` template — the command's output *is* the input to the decision:
 
 ```python
-from zrb import cli, CmdTask, LLMTask, Task
+from zrb import cli, CmdTask, LLMTask, Task, Tpl
 
 diff = cli.add_task(CmdTask(name="collect-diff", cmd="git diff --staged"))
 
@@ -113,8 +113,10 @@ review = cli.add_task(
     LLMTask(
         name="review",
         upstream=[diff],
-        message="Review this staged diff and list concerns, or reply 'LGTM':\n\n"
-                "{ctx.xcom['collect-diff'].pop()}",
+        message=Tpl(
+            "Review this staged diff and list concerns, or reply 'LGTM':\n\n"
+            "{ctx.xcom['collect-diff'].pop()}"
+        ),
     )
 )
 

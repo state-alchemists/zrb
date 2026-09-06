@@ -140,9 +140,9 @@ def test_bool_input_to_html_false_default():
         assert 'value="false"' in html
 
 
-def test_bool_input_auto_render_false():
-    """Test BoolInput with auto_render=False."""
-    inp = BoolInput(name="flag", default=True, auto_render=False)
+def test_bool_input_default_resolution():
+    """BoolInput resolves its default through get_bool_attr."""
+    inp = BoolInput(name="flag", default=True)
     shared_ctx = MagicMock(spec=AnySharedContext)
     shared_ctx.input = {}
 

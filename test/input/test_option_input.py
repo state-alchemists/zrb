@@ -12,7 +12,6 @@ def test_option_input_initialization():
         prompt="Choose an option",
         options=["option1", "option2", "option3"],
         default="option2",
-        auto_render=True,
         allow_empty=False,
         allow_positional_parsing=True,
         always_prompt=True,
@@ -166,12 +165,11 @@ def test_option_input_to_html_callable_options():
         assert '<option value="dynamic2"' in html
 
 
-def test_option_input_auto_render_false():
-    """Test OptionInput with auto_render=False."""
+def test_option_input_options_resolution():
+    """OptionInput resolves its options through get_str_list_attr."""
     option_input = OptionInput(
         name="test",
         options=["a", "b"],
-        auto_render=False,
     )
 
     shared_ctx = SharedContext(env={})
@@ -372,7 +370,6 @@ def test_option_input_to_html_escapes_options():
         name="opt",
         description="<b>desc</b>",
         options=['<img src=x onerror="a">'],
-        auto_render=False,
     )
     rendered = inp.to_html(SharedContext())
     assert "<img" not in rendered

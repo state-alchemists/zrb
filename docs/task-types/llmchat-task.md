@@ -33,16 +33,12 @@ chat = LLMChatTask(
     env: list[AnyEnv] | AnyEnv | None = None,
     # Conversation
     message: StrAttr | None = None,
-    render_message: bool = True,
     attachment: UserContent | list[UserContent] | Callable | None = None,
-    system_prompt: Callable[[AnyContext], str | fstring | None] | str | None = None,
-    render_system_prompt: bool = False,
+    system_prompt: Callable[[AnyContext], str | None] | str | None = None,
     prompt_manager: PromptManager | None = None,
     active_skills: StrListAttr | None = None,
-    render_active_skills: bool = True,
     # Model — see Model, Model Settings & Capabilities, below
-    model: Callable[[AnyContext], Model | str | fstring | None] | Model | None = None,
-    render_model: bool = True,
+    model: Callable[[AnyContext], Model | str | None] | Model | None = None,
     model_settings: ModelSettings | Callable[[AnyContext], ModelSettings] | None = None,
     capabilities: list[AbstractCapability] | None = None,
     llm_limiter: LLMLimiter | None = None,
@@ -51,7 +47,6 @@ chat = LLMChatTask(
     custom_model_names: StrListAttr | None = None,
     # Conversation management
     conversation_name: StrAttr | None = None,
-    render_conversation_name: bool = True,
     history_manager: AnyHistoryManager | None = None,
     history_processors: list[HistoryProcessor] | None = None,
     # Tools
@@ -80,7 +75,6 @@ chat = LLMChatTask(
     ui_assistant_name: StrAttr | None = None,
     ui_jargon: StrAttr | None = None,
     ui_ascii_art: StrAttr | None = None,
-    # each ui_* text field above has a matching render_ui_* flag (default True)
     # Slash-command aliases, yolo_xcom_key, show_*_models — see UIConfig, below
     ui_config: UIConfig | None = None,
     # Extra commands & external drivers — see Custom UI Guide
@@ -115,13 +109,13 @@ chat = LLMChatTask(
 
 `custom_model_names`, and `ui_config`'s `show_ollama_models`/`show_pydantic_ai_models` fields, only affect the `/model` picker's autocomplete list in the chat TUI — see [Model Autocomplete](../configuration/llm-config.md#8-model-autocomplete).
 
-`active_skills`/`render_active_skills` pre-activate named skills for the session (skipping their normal on-demand discovery), rendered as templates by default; see the skill catalogue notes under [System Prompts & Identity](../configuration/llm-config.md#4-system-prompts--identity).
+`active_skills` pre-activates named skills for the session (skipping their normal on-demand discovery); wrap an entry in `Tpl` to resolve it against the context. See the skill catalogue notes under [System Prompts & Identity](../configuration/llm-config.md#4-system-prompts--identity).
 
 ---
 
 ## Seeding the Conversation
 
-Both `message` and `system_prompt` are rendered attributes, so you can hand the chat data produced by an upstream task before the user ever types. The rule of thumb:
+Both `message` and `system_prompt` accept a `Tpl` or a callable, so you can hand the chat data produced by an upstream task before the user ever types. The rule of thumb:
 
 - **`message`** — the *opening user turn*. Set it to send a first prompt automatically; leave it empty to drop the user straight into the TUI.
 - **`system_prompt`** — *standing background* the user then converses against. This is where you put an upstream command's output when the whole point is to let the user ask questions about it.
@@ -148,7 +142,7 @@ chat = cli.add_task(
 status >> chat
 ```
 
-> **Note:** `system_prompt` is **not** rendered by default (`render_system_prompt=False`), so `{ ... }` in a system-prompt *string* stays literal. Pass a callable (as above) or set `render_system_prompt=True`. `message` **is** rendered by default.
+> **Note:** a plain string is a literal for both `system_prompt` and `message` — `{ ... }` stays untouched. To substitute, pass a callable (as above) or wrap the string in `Tpl`.
 
 See **[Programming the Prompt](../llm/programming-the-prompt.md)** for the full string → template → callable → `PromptManager` ladder.
 
@@ -275,7 +269,7 @@ chat.append_custom_command(my_command)
 chat.history_manager = FileHistoryManager(history_dir="./my-history/")
 ```
 
-`history_manager`, `conversation_name`/`render_conversation_name` are also readable as one group via the `history_config` read-only property (a `HistoryConfig`, computed fresh on every read — never cached, so a `history_manager` reassignment is immediately visible through it):
+`history_manager` and `conversation_name` are also readable as one group via the `history_config` read-only property (a `HistoryConfig`, computed fresh on every read — never cached, so a `history_manager` reassignment is immediately visible through it):
 
 ```python
 chat.history_config.history_manager

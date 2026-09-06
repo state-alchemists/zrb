@@ -70,11 +70,11 @@
     "TcpCheck",
     "TextInput",
     "ToolRegistry",
+    "Tpl",
     "User",
     "Xcom",
     "builtin",
     "cli",
-    "fstring",
     "hook_manager",
     "hook_registry",
     "llm_limiter",
@@ -255,7 +255,6 @@
         "description:POSITIONAL_OR_KEYWORD:1",
         "prompt:POSITIONAL_OR_KEYWORD:1",
         "default:POSITIONAL_OR_KEYWORD:1",
-        "auto_render:POSITIONAL_OR_KEYWORD:1",
         "allow_empty:POSITIONAL_OR_KEYWORD:1",
         "allow_positional_parsing:POSITIONAL_OR_KEYWORD:1",
         "always_prompt:POSITIONAL_OR_KEYWORD:1"
@@ -403,7 +402,6 @@
         "description:POSITIONAL_OR_KEYWORD:1",
         "prompt:POSITIONAL_OR_KEYWORD:1",
         "default:POSITIONAL_OR_KEYWORD:1",
-        "auto_render:POSITIONAL_OR_KEYWORD:1",
         "allow_empty:POSITIONAL_OR_KEYWORD:1",
         "allow_positional_parsing:POSITIONAL_OR_KEYWORD:1",
         "always_prompt:POSITIONAL_OR_KEYWORD:1"
@@ -425,7 +423,6 @@
       "init": [
         "task:POSITIONAL_OR_KEYWORD:0",
         "input_mapping:POSITIONAL_OR_KEYWORD:0",
-        "render_input_mapping:POSITIONAL_OR_KEYWORD:1",
         "xcom_mapping:POSITIONAL_OR_KEYWORD:1",
         "result_queue:POSITIONAL_OR_KEYWORD:1",
         "error_queue:POSITIONAL_OR_KEYWORD:1",
@@ -461,8 +458,7 @@
     },
     "Cmd": {
       "init": [
-        "cmd:POSITIONAL_OR_KEYWORD:0",
-        "auto_render:POSITIONAL_OR_KEYWORD:1"
+        "cmd:POSITIONAL_OR_KEYWORD:0"
       ],
       "members": [
         "to_str"
@@ -470,8 +466,7 @@
     },
     "CmdPath": {
       "init": [
-        "path:POSITIONAL_OR_KEYWORD:0",
-        "auto_render:POSITIONAL_OR_KEYWORD:1"
+        "path:POSITIONAL_OR_KEYWORD:0"
       ],
       "members": [
         "to_str"
@@ -495,23 +490,14 @@
         "input:KEYWORD_ONLY:1",
         "env:KEYWORD_ONLY:1",
         "shell:KEYWORD_ONLY:1",
-        "render_shell:KEYWORD_ONLY:1",
         "shell_flag:KEYWORD_ONLY:1",
-        "render_shell_flag:KEYWORD_ONLY:1",
         "remote_host:KEYWORD_ONLY:1",
-        "render_remote_host:KEYWORD_ONLY:1",
         "remote_port:KEYWORD_ONLY:1",
-        "render_remote_port:KEYWORD_ONLY:1",
         "remote_user:KEYWORD_ONLY:1",
-        "render_remote_user:KEYWORD_ONLY:1",
         "remote_password:KEYWORD_ONLY:1",
-        "render_remote_password:KEYWORD_ONLY:1",
         "remote_ssh_key:KEYWORD_ONLY:1",
-        "render_remote_ssh_key:KEYWORD_ONLY:1",
         "cmd:KEYWORD_ONLY:1",
-        "render_cmd:KEYWORD_ONLY:1",
         "cwd:KEYWORD_ONLY:1",
-        "render_cwd:KEYWORD_ONLY:1",
         "plain_print:KEYWORD_ONLY:1",
         "warn_unrecommended_command:KEYWORD_ONLY:1",
         "max_output_line:KEYWORD_ONLY:1",
@@ -579,7 +565,6 @@
         "name:POSITIONAL_OR_KEYWORD:0",
         "match:POSITIONAL_OR_KEYWORD:0",
         "transform:POSITIONAL_OR_KEYWORD:0",
-        "auto_render:POSITIONAL_OR_KEYWORD:1",
         "match_mode:POSITIONAL_OR_KEYWORD:1"
       ],
       "members": [
@@ -629,12 +614,10 @@
       "init": [
         "name:POSITIONAL_OR_KEYWORD:0",
         "default:POSITIONAL_OR_KEYWORD:1",
-        "auto_render:POSITIONAL_OR_KEYWORD:1",
         "link_to_os:POSITIONAL_OR_KEYWORD:1",
         "os_name:POSITIONAL_OR_KEYWORD:1"
       ],
       "members": [
-        "auto_render",
         "default",
         "link_to_os",
         "name",
@@ -645,7 +628,6 @@
     "EnvFile": {
       "init": [
         "path:POSITIONAL_OR_KEYWORD:0",
-        "auto_render:POSITIONAL_OR_KEYWORD:1",
         "link_to_os:POSITIONAL_OR_KEYWORD:1",
         "os_prefix:POSITIONAL_OR_KEYWORD:1"
       ],
@@ -656,7 +638,6 @@
     "EnvMap": {
       "init": [
         "vars:POSITIONAL_OR_KEYWORD:0",
-        "auto_render:POSITIONAL_OR_KEYWORD:1",
         "link_to_os:POSITIONAL_OR_KEYWORD:1",
         "os_prefix:POSITIONAL_OR_KEYWORD:1"
       ],
@@ -670,7 +651,6 @@
         "description:POSITIONAL_OR_KEYWORD:1",
         "prompt:POSITIONAL_OR_KEYWORD:1",
         "default:POSITIONAL_OR_KEYWORD:1",
-        "auto_render:POSITIONAL_OR_KEYWORD:1",
         "allow_empty:POSITIONAL_OR_KEYWORD:1",
         "allow_positional_parsing:POSITIONAL_OR_KEYWORD:1",
         "always_prompt:POSITIONAL_OR_KEYWORD:1"
@@ -825,7 +805,6 @@
         "input:KEYWORD_ONLY:1",
         "env:KEYWORD_ONLY:1",
         "url:KEYWORD_ONLY:1",
-        "render_url:KEYWORD_ONLY:1",
         "http_method:KEYWORD_ONLY:1",
         "interval:KEYWORD_ONLY:1",
         "execute_condition:KEYWORD_ONLY:1",
@@ -875,7 +854,6 @@
         "description:POSITIONAL_OR_KEYWORD:1",
         "prompt:POSITIONAL_OR_KEYWORD:1",
         "default:POSITIONAL_OR_KEYWORD:1",
-        "auto_render:POSITIONAL_OR_KEYWORD:1",
         "allow_empty:POSITIONAL_OR_KEYWORD:1",
         "allow_positional_parsing:POSITIONAL_OR_KEYWORD:1",
         "always_prompt:POSITIONAL_OR_KEYWORD:1"
@@ -903,29 +881,24 @@
         "input:KEYWORD_ONLY:1",
         "env:KEYWORD_ONLY:1",
         "system_prompt:KEYWORD_ONLY:1",
-        "render_system_prompt:KEYWORD_ONLY:1",
         "prompt_manager:KEYWORD_ONLY:1",
         "hook_manager:KEYWORD_ONLY:1",
         "active_skills:KEYWORD_ONLY:1",
-        "render_active_skills:KEYWORD_ONLY:1",
         "tools:KEYWORD_ONLY:1",
         "toolsets:KEYWORD_ONLY:1",
         "tool_factories:KEYWORD_ONLY:1",
         "toolset_factories:KEYWORD_ONLY:1",
         "message:KEYWORD_ONLY:1",
-        "render_message:KEYWORD_ONLY:1",
         "attachment:KEYWORD_ONLY:1",
         "history_processors:KEYWORD_ONLY:1",
         "capabilities:KEYWORD_ONLY:1",
         "llm_limiter:KEYWORD_ONLY:1",
         "model:KEYWORD_ONLY:1",
-        "render_model:KEYWORD_ONLY:1",
         "model_settings:KEYWORD_ONLY:1",
         "model_getter:KEYWORD_ONLY:1",
         "model_renderer:KEYWORD_ONLY:1",
         "custom_model_names:KEYWORD_ONLY:1",
         "conversation_name:KEYWORD_ONLY:1",
-        "render_conversation_name:KEYWORD_ONLY:1",
         "history_manager:KEYWORD_ONLY:1",
         "tool_confirmation:KEYWORD_ONLY:1",
         "permissions:KEYWORD_ONLY:1",
@@ -937,13 +910,9 @@
         "ui_config:KEYWORD_ONLY:1",
         "custom_commands:KEYWORD_ONLY:1",
         "ui_greeting:KEYWORD_ONLY:1",
-        "render_ui_greeting:KEYWORD_ONLY:1",
         "ui_assistant_name:KEYWORD_ONLY:1",
-        "render_ui_assistant_name:KEYWORD_ONLY:1",
         "ui_jargon:KEYWORD_ONLY:1",
-        "render_ui_jargon:KEYWORD_ONLY:1",
         "ui_ascii_art:KEYWORD_ONLY:1",
-        "render_ui_ascii_art:KEYWORD_ONLY:1",
         "triggers:KEYWORD_ONLY:1",
         "response_handlers:KEYWORD_ONLY:1",
         "tool_policies:KEYWORD_ONLY:1",
@@ -1067,11 +1036,6 @@
         "remove_trigger",
         "remove_ui",
         "remove_ui_factory",
-        "render_active_skills",
-        "render_conversation_name",
-        "render_message",
-        "render_model",
-        "render_system_prompt",
         "response_handlers",
         "retries",
         "retry_period",
@@ -1142,29 +1106,24 @@
         "input:KEYWORD_ONLY:1",
         "env:KEYWORD_ONLY:1",
         "system_prompt:KEYWORD_ONLY:1",
-        "render_system_prompt:KEYWORD_ONLY:1",
         "prompt_manager:KEYWORD_ONLY:1",
         "hook_manager:KEYWORD_ONLY:1",
         "active_skills:KEYWORD_ONLY:1",
-        "render_active_skills:KEYWORD_ONLY:1",
         "tools:KEYWORD_ONLY:1",
         "toolsets:KEYWORD_ONLY:1",
         "tool_factories:KEYWORD_ONLY:1",
         "toolset_factories:KEYWORD_ONLY:1",
         "message:KEYWORD_ONLY:1",
-        "render_message:KEYWORD_ONLY:1",
         "attachment:KEYWORD_ONLY:1",
         "history_processors:KEYWORD_ONLY:1",
         "capabilities:KEYWORD_ONLY:1",
         "llm_limiter:KEYWORD_ONLY:1",
         "model:KEYWORD_ONLY:1",
-        "render_model:KEYWORD_ONLY:1",
         "model_settings:KEYWORD_ONLY:1",
         "model_getter:KEYWORD_ONLY:1",
         "model_renderer:KEYWORD_ONLY:1",
         "custom_model_names:KEYWORD_ONLY:1",
         "conversation_name:KEYWORD_ONLY:1",
-        "render_conversation_name:KEYWORD_ONLY:1",
         "history_manager:KEYWORD_ONLY:1",
         "tool_confirmation:KEYWORD_ONLY:1",
         "dynamic_yolo:KEYWORD_ONLY:1",
@@ -1251,8 +1210,6 @@
         "readiness_checks",
         "readiness_failure_threshold",
         "readiness_timeout",
-        "render_conversation_name",
-        "render_model",
         "retries",
         "retry_period",
         "run",
@@ -1285,7 +1242,6 @@
         "prompt:POSITIONAL_OR_KEYWORD:1",
         "options:POSITIONAL_OR_KEYWORD:1",
         "default:POSITIONAL_OR_KEYWORD:1",
-        "auto_render:POSITIONAL_OR_KEYWORD:1",
         "allow_empty:POSITIONAL_OR_KEYWORD:1",
         "allow_positional_parsing:POSITIONAL_OR_KEYWORD:1",
         "always_prompt:POSITIONAL_OR_KEYWORD:1"
@@ -1309,7 +1265,6 @@
         "description:POSITIONAL_OR_KEYWORD:1",
         "prompt:POSITIONAL_OR_KEYWORD:1",
         "default:POSITIONAL_OR_KEYWORD:1",
-        "auto_render:POSITIONAL_OR_KEYWORD:1",
         "allow_empty:POSITIONAL_OR_KEYWORD:1",
         "allow_positional_parsing:POSITIONAL_OR_KEYWORD:1",
         "always_prompt:POSITIONAL_OR_KEYWORD:1"
@@ -1342,8 +1297,6 @@
         "include_sections:POSITIONAL_OR_KEYWORD:1",
         "skill_manager:POSITIONAL_OR_KEYWORD:1",
         "active_skills:POSITIONAL_OR_KEYWORD:1",
-        "render_active_skills:POSITIONAL_OR_KEYWORD:1",
-        "render:POSITIONAL_OR_KEYWORD:1",
         "prompt_registry:POSITIONAL_OR_KEYWORD:1"
       ],
       "members": [
@@ -1389,32 +1342,19 @@
         "input:KEYWORD_ONLY:1",
         "env:KEYWORD_ONLY:1",
         "shell:KEYWORD_ONLY:1",
-        "render_shell:KEYWORD_ONLY:1",
         "shell_flag:KEYWORD_ONLY:1",
-        "render_shell_flag:KEYWORD_ONLY:1",
         "is_interactive:KEYWORD_ONLY:1",
         "remote_host:KEYWORD_ONLY:1",
-        "render_remote_host:KEYWORD_ONLY:1",
         "remote_port:KEYWORD_ONLY:1",
-        "render_remote_port:KEYWORD_ONLY:1",
         "remote_user:KEYWORD_ONLY:1",
-        "render_remote_user:KEYWORD_ONLY:1",
         "remote_password:KEYWORD_ONLY:1",
-        "render_remote_password:KEYWORD_ONLY:1",
         "remote_ssh_key:KEYWORD_ONLY:1",
-        "render_remote_ssh_key:KEYWORD_ONLY:1",
         "remote_source_path:KEYWORD_ONLY:1",
-        "render_remote_source_path:KEYWORD_ONLY:1",
         "remote_destination_path:KEYWORD_ONLY:1",
-        "render_remote_destination_path:KEYWORD_ONLY:1",
         "local_source_path:KEYWORD_ONLY:1",
-        "render_local_source_path:KEYWORD_ONLY:1",
         "local_destination_path:KEYWORD_ONLY:1",
-        "render_local_destination_path:KEYWORD_ONLY:1",
         "exclude_from:KEYWORD_ONLY:1",
-        "render_exclude_from:KEYWORD_ONLY:1",
         "cwd:KEYWORD_ONLY:1",
-        "render_cwd:KEYWORD_ONLY:1",
         "plain_print:KEYWORD_ONLY:1",
         "max_output_line:KEYWORD_ONLY:1",
         "max_error_line:KEYWORD_ONLY:1",
@@ -1486,13 +1426,9 @@
         "input:KEYWORD_ONLY:1",
         "env:KEYWORD_ONLY:1",
         "source_path:KEYWORD_ONLY:1",
-        "render_source_path:KEYWORD_ONLY:1",
         "destination_path:KEYWORD_ONLY:1",
-        "render_destination_path:KEYWORD_ONLY:1",
         "transform_path:KEYWORD_ONLY:1",
-        "render_transform_path:KEYWORD_ONLY:1",
         "transform_content:KEYWORD_ONLY:1",
-        "render_transform_content:KEYWORD_ONLY:1",
         "execute_condition:KEYWORD_ONLY:1",
         "retries:KEYWORD_ONLY:1",
         "retry_period:KEYWORD_ONLY:1",
@@ -1724,7 +1660,6 @@
         "description:POSITIONAL_OR_KEYWORD:1",
         "prompt:POSITIONAL_OR_KEYWORD:1",
         "default:POSITIONAL_OR_KEYWORD:1",
-        "auto_render:POSITIONAL_OR_KEYWORD:1",
         "allow_empty:POSITIONAL_OR_KEYWORD:1",
         "allow_positional_parsing:POSITIONAL_OR_KEYWORD:1",
         "always_prompt:POSITIONAL_OR_KEYWORD:1"
@@ -1876,7 +1811,6 @@
         "input:KEYWORD_ONLY:1",
         "env:KEYWORD_ONLY:1",
         "host:KEYWORD_ONLY:1",
-        "render_host:KEYWORD_ONLY:1",
         "port:KEYWORD_ONLY:1",
         "interval:KEYWORD_ONLY:1",
         "execute_condition:KEYWORD_ONLY:1",
@@ -1926,7 +1860,6 @@
         "description:POSITIONAL_OR_KEYWORD:1",
         "prompt:POSITIONAL_OR_KEYWORD:1",
         "default:POSITIONAL_OR_KEYWORD:1",
-        "auto_render:POSITIONAL_OR_KEYWORD:1",
         "allow_empty:POSITIONAL_OR_KEYWORD:1",
         "allow_positional_parsing:POSITIONAL_OR_KEYWORD:1",
         "always_prompt:POSITIONAL_OR_KEYWORD:1",
@@ -1975,6 +1908,14 @@
         "set_toolset_factories"
       ]
     },
+    "Tpl": {
+      "init": [
+        "template:POSITIONAL_OR_KEYWORD:0"
+      ],
+      "members": [
+        "template"
+      ]
+    },
     "User": {
       "init": [],
       "members": [
@@ -2002,10 +1943,6 @@
         "remove",
         "set"
       ]
-    },
-    "fstring": {
-      "init": [],
-      "members": []
     }
   },
   "functions": {

@@ -64,8 +64,6 @@ class PromptManager:
         include_sections: list[str] | None = None,
         skill_manager: SkillManager | None = None,
         active_skills: StrListAttr | None = None,
-        render_active_skills: bool = True,
-        render: bool = False,
         prompt_registry: PromptRegistry | None = None,
     ):
         """Build a prompt manager.
@@ -94,10 +92,6 @@ class PromptManager:
                 Defaults to the global `skill_manager`.
             active_skills: Skills to pre-activate, listed in the prompt as
                 already loaded.
-            render_active_skills: Whether to render `active_skills` entries as
-                templates against the context.
-            render: Whether string prompts in `prompts` are rendered as
-                templates against the context.
             prompt_registry: Source of default prompts when `prompts` is
                 ``None``. Defaults to the global `prompt_registry`.
         """
@@ -110,8 +104,6 @@ class PromptManager:
         self._include_sections = include_sections  # None means "use CFG default"
         self._skill_manager = skill_manager or default_skill_manager
         self._active_skills = active_skills
-        self._render_active_skills = render_active_skills
-        self._render = render
         # Live context providers: per-turn dynamic state injected into the
         # <live-context> block after built-in rendering.
         self._live_context_providers = LiveContextProviders()
@@ -416,9 +408,7 @@ class PromptManager:
         # Skill catalogue lives in workflow.md via {CORE_SKILLS}/{AVAILABLE_SKILLS}
         # /{PREACTIVATED_SKILLS} placeholders.
         if self._skill_manager:
-            active_skills = get_str_list_attr(
-                ctx, self._active_skills, self._render_active_skills
-            )
+            active_skills = get_str_list_attr(ctx, self._active_skills)
             _extra.update(build_skill_replacements(self._skill_manager, active_skills))
 
         middlewares: list[PromptMiddleware | str] = []
@@ -516,24 +506,17 @@ class PromptManager:
             else:
                 content = prompt
 
-            if self._render and isinstance(content, str):
-                content = get_str_attr(ctx, content, auto_render=True)
-
             new_prompt = f"{current}\n{content}" if content else current
             return next_fn(ctx, new_prompt)
 
         return middleware
 
 
-def new_prompt(new_prompt: str | Callable[[], str], render: bool = False):
+def new_prompt(new_prompt: str | Callable[[], str]):
     def new_prompt_middleware(
         ctx: AnyContext, current_prompt: str, next: Callable[[AnyContext, str], str]
     ):
         effective_new_prompt = new_prompt() if callable(new_prompt) else new_prompt
-        if render:
-            effective_new_prompt = get_str_attr(
-                ctx, effective_new_prompt, auto_render=True
-            )
         return next(ctx, f"{current_prompt}\n{effective_new_prompt}")
 
     return new_prompt_middleware

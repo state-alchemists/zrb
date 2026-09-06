@@ -10,9 +10,9 @@ Composed into `LLMTask` as `self._history`: keeps `LLMTask` in `self._llm_task`
 and reads its public `history_manager` property (not the raw attribute)
 rather than a cached copy, since it has a public setter
 (`task.history_manager = ...`) that must be visible here immediately. The raw
-`_conversation_name`/`_render_conversation_name` attributes have no separate
-public property of their own — `get_conversation_name` here *is* their public
-accessor, the same way `LLMTaskBuilding.get_model` is `_model`'s.
+`_conversation_name` attribute has no separate public property of its own —
+`get_conversation_name` here *is* its public accessor, the same way
+`LLMTaskBuilding.get_model` is `_model`'s.
 """
 
 from __future__ import annotations
@@ -50,11 +50,7 @@ class LLMTaskHistory:
 
     def get_conversation_name(self, ctx: AnyContext) -> str:
         """The configured conversation name, or a fresh random one when blank."""
-        return resolve_conversation_name(
-            ctx,
-            self._llm_task.conversation_name_attr,
-            self._llm_task.render_conversation_name,
-        )
+        return resolve_conversation_name(ctx, self._llm_task.conversation_name_attr)
 
     def get_effective_prompt(
         self,

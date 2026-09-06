@@ -21,7 +21,7 @@ from collections.abc import Sequence
 from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, Callable, cast
 
-from zrb.attr.type import BoolAttr, StrAttr, StrListAttr, fstring
+from zrb.attr.type import BoolAttr, StrAttr, StrListAttr
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
@@ -81,12 +81,10 @@ class LLMTask(BaseTask):
         cli_only: bool = False,
         input: Sequence[AnyInput | None] | AnyInput | None = None,
         env: Sequence[AnyEnv | None] | AnyEnv | None = None,
-        system_prompt: Callable[[AnyContext], str | fstring | None] | str | None = None,
-        render_system_prompt: bool = False,
+        system_prompt: Callable[[AnyContext], str | None] | str | None = None,
         prompt_manager: PromptManager | None = None,
         hook_manager: HookManager | None = None,
         active_skills: StrListAttr | None = None,
-        render_active_skills: bool = True,
         tools: list[Tool | ToolFuncEither] | None = None,
         toolsets: list[AbstractToolset[None]] | None = None,
         tool_factories: (
@@ -102,7 +100,6 @@ class LLMTask(BaseTask):
             list[Callable[[AnyContext], AbstractToolset[None]]] | None
         ) = None,
         message: StrAttr | None = None,
-        render_message: bool = True,
         attachment: (
             UserContent
             | list[UserContent]
@@ -112,14 +109,7 @@ class LLMTask(BaseTask):
         history_processors: list[HistoryProcessor] | None = None,
         capabilities: "list[AbstractCapability[Any]] | None" = None,
         llm_limiter: LLMLimiter | None = None,
-        model: (
-            Callable[[AnyContext], Model | str | fstring | None]
-            | Model
-            | str
-            | fstring
-            | None
-        ) = None,
-        render_model: bool = True,
+        model: Callable[[AnyContext], Model | str | None] | Model | str | None = None,
         model_settings: (
             ModelSettings | Callable[[AnyContext], ModelSettings] | None
         ) = None,
@@ -131,7 +121,6 @@ class LLMTask(BaseTask):
         ) = None,
         custom_model_names: StrListAttr | None = None,
         conversation_name: StrAttr | None = None,
-        render_conversation_name: bool = True,
         history_manager: AnyHistoryManager | None = None,
         tool_confirmation: AnyToolConfirmation = None,
         dynamic_yolo: Callable[..., bool] | None = None,
@@ -159,27 +148,21 @@ class LLMTask(BaseTask):
 
         Use `LLMChatTask` instead when you want an interactive conversation.
 
-        A `render_x` flag controls whether `x` is treated as an f-string template
-        rendered against the task context. Set it False to pass a literal value
-        containing braces.
+        Every value below is a literal unless it is a `Tpl` or a callable, in
+        which case it is resolved against the task context at run time.
 
         Args:
-            message: The user message to send. Usually a template referencing an
-                input, such as `"{ctx.input.question}"`.
-            render_message: Whether to render `message` as a template.
+            message: The user message to send. Usually a `Tpl` referencing an
+                input, such as `Tpl("{ctx.input.question}")`.
             attachment: Images or files to send alongside the message. A single
                 item, a list, or a callable taking the context.
             system_prompt: System prompt text, or a callable taking the context.
                 Overrides whatever `prompt_manager` would compose.
-            render_system_prompt: Whether to render `system_prompt` as a template.
-                Off by default, since prompts commonly contain braces.
             prompt_manager: `PromptManager` composing the system prompt from
                 sections. Defaults to the shared one.
             active_skills: Names of skills to pre-activate for this task.
-            render_active_skills: Whether to render `active_skills` as templates.
             model: The model to use, as a name or a pydantic-ai `Model`. Defaults
                 to `CFG.LLM_MODEL`.
-            render_model: Whether to render `model` as a template.
             model_settings: Provider settings such as temperature, or a callable
                 taking the context.
             model_getter: Callable transforming the resolved base model into the
@@ -210,8 +193,6 @@ class LLMTask(BaseTask):
             dynamic_yolo: Callable re-evaluating `yolo` per tool call, for a
                 decision that depends on run-time state.
             conversation_name: Name the conversation is stored under.
-            render_conversation_name: Whether to render `conversation_name` as a
-                template.
             history_manager: Store persisting conversation history across runs.
                 Without one, a default file-backed store under LLM_HISTORY_DIR
                 is used.
@@ -252,36 +233,29 @@ class LLMTask(BaseTask):
         if prompt_manager is None:
             prompt_manager = PromptManager(
                 prompts=[system_prompt] if system_prompt else None,
-                render=render_system_prompt,
                 active_skills=active_skills,
-                render_active_skills=render_active_skills,
                 include_sections=[],
             )
         self._system_prompt = system_prompt
-        self._render_system_prompt = render_system_prompt
         self._prompt_manager = prompt_manager
         self._hook_manager = (
             default_hook_manager if hook_manager is None else hook_manager
         )
         self._active_skills = active_skills
-        self._render_active_skills = render_active_skills
         self._tools = tools or []
         self._toolsets = toolsets or []
         self._tool_factories = tool_factories or []
         self._toolset_factories = toolset_factories or []
         self._message = message
-        self._render_message = render_message
         self._attachment = attachment
         self._history_processors = history_processors or []
         self._capabilities = capabilities or []
         self._model = model
-        self._render_model = render_model
         self._model_settings = model_settings
         self._model_getter = model_getter
         self._model_renderer = model_renderer
         self._custom_model_names = custom_model_names
         self._conversation_name = conversation_name
-        self._render_conversation_name = render_conversation_name
         self._history_manager = history_manager
         self._tool_confirmation = tool_confirmation
         self._uis: list[AnyUI] = []
@@ -506,11 +480,6 @@ class LLMTask(BaseTask):
         return self._model
 
     @property
-    def render_model(self) -> bool:
-        """Whether `model` is rendered as a template."""
-        return self._render_model
-
-    @property
     def model_settings_attr(self) -> "ModelSettings | None | Any":
         """The raw model-settings attribute, unrendered."""
         return self._model_settings
@@ -563,11 +532,6 @@ class LLMTask(BaseTask):
         return self._conversation_name
 
     @property
-    def render_conversation_name(self) -> bool:
-        """Whether `conversation_name` is rendered as a template."""
-        return self._render_conversation_name
-
-    @property
     def history_config(self) -> HistoryConfig:
         """The history-manager/conversation-name knobs as one group — see
         `HistoryConfig`. Recomputed on each read (not cached at construction)
@@ -576,7 +540,6 @@ class LLMTask(BaseTask):
         return HistoryConfig(
             history_manager=self._history_manager,
             conversation_name=self._conversation_name,
-            render_conversation_name=self._render_conversation_name,
         )
 
     def get_history_manager(self, ctx: AnyContext) -> AnyHistoryManager:
@@ -707,7 +670,7 @@ class LLMTask(BaseTask):
         message_history = await asyncio.to_thread(
             history_manager.load, conversation_name
         )
-        user_message = cast(str, get_attr(ctx, self._message, "", self._render_message))
+        user_message = cast(str, get_attr(ctx, self._message, ""))
         user_attachments = get_attachments(ctx, self._attachment)
 
         if await self._handle_summarization(

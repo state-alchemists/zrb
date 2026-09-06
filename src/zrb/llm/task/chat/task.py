@@ -23,7 +23,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, AsyncIterable, Callable
 
-from zrb.attr.type import BoolAttr, StrAttr, StrListAttr, fstring
+from zrb.attr.type import BoolAttr, StrAttr, StrListAttr
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
@@ -92,12 +92,10 @@ class LLMChatTask(BaseTask):
         cli_only: bool = False,
         input: Sequence[AnyInput | None] | AnyInput | None = None,
         env: Sequence[AnyEnv | None] | AnyEnv | None = None,
-        system_prompt: Callable[[AnyContext], str | fstring | None] | str | None = None,
-        render_system_prompt: bool = False,
+        system_prompt: Callable[[AnyContext], str | None] | str | None = None,
         prompt_manager: PromptManager | None = None,
         hook_manager: HookManager | None = None,
         active_skills: StrListAttr | None = None,
-        render_active_skills: bool = True,
         tools: list[Tool | ToolFuncEither] | None = None,
         toolsets: list[AbstractToolset[None]] | None = None,
         tool_factories: (
@@ -113,7 +111,6 @@ class LLMChatTask(BaseTask):
             list[Callable[[AnyContext], AbstractToolset[None]]] | None
         ) = None,
         message: StrAttr | None = None,
-        render_message: bool = True,
         attachment: (
             UserContent
             | list[UserContent]
@@ -123,14 +120,7 @@ class LLMChatTask(BaseTask):
         history_processors: list[HistoryProcessor] | None = None,
         capabilities: "list[AbstractCapability[Any]] | None" = None,
         llm_limiter: LLMLimiter | None = None,
-        model: (
-            Callable[[AnyContext], Model | str | fstring | None]
-            | Model
-            | str
-            | fstring
-            | None
-        ) = None,
-        render_model: bool = True,
+        model: Callable[[AnyContext], Model | str | None] | Model | str | None = None,
         model_settings: (
             ModelSettings | Callable[[AnyContext], ModelSettings] | None
         ) = None,
@@ -142,7 +132,6 @@ class LLMChatTask(BaseTask):
         ) = None,
         custom_model_names: StrListAttr | None = None,
         conversation_name: StrAttr | None = None,
-        render_conversation_name: bool = True,
         history_manager: AnyHistoryManager | None = None,
         tool_confirmation: AnyToolConfirmation = None,
         permissions: "PermissionPolicyInput" = None,
@@ -175,13 +164,9 @@ class LLMChatTask(BaseTask):
             | None
         ) = None,
         ui_greeting: StrAttr | None = None,
-        render_ui_greeting: bool = True,
         ui_assistant_name: StrAttr | None = None,
-        render_ui_assistant_name: bool = True,
         ui_jargon: StrAttr | None = None,
-        render_ui_jargon: bool = True,
         ui_ascii_art: StrAttr | None = None,
-        render_ui_ascii_art: bool = True,
         triggers: list[Callable[[], AsyncIterable[Any]]] | None = None,
         response_handlers: list[ResponseHandler] | None = None,
         tool_policies: list[ToolPolicy] | None = None,
@@ -210,26 +195,20 @@ class LLMChatTask(BaseTask):
         Builds an inner `LLMTask` per turn and drives it through one or more UIs.
         For a single non-interactive prompt, use `LLMTask` directly.
 
-        A `render_x` flag controls whether `x` is treated as an f-string template
-        rendered against the task context. Set it False to pass a literal value
-        containing braces.
+        Every value below is a literal unless it is a `Tpl` or a callable, in
+        which case it is resolved against the task context at run time.
 
         Args:
             message: Initial message to send before handing over to the user.
                 Leave unset to start with an empty prompt.
-            render_message: Whether to render `message` as a template.
             attachment: Images or files to send with the initial message.
             system_prompt: System prompt text, or a callable taking the context.
                 Overrides whatever `prompt_manager` would compose.
-            render_system_prompt: Whether to render `system_prompt` as a template.
-                Off by default, since prompts commonly contain braces.
             prompt_manager: `PromptManager` composing the system prompt from
                 sections. Defaults to the shared one.
             active_skills: Names of skills to pre-activate for the session.
-            render_active_skills: Whether to render `active_skills` as templates.
             model: The model to use, as a name or a pydantic-ai `Model`. Defaults
                 to `CFG.LLM_MODEL`.
-            render_model: Whether to render `model` as a template.
             model_settings: Provider settings such as temperature.
             model_getter: Callable transforming the resolved base model into the
                 active model (e.g. tier switching, A/B testing) — applied before
@@ -271,8 +250,6 @@ class LLMChatTask(BaseTask):
                 model picker lists Ollama/pydantic-ai models, and one field per
                 command family. Each field left unset keeps its `CFG` default.
             conversation_name: Name the conversation is stored under.
-            render_conversation_name: Whether to render `conversation_name` as a
-                template.
             history_manager: Store persisting conversation history across runs.
             history_processors: Callables rewriting history before each request,
                 run in order.
@@ -290,14 +267,9 @@ class LLMChatTask(BaseTask):
             custom_commands: Extra slash commands, as `AnyCustomCommand`s or
                 callables returning them.
             ui_greeting: Text shown when the session starts.
-            render_ui_greeting: Whether to render `ui_greeting` as a template.
             ui_assistant_name: Name the assistant is labelled with.
-            render_ui_assistant_name: Whether to render `ui_assistant_name` as a
-                template.
             ui_ascii_art: Banner art shown above the greeting.
-            render_ui_ascii_art: Whether to render `ui_ascii_art` as a template.
             ui_jargon: Tagline shown beside the banner.
-            render_ui_jargon: Whether to render `ui_jargon` as a template.
             markdown_theme: Rich theme used to render the assistant's markdown.
             triggers: Callables returning async iterables whose items are submitted
                 as user turns, letting an external source drive the session.
@@ -331,16 +303,12 @@ class LLMChatTask(BaseTask):
         if prompt_manager is None:
             prompt_manager = PromptManager(
                 prompts=[system_prompt] if system_prompt else None,
-                render=render_system_prompt,
                 active_skills=active_skills,
-                render_active_skills=render_active_skills,
                 include_sections=[],
             )
         self._prompt_manager = prompt_manager
         self._system_prompt = system_prompt
-        self._render_system_prompt = render_system_prompt
         self._active_skills = active_skills
-        self._render_active_skills = render_active_skills
         self._tools = tools or []
         self._toolsets = toolsets or []
         # LLMChatTask-specific factories that resolve using parent context
@@ -354,18 +322,15 @@ class LLMChatTask(BaseTask):
         # fires the terminal SESSION_END on it.
         self._active_hook_manager: HookManager | None = None
         self._message = message
-        self._render_message = render_message
         self._attachment = attachment
         self._history_processors = history_processors or []
         self._capabilities = capabilities or []
         self._model = model
-        self._render_model = render_model
         self._model_settings = model_settings
         self._model_getter = model_getter
         self._model_renderer = model_renderer
         self._custom_model_names = custom_model_names
         self._conversation_name = conversation_name
-        self._render_conversation_name = render_conversation_name
         self._history_manager = history_manager
         self._tool_confirmation = tool_confirmation
         self._uis: list["AnyUI"] = []
@@ -388,12 +353,12 @@ class LLMChatTask(BaseTask):
         # that actually build a UI.
         self._ui_config = ui_config
         self._custom_commands = custom_commands or []
-        # (value, render) per UI text; ChatRunning renders the block as one.
-        self._ui_texts: dict[str, tuple[StrAttr | None, bool]] = {
-            "greeting": (ui_greeting, render_ui_greeting),
-            "assistant_name": (ui_assistant_name, render_ui_assistant_name),
-            "ascii_art": (ui_ascii_art, render_ui_ascii_art),
-            "jargon": (ui_jargon, render_ui_jargon),
+        # ChatRunning resolves the block as one.
+        self._ui_texts: dict[str, StrAttr | None] = {
+            "greeting": ui_greeting,
+            "assistant_name": ui_assistant_name,
+            "ascii_art": ui_ascii_art,
+            "jargon": ui_jargon,
         }
         self._triggers = triggers or []
         self._response_handlers = response_handlers or []
@@ -837,7 +802,6 @@ class LLMChatTask(BaseTask):
         return HistoryConfig(
             history_manager=self._history_manager,
             conversation_name=self._conversation_name,
-            render_conversation_name=self._render_conversation_name,
         )
 
     @property
@@ -911,29 +875,14 @@ class LLMChatTask(BaseTask):
         return self._system_prompt
 
     @property
-    def render_system_prompt(self) -> bool:
-        """Whether `system_prompt` is rendered as a template."""
-        return self._render_system_prompt
-
-    @property
     def active_skills(self) -> "StrListAttr | None":
         """Names of skills pre-activated for the session."""
         return self._active_skills
 
     @property
-    def render_active_skills(self) -> bool:
-        """Whether `active_skills` is rendered as templates."""
-        return self._render_active_skills
-
-    @property
     def message(self) -> "StrAttr | None":
         """The raw initial-message attribute."""
         return self._message
-
-    @property
-    def render_message(self) -> bool:
-        """Whether `message` is rendered as a template."""
-        return self._render_message
 
     @property
     def attachment(self):
@@ -966,19 +915,9 @@ class LLMChatTask(BaseTask):
         return self._conversation_name
 
     @property
-    def render_conversation_name(self) -> bool:
-        """Whether `conversation_name` is rendered as a template."""
-        return self._render_conversation_name
-
-    @property
     def model(self):
         """The raw `model` attribute."""
         return self._model
-
-    @property
-    def render_model(self) -> bool:
-        """Whether `model` is rendered as a template."""
-        return self._render_model
 
     @property
     def model_settings(self):
@@ -1016,7 +955,7 @@ class LLMChatTask(BaseTask):
         self._ui_config = value
 
     @property
-    def ui_texts(self) -> "dict[str, tuple[StrAttr | None, bool]]":
+    def ui_texts(self) -> "dict[str, StrAttr | None]":
         """(value, render) per UI text block (greeting, assistant_name, ...)."""
         return self._ui_texts
 

@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from zrb.attr.tpl import Tpl
 from zrb.cmd.any_cmd_val import AnyCmdVal
 from zrb.cmd.cmd_val import Cmd, CmdPath
 from zrb.context.context import Context
@@ -21,16 +22,22 @@ def test_cmd_to_str():
         assert result == "echo hello"
 
 
-def test_cmd_to_str_with_auto_render():
-    """Test Cmd.to_str with auto_render=False."""
+def test_cmd_to_str_keeps_a_bare_string_literal():
+    """A bare string is a literal — braces survive to the shell."""
     ctx = MagicMock(spec=Context)
     ctx.input = {}
 
-    with patch("zrb.cmd.cmd_val.get_str_attr") as mock_get_str_attr:
-        mock_get_str_attr.return_value = "echo hello"
-        cmd = Cmd("echo hello", auto_render=False)
-        result = cmd.to_str(ctx)
-        assert result == "echo hello"
+    cmd = Cmd("echo {literal}")
+    assert cmd.to_str(ctx) == "echo {literal}"
+
+
+def test_cmd_to_str_renders_a_tpl():
+    """A Tpl opts into rendering against the context."""
+    ctx = MagicMock(spec=Context)
+    ctx.render.side_effect = lambda t: t.replace("{ctx.input.who}", "world")
+
+    cmd = Cmd(Tpl("echo {ctx.input.who}"))
+    assert cmd.to_str(ctx) == "echo world"
 
 
 def test_cmd_path_to_str():
@@ -46,16 +53,16 @@ def test_cmd_path_to_str():
         mock_read_file.assert_called_once()
 
 
-def test_cmd_path_with_auto_render():
-    """Test CmdPath with auto_render=False."""
+def test_cmd_path_renders_a_tpl_path():
+    """A Tpl path is rendered before the file is read."""
     ctx = MagicMock(spec=Context)
-    ctx.input = {}
+    ctx.render.side_effect = lambda t: t.replace("{ctx.input.dir}", "/tmp")
 
     with patch("zrb.cmd.cmd_val.read_file") as mock_read_file:
         mock_read_file.return_value = "content"
-        cmd_path = CmdPath("/path/to/file", auto_render=False)
-        result = cmd_path.to_str(ctx)
-        assert result == "content"
+        cmd_path = CmdPath(Tpl("{ctx.input.dir}/file"))
+        assert cmd_path.to_str(ctx) == "content"
+        mock_read_file.assert_called_once_with("/tmp/file")
 
 
 def test_any_cmd_val_is_abstract():

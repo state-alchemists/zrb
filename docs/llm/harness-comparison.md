@@ -89,7 +89,7 @@ This is where zrb stops being comparable and starts being alone in the list. In 
 triage = triage_group.add_task(
     LLMTask(
         name="triage",
-        message="Triage this ticket:\n\n{ctx.xcom['intake'].peek()}",
+        message=Tpl("Triage this ticket:\n\n{ctx.xcom['intake'].peek()}"),
         tools=[lookup_customer],
     )
 )

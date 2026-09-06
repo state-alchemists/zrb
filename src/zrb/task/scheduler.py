@@ -2,7 +2,7 @@ import asyncio
 import datetime
 from collections.abc import Sequence
 
-from zrb.attr.type import BoolAttr, StrAttr, fstring
+from zrb.attr.type import BoolAttr, StrAttr
 from zrb.callback.any_callback import AnyCallback
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
@@ -29,7 +29,7 @@ class Scheduler(BaseTrigger):
         env: Sequence[AnyEnv | None] | AnyEnv | None = None,
         schedule: StrAttr | None = None,
         execute_condition: BoolAttr = True,
-        queue_name: fstring | None = None,
+        queue_name: str | None = None,
         callback: list[AnyCallback] | AnyCallback | None = None,
         retries: int = 2,
         retry_period: float = 0,
@@ -47,8 +47,8 @@ class Scheduler(BaseTrigger):
         """Define a task that emits an event on a cron schedule.
 
         Args:
-            schedule: Cron expression describing when to fire. A template
-                rendered against the context, or a callable taking it.
+            schedule: Cron expression describing when to fire. A literal, a
+                `Tpl` rendered against the context, or a callable taking it.
 
         Every parameter `BaseTrigger` accepts is also accepted here and behaves
         identically; see `BaseTrigger` for those.
@@ -80,7 +80,7 @@ class Scheduler(BaseTrigger):
         self._cron_pattern = schedule
 
     def _get_cron_pattern(self, shared_ctx: AnySharedContext) -> str:
-        return get_str_attr(shared_ctx, self._cron_pattern, "@minutely", True)
+        return get_str_attr(shared_ctx, self._cron_pattern, "@minutely")
 
     async def _exec_action(self, ctx: AnyContext):
         cron_pattern = self._get_cron_pattern(ctx)

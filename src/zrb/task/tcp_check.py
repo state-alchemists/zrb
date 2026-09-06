@@ -24,7 +24,6 @@ class TcpCheck(BaseTask):
         input: Sequence[AnyInput | None] | AnyInput | None = None,
         env: Sequence[AnyEnv | None] | AnyEnv | None = None,
         host: StrAttr = "localhost",
-        render_host: bool = True,
         port: IntAttr = 80,
         interval: float | None = None,
         execute_condition: BoolAttr = True,
@@ -40,7 +39,6 @@ class TcpCheck(BaseTask):
         Args:
             host: Host to connect to. A template rendered against the context, or
                 a callable taking it.
-            render_host: Whether to render `host` as a template.
             port: Port to connect to.
             interval: Seconds between attempts. Defaults to the readiness check
                 period.
@@ -70,7 +68,6 @@ class TcpCheck(BaseTask):
             print_fn=print_fn,
         )
         self._host = host
-        self._render_host = render_host
         self._port = port
         # Read lazily at run time (like every other CFG read) so an env change
         # after task definition still takes effect.
@@ -82,10 +79,10 @@ class TcpCheck(BaseTask):
         return CFG.TCP_CHECK_INTERVAL / 1000
 
     def _get_host(self, ctx: AnyContext) -> str:
-        return get_str_attr(ctx, self._host, "localhost", auto_render=self._render_host)
+        return get_str_attr(ctx, self._host, "localhost")
 
     def _get_port(self, ctx: AnyContext) -> int:
-        return get_int_attr(ctx, self._port, 80, auto_render=True)
+        return get_int_attr(ctx, self._port, 80)
 
     async def _exec_action(self, ctx: AnyContext) -> bool:
         host = self._get_host(ctx)

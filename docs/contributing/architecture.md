@@ -82,7 +82,7 @@ When an exception occurs deep within `asyncio.gather`, standard tracebacks are o
 * **Usage:** When an action fails, this metadata is injected into the exception notes (`e.add_note()`). Always preserve this mechanism so the user knows *which of their defined tasks* caused the crash.
 
 ### F-String Rendering
-We defer execution of dynamic parameters. Many attributes accept `fstring` — a plain string containing single-brace `{ctx.x}` expressions, rendered by `ctx.render()`. This is Python f-string syntax, not Jinja2 (Jinja2 is used only for the web UI's HTML page templates, `src/zrb/runner/web_route/jinja_env.py`).
-* **Convention:** Never trust a string property as static. Pass it through `ctx.render(task.property)` immediately before execution to ensure the most up-to-date Environment Variables or XCom data is populated.
+We defer execution of dynamic parameters. Every `*Attr` alias accepts `Tpl` — a wrapper around a string containing single-brace `{ctx.x}` expressions, rendered by `ctx.render()`. This is Python f-string syntax, not Jinja2 (Jinja2 is used only for the web UI's HTML page templates, `src/zrb/runner/web_route/jinja_env.py`).
+* **Convention:** Rendering is opt-in — a bare `str` attribute is a **literal** and must never be rendered, so braces meant for the shell survive untouched. Resolve an attribute by passing it through the `zrb.util.attr.get_*_attr` helpers immediately before execution; they call a `Tpl`/callable with the live context, so the most up-to-date Environment Variables or XCom data is picked up.
 
 🔖 [Documentation Home](../../README.md) > [Contributing](./) > Architecture, Philosophy, & Conventions

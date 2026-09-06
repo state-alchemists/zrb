@@ -158,10 +158,21 @@ Applies to `Task`, `CmdTask`, `LLMTask`, `LLMChatTask`, `RsyncTask`, `Scaffolder
 
 | Before | After |
 |---|---|
-| `RsyncTask(auto_render_shell=...)` | `RsyncTask(render_shell=...)` |
+| `RsyncTask(auto_render_shell=...)` | `RsyncTask(render_shell=...)` — then removed entirely in 3.0.0b5, see below |
 | `from zrb import AnyAttr` | `from typing import Any`, or the specific `StrAttr` / `BoolAttr` / … |
 
-`AnyAttr` was defined as `Any \| fstring \| Callable[..., Any]`, which collapses to plain `Any` — it constrained nothing while looking like it did. `fstring` is unchanged.
+`AnyAttr` was defined as `Any \| fstring \| Callable[..., Any]`, which collapses to plain `Any` — it constrained nothing while looking like it did.
+
+### Rendering is opt-in (3.0.0b5)
+
+A bare `str` attribute is now a **literal**. Wrap a template in `Tpl` to have it rendered against the context:
+
+```python
+CmdTask(cmd="echo '{literal}'")               # runs verbatim — no flag needed
+CmdTask(cmd=Tpl("echo {ctx.input.name}"))     # rendered
+```
+
+Every `render_*` / `auto_render` parameter is gone — they existed only to opt *out* of the old implicit rendering, which no longer happens. Drop `render_x=False` from a call that wanted a literal; wrap the string in `Tpl` where you wanted a template. `fstring` (which was `= str`) is removed from `zrb.__all__`; `Tpl` replaces it.
 
 ### Worth knowing (no action needed)
 

@@ -32,23 +32,14 @@ class CmdTask(BaseTask):
         input: Sequence[AnyInput | None] | AnyInput | None = None,
         env: Sequence[AnyEnv | None] | AnyEnv | None = None,
         shell: StrAttr | None = None,
-        render_shell: bool = True,
         shell_flag: StrAttr | None = None,
-        render_shell_flag: bool = True,
         remote_host: StrAttr | None = None,
-        render_remote_host: bool = True,
         remote_port: IntAttr | None = None,
-        render_remote_port: bool = True,
         remote_user: StrAttr | None = None,
-        render_remote_user: bool = True,
         remote_password: StrAttr | None = None,
-        render_remote_password: bool = True,
         remote_ssh_key: StrAttr | None = None,
-        render_remote_ssh_key: bool = True,
         cmd: CmdVal = "",
-        render_cmd: bool = True,
         cwd: str | None = None,
-        render_cwd: bool = True,
         plain_print: bool = False,
         warn_unrecommended_command: bool | None = None,
         max_output_line: int = 1000,
@@ -79,28 +70,17 @@ class CmdTask(BaseTask):
             cmd: The command to run. A string, an f-string template, a callable
                 taking the context, a `Cmd`/`CmdPath`, or a list of any of these
                 joined as separate lines.
-            render_cmd: Whether to render `cmd` as a template.
             cwd: Working directory for the command. Defaults to the process's
                 current working directory, i.e. where `zrb` was invoked.
-            render_cwd: Whether to render `cwd` as a template.
             shell: Shell binary to run under. Defaults to `CFG.SHELL`.
-            render_shell: Whether to render `shell` as a template.
             shell_flag: Flag making the shell read the command, such as `-c`.
                 Inferred from `shell` when omitted.
-            render_shell_flag: Whether to render `shell_flag` as a template.
             remote_host: Host to run on over SSH. When omitted the command runs
                 locally, and every other `remote_*` value is ignored.
-            render_remote_host: Whether to render `remote_host` as a template.
             remote_port: SSH port.
-            render_remote_port: Whether to render `remote_port` as a template.
             remote_user: SSH user.
-            render_remote_user: Whether to render `remote_user` as a template.
             remote_password: SSH password. Prefer `remote_ssh_key`.
-            render_remote_password: Whether to render `remote_password` as a
-                template.
             remote_ssh_key: Path to the private key used for SSH.
-            render_remote_ssh_key: Whether to render `remote_ssh_key` as a
-                template.
             plain_print: When True, stream output verbatim instead of prefixing
                 each line with the task name and icon.
             warn_unrecommended_command: Whether to warn about patterns that are
@@ -139,23 +119,14 @@ class CmdTask(BaseTask):
             print_fn=print_fn,
         )
         self._shell = shell
-        self._render_shell = render_shell
         self._shell_flag = shell_flag
-        self._render_shell_flag = render_shell_flag
         self._remote_host = remote_host
-        self._render_remote_host = render_remote_host
         self._remote_port = remote_port
-        self._render_remote_port = render_remote_port
         self._remote_user = remote_user
-        self._render_remote_user = render_remote_user
         self._remote_password = remote_password
-        self._render_remote_password = render_remote_password
         self._remote_ssh_key = remote_ssh_key
-        self._render_remote_ssh_key = render_remote_ssh_key
         self._cmd = cmd
-        self._render_cmd = render_cmd
         self._cwd = cwd
-        self._render_cwd = render_cwd
         self._max_output_line = max_output_line
         self._max_error_line = max_error_line
         self._execution_timeout = execution_timeout
@@ -237,7 +208,7 @@ class CmdTask(BaseTask):
         return envs
 
     def _get_shell(self, ctx: AnyContext) -> str:
-        return get_str_attr(ctx, self._shell, CFG.SHELL, auto_render=self._render_shell)
+        return get_str_attr(ctx, self._shell, CFG.SHELL)
 
     def _get_shell_flag(self, ctx: AnyContext) -> str:
         default_shell_flags = {
@@ -253,39 +224,29 @@ class CmdTask(BaseTask):
             ctx,
             self._shell_flag,
             default_shell_flag,
-            auto_render=self._render_shell_flag,
         )
 
     def _get_remote_host(self, ctx: AnyContext) -> str:
-        return get_str_attr(
-            ctx, self._remote_host, "", auto_render=self._render_remote_host
-        )
+        return get_str_attr(ctx, self._remote_host, "")
 
     def _get_remote_port(self, ctx: AnyContext) -> int:
-        return get_int_attr(
-            ctx, self._remote_port, 22, auto_render=self._render_remote_port
-        )
+        return get_int_attr(ctx, self._remote_port, 22)
 
     def _get_remote_user(self, ctx: AnyContext) -> str:
-        return get_str_attr(
-            ctx, self._remote_user, "", auto_render=self._render_remote_user
-        )
+        return get_str_attr(ctx, self._remote_user, "")
 
     def _get_remote_password(self, ctx: AnyContext) -> str:
         return get_str_attr(
             ctx,
             self._remote_password,
             "",
-            auto_render=self._render_remote_password,
         )
 
     def _get_remote_ssh_key(self, ctx: AnyContext) -> str:
-        return get_str_attr(
-            ctx, self._remote_ssh_key, "", auto_render=self._render_remote_ssh_key
-        )
+        return get_str_attr(ctx, self._remote_ssh_key, "")
 
     def _get_cwd(self, ctx: AnyContext) -> str:
-        cwd = get_str_attr(ctx, self._cwd, os.getcwd(), auto_render=self._render_cwd)
+        cwd = get_str_attr(ctx, self._cwd, os.getcwd())
         if cwd is None:
             cwd = os.getcwd()
         return os.path.abspath(cwd)
@@ -306,20 +267,20 @@ class CmdTask(BaseTask):
         )
 
     def _get_local_cmd_script(self, ctx: AnyContext) -> str:
-        return self._render_cmd_val(ctx, self._cmd)
+        return self._resolve_cmd_val(ctx, self._cmd)
 
-    def _render_cmd_val(self, ctx: AnyContext, cmd_val: CmdVal) -> str:
+    def _resolve_cmd_val(self, ctx: AnyContext, cmd_val: CmdVal) -> str:
         if isinstance(cmd_val, list):
             cmd_val_list = [
-                self.__render_single_cmd_val(ctx, single_cmd_val)
+                self.__resolve_single_cmd_val(ctx, single_cmd_val)
                 for single_cmd_val in cmd_val
             ]
             return "\n".join(
                 [cmd_val for cmd_val in cmd_val_list if cmd_val is not None]
             )
-        return self.__render_single_cmd_val(ctx, cmd_val) or ""
+        return self.__resolve_single_cmd_val(ctx, cmd_val) or ""
 
-    def __render_single_cmd_val(
+    def __resolve_single_cmd_val(
         self, ctx: AnyContext, single_cmd_val: SingleCmdVal
     ) -> str | None:
         if isinstance(single_cmd_val, AnyCmdVal):
@@ -327,8 +288,6 @@ class CmdTask(BaseTask):
         if callable(single_cmd_val):
             return single_cmd_val(ctx)
         if isinstance(single_cmd_val, str):
-            if self._render_cmd:
-                return ctx.render(single_cmd_val)
             return single_cmd_val
         return None
 

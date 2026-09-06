@@ -20,7 +20,6 @@ class ContentTransformer(AnyContentTransformer):
             dict[str, str | Callable[[AnyContext], str]]
             | Callable[[AnyContext, str], Any]
         ),
-        auto_render: bool = True,
         match_mode: MatchMode = "auto",
     ):
         """Define how matching files are rewritten during scaffolding.
@@ -30,9 +29,9 @@ class ContentTransformer(AnyContentTransformer):
             match: Which files this applies to. A glob, a list of globs, or a
                 predicate taking the context and a file path.
             transform: The rewrite. Either a mapping of search string to
-                replacement (values may be templates or callables), or a callable
+                replacement (a value is a literal unless it is a `Tpl` or a
+                callable), or a callable
                 taking the context and a file path that edits the file itself.
-            auto_render: Whether to render template values in `transform`.
             match_mode: How string pattern(s) in `match` are interpreted.
                 `"auto"` (default) tries each pattern as a regex first, falling
                 back to a glob when the pattern isn't valid regex or doesn't
@@ -47,7 +46,6 @@ class ContentTransformer(AnyContentTransformer):
         self._name = name
         self._match = match
         self._transform_file = transform
-        self._auto_render = auto_render
         self._match_mode: MatchMode = match_mode
 
     @property
@@ -98,6 +96,4 @@ class ContentTransformer(AnyContentTransformer):
     ) -> str:
         if callable(replacement):
             return replacement(ctx)
-        if self._auto_render:
-            return ctx.render(replacement)
         return replacement

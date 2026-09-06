@@ -2,7 +2,7 @@ import asyncio
 from collections.abc import Callable, Sequence
 from typing import Any
 
-from zrb.attr.type import BoolAttr, fstring
+from zrb.attr.type import BoolAttr
 from zrb.callback.any_callback import AnyCallback
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
@@ -36,9 +36,9 @@ class BaseTrigger(BaseTask):
         cli_only: bool = False,
         input: Sequence[AnyInput | None] | AnyInput | None = None,
         env: Sequence[AnyEnv | None] | AnyEnv | None = None,
-        action: fstring | Callable[[AnyContext], Any] | None = None,
+        action: str | Callable[[AnyContext], Any] | None = None,
         execute_condition: BoolAttr = True,
-        queue_name: fstring | None = None,
+        queue_name: str | None = None,
         callback: list[AnyCallback] | AnyCallback | None = None,
         retries: int = 2,
         retry_period: float = 0,

@@ -327,11 +327,7 @@ class LLMTaskBuilding:
     def get_model(self, ctx: AnyContext) -> str | Model:
         """The task's model, rendered against *ctx*, falling back to `CFG.LLM_MODEL`.
 
-        A blank render counts as unset, so an empty ``--model`` input does not
+        A blank result counts as unset, so an empty ``--model`` input does not
         shadow the configured model with an empty string.
         """
-        return resolve_model(
-            ctx,
-            self._llm_task.model_attr,
-            self._llm_task.render_model,
-        )
+        return resolve_model(ctx, self._llm_task.model_attr)

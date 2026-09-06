@@ -12,7 +12,6 @@ setup_latex_on_ubuntu = setup_latex_group.add_task(
             "texlive-full texlive-latex-base texlive-fonts-recommended \\",
             "texlive-fonts-extra texlive-latex-extra",
         ],
-        render_cmd=False,
         is_interactive=True,
     ),
     alias="ubuntu",

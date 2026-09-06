@@ -77,7 +77,7 @@ class BaseTaskExecution:
         execute_condition_attr = (
             task.execute_condition if task.execute_condition is not None else True
         )
-        return get_bool_attr(ctx, execute_condition_attr, True, auto_render=True)
+        return get_bool_attr(ctx, execute_condition_attr, True)
 
     async def execute_action_until_ready(self, session: AnySession):
         """

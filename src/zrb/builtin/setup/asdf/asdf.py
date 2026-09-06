@@ -1,5 +1,6 @@
 import os
 
+from zrb.attr.tpl import Tpl
 from zrb.builtin.group import setup_group
 from zrb.builtin.setup.asdf.asdf_helper import (
     check_inexist_asdf_dir,
@@ -41,7 +42,7 @@ download_asdf = CmdTask(
 @make_task(
     name="setup-asdf-on-bash",
     input=setup_bash_input,
-    execute_condition='{ctx.input["setup-bash"]}',
+    execute_condition=Tpl('{ctx.input["setup-bash"]}'),
     upstream=download_asdf,
 )
 def setup_asdf_on_bash(ctx: AnyContext) -> None:
@@ -52,7 +53,7 @@ def setup_asdf_on_bash(ctx: AnyContext) -> None:
 @make_task(
     name="setup-asdf-on-zsh",
     input=setup_zsh_input,
-    execute_condition='{ctx.input["setup-zsh"]}',
+    execute_condition=Tpl('{ctx.input["setup-zsh"]}'),
     upstream=download_asdf,
 )
 def setup_asdf_on_zsh(ctx: AnyContext) -> None:
@@ -63,7 +64,7 @@ def setup_asdf_on_zsh(ctx: AnyContext) -> None:
 @make_task(
     name="setup-asdf-on-powershell",
     input=setup_powershell_input,
-    execute_condition='{ctx.input["setup-powershell"]}',
+    execute_condition=Tpl('{ctx.input["setup-powershell"]}'),
     upstream=download_asdf,
 )
 def setup_asdf_on_powershell(ctx: AnyContext) -> None:

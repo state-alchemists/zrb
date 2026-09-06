@@ -9,6 +9,7 @@ exposes. Module-level singletons are typed so IDEs reveal what each one is.
 from zrb import builtin
 
 # --- Attribute descriptors (deferred-eval property types) -----------------
+from zrb.attr.tpl import Tpl
 from zrb.attr.type import (
     BoolAttr,
     FloatAttr,
@@ -16,7 +17,6 @@ from zrb.attr.type import (
     StrAttr,
     StrDictAttr,
     StrListAttr,
-    fstring,
 )
 
 # --- Callbacks ------------------------------------------------------------
@@ -139,7 +139,7 @@ __all__ = [
     "StrAttr",
     "StrDictAttr",
     "StrListAttr",
-    "fstring",
+    "Tpl",
     "AnyCallback",
     "Callback",
     "CmdResult",

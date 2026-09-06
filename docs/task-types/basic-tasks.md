@@ -86,16 +86,18 @@ echo_task = cli.add_task(CmdTask(name="echo", cmd="echo 'Hello, World!'"))
 
 ### Command with Input and Templating
 
-You can inject context variables directly into the command string using `{ }` syntax.
+You can inject context variables into the command by wrapping it in `Tpl`, which
+renders `{ }` expressions against the task context. A bare string is a literal, so
+braces meant for the shell (`${VAR}`, `awk '{print}'`) need no escaping.
 
 ```python
-from zrb import CmdTask, StrInput, cli
+from zrb import CmdTask, StrInput, Tpl, cli
 
 figlet_task = cli.add_task(
     CmdTask(
         name="figlet",
         input=StrInput("message", description="Message to display", default="Hello"),
-        cmd="figlet '{ctx.input.message}'"
+        cmd=Tpl("figlet '{ctx.input.message}'")
     )
 )
 ```

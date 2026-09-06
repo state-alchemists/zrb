@@ -25,7 +25,7 @@ Inputs are distinct from environment variables; think of them as function argume
 Let's create a task that says hello to a specific person.
 
 ```python
-from zrb import cli, CmdTask, StrInput
+from zrb import cli, CmdTask, StrInput, Tpl
 
 cli.add_task(
   CmdTask(
@@ -35,7 +35,7 @@ cli.add_task(
       StrInput(name="prefix", description="A title to use", default="Mr./Ms."),
     ],
     # Access inputs via {ctx.input.<name>}
-    cmd="echo 'Hello {ctx.input.prefix} {ctx.input.name}'",
+    cmd=Tpl("echo 'Hello {ctx.input.prefix} {ctx.input.name}'"),
   )
 )
 ```

@@ -66,6 +66,36 @@ def demo(ctx):
     ctx.print(rendered)
 ```
 
+### Rendering is opt-in
+
+`ctx.render()` above is an explicit call, so it always renders. Task *attributes*
+work the other way round: a bare `str` is a **literal** and is never rendered, so
+braces meant for the shell (`${VAR}`, `awk '{print}'`) pass through untouched.
+Wrap the string in `Tpl` to ask for rendering:
+
+```python
+from zrb import CmdTask, StrInput, Tpl, cli
+
+cli.add_task(CmdTask(name="literal", cmd="echo '{not-a-template}'"))
+
+cli.add_task(
+    CmdTask(
+        name="templated",
+        input=StrInput(name="who", default="world"),
+        cmd=Tpl("echo 'hello {ctx.input.who}'"),
+    )
+)
+```
+
+`Tpl` is accepted anywhere an attribute is typed `StrAttr`, `BoolAttr`, `IntAttr`
+or `FloatAttr` — it renders to text, and the attribute's own type coerces the
+result (`BoolAttr` through `to_boolean`, `IntAttr` through `int`).
+
+A callable `(ctx) -> value` is the third option, and the one to reach for when the
+value needs branching or a call into your own code. Prefer `Tpl` inside a loop,
+though: `Tpl(f"echo {n}")` binds `n` eagerly, while `lambda ctx: f"echo {n}"`
+captures the *variable* and hands every task the last value.
+
 ---
 
 ## XCom (Cross-Communication)
@@ -82,7 +112,7 @@ def demo(ctx):
 ### Example: Automatic Transfer
 
 ```python
-from zrb import cli, CmdTask, Task
+from zrb import cli, CmdTask, Task, Tpl
 
 # This task returns "42" to its XCom queue automatically
 create_magic_number = cli.add_task(
@@ -94,7 +124,7 @@ show_magic_number = cli.add_task(
     CmdTask(
         name="show-magic-number",
         upstream=[create_magic_number], # Dependency is required!
-        cmd="echo 'The magic number is: {ctx.xcom['create-magic-number'].pop()}'"
+        cmd=Tpl("echo 'The magic number is: {ctx.xcom['create-magic-number'].pop()}'")
     )
 )
 ```

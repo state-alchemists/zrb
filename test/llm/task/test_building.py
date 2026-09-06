@@ -207,7 +207,7 @@ class TestAssembly:
     def test_get_model_uses_explicit_model(self):
         from zrb.llm.config.model_resolver import resolve_configured_model
 
-        task = LLMTask(name="test-task", model="explicit-model", render_model=False)
+        task = LLMTask(name="test-task", model="explicit-model")
         # An explicit name is resolved with the configured credentials, the
         # same as the CFG fallback above.
         assert task.get_model(MagicMock()) == resolve_configured_model("explicit-model")
@@ -222,7 +222,7 @@ class TestAssembly:
 
         monkeypatch.setattr(CFG, "LLM_API_KEY", "test-key")
         monkeypatch.setattr(CFG, "LLM_BASE_URL", "http://localhost:1234/v1")
-        task = LLMTask(name="test-task", model="switched-model", render_model=False)
+        task = LLMTask(name="test-task", model="switched-model")
 
         resolved = task.get_model(MagicMock())
 
@@ -238,14 +238,14 @@ class TestAssembly:
 
         monkeypatch.setattr(model_resolver, "model_getter", lambda m: "getter-model")
         monkeypatch.setattr(model_resolver, "model_renderer", lambda m: f"{m}-rendered")
-        task = LLMTask(name="test-task", model="switched-model", render_model=False)
+        task = LLMTask(name="test-task", model="switched-model")
 
         assert task.get_model(MagicMock()) == "getter-model-rendered"
 
     def test_get_model_treats_blank_string_as_unset(self):
         from zrb.llm.config.model_resolver import resolve_configured_model
 
-        task = LLMTask(name="test-task", model="   ", render_model=False)
+        task = LLMTask(name="test-task", model="   ")
         # Blank explicit model falls back to the config default.
         assert task.get_model(MagicMock()) == resolve_configured_model()
 

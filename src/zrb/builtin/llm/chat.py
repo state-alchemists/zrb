@@ -1,3 +1,4 @@
+from zrb.attr.tpl import Tpl
 from zrb.builtin.group import llm_group
 from zrb.builtin.llm.chat_tool_policy import (
     approve_if_mv_inside_journal_dir,
@@ -66,18 +67,16 @@ llm_chat = LLMChatTask(
             always_prompt=False,
         ),
     ],
-    # fstring template (StrAttr); LLMChatTask.model omits bare str from its
-    # annotation but renders it at run time via get_attr in get_model.
-    model="{ctx.input.model}",  # pyright: ignore[reportArgumentType]
-    yolo="{ctx.input.yolo}",
-    message="{ctx.input.message}",
-    conversation_name="{ctx.input.session}",
+    model=Tpl("{ctx.input.model}"),
+    yolo=Tpl("{ctx.input.yolo}"),
+    message=Tpl("{ctx.input.message}"),
+    conversation_name=Tpl("{ctx.input.session}"),
     # Comma-separated file paths; normalized to BinaryContent in the agent
     # run path (prompt_content.normalize_attachments).
     attachment=lambda ctx: [
         path.strip() for path in ctx.input.attach.split(",") if path.strip()
     ],
-    interactive="{ctx.input.interactive}",
+    interactive=Tpl("{ctx.input.interactive}"),
     sandbox=lambda ctx: ctx.input.get("sandbox") or None,
     history_processors=[],
     prompt_manager=PromptManager(

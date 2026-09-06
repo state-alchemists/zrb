@@ -3,7 +3,7 @@ import inspect
 from collections.abc import Callable, Sequence
 from typing import Any, overload
 
-from zrb.attr.type import BoolAttr, fstring
+from zrb.attr.type import BoolAttr
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
 from zrb.context.shared_context import SharedContext
@@ -51,7 +51,7 @@ class BaseTask(AnyTask):
         cli_only: bool = False,
         input: Sequence[AnyInput | None] | AnyInput | None = None,
         env: Sequence[AnyEnv | None] | AnyEnv | None = None,
-        action: fstring | Callable[[AnyContext], Any] | None = None,
+        action: str | Callable[[AnyContext], Any] | None = None,
         execute_condition: BoolAttr = True,
         retries: int = 2,
         retry_period: float = 0,

@@ -10,6 +10,7 @@ from zrb import (
     StrInput,
     Task,
     TcpCheck,
+    Tpl,
     cli,
 )
 from zrb.builtin.git import git_commit
@@ -48,9 +49,9 @@ run_test = CmdTask(
         prompt="Test (i.e., test/file.py::test_name)",
         allow_empty=True,
     ),
-    env=Env(name="TEST", default="{ctx.input.test}", link_to_os=False),
+    env=Env(name="TEST", default=Tpl("{ctx.input.test}"), link_to_os=False),
     cwd=_DIR,
-    cmd=CmdPath(os.path.join(_DIR, "zrb-test.sh"), auto_render=False),
+    cmd=CmdPath(os.path.join(_DIR, "zrb-test.sh")),
     retries=0,
 )
 _ = start_test_docker_compose >> run_test

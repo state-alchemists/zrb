@@ -24,9 +24,7 @@ class TestConversationAndHistoryLookup:
         assert isinstance(task.get_history_manager(MagicMock()), FileHistoryManager)
 
     def test_get_conversation_name_uses_explicit(self):
-        task = LLMTask(
-            name="t", conversation_name="my-convo", render_conversation_name=False
-        )
+        task = LLMTask(name="t", conversation_name="my-convo")
         assert task.get_conversation_name(MagicMock()) == "my-convo"
 
     def test_get_conversation_name_random_when_blank(self):
@@ -36,7 +34,7 @@ class TestConversationAndHistoryLookup:
 
 
 class TestHistoryConfig:
-    """`LLMTask.history_config` groups the same three knobs — see
+    """`LLMTask.history_config` groups the same knobs — see
     `HistoryConfig`'s own docstring for why chat/execution.py's wrap boundary
     forwards this as one unit."""
 
@@ -46,12 +44,10 @@ class TestHistoryConfig:
             name="t",
             history_manager=manager,
             conversation_name="my-convo",
-            render_conversation_name=False,
         )
         config = task.history_config
         assert config.history_manager is manager
         assert config.conversation_name == "my-convo"
-        assert config.render_conversation_name is False
 
     def test_reflects_history_manager_setter_immediately(self):
         """`history_manager` has a public setter — `history_config` must not

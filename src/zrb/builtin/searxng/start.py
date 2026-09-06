@@ -2,6 +2,7 @@ import os
 import secrets
 import shutil
 
+from zrb.attr.tpl import Tpl
 from zrb.builtin.group import searxng_group
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
@@ -49,10 +50,14 @@ start_searxng = searxng_group.add_task(
         input=IntInput(name="port", default=lambda _: CFG.SEARXNG_PORT),
         upstream=copy_searxng_setting,
         cwd=os.path.expanduser("~"),
-        cmd="docker run --rm -p {ctx.input.port}:8080 -e SEARXNG_LIMITER=false -v ./.config/searxng/:/etc/searxng/ docker.io/searxng/searxng:2026.5.6-36bcd6b55 -d",  # noqa
+        cmd=Tpl(
+            "docker run --rm -p {ctx.input.port}:8080 -e SEARXNG_LIMITER=false"
+            " -v ./.config/searxng/:/etc/searxng/"
+            " docker.io/searxng/searxng:2026.5.6-36bcd6b55 -d"
+        ),
         readiness_check=HttpCheck(
             "check-searxng",
-            url="http://localhost:{ctx.input.port}",
+            url=Tpl("http://localhost:{ctx.input.port}"),
         ),
     ),
     alias="start",

@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from zrb.attr.tpl import Tpl
 from zrb.content_transformer.content_transformer import ContentTransformer
 from zrb.context.any_context import AnyContext
 
@@ -156,8 +157,8 @@ def test_content_transformer_transform_file_callable_replacement():
             mock_write.assert_called_once()
 
 
-def test_content_transformer_transform_file_with_auto_render():
-    """Test transform_file with auto_render enabled renders template values."""
+def test_content_transformer_transform_file_renders_tpl_replacement():
+    """A Tpl replacement is rendered against the context before substitution."""
     ctx = MagicMock(spec=AnyContext)
     ctx.render = MagicMock(return_value="rendered_value")
 
@@ -169,13 +170,14 @@ def test_content_transformer_transform_file_with_auto_render():
             transformer = ContentTransformer(
                 name="test",
                 match="*.txt",
-                transform={"${var}": "${var}"},
-                auto_render=True,
+                transform={"${var}": Tpl("{ctx.input.x}")},
             )
             transformer.transform_file(ctx, "/path/to/file.txt")
 
-            # Verify write was called (render behavior is tested through output)
-            mock_write.assert_called_once()
+            ctx.render.assert_called_once_with("{ctx.input.x}")
+            mock_write.assert_called_once_with(
+                "/path/to/file.txt", "Hello rendered_value world"
+            )
 
 
 def test_content_transformer_match_auto_mode_regex_glob_collision():
@@ -222,8 +224,8 @@ def test_content_transformer_match_regex_mode_skips_glob_fallback():
     assert transformer.match(ctx, "notes.txt") is False
 
 
-def test_content_transformer_transform_file_without_auto_render():
-    """Test transform_file with auto_render disabled keeps template values."""
+def test_content_transformer_transform_file_keeps_bare_string_literal():
+    """A bare-string replacement is substituted verbatim, never rendered."""
     ctx = MagicMock(spec=AnyContext)
     ctx.render = MagicMock()
 
@@ -236,10 +238,8 @@ def test_content_transformer_transform_file_without_auto_render():
                 name="test",
                 match="*.txt",
                 transform={"${var}": "value"},
-                auto_render=False,
             )
             transformer.transform_file(ctx, "/path/to/file.txt")
 
-            # With auto_render=False, render should not be called for non-callable values
-            # Just verify the method completed without error
-            mock_write.assert_called_once()
+            ctx.render.assert_not_called()
+            mock_write.assert_called_once_with("/path/to/file.txt", "Hello value world")
