@@ -16,8 +16,6 @@ from typing import Any
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.agent.common import wrap_tool
-from zrb.llm.agent.subagent.manager import sub_agent_manager
-from zrb.llm.agent.subagent.tool_resolver import resolve_tools_by_name
 from zrb.llm.hook.agent_hook_registry import register_agent_hook_builder
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.schema import AgentHookConfig
@@ -68,6 +66,18 @@ def resolve_agent_hook_tools(names: list[str]) -> list:
     registry."""
     if not names:
         return []
+    # lazy: zrb internal (heavy via transitive). Same shape as run_llm_hook
+    # above — `zrb.llm.agent`'s package __init__ imports this module for its
+    # registration side effect, so anything imported here at module level joins
+    # that __init__'s closure. Hoisting these two puts `subagent/building.py`
+    # in it, and through it `zrb.llm.summarizer`, which imports `zrb.llm.agent`
+    # right back and so cannot be imported on its own. Neither edge is circular
+    # by itself; only the closure is, so verify by walking the whole closure
+    # (test_circular_import_allowlist.py imports each package in isolation)
+    # rather than by inspecting this call site.
+    from zrb.llm.agent.subagent.manager import sub_agent_manager
+    from zrb.llm.agent.subagent.tool_resolver import resolve_tools_by_name
+
     # Mirrors resolve_agent_build's own ctx-less fallback (subagent/manager.py)
     # — a hook fires outside any task run, so there is no real ctx to reuse.
     ctx = Context(

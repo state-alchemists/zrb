@@ -58,7 +58,12 @@ reachable regardless.
 """
 
 import re
+import subprocess
+import sys
+import textwrap
 from pathlib import Path
+
+import pytest
 
 REPO_ROOT = Path(__file__).parents[2]
 SRC = REPO_ROOT / "src" / "zrb"
@@ -86,4 +91,67 @@ def test_circular_import_workarounds_match_the_allowlist():
         "added, fixed, or moved. Update CIRCULAR_IMPORT_ALLOWLIST in this "
         f"file to match, in the same diff, with a reason.\nactual={actual}\n"
         f"expected={CIRCULAR_IMPORT_ALLOWLIST}"
+    )
+
+
+# --- The behavioural half: does each package actually import on its own? -----
+#
+# The check above counts *workarounds*, so it is blind to a cycle carrying no
+# workaround because import order happens to mask it. `zrb/__init__.py` masks
+# exactly that: whichever subpackage it names first is fully loaded before the
+# later lines reach the same modules by another route, so a loop between two of
+# them never gets the chance to fail.
+#
+# A plain `import zrb.llm.ui` cannot expose it either — parent packages load
+# before submodules, so `zrb/__init__.py` runs first and pre-warms
+# `sys.modules` with the very modules under test. Stubbing the parents leaves
+# the package's own import closure and nothing else, which is the thing whose
+# self-sufficiency this asserts.
+
+_ISOLATED_IMPORT = textwrap.dedent(
+    """
+    import importlib
+    import pathlib
+    import sys
+    import types
+
+    root = pathlib.Path(sys.argv[2]).resolve()
+    sys.path.insert(0, str(root))
+    target = sys.argv[1]
+    parts = target.split(".")
+    # Stub every parent package so its __init__ can't pre-warm sys.modules,
+    # keeping __path__ intact so submodule resolution still works.
+    for i in range(1, len(parts)):
+        name = ".".join(parts[:i])
+        module = types.ModuleType(name)
+        module.__path__ = [str(root.joinpath(*parts[:i]))]
+        sys.modules[name] = module
+    importlib.import_module(target)
+    """
+)
+
+
+def _all_packages() -> list[str]:
+    return sorted(
+        "zrb." + str(path.parent.relative_to(SRC)).replace("/", ".")
+        for path in SRC.rglob("__init__.py")
+        if path.parent != SRC
+    )
+
+
+@pytest.mark.parametrize("package", _all_packages())
+def test_every_package_imports_with_its_parents_stubbed(package: str):
+    result = subprocess.run(
+        [sys.executable, "-c", _ISOLATED_IMPORT, package, str(REPO_ROOT / "src")],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        f"`{package}` cannot be imported on its own — its import closure "
+        "contains a cycle that is currently masked by whatever else loads "
+        "first. Fix it at the source: trim the package __init__ re-export "
+        "that drags a heavy sibling in, move a dependency-free leaf module out "
+        "of the package it doesn't belong to, or — only when both directions "
+        "are genuine — defer one import with a `# lazy: circular` tag and add "
+        f"it to CIRCULAR_IMPORT_ALLOWLIST above.\n{result.stderr[-1500:]}"
     )
