@@ -4,8 +4,10 @@ import re
 from collections.abc import Callable
 from typing import Any, Literal
 
+from zrb.attr.type import StrAttr
 from zrb.content_transformer.any_content_transformer import AnyContentTransformer
 from zrb.context.any_context import AnyContext
+from zrb.util.attr import get_str_attr
 from zrb.util.file import read_file, write_file
 
 MatchMode = Literal["auto", "glob", "regex"]
@@ -16,10 +18,7 @@ class ContentTransformer(AnyContentTransformer):
         self,
         name: str,
         match: list[str] | str | Callable[[AnyContext, str], bool],
-        transform: (
-            dict[str, str | Callable[[AnyContext], str]]
-            | Callable[[AnyContext, str], Any]
-        ),
+        transform: dict[str, StrAttr] | Callable[[AnyContext, str], Any],
         match_mode: MatchMode = "auto",
     ):
         """Define how matching files are rewritten during scaffolding.
@@ -29,9 +28,10 @@ class ContentTransformer(AnyContentTransformer):
             match: Which files this applies to. A glob, a list of globs, or a
                 predicate taking the context and a file path.
             transform: The rewrite. Either a mapping of search string to
-                replacement (a value is a literal unless it is a `Tpl` or a
-                callable), or a callable
-                taking the context and a file path that edits the file itself.
+                replacement — each replacement is a literal unless it is a
+                `Tpl` or a callable taking the context — or a single callable
+                taking the context and a file path, which rewrites the file
+                itself instead of substituting.
             match_mode: How string pattern(s) in `match` are interpreted.
                 `"auto"` (default) tries each pattern as a regex first, falling
                 back to a glob when the pattern isn't valid regex or doesn't
@@ -83,17 +83,10 @@ class ContentTransformer(AnyContentTransformer):
         if callable(self._transform_file):
             return self._transform_file(ctx, file_path)
         transform_map = {
-            keyword: self._get_str_replacement(ctx, replacement)
+            keyword: get_str_attr(ctx, replacement, "")
             for keyword, replacement in self._transform_file.items()
         }
         content = read_file(file_path)
         for keyword, replacement in transform_map.items():
             content = content.replace(keyword, replacement)
         write_file(file_path, content)
-
-    def _get_str_replacement(
-        self, ctx: AnyContext, replacement: str | Callable[[AnyContext], str]
-    ) -> str:
-        if callable(replacement):
-            return replacement(ctx)
-        return replacement

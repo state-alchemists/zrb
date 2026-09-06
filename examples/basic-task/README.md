@@ -24,7 +24,7 @@ Use a string template for text output:
 Task(
     name="greet",
     input=[StrInput(name="name", default="Friend")],
-    action="Greetings, {ctx.input.name}! Welcome to Zrb.",
+    action=Tpl("Greetings, {ctx.input.name}! Welcome to Zrb."),
 )
 ```
 

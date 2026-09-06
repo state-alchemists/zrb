@@ -14,10 +14,12 @@ Run with: `zrb hello`
 
 ## Input Variables
 
-Use `{ctx.input.name}` to interpolate inputs:
+Wrap the command in `Tpl` to interpolate inputs with `{ctx.input.name}`. A bare
+string is a literal, so braces meant for the shell need no escaping:
 
 ```python
-cmd="echo 'Hello, {ctx.input.name}!'"
+cmd=Tpl("echo 'Hello, {ctx.input.name}!'")   # rendered
+cmd="echo '${HOME}'"                          # literal — passed to the shell as-is
 ```
 
 ## Running
@@ -68,11 +70,11 @@ git_status = CmdTask(
 ## Example: Python Script
 
 ```python
-from zrb import CmdTask, Env, cli
+from zrb import CmdTask, Env, Tpl, cli
 
 run_script = CmdTask(
     name="run",
-    cmd="python script.py --input {ctx.input.file}",
+    cmd=Tpl("python script.py --input {ctx.input.file}"),
     cwd="./scripts",
     env=[Env("PYTHONPATH", "./lib")],
 )

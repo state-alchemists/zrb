@@ -243,3 +243,33 @@ def test_content_transformer_transform_file_keeps_bare_string_literal():
 
             ctx.render.assert_not_called()
             mock_write.assert_called_once_with("/path/to/file.txt", "Hello value world")
+
+
+def test_transform_file_resolves_every_replacement_shape():
+    """Each replacement resolves independently: bare string literal, `Tpl`
+    rendered, callable called. A callable returning `None` coerces to `""` —
+    it used to reach `str.replace` directly and raise `TypeError`.
+    """
+    ctx = MagicMock(spec=AnyContext)
+    ctx.render.side_effect = lambda t: "rendered" if t == "{ctx.input.x}" else t
+
+    with patch("zrb.content_transformer.content_transformer.read_file") as mock_read:
+        mock_read.return_value = "A_LIT A_TPL A_FN A_NONE"
+        with patch(
+            "zrb.content_transformer.content_transformer.write_file"
+        ) as mock_write:
+            transformer = ContentTransformer(
+                name="test",
+                match="*.txt",
+                transform={
+                    "A_LIT": "{literal}",
+                    "A_TPL": Tpl("{ctx.input.x}"),
+                    "A_FN": lambda c: "from-fn",
+                    "A_NONE": lambda c: None,
+                },
+            )
+            transformer.transform_file(ctx, "/path/to/file.txt")
+
+            mock_write.assert_called_once_with(
+                "/path/to/file.txt", "{literal} rendered from-fn "
+            )

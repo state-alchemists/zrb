@@ -329,11 +329,15 @@ class BaseTaskExecution:
             ctx.log_debug("No action defined for this task.")
             return None
         if isinstance(action, str):
-            rendered_action = ctx.render(action)
-            ctx.log_debug(f"Rendered action string: {rendered_action}")
-            return rendered_action
+            # A bare string is a literal, like every other attribute. Wrap it in
+            # `Tpl` to render it — a `Tpl` is callable, so it takes the branch
+            # below and needs no case of its own here.
+            ctx.log_debug(f"Literal action string: {action}")
+            return action
         elif callable(action):
-            ctx.log_debug(f"Executing callable action: {action.__name__}")
+            # `Tpl` and other callable objects have no `__name__`.
+            action_name = getattr(action, "__name__", repr(action))
+            ctx.log_debug(f"Executing callable action: {action_name}")
             return await run_async(action(ctx))
         else:
             ctx.log_warning(f"Unsupported action type: {type(action)}")

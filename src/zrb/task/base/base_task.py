@@ -3,6 +3,7 @@ import inspect
 from collections.abc import Callable, Sequence
 from typing import Any, overload
 
+from zrb.attr.tpl import Tpl
 from zrb.attr.type import BoolAttr
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
@@ -51,7 +52,7 @@ class BaseTask(AnyTask):
         cli_only: bool = False,
         input: Sequence[AnyInput | None] | AnyInput | None = None,
         env: Sequence[AnyEnv | None] | AnyEnv | None = None,
-        action: str | Callable[[AnyContext], Any] | None = None,
+        action: str | Tpl | Callable[[AnyContext], Any] | None = None,
         execute_condition: BoolAttr = True,
         retries: int = 2,
         retry_period: float = 0,
@@ -87,10 +88,11 @@ class BaseTask(AnyTask):
             env: Environment variable(s) visible to this task, as a single
                 `AnyEnv` or a sequence.
             action: What the task does. Either a callable taking the task
-                context, or an f-string template rendered against it. Subclasses
-                (`CmdTask`, `LLMTask`) supply their own and ignore this.
+                context, a literal string returned as the task's result, or a
+                `Tpl` rendered against the context. Subclasses (`CmdTask`,
+                `LLMTask`) supply their own and ignore this.
             execute_condition: Whether the task should run at all. A bool, or a
-                template/callable evaluated against the context at runtime; a
+                `Tpl`/callable evaluated against the context at runtime; a
                 falsy result marks the task skipped, not failed.
             retries: Number of *additional* attempts after a failure. The
                 default of 2 means up to 3 total attempts.
@@ -289,7 +291,7 @@ class BaseTask(AnyTask):
 
     @property
     def action(self):
-        """The raw action: a callable, an f-string template, or None."""
+        """The raw action: a callable, a literal string, a `Tpl`, or None."""
         return self._action
 
     @property

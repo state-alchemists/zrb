@@ -4,7 +4,7 @@ Task Groups Example
 Shows how to organize tasks in groups (like subcommands).
 """
 
-from zrb import Group, IntInput, Task, cli
+from zrb import Group, IntInput, Task, Tpl, cli
 
 # =============================================================================
 # Create a Group
@@ -37,7 +37,7 @@ math.add_task(
             IntInput("a", description="First number", default=0),
             IntInput("b", description="Second number", default=0),
         ],
-        action="{ctx.input.a - ctx.input.b}",
+        action=Tpl("{ctx.input.a - ctx.input.b}"),
     )
 )
 
@@ -67,7 +67,7 @@ geometry.add_task(
             IntInput(name="height", description="Height", default=10),
             IntInput(name="width", description="Width", default=5),
         ],
-        action="{ctx.input.height * ctx.input.width}",
+        action=Tpl("{ctx.input.height * ctx.input.width}"),
     )
 )
 

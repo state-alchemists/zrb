@@ -9,7 +9,17 @@ Shows how to create event-driven and scheduled tasks.
 
 import asyncio
 
-from zrb import AnyContext, BaseTrigger, Callback, Scheduler, StrInput, Task, Xcom, cli
+from zrb import (
+    AnyContext,
+    BaseTrigger,
+    Callback,
+    Scheduler,
+    StrInput,
+    Task,
+    Tpl,
+    Xcom,
+    cli,
+)
 
 # =============================================================================
 # Basic Trigger
@@ -47,7 +57,7 @@ cli.add_task(
         action=trigger_action,
         callback=Callback(
             task=print_task,
-            input_mapping={"message": "{ctx.xcom['my-queue'].pop()}"},
+            input_mapping={"message": Tpl("{ctx.xcom['my-queue'].pop()}")},
         ),
     )
 )

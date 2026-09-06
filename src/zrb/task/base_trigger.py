@@ -2,6 +2,7 @@ import asyncio
 from collections.abc import Callable, Sequence
 from typing import Any
 
+from zrb.attr.tpl import Tpl
 from zrb.attr.type import BoolAttr
 from zrb.callback.any_callback import AnyCallback
 from zrb.context.any_context import AnyContext
@@ -36,7 +37,7 @@ class BaseTrigger(BaseTask):
         cli_only: bool = False,
         input: Sequence[AnyInput | None] | AnyInput | None = None,
         env: Sequence[AnyEnv | None] | AnyEnv | None = None,
-        action: str | Callable[[AnyContext], Any] | None = None,
+        action: str | Tpl | Callable[[AnyContext], Any] | None = None,
         execute_condition: BoolAttr = True,
         queue_name: str | None = None,
         callback: list[AnyCallback] | AnyCallback | None = None,
@@ -64,7 +65,9 @@ class BaseTrigger(BaseTask):
             cli_only: If True, the task is only available in the CLI.
             input: The input definition for the task.
             env: The environment variable definition for the task.
-            action: The action to be performed by the task.
+            action: What the trigger does. Either a callable taking the task
+                context, a literal string returned as the result, or a `Tpl`
+                rendered against the context.
             execute_condition: A condition that must be met for the task to execute.
             queue_name: The name of the XCom queue used for data
                 exchange with callbacks. Whenever any data is added

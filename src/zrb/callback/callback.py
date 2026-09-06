@@ -34,7 +34,12 @@ class Callback(AnyCallback):
 
         Args:
             task: The task to be executed by the callback.
-            input_mapping: A dictionary or attribute mapping to prepare inputs for the task.
+            input_mapping: Inputs to hand the task, as a dict of input name to
+                value, or a callable taking the context and returning that dict.
+                Each value resolves on its own: a bare string is a literal, a
+                `Tpl` is rendered against the triggered session's context (which
+                is how a value is pulled off the trigger's queue, e.g.
+                `Tpl("{ctx.xcom['my-queue'].pop()}")`).
             xcom_mapping: Map of parent session's xcom names to current session's xcom names
             result_queue: The name of the XCom queue in the parent session
                 to publish the task result.

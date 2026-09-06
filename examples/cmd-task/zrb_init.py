@@ -4,7 +4,7 @@ Command Task Example
 Shows how to run shell commands with CmdTask.
 """
 
-from zrb import CmdTask, Env, StrInput, cli
+from zrb import CmdTask, Env, StrInput, Tpl, cli
 
 # =============================================================================
 # Basic CmdTask
@@ -22,13 +22,13 @@ hello = cli.add_task(
 # CmdTask with Input
 # =============================================================================
 
-# Use input in the command with {ctx.input.name}
+# Use input in the command by wrapping it in Tpl; a bare string is a literal
 greet = cli.add_task(
     CmdTask(
         name="greet",
         description="Greet someone using figlet (if installed)",
         input=[StrInput(name="name", default="World")],
-        cmd='echo "Hello, {ctx.input.name}!"',
+        cmd=Tpl('echo "Hello, {ctx.input.name}!"'),
     )
 )
 
@@ -42,7 +42,7 @@ figlet = cli.add_task(
         name="figlet",
         description="Create ASCII art text",
         input=[StrInput(name="message", description="Text to display", default="ZRB")],
-        cmd="figlet '{ctx.input.message}'",
+        cmd=Tpl("figlet '{ctx.input.message}'"),
     )
 )
 
