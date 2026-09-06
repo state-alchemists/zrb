@@ -279,10 +279,9 @@ def create_layout(
                         title="Ctrl+J newline · Ctrl+V/Alt+V paste · ESC cancel",
                         style="class:input-frame",
                     ),
-                    # Second hint line, in the slot that used to be blank
-                    # padding — the frame's own title row is a fixed single
-                    # line (prompt_toolkit's Frame), too narrow to also fit
-                    # these once Ctrl+O was added.
+                    # Second hint line. It needs its own Window because
+                    # prompt_toolkit's Frame title is a fixed single line,
+                    # too narrow to carry every binding.
                     Window(
                         height=1,
                         content=FormattedTextControl(

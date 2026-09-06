@@ -39,11 +39,11 @@ class AnyUI(ABC):
     subclassing `SimpleUI`/`EventDrivenUI`/`BaseUI` — none of
     zrb's own docs show implementing this class directly.
 
-    The contract is in two halves. The six behavioral methods below are what
-    every UI does. The eight state members after them describe what a *full*
-    UI keeps; `BaseUI` implements them for real, and a UI that keeps none of
-    it mixes in `UIDefaultsMixin` (`llm/ui/defaults.py`) rather than leaving
-    callers to `hasattr` its way to the same answer.
+    The contract is in two halves: the six behavioral methods below, which
+    every UI performs, and the ten state members and side-effect hooks after
+    them, which describe what a *full* UI keeps. `BaseUI` implements all ten;
+    a UI that keeps none of it mixes in `UIDefaultsMixin`
+    (`llm/ui/defaults.py`).
     """
 
     @abstractmethod

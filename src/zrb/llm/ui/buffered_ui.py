@@ -409,15 +409,14 @@ class BufferedUI(UIDefaultsMixin, AnyUI):
         kind: str = "text",
     ) -> None:
         """High-priority status messages (e.g. a tool-call notification mid
-        sub-agent execution) — same destination as `append_to_output` now.
+        sub-agent execution). Buffered like everything else — same
+        destination as `append_to_output`.
 
-        Used to bypass the buffer and write straight to the parent UI, on the
-        theory that a slow-operation status line should be visible
-        immediately. That theory turned out wrong in practice: it made
-        routine sub-agent chatter (search queries, fetch status) leak into
-        the main transcript, which is exactly the noise a human navigating
-        into this sub-agent's own live view (its buffer, via
-        `get_buffered_output()`) should see there instead — not in main.
+        Deliberately not a bypass to the parent UI: routing status straight to
+        main makes it visible sooner, at the cost of leaking routine
+        sub-agent chatter (search queries, fetch status) into the main
+        transcript. That chatter belongs in this sub-agent's own live view,
+        which reads the buffer via `get_buffered_output()`.
         """
         self.append_to_output(
             *values, sep=sep, end=end, file=file, flush=flush, kind=kind

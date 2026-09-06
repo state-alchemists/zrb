@@ -208,12 +208,11 @@ radon = "^6.0.1"
 pdoc = ">=15"
 
 [tool.pytest.ini_options]
-# Test `src/`, never an installed copy. Without this the import resolves by
-# whatever is on sys.path: a venv that has drifted from poetry.lock serves a
-# stale `site-packages/zrb`, and the suite passes green against code nobody
-# edited -- silently, since nothing else in the repo pins which zrb is under
-# test. `.coveragerc` already omits `src/zrb/__main__.py`, i.e. it was written
-# for the src-relative paths this guarantees.
+# Pin the suite to `src/`. Without it `import zrb` resolves by whatever is on
+# sys.path, so a venv out of step with poetry.lock serves a stale
+# `site-packages/zrb` and the run reports green against code that is not in
+# the diff. `.coveragerc` omits `src/zrb/__main__.py` by the path this
+# guarantees.
 pythonpath = ["src"]
 asyncio_default_fixture_loop_scope = "function"
 norecursedirs = "playground examples"

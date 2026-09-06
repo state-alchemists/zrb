@@ -1,27 +1,19 @@
-"""Inert implementations of `AnyUI`'s optional half.
+"""Inert implementations of `AnyUI`'s state members and side-effect hooks.
 
-`AnyUI` declares sixteen members but only six of them are things every UI
-genuinely does (asking, printing, running). The other ten describe state and side-effect hooks a
-*full* UI keeps — the model it talks to, whether the assistant is mid-turn,
-which background tasks it owns. `BaseUI` implements all seven for real; the
-UIs that skip `BaseUI` and implement `AnyUI` directly (`StdUI`, `BufferedUI`,
-`MultiUI`) have no use for most of them.
+`AnyUI` splits in two: six behavioral methods every UI performs, and ten
+members describing what a *full* UI keeps — the model it talks to, whether the
+assistant is mid-turn, which background tasks it owns. `BaseUI` implements all
+ten. `StdUI`, `BufferedUI` and `MultiUI` implement `AnyUI` directly and track
+almost none of it, so they mix this in instead of each writing ten stubs.
 
-Before this existed, that gap was paid for at every call site: eleven
-`hasattr(ui, ...)` probes across `multi_ui.py`, `default/lifecycle.py`,
-`llm_task.py` and `agent/subagent/yolo.py`, each re-establishing at runtime a
-contract the type system could not state. Mixing this in closes the gap so
-callers can just call.
-
-The bodies live here rather than on `AnyUI` because `any_*.py` files hold no
-implementation anywhere in this codebase — `.coveragerc` excludes them on
-exactly that basis, so a default written there would ship untested by
-construction. Declaration in the interface, implementation here.
+Bodies live here rather than on `AnyUI` because no `any_*.py` module in this
+codebase carries an implementation — `.coveragerc` excludes those paths on
+that basis, so a default written there would ship untested.
 
 Per ADR-0035 this is a genuine `Mixin`: it reads no state it does not itself
-set, so any class can mix it in, and a host that implements one of these for
-real simply defines it and wins on MRO (`MultiUI` does this for `is_thinking`
-and `tool_call_handler`).
+set, so any class can mix it in. A host that implements a member for real
+declares it and wins on MRO (`MultiUI` does this for `is_thinking` and
+`tool_call_handler`).
 """
 
 from __future__ import annotations
@@ -34,9 +26,7 @@ class UIDefaultsMixin:
     """Default `AnyUI` state members for UIs that do not track them.
 
     Every default is the honest answer to "this UI has no such thing": `None`
-    for the objects, `False` for the flags, a no-op for the repaint hook. That
-    is the same answer the `hasattr` branches used to arrive at, minus the
-    runtime probe.
+    for the objects, `False` for the flags, a no-op for the side-effect hooks.
     """
 
     # Class-level defaults. An instance assignment through the setters below
@@ -100,11 +90,11 @@ class UIDefaultsMixin:
 
     @property
     def background_tasks(self) -> "set[asyncio.Task]":
-        """A real per-instance set — callers `.add()` and `.discard()` on it.
+        """One mutable set per instance, created on first access.
 
-        Handing back a fresh set each call would make `_track_background`
-        silently drop every task it thinks it registered, so the set is
-        created once on first access and kept.
+        Callers mutate the returned set directly (`default/lifecycle.py`
+        `.add()`s and `.discard()`s on it), so every call must hand back the
+        same object rather than a fresh one.
         """
         if self._uidefaults_background_tasks is None:
             self._uidefaults_background_tasks = set()

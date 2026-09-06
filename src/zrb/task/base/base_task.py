@@ -162,10 +162,11 @@ class BaseTask(AnyTask):
     ) -> list[AnyTask]:
         """Normalize a single task or a collection of them into a list.
 
-        Tests sequence-ness rather than `isinstance(tasks, list)`, which is what
-        these parameters' annotations have promised all along: a tuple used to
-        take the single-task branch and be stored *as* a task, surfacing much
-        later as `'tuple' object has no attribute 'name'`.
+        Tests sequence-ness rather than `isinstance(tasks, list)`, matching
+        what these parameters' annotations promise. Narrowing it to `list`
+        sends a tuple down the single-task branch, where it is stored *as* a
+        task and surfaces much later as
+        `'tuple' object has no attribute 'name'`.
 
         The test is on the *collection* side, not `isinstance(tasks, AnyTask)`.
         Anything task-like that is not an `AnyTask` subclass — a stub, a

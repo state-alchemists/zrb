@@ -1,8 +1,8 @@
 """Getter logic shared by `LLMTaskBuilding` (building.py) and `ChatExecution`
 (chat/execution.py) — both resolve the same kind of value (tools, toolsets,
 system prompt, model, conversation name) from equivalent per-task attributes.
-One implementation here means the two decompositions cannot drift against
-each other, the way their inline copies previously did.
+One implementation here is what stops the two decompositions drifting apart;
+inlining either copy back into its caller removes that guarantee.
 """
 
 from __future__ import annotations

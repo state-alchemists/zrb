@@ -1,14 +1,12 @@
-"""Redaction for values that must not reach a log.
+"""Name-based redaction for values that must not reach a log.
 
-`CmdTask` logs its whole environment map at DEBUG level, and DEBUG is exactly
-what a maintainer asks a user to turn on before pasting output into a bug
-report — so every API key, token and password in that user's shell went with
-it. Matching on the *name* is the only option available there: the values are
-arbitrary process environment, not zrb's own `EnvField`s (which carry an
-explicit `secret` flag and are handled by `zrb config explain`).
+Matching on the name is the only option for arbitrary process environment: the
+values carry no metadata. zrb's own knobs are separate — they declare
+`EnvField(secret=True)` and are masked by `zrb config explain`.
 
-Name-matching is a heuristic, so it is tuned to over-redact rather than
-under-redact, and `CFG.SECRET_ENV_PATTERNS` lets a project widen or narrow it.
+The match is a heuristic, tuned to over-redact: a false positive costs one
+unhelpful `***` in a debug log, a false negative leaks a credential.
+`CFG.SECRET_ENV_PATTERNS` widens or narrows it.
 """
 
 from collections.abc import Mapping
@@ -20,8 +18,9 @@ def is_secret_env_name(name: str, patterns: "list[str]") -> bool:
     """Whether `name` looks like it holds a credential.
 
     Case-insensitive substring match, so `AWS_SECRET_ACCESS_KEY`,
-    `openai_api_key` and `MY_DB_PASSWORD` all match on their respective
-    patterns.
+    `openai_api_key` and `MY_DB_PASSWORD` each match on a different pattern.
+    An empty pattern matches nothing rather than everything, so a trailing
+    comma in the env var cannot mask the whole map.
     """
     upper = name.upper()
     return any(pattern and pattern.upper() in upper for pattern in patterns)
@@ -32,8 +31,8 @@ def redact_env_map(
 ) -> "dict[str, str]":
     """A copy of `env_map` with credential-looking values replaced by the mask.
 
-    Names are kept: knowing that `OPENAI_API_KEY` was set is the useful half of
-    the debug output, and the value is the half that must not be.
+    Names survive: that `OPENAI_API_KEY` is set is the half of a debug dump
+    worth reading, and the value is the half that must not travel.
     """
     return {
         name: SECRET_MASK if is_secret_env_name(name, patterns) else value

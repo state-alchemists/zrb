@@ -14,8 +14,8 @@ Two ways a message reaches the sub-agent, tried in order by `send_message`:
 - The sub-agent's turn is still in flight: `steer_into_live_run` injects the
   message into the live pydantic-ai run via `RunContext.enqueue()`
   — the exact mechanism the main agent already uses for mid-turn steering.
-  `_execution_loop` already sets `active_run_context` on every sub-agent's
-  `BufferedUI` via a UI-agnostic `setattr`; nothing previously read it back.
+  `_execution_loop` sets `active_run_context` on every sub-agent's
+  `BufferedUI` via a UI-agnostic `setattr`; this is the only reader.
 - The sub-agent's turn has already finished: the message queues, and (if the
   session is idle) a continuation run starts immediately, continuing that
   same persona's conversation from its accumulated history.

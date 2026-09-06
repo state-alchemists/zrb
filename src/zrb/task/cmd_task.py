@@ -180,9 +180,8 @@ class CmdTask(BaseTask):
         cwd = self._get_cwd(ctx)
         ctx.log_debug(f"Working directory: {cwd}")
         env_map = self.__get_env_map(ctx)
-        # Names are kept, credential-looking values masked: DEBUG is what a
-        # maintainer asks a user to enable before pasting output into an issue,
-        # so this line used to hand over every API key in their shell.
+        # Names kept, credential-looking values masked: DEBUG output is what
+        # users paste into bug reports.
         ctx.log_debug(
             f"Environment map: {redact_env_map(env_map, CFG.SECRET_ENV_PATTERNS)}"
         )

@@ -32,10 +32,11 @@ Leaf module, and deliberately NOT inside the ``zrb.llm.agent`` package even
 though ``agent/common.py`` and ``agent/gates.py`` are its main callers:
 ``zrb.llm.tool.wrapper`` (used by ``zrb.llm.tool.ask``, itself needed by
 ``zrb.llm.tool.plan``/``ambient_state``) also needs ``tool_return`` here, and
-importing anything under ``zrb.llm.agent`` from that chain used to force
-``zrb.llm.agent``'s package ``__init__`` to load before ``tool.ask`` had
-finished importing — a genuine circular import, not just a heavy one. Living
-here instead removes that edge instead of deferring it further. See
+importing anything under ``zrb.llm.agent`` from that chain forces
+``zrb.llm.agent``'s package ``__init__`` to load before ``tool.ask`` has
+finished importing — a genuine circular import, not just a heavy one. Keeping
+this module outside the package removes that edge rather than deferring it.
+See
 ``test/architecture/test_circular_import_allowlist.py``'s allowlist comment.
 """
 

@@ -12,10 +12,10 @@ its parent's `__init__` parameters by hand, and nothing else checks the copy.
   a parameter it does not forward must be a recorded decision, not an
   oversight (`test_subclasses_forward_every_parent_parameter_or_say_why`).
 
-The fidelity pair exists because `RsyncTask` once shipped claiming *"Every
-parameter `CmdTask` accepts is also accepted here"* while silently dropping
-nine, `readiness_check` among them — so an rsync task could declare a readiness
-check it would never configure or monitor.
+The bug class the fidelity pair catches: a docstring promising *"Every
+parameter `X` accepts is also accepted here"* over a signature that quietly
+drops nine of them, so a task can declare a readiness check it will never
+configure or monitor.
 
 `BaseUI` is the other host measured here; routing its UI-backend settings
 through `UIConfig` shrank it from 34 parameters to 15.
@@ -100,12 +100,12 @@ def _params(cls) -> list[str]:
 def _declared_params(cls) -> dict[str, tuple[str | None, str | None]]:
     """`cls.__init__`'s parameters as `{name: (annotation source, default source)}`.
 
-    Read from the AST rather than `inspect.signature` on purpose:
-    `llm/task/llm_task.py` and `llm/task/chat/task.py` carry
-    `from __future__ import annotations` while `task/base/base_task.py` does
-    not, so at runtime one side's annotations are strings and the other's are
-    type objects. Comparing those reports 17 false drifts on those two classes
-    alone. Source text is also what a reviewer reads in the diff.
+    Read from the AST rather than `inspect.signature`: `llm/task/llm_task.py`
+    and `llm/task/chat/task.py` carry `from __future__ import annotations`
+    while `task/base/base_task.py` does not, so at runtime one side's
+    annotations are strings and the other's are type objects, and every shared
+    parameter on those two classes compares unequal. Source text is also what
+    a reviewer reads in the diff.
     """
     func = ast.parse(textwrap.dedent(inspect.getsource(cls.__init__))).body[0]
     assert isinstance(func, ast.FunctionDef)
@@ -164,7 +164,7 @@ def test_the_two_task_classes_agree_on_their_shared_parameters():
 def test_subclasses_do_not_narrow_an_inherited_parameter_type():
     """A forwarded parameter must carry its parent's annotation verbatim.
 
-    Narrowing it is a promise the subclass does not keep: `BaseTask` treats
+    Narrowing is a promise the subclass cannot keep: `BaseTask` treats
     `readiness_timeout=None` as "use the default" and coerces it in the
     property getter, so a subclass annotating plain `int` rejects — at type
     check time only — a value the constructor it forwards to accepts.
@@ -193,10 +193,9 @@ def test_subclasses_forward_every_parent_parameter_or_say_why():
     """A parent parameter a subclass does not forward must be a decision.
 
     Not forwarding one is often right — a readiness check has no business
-    accepting `readiness_check`. Silently dropping one is the `RsyncTask` bug:
-    nine parameters missing behind a docstring that promised all of them. An
-    `INTENTIONAL_OMISSIONS` entry is the difference between the two, and the
-    class docstring has to name the same exclusion.
+    accepting `readiness_check`. Dropping one by accident is the bug. An
+    `INTENTIONAL_OMISSIONS` entry is what separates the two, and the class
+    docstring has to name the same exclusion.
     """
     unexplained = []
     for cls, parent in PARENT_OF.items():

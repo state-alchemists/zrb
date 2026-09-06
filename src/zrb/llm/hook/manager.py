@@ -160,11 +160,11 @@ class HookManager(HookManagerLoading):
     def _scan_and_load(self):
         """Internal: scan filesystem and load hooks without resetting existing ones.
 
-        Runs `_hook_factories` too — the lazy path (`_ensure_loaded`, taken on
-        the first `execute_hooks()` call) previously skipped them, so a
-        factory only ever fired if something called the public `scan()` or
-        `reload()` — which nothing in a normal chat session does. That made
-        `add_hook_factory` dead in practice for the default singleton.
+        Runs `_hook_factories` too. It has to: the lazy path
+        (`_ensure_loaded`, taken on the first `execute_hooks()` call) is the
+        only one a normal chat session goes through — nothing there calls the
+        public `scan()` or `reload()`. Drop the factory loop from here and
+        `add_hook_factory` becomes dead code for the default singleton.
         """
         for factory in self._hook_factories:
             factory(self)
@@ -395,12 +395,11 @@ class HookManager(HookManagerLoading):
         largest `timeout` configured among currently-pending **agent-type**
         hooks specifically, or *fallback* if there are none.
 
-        `grace_seconds`'s default (2.0) was tuned for what async hooks used to
-        be: a subprocess playing a sound, an `echo`. An `agent`-type hook
-        makes a real LLM round-trip — measured at ~15s for a two-step
-        tool-calling exchange even on a small/fast model — so draining every
-        hook under one flat short window would cancel it before it ever gets
-        to act.
+        `grace_seconds`'s default suits a cheap async hook — a subprocess
+        playing a sound, an `echo`. An `agent`-type hook makes a real LLM
+        round-trip, seconds rather than milliseconds even on a small model, so
+        draining every hook under one flat short window cancels it before it
+        gets to act.
 
         Scoped to `HookType.AGENT` on purpose, not every hook: `config.timeout`
         is shared with the synchronous executor's own per-hook timeout, and a
@@ -628,14 +627,12 @@ class HookManager(HookManagerLoading):
     def _select_inner_hook(self, config: HookConfig) -> HookCallable:
         """Build the callable for `config.type` (command/prompt/agent), or a
         logging placeholder for anything else."""
-        # lazy: zrb internal (heavy via transitive) — this edge isn't itself
-        # circular, but hook.creator's own create_agent import used to be
-        # (zrb.llm.agent's package __init__ reaches this method's module,
-        # zrb.llm.hook.manager, at module level). Deferring this import
-        # (and agent/hook_agent.py's matching one) keeps hook.creator out of
-        # zrb.llm.agent's eager import closure entirely, verified by walking
-        # that closure — not just by checking this one call site — so its
-        # own create_agent import no longer needs the circular workaround.
+        # lazy: zrb internal (heavy via transitive). This edge is not itself
+        # circular — zrb.llm.agent's package __init__ reaches this module at
+        # module level — but deferring it, together with agent/hook_agent.py's
+        # matching one, is what keeps hook.creator out of zrb.llm.agent's
+        # eager import closure. Hoisting either puts it back. Verify by
+        # walking the whole closure, not by inspecting this call site alone.
         from zrb.llm.hook.creator import create_command_hook, create_prompt_hook
 
         if config.type == HookType.COMMAND:

@@ -105,15 +105,13 @@ def _handle_uncaught(error: Exception) -> None:
     would just dump the same failure again as a raw traceback. Keep the full
     traceback available on demand via DEBUG, same as execution.py.
 
-    That escape hatch is only useful if you know it exists, so the hint names
-    it: without a file and line, a bare `ZeroDivisionError: division by zero`
-    leaves nowhere to start, and the DEBUG path prints both plus the
-    `Task: <name> (<file>:<line>)` line that says which task it came from.
+    The one-line summary carries no file or line, so it names the variable
+    that unlocks the rest: under DEBUG this re-raises, and the traceback
+    arrives with the `Task: <name> (<file>:<line>)` line attached.
 
-    The variable is spelled from the field itself rather than hardcoded, so a
-    white-labeled distribution that sets `_ZRB_ENV_PREFIX` (see
-    `docs/advanced-topics/white-labeling.md`) prints `ACME_LOGGING_LEVEL` and
-    not a `ZRB_`-prefixed name its users have no way to set.
+    That variable is read off the field rather than hardcoded, because a
+    white-labeled distribution sets its own `_ZRB_ENV_PREFIX` (see
+    `docs/advanced-topics/white-labeling.md`) and reads `ACME_LOGGING_LEVEL`.
     """
     if CFG.LOGGER.isEnabledFor(logging.DEBUG):
         raise error

@@ -1,9 +1,9 @@
 """The narrow UI contract that non-UI code is allowed to depend on.
 
-`BaseUI` exposes 135 public methods. Everything outside `zrb.llm.ui` uses 12 of
-them, and `zrb.llm.tool_call` uses the three below. Typing a parameter as
-`AnyAgentOutput` instead of `AnyUI` is what keeps that true: pyright fails the
-build when a consumer reaches for a fourth method.
+`BaseUI`'s public surface is large; `zrb.llm.tool_call` needs the three
+methods below. Typing a parameter as `AnyAgentOutput` instead of `AnyUI` is
+what keeps the dependency that narrow: pyright fails the build when a consumer
+reaches for a method this protocol does not name.
 
 Adding a member here is a design decision, not a convenience. The architecture
 ratchet in `test/architecture/test_agent_output_surface.py` caps the size.

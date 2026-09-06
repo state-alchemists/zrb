@@ -311,8 +311,7 @@ def test_buffered_ui_yolo_reports_the_wrapped_uis_state():
     """yolo is the wrapped parent's, not BufferedUI's own.
 
     `yolo` is on the `AnyUI` contract, so every wrapped UI has one and
-    BufferedUI reads it straight through — it used to `hasattr`-probe and fall
-    back to False, which could only ever mask a wrapped UI that was mid-init.
+    BufferedUI reads it straight through rather than defaulting.
     """
     parent = MagicMock()
     parent.yolo = False

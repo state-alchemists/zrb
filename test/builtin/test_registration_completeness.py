@@ -8,12 +8,11 @@ silently never appears in the CLI (see AGENTS.md's "Gotchas" note).
 - *Across the tree* — a task module on disk that `__init__.py` never imports
   at all, which the within-file check cannot see.
 
-The tree scan was originally left out because a builtin task can be
-intentionally internal (an `upstream=` dependency of another task, never a
-CLI entry point of its own) and would false-positive. `INTERNAL_TASKS` is the
-answer to that: an internal task is named there with its reason, so the
-distinction is recorded rather than inferred. It is empty today — every task
-under `builtin/` is currently a CLI entry point.
+A builtin task can be intentionally internal — an `upstream=` dependency of
+another task, never a CLI entry point of its own — which the tree scan cannot
+tell from an oversight. `INTERNAL_TASKS` names those with their reason, so the
+distinction is recorded rather than guessed. It is empty: every task under
+`builtin/` is a CLI entry point.
 """
 
 import ast
@@ -77,10 +76,10 @@ def test_every_exported_name_is_imported():
 def test_every_task_module_on_disk_is_wired_into_the_cli():
     """The half the two checks above are blind to: a task nobody imported.
 
-    They compare `__init__.py` against itself, so a module that was written
-    and never referenced there passes both while its tasks never reach the
-    CLI. `pkgutil.walk_packages` finds modules by walking the package path,
-    which is what makes the unimported one visible.
+    The checks above compare `__init__.py` against itself, so a module never
+    referenced there passes both while its tasks never reach the CLI.
+    `pkgutil.walk_packages` walks the package path instead, which is what
+    makes an unimported module visible.
     """
     exported = _all_names()
     unwired = {}
