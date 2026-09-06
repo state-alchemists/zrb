@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.llm.agent.activity import agent_activity_registry
 from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.ui.defaults import UIDefaultsMixin
 from zrb.llm.ui.output_chunk import CollapsibleBlockSource, merge_output_chunk
 from zrb.util.cli.style import stylize_muted
 
@@ -24,7 +25,7 @@ if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import ChoiceSpec
 
 
-class BufferedUI(AnyUI):
+class BufferedUI(UIDefaultsMixin, AnyUI):
     """UI wrapper that buffers all output and forwards asks to parent sequentially."""
 
     def __init__(
@@ -396,9 +397,7 @@ class BufferedUI(AnyUI):
     @property
     def yolo(self) -> bool | frozenset:
         """Delegate YOLO mode to the wrapped parent UI."""
-        if hasattr(self._wrapped, "yolo"):
-            return getattr(self._wrapped, "yolo")
-        return False
+        return self._wrapped.yolo
 
     def stream_to_parent(
         self,

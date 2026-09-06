@@ -234,9 +234,19 @@
         "append_to_output",
         "ask_user",
         "ask_user_choice",
+        "background_tasks",
+        "cancel_pending_confirmations",
+        "flush_to_parent",
+        "invalidate_ui",
+        "is_thinking",
+        "llm_task",
+        "model",
+        "multi_ui_parent",
         "run_async",
         "run_interactive_command",
-        "stream_to_parent"
+        "stream_to_parent",
+        "tool_call_handler",
+        "yolo"
       ]
     },
     "BaseInput": {

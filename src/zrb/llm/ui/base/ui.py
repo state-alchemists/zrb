@@ -61,6 +61,7 @@ from zrb.llm.ui.base.replay import BaseUIReplay
 from zrb.llm.ui.base.system_info import BaseUISystemInfo
 from zrb.llm.ui.base.usage import BaseUIUsage
 from zrb.llm.ui.base.voice_state import BaseUIVoiceState
+from zrb.llm.ui.defaults import UIDefaultsMixin
 from zrb.llm.ui.multi_ui import MultiUI
 from zrb.llm.ui.ui_config import UIConfig
 from zrb.session.any_session import AnySession
@@ -112,7 +113,7 @@ def _command_alias_property(key: str, label: str) -> property:
     return property(getter, setter)
 
 
-class BaseUI(AnyUI):
+class BaseUI(UIDefaultsMixin, AnyUI):
     """Base class for LLM Chat UI implementations.
 
     This class provides the core chat functionality (message handling, command

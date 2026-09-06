@@ -895,8 +895,7 @@ class LLMTask(BaseTask):
         )
 
         for ui in self._uis:
-            if hasattr(ui, "model"):
-                setattr(ui, "model", final_model)
+            ui.model = final_model
 
         # Pass resolve_model=False: we already ran model_getter/model_renderer
         # above. Letting create_agent resolve again would double-fire those

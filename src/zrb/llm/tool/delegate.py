@@ -200,8 +200,8 @@ async def run_agent_task(
             run_scope=session.run_scope if session is not None else "",
         )
 
-        if flush_ui and hasattr(ui, "flush_to_parent"):
-            getattr(ui, "flush_to_parent")()
+        if flush_ui:
+            ui.flush_to_parent()
 
         live_subagent_session_registry.mark_turn_finished(
             activity_session_id, agent_id, history

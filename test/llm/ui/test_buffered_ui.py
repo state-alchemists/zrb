@@ -307,14 +307,19 @@ def test_buffered_ui_yolo_delegates_to_wrapped():
     assert ui.yolo is True
 
 
-def test_buffered_ui_yolo_defaults_false_when_absent():
-    """yolo defaults to False when the wrapped UI has no yolo attribute."""
+def test_buffered_ui_yolo_reports_the_wrapped_uis_state():
+    """yolo is the wrapped parent's, not BufferedUI's own.
 
-    class _Parent:
-        pass
+    `yolo` is on the `AnyUI` contract, so every wrapped UI has one and
+    BufferedUI reads it straight through — it used to `hasattr`-probe and fall
+    back to False, which could only ever mask a wrapped UI that was mid-init.
+    """
+    parent = MagicMock()
+    parent.yolo = False
+    assert BufferedUI(parent).yolo is False
 
-    ui = BufferedUI(_Parent())
-    assert ui.yolo is False
+    parent.yolo = frozenset({"Read"})
+    assert BufferedUI(parent).yolo == frozenset({"Read"})
 
 
 def test_buffered_ui_append_to_output_updates_activity_registry():

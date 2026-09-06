@@ -73,8 +73,8 @@ def make_yolo_inheritance_checker() -> (
             return tool_name in yolo_val
         try:
             ui = get_current_ui()
-            if ui is not None and hasattr(ui, "yolo"):
-                return bool(getattr(ui, "yolo"))
+            if ui is not None:
+                return bool(ui.yolo)
         except Exception as e:
             CFG.LOGGER.debug(f"Could not read UI yolo state: {e}")
         return False

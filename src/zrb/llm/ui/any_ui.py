@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from abc import ABC, abstractmethod
 from typing import Any, TextIO, TypedDict
 
@@ -37,6 +38,12 @@ class AnyUI(ABC):
     `docs/llm/llm-custom-ui.md` gets this for free by
     subclassing `SimpleUI`/`EventDrivenUI`/`BaseUI` — none of
     zrb's own docs show implementing this class directly.
+
+    The contract is in two halves. The six behavioral methods below are what
+    every UI does. The eight state members after them describe what a *full*
+    UI keeps; `BaseUI` implements them for real, and a UI that keeps none of
+    it mixes in `UIDefaultsMixin` (`llm/ui/defaults.py`) rather than leaving
+    callers to `hasattr` its way to the same answer.
     """
 
     @abstractmethod
@@ -87,3 +94,83 @@ class AnyUI(ABC):
     @abstractmethod
     async def run_async(self) -> Any:
         """Drive this UI's own event loop until the session ends."""
+
+    @property
+    @abstractmethod
+    def is_thinking(self) -> bool:
+        """Whether the assistant is currently producing a response."""
+
+    @is_thinking.setter
+    @abstractmethod
+    def is_thinking(self, value: bool) -> None: ...
+
+    @property
+    @abstractmethod
+    def llm_task(self) -> Any:
+        """The `LLMTask` driving this UI, or None when it has none."""
+
+    @llm_task.setter
+    @abstractmethod
+    def llm_task(self, value: Any) -> None: ...
+
+    @property
+    @abstractmethod
+    def model(self) -> Any:
+        """The model this UI is currently talking to, or None."""
+
+    @model.setter
+    @abstractmethod
+    def model(self, value: Any) -> None: ...
+
+    @property
+    @abstractmethod
+    def yolo(self) -> bool | frozenset:
+        """Auto-approval state: False, True, or the set of auto-approved tools.
+
+        Read-only in the contract. Every assignment in the codebase goes
+        through a `BaseUI`-typed receiver (`ui/base/model_commands.py`), which
+        adds its own setter; a UI that merely reports the state does not need
+        one.
+        """
+
+    @property
+    @abstractmethod
+    def multi_ui_parent(self) -> Any:
+        """The `MultiUI` this UI is a child of, or None when standalone."""
+
+    @multi_ui_parent.setter
+    @abstractmethod
+    def multi_ui_parent(self, parent: Any) -> None: ...
+
+    @property
+    @abstractmethod
+    def tool_call_handler(self) -> Any:
+        """This UI's tool-call confirmation handler, or None when it has none."""
+
+    @property
+    @abstractmethod
+    def background_tasks(self) -> "set[asyncio.Task]":
+        """Tasks this UI keeps referenced so they are not garbage collected.
+
+        Callers mutate the returned set directly (`.add`, `.discard`), so an
+        implementation must hand back the same set each time, not a copy.
+        """
+
+    @abstractmethod
+    def invalidate_ui(self) -> None:
+        """Ask this UI to repaint. A no-op for UIs with no live surface."""
+
+    @abstractmethod
+    def cancel_pending_confirmations(self, flush: bool = True) -> None:
+        """Release any `ask_user` call blocked on a tool confirmation.
+
+        A no-op for UIs that never hold one. `flush=False` from the Ctrl+C /
+        exit path, where writing buffered tokens is wasted work.
+        """
+
+    @abstractmethod
+    def flush_to_parent(self) -> None:
+        """Write anything buffered here out to the delegating parent UI.
+
+        A no-op for UIs that stream directly rather than buffering.
+        """
