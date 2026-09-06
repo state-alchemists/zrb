@@ -51,9 +51,9 @@ Inside `llm/`:
 
 `test/` mirrors the `src/` hierarchy. The mirror is a *naming* rule, not a completeness claim: where a test exists it sits at the mirrored path, but many modules are covered through a caller instead.
 
-**Two registration gotchas that fail silently (no error, no test failure) instead of loudly:**
-- A new task under `builtin/` must also be imported in `builtin/__init__.py` and added to its `__all__`, or it simply never appears in the CLI.
-- A new tool under `llm/tool/` must also be registered *and* `tag()`-ed with a `Capability` in `llm/common_tools.py::_register_tools`, or it silently resolves to `Capability.UNKNOWN` (denied in plan mode).
+**Two registration steps that are easy to forget. Both now fail as test failures rather than silently:**
+- A new task under `builtin/` must also be imported in `builtin/__init__.py` and added to its `__all__`, or it simply never appears in the CLI. Guarded by `test/builtin/test_registration_completeness.py` — including the tree scan for a module `__init__.py` never imports. A task that exists only as another task's `upstream=` dependency belongs in that file's `INTERNAL_TASKS` map, with its reason.
+- A new tool under `llm/tool/` must also be registered *and* `tag()`-ed with a `Capability` in `llm/common_tools.py::_seed_default_tools`, or it resolves to `Capability.UNKNOWN` (denied in plan mode). Guarded by `test_every_registered_tool_carries_a_known_capability` in `test/llm/test_common_tools.py`. Leaving a *third-party* or MCP tool untagged is still fine — `UNKNOWN` is deliberately safe-by-default there.
 
 `hook/manager.py` builds a `HookType.AGENT` hook through a registration seam (`hook/agent_hook_registry.py`) rather than importing `zrb.llm.agent` directly, since that subsystem itself depends on `hook.manager` — a genuine circular dependency, not just a circular import. `zrb.llm.agent`'s package `__init__` registers the real builder (`agent/hook_agent.py`) as an import side effect; if it's ever missing, `hook/manager.py` logs a warning and returns a failed `HookResult` instead of crashing.
 

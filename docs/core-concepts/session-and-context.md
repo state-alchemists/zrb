@@ -86,7 +86,7 @@ from zrb import cli, CmdTask, Task
 
 # This task returns "42" to its XCom queue automatically
 create_magic_number = cli.add_task(
-    CmdTask(name="create-magic-number", cmd="echo 42")
+    CmdTask(name="create-magic-number", cmd="printf '%s\\n' '42'")
 )
 
 # This task consumes the value via Zrb's own {ctx.x} rendering in the command
@@ -94,7 +94,7 @@ show_magic_number = cli.add_task(
     CmdTask(
         name="show-magic-number",
         upstream=[create_magic_number], # Dependency is required!
-        cmd="echo 'The magic number is: {ctx.xcom['create-magic-number'].pop()}'"
+        cmd="printf '%s\\n' 'The magic number is: {ctx.xcom['create-magic-number'].pop()}'"
     )
 )
 ```

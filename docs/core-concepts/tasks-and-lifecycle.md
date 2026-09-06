@@ -46,7 +46,7 @@ Ideal for standard, built-in task types.
 from zrb import cli, CmdTask, Task
 
 # A shell command
-echo_task = cli.add_task(CmdTask(name="echo", cmd="echo 'Hello'"))
+echo_task = cli.add_task(CmdTask(name="echo", cmd="printf '%s\\n' 'Hello'"))
 
 # A pure Python lambda
 calc_task = cli.add_task(Task(name="calc", action=lambda ctx: 1 + 1))
@@ -114,9 +114,9 @@ Zrb tasks override the shift operators for clean pipeline definitions.
 ```python
 from zrb import cli, CmdTask
 
-task_a = cli.add_task(CmdTask(name="task-a", cmd="echo A"))
-task_b = cli.add_task(CmdTask(name="task-b", cmd="echo B"))
-task_c = cli.add_task(CmdTask(name="task-c", cmd="echo C"))
+task_a = cli.add_task(CmdTask(name="task-a", cmd="printf '%s\\n' 'A'"))
+task_b = cli.add_task(CmdTask(name="task-b", cmd="printf '%s\\n' 'B'"))
+task_c = cli.add_task(CmdTask(name="task-c", cmd="printf '%s\\n' 'C'"))
 
 # task_a runs before task_b
 task_a >> task_b 
@@ -139,7 +139,7 @@ Best for tasks depending on multiple parallel prerequisites.
 task_c = cli.add_task(
     CmdTask(
         name="task-c", 
-        cmd="echo C",
+        cmd="printf '%s\\n' 'C'",
         upstream=[task_a, task_b]  # task_c waits for BOTH to finish
     )
 )
@@ -171,7 +171,7 @@ Tasks that execute *only if* the main task completes successfully.
 notify_success = Task(name="notify", action=lambda ctx: print("Success!"))
 
 main_job = cli.add_task(
-    CmdTask(name="job", cmd="echo 'Doing work'", successor=[notify_success])
+    CmdTask(name="job", cmd="printf '%s\\n' 'Doing work'", successor=[notify_success])
 )
 ```
 
@@ -180,7 +180,7 @@ main_job = cli.add_task(
 Tasks that execute *only if* the main task fails permanently.
 
 ```python
-alert = CmdTask(name="alert", cmd="echo 'CRITICAL FAILURE'")
+alert = CmdTask(name="alert", cmd="printf '%s\\n' 'CRITICAL FAILURE'")
 
 flaky_job = cli.add_task(
     CmdTask(

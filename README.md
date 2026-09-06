@@ -57,7 +57,7 @@ from zrb import cli, CmdTask, Task
 # CmdTask is perfect for running shell commands.
 prepare_env = CmdTask(
     name="prepare-env", 
-    cmd="echo 'Environment prepared!'"
+    cmd="printf '%s\\n' 'Environment prepared!'"
 )
 
 # Task is for pure Python logic.
@@ -68,7 +68,7 @@ build_app = Task(
 
 deploy_app = CmdTask(
     name="deploy-app", 
-    cmd="echo 'Deploying app to the cloud ☁️'"
+    cmd="printf '%s\\n' 'Deploying app to the cloud ☁️'"
 )
 
 # 2. Register tasks to the main 'cli' object so Zrb knows about them

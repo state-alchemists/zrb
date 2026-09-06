@@ -104,10 +104,25 @@ def _handle_uncaught(error: Exception) -> None:
     `BaseTaskExecution.execute_action_with_retry`); letting it propagate here
     would just dump the same failure again as a raw traceback. Keep the full
     traceback available on demand via DEBUG, same as execution.py.
+
+    That escape hatch is only useful if you know it exists, so the hint names
+    it: without a file and line, a bare `ZeroDivisionError: division by zero`
+    leaves nowhere to start, and the DEBUG path prints both plus the
+    `Task: <name> (<file>:<line>)` line that says which task it came from.
+
+    The variable is spelled from the field itself rather than hardcoded, so a
+    white-labeled distribution that sets `_ZRB_ENV_PREFIX` (see
+    `docs/advanced-topics/white-labeling.md`) prints `ACME_LOGGING_LEVEL` and
+    not a `ZRB_`-prefixed name its users have no way to set.
     """
     if CFG.LOGGER.isEnabledFor(logging.DEBUG):
         raise error
+    debug_env_key = type(CFG).LOGGING_LEVEL.env_key(CFG.ENV_PREFIX)
     print(stylize_error(f"{type(error).__name__}: {error}"), file=sys.stderr)
+    print(
+        stylize_muted(f"For the full traceback: {debug_env_key}=DEBUG"),
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 
