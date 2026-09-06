@@ -300,3 +300,49 @@ def test_extract_node_web_only_skips_empty_group():
     root.add_group(Group(name="empty_group"))
     with pytest.raises(NodeNotFoundError):
         root.extract_node(["empty_group"], web_only=True)
+
+
+def test_extract_node_suggests_a_close_task_name():
+    group = Group(name="root")
+    group.add_task(BaseTask(name="deploy-production"))
+
+    with pytest.raises(NodeNotFoundError, match="Did you mean 'deploy-production'"):
+        group.extract_node(["deploy-prod"])
+
+
+def test_extract_node_suggests_a_close_subgroup_name():
+    group = Group(name="root")
+    group.add_group(Group(name="database"))
+
+    with pytest.raises(NodeNotFoundError, match="Did you mean 'database'"):
+        group.extract_node(["databse"])
+
+
+def test_extract_node_suggests_across_tasks_and_subgroups():
+    group = Group(name="root")
+    group.add_task(BaseTask(name="encode"))
+    group.add_group(Group(name="decode"))
+
+    with pytest.raises(NodeNotFoundError, match="Did you mean one of"):
+        group.extract_node(["encoode"])
+
+
+def test_extract_node_omits_the_suggestion_when_nothing_is_close():
+    group = Group(name="root")
+    group.add_task(BaseTask(name="deploy"))
+
+    with pytest.raises(NodeNotFoundError) as excinfo:
+        group.extract_node(["xyzzyqqq"])
+
+    assert "Did you mean" not in str(excinfo.value)
+
+
+def test_add_task_replaces_an_existing_alias():
+    """Shadowing is a documented feature (see docs/advanced-topics/ci-cd.md)."""
+    group = Group(name="root")
+    first = BaseTask(name="dup")
+    second = BaseTask(name="dup")
+    group.add_task(first)
+    group.add_task(second)
+
+    assert group.get_task_by_alias("dup") is second
