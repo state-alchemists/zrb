@@ -27,7 +27,6 @@ def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
     """
     banned_commands = {
         "column": "Command isn't included in Ubuntu packages and is not POSIX compliant",
-        "echo": "echo isn't consistent across OS; use printf instead",
         "eval": "Avoid eval as it can accidentally execute arbitrary strings",
         "realpath": "Not available by default on OSX",
         "source": "Not POSIX compliant; use '.' instead",
@@ -43,6 +42,18 @@ def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
         r"sort.*-V": "sort -V is not supported everywhere",
         r"sort.*--sort-versions": "sort --sort-version is not supported everywhere",
         r"(?:^|[|;&]\s*)ls\s": "Avoid using ls; use shell globs or find instead",
+        # `echo` itself is portable: bash, dash and zsh all print a plain
+        # literal identically. Only two forms actually differ, so only those
+        # are flagged -- banning the command outright warned on `echo 'done'`,
+        # which is the single most common line in any task script (it warned
+        # on this project's own README quickstart).
+        r"(?<![\w-])echo\s+-[neE]": (
+            "echo -n/-e is not portable (dash and zsh differ); use printf instead"
+        ),
+        r"(?<![\w-])echo\s[^|;&]*\\": (
+            "dash and zsh interpret backslash escapes in echo, bash does not; "
+            "use printf instead"
+        ),
     }
     violations = {}
     for cmd, reason in banned_commands.items():

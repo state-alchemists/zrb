@@ -11,6 +11,7 @@ from zrb.config.env_field import (
     colon_join,
     colon_list,
     comma_join,
+    comma_list,
     comma_or_colon_list,
     on_off,
 )
@@ -59,6 +60,23 @@ class FoundationMixin:
         self.DEFAULT_LOGGING_LEVEL: str = "WARNING"
         self.DEFAULT_ENABLE_BUILTIN_TASKS: str = "on"
         self.DEFAULT_SHOW_UNRECOMMENDED_COMMAND_WARNING: str = "on"
+        # Name fragments that mark an environment variable as holding a
+        # credential. Tuned to over-redact: a false positive costs one
+        # unhelpful `***` in a debug log, a false negative leaks a key.
+        self.DEFAULT_SECRET_ENV_PATTERNS: str = ",".join(
+            [
+                "KEY",
+                "SECRET",
+                "TOKEN",
+                "PASSWORD",
+                "PASSWD",
+                "CREDENTIAL",
+                "AUTH",
+                "PRIVATE",
+                "SIGNATURE",
+                "SALT",
+            ]
+        )
         self.DEFAULT_SESSION_LOG_DIR: str = ""
         self.DEFAULT_TODO_DIR: str = ""
         self.DEFAULT_TODO_VISUAL_FILTER: str = ""
@@ -163,6 +181,18 @@ class FoundationMixin:
         to_boolean,
         serialize=on_off,
         doc="Show warnings for potentially unsafe shell commands.",
+    )
+
+    SECRET_ENV_PATTERNS = EnvField(
+        comma_list,
+        serialize=comma_join,
+        doc=(
+            "Comma-separated name fragments marking an environment variable as "
+            "secret. Matched case-insensitively as a substring, so `KEY` covers "
+            "`OPENAI_API_KEY` and `aws_access_key`. Values whose name matches are "
+            "replaced with `***` in `CmdTask`'s DEBUG environment dump. Set to an "
+            "empty string to redact nothing."
+        ),
     )
 
     SESSION_LOG_DIR = EnvField(

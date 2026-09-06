@@ -15,6 +15,7 @@ from zrb.task.any_task import AnyTask
 from zrb.task.base.base_task import BaseTask
 from zrb.util.attr import get_int_attr, get_str_attr
 from zrb.util.cmd.command import check_unrecommended_commands, run_command
+from zrb.util.secret import redact_env_map
 from zrb.util.cmd.remote import get_remote_cmd_script
 from zrb.xcom.xcom import Xcom
 
@@ -179,7 +180,12 @@ class CmdTask(BaseTask):
         cwd = self._get_cwd(ctx)
         ctx.log_debug(f"Working directory: {cwd}")
         env_map = self.__get_env_map(ctx)
-        ctx.log_debug(f"Environment map: {env_map}")
+        # Names are kept, credential-looking values masked: DEBUG is what a
+        # maintainer asks a user to enable before pasting output into an issue,
+        # so this line used to hand over every API key in their shell.
+        ctx.log_debug(
+            f"Environment map: {redact_env_map(env_map, CFG.SECRET_ENV_PATTERNS)}"
+        )
         if self._get_should_warn_unrecommended_commands():
             self._check_unrecommended_commands(ctx, shell, cmd_script)
         ctx.log_info("Running script")
