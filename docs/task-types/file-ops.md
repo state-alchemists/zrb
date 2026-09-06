@@ -31,7 +31,7 @@ The `Scaffolder` task is a powerful templating engine. It copies an entire direc
 Imagine you have a template directory at `./templates/basic-app`. You want to copy it to a new location and replace the word `APP_NAME_PLACEHOLDER` with a user-provided name.
 
 ```python
-from zrb import Scaffolder, StrInput, cli
+from zrb import Scaffolder, StrInput, Tpl, cli
 
 create_project = cli.add_task(
     Scaffolder(
@@ -41,12 +41,12 @@ create_project = cli.add_task(
         # The directory containing your template files
         source_path="./templates/basic-app",
         
-        # The destination path (renders {ctx.x} placeholders from inputs)
-        destination_path="./projects/{ctx.input.project_name}",
+        # The destination path — Tpl renders {ctx.x} placeholders from inputs
+        destination_path=Tpl("./projects/{ctx.input.project_name}"),
         
         # A dictionary of strings to find and replace in the copied files
         transform_content={
-            "APP_NAME_PLACEHOLDER": "{ctx.input.project_name}"
+            "APP_NAME_PLACEHOLDER": Tpl("{ctx.input.project_name}")
         }
     )
 )
@@ -61,19 +61,19 @@ transform to specific files, pass `ContentTransformer` instance(s) to
 `transform_content` instead of a dict:
 
 ```python
-from zrb import ContentTransformer, Scaffolder, StrInput, cli
+from zrb import ContentTransformer, Scaffolder, StrInput, Tpl, cli
 
 create_project = cli.add_task(
     Scaffolder(
         name="create-project",
         input=StrInput(name="project_name", description="Name of the app"),
         source_path="./templates/basic-app",
-        destination_path="./projects/{ctx.input.project_name}",
+        destination_path=Tpl("./projects/{ctx.input.project_name}"),
         transform_content=[
             ContentTransformer(
                 name="rename-app",
                 match="*.py",  # glob, matched against each file's basename
-                transform={"APP_NAME_PLACEHOLDER": "{ctx.input.project_name}"},
+                transform={"APP_NAME_PLACEHOLDER": Tpl("{ctx.input.project_name}")},
             ),
         ],
     )

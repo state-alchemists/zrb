@@ -4,7 +4,7 @@ Basic Task Example
 Shows how to create simple tasks with inputs and actions.
 """
 
-from zrb import IntInput, StrInput, Task, cli
+from zrb import IntInput, StrInput, Task, Tpl, cli
 
 # =============================================================================
 # Task with Lambda Action
@@ -28,7 +28,7 @@ greet = cli.add_task(
         name="greet",
         description="Greet someone with a template",
         input=[StrInput(name="name", default="Friend")],
-        action="Greetings, {ctx.input.name}! Welcome to Zrb.",
+        action=Tpl("Greetings, {ctx.input.name}! Welcome to Zrb."),
     )
 )
 
@@ -44,7 +44,7 @@ add_task = cli.add_task(
             IntInput("a", description="First number", default=0),
             IntInput("b", description="Second number", default=0),
         ],
-        action="{ctx.input.a + ctx.input.b}",
+        action=Tpl("{ctx.input.a + ctx.input.b}"),
     )
 )
 

@@ -13,7 +13,7 @@ BaseTrigger(
     action=trigger_action,         # Called first
     callback=Callback(              # Called for each queue item
         task=my_task,
-        input_mapping={"msg": "{ctx.xcom['my-queue'].pop()}"},
+        input_mapping={"msg": Tpl("{ctx.xcom['my-queue'].pop()}")},
     ),
 )
 ```
@@ -84,8 +84,9 @@ flowchart LR
 
 ```python
 input_mapping={
-    "message": "{ctx.xcom['queue-name'].pop()}"
+    "message": Tpl("{ctx.xcom['queue-name'].pop()}")
 }
 ```
 
-Maps the popped queue value to the task's input.
+Maps the popped queue value to the task's input. `Tpl` is what asks for
+rendering — a bare string would be passed through as a literal.

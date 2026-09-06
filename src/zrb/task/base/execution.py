@@ -77,7 +77,7 @@ class BaseTaskExecution:
         execute_condition_attr = (
             task.execute_condition if task.execute_condition is not None else True
         )
-        return get_bool_attr(ctx, execute_condition_attr, True, auto_render=True)
+        return get_bool_attr(ctx, execute_condition_attr, True)
 
     async def execute_action_until_ready(self, session: AnySession):
         """
@@ -329,11 +329,12 @@ class BaseTaskExecution:
             ctx.log_debug("No action defined for this task.")
             return None
         if isinstance(action, str):
-            rendered_action = ctx.render(action)
-            ctx.log_debug(f"Rendered action string: {rendered_action}")
-            return rendered_action
+            ctx.log_debug(f"Literal action string: {action}")
+            return action
         elif callable(action):
-            ctx.log_debug(f"Executing callable action: {action.__name__}")
+            # A `Tpl` (or any other callable object) has no `__name__`.
+            action_name = getattr(action, "__name__", repr(action))
+            ctx.log_debug(f"Executing callable action: {action_name}")
             return await run_async(action(ctx))
         else:
             ctx.log_warning(f"Unsupported action type: {type(action)}")

@@ -2,7 +2,8 @@ import asyncio
 from collections.abc import Callable, Sequence
 from typing import Any
 
-from zrb.attr.type import BoolAttr, fstring
+from zrb.attr.tpl import Tpl
+from zrb.attr.type import BoolAttr
 from zrb.callback.any_callback import AnyCallback
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
@@ -36,9 +37,9 @@ class BaseTrigger(BaseTask):
         cli_only: bool = False,
         input: Sequence[AnyInput | None] | AnyInput | None = None,
         env: Sequence[AnyEnv | None] | AnyEnv | None = None,
-        action: fstring | Callable[[AnyContext], Any] | None = None,
+        action: str | Tpl | Callable[[AnyContext], Any] | None = None,
         execute_condition: BoolAttr = True,
-        queue_name: fstring | None = None,
+        queue_name: str | None = None,
         callback: list[AnyCallback] | AnyCallback | None = None,
         retries: int = 2,
         retry_period: float = 0,
@@ -64,11 +65,15 @@ class BaseTrigger(BaseTask):
             cli_only: If True, the task is only available in the CLI.
             input: The input definition for the task.
             env: The environment variable definition for the task.
-            action: The action to be performed by the task.
+            action: What the trigger does. Either a callable taking the task
+                context, a literal string returned as the result, or a `Tpl`
+                rendered against the context.
             execute_condition: A condition that must be met for the task to execute.
             queue_name: The name of the XCom queue used for data
                 exchange with callbacks. Whenever any data is added
-                to xcom[queue_name], the callback will be triggered.
+                to xcom[queue_name], the callback will be triggered. Read
+                through the `queue_name` property, which has no context, so it
+                is a plain `str` — build it eagerly if it needs to vary.
             callback: A single or list of callbacks to be executed after the trigger action.
             retries: The number of times to retry the task on failure.
             retry_period: The time to wait between retries.

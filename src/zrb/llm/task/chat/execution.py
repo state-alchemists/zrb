@@ -23,6 +23,7 @@ from __future__ import annotations
 from dataclasses import dataclass, fields, replace
 from typing import TYPE_CHECKING, Any, Callable, cast
 
+from zrb.attr.tpl import Tpl
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.env.any_env import AnyEnv
@@ -131,16 +132,14 @@ class ChatExecution:
 
     async def exec_action(self, ctx: AnyContext) -> Any:
         initial_conversation_name = self._get_initial_conversation_name(ctx)
-        raw_yolo = get_attr(ctx, self._llm_chat_task.yolo, "", True)
+        raw_yolo = get_attr(ctx, self._llm_chat_task.yolo, "")
         initial_yolo = parse_yolo_value(raw_yolo)
         yolo_xcom_key = self._llm_chat_task.ui_config.yolo_xcom_key
         if yolo_xcom_key not in ctx.xcom:
             ctx.xcom[yolo_xcom_key] = Xcom()
         ctx.xcom[yolo_xcom_key].set(initial_yolo)
 
-        initial_message = get_attr(
-            ctx, self._llm_chat_task.message, "", self._llm_chat_task.render_message
-        )
+        initial_message = get_attr(ctx, self._llm_chat_task.message, "")
         initial_attachments = get_attachments(ctx, self._llm_chat_task.attachment)
         interactive = get_bool_attr(ctx, self._llm_chat_task.interactive, True)
         history_manager = (
@@ -155,7 +154,7 @@ class ChatExecution:
             else self._llm_chat_task.enable_rewind
         )
         effective_snapshot_dir = get_str_attr(
-            ctx, self._llm_chat_task.snapshot_dir, CFG.LLM_SNAPSHOT_DIR, True
+            ctx, self._llm_chat_task.snapshot_dir, CFG.LLM_SNAPSHOT_DIR
         )
 
         ui_commands = self._get_ui_commands()
@@ -372,10 +371,8 @@ class ChatExecution:
             ],
             env=cast(list[AnyEnv | None], llm_chat_task.envs),
             system_prompt=llm_chat_task.system_prompt,
-            render_system_prompt=llm_chat_task.render_system_prompt,
             prompt_manager=llm_chat_task.prompt_manager,
             active_skills=llm_chat_task.active_skills,
-            render_active_skills=llm_chat_task.render_active_skills,
             tools=resolved_tools,
             toolsets=resolved_toolsets,
             # No factories passed - tools/toolsets already resolved with parent context
@@ -390,14 +387,12 @@ class ChatExecution:
             approval_channel=resolved.approval_channel,
             permissions=llm_chat_task.permissions,
             sandbox=resolved.sandbox,
-            message="{ctx.input.message}",
+            message=Tpl("{ctx.input.message}"),
             conversation_name=resolved.history.conversation_name,
-            render_conversation_name=resolved.history.render_conversation_name,
-            yolo="{ctx.input.yolo}",
+            yolo=Tpl("{ctx.input.yolo}"),
             dynamic_yolo=resolved.should_skip_approval,
             attachment=lambda ctx: ctx.input.attachments,
             model=lambda ctx: ctx.input.get("model"),
-            render_model=False,
             # Without this, LLMChatTask(model_settings=...) is accepted but
             # silently ignored: the inner LLMTask would otherwise use its own
             # (unset) default.
@@ -519,17 +514,13 @@ class ChatExecution:
         resolved_sandbox = coerce_sandbox(ctx, llm_chat_task.sandbox)
 
         # The inner task's conversation identity is always the active chat
-        # session, never llm_chat_task's own conversation_name/render setting
-        # — every field here is an explicit override, not a passthrough of
-        # llm_chat_task.history_config. render_conversation_name=True is
-        # pinned deliberately: the session template below only resolves
-        # correctly when rendered, regardless of what llm_chat_task itself
-        # was configured with.
+        # session, never llm_chat_task's own conversation_name — every field
+        # here is an explicit override, not a passthrough of
+        # llm_chat_task.history_config.
         resolved_history = replace(
             llm_chat_task.history_config,
             history_manager=history_manager,
-            conversation_name="{ctx.input.session}",
-            render_conversation_name=True,
+            conversation_name=Tpl("{ctx.input.session}"),
         )
 
         return _InnerTaskResolution(
@@ -550,11 +541,7 @@ class ChatExecution:
         )
 
     def _get_initial_conversation_name(self, ctx: AnyContext) -> str:
-        return resolve_conversation_name(
-            ctx,
-            self._llm_chat_task.conversation_name,
-            self._llm_chat_task.render_conversation_name,
-        )
+        return resolve_conversation_name(ctx, self._llm_chat_task.conversation_name)
 
     def get_ui_conversation_name(
         self, ui: "AnyUI", initial_conversation_name: str
@@ -567,11 +554,7 @@ class ChatExecution:
     def get_model(self, ctx: AnyContext) -> str | Model:
         """Resolve the model to use for this run.
 
-        A templated model name is rendered against `ctx` when the task was
-        built with `render_model`. An empty result falls back to `CFG.LLM_MODEL`.
+        A `Tpl` or callable model attribute is resolved against `ctx`. An empty
+        result falls back to `CFG.LLM_MODEL`.
         """
-        return resolve_model(
-            ctx,
-            self._llm_chat_task.model,
-            self._llm_chat_task.render_model,
-        )
+        return resolve_model(ctx, self._llm_chat_task.model)

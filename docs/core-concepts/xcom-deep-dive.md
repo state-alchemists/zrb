@@ -109,7 +109,7 @@ def inspect(ctx):
 For `CmdTask`, use f-string-style templating (single `{}`) to access XCom directly in shell commands:
 
 ```python
-from zrb import cli, CmdTask
+from zrb import cli, CmdTask, Tpl
 
 producer = cli.add_task(CmdTask(name="producer", cmd="echo 'data-123'"))
 
@@ -117,7 +117,7 @@ consumer = cli.add_task(
     CmdTask(
         name="consumer",
         upstream=[producer],
-        cmd="echo 'Processing: {ctx.xcom[\"producer\"].pop()}'",
+        cmd=Tpl("echo 'Processing: {ctx.xcom[\"producer\"].pop()}'"),
     )
 )
 # Output: Processing: data-123
@@ -132,7 +132,7 @@ consumer = cli.add_task(
 XCom values can be used in any `{ }` expression within task parameters, not just `CmdTask` commands:
 
 ```python
-from zrb import Scaffolder, StrInput, cli
+from zrb import Scaffolder, StrInput, Tpl, cli
 
 creator = cli.add_task(CmdTask(name="creator", cmd="echo 'my-app'"))
 
@@ -141,9 +141,9 @@ scaffold = cli.add_task(
         name="scaffold",
         upstream=[creator],
         source_path="./templates/app",
-        destination_path="./projects/{ctx.xcom['creator'].peek()}",
+        destination_path=Tpl("./projects/{ctx.xcom['creator'].peek()}"),
         transform_content={
-            "APP_NAME": "{ctx.xcom['creator'].pop()}"
+            "APP_NAME": Tpl("{ctx.xcom['creator'].pop()}")
         }
     )
 )
@@ -183,7 +183,7 @@ def transform(ctx):
 stage_3 = cli.add_task(CmdTask(
     name="save",
     upstream=[transform],
-    cmd="echo '{ctx.xcom[\"transform\"].pop()}' > output.txt"
+    cmd=Tpl("echo '{ctx.xcom[\"transform\"].pop()}' > output.txt")
 ))
 ```
 
@@ -207,11 +207,11 @@ def broadcast(ctx):
 XCom is the foundation of trigger-callback patterns:
 
 ```python
-from zrb import BaseTrigger, Callback
+from zrb import BaseTrigger, Callback, Tpl
 
 my_callback = Callback(
-    task=CmdTask(name="on-event", cmd="echo '{ctx.input.message}'"),
-    input_mapping={"message": "{ctx.xcom.event_queue.pop()}"}
+    task=CmdTask(name="on-event", cmd=Tpl("echo '{ctx.input.message}'")),
+    input_mapping={"message": Tpl("{ctx.xcom.event_queue.pop()}")}
 )
 
 # Inside the trigger action:

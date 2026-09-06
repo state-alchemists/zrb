@@ -20,7 +20,6 @@ class BaseInput(AnyInput):
         description: str | None = None,
         prompt: str | None = None,
         default: Any = "",
-        auto_render: bool = True,
         allow_empty: bool = False,
         allow_positional_parsing: bool = True,
         always_prompt: bool = True,
@@ -33,10 +32,8 @@ class BaseInput(AnyInput):
                 `ctx.input.project_name`.
             description: Help text. Defaults to `name`.
             prompt: Message shown when prompting. Defaults to `name`.
-            default: Default value. May be a literal, an f-string template
-                rendered against the context, or a callable taking it.
-            auto_render: Whether to render a templated `default`. Set False to
-                pass a literal string containing braces.
+            default: Default value. A literal, a `Tpl` rendered against the
+                context, or a callable taking it.
             allow_empty: Whether an empty answer is accepted. When False, the
                 prompt repeats until something is entered.
             allow_positional_parsing: Whether this input may be given as a bare
@@ -48,7 +45,6 @@ class BaseInput(AnyInput):
         self._description = description
         self._prompt = prompt
         self._default_value = default
-        self._auto_render = auto_render
         self._allow_empty = allow_empty
         self._allow_positional_parsing = allow_positional_parsing
         self._always_prompt = always_prompt
@@ -160,9 +156,7 @@ class BaseInput(AnyInput):
 
     def get_default_str(self, shared_ctx: AnySharedContext) -> str:
         """Get default value as str"""
-        default_value = get_attr(
-            shared_ctx, self._default_value, default="", auto_render=self._auto_render
-        )
+        default_value = get_attr(shared_ctx, self._default_value, default="")
         if not isinstance(default_value, str):
             return str(default_value)
         return default_value

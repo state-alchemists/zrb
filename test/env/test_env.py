@@ -5,6 +5,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from zrb.attr.tpl import Tpl
+from zrb.context.shared_context import SharedContext
+
 
 class TestEnv:
     """Test Env class."""
@@ -17,7 +20,6 @@ class TestEnv:
 
         assert env.name == "TEST_VAR"
         assert env.default == "default_value"
-        assert env.auto_render is True
         assert env.link_to_os is True
         assert env.os_name is None
 
@@ -28,14 +30,12 @@ class TestEnv:
         env = Env(
             name="TEST_VAR",
             default="default_value",
-            auto_render=False,
             link_to_os=False,
             os_name="CUSTOM_OS_NAME",
         )
 
         assert env.name == "TEST_VAR"
         assert env.default == "default_value"
-        assert env.auto_render is False
         assert env.link_to_os is False
         assert env.os_name == "CUSTOM_OS_NAME"
 
@@ -137,19 +137,25 @@ class TestEnvDefaultBehavior:
 
         assert mock_ctx.env["TEST"] == "simple_default"
 
-    def test_default_value_with_auto_render_false(self):
-        """Test default value with auto_render=False through update_context."""
+    def test_bare_string_default_stays_literal(self):
+        """A bare string default is never rendered — braces survive."""
         from zrb.env.env import Env
 
-        env = Env(name="TEST", default="${VAR}", auto_render=False, link_to_os=False)
-        mock_ctx = MagicMock()
-        mock_ctx.env = {}
+        env = Env(name="TEST", default="${VAR}", link_to_os=False)
+        shared_ctx = SharedContext(env={})
+        env.update_context(shared_ctx)
 
-        with patch("zrb.env.env.get_str_attr") as mock_get_str_attr:
-            mock_get_str_attr.return_value = "${VAR}"
-            env.update_context(mock_ctx)
+        assert shared_ctx.env["TEST"] == "${VAR}"
 
-        assert mock_ctx.env["TEST"] == "${VAR}"
+    def test_tpl_default_is_rendered(self):
+        """A Tpl default opts into rendering against the context."""
+        from zrb.env.env import Env
+
+        env = Env(name="TEST", default=Tpl("{ctx.input.who}"), link_to_os=False)
+        shared_ctx = SharedContext(env={}, input={"who": "world"})
+        env.update_context(shared_ctx)
+
+        assert shared_ctx.env["TEST"] == "world"
 
 
 class TestEnvIntegration:

@@ -2,7 +2,7 @@ from zrb.task.base.base_task import BaseTask
 
 
 class Task(BaseTask):
-    """The general-purpose task: run a Python callable, or an f-string template.
+    """The general-purpose task: run a Python callable, or return a literal.
 
     The default task type and the one most `zrb_init.py` files reach for first.
     It adds nothing to `BaseTask` — it exists so the common case has a short,

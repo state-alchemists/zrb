@@ -3,12 +3,12 @@ grouped so they travel together across the wrap boundary in
 `chat/execution.py::_create_llm_task_core`.
 
 That boundary builds the inner `LLMTask` from `LLMChatTask`'s own settings,
-overriding each field that needs a chat-specific value (today, all three do —
-the inner task's conversation identity is always the active chat session, not
+overriding each field that needs a chat-specific value (today, both do — the
+inner task's conversation identity is always the active chat session, not
 whatever `LLMChatTask` happened to be configured with). Grouping them means a
 future field only *read straight through unchanged* costs an edit here plus
 wherever it's consumed (`task/history.py`) — `dataclasses.replace()` forwards
-it through the wrap boundary automatically, rather than requiring a fourth
+it through the wrap boundary automatically, rather than requiring a third
 edit there just to notice the new field exists.
 """
 
@@ -26,4 +26,3 @@ if TYPE_CHECKING:
 class HistoryConfig:
     history_manager: "AnyHistoryManager | None" = None
     conversation_name: "StrAttr | None" = None
-    render_conversation_name: bool = True

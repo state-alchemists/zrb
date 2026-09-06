@@ -32,12 +32,12 @@ Before the ladder, the distinction that everything else hangs on:
 |---|---|---|
 | **Answers** | *What should the agent do this turn?* | *Who is the agent, and what does it always know?* |
 | **Lifetime** | This request | Every request in the conversation |
-| **Rendered by default?** | **Yes** (`render_message=True`) | **No** (`render_system_prompt=False`) |
+| **Rendered?** | Only when wrapped in `Tpl` | Only when wrapped in `Tpl` |
 | **In a chat** | The opening user turn | Persona + standing rules the user then converses against |
 
 When you have some data (a command's output, a file, an API response) and want the LLM to act on it, the question is always: **is this data "the task" or "background"?**
 
-- *The task* → put it in `message` (`"Summarize this:\n{...}"`).
+- *The task* → put it in `message` (`Tpl("Summarize this:\n{...}")`).
 - *Background the user will ask about* → put it in the system prompt, and leave `message` for the user.
 
 The rest of this page is how to get data into either one.
@@ -49,7 +49,7 @@ The rest of this page is how to get data into either one.
 | Rung | Mechanism | Reach for it when |
 |---|---|---|
 | 1 | `message="plain string"` | The instruction is fixed. |
-| 2 | `message="… {ctx.xcom['x'].pop()} …"` | Inject an upstream task's output, an input, or an env var. |
+| 2 | `message=Tpl("… {ctx.xcom['x'].pop()} …")` | Inject an upstream task's output, an input, or an env var. |
 | 3 | `message=lambda ctx: …` | You need real Python to build the prompt. |
 | 4 | `system_prompt=…` (string or callable) | Set persona / standing rules, separate from the per-turn message. |
 | 5 | `prompt_manager=PromptManager(include_sections=[…])` | Reorder or drop the built-in prompt sections. |
@@ -73,9 +73,9 @@ cli.add_task(
 )
 ```
 
-## Rung 2 — a template (inject data with `{ }`)
+## Rung 2 — a template (inject data with `Tpl`)
 
-`message` is a `StrAttr`, and because `render_message` defaults to `True`, any `{ ... }` expression is evaluated against the active context before the prompt is sent. This is Python **f-string** syntax — single braces, not Jinja `{{ }}`.
+`message` is a `StrAttr`. A bare string is a **literal** — braces reach the model untouched. Wrap it in `Tpl` to have every `{ ... }` expression evaluated against the active context before the prompt is sent. This is Python **f-string** syntax — single braces, not Jinja `{{ }}`.
 
 Three sources are almost always what you want:
 
@@ -86,7 +86,7 @@ Three sources are almost always what you want:
 This is the tool-free way to hand the model everything it needs to decide. A `CmdTask` runs a command; its stdout stringifies straight into the prompt (a `CmdResult`'s `str()` is its `output`), and the LLM reasons over it — no custom tool required:
 
 ```python
-from zrb import cli, CmdTask, LLMTask
+from zrb import cli, CmdTask, LLMTask, Tpl
 
 # 1. A deterministic command produces context. Its output lands in XCom.
 diff = cli.add_task(CmdTask(name="collect-diff", cmd="git diff --staged"))
@@ -96,7 +96,7 @@ review = cli.add_task(
     LLMTask(
         name="review",
         upstream=[diff],  # guarantees `collect-diff` has run first
-        message=(
+        message=Tpl(
             "You are a code reviewer. Review the staged diff below and reply "
             "with a bulleted list of concerns, or 'LGTM' if there are none.\n\n"
             "{ctx.xcom['collect-diff'].pop()}"
@@ -109,7 +109,7 @@ diff >> review
 
 `review`'s answer is itself pushed to XCom under `review`, so a downstream task consumes it exactly the same way — `fetch → reason → act`, with the LLM as the middle node. See [the pipeline-node pattern](programming-the-agent.md#the-agent-as-a-pipeline-node) for the full three-step shape.
 
-> **Turning rendering off.** If your prompt legitimately contains literal braces (a code sample, a JSON blob), set `render_message=False` so `{ }` is left untouched — you then lose templating for that task.
+> **Literal braces need nothing.** A prompt containing a code sample or a JSON blob is safe as a plain string — it is never rendered. Only reach for `Tpl` when you actually want substitution, and note that a `Tpl` is all-or-nothing: a template that interpolates *and* contains literal braces wants Rung 3's callable instead.
 
 ## Rung 3 — a callable
 
@@ -135,13 +135,13 @@ Everything above shaped the *per-turn message*. To set **who the agent is** — 
 LLMTask(
     name="deploy-helper",
     system_prompt="You are a cautious release engineer. Never suggest force-pushing.",
-    message="{ctx.input.request}",
+    message=Tpl("{ctx.input.request}"),
 )
 ```
 
 Two things to internalize:
 
-1. **`system_prompt` is *not* rendered by default** (`render_system_prompt=False`). If you want `{ ... }` substitution in a system-prompt *string*, pass `render_system_prompt=True` — or, more commonly, pass a callable and interpolate in Python:
+1. **`system_prompt` follows the same rule as `message`** — a plain string is literal. For `{ ... }` substitution in a system-prompt *string*, wrap it in `Tpl` — or, more commonly, pass a callable and interpolate in Python:
 
    ```python
    system_prompt=lambda ctx: f"You are deploying to {ctx.env.DEPLOY_TARGET}. Be careful in prod.",

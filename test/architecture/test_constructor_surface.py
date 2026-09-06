@@ -72,7 +72,6 @@ INTENTIONAL_OMISSIONS = {
     "action": "subclasses supply their own action; BaseTask's docstring says so",
     # RsyncTask generates its command from the path parameters.
     (RsyncTask, "cmd"): "generated from the source/destination paths",
-    (RsyncTask, "render_cmd"): "generated from the source/destination paths",
     (RsyncTask, "warn_unrecommended_command"): "screens a command you wrote",
 }
 # A readiness check polls on its own `interval` and is itself what a task waits

@@ -95,6 +95,6 @@ class AnyInput(ABC):
     def get_default_str(self, shared_ctx: AnySharedContext) -> str:
         """Resolve this input's default as a string.
 
-        Templated defaults are rendered against `shared_ctx` when the input was
-        built with `auto_render`; non-string defaults are coerced with `str`.
+        A `Tpl` or callable default is resolved against `shared_ctx`; any other
+        non-string default is coerced with `str`.
         """

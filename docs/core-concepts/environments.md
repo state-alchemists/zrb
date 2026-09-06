@@ -26,7 +26,7 @@ You can access environment variables within a task through the `ctx.env` object.
 The `Env` class is the most direct way to define an environment variable. It ensures the variable exists when the task runs.
 
 ```python
-from zrb import cli, CmdTask, Env
+from zrb import cli, CmdTask, Env, Tpl
 
 cli.add_task(
   CmdTask(
@@ -37,7 +37,7 @@ cli.add_task(
     ],
     # The variables are injected into the shell execution environment
     # and are also accessible via {ctx.env.<name>}
-    cmd="echo 'Hello {ctx.env.USER}, your shell is {ctx.env.SHELL}'",
+    cmd=Tpl("echo 'Hello {ctx.env.USER}, your shell is {ctx.env.SHELL}'"),
   )
 )
 ```

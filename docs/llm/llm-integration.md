@@ -169,13 +169,13 @@ You can also integrate the LLM directly into your automated workflows using two 
 Use `LLMTask` for single-shot requests where you need the LLM to process input and return a result without conversational history.
 
 ```python
-from zrb import LLMTask, cli
+from zrb import LLMTask, Tpl, cli
 
 summarize_task = cli.add_task(
     LLMTask(
         name="summarize",
         system_prompt="You are an expert summarizer.",
-        message="Please summarize the following text: {ctx.input.text}"
+        message=Tpl("Please summarize the following text: {ctx.input.text}")
     )
 )
 ```
@@ -185,14 +185,14 @@ summarize_task = cli.add_task(
 Use `LLMChatTask` to create your own fully customizable, interactive chat interfaces.
 
 ```python
-from zrb import LLMChatTask, cli, StrInput
+from zrb import LLMChatTask, Tpl, cli, StrInput
 
 custom_chat = cli.add_task(
     LLMChatTask(
         name="custom-chat",
         ui_greeting="Hello from your custom assistant!",
         input=[StrInput(name="user_message", ...)],
-        message="{ctx.input.user_message}"
+        message=Tpl("{ctx.input.user_message}")
     )
 )
 ```

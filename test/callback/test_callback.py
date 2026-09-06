@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.attr.tpl import Tpl
 from zrb.callback.callback import Callback
 from zrb.xcom.xcom import Xcom
 
@@ -44,7 +45,6 @@ class TestCallbackBehavior:
         callback = Callback(
             task=mock_task,
             input_mapping={"key": "value"},
-            render_input_mapping=False,
         )
 
         # Act
@@ -54,6 +54,34 @@ class TestCallbackBehavior:
         assert result == "task_result"
         mock_task.async_run.assert_called_once_with(mock_session)
         assert mock_session.shared_ctx.input["key"] == "value"
+
+    @pytest.mark.asyncio
+    async def test_callback_resolves_each_input_mapping_value_independently(
+        self, mock_task, mock_session, mock_parent_session
+    ):
+        """A `Tpl` value renders against the triggered session; a bare string
+        next to it stays literal. This is the path a trigger uses to hand a
+        queued value to its task, so it has no `render_input_mapping` flag to
+        turn on — the `Tpl` wrapper is the whole opt-in.
+        """
+        # Arrange
+        mock_session.shared_ctx.render.side_effect = lambda t: (
+            "from-xcom" if t == "{ctx.xcom['q'].pop()}" else t
+        )
+        callback = Callback(
+            task=mock_task,
+            input_mapping={
+                "templated": Tpl("{ctx.xcom['q'].pop()}"),
+                "literal": "{not-a-template}",
+            },
+        )
+
+        # Act
+        await callback.async_run(mock_parent_session, mock_session)
+
+        # Assert
+        assert mock_session.shared_ctx.input["templated"] == "from-xcom"
+        assert mock_session.shared_ctx.input["literal"] == "{not-a-template}"
 
     @pytest.mark.asyncio
     async def test_callback_publishes_to_parent_queues(

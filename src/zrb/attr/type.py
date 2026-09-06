@@ -1,29 +1,31 @@
 """Deferred-evaluation attribute types.
 
 Every `*Attr` alias says the same thing: this parameter accepts the value
-itself, a string template rendered against the active context, or a callable
-resolved at run time. `zrb.util.attr.get_*_attr` is what collapses the three
-into a concrete value.
+itself, or a callable resolved at run time against the active context.
+`zrb.util.attr.get_*_attr` is what collapses the two into a concrete value.
 
-`fstring` is an alias for `str`, not a distinct type — the type checker sees
-`str` and always will. It earns its place as *documentation*: in
-`BoolAttr = bool | fstring | ...` it says "or a template string that renders to
-a bool", which `str` alone does not. It is deliberately not a `NewType`, since
-that would reject the plain string literals every call site passes.
+**A plain `str` is a literal, never a template.** Rendering is opt-in: wrap a
+template in `Tpl`, which every alias names explicitly. `Tpl` renders to *text*,
+so it is listed alongside `bool`/`int`/`float` rather than folded into their
+`Callable[..., bool | None]` arms — the typed getter coerces the rendered
+string (`get_bool_attr` via `to_boolean`, `get_int_attr` via `int`).
 
-There is deliberately no `AnyAttr`: `Any | fstring | Callable[..., Any]`
-collapses to plain `Any`, so it would constrain nothing while looking like it
-did. Use `Any` where anything goes, or the specific `*Attr` alias where it does
-not.
+    CmdTask(cmd="echo {literal braces}")        # runs verbatim
+    CmdTask(cmd=Tpl("echo {ctx.input.name}"))   # rendered against ctx
+
+There is deliberately no `AnyAttr`: `Any | Callable[..., Any]` collapses to
+plain `Any`, so it would constrain nothing while looking like it did. Use
+`Any` where anything goes, or the specific `*Attr` alias where it does not.
 """
 
 from collections.abc import Sequence
 from typing import Any, Callable
 
-fstring = str
-StrAttr = str | fstring | Callable[..., str | None]
-BoolAttr = bool | fstring | Callable[..., bool | None]
-IntAttr = int | fstring | Callable[..., int | None]
-FloatAttr = float | fstring | Callable[..., float | None]
+from zrb.attr.tpl import Tpl
+
+StrAttr = str | Tpl | Callable[..., str | None]
+BoolAttr = bool | Tpl | Callable[..., bool | None]
+IntAttr = int | Tpl | Callable[..., int | None]
+FloatAttr = float | Tpl | Callable[..., float | None]
 StrDictAttr = dict[str, StrAttr] | Callable[..., dict[str, Any]]
 StrListAttr = Sequence[StrAttr] | Callable[..., list[str]]

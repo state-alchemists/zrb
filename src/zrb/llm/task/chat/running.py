@@ -248,8 +248,8 @@ class ChatRunning:
             resolved_custom_commands = self._resolve_custom_commands()
 
         ui_texts = {
-            key: get_str_attr(ctx, value, "", render)
-            for key, (value, render) in self._llm_chat_task.ui_texts.items()
+            key: get_str_attr(ctx, value, "")
+            for key, value in self._llm_chat_task.ui_texts.items()
         }
 
         # Layer this run's resolved values (yolo state, session name, and — if

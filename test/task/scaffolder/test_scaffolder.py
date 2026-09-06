@@ -22,16 +22,14 @@ def test_generate_with_basic_config():
     assert os.path.isdir(generated_dir)
 
 
-def test_generate_with_render_destination_path_false_keeps_literal_braces():
-    """Regression: render_destination_path was accepted but never applied, so
-    a destination containing literal `{...}` was always rendered as an
-    f-string expression regardless of this flag."""
+def test_generate_keeps_literal_braces_in_destination_path():
+    """A bare-string destination is a literal: braces reach the filesystem
+    untouched, with no flag needed to opt out of rendering."""
     literal_dir_name = "test-generated-{undefined_name}"
     scaffolder = Scaffolder(
         name="scaffold-no-render-dest",
         source_path=os.path.join(_DIR, "template"),
         destination_path=os.path.join(_DIR, literal_dir_name),
-        render_destination_path=False,
         transform_path={"project_name": "test_app"},
         transform_content={
             "Project Name": "Test App",
@@ -93,13 +91,11 @@ def test_generate_with_content_transformer_object_and_list(tmp_path):
         name="alpha",
         match="*.txt",
         transform={"alpha": "ALPHA"},
-        auto_render=False,
     )
     transformer_beta = ContentTransformer(
         name="beta",
         match="*.txt",
         transform={"beta": "BETA"},
-        auto_render=False,
     )
 
     # A single transformer object...
@@ -139,7 +135,6 @@ def test_generate_survives_transformer_decoding_failure(tmp_path):
         name="bin",
         match="*.bin",
         transform=raise_unicode_decode_error,
-        auto_render=False,
     )
     scaffolder = Scaffolder(
         name="scaffold-binary",

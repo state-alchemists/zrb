@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from zrb.attr.tpl import Tpl
 from zrb.config.config import CFG
 from zrb.config.web_auth_config import WebAuthConfig
 from zrb.group.group import Group
@@ -20,7 +21,7 @@ def client():
         Task(
             name="add",
             input=[IntInput(name="first_num"), IntInput(name="second_num")],
-            action="{ctx.input.first_num + ctx.input.second_num}",
+            action=Tpl("{ctx.input.first_num + ctx.input.second_num}"),
         )
     )
     geometry_group = math_group.add_group(Group("geometry"))
@@ -28,7 +29,7 @@ def client():
         Task(
             name="area",
             input=[IntInput(name="w"), IntInput(name="l")],
-            action="{ctx.input.w * ctx.input.l}",
+            action=Tpl("{ctx.input.w * ctx.input.l}"),
         )
     )
     app = create_web_app(

@@ -24,7 +24,6 @@ class Callback(AnyCallback):
         self,
         task: AnyTask,
         input_mapping: StrDictAttr,
-        render_input_mapping: bool = True,
         xcom_mapping: dict[str, str] | None = None,
         result_queue: str | None = None,
         error_queue: str | None = None,
@@ -35,9 +34,12 @@ class Callback(AnyCallback):
 
         Args:
             task: The task to be executed by the callback.
-            input_mapping: A dictionary or attribute mapping to prepare inputs for the task.
-            render_input_mapping: Whether to render the input mapping using
-                f-string like syntax.
+            input_mapping: Inputs to hand the task, as a dict of input name to
+                value, or a callable taking the context and returning that dict.
+                Each value resolves on its own: a bare string is a literal, a
+                `Tpl` is rendered against the triggered session's context (which
+                is how a value is pulled off the trigger's queue, e.g.
+                `Tpl("{ctx.xcom['my-queue'].pop()}")`).
             xcom_mapping: Map of parent session's xcom names to current session's xcom names
             result_queue: The name of the XCom queue in the parent session
                 to publish the task result.
@@ -48,7 +50,6 @@ class Callback(AnyCallback):
         """
         self._task = task
         self._input_mapping = input_mapping
-        self._render_input_mapping = render_input_mapping
         self._xcom_mapping = xcom_mapping
         self._result_queue = result_queue
         self._error_queue = error_queue
@@ -61,7 +62,6 @@ class Callback(AnyCallback):
         inputs = get_str_dict_attr(
             session.shared_ctx,
             self._input_mapping,
-            auto_render=self._render_input_mapping,
         )
         for name, value in inputs.items():
             session.shared_ctx.input[name] = value

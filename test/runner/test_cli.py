@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from zrb import Group, IntInput, PasswordInput, StrInput, Task
+from zrb.attr.tpl import Tpl
 from zrb.config.config import CFG
 from zrb.runner.cli import Cli
 
@@ -10,7 +11,7 @@ def test_show_info_for_existing_group():
     math_group = cli.add_group(Group(name="math"))
     math_group.add_group(Group(name="geometry"))
     math_group.add_task(
-        Task(name="add", action="{int(ctx.args[0]) + int(ctx.args[1])}")
+        Task(name="add", action=Tpl("{int(ctx.args[0]) + int(ctx.args[1])}"))
     )
     error = None
     try:
@@ -25,7 +26,7 @@ def test_show_info_for_inexisting_group():
     math_group = cli.add_group(Group(name="math"))
     math_group.add_group(Group(name="geometry"))
     math_group.add_task(
-        Task(name="add", action="{int(ctx.args[0]) + int(ctx.args[1])}")
+        Task(name="add", action=Tpl("{int(ctx.args[0]) + int(ctx.args[1])}"))
     )
     error = None
     try:
@@ -101,7 +102,7 @@ def test_run_simple_task_with_keyword_arguments_as_inputs():
                 IntInput(name="a"),
                 IntInput(name="b"),
             ],
-            action="{ctx.input.a + ctx.input.b}",
+            action=Tpl("{ctx.input.a + ctx.input.b}"),
         )
     )
     result = cli.run(str_args=["add", "--a", "4", "--b", "5"])
@@ -117,7 +118,7 @@ def test_run_simple_task_with_arguments_as_inputs():
                 IntInput(name="a"),
                 IntInput(name="b"),
             ],
-            action="{ctx.input.a + ctx.input.b}",
+            action=Tpl("{ctx.input.a + ctx.input.b}"),
         )
     )
     result = cli.run(str_args=["add", "4", "5"])
@@ -126,7 +127,7 @@ def test_run_simple_task_with_arguments_as_inputs():
 
 def test_run_simple_task_with_arguments():
     cli = Cli()
-    cli.add_task(Task(name="add", action="{int(ctx.args[0]) + int(ctx.args[1])}"))
+    cli.add_task(Task(name="add", action=Tpl("{int(ctx.args[0]) + int(ctx.args[1])}")))
     result = cli.run(str_args=["add", "4", "5"])
     assert result == "9"
 
@@ -210,7 +211,7 @@ def test_run_keyword_with_equals_sign():
         Task(
             name="add",
             input=[IntInput(name="a"), IntInput(name="b")],
-            action="{ctx.input.a + ctx.input.b}",
+            action=Tpl("{ctx.input.a + ctx.input.b}"),
         )
     )
     result = cli.run(str_args=["add", "--a=4", "--b=5"])

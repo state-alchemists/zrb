@@ -1,6 +1,7 @@
 from collections.abc import Callable, Sequence
 from typing import Any
 
+from zrb.attr.type import BoolAttr
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
@@ -19,7 +20,7 @@ def make_task(
     cli_only: bool = False,
     input: Sequence[AnyInput | None] | AnyInput | None = None,
     env: Sequence[AnyEnv | None] | AnyEnv | None = None,
-    execute_condition: bool | str | Callable[[AnyContext], bool] = True,
+    execute_condition: BoolAttr = True,
     retries: int = 2,
     retry_period: float = 0,
     readiness_check: Sequence[AnyTask] | AnyTask | None = None,

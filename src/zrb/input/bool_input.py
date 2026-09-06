@@ -14,7 +14,6 @@ class BoolInput(BaseInput):
         description: str | None = None,
         prompt: str | None = None,
         default: BoolAttr = False,
-        auto_render: bool = True,
         allow_empty: bool = False,
         allow_positional_parsing: bool = True,
         always_prompt: bool = True,
@@ -24,7 +23,6 @@ class BoolInput(BaseInput):
             description=description,
             prompt=prompt,
             default=default,
-            auto_render=auto_render,
             allow_empty=allow_empty,
             allow_positional_parsing=allow_positional_parsing,
             always_prompt=always_prompt,
@@ -46,9 +44,7 @@ class BoolInput(BaseInput):
         )
 
     def get_default_str(self, shared_ctx: AnySharedContext) -> str:
-        default_value = get_bool_attr(
-            shared_ctx, self._default_value, auto_render=self._auto_render
-        )
+        default_value = get_bool_attr(shared_ctx, self._default_value)
         # Match the lowercase <option> values emitted by to_html so the web UI
         # <select> can round-trip this value; str(bool) would be "True"/"False".
         return "true" if default_value else "false"

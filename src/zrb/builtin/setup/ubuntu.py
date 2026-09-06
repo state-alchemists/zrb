@@ -4,7 +4,6 @@ from zrb.task.cmd_task import CmdTask
 update_ubuntu = CmdTask(
     name="update-ubuntu",
     cmd="sudo apt update",
-    render_cmd=False,
     is_interactive=True,
 )
 
@@ -12,7 +11,6 @@ upgrade_ubuntu = CmdTask(
     name="upgrade-ubuntu",
     upstream=update_ubuntu,
     cmd="sudo apt upgrade -y",
-    render_cmd=False,
     is_interactive=True,
 )
 
@@ -30,7 +28,6 @@ setup_ubuntu = setup_group.add_task(
             "golang gfortran fd-find ripgrep wget curl git ncat zip unzip \\",
             "cmake make tree tmux zsh neovim xdotool xsel",
         ],
-        render_cmd=False,
         is_interactive=True,
     ),
     alias="ubuntu",

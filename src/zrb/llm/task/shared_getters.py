@@ -54,11 +54,10 @@ def resolve_system_prompt(ctx: AnyContext, prompt_manager: PromptManager | None)
 def resolve_model(
     ctx: AnyContext,
     model: Any,
-    render_model: bool,
 ) -> str | Model:
-    """The task's model, rendered against *ctx*, falling back to `CFG.LLM_MODEL`.
+    """The task's model, resolved against *ctx*, falling back to `CFG.LLM_MODEL`.
 
-    A blank render counts as unset, so an empty ``--model`` input does not
+    A blank result counts as unset, so an empty ``--model`` input does not
     shadow the configured model with an empty string.
 
     Every branch goes through `resolve_configured_model`, so an explicitly set
@@ -72,7 +71,7 @@ def resolve_model(
     unchanged — so a value that round-trips back through the UI is not
     re-wrapped.
     """
-    rendered_model = get_attr(ctx, model, None, auto_render=render_model)
+    rendered_model = get_attr(ctx, model, None)
     if isinstance(rendered_model, str) and rendered_model.strip() == "":
         rendered_model = None
     return resolve_configured_model(rendered_model)
@@ -94,10 +93,9 @@ def apply_model_hooks(
 def resolve_conversation_name(
     ctx: AnyContext,
     conversation_name: Any,
-    render_conversation_name: bool,
 ) -> str:
     """The configured conversation name, or a fresh random one when blank."""
-    resolved = str(get_attr(ctx, conversation_name, "", render_conversation_name))
+    resolved = str(get_attr(ctx, conversation_name, ""))
     if resolved.strip() == "":
         resolved = get_random_name()
     return resolved

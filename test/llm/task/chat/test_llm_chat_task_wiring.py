@@ -92,12 +92,10 @@ def test_llm_chat_task_history_config_reflects_constructor_values():
         name="test-task",
         history_manager=manager,
         conversation_name="my-convo",
-        render_conversation_name=False,
     )
     config = task.history_config
     assert config.history_manager is manager
     assert config.conversation_name == "my-convo"
-    assert config.render_conversation_name is False
 
 
 def test_llm_chat_task_history_config_reflects_history_manager_setter_immediately():

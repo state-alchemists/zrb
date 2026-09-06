@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.attr.tpl import Tpl
 from zrb.context.any_context import AnyContext
 from zrb.session.any_session import AnySession
 from zrb.task.base.base_task import BaseTask
@@ -215,9 +216,22 @@ async def test_run_default_action_none():
 
 
 @pytest.mark.asyncio
-async def test_run_default_action_string():
-    """Test run_default_action with string action."""
-    task = BaseTask(name="task", action="rendered_string")
+async def test_run_default_action_string_is_literal():
+    """A bare string action is returned verbatim — never rendered."""
+    task = BaseTask(name="task", action="literal {braces} string")
+    execution = BaseTaskExecution(task)
+    ctx = MagicMock(spec=AnyContext)
+
+    result = await execution.run_default_action(ctx)
+
+    assert result == "literal {braces} string"
+    ctx.render.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_run_default_action_tpl_is_rendered():
+    """A `Tpl` action takes the callable branch and is rendered against ctx."""
+    task = BaseTask(name="task", action=Tpl("{ctx.input.x}"))
     execution = BaseTaskExecution(task)
     ctx = MagicMock(spec=AnyContext)
     ctx.render.return_value = "rendered_value"
@@ -225,6 +239,7 @@ async def test_run_default_action_string():
     result = await execution.run_default_action(ctx)
 
     assert result == "rendered_value"
+    ctx.render.assert_called_once_with("{ctx.input.x}")
 
 
 def test_skip_successors_marks_tasks_skipped():

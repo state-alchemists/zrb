@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from zrb.attr.tpl import Tpl
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.context import Context
@@ -131,25 +132,20 @@ class SubAgentBuilding:
             system_prompt=resolved.system_prompt,
             tools=resolved.tools,
             toolsets=resolved.toolsets,
+            # Already final: resolve_configured_model ran above.
             model=resolved.model,
-            # resolved.model is already final (resolve_configured_model ran
-            # above) — rendering it as a template would be wrong for a
-            # non-string Model instance and is a no-op-at-best for a plain
-            # model-id string, so skip it, mirroring create_agent's
-            # resolve_model=False.
-            render_model=False,
             history_processors=[create_summarizer_history_processor()],
             # These four mirror builtin/llm/chat.py's bindings exactly: the web
             # chat runner (chat_session_runner.py) drives any llm_chat_task via
             # a per-message SharedContext(input={...}), so the task must read
             # its message/session/attachments/interactivity from ctx.input
             # rather than from constructor defaults.
-            message="{ctx.input.message}",
-            conversation_name="{ctx.input.session}",
+            message=Tpl("{ctx.input.message}"),
+            conversation_name=Tpl("{ctx.input.session}"),
             attachment=lambda ctx: [
                 path.strip() for path in ctx.input.attach.split(",") if path.strip()
             ],
-            interactive="{ctx.input.interactive}",
+            interactive=Tpl("{ctx.input.interactive}"),
         )
 
     def resolve_agent_build(

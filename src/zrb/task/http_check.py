@@ -28,7 +28,6 @@ class HttpCheck(BaseTask):
         input: Sequence[AnyInput | None] | AnyInput | None = None,
         env: Sequence[AnyEnv | None] | AnyEnv | None = None,
         url: StrAttr = "http://localhost",
-        render_url: bool = True,
         http_method: StrAttr = "GET",
         interval: float | None = None,
         execute_condition: BoolAttr = True,
@@ -42,9 +41,8 @@ class HttpCheck(BaseTask):
         Typically used as another task's `readiness_check`.
 
         Args:
-            url: URL to poll. A template rendered against the context, or a
-                callable taking it.
-            render_url: Whether to render `url` as a template.
+            url: URL to poll. A literal, a `Tpl` rendered against the context,
+                or a callable taking it.
             http_method: HTTP method to send.
             interval: Seconds between polls. Defaults to the readiness check
                 period.
@@ -65,7 +63,6 @@ class HttpCheck(BaseTask):
             print_fn=print_fn,
         )
         self._url = url
-        self._render_url = render_url
         self._http_method = http_method
         # Read lazily at run time (like every other CFG read) so an env change
         # after task definition still takes effect.
@@ -77,12 +74,10 @@ class HttpCheck(BaseTask):
         return CFG.HTTP_CHECK_INTERVAL / 1000
 
     def _get_url(self, ctx: AnyContext) -> str:
-        return get_str_attr(
-            ctx, self._url, "http://localhost", auto_render=self._render_url
-        )
+        return get_str_attr(ctx, self._url, "http://localhost")
 
     def _get_http_method(self, ctx: AnyContext) -> str:
-        return get_str_attr(ctx, self._http_method, "GET", auto_render=True).upper()
+        return get_str_attr(ctx, self._http_method, "GET").upper()
 
     async def _exec_action(self, ctx: AnyContext) -> "Response":
         import requests  # lazy: heavy third-party
