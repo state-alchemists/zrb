@@ -35,7 +35,7 @@ cli.add_task(
       StrInput(name="prefix", description="A title to use", default="Mr./Ms."),
     ],
     # Access inputs via {ctx.input.<name>}
-    cmd="printf '%s\\n' 'Hello {ctx.input.prefix} {ctx.input.name}'",
+    cmd="echo 'Hello {ctx.input.prefix} {ctx.input.name}'",
   )
 )
 ```

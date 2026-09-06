@@ -74,14 +74,14 @@ The `CmdTask` is your go-to tool for running shell commands. It seamlessly integ
 | External programs | `docker`, `kubectl`, `git` |
 | Build scripts | `make`, `npm run build` |
 | System administration | Shell utilities |
-| Quick one-liners | `printf`, `cp`, `mv` |
+| Quick one-liners | `echo`, `cp`, `mv` |
 
 ### Simple Command
 
 ```python
 from zrb import CmdTask, cli
 
-echo_task = cli.add_task(CmdTask(name="echo", cmd="printf '%s\\n' 'Hello, World!'"))
+echo_task = cli.add_task(CmdTask(name="echo", cmd="echo 'Hello, World!'"))
 ```
 
 ### Command with Input and Templating

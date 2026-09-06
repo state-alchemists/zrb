@@ -302,7 +302,7 @@ zrb --help
 # Quick test - create a simple task
 cat > zrb_init.py <<'EOF'
 from zrb import cli, CmdTask
-cli.add_task(CmdTask(name="hello", cmd="printf '%s\\n' 'Hello from Zrb!'"))
+cli.add_task(CmdTask(name="hello", cmd="echo 'Hello from Zrb!'"))
 EOF
 
 # Run the task

@@ -26,7 +26,7 @@ from zrb import Callback, CmdTask, StrInput
 print_event = CmdTask(
     name="print-event", 
     input=StrInput(name="message"),
-    cmd="printf '%s\\n' 'Event received: {ctx.input.message}'"
+    cmd="echo 'Event received: {ctx.input.message}'"
 )
 
 # The wrapper
@@ -121,7 +121,7 @@ from zrb import cli, CmdTask, Scheduler, Callback
 generate_report = CmdTask(
     name="generate-report",
     input=StrInput(name="timestamp"),
-    cmd="printf '%s\\n' 'Generating report for: {ctx.input.timestamp}'"
+    cmd="echo 'Generating report for: {ctx.input.timestamp}'"
 )
 
 # The Scheduler daemon
@@ -250,8 +250,8 @@ file_watcher = cli.add_task(
 Chain multiple tasks from a single trigger using `successor` on the callback's task:
 
 ```python
-notify = CmdTask(name="notify", cmd="printf '%s\\n' 'Event detected!'")
-process = CmdTask(name="process", cmd="printf '%s\\n' 'Processing...'", successor=[notify])
+notify = CmdTask(name="notify", cmd="echo 'Event detected!'")
+process = CmdTask(name="process", cmd="echo 'Processing...'", successor=[notify])
 
 my_callback = Callback(
     task=process,
@@ -271,7 +271,7 @@ daily_backup = cli.add_task(
             task=CmdTask(
                 name="run-backup",
                 execute_condition=lambda ctx: ctx.env.ENABLE_BACKUP == "true",
-                cmd="printf '%s\\n' 'Running backup at {ctx.xcom.backup_queue.pop()}'",
+                cmd="echo 'Running backup at {ctx.xcom.backup_queue.pop()}'",
             ),
             input_mapping={"timestamp": "{ctx.xcom.backup_queue.pop()}"}
         )

@@ -43,7 +43,7 @@ from zrb.runner.cli import cli
 deploy_prod = cli.add_task(
     CmdTask(
         name="deploy-prod",
-        cmd="printf '%s\\n' 'Deploying to Acme Corp Production!'"
+        cmd="echo 'Deploying to Acme Corp Production!'"
     )
 )
 ```

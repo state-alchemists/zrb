@@ -121,7 +121,7 @@ async def test_cmd_task_execution():
     group = Group(name="test")
     task = group.add_task(CmdTask(
         name="echo-test",
-        cmd="printf '%s\\n' 'Hello, Test!'",
+        cmd="echo 'Hello, Test!'",
     ))
     
     # Build a minimal mock context to drive the task
@@ -210,10 +210,10 @@ To test task chains, create tasks and verify their upstream relationships:
 def test_task_dependencies():
     group = Group(name="test")
     
-    task_a = group.add_task(CmdTask(name="a", cmd="printf '%s\\n' 'A'"))
-    task_b = group.add_task(CmdTask(name="b", cmd="printf '%s\\n' 'B'", upstream=[task_a]))
-    task_c = group.add_task(CmdTask(name="c", cmd="printf '%s\\n' 'C'", upstream=[task_a]))
-    task_d = group.add_task(CmdTask(name="d", cmd="printf '%s\\n' 'D'", upstream=[task_b, task_c]))
+    task_a = group.add_task(CmdTask(name="a", cmd="echo A"))
+    task_b = group.add_task(CmdTask(name="b", cmd="echo B", upstream=[task_a]))
+    task_c = group.add_task(CmdTask(name="c", cmd="echo C", upstream=[task_a]))
+    task_d = group.add_task(CmdTask(name="d", cmd="echo D", upstream=[task_b, task_c]))
     
     # Verify upstream relationships
     assert task_a in task_b.upstreams

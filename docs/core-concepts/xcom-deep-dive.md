@@ -60,7 +60,7 @@ def produce(ctx):
 For `CmdTask`, the action returns a `CmdResult` object (capturing stdout, stderr, and exit code), and that object is pushed as-is:
 
 ```python
-producer = cli.add_task(CmdTask(name="producer", cmd="printf '%s\\n' 'Hello from shell'"))
+producer = cli.add_task(CmdTask(name="producer", cmd="echo 'Hello from shell'"))
 # ctx.xcom["producer"].pop() returns a CmdResult, not a plain string.
 # CmdResult stringifies to the command's stdout, so f"{result}" or str(result)
 # gives you "Hello from shell".
@@ -111,13 +111,13 @@ For `CmdTask`, use f-string-style templating (single `{}`) to access XCom direct
 ```python
 from zrb import cli, CmdTask
 
-producer = cli.add_task(CmdTask(name="producer", cmd="printf '%s\\n' 'data-123'"))
+producer = cli.add_task(CmdTask(name="producer", cmd="echo 'data-123'"))
 
 consumer = cli.add_task(
     CmdTask(
         name="consumer",
         upstream=[producer],
-        cmd="printf '%s\\n' 'Processing: {ctx.xcom[\"producer\"].pop()}'",
+        cmd="echo 'Processing: {ctx.xcom[\"producer\"].pop()}'",
     )
 )
 # Output: Processing: data-123
@@ -134,7 +134,7 @@ XCom values can be used in any `{ }` expression within task parameters, not just
 ```python
 from zrb import Scaffolder, StrInput, cli
 
-creator = cli.add_task(CmdTask(name="creator", cmd="printf '%s\\n' 'my-app'"))
+creator = cli.add_task(CmdTask(name="creator", cmd="echo 'my-app'"))
 
 scaffold = cli.add_task(
     Scaffolder(
@@ -183,7 +183,7 @@ def transform(ctx):
 stage_3 = cli.add_task(CmdTask(
     name="save",
     upstream=[transform],
-    cmd="printf '%s\\n' '{ctx.xcom[\"transform\"].pop()}' > output.txt"
+    cmd="echo '{ctx.xcom[\"transform\"].pop()}' > output.txt"
 ))
 ```
 
@@ -210,7 +210,7 @@ XCom is the foundation of trigger-callback patterns:
 from zrb import BaseTrigger, Callback
 
 my_callback = Callback(
-    task=CmdTask(name="on-event", cmd="printf '%s\\n' '{ctx.input.message}'"),
+    task=CmdTask(name="on-event", cmd="echo '{ctx.input.message}'"),
     input_mapping={"message": "{ctx.xcom.event_queue.pop()}"}
 )
 

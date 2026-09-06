@@ -37,7 +37,7 @@ cli.add_task(
     ],
     # The variables are injected into the shell execution environment
     # and are also accessible via {ctx.env.<name>}
-    cmd="printf '%s\\n' 'Hello {ctx.env.USER}, your shell is {ctx.env.SHELL}'",
+    cmd="echo 'Hello {ctx.env.USER}, your shell is {ctx.env.SHELL}'",
   )
 )
 ```

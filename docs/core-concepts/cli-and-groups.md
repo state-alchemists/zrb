@@ -25,7 +25,7 @@ Whenever you add a task directly to the `cli`, Zrb automatically creates a comma
 from zrb import cli, CmdTask
 
 cli.add_task(
-    CmdTask(name="deploy_app", cmd="printf '%s\\n' 'Deploying!'")
+    CmdTask(name="deploy_app", cmd="echo 'Deploying!'")
 )
 ```
 
