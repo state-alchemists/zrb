@@ -20,6 +20,7 @@ from zrb.llm.permission.state import (
 )
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.base.message_queue import MessageQueue, submit_user_message_via_queue
+from zrb.llm.ui.defaults import UIDefaultsMixin
 from zrb.session.session import Session
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
@@ -27,7 +28,7 @@ from zrb.util.cli.style import stylize_muted
 logger = logging.getLogger(__name__)
 
 
-class MultiUI(AnyUI):
+class MultiUI(UIDefaultsMixin, AnyUI):
     """UI wrapper that broadcasts output to multiple UIs and waits for first response.
 
     This class implements AnyUI and delegates to multiple child UIs:
@@ -49,7 +50,7 @@ class MultiUI(AnyUI):
         llm_task.set_ui(multi_ui)
     """
 
-    def __init__(self, uis: list[Any], main_ui_index: int = 0):
+    def __init__(self, uis: list[AnyUI], main_ui_index: int = 0):
         self._uis = uis
         self._main_ui_index = main_ui_index
         self._responses: dict[int, asyncio.Future[str]] = {}
@@ -193,8 +194,7 @@ class MultiUI(AnyUI):
         """Set the LLM task for shared processing."""
         self._llm_task = llm_task
         for ui in self._uis:
-            if hasattr(ui, "llm_task"):
-                ui.llm_task = llm_task
+            ui.llm_task = llm_task
 
     def append_to_output(
         self,
@@ -434,8 +434,7 @@ class MultiUI(AnyUI):
         """
         self._is_thinking = value
         for ui in self._uis:
-            if hasattr(ui, "is_thinking"):
-                ui.is_thinking = value
+            ui.is_thinking = value
         if repaint:
             self.invalidate_all_uis()
 
@@ -443,8 +442,7 @@ class MultiUI(AnyUI):
         """Invalidate all child UIs."""
         for ui in self._uis:
             try:
-                if hasattr(ui, "invalidate_ui"):
-                    ui.invalidate_ui()
+                ui.invalidate_ui()
             except Exception as e:
                 # Best-effort repaint of each child UI.
                 CFG.LOGGER.debug(f"Child UI invalidate_ui failed: {e}")
@@ -499,7 +497,7 @@ class MultiUI(AnyUI):
             return result.to_pydantic_result()
 
         # Final fallback: use default handler from first UI
-        if self._uis and hasattr(self._uis[0], "tool_call_handler"):
+        if self._uis and self._uis[0].tool_call_handler is not None:
             return await self._uis[0].tool_call_handler.handle(self, call)
 
         raise RuntimeError(
@@ -611,13 +609,12 @@ class MultiUI(AnyUI):
 
         for i, ui in enumerate(self._uis):
             try:
-                if hasattr(ui, "ask_user"):
-                    task = loop.create_task(
-                        ui.ask_user(
-                            prompt, output_to_parent=output_to_parent, agent_id=agent_id
-                        )
+                task = loop.create_task(
+                    ui.ask_user(
+                        prompt, output_to_parent=output_to_parent, agent_id=agent_id
                     )
-                    pending_tasks[task] = (i, ui)
+                )
+                pending_tasks[task] = (i, ui)
             except Exception as e:
                 CFG.LOGGER.debug(f"Child UI ask_user setup failed: {e}")
 
@@ -677,9 +674,8 @@ class MultiUI(AnyUI):
 
         for i, ui in enumerate(self._uis):
             try:
-                if hasattr(ui, "ask_user_choice"):
-                    task = loop.create_task(ui.ask_user_choice(spec, agent_id=agent_id))
-                    pending_tasks[task] = (i, ui)
+                task = loop.create_task(ui.ask_user_choice(spec, agent_id=agent_id))
+                pending_tasks[task] = (i, ui)
             except Exception as e:
                 CFG.LOGGER.debug(f"Child UI ask_user_choice setup failed: {e}")
 
@@ -725,8 +721,7 @@ class MultiUI(AnyUI):
             if i == except_index:
                 continue
             try:
-                if hasattr(ui, "cancel_pending_confirmations"):
-                    ui.cancel_pending_confirmations()
+                ui.cancel_pending_confirmations()
             except Exception as e:
                 # Best-effort cancel across child UIs during teardown.
                 CFG.LOGGER.debug(f"Child UI cancel_pending_confirmations failed: {e}")
@@ -753,11 +748,14 @@ class MultiUI(AnyUI):
     ) -> Any:
         return await self.main_ui.run_interactive_command(cmd, shell=shell)
 
-    async def _start_child_ui(self, ui: Any) -> None:
+    async def _start_child_ui(self, ui: AnyUI) -> None:
         """Start a child UI's event loop if it has one."""
-        if hasattr(ui, "start_event_loop"):
-            await ui.start_event_loop()
-        elif hasattr(ui, "run_async") and ui is not self.main_ui:
+        # `start_event_loop` is EventDrivenUI's alone, so it stays a capability
+        # probe. `run_async` is on the AnyUI contract, so it needs no probe.
+        start_event_loop: Any = getattr(ui, "start_event_loop", None)
+        if start_event_loop is not None:
+            await start_event_loop()
+        elif ui is not self.main_ui:
             await ui.run_async()
 
     async def run_async(self) -> str:

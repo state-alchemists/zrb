@@ -344,8 +344,8 @@ def _ensure_journal_git(root: str) -> None:
     """Best-effort `git init` for the journal root, so writes/deletes become
     real, unbounded commits instead of relying only on the in-file History
     block (capped at `_HISTORY_MAX_ENTRIES`). Never raises: a missing `git`
-    binary or a failed init leaves journaling exactly as it was before this
-    existed — same fallback spirit as the `fcntl`-unavailable branch above.
+    binary or a failed init leaves an ungitted but fully working journal —
+    same fallback spirit as the `fcntl`-unavailable branch above.
 
     Callers must hold `_journal_lock(root)` — this races two first-time
     writers' `git init`/initial commit against each other otherwise."""

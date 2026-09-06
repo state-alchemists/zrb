@@ -52,10 +52,9 @@ class TerminalApprovalChannel(AnyApprovalChannel):
             tool_call_id=context.tool_call_id,
         )
 
-        # Use the UI's handler if available (has formatters), otherwise create new one.
-        # `tool_call_handler` is the public accessor on BaseUI/MultiUI.
-        ui_handler = getattr(self._ui, "tool_call_handler", None)
-        handler = ui_handler if ui_handler is not None else ToolCallHandler()
+        # Use the UI's handler when it has one (it carries the formatters and
+        # policies); `None` is the AnyUI contract's own "this UI has none".
+        handler = self._ui.tool_call_handler or ToolCallHandler()
 
         message = await handler.format_approval_message(self._ui, call)
         CFG.LOGGER.debug(

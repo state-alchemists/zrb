@@ -61,8 +61,8 @@ def test_check_unrecommended_commands_sort_V():
 
 def test_check_unrecommended_commands_multiple_violations():
     """Test detection of multiple violations."""
-    violations = check_unrecommended_commands("echo hello | sort -V")
-    assert "echo" in violations
+    violations = check_unrecommended_commands("echo -n hello | sort -V")
+    assert r"(?<![\w-])echo\s+-[neE]" in violations
     assert r"sort.*-V" in violations
 
 
@@ -239,6 +239,11 @@ class TestCheckUnrecommendedCommandsEdgeCases:
         "grep --color foo bar",
         "pytest -k test_thing",
         "dotnet test",
+        # A plain echo is byte-identical in bash, dash and zsh; only `-n`/`-e`
+        # and backslash escapes differ, so only those are flagged.
+        "echo hi",
+        "echo 'Deploying!'",
+        "git commit -m 'x' && echo done",
     ],
 )
 def test_check_unrecommended_commands_no_false_positive(cmd_script):
@@ -249,7 +254,9 @@ def test_check_unrecommended_commands_no_false_positive(cmd_script):
 @pytest.mark.parametrize(
     "cmd_script",
     [
-        "echo hi",
+        "echo -n hi",
+        "echo -e 'a\\tb'",
+        r"echo 'C:\new'",
         "source ./env.sh",
         "which python",
         "eval $x",

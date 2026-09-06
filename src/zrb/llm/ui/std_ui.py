@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.config.config import CFG
 from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.ui.defaults import UIDefaultsMixin
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
@@ -37,7 +38,7 @@ def resolve_choice_selection(spec: "ChoiceSpec", selection: Any) -> str:
     return ", ".join(labels)
 
 
-class StdUI(AnyUI):
+class StdUI(UIDefaultsMixin, AnyUI):
     """Standard UI implementation of AnyUI for terminal environments."""
 
     def __init__(self, assistant_name: str | None = None):

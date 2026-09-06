@@ -104,10 +104,23 @@ def _handle_uncaught(error: Exception) -> None:
     `BaseTaskExecution.execute_action_with_retry`); letting it propagate here
     would just dump the same failure again as a raw traceback. Keep the full
     traceback available on demand via DEBUG, same as execution.py.
+
+    The one-line summary carries no file or line, so it names the variable
+    that unlocks the rest: under DEBUG this re-raises, and the traceback
+    arrives with the `Task: <name> (<file>:<line>)` line attached.
+
+    That variable is read off the field rather than hardcoded, because a
+    white-labeled distribution sets its own `_ZRB_ENV_PREFIX` (see
+    `docs/advanced-topics/white-labeling.md`) and reads `ACME_LOGGING_LEVEL`.
     """
     if CFG.LOGGER.isEnabledFor(logging.DEBUG):
         raise error
+    debug_env_key = type(CFG).LOGGING_LEVEL.env_key(CFG.ENV_PREFIX)
     print(stylize_error(f"{type(error).__name__}: {error}"), file=sys.stderr)
+    print(
+        stylize_muted(f"For the full traceback: {debug_env_key}=DEBUG"),
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 

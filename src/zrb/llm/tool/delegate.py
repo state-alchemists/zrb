@@ -200,8 +200,8 @@ async def run_agent_task(
             run_scope=session.run_scope if session is not None else "",
         )
 
-        if flush_ui and hasattr(ui, "flush_to_parent"):
-            getattr(ui, "flush_to_parent")()
+        if flush_ui:
+            ui.flush_to_parent()
 
         live_subagent_session_registry.mark_turn_finished(
             activity_session_id, agent_id, history
@@ -307,10 +307,9 @@ def _prune_old_subagent_history() -> None:
     # The root also holds ordinary (non-delegated) sessions, and a session
     # name that merely *looks* delegated (matches `parse_delegated_session`'s
     # best-effort shape, e.g. a user `/save`d name) must never become a
-    # deletion candidate. Cost: legacy delegated files written before the
-    # `subagent/` layout shipped (which live flat in the root) are no longer
-    # pruned by this pass — they simply accumulate, same as before this
-    # feature existed. Reads/search still scan both locations (see
+    # deletion candidate. Cost: delegated files sitting flat in the root
+    # rather than under `subagent/` fall outside this pass and accumulate.
+    # Reads and search still scan both locations (see
     # `subagent_history_directories`); only pruning is narrowed.
     entries: list[tuple[float, str]] = []
     try:

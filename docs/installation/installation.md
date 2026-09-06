@@ -300,8 +300,10 @@ zrb version
 zrb --help
 
 # Quick test - create a simple task
-echo 'from zrb import cli, CmdTask
-cli.add_task(CmdTask(name="hello", cmd="echo Hello from Zrb!"))' > zrb_init.py
+cat > zrb_init.py <<'EOF'
+from zrb import cli, CmdTask
+cli.add_task(CmdTask(name="hello", cmd="echo 'Hello from Zrb!'"))
+EOF
 
 # Run the task
 zrb hello

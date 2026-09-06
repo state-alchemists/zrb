@@ -130,8 +130,9 @@ def split_live_context(content: str) -> tuple[str, str | None]:
 def _admits(model: "Any", tool: str) -> bool:
     """Whether a standard tool may be named in live context.
 
-    Prompt profiles no longer alter the tool surface, so all registered tools
-    are available in every profile.
+    Always true: the prompt profile selects wording, not the tool surface, so
+    every registered tool is available whichever profile is active. The seam
+    stays so a profile-dependent surface has somewhere to go.
     """
     return True
 

@@ -16,6 +16,7 @@ from zrb.task.base.base_task import BaseTask
 from zrb.util.attr import get_int_attr, get_str_attr
 from zrb.util.cmd.command import check_unrecommended_commands, run_command
 from zrb.util.cmd.remote import get_remote_cmd_script
+from zrb.util.secret import redact_env_map
 from zrb.xcom.xcom import Xcom
 
 
@@ -59,9 +60,9 @@ class CmdTask(BaseTask):
         retry_period: float = 0,
         readiness_check: Sequence[AnyTask] | AnyTask | None = None,
         readiness_check_delay: float = 0.5,
-        readiness_check_period: float = 5,
-        readiness_failure_threshold: int = 1,
-        readiness_timeout: int = 60,
+        readiness_check_period: float | None = 5,
+        readiness_failure_threshold: int | None = 1,
+        readiness_timeout: int | None = 60,
         monitor_readiness: bool = False,
         upstream: Sequence[AnyTask] | AnyTask | None = None,
         fallback: Sequence[AnyTask] | AnyTask | None = None,
@@ -179,7 +180,11 @@ class CmdTask(BaseTask):
         cwd = self._get_cwd(ctx)
         ctx.log_debug(f"Working directory: {cwd}")
         env_map = self.__get_env_map(ctx)
-        ctx.log_debug(f"Environment map: {env_map}")
+        # Names kept, credential-looking values masked: DEBUG output is what
+        # users paste into bug reports.
+        ctx.log_debug(
+            f"Environment map: {redact_env_map(env_map, CFG.SECRET_ENV_PATTERNS)}"
+        )
         if self._get_should_warn_unrecommended_commands():
             self._check_unrecommended_commands(ctx, shell, cmd_script)
         ctx.log_info("Running script")

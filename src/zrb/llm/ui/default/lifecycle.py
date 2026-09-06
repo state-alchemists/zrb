@@ -90,7 +90,7 @@ class UILifecycle:
 
     def _track_background(self, task: asyncio.Task | None) -> None:
         """Add a task to `background_tasks` to prevent premature GC."""
-        if task is not None and hasattr(self._ui, "background_tasks"):
+        if task is not None:
             self._ui.background_tasks.add(task)
 
     async def _cancel_and_discard(self, task: asyncio.Task | None) -> None:
@@ -103,8 +103,7 @@ class UILifecycle:
         except (asyncio.CancelledError, RuntimeError):
             pass
         finally:
-            if hasattr(self._ui, "background_tasks"):
-                self._ui.background_tasks.discard(task)
+            self._ui.background_tasks.discard(task)
 
     async def _refresh_loop(self):
         """Periodically invalidate UI to fix artifacts/lag."""
@@ -180,10 +179,9 @@ class UILifecycle:
             # No active app to exit (already torn down) — nothing to do.
             pass
 
-        if hasattr(self._ui, "background_tasks"):
-            for task in self._ui.background_tasks:
-                if not task.done():
-                    task.cancel()
+        for task in self._ui.background_tasks:
+            if not task.done():
+                task.cancel()
 
 
 def _make_snapshot_progress_handler(

@@ -48,9 +48,6 @@ class HttpCheck(BaseTask):
             http_method: HTTP method to send.
             interval: Seconds between polls. Defaults to the readiness check
                 period.
-
-        Every parameter `BaseTask` accepts is also accepted here and behaves
-        identically; see `BaseTask` for those.
         """
         super().__init__(
             name=name,

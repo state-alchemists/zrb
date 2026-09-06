@@ -106,10 +106,16 @@ def test_check_unrecommended_commands():
     # Test safe script
     assert check_unrecommended_commands("printf 'hello'") == {}
 
-    # Test banned commands
-    violations = check_unrecommended_commands("echo 'hello'")
-    assert "echo" in violations
-    assert violations["echo"] == "echo isn't consistent across OS; use printf instead"
+    # A plain `echo` is portable — bash, dash and zsh all print a literal
+    # identically — so it is not flagged. Only `-n`/`-e` and backslash escapes
+    # differ between them.
+    assert check_unrecommended_commands("echo 'hello'") == {}
+
+    violations = check_unrecommended_commands("echo -n hello")
+    assert r"(?<![\w-])echo\s+-[neE]" in violations
+
+    violations = check_unrecommended_commands(r"echo 'C:\new'")
+    assert r"(?<![\w-])echo\s[^|;&]*\\" in violations
 
     violations = check_unrecommended_commands("ls -la")
     assert r"(?:^|[|;&]\s*)ls\s" in violations

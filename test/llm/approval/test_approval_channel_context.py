@@ -143,6 +143,10 @@ class TestTerminalApprovalChannel:
     async def test_terminal_channel_approves_on_yes(self):
         """Test that TerminalApprovalChannel approves when UI returns 'y'."""
         mock_ui = MagicMock(spec=AnyUI)
+        # `tool_call_handler` is on the AnyUI contract, so a spec'd mock
+        # auto-creates one. This case covers the UI-has-no-handler path,
+        # where TerminalApprovalChannel builds its own.
+        mock_ui.tool_call_handler = None
         mock_ui.ask_user = AsyncMock(return_value="y")
         mock_ui.append_to_output = MagicMock()
 
@@ -162,6 +166,10 @@ class TestTerminalApprovalChannel:
     async def test_terminal_channel_denies_on_no(self):
         """Test that TerminalApprovalChannel denies when UI returns 'n'."""
         mock_ui = MagicMock(spec=AnyUI)
+        # `tool_call_handler` is on the AnyUI contract, so a spec'd mock
+        # auto-creates one. This case covers the UI-has-no-handler path,
+        # where TerminalApprovalChannel builds its own.
+        mock_ui.tool_call_handler = None
         mock_ui.ask_user = AsyncMock(return_value="n")
         mock_ui.append_to_output = MagicMock()
 
@@ -181,6 +189,10 @@ class TestTerminalApprovalChannel:
     async def test_terminal_channel_empty_response_approves(self):
         """Test that TerminalApprovalChannel approves on empty response."""
         mock_ui = MagicMock(spec=AnyUI)
+        # `tool_call_handler` is on the AnyUI contract, so a spec'd mock
+        # auto-creates one. This case covers the UI-has-no-handler path,
+        # where TerminalApprovalChannel builds its own.
+        mock_ui.tool_call_handler = None
         mock_ui.ask_user = AsyncMock(return_value="")
         mock_ui.append_to_output = MagicMock()
 
@@ -199,6 +211,10 @@ class TestTerminalApprovalChannel:
     async def test_terminal_channel_uses_notify(self):
         """Test that TerminalApprovalChannel uses UI for notifications."""
         mock_ui = MagicMock(spec=AnyUI)
+        # `tool_call_handler` is on the AnyUI contract, so a spec'd mock
+        # auto-creates one. This case covers the UI-has-no-handler path,
+        # where TerminalApprovalChannel builds its own.
+        mock_ui.tool_call_handler = None
         mock_ui.ask_user = AsyncMock(return_value="y")
 
         channel = TerminalApprovalChannel(ui=mock_ui)
@@ -251,6 +267,10 @@ class TestApprovalChannelProtocol:
     def test_terminal_channel_implements_protocol(self):
         """Test that TerminalApprovalChannel implements AnyApprovalChannel protocol."""
         mock_ui = MagicMock(spec=AnyUI)
+        # `tool_call_handler` is on the AnyUI contract, so a spec'd mock
+        # auto-creates one. This case covers the UI-has-no-handler path,
+        # where TerminalApprovalChannel builds its own.
+        mock_ui.tool_call_handler = None
         channel = TerminalApprovalChannel(ui=mock_ui)
 
         # Check protocol methods exist

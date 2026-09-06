@@ -1,6 +1,6 @@
 [project]
 name = "zrb"
-version = "3.0.0b1"
+version = "3.0.0b2"
 description = "Your Automation Powerhouse"
 authors = [{name = "Go Frendi Gunawan", email = "gofrendiasgard@gmail.com"}]
 license = "AGPL-3.0-or-later"
@@ -208,6 +208,12 @@ radon = "^6.0.1"
 pdoc = ">=15"
 
 [tool.pytest.ini_options]
+# Pin the suite to `src/`. Without it `import zrb` resolves by whatever is on
+# sys.path, so a venv out of step with poetry.lock serves a stale
+# `site-packages/zrb` and the run reports green against code that is not in
+# the diff. `.coveragerc` omits `src/zrb/__main__.py` by the path this
+# guarantees.
+pythonpath = ["src"]
 asyncio_default_fixture_loop_scope = "function"
 norecursedirs = "playground examples"
 
