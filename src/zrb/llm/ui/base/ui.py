@@ -61,7 +61,7 @@ from zrb.llm.ui.base.replay import BaseUIReplay
 from zrb.llm.ui.base.system_info import BaseUISystemInfo
 from zrb.llm.ui.base.usage import BaseUIUsage
 from zrb.llm.ui.base.voice_state import BaseUIVoiceState
-from zrb.llm.ui.defaults import UIDefaultsMixin
+from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
 from zrb.llm.ui.multi_ui import MultiUI
 from zrb.llm.ui.ui_config import UIConfig
 from zrb.session.any_session import AnySession
@@ -113,54 +113,46 @@ def _command_alias_property(key: str, label: str) -> property:
     return property(getter, setter)
 
 
-class BaseUI(UIDefaultsMixin, AnyUI):
-    """Base class for LLM Chat UI implementations.
+class BaseUI(UIStateDefaultsMixin, AnyUI):
+    """The chat session itself, minus how it draws.
 
-    This class provides the core chat functionality (message handling, command
-    processing, AI interaction) while delegating UI-specific rendering to subclasses.
+    `BaseUI` runs the message loop, slash-command dispatch, tool approvals,
+    history and model switching. A subclass supplies rendering and input for
+    one backend — a terminal, Telegram, a websocket, a test double — and
+    inherits the rest.
 
-    Architecture:
-        BaseUI is designed to be subclassed for different UI backends:
-        - Terminal UI (prompt_toolkit)
-        - Telegram UI (python-telegram-bot)
-        - Web UI (WebSocket/HTTP)
-        - Simple UI (basic stdin/stdout)
+    Override to render and read:
+        `append_to_output` and `ask_user` are the pair every backend writes.
+        `run_interactive_command` hands a shell command a real terminal, and
+        `run_async` drives the session's own loop. All four ship with working
+        implementations, so a subclass overrides what its backend needs rather
+        than being forced to answer for the rest.
 
-    Required Methods (must be implemented by subclasses):
-        - append_to_output(): Render output to user
-        - ask_user(): Block and wait for user input
-        - run_interactive_command(): Execute interactive shell commands
-        - run_async(): Run the UI event loop
+    Prefer a smaller entry point when you can:
+        `SimpleUI` covers a backend that owns its event loop and can block on
+        input; `EventDrivenUI` covers one that delivers messages by callback.
+        Both leave `run_async` alone, which is most of the work here. Reach
+        for `BaseUI` when neither shape fits.
 
-    Optional Methods (can be overridden):
-        - invalidate_ui(): Refresh UI state
-        - on_exit(): Clean exit handler
-        - stream_to_parent(): Stream output to parent (for multiplexed UIs)
-        - _get_output_field_width(): Custom output width
+    Registering one:
+        `create_ui_factory(MyUI)` adapts any of them to
+        `llm_chat.ui_factories`; pass `ui_config=UIConfig(...)` to set the
+        assistant's identity and slash-command aliases.
 
-    Extension Levels:
-        ┌─────────────────────────────────────────────────────────────────┐
-        │ Level 0: AnyUI (minimal, 4 methods)                        │
-        │         - For tool confirmations only                           │
-        ├─────────────────────────────────────────────────────────────────┤
-        │ Level 1: BaseUI (base class for full implementations)           │
-        │         - Implement 4 required methods + run_async()            │
-        │         - For custom backends (Telegram, Discord, WebSocket)    │
-        ├─────────────────────────────────────────────────────────────────┤
-        │ Level 2: UI (terminal implementation)                           │
-        │         - Full TUI with prompt_toolkit                          │
-        ├─────────────────────────────────────────────────────────────────┤
-        │ Level 3: MultiUI (multi-channel support)                        │
-        │         - Manages multiple child UIs                            │
-        └─────────────────────────────────────────────────────────────────┘
+    The method set each entry point actually requires is executable rather
+    than described here, in `test/llm/ui/test_extension_levels.py` — that file
+    builds a minimal subclass per level the way the guide says to, so a
+    changed requirement fails there instead of in a user's `zrb_init.py`.
+    The full walkthrough is `docs/llm/llm-custom-ui.md`.
 
     Example:
-        Minimal custom UI::
+        A backend that reads and writes one line at a time::
 
             class MyUI(BaseUI):
-                def append_to_output(self, *values, sep=" ", end="\\n", kind="text", **kwargs):
-                    text = sep.join(str(v) for v in values) + end
-                    print(text, end="")
+                def append_to_output(
+                    self, *values, sep=" ", end="\\n", kind="text", **kwargs
+                ):
+                    print(sep.join(str(v) for v in values), end=end)
 
                 async def ask_user(self, prompt: str) -> str:
                     if prompt:
@@ -172,19 +164,18 @@ class BaseUI(UIDefaultsMixin, AnyUI):
                     await proc.wait()
 
                 async def run_async(self):
-                    self._process_messages_task = asyncio.create_task(
+                    self.process_messages_task = asyncio.create_task(
                         self.process_messages_loop()
                     )
-                    if self._initial_message:
-                        self.submit_user_message(self._llm_task, self._initial_message)
-                    # Keep running until cancelled
+                    if self.initial_message:
+                        self.submit_user_message(self.llm_task, self.initial_message)
                     try:
                         while True:
                             await asyncio.sleep(CFG.LLM_UI_STATUS_INTERVAL / 1000)
                     except asyncio.CancelledError:
                         pass
                     finally:
-                        self._process_messages_task.cancel()
+                        self.process_messages_task.cancel()
     """
 
     def __init__(

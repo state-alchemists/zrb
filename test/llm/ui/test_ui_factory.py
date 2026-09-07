@@ -91,7 +91,7 @@ class TestCreateUIFactory:
                 return "test"
 
         config = UIConfig(assistant_name="CustomBot")
-        factory = create_ui_factory(TestSimpleUI, config=config)
+        factory = create_ui_factory(TestSimpleUI, ui_config=config)
 
         from zrb.context.shared_context import SharedContext
 
@@ -120,7 +120,7 @@ class TestCreateUIFactory:
                 return "test"
 
         config = UIConfig(exit_commands=["/exit"])
-        factory = create_ui_factory(TestSimpleUI, config=config)
+        factory = create_ui_factory(TestSimpleUI, ui_config=config)
 
         from zrb.context.shared_context import SharedContext
 

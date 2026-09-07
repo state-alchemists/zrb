@@ -71,11 +71,8 @@ chat = LLMChatTask(
     include_default_ui: bool = True,
     interactive: BoolAttr = True,
     markdown_theme: Theme | None = None,
-    ui_greeting: StrAttr | None = None,
-    ui_assistant_name: StrAttr | None = None,
-    ui_jargon: StrAttr | None = None,
-    ui_ascii_art: StrAttr | None = None,
-    # Slash-command aliases, yolo_xcom_key, show_*_models — see UIConfig, below
+    # Assistant name/greeting/banner/tagline, slash-command aliases,
+    # yolo_xcom_key, show_*_models — see UIConfig, below
     ui_config: UIConfig | None = None,
     # Extra commands & external drivers — see Custom UI Guide
     custom_commands: list[AnyCustomCommand] | None = None,
@@ -122,6 +119,7 @@ Both `message` and `system_prompt` accept a `Tpl` or a callable, so you can hand
 
 ```python
 from zrb import cli, CmdTask, LLMChatTask
+from zrb.llm.ui import UIConfig
 
 status = cli.add_task(CmdTask(name="git-status", cmd="git status && git log --oneline -20"))
 
@@ -134,7 +132,7 @@ chat = cli.add_task(
             "answer the user's questions about it.\n\n"
             f"{ctx.xcom['git-status'].pop()}"
         ),
-        ui_greeting="Ask me anything about the current repo state.",
+        ui_config=UIConfig(greeting="Ask me anything about the current repo state."),
         # No `message` → the TUI opens and waits for the user.
     )
 )
@@ -173,7 +171,7 @@ llm_chat.prompt_manager = PromptManager(prompts=["Just this one bot."])
 llm_chat.hook_manager = my_hook_manager      # or None to go back to "fresh per run"
 llm_chat.llm_limiter = my_llm_limiter        # or None to remove the limit
 llm_chat.markdown_theme = my_rich_theme      # or None for the default
-llm_chat.ui_config = UIConfig(exit_commands=["/bye"])
+llm_chat.ui_config = UIConfig(assistant_name="Ada", exit_commands=["/bye"])
 llm_chat.model_getter = my_model_getter      # or None to remove the hook
 llm_chat.model_renderer = my_model_renderer  # or None to remove the hook
 ```

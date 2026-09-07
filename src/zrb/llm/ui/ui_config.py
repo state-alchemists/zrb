@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields, replace
 from typing import Callable
 
 from zrb.config.config import CFG
@@ -30,11 +30,15 @@ class UIConfig:
             exit_commands=["/quit", "/bye"],
             is_yolo=False,
         )
-        ui = MyUI(config=config, llm_task=task, history_manager=hist)
+        ui = MyUI(ui_config=config, llm_task=task, history_manager=hist)
     """
 
-    # Identity
     assistant_name: str = field(default_factory=lambda: CFG.LLM_ASSISTANT_NAME)
+    ascii_art: str = field(default_factory=lambda: CFG.LLM_ASSISTANT_ASCII_ART)
+    jargon: str = field(default_factory=lambda: CFG.LLM_ASSISTANT_JARGON)
+    greeting: str = field(
+        default_factory=lambda: f"{CFG.LLM_ASSISTANT_NAME}\n{CFG.LLM_ASSISTANT_JARGON}"
+    )
 
     # Commands (use empty list to disable)
     summarize_commands: list[str] = field(
@@ -90,39 +94,30 @@ class UIConfig:
         return cls()
 
     def merge_commands(self, ui_commands: dict) -> "UIConfig":
-        """Merge UI commands from task configuration.
+        """Copy this config with the named command lists replaced.
 
-        Args:
-            ui_commands: Dictionary of commands from task configuration
+        Keys are the bare command names `LLMChatTask` stores them under
+        (`"exit"`, `"set_model"`, ...); each maps to the `<key>_commands`
+        field, except `"redirect"`, whose field carries an `_output` infix.
+        An unknown key is ignored rather than raising: the mapping is fed by
+        task configuration, and a stale alias should not break a session.
 
-        Returns:
-            New UIConfig with merged commands
+        `replace` rather than a hand-written field list, so a field added to
+        this dataclass is carried over automatically instead of being silently
+        dropped until someone remembers to extend the list here.
         """
-        return UIConfig(
-            exit_commands=ui_commands.get("exit", self.exit_commands),
-            info_commands=ui_commands.get("info", self.info_commands),
-            save_commands=ui_commands.get("save", self.save_commands),
-            load_commands=ui_commands.get("load", self.load_commands),
-            attach_commands=ui_commands.get("attach", self.attach_commands),
-            photo_commands=ui_commands.get("photo", self.photo_commands),
-            redirect_output_commands=ui_commands.get(
-                "redirect", self.redirect_output_commands
-            ),
-            rewind_commands=ui_commands.get("rewind", self.rewind_commands),
-            yolo_toggle_commands=ui_commands.get(
-                "yolo_toggle", self.yolo_toggle_commands
-            ),
-            set_model_commands=ui_commands.get("set_model", self.set_model_commands),
-            exec_commands=ui_commands.get("exec", self.exec_commands),
-            btw_commands=ui_commands.get("btw", self.btw_commands),
-            plan_commands=ui_commands.get("plan", self.plan_commands),
-            copy_commands=ui_commands.get("copy", self.copy_commands),
-            voice_commands=ui_commands.get("voice", self.voice_commands),
-            summarize_commands=ui_commands.get("summarize", self.summarize_commands),
-            assistant_name=self.assistant_name,
-            is_yolo=self.is_yolo,
-            yolo_xcom_key=self.yolo_xcom_key,
-            conversation_session_name=self.conversation_session_name,
-            show_ollama_models=self.show_ollama_models,
-            show_pydantic_ai_models=self.show_pydantic_ai_models,
-        )
+        overrides = {}
+        for key, value in ui_commands.items():
+            name = _COMMAND_FIELD_ALIASES.get(key, f"{key}_commands")
+            if name in _COMMAND_FIELDS:
+                overrides[name] = value
+        return replace(self, **overrides)
+
+
+# Command keys whose field name is not simply `<key>_commands`.
+_COMMAND_FIELD_ALIASES = {"redirect": "redirect_output_commands"}
+
+# Guards `merge_commands` against writing a key that is not a command list.
+_COMMAND_FIELDS = frozenset(
+    f.name for f in fields(UIConfig) if f.name.endswith("_commands")
+)

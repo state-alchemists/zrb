@@ -63,15 +63,15 @@ flowchart TB
 | `append_to_output(*values, sep, end)` | `print(text: str)` | Joins values with sep/end, calls async `print()` |
 | `ask_user(prompt: str)` | `get_input(prompt: str)` | Direct pass-through |
 | `run_interactive_command(cmd, shell)` | *(default)* | Shows "not supported" message |
-| `run_async()` | *(default)* | Starts `_process_messages_loop()`, handles lifecycle |
+| `run_async()` | *(default)* | Starts `process_messages_loop()`, handles lifecycle |
 
 ### What Each Level Abstracts Away
 
 | Level | What You Implement | What You Get For Free |
 |-------|-------------------|----------------------|
-| **BaseUI** | `__init__`, `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Message loop, command handling, LLM interaction, `UIConfig`-based settings |
-| **SimpleUI** | 2 methods (`print`, `get_input`) | All of BaseUI, plus a default `run_async()` and `__init__` |
-| **EventDrivenUI** | 2 methods (`print`, `start_event_loop`) | All of SimpleUI + input queue + message routing |
+| **BaseUI** | `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Message loop, command handling, LLM interaction, `UIConfig`-based settings |
+| **SimpleUI** | `print()`, `get_input()` | All of BaseUI, plus a default `run_async()` and `__init__` |
+| **EventDrivenUI** | `print()`, `start_event_loop()` | All of SimpleUI + input queue + message routing |
 
 **Key insight:** Each level builds on the previous, reducing what you must implement. `BaseUI` requires understanding the full architecture. `SimpleUI` lets you focus on just input/output.
 
@@ -98,9 +98,14 @@ class MyUI(SimpleUI):
 llm_chat.ui_factories = [create_ui_factory(MyUI)]
 ```
 
-**That's it!** Just 2 methods:
-- `print()` - Output path (AI responses, system messages)
-- `get_input()` - Input path (user chat, approvals, prompts)
+**That's it.** `print()` is the output path (AI responses, system messages);
+`get_input()` is the input path (user chat, approvals, prompts).
+
+Every "Required Methods" column below is executable rather than aspirational:
+`test/llm/ui/test_extension_levels.py` builds a minimal subclass at each level,
+implementing exactly what its row lists and registering it the one-line way. If
+a level starts demanding another method, or `create_ui_factory` stops accepting
+a class, that file fails before this page goes stale.
 
 ---
 
@@ -112,7 +117,7 @@ Choose your starting point based on your backend type:
 |-------|-------------|------------------|----------|
 | **1** | `SimpleUI` | `print()`, `get_input()` | CLI, file-based, synchronous I/O |
 | **2** | `EventDrivenUI` | `print()`, `start_event_loop()` | Telegram, Discord, WhatsApp (callbacks); HTTP API, WebSocket (`handle_incoming_message()` also drives an externally-driven backend, see `zrb.runner.chat.http_ui.create_http_ui_factory` for the built-in example) |
-| **3** | `BaseUI` | `__init__`, `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Full control, custom architecture |
+| **3** | `BaseUI` | `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Full control, custom architecture |
 
 **Recommendation:** Start with `SimpleUI`. Upgrade to `EventDrivenUI` if your backend requires it. Use `BaseUI` only for advanced custom architectures.
 
@@ -176,7 +181,7 @@ For an HTTP/SSE backend, see `zrb.runner.chat.http_ui.create_http_ui_factory`
 
 ## Level 1: SimpleUI (Request-Response Pattern)
 
-`SimpleUI` is for backends where you **control the event loop** and can **block on input**. You implement just 2 methods:
+`SimpleUI` is for backends where you **control the event loop** and can **block on input**. You implement:
 
 ### Method: `print(text: str)` (async)
 - Called when the AI responds, system messages, or errors
@@ -457,9 +462,9 @@ Use `BaseUI` when you need complete control over the message loop or have custom
 flowchart TB
     subgraph LLMChatTask["LLMChatTask"]
         subgraph BaseUI["BaseUI (Inherit from)"]
-            ProcLoop["_process_messages_loop()"]
-            Submit["_submit_user_message()"]
-            Stream["_stream_ai_response()"]
+            ProcLoop["process_messages_loop()"]
+            Submit["submit_user_message()"]
+            Stream["stream_ai_response()"]
             Handle["_handle_*_cmd()"]
             Impl["YOU IMPLEMENT:\nappend_to_output()\nask_user()\nrun_interactive_command()\nrun_async()"]
         end
@@ -496,9 +501,9 @@ flowchart TB
 
 ### What You Get for Free
 
-- `_process_messages_loop()` - Queue-based message processing
-- `_submit_user_message()` - Submit message to LLM
-- `_stream_ai_response()` - Handle AI response streaming
+- `process_messages_loop()` - Queue-based message processing
+- `submit_user_message()` - Submit message to LLM
+- `stream_ai_response()` - Handle AI response streaming
 - Command handlers (`/help`, `/exit`, `/save`, `/load`, `/model`, `/exec`, `/yolo`)
 - History management integration
 - Tool confirmation handling
@@ -575,13 +580,13 @@ class WebSocketUI(BaseUI):
     async def run_async(self) -> str:
         """Run message loop and WebSocket listener."""
         # Start the message processing loop
-        self._process_messages_task = asyncio.create_task(
-            self._process_messages_loop()
+        self.process_messages_task = asyncio.create_task(
+            self.process_messages_loop()
         )
 
         # Send initial message if provided
-        if self._initial_message:
-            self._submit_user_message(self._llm_task, self._initial_message)
+        if self.initial_message:
+            self.submit_user_message(self.llm_task, self.initial_message)
 
         # Listen for WebSocket messages
         async def receive_messages():
@@ -601,7 +606,7 @@ class WebSocketUI(BaseUI):
             pass
         finally:
             receive_task.cancel()
-            self._process_messages_task.cancel()
+            self.process_messages_task.cancel()
         return self.last_output
 
 # Server setup
@@ -731,7 +736,7 @@ config = UIConfig(
 )
 
 # Pass to factory
-llm_chat.ui_factories = [create_ui_factory(MyUI, config=config)]
+llm_chat.ui_factories = [create_ui_factory(MyUI, ui_config=config)]
 ```
 
 ### UIConfig Fields
@@ -811,7 +816,7 @@ from zrb.llm.ui import create_ui_factory, UIConfig
 # One-line registration with automatic parameter mapping
 config = UIConfig(assistant_name="MyBot", is_yolo=True)
 llm_chat.ui_factories = [
-    create_ui_factory(MyUI, config=config, bot_token=TOKEN, chat_id=12345)
+    create_ui_factory(MyUI, ui_config=config, bot_token=TOKEN, chat_id=12345)
 ]
 ```
 
@@ -828,7 +833,7 @@ llm_chat.ui_factories = [
 
 | Aspect | BaseUI | SimpleUI | Savings |
 |--------|---------|----------|---------|
-| **Items to implement** | 5: `__init__`, `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | 2: `print()`, `get_input()` | 60% fewer items |
+| **Items to implement** | `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | `print()`, `get_input()` | the loop and the lifecycle |
 | **`__init__` parameters** | ~15 params, one of them `ui_config` | Config object + kwargs | Cleaner initialization |
 | **`__init__` boilerplate** | 20+ lines | 1 `super().__init__()` call | Less code |
 | **Event loop management** | You write `run_async()` | Handled by default | 30+ lines saved |
@@ -841,7 +846,7 @@ llm_chat.ui_factories = [
 | `append_to_output(*values, sep, end)` | `print(text: str)` | Simpler signature, async |
 | `ask_user(prompt)` | `get_input(prompt)` | Same semantics, simpler name |
 | `run_interactive_command(cmd)` | *(not supported)* | Returns error by default |
-| `run_async()` | *(handled for you)* | Uses `_process_messages_loop()` |
+| `run_async()` | *(handled for you)* | Uses `process_messages_loop()` |
 
 ### Example Migration
 
@@ -875,18 +880,18 @@ class MyUI(BaseUI):
         return 1
 
     async def run_async(self):
-        self._process_messages_task = asyncio.create_task(
-            self._process_messages_loop()
+        self.process_messages_task = asyncio.create_task(
+            self.process_messages_loop()
         )
-        if self._initial_message:
-            self._submit_user_message(self._llm_task, self._initial_message)
+        if self.initial_message:
+            self.submit_user_message(self.llm_task, self.initial_message)
         try:
             while True:
                 await asyncio.sleep(1)
         except asyncio.CancelledError:
             pass
         finally:
-            self._process_messages_task.cancel()
+            self.process_messages_task.cancel()
         return self.last_output
 ```
 
@@ -1042,7 +1047,7 @@ llm_chat.approval_channels = [NullApprovalChannel()]
 
 # Or enable via UIConfig
 config = UIConfig(is_yolo=True)
-llm_chat.ui_factories = [create_ui_factory(MyUI, config=config)]
+llm_chat.ui_factories = [create_ui_factory(MyUI, ui_config=config)]
 ```
 
 ---

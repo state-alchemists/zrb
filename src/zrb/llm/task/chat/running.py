@@ -27,7 +27,7 @@ from zrb.llm.custom_command.resolver import (
 )
 from zrb.llm.task.chat.agent_mention import resolve_agent_mention
 from zrb.session.session import Session
-from zrb.util.attr import get_attr, get_str_attr
+from zrb.util.attr import get_attr
 
 if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext
@@ -247,28 +247,18 @@ class ChatRunning:
         if resolved_custom_commands is None:
             resolved_custom_commands = self._resolve_custom_commands()
 
-        ui_texts = {
-            key: get_str_attr(ctx, value, "")
-            for key, value in self._llm_chat_task.ui_texts.items()
-        }
-
-        # Layer this run's resolved values (yolo state, session name, and — if
-        # set — a per-task-instance assistant name) over the task's own
-        # ui_config, which already carries the command lists / yolo_xcom_key /
-        # show_*_models resolved at construction (task override, else CFG).
-        ui_config_overrides: dict[str, Any] = {
-            "is_yolo": initial_yolo,
-            "conversation_session_name": initial_conversation_name,
-        }
-        if ui_texts["assistant_name"]:
-            ui_config_overrides["assistant_name"] = ui_texts["assistant_name"]
-        ui_config = replace(self._llm_chat_task.ui_config, **ui_config_overrides)
+        # Layer this run's resolved values (yolo state, session name) over the
+        # task's own ui_config, which already carries the identity texts and
+        # the command lists / yolo_xcom_key / show_*_models, each resolved on
+        # first access (task override, else CFG).
+        ui_config = replace(
+            self._llm_chat_task.ui_config,
+            is_yolo=initial_yolo,
+            conversation_session_name=initial_conversation_name,
+        )
 
         return {
             "ctx": ctx,
-            "greeting": ui_texts["greeting"],
-            "ascii_art": ui_texts["ascii_art"],
-            "jargon": ui_texts["jargon"],
             "output_lexer": None,  # resolved lazily to avoid early import
             "llm_task": llm_task_core,
             "history_manager": history_manager,

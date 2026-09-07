@@ -83,9 +83,6 @@ class UI(BaseUI):
     def __init__(
         self,
         ctx: AnyContext,
-        greeting: str,
-        ascii_art: str,
-        jargon: str,
         output_lexer: Lexer,
         llm_task: LLMTask,
         history_manager: AnyHistoryManager,
@@ -134,9 +131,6 @@ class UI(BaseUI):
         self._agent_picker = UIAgentPicker(self)
         self._keybindings = UIKeybindings(self)
 
-        self._ascii_art = ascii_art
-        self._jargon = jargon
-
         self._refresh_task: asyncio.Task | None = None
 
         self._capture = GlobalStreamCapture()
@@ -167,8 +161,8 @@ class UI(BaseUI):
         # Resolved once: an unknown art name falls back to a *random* file, so
         # re-resolving per render would reshuffle the image on every resize.
         greeting_panel = self.get_help_panel(
-            art=get_ascii_art(self._ascii_art),
-            header=greeting,
+            art=get_ascii_art(self.ui_config.ascii_art),
+            header=self.ui_config.greeting,
             max_commands=GREETING_COMMAND_LIMIT,
         )
         self.append_rendered(greeting_panel, render_help_panel)
@@ -184,7 +178,7 @@ class UI(BaseUI):
 
         self._layout = create_layout(
             title=self._assistant_name,
-            jargon=self._jargon,
+            jargon=self.ui_config.jargon,
             input_field=self._input_field,
             output_field=self._output_field,
             info_bar_text=self.get_info_bar_text,
