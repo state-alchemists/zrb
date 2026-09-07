@@ -73,7 +73,7 @@ class MockUI:
         cmds = self.__dict__.get("_cmds")
         if cmds is None:
             raise AttributeError(name)
-        for collaborator_attr in ("", "_conversation", "_models", "_exec"):
+        for collaborator_attr in ("", "conversation", "models", "exec"):
             holder = getattr(cmds, collaborator_attr) if collaborator_attr else cmds
             if hasattr(holder, name):
                 return getattr(holder, name)

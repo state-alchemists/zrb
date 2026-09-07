@@ -1,4 +1,5 @@
 import time
+from dataclasses import fields
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -9,6 +10,20 @@ from prompt_toolkit.document import Document
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.ui.default.app.completion import InputCompleter
+from zrb.llm.ui.ui_config import UIConfig
+
+
+def _config(**overrides) -> UIConfig:
+    """A `UIConfig` with every slash-command list empty except the ones named.
+
+    `create_input_field`/`InputCompleter` used to take one `*_commands`
+    parameter per command, so omitting one meant "no aliases for it".
+    `UIConfig`'s fields default from `CFG.LLM_UI_COMMAND_*` instead, which
+    would hand these tests the full shipped alias set — this keeps each test
+    scoped to the commands it names.
+    """
+    empty = {f.name: [] for f in fields(UIConfig) if f.name.endswith("_commands")}
+    return UIConfig(**{**empty, **overrides})
 
 
 @pytest.fixture
@@ -22,15 +37,17 @@ def mock_history_manager():
 def completer(mock_history_manager):
     return InputCompleter(
         history_manager=mock_history_manager,
-        attach_commands=["/attach"],
-        photo_commands=["/photo"],
-        exit_commands=["/exit"],
-        info_commands=["/info"],
-        save_commands=["/save"],
-        load_commands=["/load"],
-        redirect_output_commands=["/out"],
-        copy_commands=["/copy"],
-        summarize_commands=["/sum"],
+        ui_config=_config(
+            attach_commands=["/attach"],
+            photo_commands=["/photo"],
+            exit_commands=["/exit"],
+            info_commands=["/info"],
+            save_commands=["/save"],
+            load_commands=["/load"],
+            redirect_output_commands=["/out"],
+            copy_commands=["/copy"],
+            summarize_commands=["/sum"],
+        ),
     )
 
 
@@ -110,7 +127,7 @@ def test_load_completion(completer, complete_event):
 def test_different_prefix_completion(mock_history_manager, complete_event):
     completer = InputCompleter(
         history_manager=mock_history_manager,
-        redirect_output_commands=[">out"],
+        ui_config=_config(redirect_output_commands=[">out"]),
     )
     doc = Document(text=">o", cursor_position=2)
     completions = list(completer.get_completions(doc, complete_event))
@@ -164,7 +181,7 @@ def test_custom_model_names_appear_in_model_completions(
     """Custom model names must appear as completions after the /model command."""
     completer = InputCompleter(
         history_manager=mock_history_manager,
-        set_model_commands=["/model"],
+        ui_config=_config(set_model_commands=["/model"]),
         custom_model_names=["my-custom-model", "team-llm"],
     )
     doc = Document(text="/model ", cursor_position=7)
@@ -178,7 +195,7 @@ def test_custom_model_names_empty_by_default(mock_history_manager, complete_even
     """InputCompleter works with no custom model names (default empty list)."""
     completer = InputCompleter(
         history_manager=mock_history_manager,
-        set_model_commands=["/model"],
+        ui_config=_config(set_model_commands=["/model"]),
     )
     doc = Document(text="/model ", cursor_position=7)
     # Should complete without error; known models still appear
@@ -192,9 +209,8 @@ def test_show_ollama_models_false_excludes_ollama_models(
     """When show_ollama_models=False, Ollama models should not appear in completions."""
     completer = InputCompleter(
         history_manager=mock_history_manager,
-        set_model_commands=["/model"],
+        ui_config=_config(set_model_commands=["/model"], show_ollama_models=False),
         custom_model_names=["custom-model"],
-        show_ollama_models=False,
     )
     doc = Document(text="/model ", cursor_position=7)
     completions = list(completer.get_completions(doc, complete_event))
@@ -213,10 +229,12 @@ def test_show_ollama_models_true_includes_ollama_models(
     """When show_ollama_models=True (default), Ollama models should appear in completions."""
     completer = InputCompleter(
         history_manager=mock_history_manager,
-        set_model_commands=["/model"],
+        ui_config=_config(
+            set_model_commands=["/model"],
+            show_pydantic_ai_models=False,
+            show_ollama_models=True,
+        ),
         custom_model_names=["custom-model"],
-        show_pydantic_ai_models=False,  # Exclude pydantic-ai models for cleaner test
-        show_ollama_models=True,
     )
     # Pre-fill the cache to skip the subprocess call
     completer.ollama_cache = {
@@ -237,9 +255,8 @@ def test_show_pydantic_ai_models_false_excludes_known_models(
     """When show_pydantic_ai_models=False, pydantic-ai known models should not appear."""
     completer = InputCompleter(
         history_manager=mock_history_manager,
-        set_model_commands=["/model"],
+        ui_config=_config(set_model_commands=["/model"], show_pydantic_ai_models=False),
         custom_model_names=["custom-model"],
-        show_pydantic_ai_models=False,
     )
     doc = Document(text="/model ", cursor_position=7)
     completions = list(completer.get_completions(doc, complete_event))
@@ -257,9 +274,8 @@ def test_show_pydantic_ai_models_true_includes_known_models(
     """When show_pydantic_ai_models=True (default), pydantic-ai known models should appear."""
     completer = InputCompleter(
         history_manager=mock_history_manager,
-        set_model_commands=["/model"],
+        ui_config=_config(set_model_commands=["/model"], show_pydantic_ai_models=True),
         custom_model_names=["custom-model"],
-        show_pydantic_ai_models=True,
     )
     doc = Document(text="/model ", cursor_position=7)
     completions = list(completer.get_completions(doc, complete_event))
@@ -273,10 +289,12 @@ def test_both_flags_false_only_custom_models(mock_history_manager, complete_even
     """When both show flags are False, only custom_model_names should appear."""
     completer = InputCompleter(
         history_manager=mock_history_manager,
-        set_model_commands=["/model"],
+        ui_config=_config(
+            set_model_commands=["/model"],
+            show_ollama_models=False,
+            show_pydantic_ai_models=False,
+        ),
         custom_model_names=["model-a", "model-b"],
-        show_ollama_models=False,
-        show_pydantic_ai_models=False,
     )
     # Even if cache has ollama models, they should NOT appear
     completer.ollama_cache = {
@@ -300,8 +318,7 @@ def test_custom_command_name_completion(mock_history_manager, complete_event):
     """Custom commands appear among command-name completions."""
     cc = _make_custom_command("/deploy", "Deploy the app")
     completer = InputCompleter(
-        history_manager=mock_history_manager,
-        custom_commands=[cc],
+        history_manager=mock_history_manager, ui_config=_config(), custom_commands=[cc]
     )
     doc = Document(text="/de", cursor_position=3)
     completions = list(completer.get_completions(doc, complete_event))

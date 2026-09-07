@@ -471,9 +471,7 @@ class BaseUIConversationCommands:
                         )
                         return True
                     # lazy: tests patch format_history_as_text; hoisting bypasses the mock
-                    from zrb.llm.util.history_formatter import (
-                        format_history_as_text,
-                    )
+                    from zrb.llm.util.history_formatter import format_history_as_text
 
                     transcript = format_history_as_text(messages, full=True)
                     self.copy_to_clipboard_and_report(
@@ -501,9 +499,7 @@ class BaseUIConversationCommands:
                         )
                         return True
                     # lazy: tests patch format_history_as_text; hoisting bypasses the mock
-                    from zrb.llm.util.history_formatter import (
-                        format_history_as_text,
-                    )
+                    from zrb.llm.util.history_formatter import format_history_as_text
 
                     transcript = format_history_as_text(messages, full=True)
                     self.write_text_to_file(path, transcript)

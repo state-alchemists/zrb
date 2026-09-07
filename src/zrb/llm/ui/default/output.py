@@ -722,9 +722,7 @@ class UIOutput:
         # tracked — not only while something is currently running.
         # lazy: transitively heavy via internal — live_session.py imports
         # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
-        from zrb.llm.agent.subagent.live_session import (
-            live_subagent_session_registry,
-        )
+        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
 
         live = live_subagent_session_registry.active(
             session_id=get_session_ownership_key(self._ui.conversation_session_name)

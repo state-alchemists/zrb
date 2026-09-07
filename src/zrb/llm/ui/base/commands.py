@@ -49,9 +49,24 @@ class BaseUICommands:
         # schedule_command / dispatch_command reads or writes this.
         self._command_in_flight = False
 
+    @property
+    def conversation(self) -> BaseUIConversationCommands:
+        """Handlers for exit/info/save/load/rewind/redirect/copy/attach/photo."""
+        return self._conversation
+
+    @property
+    def models(self) -> BaseUIModelCommands:
+        """Handlers for the yolo/plan toggles and model switching."""
+        return self._models
+
+    @property
+    def exec(self) -> BaseUIExecCommands:
+        """Handlers for shell exec, `/btw` side questions, and custom commands."""
+        return self._exec
+
     # --- command dispatch (with hooks) ------------------------------------
 
-    def _command_table(self) -> "list[tuple[Callable, list[str], bool, bool]]":
+    def command_table(self) -> "list[tuple[Callable, list[str], bool, bool]]":
         """Single source of truth for command routing.
 
         Ordered ``(handler, tokens, prefix, run_while_thinking)`` tuples shared
@@ -66,73 +81,73 @@ class BaseUICommands:
         """
         base_ui = self._base_ui
         return [
-            (self._exec.handle_btw_command, base_ui.btw_commands, True, True),
-            (self._models.handle_toggle_plan, base_ui.plan_commands, True, True),
+            (base_ui.handle_btw_command, base_ui.btw_commands, True, True),
+            (base_ui.handle_toggle_plan, base_ui.plan_commands, True, True),
             # prefix=True: `/yolo` toggles, `/yolo Write,Edit` sets selective yolo.
             (
-                self._models.handle_toggle_yolo,
+                base_ui.handle_toggle_yolo,
                 base_ui.yolo_toggle_commands,
                 True,
                 True,
             ),
-            (self.handle_toggle_voice, base_ui.voice_commands, False, True),
+            (base_ui.handle_toggle_voice, base_ui.voice_commands, False, True),
             (
-                self._conversation.handle_exit_command,
+                base_ui.handle_exit_command,
                 base_ui.exit_commands,
                 False,
                 False,
             ),
             (
-                self._conversation.handle_info_command,
+                base_ui.handle_info_command,
                 base_ui.info_commands,
                 False,
                 False,
             ),
             (
-                self._conversation.handle_save_command,
+                base_ui.handle_save_command,
                 base_ui.save_commands,
                 True,
                 False,
             ),
             (
-                self._conversation.handle_load_command,
+                base_ui.handle_load_command,
                 base_ui.load_commands,
                 True,
                 False,
             ),
             (
-                self._conversation.handle_rewind_command,
+                base_ui.handle_rewind_command,
                 base_ui.rewind_commands,
                 True,
                 False,
             ),
             (
-                self._conversation.handle_redirect_command,
+                base_ui.handle_redirect_command,
                 base_ui.redirect_output_commands,
                 True,
                 False,
             ),
             (
-                self._conversation.handle_attach_command,
+                base_ui.handle_attach_command,
                 base_ui.attach_commands,
                 True,
                 False,
             ),
             (
-                self._conversation.handle_photo_command,
+                base_ui.handle_photo_command,
                 base_ui.photo_commands,
                 True,
                 False,
             ),
             (
-                self._models.handle_set_model_command,
+                base_ui.handle_set_model_command,
                 base_ui.set_model_commands,
                 True,
                 False,
             ),
-            (self._exec.handle_exec_command, base_ui.exec_commands, True, False),
+            (base_ui.handle_exec_command, base_ui.exec_commands, True, False),
             (
-                self._conversation.handle_copy_command,
+                base_ui.handle_copy_command,
                 base_ui.copy_commands,
                 True,
                 False,
@@ -150,12 +165,12 @@ class BaseUICommands:
 
         Routing never assumes a ``/`` prefix — command tokens are
         user-configurable (e.g. ``>`` for redirect). Driven by
-        :meth:`_command_table` so it stays in lockstep with the handler chain.
+        :meth:`command_table` so it stays in lockstep with the handler chain.
         """
         stripped = text.strip()
         if not stripped:
             return "message"
-        for _handler, tokens, prefix, run_while_thinking in self._command_table():
+        for _handler, tokens, prefix, run_while_thinking in self.command_table():
             if _matches(stripped, tokens, prefix):
                 return "thinking_command" if run_while_thinking else "command"
         if resolve_custom_command(stripped, self._base_ui.custom_commands) is not None:
@@ -271,105 +286,33 @@ class BaseUICommands:
                 self._command_in_flight = False
 
     def _run_command_chain(self, text: str) -> bool:
-        """Run the command handlers in priority order (see :meth:`_command_table`).
+        """Run the command handlers in priority order (see :meth:`command_table`).
 
         Returns ``True`` if a handler consumed the input. Run-while-thinking
         commands (`/btw`, YOLO toggle) run first; everything else is gated
         behind the thinking guard. Custom commands are tried last.
         """
-        for handler, _tokens, _prefix, run_while_thinking in self._command_table():
+        for handler, _tokens, _prefix, run_while_thinking in self.command_table():
             if not run_while_thinking and self._base_ui.is_thinking:
                 return False
             if handler(text):
                 return True
-        return self._exec.handle_custom_command(text)
+        return self._base_ui.handle_custom_command(text)
 
     # --- conversation commands (delegate to `self._conversation`) --------
-
-    def handle_exit_command(self, text: str) -> bool:
-        return self._conversation.handle_exit_command(text)
-
-    def handle_info_command(self, text: str) -> bool:
-        return self._conversation.handle_info_command(text)
-
-    def handle_save_command(self, text: str) -> bool:
-        return self._conversation.handle_save_command(text)
-
-    def handle_load_command(self, text: str) -> bool:
-        return self._conversation.handle_load_command(text)
-
-    def handle_rewind_command(self, text: str) -> bool:
-        return self._conversation.handle_rewind_command(text)
-
-    def last_ai_response(self) -> str:
-        return self._conversation.last_ai_response()
-
-    def write_text_to_file(self, path: str, content: str) -> None:
-        self._conversation.write_text_to_file(path, content)
-
-    def copy_to_clipboard_and_report(self, content: str, success_message: str) -> None:
-        self._conversation.copy_to_clipboard_and_report(content, success_message)
-
-    def handle_redirect_command(self, text: str) -> bool:
-        return self._conversation.handle_redirect_command(text)
-
-    def handle_copy_command(self, text: str) -> bool:
-        return self._conversation.handle_copy_command(text)
-
-    def handle_attach_command(self, text: str) -> bool:
-        return self._conversation.handle_attach_command(text)
-
-    def submit_attachment(self, path: str) -> None:
-        self._conversation.submit_attachment(path)
-
-    def handle_photo_command(self, text: str) -> bool:
-        return self._conversation.handle_photo_command(text)
 
     async def submit_photo(self, device: str | None) -> None:
         await self._conversation.submit_photo(device)
 
-    def apply_persona_for_session(self, name: str) -> None:
-        self._conversation.apply_persona_for_session(name)
-
     # --- model commands (delegate to `self._models`) ----------------------
 
-    def toggle_yolo(self) -> None:
-        self._models.toggle_yolo()
-
-    def handle_toggle_yolo(self, text: str) -> bool:
-        return self._models.handle_toggle_yolo(text)
-
-    def toggle_plan(self) -> None:
-        self._models.toggle_plan()
-
-    def handle_toggle_plan(self, text: str) -> bool:
-        return self._models.handle_toggle_plan(text)
-
-    def current_cycle_mode(self) -> str:
-        return self._models.current_cycle_mode()
-
-    def cycle_mode(self) -> None:
-        self._models.cycle_mode()
-
-    def handle_set_model_command(self, text: str) -> bool:
-        return self._models.handle_set_model_command(text)
-
     # --- exec commands (delegate to `self._exec`) --------------------------
-
-    def handle_exec_command(self, text: str) -> bool:
-        return self._exec.handle_exec_command(text)
 
     async def run_shell_command(self, cmd: str) -> None:
         await self._exec.run_shell_command(cmd)
 
-    def handle_btw_command(self, text: str) -> bool:
-        return self._exec.handle_btw_command(text)
-
     async def stream_btw_response(self, llm_task: Any, question: str) -> None:
         await self._exec.stream_btw_response(llm_task, question)
-
-    def handle_custom_command(self, text: str) -> bool:
-        return self._exec.handle_custom_command(text)
 
     def handle_toggle_voice(self, text: str) -> bool:
         """Toggle voice dictation mode on/off.

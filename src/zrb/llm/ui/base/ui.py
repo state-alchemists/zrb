@@ -269,6 +269,12 @@ class BaseUI(UIDefaultsMixin, AnyUI):
         self._background_tasks: set[asyncio.Task] = set()
 
         self._base_commands = BaseUICommands(self)
+        # Sibling parts of `_base_commands`, held directly: the dispatcher
+        # constructs them, but the facade methods below forward to them
+        # without a second hop through the dispatcher.
+        self._conversation = self._base_commands.conversation
+        self._models = self._base_commands.models
+        self._exec = self._base_commands.exec
         self._base_replay = BaseUIReplay(self)
         self._base_system_info = BaseUISystemInfo(self)
 
@@ -586,6 +592,15 @@ class BaseUI(UIDefaultsMixin, AnyUI):
     # directly on `BaseUI`)
     # =========================================================================
 
+    @property
+    def commands(self) -> BaseUICommands:
+        """The slash-command dispatcher, and through it the handler parts.
+
+        Public so a subclass can reorder or extend `command_table()` without
+        reaching into a private attribute.
+        """
+        return self._base_commands
+
     def classify_input(self, text: str) -> str:
         return self._base_commands.classify_input(text)
 
@@ -611,87 +626,87 @@ class BaseUI(UIDefaultsMixin, AnyUI):
 
     # --- conversation commands ---
     def handle_exit_command(self, text: str) -> bool:
-        return self._base_commands.handle_exit_command(text)
+        return self._conversation.handle_exit_command(text)
 
     def handle_info_command(self, text: str) -> bool:
-        return self._base_commands.handle_info_command(text)
+        return self._conversation.handle_info_command(text)
 
     def handle_save_command(self, text: str) -> bool:
-        return self._base_commands.handle_save_command(text)
+        return self._conversation.handle_save_command(text)
 
     def handle_load_command(self, text: str) -> bool:
-        return self._base_commands.handle_load_command(text)
+        return self._conversation.handle_load_command(text)
 
     def handle_rewind_command(self, text: str) -> bool:
-        return self._base_commands.handle_rewind_command(text)
+        return self._conversation.handle_rewind_command(text)
 
     def last_ai_response(self) -> str:
-        return self._base_commands.last_ai_response()
+        return self._conversation.last_ai_response()
 
     def write_text_to_file(self, path: str, content: str) -> None:
-        self._base_commands.write_text_to_file(path, content)
+        self._conversation.write_text_to_file(path, content)
 
     def copy_to_clipboard_and_report(self, content: str, success_message: str) -> None:
-        self._base_commands.copy_to_clipboard_and_report(content, success_message)
+        self._conversation.copy_to_clipboard_and_report(content, success_message)
 
     def handle_redirect_command(self, text: str) -> bool:
-        return self._base_commands.handle_redirect_command(text)
+        return self._conversation.handle_redirect_command(text)
 
     def handle_copy_command(self, text: str) -> bool:
-        return self._base_commands.handle_copy_command(text)
+        return self._conversation.handle_copy_command(text)
 
     def handle_attach_command(self, text: str) -> bool:
-        return self._base_commands.handle_attach_command(text)
+        return self._conversation.handle_attach_command(text)
 
     def submit_attachment(self, path: str) -> None:
-        self._base_commands.submit_attachment(path)
+        self._conversation.submit_attachment(path)
 
     def handle_photo_command(self, text: str) -> bool:
-        return self._base_commands.handle_photo_command(text)
+        return self._conversation.handle_photo_command(text)
 
     async def submit_photo(self, device: str | None) -> None:
         await self._base_commands.submit_photo(device)
 
     def apply_persona_for_session(self, name: str) -> None:
-        self._base_commands.apply_persona_for_session(name)
+        self._conversation.apply_persona_for_session(name)
 
     # --- model commands ---
     def toggle_yolo(self) -> None:
-        self._base_commands.toggle_yolo()
+        self._models.toggle_yolo()
 
     def handle_toggle_yolo(self, text: str) -> bool:
-        return self._base_commands.handle_toggle_yolo(text)
+        return self._models.handle_toggle_yolo(text)
 
     def toggle_plan(self) -> None:
-        self._base_commands.toggle_plan()
+        self._models.toggle_plan()
 
     def handle_toggle_plan(self, text: str) -> bool:
-        return self._base_commands.handle_toggle_plan(text)
+        return self._models.handle_toggle_plan(text)
 
     def current_cycle_mode(self) -> str:
-        return self._base_commands.current_cycle_mode()
+        return self._models.current_cycle_mode()
 
     def cycle_mode(self) -> None:
-        self._base_commands.cycle_mode()
+        self._models.cycle_mode()
 
     def handle_set_model_command(self, text: str) -> bool:
-        return self._base_commands.handle_set_model_command(text)
+        return self._models.handle_set_model_command(text)
 
     # --- exec commands ---
     def handle_exec_command(self, text: str) -> bool:
-        return self._base_commands.handle_exec_command(text)
+        return self._exec.handle_exec_command(text)
 
     async def run_shell_command(self, cmd: str) -> None:
         await self._base_commands.run_shell_command(cmd)
 
     def handle_btw_command(self, text: str) -> bool:
-        return self._base_commands.handle_btw_command(text)
+        return self._exec.handle_btw_command(text)
 
     async def stream_btw_response(self, llm_task: LLMTask, question: str) -> None:
         await self._base_commands.stream_btw_response(llm_task, question)
 
     def handle_custom_command(self, text: str) -> bool:
-        return self._base_commands.handle_custom_command(text)
+        return self._exec.handle_custom_command(text)
 
     # =========================================================================
     # BaseUIReplay delegators

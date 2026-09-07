@@ -97,9 +97,7 @@ class UIAgentPicker:
         """
         # lazy: transitively heavy via internal — live_session.py imports
         # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
-        from zrb.llm.agent.subagent.live_session import (
-            live_subagent_session_registry,
-        )
+        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
 
         sessions = live_subagent_session_registry.active(
             get_session_ownership_key(self._ui.conversation_session_name)
@@ -191,9 +189,7 @@ class UIAgentPicker:
             return False
         # lazy: transitively heavy via internal — live_session.py imports
         # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
-        from zrb.llm.agent.subagent.live_session import (
-            live_subagent_session_registry,
-        )
+        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
 
         session_id = get_session_ownership_key(self._ui.conversation_session_name)
         agent_id = self._viewing_agent_id
@@ -217,9 +213,7 @@ class UIAgentPicker:
             return
         # lazy: transitively heavy via internal — live_session.py imports
         # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
-        from zrb.llm.agent.subagent.live_session import (
-            live_subagent_session_registry,
-        )
+        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
 
         session = live_subagent_session_registry.get(
             get_session_ownership_key(self._ui.conversation_session_name),
@@ -247,9 +241,7 @@ class UIAgentPicker:
             return False
         # lazy: transitively heavy via internal — live_session.py imports
         # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
-        from zrb.llm.agent.subagent.live_session import (
-            live_subagent_session_registry,
-        )
+        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
 
         session = live_subagent_session_registry.get(
             get_session_ownership_key(self._ui.conversation_session_name),

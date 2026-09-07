@@ -503,6 +503,26 @@ flowchart TB
 - History management integration
 - Tool confirmation handling
 
+### Customising a Built-in Command
+
+Every slash command is a `handle_<name>_command(text) -> bool` method on `BaseUI`.
+Override one and it replaces the built-in — `command_table()` binds handlers to
+the UI instance, so your subclass wins:
+
+```python
+class MyUI(SimpleUI):                       # or BaseUI, EventDrivenUI
+    def handle_save_command(self, text: str) -> bool:
+        name = text.removeprefix("/save").strip()
+        if not name:
+            return False                    # not consumed -> falls through
+        my_backend.store(name, self.last_ai_response())
+        return True                         # consumed -> no further handlers run
+```
+
+Return `True` when your handler consumed the input and `False` to let the next
+handler (and finally the LLM) see it. To add a command rather than replace one,
+or to change priority order, override `commands.command_table()`.
+
 ### BaseUI Optional Methods
 
 | Method | Default | Purpose |

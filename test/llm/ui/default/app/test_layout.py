@@ -4,6 +4,7 @@ create_output_field() already has coverage in test_output_scroll.py; this
 file covers the two remaining uncovered functions in layout.py.
 """
 
+from dataclasses import fields
 from unittest.mock import MagicMock
 
 from prompt_toolkit.completion import CompleteEvent
@@ -22,6 +23,20 @@ from zrb.llm.ui.default.app.layout import (
     create_layout,
     create_output_field,
 )
+from zrb.llm.ui.ui_config import UIConfig
+
+
+def _config(**overrides) -> UIConfig:
+    """A `UIConfig` with every slash-command list empty except the ones named.
+
+    `create_input_field`/`InputCompleter` used to take one `*_commands`
+    parameter per command, so omitting one meant "no aliases for it".
+    `UIConfig`'s fields default from `CFG.LLM_UI_COMMAND_*` instead, which
+    would hand these tests the full shipped alias set — this keeps each test
+    scoped to the commands it names.
+    """
+    empty = {f.name: [] for f in fields(UIConfig) if f.name.endswith("_commands")}
+    return UIConfig(**{**empty, **overrides})
 
 
 def _history_manager():
@@ -32,11 +47,13 @@ class TestCreateInputField:
     def test_returns_a_multiline_text_area_with_an_input_completer(self):
         field = create_input_field(
             history_manager=_history_manager(),
-            attach_commands=["/attach"],
-            exit_commands=["/exit"],
-            info_commands=["/info"],
-            save_commands=["/save"],
-            load_commands=["/load"],
+            ui_config=_config(
+                attach_commands=["/attach"],
+                exit_commands=["/exit"],
+                info_commands=["/info"],
+                save_commands=["/save"],
+                load_commands=["/load"],
+            ),
         )
         assert isinstance(field, TextArea)
         assert field.buffer.multiline()
@@ -45,11 +62,13 @@ class TestCreateInputField:
     def test_up_at_first_line_moves_history_backward_by_default(self):
         field = create_input_field(
             history_manager=_history_manager(),
-            attach_commands=[],
-            exit_commands=[],
-            info_commands=[],
-            save_commands=[],
-            load_commands=[],
+            ui_config=_config(
+                attach_commands=[],
+                exit_commands=[],
+                info_commands=[],
+                save_commands=[],
+                load_commands=[],
+            ),
         )
         event = MagicMock()
         event.current_buffer.history_backward = MagicMock()
@@ -61,11 +80,13 @@ class TestCreateInputField:
         up_arrow_handler = MagicMock(return_value=True)
         field = create_input_field(
             history_manager=_history_manager(),
-            attach_commands=[],
-            exit_commands=[],
-            info_commands=[],
-            save_commands=[],
-            load_commands=[],
+            ui_config=_config(
+                attach_commands=[],
+                exit_commands=[],
+                info_commands=[],
+                save_commands=[],
+                load_commands=[],
+            ),
             up_arrow_handler=up_arrow_handler,
         )
         event = MagicMock()
@@ -79,11 +100,13 @@ class TestCreateInputField:
         up_arrow_handler = MagicMock(return_value=False)
         field = create_input_field(
             history_manager=_history_manager(),
-            attach_commands=[],
-            exit_commands=[],
-            info_commands=[],
-            save_commands=[],
-            load_commands=[],
+            ui_config=_config(
+                attach_commands=[],
+                exit_commands=[],
+                info_commands=[],
+                save_commands=[],
+                load_commands=[],
+            ),
             up_arrow_handler=up_arrow_handler,
         )
         event = MagicMock()
@@ -96,11 +119,13 @@ class TestCreateInputField:
     def test_down_at_last_line_moves_history_forward_by_default(self):
         field = create_input_field(
             history_manager=_history_manager(),
-            attach_commands=[],
-            exit_commands=[],
-            info_commands=[],
-            save_commands=[],
-            load_commands=[],
+            ui_config=_config(
+                attach_commands=[],
+                exit_commands=[],
+                info_commands=[],
+                save_commands=[],
+                load_commands=[],
+            ),
         )
         event = MagicMock()
         event.current_buffer.history_forward = MagicMock()
@@ -112,11 +137,13 @@ class TestCreateInputField:
         down_arrow_handler = MagicMock(return_value=True)
         field = create_input_field(
             history_manager=_history_manager(),
-            attach_commands=[],
-            exit_commands=[],
-            info_commands=[],
-            save_commands=[],
-            load_commands=[],
+            ui_config=_config(
+                attach_commands=[],
+                exit_commands=[],
+                info_commands=[],
+                save_commands=[],
+                load_commands=[],
+            ),
             down_arrow_handler=down_arrow_handler,
         )
         event = MagicMock()
@@ -129,11 +156,13 @@ class TestCreateInputField:
     def test_completer_is_wired_with_the_given_commands(self):
         field = create_input_field(
             history_manager=_history_manager(),
-            attach_commands=["/attach"],
-            exit_commands=["/exit"],
-            info_commands=["/info"],
-            save_commands=["/save"],
-            load_commands=["/load"],
+            ui_config=_config(
+                attach_commands=["/attach"],
+                exit_commands=["/exit"],
+                info_commands=["/info"],
+                save_commands=["/save"],
+                load_commands=["/load"],
+            ),
         )
         # Exercise the completer through its real public API rather than its
         # private command-list attributes.
@@ -221,11 +250,13 @@ class TestCreateInputField:
 def _plain_field(**kwargs):
     return create_input_field(
         history_manager=_history_manager(),
-        attach_commands=[],
-        exit_commands=[],
-        info_commands=[],
-        save_commands=[],
-        load_commands=[],
+        ui_config=_config(
+            attach_commands=[],
+            exit_commands=[],
+            info_commands=[],
+            save_commands=[],
+            load_commands=[],
+        ),
         **kwargs,
     )
 

@@ -4,6 +4,7 @@ import asyncio
 import logging
 import subprocess
 from collections.abc import AsyncIterable, Callable
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
@@ -146,30 +147,19 @@ class UI(BaseUI):
         from prompt_toolkit.history import InMemoryHistory
 
         self._input_history = InMemoryHistory()
+        # `_ui_config` already backs every `self.<x>_commands` property, so it
+        # carries the current aliases. `/rewind` is the one exception: it is
+        # only offered when snapshots are on, and blanking it on a copy keeps
+        # `self.rewind_commands` itself intact for the command handler.
+        completion_config = self._ui_config
+        if self._snapshot_manager is None:
+            completion_config = replace(self._ui_config, rewind_commands=[])
         self._input_field = create_input_field(
             history_manager=self._history_manager,
-            attach_commands=self.attach_commands,
-            photo_commands=self.photo_commands,
-            exit_commands=self.exit_commands,
-            info_commands=self.info_commands,
-            save_commands=self.save_commands,
-            load_commands=self.load_commands,
-            rewind_commands=(
-                self.rewind_commands if self._snapshot_manager is not None else []
-            ),
-            redirect_output_commands=self.redirect_output_commands,
-            summarize_commands=self.summarize_commands,
-            set_model_commands=self.set_model_commands,
-            exec_commands=self.exec_commands,
-            btw_commands=self.btw_commands,
-            plan_commands=self.plan_commands,
-            copy_commands=self.copy_commands,
-            voice_commands=self.voice_commands,
+            ui_config=completion_config,
             custom_commands=self._custom_commands,
             history=self._input_history,
             custom_model_names=custom_model_names,
-            show_ollama_models=self._ui_config.show_ollama_models,
-            show_pydantic_ai_models=self._ui_config.show_pydantic_ai_models,
             up_arrow_handler=self.handle_up_arrow,
             down_arrow_handler=self.handle_down_arrow,
             recall_active=self.recall_navigation_active,
