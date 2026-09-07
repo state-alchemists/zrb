@@ -1,10 +1,13 @@
 """Cycle detection in the upstream env/input walks.
 
-`BaseTask.inputs` and `.envs` resolve by reading the same property on every
-upstream, so a task reachable from itself recurses without bound. The CLI
-reads both while building a task's kwargs, which is before any `Session`
-exists — so `Session`'s own cyclic-graph guard is not on this path and cannot
-stand in for these.
+`BaseTask.inputs` and `.envs` resolve over the whole transitive upstream set,
+so a task reachable from itself would walk without bound. The CLI reads both
+while building a task's kwargs, which is before any `Session` exists — so
+`Session`'s own cyclic-graph guard is not on this path and cannot stand in for
+these.
+
+The detection lives in `_upstream_closure`'s on-path set, which also makes the
+diamond case below distinguishable from a real cycle.
 """
 
 import pytest
@@ -72,15 +75,16 @@ def test_diamond_still_resolves():
     names = [task_input.name for task_input in end.inputs]
 
     assert names == ["k", "l", "r", "e"]
-    # Envs are not deduplicated the way inputs are (`_combine_envs` appends;
-    # later envs overwrite earlier ones on a name collision by design), so the
-    # shared upstream's env arrives once per branch. What matters here is that
-    # the walk completes instead of raising.
-    assert end.envs == [shared_env, shared_env]
+    # The shared upstream is visited once, not once per branch, so it
+    # contributes its env once. It used to arrive twice — harmless on its own
+    # (`update_context` assigns, so a repeat is a no-op) but the mechanism
+    # behind it was not: the count doubled per level of diamond, reaching
+    # 131,070 entries for 32 distinct envs at 16 levels.
+    assert end.envs == [shared_env]
 
 
 def test_walk_guard_clears_so_the_property_is_reusable():
-    """The guard must not latch: reading twice has to work."""
+    """Detection must not latch: reading twice has to work."""
     upstream = BaseTask(name="up", input=StrInput("u"))
     task = BaseTask(name="down", input=StrInput("d"))
     upstream >> task
@@ -92,7 +96,7 @@ def test_walk_guard_clears_so_the_property_is_reusable():
 
 
 def test_guard_clears_after_a_cycle_is_reported():
-    """A caught cycle must leave the flag clean for the next read."""
+    """A caught cycle must leave nothing behind for the next read."""
     a = BaseTask(name="a", input=StrInput("ia"))
     b = BaseTask(name="b")
     a >> b >> a

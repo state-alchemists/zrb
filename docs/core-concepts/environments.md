@@ -8,7 +8,7 @@ In Zrb, environment variables (`Env`) are a powerful way to configure your tasks
 
 You can access environment variables within a task through the `ctx.env` object.
 
-> ⚠️ **Important:** Like Inputs, `Env` definitions are inherited recursively. If Task B depends on Task A, Task B automatically loads and makes available all `Env`s required by Task A.
+> ⚠️ **Important:** Like Inputs, `Env` definitions are inherited transitively. If Task B depends on Task A, Task B automatically loads and makes available all `Env`s required by Task A — and if both declare the same variable, **B wins**: a task always overrides the envs it inherits.
 
 ---
 

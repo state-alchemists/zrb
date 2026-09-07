@@ -6,7 +6,7 @@ from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.tool.file_observation import record_listed
-from zrb.util.file import is_path_excluded, walk_files
+from zrb.util.file import matches_any_pattern, walk_files
 from zrb.util.truncate import truncate_items
 
 DEFAULT_EXCLUDED_PATTERNS = [
@@ -153,7 +153,7 @@ def glob_files(
         ):
             continue
 
-        if is_path_excluded(rel_path, patterns_to_exclude):
+        if matches_any_pattern(rel_path, patterns_to_exclude):
             continue
 
         found_files.append(rel_path)

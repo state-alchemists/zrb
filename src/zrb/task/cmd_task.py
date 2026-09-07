@@ -20,6 +20,19 @@ from zrb.util.secret import redact_env_map
 from zrb.xcom.xcom import Xcom
 
 
+class CmdTaskError(RuntimeError):
+    """A shell command exited non-zero.
+
+    Carries `return_code` so `zrb <task>` can exit with the code the command
+    exited with instead of a flat 1 — a CmdTask wrapping a linter or a test
+    runner has an exit code that means something to whatever called zrb.
+    """
+
+    def __init__(self, task_name: str, return_code: int) -> None:
+        super().__init__(f"Process {task_name} exited ({return_code})")
+        self.return_code = return_code
+
+
 class CmdTask(BaseTask):
     def __init__(
         self,
@@ -176,7 +189,7 @@ class CmdTask(BaseTask):
             is_interactive=self._is_interactive,
         )
         if return_code != 0:
-            raise RuntimeError(f"Process {self._name} exited ({return_code})")
+            raise CmdTaskError(self._name, return_code)
         ctx.log_info(f"Exit status: {return_code}")
         return cmd_result
 

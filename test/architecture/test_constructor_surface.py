@@ -40,11 +40,13 @@ from zrb.task.tcp_check import TcpCheck
 # Max __init__ parameters per class. Lower these as the surface shrinks; a
 # raise needs a one-line reason in the same diff, like the facade budgets.
 PARAM_BUDGETS = {
-    # ADR-0090/0091 (R12): removed the single `llm_config` param,
-    # added the two task-level hooks it used to carry (`model_getter`,
-    # `model_renderer`) as direct constructor slots — net +1.
-    LLMChatTask: 71,
-    LLMTask: 53,
+    # Pinned to the exact current count, not the count plus headroom: a budget
+    # with slack silently absorbs the next few additions, which is the drift
+    # this file exists to make visible. Both dropped when the rendering
+    # parameters left; ADR-0090/0091 (R12) records the `llm_config` split that
+    # set the previous numbers.
+    LLMChatTask: 62,
+    LLMTask: 48,
     BaseUI: 15,
 }
 

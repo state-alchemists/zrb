@@ -51,6 +51,35 @@ GREETING_COMMAND_LIMIT = 18
 
 
 class UI(BaseUI):
+    """The full-screen terminal chat UI — what `zrb llm chat` runs.
+
+    `BaseUI` owns the chat itself (message loop, command dispatch, agent
+    interaction) and leaves rendering abstract; this is the prompt_toolkit
+    implementation of that rendering. It is the default and by far the most
+    used `AnyUI`, so a custom backend is usually better started from
+    `SimpleUI` — see `docs/llm/llm-custom-ui.md`.
+
+    What it adds on top of `BaseUI`:
+        - A prompt_toolkit `Application`: layout, styling, keybindings, and the
+          `Float`s behind tool confirmations, option pickers and agent switching.
+        - Width-dependent output. Blocks appended via `append_rendered` keep
+          their source and renderer in `_rendered_blocks` so `rewrap_output`
+          can redraw them when the terminal resizes.
+        - Collapsible thinking, text and tool-call blocks.
+        - `GlobalStreamCapture`, so a library writing to stdout underneath the
+          agent lands in the transcript instead of tearing the screen.
+
+    Composed parts, each in its own module under `default/`: `UILifecycle`,
+    `UIOutput`, `UIConfirmation`, `UISelection`, `UIMessageEditing`,
+    `UIAgentPicker`, `UIKeybindings`. Per ADR-0035 this class re-exposes their
+    public surface as one-line delegators, which is most of its length.
+
+    Two wrappers take an `AnyUI` and return one, so they compose with this
+    class rather than replacing it: `MultiUI` broadcasts to several UIs at once
+    (terminal plus Telegram, say), and `BufferedUI` buffers a sub-agent's
+    output before flushing it to its parent.
+    """
+
     def __init__(
         self,
         ctx: AnyContext,
