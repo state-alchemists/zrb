@@ -295,6 +295,24 @@ class BaseTask(AnyTask):
         return self._action
 
     @property
+    def own_envs(self) -> list[AnyEnv]:
+        """Environment variables declared on this task, excluding upstreams'."""
+        if self._envs is None:
+            return []
+        if isinstance(self._envs, AnyEnv):
+            return [self._envs]
+        return [env for env in self._envs if env is not None]
+
+    @property
+    def own_inputs(self) -> list[AnyInput]:
+        """Inputs declared on this task, excluding upstreams'."""
+        if self._inputs is None:
+            return []
+        if isinstance(self._inputs, AnyInput):
+            return [self._inputs]
+        return [task_input for task_input in self._inputs if task_input is not None]
+
+    @property
     def envs(self) -> list[AnyEnv]:
         """This task's environment variables, merged with those of its upstreams."""
         return self._base_context.get_combined_envs(task_envs=self._envs)

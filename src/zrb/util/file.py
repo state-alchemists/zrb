@@ -124,21 +124,29 @@ def walk_files(
             d
             for d in dirs
             if (include_hidden or not d.startswith("."))
-            and not is_path_excluded(d, excluded_patterns)
+            and not matches_any_pattern(d, excluded_patterns)
         ]
 
         for filename in files:
             if (
                 include_hidden or not filename.startswith(".")
-            ) and not is_path_excluded(filename, excluded_patterns):
+            ) and not matches_any_pattern(filename, excluded_patterns):
                 full_path = os.path.join(root, filename)
                 rel_full_path = os.path.relpath(full_path, abs_path)
-                if not is_path_excluded(rel_full_path, excluded_patterns):
+                if not matches_any_pattern(rel_full_path, excluded_patterns):
                     all_files.append(rel_full_path)
     return sorted(all_files)
 
 
-def is_path_excluded(name: str, patterns: list[str]) -> bool:
+def matches_any_pattern(name: str, patterns: list[str]) -> bool:
+    """Whether `name`, or any single segment of it, fnmatches a pattern.
+
+    Named for what it does rather than what a caller does with it: the same
+    predicate backs both exclude lists and include lists (`llm/tool/code.py`
+    uses it for both, two lines apart). It used to exist twice under two
+    opposite-meaning names — `is_path_excluded` here and `is_path_included`
+    in `llm/tool/code_constants.py` — with byte-identical bodies.
+    """
     for pattern in patterns:
         if fnmatch.fnmatch(name, pattern):
             return True

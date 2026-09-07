@@ -14,13 +14,9 @@ from zrb.llm.config.model_resolver import resolve_configured_model
 # LSP integration for semantic pre-analysis
 from zrb.llm.lsp.manager import lsp_manager
 from zrb.llm.prompt.prompt import get_prompt
-from zrb.llm.tool.code_constants import (
-    DEFAULT_EXTENSIONS,
-    LSP_SUPPORTED_EXTENSIONS,
-    is_path_included,
-)
+from zrb.llm.tool.code_constants import DEFAULT_EXTENSIONS, LSP_SUPPORTED_EXTENSIONS
 from zrb.llm.tool.file import DEFAULT_EXCLUDED_PATTERNS
-from zrb.util.file import is_path_excluded
+from zrb.util.file import matches_any_pattern
 
 
 async def get_lsp_context(file_path: str, abs_dir: str) -> dict | None:
@@ -210,9 +206,9 @@ def _collect_matching_files(
             file_path = os.path.join(root, file)
             try:
                 rel_path = os.path.relpath(file_path, dir_path)
-                if is_path_excluded(rel_path, exclude_patterns):
+                if matches_any_pattern(rel_path, exclude_patterns):
                     continue
-                if include_patterns and not is_path_included(
+                if include_patterns and not matches_any_pattern(
                     rel_path, include_patterns
                 ):
                     continue

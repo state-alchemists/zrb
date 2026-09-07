@@ -24,9 +24,18 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).parents[2]
 SRC = str(REPO_ROOT / "src" / "zrb")
 
-# Tighten either number as offenders are refactored down (see
-# AGENTS.md's Code Style section on when a long function is fine vs not).
-MCCABE_LIMIT = 22
+# Both numbers are pinned to the exact current maximum — no headroom, so the
+# next function that gets worse fails here instead of being absorbed. Tighten
+# as offenders are refactored down (see AGENTS.md's Code Style section on when
+# a long function is fine vs not); raising either needs a one-line reason in
+# the same diff, like the facade and constructor budgets.
+#
+# mccabe 19 is held by three functions: `strip_to_text_only`,
+# `_execution_loop`, `_load_or_reindex`. radon 20 is held by two:
+# `_execution_loop` and `LLMLimiter.to_str`. None of the five is
+# closure-inflated (each scores within a point or two on both tools), so the
+# next step down is real refactoring, not a `# noqa`.
+MCCABE_LIMIT = 19
 RADON_LIMIT = 20
 
 

@@ -150,7 +150,7 @@ class BaseUI(UIDefaultsMixin, AnyUI):
         │ Level 2: UI (terminal implementation)                           │
         │         - Full TUI with prompt_toolkit                          │
         ├─────────────────────────────────────────────────────────────────┤
-        │ Level 3: MultiplexerUI (multi-channel support)                  │
+        │ Level 3: MultiUI (multi-channel support)                        │
         │         - Manages multiple child UIs                            │
         └─────────────────────────────────────────────────────────────────┘
 

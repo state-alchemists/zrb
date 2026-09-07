@@ -34,24 +34,6 @@ async def run_chat_session(
     # Always set: this coroutine is itself running on an asyncio task.
     assert current_task is not None
 
-    async def run_llm_message(session_obj: Any, timeout: float) -> None:
-        try:
-            async with asyncio.timeout(timeout):
-                await llm_chat_task.async_run(session=session_obj)
-        except asyncio.CancelledError:
-            raise
-        except asyncio.TimeoutError:
-            await session_manager.broadcast(
-                session.session_id, "[TIMEOUT] LLM request timed out"
-            )
-            raise
-        except Exception:
-            error_details = traceback.format_exc()
-            await session_manager.broadcast(
-                session.session_id, f"[ERROR] {error_details}"
-            )
-            raise
-
     # The per-session UI factory / approval channel are independent objects — safe
     # to build once. The shared LLMChatTask is configured + driven under
     # `session_manager.task_lock` per message (snapshot → apply → run → restore via
@@ -132,8 +114,12 @@ async def run_chat_session(
                         # cleaned up by removing *this* session.
                         with scoped(current_chat_session_id, session.session_id):
                             llm_task = asyncio.create_task(
-                                run_llm_message(
-                                    session_obj, CFG.LLM_REQUEST_TIMEOUT / 1000
+                                _run_llm_message(
+                                    session_obj,
+                                    CFG.LLM_REQUEST_TIMEOUT / 1000,
+                                    llm_chat_task,
+                                    session_manager,
+                                    session.session_id,
                                 )
                             )
                         await llm_task
@@ -164,7 +150,7 @@ async def run_chat_session(
                 session_manager.set_processing(session.session_id, False)
                 raise
             except Exception as e:
-                # run_llm_message already broadcast the error to the client.
+                # _run_llm_message already broadcast the error to the client.
                 # Keep the loop alive: one failed/timed-out request must not kill
                 # the session, or every queued message sits unprocessed until the
                 # browser happens to reopen the SSE stream.
@@ -179,6 +165,37 @@ async def run_chat_session(
         await session_manager.broadcast(session.session_id, error_msg)
     finally:
         session_manager.set_processing(session.session_id, False)
+
+
+async def _run_llm_message(
+    session_obj: Any,
+    timeout: float,
+    llm_chat_task: Any,
+    session_manager: ChatSessionManager,
+    session_id: str,
+) -> None:
+    """Run one message through the chat task, reporting failures to the client.
+
+    Module-level rather than a closure over `run_chat_session`: it captured
+    only that function's own three parameters, and nesting it summed its seven
+    branches into the caller's mccabe score (22 against radon's 15), which is
+    what held the mccabe ratchet three points above real complexity.
+
+    Every exception is re-raised after broadcasting — the caller distinguishes
+    cancel from timeout from failure, and only needs the client already told.
+    """
+    try:
+        async with asyncio.timeout(timeout):
+            await llm_chat_task.async_run(session=session_obj)
+    except asyncio.CancelledError:
+        raise
+    except asyncio.TimeoutError:
+        await session_manager.broadcast(session_id, "[TIMEOUT] LLM request timed out")
+        raise
+    except Exception:
+        error_details = traceback.format_exc()
+        await session_manager.broadcast(session_id, f"[ERROR] {error_details}")
+        raise
 
 
 def _snapshot_task_config(llm_chat_task: Any) -> dict[str, Any]:

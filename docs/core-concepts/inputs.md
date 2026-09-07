@@ -6,7 +6,7 @@ Inputs make your tasks interactive and dynamic. They allow you to pass parameter
 
 Inputs are distinct from environment variables; think of them as function arguments for your tasks, designed for values that change with each run.
 
-> ⚠️ **Important:** Inputs are inherited recursively. If Task B depends on Task A, Task B has access to all inputs defined by Task A. When you run Task B, the CLI will prompt for the required inputs of *both* tasks.
+> ⚠️ **Important:** Inputs are inherited transitively. If Task B depends on Task A, Task B has access to all inputs defined by Task A. When you run Task B, the CLI will prompt for the required inputs of *both* tasks. Where two tasks declare the same input name, the upstream declaration is the one used.
 
 ---
 

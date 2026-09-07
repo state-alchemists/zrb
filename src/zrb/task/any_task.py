@@ -85,14 +85,31 @@ class AnyTask(ABC):
 
     @property
     @abstractmethod
+    def own_inputs(self) -> list[AnyInput]:
+        """Inputs this task declares itself, without its upstreams'.
+
+        The counterpart `inputs` needs: aggregating a closure means asking each
+        node what it contributes, and `inputs` cannot answer that (it re-answers
+        for the whole closure). See `BaseTaskContext.get_combined_inputs`.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def own_envs(self) -> list[AnyEnv]:
+        """Envs this task declares itself, without its upstreams'."""
+        pass
+
+    @property
+    @abstractmethod
     def inputs(self) -> list[AnyInput]:
-        """Task inputs"""
+        """Task inputs, merged with those of every transitive upstream."""
         pass
 
     @property
     @abstractmethod
     def envs(self) -> list[AnyEnv]:
-        """Task envs"""
+        """Task envs, merged with those of every transitive upstream."""
         pass
 
     @property

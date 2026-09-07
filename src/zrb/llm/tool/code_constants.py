@@ -1,7 +1,4 @@
-"""Static constants and pure-path helpers for `analyze_code`."""
-
-import fnmatch
-import os
+"""Static constants for `analyze_code`."""
 
 DEFAULT_EXTENSIONS = [
     "py",
@@ -72,14 +69,3 @@ LSP_SUPPORTED_EXTENSIONS = {
     ".sc",  # Scala
     ".lua",  # Lua
 }
-
-
-def is_path_included(name: str, patterns: list[str]) -> bool:
-    for pattern in patterns:
-        if fnmatch.fnmatch(name, pattern):
-            return True
-        parts = name.split(os.path.sep)
-        for part in parts:
-            if fnmatch.fnmatch(part, pattern):
-                return True
-    return False

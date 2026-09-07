@@ -43,6 +43,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0007** — [Specialized task classes over one generic type](adr-0007.md)
 - **ADR-0008** — [`@make_task` alongside direct instantiation](adr-0008.md)
 - **ADR-0009** — [Inputs and Envs are first-class objects](adr-0009.md)
+- **ADR-0092** — [Env/input inheritance is one stateless walk, upstream-first](adr-0092.md)
 - **ADR-0010** — [Hierarchical `zrb_init.py` discovery, explicit registration](adr-0010.md)
 - **ADR-0011** — [Retry, fallback and successor are tasks](adr-0011.md)
 - **ADR-0012** — [Readiness checks are concurrent, task-based probes](adr-0012.md)

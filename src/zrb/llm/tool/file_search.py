@@ -10,7 +10,7 @@ from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.tool.file_list import DEFAULT_EXCLUDED_PATTERNS
-from zrb.util.file import is_path_excluded
+from zrb.util.file import matches_any_pattern
 from zrb.util.truncate import truncate_items, truncate_text
 
 # Per-line snippet cap in search output (a single matched/context line).
@@ -303,7 +303,7 @@ def _search_with_os_walk(
         dirs[:] = [
             d
             for d in dirs
-            if not d.startswith(".") and not is_path_excluded(d, patterns_to_exclude)
+            if not d.startswith(".") and not matches_any_pattern(d, patterns_to_exclude)
         ]
         for filename in files:
             if time.time() - start_time > timeout:
@@ -311,14 +311,14 @@ def _search_with_os_walk(
                 break
             if filename.startswith("."):
                 continue
-            if is_path_excluded(filename, patterns_to_exclude):
+            if matches_any_pattern(filename, patterns_to_exclude):
                 continue
             if file_pattern and not fnmatch.fnmatch(filename, file_pattern):
                 continue
 
             file_path = os.path.join(root, filename)
             rel_file_path = os.path.relpath(file_path, os.getcwd())
-            if is_path_excluded(rel_file_path, patterns_to_exclude):
+            if matches_any_pattern(rel_file_path, patterns_to_exclude):
                 continue
             searched_file_count += 1
 

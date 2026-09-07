@@ -121,7 +121,10 @@ def _handle_uncaught(error: Exception) -> None:
         stylize_muted(f"For the full traceback: {debug_env_key}=DEBUG"),
         file=sys.stderr,
     )
-    sys.exit(1)
+    # Read off the exception rather than importing `CmdTaskError`: any error
+    # that knows a meaningful process exit code can carry one, and `__main__`
+    # has no reason to know which task types do.
+    sys.exit(getattr(error, "return_code", 1) or 1)
 
 
 if __name__ == "__main__":
