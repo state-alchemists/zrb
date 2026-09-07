@@ -53,12 +53,21 @@ Zrb can be heavily customized using environment variables. These control everyth
 | `ZRB_INIT_FILE_NAME` | Name of the task-definition file zrb auto-loads. On startup zrb walks from the current directory up to the filesystem root and loads every file with this name it finds. | `zrb_init.py` |
 | `ZRB_INIT_SCRIPTS` | Colon-separated Python script paths zrb runs on startup (in addition to the discovered `ZRB_INIT_FILE_NAME` files) to register task definitions | — |
 | `ZRB_INIT_MODULES` | Comma-separated importable module names zrb imports on startup so their task definitions register (colon-separated still accepted) | — |
+| `ZRB_INIT_STRICT` | Exit non-zero when any init module or script fails to load, instead of reporting it and starting anyway | `off` |
 | `ZRB_ENABLE_BUILTIN_TASKS` | Whether to load pre-packaged tasks (Git, UUID, base64, etc.) | `on` |
 | `ZRB_SHOW_UNRECOMMENDED_COMMAND_WARNING` | Show warnings for potentially unsafe shell commands | `on` (true) |
 | `ZRB_SECRET_ENV_PATTERNS` | Comma-separated name fragments marking an env var as secret. Matched case-insensitively as a substring, so `KEY` covers `OPENAI_API_KEY`. Matching values are shown as `***` in `CmdTask`'s DEBUG environment dump. Empty string redacts nothing | `KEY,SECRET,TOKEN,PASSWORD,PASSWD,CREDENTIAL,AUTH,PRIVATE,SIGNATURE,SALT` |
 | `ZRB_MCP_CONFIG_FILE` | Path to the MCP server config file | `mcp-config.json` |
 
 > 💡 **A broken init file is reported, not hidden — and not fatal.** If a discovered `zrb_init.py`, an `ZRB_INIT_SCRIPTS` entry, or an `ZRB_INIT_MODULES` entry raises while loading, zrb prints the file, the line and the exception type to stderr, then continues: whatever that source already did before failing stays in effect, the rest of startup (further init sources, then the CLI itself) still runs, and the printed error is what tells you to fix it and rerun.
+
+> ⚠️ **In CI, turn that default around with `ZRB_INIT_STRICT=1`.** Continuing is the right call at a prompt, where you can read the error and rerun. It is the wrong call for an unattended run: an init file that raises *after* registering a task leaves the task callable, so `zrb deploy` succeeds and exits `0` against configuration that was never finished. With `ZRB_INIT_STRICT` on, zrb still attempts every init source and reports each failure — so one run tells you about all of them — then aborts before running your command and exits `1`.
+>
+> ```bash
+> # .github/workflows/deploy.yml
+> env:
+>   ZRB_INIT_STRICT: "1"
+> ```
 
 ---
 
@@ -150,6 +159,7 @@ Zrb's experimental Web UI has dedicated configuration options.
 export ZRB_LOGGING_LEVEL=DEBUG          # Verbose logging
 export ZRB_EDITOR=nvim                  # Use neovim for editing
 export ZRB_INIT_FILE_NAME=tasks.py      # Use custom init file name
+export ZRB_INIT_STRICT=1                # CI: fail the run if an init file breaks
 
 # Web UI (production)
 export ZRB_WEB_AUTH_ENABLED=1

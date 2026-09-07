@@ -40,6 +40,28 @@ cli.add_task(CmdTask(name="lint", cmd="flake8 ."))
 
 Swap `pytest` / `flake8 .` for whatever your project actually uses. Skip this file and `zrb test` falls through to Zrb's own built-in `test` group instead of your project's tests — it prints the group's help and exits 0, so a CI step built on it would silently never fail — and `zrb lint` fails outright, since there's no built-in `lint` command at all.
 
+### Then Set `ZRB_INIT_STRICT=1`
+
+By default, a `zrb_init.py` that raises while loading is reported to stderr and startup continues — the right call at a terminal, where you can read the error and rerun. In CI it is a trap, because the failure is only visible in the log:
+
+```python
+# zrb_init.py
+cli.add_task(CmdTask(name="deploy", cmd="./deploy.sh"))
+config = yaml.safe_load(open("ci.yaml"))   # raises: file missing on this runner
+cli.add_task(CmdTask(name="test", cmd=config["test_cmd"]))
+```
+
+`deploy` was registered before the exception, so `zrb deploy` runs and exits `0`. `test` never was, so `zrb test` falls through to the built-in group and also exits `0`. The pipeline is green and nothing was tested.
+
+Set the variable once, at the job level, and both become hard failures:
+
+```yaml
+env:
+  ZRB_INIT_STRICT: "1"
+```
+
+Zrb still attempts every init source and prints every failure, so one run tells you about all of them — then exits `1` before running your command.
+
 ---
 
 ## 2. GitHub Actions
@@ -210,6 +232,8 @@ Update the version tag deliberately when ready to adopt newer features or fixes.
 | GitHub Actions | `.github/workflows/ci.yml` | `stalchmst/zrb:VERSION` |
 | GitLab CI/CD | `.gitlab-ci.yml` | `stalchmst/zrb:VERSION` |
 | Bitbucket | `bitbucket-pipelines.yml` | `stalchmst/zrb:VERSION` |
+
+Set `ZRB_INIT_STRICT=1` on every platform: it turns a partially-loaded `zrb_init.py` from a green run into exit `1`. See [Environment Variables](../configuration/env-vars.md#file-discovery--loading).
 
 ---
 

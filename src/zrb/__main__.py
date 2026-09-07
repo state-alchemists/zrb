@@ -24,7 +24,7 @@ class FaintFormatter(logging.Formatter):
         return stylize_muted(log_msg)
 
 
-def _load_or_warn(label: str, load: "Callable[[], Any]") -> None:
+def _load_or_warn(label: str, load: "Callable[[], Any]") -> bool:
     """Load one init module/script, or report it precisely and move on.
 
     The error is never hidden — file, line, and exception type always print
@@ -35,9 +35,16 @@ def _load_or_warn(label: str, load: "Callable[[], Any]") -> None:
     next init source and then the CLI itself, since a user who can see the
     error and still run zrb can fix it and rerun, while a user who can't run
     zrb at all has a strictly worse time diagnosing the same error.
+
+    Returns:
+        True when the source loaded cleanly. `serve_cli` collects these so
+        `CFG.INIT_STRICT` can turn a partial load into a non-zero exit —
+        the tradeoff above is right for a human at a prompt and wrong for
+        CI, which reads only the exit code.
     """
     try:
         load()
+        return True
     except (KeyboardInterrupt, SystemExit):
         raise
     except Exception as error:
@@ -50,6 +57,7 @@ def _load_or_warn(label: str, load: "Callable[[], Any]") -> None:
             ),
             file=sys.stderr,
         )
+        return False
 
 
 def serve_cli():
@@ -61,9 +69,10 @@ def serve_cli():
     handler.setFormatter(FaintFormatter())
     CFG.LOGGER.addHandler(handler)
     try:
+        loaded_cleanly = True
         for init_module in CFG.INIT_MODULES:
             CFG.LOGGER.info(f"Loading {init_module}")
-            _load_or_warn(
+            loaded_cleanly &= _load_or_warn(
                 f"init module {init_module}", lambda m=init_module: load_module(m)
             )
         zrb_init_path_list = get_init_path_list()
@@ -71,16 +80,27 @@ def serve_cli():
             abs_init_script = os.path.abspath(os.path.expanduser(init_script))
             if abs_init_script not in zrb_init_path_list:
                 CFG.LOGGER.info(f"Loading {abs_init_script}")
-                _load_or_warn(
+                loaded_cleanly &= _load_or_warn(
                     f"init script {abs_init_script}",
                     lambda p=abs_init_script: load_file(p, raise_on_error=True),
                 )
         for zrb_init_path in zrb_init_path_list:
             CFG.LOGGER.info(f"Loading {zrb_init_path}")
-            _load_or_warn(
+            loaded_cleanly &= _load_or_warn(
                 f"{zrb_init_path}",
                 lambda p=zrb_init_path: load_file(p, raise_on_error=True),
             )
+        # Every init source is attempted first, so one strict run reports all
+        # of them rather than making the user fix and rerun once per file.
+        if not loaded_cleanly and CFG.INIT_STRICT:
+            print(
+                stylize_error(
+                    f"Aborting: an init source failed and {CFG.ENV_PREFIX}"
+                    "_INIT_STRICT is on."
+                ),
+                file=sys.stderr,
+            )
+            sys.exit(1)
         cli.run(sys.argv[1:])
     except KeyboardInterrupt:
         # The exception is handled by the task runner

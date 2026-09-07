@@ -65,3 +65,89 @@ def test_a_broken_init_script_reports_file_line_and_type_but_still_runs(
     # cli.run([]) with no subcommand prints the group/task listing to stdout —
     # proof startup actually continued past the broken init script.
     assert "GROUPS" in captured.out
+
+
+PARTIAL_INIT = """
+from zrb import cli, Task
+
+cli.add_task(
+    Task(name="{task}", action=lambda ctx: open({sentinel!r}, "w").write("ran"))
+)
+raise RuntimeError("init failed after registering the task")
+"""
+
+ABORT_MESSAGE = "_INIT_STRICT is on"
+
+
+def test_strict_init_is_off_by_default_so_a_partial_init_still_runs_the_task(
+    tmp_path, capsys, monkeypatch
+):
+    """The default is the interactive tradeoff: report the failure, keep going.
+    Pinned here so making INIT_STRICT opt-in cannot silently become opt-out."""
+    sentinel = tmp_path / "ran.txt"
+    init = tmp_path / "zrb_init.py"
+    init.write_text(PARTIAL_INIT.format(task="default-partial", sentinel=str(sentinel)))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["zrb", "default-partial"])
+    serve_cli()  # no SystemExit
+    captured = capsys.readouterr()
+    assert "RuntimeError: init failed after registering the task" in captured.err
+    assert ABORT_MESSAGE not in captured.err
+    assert sentinel.exists()
+
+
+def test_strict_init_aborts_before_running_the_task(tmp_path, capsys, monkeypatch):
+    """A `zrb_init.py` that dies halfway leaves whatever it registered before the
+    failure in place, so the task runs and CI reads exit 0 against state that was
+    never fully set up. With INIT_STRICT on the task never runs, and the sentinel
+    it would have written is the proof."""
+    sentinel = tmp_path / "ran.txt"
+    init = tmp_path / "zrb_init.py"
+    init.write_text(PARTIAL_INIT.format(task="strict-partial", sentinel=str(sentinel)))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ZRB_INIT_STRICT", "true")
+    monkeypatch.setattr(sys, "argv", ["zrb", "strict-partial"])
+    with pytest.raises(SystemExit) as exc_info:
+        serve_cli()
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert "RuntimeError: init failed after registering the task" in captured.err
+    assert f"ZRB{ABORT_MESSAGE}" in captured.err
+    assert not sentinel.exists()
+
+
+def test_strict_init_does_not_abort_when_every_init_source_loads(
+    tmp_path, capsys, monkeypatch
+):
+    """Strict mode gates on failure, not on being enabled — a clean init runs the
+    task exactly as it would with the flag off."""
+    sentinel = tmp_path / "ran.txt"
+    init = tmp_path / "zrb_init.py"
+    init.write_text(
+        "from zrb import cli, Task\n"
+        "cli.add_task(Task(name='strict-clean', "
+        f"action=lambda ctx: open({str(sentinel)!r}, 'w').write('ran')))\n"
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ZRB_INIT_STRICT", "true")
+    monkeypatch.setattr(sys, "argv", ["zrb", "strict-clean"])
+    serve_cli()  # no SystemExit
+    assert ABORT_MESSAGE not in capsys.readouterr().err
+    assert sentinel.exists()
+
+
+def test_strict_init_abort_message_honors_a_white_labeled_env_prefix(
+    tmp_path, capsys, monkeypatch
+):
+    """Same reason the traceback hint does: a rebranded distribution's users set
+    `ACME_INIT_STRICT`, so naming `ZRB_INIT_STRICT` at them is a dead end.
+    See `docs/advanced-topics/white-labeling.md`."""
+    init = tmp_path / "zrb_init.py"
+    init.write_text("this_name_does_not_exist()\n")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("_ZRB_ENV_PREFIX", "ACME")
+    monkeypatch.setenv("ACME_INIT_STRICT", "true")
+    monkeypatch.setattr(sys, "argv", ["zrb"])
+    with pytest.raises(SystemExit):
+        serve_cli()
+    assert f"ACME{ABORT_MESSAGE}" in capsys.readouterr().err

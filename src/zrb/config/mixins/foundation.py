@@ -57,6 +57,7 @@ class FoundationMixin:
         self.DEFAULT_ROOT_GROUP_DESCRIPTION: str = "Your Automation Powerhouse"
         self.DEFAULT_INIT_SCRIPTS: str = ""
         self.DEFAULT_INIT_FILE_NAME: str = "zrb_init.py"
+        self.DEFAULT_INIT_STRICT: str = "off"
         self.DEFAULT_LOGGING_LEVEL: str = "WARNING"
         self.DEFAULT_ENABLE_BUILTIN_TASKS: str = "on"
         self.DEFAULT_SHOW_UNRECOMMENDED_COMMAND_WARNING: str = "on"
@@ -156,6 +157,16 @@ class FoundationMixin:
         doc="Name of the task-definition file zrb auto-loads. On startup zrb walks "
         "from the current directory up to the filesystem root and loads every "
         "file with this name it finds.",
+    )
+
+    INIT_STRICT = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc="Exit non-zero when any init module or script fails to load, instead "
+        "of reporting it and starting anyway. Off by default: interactively, a "
+        "user who can still run zrb can fix the error and rerun. Turn it on in "
+        "CI, where a half-loaded init file otherwise yields a green run against "
+        "state that was never fully registered.",
     )
 
     LOGGING_LEVEL = EnvField(
