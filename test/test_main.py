@@ -82,8 +82,8 @@ ABORT_MESSAGE = "_INIT_STRICT is on"
 def test_strict_init_is_off_by_default_so_a_partial_init_still_runs_the_task(
     tmp_path, capsys, monkeypatch
 ):
-    """The default is the interactive tradeoff: report the failure, keep going.
-    Pinned here so making INIT_STRICT opt-in cannot silently become opt-out."""
+    """With INIT_STRICT off, a failed init source is reported and startup
+    continues, so a task registered before the failure still runs."""
     sentinel = tmp_path / "ran.txt"
     init = tmp_path / "zrb_init.py"
     init.write_text(PARTIAL_INIT.format(task="default-partial", sentinel=str(sentinel)))
@@ -97,10 +97,8 @@ def test_strict_init_is_off_by_default_so_a_partial_init_still_runs_the_task(
 
 
 def test_strict_init_aborts_before_running_the_task(tmp_path, capsys, monkeypatch):
-    """A `zrb_init.py` that dies halfway leaves whatever it registered before the
-    failure in place, so the task runs and CI reads exit 0 against state that was
-    never fully set up. With INIT_STRICT on the task never runs, and the sentinel
-    it would have written is the proof."""
+    """With INIT_STRICT on, a failed init source aborts startup before the CLI
+    runs. The sentinel the task would have written proves it never ran."""
     sentinel = tmp_path / "ran.txt"
     init = tmp_path / "zrb_init.py"
     init.write_text(PARTIAL_INIT.format(task="strict-partial", sentinel=str(sentinel)))
@@ -119,8 +117,8 @@ def test_strict_init_aborts_before_running_the_task(tmp_path, capsys, monkeypatc
 def test_strict_init_does_not_abort_when_every_init_source_loads(
     tmp_path, capsys, monkeypatch
 ):
-    """Strict mode gates on failure, not on being enabled — a clean init runs the
-    task exactly as it would with the flag off."""
+    """Strict mode aborts on a failed init source, not on being enabled: a
+    clean init runs the task as it would with the flag off."""
     sentinel = tmp_path / "ran.txt"
     init = tmp_path / "zrb_init.py"
     init.write_text(
@@ -139,8 +137,8 @@ def test_strict_init_does_not_abort_when_every_init_source_loads(
 def test_strict_init_abort_message_honors_a_white_labeled_env_prefix(
     tmp_path, capsys, monkeypatch
 ):
-    """Same reason the traceback hint does: a rebranded distribution's users set
-    `ACME_INIT_STRICT`, so naming `ZRB_INIT_STRICT` at them is a dead end.
+    """A distribution that rebrands via `_ZRB_ENV_PREFIX` reads
+    `ACME_INIT_STRICT`, so the abort message must name that prefix.
     See `docs/advanced-topics/white-labeling.md`."""
     init = tmp_path / "zrb_init.py"
     init.write_text("this_name_does_not_exist()\n")

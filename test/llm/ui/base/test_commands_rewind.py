@@ -1,7 +1,6 @@
 """`/rewind` — snapshot listing, restore, and the unavailable path.
 
-Split out of `test_commands_basics.py` by feature group. `MockUI` and the
-`ui` fixture come from `conftest.py`.
+`MockUI` and the `ui` fixture come from `conftest.py`.
 """
 
 from unittest.mock import AsyncMock, MagicMock
@@ -42,11 +41,10 @@ async def test_handle_rewind_command_restore(ui):
 
 
 def test_rewind_without_snapshots_warns_instead_of_reaching_the_model(ui, monkeypatch):
-    """An unavailable command consumes its own input and says why.
+    """An unavailable command consumes its own input and says why (ADR-0093).
 
-    Returning False would send the literal text "/rewind" to the LLM as a
-    chat message, since `dispatch_command` forwards anything no handler
-    claimed. `/voice` set this pattern; `/rewind` follows it.
+    `dispatch_command` forwards anything no handler claimed, so returning
+    False here would send the literal text "/rewind" to the model.
     """
     monkeypatch.setenv("ZRB_LLM_ENABLE_REWIND", "off")
     ui.snapshot_manager = None
@@ -59,8 +57,8 @@ def test_rewind_without_snapshots_warns_instead_of_reaching_the_model(ui, monkey
 
 
 def test_rewind_without_snapshots_still_ignores_other_input(ui):
-    """The availability check sits after the token match, so unrelated input
-    is still passed on rather than warned about."""
+    """The availability check sits after the token match, so input that is
+    not a rewind command passes to the next handler."""
     ui.snapshot_manager = None
     assert ui.handle_rewind_command("what is a snapshot?") is False
     assert ui.outputs == []
@@ -69,8 +67,8 @@ def test_rewind_without_snapshots_still_ignores_other_input(ui):
 def test_rewind_names_the_session_requirement_when_the_knob_is_already_on(
     ui, monkeypatch
 ):
-    """`snapshot_manager` is also None with rewind enabled but no named
-    conversation or snapshot dir — pointing at the knob would be a dead end."""
+    """`snapshot_manager` is also None when rewind is enabled but the session
+    has no name or snapshot dir, where naming the knob would be a dead end."""
     monkeypatch.setenv("ZRB_LLM_ENABLE_REWIND", "on")
     ui.snapshot_manager = None
 
@@ -81,7 +79,7 @@ def test_rewind_names_the_session_requirement_when_the_knob_is_already_on(
 
 
 def test_rewind_is_listed_in_help_even_without_snapshots(ui):
-    """Hiding it made the feature undiscoverable: `LLM_ENABLE_REWIND` is off
-    by default, so the default install never mentioned rewind at all."""
+    """Help lists every command with a resolved alias (ADR-0093), so rewind
+    is discoverable even though `LLM_ENABLE_REWIND` is off by default."""
     ui.snapshot_manager = None
     assert any("/rewind" in row for row in ui.get_help_text(80).splitlines())

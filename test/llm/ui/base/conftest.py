@@ -1,9 +1,9 @@
 """Shared `BaseUI` stand-in for the `llm/ui/base` command tests.
 
-One copy: `test_commands_basics.py`, `test_commands_shell.py`,
-`test_commands_voice.py` and `test_commands_rewind.py` all drive a real
-`BaseUICommands` through this, and three identical definitions had already
-drifted into the tree.
+`MockUI` holds the state `BaseUICommands` and its conversation/model/exec
+parts read through `self._base_ui`, composes a real `BaseUICommands`, and
+forwards attribute lookups to it and its parts, so a test can call any
+handler as `ui.handle_<x>_command(...)`.
 """
 
 import asyncio

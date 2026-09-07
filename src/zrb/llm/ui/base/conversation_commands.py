@@ -257,10 +257,8 @@ class BaseUIConversationCommands:
                 or text.lower().startswith(cmd.lower() + " ")
             ):
                 continue
-            # Availability is checked *after* the token match, like
-            # `/voice`: an unavailable command still consumes its own input
-            # and says why, rather than being hidden from help/completion and
-            # silently forwarded to the model as a chat message.
+            # Availability is checked after the token match so unrelated
+            # input still reaches the next handler (ADR-0093).
             if not self._base_ui.snapshot_manager:
                 self._base_ui.append_to_output(
                     stylize_warning(self._rewind_unavailable_message())
@@ -291,13 +289,12 @@ class BaseUIConversationCommands:
         return False
 
     def _rewind_unavailable_message(self) -> str:
-        """Why rewind is off, and the knob that turns it on.
+        """Why rewind is unavailable, and the setting that enables it.
 
-        `snapshot_manager` is None when any of `enable_rewind`, `snapshot_dir`
-        or the conversation-session name is missing. `LLM_ENABLE_REWIND`
-        defaults to off, so that is overwhelmingly the reason — but say so
-        only when it really is, or the hint sends the user to a knob that is
-        already set.
+        `snapshot_manager` is None when `enable_rewind`, `snapshot_dir`, or
+        the conversation-session name is missing. The first has its own env
+        knob and gets its own message; the other two do not, so they share
+        one that names the session requirement.
         """
         prefix = CFG.ENV_PREFIX
         if not CFG.LLM_ENABLE_REWIND:

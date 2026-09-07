@@ -146,10 +146,9 @@ class UI(BaseUI):
         from prompt_toolkit.history import InMemoryHistory
 
         self._input_history = InMemoryHistory()
-        # `_ui_config` already backs every `self.<x>_commands` property, so it
-        # carries the current aliases — no command is filtered out here. A
-        # command that cannot run says so from its own handler (see
-        # `handle_rewind_command`), which keeps availability in one place.
+        # `_ui_config` backs every `self.<x>_commands` property, so it holds
+        # the current aliases. The completer offers all of them; a command
+        # that cannot run reports that from its own handler (ADR-0093).
         self._input_field = create_input_field(
             history_manager=self._history_manager,
             ui_config=self._ui_config,

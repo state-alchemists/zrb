@@ -61,7 +61,10 @@ class BaseUICommands:
 
     @property
     def exec(self) -> BaseUIExecCommands:
-        """Handlers for shell exec, `/btw` side questions, and custom commands."""
+        """Handlers for shell exec, `/btw` side questions, and custom commands.
+
+        Read by `command_table`, and by a subclass adding to it.
+        """
         return self._exec
 
     # --- command dispatch (with hooks) ------------------------------------

@@ -5,7 +5,7 @@ Zrb's LLM Chat using `SimpleUI`. You only implement **2 methods** — `print()` 
 `get_input()` — and `SimpleUI` handles the message loop, command processing, and
 tool approvals for you.
 
-See [`zrb_init.py`](./zrb_init.py) for the full ~40-line implementation.
+See [`zrb_init.py`](./zrb_init.py) for the full implementation.
 
 ## Extension Levels
 
@@ -14,10 +14,10 @@ control (and effort). Pick the lowest level that fits your backend:
 
 ```mermaid
 flowchart TB
-    AnyUI["AnyUI<br/>6 methods - tool confirmations only (non-chat)"]
+    AnyUI["AnyUI<br/>The full contract - tool confirmations outside a chat loop"]
     Level1["Level 1: SimpleUI<br/>THIS EXAMPLE - print() + get_input()"]
     Level2["Level 2: EventDrivenUI<br/>print() + start_event_loop() (Telegram/Discord/HTTP/WebSocket)"]
-    Level3["Level 3: BaseUI<br/>Full control - custom architectures"]
+    Level3["Level 3: BaseUI<br/>Override what you change - custom architectures"]
     Level4["Level 4: UI<br/>Default terminal TUI (prompt_toolkit)"]
 
     AnyUI --> Level1 --> Level2 --> Level3 --> Level4
@@ -25,10 +25,10 @@ flowchart TB
 
 | Level | Base Class | Implement | Best for |
 |-------|------------|-----------|----------|
-| — | `AnyUI` | 6 methods | Tool confirmations in non-chat contexts |
+| — | `AnyUI` | The full contract | Tool confirmations outside a chat loop |
 | **1** | `SimpleUI` | `print()`, `get_input()` | **THIS EXAMPLE** — CLI, file logging, simple backends |
 | **2** | `EventDrivenUI` | `print()`, `start_event_loop()` | Telegram, Discord, WhatsApp, HTTP API, WebSocket (callback/queue-based) |
-| **3** | `BaseUI` | `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Maximum flexibility, custom architectures |
+| **3** | `BaseUI` | Nothing required — override what you change | Maximum flexibility, custom architectures |
 | **4** | `UI` | — | Default terminal TUI (used when no custom UI is set) |
 
 ## How It Works

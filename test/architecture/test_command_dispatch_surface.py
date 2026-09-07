@@ -1,16 +1,17 @@
-"""Fitness function: slash-command dispatch must go through the UI facade.
+"""Slash-command handlers must be bound to the UI instance.
 
-`BaseUI` publishes a `handle_<x>_command` method for every slash command, and
-`BaseUI` is the documented Level-3 extension point — a user subclasses it and
-overrides one of those to customise a command.
+`BaseUI` publishes a `handle_<x>_command` method for every slash command and
+is the documented extension point a user subclasses to customise one. That
+override is only reached if `command_table()` binds the handler to the UI
+instance.
 
-That only works if `command_table()` binds the handler to the **UI instance**.
-Binding it to the sub-part that owns the code (`self._conversation.handle_save_command`)
-resolves the method once, at table-build time, off an object the subclass is
-not in the MRO of — so the override is silently skipped and the built-in runs
-instead. No error, no warning; the customisation just does nothing.
+Binding to the part that implements the command — for example
+`self._conversation.handle_save_command` — resolves it off an object the
+subclass is not in the lookup chain of. The override is skipped, with no
+error and no output: the built-in runs instead.
 
-This is a real regression that shipped: see the 3.0.0b7 changelog entry.
+Enforces ADR-0035's guarantee that an override of any owner method is honored
+regardless of which part implements it.
 """
 
 import asyncio
@@ -66,7 +67,7 @@ def test_every_command_handler_is_bound_to_the_ui_instance(ui):
 
 
 def test_a_subclass_override_actually_runs_when_the_command_is_typed(ui):
-    """The behaviour the binding rule exists to protect."""
+    """A subclass override of a command handler runs when the user types it."""
     ui.save_commands = ["/save"]
     asyncio.run(ui.dispatch_command("/save my-session"))
     assert ui.overridden_with == ["/save my-session"]

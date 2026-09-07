@@ -16,11 +16,9 @@ from zrb.llm.ui.ui_config import UIConfig
 def _config(**overrides) -> UIConfig:
     """A `UIConfig` with every slash-command list empty except the ones named.
 
-    `create_input_field`/`InputCompleter` used to take one `*_commands`
-    parameter per command, so omitting one meant "no aliases for it".
-    `UIConfig`'s fields default from `CFG.LLM_UI_COMMAND_*` instead, which
-    would hand these tests the full shipped alias set — this keeps each test
-    scoped to the commands it names.
+    `UIConfig`'s command fields default from `CFG.LLM_UI_COMMAND_*`, so
+    building one plainly would give a test the full shipped alias set. This
+    scopes each test to the commands it names.
     """
     empty = {f.name: [] for f in fields(UIConfig) if f.name.endswith("_commands")}
     return UIConfig(**{**empty, **overrides})

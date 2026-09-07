@@ -269,9 +269,8 @@ class BaseUI(UIDefaultsMixin, AnyUI):
         self._background_tasks: set[asyncio.Task] = set()
 
         self._base_commands = BaseUICommands(self)
-        # Sibling parts of `_base_commands`, held directly: the dispatcher
-        # constructs them, but the facade methods below forward to them
-        # without a second hop through the dispatcher.
+        # The dispatcher constructs the three handler parts; the facade
+        # methods below forward straight to them.
         self._conversation = self._base_commands.conversation
         self._models = self._base_commands.models
         self._exec = self._base_commands.exec
@@ -596,8 +595,8 @@ class BaseUI(UIDefaultsMixin, AnyUI):
     def commands(self) -> BaseUICommands:
         """The slash-command dispatcher, and through it the handler parts.
 
-        Public so a subclass can reorder or extend `command_table()` without
-        reaching into a private attribute.
+        A subclass reorders or extends the command set through
+        `commands.command_table()`.
         """
         return self._base_commands
 
