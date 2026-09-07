@@ -16,6 +16,7 @@ import logging
 import os
 from typing import TYPE_CHECKING, Any
 
+from zrb.config.config import CFG
 from zrb.llm.util.attachment import get_media_type, get_oversized_by
 from zrb.llm.util.camera import get_camera_photo, missing_tool_hint
 from zrb.llm.util.image_scale import scale_image_bytes
@@ -249,8 +250,6 @@ class BaseUIConversationCommands:
     # --- rewind -----------------------------------------------------------
 
     def handle_rewind_command(self, text: str) -> bool:
-        if not self._base_ui.snapshot_manager:
-            return False
         text = text.strip()
         for cmd in self._base_ui.rewind_commands:
             if not (
@@ -258,6 +257,13 @@ class BaseUIConversationCommands:
                 or text.lower().startswith(cmd.lower() + " ")
             ):
                 continue
+            # Availability is checked after the token match so unrelated
+            # input still reaches the next handler (ADR-0093).
+            if not self._base_ui.snapshot_manager:
+                self._base_ui.append_to_output(
+                    stylize_warning(self._rewind_unavailable_message())
+                )
+                return True
             arg = text[len(cmd) :].strip()
 
             async def do_rewind(cmd=cmd, arg=arg):
@@ -281,6 +287,25 @@ class BaseUIConversationCommands:
             task.add_done_callback(self._base_ui.background_tasks.discard)
             return True
         return False
+
+    def _rewind_unavailable_message(self) -> str:
+        """Why rewind is unavailable, and the setting that enables it.
+
+        `snapshot_manager` is None when `enable_rewind`, `snapshot_dir`, or
+        the conversation-session name is missing. The first has its own env
+        knob and gets its own message; the other two do not, so they share
+        one that names the session requirement.
+        """
+        prefix = CFG.ENV_PREFIX
+        if not CFG.LLM_ENABLE_REWIND:
+            return (
+                "\n  ⏳ Rewind is not enabled.\n"
+                f"     Set {prefix}_LLM_ENABLE_REWIND=on and restart.\n"
+            )
+        return (
+            "\n  ⏳ Rewind is unavailable in this session — it needs a named "
+            f"conversation and a snapshot directory ({prefix}_LLM_SNAPSHOT_DIR).\n"
+        )
 
     def _resolve_snapshot_arg(
         self, snapshots: list, arg: str
@@ -471,9 +496,7 @@ class BaseUIConversationCommands:
                         )
                         return True
                     # lazy: tests patch format_history_as_text; hoisting bypasses the mock
-                    from zrb.llm.util.history_formatter import (
-                        format_history_as_text,
-                    )
+                    from zrb.llm.util.history_formatter import format_history_as_text
 
                     transcript = format_history_as_text(messages, full=True)
                     self.copy_to_clipboard_and_report(
@@ -501,9 +524,7 @@ class BaseUIConversationCommands:
                         )
                         return True
                     # lazy: tests patch format_history_as_text; hoisting bypasses the mock
-                    from zrb.llm.util.history_formatter import (
-                        format_history_as_text,
-                    )
+                    from zrb.llm.util.history_formatter import format_history_as_text
 
                     transcript = format_history_as_text(messages, full=True)
                     self.write_text_to_file(path, transcript)

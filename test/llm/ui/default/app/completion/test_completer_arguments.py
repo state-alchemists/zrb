@@ -1,3 +1,4 @@
+from dataclasses import fields
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -7,6 +8,18 @@ from prompt_toolkit.document import Document
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.ui.default.app.completion import InputCompleter
+from zrb.llm.ui.ui_config import UIConfig
+
+
+def _config(**overrides) -> UIConfig:
+    """A `UIConfig` with every slash-command list empty except the ones named.
+
+    `UIConfig`'s command fields default from `CFG.LLM_UI_COMMAND_*`, so
+    building one plainly would give a test the full shipped alias set. This
+    scopes each test to the commands it names.
+    """
+    empty = {f.name: [] for f in fields(UIConfig) if f.name.endswith("_commands")}
+    return UIConfig(**{**empty, **overrides})
 
 
 @pytest.fixture
@@ -20,15 +33,17 @@ def mock_history_manager():
 def completer(mock_history_manager):
     return InputCompleter(
         history_manager=mock_history_manager,
-        attach_commands=["/attach"],
-        photo_commands=["/photo"],
-        exit_commands=["/exit"],
-        info_commands=["/info"],
-        save_commands=["/save"],
-        load_commands=["/load"],
-        redirect_output_commands=["/out"],
-        copy_commands=["/copy"],
-        summarize_commands=["/sum"],
+        ui_config=_config(
+            attach_commands=["/attach"],
+            photo_commands=["/photo"],
+            exit_commands=["/exit"],
+            info_commands=["/info"],
+            save_commands=["/save"],
+            load_commands=["/load"],
+            redirect_output_commands=["/out"],
+            copy_commands=["/copy"],
+            summarize_commands=["/sum"],
+        ),
     )
 
 
@@ -48,8 +63,7 @@ def test_custom_command_arg_completion(mock_history_manager, complete_event):
     """Typing an arg after a custom command yields a description-only completion."""
     cc = _make_custom_command("/deploy", "Deploy the app")
     completer = InputCompleter(
-        history_manager=mock_history_manager,
-        custom_commands=[cc],
+        history_manager=mock_history_manager, ui_config=_config(), custom_commands=[cc]
     )
     doc = Document(text="/deploy staging", cursor_position=15)
     completions = list(completer.get_completions(doc, complete_event))
@@ -59,8 +73,7 @@ def test_custom_command_arg_completion(mock_history_manager, complete_event):
 def test_exec_command_arg_completion(mock_history_manager, complete_event):
     """Exec command arg completion pulls from command history."""
     completer = InputCompleter(
-        history_manager=mock_history_manager,
-        exec_commands=["/exec"],
+        history_manager=mock_history_manager, ui_config=_config(exec_commands=["/exec"])
     )
     completer.cmd_history = ["git status", "git commit", "ls"]
     doc = Document(text="/exec git", cursor_position=9)
@@ -75,9 +88,11 @@ def test_model_subcommands_suggested_on_bare_model(
     """'/model ' suggests the small and multimodal subcommands."""
     completer = InputCompleter(
         history_manager=mock_history_manager,
-        set_model_commands=["/model"],
-        show_ollama_models=False,
-        show_pydantic_ai_models=False,
+        ui_config=_config(
+            set_model_commands=["/model"],
+            show_ollama_models=False,
+            show_pydantic_ai_models=False,
+        ),
         custom_model_names=["m1"],
     )
     doc = Document(text="/model ", cursor_position=7)
@@ -91,9 +106,11 @@ def test_model_subcommand_completing_first_arg(mock_history_manager, complete_ev
     """'/model sm' completes the 'small' subcommand and matching model names."""
     completer = InputCompleter(
         history_manager=mock_history_manager,
-        set_model_commands=["/model"],
-        show_ollama_models=False,
-        show_pydantic_ai_models=False,
+        ui_config=_config(
+            set_model_commands=["/model"],
+            show_ollama_models=False,
+            show_pydantic_ai_models=False,
+        ),
         custom_model_names=["small-llm"],
     )
     doc = Document(text="/model sm", cursor_position=9)
@@ -106,9 +123,11 @@ def test_model_subcommand_multimodal_first_arg(mock_history_manager, complete_ev
     """'/model mu' completes the 'multimodal' subcommand."""
     completer = InputCompleter(
         history_manager=mock_history_manager,
-        set_model_commands=["/model"],
-        show_ollama_models=False,
-        show_pydantic_ai_models=False,
+        ui_config=_config(
+            set_model_commands=["/model"],
+            show_ollama_models=False,
+            show_pydantic_ai_models=False,
+        ),
     )
     doc = Document(text="/model mu", cursor_position=9)
     completions = list(completer.get_completions(doc, complete_event))
@@ -122,9 +141,11 @@ def test_model_subcommand_then_space_completes_model_name(
     """'/model small ' completes model names for the chosen subcommand."""
     completer = InputCompleter(
         history_manager=mock_history_manager,
-        set_model_commands=["/model"],
-        show_ollama_models=False,
-        show_pydantic_ai_models=False,
+        ui_config=_config(
+            set_model_commands=["/model"],
+            show_ollama_models=False,
+            show_pydantic_ai_models=False,
+        ),
         custom_model_names=["fast-model"],
     )
     doc = Document(text="/model small ", cursor_position=13)
@@ -139,9 +160,11 @@ def test_model_subcommand_third_part_completes_model_name(
     """'/model small fa' completes model names after the subcommand."""
     completer = InputCompleter(
         history_manager=mock_history_manager,
-        set_model_commands=["/model"],
-        show_ollama_models=False,
-        show_pydantic_ai_models=False,
+        ui_config=_config(
+            set_model_commands=["/model"],
+            show_ollama_models=False,
+            show_pydantic_ai_models=False,
+        ),
         custom_model_names=["fast-model"],
     )
     doc = Document(text="/model small fa", cursor_position=15)
@@ -155,8 +178,7 @@ def test_command_with_unsupported_arg_yields_nothing(
 ):
     """A command that takes no extra args yields no completions for a 3rd token."""
     completer = InputCompleter(
-        history_manager=mock_history_manager,
-        info_commands=["/info"],
+        history_manager=mock_history_manager, ui_config=_config(info_commands=["/info"])
     )
     doc = Document(text="/info one two", cursor_position=13)
     completions = list(completer.get_completions(doc, complete_event))
@@ -177,7 +199,7 @@ def test_attach_path_navigation_uses_path_completer(
     (tmp_path / "alpha.txt").write_text("x")
     completer = InputCompleter(
         history_manager=mock_history_manager,
-        attach_commands=["/attach"],
+        ui_config=_config(attach_commands=["/attach"]),
     )
     target = str(tmp_path) + "/al"
     doc = Document(text=f"/attach {target}", cursor_position=len(f"/attach {target}"))
@@ -190,7 +212,9 @@ def test_attach_path_navigation_uses_path_completer(
 def test_file_at_prefix_path_navigation(mock_history_manager, complete_event, tmp_path):
     """'@<abs-path>' triggers path-navigation completion (directories allowed)."""
     (tmp_path / "beta").mkdir()
-    completer = InputCompleter(history_manager=mock_history_manager)
+    completer = InputCompleter(
+        history_manager=mock_history_manager, ui_config=_config()
+    )
     target = str(tmp_path) + "/be"
     doc = Document(text=f"@{target}", cursor_position=len(f"@{target}"))
     completions = list(completer.get_completions(doc, complete_event))
@@ -207,7 +231,9 @@ def test_fuzzy_walk_too_many_files_falls_back_to_path_completer(
 
     (tmp_path / "gamma.txt").write_text("x")
     monkeypatch.chdir(tmp_path)
-    completer = InputCompleter(history_manager=mock_history_manager)
+    completer = InputCompleter(
+        history_manager=mock_history_manager, ui_config=_config()
+    )
     # Force the walk to "overflow" so the >= cap branch fires.
     monkeypatch.setattr(
         completer_mod, "walk_recursive_files", lambda *a, **k: ["a", "b"]
@@ -227,9 +253,11 @@ def test_known_models_fallback_on_exception(mock_history_manager, complete_event
     ):
         completer = InputCompleter(
             history_manager=mock_history_manager,
-            set_model_commands=["/model"],
-            show_ollama_models=False,
-            show_pydantic_ai_models=True,
+            ui_config=_config(
+                set_model_commands=["/model"],
+                show_ollama_models=False,
+                show_pydantic_ai_models=True,
+            ),
         )
     doc = Document(text="/model ", cursor_position=7)
     completions = list(completer.get_completions(doc, complete_event))

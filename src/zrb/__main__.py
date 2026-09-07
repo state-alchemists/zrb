@@ -37,10 +37,8 @@ def _load_or_warn(label: str, load: "Callable[[], Any]") -> bool:
     zrb at all has a strictly worse time diagnosing the same error.
 
     Returns:
-        True when the source loaded cleanly. `serve_cli` collects these so
-        `CFG.INIT_STRICT` can turn a partial load into a non-zero exit —
-        the tradeoff above is right for a human at a prompt and wrong for
-        CI, which reads only the exit code.
+        True when the source loaded cleanly. `serve_cli` collects these and,
+        under `CFG.INIT_STRICT`, exits non-zero instead of continuing.
     """
     try:
         load()
@@ -90,8 +88,8 @@ def serve_cli():
                 f"{zrb_init_path}",
                 lambda p=zrb_init_path: load_file(p, raise_on_error=True),
             )
-        # Every init source is attempted first, so one strict run reports all
-        # of them rather than making the user fix and rerun once per file.
+        # Every init source is attempted before this check, so one run
+        # reports every failure rather than only the first.
         if not loaded_cleanly and CFG.INIT_STRICT:
             print(
                 stylize_error(
