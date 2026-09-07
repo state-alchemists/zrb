@@ -16,6 +16,7 @@ import logging
 import os
 from typing import TYPE_CHECKING, Any
 
+from zrb.config.config import CFG
 from zrb.llm.util.attachment import get_media_type, get_oversized_by
 from zrb.llm.util.camera import get_camera_photo, missing_tool_hint
 from zrb.llm.util.image_scale import scale_image_bytes
@@ -249,8 +250,6 @@ class BaseUIConversationCommands:
     # --- rewind -----------------------------------------------------------
 
     def handle_rewind_command(self, text: str) -> bool:
-        if not self._base_ui.snapshot_manager:
-            return False
         text = text.strip()
         for cmd in self._base_ui.rewind_commands:
             if not (
@@ -258,6 +257,15 @@ class BaseUIConversationCommands:
                 or text.lower().startswith(cmd.lower() + " ")
             ):
                 continue
+            # Availability is checked *after* the token match, like
+            # `/voice`: an unavailable command still consumes its own input
+            # and says why, rather than being hidden from help/completion and
+            # silently forwarded to the model as a chat message.
+            if not self._base_ui.snapshot_manager:
+                self._base_ui.append_to_output(
+                    stylize_warning(self._rewind_unavailable_message())
+                )
+                return True
             arg = text[len(cmd) :].strip()
 
             async def do_rewind(cmd=cmd, arg=arg):
@@ -281,6 +289,26 @@ class BaseUIConversationCommands:
             task.add_done_callback(self._base_ui.background_tasks.discard)
             return True
         return False
+
+    def _rewind_unavailable_message(self) -> str:
+        """Why rewind is off, and the knob that turns it on.
+
+        `snapshot_manager` is None when any of `enable_rewind`, `snapshot_dir`
+        or the conversation-session name is missing. `LLM_ENABLE_REWIND`
+        defaults to off, so that is overwhelmingly the reason — but say so
+        only when it really is, or the hint sends the user to a knob that is
+        already set.
+        """
+        prefix = CFG.ENV_PREFIX
+        if not CFG.LLM_ENABLE_REWIND:
+            return (
+                "\n  ⏳ Rewind is not enabled.\n"
+                f"     Set {prefix}_LLM_ENABLE_REWIND=on and restart.\n"
+            )
+        return (
+            "\n  ⏳ Rewind is unavailable in this session — it needs a named "
+            f"conversation and a snapshot directory ({prefix}_LLM_SNAPSHOT_DIR).\n"
+        )
 
     def _resolve_snapshot_arg(
         self, snapshots: list, arg: str

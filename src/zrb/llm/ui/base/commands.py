@@ -409,11 +409,10 @@ class BaseUICommands:
         )
         add_cmd_help(base_ui.save_commands, "Save conversation (usage: {cmd} <name>)")
         add_cmd_help(base_ui.load_commands, "Load conversation (usage: {cmd} <name>)")
-        if base_ui.snapshot_manager is not None:
-            add_cmd_help(
-                base_ui.rewind_commands,
-                "List snapshots or restore one (usage: {cmd} [<n>|<sha>])",
-            )
+        add_cmd_help(
+            base_ui.rewind_commands,
+            "List snapshots or restore one (usage: {cmd} [<n>|<sha>])",
+        )
         add_cmd_help(
             base_ui.redirect_output_commands,
             "Copy last output to clipboard (bare), or save to file (usage: {cmd} <file>)",

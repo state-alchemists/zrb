@@ -4,7 +4,6 @@ import asyncio
 import logging
 import subprocess
 from collections.abc import AsyncIterable, Callable
-from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
@@ -148,15 +147,12 @@ class UI(BaseUI):
 
         self._input_history = InMemoryHistory()
         # `_ui_config` already backs every `self.<x>_commands` property, so it
-        # carries the current aliases. `/rewind` is the one exception: it is
-        # only offered when snapshots are on, and blanking it on a copy keeps
-        # `self.rewind_commands` itself intact for the command handler.
-        completion_config = self._ui_config
-        if self._snapshot_manager is None:
-            completion_config = replace(self._ui_config, rewind_commands=[])
+        # carries the current aliases — no command is filtered out here. A
+        # command that cannot run says so from its own handler (see
+        # `handle_rewind_command`), which keeps availability in one place.
         self._input_field = create_input_field(
             history_manager=self._history_manager,
-            ui_config=completion_config,
+            ui_config=self._ui_config,
             custom_commands=self._custom_commands,
             history=self._input_history,
             custom_model_names=custom_model_names,

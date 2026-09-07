@@ -187,6 +187,7 @@ class TestBaseUICommandHandlers:
         ui.photo_commands = []
         ui.save_commands = []
         ui.load_commands = []
+        ui.rewind_commands = []
         ui.redirect_output_commands = []
         ui.summarize_commands = []
         ui.yolo_toggle_commands = []
