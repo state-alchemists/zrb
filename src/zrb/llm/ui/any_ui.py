@@ -42,8 +42,8 @@ class AnyUI(ABC):
     The contract is in two halves: the six behavioral methods below, which
     every UI performs, and the ten state members and side-effect hooks after
     them, which describe what a *full* UI keeps. `BaseUI` implements all ten;
-    a UI that keeps none of it mixes in `UIDefaultsMixin`
-    (`llm/ui/defaults.py`).
+    a UI that keeps none of it mixes in `UIStateDefaultsMixin`
+    (`llm/ui/state_defaults.py`).
     """
 
     @abstractmethod

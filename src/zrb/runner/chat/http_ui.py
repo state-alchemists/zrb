@@ -140,7 +140,7 @@ def create_http_ui_factory(  # noqa: C901 -- registration/factory fn; mccabe sum
             ctx=ctx,
             llm_task=llm_task,
             history_manager=history_manager,
-            config=cfg,
+            ui_config=cfg,
             initial_message=initial_message,
             initial_attachments=initial_attachments,
         )

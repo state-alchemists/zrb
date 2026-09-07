@@ -20,7 +20,7 @@ from zrb.llm.permission.state import (
 )
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.base.message_queue import MessageQueue, submit_user_message_via_queue
-from zrb.llm.ui.defaults import UIDefaultsMixin
+from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
 from zrb.session.session import Session
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
@@ -28,7 +28,7 @@ from zrb.util.cli.style import stylize_muted
 logger = logging.getLogger(__name__)
 
 
-class MultiUI(UIDefaultsMixin, AnyUI):
+class MultiUI(UIStateDefaultsMixin, AnyUI):
     """UI wrapper that broadcasts output to multiple UIs and waits for first response.
 
     This class implements AnyUI and delegates to multiple child UIs:

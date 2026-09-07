@@ -14,40 +14,39 @@ if TYPE_CHECKING:
 
 def create_ui_factory(
     ui_class: type,
-    config: UIConfig | None = None,
+    ui_config: UIConfig | None = None,
     **extra_kwargs,
 ) -> Callable:
-    """Create a UI factory function with minimal boilerplate.
+    """Wrap a UI class as an `llm_chat.ui_factories` entry.
 
-    This replaces the repetitive 8-parameter factory function with
-    a one-liner.
+    `LLMChatTask` calls a factory with eight positional-by-name arguments once
+    the run's context exists; this adapts that call to the `ui_config`-shaped
+    constructor every UI in `zrb.llm.ui` takes, so registering a custom backend
+    is one line instead of a hand-written eight-parameter shim.
 
     Args:
-        ui_class: The UI class to instantiate
-        config: Optional UIConfig for custom commands
-        **extra_kwargs: Additional kwargs passed to the constructor
+        ui_class: The UI class to instantiate. Anything whose `__init__`
+            accepts `ctx`, `llm_task`, `history_manager`, `ui_config`,
+            `initial_message`, `initial_attachments` and `custom_commands` —
+            which is every class in `zrb.llm.ui.__all__`, pinned by
+            `test/llm/ui/test_extension_levels.py`.
+        ui_config: Optional `UIConfig`. Copied before this run's yolo state and
+            session name are stamped on, so one config object is safe to share
+            across repeated factory invocations.
+        **extra_kwargs: Passed to `ui_class` unchanged, for a subclass with
+            constructor arguments of its own.
 
     Returns:
-        A factory function compatible with llm_chat.ui_factories
+        A factory function compatible with `llm_chat.ui_factories`.
 
     Example:
-        # Before (repetitive):
-        def create_ui(ctx, llm_task_core, history_manager, ui_commands,
-                      initial_message, initial_conversation_name,
-                      initial_yolo, initial_attachments):
-            return MyUI(
-                ctx=ctx, llm_task=llm_task_core, history_manager=history_manager,
-                initial_message=initial_message,
-                conversation_session_name=initial_conversation_name,
-                is_yolo=initial_yolo, initial_attachments=initial_attachments,
-                exit_commands=ui_commands.get("exit", ["/exit"]),
-            )
-
-        # After (one liner):
         from zrb.llm.ui import create_ui_factory, UIConfig
 
-        config = UIConfig(assistant_name="MyBot")
-        llm_chat.ui_factories = [create_ui_factory(MyUI, config=config, bot=my_bot)]
+        llm_chat.ui_factories = [
+            create_ui_factory(
+                MyUI, ui_config=UIConfig(assistant_name="MyBot"), bot=my_bot
+            )
+        ]
     """
 
     def factory(
@@ -61,11 +60,11 @@ def create_ui_factory(
         initial_attachments: list[Any],
         custom_commands: list[Any] | None = None,
     ) -> BaseUI:
-        cfg = config or UIConfig.default()
+        cfg = ui_config or UIConfig.default()
         if ui_commands:
             cfg = cfg.merge_commands(ui_commands)
         else:
-            # Always copy before mutating below — `config` may be a single
+            # Always copy before mutating below — `ui_config` may be a single
             # object shared across repeated factory invocations (e.g. a
             # long-lived bot serving multiple chats), and mutating it in
             # place would leak one chat's yolo/session-name state into the
@@ -79,7 +78,7 @@ def create_ui_factory(
             ctx=ctx,
             llm_task=llm_task,
             history_manager=history_manager,
-            config=cfg,
+            ui_config=cfg,
             initial_message=initial_message,
             initial_attachments=initial_attachments,
             custom_commands=custom_commands,
