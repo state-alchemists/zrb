@@ -82,10 +82,6 @@ llm_chat = LLMChatTask(
     prompt_manager=PromptManager(
         assistant_name=lambda ctx: CFG.LLM_ASSISTANT_NAME,
     ),
-    ui_ascii_art=lambda ctx: CFG.LLM_ASSISTANT_ASCII_ART,
-    ui_assistant_name=lambda ctx: CFG.LLM_ASSISTANT_NAME,
-    ui_greeting=lambda ctx: f"{CFG.LLM_ASSISTANT_NAME}\n{CFG.LLM_ASSISTANT_JARGON}",
-    ui_jargon=lambda ctx: CFG.LLM_ASSISTANT_JARGON,
 )
 
 # Give the singleton the zrb-shipped default tools, factories, and guidance.

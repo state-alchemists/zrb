@@ -143,6 +143,7 @@ Both `LLMTask` and `LLMChatTask` accept a `permissions` argument — pass the po
 
 ```python
 from zrb import LLMChatTask, LLMTask, cli
+from zrb.llm.ui import UIConfig
 
 safe_task = cli.add_task(
     LLMTask(
@@ -155,7 +156,7 @@ safe_chat = cli.add_task(
     LLMChatTask(
         name="safe-chat",
         permissions=my_policy,
-        ui_greeting="I'm operating under a strict permission policy.",
+        ui_config=UIConfig(greeting="I'm operating under a strict permission policy."),
     )
 )
 ```

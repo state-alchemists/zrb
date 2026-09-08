@@ -24,12 +24,6 @@ class MockLLMChatTask:
         self.markdown_theme = None
         self.custom_commands = []
         self.custom_model_names = []
-        self.ui_texts = {
-            "greeting": ("Hello", False),
-            "assistant_name": ("Zrb", False),
-            "ascii_art": ("zrb", False),
-            "jargon": ("Tasker", False),
-        }
 
     def get_model(self, ctx):
         return "test-model"

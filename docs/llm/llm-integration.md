@@ -186,11 +186,12 @@ Use `LLMChatTask` to create your own fully customizable, interactive chat interf
 
 ```python
 from zrb import LLMChatTask, Tpl, cli, StrInput
+from zrb.llm.ui import UIConfig
 
 custom_chat = cli.add_task(
     LLMChatTask(
         name="custom-chat",
-        ui_greeting="Hello from your custom assistant!",
+        ui_config=UIConfig(greeting="Hello from your custom assistant!"),
         input=[StrInput(name="user_message", ...)],
         message=Tpl("{ctx.input.user_message}")
     )

@@ -10,10 +10,17 @@ Bodies live here rather than on `AnyUI` because no `any_*.py` module in this
 codebase carries an implementation — `.coveragerc` excludes those paths on
 that basis, so a default written there would ship untested.
 
-Per ADR-0035 this is a genuine `Mixin`: it reads no state it does not itself
-set, so any class can mix it in. A host that implements a member for real
-declares it and wins on MRO (`MultiUI` does this for `is_thinking` and
-`tool_call_handler`).
+Per ADR-0035 this is a genuine `Mixin`, and keeps the suffix: every value it
+reads is a `_uidefaults_`-prefixed attribute it declares and sets itself, it
+defines no `__init__` a host must remember to call, and `background_tasks`
+builds its own set on first access — so any class can mix it in. A host that
+implements a member for real declares it and wins on MRO (`MultiUI` does this
+for `is_thinking` and `tool_call_handler`).
+
+`UIStateDefaults`, not `UIDefaults`: `UIConfig` lives in this same package and
+holds the *user-facing* defaults — assistant name, greeting, slash-command
+aliases. This class defaults the other thing entirely, `AnyUI`'s state half,
+and the old name read like a second `UIConfig`.
 """
 
 from __future__ import annotations
@@ -22,7 +29,7 @@ import asyncio
 from typing import Any
 
 
-class UIDefaultsMixin:
+class UIStateDefaultsMixin:
     """Default `AnyUI` state members for UIs that do not track them.
 
     Every default is the honest answer to "this UI has no such thing": `None`

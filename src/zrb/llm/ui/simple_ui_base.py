@@ -42,7 +42,7 @@ class SimpleUI(BaseUI):
         ctx: Required context (AnyContext)
         llm_task: Required LLM task (LLMTask)
         history_manager: Required history manager (AnyHistoryManager)
-        config: Optional UIConfig for customizing commands and behavior
+        ui_config: Optional UIConfig for customizing commands and behavior
         initial_message: Optional initial message to send
         initial_attachments: Optional file attachments
         model: Optional model override
@@ -67,7 +67,7 @@ class SimpleUI(BaseUI):
         ctx: "AnyContext",
         llm_task: LLMTask,
         history_manager: AnyHistoryManager,
-        config: UIConfig | None = None,
+        ui_config: UIConfig | None = None,
         initial_message: str = "",
         initial_attachments: "list[UserContent] | None" = None,
         model: str | None = None,
@@ -77,15 +77,13 @@ class SimpleUI(BaseUI):
         custom_commands: "list[AnyCustomCommand] | None" = None,
         **kwargs,  # Accept extra kwargs for easy subclassing
     ):
-        self._config = config or UIConfig.default()
-
         super().__init__(
             ctx=ctx,
             llm_task=llm_task,
             history_manager=history_manager,
             initial_message=initial_message,
             initial_attachments=initial_attachments or [],
-            ui_config=self._config,
+            ui_config=ui_config or UIConfig.default(),
             triggers=[],  # Empty list for triggers
             response_handlers=response_handlers or [],
             tool_policies=tool_policies or [],

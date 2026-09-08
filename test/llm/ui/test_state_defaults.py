@@ -1,4 +1,4 @@
-"""`UIDefaultsMixin` — the inert half of the `AnyUI` contract.
+"""`UIStateDefaultsMixin` — the inert half of the `AnyUI` contract.
 
 Driven through a minimal host that implements only `AnyUI`'s six behavioral
 methods, which is exactly the shape the mixin exists for.
@@ -9,10 +9,10 @@ import asyncio
 import pytest
 
 from zrb.llm.ui.any_ui import AnyUI
-from zrb.llm.ui.defaults import UIDefaultsMixin
+from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
 
 
-class _MinimalUI(UIDefaultsMixin, AnyUI):
+class _MinimalUI(UIStateDefaultsMixin, AnyUI):
     """A UI that implements the behavioral half and nothing else."""
 
     async def ask_user(self, prompt, output_to_parent="", agent_id=None) -> str:

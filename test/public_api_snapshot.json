@@ -919,10 +919,6 @@
         "approval_channel:KEYWORD_ONLY:1",
         "ui_config:KEYWORD_ONLY:1",
         "custom_commands:KEYWORD_ONLY:1",
-        "ui_greeting:KEYWORD_ONLY:1",
-        "ui_assistant_name:KEYWORD_ONLY:1",
-        "ui_jargon:KEYWORD_ONLY:1",
-        "ui_ascii_art:KEYWORD_ONLY:1",
         "triggers:KEYWORD_ONLY:1",
         "response_handlers:KEYWORD_ONLY:1",
         "tool_policies:KEYWORD_ONLY:1",
@@ -1082,7 +1078,6 @@
         "triggers",
         "ui_config",
         "ui_factories",
-        "ui_texts",
         "uis",
         "upstreams",
         "yolo"

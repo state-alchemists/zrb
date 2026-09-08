@@ -16,8 +16,8 @@ from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.llm.agent.activity import agent_activity_registry
 from zrb.llm.ui.any_ui import AnyUI
-from zrb.llm.ui.defaults import UIDefaultsMixin
 from zrb.llm.ui.output_chunk import CollapsibleBlockSource, merge_output_chunk
+from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import ChoiceSpec
 
 
-class BufferedUI(UIDefaultsMixin, AnyUI):
+class BufferedUI(UIStateDefaultsMixin, AnyUI):
     """UI wrapper that buffers all output and forwards asks to parent sequentially."""
 
     def __init__(

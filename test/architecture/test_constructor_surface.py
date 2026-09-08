@@ -39,13 +39,23 @@ from zrb.task.tcp_check import TcpCheck
 
 # Max __init__ parameters per class. Lower these as the surface shrinks; a
 # raise needs a one-line reason in the same diff, like the facade budgets.
+# These are ceilings that only ever go DOWN. Pinned to the exact current count,
+# not the count plus headroom: a budget with slack silently absorbs the next few
+# additions, which is the drift this file exists to make visible. Lowering one
+# needs nothing but the diff that earns it; RAISING one needs an ADR saying why
+# the surface genuinely grew, not a comment on the line.
+#
+# Note what the numbers are *not*: 20 of `LLMChatTask`'s and `LLMTask`'s params
+# are `BaseTask`'s, re-declared on purpose so the signature documents itself
+# instead of hiding behind `**kwargs` — `PARENT_OF` and `INTENTIONAL_OMISSIONS`
+# below exist to keep exactly those in sync. The number worth driving down is
+# the rest.
+#
+# ADR-0090/0091 (R12) records the `llm_config` split that set the previous
+# numbers. LLMChatTask 62 -> 58: the four `ui_*` text params folded into
+# `UIConfig`, which already carried `assistant_name`.
 PARAM_BUDGETS = {
-    # Pinned to the exact current count, not the count plus headroom: a budget
-    # with slack silently absorbs the next few additions, which is the drift
-    # this file exists to make visible. Both dropped when the rendering
-    # parameters left; ADR-0090/0091 (R12) records the `llm_config` split that
-    # set the previous numbers.
-    LLMChatTask: 62,
+    LLMChatTask: 58,
     LLMTask: 48,
     BaseUI: 15,
 }

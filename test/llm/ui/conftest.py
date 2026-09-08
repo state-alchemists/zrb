@@ -10,10 +10,13 @@ from zrb.llm.ui.ui_config import UIConfig
 def mock_ui_deps():
     return {
         "ctx": SharedContext(),
-        "ui_config": UIConfig(yolo_xcom_key="yolo", assistant_name="Assistant"),
-        "greeting": "Hello",
-        "ascii_art": "ART",
-        "jargon": "Jargon",
+        "ui_config": UIConfig(
+            yolo_xcom_key="yolo",
+            assistant_name="Assistant",
+            greeting="Hello",
+            ascii_art="ART",
+            jargon="Jargon",
+        ),
         "output_lexer": MagicMock(),
         "llm_task": MagicMock(),
         "history_manager": MagicMock(),

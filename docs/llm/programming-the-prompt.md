@@ -155,6 +155,7 @@ For an interactive `LLMChatTask`, the system prompt is where you put data the us
 
 ```python
 from zrb import cli, CmdTask, LLMChatTask
+from zrb.llm.ui import UIConfig
 
 status = cli.add_task(CmdTask(name="git-status", cmd="git status && git log --oneline -20"))
 
@@ -168,7 +169,7 @@ chat = cli.add_task(
             "answer the user's questions about it.\n\n"
             f"{ctx.xcom['git-status'].pop()}"
         ),
-        ui_greeting="Ask me anything about the current repo state.",
+        ui_config=UIConfig(greeting="Ask me anything about the current repo state."),
         # No `message` → the TUI opens and waits for the user.
     )
 )

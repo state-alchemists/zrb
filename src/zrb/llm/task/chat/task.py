@@ -163,10 +163,6 @@ class LLMChatTask(BaseTask):
             ]
             | None
         ) = None,
-        ui_greeting: StrAttr | None = None,
-        ui_assistant_name: StrAttr | None = None,
-        ui_jargon: StrAttr | None = None,
-        ui_ascii_art: StrAttr | None = None,
         triggers: list[Callable[[], AsyncIterable[Any]]] | None = None,
         response_handlers: list[ResponseHandler] | None = None,
         tool_policies: list[ToolPolicy] | None = None,
@@ -246,7 +242,8 @@ class LLMChatTask(BaseTask):
             yolo: Skip tool confirmation. True for all tools, or a comma-separated
                 string or set naming the tools to auto-approve.
             ui_config: Slash-command aliases and other UI-backend settings
-                (`UIConfig`) — the xcom key yolo mode toggles through, whether the
+                (`UIConfig`) — the assistant's name, greeting, banner art and
+                tagline, the xcom key yolo mode toggles through, whether the
                 model picker lists Ollama/pydantic-ai models, and one field per
                 command family. Each field left unset keeps its `CFG` default.
             conversation_name: Name the conversation is stored under.
@@ -266,10 +263,6 @@ class LLMChatTask(BaseTask):
                 `message` and exit.
             custom_commands: Extra slash commands, as `AnyCustomCommand`s or
                 callables returning them.
-            ui_greeting: Text shown when the session starts.
-            ui_assistant_name: Name the assistant is labelled with.
-            ui_ascii_art: Banner art shown above the greeting.
-            ui_jargon: Tagline shown beside the banner.
             markdown_theme: Rich theme used to render the assistant's markdown.
             triggers: Callables returning async iterables whose items are submitted
                 as user turns, letting an external source drive the session.
@@ -353,13 +346,6 @@ class LLMChatTask(BaseTask):
         # that actually build a UI.
         self._ui_config = ui_config
         self._custom_commands = custom_commands or []
-        # ChatRunning resolves the block as one.
-        self._ui_texts: dict[str, StrAttr | None] = {
-            "greeting": ui_greeting,
-            "assistant_name": ui_assistant_name,
-            "ascii_art": ui_ascii_art,
-            "jargon": ui_jargon,
-        }
         self._triggers = triggers or []
         self._response_handlers = response_handlers or []
         self._tool_policies = tool_policies or []
@@ -953,11 +939,6 @@ class LLMChatTask(BaseTask):
                 f"got {type(value).__name__}."
             )
         self._ui_config = value
-
-    @property
-    def ui_texts(self) -> "dict[str, StrAttr | None]":
-        """The raw attribute per UI text block (greeting, assistant_name, ...)."""
-        return self._ui_texts
 
     @property
     def markdown_theme(self) -> "Theme | None":
