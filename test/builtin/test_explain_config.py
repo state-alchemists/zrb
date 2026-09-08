@@ -106,7 +106,7 @@ async def test_explain_config_single_match_shows_full_value(session, mock_print)
     assert "Value:" in printed
     assert "Description:" in printed
     # The banner is multi-line and 330 chars; every line survives.
-    assert "Your Automation Powerhouse" in printed
+    assert "Coding Agent + Task Engine" in printed
     assert "…" not in printed
 
 

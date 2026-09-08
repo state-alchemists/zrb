@@ -39,7 +39,7 @@ _DEFAULT_BANNER = """
     zz   rr     bb   bb
    zzzzz rr     bbbbbb   {VERSION} Jinrui
    _ _ . .  . _ .  _ . . .
-Your Automation Powerhouse
+Coding Agent + Task Engine
 ☕ Donate at: https://stalchmst.com
 🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
 🐤 Follow us at: https://twitter.com/zarubastalchmst
@@ -54,7 +54,9 @@ class FoundationMixin:
         self.DEFAULT_DIFF_EDIT_COMMAND_TPL: str = ""
         self.DEFAULT_INIT_MODULES: str = ""
         self.DEFAULT_ROOT_GROUP_NAME: str = "zrb"
-        self.DEFAULT_ROOT_GROUP_DESCRIPTION: str = "Your Automation Powerhouse"
+        self.DEFAULT_ROOT_GROUP_DESCRIPTION: str = (
+            "A coding agent with a built-in task DAG"
+        )
         self.DEFAULT_INIT_SCRIPTS: str = ""
         self.DEFAULT_INIT_FILE_NAME: str = "zrb_init.py"
         self.DEFAULT_INIT_STRICT: str = "off"

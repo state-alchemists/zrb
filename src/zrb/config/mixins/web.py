@@ -27,7 +27,7 @@ class WebMixin:
         self.DEFAULT_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: str = "30"
         self.DEFAULT_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES: str = "60"
         self.DEFAULT_WEB_TITLE: str = "Zrb"
-        self.DEFAULT_WEB_JARGON: str = "Your Automation PowerHouse"
+        self.DEFAULT_WEB_JARGON: str = "Coding Agent + Task Engine"
         self.DEFAULT_WEB_HOMEPAGE_INTRO: str = "Welcome to Zrb Web Interface"
         self.DEFAULT_WEB_SHUTDOWN_TIMEOUT: str = "10000"
         self.DEFAULT_WEB_SESSION_PAGE_SIZE: str = "20"

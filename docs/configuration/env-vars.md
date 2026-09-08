@@ -37,7 +37,7 @@ Zrb can be heavily customized using environment variables. These control everyth
 | [`ZRB_LOGGING_LEVEL`](../advanced-topics/logging.md) | Verbosity of Zrb's internal logs | `WARNING` |
 | `ZRB_BANNER` | Custom ASCII art or text displayed at CLI start | Standard Zrb ASCII art |
 | `ZRB_ROOT_GROUP_NAME` | Name of root command group in help menus | `zrb` |
-| `ZRB_ROOT_GROUP_DESCRIPTION` | Description for root command group | `Your Automation Powerhouse` |
+| `ZRB_ROOT_GROUP_DESCRIPTION` | Description for root command group | `A coding agent with a built-in task DAG` |
 | `_ZRB_CUSTOM_VERSION` | Overrides displayed version string (internal) | — |
 
 > 💡 **Logging Levels:** See the [Logging Guide](../advanced-topics/logging.md) for details. `CRITICAL`, `ERROR`, `WARN`, `WARNING`, `INFO`, `DEBUG`, `NOTSET`
@@ -127,7 +127,7 @@ Zrb's experimental Web UI has dedicated configuration options.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_WEB_TITLE` | Browser tab title | `Zrb` |
-| `ZRB_WEB_JARGON` | Tagline displayed on homepage | `Your Automation PowerHouse` |
+| `ZRB_WEB_JARGON` | Tagline displayed on homepage | `Coding Agent + Task Engine` |
 | `ZRB_WEB_HOMEPAGE_INTRO` | Introductory text on homepage | `Welcome to Zrb Web Interface` |
 | `ZRB_WEB_FAVICON_PATH` | Path to custom favicon | `/static/favicon-32x32.png` |
 | `ZRB_WEB_CSS_PATH` | Colon-separated list of custom CSS file paths | — |

@@ -241,7 +241,7 @@ docker run \
 
 ### Running Zrb on Android (via Termux and Proot)
 
-You can run Zrb on your Android device using Termux (a terminal emulator and Linux environment) and Proot (a chroot-like environment). This turns your phone into a portable automation powerhouse.
+You can run Zrb on your Android device using Termux (a terminal emulator and Linux environment) and Proot (a chroot-like environment). This turns your phone into a portable coding agent.
 
 **Prerequisites:**
 -   An Android device with an internet connection

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Zrb (Zaruba) is a Python task automation framework (v2.x). Pure-Python task definitions, DAG-based execution, CLI and web UI runners, and built-in LLM/AI agent integration. Core in `src/zrb/`.
+Zrb (Zaruba) is a Python coding agent with a built-in task DAG (v3.x). An LLM agent (`zrb llm chat`) plus pure-Python task definitions, DAG-based execution, and CLI and web UI runners. Core in `src/zrb/`.
 
 ## Development Setup
 

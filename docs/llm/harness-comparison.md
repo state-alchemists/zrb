@@ -2,7 +2,7 @@
 
 # Choosing Between Agent Harnesses
 
-Zrb's AI assistant (`zrb llm chat`) is one face of a task-automation framework. Claude Code, opencode, DeepSeek Harness, and Pi are excellent standalone coding agents — for pure interactive coding sessions, any of them will serve you well. This page explains what actually differs, so you can tell when zrb is the right home for your agent and when another harness (or both) fits better.
+Zrb's `zrb llm chat` is a coding agent with a pipeline engine underneath it. Claude Code, opencode, DeepSeek Harness, and Pi are excellent standalone coding agents — for pure interactive coding sessions, any of them will serve you well. This page explains what actually differs, so you can tell when zrb is the right home for your agent and when another harness (or both) fits better.
 
 ---
 
@@ -24,13 +24,13 @@ Zrb's AI assistant (`zrb llm chat`) is one face of a task-automation framework. 
 
 ## The One-Sentence Version
 
-The other tools on this page are **agents that can run tasks**; Zrb is a **task-automation framework that hosts an agent**. If your goal ends at the conversation, pick whichever interactive experience you like best. If the conversation is one step inside a larger automated workflow — builds, deployments, checks, scaffolding, triggers — that workflow is zrb's native territory.
+The other tools on this page are **agents that can run tasks**; Zrb is an **agent that can be run by a task graph**. If your goal ends at the conversation, pick whichever interactive experience you like best. If the conversation is one step inside a larger automated workflow — builds, deployments, checks, scaffolding, triggers — that workflow is zrb's native territory.
 
 ## At a Glance
 
 | | Zrb (`zrb llm chat`) | Claude Code | opencode | DeepSeek Harness (`dsh`) | Pi |
 |---|---|---|---|---|---|
-| Primary identity | Task-automation framework with a built-in agent | Anthropic's coding agent | Open-source coding agent (client/server) | Plugin-everything agent harness | Self-extensible coding agent |
+| Primary identity | Coding agent with a built-in task DAG | Anthropic's coding agent | Open-source coding agent (client/server) | Plugin-everything agent harness | Self-extensible coding agent |
 | Language / runtime | Python | Node.js | Go + TypeScript | TypeScript (Cordis) | TypeScript |
 | Interactive TUI | ✅ prompt-toolkit based | ✅ | ✅ | Web-first (SSH forwarding supported) | ✅ |
 | Web UI | ✅ — serves **tasks and chat** with authentication | — | ✅ | ✅ | Via pi-chat (separate project) |

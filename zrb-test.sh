@@ -32,7 +32,7 @@ if [ "$#" -eq 0 ]; then
     cov_fail_under="--cov-fail-under=90"
 fi
 
-pytest \
+ZRB_INIT_SCRIPTS="" pytest \
     -n auto \
     --ignore-glob="**/template/**" \
     --ignore-glob="**/fastapp_template/**" \

@@ -1,17 +1,21 @@
 [project]
 name = "zrb"
-version = "3.0.0b8"
-description = "Your Automation Powerhouse"
+version = "3.0.0b9"
+description = "A terminal coding agent with a build system inside"
 authors = [{name = "Go Frendi Gunawan", email = "gofrendiasgard@gmail.com"}]
 license = "AGPL-3.0-or-later"
 readme = "README.pypi.md"
-keywords = ["Automation", "Task Runner", "Code Generator", "Monorepo", "Low Code"]
+keywords = [
+    "AI Agent", "Coding Agent", "LLM", "MCP", "Agentic",
+    "Automation", "Task Runner", "DAG", "Pipeline", "Code Generator",
+]
 requires-python = ">=3.11.0,<3.15.0"
 dependencies = [
     "python-dotenv>=1.1.1,<2.0.0",
     "beautifulsoup4>=4.14.2,<5.0.0",
     "pdfplumber>=0.11.7,<0.12.0",
-    "fastapi[standard]>=0.141.1,<0.142.0",
+    "fastapi>=0.141.1,<0.142.0",
+    "uvicorn>=0.52.4,<0.53.0",
     "jinja2>=3.1.0,<4.0.0",
     # PyJWT and pyjwt normalize to the same distribution; consolidated to the
     # stricter pin so PEP-621 does not see a duplicate dependency.
@@ -24,16 +28,16 @@ dependencies = [
     # Security fix: GHSA-4xgf-cpjx-pc3j - NestedSecretsSettingsSource follows symlinks outside secrets_dir.
     # pydantic-settings is transitive via pydantic-ai-slim → fastmcp-slim → mcp. Pin >=2.14.2.
     "pydantic-settings>=2.14.2",
-    "pydantic-ai-slim[mcp]>=2.36.0,<2.37.0",
+    "pydantic-ai-slim[mcp]>=2.41.0,<2.42.0",
     # NOTE: Make sure the following dependencies are not conflicting with pydantic-ai-slim
     # `openai` is a core dependency (not an extra) because every OpenAI-compatible
     # provider routes through it — OpenAI, Ollama, DeepSeek, OpenRouter, Z.ai,
     # Cerebras, Together, and the rest.
-    # >=3.0.0 is a hard floor, not a preference: it's pydantic-ai's own `openai`
-    # extra floor as of 2.36.0. An older SDK is untested against this pydantic-ai
+    # >=3.8.0 is a hard floor, not a preference: it's pydantic-ai's own `openai`
+    # extra floor as of 2.41.0. An older SDK is untested against this pydantic-ai
     # version and may miss parameters `OpenAIChatModel` now sends unconditionally
     # (e.g. `prompt_cache_options=`, required since openai 2.45.0).
-    "openai>=3.0.0",
+    "openai>=3.8.0",
     "prompt-toolkit>=3",
     "rich>=13",
     # Security fix: GHSA/CVE-2026-59950 - Cross-Site WebSocket Hijacking via unvalidated Host/Origin
@@ -112,15 +116,15 @@ vertexai = [
     "pyasn1>=0.6.4",
 ]
 google = ["google-genai>=2.18.0"]
-anthropic = ["anthropic>=1.0.0"]
+anthropic = ["anthropic>=1.3.0"]
 groq = ["groq>=0.25.0"]
-# >=2.9.2 is pydantic-ai-slim's own mistral extra floor as of 2.36.0. This also
+# >=2.9.2 is pydantic-ai-slim's own mistral extra floor as of 2.41.0. This also
 # clears the mistralai==2.4.6 PyPI quarantine (GHSA, see pydantic-ai #5382) that
 # an explicit `!=2.4.6` exclusion used to be needed for.
 mistral = ["mistralai>=2.9.2"]
 xai = [
-    # >=1.14.0 matches pydantic-ai's floor for the xAI SDK.
-    "xai-sdk>=1.14.0",
+    # >=1.16.0 matches pydantic-ai's floor for the xAI SDK.
+    "xai-sdk>=1.16.0",
     # Security fix: GHSA-hg6j-4rv6-33pg (CVE-2026-47265) - cross-origin redirect leaks per-request cookies.
     # Security fix: GHSA-xcgm-r5h9-7989 (CVE-2026-54274) - incomplete WebSocket frame payloads bypass memory limits.
     # Security fix: GHSA-mfx4-hv73-q22v (CVE-2026-69243) - HTTP request smuggling via WebSocket upgrade.
