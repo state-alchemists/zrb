@@ -466,8 +466,8 @@ async def _fire_post_tool_use_failure(
 def create_agent(
     model: "Model | str | None" = None,
     system_prompt: str = "",
-    tools: list["Tool | ToolFuncEither"] = [],
-    toolsets: list["AbstractToolset[None]"] = [],
+    tools: list["Tool | ToolFuncEither"] | None = None,
+    toolsets: list["AbstractToolset[None]"] | None = None,
     model_settings: "ModelSettings | None" = None,
     history_processors: list["HistoryProcessor"] | None = None,
     capabilities: "list[AbstractCapability[Any]] | None" = None,
@@ -482,8 +482,8 @@ def create_agent(
 
     effective_system_prompt = expand_prompt(system_prompt)
 
-    safe_tools = [wrap_tool(t) for t in tools]
-    safe_toolsets = [wrap_toolset(t) for t in toolsets]
+    safe_tools = [wrap_tool(t) for t in tools or []]
+    safe_toolsets = [wrap_toolset(t) for t in toolsets or []]
 
     final_output_type = output_type
     effective_toolsets = list(safe_toolsets)

@@ -1,8 +1,10 @@
-from typing import Callable, TypeVar
+from typing import TYPE_CHECKING, Callable, TypeVar
 
 from zrb.config.config import CFG
-from zrb.runner.web_schema.user import User
 from zrb.task.any_task import AnyTask
+
+if TYPE_CHECKING:
+    from zrb.runner.web_schema.user import User
 
 T = TypeVar("T")
 
@@ -159,13 +161,13 @@ class WebAuthConfig:
     def default_user(self) -> "User":
 
         if self.enable_auth:
-            return User(
+            return _user_cls()(
                 username=self.guest_username,
                 password="",
                 is_guest=True,
                 accessible_tasks=self.guest_accessible_tasks,
             )
-        return User(
+        return _user_cls()(
             username=self.guest_username,
             password="",
             is_guest=True,
@@ -175,7 +177,7 @@ class WebAuthConfig:
     @property
     def super_admin(self) -> "User":
 
-        return User(
+        return _user_cls()(
             username=self.super_admin_username,
             password=self.super_admin_password,
             is_super_admin=True,
@@ -207,3 +209,14 @@ class WebAuthConfig:
 
 
 web_auth_config = WebAuthConfig()
+
+
+def _user_cls() -> type["User"]:
+    # lazy: transitively heavy -- web_schema/user.py declares a pydantic model,
+    # so importing it eagerly pulled pydantic.main and the schema-construction
+    # machinery into every `import zrb` (~19ms). Every annotation in this
+    # module is already a string, so these three constructions are the only
+    # sites that need the real class.
+    from zrb.runner.web_schema.user import User
+
+    return User

@@ -37,8 +37,12 @@ def resolve_custom_command(
 
     try:
         parts = shlex.split(message.strip())
-    except Exception:
-        return None
+    except ValueError:
+        # Unbalanced quote (shlex's only failure mode here). Fall back to
+        # whitespace splitting so `/my-command "oops` still dispatches to
+        # `/my-command` instead of silently reaching the model as a plain
+        # message, which reads to the user as the command being ignored.
+        parts = message.strip().split()
 
     if not parts:
         return None

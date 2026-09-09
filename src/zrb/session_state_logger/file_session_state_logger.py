@@ -1,10 +1,15 @@
 import datetime
 import os
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
-from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.util.file import read_file, write_file
+
+if TYPE_CHECKING:
+    from zrb.session_state_log.session_state_log import (
+        SessionStateLog,
+        SessionStateLogList,
+    )
 
 
 class FileSessionStateLogger(AnySessionStateLogger):
@@ -36,7 +41,9 @@ class FileSessionStateLogger(AnySessionStateLogger):
     def read(self, session_name: str) -> "SessionStateLog":
 
         session_file_path = self.get_session_file_path(session_name)
-        return SessionStateLog.model_validate_json(read_file(session_file_path))
+        return _state_log_models().SessionStateLog.model_validate_json(
+            read_file(session_file_path)
+        )
 
     def list(
         self,
@@ -50,7 +57,7 @@ class FileSessionStateLogger(AnySessionStateLogger):
         matching_sessions = []
         timeline_dir = os.path.join(self.get_session_log_dir(), "_timeline", *task_path)
         if not os.path.exists(timeline_dir):
-            return SessionStateLogList(total=0, data=[])
+            return _state_log_models().SessionStateLogList(total=0, data=[])
         for root, _, files in os.walk(timeline_dir):
             for file_name in files:
                 session_name = os.path.splitext(file_name)[0]
@@ -64,7 +71,7 @@ class FileSessionStateLogger(AnySessionStateLogger):
         end_index = start_index + limit
         paginated_sessions = matching_sessions[start_index:end_index]
         data = [session_log for _, session_log in paginated_sessions]
-        return SessionStateLogList(total=total, data=data)
+        return _state_log_models().SessionStateLogList(total=total, data=data)
 
     def get_session_file_path(self, session_name: str) -> str:
         return os.path.join(self.get_session_log_dir(), f"{session_name}.json")
@@ -91,3 +98,10 @@ class FileSessionStateLogger(AnySessionStateLogger):
         return datetime.datetime.strptime(
             session_log.start_time, "%Y-%m-%d %H:%M:%S.%f"
         )
+
+
+def _state_log_models():
+    # lazy: transitively heavy -- session_state_log declares pydantic models.
+    from zrb.session_state_log import session_state_log
+
+    return session_state_log

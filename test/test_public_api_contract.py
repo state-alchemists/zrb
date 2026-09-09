@@ -181,3 +181,49 @@ def _render_drift(drifted: dict, subject: str) -> str:
         "regenerate with ZRB_UPDATE_API_SNAPSHOT=1."
     )
     return "\n".join(lines)
+
+
+def test_lazily_exported_names_behave_like_eager_ones():
+    """A PEP-562 export must be indistinguishable from a normal one.
+
+    `zrb.User` is resolved through `zrb.__getattr__` so that importing its
+    module — which declares a pydantic model, and so loads pydantic's schema
+    machinery — stays off the `import zrb` path. Every way a caller can reach
+    a normal export must keep working, `dir()` included: defining
+    `__getattr__` without `__dir__` silently drops the name from `dir(zrb)`
+    and from REPL/IDE completion while `import` still succeeds, which is
+    exactly the kind of breakage a signature snapshot cannot see.
+    """
+    import zrb
+
+    # Named by their public names, not read off the module's private table:
+    # a test that asks the implementation what it exports cannot catch the
+    # implementation dropping one.
+    lazy = {"User"}
+    for name in lazy:
+        assert name in zrb.__all__, f"{name} vanished from __all__"
+        assert name in dir(zrb), f"{name} is not in dir(zrb) — add it to __dir__"
+        assert getattr(zrb, name) is getattr(zrb, name), f"{name} is not stable"
+
+    namespace: dict = {}
+    exec("from zrb import *", namespace)  # noqa: S102 - exercising the real path
+    assert lazy <= set(namespace), "star-import lost a lazily exported name"
+
+
+def test_every_exported_name_actually_resolves():
+    """`__all__` must not promise a name that no longer resolves."""
+    import zrb
+
+    missing = [name for name in zrb.__all__ if not hasattr(zrb, name)]
+    assert not missing, f"__all__ promises unresolvable name(s): {missing}"
+
+
+def test_unknown_attribute_still_raises_attribute_error():
+    """`__getattr__` must not swallow typos into something truthy."""
+    import zrb
+
+    try:
+        zrb.DefinitelyNotAnExport
+    except AttributeError:
+        return
+    raise AssertionError("a bogus attribute did not raise AttributeError")

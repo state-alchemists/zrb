@@ -2,19 +2,20 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any, Coroutine
+from typing import TYPE_CHECKING, Any, Coroutine
 
 from zrb.config.config import CFG
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.context.context import AnyContext, Context
 from zrb.group.any_group import AnyGroup
 from zrb.session.any_session import AnySession
-from zrb.session_state_log.session_state_log import (
-    SessionStateLog,
-    TaskStatusHistoryStateLog,
-    TaskStatusStateLog,
-)
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
+
+if TYPE_CHECKING:
+    from zrb.session_state_log.session_state_log import (
+        SessionStateLog,
+        TaskStatusStateLog,
+    )
 from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.any_task import AnyTask
 from zrb.task_status.task_status import TaskStatus
@@ -164,7 +165,7 @@ class Session(AnySession):
 
     def _build_task_status_log(
         self,
-    ) -> tuple[dict[str, TaskStatusStateLog], str]:
+    ) -> tuple[dict[str, "TaskStatusStateLog"], str]:
         """Flatten every task's status history and find the earliest timestamp.
 
         The start time falls out of the same pass since it's just the minimum
@@ -174,7 +175,7 @@ class Session(AnySession):
         log_start_time = ""
         for task, task_status in self._task_status.items():
             history_log = [
-                TaskStatusHistoryStateLog(
+                _state_log_models().TaskStatusHistoryStateLog(
                     status=status,
                     time=status_at.strftime("%Y-%m-%d %H:%M:%S.%f"),
                 )
@@ -184,7 +185,7 @@ class Session(AnySession):
                 log_start_time == "" or history_log[0].time < log_start_time
             ):
                 log_start_time = history_log[0].time
-            task_status_log[task.name] = TaskStatusStateLog(
+            task_status_log[task.name] = _state_log_models().TaskStatusStateLog(
                 is_started=task_status.is_started,
                 is_ready=task_status.is_ready,
                 is_completed=task_status.is_completed,
@@ -234,7 +235,7 @@ class Session(AnySession):
         task_status_log, log_start_time = self._build_task_status_log()
         sanitized_input = self._sanitize_input()
 
-        return SessionStateLog(
+        return _state_log_models().SessionStateLog(
             name=self.name,
             start_time=log_start_time,
             main_task_name="" if self._main_task is None else self._main_task.name,
@@ -440,3 +441,12 @@ class Session(AnySession):
             if not self._task_status[upstream].allow_run_downstream
         ]
         return len(unfulfilled_upstreams) == 0
+
+
+def _state_log_models():
+    # lazy: transitively heavy -- session_state_log declares pydantic models,
+    # so importing it eagerly pulled pydantic.main and the schema-construction
+    # machinery into every `import zrb`. Only as_state_log() needs them.
+    from zrb.session_state_log import session_state_log
+
+    return session_state_log

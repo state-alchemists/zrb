@@ -33,7 +33,7 @@ Inside `llm/`:
 | Path | What is in it |
 | --- | --- |
 | `agent/` | Agent construction and the run loop. `run/runner.py` is the entry point; `subagent/` handles delegation; `gates.py` enforces permission denials |
-| `app/`, `ui/` | The prompt_toolkit TUI (`app/`) and the UI protocol plus its implementations (`ui/`) |
+| `ui/` | The UI protocol (`any_ui.py`) plus its implementations; the prompt_toolkit TUI lives under `ui/default/app/` |
 | `approval/`, `permission/` | The approval channel, and the permission ruleset (`policy.py`, `state.py`) |
 | `config/` | LLM-specific config: model resolution, the rate limiter |
 | `custom_command/` | Slash commands built from skills and markdown |
@@ -45,7 +45,9 @@ Inside `llm/`:
 | `task/` | `llm_task.py` (`LLMTask`) and `task/chat/` (`LLMChatTask`) — both `BaseTask` subclasses that build pydantic-ai agents internally |
 | `tool/` | Agent-callable tools, one module per tool family |
 | `tool_call/` | Tool-call rendering, argument formatting, and tool policies |
+| `util/` | LLM-side helpers: streaming, PDF/camera/clipboard capture, history formatting, model capabilities |
 | `common_tools.py` | Registers the shared baseline used by `LLMChatTask`, `LLMTask` and `SubAgentManager` |
+| `agent_state.py`, `agent_tool_result.py` | Leaf modules `zrb.llm.agent` depends on, kept at top level so importing them does not trigger `agent/`'s package `__init__` (ADR-0088) |
 
 `llm_plugin/` is split into core and optional content: `core_skills/` (always-on methodology baseline), `skills/` (utility skills, gated by `CFG.LLM_ENABLE_BUILTIN_SKILLS`), `core_agents/` (always-on sub-agents), and `agents/` (optional sub-agents, gated by `CFG.LLM_ENABLE_BUILTIN_AGENTS`). Each skill is `SKILL.md` or `SKILL.py`; each agent is `*.agent.md`. The toggles suppress only optional built-in content — user, project and plugin skills and agents always load (ADR-0054).
 
@@ -132,7 +134,7 @@ Default to module-level imports. An in-function import must justify itself with 
 
 - **Coverage:** ≥ 90%
 - **Public API only.** NEVER access or test private members (anything `_prefix`). If internal behavior is hard to test publicly, refactor the class to expose a public hook or property.
-  - The usual seam for a private helper is **the public entry point plus the boundary the helper's effect crosses** — drive the public function, then assert on what reached the mocked dependency. `test/llm/tool/test_code.py` does this: `analyze_code` is the entry point, `run_agent` is the boundary, and patching `CFG` steers the thresholds, so the private helpers' behavior is verified without naming either.
+  - The usual seam for a private helper is **the public entry point plus the boundary the helper's effect crosses** — drive the public function, then assert on what reached the mocked dependency. `test/llm/tool/test_code_analyze.py` does this: `analyze_code` is the entry point, `run_agent` is the boundary, and patching `CFG` steers the thresholds, so the private helpers' behavior is verified without naming either.
   - Mocking a *public* dependency the module imported (`run_agent`, `llm_limiter`) is not a private-member access; mocking `_private_helper` is.
 - Use `pytest` fixtures and mocks for external dependencies.
 - Follow Arrange-Act-Assert (AAA).
