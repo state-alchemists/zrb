@@ -20,6 +20,7 @@ as hand-written properties (e.g. `LOGGER`, which is `logging.getLogger()`).
 from __future__ import annotations
 
 import os
+import re
 from typing import Any, Callable, Generic, TypeVar, overload
 
 from zrb.config.helper import get_env
@@ -34,17 +35,23 @@ def on_off(value: Any) -> str:
 
 
 def colon_list(raw: str) -> list[str]:
-    """Parse a ``:``-delimited string, stripping and dropping empty segments."""
+    """Parse a ``:``- or ``;``-delimited string, stripping and dropping empty segments, preserving Windows drive letters."""
+    if (
+        os.name == "nt"
+        or os.pathsep == ";"
+        or re.search(r"^[a-zA-Z]:[/\\\\]|;[a-zA-Z]:[/\\\\]", raw)
+    ):
+        return [
+            part.strip()
+            for part in re.split(r";|:(?![/\\\\])", raw)
+            if part.strip() != ""
+        ]
     return [part.strip() for part in raw.split(":") if part.strip() != ""]
 
 
 def expanduser_colon_list(raw: str) -> list[str]:
     """Like `colon_list` but `~`-expands each entry (matches LLM_PLUGIN_DIRS)."""
-    return [
-        os.path.expanduser(part.strip())
-        for part in raw.split(":")
-        if part.strip() != ""
-    ]
+    return [os.path.expanduser(part.strip()) for part in colon_list(raw)]
 
 
 def comma_list(raw: str) -> list[str]:

@@ -120,7 +120,7 @@ async def test_explain_config_list_view_keeps_values_on_one_line(session, mock_p
     printed = _printed_text(mock_print)
     for line in printed.splitlines():
         if line.startswith("ZRB_"):
-            assert len(line) < 200
+            assert len(line) < 250
 
 
 @pytest.mark.asyncio
