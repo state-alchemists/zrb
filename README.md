@@ -14,7 +14,7 @@ The other half is why Zrb exists. A skill can *tell* an agent to run the tests b
 
 ## 📑 Table of Contents
 
-- Getting Started
+- 🏁 Getting Started
   - [1. Start where you'd start with any coding agent](#1-start-where-youd-start-with-any-coding-agent)
   - [2. Then you hit the thing prompting can't fix](#2-then-you-hit-the-thing-prompting-cant-fix)
   - [3. And sometimes you just want the one command](#3-and-sometimes-you-just-want-the-one-command)
