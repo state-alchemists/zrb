@@ -38,9 +38,20 @@ def test_resolve_custom_command_empty_after_split_returns_none():
 
 
 def test_resolve_custom_command_with_unmatched_quoting_returns_none():
-    """shlex.split raising must be swallowed, not crashed on."""
+    """shlex.split raising must not crash, and must not match a stranger."""
     # Unbalanced quote causes shlex.split to raise ValueError
     assert resolve_custom_command('/cmd "unbalanced', []) is None
+
+
+def test_resolve_custom_command_with_unmatched_quoting_still_dispatches():
+    """A typo'd quote must not silently demote a command to a plain message.
+
+    shlex.split raises on the unbalanced quote; the whitespace fallback still
+    finds `/greet`, so the user sees their command run rather than watching it
+    reach the model verbatim.
+    """
+    cmd = CustomCommand("/greet", "Hello ${name}!", args=["name"])
+    assert resolve_custom_command('/greet "alice', [cmd]) == 'Hello "alice!'
 
 
 def test_resolve_custom_command_matches_and_returns_prompt():

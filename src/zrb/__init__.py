@@ -5,6 +5,14 @@ new contributor can scan this file and understand what `from zrb import X`
 exposes. Module-level singletons are typed so IDEs reveal what each one is.
 """
 
+import importlib
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # Resolved lazily at runtime by __getattr__ below; declared here so
+    # type checkers, IDEs and __all__ still see `zrb.User`.
+    from zrb.runner.web_schema.user import User
+
 # --- Builtin tasks (registered as side-effect of import) ------------------
 from zrb import builtin
 
@@ -93,7 +101,6 @@ from zrb.llm.util.capabilities import model_capabilities
 
 # --- Runner (CLI + web schemas) ------------------------------------------
 from zrb.runner.cli import Cli, cli
-from zrb.runner.web_schema.user import User
 
 # --- Session --------------------------------------------------------------
 from zrb.session.session import Session
@@ -226,3 +233,32 @@ __all__ = [
     "DENY",
     "ASK",
 ]
+
+
+# Public exports resolved on first access: name -> module that defines it.
+_LAZY_EXPORTS = {"User": "zrb.runner.web_schema.user"}
+
+
+def __getattr__(name: str):
+    """Resolve heavy public exports on first access (PEP 562).
+
+    `User` stays a pydantic model, but importing its module eagerly dragged
+    `pydantic.main` and the schema-construction machinery into every
+    `import zrb`. Deferring the *export* keeps `from zrb import User` and
+    `zrb.User` working unchanged, while leaving that cost unpaid for the vast
+    majority of runs that never touch the web UI's auth.
+    """
+    if name in _LAZY_EXPORTS:
+        module = importlib.import_module(_LAZY_EXPORTS[name])
+        return getattr(module, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    """Keep lazily-exported names visible to `dir()` (PEP 562).
+
+    Without this, a name resolved only through `__getattr__` disappears from
+    `dir(zrb)` — and with it REPL and IDE tab-completion — even though the
+    import still works.
+    """
+    return sorted(set(globals()) | set(_LAZY_EXPORTS))
