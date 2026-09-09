@@ -41,8 +41,10 @@ class LLMSearchMixin:
     LLM_PLUGIN_DIRS = EnvField(
         expanduser_path_list,
         serialize=path_list_join,
-        doc="Colon-separated (semicolon on Windows) directories to scan for "
-        "LLM plugin packages (skills, agents).",
+        doc=(
+            "Colon-separated (semicolon on Windows) directories to scan for "
+            "LLM plugin packages (skills, agents)."
+        ),
     )
 
     LLM_LSP_PREFERRED_SERVERS = EnvField(
