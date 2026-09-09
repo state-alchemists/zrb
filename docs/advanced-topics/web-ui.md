@@ -127,8 +127,8 @@ You can customize the visual styling of the Web UI using environment variables.
 | `ZRB_WEB_JARGON` | Tagline on homepage |
 | `ZRB_WEB_HOMEPAGE_INTRO` | Introductory text |
 | `ZRB_WEB_FAVICON_PATH` | Path to custom favicon |
-| `ZRB_WEB_CSS_PATH` | Colon-separated custom CSS paths |
-| `ZRB_WEB_JS_PATH` | Colon-separated custom JS paths |
+| `ZRB_WEB_CSS_PATH` | Colon-separated (semicolon on Windows) custom CSS paths |
+| `ZRB_WEB_JS_PATH` | Colon-separated (semicolon on Windows) custom JS paths |
 | `ZRB_WEB_COLOR` | Pico CSS theme color (`amber`, `red`, `blue`, etc.) |
 
 > 💡 **Tip:** See [Pico CSS docs](https://picocss.com/docs/version-picker) for available theme colors.

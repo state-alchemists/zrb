@@ -51,7 +51,7 @@ Zrb can be heavily customized using environment variables. These control everyth
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_INIT_FILE_NAME` | Name of the task-definition file zrb auto-loads. On startup zrb walks from the current directory up to the filesystem root and loads every file with this name it finds. | `zrb_init.py` |
-| `ZRB_INIT_SCRIPTS` | Colon-separated Python script paths zrb runs on startup (in addition to the discovered `ZRB_INIT_FILE_NAME` files) to register task definitions | — |
+| `ZRB_INIT_SCRIPTS` | Colon-separated (semicolon on Windows) Python script paths zrb runs on startup (in addition to the discovered `ZRB_INIT_FILE_NAME` files) to register task definitions | — |
 | `ZRB_INIT_MODULES` | Comma-separated importable module names zrb imports on startup so their task definitions register (colon-separated still accepted) | — |
 | `ZRB_INIT_STRICT` | Exit non-zero when any init module or script fails to load, instead of reporting it and starting anyway | `off` |
 | `ZRB_ENABLE_BUILTIN_TASKS` | Whether to load pre-packaged tasks (Git, UUID, base64, etc.) | `on` |
@@ -130,8 +130,8 @@ Zrb's experimental Web UI has dedicated configuration options.
 | `ZRB_WEB_JARGON` | Tagline displayed on homepage | `Coding Agent + Task Engine` |
 | `ZRB_WEB_HOMEPAGE_INTRO` | Introductory text on homepage | `Welcome to Zrb Web Interface` |
 | `ZRB_WEB_FAVICON_PATH` | Path to custom favicon | `/static/favicon-32x32.png` |
-| `ZRB_WEB_CSS_PATH` | Colon-separated list of custom CSS file paths | — |
-| `ZRB_WEB_JS_PATH` | Colon-separated list of custom JavaScript file paths | — |
+| `ZRB_WEB_CSS_PATH` | Colon-separated (semicolon on Windows) list of custom CSS file paths | — |
+| `ZRB_WEB_JS_PATH` | Colon-separated (semicolon on Windows) list of custom JavaScript file paths | — |
 | `ZRB_WEB_COLOR` | Pico CSS theme color (`amber`, `red`, `blue`, etc.) | — |
 
 > 💡 **Theme Colors:** See [Pico CSS docs](https://picocss.com/docs/version-picker) for available color options.

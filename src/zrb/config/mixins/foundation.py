@@ -8,12 +8,12 @@ from importlib import metadata as _metadata
 
 from zrb.config.env_field import (
     EnvField,
-    colon_join,
-    colon_list,
     comma_join,
     comma_list,
     comma_or_colon_list,
     on_off,
+    path_list,
+    path_list_join,
 )
 from zrb.config.helper import (
     get_current_shell,
@@ -148,9 +148,10 @@ class FoundationMixin:
     )
 
     INIT_SCRIPTS = EnvField(
-        colon_list,
-        serialize=colon_join,
-        doc="Colon-separated Python script paths zrb runs on startup (in addition "
+        path_list,
+        serialize=path_list_join,
+        doc="Colon-separated (semicolon on Windows) Python script paths zrb "
+        "runs on startup (in addition "
         "to the discovered INIT_FILE_NAME files) to register task definitions.",
     )
 

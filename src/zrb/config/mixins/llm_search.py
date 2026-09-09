@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING
 
 from zrb.config.env_field import (
     EnvField,
-    colon_join,
-    colon_list,
     comma_join,
     comma_list,
-    expanduser_colon_list,
+    expanduser_path_list,
     on_off,
+    path_list,
+    path_list_join,
 )
 from zrb.util.string.conversion import to_boolean
 
@@ -39,9 +39,10 @@ class LLMSearchMixin:
         super().__init__()
 
     LLM_PLUGIN_DIRS = EnvField(
-        expanduser_colon_list,
-        serialize=colon_join,
-        doc="Colon-separated directories to scan for LLM plugin packages (skills, agents).",
+        expanduser_path_list,
+        serialize=path_list_join,
+        doc="Colon-separated (semicolon on Windows) directories to scan for "
+        "LLM plugin packages (skills, agents).",
     )
 
     LLM_LSP_PREFERRED_SERVERS = EnvField(
@@ -71,36 +72,38 @@ class LLMSearchMixin:
     )
 
     LLM_CONFIG_DIR_NAMES = EnvField(
-        colon_list,
-        serialize=colon_join,
+        path_list,
+        serialize=path_list_join,
         default_factory=lambda cfg: (
-            cfg.DEFAULT_LLM_CONFIG_DIR_NAMES or f".claude:.{cfg.ROOT_GROUP_NAME}"
+            cfg.DEFAULT_LLM_CONFIG_DIR_NAMES
+            or path_list_join([".claude", f".{cfg.ROOT_GROUP_NAME}"])
         ),
         doc=(
             "Config subdirectory names to look for in each traversed dir "
-            "(colon-separated). Default: ['.claude', '.{ROOT_GROUP_NAME}']."
+            "(colon-separated; semicolon on Windows). "
+            "Default: ['.claude', '.{ROOT_GROUP_NAME}']."
         ),
     )
 
     LLM_BASE_SEARCH_DIRS = EnvField(
-        colon_list,
-        serialize=colon_join,
+        path_list,
+        serialize=path_list_join,
         doc=(
             "Explicit base directories containing skills/, agents/, plugins/ "
-            "subdirs (colon-separated)."
+            "subdirs (colon-separated; semicolon on Windows)."
         ),
     )
 
     LLM_EXTRA_SKILL_DIRS = EnvField(
-        colon_list,
-        serialize=colon_join,
-        doc="Additional direct skill directories (colon-separated).",
+        path_list,
+        serialize=path_list_join,
+        doc="Additional direct skill directories (colon-separated; semicolon on Windows).",
     )
 
     LLM_EXTRA_AGENT_DIRS = EnvField(
-        colon_list,
-        serialize=colon_join,
-        doc="Additional direct agent directories (colon-separated).",
+        path_list,
+        serialize=path_list_join,
+        doc="Additional direct agent directories (colon-separated; semicolon on Windows).",
     )
 
     LLM_ENABLE_BUILTIN_SKILLS = EnvField(

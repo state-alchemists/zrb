@@ -110,7 +110,7 @@ Hooks are discovered automatically in these locations (in order of precedence, h
 | `./.claude/hooks/*.json` | Claude Code compatibility, project (directory) |
 | `./.claude/settings.json` | Claude Code compatibility, project — the nested `hooks` block |
 | `./.claude/settings.local.json` | Claude Code compatibility, project — the nested `hooks` block |
-| `CFG.HOOKS_DIRS` | Additional colon-separated custom directories |
+| `CFG.HOOKS_DIRS` | Additional colon-separated (semicolon on Windows) custom directories |
 
 Hooks Claude Code (and drop-in tools like [peon-ping](https://peonping.com)) register inside `settings.json`/`settings.local.json` are picked up automatically — only the nested `hooks` block is read; other settings keys are ignored.
 
@@ -121,7 +121,7 @@ The hooks subsystem itself is controlled by a small set of `CFG`/env knobs, inde
 | `CFG` field | Env var | Default | Description |
 |-------------|---------|---------|--------------|
 | `HOOKS_ENABLED` | `ZRB_HOOKS_ENABLED` | `on` | Master on/off switch for the entire hooks subsystem |
-| `HOOKS_DIRS` | `ZRB_HOOKS_DIRS` | `""` | Colon-separated additional directories to scan for hook scripts |
+| `HOOKS_DIRS` | `ZRB_HOOKS_DIRS` | `""` | Colon-separated (semicolon on Windows) additional directories to scan for hook scripts |
 | `HOOKS_TIMEOUT` | `ZRB_HOOKS_TIMEOUT` | `30000` | Timeout in milliseconds for hook execution |
 | `LLM_HOOKS` | `ZRB_LLM_HOOKS` | `""` | Name allowlist for the hooks zrb dispatches (ADR-0091). Empty = run every registered hook; non-empty restricts dispatch to the named hooks (e.g. `journal-compliance-judge`). Programmatic registration is unchanged — see [LLM Component Collections](../configuration/llm-collections.md) |
 

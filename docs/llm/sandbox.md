@@ -38,8 +38,8 @@ When no OS mechanism is available (Windows, or Linux without `bwrap`), the polic
 |---|---|---|
 | `ZRB_LLM_SANDBOX_ENABLED` | `false` | Master switch for both layers. |
 | `ZRB_LLM_SANDBOX_OS_SHELL` | `auto` | `auto` wraps spawned subprocesses (shell commands, worktree git calls) when a mechanism exists; `off` keeps only the Python FS gate. |
-| `ZRB_LLM_SANDBOX_WRITABLE_PATHS` | (empty) | Colon-separated writable roots. Empty = automatic: current working directory + system temp dir. |
-| `ZRB_LLM_SANDBOX_DENY_READ_PATHS` | built-in list | Colon-separated never-read paths; setting it replaces the default credential-store list. |
+| `ZRB_LLM_SANDBOX_WRITABLE_PATHS` | (empty) | Colon-separated (semicolon on Windows) writable roots. Empty = automatic: current working directory + system temp dir. |
+| `ZRB_LLM_SANDBOX_DENY_READ_PATHS` | built-in list | Colon-separated (semicolon on Windows) never-read paths; setting it replaces the default credential-store list. |
 | `ZRB_LLM_SANDBOX_FALLBACK` | `warn` | `warn` / `deny` when no OS mechanism exists. |
 | `ZRB_LLM_SANDBOX_ALLOW_ESCAPE` | `true` | Whether `dangerously_skip_sandbox` is honored at all. Set `false` for non-interactive (CI) deployments. |
 

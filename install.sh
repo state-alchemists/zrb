@@ -1,4 +1,7 @@
 #!/bin/sh
+# Usage: install.sh [-y|--yes] [--pre]
+#   -y, --yes  Answer yes to every prompt
+#   --pre      Install the latest pre-release instead of the latest stable
 set -e
 
 #########################################################################################
@@ -268,9 +271,14 @@ confirm_extras() {
 
 pipx_install_zrb() {
     pipx uninstall zrb 2>/dev/null || true
-    # --pip-args (not the PIP_PRE env var) persists in pipx's metadata, so later
-    # `pipx upgrade`/`pipx reinstall` keep tracking pre-releases automatically.
-    pipx install --pip-args='--pre' --python "$PY_CMD" "zrb${ZRB_EXTRAS}"
+    if [ "$PRE_RELEASE" = "1" ]; then
+        # --pip-args (not the PIP_PRE env var) persists in pipx's metadata, so later
+        # `pipx upgrade`/`pipx reinstall` keep tracking pre-releases automatically.
+        log_info "Installing the latest pre-release (--pre)"
+        pipx install --pip-args='--pre' --python "$PY_CMD" "zrb${ZRB_EXTRAS}"
+    else
+        pipx install --python "$PY_CMD" "zrb${ZRB_EXTRAS}"
+    fi
 }
 
 install_zrb() {
@@ -430,9 +438,11 @@ setup_termux() {
 
 # Parse flags
 AUTO_YES=0
+PRE_RELEASE=0
 for arg in "$@"; do
     case "$arg" in
         -y|--yes) AUTO_YES=1 ;;
+        --pre) PRE_RELEASE=1 ;;
     esac
 done
 
@@ -447,8 +457,8 @@ fi
 cat << 'EOF'
 
     ╔════════════════════════════╗
-    ║  Zrb — Your Automation     ║
-    ║        Powerhouse          ║
+    ║            Zrb             ║
+    ║ Coding Agent + Task Engine ║
     ╚════════════════════════════╝
 
 EOF
