@@ -11,13 +11,26 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        # Span the supported range (pyproject: >=3.11,<3.15). 3.14 is excluded
-        # here because some optional extras (e.g. voyageai) cap at python<3.14.
-        python-version: ["3.11", "3.12", "3.13"]
+        # Full interpreter span on the primary platform (pyproject: >=3.11,<3.15).
+        # 3.14 is included: the one extra that caps below it, voyageai, already
+        # carries `python_version < '3.14'`, so --all-extras resolves without it.
+        os: [ubuntu-latest]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        include:
+          # Windows and macOS are documented as supported (installation.md calls
+          # Windows "Native Windows support", and install.ps1 ships), and src/
+          # carries 12 platform-conditional branches -- but nothing ran there
+          # until now. 3.0.0b10 shipped a bug that mangled every `C:\...` path
+          # in 11 config knobs for exactly this reason. One interpreter each is
+          # enough to catch platform breakage; the version spread is ubuntu's job.
+          - os: windows-latest
+            python-version: "3.13"
+          - os: macos-latest
+            python-version: "3.13"
 
     steps:
       - name: Check out repository code
@@ -33,8 +46,15 @@ jobs:
 
       - name: Install ripgrep
         # file_search and the journal tool prefer `rg`; one test exercises the
-        # ripgrep path directly and needs the binary present.
-        run: sudo apt-get update && sudo apt-get install -y ripgrep
+        # ripgrep path directly and needs the binary present. Both non-Linux
+        # runners ship their package manager preinstalled.
+        shell: bash
+        run: |
+          case "${{ runner.os }}" in
+            Linux)   sudo apt-get update && sudo apt-get install -y ripgrep ;;
+            macOS)   brew install ripgrep ;;
+            Windows) choco install ripgrep -y ;;
+          esac
 
       - name: Build README.pypi.md
         # README.pypi.md is the readme Poetry packages (it is gitignored), so it
@@ -44,13 +64,29 @@ jobs:
       - name: Cache Poetry virtualenv
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pypoetry
-          key: poetry-${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}
+          # Poetry's default cache dir (it nests virtualenvs under it) differs
+          # per platform, and all three already sit outside the checkout.
+          path: ${{ runner.os == 'Windows' && '~\AppData\Local\pypoetry\Cache' || (runner.os == 'macOS' && '~/Library/Caches/pypoetry' || '~/.cache/pypoetry') }}
+          key: poetry-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}
 
       - name: Install dependencies
-        run: |
-          poetry install --all-extras --no-interaction
+        run: poetry install --all-extras --no-interaction
 
       - name: Lint and run tests with coverage
-        # Single source of truth: the same script developers run locally.
-        run: poetry run bash zrb-test.sh
+        # Single source of truth: the same script developers run locally. Git
+        # Bash ships on the Windows runner, so the POSIX script runs unchanged.
+        #
+        # ubuntu gets the full gate (pyright + the >=90% coverage threshold).
+        # windows/macOS pass an explicit target, which makes zrb-test.sh skip
+        # both -- deliberately. pyright is platform-independent, so running it
+        # three times only buys latency; and a global coverage floor is not
+        # meaningful on a platform where the win32/darwin branches make a
+        # different subset of lines reachable. Those jobs answer "does the
+        # suite run here", which is the question that was never being asked.
+        #
+        # The ternary is inverted on purpose: GitHub expressions treat '' as
+        # falsy, so `os == 'ubuntu' && '' || 'test'` yields 'test' on EVERY
+        # platform. Putting the non-empty value on the true branch is the only
+        # form that works.
+        shell: bash
+        run: poetry run bash zrb-test.sh ${{ matrix.os != 'ubuntu-latest' && 'test' || '' }}
