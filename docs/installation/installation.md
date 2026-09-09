@@ -121,6 +121,23 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/mai
 bash install.sh
 ```
 
+**Flags:**
+
+| Flag | Effect |
+|------|--------|
+| `-y`, `--yes` | Answer yes to every prompt (non-interactive) |
+| `--pre` | Install the latest pre-release instead of the latest stable |
+
+Piping from GitHub needs a `--` separator so the flags reach the script rather
+than `bash` itself:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)" -- --pre
+```
+
+`--pre` is passed through to pip as `--pip-args='--pre'`, which pipx stores in its
+metadata — so a later `pipx upgrade zrb` keeps tracking pre-releases without the flag.
+
 <details>
 <summary>📜 Script Functions Reference</summary>
 
@@ -136,7 +153,7 @@ The script includes these helper functions:
 | `install_pyenv` | Install pyenv via `curl https://pyenv.run \| bash` |
 | `install_python_on_pyenv` | Install Python 3.13.0 and set as global |
 | `install_pyenv_dependencies` | Install pyenv build dependencies |
-| `pipx_install_zrb` | Install Zrb via `pipx install --python ... zrb` |
+| `pipx_install_zrb` | Install Zrb via `pipx install --python ... zrb` (adds `--pip-args='--pre'` when `--pre` is given) |
 | `register_autocomplete` | Register shell autocomplete |
 
 </details>
@@ -174,6 +191,9 @@ powershell -ExecutionPolicy Bypass -Command "iex ([System.Text.Encoding]::UTF8.G
 ```powershell
 powershell -ExecutionPolicy Bypass -File install.ps1
 ```
+
+**Flags:** `-Yes` answers yes to every prompt; `-Pre` installs the latest
+pre-release instead of the latest stable.
 
 <details>
 <summary>📝 Manual Windows Installation</summary>

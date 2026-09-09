@@ -54,7 +54,7 @@ def test_env_enables_sandbox(monkeypatch):
     assert policy.allow_escape is False
 
 
-def test_env_writable_paths_colon_list_expands_user(monkeypatch):
+def test_env_writable_paths_path_list_expands_user(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_SANDBOX_WRITABLE_PATHS", "~/proj:/var/data")
     policy = resolve_sandbox_policy_from_config()
     assert os.path.expanduser("~/proj") in policy.writable_paths

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from zrb.config.env_field import EnvField, colon_join, colon_list, on_off
+from zrb.config.env_field import EnvField, on_off, path_list, path_list_join
 from zrb.util.string.conversion import to_boolean
 
 
@@ -36,15 +36,17 @@ class WebMixin:
         super().__init__()
 
     WEB_CSS_PATH = EnvField(
-        colon_list,
-        serialize=colon_join,
-        doc="Colon-separated paths to additional CSS files injected into the web UI.",
+        path_list,
+        serialize=path_list_join,
+        doc="Colon-separated (semicolon on Windows) paths to additional CSS "
+        "files injected into the web UI.",
     )
 
     WEB_JS_PATH = EnvField(
-        colon_list,
-        serialize=colon_join,
-        doc="Colon-separated paths to additional JavaScript files injected into the web UI.",
+        path_list,
+        serialize=path_list_join,
+        doc="Colon-separated (semicolon on Windows) paths to additional "
+        "JavaScript files injected into the web UI.",
     )
 
     WEB_FAVICON_PATH = EnvField(

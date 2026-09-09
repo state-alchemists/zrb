@@ -8,12 +8,12 @@ from importlib import metadata as _metadata
 
 from zrb.config.env_field import (
     EnvField,
-    colon_join,
-    colon_list,
     comma_join,
     comma_list,
     comma_or_colon_list,
     on_off,
+    path_list,
+    path_list_join,
 )
 from zrb.config.helper import (
     get_current_shell,
@@ -117,8 +117,10 @@ class FoundationMixin:
         to_boolean,
         serialize=on_off,
         default_factory=lambda c: on_off(is_termux()),
-        doc="Whether zrb runs under Termux. Auto-detected; override to force "
-        "Termux-specific behavior such as Tab-to-cycle-mode keybindings.",
+        doc=(
+            "Whether zrb runs under Termux. Auto-detected; override to force "
+            "Termux-specific behavior such as Tab-to-cycle-mode keybindings."
+        ),
     )
 
     EDITOR = EnvField(str, doc="Default text editor for interactive prompts.")
@@ -136,9 +138,11 @@ class FoundationMixin:
     INIT_MODULES = EnvField(
         comma_or_colon_list,
         serialize=comma_join,
-        doc="Comma-separated importable module names zrb imports on startup so "
-        "their task definitions register (e.g. a shared team task package). "
-        "Colon-separated values are still accepted.",
+        doc=(
+            "Comma-separated importable module names zrb imports on startup so "
+            "their task definitions register (e.g. a shared team task package). "
+            "Colon-separated values are still accepted."
+        ),
     )
 
     ROOT_GROUP_NAME = EnvField(str, doc="Name of the root command group in help menus.")
@@ -148,27 +152,34 @@ class FoundationMixin:
     )
 
     INIT_SCRIPTS = EnvField(
-        colon_list,
-        serialize=colon_join,
-        doc="Colon-separated Python script paths zrb runs on startup (in addition "
-        "to the discovered INIT_FILE_NAME files) to register task definitions.",
+        path_list,
+        serialize=path_list_join,
+        doc=(
+            "Colon-separated (semicolon on Windows) Python script paths zrb "
+            "runs on startup (in addition "
+            "to the discovered INIT_FILE_NAME files) to register task definitions."
+        ),
     )
 
     INIT_FILE_NAME = EnvField(
         str,
-        doc="Name of the task-definition file zrb auto-loads. On startup zrb walks "
-        "from the current directory up to the filesystem root and loads every "
-        "file with this name it finds.",
+        doc=(
+            "Name of the task-definition file zrb auto-loads. On startup zrb walks "
+            "from the current directory up to the filesystem root and loads every "
+            "file with this name it finds."
+        ),
     )
 
     INIT_STRICT = EnvField(
         to_boolean,
         serialize=on_off,
-        doc="Exit non-zero when any init module or script fails to load, instead "
-        "of reporting it and starting anyway. Off by default: interactively, a "
-        "user who can still run zrb can fix the error and rerun. Turn it on in "
-        "CI, where a half-loaded init file otherwise yields a green run against "
-        "state that was never fully registered.",
+        doc=(
+            "Exit non-zero when any init module or script fails to load, instead "
+            "of reporting it and starting anyway. Off by default: interactively, a "
+            "user who can still run zrb can fix the error and rerun. Turn it on in "
+            "CI, where a half-loaded init file otherwise yields a green run against "
+            "state that was never fully registered."
+        ),
     )
 
     LOGGING_LEVEL = EnvField(

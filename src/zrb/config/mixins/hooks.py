@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from zrb.config.env_field import (
     EnvField,
-    colon_join,
-    colon_list,
     comma_join,
     comma_list,
     on_off,
+    path_list,
+    path_list_join,
 )
 from zrb.util.string.conversion import to_boolean
 
@@ -28,9 +28,9 @@ class HooksMixin:
     )
 
     HOOKS_DIRS = EnvField(
-        colon_list,
-        serialize=colon_join,
-        doc="Colon-separated directories to scan for hook scripts.",
+        path_list,
+        serialize=path_list_join,
+        doc="Colon-separated (semicolon on Windows) directories to scan for hook scripts.",
     )
 
     HOOKS_TIMEOUT = EnvField(int, doc="Timeout in milliseconds for hook execution.")

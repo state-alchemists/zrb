@@ -33,18 +33,18 @@ def on_off(value: Any) -> str:
     return "on" if value else "off"
 
 
-def colon_list(raw: str) -> list[str]:
-    """Parse a ``:``-delimited string, stripping and dropping empty segments."""
-    return [part.strip() for part in raw.split(":") if part.strip() != ""]
+def path_list(raw: str) -> list[str]:
+    """Parse an `os.pathsep`-delimited path list (`;` on Windows, `:` elsewhere).
+
+    Splitting on `os.pathsep` rather than always `:` keeps Windows drive
+    letters (`C:\\foo`) intact.
+    """
+    return [part.strip() for part in raw.split(os.pathsep) if part.strip() != ""]
 
 
-def expanduser_colon_list(raw: str) -> list[str]:
-    """Like `colon_list` but `~`-expands each entry (matches LLM_PLUGIN_DIRS)."""
-    return [
-        os.path.expanduser(part.strip())
-        for part in raw.split(":")
-        if part.strip() != ""
-    ]
+def expanduser_path_list(raw: str) -> list[str]:
+    """Like `path_list` but `~`-expands each entry (matches LLM_PLUGIN_DIRS)."""
+    return [os.path.expanduser(part) for part in path_list(raw)]
 
 
 def comma_list(raw: str) -> list[str]:
@@ -59,8 +59,8 @@ def comma_or_colon_list(raw: str) -> list[str]:
     return [part.strip() for part in raw.replace(":", ",").split(",") if part.strip()]
 
 
-def colon_join(value: list[str]) -> str:
-    return ":".join(value)
+def path_list_join(value: list[str]) -> str:
+    return os.pathsep.join(value)
 
 
 def comma_join(value: list[str]) -> str:
@@ -74,7 +74,7 @@ class EnvField(Generic[T]):
     ----------
     cast:
         Callable applied to the raw string on read (e.g. ``int``, ``float``,
-        ``to_boolean``, ``colon_list``). Defaults to ``str`` (identity).
+        ``to_boolean``, ``path_list``). Defaults to ``str`` (identity).
     transform:
         Optional ``callable(value, host) -> value`` applied after ``cast``.
         Receives the already-cast value and the host config object, enabling
@@ -82,7 +82,7 @@ class EnvField(Generic[T]):
         a token threshold against ``LLM_MAX_TOKEN_PER_MINUTE``).
     serialize:
         Callable applied to the value on write before storing in os.environ
-        (e.g. ``on_off``, ``colon_join``). Defaults to ``str``.
+        (e.g. ``on_off``, ``path_list_join``). Defaults to ``str``.
     aliases:
         Env-var names (without prefix) to try in order on read. Defaults to
         ``[attribute_name]``.
