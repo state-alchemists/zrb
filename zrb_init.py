@@ -1,5 +1,6 @@
 import json
 import os
+from urllib.parse import urlparse
 
 import requests
 import tomlkit
@@ -97,12 +98,6 @@ format_code = code_group.add_task(
 )
 _ = format_code >> git_commit
 
-# The handoff between `code review` (writes it) and `submit-comment` (posts
-# it). They are deliberately NOT wired as a DAG: `code review` runs an LLM with
-# --yolo over a diff somebody else wrote, and chaining them would put the
-# GITHUB_TOKEN that `submit-comment` needs into that agent's environment.
-# Untrusted input plus a write credential in one process is the thing to avoid,
-# so CI runs them as two steps and only the second one sees the token.
 _REVIEW_REPORT = "code-review.md"
 
 review_code = code_group.add_task(
@@ -124,15 +119,6 @@ review_code = code_group.add_task(
             ),
         ],
         cwd=_DIR,
-        # Both inputs reach the script as environment variables rather than
-        # being rendered into it. `--range` carries a git ref name chosen by
-        # whoever opened the pull request, and ref names may legally contain
-        # `$`, backticks, quotes and parentheses -- rendering one into a
-        # command string would hand it to the shell as syntax. A parameter
-        # expansion is not re-parsed for metacharacters, so `"$REVIEW_RANGE"`
-        # is a value and only ever a value. `link_to_os=False` keeps the
-        # task's own inputs authoritative: an ambient REVIEW_RANGE in the
-        # environment must not silently retarget the review.
         env=[
             Env(
                 name="REVIEW_RANGE",
@@ -145,17 +131,6 @@ review_code = code_group.add_task(
                 link_to_os=False,
             ),
         ],
-        # `/review` is a built-in user-invocable skill; the non-interactive
-        # session resolves slash commands on --message the same way the TUI
-        # does. --yolo is required because the reviewer reads files and shells
-        # out to git, and there is nobody at a CI prompt to approve each call.
-        # The report goes to a file rather than stdout because CmdTask
-        # prefixes every subprocess line with its own log decoration -- fine to
-        # read, useless to post verbatim as a PR comment.
-        # The diffstat is computed here and pasted into the message so the
-        # agent starts with the scope in hand instead of spending a tool call
-        # discovering it. `$(...)` output is substituted as text, never
-        # re-parsed as syntax, so a hostile filename in the diff stays data.
         cmd=[
             'REVIEW_STAT="$(git diff --stat "$REVIEW_RANGE")"',
             (
@@ -171,8 +146,6 @@ review_code = code_group.add_task(
                 ' Then print that verdict as a single line."'
             ),
         ],
-        # The agent already retries the model call three times internally; a
-        # task-level retry would re-run the whole review and re-spend tokens.
         retries=0,
     ),
     alias="review",
@@ -225,6 +198,8 @@ def submit_comment(ctx: AnyContext):
     if pr_number is None:
         raise ValueError("The event payload carries no pull_request.number")
     api_url = os.environ.get("GITHUB_API_URL", "https://api.github.com")
+    if urlparse(api_url).hostname != "api.github.com":
+        raise ValueError(f"Refusing to send GITHUB_TOKEN to {api_url}")
     response = requests.post(
         f"{api_url}/repos/{repository}/issues/{pr_number}/comments",
         headers={
