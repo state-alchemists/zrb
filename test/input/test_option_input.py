@@ -301,9 +301,13 @@ class TestOptionInputPromptCli:
         mock_session = MagicMock()
         mock_session.prompt.return_value = "blue"
 
-        # Mock sys.stdin.isatty to return True for TTY mode
+        # Both halves of `SharedContext.is_tty` have to say yes. On Windows the
+        # second one is a real GetConsoleMode probe against stdin, which pytest
+        # has replaced with a capture object -- so patching isatty alone leaves
+        # is_tty False there and the code falls through to `input()`.
         with (
             patch("sys.stdin.isatty", return_value=True),
+            patch("zrb.context.shared_context.is_real_console", return_value=True),
             patch("prompt_toolkit.PromptSession", return_value=mock_session),
         ):
             result = option_input.prompt_cli_str(shared_ctx)

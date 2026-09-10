@@ -20,6 +20,7 @@ see `docs/changelog/v3/3.0.0.md` for why the old `llm_config.model_getter`/
 (process-wide on purpose, on the resolver whose job it actually extends).
 """
 
+import inspect
 from typing import TYPE_CHECKING, Callable
 
 from zrb.config.config import CFG
@@ -158,16 +159,67 @@ class ModelResolver:
             if api_key or base_url:
                 return self._resolve_model(model_name, provider)
             return model_name
-        # If provider is natively supported by pydantic-ai, return as-is
-        # (pydantic-ai will use its built-in provider, reading env vars like
-        #  OLLAMA_BASE_URL, ANTHROPIC_API_KEY, etc.)
+        # If provider is natively supported by pydantic-ai, let it build that
+        # provider — but the credentials still have to reach it. A native
+        # provider constructed with no arguments reads only its own vendor env
+        # var (DEEPSEEK_API_KEY, ANTHROPIC_API_KEY, OLLAMA_BASE_URL, ...), so
+        # returning the bare name here would silently drop an explicit
+        # LLM_API_KEY/LLM_BASE_URL and then fail asking for a vendor variable
+        # the user never set. With no credentials configured, the bare name is
+        # still right: that vendor env var is exactly what should be read.
         if self._is_native_provider(provider_name):
+            if api_key or base_url:
+                return self._resolve_native_model(
+                    model_name, provider_name, api_key, base_url, provider
+                )
             return model_name
         # Unknown provider without pydantic-ai support
         # Use OpenAIProvider if API config is set (for OpenAI-compatible endpoints)
         if api_key or base_url:
             return self._resolve_model(model_name, provider)
         return model_name
+
+    def _resolve_native_model(
+        self,
+        model_name: str,
+        provider_name: str,
+        api_key: str | None,
+        base_url: str | None,
+        provider: "str | Provider",
+    ) -> "str | Model":
+        """Build a natively-supported model with explicit credentials.
+
+        `infer_model`'s `provider_factory` seam is what lets them through:
+        pydantic-ai still picks the `Model` subclass its prefix maps to, but
+        the provider it wraps is built here rather than from the vendor's own
+        env var. Providers take different keyword arguments — `AnthropicProvider`
+        accepts `base_url`, `DeepSeekProvider` does not — so each is passed
+        only when the constructor declares it.
+
+        A `base_url` the native provider cannot accept falls through to the
+        OpenAI-compatible path instead of being dropped: a custom endpoint is
+        the whole reason to set that knob, and every provider zrb reaches this
+        way speaks the OpenAI wire format.
+        """
+        # lazy: heavy third-party
+        from pydantic_ai.models import infer_model
+        from pydantic_ai.providers import infer_provider_class
+
+        try:
+            provider_class = infer_provider_class(provider_name)
+        except (ImportError, ValueError):
+            return model_name
+        accepted = inspect.signature(provider_class.__init__).parameters
+        if base_url and "base_url" not in accepted:
+            return self._resolve_model(model_name, provider)
+        kwargs: dict[str, str] = {}
+        if api_key and "api_key" in accepted:
+            kwargs["api_key"] = api_key
+        if base_url:
+            kwargs["base_url"] = base_url
+        return infer_model(
+            model_name, provider_factory=lambda _: provider_class(**kwargs)
+        )
 
     def _is_native_provider(self, provider_name: str) -> bool:
         """Check if pydantic-ai has native support for a provider, with caching."""

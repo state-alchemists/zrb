@@ -1,6 +1,8 @@
 import asyncio
 import os
 import subprocess
+import sys
+import tempfile
 from unittest.mock import patch
 
 import psutil
@@ -159,7 +161,8 @@ async def test_run_command_timeout_without_killpg_falls_back_to_terminate_pid(
     monkeypatch,
 ):
     """Windows has no os.killpg; the timeout cleanup must fall back to psutil."""
-    monkeypatch.delattr(os, "killpg")
+    # Already absent when the suite actually runs on Windows.
+    monkeypatch.delattr(os, "killpg", raising=False)
     with patch("zrb.util.cmd.command.terminate_pid") as mock_terminate:
         with pytest.raises(asyncio.TimeoutError):
             await run_command(["sleep", "2"], timeout=0.5)
@@ -169,12 +172,14 @@ async def test_run_command_timeout_without_killpg_falls_back_to_terminate_pid(
 @pytest.mark.asyncio
 async def test_run_command_cwd():
     # Print current working directory
-    cmd = ["pwd"]
-    cwd = "/tmp"
+    # `pwd` and a hardcoded /tmp are POSIX; the interpreter running the suite
+    # reports its own cwd the same way everywhere.
+    cmd = [sys.executable, "-c", "import os; print(os.getcwd())"]
+    cwd = tempfile.gettempdir()
     result, return_code = await run_command(cmd, cwd=cwd)
 
     assert return_code == 0
-    # Resolving symlinks for /tmp on some systems
+    # macOS resolves /tmp through a symlink, so compare the real paths.
     assert os.path.realpath(result.output.strip()) == os.path.realpath(cwd)
 
 

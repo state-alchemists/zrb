@@ -192,7 +192,7 @@ async def test_communicate_or_reap_kills_child_when_terminate_fails():
     def flaky_kill():
         # Really kill the child (so the reap below succeeds) but still raise,
         # as a kill racing an already-dead process would.
-        os.kill(proc.pid, signal.SIGKILL)
+        os.kill(proc.pid, getattr(signal, "SIGKILL", signal.SIGTERM))
         raise ProcessLookupError("already gone")
 
     proc.terminate = flaky_terminate

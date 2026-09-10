@@ -74,6 +74,62 @@ def test_resolve_unknown_provider_with_explicit_string_provider(
     assert resolved == "custom-provider:some-model"
 
 
+def test_resolve_native_provider_with_api_key_receives_the_key(
+    resolver: ModelResolver,
+):
+    """Regression: a `deepseek:`/`anthropic:`-prefixed model with LLM_API_KEY set
+    used to come back as a bare string, so pydantic-ai built the provider from
+    its own vendor env var and failed asking for DEEPSEEK_API_KEY -- a variable
+    the user never set, having configured LLM_API_KEY instead."""
+    resolved = resolver.resolve("deepseek:deepseek-chat", api_key="secret")
+
+    from pydantic_ai.models import Model
+
+    assert isinstance(resolved, Model)
+    assert resolved.model_name == "deepseek-chat"
+
+
+def test_resolve_native_provider_with_base_url_it_accepts(resolver: ModelResolver):
+    """`AnthropicProvider` takes `base_url`, so both credentials go straight to
+    the native provider and the model keeps its own class."""
+    from pydantic_ai.models.anthropic import AnthropicModel
+
+    resolved = resolver.resolve(
+        "anthropic:claude-3-opus",
+        api_key="secret",
+        base_url="https://proxy.example/v1",
+    )
+
+    assert isinstance(resolved, AnthropicModel)
+    assert resolved.model_name == "claude-3-opus"
+
+
+def test_resolve_native_provider_with_base_url_it_rejects_falls_back_to_openai(
+    resolver: ModelResolver,
+):
+    """`DeepSeekProvider` has no `base_url` parameter. Dropping the knob would
+    silently ignore the endpoint the user asked for, so the OpenAI-compatible
+    path takes over -- every provider reached this way speaks that wire format."""
+    from pydantic_ai.models.openai import OpenAIChatModel
+
+    resolved = resolver.resolve(
+        "deepseek:deepseek-chat",
+        api_key="secret",
+        base_url="https://gateway.example/v1",
+    )
+
+    assert isinstance(resolved, OpenAIChatModel)
+    assert resolved.model_name == "deepseek-chat"
+
+
+def test_resolve_native_provider_without_credentials_still_returned_as_is(
+    resolver: ModelResolver,
+):
+    """No configured credentials means the vendor's own env var is exactly what
+    should be read -- the bare name is what hands pydantic-ai that job."""
+    assert resolver.resolve("deepseek:deepseek-chat") == "deepseek:deepseek-chat"
+
+
 def test_resolve_model_without_provider_prefix_defaults_to_openai(
     resolver: ModelResolver,
 ):

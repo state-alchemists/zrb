@@ -71,7 +71,7 @@ def _iter_paragraphs(text: str):
 def _offenders(paths, limit: int, exceptions: dict[str, set[int]]):
     offenders = []
     for path in paths:
-        rel = str(path.relative_to(REPO_ROOT))
+        rel = path.relative_to(REPO_ROOT).as_posix()
         exempt_lines = exceptions.get(rel, set())
         for para, lineno in _iter_paragraphs(path.read_text(encoding="utf-8")):
             stripped = para.strip()
@@ -129,12 +129,12 @@ def test_long_doc_pages_have_a_table_of_contents():
     scrolling."""
     offenders = []
     for path in DOCS.rglob("*.md"):
-        rel = str(path)
+        rel = path.as_posix()
         if "changelog" in rel or "/adr/" in rel:
             continue
         text = path.read_text(encoding="utf-8")
         if len(text.splitlines()) <= MIN_LINES_REQUIRING_TOC:
             continue
         if "table of contents" not in text.lower():
-            offenders.append(str(path.relative_to(REPO_ROOT)))
+            offenders.append(path.relative_to(REPO_ROOT).as_posix())
     assert not offenders, f"Long doc page(s) missing a Table of Contents: {offenders}"

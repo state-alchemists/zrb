@@ -149,7 +149,7 @@ def test_no_part_reaches_another_objects_private_state():
     """
     offenders = {}
     for path in _iter_py_files():
-        rel = str(path.relative_to(REPO_ROOT))
+        rel = path.relative_to(REPO_ROOT).as_posix()
         if rel in MONKEYPATCH_EXCEPTIONS:
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -170,7 +170,7 @@ def test_business_logic_stays_free_of_presentation_frameworks():
     """
     offenders = {}
     for path in _iter_py_files():
-        rel = str(path.relative_to(SRC))
+        rel = path.relative_to(SRC).as_posix()
         if rel.startswith(FRAMEWORK_EXEMPT_DIRS):
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -287,7 +287,7 @@ def test_no_error_message_is_shorter_than_forty_characters():
     both out of scope for this check."""
     offenders = []
     for path in _iter_py_files():
-        rel = str(path.relative_to(SRC))
+        rel = path.relative_to(SRC).as_posix()
         exempt_lines = SHORT_MESSAGE_EXCEPTIONS.get(rel, set())
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in _iter_raises(tree):

@@ -10,7 +10,18 @@ import os
 import signal
 from unittest.mock import patch
 
+import pytest
+
 from zrb.llm.hook.process_kill import kill_process_tree, read_process_group
+
+# Process groups are a POSIX concept: `os.getpgid`/`os.killpg` do not exist on
+# Windows (patching them raises AttributeError), and `read_process_group`
+# deliberately returns None there, so the psutil child walk carries the kill.
+# The tests below that are *about* the group vector are POSIX-only; the ones
+# about the psutil fallback and the self-kill guards run everywhere.
+posix_process_groups_only = pytest.mark.skipif(
+    os.name != "posix", reason="process groups (getpgid/killpg) are POSIX-only"
+)
 
 # A pid/group high enough that no live process owns it, so getpgid and killpg
 # both raise ProcessLookupError — the "already gone" shape the fallbacks exist
@@ -54,6 +65,7 @@ def test_kill_process_tree_never_targets_zrbs_own_pid():
     assert process.killed, "fell back to no kill at all"
 
 
+@posix_process_groups_only
 def test_kill_process_tree_never_targets_zrbs_own_process_group():
     """A tree kill aimed at a pid sharing our process group must be refused.
 
@@ -134,6 +146,7 @@ def test_kill_process_tree_survives_a_failing_psutil_walk():
     assert killed["direct"] is True
 
 
+@posix_process_groups_only
 def test_kill_process_tree_refuses_killpg_when_os_group_does_not_match():
     """A derived pgid that no longer matches the OS-reported group for the
     pid (e.g. a caller whose Popen was never actually started with
@@ -161,6 +174,7 @@ def test_kill_process_tree_refuses_killpg_when_os_group_does_not_match():
     assert process.killed
 
 
+@posix_process_groups_only
 def test_kill_process_tree_verify_group_skips_a_pidless_process():
     """With no pid to check the OS-reported group against, the derived pgid
     passes through unverified rather than being refused outright."""
@@ -177,12 +191,14 @@ def test_read_process_group_returns_none_for_a_pidless_process():
     assert read_process_group(_KillRecordingProc()) is None
 
 
+@posix_process_groups_only
 def test_read_process_group_returns_the_pid_even_for_an_already_dead_pid():
     """The group is derived from the pid, not queried — so it is available
     even once the child is reaped, when a live ``getpgid`` would ESRCH."""
     assert read_process_group(_KillRecordingProc(_DEAD_PID)) == _DEAD_PID
 
 
+@posix_process_groups_only
 def test_read_process_group_ignores_a_stale_getpgid_answer():
     """Regression: the group must never come from a live ``getpgid`` call.
 

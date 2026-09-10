@@ -350,6 +350,10 @@ async def test_sync_command_hook_is_killed_on_timeout():
     assert "timed out" in combined.lower()
 
 
+@pytest.mark.skipif(
+    os.name != "posix",
+    reason="`${#VAR}` is POSIX parameter expansion; cmd.exe echoes it verbatim",
+)
 @pytest.mark.asyncio
 async def test_command_hook_drops_oversized_env_value():
     """Oversized event_data is dropped from the subprocess environment, not

@@ -30,6 +30,7 @@ undoes all of it, which is what this catches.
 
 import ast
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -46,6 +47,27 @@ _MODEL_BASE = "BaseModel"
 ALLOWED_MODEL_MODULES: set[str] = set()
 
 
+def _clean_env() -> dict[str, str]:
+    """A near-empty environment, so the developer's own exported knobs cannot
+    steer what a fresh interpreter imports.
+
+    Windows needs a handful of its own variables inside that minimum. Without
+    `SYSTEMROOT` the interpreter cannot load the Winsock provider, and zrb's
+    own import chain reaches `import asyncio` — which imports `_overlapped` on
+    win32 and dies with `WinError 10106` before a single zrb module is
+    recorded.
+    """
+    env = {"PYTHONPATH": str(SRC), "HOME": str(Path.home())}
+    if sys.platform != "win32":
+        env["PATH"] = "/usr/bin:/bin"
+        return env
+    for name in ("SYSTEMROOT", "SYSTEMDRIVE", "COMSPEC", "PATHEXT", "PATH", "TEMP"):
+        value = os.environ.get(name)
+        if value is not None:
+            env[name] = value
+    return env
+
+
 def _closure_of(target: str) -> set[str]:
     """The `zrb.*` modules a clean interpreter loads when importing *target*."""
     code = (
@@ -57,7 +79,7 @@ def _closure_of(target: str) -> set[str]:
         capture_output=True,
         text=True,
         cwd=REPO_ROOT,
-        env={"PYTHONPATH": str(SRC), "PATH": "/usr/bin:/bin", "HOME": str(Path.home())},
+        env=_clean_env(),
     )
     assert result.returncode == 0, f"import {target} failed: {result.stderr[-2000:]}"
     return set(json.loads(result.stdout))

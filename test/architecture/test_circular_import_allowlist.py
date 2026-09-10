@@ -79,7 +79,7 @@ def _circular_import_counts() -> dict[str, int]:
     for path in SRC.rglob("*.py"):
         n = len(re.findall(r"# lazy: circular", path.read_text(encoding="utf-8")))
         if n:
-            counts[str(path.relative_to(SRC))] = n
+            counts[path.relative_to(SRC).as_posix()] = n
     return counts
 
 

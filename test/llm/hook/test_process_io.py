@@ -8,6 +8,8 @@ pipe states a real subprocess will not reliably produce on demand.
 
 import os
 
+import pytest
+
 from zrb.llm.hook.process_io import read_hook_output
 
 
@@ -183,6 +185,10 @@ def test_read_hook_output_does_not_drop_a_child_that_exits_in_the_first_poll():
     assert stdout == b"hello-context"
 
 
+@pytest.mark.skipif(
+    os.name != "posix",
+    reason="the close-error guard is in the selector loop; Windows uses communicate",
+)
 def test_read_hook_output_survives_a_pipe_that_fails_to_close():
     """A close() that raises must not escape.
 

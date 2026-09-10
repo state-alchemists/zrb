@@ -86,7 +86,8 @@ def test_live_docs_do_not_cite_a_module_that_no_longer_exists():
         for ref in _PY_REF.findall(doc.read_text(encoding="utf-8"))
         if not _NOT_OURS.search(ref)
         and ref not in known
-        and ref not in REFERENCE_EXCEPTIONS.get(str(doc.relative_to(REPO_ROOT)), set())
+        and ref
+        not in REFERENCE_EXCEPTIONS.get(doc.relative_to(REPO_ROOT).as_posix(), set())
     ]
     assert not dead, (
         "Live doc(s) cite a module that does not exist — a rename or a test "
