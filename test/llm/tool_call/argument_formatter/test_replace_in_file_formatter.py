@@ -1,10 +1,12 @@
 """Tests for replace_in_file_formatter.py."""
 
+import json
 import os
 import tempfile
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
+from pydantic_ai.messages import ToolCallPart
 
 
 class MockUI:
@@ -17,12 +19,9 @@ class MockUI:
         self.outputs.append(text)
 
 
-class MockCall:
-    """Mock ToolCallPart for testing."""
-
-    def __init__(self, args, tool_name="Edit"):
-        self.args = args
-        self.tool_name = tool_name
+def _call(args, tool_name="Edit") -> ToolCallPart:
+    """The real ToolCallPart the formatter is handed in production."""
+    return ToolCallPart(tool_name=tool_name, args=args)
 
 
 class TestReplaceInFileFormatter:
@@ -36,7 +35,7 @@ class TestReplaceInFileFormatter:
         )
 
         ui = MockUI()
-        call = MockCall({"path": "/tmp/test"}, tool_name="Write")
+        call = _call({"path": "/tmp/test"}, tool_name="Write")
 
         result = await replace_in_file_formatter(ui, call, "")
         assert result is None
@@ -49,7 +48,7 @@ class TestReplaceInFileFormatter:
         )
 
         ui = MockUI()
-        call = MockCall({"old_text": "a", "new_text": "b"})
+        call = _call({"old_text": "a", "new_text": "b"})
 
         result = await replace_in_file_formatter(ui, call, "")
         assert result is None
@@ -62,7 +61,7 @@ class TestReplaceInFileFormatter:
         )
 
         ui = MockUI()
-        call = MockCall({"path": "/tmp/test", "new_text": "b"})
+        call = _call({"path": "/tmp/test", "new_text": "b"})
 
         result = await replace_in_file_formatter(ui, call, "")
         assert result is None
@@ -75,7 +74,7 @@ class TestReplaceInFileFormatter:
         )
 
         ui = MockUI()
-        call = MockCall({"path": "/tmp/test", "old_text": "a"})
+        call = _call({"path": "/tmp/test", "old_text": "a"})
 
         result = await replace_in_file_formatter(ui, call, "")
         assert result is None
@@ -88,7 +87,7 @@ class TestReplaceInFileFormatter:
         )
 
         ui = MockUI()
-        call = MockCall(
+        call = _call(
             {
                 "path": "/nonexistent/path/to/file.txt",
                 "old_text": "a",
@@ -114,7 +113,7 @@ class TestReplaceInFileFormatter:
             temp_path = f.name
 
         try:
-            call = MockCall(
+            call = _call(
                 {
                     "path": temp_path,
                     "old_text": "nonexistent text",
@@ -142,7 +141,7 @@ class TestReplaceInFileFormatter:
             temp_path = f.name
 
         try:
-            call = MockCall(
+            call = _call(
                 {
                     "path": temp_path,
                     "old_text": "World",
@@ -181,10 +180,10 @@ class TestReplaceInFileFormatter:
             temp_path = f.name
 
         try:
-            args_str = (
-                '{"path": "' + temp_path + '", "old_text": "Test", "new_text": "New"}'
+            args_str = json.dumps(
+                {"path": temp_path, "old_text": "Test", "new_text": "New"}
             )
-            call = MockCall(args_str)
+            call = _call(args_str)
 
             with patch(
                 "zrb.llm.tool_call.argument_formatter.replace_in_file_formatter.format_diff"
@@ -217,7 +216,7 @@ class TestReplaceInFileFormatter:
             temp_path = f.name
 
         try:
-            call = MockCall(
+            call = _call(
                 {
                     "path": temp_path,
                     "old_text": "test",
@@ -256,7 +255,7 @@ class TestReplaceInFileFormatter:
             temp_path = f.name
 
         try:
-            call = MockCall(
+            call = _call(
                 {
                     "path": temp_path,
                     "old_text": "same",
@@ -278,7 +277,7 @@ class TestReplaceInFileFormatter:
         )
 
         ui = MockUI()
-        call = MockCall(
+        call = _call(
             {
                 "path": "/some/path",
                 "old_text": "a",
@@ -305,7 +304,7 @@ class TestReplaceInFileFormatterEdgeCases:
 
         ui = MockUI()
         # This tests path expansion but won't actually find the file
-        call = MockCall(
+        call = _call(
             {
                 "path": "~/nonexistent_file.txt",
                 "old_text": "a",

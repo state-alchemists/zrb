@@ -1,6 +1,6 @@
 from zrb.builtin.group import shell_autocomplete_group
 from zrb.config.config import CFG
-from zrb.context.context import AnyContext
+from zrb.context.any_context import AnyContext
 from zrb.task.make_task import make_task
 
 _COMPLETION_SCRIPT = """# PowerShell dynamic completion script for {command_name}
@@ -13,7 +13,24 @@ Register-ArgumentCompleter -Native -CommandName '{command_name}' -ScriptBlock {
     if ($wordToComplete -ne '' -and $elements.Count -gt 0 -and $elements[-1] -eq $wordToComplete) {
         $elements = $elements[0..($elements.Count - 2)]
     }
-    $subcmdOutput = {command_name} shell autocomplete subcmd $elements 2>$null
+
+    # Cache the subcommand list for a minute, keyed by cwd + the command
+    # being completed, so repeated Tab presses don't pay a fresh process
+    # spawn (and zrb_init.py reload) on every keystroke. Lives under the
+    # user's own LocalAppData (not $env:TEMP, which some setups share
+    # across sessions/users) -- a predictable filename in a shared temp dir
+    # lets another user pre-plant it and hijack the write.
+    $cacheDir = Join-Path $env:LOCALAPPDATA "{command_name}\autocomplete-cache"
+    New-Item -ItemType Directory -Force -Path $cacheDir | Out-Null
+    $cacheKey = (($PWD.Path + ' ' + ($elements -join ' ')) -replace '[^a-zA-Z0-9]', '_')
+    $cacheFile = Join-Path $cacheDir $cacheKey
+
+    if ((Test-Path $cacheFile) -and ((Get-Item $cacheFile).LastWriteTime -gt (Get-Date).AddMinutes(-1))) {
+        $subcmdOutput = Get-Content $cacheFile -Raw
+    } else {
+        $subcmdOutput = {command_name} shell autocomplete subcmd $elements 2>$null
+        $subcmdOutput | Out-File -FilePath $cacheFile -NoNewline
+    }
 
     if ($subcmdOutput) {
         $subcmdOutput -split '\\s+' | Where-Object { $_ -ne '' -and $_ -like "$wordToComplete*" } | ForEach-Object {
@@ -26,7 +43,7 @@ Register-ArgumentCompleter -Native -CommandName '{command_name}' -ScriptBlock {
 
 @make_task(
     name="make-powershell-autocomplete",
-    description="Create Zrb autocomplete script for PowerShell",
+    description="🔷 Create Zrb autocomplete script for PowerShell",
     group=shell_autocomplete_group,
     alias="powershell",
 )

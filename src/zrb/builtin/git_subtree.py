@@ -4,8 +4,8 @@ from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
 from zrb.util.cli.style import stylize_muted
-from zrb.util.git import get_repo_dir
-from zrb.util.git_subtree import add_subtree, load_config, pull_subtree, push_subtree
+from zrb.util.git.commands import get_repo_dir
+from zrb.util.git.subtree import add_subtree, load_config, pull_subtree, push_subtree
 
 
 @make_task(
@@ -33,7 +33,7 @@ from zrb.util.git_subtree import add_subtree, load_config, pull_subtree, push_su
     group=git_subtree_group,
     alias="add",
 )
-async def git_add_subtree(ctx: AnyContext):
+async def git_add_subtree(ctx: AnyContext) -> None:
     ctx.print(stylize_muted("Get directory"))
     repo_dir = await get_repo_dir(print_method=ctx.print)
     ctx.print(stylize_muted("Add subtree"))
@@ -54,12 +54,15 @@ async def git_add_subtree(ctx: AnyContext):
     group=git_subtree_group,
     alias="pull",
 )
-async def git_pull_subtree(ctx: AnyContext):
+async def git_pull_subtree(ctx: AnyContext) -> None:
     ctx.print(stylize_muted("Get directory"))
     repo_dir = await get_repo_dir(print_method=ctx.print)
     config = load_config(repo_dir)
     if not config.data:
-        raise ValueError("No subtree config found")
+        raise ValueError(
+            f"No subtrees.json in {repo_dir!r}. Run "
+            "`zrb git-subtree add` to register one before pulling/pushing it."
+        )
     first_err: Exception | None = None
     for name, detail in config.data.items():
         try:
@@ -86,12 +89,15 @@ async def git_pull_subtree(ctx: AnyContext):
     group=git_subtree_group,
     alias="push",
 )
-async def git_push_subtree(ctx: AnyContext):
+async def git_push_subtree(ctx: AnyContext) -> None:
     ctx.print(stylize_muted("Get directory"))
     repo_dir = await get_repo_dir(print_method=ctx.print)
     config = load_config(repo_dir)
     if not config.data:
-        raise ValueError("No subtree config found")
+        raise ValueError(
+            f"No subtrees.json in {repo_dir!r}. Run "
+            "`zrb git-subtree add` to register one before pulling/pushing it."
+        )
     first_err: Exception | None = None
     for name, detail in config.data.items():
         try:

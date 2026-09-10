@@ -1,15 +1,17 @@
 """Deterministic, content-only truncation for tool results.
 
 A global backstop applied in ``agent/common.py`` to every tool's model-facing
-``content`` string. Individual tools (``file_read``, ``bash``) already cap their
-own output via ``LLM_MAX_OUTPUT_CHARS``; this catches everything else (Grep,
-AnalyzeCode, web fetches, MCP toolsets) that was previously uncapped.
+output. Individual tools (``file_read``, ``shell``) already cap their own output
+via ``LLM_MAX_OUTPUT_CHARS``; this catches everything else (Grep, AnalyzeCode,
+web fetches, MCP toolsets).
 
-Only the ``content`` string is touched — never a tool's structured
-``return_value`` — so programmatic consumers are unaffected.
+The untruncated size survives in the ``ToolReturn`` metadata, which pydantic-ai
+never sends to the model (see ``agent/tool_result.py``).
 """
 
 from __future__ import annotations
+
+from typing import Any
 
 
 def _human_size(num_chars: int) -> str:
@@ -22,11 +24,13 @@ def _human_size(num_chars: int) -> str:
     return f"{kb / 1024:.1f} MB"
 
 
-def truncate_tool_content(content: str, *, limit: int | None) -> tuple[str, bool]:
+def truncate_tool_content(content: Any, *, limit: int | None) -> tuple[Any, bool]:
     """Return ``(possibly-truncated content, was_truncated)``.
 
     ``limit`` is the maximum number of characters in the model-facing string.
     ``None`` or ``<= 0`` disables truncation (content returned unchanged).
+
+    Non-string content is returned unchanged (never truncated).
 
     When truncation happens, the head and tail are preserved (tool output is
     usually informative at both ends — the invocation/echo and the final
@@ -47,6 +51,6 @@ def truncate_tool_content(content: str, *, limit: int | None) -> tuple[str, bool
         f"\n\n…[truncated: {_human_size(original_chars)} total across "
         f"~{total_lines} lines, kept first {head_len} and last {tail_len} "
         "characters. Re-read a narrower slice: Read with start_line/end_line, a "
-        "tighter Grep pattern, or pipe through head/tail in Bash.]…\n\n"
+        "tighter Grep pattern, or pipe through head/tail in Shell.]…\n\n"
     )
     return head + marker + tail, True

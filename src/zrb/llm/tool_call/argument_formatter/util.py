@@ -1,7 +1,6 @@
 import difflib
 import re
 import textwrap
-from typing import Any
 
 from zrb.util.cli.terminal import get_terminal_size
 
@@ -11,7 +10,6 @@ def format_diff(
     new_content: str,
     path: str,
     term_width: int | None = None,
-    ui: Any | None = None,
 ) -> str:
     """
     Returns a markdown-formatted diff string with line numbers.
@@ -24,7 +22,6 @@ def format_diff(
         new_content: New file content
         path: File path (for display purposes)
         term_width: Optional terminal width (if known)
-        ui: Deprecated, kept for backward compatibility — no longer used.
     """
     diff_lines = list(
         difflib.unified_diff(
@@ -40,7 +37,6 @@ def format_diff(
 
     formatted_lines = []
 
-    # Track line numbers
     old_lineno = 0
     new_lineno = 0
 
@@ -50,11 +46,9 @@ def format_diff(
     # Width for line numbers (e.g. 4)
     ln_width = 4
 
-    # Calculate available width for content
     # Marker (1) + Space (1) + LineNo (4) + Space (2) = 8 chars prefix
     prefix_len = 1 + 1 + ln_width + 2
 
-    # Use provided term_width or detect it
     if term_width is not None:
         calculated_width = term_width - prefix_len - 10
     else:
@@ -76,7 +70,6 @@ def format_diff(
 
     for line in diff_lines:
         if line.startswith("---") or line.startswith("+++"):
-            # Include file header lines as-is
             formatted_lines.append(line.rstrip("\n"))
             continue
 
@@ -87,7 +80,6 @@ def format_diff(
                 new_start = int(match.group(3))
                 old_lineno = old_start - 1
                 new_lineno = new_start - 1
-                # Add a separator line for hunks
                 formatted_lines.append(f"@@ -{old_start} +{new_start} @@")
             continue
 
@@ -124,7 +116,6 @@ def format_diff(
         # the original prefix.
         continuation_prefix = marker + " " * (len(prefix) - 1)
 
-        # Wrap the content while preserving indentation
         wrapped_lines = textwrap.wrap(
             raw_line,
             width=content_width,

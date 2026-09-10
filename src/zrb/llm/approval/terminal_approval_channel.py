@@ -1,24 +1,30 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.llm.approval.approval_channel import ApprovalContext, ApprovalResult
+from zrb.llm.approval.any_approval_channel import (
+    AnyApprovalChannel,
+    ApprovalContext,
+    ApprovalResult,
+)
 from zrb.llm.tool_call.edit_util import edit_content_via_editor
 from zrb.llm.tool_call.handler import ToolCallHandler
-from zrb.llm.tool_call.ui_protocol import UIProtocol
+
+if TYPE_CHECKING:
+    from zrb.llm.ui.any_ui import AnyUI
 
 
-class TerminalApprovalChannel:
+class TerminalApprovalChannel(AnyApprovalChannel):
     """Default approval channel using terminal input.
 
-    This wraps the existing UIProtocol.ask_user() pattern for backward
-    compatibility while conforming to the ApprovalChannel protocol.
+    This wraps the existing AnyUI.ask_user() pattern for backward
+    compatibility while conforming to the AnyApprovalChannel protocol.
     """
 
-    def __init__(self, ui: "UIProtocol"):
-        """Initialize with a UIProtocol instance.
+    def __init__(self, ui: "AnyUI"):
+        """Initialize with an AnyUI instance.
 
         Args:
             ui: The UI to use for terminal interaction.
@@ -37,47 +43,42 @@ class TerminalApprovalChannel:
             f"TerminalApprovalChannel context.tool_args: {context.tool_args}"
         )
 
-        # Format the approval message
-        # lazy: heavy third-party
-        from pydantic_ai import ToolCallPart
+        # lazy: zrb internal (heavy via transitive)
+        from zrb.llm.agent.types import ToolCallPart
 
-        # Create a mock ToolCallPart for formatting
         call = ToolCallPart(
             tool_name=context.tool_name,
             args=context.tool_args,
             tool_call_id=context.tool_call_id,
         )
 
-        # Use the UI's handler if available (has formatters), otherwise create new one.
-        # `tool_call_handler` is the public accessor on BaseUI/MultiUI.
-        ui_handler = getattr(self._ui, "tool_call_handler", None)
-        handler = ui_handler if ui_handler is not None else ToolCallHandler()
+        # Use the UI's handler when it has one (it carries the formatters and
+        # policies); `None` is the AnyUI contract's own "this UI has none".
+        handler = self._ui.tool_call_handler or ToolCallHandler()
 
-        # Use public method for approval message with custom instruction
         message = await handler.format_approval_message(self._ui, call)
         CFG.LOGGER.debug(
             "TerminalApprovalChannel Got confirmation message, about to display to user"
         )
-        self._ui.append_to_output(f"\n\n{message}", end="")
+        # One leading "\n", not two — see the matching note in
+        # `ToolCallHandler.handle`.
+        self._ui.append_to_output(f"\n{message}", end="")
 
         CFG.LOGGER.debug("TerminalApprovalChannel Waiting for user input via CLI...")
 
-        # Wait for user input
-        user_input = await self._ui.ask_user("")
+        user_input = await self._ui.ask_user("", output_to_parent=f"\n{message}")
         user_response = user_input.strip()
 
         CFG.LOGGER.debug(
             f"TerminalApprovalChannel Got user response: '{user_response}'"
         )
 
-        # Parse response
         r = user_response.lower().strip()
         if r in ("y", "yes", "ok", "accept", "✅", ""):
             return ApprovalResult(approved=True)
         if r in ("n", "no", "deny", "cancel", "🛑"):
             return ApprovalResult(approved=False, message="User denied")
 
-        # Handle edit mode - use response handler chain if available
         if r in ("e", "edit"):
             # Use the UI's response handlers (e.g., replace_in_file_response_handler)
             # which shows diff and handles editing properly
@@ -100,10 +101,9 @@ class TerminalApprovalChannel:
         response: str,
     ) -> ApprovalResult | None:
         """Handle edit via response handler chain (like ToolCallHandler does)."""
-        # lazy: heavy third-party
-        from pydantic_ai import ToolApproved, ToolDenied
+        # lazy: zrb internal (heavy via transitive)
+        from zrb.llm.agent.types import ToolApproved, ToolDenied
 
-        # Use public getter for response handlers
         response_handlers = handler.get_response_handlers()
 
         async def next_handler(
@@ -113,7 +113,6 @@ class TerminalApprovalChannel:
             index: int,
         ) -> Any:
             if index >= len(response_handlers):
-                # Default behavior - deny
                 return ToolDenied("Edit not handled")
             resp_handler = response_handlers[index]
             return await resp_handler(
@@ -132,12 +131,13 @@ class TerminalApprovalChannel:
         """Handle edit mode - open editor for new arguments."""
         current_args = context.tool_args or {}
 
-        # Show current args
+        # Two-space indent, matching every other mid-turn status line printed
+        # outside `StreamEventHandler` (see `web.py::_notify`) — without it
+        # these land at column 0.
         args_str = json.dumps(current_args, indent=2, default=str)
-        self._ui.append_to_output(f"\n📝 Current arguments:\n```\n{args_str}\n```\n")
-        self._ui.append_to_output("Opening editor...\n")
+        self._ui.append_to_output(f"\n  📝 Current arguments:\n```\n{args_str}\n```\n")
+        self._ui.append_to_output("  Opening editor...\n")
 
-        # Open editor via shared utility
         new_args = await edit_content_via_editor(self._ui, current_args)
 
         if new_args is None:
@@ -146,10 +146,10 @@ class TerminalApprovalChannel:
             )
 
         if new_args == current_args:
-            self._ui.append_to_output("ℹ️ No changes made, approving original.\n")
+            self._ui.append_to_output("  ℹ️ No changes made, approving original.\n")
             return ApprovalResult(approved=True)
 
-        self._ui.append_to_output("✅ Approved with edited arguments.\n")
+        self._ui.append_to_output("  ✅ Approved with edited arguments.\n")
         return ApprovalResult(approved=True, override_args=new_args)
 
     async def notify(
@@ -158,4 +158,4 @@ class TerminalApprovalChannel:
         context: ApprovalContext | None = None,
     ) -> None:
         """Display notification to terminal."""
-        self._ui.append_to_output(message)
+        self._ui.append_to_output(f"  {message}")

@@ -16,7 +16,7 @@ PLAIN = ["bash", "-c", "echo hi"]
 
 
 def _call(policy, skip=False):
-    return build_sandboxed_argv("bash", "-c", "echo hi", "", policy, skip=skip)
+    return build_sandboxed_argv(PLAIN, "", policy, skip=skip)
 
 
 def _patch_platform(monkeypatch, system):

@@ -77,16 +77,18 @@ reload() {
         export LDFLAGS="$_OLD_LDFLAGS"
     fi
 
-    case $(ps -p $$ | awk 'NR==2 {print $4}') in
-    *zsh)
-        log_info "Setting up shell completion for zsh"
-        source <(zrb shell autocomplete zsh)
-        ;;
-    *bash)
-        log_info "Setting up shell completion for bash"
-        source <(zrb shell autocomplete bash)
-        ;;
-    esac
+    if command -v ps >/dev/null 2>&1; then
+        case $(ps -p $$ | awk 'NR==2 {print $4}') in
+        *zsh)
+            log_info "Setting up shell completion for zsh"
+            source <(zrb shell autocomplete zsh)
+            ;;
+        *bash)
+            log_info "Setting up shell completion for bash"
+            source <(zrb shell autocomplete bash)
+            ;;
+        esac
+    fi
 }
 
 init

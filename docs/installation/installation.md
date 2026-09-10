@@ -6,6 +6,21 @@ Getting Zrb set up is straightforward, but it offers a few powerful options depe
 
 ---
 
+## Table of Contents
+
+- [🚀 Quick Start](#quick-start)
+- [Which Method Should I Choose?](#which-method-should-i-choose)
+- [1. Standard Installation Methods](#1-standard-installation-methods)
+- [2. Advanced Installation Methods](#2-advanced-installation-methods)
+- [3. Verify Installation](#3-verify-installation)
+- [4. Shell Autocomplete](#4-shell-autocomplete)
+- [5. Upgrade Zrb](#5-upgrade-zrb)
+- [6. Uninstall Zrb](#6-uninstall-zrb)
+- [7. Troubleshooting](#7-troubleshooting)
+- [8. General Configuration](#8-general-configuration)
+
+---
+
 ## 🚀 Quick Start
 
 **Already have Python installed? Get started in seconds:**
@@ -106,6 +121,23 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/mai
 bash install.sh
 ```
 
+**Flags:**
+
+| Flag | Effect |
+|------|--------|
+| `-y`, `--yes` | Answer yes to every prompt (non-interactive) |
+| `--pre` | Install the latest pre-release instead of the latest stable |
+
+Piping from GitHub needs a `--` separator so the flags reach the script rather
+than `bash` itself:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)" -- --pre
+```
+
+`--pre` is passed through to pip as `--pip-args='--pre'`, which pipx stores in its
+metadata — so a later `pipx upgrade zrb` keeps tracking pre-releases without the flag.
+
 <details>
 <summary>📜 Script Functions Reference</summary>
 
@@ -121,7 +153,7 @@ The script includes these helper functions:
 | `install_pyenv` | Install pyenv via `curl https://pyenv.run \| bash` |
 | `install_python_on_pyenv` | Install Python 3.13.0 and set as global |
 | `install_pyenv_dependencies` | Install pyenv build dependencies |
-| `pipx_install_zrb` | Install Zrb via `pipx install --python ... zrb` |
+| `pipx_install_zrb` | Install Zrb via `pipx install --python ... zrb` (adds `--pip-args='--pre'` when `--pre` is given) |
 | `register_autocomplete` | Register shell autocomplete |
 
 </details>
@@ -160,6 +192,9 @@ powershell -ExecutionPolicy Bypass -Command "iex ([System.Text.Encoding]::UTF8.G
 powershell -ExecutionPolicy Bypass -File install.ps1
 ```
 
+**Flags:** `-Yes` answers yes to every prompt; `-Pre` installs the latest
+pre-release instead of the latest stable.
+
 <details>
 <summary>📝 Manual Windows Installation</summary>
 
@@ -193,7 +228,7 @@ Zrb provides container images for sandboxed, reproducible, and portable executio
 **Standard Image** (general-purpose automation):
 
 ```bash
-docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:2.48.1 zrb
+docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:3.0.0 zrb
 ```
 
 **DIND (Docker-in-Docker) Image** (for tasks that need Docker commands):
@@ -202,7 +237,7 @@ docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:2.48.1 zrb
 docker run \
     -v ${HOME}:/zrb-home \
     -v /var/run/docker.sock:/var/run/docker.sock \
-    -it --rm stalchmst/zrb:2.48.1-dind docker ps
+    -it --rm stalchmst/zrb:3.0.0-dind docker ps
 ```
 
 <details>
@@ -215,18 +250,18 @@ docker run \
 | `--rm` | Remove container on exit |
 | `-v /var/run/docker.sock:...` | Enable Docker-in-Docker functionality |
 
-> 💡 **Tip:** Always pin to a specific version (e.g., `2.48.1`) for reproducibility.
+> 💡 **Tip:** Always pin to a specific version (e.g., `3.0.0`) for reproducibility.
 
 </details>
 
 > ⚠️ **Apple Silicon:** Use `--platform linux/amd64` if you encounter architecture issues:
 > ```bash
-> docker run --platform linux/amd64 -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:2.48.1 zrb
+> docker run --platform linux/amd64 -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:3.0.0 zrb
 > ```
 
 ### Running Zrb on Android (via Termux and Proot)
 
-You can run Zrb on your Android device using Termux (a terminal emulator and Linux environment) and Proot (a chroot-like environment). This turns your phone into a portable automation powerhouse.
+You can run Zrb on your Android device using Termux (a terminal emulator and Linux environment) and Proot (a chroot-like environment). This turns your phone into a portable coding agent.
 
 **Prerequisites:**
 -   An Android device with an internet connection
@@ -265,6 +300,8 @@ zrb version
 -   Exit Ubuntu: `exit`
 -   Exit Termux: `exit` again
 
+> 💡 **`/photo` in `zrb llm chat`:** the camera-capture command needs the Termux-API package **and** the Termux:API app — install both to use it, whether you're running zrb from native Termux or from inside this `proot-distro` Ubuntu setup. See [Troubleshooting: Voice & Photo](../llm/llm-integration.md#troubleshooting-voice--photo).
+
 > ⚠️ **Note:** Docker is challenging on Android due to kernel limitations. Proot Linux distributions have better software compatibility than bare Termux.
 
 </details>
@@ -283,8 +320,10 @@ zrb version
 zrb --help
 
 # Quick test - create a simple task
-echo 'from zrb import cli, CmdTask
-cli.add_task(CmdTask(name="hello", cmd="echo Hello from Zrb!"))' > zrb_init.py
+cat > zrb_init.py <<'EOF'
+from zrb import cli, CmdTask
+cli.add_task(CmdTask(name="hello", cmd="echo 'Hello from Zrb!'"))
+EOF
 
 # Run the task
 zrb hello
@@ -299,7 +338,7 @@ Hello from Zrb!
 
 ## 4. Shell Autocomplete
 
-Zrb supports tab completion for Bash, Zsh, and PowerShell.
+Zrb supports tab completion for Bash, Zsh, Fish, and PowerShell.
 
 ### Bash
 
@@ -320,6 +359,16 @@ eval "$(zrb shell autocomplete zsh)"
 ```
 
 Then reload: `source ~/.zshrc`
+
+### Fish
+
+Add to `~/.config/fish/config.fish`:
+
+```fish
+zrb shell autocomplete fish | source
+```
+
+Then reload: `source ~/.config/fish/config.fish`
 
 ### PowerShell
 
@@ -354,7 +403,7 @@ PIP_PRE=1 pipx upgrade zrb
 
 Pull the latest image:
 ```bash
-docker pull stalchmst/zrb:2.48.1
+docker pull stalchmst/zrb:3.0.0
 # Or for latest:
 docker pull stalchmst/zrb:latest
 ```

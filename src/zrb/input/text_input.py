@@ -14,7 +14,6 @@ class TextInput(BaseInput):
         description: str | None = None,
         prompt: str | None = None,
         default: str | Callable[[AnySharedContext], str] = "",
-        auto_render: bool = True,
         allow_empty: bool = False,
         allow_positional_parsing: bool = True,
         always_prompt: bool = True,
@@ -23,12 +22,25 @@ class TextInput(BaseInput):
         comment_start: str | None = None,
         comment_end: str | None = None,
     ):
+        """Define a multi-line input, edited in the user's editor.
+
+        Args:
+            editor: Editor command to open. Defaults to `CFG.EDITOR`; when
+                neither is set the value is prompted for inline.
+            extension: Suffix of the temporary file, which drives editor syntax
+                highlighting and the inferred comment markers.
+            comment_start: Opening comment marker for the instruction banner.
+                Inferred from `extension` when omitted.
+            comment_end: Closing comment marker. Inferred from `extension` when
+                omitted, and empty for line-comment syntaxes.
+
+        Every other parameter is `BaseInput`'s and behaves identically.
+        """
         super().__init__(
             name=name,
             description=description,
             prompt=prompt,
             default=default,
-            auto_render=auto_render,
             allow_empty=allow_empty,
             allow_positional_parsing=allow_positional_parsing,
             always_prompt=always_prompt,
@@ -40,6 +52,11 @@ class TextInput(BaseInput):
 
     @property
     def comment_start(self) -> str:
+        """Opening comment marker for the instruction banner in the editor.
+
+        Inferred from the file extension (`# `, `<!-- `, or `//`) unless one was
+        passed explicitly.
+        """
         if self._comment_start is not None:
             return self._comment_start
         if self._extension.lower() in [".py", ".rb", ".sh"]:
@@ -50,6 +67,7 @@ class TextInput(BaseInput):
 
     @property
     def comment_end(self) -> str:
+        """Closing comment marker, empty for line-comment syntaxes."""
         if self._comment_end is not None:
             return self._comment_end
         if self._extension.lower() in [".md", ".html"]:
@@ -58,6 +76,11 @@ class TextInput(BaseInput):
 
     @property
     def editor_cmd(self) -> str | None:
+        """Editor to open for this input, falling back to `CFG.EDITOR`.
+
+        None when neither is set, in which case the value is prompted for
+        inline instead of in an editor.
+        """
         if self._editor is not None:
             return self._editor
         if CFG.EDITOR != "":

@@ -227,90 +227,7 @@ class TestEventDrivenUI:
                 pass
 
         ui = TestEventUI(**event_ui_deps)
-        ui._llm_task = MagicMock()
-
-        # Verify handle_incoming_message exists and is callable
-        assert hasattr(ui, "handle_incoming_message")
-        assert callable(ui.handle_incoming_message)
-
-
-class TestPollingUI:
-    """Tests for PollingUI class."""
-
-    @pytest.fixture
-    def polling_ui_deps(self):
-        """Create mock dependencies for PollingUI."""
-        from zrb.context.shared_context import SharedContext
-        from zrb.llm.ui import UIConfig
-
-        return {
-            "ctx": SharedContext(),
-            "llm_task": MagicMock(),
-            "history_manager": MagicMock(),
-            "config": UIConfig.default(),
-        }
-
-    def test_polling_ui_creates_output_queue(self, polling_ui_deps):
-        """Test PollingUI creates output queue."""
-        from zrb.llm.ui import PollingUI
-
-        class TestPollingUI(PollingUI):
-            pass
-
-        ui = TestPollingUI(**polling_ui_deps)
-
-        # Verify UI was created successfully
-        assert ui is not None
-
-    @pytest.mark.asyncio
-    async def test_polling_ui_print_queues_output(self, polling_ui_deps):
-        """Test PollingUI.print queues output."""
-        from zrb.llm.ui import PollingUI
-
-        class TestPollingUI(PollingUI):
-            pass
-
-        ui = TestPollingUI(**polling_ui_deps)
-
-        await ui.print("test output")
-
-        result = ui.output_queue.get_nowait()
-        assert result == "test output"
-
-    def test_polling_ui_get_input_blocks(self, polling_ui_deps):
-        """Test PollingUI creates input queue."""
-        from zrb.llm.ui import PollingUI
-
-        class TestPollingUI(PollingUI):
-            pass
-
-        ui = TestPollingUI(**polling_ui_deps)
-
-        # Verify UI was created successfully
-        assert ui is not None
-
-    def test_polling_ui_handle_incoming_queues_when_waiting(self, polling_ui_deps):
-        """Test handle_incoming_message queues when waiting for input."""
-        from zrb.llm.ui import PollingUI
-
-        class TestPollingUI(PollingUI):
-            pass
-
-        ui = TestPollingUI(**polling_ui_deps)
-
-        # Verify handle_incoming_message exists and is callable
-        assert hasattr(ui, "handle_incoming_message")
-        assert callable(ui.handle_incoming_message)
-
-    def test_polling_ui_handle_incoming_submits_when_idle(self, polling_ui_deps):
-        """Test handle_incoming_message submits when LLM is idle."""
-        from zrb.llm.ui import PollingUI
-
-        class TestPollingUI(PollingUI):
-            pass
-
-        ui = TestPollingUI(**polling_ui_deps)
-        ui._llm_task = MagicMock()
+        ui.llm_task = MagicMock()
 
         # Verify handle_incoming_message exists and is callable
         assert hasattr(ui, "handle_incoming_message")
@@ -434,8 +351,6 @@ class TestBufferedOutputMixin:
     @pytest.mark.asyncio
     async def test_start_flush_loop_creates_task(self):
         """Test start_flush_loop creates a flush task."""
-        import asyncio
-
         from zrb.llm.ui import BufferedOutputMixin
 
         class TestBuffered(BufferedOutputMixin):
@@ -450,9 +365,5 @@ class TestBufferedOutputMixin:
         # Use public property
         assert buffered.has_flush_task
 
-        # Clean up - use internal for cancellation (test cleanup is OK)
-        buffered._flush_task.cancel()
-        try:
-            await buffered._flush_task
-        except asyncio.CancelledError:
-            pass
+        # Clean up via the public method
+        await buffered.stop_flush_loop()

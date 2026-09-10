@@ -12,7 +12,6 @@ from zrb.task.make_task import make_task
     alias="encode",
 )
 def encode_hex(ctx: AnyContext) -> str:
-
     result = ctx.input.text.encode().hex()
     ctx.print(result)
     return result
@@ -60,7 +59,6 @@ def decode_hex(ctx: AnyContext) -> str:
     alias="dump",
 )
 def dump_hex(ctx: AnyContext) -> str:
-
     data = ctx.input.text.encode()
     lines = []
     for offset in range(0, len(data), 16):

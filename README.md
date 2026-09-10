@@ -1,22 +1,26 @@
 ![Zrb Logo](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb/android-chrome-192x192.png)
 
-# 🤖 Zrb: Your Automation Powerhouse
+# 🤖 Zrb: A Coding Agent With a Build System Inside
 
-**Zrb (Zaruba) is a Python-based tool that makes it easy to create, organize, and run automation tasks.** Think of it as a command-line sidekick, ready to handle everything from simple scripts to complex, AI-powered workflows.
+**Zrb is a terminal coding agent you can wire into a build pipeline.**
 
-Whether you're running tasks from the terminal or a sleek web UI, Zrb streamlines your process with task dependencies, environment management, and even inter-task communication.
+The agent part you already know: `zrb llm chat` is a full coding session in your terminal.
 
-[Contribution Guidelines](https://github.com/state-alchemists/zrb/pulls) | [Report an Issue](https://github.com/state-alchemists/zrb/issues)
+The other half is why Zrb exists. A skill can *tell* an agent to run the tests before deploying; a DAG makes it impossible not to. Zrb ships both — same file, same language, one `pip install`.
+
+[Contribution Guidelines](CONTRIBUTING.md) | [Report an Issue](https://github.com/state-alchemists/zrb/issues)
 
 ---
 
 ## 📑 Table of Contents
 
-- [🔥 Why Choose Zrb?](#-why-choose-zrb)
-- [🚀 Quickstart Part 1: Your First Basic Pipeline](#-quickstart-part-1-your-first-basic-pipeline-in--2-minutes)
-- [🚀 Quickstart Part 2: AI-Powered Workflow](#-quickstart-part-2-your-first-ai-powered-workflow-in--5-minutes)
+- 🏁 Getting Started
+  - [1. Start where you'd start with any coding agent](#1-start-where-youd-start-with-any-coding-agent)
+  - [2. Then you hit the thing prompting can't fix](#2-then-you-hit-the-thing-prompting-cant-fix)
+  - [3. And sometimes you just want the one command](#3-and-sometimes-you-just-want-the-one-command)
+  - [4. A fuller example: let the agent draw your codebase](#4-a-fuller-example-let-the-agent-draw-your-codebase)
+- [🔥 Why Zrb?](#-why-zrb)
 - [🖥️ Try the Web UI](#️-try-the-web-ui)
-- [💬 Interact with an LLM Directly](#-interact-with-an-llm-directly)
 - [🧩 Program Your AI Agent](#-program-your-ai-agent)
 - [⚙️ Installation & Configuration](#️-installation--configuration)
 - [🤝 CI/CD Integration](#-cicd-integration)
@@ -27,85 +31,84 @@ Whether you're running tasks from the terminal or a sleek web UI, Zrb streamline
 
 ---
 
-## 🔥 Why Choose Zrb?
+## 1. Start where you'd start with any coding agent
 
-Zrb is designed to be powerful yet intuitive, offering a unique blend of features:
+```bash
+pip install zrb
+export OPENAI_API_KEY="your-key-here"   # or Anthropic, Gemini, Ollama, OpenRouter, ...
 
--   🤖 **A Coding Agent You Program in Python:** Zrb ships a turnkey AI coding assistant (`zrb llm chat`), but its behavior is yours to shape in pure Python — custom tools, lifecycle hooks, dynamic prompts, permission policies, and history processors are all just code. And the agent drops straight into your task pipelines as a first-class node.
--   🐍 **Pure Python:** Write your tasks in Python. No complex DSLs or YAML configurations to learn.
--   🔗 **Smart Task Chaining:** Define dependencies between tasks to build sophisticated, ordered workflows.
--   💻 **Dual-Mode Execution:** Run tasks from the command line for speed or use the built-in web UI for a more visual experience.
--   ⚙️ **Flexible Configuration:** Manage inputs with defaults, prompts, or command-line arguments. Handle secrets and settings with environment variables from the system or `.env` files.
--   🗣️ **Cross-Communication (XCom):** Allow tasks to safely exchange small pieces of data.
--   🌍 **Open & Extensible:** Zrb is open-source. Feel free to contribute, customize, or extend it to meet your needs.
+zrb llm chat
+```
+
+That's a full agent session: it reads and writes files, runs commands behind a permission gate, searches the web, and remembers the conversation across restarts. If you already have `.claude/skills/` or `CLAUDE.md` in the repo, it picks them up.
+
+![Zrb Chat](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb-chat.png)
+
+For most days, this is the whole product. Stop reading here if that's what you came for.
 
 ---
 
-## 🚀 Quickstart Part 1: Your First Basic Pipeline in < 2 Minutes
+## 2. Then you hit the thing prompting can't fix
 
-Let's start with the absolute basics: defining simple units of work and chaining them together. You only need Python installed.
+You write a skill: *"always run the tests before deploying."* It works. Usually.
 
-### 1. Define Your Tasks
-Create a file named `zrb_init.py` in your project directory (or your home directory for global access!).
+Then one run the model decides the tests are unrelated to the change. Another run it runs them, misreads a green summary under a red failure, and deploys anyway. A third run it deploys to staging because the prompt didn't say which environment. Nothing crashed — the agent did what it thought you meant, and you find out on Monday.
+
+The problem isn't prompt quality. It's that a skill is **advice**, and some steps need to be a **guarantee**. So write those as a graph instead:
 
 ```python
 # zrb_init.py
-from zrb import cli, CmdTask, Task
+from zrb import cli, CmdTask, LLMTask
 
-# 1. Define tasks.
-# CmdTask is perfect for running shell commands.
-prepare_env = CmdTask(
-    name="prepare-env", 
-    cmd="echo 'Environment prepared!'"
+write_fix = LLMTask(
+    name="write-fix",
+    message="Read the failing test output and fix the bug in src/.",
 )
+run_tests = CmdTask(name="run-tests", cmd="pytest -x")
+deploy = CmdTask(name="deploy", cmd="./deploy.sh production")
 
-# Task is for pure Python logic.
-build_app = Task(
-    name="build-app",
-    action=lambda ctx: ctx.print("Building application in pure Python...")
-)
+cli.add_task(deploy)
 
-deploy_app = CmdTask(
-    name="deploy-app", 
-    cmd="echo 'Deploying app to the cloud ☁️'"
-)
-
-# 2. Register tasks to the main 'cli' object so Zrb knows about them
-cli.add_task(prepare_env)
-cli.add_task(build_app)
-cli.add_task(deploy_app)
-
-# 3. Define the execution order (The Directed Acyclic Graph - DAG)
-# prepare-env runs first, then build-app, then deploy-app
-prepare_env >> build_app >> deploy_app
+write_fix >> run_tests >> deploy   # the agent proposes; the pipeline decides
 ```
-
-### 2. Run Your First Pipeline!
-
-Now, open your terminal and run:
 
 ```bash
-zrb deploy-app
+zrb deploy
 ```
 
-Zrb will see that `deploy-app` depends on `build-app`, which depends on `prepare-env`. It will automatically run them in the correct sequential order:
+`run-tests` is not a suggestion the model can reason its way around. It is an edge in a graph. If `pytest` exits non-zero, `deploy` never starts, and `zrb deploy` exits with `pytest`'s own exit code — which is what your CI actually branches on.
 
-```
-[prepare-env] Environment prepared!
-[build-app] Building application in pure Python...
-[build-app] Build complete.
-[deploy-app] Deploying app to the cloud ☁️
-```
+This is the part no amount of prompt engineering reaches, and it's why the agent lives inside an automation framework instead of the other way around:
 
-Congratulations! You've just built and run your first Zrb automation pipeline.
+- **The agent is one node, not the administrator.** Its answer flows downstream through [XCom](docs/core-concepts/session-and-context.md) and gets checked by the next step.
+- **Readiness is a loop, not a request.** `HttpCheck`/`TcpCheck` wait for a service to actually come up. "Wait until it's ready" is not a prompt-able behavior.
+- **Failure is a number.** Tasks exit with the underlying command's code, so CI can tell a lint failure from a deploy failure.
+- **Scheduled and triggered runs have no one to ask.** At 3am there is nobody to approve a tool call, so the boundaries have to be structural.
 
 ---
 
-## 🚀 Quickstart Part 2: Your First AI-Powered Workflow in < 5 Minutes
+## 3. And sometimes you just want the one command
 
-Now that you understand the basics, let's unleash Zrb's full power. This example uses an LLM to analyze your code and generate a Mermaid diagram, then converts that diagram into a PNG image.
+No session, no pipeline, no config:
 
-### 1. Prerequisites
+```bash
+zrb please "find every file over 100MB in this repo"
+```
+
+```
+find . -type f -size +100M
+📋 Copied to clipboard
+```
+
+It runs on the small model, answers in a couple of seconds, and puts the result on your clipboard instead of running it. Same install, same API key, none of the ceremony.
+
+---
+
+## 4. A fuller example: let the agent draw your codebase
+
+Same shape as section 2, with a real payoff: an `LLMTask` reads your source and writes a Mermaid diagram, then a `CmdTask` renders it to PNG. The agent does the part that needs judgment; the shell does the part that needs to be exact.
+
+### Prerequisites
 -   **An LLM API Key:** Zrb needs an API key to talk to an AI model (OpenAI is default, but others are supported).
     ```bash
     export OPENAI_API_KEY="your-key-here"
@@ -115,12 +118,12 @@ Now that you understand the basics, let's unleash Zrb's full power. This example
     npm install -g @mermaid-js/mermaid-cli
     ```
 
-### 2. Update Your `zrb_init.py`
+### Define the pipeline
 Add the following to your existing `zrb_init.py` file (or create a new one if you prefer to keep examples separate):
 
 ```python
 # zrb_init.py (continued)
-from zrb import cli, LLMTask, CmdTask, StrInput, Group
+from zrb import cli, LLMTask, CmdTask, StrInput, Group, Tpl
 from zrb.llm.tool.code import analyze_code
 from zrb.llm.tool.file import write_file
 
@@ -157,8 +160,8 @@ make_mermaid_image = mermaid_group.add_task(
             StrInput(name="dir", default="./"),
             StrInput(name="diagram", default="state-diagram"),
         ],
-        cmd="mmdc -i '{ctx.input.diagram}.mmd' -o '{ctx.input.diagram}.png'",
-        cwd="{ctx.input.dir}",
+        cmd=Tpl("mmdc -i '{ctx.input.diagram}.mmd' -o '{ctx.input.diagram}.png'"),
+        cwd=Tpl("{ctx.input.dir}"),
     )
 )
 
@@ -166,7 +169,7 @@ make_mermaid_image = mermaid_group.add_task(
 make_mermaid_script >> make_mermaid_image
 ```
 
-### 3. Run Your AI-Powered Workflow!
+### Run it
 
 Navigate to any project with source code (e.g., a Python project). For instance, if you've cloned a repository:
 
@@ -185,6 +188,15 @@ Zrb will interactively ask for the directory and diagram name. Just press **Ente
 
 ![State Diagram](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/state-diagram.png)
 
+## 🔥 Why Zrb?
+
+- 🤖 **A coding agent you program in Python.** Tools, hooks, prompts, permission policies and history processors are plain Python in your `zrb_init.py` — not a config format, not a separate SDK.
+- 🔒 **Determinism where it matters.** Put the model between deterministic steps and keep approvals, sandboxing and ordering under your control instead of the model's judgment.
+- 🐍 **Pure Python, no DSL.** Tasks are objects; `>>` is the dependency operator.
+- 💻 **Terminal, web UI, or CI.** The same task definition runs in all three.
+- 🧩 **Bring your Claude Code assets.** Skills, hooks and MCP servers work as-is.
+- 🌍 **Open source, and white-labelable** into your own branded CLI.
+
 ---
 
 ## 🖥️ Try the Web UI
@@ -195,25 +207,11 @@ Prefer a graphical interface? Zrb has you covered. Explore the full details in t
 zrb server start
 ```
 
-Then open your browser to `http://localhost:21213` to see your tasks in a clean, user-friendly interface.
+By default, the server binds to `127.0.0.1`, so the UI is reachable only from the local machine. Then open your browser to `http://localhost:21213` to see your tasks in a clean, user-friendly interface.
+
+> **Safety boundary:** Zrb's web UI can start and control automation tasks, so it is not intended to be exposed publicly without deliberate hardening. If you set `ZRB_WEB_HTTP_HOST` to a non-loopback address, enable authentication and replace the documented default admin password and secret key with unique values. Startup warnings call out unsafe network-exposed configurations; see the [Web UI Guide](docs/advanced-topics/web-ui.md) before using a shared or public bind.
 
 ![Zrb Web UI](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb-web-ui.png)
-
----
-
-## 💬 Interact with an LLM Directly
-
-Zrb brings AI capabilities right to your command line. For full details on configuring and using the AI assistant, see the [LLM Integration Guide](docs/advanced-topics/llm-integration.md).
-
-### Interactive Chat
-
-Start a chat session with an LLM to ask questions, brainstorm ideas, or get coding help.
-
-```bash
-zrb llm chat
-```
-
-![Zrb Chat](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb-chat.png)
 
 ---
 
@@ -254,7 +252,7 @@ Because an `LLMTask` is just a Zrb task, you can wire it between deterministic s
 fetch_ticket >> triage_with_llm >> route_to_team
 ```
 
-👉 Full walkthrough and every hook in one place: **[Programming the Agent](docs/advanced-topics/programming-the-agent.md)**. Runnable example: **[`examples/agent-in-pipeline`](examples/agent-in-pipeline)**.
+👉 Full walkthrough and every hook in one place: **[Programming the Agent](docs/llm/programming-the-agent.md)**. Runnable example: **[`examples/agent-in-pipeline`](examples/agent-in-pipeline)**.
 
 ---
 
@@ -276,19 +274,46 @@ Integrate Zrb into your Continuous Integration/Continuous Deployment pipelines f
 
 ## 🗺️ Documentation Directory
 
-Zrb scales from simple scripts to massive automation ecosystems. Explore the documentation to unlock its full potential:
+Zrb scales from a one-line `zrb please` to a hundred-node pipeline with an agent in the middle.
 
-### I. Core Concepts
+> **Here for the agent?** [Programming the Agent](docs/llm/programming-the-agent.md) → [Extending the LLM](docs/llm/extending-the-llm.md) → [Permission Policy](docs/llm/permission-policy.md).
+>
+> **Here to write pipelines?** [Tasks & Execution Lifecycle](docs/core-concepts/tasks-and-lifecycle.md) → [CLI and Groups](docs/core-concepts/cli-and-groups.md) → [Inputs](docs/core-concepts/inputs.md).
+>
+> Prefer copy-pasting a working example? See [`examples/`](examples/README.md).
+>
+> `docs/adr/` and `docs/technical-specs/` are maintainer-facing design history, not part of the reading path below.
+
+### I. The Agent
+Shaping `zrb llm chat` and the LLM task types.
+- [Choosing Between Agent Harnesses](docs/llm/harness-comparison.md) — zrb `llm chat` vs Claude Code, opencode, DeepSeek Harness, and Pi: when each is the right tool
+- [Programming the Agent](docs/llm/programming-the-agent.md) — the overview: every way to shape agent behavior in Python (tools, hooks, dynamic prompts, history processors, agent-as-pipeline-node)
+- [Programming the Prompt](docs/llm/programming-the-prompt.md) — the ladder from a plain-string `message` up to a composed `PromptManager`; feeding a `CmdTask`'s output into `LLMTask`/`LLMChatTask`
+- [LLM Assistant & AI Tasks](docs/llm/llm-integration.md) — interactive chat, `LLMTask`/`LLMChatTask` usage, troubleshooting
+- [Extending the LLM](docs/llm/extending-the-llm.md) — built-in tools, custom tools, sub-agents, model capabilities, context management
+- [Custom UI](docs/llm/llm-custom-ui.md) — build a TUI, web/SSE, or chat-bot front end for `LLMChatTask`
+- [Permission Policy System](docs/llm/permission-policy.md) — fine-grained tool control & security gates
+- [Sandbox](docs/llm/sandbox.md) — filesystem containment for LLM tool calls
+- [Plan Mode](docs/llm/plan-mode.md) — read-only discovery & strategy phase
+- [LLMChatTask API Reference](docs/task-types/llmchat-task.md) — builder API, TUI configuration
+- [LLM Chat Request Lifecycle](docs/llm/llm-chat-lifecycle.md) — end-to-end tour: CLI → agent run → UI → history persistence
+- [Hook System (Claude Code Compatible)](docs/llm/hooks.md)
+- [MCP Support (Model Context Protocol)](docs/llm/mcp-support.md)
+- [LSP Support (Language Server Protocol)](docs/llm/lsp-support.md)
+- [Technical Spec: LLM Journal System](docs/technical-specs/llm-context.md)
+- [Claude Code Compatibility](docs/llm/claude-compatibility.md)
+
+### II. Core Concepts
 The foundational pillars of the framework.
 - [Tasks & Execution Lifecycle](docs/core-concepts/tasks-and-lifecycle.md)
 - [CLI and Groups](docs/core-concepts/cli-and-groups.md)
 - [Inputs](docs/core-concepts/inputs.md)
 - [Environments (Envs)](docs/core-concepts/environments.md)
 - [Session, Context & XCom](docs/core-concepts/session-and-context.md)
-- [The `@make_task` Decorator](docs/core-concepts/make-task.md) — full parameter reference
-- [XCom Deep Dive](docs/core-concepts/xcom-deep-dive.md) — advanced patterns & pitfalls
+- [The `@make_task` Decorator](docs/core-concepts/make-task.md) — (advanced) full parameter reference
+- [XCom Deep Dive](docs/core-concepts/xcom-deep-dive.md) — (advanced) patterns & pitfalls
 
-### II. Task Types
+### III. Task Types
 All task types available in Zrb, from basic to advanced.
 - [Task & CmdTask](docs/task-types/basic-tasks.md) — Python actions and shell commands
 - [Custom Tasks](docs/task-types/custom-tasks.md) — subclassing `BaseTask` with async patterns
@@ -297,35 +322,30 @@ All task types available in Zrb, from basic to advanced.
 - [File Ops: Scaffolder & RsyncTask](docs/task-types/file-ops.md)
 - [Built-in Helper Tasks](docs/task-types/builtin-helpers.md) (Git, Base64, UUID, HTTP, etc.)
 
-### III. LLM & AI Integration
-- [Programming the Agent](docs/advanced-topics/programming-the-agent.md) — the overview: every way to shape agent behavior in Python (tools, hooks, dynamic prompts, history processors, agent-as-pipeline-node)
-- [Programming the Prompt](docs/advanced-topics/programming-the-prompt.md) — the ladder from a plain-string `message` up to a composed `PromptManager`; feeding a `CmdTask`'s output into `LLMTask`/`LLMChatTask`
-- [LLM Assistant & AI Tasks](docs/advanced-topics/llm-integration.md) — `LLMTask`, tools, sub-agents, context management
-- [Permission Policy System](docs/advanced-topics/permission-policy.md) — fine-grained tool control & security gates
-- [Plan Mode](docs/advanced-topics/plan-mode.md) — read-only discovery & strategy phase
-- [LLMChatTask API Reference](docs/task-types/llmchat-task.md) — builder API, TUI configuration
-- [LLM Chat Request Lifecycle](docs/advanced-topics/llm-chat-lifecycle.md) — end-to-end tour: CLI → agent run → UI → history persistence
-- [Hook System (Claude Code Compatible)](docs/advanced-topics/hooks.md)
-- [MCP Support (Model Context Protocol)](docs/advanced-topics/mcp-support.md)
-- [LSP Support (Language Server Protocol)](docs/advanced-topics/lsp-support.md)
-- [Technical Spec: LLM Journal System](docs/technical-specs/llm-context.md)
-- [Claude Code Compatibility](docs/advanced-topics/claude-compatibility.md)
-
 ### IV. Advanced Topics
-- [Architecture & Conventions](docs/advanced-topics/architecture.md) — for maintainers and contributors
 - [Web UI Guide](docs/advanced-topics/web-ui.md)
 - [White-labeling: Create a Custom CLI](docs/advanced-topics/white-labeling.md)
 - [CI/CD Integration](docs/advanced-topics/ci-cd.md)
+- [Logging](docs/advanced-topics/logging.md) — Python logging vs. task-level context logging
 - [Testing Zrb Tasks](docs/advanced-topics/testing-tasks.md) — mocking context, testing pipelines
 - [Upgrading Guide](docs/advanced-topics/upgrading-guide.md)
-- [Maintainer Guide](docs/advanced-topics/maintainer-guide.md)
 
-### V. Configuration
+### V. Contributing
+- [Which pattern do I reach for?](docs/contributing/which-pattern.md) — lookup table for the pattern zrb expects when adding new code
+- [Architecture & Conventions](docs/contributing/architecture.md) — for maintainers and contributors
+- [Framework Conventions](docs/contributing/framework-conventions.md) — the enforced R1–R12 rules
+- [Maintainer Guide](docs/contributing/maintainer-guide.md) — start here to contribute code
+
+### VI. Configuration
 - [Environment Variables & Overrides](docs/configuration/env-vars.md)
 - [LLM & Rate Limiter Configuration](docs/configuration/llm-config.md)
+- [LLM Component Collections](docs/configuration/llm-collections.md) — registries, managers, and the three configuration channels for skills, agents, hooks, prompts, and tools
 
-### VI. Changelog
-- [Changelog](docs/changelog.md) — full release history
+### VII. Examples
+- [`examples/`](examples/README.md) — runnable `zrb_init.py` for every topic above, grouped by category
+
+### VIII. Changelog
+- [Changelog](docs/changelog/README.md) — full release history
 
 ---
 

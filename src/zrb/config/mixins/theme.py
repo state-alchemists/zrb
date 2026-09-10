@@ -13,7 +13,7 @@ class ThemeMixin:
         doc=(
             "Named style-theme preset that supplies defaults for every unset "
             "style knob (LLM UI, markdown, and CLI semantic colors). Built-in: "
-            "'dark' (the historical defaults) and 'light'. Register more via "
+            "'dark' (the default) and 'light'. Register more via "
             "zrb.config.theme.register_theme (merged onto 'dark', so a partial "
             "theme only lists what it changes; see examples/themes/). An "
             "individually set ZRB_* style env still overrides the theme."

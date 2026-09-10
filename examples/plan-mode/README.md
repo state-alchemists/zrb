@@ -10,7 +10,7 @@ In this example, we apply a custom permission policy to the built-in `llm_chat` 
 
 Plan Mode can be toggled via:
 - **Slash command:** `/plan` — type once to enter, again to exit
-- **Keyboard shortcut:** `Ctrl+P`
+- **Keyboard shortcut:** `Shift+Tab` (cycles normal → accept-edits → plan)
 - **Tool call:** The LLM can call `EnterPlanMode` / `ExitPlanMode` programmatically
 
 When Plan Mode is active, the info bar displays `PLAN MODE: On` (blue).

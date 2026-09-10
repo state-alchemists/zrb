@@ -26,19 +26,32 @@ def test_public_setters_and_getters_round_trip():
         AgentMode,
         get_current_agent_mode,
         get_current_permission_policy,
+        permission_policy,
         set_current_agent_mode,
-        set_current_permission_policy,
     )
 
     policy = PermissionPolicy((Rule("*", "deny"),))
-    set_current_permission_policy(policy)
     set_current_agent_mode(AgentMode.PLAN)
     try:
-        assert get_current_permission_policy() is policy
-        assert get_current_agent_mode() == AgentMode.PLAN
+        with permission_policy(policy):
+            assert get_current_permission_policy() is policy
+            assert get_current_agent_mode() == AgentMode.PLAN
+        assert get_current_permission_policy() is None
     finally:
-        set_current_permission_policy(None)
         set_current_agent_mode(AgentMode.BUILD)
+
+
+def test_permission_policy_resets_on_exception():
+    """The whole point of `permission_policy`: an exception mid-block must
+    not leave the policy leaked into whatever runs next."""
+    from zrb.llm.permission import get_current_permission_policy, permission_policy
+
+    policy = PermissionPolicy((Rule("*", "deny"),))
+    with pytest.raises(RuntimeError):
+        with permission_policy(policy):
+            assert get_current_permission_policy() is policy
+            raise RuntimeError("boom")
+    assert get_current_permission_policy() is None
 
 
 def test_explicit_policy_is_returned():
@@ -174,7 +187,7 @@ async def test_gate_allows_non_denied_tool():
     finally:
         current_permission_policy.reset(token)
 
-    assert result.content == "content"
+    assert result.return_value == "content"
     assert "blocked" not in result.metadata
 
 
@@ -190,7 +203,7 @@ async def test_gate_inert_without_policy():
     wrapped = create_safe_wrapper(mutate)
 
     result = await wrapped()
-    assert result.content == "did it"
+    assert result.return_value == "did it"
     assert "blocked" not in result.metadata
 
 

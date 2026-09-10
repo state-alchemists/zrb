@@ -6,10 +6,11 @@ from zrb.context.any_context import zrb_print
 from zrb.llm.agent.common import safe_copy_result
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.summarizer.text_summarizer import summarize_text_plain
+from zrb.util.cli.ansi import strip_ansi
 from zrb.util.cli.style import stylize_error, stylize_warning
 
 if TYPE_CHECKING:
-    from pydantic_ai.messages import ModelMessage
+    from zrb.llm.agent.types import ModelMessage
 else:
     ModelMessage = Any
 
@@ -25,14 +26,13 @@ async def process_message_for_summarization(
     message_threshold: int,
     insanity_threshold: int,
 ) -> ModelMessage:
-    # lazy: heavy third-party
-    from pydantic_ai.messages import ModelRequest, ToolReturnPart
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ModelRequest, ToolReturnPart
 
     if not isinstance(msg, ModelRequest):
         return msg
     new_parts = []
     msg_modified = False
-    # Safely get parts with default
     msg_parts = getattr(msg, "parts", [])
     for p in msg_parts:
         if not isinstance(p, ToolReturnPart):
@@ -56,10 +56,9 @@ async def process_tool_return_part(
     message_threshold: int,
     insanity_threshold: int,
 ) -> tuple[Any, bool]:
-    # lazy: heavy third-party
-    from pydantic_ai import ToolApproved, ToolDenied
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ToolApproved, ToolDenied
 
-    # Safely get content with default
     original_content = getattr(part, "content", None)
     if original_content is None:
         return part, False
@@ -81,7 +80,6 @@ async def process_tool_return_part(
     # Create a safe copy to prevent mutation during processing
     safe_content = safe_copy_result(original_content)
 
-    # Convert non-string content to string for summarization
     content_is_string = isinstance(safe_content, str)
     if not content_is_string:
         try:
@@ -90,6 +88,10 @@ async def process_tool_return_part(
             content = str(safe_content)
     else:
         content = safe_content
+
+    # Strip ANSI escapes before measuring and summarizing: terminal-styled tool
+    # output (color codes, OSC) inflates the token count and pollutes the summary.
+    content = strip_ansi(content)
 
     content_tokens = limiter.count_tokens(content)
     if content_tokens <= message_threshold:
@@ -100,7 +102,6 @@ async def process_tool_return_part(
         plain=True,
     )
 
-    # Calculate available tokens for summary (accounting for prefix)
     prefix = f"{SUMMARY_PREFIX}\n"
     prefix_tokens = limiter.count_tokens(prefix)
     available_tokens = message_threshold - prefix_tokens
@@ -117,7 +118,6 @@ async def process_tool_return_part(
         )
         content = limiter.truncate_text(content, insanity_threshold)
 
-    # Ensure we have positive available tokens
     if available_tokens <= 0:
         zrb_print(
             stylize_error(
@@ -125,7 +125,6 @@ async def process_tool_return_part(
             ),
             plain=True,
         )
-        # Keep original but truncated
         truncated = limiter.truncate_text(content, message_threshold)
         new_part = replace(part, content=f"{TRUNCATED_PREFIX}\n{truncated}")
         return new_part, True

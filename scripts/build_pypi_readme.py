@@ -13,6 +13,12 @@ Zrb's release tags are bare `major.minor.patch` (no `v` prefix), so the
 generated URLs use `/blob/<version>/...` rather than `/blob/v<version>/...`.
 
 `README.pypi.md` is a build artifact; it should be in `.gitignore`.
+
+Every read and write below names its encoding and newline explicitly. Without
+that, Python falls back to the locale encoding, which is cp1252 on a Windows
+runner -- and README.md's first emoji then raises UnicodeDecodeError. The
+`newline="\\n"` keeps the generated file byte-identical whichever platform
+builds it, instead of gaining CRLFs on Windows.
 """
 
 from __future__ import annotations
@@ -29,13 +35,13 @@ PYPROJECT = ROOT / "pyproject.toml"
 
 
 def main() -> int:
-    data = tomllib.loads(PYPROJECT.read_text())
+    data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
     project = data["project"]
     version = project["version"]
     repo_url = project["urls"]["repository"].rstrip("/")
     base = f"{repo_url}/blob/{version}"
 
-    text = SRC.read_text()
+    text = SRC.read_text(encoding="utf-8")
 
     # Match markdown links whose target is a relative path under docs/.
     # Captures the full link text in group 1 and the relative path in group 2.
@@ -45,7 +51,7 @@ def main() -> int:
         text,
     )
 
-    DST.write_text(rewritten)
+    DST.write_text(rewritten, encoding="utf-8", newline="\n")
     print(f"wrote {DST.relative_to(ROOT)} ({n} doc links rewritten to {base}/...)")
     return 0
 

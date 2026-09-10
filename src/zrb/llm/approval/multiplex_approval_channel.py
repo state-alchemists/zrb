@@ -3,14 +3,14 @@ import sys
 import traceback
 
 from zrb.config.config import CFG
-from zrb.llm.approval.approval_channel import (
-    ApprovalChannel,
+from zrb.llm.approval.any_approval_channel import (
+    AnyApprovalChannel,
     ApprovalContext,
     ApprovalResult,
 )
 
 
-class MultiplexApprovalChannel(ApprovalChannel):
+class MultiplexApprovalChannel(AnyApprovalChannel):
     """Approval channel that broadcasts approval requests to multiple channels.
 
     All channels receive the approval request simultaneously.
@@ -21,10 +21,10 @@ class MultiplexApprovalChannel(ApprovalChannel):
             TerminalApprovalChannel(),
             TelegramApprovalChannel(bot, chat_id),
         ])
-        llm_chat.set_approval_channel(channel)
+        llm_chat.approval_channels = [channel]
     """
 
-    def __init__(self, channels: list[ApprovalChannel]):
+    def __init__(self, channels: list[AnyApprovalChannel]):
         self._channels = channels
 
     async def request_approval(self, context: ApprovalContext) -> ApprovalResult:
@@ -34,13 +34,15 @@ class MultiplexApprovalChannel(ApprovalChannel):
         CFG.LOGGER.debug(f"Multiplex request_approval START for {context.tool_name}")
 
         if not self._channels:
-            CFG.LOGGER.debug("Multiplex No channels, auto-approving")
-            return ApprovalResult(approved=True)
+            CFG.LOGGER.debug("Multiplex No channels configured, denying")
+            return ApprovalResult(
+                approved=False, message="No approval channels configured"
+            )
 
         loop = asyncio.get_running_loop()
         future: asyncio.Future[ApprovalResult] = loop.create_future()
 
-        async def request_from_channel(channel: ApprovalChannel):
+        async def request_from_channel(channel: AnyApprovalChannel):
             try:
                 result = await channel.request_approval(context)
                 CFG.LOGGER.debug(
@@ -102,9 +104,20 @@ class MultiplexApprovalChannel(ApprovalChannel):
         for channel in self._channels:
             try:
                 await channel.notify(message, context)
-            except Exception:
-                pass
+            except Exception as e:
+                CFG.LOGGER.debug(f"Approval channel notify failed: {e}")
 
 
 def is_shutdown_requested() -> bool:
     return getattr(sys, "zrb_shutdown_requested", False)
+
+
+def resolve_approval_channel(
+    channels: list[AnyApprovalChannel],
+) -> AnyApprovalChannel | None:
+    """Pick the single channel, wrap 2+ in `MultiplexApprovalChannel`, or `None`."""
+    if len(channels) == 1:
+        return channels[0]
+    if len(channels) > 1:
+        return MultiplexApprovalChannel(channels)
+    return None

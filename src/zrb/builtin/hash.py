@@ -28,7 +28,6 @@ _ALGORITHMS = ["sha256", "sha1", "sha224", "sha384", "sha512", "md5"]
     alias="hash",
 )
 def hash_text(ctx: AnyContext) -> str:
-
     result = hashlib.new(ctx.input.algorithm, ctx.input.text.encode()).hexdigest()
     ctx.print(result)
     return result
@@ -53,7 +52,6 @@ def hash_text(ctx: AnyContext) -> str:
     alias="sum",
 )
 def hash_file(ctx: AnyContext) -> str:
-
     digest = hashlib.new(ctx.input.algorithm)
     try:
         with open(ctx.input.file, mode="rb") as file:
@@ -91,7 +89,6 @@ def hash_file(ctx: AnyContext) -> str:
     alias="hmac",
 )
 def hash_hmac(ctx: AnyContext) -> str:
-
     result = hmac.new(
         ctx.input.key.encode(),
         ctx.input.text.encode(),

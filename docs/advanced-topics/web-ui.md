@@ -24,7 +24,7 @@ To launch the Zrb Web UI, run the `server start` command:
 zrb server start
 ```
 
-By default, the server will be accessible at `http://localhost:21213`.
+By default, the server binds to `127.0.0.1` and is only reachable from the local machine at `http://localhost:21213`.
 
 ### Customizing the Port
 
@@ -34,6 +34,17 @@ You can change the default port using the `ZRB_WEB_HTTP_PORT` environment variab
 export ZRB_WEB_HTTP_PORT=8000
 zrb server start
 ```
+
+### Customizing the Host
+
+To make the server reachable from other machines (e.g. a LAN or container network), set `ZRB_WEB_HTTP_HOST` explicitly:
+
+```bash
+export ZRB_WEB_HTTP_HOST=0.0.0.0
+zrb server start
+```
+
+> ⚠️ **Warning:** Binding beyond `127.0.0.1` exposes task execution to anyone who can reach this host. Enable [authentication](#3-web-authentication-experimental) first, **and** change the default admin password and secret key — the server prints a startup warning if either still has its documented default value.
 
 ---
 
@@ -56,7 +67,7 @@ Once the server is running, open your web browser and navigate to the specified 
 
 ## 3. Web Authentication (Experimental)
 
-Zrb's Web UI includes an experimental authentication system. By default, it's disabled for ease of use in local development.
+Zrb's Web UI includes an experimental authentication system. By default, it's disabled for ease of use in local development — safe by default because the server also only binds to `127.0.0.1` unless you explicitly set `ZRB_WEB_HTTP_HOST`.
 
 ### Enabling Authentication
 
@@ -83,7 +94,7 @@ from zrb import web_auth_config, User
 
 web_auth_config.enable_auth = True 
 
-web_auth_config.append_user(
+web_auth_config.add_user(
     User(
         username="ace",
         password="ultramanNumber5",
@@ -102,15 +113,7 @@ web_auth_config.guest_accessible_tasks = ["throw-dice"]
 | `ZRB_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES` | Access token validity |
 | `ZRB_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES` | Refresh token validity |
 
-> 🔒 **Cookie security.** Auth cookies are issued with `HttpOnly`, `Secure`, and
-> `SameSite=Lax`. The `Secure` flag means browsers only send them over HTTPS
-> (modern browsers treat `http://localhost` as a secure context, so local
-> development is unaffected) — terminate TLS in front of Zrb for any non-localhost
-> deployment. The `Secure` flag is on by default; if you must serve over plain
-> HTTP on a non-localhost host, set `ZRB_WEB_ENABLE_SECURE_COOKIES=off` (otherwise
-> browsers silently drop the cookies and login appears to fail). Only access
-> tokens authenticate a request; a refresh token can only
-> be exchanged at the refresh endpoint, never used directly as an access token.
+> 🔒 **Cookie security.** Auth cookies are issued with `HttpOnly`, `Secure`, and `SameSite=Lax`. The `Secure` flag means browsers only send them over HTTPS (modern browsers treat `http://localhost` as a secure context, so local development is unaffected) — terminate TLS in front of Zrb for any non-localhost deployment. The `Secure` flag is on by default; if you must serve over plain HTTP on a non-localhost host, set `ZRB_WEB_AUTH_SECURE_COOKIES=off` (otherwise browsers silently drop the cookies and login appears to fail). Only access tokens authenticate a request; a refresh token can only be exchanged at the refresh endpoint, never used directly as an access token.
 
 ---
 
@@ -124,8 +127,8 @@ You can customize the visual styling of the Web UI using environment variables.
 | `ZRB_WEB_JARGON` | Tagline on homepage |
 | `ZRB_WEB_HOMEPAGE_INTRO` | Introductory text |
 | `ZRB_WEB_FAVICON_PATH` | Path to custom favicon |
-| `ZRB_WEB_CSS_PATH` | Colon-separated custom CSS paths |
-| `ZRB_WEB_JS_PATH` | Colon-separated custom JS paths |
+| `ZRB_WEB_CSS_PATH` | Colon-separated (semicolon on Windows) custom CSS paths |
+| `ZRB_WEB_JS_PATH` | Colon-separated (semicolon on Windows) custom JS paths |
 | `ZRB_WEB_COLOR` | Pico CSS theme color (`amber`, `red`, `blue`, etc.) |
 
 > 💡 **Tip:** See [Pico CSS docs](https://picocss.com/docs/version-picker) for available theme colors.
@@ -141,8 +144,9 @@ You can customize the visual styling of the Web UI using environment variables.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `ZRB_WEB_HTTP_HOST` | `127.0.0.1` | Server bind host; non-loopback exposes the server to the network |
 | `ZRB_WEB_HTTP_PORT` | `21213` | Server port |
-| `ZRB_WEB_AUTH_ENABLED` | `0` | Enable authentication |
+| `ZRB_WEB_AUTH_ENABLED` | `off` | Enable authentication |
 | `ZRB_WEB_COLOR` | `` (empty) | Theme color |
 
 ---

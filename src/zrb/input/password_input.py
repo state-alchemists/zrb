@@ -13,7 +13,6 @@ class PasswordInput(BaseInput):
         description: str | None = None,
         prompt: str | None = None,
         default: StrAttr = "",
-        auto_render: bool = True,
         allow_empty: bool = False,
         allow_positional_parsing: bool = True,
         always_prompt: bool = True,
@@ -23,12 +22,15 @@ class PasswordInput(BaseInput):
             description=description,
             prompt=prompt,
             default=default,
-            auto_render=auto_render,
             allow_empty=allow_empty,
             allow_positional_parsing=allow_positional_parsing,
             always_prompt=always_prompt,
         )
         self._is_secret = True
+
+    @property
+    def is_secret(self) -> bool:
+        return self._is_secret
 
     def to_html(self, shared_ctx: AnySharedContext) -> str:
         name = html.escape(self.name)

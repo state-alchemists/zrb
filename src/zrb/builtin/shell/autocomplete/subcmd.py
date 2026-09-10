@@ -7,7 +7,7 @@ from zrb.util.cli.subcommand import get_group_subcommands
 
 @make_task(
     name="get-shell-subcommands",
-    description="Get subcommand of any Zrb command",
+    description="🧭 Get subcommand of any Zrb command",
     group=shell_autocomplete_group,
     alias="subcmd",
 )

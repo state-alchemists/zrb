@@ -23,17 +23,13 @@ def serve_refresh_token_api(app: "FastAPI", web_auth_config: WebAuthConfig) -> N
             None, alias=web_auth_config.refresh_token_cookie_name
         ),
     ):
-        # Try to get the refresh token from the request body first
         refresh_token = body.refresh_token if body else None
-        # If not in the body, try to get it from the cookie
         if not refresh_token:
             refresh_token = refresh_token_cookie
-        # If we still don't have a refresh token, raise an exception
         if not refresh_token:
             return JSONResponse(
                 content={"detail": "Refresh token not provided"}, status_code=401
             )
-        # Get token
         new_token = regenerate_tokens(web_auth_config, refresh_token)
         set_auth_cookie(web_auth_config, response, new_token)
         return new_token

@@ -7,7 +7,7 @@ import os
 import pytest
 
 from zrb.llm.sandbox import SandboxPolicy
-from zrb.llm.sandbox.seatbelt import _sbpl_quote, build_sbpl
+from zrb.llm.sandbox.seatbelt import build_sbpl, sbpl_quote
 
 
 def test_profile_structure(tmp_path):
@@ -26,12 +26,12 @@ def test_profile_structure(tmp_path):
     assert lines[1] == "(allow default)"
     assert lines[2] == "(deny file-write*)"
     # Writable roots are realpath'd subpaths inside the allow clause.
-    assert f'  (subpath "{os.path.realpath(str(proj))}")' in lines
+    assert f"  (subpath {sbpl_quote(os.path.realpath(str(proj)))})" in lines
     # Device literals stay writable for non-interactive shells.
     assert '  (literal "/dev/null")' in lines
     # Deny-read clause covers the secret dir.
     assert "(deny file-read* file-read-metadata" in profile
-    assert f'"{os.path.realpath(str(secrets))}"' in profile
+    assert sbpl_quote(os.path.realpath(str(secrets))) in profile
 
 
 def test_profile_omits_deny_clause_when_no_roots_exist(tmp_path):
@@ -45,13 +45,13 @@ def test_profile_omits_deny_clause_when_no_roots_exist(tmp_path):
 
 
 def test_quote_escapes_backslash_and_quotes():
-    assert _sbpl_quote('/a/"b"') == '"/a/\\"b\\""'
-    assert _sbpl_quote("/a/b\\c") == '"/a/b\\\\c"'
+    assert sbpl_quote('/a/"b"') == '"/a/\\"b\\""'
+    assert sbpl_quote("/a/b\\c") == '"/a/b\\\\c"'
 
 
 def test_quote_refuses_newline():
     with pytest.raises(ValueError):
-        _sbpl_quote("/a/b\nc")
+        sbpl_quote("/a/b\nc")
 
 
 def test_writable_paths_with_newline_fall_back(tmp_path):

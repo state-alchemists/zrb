@@ -34,6 +34,7 @@ async def test_replace_in_file_validation_identical_text():
 
     assert isinstance(result, ToolDenied)
     assert "identical" in result.message
+    assert "[SYSTEM SUGGESTION]" in result.message
 
 
 @pytest.mark.asyncio
@@ -70,6 +71,7 @@ async def test_replace_in_file_validation_text_not_found(tmp_path):
     assert isinstance(result, ToolDenied)
     assert "Old text not found" in result.message
     assert "Please read the file first" in result.message
+    assert "[SYSTEM SUGGESTION]" in result.message
 
 
 @pytest.mark.asyncio
@@ -203,7 +205,7 @@ async def test_replace_in_file_validation_read_error(tmp_path, monkeypatch):
             raise PermissionError("permission denied")
         return original_open(path, *args, **kwargs)
 
-    monkeypatch.setattr(builtins, "open", mock_open)
+    monkeypatch.setattr(builtins, "open", mock_open, raising=False)
 
     result = await replace_in_file_validation_policy(ui, call, next_handler)
 

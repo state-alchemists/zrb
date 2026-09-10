@@ -3,13 +3,13 @@ import uuid
 from collections.abc import Callable
 from pathlib import Path
 
-import yaml
-
 from zrb.config.config import CFG
 from zrb.llm.hook.manager import hook_manager
+from zrb.llm.skill.registry import SkillRegistry, skill_registry
 from zrb.llm.skill.util import discover_companion_files
 from zrb.util.asset_scanner import IGNORE_DIRS, scan_files
-from zrb.util.dir_search import get_upward_dirs, scan_plugin_dirs
+from zrb.util.dir_search import BUILTIN_PLUGIN_DIR, get_upward_dirs, scan_plugin_dirs
+from zrb.util.frontmatter import parse_frontmatter
 from zrb.util.load import load_module_from_path
 
 
@@ -47,6 +47,36 @@ class Skill:
         content_factory: Callable[[], str] | None = None,
         companion_files: list[str] | None = None,
     ):
+        """Define a skill programmatically, without a `SKILL.md` on disk.
+
+        The filesystem loader builds these from frontmatter; construct one
+        directly to register a skill from code:
+        `skill_manager.add_skill(Skill(...))`.
+
+        Args:
+            name: Display name, and the `/slash-command` that invokes it.
+            path: Directory the skill was loaded from. Resolves
+                `companion_files` and any relative path in the content; pass the
+                directory the skill should read relative to.
+            description: What the skill is for. This is what the model matches
+                on when deciding to activate it, so describe the *work*, not the
+                topic.
+            model_invocable: Whether the model may activate it on its own.
+                False makes it user-invocable only.
+            user_invocable: Whether it appears in the `/` menu.
+            argument_hint: Placeholder shown in autocomplete, e.g. `"[filename]"`.
+            allowed_tools: Tool names usable without permission while the skill
+                is active, e.g. `["Read", "Grep"]`.
+            model: Model override applied while the skill runs.
+            context: Where it runs. `"fork"` runs it in a sub-agent instead of
+                the current context.
+            agent: Agent type to use when `context` forks, e.g. `"Explore"`.
+            content: The skill body. Mutually exclusive with `content_factory`.
+            content_factory: Callable returning the body, for content that must
+                be built at activation time rather than at registration.
+            companion_files: Paths, relative to `path`, that the skill's content
+                refers to and that travel with it.
+        """
         self.name = name
         self.path = path
         self.description = description
@@ -63,47 +93,101 @@ class Skill:
 
 
 class SkillManager:
+    """Discover and resolve skills against a `SkillRegistry`.
+
+    Decomposed: the manager owns discovery (`scan`, `reload`, `search_dirs`)
+    and content resolution, and composes a `SkillRegistry` for the canonical
+    collection. All query and mutation methods delegate to the registry, so a
+    manual `add_skill`/`set_skills` survives a later scan.
+    """
+
     def __init__(
         self,
         root_dir: str = ".",
         search_dirs: list[str | Path] | None = None,
         max_depth: int = 2,
         ignore_dirs: list[str] | None = None,
+        registry: SkillRegistry | None = None,
     ):
+        """Create a skill manager over *registry*.
+
+        Args:
+            root_dir: Directory the project-level search starts from.
+            search_dirs: Explicit directories to scan, replacing the defaults
+                derived from `root_dir`.
+            max_depth: How many directory levels below each search directory to
+                descend.
+            ignore_dirs: Directory names skipped while scanning.
+            registry: The canonical `SkillRegistry` to read and write. A fresh
+                registry is created when `None`, giving an isolated view.
+        """
+        self._registry = registry if registry is not None else SkillRegistry()
         self._root_dir = root_dir
         self._search_dirs = search_dirs
         self._max_depth = max_depth
-        self._skills: dict[str, Skill] = {}
         self._ignore_dirs = IGNORE_DIRS if ignore_dirs is None else ignore_dirs
         self._scanned = False
 
-    def reload(self):
-        """Force re-scan skills. Use after CFG changes or skill file updates."""
+    @property
+    def registry(self) -> SkillRegistry:
+        """The canonical collection this manager reads and writes."""
+        return self._registry
+
+    @property
+    def search_dirs(self) -> list[str | Path]:
+        """Directories scanned for skills, in priority order.
+
+        The explicit override passed at construction (or set here), or the
+        computed defaults when none was given.
+        """
+        if self._search_dirs is not None:
+            return list(self._search_dirs)
+        return self._default_search_dirs()
+
+    @search_dirs.setter
+    def search_dirs(self, value: list[str | Path] | None) -> None:
+        self._search_dirs = value
         self._scanned = False
-        self._skills = {}
+
+    def reload(self):
+        """Force re-scan skills. Use after CFG changes or skill file updates.
+
+        Manual registrations survive; only the discovered layer is refreshed.
+        """
+        self._scanned = False
+        self._registry.clear_discovered()
         self._ensure_scanned()
 
     def scan(self, search_dirs: list[str | Path] | None = None) -> list[Skill]:
-        self._skills = {}
-        target_search_dirs = search_dirs
-        if target_search_dirs is None:
-            target_search_dirs = (
-                self._search_dirs
-                if self._search_dirs is not None
-                else self.get_search_directories()
-            )
+        """Discover skills on disk, replacing anything previously discovered.
+
+        Manually-registered skills are kept; a manual registration wins a
+        name collision with a discovered one.
+
+        Args:
+            search_dirs: Directories to scan. Defaults to `self.search_dirs`.
+
+        Returns:
+            Every skill in the effective collection, in discovery order.
+        """
+        self._registry.clear_discovered()
+        self._scan_results: dict[str, Skill] = {}
+        target_search_dirs = (
+            search_dirs if search_dirs is not None else self.search_dirs
+        )
         # Scan in order of precedence: global -> project
         # We iterate in normal order to allow later skills (project) to override earlier ones (global)
         for search_dir in target_search_dirs:
             self._scan_dir(Path(search_dir), max_depth=self._max_depth)
+        self._registry.set_discovered(list(self._scan_results.values()))
         self._scanned = True
-        return list(self._skills.values())
+        return self.get_skills()
 
     _SKILL_ASSET = "skills"
     _PLUGIN_ASSET = "plugins"
 
-    def get_search_directories(self) -> list[str | Path]:
-        """Get all skill search directories in priority order.
+    def _default_search_dirs(self) -> list[str | Path]:
+        """Compute the default skill search directories in priority order.
 
         Priority (high → low):
         1. User home (~/.claude/, ~/.zrb/)
@@ -125,27 +209,42 @@ class SkillManager:
 
     def add_skill(self, skill: Skill):
         """
-        Manually register a skill.
+        Manually register a skill. Survives a later scan/reload.
         """
-        self._skills[skill.name] = skill
+        self._registry.add_skill(skill)
+
+    def remove_skill(self, name: str) -> None:
+        """Drop a skill by name from the collection (manual and discovered)."""
+        self._ensure_scanned()
+        self._registry.remove_skill(name)
+
+    def set_skills(self, skills):
+        """Replace the whole collection with *skills*.
+
+        *skills* may be a list of `Skill` or a deferred callable returning
+        one. Like `add_skill`, this registration survives a later scan.
+        """
+        self._registry.set_skills(skills)
 
     def get_skills(self) -> list[Skill]:
-        """Return all scanned skills, scanning lazily on first call."""
+        """Return all skills, scanning lazily on first call."""
         self._ensure_scanned()
-        return list(self._skills.values())
+        return self._registry.get_skills()
 
     def get_skill(self, name: str) -> Skill | None:
+        """Look up one skill, scanning first if that has not happened yet.
+
+        Matches the registry key, then falls back to matching a skill's own
+        name or path. Returns None when nothing matches.
+        """
         self._ensure_scanned()
-        skill = self._skills.get(name)
-        if not skill:
-            # Try partial match or path match
-            for s in self._skills.values():
-                if s.name == name or s.path == name:
-                    skill = s
-                    break
-        return skill
+        return self._registry.get_skill(name)
 
     def get_skill_content(self, name: str) -> str | None:
+        """Return a skill's instruction text, or None if the skill is unknown.
+
+        Resolves the name the same way `get_skill` does.
+        """
         self._ensure_scanned()
         skill = self.get_skill(name)
         if not skill:
@@ -248,7 +347,7 @@ class SkillManager:
         ``CFG.LLM_ENABLE_BUILTIN_SKILLS``. Missing paths (broken install / unusual
         layout) are skipped rather than yielding a spurious default.
         """
-        base = Path(__file__).parent.parent.parent / "llm_plugin"
+        base = BUILTIN_PLUGIN_DIR
         dirs: list[Path] = [base / "core_skills"]
         if CFG.LLM_ENABLE_BUILTIN_SKILLS:
             dirs.append(base / "skills")
@@ -273,13 +372,12 @@ class SkillManager:
 
     def _on_file_found(self, item: Path) -> None:
         full_path = str(item)
-        rel_path = os.path.relpath(full_path, self._root_dir)
         if item.name == "SKILL.py" or item.name.endswith(".skill.py"):
-            self._load_skill_from_python(rel_path, full_path)
+            self._load_skill_from_python(full_path)
         elif item.name == "SKILL.md" or item.name.endswith(".skill.md"):
-            self._load_skill_from_markdown(rel_path, full_path)
+            self._load_skill_from_markdown(full_path)
 
-    def _load_skill_from_python(self, rel_path: str, full_path: str):
+    def _load_skill_from_python(self, full_path: str):
         try:
             module_name = f"zrb_skill_{uuid.uuid4().hex}"
             module = load_module_from_path(module_name, full_path)
@@ -295,18 +393,18 @@ class SkillManager:
 
             if isinstance(skill_obj, Skill):
                 skill_obj.companion_files = discover_companion_files(full_path)
-                self._skills[skill_obj.name] = skill_obj
+                self._scan_results[skill_obj.name] = skill_obj
             elif hasattr(module, "get_skill") and callable(module.get_skill):
                 # Factory function that returns a Skill
                 skill_obj = module.get_skill()
                 if isinstance(skill_obj, Skill):
                     skill_obj.companion_files = discover_companion_files(full_path)
-                    self._skills[skill_obj.name] = skill_obj
+                    self._scan_results[skill_obj.name] = skill_obj
 
         except Exception as e:
             CFG.LOGGER.warning(f"Failed to load Python skill from {full_path}: {e}")
 
-    def _load_skill_from_markdown(self, rel_path: str, full_path: str):
+    def _load_skill_from_markdown(self, full_path: str):
         try:
             with open(full_path, "r", encoding="utf-8") as f:
                 content = f.read()
@@ -328,51 +426,43 @@ class SkillManager:
             # 1. Parse YAML Frontmatter
             if content.startswith("---"):
                 try:
-                    parts = content.split("---", 2)
-                    if len(parts) >= 3:
-                        frontmatter = yaml.safe_load(parts[1])
-                        if frontmatter:
-                            # Basic fields
-                            if "name" in frontmatter:
-                                name = frontmatter["name"]
-                                is_name_resolved = True
-                            description = frontmatter.get("description", description)
-                            model_invocable = not frontmatter.get(
-                                "disable-model-invocation", False
+                    frontmatter, _ = parse_frontmatter(content)
+                    if "name" in frontmatter:
+                        name = frontmatter["name"]
+                        is_name_resolved = True
+                    description = frontmatter.get("description", description)
+                    model_invocable = not frontmatter.get(
+                        "disable-model-invocation", False
+                    )
+                    user_invocable = frontmatter.get("user-invocable", True)
+
+                    # Claude Code spec fields
+                    argument_hint = frontmatter.get("argument-hint")
+
+                    # allowed-tools: comma-separated string or list
+                    allowed_tools_raw = frontmatter.get("allowed-tools")
+                    if allowed_tools_raw:
+                        if isinstance(allowed_tools_raw, str):
+                            allowed_tools = [
+                                t.strip() for t in allowed_tools_raw.split(",")
+                            ]
+                        elif isinstance(allowed_tools_raw, list):
+                            allowed_tools = allowed_tools_raw
+
+                    model = frontmatter.get("model")
+                    context = frontmatter.get("context")
+                    agent = frontmatter.get("agent")
+
+                    hooks_data = frontmatter.get("hooks")
+                    if hooks_data:
+                        if isinstance(hooks_data, dict):
+                            hook_manager.parse_claude_format(
+                                {"hooks": hooks_data}, full_path
                             )
-                            user_invocable = frontmatter.get("user-invocable", True)
-
-                            # Claude Code spec fields
-                            argument_hint = frontmatter.get("argument-hint")
-
-                            # allowed-tools: comma-separated string or list
-                            allowed_tools_raw = frontmatter.get("allowed-tools")
-                            if allowed_tools_raw:
-                                if isinstance(allowed_tools_raw, str):
-                                    allowed_tools = [
-                                        t.strip() for t in allowed_tools_raw.split(",")
-                                    ]
-                                elif isinstance(allowed_tools_raw, list):
-                                    allowed_tools = allowed_tools_raw
-
-                            model = frontmatter.get("model")
-                            context = frontmatter.get("context")
-                            agent = frontmatter.get("agent")
-
-                            # Parse hooks if present
-                            hooks_data = frontmatter.get("hooks")
-                            if hooks_data:
-                                if isinstance(hooks_data, dict):
-                                    # Claude nested format
-                                    hook_manager.parse_claude_format(
-                                        {"hooks": hooks_data}, full_path
-                                    )
-                                elif isinstance(hooks_data, list):
-                                    # Zrb flat format
-                                    for hook_item in hooks_data:
-                                        hook_manager.parse_and_register(
-                                            hook_item, full_path
-                                        )
+                        elif isinstance(hooks_data, list):
+                            # Zrb flat format
+                            for hook_item in hooks_data:
+                                hook_manager.parse_and_register(hook_item, full_path)
 
                 except Exception:
                     CFG.LOGGER.warning(
@@ -390,7 +480,7 @@ class SkillManager:
                         break
 
             # Use name as key, handle duplicates by overriding (precedence handled by scan order)
-            self._skills[name] = Skill(
+            self._scan_results[name] = Skill(
                 name=name,
                 path=full_path,
                 description=description,
@@ -408,4 +498,4 @@ class SkillManager:
             CFG.LOGGER.warning(f"Failed to load Markdown skill from {full_path}: {e}")
 
 
-skill_manager = SkillManager()
+skill_manager = SkillManager(registry=skill_registry)

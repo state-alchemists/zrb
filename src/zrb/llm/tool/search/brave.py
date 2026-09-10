@@ -1,8 +1,13 @@
+import time
 from typing import Any
 
 import requests
 
 from zrb.config.config import CFG
+from zrb.llm.tool.search.http_errors import SearchToolError, raise_http_error
+
+_MAX_RATE_LIMIT_RETRIES = 1
+_DEFAULT_RETRY_AFTER_SECONDS = 1.0
 
 
 def search_internet(
@@ -24,55 +29,58 @@ def search_internet(
     effective_api_key = api_key or CFG.BRAVE_API_KEY
 
     if not effective_api_key:
-        raise Exception(
+        raise SearchToolError(
             "Error: Brave API key not configured. "
             "[SYSTEM SUGGESTION]: Ask the user to provide their Brave API key. Pass it via the 'api_key' parameter in your next search_internet call."
         )
 
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    page = max(1, page)
+    if page > 10:
+        raise SearchToolError(
+            "Error: Brave Search supports at most 10 result pages. "
+            "[SYSTEM SUGGESTION]: Retry with a page number from 1 through 10."
+        )
 
-    response = requests.get(
-        "https://api.search.brave.com/res/v1/web/search",
-        headers={
+    request_kwargs = {
+        "headers": {
             "User-Agent": user_agent,
             "Accept": "application/json",
             "x-subscription-token": effective_api_key,
         },
-        params={
+        "params": {
             "q": query,
             "count": "10",
-            "offset": (page - 1) * 10,
+            "offset": page - 1,
             "safesearch": safe_search,
             "search_lang": language,
             "summary": "true",
         },
-    )
-    if response.status_code != 200:
-        error_body = (
-            response.text[:500] if response.text else "No error details provided"
+        "timeout": CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
+    }
+    attempt = 0
+    while True:
+        response = requests.get(
+            "https://api.search.brave.com/res/v1/web/search", **request_kwargs
         )
-        if response.status_code == 401:
-            raise Exception(
-                f"Error: Brave Search authentication failed (status code: {response.status_code}). "
-                f"Response: {error_body}. "
-                f"[SYSTEM SUGGESTION]: The API key is invalid or expired. Ask the user to verify their Brave API key at https://brave.com/search/api/ and provide a valid one via the 'api_key' parameter."
-            )
-        elif response.status_code == 429:
-            raise Exception(
-                f"Error: Brave Search rate limit exceeded (status code: {response.status_code}). "
-                f"Response: {error_body}. "
-                f"[SYSTEM SUGGESTION]: You have exceeded your Brave Search plan limits. Wait before retrying, or ask the user to upgrade their plan."
-            )
-        elif 400 <= response.status_code < 500:
-            raise Exception(
-                f"Error: Brave Search request failed (status code: {response.status_code}). "
-                f"Response: {error_body}. "
-                f"[SYSTEM SUGGESTION]: Check your search parameters. The 'language', 'safe_search', or 'query' may be invalid. Try simplifying the query or using default parameters."
-            )
-        else:
-            raise Exception(
-                f"Error: Brave Search server error (status code: {response.status_code}). "
-                f"Response: {error_body}. "
-                f"[SYSTEM SUGGESTION]: This is likely a temporary Brave Search server issue. Retry the search, or inform the user and try again later."
-            )
+        if response.status_code != 429 or attempt >= _MAX_RATE_LIMIT_RETRIES:
+            break
+        attempt += 1
+        time.sleep(_retry_after_seconds(response))
+    if response.status_code != 200:
+        raise_http_error(
+            response,
+            service_name="Brave Search",
+            docs_url="https://brave.com/search/api/",
+            key_label="Brave API key",
+        )
     return response.json()
+
+
+def _retry_after_seconds(response: requests.Response) -> float:
+    """Return a safe delay for a Brave rate-limit retry."""
+    retry_after = response.headers.get("Retry-After", "")
+    try:
+        return max(0.0, float(retry_after))
+    except (TypeError, ValueError):
+        return _DEFAULT_RETRY_AFTER_SECONDS

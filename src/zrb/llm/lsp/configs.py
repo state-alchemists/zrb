@@ -43,10 +43,12 @@ class LSPServerConfigRegistry:
 
     def __init__(self) -> None:
         self._overrides: dict[str, LSPServerConfig] = {}
+        self._detected: dict[str, str] | None = None
 
     def register(self, name: str, config: LSPServerConfig) -> None:
         """Register a user LSP server config, overriding any built-in of the same *name*."""
         self._overrides[name] = config
+        self._detected = None
 
     def get(self, name: str) -> LSPServerConfig | None:
         """Get a config by name — user override wins over built-in."""
@@ -63,20 +65,40 @@ class LSPServerConfigRegistry:
     def clear(self) -> None:
         """Drop all user-registered entries. Intended for tests."""
         self._overrides.clear()
+        self._detected = None
+
+    def invalidate_detection(self) -> None:
+        """Forget the cached probe so the next ``detect()`` re-scans ``$PATH``.
+
+        Call after installing a language server inside a live session.
+        """
+        self._detected = None
 
     def detect(self) -> dict[str, str]:
         """Detect which LSP servers are available on the system.
 
         Returns:
             Dict mapping server name to executable path.
+
+        Cached: this is one ``shutil.which`` per configured server (~21), and a
+        miss walks every ``$PATH`` entry — ~18ms each where PATH includes slow
+        entries (WSL2's ``/mnt/c/...``). ``get_for_file`` runs on every agent
+        file edit via the post-write diagnostics, and the no-server path probes
+        again for its error message, so an uncached scan cost ~1s per edit.
+        ponytail: cached for the process lifetime; a server installed mid-session
+        needs invalidate_detection() (registering a config already invalidates).
         """
-        available = {}
-        for name, config in self.all().items():
-            cmd = config.command[0]
-            path = shutil.which(cmd)
-            if path:
-                available[name] = path
-        return available
+        if self._detected is None:
+            available = {}
+            for name, config in self.all().items():
+                cmd = config.command[0]
+                path = shutil.which(cmd)
+                if path:
+                    available[name] = path
+            self._detected = available
+        # Copy: callers get this as public API (detect_available_lsp_servers)
+        # and a mutation would corrupt the cache for everyone else.
+        return dict(self._detected)
 
     def get_for_file(
         self, file_path: str, preferred_servers: list[str] | None = None

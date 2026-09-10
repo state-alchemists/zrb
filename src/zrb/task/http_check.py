@@ -1,15 +1,15 @@
 import asyncio
-from collections.abc import Callable
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from zrb.attr.type import StrAttr
+from zrb.attr.type import BoolAttr, StrAttr
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
-from zrb.task.base_task import BaseTask
+from zrb.task.base.base_task import BaseTask
 from zrb.util.attr import get_str_attr
 
 if TYPE_CHECKING:
@@ -20,22 +20,33 @@ class HttpCheck(BaseTask):
     def __init__(
         self,
         name: str,
+        *,
         color: int | None = None,
         icon: str | None = None,
         description: str | None = None,
         cli_only: bool = False,
-        input: list[AnyInput | None] | AnyInput | None = None,
-        env: list[AnyEnv | None] | AnyEnv | None = None,
+        input: Sequence[AnyInput | None] | AnyInput | None = None,
+        env: Sequence[AnyEnv | None] | AnyEnv | None = None,
         url: StrAttr = "http://localhost",
-        render_url: bool = True,
         http_method: StrAttr = "GET",
         interval: float | None = None,
-        execute_condition: bool | str | Callable[[AnyContext], bool] = True,
-        upstream: list[AnyTask] | AnyTask | None = None,
-        fallback: list[AnyTask] | AnyTask | None = None,
-        successor: list[AnyTask] | AnyTask | None = None,
+        execute_condition: BoolAttr = True,
+        upstream: Sequence[AnyTask] | AnyTask | None = None,
+        fallback: Sequence[AnyTask] | AnyTask | None = None,
+        successor: Sequence[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
+        """Define a task that passes once an HTTP endpoint responds.
+
+        Typically used as another task's `readiness_check`.
+
+        Args:
+            url: URL to poll. A literal, a `Tpl` rendered against the context,
+                or a callable taking it.
+            http_method: HTTP method to send.
+            interval: Seconds between polls. Defaults to the readiness check
+                period.
+        """
         super().__init__(
             name=name,
             color=color,
@@ -52,25 +63,28 @@ class HttpCheck(BaseTask):
             print_fn=print_fn,
         )
         self._url = url
-        self._render_url = render_url
         self._http_method = http_method
-        self._interval = (
-            interval if interval is not None else CFG.HTTP_CHECK_INTERVAL / 1000
-        )
+        # Read lazily at run time (like every other CFG read) so an env change
+        # after task definition still takes effect.
+        self._interval = interval
+
+    def _get_interval(self) -> float:
+        if self._interval is not None:
+            return self._interval
+        return CFG.HTTP_CHECK_INTERVAL / 1000
 
     def _get_url(self, ctx: AnyContext) -> str:
-        return get_str_attr(
-            ctx, self._url, "http://localhost", auto_render=self._render_url
-        )
+        return get_str_attr(ctx, self._url, "http://localhost")
 
     def _get_http_method(self, ctx: AnyContext) -> str:
-        return get_str_attr(ctx, self._http_method, "GET", auto_render=True).upper()
+        return get_str_attr(ctx, self._http_method, "GET").upper()
 
     async def _exec_action(self, ctx: AnyContext) -> "Response":
         import requests  # lazy: heavy third-party
 
         url = self._get_url(ctx)
         http_method = self._get_http_method(ctx)
+        interval = self._get_interval()
         while True:
             try:
                 # Bound each probe so a half-open endpoint can't hang the worker
@@ -78,7 +92,7 @@ class HttpCheck(BaseTask):
                 # request should never outlive the polling interval; a timeout is
                 # just another transient error and is retried below.
                 response = await asyncio.to_thread(
-                    requests.request, http_method, url, timeout=self._interval
+                    requests.request, http_method, url, timeout=interval
                 )
                 if response.status_code == 200:
                     return response
@@ -87,4 +101,4 @@ class HttpCheck(BaseTask):
                 # Readiness probes retry on any error (DNS, refused, timeout, …)
                 # until the endpoint comes up or the surrounding monitor stops us.
                 ctx.log_info(f"Error: {e}")
-            await asyncio.sleep(self._interval)
+            await asyncio.sleep(interval)

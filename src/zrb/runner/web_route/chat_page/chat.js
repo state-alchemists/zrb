@@ -6,6 +6,59 @@ let totalPages = 1;
 let isInEditMode = false;
 let streamingBubble = null;
 let thinkingBubble = null;
+let lastAnswerBubble = null; // settled streaming bubble, replaced in place once `markdown` arrives
+let pendingAttachments = []; // [{path, name}] — uploaded, not yet sent with a message
+
+if (typeof mermaid !== 'undefined') {
+    mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
+}
+
+// mermaid reads the block's literal text, so this can't reuse escapeHtml() (no <br> for \n)
+function escapeHtmlEntities(text) {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+const markedRenderer = (typeof marked !== 'undefined') ? new marked.Renderer() : null;
+if (markedRenderer) {
+    const defaultCodeRenderer = markedRenderer.code.bind(markedRenderer);
+    markedRenderer.code = function(token) {
+        if (token && token.lang === 'mermaid') {
+            return `<pre class="mermaid">${escapeHtmlEntities(token.text)}</pre>`;
+        }
+        return defaultCodeRenderer(token);
+    };
+    marked.setOptions({ renderer: markedRenderer });
+}
+
+function renderAssistantMarkdown(rawMarkdown) {
+    if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
+        return escapeHtml(rawMarkdown); // vendored renderer missing -- show the source, don't break the chat
+    }
+    return DOMPurify.sanitize(marked.parse(rawMarkdown));
+}
+
+function renderMathAndDiagrams(rootEl) {
+    if (typeof renderMathInElement !== 'undefined') {
+        renderMathInElement(rootEl, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$', right: '$', display: false}
+            ],
+            throwOnError: false
+        });
+    }
+    if (typeof mermaid !== 'undefined') {
+        const diagrams = rootEl.querySelectorAll('.mermaid');
+        if (diagrams.length > 0) {
+            mermaid.run({ nodes: diagrams }).catch(err => console.error('Mermaid render failed:', err));
+        }
+    }
+}
+
+function finalizeAssistantBubble(contentEl, rawMarkdown) {
+    contentEl.innerHTML = renderAssistantMarkdown(rawMarkdown);
+    renderMathAndDiagrams(contentEl);
+}
 
 async function loadSessions(page = 1) {
     currentPage = page;
@@ -95,6 +148,8 @@ function backToSessions() {
         eventSource = null;
     }
     currentSessionId = null;
+    pendingAttachments = [];
+    renderPendingAttachments();
     document.getElementById('chat-container').classList.add('hidden');
     document.getElementById('session-selector').classList.remove('hidden');
     loadSessions();
@@ -132,10 +187,20 @@ async function loadMessages() {
     const messagesDiv = document.getElementById('messages');
     messagesDiv.innerHTML = data.messages.map(msg => {
         const role = msg.role === 'user' ? 'user' : 'assistant';
-        const content = escapeHtml(msg.content || '');
-        return `<div class="message ${role}"><div class="message-content">${content}</div></div>`;
+        const content = role === 'assistant'
+            ? renderAssistantMarkdown(msg.content || '')
+            : escapeHtml(msg.content || '');
+        let html = `<div class="message ${role}"><div class="message-content">${content}</div></div>`;
+        if (msg.live_context) {
+            // Runtime state (time, git, todos...) auto-appended to the turn --
+            // not something the user typed, so it renders as separate, faint
+            // metadata rather than inside the user's own bubble.
+            html += `<div class="message live-context"><div class="message-content">${escapeHtml(msg.live_context)}</div></div>`;
+        }
+        return html;
     }).join('');
-    
+    renderMathAndDiagrams(messagesDiv);
+
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
@@ -210,13 +275,11 @@ function connectSSE() {
                 messagesDiv.appendChild(row);
 
             } else if (kind === 'usage') {
-                // End-of-response marker (always emitted last, through the same
-                // stream as the deltas). Finalize the live answer: drop the
-                // faint/pulsing `streaming` class so it settles into a normal
-                // assistant bubble, and clear the per-response bubble refs.
                 if (streamingBubble) {
                     streamingBubble.classList.remove('streaming');
                 }
+                // also clears it when null, so a stale bubble can't leak into the next turn
+                lastAnswerBubble = streamingBubble;
                 streamingBubble = null;
                 thinkingBubble = null;
                 // Usage stats footer row
@@ -227,6 +290,24 @@ function connectSSE() {
                 content.textContent = data.text;
                 row.appendChild(content);
                 messagesDiv.appendChild(row);
+
+            } else if (kind === 'markdown') {
+                const spinner = document.getElementById('sse-progress');
+                if (spinner) spinner.remove();
+                let targetBubble = (lastAnswerBubble && messagesDiv.contains(lastAnswerBubble))
+                    ? lastAnswerBubble
+                    : null;
+                if (!targetBubble) {
+                    // no live bubble to replace (e.g. reconnected mid-turn) -- append a new one
+                    targetBubble = document.createElement('div');
+                    targetBubble.className = 'message assistant';
+                    const content = document.createElement('div');
+                    content.className = 'message-content';
+                    targetBubble.appendChild(content);
+                    messagesDiv.appendChild(targetBubble);
+                }
+                finalizeAssistantBubble(targetBubble.querySelector('.message-content'), data.text);
+                lastAnswerBubble = null;
 
             } else if (kind === 'todo_progress') {
                 const row = document.createElement('div');
@@ -309,30 +390,78 @@ function connectSSE() {
     };
 }
 
+function renderPendingAttachments() {
+    const container = document.getElementById('pending-attachments');
+    container.classList.toggle('hidden', pendingAttachments.length === 0);
+    container.innerHTML = pendingAttachments.map((att, i) => `
+        <span class="attachment-chip">📎 ${escapeHtml(att.name)} <button data-index="${i}" title="Remove">✕</button></span>
+    `).join('');
+    container.querySelectorAll('button[data-index]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            pendingAttachments.splice(parseInt(btn.dataset.index), 1);
+            renderPendingAttachments();
+        });
+    });
+}
+
+async function handleFileSelect(event) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = ''; // allow re-selecting the same file
+    if (!files.length || !currentSessionId) return;
+
+    for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+            const response = await fetch(`/api/v1/chat/sessions/${currentSessionId}/attachments`, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                alert(`Attachment rejected (${file.name}): ${data.error || response.status}`);
+                continue;
+            }
+            pendingAttachments.push({path: data.path, name: data.name});
+        } catch (e) {
+            console.error('attachment upload error:', e);
+            alert(`Failed to upload ${file.name}`);
+        }
+    }
+    renderPendingAttachments();
+}
+
 async function sendMessage() {
     const input = document.getElementById('message-input');
     const message = input.value.trim();
-    
-    if (!message || !currentSessionId) {
+
+    if ((!message && pendingAttachments.length === 0) || !currentSessionId) {
         console.log('sendMessage: empty message or no session');
         return;
     }
-    
+
     input.value = '';
+    const attachments = pendingAttachments.map(a => a.path);
+    const attachedNames = pendingAttachments.map(a => a.name);
+    pendingAttachments = [];
+    renderPendingAttachments();
 
     // Reset streaming state for new response
     streamingBubble = null;
     thinkingBubble = null;
 
     const messagesDiv = document.getElementById('messages');
-    messagesDiv.innerHTML += `<div class="message user"><div class="message-content">${escapeHtml(message)}</div></div>`;
+    const attachmentsLine = attachedNames.length
+        ? `<div class="message-attachments">${attachedNames.map(n => `📎 ${escapeHtml(n)}`).join(' ')}</div>`
+        : '';
+    messagesDiv.innerHTML += `<div class="message user"><div class="message-content">${escapeHtml(message)}</div>${attachmentsLine}</div>`;
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    
+
     try {
         const response = await fetch(`/api/v1/chat/sessions/${currentSessionId}/messages`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({message})
+            body: JSON.stringify({message, attachments})
         });
         console.log('sendMessage response:', response.status, await response.json());
     } catch (e) {
@@ -456,7 +585,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('deny-btn').addEventListener('click', () => handleApproval('n'));
     document.getElementById('edit-btn').addEventListener('click', () => handleApproval('edit'));
     document.getElementById('submit-edit-btn').addEventListener('click', () => handleApproval('edit'));
-    
+    document.getElementById('attach-btn').addEventListener('click', () => {
+        document.getElementById('attachment-input').click();
+    });
+    document.getElementById('attachment-input').addEventListener('change', handleFileSelect);
+
     const input = document.getElementById('message-input');
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {

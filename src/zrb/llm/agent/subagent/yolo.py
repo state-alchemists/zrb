@@ -14,8 +14,13 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from zrb.config.config import CFG
+from zrb.llm.permission import ALLOW, ASK, DENY, Capability
 
-def make_yolo_inheritance_checker() -> Callable[..., bool]:
+
+def make_yolo_inheritance_checker() -> (
+    Callable[..., bool]
+):  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     """Return a callable that reports the current effective YOLO mode.
 
     Resolution order:
@@ -23,15 +28,14 @@ def make_yolo_inheritance_checker() -> Callable[..., bool]:
     2. ``get_current_ui().yolo`` (live xcom read, covers live toggles)
     3. ``False``
     """
-    # lazy: tests patch `zrb.llm.agent.run.runtime_state.get_current_*` and
+    # lazy: tests patch `zrb.llm.agent_state.get_current_*` and
     # rely on the patch taking effect inside the closure. Hoisting would
     # bind these names at module-load and bypass the mocks.
-    # lazy: zrb internal (heavy via transitive / circular)
-    from zrb.llm.agent.run.runtime_state import get_current_ui, get_current_yolo
+    from zrb.llm.agent_state import get_current_ui, get_current_yolo
 
-    # lazy: permission is a leaf; kept local to mirror get_current_* deferral
-    # and so tests patching either layer take effect inside the closure.
-    from zrb.llm.permission import ALLOW, ASK, DENY, Capability, get_effective_policy
+    # lazy: tests patch zrb.llm.permission.get_effective_policy; hoisting
+    # would bind the name at this module's load time and bypass the mock.
+    from zrb.llm.permission import get_effective_policy
 
     def check_yolo_inheritance(tool_def: Any = None) -> bool:
         # Approval precedence (matches chat/task.py check_yolo):
@@ -69,10 +73,10 @@ def make_yolo_inheritance_checker() -> Callable[..., bool]:
             return tool_name in yolo_val
         try:
             ui = get_current_ui()
-            if ui is not None and hasattr(ui, "yolo"):
-                return bool(getattr(ui, "yolo"))
-        except Exception:
-            pass
+            if ui is not None:
+                return bool(ui.yolo)
+        except Exception as e:
+            CFG.LOGGER.debug(f"Could not read UI yolo state: {e}")
         return False
 
     return check_yolo_inheritance

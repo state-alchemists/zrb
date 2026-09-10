@@ -1,18 +1,11 @@
 import sys
 from abc import abstractmethod
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Any, TextIO
+from typing import TextIO
 
 from zrb.context.any_shared_context import AnySharedContext
 
-if TYPE_CHECKING:
-    from pydantic import GetCoreSchemaHandler, GetJsonSchemaHandler
-    from pydantic.json_schema import JsonSchemaValue
-    from pydantic_core import CoreSchema
 
-
-# Note: __get_pydantic_core_schema__ and __get_pudantic_json_schema__ is needed
-# since session generate state_log (which is a pydantic base model)
 class AnyContext(AnySharedContext):
     """Abstract base class for managing task contexts, logging, and rendering.
 
@@ -20,21 +13,6 @@ class AnyContext(AnySharedContext):
     attempt counts, logging, and rendering templates with additional data.
     Subclasses must implement all abstract methods.
     """
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: "GetCoreSchemaHandler"
-    ) -> "CoreSchema":
-        # lazy: heavy third-party
-        from pydantic_core import core_schema
-
-        return core_schema.is_instance_schema(cls)
-
-    @classmethod
-    def __get_pydantic_json_schema__(
-        cls, core_schema: "CoreSchema", handler: "GetJsonSchemaHandler"
-    ) -> "JsonSchemaValue":
-        return {"type": "object", "title": "AnyContext"}
 
     @property
     @abstractmethod
@@ -66,7 +44,11 @@ class AnyContext(AnySharedContext):
 
     @abstractmethod
     def update_task_env(self, task_env: dict[str, str]):
-        pass
+        """Merge `task_env` into this context's environment variables.
+
+        Args:
+            task_env: Variables to add or overwrite, by name.
+        """
 
     @abstractmethod
     def print(
@@ -79,6 +61,8 @@ class AnyContext(AnySharedContext):
         plain: bool = False,
     ):
         """Prints values to the specified output stream.
+
+        See `Context.print` in `context/context.py` for the concrete implementation.
 
         Args:
             *values (object): The values to be printed.
@@ -101,6 +85,8 @@ class AnyContext(AnySharedContext):
         plain: bool = False,
     ):
         """Prints error values to the specified output stream.
+
+        See `Context.print_err` in `context/context.py` for the concrete implementation.
 
         Args:
             *values (object): The values to be printed.

@@ -27,7 +27,6 @@ def _tzinfo(name: str) -> datetime.timezone | None:
     alias="now",
 )
 def now(ctx: AnyContext) -> str:
-
     moment = datetime.datetime.now(tz=_tzinfo(ctx.input.timezone))
     epoch = int(moment.timestamp())
     ctx.print(f"Epoch:   {epoch}")
@@ -58,7 +57,6 @@ def now(ctx: AnyContext) -> str:
     alias="to-iso",
 )
 def epoch_to_iso(ctx: AnyContext) -> str:
-
     try:
         epoch = float(ctx.input.epoch)
     except ValueError:
@@ -87,7 +85,6 @@ def epoch_to_iso(ctx: AnyContext) -> str:
     alias="to-epoch",
 )
 def iso_to_epoch(ctx: AnyContext) -> str:
-
     try:
         moment = datetime.datetime.fromisoformat(ctx.input.datetime)
     except ValueError:

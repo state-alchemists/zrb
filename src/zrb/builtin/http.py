@@ -80,7 +80,6 @@ def http_request(ctx: AnyContext) -> str:
             "verify": ctx.input.verify_ssl,
             "timeout": ctx.input.timeout,
         }
-        # Encode the body according to the selected format.
         body = ctx.input.body
         if body != "":
             if ctx.input.body_format == "json":
@@ -147,7 +146,6 @@ def http_request(ctx: AnyContext) -> str:
     ],
 )
 def generate_curl(ctx: AnyContext) -> str:
-
     try:
         parts = ["curl", "-X", ctx.input.method]
         if ctx.input.headers != "{}":

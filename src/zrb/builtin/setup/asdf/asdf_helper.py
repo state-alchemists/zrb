@@ -1,7 +1,7 @@
 import os
 
+from zrb.builtin.setup.config_file_helper import append_config_block_if_missing
 from zrb.context.any_context import AnyContext
-from zrb.util.file import read_file, write_file
 
 
 def get_install_prerequisites_cmd(ctx: AnyContext) -> str:
@@ -24,17 +24,8 @@ def check_inexist_asdf_dir(_: AnyContext):
 
 
 def setup_asdf_sh_config(file_path: str):
-    _setup_asdf_config(file_path, '. "$HOME/.asdf/asdf.sh"')
+    append_config_block_if_missing(file_path, '. "$HOME/.asdf/asdf.sh"')
 
 
 def setup_asdf_ps_config(file_path: str):
-    _setup_asdf_config(file_path, '. "$HOME/.asdf/asdf.ps1"')
-
-
-def _setup_asdf_config(file_path: str, asdf_config: str):
-    if not os.path.isfile(file_path):
-        write_file(file_path, "")
-    content = read_file(file_path)
-    if asdf_config in content:
-        return
-    write_file(file_path, [content, asdf_config, ""])
+    append_config_block_if_missing(file_path, '. "$HOME/.asdf/asdf.ps1"')

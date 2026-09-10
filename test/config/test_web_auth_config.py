@@ -70,7 +70,7 @@ def test_web_auth_config_find_user_by_username_callback():
 def test_web_auth_config_secure_cookies_default():
     # No override -> falls back to CFG (covers line 104)
     config = WebAuthConfig()
-    assert config.secure_cookies == CFG.WEB_ENABLE_SECURE_COOKIES
+    assert config.secure_cookies == CFG.WEB_AUTH_SECURE_COOKIES
 
 
 def test_web_auth_config_secure_cookies_setter():
@@ -90,22 +90,22 @@ def test_web_auth_config_user_list_without_auth():
     assert users[0].is_guest is True
 
 
-def test_web_auth_config_append_user():
-    # With auth enabled, user_list includes appended users plus admin/default
+def test_web_auth_config_add_user():
+    # With auth enabled, user_list includes added users plus admin/default
     # (covers lines 162, 178, 188, 191-196, 198)
     config = WebAuthConfig(enable_auth=True)
     new_user = User(username="alice", password="secret")
-    config.append_user(new_user)
+    config.add_user(new_user)
     usernames = [u.username for u in config.user_list]
     assert "alice" in usernames
 
 
-def test_web_auth_config_append_duplicate_user_raises():
-    # Appending an existing username raises (covers line 197)
+def test_web_auth_config_add_duplicate_user_raises():
+    # Adding an existing username raises (covers line 197)
     config = WebAuthConfig(enable_auth=True)
-    config.append_user(User(username="bob", password="secret"))
+    config.add_user(User(username="bob", password="secret"))
     with pytest.raises(ValueError):
-        config.append_user(User(username="bob", password="other"))
+        config.add_user(User(username="bob", password="other"))
 
 
 def test_web_auth_config_find_user_by_username_uses_callback():
@@ -122,7 +122,7 @@ def test_web_auth_config_find_user_by_username_uses_callback():
 def test_web_auth_config_find_user_by_username_falls_back_to_list():
     # Callback returns None -> falls back to user_list lookup
     config = WebAuthConfig(enable_auth=True, find_user_by_username=lambda u: None)
-    config.append_user(User(username="dave", password="secret"))
+    config.add_user(User(username="dave", password="secret"))
     found = config.find_user_by_username("dave")
     assert found is not None
     assert found.username == "dave"

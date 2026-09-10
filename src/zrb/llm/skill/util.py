@@ -21,7 +21,7 @@ def discover_companion_files(skill_path: str) -> list[str]:
     if not skill_dir.is_dir():
         return []
     return sorted(
-        str(f.relative_to(skill_dir))
+        f.relative_to(skill_dir).as_posix()
         for f in skill_dir.rglob("*")
         if f.is_file() and f.name not in ("SKILL.md", "SKILL.py")
     )

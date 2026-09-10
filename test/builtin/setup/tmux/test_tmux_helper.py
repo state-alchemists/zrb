@@ -1,8 +1,30 @@
 """Tests for tmux_helper.py - Tmux installation command generation."""
 
-from unittest.mock import MagicMock
+import os
+from unittest.mock import MagicMock, patch
 
-from zrb.builtin.setup.tmux.tmux_helper import get_install_tmux_cmd
+from zrb.builtin.setup.tmux.tmux_helper import (
+    check_inexist_tpm_dir,
+    get_install_tmux_cmd,
+)
+
+
+def test_check_inexist_tpm_dir_exists():
+    """Test check_inexist_tpm_dir when ~/.tmux/plugins/tpm exists."""
+    with patch.dict(os.environ, {"HOME": "/tmp"}):
+        with patch("os.path.isdir", return_value=True):
+            ctx = MagicMock()
+            result = check_inexist_tpm_dir(ctx)
+            assert result is False
+
+
+def test_check_inexist_tpm_dir_not_exists():
+    """Test check_inexist_tpm_dir when ~/.tmux/plugins/tpm does not exist."""
+    with patch.dict(os.environ, {"HOME": "/tmp"}):
+        with patch("os.path.isdir", return_value=False):
+            ctx = MagicMock()
+            result = check_inexist_tpm_dir(ctx)
+            assert result is True
 
 
 def test_get_install_tmux_cmd_with_apt():

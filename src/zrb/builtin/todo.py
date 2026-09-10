@@ -10,19 +10,23 @@ from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
 from zrb.task.make_task import make_task
 from zrb.util.file import read_file, write_file
-from zrb.util.todo import (
-    add_duration,
+from zrb.util.todo.duration import add_duration, parse_duration
+from zrb.util.todo.model import TodoTaskModel
+from zrb.util.todo.parser import (
     cascade_todo_task,
-    get_visual_todo_card,
-    get_visual_todo_list,
     line_to_todo_task,
     load_todo_list,
-    parse_duration,
     save_todo_list,
     select_todo_task,
     todo_task_to_line,
 )
-from zrb.util.todo_model import TodoTaskModel
+from zrb.util.todo.render import get_visual_todo_card, get_visual_todo_list
+
+
+def _load_todo_list(path: str) -> list[TodoTaskModel]:
+    if os.path.isfile(path):
+        return load_todo_list(path)
+    return []
 
 
 def _get_filter_input(allow_positional_parsing: bool = False) -> StrInput:
@@ -33,7 +37,7 @@ def _get_filter_input(allow_positional_parsing: bool = False) -> StrInput:
         allow_empty=True,
         allow_positional_parsing=allow_positional_parsing,
         always_prompt=False,
-        default=CFG.TODO_VISUAL_FILTER,
+        default=lambda _: CFG.TODO_VISUAL_FILTER,
     )
 
 
@@ -69,14 +73,12 @@ def _get_filter_input(allow_positional_parsing: bool = False) -> StrInput:
     group=todo_group,
     alias="add",
 )
-def add_todo(ctx: AnyContext):
+def add_todo(ctx: AnyContext) -> str:
 
     todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
-    todo_list: list[TodoTaskModel] = []
-    if os.path.isfile(todo_file_path):
-        todo_list = load_todo_list(todo_file_path)
-    else:
+    if not os.path.isfile(todo_file_path):
         os.makedirs(CFG.TODO_DIR, exist_ok=True)
+    todo_list = _load_todo_list(todo_file_path)
     todo_list.append(
         cascade_todo_task(
             TodoTaskModel(
@@ -106,12 +108,10 @@ def add_todo(ctx: AnyContext):
     group=todo_group,
     alias="list",
 )
-def list_todo(ctx: AnyContext):
+def list_todo(ctx: AnyContext) -> str:
 
     todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
-    todo_list: list[TodoTaskModel] = []
-    if os.path.isfile(todo_file_path):
-        todo_list = load_todo_list(todo_file_path)
+    todo_list = _load_todo_list(todo_file_path)
     return get_visual_todo_list(todo_list, filter=ctx.input.filter)
 
 
@@ -122,13 +122,10 @@ def list_todo(ctx: AnyContext):
     group=todo_group,
     alias="show",
 )
-def show_todo(ctx: AnyContext):
+def show_todo(ctx: AnyContext) -> str | None:
 
     todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
-    todo_list: list[TodoTaskModel] = []
-    if os.path.isfile(todo_file_path):
-        todo_list = load_todo_list(todo_file_path)
-    # Get todo task
+    todo_list = _load_todo_list(todo_file_path)
     todo_task = select_todo_task(todo_list, ctx.input.keyword)
     if todo_task is None:
         ctx.log_error("Task not found")
@@ -136,7 +133,6 @@ def show_todo(ctx: AnyContext):
     if todo_task.completed:
         ctx.log_error("Task already completed")
         return
-    # Update todo task
     todo_task = cascade_todo_task(todo_task)
     task_id = todo_task.keyval.get("id", "")
     log_work_path = os.path.join(CFG.TODO_DIR, "log-work", f"{task_id}.json")
@@ -156,13 +152,10 @@ def show_todo(ctx: AnyContext):
     group=todo_group,
     alias="complete",
 )
-def complete_todo(ctx: AnyContext):
+def complete_todo(ctx: AnyContext) -> str:
 
     todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
-    todo_list: list[TodoTaskModel] = []
-    if os.path.isfile(todo_file_path):
-        todo_list = load_todo_list(todo_file_path)
-    # Get todo task
+    todo_list = _load_todo_list(todo_file_path)
     todo_task = select_todo_task(todo_list, ctx.input.keyword)
     if todo_task is None:
         ctx.log_error("Task not found")
@@ -170,13 +163,11 @@ def complete_todo(ctx: AnyContext):
     if todo_task.completed:
         ctx.log_error("Task already completed")
         return get_visual_todo_list(todo_list, filter=ctx.input.filter)
-    # Update todo task
     todo_task = cascade_todo_task(todo_task)
     # cascade_todo_task guarantees creation_date is set, so completion_date
     # can always be recorded here.
     todo_task.completion_date = datetime.date.today()
     todo_task.completed = True
-    # Save todo list
     save_todo_list(todo_file_path, todo_list)
     return get_visual_todo_list(todo_list, filter=ctx.input.filter)
 
@@ -188,12 +179,10 @@ def complete_todo(ctx: AnyContext):
     group=todo_group,
     alias="archive",
 )
-def archive_todo(ctx: AnyContext):
+def archive_todo(ctx: AnyContext) -> str:
 
     todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
-    todo_list: list[TodoTaskModel] = []
-    if os.path.isfile(todo_file_path):
-        todo_list = load_todo_list(todo_file_path)
+    todo_list = _load_todo_list(todo_file_path)
     retention_duration = datetime.timedelta(seconds=parse_duration(CFG.TODO_RETENTION))
     threshold_date = datetime.date.today() - retention_duration
     new_archived_todo_list = [
@@ -212,12 +201,8 @@ def archive_todo(ctx: AnyContext):
     archive_file_path = os.path.join(CFG.TODO_DIR, "archive.txt")
     if not os.path.isdir(CFG.TODO_DIR):
         os.makedirs(CFG.TODO_DIR, exist_ok=True)
-    # Get archived todo list
-    archived_todo_list = []
-    if os.path.isfile(archive_file_path):
-        archived_todo_list = load_todo_list(archive_file_path)
+    archived_todo_list = _load_todo_list(archive_file_path)
     archived_todo_list += new_archived_todo_list
-    # Save the new todo list and add the archived ones
     save_todo_list(archive_file_path, archived_todo_list)
     save_todo_list(todo_file_path, working_todo_list)
     return get_visual_todo_list(working_todo_list, filter=ctx.input.filter)
@@ -250,26 +235,20 @@ def archive_todo(ctx: AnyContext):
     group=todo_group,
     alias="log",
 )
-def log_todo(ctx: AnyContext):
+def log_todo(ctx: AnyContext) -> str:
 
     todo_file_path = os.path.join(CFG.TODO_DIR, "todo.txt")
-    todo_list: list[TodoTaskModel] = []
-    if os.path.isfile(todo_file_path):
-        todo_list = load_todo_list(todo_file_path)
-    # Get todo task
+    todo_list = _load_todo_list(todo_file_path)
     todo_task = select_todo_task(todo_list, ctx.input.keyword)
     if todo_task is None:
         ctx.log_error("Task not found")
         return get_visual_todo_list(todo_list, filter=ctx.input.filter)
-    # Update todo task
     todo_task = cascade_todo_task(todo_task)
     current_duration_str = todo_task.keyval.get("duration", "0")
     todo_task.keyval["duration"] = add_duration(
         current_duration_str, ctx.input.duration
     )
-    # Save todo list
     save_todo_list(todo_file_path, todo_list)
-    # Add log work
     log_work_dir = os.path.join(CFG.TODO_DIR, "log-work")
     os.makedirs(log_work_dir, exist_ok=True)
     log_work_file_path = os.path.join(
@@ -288,9 +267,7 @@ def log_todo(ctx: AnyContext):
             "start": start_work_time_str,
         }
     )
-    # save todo with log work
     write_file(log_work_file_path, json.dumps(log_work, indent=2))
-    # get log work list
     task_id = todo_task.keyval.get("id", "")
     log_work_path = os.path.join(CFG.TODO_DIR, "log-work", f"{task_id}.json")
     log_work_list = []
@@ -332,7 +309,7 @@ def _get_default_stop_work_time_str() -> str:
     group=todo_group,
     alias="edit",
 )
-def edit_todo(ctx: AnyContext):
+def edit_todo(ctx: AnyContext) -> str:
     todo_list = [
         cascade_todo_task(line_to_todo_task(line))
         for line in ctx.input.text.split("\n")

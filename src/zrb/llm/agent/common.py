@@ -14,9 +14,13 @@ from zrb.llm.agent.run.hook_result_extractor import (
     extract_post_tool_decision,
     extract_pre_tool_decision,
 )
-from zrb.llm.config.config import llm_config as default_llm_config
+from zrb.llm.agent.spill import maybe_spill
+from zrb.llm.agent.truncate import truncate_tool_content
+from zrb.llm.agent_tool_result import has_multimodal, tool_return
+from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.hook.manager import hook_manager
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.util.capabilities import model_capabilities
 from zrb.llm.util.prompt import expand_prompt
 from zrb.util.string.conversion import to_string
 
@@ -42,15 +46,23 @@ if TYPE_CHECKING:
     HistoryProcessor = Callable[..., Awaitable[list[ModelMessage]]]
 
 
-def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
+def wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
     """Wrap a tool with error handling to prevent crashes."""
+    # lazy: tests patch zrb.llm.permission.tool_capability; hoisting would
+    # bind the name at this module's load time and bypass the mock.
+    from zrb.llm.permission import capability_metadata, tool_capability
+
     if hasattr(tool, "function"):
         # lazy: heavy third-party
         from pydantic_ai import Tool as PydanticTool
 
-        # It is a Tool instance
+        # It is a Tool instance (or a duck-typed equivalent)
         original_func = getattr(tool, "function")
-        safe_func = create_safe_wrapper(original_func, name=getattr(tool, "name"))
+        safe_func = create_safe_wrapper(original_func, name=getattr(tool, "name", None))
+        metadata = {
+            **(getattr(tool, "metadata", None) or {}),
+            **capability_metadata(tool_capability(tool)),
+        }
         if isinstance(tool, PydanticTool):
             return PydanticTool(
                 safe_func,
@@ -65,11 +77,34 @@ def _wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
                 requires_approval=tool.requires_approval,
                 timeout=tool.timeout,
                 defer_loading=tool.defer_loading,
+                metadata=metadata,
             )
-        return tool
+        # Duck-typed tool: rebuild as a real Tool around the safe wrapper.
+        # Returning the original unchanged would silently drop both the error
+        # containment of safe_func and the capability tag — an untagged tool
+        # resolves to UNKNOWN and is denied by conservative policies.
+        return PydanticTool(
+            safe_func,
+            name=getattr(tool, "name", None),
+            description=getattr(tool, "description", None),
+            takes_ctx=bool(getattr(tool, "takes_ctx", False)),
+            metadata=metadata,
+        )
     else:
         # It is a callable (hasattr(tool, "function") is False, so not a Tool).
-        return create_safe_wrapper(cast("Callable", tool))
+        # Wrapped into a Tool (rather than left bare) so the capability tag
+        # survives as ToolDefinition.metadata: the outer SafeToolsetWrapper
+        # gate (see wrap_toolset below) only ever sees a ToolsetTool, which
+        # carries a tool_def but no .function and no arbitrary attributes, so
+        # a tag() set on the raw callable would otherwise resolve as UNKNOWN
+        # there and be denied outright by policies like PLAN_MODE_POLICY.
+        # lazy: heavy third-party
+        from pydantic_ai import Tool as PydanticTool
+
+        safe_func = create_safe_wrapper(cast("Callable", tool))
+        return PydanticTool(
+            safe_func, metadata=capability_metadata(tool_capability(tool))
+        )
 
 
 def safe_copy_result(result: Any) -> Any:
@@ -85,33 +120,56 @@ def safe_copy_result(result: Any) -> Any:
         return result
     if isinstance(result, (list, dict, set)):
         return copy.deepcopy(result)
-    # For other types (including tuples which may contain mutable elements),
-    # perform a deep copy to be safe
+    # Other types (tuples especially) may still hold mutable elements.
     try:
         return copy.deepcopy(result)
     except Exception:
-        # If deepcopy fails (e.g., for complex objects), return as-is
-        # This maintains backward compatibility while fixing the common cases
+        # Un-copyable objects (open handles, locks) pass through as-is.
         return result
 
 
-def _truncated_content(content: str) -> tuple[str, dict[str, Any]]:
-    """Apply the global tool-result size backstop to a model-facing string.
-
-    Returns ``(content, metadata)``. The cap (``CFG.LLM_MAX_TOOL_RESULT_CHARS``)
-    is high enough that typical output is untouched; ``0`` disables it. Only the
-    text shown to the model is affected — never a tool's structured return value.
-    """
-    # lazy: circular — common → truncate is fine, but keep CFG read local so
-    # the cap is re-read per call (tests may patch it) and import stays cheap.
-    from zrb.llm.agent.truncate import truncate_tool_content
-
-    truncated, was_truncated = truncate_tool_content(
-        content, limit=CFG.LLM_MAX_TOOL_RESULT_CHARS
+def _apply_tool_result_limit(tool_name: str, result: Any) -> Any:
+    """Spill an oversized ``ToolReturn`` unless it is the read-back tool itself."""
+    if tool_name == "ReadToolResult":
+        return result
+    value, spill_metadata = maybe_spill(
+        result.return_value, limit=CFG.LLM_MAX_TOOL_RESULT_CHARS
     )
-    if not was_truncated:
-        return content, {}
-    return truncated, {"truncated": True, "original_chars": len(content)}
+    metadata = spill_metadata or _oversize_metadata(value)
+    if not metadata:
+        return result
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ToolReturn
+
+    return ToolReturn(
+        return_value=value,
+        content=result.content,
+        metadata={**(result.metadata or {}), **metadata},
+    )
+
+
+def _oversize_metadata(value: Any) -> dict[str, Any]:
+    """Flag an oversized tool result in metadata, without rewriting it.
+
+    ``CFG.LLM_MAX_TOOL_RESULT_CHARS`` does not bound what the model reads:
+    the field that becomes the tool-result message goes through
+    whole. The size is recorded and the value is passed through untouched.
+
+    Metadata never reaches the model; it is there so a real cap can be decided
+    on evidence.
+
+    Multimodal content is not measured at all — its text rendering is a repr,
+    not the file, so a character count of it would be meaningless.
+    """
+    if has_multimodal(value):
+        return {}
+    rendered = value if isinstance(value, str) else to_string(value)
+    _, is_oversized = truncate_tool_content(
+        rendered, limit=CFG.LLM_MAX_TOOL_RESULT_CHARS
+    )
+    if not is_oversized:
+        return {}
+    return {"oversized": True, "original_chars": len(rendered)}
 
 
 def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
@@ -119,8 +177,8 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
     # lazy: heavy third-party
     from pydantic_ai import ModelRetry, ToolReturn
 
-    # lazy: circular — permission is a leaf module; capability is read at wrap
-    # time (cheap) so the per-call gate need not re-import it.
+    # lazy: tests patch zrb.llm.permission.tool_capability; hoisting would
+    # bind the name at this module's load time and bypass the mock.
     from zrb.llm.permission import tool_capability
 
     capability = tool_capability(func)
@@ -154,12 +212,10 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
             # Create a safe copy to prevent mutation by pydantic-ai
             safe_result = safe_copy_result(result)
 
-            # Otherwise wrap successful result in ToolReturn, applying the global
-            # content-size backstop (return_value is left whole).
-            content, metadata = _truncated_content(to_string(safe_result))
-            return ToolReturn(
-                return_value=safe_result, content=content, metadata=metadata
-            )
+            # Output reduction belongs to SafeToolsetWrapper, after PostToolUse
+            # has made its final output decision (ADR-0089). Preserve the
+            # metadata-only oversize marker for direct wrapper callers (ADR-0043).
+            return tool_return(safe_result, **_oversize_metadata(safe_result))
         except ModelRetry:
             # pydantic-ai's retry protocol: the framework turns this into a
             # retry prompt for the model. Swallowing it into an error string
@@ -167,26 +223,44 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
             raise
         except Exception as e:
             error_msg = f"Error executing tool {func.__name__}: {e}"
-            return ToolReturn(
-                return_value=None, content=error_msg, metadata={"error": True}
-            )
+            return tool_return(error_msg, error=True)
 
     return wrapper
 
 
-def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
+def wrap_toolset(
+    toolset: "AbstractToolset[None]",
+) -> (
+    "AbstractToolset[None]"
+):  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     """Wrap a toolset with error handling."""
     # lazy: heavy third-party
     from pydantic_ai import ModelRetry, ToolReturn
     from pydantic_ai.toolsets import WrapperToolset
 
-    # lazy: circular — permission is a leaf module.
+    # lazy: tests patch zrb.llm.permission.tool_capability; hoisting would
+    # bind the name at this module's load time and bypass the mock.
     from zrb.llm.permission import tool_capability
+    from zrb.llm.tool_call.override_registry import pop_override_note
 
     class SafeToolsetWrapper(WrapperToolset[None]):
         async def call_tool(
             self, name: str, tool_args: dict[str, Any], ctx: Any, tool: Any
         ) -> Any:
+            # Consumed once per call, regardless of outcome: if the user edited
+            # this call's arguments during approval, the model's own turn in
+            # history still shows what it originally wrote (pydantic-ai never
+            # rewrites that ToolCallPart) — this note is the only place left to
+            # tell it what actually ran. See override_registry's docstring.
+            override_note = pop_override_note(getattr(ctx, "tool_call_id", None))
+
+            def _with_override_note(result: Any) -> Any:
+                return (
+                    _append_tool_context(result, override_note)
+                    if override_note
+                    else result
+                )
+
             try:
                 tool_args = await _fire_pre_tool_use(name, tool_args, ctx)
                 if isinstance(tool_args, ToolReturn):
@@ -194,23 +268,31 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
                 blocked = permission_gate(name, tool_capability(tool), tool_args or {})
                 if blocked is not None:
                     return blocked
-                blocked = sandbox_gate(name, tool_capability(tool), tool_args or {})
+                blocked = sandbox_gate(
+                    name, tool_capability(tool), tool_args or {}, ctx
+                )
                 if blocked is not None:
                     return blocked
                 result = await super().call_tool(name, tool_args, ctx, tool)
-                # If result is already a ToolReturn, respect its framing; a
-                # PostToolUse hook may still block it or replace its content.
-                if isinstance(result, ToolReturn):
-                    return await _fire_post_tool_use(name, tool_args, result)
-                # Create a safe copy to prevent mutation by pydantic-ai
-                safe_result = safe_copy_result(result)
-                content, metadata = _truncated_content(to_string(safe_result))
-                wrapped = ToolReturn(
-                    return_value=safe_result,
-                    content=content,
-                    metadata=metadata,
-                )
-                return await _fire_post_tool_use(name, tool_args, wrapped)
+                tool_framed = isinstance(result, ToolReturn)
+                if not tool_framed:
+                    result = tool_return(safe_copy_result(result))
+                pre_hook_value = result.return_value
+                result = await _fire_post_tool_use(name, tool_args, result)
+                if tool_framed and result.return_value is pre_hook_value:
+                    # The tool framed (and possibly already truncated, e.g.
+                    # Shell/Read/Grep via LLM_MAX_OUTPUT_CHARS) its own result,
+                    # and no PostToolUse hook touched it — respect that framing.
+                    # LLM_MAX_TOOL_RESULT_CHARS is documented to catch outputs
+                    # "not already capped by a tool"; running it here too would
+                    # re-truncate an already-truncated result into a much
+                    # smaller spill preview with no way to recover the true
+                    # full output. A hook that rewrites the value (below) is
+                    # still subject to the backstop, since that content never
+                    # went through the tool's own cap.
+                    return _with_override_note(result)
+                result = _apply_tool_result_limit(name, result)
+                return _with_override_note(result)
             except ModelRetry:
                 # Part of pydantic-ai's retry protocol — must reach the
                 # framework, not become an opaque error string.
@@ -218,9 +300,7 @@ def _wrap_toolset(toolset: "AbstractToolset[None]") -> "AbstractToolset[None]":
             except Exception as e:
                 await _fire_post_tool_use_failure(name, tool_args, e)
                 error_msg = f"Error executing tool {name}: {e}"
-                return ToolReturn(
-                    return_value=None, content=error_msg, metadata={"error": True}
-                )
+                return _with_override_note(tool_return(error_msg, error=True))
 
     return SafeToolsetWrapper(toolset)
 
@@ -234,9 +314,6 @@ async def _fire_pre_tool_use(name: str, tool_args: dict[str, Any], ctx: Any) -> 
     rewritten) ``tool_args`` to use, or a blocking ``ToolReturn`` if a hook denied
     the call.
     """
-    # lazy: heavy third-party deferral
-    from pydantic_ai import ToolReturn
-
     if getattr(ctx, "tool_call_approved", False):
         return tool_args
     results = await hook_manager.execute_hooks(
@@ -254,13 +331,9 @@ async def _fire_pre_tool_use(name: str, tool_args: dict[str, Any], ctx: Any) -> 
     )
     decision = extract_pre_tool_decision(results)
     if decision.deny:
-        return ToolReturn(
-            return_value=None,
-            content=(
-                f"Blocked by PreToolUse hook: "
-                f"{decision.reason or 'tool call denied'}"
-            ),
-            metadata={"blocked": True},
+        return tool_return(
+            f"Blocked by PreToolUse hook: {decision.reason or 'tool call denied'}",
+            blocked=True,
         )
     # Limitation: this is the execution-time path for tools that don't require
     # approval (no interactive prompt to show here), so a hook's
@@ -281,11 +354,11 @@ def _tool_response_payload(result: Any) -> dict[str, Any]:
 
     Claude's PostToolUse payload carries the tool's output under ``tool_response``.
     The result here may be a pydantic-ai ``ToolReturn`` (use its model-facing
-    ``content``), a plain dict, or an arbitrary value. Wrap non-dicts under a
+    ``return_value``), a plain dict, or an arbitrary value. Wrap non-dicts under a
     ``content`` key and stringify anything that won't serialize so the stdin
     payload never falls back to the minimal event-only form.
     """
-    content = getattr(result, "content", result)
+    content = getattr(result, "return_value", result)
     if isinstance(content, dict):
         payload = content
     else:
@@ -319,22 +392,19 @@ async def _fire_post_tool_use(name: str, tool_args: dict[str, Any], result: Any)
     )
     decision = extract_post_tool_decision(results)
     if decision.block:
-        return ToolReturn(
-            return_value=None,
-            content=(
-                f"Tool result blocked by PostToolUse hook: " f"{decision.reason or ''}"
-            ),
-            metadata={"blocked": True},
+        return tool_return(
+            f"Tool result blocked by PostToolUse hook: {decision.reason or ''}",
+            blocked=True,
         )
     if decision.updated_output is not None and isinstance(result, ToolReturn):
         result = ToolReturn(
-            return_value=result.return_value,
-            content=decision.updated_output,
+            return_value=decision.updated_output,
+            content=result.content,
             metadata=result.metadata,
         )
     # Claude injects a PostToolUse hook's additionalContext into the model's
     # context after the tool result; render it by appending to the model-facing
-    # content (the only post-tool injection point available here).
+    # output (the only post-tool injection point available here).
     if decision.additional_context:
         result = _append_tool_context(result, decision.additional_context)
     return result
@@ -343,21 +413,20 @@ async def _fire_post_tool_use(name: str, tool_args: dict[str, Any], result: Any)
 def _append_tool_context(result: Any, extra: str) -> Any:
     """Append a PostToolUse hook's additionalContext to the model-facing output.
 
-    Extends the ``ToolReturn`` content so the model sees the tool result followed
-    by the hook's context. A non-``ToolReturn`` result is wrapped, preserving the
-    original value for the model while surfacing the context.
+    Extends the ``ToolReturn`` return value so the model sees the tool result
+    followed by the hook's context in the same tool-result message. A
+    non-``ToolReturn`` result is wrapped the same way.
     """
     # lazy: heavy third-party
     from pydantic_ai import ToolReturn
 
     if isinstance(result, ToolReturn):
-        content = result.content
         return ToolReturn(
-            return_value=result.return_value,
-            content=_merge_content(content, extra),
+            return_value=_merge_content(result.return_value, extra),
+            content=result.content,
             metadata=result.metadata,
         )
-    return ToolReturn(return_value=result, content=_merge_content(result, extra))
+    return tool_return(_merge_content(result, extra))
 
 
 def _merge_content(content: Any, extra: str) -> Any:
@@ -397,8 +466,8 @@ async def _fire_post_tool_use_failure(
 def create_agent(
     model: "Model | str | None" = None,
     system_prompt: str = "",
-    tools: list["Tool | ToolFuncEither"] = [],
-    toolsets: list["AbstractToolset[None]"] = [],
+    tools: list["Tool | ToolFuncEither"] | None = None,
+    toolsets: list["AbstractToolset[None]"] | None = None,
     model_settings: "ModelSettings | None" = None,
     history_processors: list["HistoryProcessor"] | None = None,
     capabilities: "list[AbstractCapability[Any]] | None" = None,
@@ -411,12 +480,10 @@ def create_agent(
     from pydantic_ai import Agent, DeferredToolRequests
     from pydantic_ai.toolsets import FunctionToolset
 
-    # Expand system prompt with references
     effective_system_prompt = expand_prompt(system_prompt)
 
-    # Wrap tools and toolsets with error handling
-    safe_tools = [_wrap_tool(t) for t in tools]
-    safe_toolsets = [_wrap_toolset(t) for t in toolsets]
+    safe_tools = [wrap_tool(t) for t in tools or []]
+    safe_toolsets = [wrap_toolset(t) for t in toolsets or []]
 
     final_output_type = output_type
     effective_toolsets = list(safe_toolsets)
@@ -425,7 +492,7 @@ def create_agent(
         # single chokepoint every tool call passes through (free functions and
         # toolset tools alike). This is where PreToolUse/PostToolUse fire.
         effective_toolsets.append(
-            _wrap_toolset(
+            wrap_toolset(
                 FunctionToolset(tools=safe_tools, max_retries=CFG.LLM_TOOL_MAX_RETRIES)
             )
         )
@@ -445,16 +512,19 @@ def create_agent(
             effective_toolsets = [ts.approval_required() for ts in effective_toolsets]
 
     if model is None:
-        model = default_llm_config.model
+        model = CFG.LLM_MODEL
 
-    # Resolve through model_getter/model_renderer here unless the caller already
-    # did so (resolve_model=False). Resolving a second time would re-fire those
-    # callbacks on an already-resolved value — which can feed a Model object into
-    # a getter that expects a tier string. See LLMTask._create_agent.
-    final_model = default_llm_config.resolve_model(model) if resolve_model else model
+    # Resolve through CFG's configured credentials here unless the caller
+    # already did so (resolve_model=False) — e.g. LLMTask._create_agent
+    # resolves once itself (applying its own model_getter/model_renderer
+    # hooks too) and passes resolve_model=False to avoid doing it twice.
+    final_model = resolve_configured_model(model) if resolve_model else model
     effective_retries = retries if retries is not None else CFG.LLM_TOOL_MAX_RETRIES
-    effective_model_settings = _apply_capability_constraints(
-        model, final_model, model_settings
+    effective_model_settings = _apply_request_timeout(
+        _apply_reasoning_defaults(
+            _apply_capability_constraints(model, final_model, model_settings),
+            model if isinstance(model, str) else final_model,
+        )
     )
 
     agent: "Agent[None, Any]" = Agent(
@@ -477,8 +547,115 @@ def create_agent(
         capabilities=capabilities or [],
         retries={"tools": effective_retries},
     )
-    agent.zrb_history_processors = history_processors or []  # type: ignore[attr-defined]
+    # Ad-hoc attribute on the pydantic-ai agent; setattr keeps it honest
+    # instead of a blanket type suppression.
+    setattr(agent, "zrb_history_processors", history_processors or [])
     return agent
+
+
+def _apply_request_timeout(
+    model_settings: "ModelSettings | None",
+) -> "ModelSettings | None":
+    """Give every model request a deadline, from ``CFG.LLM_REQUEST_TIMEOUT``.
+
+    Without one, a provider that accepts the connection and then stops sending
+    blocks the run forever: pydantic-ai waits on the stream, and ``retry_loop``
+    only fires on a raised exception, so a stall is indistinguishable from
+    thinking. Observed as two benchmark cells that burned their full 600s
+    wall-clock having produced no output, no history, and no file writes.
+
+    ``LLM_REQUEST_TIMEOUT`` already existed and already documented itself as the
+    "default timeout for LLM requests" — it was simply never read outside the
+    web session runner. Applied here rather than at a call site so it covers the
+    main agent, programmatic ``LLMTask``, and sub-agents alike. A caller that
+    sets ``timeout`` itself wins; a non-positive value disables the deadline.
+    """
+    timeout_ms = CFG.LLM_REQUEST_TIMEOUT
+    if timeout_ms <= 0:
+        return model_settings
+    if model_settings is None:
+        return {"timeout": timeout_ms / 1000}
+    if "timeout" in model_settings:
+        return model_settings
+    return {**model_settings, "timeout": timeout_ms / 1000}
+
+
+def _apply_reasoning_defaults(
+    model_settings: "ModelSettings | None",
+    model: "Model | str | None",
+) -> "ModelSettings | None":
+    """Default to a visible, cached reasoning experience out of the box.
+
+    Without ``openai_reasoning_summary``, OpenAI's Responses API returns a
+    ``ThinkingPart`` with empty ``content`` and only an opaque encrypted
+    ``signature`` — real reasoning happened, but nothing human-readable comes
+    back (confirmed against a live session's persisted history: 1612 bytes of
+    signature, zero characters of text). ``"auto"`` asks OpenAI to include a
+    readable summary. ``openai_prompt_cache_retention="24h"`` extends how long
+    OpenAI keeps a conversation's cached prefix warm (default is much
+    shorter), which matters for zrb's usage pattern of resending a growing
+    history on every turn; per pydantic-ai's own docs the two prompt-cache
+    settings are independent of the newer GPT-5.6 ``openai_prompt_cache_options``
+    mechanism, so setting both is safe.
+
+    ``LLM_THINKING`` (unset by default) maps onto pydantic-ai's own
+    cross-provider ``ModelSettings.thinking`` field, so one CFG knob controls
+    reasoning effort across OpenAI/Anthropic/Google/etc. instead of a
+    per-provider setting. Unlike OpenAI, Anthropic's thinking blocks already
+    come back as readable text once ``thinking`` is enabled — no
+    summary-equivalent default needed there.
+
+    Google is the odd one out: Gemini 2.5/3 think (and bill
+    ``thoughts_tokens``) whether or not a request sets ``thinking``, but only
+    return the readable summary when ``thinking_config.include_thoughts`` is
+    explicitly requested — confirmed against a live session: ``thoughts_tokens``
+    non-zero on every turn, no thinking block ever rendered. Unlike OpenAI's
+    fix, this can't be a blanket default: the same unified ``thinking`` field
+    also drives Anthropic's *opt-in* extended thinking, so defaulting
+    ``thinking=True`` for every model would turn that on too — a real
+    cost/latency change, not a visibility fix. So the ``thinking=True``
+    fallback below only fires when ``LLM_THINKING`` is unset *and* the
+    resolved model is capability-flagged ``supports_thinking_summary``
+    (currently Gemini 2.5/3 only, see ``zrb.llm.util.capabilities``) — Gemini
+    already reasons by default, so this only makes the existing reasoning
+    visible, it doesn't turn anything on that wasn't already running and
+    billed.
+
+    ``anthropic_cache="5m"`` requests Anthropic's automatic prompt-cache
+    breakpoint (a top-level ``cache_control`` that the server moves forward
+    as the conversation grows). Unlike OpenAI, Anthropic never caches a
+    prompt unless a request asks for it — without this, zrb's
+    resend-the-whole-history-every-turn pattern reprocesses the full
+    conversation from scratch on every Anthropic call. "5m" is Anthropic's
+    own default TTL; "1h" costs more per cache write and only pays off for
+    gaps longer than 5 minutes between turns. Google has no request-level
+    caching default to mirror this: Gemini's context caching is a
+    pre-created cache *resource* (``google_cached_content``) that must be
+    created and kept alive out-of-band via a separate API call — out of
+    scope for a settings default.
+
+    Every key here is either provider-namespaced (silently ignored by every
+    other provider's model class — pydantic-ai's own convention, not
+    something to special-case per model) or the provider-agnostic ``thinking``
+    field. Caller-supplied ``model_settings`` always win, key by key.
+    """
+    # Untyped as a plain dict, not ModelSettings: the provider-namespaced keys
+    # only exist on their own provider's ModelSettings subclass (e.g.
+    # OpenAIChatModelSettings, AnthropicModelSettings), each more specific
+    # than the provider-agnostic one this function (and every caller in the
+    # chain) is typed against.
+    defaults: dict[str, Any] = {
+        "openai_reasoning_summary": "auto",
+        "openai_prompt_cache_retention": "24h",
+        "anthropic_cache": "5m",
+    }
+    if CFG.LLM_THINKING is not None:
+        defaults["thinking"] = CFG.LLM_THINKING
+    elif model_capabilities.get(model).supports_thinking_summary:
+        defaults["thinking"] = True
+    if model_settings is None:
+        return cast("ModelSettings", defaults)
+    return cast("ModelSettings", {**defaults, **model_settings})
 
 
 def _apply_capability_constraints(
@@ -499,15 +676,27 @@ def _apply_capability_constraints(
        malform parallel tool calls. Real OpenAI / Azure OpenAI honor the
        flag; Ollama-cloud's OpenAI-compatible endpoint silently ignores
        it (verified empirically against minimax-m2.7 and glm-4.7). The
-       **prompt-side** parallel-tool-call section in the Tool Usage Guide
-       (see :func:`zrb.llm.prompt.tool_guidance.get_parallel_tool_call_section`)
-       is what actually changes those models' behavior. Both layers use
+       **prompt-side** parallel-tool-call line in the System Context
+       section (see ``_format_parallel_tool_call_line`` in
+       ``zrb.llm.prompt.system_context``) is what actually changes those
+       models' behavior. Both layers use
        the same capability registry, so toggling
        ``supports_parallel_tool_calls`` in one place updates both.
-    """
-    # lazy: zrb internal (heavy via transitive / circular)
-    from zrb.llm.util.capabilities import model_capabilities
 
+    .. warning::
+
+       Some providers reject ``parallel_tool_calls`` outright rather than
+       honouring or ignoring it — OpenAI's o-series answers "Unsupported
+       parameter: 'parallel_tool_calls' is not supported with this model" with
+       a 400, and kimi-k2.5 behind NVIDIA NIM answers "This model only supports
+       single tool-calls at once!". For such a model, declaring
+       ``supports_parallel_tool_calls=False`` would send the one parameter that
+       breaks every request — a worse failure than the batching it prevents.
+       Splitting "malforms parallel calls" from "rejects the flag" into two
+       fields is the fix if that case ever needs supporting; until then the
+       registry comment on ``_NO_PARALLEL_TOOL_CALLS`` says to keep such models
+       off the list.
+    """
     capabilities = model_capabilities.get(
         model if isinstance(model, str) else final_model
     )

@@ -1,6 +1,7 @@
 import os
 import re
 
+from zrb.config.config import CFG
 from zrb.util.file import list_files, read_file
 from zrb.util.markdown import make_markdown_section
 
@@ -12,7 +13,7 @@ def expand_prompt(prompt: str) -> str:
     """
     if not prompt:
         return prompt
-    matches = _get_path_references(prompt)
+    matches = get_path_references(prompt)
     if not matches:
         return prompt
     appendix_entries: list[str] = []
@@ -20,19 +21,16 @@ def expand_prompt(prompt: str) -> str:
     last_idx = 0
     parts = []
     for match in matches:
-        # Add text before match
         parts.append(prompt[last_idx : match.start()])
         path_ref = match.group("path")
         original_token = match.group(0)
-        header, content, is_valid_ref = _process_path_reference(path_ref)
+        header, content, is_valid_ref = process_path_reference(path_ref)
         if not is_valid_ref:
             # Fallback: leave original token if unreadable or not found
             parts.append(original_token)
             last_idx = match.end()
             continue
-        # If we successfully got content
         parts.append(f"`{path_ref}` (see Appendix)")
-        # Add to appendix with strict instructions
         appendix_entries.append(
             make_markdown_section(
                 header or "",
@@ -41,7 +39,6 @@ def expand_prompt(prompt: str) -> str:
             )
         )
         last_idx = match.end()
-    # Add remaining text
     parts.append(prompt[last_idx:])
     new_prompt = "".join(parts)
     if appendix_entries:
@@ -49,7 +46,7 @@ def expand_prompt(prompt: str) -> str:
     return new_prompt
 
 
-def _get_path_references(prompt: str) -> list[re.Match]:
+def get_path_references(prompt: str) -> list[re.Match]:
     """Find all @path references in the prompt.
 
     Args:
@@ -62,12 +59,16 @@ def _get_path_references(prompt: str) -> list[re.Match]:
         return []
     # Regex to capture @path.
     # Matches @ followed by typical path chars.
-    # We'll allow alphanumeric, _, -, ., /, \, and ~ (home dir).
-    pattern = re.compile(r"@(?P<path>[\w~\-\./\\]+)")
+    # We'll allow alphanumeric, _, -, ., /, \, and ~ (home dir), plus an
+    # optional leading drive letter -- without it `@C:\\Users\\me\\notes.md`
+    # captured just "C" and every Windows absolute path silently failed to
+    # expand. The drive group is anchored and single-letter, so an ordinary
+    # `@word:something` still captures only "word".
+    pattern = re.compile(r"@(?P<path>(?:[A-Za-z]:)?[\w~\-\./\\]+)")
     return list(pattern.finditer(prompt))
 
 
-def _process_path_reference(path_ref: str) -> tuple[str | None, str | None, bool]:
+def process_path_reference(path_ref: str) -> tuple[str | None, str | None, bool]:
     """Process a single path reference.
 
     Args:
@@ -90,8 +91,8 @@ def _process_path_reference(path_ref: str) -> tuple[str | None, str | None, bool
             content = read_file(abs_path)
             header = f"File Content: `{path_ref}`"
             is_valid_ref = True
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"Failed to read referenced file {abs_path}: {e}")
     elif os.path.isdir(abs_path):
         try:
             # Use list_files for directory structure
@@ -101,6 +102,6 @@ def _process_path_reference(path_ref: str) -> tuple[str | None, str | None, bool
                 content = "(Empty directory)"
             header = f"Directory Listing: `{path_ref}`"
             is_valid_ref = True
-        except Exception:
-            pass
+        except Exception as e:
+            CFG.LOGGER.debug(f"Failed to list referenced dir {abs_path}: {e}")
     return header, content, is_valid_ref

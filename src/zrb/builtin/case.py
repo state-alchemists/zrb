@@ -49,7 +49,6 @@ def _to_case(words: list[str], style: str) -> str:
     alias="convert",
 )
 def convert_case(ctx: AnyContext) -> str:
-
     result = _to_case(_words(ctx.input.text), ctx.input.style)
     ctx.print(result)
     return result

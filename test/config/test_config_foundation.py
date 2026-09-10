@@ -4,7 +4,7 @@ from unittest import mock
 from unittest.mock import patch
 
 from zrb.config.config import Config
-from zrb.config.helper import get_current_shell, get_env, get_log_level, is_termux
+from zrb.config.helper import get_env, get_log_level
 
 
 def test_logger():
@@ -20,6 +20,26 @@ def test_env_prefix():
     # Custom
     with patch.dict(os.environ, {"_ZRB_ENV_PREFIX": "MYAPP"}):
         assert config.ENV_PREFIX == "MYAPP"
+
+
+def test_is_env_set_distinguishes_user_choice_from_default(monkeypatch):
+    """is_env_set answers whether the env var behind a field was explicitly set,
+    which a plain value read cannot (unset fields fall back to defaults)."""
+    config = Config()
+    monkeypatch.delenv("ZRB_LOGGING_LEVEL", raising=False)
+    assert config.is_env_set("LOGGING_LEVEL") is False
+    monkeypatch.setenv("ZRB_LOGGING_LEVEL", "debug")
+    assert config.is_env_set("LOGGING_LEVEL") is True
+
+
+def test_is_env_set_rejects_non_env_field():
+    config = Config()
+    try:
+        config.is_env_set("LOGGER")
+    except AttributeError as e:
+        assert "not an environment-backed config field" in str(e)
+    else:
+        raise AssertionError("expected AttributeError for LOGGER")
 
 
 def test_getenv_single():
@@ -41,118 +61,6 @@ def test_getenv_list():
     # Second match
     with patch.dict(os.environ, {"ZRB_VAR2": "val2"}):
         assert get_env(["VAR1", "VAR2"], "default", config.ENV_PREFIX) == "val2"
-
-
-def test_default_shell_env_var_set(monkeypatch):
-    monkeypatch.setenv("ZRB_SHELL", "my-shell")
-    config = Config()
-    assert config.SHELL == "my-shell"
-
-
-def _which(*present):
-    """A shutil.which stub that 'finds' only the named executables."""
-    return lambda candidate: f"/usr/bin/{candidate}" if candidate in present else None
-
-
-@mock.patch("platform.system", return_value="Windows")
-def test_default_shell_windows(mock_platform_system, monkeypatch):
-    monkeypatch.delenv("ZRB_SHELL", raising=False)
-    config = Config()
-    with mock.patch("shutil.which", side_effect=_which("powershell")):
-        assert config.SHELL == "powershell"
-        assert get_current_shell() == "powershell"
-
-
-@mock.patch("platform.system", return_value="Windows")
-def test_default_shell_windows_prefers_pwsh(mock_platform_system, monkeypatch):
-    monkeypatch.delenv("ZRB_SHELL", raising=False)
-    with mock.patch("shutil.which", side_effect=_which("pwsh", "powershell")):
-        assert get_current_shell() == "pwsh"
-
-
-@mock.patch("platform.system", return_value="Windows")
-def test_default_shell_windows_falls_back_to_cmd(mock_platform_system, monkeypatch):
-    monkeypatch.delenv("ZRB_SHELL", raising=False)
-    # Neither pwsh nor powershell present -> cmd, which always exists on Windows.
-    with mock.patch("shutil.which", side_effect=_which()):
-        assert get_current_shell() == "cmd"
-
-
-@mock.patch("platform.system", return_value="Linux")
-def test_default_shell_zsh(mock_platform_system, monkeypatch):
-    monkeypatch.delenv("ZRB_SHELL", raising=False)
-    monkeypatch.setenv("SHELL", "/bin/zsh")
-    config = Config()
-    with mock.patch("shutil.which", side_effect=_which("zsh", "bash", "sh")):
-        assert config.SHELL == "zsh"
-        assert get_current_shell() == "zsh"
-
-
-@mock.patch("platform.system", return_value="Linux")
-def test_default_shell_bash(mock_platform_system, monkeypatch):
-    monkeypatch.delenv("ZRB_SHELL", raising=False)
-    monkeypatch.setenv("SHELL", "/bin/bash")
-    config = Config()
-    with mock.patch("shutil.which", side_effect=_which("bash", "sh")):
-        assert config.SHELL == "bash"
-        assert get_current_shell() == "bash"
-
-
-@mock.patch("platform.system", return_value="Linux")
-def test_default_shell_alpine_falls_back_to_sh(mock_platform_system, monkeypatch):
-    # Alpine: $SHELL unset and bash not installed -> must resolve to sh, not bash.
-    monkeypatch.delenv("ZRB_SHELL", raising=False)
-    monkeypatch.setenv("SHELL", "")
-    with mock.patch("shutil.which", side_effect=_which("sh")):
-        assert get_current_shell() == "sh"
-
-
-@mock.patch("platform.system", return_value="Linux")
-def test_default_shell_zsh_requested_but_absent(mock_platform_system, monkeypatch):
-    # $SHELL says zsh but it isn't installed -> fall back to an existing shell.
-    monkeypatch.delenv("ZRB_SHELL", raising=False)
-    monkeypatch.setenv("SHELL", "/bin/zsh")
-    with mock.patch("shutil.which", side_effect=_which("bash", "sh")):
-        assert get_current_shell() == "bash"
-
-
-def test_is_termux_detects_termux_version(monkeypatch):
-    monkeypatch.setenv("TERMUX_VERSION", "0.118.0")
-    monkeypatch.delenv("PREFIX", raising=False)
-    assert is_termux() is True
-
-
-def test_is_termux_detects_com_termux_prefix(monkeypatch):
-    monkeypatch.delenv("TERMUX_VERSION", raising=False)
-    monkeypatch.setenv("PREFIX", "/data/data/com.termux/files/usr")
-    assert is_termux() is True
-
-
-def test_is_termux_false_off_termux(monkeypatch):
-    monkeypatch.delenv("TERMUX_VERSION", raising=False)
-    monkeypatch.setenv("PREFIX", "/usr/local")
-    monkeypatch.delenv("ANDROID_ROOT", raising=False)
-    assert is_termux() is False
-
-
-def test_is_termux_detects_android_root(monkeypatch):
-    monkeypatch.delenv("TERMUX_VERSION", raising=False)
-    monkeypatch.delenv("PREFIX", raising=False)
-    monkeypatch.setenv("ANDROID_ROOT", "/system")
-    assert is_termux() is True
-
-
-def test_cfg_is_termux_auto_detected(monkeypatch):
-    monkeypatch.delenv("ZRB_IS_TERMUX", raising=False)
-    monkeypatch.setenv("TERMUX_VERSION", "0.118.0")
-    assert Config().IS_TERMUX is True
-
-
-def test_cfg_is_termux_env_override_wins(monkeypatch):
-    # Auto-detection says Termux, but an explicit override forces it off.
-    monkeypatch.setenv("TERMUX_VERSION", "0.118.0")
-    monkeypatch.setenv("ZRB_IS_TERMUX", "false")
-    assert Config().IS_TERMUX is False
 
 
 def test_default_editor(monkeypatch):
@@ -213,7 +121,7 @@ def test_root_group_description(monkeypatch):
 
 
 def test_init_scripts(monkeypatch):
-    monkeypatch.setenv("ZRB_INIT_SCRIPTS", "script1:script2")
+    monkeypatch.setenv("ZRB_INIT_SCRIPTS", f"script1{os.pathsep}script2")
     config = Config()
     assert config.INIT_SCRIPTS == ["script1", "script2"]
 
@@ -253,16 +161,25 @@ def test_get_log_level():
     assert get_log_level("INVALID") == logging.WARNING
 
 
-def test_load_builtin(monkeypatch):
+def test_enable_builtin_tasks_old_env_name_is_inert(monkeypatch):
+    # LOAD_BUILTIN was renamed to ENABLE_BUILTIN_TASKS (ADR-0026 verb-first
+    # alignment) as a clean break in 2.64.0, pre-release — the old
+    # ZRB_LOAD_BUILTIN env var is no longer read; only ZRB_ENABLE_BUILTIN_TASKS
+    # is.
     monkeypatch.setenv("ZRB_LOAD_BUILTIN", "0")
+    monkeypatch.delenv("ZRB_ENABLE_BUILTIN_TASKS", raising=False)
     config = Config()
-    assert not config.LOAD_BUILTIN
+    assert config.ENABLE_BUILTIN_TASKS
 
 
-def test_warn_unrecommended_command(monkeypatch):
+def test_show_unrecommended_command_warning_old_env_name_is_inert(monkeypatch):
+    # WARN_UNRECOMMENDED_COMMAND was renamed to SHOW_UNRECOMMENDED_COMMAND_WARNING
+    # (ADR-0026 verb-first alignment) as a clean break in 2.64.0, pre-release —
+    # the old env var is no longer read.
     monkeypatch.setenv("ZRB_WARN_UNRECOMMENDED_COMMAND", "0")
+    monkeypatch.delenv("ZRB_SHOW_UNRECOMMENDED_COMMAND_WARNING", raising=False)
     config = Config()
-    assert not config.WARN_UNRECOMMENDED_COMMAND
+    assert config.SHOW_UNRECOMMENDED_COMMAND_WARNING
 
 
 @mock.patch("os.path.expanduser", return_value="/home/user/.zrb/session")

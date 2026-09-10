@@ -2,13 +2,22 @@ import asyncio
 import json
 from typing import Any
 
+# Deliberate exception to this package's "fastapi loads on demand" convention:
+# this class subclasses fastapi.responses.StreamingResponse, and its own name
+# is used as a FastAPI route's return-type annotation in chat_api_route.py
+# (`-> "SSEStreamResponse"`), which FastAPI's route registration resolves via
+# typing.get_type_hints() to decide whether to build a pydantic response
+# model. Replacing this with a factory function (to defer the import) would
+# make that annotation resolve to a function instead of a Response subclass,
+# breaking FastAPI's built-in special-casing of Response return types. The
+# import must stay eager here.
 from fastapi.responses import StreamingResponse
 
 from zrb.config.config import CFG
 
 
 class SSEStreamResponse(StreamingResponse):
-    def __init__(
+    def __init__(  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
         self,
         session_id: str,
         session_manager: Any,
@@ -16,7 +25,7 @@ class SSEStreamResponse(StreamingResponse):
     ):
         session = session_manager.get_session(session_id)
         self.session_id = session_id
-        self._queue = session.output_queue
+        self.output_queue = session.output_queue
         self._closed = False
 
         async def event_generator():
@@ -26,7 +35,7 @@ class SSEStreamResponse(StreamingResponse):
                 if self._closed:
                     break
                 try:
-                    get_task = asyncio.create_task(self._queue.get())
+                    get_task = asyncio.create_task(self.output_queue.get())
                     try:
                         item = await asyncio.wait_for(
                             get_task, timeout=CFG.LLM_SSE_KEEPALIVE_TIMEOUT / 1000

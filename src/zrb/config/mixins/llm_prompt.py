@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
-from zrb.config.env_field import EnvField, comma_list, on_off
+from zrb.config.env_field import EnvField, comma_join, comma_list, on_off
 from zrb.util.string.conversion import to_boolean
 
 
@@ -13,36 +14,30 @@ def _include_sections_serialize(value: list[str] | str) -> str:
 
 
 class LLMPromptMixin:
-    ENV_PREFIX: str
-    ROOT_GROUP_NAME: str
+    if TYPE_CHECKING:
+        # Attributes supplied by sibling mixins on the composed Config class.
+        ENV_PREFIX: str  # FoundationMixin
+        ROOT_GROUP_NAME: str  # FoundationMixin
 
     def __init__(self):
         self.DEFAULT_LLM_PROMPT_DIR: str = ""
         self.DEFAULT_LLM_BASE_PROMPT_DIR: str = ""
         self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL: str = "off"
         self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "off"
-        # Comma-separated, order-sensitive list of prompt sections to include.
-        # Order in the list determines the order they appear in the system prompt.
-        # Each section is MECE (mutually exclusive in concern): persona=identity+priorities,
-        # mandate=operating rules + skill catalogue, git_mandate=git approval,
-        # journal_mandate=memory protocol, system_context=runtime facts,
-        # project_context=AGENTS.md/CLAUDE.md, tool_guidance=per-tool rules.
-        # The skill catalogue is injected into mandate via {CORE_SKILLS}/
-        # {AVAILABLE_SKILLS}/{PREACTIVATED_SKILLS} placeholders, not a separate section.
+        # The seven prompt sections are deliberately fixed and ordered: the five
+        # file-backed rule sections, then the two runtime-fact sections
+        # (system_context renders the environment, project_context the project
+        # docs discovered near the working directory).
         self.DEFAULT_LLM_INCLUDE_SECTIONS: str = (
-            "persona,mandate,examples,git_mandate,journal_mandate,system_context,"
-            "project_context,tool_guidance"
+            "persona,principle,workflow,example,profile,system_context,project_context"
         )
-        # Runtime journaling reminder — separate from the journal_mandate
-        # prompt section, which is controlled by LLM_INCLUDE_SECTIONS.
-        self.DEFAULT_LLM_INCLUDE_JOURNAL_REMINDER: str = "off"
-        # Prompt profile (ADR-0083): "terse" (base prompts) or "explicit"
-        # (directive, with examples, for weaker models); "auto" uses "terse"
-        # unless a per-model profile is declared via register_model_profile().
-        # zrb makes no capability guess from the model id. The profile selects
-        # per-section phrasing variants (e.g. persona.explicit.md over persona.md);
-        # which sections appear is controlled solely by LLM_INCLUDE_SECTIONS.
+        self.DEFAULT_LLM_PROMPT: str = ""
         self.DEFAULT_LLM_PROFILE: str = "auto"
+        # The model-facing skill/agent catalogues are capped so a huge skill or
+        # sub-agent fleet does not inflate every request; the overflow is reachable
+        # on demand via SearchSkill / SearchAgent.
+        self.DEFAULT_LLM_MAX_SKILLS_IN_CATALOG: str = "10"
+        self.DEFAULT_LLM_MAX_AGENTS_IN_ROSTER: str = "10"
         super().__init__()
 
     LLM_PROMPT_DIR = EnvField(
@@ -75,23 +70,47 @@ class LLMPromptMixin:
         doc="Order-sensitive list of prompt sections to include (comma-separated).",
     )
 
-    LLM_INCLUDE_JOURNAL_REMINDER = EnvField(
-        to_boolean,
-        serialize=on_off,
-        doc="Inject a journaling reminder into the system prompt at each turn (separate from journal_mandate section).",
+    LLM_PROMPT = EnvField(
+        comma_list,
+        serialize=comma_join,
+        doc=(
+            "Default appended prompts (on top of the built-in sections), the env "
+            "twin of `prompt_registry`. Comma-separated; set callables "
+            "or longer content in zrb_init.py via `prompt_registry` instead."
+        ),
     )
 
     LLM_PROFILE = EnvField(
         str,
         doc=(
-            "Prompt profile controlling how each section is phrased:\n"
-            "- 'terse': concise, principle-led — the base prompts.\n"
-            "- 'explicit': more directive, with worked examples, for weaker "
-            "models.\n"
-            "- 'auto' (default): uses 'terse' unless a per-model profile has "
-            "been declared via register_model_profile().\n\n"
-            "The profile selects per-section phrasing variants (e.g. "
-            "persona.explicit.md, falling back to the base file) and toggles the "
-            "examples section.\n\n"
+            "Prompt profile: 'minimal', 'standard', 'capable', or 'auto' "
+            "(default). It selects profile.<name>.md; 'minimal' additionally "
+            "registers no delegate (sub-agent) tools. 'auto' derives one from "
+            "the model id: "
+            "a declared size of 4B or less selects 'minimal', 5-14B 'standard', "
+            "above 14B 'capable'; an id declaring nothing falls back to "
+            "'standard'. Override per model with ZRB_LLM_PROFILE.\n"
+        ),
+    )
+
+    LLM_MAX_SKILLS_IN_CATALOG = EnvField(
+        int,
+        doc=(
+            "How many model-invocable skills the prompt's skill catalogue lists "
+            "before truncating with a pointer to SearchSkill. The full catalogue "
+            "is always reachable on demand via SearchSkill, so this is a token-"
+            "economy cap, not a hard limit. 0 or negative disables the cap, "
+            "listing the whole catalogue."
+        ),
+    )
+
+    LLM_MAX_AGENTS_IN_ROSTER = EnvField(
+        int,
+        doc=(
+            "How many sub-agents the delegation tools' AVAILABLE AGENTS roster "
+            "lists before truncating with a pointer to SearchAgent. The full "
+            "roster is always reachable on demand via SearchAgent, so this is a "
+            "token-economy cap, not a hard limit. 0 or negative disables the cap, "
+            "listing the whole roster."
         ),
     )

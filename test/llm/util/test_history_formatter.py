@@ -1,8 +1,7 @@
 """Tests for the history_formatter module."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 
-import pytest
 from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
@@ -16,11 +15,11 @@ from pydantic_ai.messages import (
 )
 
 from zrb.llm.util.history_formatter import (
-    _indent_lines,
     extract_last_response_text,
     format_args,
     format_history_as_text,
     format_timestamp,
+    indent_lines,
     truncate,
 )
 
@@ -262,22 +261,22 @@ class TestFormatArgs:
 
 
 class TestIndentLines:
-    """Tests for _indent_lines function."""
+    """Tests for indent_lines function."""
 
     def test_single_line(self):
         """Test indenting a single line."""
-        lines = _indent_lines("Hello", indent=2)
+        lines = indent_lines("Hello", indent=2)
         assert lines == ["  Hello"]
 
     def test_multiline(self):
         """Test indenting multiple lines."""
-        lines = _indent_lines("Line 1\nLine 2", indent=4)
+        lines = indent_lines("Line 1\nLine 2", indent=4)
         assert lines == ["    Line 1", "    Line 2"]
 
     def test_max_lines_truncation(self):
         """Test that content is truncated at max_lines."""
         content = "\n".join([f"Line {i}" for i in range(100)])
-        lines = _indent_lines(content, indent=0, max_lines=10)
+        lines = indent_lines(content, indent=0, max_lines=10)
         assert len(lines) == 11  # 10 lines + truncation message
         assert "more lines" in lines[-1]
 
@@ -439,3 +438,39 @@ def testformat_timestamp_non_string_non_datetime():
 def testformat_timestamp_invalid_iso_string():
     """Invalid ISO string returns '' (lines 310-311)."""
     assert format_timestamp("not-a-date") == ""
+
+
+# ── multimodal UserPromptPart content ───────────────────────────────────────
+
+
+def test_user_prompt_with_image_url():
+    """A multimodal user turn renders the image as a bracketed label."""
+    from pydantic_ai.messages import ImageUrl
+
+    messages = [
+        ModelRequest(
+            parts=[
+                UserPromptPart(content=["Look at this", ImageUrl(url="http://x/y.png")])
+            ]
+        ),
+    ]
+    result = format_history_as_text(messages)
+    assert "Look at this" in result
+    assert "[Image URL: http://x/y.png]" in result
+
+
+def test_user_prompt_with_binary_content():
+    """Binary content in a multimodal turn renders its media type, not a raw repr."""
+    from pydantic_ai.messages import BinaryContent
+
+    messages = [
+        ModelRequest(
+            parts=[
+                UserPromptPart(
+                    content=[BinaryContent(data=b"abc", media_type="audio/wav")]
+                )
+            ]
+        ),
+    ]
+    result = format_history_as_text(messages)
+    assert "[Binary Content: audio/wav]" in result

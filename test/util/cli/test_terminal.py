@@ -43,16 +43,20 @@ class TestGetTerminalSize:
         """Test get_terminal_size with default fallback."""
         from zrb.util.cli.terminal import get_terminal_size
 
-        # When streams are None or unavailable, should return fallback
+        # When streams are None or unavailable, should return fallback.
+        # os.name is pinned off "nt" so the Windows CONOUT$ probe (which a
+        # real Windows runner can satisfy for real, short-circuiting before
+        # the shutil mock below) doesn't mask what this test targets.
         with patch.object(sys, "__stdout__", None):
             with patch.object(sys, "__stderr__", None):
                 with patch.object(sys, "__stdin__", None):
-                    with patch("shutil.get_terminal_size") as mock_shutil:
-                        mock_shutil.return_value.columns = 80
-                        mock_shutil.return_value.lines = 24
-                        size = get_terminal_size()
-                        assert size.columns == 80
-                        assert size.lines == 24
+                    with patch.object(os, "name", "posix"):
+                        with patch("shutil.get_terminal_size") as mock_shutil:
+                            mock_shutil.return_value.columns = 80
+                            mock_shutil.return_value.lines = 24
+                            size = get_terminal_size()
+                            assert size.columns == 80
+                            assert size.lines == 24
 
     def test_custom_fallback(self):
         """Test get_terminal_size with custom fallback."""
@@ -61,12 +65,13 @@ class TestGetTerminalSize:
         with patch.object(sys, "__stdout__", None):
             with patch.object(sys, "__stderr__", None):
                 with patch.object(sys, "__stdin__", None):
-                    with patch("shutil.get_terminal_size") as mock_shutil:
-                        mock_shutil.return_value.columns = 120
-                        mock_shutil.return_value.lines = 40
-                        size = get_terminal_size(fallback=(120, 40))
-                        assert size.columns == 120
-                        assert size.lines == 40
+                    with patch.object(os, "name", "posix"):
+                        with patch("shutil.get_terminal_size") as mock_shutil:
+                            mock_shutil.return_value.columns = 120
+                            mock_shutil.return_value.lines = 40
+                            size = get_terminal_size(fallback=(120, 40))
+                            assert size.columns == 120
+                            assert size.lines == 40
 
     def test_returns_terminal_size(self):
         """Test that get_terminal_size returns TerminalSize."""
@@ -137,28 +142,37 @@ class TestGetTerminalSize:
         mock_stdout = MagicMock()
         mock_stdout.fileno.side_effect = AttributeError("No fileno")
 
-        with patch.object(sys, "__stdout__", mock_stdout):
-            with patch.object(sys, "__stderr__", None):
-                with patch.object(sys, "__stdin__", None):
-                    with patch("shutil.get_terminal_size") as mock_shutil:
-                        mock_shutil.return_value.columns = 80
-                        mock_shutil.return_value.lines = 24
-                        size = get_terminal_size()
-                        assert size.columns == 80
+        # Between the file descriptors and the shutil fallback sits a Windows
+        # CONOUT$ probe, which succeeds whenever a real console is attached and
+        # would answer first. A failing open is what "no console" looks like;
+        # on POSIX that probe is skipped entirely, so this changes nothing.
+        with (
+            patch.object(sys, "__stdout__", mock_stdout),
+            patch.object(sys, "__stderr__", None),
+            patch.object(sys, "__stdin__", None),
+            patch("os.open", side_effect=OSError("no console")),
+            patch("shutil.get_terminal_size") as mock_shutil,
+        ):
+            mock_shutil.return_value.columns = 80
+            mock_shutil.return_value.lines = 24
+            size = get_terminal_size()
+            assert size.columns == 80
 
     def test_shutil_exception_fallback(self):
         """Test get_terminal_size fallback when shutil raises exception."""
         from zrb.util.cli.terminal import get_terminal_size
 
-        with patch.object(sys, "__stdout__", None):
-            with patch.object(sys, "__stderr__", None):
-                with patch.object(sys, "__stdin__", None):
-                    with patch(
-                        "shutil.get_terminal_size", side_effect=RuntimeError("Error")
-                    ):
-                        size = get_terminal_size(fallback=(100, 30))
-                        assert size.columns == 100
-                        assert size.lines == 30
+        with (
+            patch.object(sys, "__stdout__", None),
+            patch.object(sys, "__stderr__", None),
+            patch.object(sys, "__stdin__", None),
+            # See the CONOUT$ note above.
+            patch("os.open", side_effect=OSError("no console")),
+            patch("shutil.get_terminal_size", side_effect=RuntimeError("Error")),
+        ):
+            size = get_terminal_size(fallback=(100, 30))
+            assert size.columns == 100
+            assert size.lines == 30
 
     def test_stderr_stream_success(self):
         """Test get_terminal_size uses stderr when stdout fails."""
@@ -304,3 +318,68 @@ class TestGetTerminalSize:
                                         assert size.columns == 80
                                         # os.close should still be called
                                         mock_close.assert_called_once_with(mock_fd)
+
+
+class TestIsRealConsole:
+    """`is_real_console` — the Windows-only console-handle probe.
+
+    The Windows branch is driven with fake `msvcrt`/`ctypes` modules rather
+    than skipped off-platform: the whole point of the function is behavior
+    this repo's POSIX developers and its ubuntu/macOS CI jobs never execute,
+    so a `skipif` would leave it covered nowhere.
+    """
+
+    def _windows_modules(self, *, console: bool, get_osfhandle=None):
+        """Stand-in `msvcrt` and `ctypes` for the win32 branch.
+
+        `GetConsoleMode` returns non-zero only for a genuine console handle,
+        which is exactly the distinction `isatty()` cannot make on Windows.
+        """
+        msvcrt = MagicMock()
+        msvcrt.get_osfhandle = get_osfhandle or (lambda fd: 42)
+        ctypes = MagicMock()
+        ctypes.windll.kernel32.GetConsoleMode.return_value = 1 if console else 0
+        return {"msvcrt": msvcrt, "ctypes": ctypes}
+
+    def test_posix_is_always_a_real_console(self):
+        """POSIX `isatty()` already excludes /dev/null, so nothing to check."""
+        from zrb.util.cli.terminal import is_real_console
+
+        with patch.object(os, "name", "posix"):
+            assert is_real_console(MagicMock()) is True
+
+    def test_windows_console_handle_is_accepted(self):
+        from zrb.util.cli.terminal import is_real_console
+
+        with patch.object(os, "name", "nt"):
+            with patch.dict(sys.modules, self._windows_modules(console=True)):
+                assert is_real_console(MagicMock()) is True
+
+    def test_windows_nul_device_is_rejected(self):
+        """`isatty()` says True for NUL on Windows; `GetConsoleMode` says no."""
+        from zrb.util.cli.terminal import is_real_console
+
+        with patch.object(os, "name", "nt"):
+            with patch.dict(sys.modules, self._windows_modules(console=False)):
+                assert is_real_console(MagicMock()) is False
+
+    def test_windows_unfileno_able_stream_is_rejected(self):
+        """A stream with no OS handle cannot be a console; it must not raise."""
+        from zrb.util.cli.terminal import is_real_console
+
+        stream = MagicMock()
+        stream.fileno.side_effect = OSError("no fileno")
+        with patch.object(os, "name", "nt"):
+            with patch.dict(sys.modules, self._windows_modules(console=True)):
+                assert is_real_console(stream) is False
+
+    def test_windows_get_osfhandle_failure_is_rejected(self):
+        from zrb.util.cli.terminal import is_real_console
+
+        def boom(fd):
+            raise OSError("invalid handle")
+
+        modules = self._windows_modules(console=True, get_osfhandle=boom)
+        with patch.object(os, "name", "nt"):
+            with patch.dict(sys.modules, modules):
+                assert is_real_console(MagicMock()) is False

@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 
 from zrb.config.config import CFG
-from zrb.util.dir_search import get_upward_dirs
+from zrb.util.dir_search import BUILTIN_PLUGIN_DIR, get_upward_dirs
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ def _collect_hook_paths(base_dir: Path) -> list[str | Path]:
     # Claude Code registers hooks inside settings.json / settings.local.json
     # under a nested "hooks" block — NOT in hooks.json. Drop-in tools like
     # peon-ping install themselves there, so we read those files too. The
-    # nested block is parsed by HookLoaderMixin._parse_claude_format; any other
+    # nested block is parsed by HookManagerLoading._parse_claude_format; any other
     # settings keys (model, env, permissions, …) are ignored.
     for settings_name in ("settings.json", "settings.local.json"):
         settings_file = base_dir / ".claude" / settings_name
@@ -90,7 +90,7 @@ def _get_plugin_hook_dirs() -> list[str | Path]:
     paths: list[str | Path] = []
 
     # Default Plugin
-    default_plugin_path = Path(__file__).parent.parent.parent / "llm_plugin"
+    default_plugin_path = BUILTIN_PLUGIN_DIR
     if default_plugin_path.exists() and default_plugin_path.is_dir():
         hooks_path = default_plugin_path / "hooks"
         if hooks_path.exists() and hooks_path.is_dir():
@@ -142,3 +142,27 @@ def _get_project_hook_dirs() -> list[str | Path]:
 def _get_custom_hook_dirs() -> list[str | Path]:
     """Custom directories from ``CFG.HOOKS_DIRS``."""
     return [Path(d) for d in CFG.HOOKS_DIRS]
+
+
+def get_plugin_root_for_path(path: str | Path) -> str | None:
+    """The plugin directory *path* was discovered under, if any.
+
+    Mirrors `_get_plugin_hook_dirs`'s two sources (the built-in plugin and each
+    `CFG.LLM_PLUGIN_DIRS` entry) so a hook loaded from either can report its
+    origin as `CLAUDE_PLUGIN_ROOT` (`hook/creator.py::_build_hook_env`).
+    Returns `None` for a hook loaded from any other tier (home/project/custom),
+    matching Claude Code's own behavior of only setting the var for plugin hooks.
+    """
+    try:
+        resolved = Path(path).resolve()
+    except Exception:
+        return None
+    candidates = [BUILTIN_PLUGIN_DIR] + [Path(p) for p in CFG.LLM_PLUGIN_DIRS]
+    for root in candidates:
+        try:
+            resolved_root = root.resolve()
+        except Exception:
+            continue
+        if resolved == resolved_root or resolved_root in resolved.parents:
+            return str(resolved_root)
+    return None

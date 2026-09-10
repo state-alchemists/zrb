@@ -1,88 +1,17 @@
+"""Resolution of the ASCII art shown beside the TUI help panel.
+
+Composition lives in `zrb.util.cli.help_panel`, which lays the art out against
+the current terminal width; this module only answers "which art, and what is
+in it".
+"""
+
 import os
 import random
-import re
 
 from zrb.config.config import CFG
 
-ANSI_ESCAPE = re.compile(r"(?:\x1B|\\033)(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
-
-def _get_visible_length(text: str) -> int:
-    """Return the visible length of a string, excluding ANSI escape sequences."""
-    return len(ANSI_ESCAPE.sub("", text))
-
-
-def create_banner(
-    art: str | None = None,
-    text: str | None = None,
-    max_width: int | None = None,
-) -> str:
-    # First get art using _get_art_only
-    art_content = _get_art_only(art)
-
-    # If no text provided, just return the art
-    if text is None or text.strip() == "":
-        return art_content
-
-    # Find the longest line in the art, make every line has the same length
-    art_lines = art_content.splitlines()
-    if not art_lines:
-        return text
-
-    # Find the maximum visual line length in the art
-    max_art_length = max(_get_visible_length(line) for line in art_lines)
-
-    # Hide the art if the combined width would overflow the terminal: the
-    # separator is 2 spaces and we compare against the widest text line.
-    if max_width is not None:
-        max_text_length = max(
-            (_get_visible_length(line) for line in text.splitlines()), default=0
-        )
-        if max_art_length + 2 + max_text_length > max_width:
-            return text
-
-    # Pad all art lines to the same visual length
-    padded_art_lines = [
-        line + " " * (max_art_length - _get_visible_length(line)) for line in art_lines
-    ]
-
-    # Split text into lines
-    text_lines = text.splitlines()
-
-    # Combine art and text lines
-    combined_lines = []
-
-    # Determine the maximum number of lines we need
-    max_lines = max(len(padded_art_lines), len(text_lines))
-
-    # Calculate vertical offsets for centering
-    art_offset = (max_lines - len(padded_art_lines)) // 2
-    text_offset = (max_lines - len(text_lines)) // 2
-
-    for i in range(max_lines):
-        # Get art line (or empty string if we've run out of art lines)
-        art_index = i - art_offset
-        if 0 <= art_index < len(padded_art_lines):
-            art_line = padded_art_lines[art_index]
-        else:
-            art_line = " " * max_art_length
-
-        # Get text line (or empty string if we've run out of text lines)
-        text_index = i - text_offset
-        if 0 <= text_index < len(text_lines):
-            text_line = text_lines[text_index]
-        else:
-            text_line = ""
-
-        # Combine art and text lines
-        combined_line = art_line + "  " + text_line
-        combined_lines.append(combined_line)
-
-    # Return the combined result
-    return "\n".join(combined_lines)
-
-
-def _get_default_banner_search_path() -> list[str]:
+def get_default_banner_search_path() -> list[str]:
     current_path = os.path.abspath(os.getcwd())
     home_path = os.path.abspath(os.path.expanduser("~"))
     search_paths = [current_path]
@@ -100,14 +29,20 @@ def _get_default_banner_search_path() -> list[str]:
     return search_paths
 
 
-def _get_art_only(art: str | None = None) -> str:
-    # If art name is provided, try to find it.
+def get_ascii_art(art: str | None = None) -> str:
+    """Resolve `art` (a path or a name) to its content, or pick a random one.
+
+    Resolution order: literal path, then `{search path}/{ASCII_ART_DIR}/{art}.txt`
+    walking up from the CWD to `$HOME`, then the built-in art folder. A name that
+    matches nothing falls back to a random available art, so callers that need a
+    stable image across re-renders must resolve once and keep the result.
+    """
     if art is not None:
         if os.path.isfile(art):
             with open(art, "r", encoding="utf-8") as f:
                 return f.read()
         # Check in search paths
-        for search_path in _get_default_banner_search_path():
+        for search_path in get_default_banner_search_path():
             art_path = os.path.join(search_path, CFG.ASCII_ART_DIR, f"{art}.txt")
             if os.path.isfile(art_path):
                 with open(art_path, "r", encoding="utf-8") as f:
@@ -122,7 +57,7 @@ def _get_art_only(art: str | None = None) -> str:
     # If no specific art requested, or if requested art not found, find a random one.
     all_art_files = []
     # Collect from search paths
-    for search_path in _get_default_banner_search_path():
+    for search_path in get_default_banner_search_path():
         art_dir = os.path.join(search_path, CFG.ASCII_ART_DIR)
         if os.path.isdir(art_dir):
             for filename in os.listdir(art_dir):
@@ -135,10 +70,8 @@ def _get_art_only(art: str | None = None) -> str:
         for filename in os.listdir(builtin_art_dir):
             if filename.endswith(".txt"):
                 all_art_files.append(os.path.join(builtin_art_dir, filename))
-    # If any art files were found, pick one at random.
     if all_art_files:
         random_file_path = random.choice(all_art_files)
         with open(random_file_path, "r", encoding="utf-8") as f:
             return f.read()
-    # If no art found at all, return empty string.
     return ""

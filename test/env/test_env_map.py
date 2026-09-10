@@ -1,6 +1,6 @@
-import os
 from unittest import mock
 
+from zrb.attr.tpl import Tpl
 from zrb.context.shared_context import SharedContext
 from zrb.env.env_map import EnvMap
 
@@ -46,8 +46,9 @@ def test_env_map_no_link_to_os(monkeypatch):
     assert shared_ctx.env["key2"] == "value2"
 
 
-def test_env_map_auto_render(monkeypatch):
-    env_map = EnvMap(vars={"key1": "{{'hello'}}", "key2": "value2"})
+def test_env_map_renders_a_tpl_value(monkeypatch):
+    """A Tpl value opts into rendering; its neighbours stay literal."""
+    env_map = EnvMap(vars={"key1": Tpl("{{'hello'}}"), "key2": "value2"})
     shared_ctx = SharedContext(env={})
     with mock.patch.object(
         shared_ctx, "render", side_effect=lambda x: "hello" if x == "{{'hello'}}" else x
@@ -55,3 +56,12 @@ def test_env_map_auto_render(monkeypatch):
         env_map.update_context(shared_ctx)
         assert shared_ctx.env["key1"] == "hello"
         assert shared_ctx.env["key2"] == "value2"
+
+
+def test_env_map_keeps_bare_string_values_literal():
+    """A bare string passes through unrendered — braces and all."""
+    env_map = EnvMap(vars={"key1": "{{'hello'}}", "key2": "{literal}"})
+    shared_ctx = SharedContext(env={})
+    env_map.update_context(shared_ctx)
+    assert shared_ctx.env["key1"] == "{{'hello'}}"
+    assert shared_ctx.env["key2"] == "{literal}"

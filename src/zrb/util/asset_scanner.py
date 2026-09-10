@@ -1,8 +1,4 @@
-"""Recursive file-system scanning utility shared by SkillManager and SubAgentManager.
-
-Replaces the duplicated ``_scan_dir`` / ``_scan_dir_recursive`` pattern that
-previously lived in both ``loader_mixin.py`` and ``skill/manager.py``.
-"""
+"""Recursive file-system scanning utility shared by SkillManager and SubAgentManager."""
 
 from collections.abc import Callable
 from pathlib import Path
@@ -36,7 +32,8 @@ def scan_files(
         _scan_recursive(
             search_path, search_path, max_depth, 0, on_file_found, effective_ignore
         )
-    except Exception:
+    except (PermissionError, OSError):
+        # See docstring: one inaccessible branch must not abort the whole scan.
         pass
 
 

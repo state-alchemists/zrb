@@ -2,7 +2,9 @@
 
 from unittest.mock import MagicMock
 
-from zrb.llm.custom_command.skill_command_factory import get_skill_custom_command
+from zrb.llm.custom_command.skill_command_factory import (
+    get_skill_custom_command,
+)
 from zrb.llm.skill.manager import Skill
 
 
@@ -117,3 +119,41 @@ class TestGetSkillCustomCommand:
         assert "---" in prompt
         # Original content preserved
         assert "Skill content" in prompt
+
+
+class TestExtractArgs:
+    """Argument extraction from skill content, via the produced command's args."""
+
+    def _args_for(self, content: str) -> list[str]:
+        mock_manager = MagicMock()
+        skill = MagicMock(spec=Skill)
+        skill.user_invocable = True
+        skill.name = "arg_skill"
+        skill.path = "/some/path/SKILL.md"
+        skill.description = "d"
+        skill.argument_hint = None
+        skill.companion_files = []
+        mock_manager.scan.return_value = [skill]
+        mock_manager.get_skill_content.return_value = content
+
+        factory = get_skill_custom_command(mock_manager)
+        return factory()[0].args
+
+    def test_indexed_arguments_bracket_forms(self):
+        assert self._args_for("$ARGUMENTS[2] and ${ARGUMENTS[0]}") == [
+            "arg2",
+            "arg0",
+        ]
+
+    def test_positional_shorthand(self):
+        assert self._args_for("first $1 then $2") == ["arg1", "arg2"]
+
+    def test_all_arguments_form(self):
+        assert self._args_for("everything: $ARGUMENTS") == ["arguments"]
+
+    def test_shell_style_default_and_var(self):
+        content = "deploy to ${ENV:-production} using ${TARGET}"
+        assert self._args_for(content) == ["ENV", "TARGET"]
+
+    def test_bare_dollar_name_deduplicates_and_skips_arguments(self):
+        assert self._args_for("$FOO $FOO $ARGUMENTS") == ["arguments", "FOO"]

@@ -11,7 +11,6 @@ def _get_new_python_path(path_to_add: str) -> str:
     current_python_path = os.environ.get("PYTHONPATH", "")
     paths = current_python_path.split(os.pathsep) if current_python_path else []
     if path_to_add not in paths:
-        # Append to the end
         return os.pathsep.join(paths + [path_to_add]) if paths else path_to_add
     return current_python_path
 
@@ -20,8 +19,17 @@ def load_module(name: str) -> ModuleType:
     return importlib.import_module(name)
 
 
-def load_file(path: str, max_depth: int = -1) -> ModuleType | None:
-    # max_depth is kept for signature compatibility but ignored in this simple implementation
+def load_file(path: str, raise_on_error: bool = False) -> ModuleType | None:
+    """Exec `path` as a module and return it.
+
+    A broken file is reported and yields `None` by default — the lenient
+    contract most callers (discovery of optional plugin/skill files) want.
+    Pass `raise_on_error=True` for a call site that needs the real exception
+    rather than a printed line and a `None` it may not even check — e.g.
+    `zrb_init.py`'s loader (`_load_or_warn`), which reports the file, line,
+    and exception type precisely rather than this function's own generic
+    "Error loading file X: e" fallback.
+    """
     if not os.path.exists(path):
         return None
 
@@ -29,11 +37,9 @@ def load_file(path: str, max_depth: int = -1) -> ModuleType | None:
         abs_path = os.path.abspath(path)
         directory = os.path.dirname(abs_path)
 
-        # Add to sys.path if not present
         if directory not in sys.path:
             sys.path.append(directory)
 
-        # Update PYTHONPATH
         new_python_path = _get_new_python_path(directory)
         if new_python_path != os.environ.get("PYTHONPATH", ""):
             os.environ["PYTHONPATH"] = new_python_path
@@ -51,6 +57,8 @@ def load_file(path: str, max_depth: int = -1) -> ModuleType | None:
         return module
 
     except Exception as e:
+        if raise_on_error:
+            raise
         zrb_print(f"Error loading file {path}: {e}", plain=True)
         return None
 

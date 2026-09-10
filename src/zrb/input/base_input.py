@@ -1,7 +1,6 @@
 import html
 from typing import Any
 
-from zrb.attr.type import AnyAttr
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.any_input import AnyInput
 from zrb.util.attr import get_attr
@@ -9,22 +8,43 @@ from zrb.util.string.conversion import to_snake_case
 
 
 class BaseInput(AnyInput):
+    """Default `AnyInput` implementation, treating every value as a string.
+
+    Subclass this and override `_parse_str_value` to add a type; that is all
+    `IntInput`, `BoolInput`, and `FloatInput` do.
+    """
+
     def __init__(
         self,
         name: str,
         description: str | None = None,
         prompt: str | None = None,
-        default: AnyAttr = "",
-        auto_render: bool = True,
+        default: Any = "",
         allow_empty: bool = False,
         allow_positional_parsing: bool = True,
         always_prompt: bool = True,
     ):
+        """Define an input.
+
+        Args:
+            name: Input name, used as the CLI flag and the context key. Also
+                exposed in snake_case, so `project-name` is readable as
+                `ctx.input.project_name`.
+            description: Help text. Defaults to `name`.
+            prompt: Message shown when prompting. Defaults to `name`.
+            default: Default value. A literal, a `Tpl` rendered against the
+                context, or a callable taking it.
+            allow_empty: Whether an empty answer is accepted. When False, the
+                prompt repeats until something is entered.
+            allow_positional_parsing: Whether this input may be given as a bare
+                positional CLI argument rather than `--name value`.
+            always_prompt: Whether to prompt even when a default exists. Set
+                False for inputs whose default is nearly always right.
+        """
         self._name = name
         self._description = description
         self._prompt = prompt
         self._default_value = default
-        self._auto_render = auto_render
         self._allow_empty = allow_empty
         self._allow_positional_parsing = allow_positional_parsing
         self._always_prompt = always_prompt
@@ -47,6 +67,10 @@ class BaseInput(AnyInput):
     @property
     def prompt_message(self) -> str:
         return self._prompt if self._prompt is not None else self.name
+
+    @property
+    def is_secret(self) -> bool:
+        return False
 
     @property
     def allow_positional_parsing(self) -> bool:
@@ -77,7 +101,7 @@ class BaseInput(AnyInput):
         if snake_key == self.name:
             return
         if snake_key in shared_ctx.input:
-            raise ValueError("Input already defined in the context: {snake_key}")
+            raise ValueError(f"Input already defined in the context: {snake_key}")
         shared_ctx.input[snake_key] = value
 
     def _parse_str_value(self, str_value: str) -> Any:
@@ -85,10 +109,29 @@ class BaseInput(AnyInput):
         return str_value
 
     def prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
-        """Prompting user to input the value"""
-        value = self._prompt_cli_str(shared_ctx)
-        while not self._allow_empty and value == "":
+        """Prompt the user for this input's value.
+
+        Raises:
+            ValueError: When stdin is exhausted, the input has no default, and
+                empty is not allowed — there is no value to fall back on.
+        """
+        try:
             value = self._prompt_cli_str(shared_ctx)
+            while not self._allow_empty and value == "":
+                value = self._prompt_cli_str(shared_ctx)
+        except EOFError:
+            # Stdin is exhausted — CI, cron, `< /dev/null`. No further read can
+            # ever succeed, so the retry loop above must never see this: take
+            # the default if there is one, accept empty where that is allowed,
+            # and otherwise fail naming the flag to pass. Returning "" into the
+            # loop instead would spin, re-printing the prompt without end.
+            value = self.get_default_str(shared_ctx)
+            if value == "" and not self._allow_empty:
+                raise ValueError(
+                    f"Cannot read input '{self.name}': stdin is not available "
+                    "(non-interactive) and the input has no default. Pass it "
+                    f"explicitly with --{self.name} <value>."
+                ) from None
         return value
 
     def _prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
@@ -113,9 +156,7 @@ class BaseInput(AnyInput):
 
     def get_default_str(self, shared_ctx: AnySharedContext) -> str:
         """Get default value as str"""
-        default_value = get_attr(
-            shared_ctx, self._default_value, default="", auto_render=self._auto_render
-        )
+        default_value = get_attr(shared_ctx, self._default_value, default="")
         if not isinstance(default_value, str):
             return str(default_value)
         return default_value

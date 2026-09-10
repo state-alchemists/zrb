@@ -4,16 +4,18 @@ import sys
 from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.config.config import CFG
+from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
-    from zrb.llm.tool_call.ui_protocol import ChoiceOption, ChoiceSpec
+    from zrb.llm.ui.any_ui import ChoiceOption, ChoiceSpec
 
 # Sentinel value for the synthetic "type my own answer" option.
-_FREE_TEXT = "__zrb_free_text__"
+FREE_TEXT = "__zrb_free_text__"
 
 
-def _option_text(opt: "ChoiceOption") -> str:
+def option_text(opt: "ChoiceOption") -> str:
     label = opt.get("label", "")
     desc = opt.get("description", "")
     return f"{label} — {desc}" if desc else label
@@ -23,7 +25,7 @@ def resolve_choice_selection(spec: "ChoiceSpec", selection: Any) -> str:
     """Map a widget selection back to a label string (public, pure helper).
 
     `selection` is either a single option index, a list of indices
-    (multi-select), or the `_FREE_TEXT` sentinel. Returns the joined label(s);
+    (multi-select), or the `FREE_TEXT` sentinel. Returns the joined label(s);
     free-text is handled by the caller before this point.
     """
     options = spec.get("options", [])
@@ -36,14 +38,19 @@ def resolve_choice_selection(spec: "ChoiceSpec", selection: Any) -> str:
     return ", ".join(labels)
 
 
-class StdUI:
-    """Standard UI implementation of UIProtocol for terminal environments."""
+class StdUI(UIStateDefaultsMixin, AnyUI):
+    """Standard UI implementation of AnyUI for terminal environments."""
 
     def __init__(self, assistant_name: str | None = None):
         raw = assistant_name if assistant_name else CFG.LLM_ASSISTANT_NAME
         self._assistant_name = raw[0].upper() + raw[1:] if raw else raw
 
-    async def ask_user(self, prompt: str) -> str:
+    async def ask_user(
+        self,
+        prompt: str,
+        output_to_parent: str = "",
+        agent_id: str | None = None,
+    ) -> str:
         """Prompt user via CLI input."""
 
         # lazy: heavy third-party
@@ -71,7 +78,9 @@ class StdUI:
         except EOFError:
             return ""
 
-    async def ask_user_choice(self, spec: "ChoiceSpec") -> str:
+    async def ask_user_choice(
+        self, spec: "ChoiceSpec", agent_id: str | None = None
+    ) -> str:
         """Render an arrow-key-selectable multiple-choice dialog."""
         # lazy: heavy third-party
         from prompt_toolkit import PromptSession
@@ -87,9 +96,9 @@ class StdUI:
         counter = f" ({idx}/{total})" if total > 1 else ""
         title = f"{spec.get('header', 'Question')}{counter}"
         values: list[tuple[int | str, str]] = [
-            (i, _option_text(opt)) for i, opt in enumerate(options)
+            (i, option_text(opt)) for i, opt in enumerate(options)
         ]
-        values.append((_FREE_TEXT, "✎ Type my own answer…"))
+        values.append((FREE_TEXT, "✎ Type my own answer…"))
 
         dialog_factory = checkboxlist_dialog if multi else radiolist_dialog
         dialog = dialog_factory(
@@ -104,15 +113,15 @@ class StdUI:
             raise KeyboardInterrupt
         if selection == []:
             return "(no answer)"
-        wants_free_text = selection == _FREE_TEXT or (
-            isinstance(selection, list) and _FREE_TEXT in selection
+        wants_free_text = selection == FREE_TEXT or (
+            isinstance(selection, list) and FREE_TEXT in selection
         )
         if wants_free_text:
             session = PromptSession(output=create_output(stdout=sys.stderr))
             typed = (await session.prompt_async("Your answer: ")).strip()
             if multi and isinstance(selection, list):
                 # Combine the checked options with the typed answer.
-                checked = [i for i in selection if i != _FREE_TEXT]
+                checked = [i for i in selection if i != FREE_TEXT]
                 prefix = resolve_choice_selection(spec, checked)
                 return ", ".join(part for part in (prefix, typed) if part)
             return typed
@@ -164,7 +173,7 @@ class StdUI:
         return await asyncio.to_thread(_run)
 
     async def run_async(self) -> Any:
-        """No-op event loop for `UIProtocol` conformance.
+        """No-op event loop for `AnyUI` conformance.
 
         `StdUI` is a non-interactive, stateless stdout/stderr adapter: it has no
         persistent loop to run (unlike the full-screen interactive UIs). It is

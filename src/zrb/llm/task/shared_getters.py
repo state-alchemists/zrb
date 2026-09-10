@@ -1,0 +1,101 @@
+"""Getter logic shared by `LLMTaskBuilding` (building.py) and `ChatExecution`
+(chat/execution.py) — both resolve the same kind of value (tools, toolsets,
+system prompt, model, conversation name) from equivalent per-task attributes.
+One implementation here is what stops the two decompositions drifting apart;
+inlining either copy back into its caller removes that guarantee.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Callable
+
+from zrb.llm.config.model_resolver import resolve_configured_model
+from zrb.llm.factory_resolver import resolve_factory_items
+from zrb.util.attr import get_attr
+from zrb.util.string.name import get_random_name
+
+if TYPE_CHECKING:
+    from zrb.context.any_context import AnyContext
+    from zrb.llm.agent.types import AbstractToolset, Model, Tool, ToolFuncEither
+    from zrb.llm.prompt.manager import PromptManager
+
+
+def resolve_all_tools(
+    ctx: AnyContext,
+    tools: list[Tool | ToolFuncEither],
+    tool_factories: list[
+        Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]
+    ],
+) -> list[Tool | ToolFuncEither]:
+    """Get all tools including those resolved from factories."""
+    return resolve_factory_items(tools, tool_factories, ctx)
+
+
+def resolve_all_toolsets(
+    ctx: AnyContext,
+    toolsets: list[AbstractToolset[None]],
+    toolset_factories: list[Callable[[AnyContext], AbstractToolset[None]]],
+) -> list[AbstractToolset[None]]:
+    """Get all toolsets including those resolved from factories."""
+    return resolve_factory_items(toolsets, toolset_factories, ctx)
+
+
+def resolve_system_prompt(ctx: AnyContext, prompt_manager: PromptManager | None) -> str:
+    """Compose the full system prompt for this run.
+
+    Returns the empty string when the task has no prompt manager.
+    """
+    if prompt_manager is None:
+        return ""
+    compose_prompt = prompt_manager.compose_prompt()
+    return compose_prompt(ctx)
+
+
+def resolve_model(
+    ctx: AnyContext,
+    model: Any,
+) -> str | Model:
+    """The task's model, resolved against *ctx*, falling back to `CFG.LLM_MODEL`.
+
+    A blank result counts as unset, so an empty ``--model`` input does not
+    shadow the configured model with an empty string.
+
+    Every branch goes through `resolve_configured_model`, so an explicitly set
+    name is resolved against `CFG.LLM_API_KEY`/`LLM_BASE_URL`/`LLM_PROVIDER`
+    exactly like the `CFG` fallback is. This is the single resolution point for
+    a task's main model, which is what makes a mid-session `/model <name>`
+    switch behave like a configured one: the UI stores the typed name
+    (`BaseUI.model`), the name reaches the core task as `ctx.input["model"]`,
+    and this call resolves it afresh on every turn. Resolution is idempotent —
+    `ModelResolver.resolve` returns a non-`str` (already-resolved `Model`)
+    unchanged — so a value that round-trips back through the UI is not
+    re-wrapped.
+    """
+    rendered_model = get_attr(ctx, model, None)
+    if isinstance(rendered_model, str) and rendered_model.strip() == "":
+        rendered_model = None
+    return resolve_configured_model(rendered_model)
+
+
+def apply_model_hooks(
+    model: "str | Model",
+    model_getter: "Callable[[str | Model | None], str | Model | None] | None",
+    model_renderer: "Callable[[str | Model | None], str | Model | None] | None",
+) -> "str | Model | None":
+    """Apply *model_getter* then *model_renderer* to *model* — the task-level
+    hooks a `zrb_init.py` sets (e.g. `task.model_getter = ...`) for per-task
+    model tiering or A/B testing. Either may return `None` (e.g. to defer to
+    pydantic-ai's own default), so the result is optional."""
+    active = model_getter(model) if model_getter else model
+    return model_renderer(active) if model_renderer else active
+
+
+def resolve_conversation_name(
+    ctx: AnyContext,
+    conversation_name: Any,
+) -> str:
+    """The configured conversation name, or a fresh random one when blank."""
+    resolved = str(get_attr(ctx, conversation_name, ""))
+    if resolved.strip() == "":
+        resolved = get_random_name()
+    return resolved

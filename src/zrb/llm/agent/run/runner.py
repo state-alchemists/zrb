@@ -1,9 +1,13 @@
 """LLM agent run loop: drives `pydantic_ai.Agent`, sanitizes history, retries.
 
-Owns the `current_ui`, `current_tool_confirmation`, `current_yolo`, and
-`current_approval_channel` `ContextVar`s — set on entry to `run_agent()`,
-reset in `finally`. Every other module reads them through the wrappers in
-`runtime_state.py` (re-exported from `zrb.contextvars`).
+Binds the `current_ui`, `current_tool_confirmation`, `current_yolo`,
+`current_hook_manager`, `current_agent_run_scope`, and `current_approval_channel`
+`ContextVar`s on entry to `run_agent()`, resets them in `finally`. The vars
+themselves are defined in `zrb.llm.agent_state` (not here, and not nested
+under `zrb.llm.agent` at all — `setup.py`, which `runner.py` imports at the
+top, needs them too, and so does code outside this package entirely). Every
+other module reads them through the wrappers there
+(re-exported from `zrb.contextvars`).
 
 Sibling files in this package each own one concern:
   retry_loop.py       - decide-retry-or-not after a model exception
@@ -13,30 +17,27 @@ Sibling files in this package each own one concern:
   deferred_calls.py   - resume after deferred tool requests
 
 For the *why* behind history sanitization and the OpenAI patch, see
-docs/advanced-topics/maintainer-guide.md#llm-history-sanitization-layer.
+docs/contributing/maintainer-guide.md#llm-history-sanitization-layer.
 """
 
 from __future__ import annotations
 
 import asyncio
+import uuid
 from contextlib import ExitStack
-from contextvars import ContextVar
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine, cast
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.deferred_calls import (
-    process_deferred_requests as _process_deferred_requests,
-)
-from zrb.llm.agent.run.deferred_calls import (
+    process_deferred_requests,
     rebuild_for_denials,
 )
 from zrb.llm.agent.run.error_classifier import classify_error_type
 from zrb.llm.agent.run.history_utils import (
-    _append_live_context,
-    _history_without_trailing_response,
-    _is_empty_completion,
-    _merge_consecutive_messages,
+    history_without_trailing_response,
+    is_empty_completion,
+    merge_consecutive_messages,
     sanitize_history,
 )
 from zrb.llm.agent.run.hook_result_extractor import (
@@ -54,15 +55,28 @@ from zrb.llm.agent.run.session_extension import (
     resolve_extended_return,
 )
 from zrb.llm.agent.run.setup import (
-    _bind_contextvar,
-    _log_startup,
-    _resolve_context_dependencies,
-    _setup_print_and_events,
+    bind_contextvar,
+    log_startup,
+    resolve_context_dependencies,
+    setup_print_and_events,
 )
-from zrb.llm.approval.approval_channel import ApprovalChannel, current_approval_channel
-from zrb.llm.config.config import llm_config
+from zrb.llm.agent.run.turn_cursor import TurnCursor
+from zrb.llm.agent_state import (
+    AnyToolConfirmation,
+    current_agent_run_scope,
+    current_hook_manager,
+    current_model,
+    current_multimodal_model,
+    current_small_model,
+    current_tool_confirmation,
+    current_ui,
+    current_yolo,
+)
+from zrb.llm.approval.approval_channel import current_approval_channel
 from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.config.model_resolver import resolve_configured_multimodal_model
 from zrb.llm.hook.manager import HookManager
+from zrb.llm.hook.turn_evidence import turn_states_preference, turn_wrote_files
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.message import ensure_alternating_roles
 from zrb.llm.permission.state import (
@@ -70,40 +84,16 @@ from zrb.llm.permission.state import (
     enter_agent_mode_scope,
     exit_agent_mode_scope,
 )
-from zrb.llm.sandbox.state import current_sandbox_policy
-from zrb.llm.tool_call.handler import ToolCallHandler
-from zrb.llm.tool_call.ui_protocol import UIProtocol
+from zrb.llm.prompt.live_context import append_live_context
+from zrb.llm.sandbox.state import current_sandbox_policy, get_effective_sandbox_policy
+from zrb.llm.tool.worktree import active_worktree
 from zrb.llm.util.prompt import expand_prompt
 
 if TYPE_CHECKING:
-    from pydantic_ai import (
-        Agent,
-        ToolApproved,
-        ToolCallPart,
-        ToolDenied,
-    )
+    from pydantic_ai import Agent
 
-    AnyToolConfirmation: TypeAlias = (
-        Callable[
-            [ToolCallPart],
-            ToolApproved | ToolDenied | Awaitable[ToolApproved | ToolDenied],
-        ]
-        | ToolCallHandler
-        | None
-    )
-else:
-    AnyToolConfirmation: TypeAlias = Any
-
-current_ui: ContextVar[UIProtocol | None] = ContextVar("current_ui", default=None)
-current_tool_confirmation: ContextVar[AnyToolConfirmation] = ContextVar(
-    "current_tool_confirmation", default=None
-)
-current_yolo: ContextVar[bool] = ContextVar("current_yolo", default=False)
-# The hook manager active for the current run. Read by nested tools (e.g. the
-# delegate tool fires SubagentStart/Stop on the parent run's manager).
-current_hook_manager: ContextVar[HookManager | None] = ContextVar(
-    "current_hook_manager", default=None
-)
+    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.ui.any_ui import AnyUI
 
 # Process-wide guard: the OpenAI serialization patch is global and idempotent,
 # so it only needs to run once per process. The check-then-set is safe under
@@ -121,18 +111,34 @@ async def run_agent(
     print_fn: Callable[[str], Any] = print,
     event_handler: Callable[[Any], Any] | None = None,
     tool_confirmation: AnyToolConfirmation = None,
-    ui: UIProtocol | list[UIProtocol] | None = None,
+    ui: AnyUI | list[AnyUI] | None = None,
     hook_manager: HookManager | None = None,
-    yolo: bool | None = False,
-    approval_channel: "ApprovalChannel | None" = None,
+    # None = inherit from the parent run's YOLO context (what an unconfigured
+    # nested helper agent wants); False = force approval prompts even inside a
+    # YOLO parent; True = skip confirmations outright.
+    yolo: bool | None = None,
+    approval_channel: "AnyApprovalChannel | None" = None,
     system_prompt: str = "",
     live_context: str = "",
     permission_policy: Any = None,
     sandbox_policy: Any = None,
+    checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None = None,
+    run_scope: str = "",
 ) -> tuple[Any, list[Any]]:
     """
     Runs the agent with rate limiting, history management, and optional CLI confirmation loop.
     Returns (result_output, new_message_history).
+
+    `checkpoint_fn`, when given, is awaited in the background (never blocking
+    the run) each time the in-progress turn reaches a safe boundary — every
+    tool-call round trip, not just the end of the turn — so a caller that
+    persists history sees progress well before `agent.run()` returns. See
+    `_build_event_stream_handler` for the boundary rule.
+
+    `run_scope` identifies this run to nested tools that need conversation-scoped
+    state (see `current_agent_run_scope`'s docstring). Pass the session name for
+    a top-level conversation, a fresh per-delegation id for a sub-agent; empty
+    defaults to a fresh id so an unscoped caller stays isolated.
     """
     global _openai_patched
     if not _openai_patched:
@@ -145,11 +151,11 @@ async def run_agent(
         effective_yolo,
         effective_approval_channel,
         effective_hook_manager,
-    ) = _resolve_context_dependencies(
+    ) = resolve_context_dependencies(
         ui, tool_confirmation, yolo, approval_channel, hook_manager
     )
 
-    _log_startup(
+    log_startup(
         tool_confirmation,
         effective_tool_confirmation,
         approval_channel,
@@ -157,7 +163,7 @@ async def run_agent(
     )
 
     # Set the policy from the explicit arg, else keep whatever a parent run set
-    # (sub-agent inheritance), else None (legacy: nothing constrained).
+    # (sub-agent inheritance), else None (nothing constrained).
     effective_policy = (
         permission_policy
         if permission_policy is not None
@@ -172,24 +178,54 @@ async def run_agent(
 
     # Bind the run-scoped ContextVars through an ExitStack so set/reset stays
     # symmetric and exception-safe: if a later bind raises, the vars already
-    # bound are still reset on close (the old per-token finally reset tokens
-    # that may never have been set).
+    # bound are still reset on close, and no token is reset that was never set.
     stack = ExitStack()
     try:
-        _bind_contextvar(stack, current_ui, effective_ui)
-        _bind_contextvar(stack, current_tool_confirmation, effective_tool_confirmation)
-        _bind_contextvar(stack, current_yolo, effective_yolo)
-        _bind_contextvar(stack, current_hook_manager, effective_hook_manager)
-        _bind_contextvar(stack, current_approval_channel, effective_approval_channel)
-        _bind_contextvar(stack, current_permission_policy, effective_policy)
-        _bind_contextvar(stack, current_sandbox_policy, effective_sandbox)
+        bind_contextvar(stack, current_ui, effective_ui)
+        bind_contextvar(stack, current_tool_confirmation, effective_tool_confirmation)
+        bind_contextvar(stack, current_yolo, effective_yolo)
+        bind_contextvar(stack, current_hook_manager, effective_hook_manager)
+        # The UI's own `small_model`/`multimodal_model` (set by `/model small
+        # ...` / `/model multimodal ...`) — None when the UI has neither, in
+        # which case a reader falls back to CFG. getattr, not an AnyUI
+        # method: most UIs (StdUI, a bare MultiUI) never set these.
+        bind_contextvar(
+            stack, current_small_model, getattr(effective_ui, "small_model", None)
+        )
+        bind_contextvar(
+            stack,
+            current_multimodal_model,
+            getattr(effective_ui, "multimodal_model", None),
+        )
+        # The main model this run actually uses, so a helper that needs a model
+        # of its own (the summarizer, the journal judge) can fall back to it
+        # rather than to `CFG.LLM_MODEL` — which after a `/model` switch is a
+        # different model, often on a provider whose credentials are unset.
+        bind_contextvar(stack, current_model, getattr(agent, "model", None))
+        bind_contextvar(stack, current_agent_run_scope, run_scope or uuid.uuid4().hex)
+        bind_contextvar(stack, current_approval_channel, effective_approval_channel)
+        bind_contextvar(stack, current_permission_policy, effective_policy)
+        bind_contextvar(stack, current_sandbox_policy, effective_sandbox)
+        # Resolved once, now that current_sandbox_policy reflects this run's
+        # own binding above — passed as `agent.run(deps=...)` so `sandbox_gate`
+        # reads it explicitly instead of re-deriving it from ambient state at
+        # every tool call (ADR-0069). Safe to freeze for the run's lifetime:
+        # unlike the permission policy, nothing mutates the sandbox policy
+        # mid-run.
+        sandbox_deps = get_effective_sandbox_policy()
+        # Backstop, not the primary contract: EnterWorktree/ExitWorktree still
+        # own setting/clearing this per tool call. This only guarantees that a
+        # forgotten ExitWorktree (agent forgets, run errors) can't leak the
+        # worktree past this run's boundary — it restores whatever was active
+        # when the run started, snapshot-and-restore rather than always "".
+        bind_contextvar(stack, active_worktree, active_worktree.get())
         # Isolate agent mode per run so concurrent runs don't share/clobber each
         # other's plan/build state; the final mode is propagated back to the
         # caller on close so an in-run mode switch persists (e.g. sticky /plan).
         mode_token, mode_parent = enter_agent_mode_scope()
         stack.callback(exit_agent_mode_scope, mode_token, mode_parent)
 
-        effective_print_fn, effective_event_handler = _setup_print_and_events(
+        effective_print_fn, effective_event_handler = setup_print_and_events(
             print_fn, event_handler, effective_ui
         )
 
@@ -215,7 +251,7 @@ async def run_agent(
         # here rather than into the system prompt so the system prompt stays
         # byte-stable across turns and the cacheable prefix survives; the block
         # is frozen into history once written (older turns are stale snapshots).
-        prompt_content = _append_live_context(prompt_content, live_context)
+        prompt_content = append_live_context(prompt_content, live_context)
 
         current_history = await _prepare_history(
             agent,
@@ -227,7 +263,7 @@ async def run_agent(
             effective_hook_manager,
         )
 
-        current_message = _merge_consecutive_messages(current_history, prompt_content)
+        current_message = merge_consecutive_messages(current_history, prompt_content)
 
         return await _execution_loop(
             agent=agent,
@@ -239,6 +275,8 @@ async def run_agent(
             effective_ui=effective_ui,
             effective_hook_manager=effective_hook_manager,
             effective_approval_channel=effective_approval_channel,
+            checkpoint_fn=checkpoint_fn,
+            sandbox_deps=sandbox_deps,
         )
     finally:
         stack.close()
@@ -439,7 +477,45 @@ async def _prepare_history(
         processed_history = safe_history
 
     return await _acquire_rate_limit(
-        limiter, prompt_content, processed_history, print_fn, reserved_tokens
+        limiter,
+        prompt_content,
+        processed_history,
+        print_fn,
+        reserved_tokens,
+        model=getattr(agent, "model", None),
+    )
+
+
+async def _do_agent_run(
+    agent: "Agent[None, Any]",
+    cursor: TurnCursor,
+    handler: Callable[[Any, Any], Awaitable[None]],
+    sandbox_deps: Any,
+) -> Any:
+    """Isolates the `agent.run()` call as its own function, out of
+    `_execution_loop`'s `while True` loop.
+
+    Purely a pyright-performance workaround (no behavior change): pydantic-ai's
+    `Agent.run` is a heavily overloaded generic method, and pyright re-runs its
+    overload resolution on every fixed-point pass of the loop's control-flow
+    narrowing when this call is inlined there — that combination alone took
+    ~7 minutes to check. Moving the call to its own ordinary function drops it
+    to ~2 seconds.
+    """
+    # lazy: heavy third-party
+    from pydantic_ai import UsageLimits
+
+    return await agent.run(
+        cursor.message,
+        message_history=cursor.history,
+        deferred_tool_results=cursor.results,
+        usage_limits=UsageLimits(request_limit=_request_limit()),
+        event_stream_handler=handler,
+        # pydantic-ai types `deps` against the Agent's own deps_type (`None`
+        # here — see create_agent's comment on why it stays pinned to None
+        # for the toolsets/model_settings overloads). `sandbox_gate` reads it
+        # via `ctx.deps` regardless of this static type (ADR-0069).
+        deps=cast(Any, sandbox_deps),
     )
 
 
@@ -450,66 +526,81 @@ async def _execution_loop(
     print_fn: Callable[[str], Any],
     effective_event_handler: Callable[[Any], Any] | None,
     effective_tool_confirmation: AnyToolConfirmation,
-    effective_ui: UIProtocol | None,
+    effective_ui: AnyUI | None,
     effective_hook_manager: HookManager,
-    effective_approval_channel: "ApprovalChannel | None",
+    effective_approval_channel: "AnyApprovalChannel | None",
+    checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None = None,
+    sandbox_deps: Any = None,
 ) -> tuple[Any, list[Any]]:
     # lazy: heavy third-party
-    from pydantic_ai import AgentRunResultEvent, DeferredToolRequests, UsageLimits
+    from pydantic_ai import AgentRunResultEvent, DeferredToolRequests
 
-    run_history = current_history
-    result_output = None
+    cursor = TurnCursor(
+        history=current_history,
+        message=current_message,
+        run_history=current_history,
+    )
     retry_state = RetryState()
     extension_state = ExtensionState()
-    current_results = None
     partial_run = PartialRunAccumulator()
+    # Background checkpoint-save tasks fired mid-turn (see `_build_event_stream_handler`).
+    # Gathered in the `finally` below so a lagging write can never race past the
+    # caller's own end-of-turn save.
+    pending_checkpoint_tasks: list[asyncio.Task] = []
 
     try:
         while True:
-            current_history = sanitize_history(
-                current_history,
-                allow_orphaned_tool_calls=(current_results is not None),
+            cursor.begin_round(
+                sanitize_history(
+                    cursor.history,
+                    allow_orphaned_tool_calls=(cursor.results is not None),
+                )
             )
             stream_error = None
+            handler = _build_event_stream_handler(
+                effective_ui,
+                effective_event_handler,
+                partial_run,
+                checkpoint_fn=checkpoint_fn,
+                pending_checkpoint_tasks=pending_checkpoint_tasks,
+                baseline_len=cursor.round_baseline,
+            )
             try:
-                # Docs: https://pydantic.dev/docs/ai/core-concepts/agent/#streaming-events-and-final-output
-                async with agent.run_stream_events(
-                    current_message,
-                    message_history=current_history,
-                    deferred_tool_results=current_results,
-                    usage_limits=UsageLimits(request_limit=None),
-                ) as stream:
-                    CFG.LOGGER.debug(
-                        f"Stream started, current_results={current_results}"
-                    )
-                    async for event in stream:
-                        if isinstance(event, AgentRunResultEvent):
-                            result = event.result
-                            result_output = result.output
-                            CFG.LOGGER.debug(
-                                f"Got result event, result_output type: {type(result_output)}"
-                            )
-                            run_history = sanitize_history(
-                                result.all_messages(),
-                                allow_orphaned_tool_calls=isinstance(
-                                    result_output, DeferredToolRequests
-                                ),
-                            )
-                        partial_run.record_event(event)
-                        if effective_event_handler:
-                            await effective_event_handler(event)
+                # Docs: https://ai.pydantic.dev/agents/#streaming-all-events
+                CFG.LOGGER.debug(f"Run started, current_results={cursor.results}")
+                result = await _do_agent_run(agent, cursor, handler, sandbox_deps)
+                cursor.output = result.output
+                CFG.LOGGER.debug(
+                    f"Got result, result_output type: {type(cursor.output)}"
+                )
+                cursor.run_history = sanitize_history(
+                    result.all_messages(),
+                    allow_orphaned_tool_calls=isinstance(
+                        cursor.output, DeferredToolRequests
+                    ),
+                )
+                # `agent.run(event_stream_handler=...)`'s handler never receives
+                # a trailing result event — that's `run_stream_events()`'s own
+                # addition for its consumers, synthesized after the fact from
+                # the same result. Re-fire it here so usage accounting and the
+                # "Requests/Tool Calls/Total" summary line keep working.
+                partial_run.record_event(AgentRunResultEvent(result=result))
+                if effective_event_handler:
+                    await effective_event_handler(AgentRunResultEvent(result=result))
             except Exception as _stream_exc:
-                stream_error = _stream_exc
+                stream_error = _explain_usage_limit(_stream_exc)
+            finally:
+                _set_active_run_context(effective_ui, None)
 
             if stream_error is not None:
                 outcome = await handle_stream_error(
                     retry_state,
                     stream_error,
-                    current_history,
-                    current_message,
-                    run_history,
+                    cursor.history,
+                    cursor.message,
+                    cursor.run_history,
                     print_fn,
-                    min_turns=1 if current_results is not None else 0,
+                    min_turns=cursor.prune_floor,
                 )
                 if not outcome.should_retry:
                     # StopFailure: the turn is ending on an unrecoverable API
@@ -518,53 +609,57 @@ async def _execution_loop(
                     try:
                         await effective_hook_manager.execute_hooks(
                             HookEvent.STOP_FAILURE,
-                            {"error": str(stream_error), "history": run_history},
+                            {"error": str(stream_error), "history": cursor.run_history},
                             error=str(stream_error),
                             error_type=classify_error_type(stream_error),
                         )
                     except Exception:
                         CFG.LOGGER.debug("StopFailure hook raised", exc_info=True)
                     raise stream_error
-                current_history = outcome.new_history or current_history
-                current_message = outcome.new_message
+                cursor.history = outcome.new_history or cursor.history
+                cursor.message = outcome.new_message
                 if outcome.clear_results:
-                    current_results = None
+                    cursor.results = None
                 continue
 
-            if isinstance(result_output, DeferredToolRequests):
+            if isinstance(cursor.output, DeferredToolRequests):
+                # Commit now, before `carry_forward` below makes the next
+                # iteration treat this tool call as pre-existing history
+                # rather than something this turn did.
+                cursor.commit_round()
                 CFG.LOGGER.debug(
                     "Got DeferredToolRequests, calling process_deferred_requests"
                 )
-                # effective_ui is typed as UIProtocol | None but by this point in
+                # effective_ui is typed as AnyUI | None but by this point in
                 # the loop we are past all the setup guards; the function it is
-                # passed to expects a concrete UIProtocol.
+                # passed to expects a concrete AnyUI.
                 assert effective_ui is not None
-                current_results = await _process_deferred_requests(
-                    result_output,
+                cursor.results = await process_deferred_requests(
+                    cursor.output,
                     effective_tool_confirmation,
                     effective_ui,
                     effective_hook_manager,
                     effective_approval_channel,
                 )
                 CFG.LOGGER.debug(
-                    f"process_deferred_requests returned: {current_results}"
+                    f"process_deferred_requests returned: {cursor.results}"
                 )
-                if current_results is None:
+                if cursor.results is None:
                     # Approval is pending out-of-band: the turn suspends and
                     # control returns to the user. This is neither a turn end nor
                     # a session end, so no STOP/SESSION_END fires here; the turn
                     # resumes when the approval arrives.
-                    return result_output, run_history
+                    return cursor.output, cursor.run_history
 
-                current_results = rebuild_for_denials(current_results)
-                current_message = None
+                cursor.results = rebuild_for_denials(cursor.results)
+                cursor.message = None
                 # process_deferred_requests() always populates
                 # current_results.approvals for every resolved call (approved,
                 # denied, or hook-blocked alike), so history processors are never
                 # reapplied here -- run_history feeds the next iteration as-is.
                 # Processor effects were already applied in _prepare_history
                 # before the first stream call.
-                current_history = run_history
+                cursor.carry_forward()
                 CFG.LOGGER.debug("Continuing to next iteration with current_results")
                 continue
 
@@ -572,7 +667,7 @@ async def _execution_loop(
             # sometimes returns no real text (and no tool call). Don't surface the
             # "(tool call)" placeholder as the answer — regenerate the turn a
             # bounded number of times, then raise a clear error.
-            if _is_empty_completion(result_output):
+            if is_empty_completion(cursor.output):
                 if (
                     retry_state.empty_completion_retry_count
                     < retry_state.max_empty_completion_retries
@@ -584,13 +679,15 @@ async def _execution_loop(
                         f"{retry_state.max_empty_completion_retries})..."
                     )
                     CFG.LOGGER.debug(
-                        f"Empty completion (output={result_output!r}); "
+                        f"Empty completion (output={cursor.output!r}); "
                         "dropping the empty turn and regenerating"
                     )
-                    current_history = _history_without_trailing_response(run_history)
-                    current_message = None
-                    current_results = None
-                    result_output = None
+                    cursor.history = history_without_trailing_response(
+                        cursor.run_history
+                    )
+                    cursor.message = None
+                    cursor.results = None
+                    cursor.output = None
                     continue
                 raise RuntimeError(
                     "Model returned an empty response "
@@ -608,25 +705,47 @@ async def _execution_loop(
             # here — it is terminal, fired once when the chat session ends.
             # Manual interrupts raise CancelledError before reaching here, where
             # the TUI fires its own Stop, so the two paths never double-fire.
+            cursor.commit_round()
+            wrote_files = turn_wrote_files(cursor.accumulated)
             stop_results = await effective_hook_manager.execute_hooks(
                 HookEvent.STOP,
-                {"output": result_output, "history": run_history},
+                {
+                    "output": cursor.output,
+                    "history": cursor.run_history,
+                    # This turn's new messages alone, and a free (no-LLM)
+                    # gate on whether they touched a file — lets an
+                    # evidence-gated hook (e.g. a journal-compliance agent
+                    # hook) act only on turns where it's actually warranted.
+                    "turn": cursor.accumulated,
+                    "wrote_files": wrote_files,
+                    # Additive derived field: wrote_files OR looks like a
+                    # stated preference. wrote_files itself is left unchanged
+                    # for any other consumer; journal_compliance.py matches on
+                    # this combined field instead, since MatcherConfig has no
+                    # OR primitive (hook/matcher.py evaluates a matcher list
+                    # as AND-only).
+                    "journal_worthy": (
+                        wrote_files or turn_states_preference(cursor.accumulated)
+                    ),
+                },
                 stop_hook_active=extension_state.block_count > 0,
             )
             stop_outcome = apply_turn_end_extension(
                 stop_results,
                 extension_state,
-                result_output,
-                run_history,
+                cursor.output,
+                cursor.run_history,
                 print_fn,
             )
             if stop_outcome.should_continue:
-                current_message = stop_outcome.new_message
-                current_history = stop_outcome.new_history or current_history
-                result_output = None
-                current_results = None
+                cursor.message = stop_outcome.new_message
+                cursor.history = stop_outcome.new_history or cursor.history
+                cursor.output = None
+                cursor.results = None
                 continue
-            return resolve_extended_return(extension_state, result_output, run_history)
+            return resolve_extended_return(
+                extension_state, cursor.output, cursor.run_history
+            )
     except asyncio.CancelledError as ce:
         partial_run.is_interrupted = True
         setattr(ce, "zrb_partial_run", partial_run)
@@ -635,8 +754,157 @@ async def _execution_loop(
         partial_run.error = str(e)
         setattr(e, "zrb_partial_run", partial_run)
         if not hasattr(e, "zrb_history"):
-            setattr(e, "zrb_history", run_history)
+            setattr(
+                e,
+                "zrb_history",
+                _resolve_crash_history(partial_run, cursor.run_history),
+            )
         raise e
+    finally:
+        await _await_pending_checkpoints(pending_checkpoint_tasks)
+
+
+def _resolve_crash_history(
+    partial_run: PartialRunAccumulator, run_history: list[Any]
+) -> list[Any]:
+    """The best available history to attach to an unhandled run exception.
+
+    `run_history` only updates when an `agent.run()` call returns, so on a
+    failure inside the very first call of this turn it's still the pre-turn
+    baseline. `partial_run.latest_history` is the live, ever-growing
+    `ctx.messages` and reflects everything done this turn, including a
+    dangling trailing tool call — closed by the caller via
+    `close_dangling_tool_calls`.
+    """
+    if partial_run.latest_history is not None:
+        return list(partial_run.latest_history)
+    return run_history
+
+
+async def _await_pending_checkpoints(
+    pending_checkpoint_tasks: list[asyncio.Task],
+) -> None:
+    """Drain in-flight checkpoint writes before the run truly ends.
+
+    Guarantees a lagging background save can never land after (and clobber)
+    the caller's own end-of-turn save.
+    """
+    if not pending_checkpoint_tasks:
+        return
+    checkpoint_results = await asyncio.gather(
+        *pending_checkpoint_tasks, return_exceptions=True
+    )
+    for checkpoint_result in checkpoint_results:
+        if isinstance(checkpoint_result, Exception):
+            CFG.LOGGER.warning(f"Checkpoint save failed: {checkpoint_result}")
+
+
+def _build_event_stream_handler(
+    effective_ui: AnyUI | None,
+    effective_event_handler: Callable[[Any], Any] | None,
+    partial_run: PartialRunAccumulator,
+    checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None = None,
+    pending_checkpoint_tasks: list[asyncio.Task] | None = None,
+    baseline_len: int = 0,
+) -> Callable[[Any, Any], Awaitable[None]]:
+    """Build the `event_stream_handler` for one `agent.run()` call.
+
+    Registers the live `RunContext` on `effective_ui` for the duration of the
+    call so `BaseUI`/`MultiUI._submit_user_message` can steer a mid-turn
+    message into this run via `ctx.enqueue(..., priority="asap")` instead of
+    queuing it. Registration is cleared by the caller once
+    `agent.run()` returns or raises, not from inside here — the handler fires
+    once per graph node (every model-request/tool-call round shares the same
+    underlying pending-message queue), so re-registering each time is
+    redundant.
+
+    When `checkpoint_fn` is set, also fires it (as a background task, never
+    awaited inline) every time `ctx.messages` grows and ends in a
+    `ModelRequest` — the point right after a tool-call round trip's results
+    have all landed, which is always a structurally complete history (no
+    dangling `ToolCallPart`), unlike mid-response-streaming states.
+    """
+    last_checkpoint_len = baseline_len
+
+    async def _handler(ctx: Any, events: Any) -> None:
+        nonlocal last_checkpoint_len
+        _set_active_run_context(effective_ui, ctx)
+        async for event in events:
+            partial_run.record_event(event)
+            # Live reference (same list pydantic-ai appends to in place), kept
+            # for the exception/cancellation fallback in `_execution_loop` —
+            # cheap, no copy needed just to hold a pointer.
+            partial_run.latest_history = ctx.messages
+            if effective_event_handler:
+                await effective_event_handler(event)
+            if checkpoint_fn is not None and _is_checkpoint_boundary(
+                ctx.messages, last_checkpoint_len
+            ):
+                last_checkpoint_len = len(ctx.messages)
+                # Copy now, synchronously: the source list keeps growing, so the
+                # background task must not observe a moving target.
+                snapshot = list(ctx.messages)
+                assert pending_checkpoint_tasks is not None
+                pending_checkpoint_tasks.append(
+                    asyncio.create_task(checkpoint_fn(snapshot))
+                )
+
+    return _handler
+
+
+def _is_checkpoint_boundary(messages: list[Any], last_checkpoint_len: int) -> bool:
+    # lazy: heavy third-party
+    from pydantic_ai.messages import ModelRequest
+
+    return len(messages) > last_checkpoint_len and isinstance(
+        messages[-1], ModelRequest
+    )
+
+
+def _set_active_run_context(effective_ui: AnyUI | None, ctx: Any) -> None:
+    """Best-effort: not every `AnyUI` implementer supports steering."""
+    if effective_ui is None:
+        return
+    try:
+        setattr(effective_ui, "active_run_context", ctx)
+    except AttributeError:
+        pass
+
+
+def _request_limit() -> int | None:
+    """The per-run model-request cap, or ``None`` when disabled.
+
+    A run with no cap has no way to stop a model that has stopped converging:
+    the prompt's Recovery rules tell it to change approach by the third attempt,
+    but nothing enforces that, and a weak model will happily re-edit the same
+    file from memory until the wall clock runs out (343 tool calls, 267 of them
+    edits, was the worst observed). This is the enforcement half of that rule.
+    """
+    limit = CFG.LLM_MAX_REQUEST_PER_RUN
+    return limit if limit > 0 else None
+
+
+def _explain_usage_limit(exc: Exception) -> Exception:
+    """Turn pydantic-ai's request-limit error into an actionable halt.
+
+    Returned rather than raised so the caller keeps its existing error path:
+    the swap happens before ``handle_stream_error``, which does not treat a
+    ``RuntimeError`` as retryable, so the run halts instead of spending the
+    retry budget re-hitting a cap it cannot get under. The partial history is
+    still attached by the outer handler, so the work already done survives.
+    """
+    # lazy: heavy third-party
+    from pydantic_ai.exceptions import UsageLimitExceeded
+
+    if not isinstance(exc, UsageLimitExceeded):
+        return exc
+    return RuntimeError(
+        f"Stopped after {CFG.LLM_MAX_REQUEST_PER_RUN} model requests in one run "
+        f"({CFG.ENV_PREFIX}_LLM_MAX_REQUEST_PER_RUN). This cap exists to catch a "
+        "run that is repeating itself rather than progressing — check the work "
+        "done so far before raising it, since a higher cap on a loop that is not "
+        "converging only spends more tokens. Set it to 0 to disable."
+    )
 
 
 async def _acquire_rate_limit(
@@ -645,6 +913,7 @@ async def _acquire_rate_limit(
     message_history: list[Any],
     print_fn: Callable[..., Any],
     reserved_tokens: int = 0,
+    model: Any = None,
 ) -> list[Any]:
     """Prunes history and waits if rate limits are exceeded."""
 
@@ -663,7 +932,7 @@ async def _acquire_rate_limit(
     if not message:
         return message_history
     pruned_history = limiter.fit_context_window(
-        message_history, message, reserved_tokens
+        message_history, message, reserved_tokens, model=model
     )
     await limiter.acquire(
         {"message": message, "history": pruned_history},
@@ -686,13 +955,14 @@ async def _apply_multimodal_fallback(
     with a warning rather than silently sent to a provider that will reject
     or ignore them.
     """
-    # lazy: zrb internal (heavy via transitive / circular)
+    # lazy: zrb.llm.util.multimodal_describe transitively loads pydantic_ai,
+    # pdfplumber and prompt_toolkit — deferred to keep the cold-start path cheap.
     from zrb.llm.util.multimodal_describe import replace_unsupported_attachments
 
     main_model = getattr(agent, "model", None)
     return await replace_unsupported_attachments(
         prompt_content,
         main_model=main_model,
-        multimodal_model=llm_config.multimodal_model,
+        multimodal_model=resolve_configured_multimodal_model(),
         print_fn=print_fn,
     )

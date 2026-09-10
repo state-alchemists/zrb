@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock
 
+from zrb.config.config import CFG
 from zrb.llm.ui import UIConfig
 
 
@@ -11,24 +12,9 @@ class TestUIConfig:
 
         config = UIConfig.default()
 
-        assert config.assistant_name == "Assistant"
+        assert config.assistant_name == CFG.LLM_ASSISTANT_NAME
         assert "/exit" in config.exit_commands
         assert "/help" in config.info_commands
-
-    def test_minimal_config(self):
-        """Test UIConfig.minimal() creates minimal config."""
-
-        config = UIConfig.minimal()
-
-        assert config.exit_commands == ["/exit"]
-        assert config.info_commands == []
-        assert config.save_commands == []
-        assert config.load_commands == []
-        assert config.attach_commands == []
-        assert config.redirect_output_commands == []
-        assert config.yolo_toggle_commands == []
-        assert config.set_model_commands == []
-        assert config.exec_commands == []
 
     def test_merge_commands(self):
         """Test UIConfig.merge_commands() merges command dict."""
@@ -90,7 +76,7 @@ class TestCreateUIFactory:
 
         # Use public properties
         assert ui is not None
-        assert ui.assistant_name == "Assistant"
+        assert ui.assistant_name == CFG.LLM_ASSISTANT_NAME
         assert ui.conversation_session_name == "test-session"
 
     def test_create_ui_factory_with_custom_config(self):
@@ -105,7 +91,7 @@ class TestCreateUIFactory:
                 return "test"
 
         config = UIConfig(assistant_name="CustomBot")
-        factory = create_ui_factory(TestSimpleUI, config=config)
+        factory = create_ui_factory(TestSimpleUI, ui_config=config)
 
         from zrb.context.shared_context import SharedContext
 
@@ -134,7 +120,7 @@ class TestCreateUIFactory:
                 return "test"
 
         config = UIConfig(exit_commands=["/exit"])
-        factory = create_ui_factory(TestSimpleUI, config=config)
+        factory = create_ui_factory(TestSimpleUI, ui_config=config)
 
         from zrb.context.shared_context import SharedContext
 
@@ -150,6 +136,47 @@ class TestCreateUIFactory:
         )
 
         assert ui.exit_commands == ["/quit"]
+
+    def test_create_ui_factory_does_not_mutate_shared_config(self):
+        """A config object passed once and reused across repeated factory
+        invocations (e.g. a long-lived bot serving multiple chats) must not
+        have its yolo/session-name fields clobbered by a later call."""
+        from zrb.context.shared_context import SharedContext
+        from zrb.llm.ui import SimpleUI, create_ui_factory
+
+        class TestSimpleUI(SimpleUI):
+            async def print(self, text: str, kind: str = "text"):
+                pass
+
+            async def get_input(self, prompt: str) -> str:
+                return "test"
+
+        shared_config = UIConfig(assistant_name="SharedBot")
+        factory = create_ui_factory(TestSimpleUI, config=shared_config)
+
+        factory(
+            ctx=SharedContext(),
+            llm_task=MagicMock(),
+            history_manager=MagicMock(),
+            ui_commands={},
+            initial_message="",
+            initial_conversation_name="chat-a",
+            initial_yolo=True,
+            initial_attachments=[],
+        )
+        factory(
+            ctx=SharedContext(),
+            llm_task=MagicMock(),
+            history_manager=MagicMock(),
+            ui_commands={},
+            initial_message="",
+            initial_conversation_name="chat-b",
+            initial_yolo=False,
+            initial_attachments=[],
+        )
+
+        assert shared_config.conversation_session_name == ""
+        assert shared_config.is_yolo is False
 
     def test_create_ui_factory_creates_ui(self):
         """Test create_ui_factory creates UI with correct configuration."""
@@ -181,4 +208,4 @@ class TestCreateUIFactory:
         # Verify UI was created with correct settings using public properties
         assert ui.conversation_session_name == "my-session"
         assert ui.initial_message == "Test message"
-        assert ui.assistant_name == "Assistant"
+        assert ui.assistant_name == CFG.LLM_ASSISTANT_NAME

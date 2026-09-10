@@ -1,8 +1,10 @@
+import os
+
 from zrb.config.config import Config
 
 
 def test_web_css_path(monkeypatch):
-    monkeypatch.setenv("ZRB_WEB_CSS_PATH", "path1:path2")
+    monkeypatch.setenv("ZRB_WEB_CSS_PATH", f"path1{os.pathsep}path2")
     config = Config()
     assert config.WEB_CSS_PATH == ["path1", "path2"]
 
@@ -14,7 +16,7 @@ def test_web_css_path_empty(monkeypatch):
 
 
 def test_web_js_path(monkeypatch):
-    monkeypatch.setenv("ZRB_WEB_JS_PATH", "path1:path2")
+    monkeypatch.setenv("ZRB_WEB_JS_PATH", f"path1{os.pathsep}path2")
     config = Config()
     assert config.WEB_JS_PATH == ["path1", "path2"]
 
@@ -35,6 +37,18 @@ def test_web_color(monkeypatch):
     monkeypatch.setenv("ZRB_WEB_COLOR", "blue")
     config = Config()
     assert config.WEB_COLOR == "blue"
+
+
+def test_web_http_host_default(monkeypatch):
+    monkeypatch.delenv("ZRB_WEB_HTTP_HOST", raising=False)
+    config = Config()
+    assert config.WEB_HTTP_HOST == "127.0.0.1"
+
+
+def test_web_http_host_env_override(monkeypatch):
+    monkeypatch.setenv("ZRB_WEB_HTTP_HOST", "0.0.0.0")
+    config = Config()
+    assert config.WEB_HTTP_HOST == "0.0.0.0"
 
 
 def test_web_http_port(monkeypatch):

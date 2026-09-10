@@ -4,9 +4,11 @@
 
 In Zrb, environment variables (`Env`) are a powerful way to configure your tasks, manage secrets, and adapt your workflows to different deployment environments.
 
+> This page is about `Env` — the variables *your tasks* read via `ctx.env`. Looking for Zrb's own runtime config knobs (log level, default editor, LLM provider, etc.) instead? See [Configuration: Environment Variables & Overrides](../configuration/env-vars.md).
+
 You can access environment variables within a task through the `ctx.env` object.
 
-> ⚠️ **Important:** Like Inputs, `Env` definitions are inherited recursively. If Task B depends on Task A, Task B automatically loads and makes available all `Env`s required by Task A.
+> ⚠️ **Important:** Like Inputs, `Env` definitions are inherited transitively. If Task B depends on Task A, Task B automatically loads and makes available all `Env`s required by Task A — and if both declare the same variable, **B wins**: a task always overrides the envs it inherits.
 
 ---
 
@@ -24,7 +26,7 @@ You can access environment variables within a task through the `ctx.env` object.
 The `Env` class is the most direct way to define an environment variable. It ensures the variable exists when the task runs.
 
 ```python
-from zrb import cli, CmdTask, Env
+from zrb import cli, CmdTask, Env, Tpl
 
 cli.add_task(
   CmdTask(
@@ -35,7 +37,7 @@ cli.add_task(
     ],
     # The variables are injected into the shell execution environment
     # and are also accessible via {ctx.env.<name>}
-    cmd="echo 'Hello {ctx.env.USER}, your shell is {ctx.env.SHELL}'",
+    cmd=Tpl("echo 'Hello {ctx.env.USER}, your shell is {ctx.env.SHELL}'"),
   )
 )
 ```

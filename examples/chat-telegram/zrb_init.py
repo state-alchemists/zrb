@@ -18,6 +18,7 @@ Usage:
 Features:
 - Dual Output: LLM responses appear in BOTH Telegram and terminal
 - Dual Input: Reply from EITHER Telegram or terminal
+- Attachments: send a photo or document from Telegram to attach it to the turn
 - Multiplexed Approvals: Approve/deny from either channel (first response wins)
 - Shared History: One conversation, synced across channels
 """
@@ -36,12 +37,18 @@ from telegram.ext import (
 )
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
+from zrb.llm.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
 from zrb.llm.ui import BufferedOutputMixin, EventDrivenUI
 from zrb.util.cli.style import remove_style
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
+
+# Which print() kinds never reach Telegram. "streaming" is skipped because
+# the full answer already arrives once as "text" after the run finishes —
+# forwarding each token too just duplicates it. Extend/subclass TelegramUI
+# and pass a different skip_kinds= to change what's rendered.
+SKIP_KINDS = frozenset({"progress", "streaming", "thinking", "tool_call", "usage"})
 
 
 class TelegramBot:
@@ -69,7 +76,8 @@ class TelegramBot:
         self._app = Application.builder().token(self.token).build()
         await self._app.initialize()
         await self._app.start()
-        await self._app.updater.start_polling()
+        if self._app.updater:
+            await self._app.updater.start_polling()
         return self._app
 
     async def send(self, chat_id: str, text: str, raw: bool = False, **kwargs):
@@ -100,11 +108,25 @@ def _split(text: str, max_len: int) -> list[str]:
 class TelegramUI(EventDrivenUI, BufferedOutputMixin):
     """Telegram UI using EventDrivenUI with buffered output."""
 
-    def __init__(self, bot: TelegramBot, chat_id: str, **kwargs):
+    # Kinds seen from the LLM run loop: text, streaming, thinking, tool_call,
+    # usage, progress, todo_progress, message, agent, exec, prompt.
+    # Skipped by default; pass skip_kinds= to change what reaches Telegram.
+    DEFAULT_SKIP_KINDS = frozenset({"progress", "streaming"})
+
+    def __init__(
+        self,
+        bot: TelegramBot,
+        chat_id: str,
+        skip_kinds: frozenset[str] | None = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         BufferedOutputMixin.__init__(self, flush_interval=2.0, max_buffer_size=3000)
         self.bot = bot
         self.chat_id = chat_id
+        self.skip_kinds = (
+            skip_kinds if skip_kinds is not None else self.DEFAULT_SKIP_KINDS
+        )
         self._approval_channel: TelegramApproval | None = None
         self._stop_event = asyncio.Event()
         self._message_handler_registered = False
@@ -118,20 +140,15 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
         await self.bot.send(self.chat_id, text, raw=True, parse_mode="HTML")
 
     async def print(self, text: str, kind: str = "text") -> None:
-        if kind == "progress":
-            return  # Skip transient spinner
+        if kind in self.skip_kinds:
+            return
         clean = remove_style(text)
-        if kind in ("tool_call", "usage"):
-            stripped = clean.strip()
-            if stripped:
-                # Monospace code block with tool icon
-                self.buffer_output(f"\n<i>{html.escape(stripped)}</i>\n\n")
-        elif kind in ("thinking", "streaming"):
-            # Italic for chain-of-thought reasoning
-            self.buffer_output(f"<i>{html.escape(clean)}</i>")
-        else:
-            # streaming / text: plain HTML-escaped response content
-            self.buffer_output(html.escape(clean))
+        if "Streaming response" in clean:
+            return  # status placeholder, not real content
+        escaped = html.escape(clean)
+        # Final response always arrives as kind="text" — keep that plain;
+        # anything else that made it past skip_kinds is secondary, italicize it.
+        self.buffer_output(escaped if kind == "text" else f"<i>{escaped}</i>")
 
     async def start_event_loop(self) -> None:
         if not self.bot._app:
@@ -139,7 +156,7 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
 
         await self.start_flush_loop()
 
-        async def handle_message(update, context):
+        async def handle_message(update, _context):
             if str(update.message.chat_id) != self.chat_id:
                 return
             text = update.message.text
@@ -152,18 +169,88 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
             else:
                 self.handle_incoming_message(text)
 
+        async def handle_photo(update, _context):
+            if str(update.message.chat_id) != self.chat_id:
+                return
+            # Telegram compresses photos into JPEG regardless of the
+            # original format; [-1] is the highest-resolution size offered.
+            photo = update.message.photo[-1]
+            if await self._download_and_queue_attachment(
+                photo, "photo.jpg", "image/jpeg"
+            ):
+                self.handle_incoming_message(update.message.caption or "")
+
+        async def handle_document(update, _context):
+            if str(update.message.chat_id) != self.chat_id:
+                return
+            # lazy: zrb internal (heavy via transitive — pdf/image_scale imports)
+            from zrb.llm.util.attachment import get_media_type
+
+            document = update.message.document
+            filename = document.file_name or "file"
+            media_type = get_media_type(filename)
+            if not media_type:
+                await self.bot.send(
+                    self.chat_id, f"❌ Unsupported file type: {filename}"
+                )
+                return
+            if await self._download_and_queue_attachment(
+                document, filename, media_type
+            ):
+                self.handle_incoming_message(update.message.caption or "")
+
         if not self._message_handler_registered:
             self.bot.add_handler(MessageHandler(filters.TEXT, handle_message))
+            self.bot.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+            self.bot.add_handler(MessageHandler(filters.Document.ALL, handle_document))
             self._message_handler_registered = True
 
         await self._stop_event.wait()
+
+    async def _download_and_queue_attachment(
+        self, tg_file_source, filename: str, media_type: str
+    ) -> bool:
+        """Download a Telegram photo/document and queue it as a pending attachment.
+
+        Applies the same size cap and magic-byte check as the CLI's `/attach`
+        and the web chat's upload endpoint, so a spoofed or oversized file
+        can't reach the model through this third entry point either. Returns
+        True on success, False if the attachment was rejected (a message
+        explaining why has already been sent to the chat).
+        """
+        # lazy: zrb internal (heavy via transitive — pdf/image_scale imports)
+        from zrb.config.config import CFG
+        from zrb.llm.util.attachment import check_attachment_bytes
+
+        limit = CFG.LLM_MAX_ATTACHMENT_BYTES
+        declared_size = getattr(tg_file_source, "file_size", None)
+        if declared_size and limit > 0 and declared_size > limit:
+            await self.bot.send(
+                self.chat_id,
+                f"❌ {filename} too large "
+                f"({declared_size} bytes, limit {limit} bytes)",
+            )
+            return False
+        tg_file = await tg_file_source.get_file()
+        data = bytes(await tg_file.download_as_bytearray())
+        rejection = check_attachment_bytes(data, media_type)
+        if rejection:
+            await self.bot.send(self.chat_id, f"❌ {filename} {rejection}")
+            return False
+        # lazy: pydantic_ai is heavy; only needed when an attachment arrives
+        from pydantic_ai import BinaryContent
+
+        self._pending_attachments.append(
+            BinaryContent(data=data, media_type=media_type)
+        )
+        return True
 
     def stop_event_loop(self) -> None:
         """Signal the event loop to exit cleanly."""
         self._stop_event.set()
 
 
-class TelegramApproval(ApprovalChannel):
+class TelegramApproval(AnyApprovalChannel):
     """Telegram approval channel with inline keyboard buttons."""
 
     _instances: dict[str, "TelegramApproval"] = {}
@@ -262,10 +349,6 @@ class TelegramApproval(ApprovalChannel):
 
             elif action == "edit":
                 if tool_call_id in instance._pending:
-                    future = instance._pending[tool_call_id]
-                    instance._pending_context[tool_call_id] = (
-                        instance._pending_context.get(tool_call_id)
-                    )
                     context_obj = instance._pending_context.get(tool_call_id)
                     args = html.escape(
                         json.dumps(
@@ -309,14 +392,14 @@ class TelegramApproval(ApprovalChannel):
 
     def _parse_edited_content(self, content: str) -> dict | None:
         """Parse edited content as JSON or YAML."""
+        import yaml
+
         content = content.strip()
         try:
             return json.loads(content)
         except json.JSONDecodeError:
             pass
         try:
-            import yaml
-
             return yaml.safe_load(content)
         except yaml.YAMLError:
             pass
@@ -327,34 +410,17 @@ if BOT_TOKEN and CHAT_ID:
     bot = TelegramBot.get(BOT_TOKEN)
     telegram_approval = TelegramApproval(bot, CHAT_ID)
 
-    # Create a factory that wires up the approval channel
-    def telegram_ui_factory(
-        ctx,
-        llm_task,
-        history_manager,
-        ui_commands,
-        initial_message,
-        initial_conversation_name,
-        initial_yolo,
-        initial_attachments,
-    ):
-        from zrb.llm.ui import UIConfig
+    # create_ui_factory wires the 8 standard factory kwargs (ctx, llm_task,
+    # history_manager, ui_commands, initial_*, ...) to TelegramUI for us, so we
+    # only add the per-instance approval-channel wiring on top.
+    from zrb.llm.ui import create_ui_factory
 
-        cfg = UIConfig.default()
-        if ui_commands:
-            cfg = cfg.merge_commands(ui_commands)
-        cfg.yolo = initial_yolo
-        cfg.conversation_session_name = initial_conversation_name
-        ui = TelegramUI(
-            ctx=ctx,
-            llm_task=llm_task,
-            history_manager=history_manager,
-            config=cfg,
-            initial_message=initial_message,
-            initial_attachments=initial_attachments,
-            bot=bot,
-            chat_id=CHAT_ID,
-        )
+    _telegram_ui_factory = create_ui_factory(
+        TelegramUI, bot=bot, chat_id=CHAT_ID, skip_kinds=SKIP_KINDS
+    )
+
+    def telegram_ui_factory(*args, **kwargs):
+        ui = _telegram_ui_factory(*args, **kwargs)
         ui.set_approval_channel(telegram_approval)
         return ui
 

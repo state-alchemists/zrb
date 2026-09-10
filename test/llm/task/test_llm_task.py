@@ -1,8 +1,8 @@
 """Integration tests for LLMTask: the execution path and its run_agent /
 create_agent / summarize_history seams (all patched at this module path).
 
-Pure builder/property unit tests live in ``test_builder_mixin.py`` and
-history/recovery unit tests live in ``test_history_mixin.py``.
+Pure builder/property unit tests live in ``test_building.py`` and
+history/recovery unit tests live in ``test_history.py``.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -33,7 +33,7 @@ class TestLLMTaskExecution:
         # Arrange
         tool = MagicMock()
         task = LLMTask(name="test-task", message="hello")
-        task.add_tool(tool)
+        task.append_tool(tool)
 
         # Act & Assert
         # We mock create_agent to see if our tool was passed to it during execution
@@ -56,10 +56,9 @@ class TestLLMTaskExecution:
         """Toolset factories run once per execution and the SAME instances go
         to the agent.
 
-        They used to be resolved twice (once for the exit stack, once inside
-        agent creation): factory side effects (e.g. MCP server spawn) fired
-        twice per turn, and the agent got instances whose contexts were never
-        entered.
+        Resolving twice (once for the exit stack, once inside agent creation)
+        would fire factory side effects — e.g. an MCP server spawn — twice per
+        turn and hand the agent instances whose contexts were never entered.
         """
         factory_calls = []
 
@@ -70,7 +69,7 @@ class TestLLMTaskExecution:
             return toolset
 
         task = LLMTask(name="test-task", message="hello")
-        task.add_toolset_factory(toolset_factory)
+        task.append_toolset_factory(toolset_factory)
 
         with (
             patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent,
@@ -111,17 +110,13 @@ class TestLLMTaskExecution:
     @pytest.mark.asyncio
     async def test_model_getter_is_called_with_base_model(self, session):
         # Arrange: getter receives the base model and returns a different one
-        from zrb.llm.config.config import LLMConfig
-
         received = []
 
         def getter(m):
             received.append(m)
             return "overridden-model"
 
-        config = LLMConfig()
-        config.model_getter = getter
-        task = LLMTask(name="test-task", message="hello", llm_config=config)
+        task = LLMTask(name="test-task", message="hello", model_getter=getter)
 
         with (
             patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent,
@@ -141,20 +136,16 @@ class TestLLMTaskExecution:
     @pytest.mark.asyncio
     async def test_model_renderer_transforms_model_passed_to_agent(self, session):
         # Arrange: renderer wraps model name in a mock Model object
-        from zrb.llm.config.config import LLMConfig
-
         sentinel = MagicMock()
 
         def renderer(_m):
             return sentinel
 
-        config = LLMConfig()
-        config.model_renderer = renderer
         task = LLMTask(
             name="test-task",
             message="hello",
             model="base-model",
-            llm_config=config,
+            model_renderer=renderer,
         )
 
         with (
@@ -172,17 +163,13 @@ class TestLLMTaskExecution:
     @pytest.mark.asyncio
     async def test_model_getter_result_updates_ui_model(self, session):
         # Arrange: getter returns a new model name; UI should reflect it
-        from zrb.llm.config.config import LLMConfig
-
         ui = MagicMock()
         ui.model = "original-model"
 
-        config = LLMConfig()
-        config.model_getter = lambda m: "updated-by-getter"
         task = LLMTask(
             name="test-task",
             message="hello",
-            llm_config=config,
+            model_getter=lambda m: "updated-by-getter",
         )
         task.set_ui(ui)
 
@@ -200,16 +187,12 @@ class TestLLMTaskExecution:
     @pytest.mark.asyncio
     async def test_getter_then_renderer_pipeline(self, session):
         # Arrange: getter overrides, renderer wraps — final model passed to create_agent
-        from zrb.llm.config.config import LLMConfig
-
         sentinel = MagicMock()
-        config = LLMConfig()
-        config.model_getter = lambda m: "getter-result"
-        config.model_renderer = lambda m: sentinel
         task = LLMTask(
             name="test-task",
             message="hello",
-            llm_config=config,
+            model_getter=lambda m: "getter-result",
+            model_renderer=lambda m: sentinel,
         )
 
         with (
@@ -228,7 +211,7 @@ class TestLLMTaskExecution:
     async def test_llm_task_summarization_behavior(self, session):
         # Arrange
         task = LLMTask(
-            name="test-task", message="summarize", summarize_command=["summarize"]
+            name="test-task", message="summarize", summarize_commands=["summarize"]
         )
 
         # Act & Assert
@@ -248,7 +231,7 @@ class TestLLMTaskExecution:
         tool = MagicMock()
         factory = MagicMock(return_value=tool)
         task = LLMTask(name="test-task", message="hello")
-        task.add_tool_factory(factory)
+        task.append_tool_factory(factory)
 
         # Act & Assert
         with (

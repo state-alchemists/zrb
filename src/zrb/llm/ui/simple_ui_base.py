@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 import sys
@@ -6,14 +8,14 @@ from typing import TYPE_CHECKING, TextIO
 
 from zrb.config.config import CFG
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.ui_config import UIConfig
 
 if TYPE_CHECKING:
-    from pydantic_ai import UserContent
-
     from zrb.context.any_context import AnyContext
+    from zrb.llm.agent.types import UserContent
+    from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
+    from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.tool_call.middleware import (
         ArgumentFormatter,
         ResponseHandler,
@@ -40,7 +42,7 @@ class SimpleUI(BaseUI):
         ctx: Required context (AnyContext)
         llm_task: Required LLM task (LLMTask)
         history_manager: Required history manager (AnyHistoryManager)
-        config: Optional UIConfig for customizing commands and behavior
+        ui_config: Optional UIConfig for customizing commands and behavior
         initial_message: Optional initial message to send
         initial_attachments: Optional file attachments
         model: Optional model override
@@ -57,7 +59,7 @@ class SimpleUI(BaseUI):
         # In your zrb_init.py:
         from zrb.llm.ui import create_ui_factory
 
-        llm_chat.set_ui_factory(create_ui_factory(MyUI))
+        llm_chat.ui_factories = [create_ui_factory(MyUI)]
     """
 
     def __init__(
@@ -65,48 +67,29 @@ class SimpleUI(BaseUI):
         ctx: "AnyContext",
         llm_task: LLMTask,
         history_manager: AnyHistoryManager,
-        config: UIConfig | None = None,
+        ui_config: UIConfig | None = None,
         initial_message: str = "",
         initial_attachments: "list[UserContent] | None" = None,
         model: str | None = None,
         response_handlers: "list[ResponseHandler] | None" = None,
         tool_policies: "list[ToolPolicy] | None" = None,
         argument_formatters: "list[ArgumentFormatter] | None" = None,
+        custom_commands: "list[AnyCustomCommand] | None" = None,
         **kwargs,  # Accept extra kwargs for easy subclassing
     ):
-        # Accept config parameter
-        self._config = config or UIConfig.default()
-
-        # Generate yolo_xcom_key if not provided
-        yolo_key = self._config.yolo_xcom_key or f"_yolo_{id(self)}"
-
         super().__init__(
             ctx=ctx,
             llm_task=llm_task,
             history_manager=history_manager,
-            yolo_xcom_key=yolo_key,
-            assistant_name=self._config.assistant_name,
             initial_message=initial_message,
             initial_attachments=initial_attachments or [],
-            conversation_session_name=self._config.conversation_session_name,
-            is_yolo=self._config.is_yolo,
+            ui_config=ui_config or UIConfig.default(),
             triggers=[],  # Empty list for triggers
             response_handlers=response_handlers or [],
             tool_policies=tool_policies or [],
             argument_formatters=argument_formatters or [],
             markdown_theme=None,
-            summarize_commands=self._config.summarize_commands,
-            attach_commands=self._config.attach_commands,
-            exit_commands=self._config.exit_commands,
-            info_commands=self._config.info_commands,
-            save_commands=self._config.save_commands,
-            load_commands=self._config.load_commands,
-            redirect_output_commands=self._config.redirect_output_commands,
-            copy_commands=self._config.copy_commands,
-            yolo_toggle_commands=self._config.yolo_toggle_commands,
-            set_model_commands=self._config.set_model_commands,
-            exec_commands=self._config.exec_commands,
-            plan_commands=self._config.plan_commands,
+            custom_commands=custom_commands or [],
             model=model,
         )
 
@@ -174,7 +157,15 @@ class SimpleUI(BaseUI):
         # Schedule the async print in the running event loop
         try:
             loop = asyncio.get_running_loop()
-            loop.create_task(self.print(text, kind))
+            task = loop.create_task(self.print(text, kind))
+            # asyncio only holds a weak reference to a scheduled task — without
+            # a strong reference somewhere, it can be garbage-collected mid-
+            # execution. Track it the same way every other fire-and-forget
+            # task in this package does (base/ui.py, base/commands.py,
+            # base/conversation_commands.py).
+            if hasattr(self, "_background_tasks"):
+                self._background_tasks.add(task)
+                task.add_done_callback(self._background_tasks.discard)
         except RuntimeError:
             # No running event loop - fall back to synchronous print
             # This can happen during initialization or in edge cases
@@ -182,7 +173,12 @@ class SimpleUI(BaseUI):
             sys.stdout.write(text)
             sys.stdout.flush()
 
-    async def ask_user(self, prompt: str) -> str:
+    async def ask_user(
+        self,
+        prompt: str,
+        output_to_parent: str = "",
+        agent_id: str | None = None,
+    ) -> str:
         """Default implementation - calls simplified get_input()."""
         return await self.get_input(prompt)
 
@@ -195,17 +191,14 @@ class SimpleUI(BaseUI):
 
     async def run_async(self) -> str:
         """Default implementation - handles common pattern."""
-        # Start message processing
-        self._process_messages_task = asyncio.create_task(self._process_messages_loop())
+        self._process_messages_task = asyncio.create_task(self.process_messages_loop())
         # Add to background tasks to prevent premature garbage collection
         if hasattr(self, "_background_tasks"):
             self._background_tasks.add(self._process_messages_task)
 
-        # Send initial message if provided
         if self._initial_message:
-            self._submit_user_message(self._llm_task, self._initial_message)
+            self.submit_user_message(self._llm_task, self._initial_message)
 
-        # Run until stopped
         try:
             await self._run_loop()
         except asyncio.CancelledError:
@@ -217,13 +210,12 @@ class SimpleUI(BaseUI):
             except asyncio.CancelledError:
                 pass
             finally:
-                # Remove from background tasks
                 if hasattr(self, "_background_tasks"):
                     self._background_tasks.discard(self._process_messages_task)
 
         return self.last_output
 
-    async def _run_loop(self):
+    async def _run_loop(self) -> None:
         """Override this for custom event loop (e.g., WebSocket listener)."""
         while True:
             await asyncio.sleep(CFG.LLM_UI_STATUS_INTERVAL / 1000)

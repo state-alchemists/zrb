@@ -13,37 +13,31 @@ from contextvars import ContextVar
 from typing import Any
 
 from zrb.config.config import CFG
+from zrb.llm.agent_state import (
+    current_tool_confirmation,
+    current_ui,
+    current_yolo,
+)
 from zrb.llm.approval.approval_channel import current_approval_channel
+from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
+from zrb.llm.approval.terminal_approval_channel import TerminalApprovalChannel
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
+from zrb.llm.ui.multi_ui import MultiUI
+from zrb.llm.ui.std_ui import StdUI
+from zrb.util.contextvar_scope import scoped
 
 
-def _bind_contextvar(stack: ExitStack, var: ContextVar, value: Any) -> None:
-    """Set `var` to `value` and register its reset on the stack.
+def bind_contextvar(stack: ExitStack, var: ContextVar, value: Any) -> None:
+    """Bind `var` to `value` for the life of `stack` (via `scoped()`).
 
     Keeps ContextVar set/reset symmetric and exception-safe across the run.
     """
-    token = var.set(value)
-    stack.callback(var.reset, token)
+    stack.enter_context(scoped(var, value))
 
 
-def _resolve_context_dependencies(
+def resolve_context_dependencies(
     ui, tool_confirmation, yolo, approval_channel, hook_manager
 ):
-    # lazy: circular — runner → setup → runner (current_* ContextVars live in
-    # runner.py, which imports this module at top level).
-    from zrb.llm.agent.run.runner import (
-        current_tool_confirmation,
-        current_ui,
-        current_yolo,
-    )
-
-    # lazy: zrb.llm.ui.* and zrb.llm.approval.* are imported inside this
-    # function to break a circular import — zrb.llm.agent is loaded by
-    # those packages' init paths, so module-top imports here would re-enter
-    # zrb.llm.agent before its __init__ has finished.
-    # lazy: zrb internal (heavy via transitive / circular)
-    from zrb.llm.ui.std_ui import StdUI
-
     ui_arg = ui if ui is not None else current_ui.get()
     if ui_arg is None:
         ui_arg = StdUI()
@@ -54,27 +48,18 @@ def _resolve_context_dependencies(
         elif len(ui_arg) == 0:
             effective_ui = StdUI()
         else:
-            # lazy: zrb internal (heavy via transitive / circular)
-            from zrb.llm.ui.multi_ui import MultiUI
-
             effective_ui = MultiUI(ui_arg)
     else:
         effective_ui = ui_arg
 
     effective_tool_confirmation = tool_confirmation or current_tool_confirmation.get()
     effective_hook_manager = hook_manager or default_hook_manager
-    effective_yolo = yolo or current_yolo.get()
+    # None = inherit the parent run's YOLO state; an explicit False must stay
+    # False (a nested run opting out), which the old `yolo or ...` erased.
+    effective_yolo = yolo if yolo is not None else current_yolo.get()
     effective_approval_channel = approval_channel or current_approval_channel.get()
 
     if effective_approval_channel is not None and effective_ui is not None:
-        # lazy: zrb internal (heavy via transitive / circular)
-        from zrb.llm.approval.multiplex_approval_channel import (
-            MultiplexApprovalChannel,
-        )
-
-        # lazy: zrb internal (heavy via transitive / circular)
-        from zrb.llm.approval.terminal_approval_channel import TerminalApprovalChannel
-
         if not isinstance(effective_approval_channel, MultiplexApprovalChannel):
             ui_for_terminal = effective_ui
             children = getattr(effective_ui, "children", None)
@@ -98,16 +83,12 @@ def _resolve_context_dependencies(
     )
 
 
-def _log_startup(
+def log_startup(
     tool_confirmation,
     effective_tool_confirmation,
     approval_channel,
     effective_approval_channel,
 ):
-    # lazy: circular — runner → setup → runner (current_* ContextVars live in
-    # runner.py, which imports this module at top level).
-    from zrb.llm.agent.run.runner import current_tool_confirmation
-
     CFG.LOGGER.debug("run_agent === START ===")
     CFG.LOGGER.debug(f"tool_confirmation param: {tool_confirmation}")
     CFG.LOGGER.debug(
@@ -121,7 +102,7 @@ def _log_startup(
     CFG.LOGGER.debug(f"effective_approval_channel: {effective_approval_channel}")
 
 
-def _setup_print_and_events(print_fn, event_handler, effective_ui):
+def setup_print_and_events(print_fn, event_handler, effective_ui):
     effective_print_fn = print_fn
     if effective_print_fn == print and effective_ui:
         effective_print_fn = effective_ui.append_to_output
@@ -140,5 +121,11 @@ def _setup_print_and_events(print_fn, event_handler, effective_ui):
             show_tool_call_detail=CFG.LLM_SHOW_TOOL_CALL_DETAIL,
             show_tool_result=CFG.LLM_SHOW_TOOL_CALL_RESULT,
             usage_callback=getattr(effective_ui, "accumulate_usage", None),
+            tool_block_recorder=getattr(effective_ui, "record_tool_call_block", None),
+            on_thinking_start=getattr(effective_ui, "mark_thinking_block_start", None),
+            on_thinking_collapse=getattr(effective_ui, "collapse_thinking_block", None),
+            on_text_start=getattr(effective_ui, "mark_text_block_start", None),
+            on_text_collapse=getattr(effective_ui, "collapse_text_block", None),
+            on_tool_prepare_update=getattr(effective_ui, "update_tool_prepare", None),
         )
     return effective_print_fn, effective_event_handler

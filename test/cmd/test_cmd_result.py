@@ -52,3 +52,14 @@ def test_cmd_result_single_line():
     result = CmdResult("single line", "error msg", "display")
     repr_str = repr(result)
     assert "single line" in repr_str
+
+
+def test_cmd_result_repr_error_formatting_matches_output():
+    """Regression: the error branch used to bake in an extra "..." prefix the
+    output branch doesn't have, producing six dots (error=......bad) instead
+    of matching the output branch's `error=...bad` shape."""
+    result = CmdResult("out1\nout2\nlast_out", "err1\nerr2\nlast_err", "display")
+    repr_str = repr(result)
+    assert "output=...last_out" in repr_str
+    assert "error=...last_err" in repr_str
+    assert "......" not in repr_str

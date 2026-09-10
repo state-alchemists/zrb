@@ -49,7 +49,7 @@ def scale_image_bytes(
     try:
         # lazy: Pillow is an optional extras-marked dep; absence must
         # gracefully degrade to "no scaling" rather than fail import.
-        from PIL import Image  # type: ignore[import]
+        from PIL import Image
     except ImportError:
         return ScaleResult(
             data=data,

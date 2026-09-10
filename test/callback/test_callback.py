@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.attr.tpl import Tpl
 from zrb.callback.callback import Callback
 from zrb.xcom.xcom import Xcom
 
@@ -44,7 +45,6 @@ class TestCallbackBehavior:
         callback = Callback(
             task=mock_task,
             input_mapping={"key": "value"},
-            render_input_mapping=False,
         )
 
         # Act
@@ -54,6 +54,34 @@ class TestCallbackBehavior:
         assert result == "task_result"
         mock_task.async_run.assert_called_once_with(mock_session)
         assert mock_session.shared_ctx.input["key"] == "value"
+
+    @pytest.mark.asyncio
+    async def test_callback_resolves_each_input_mapping_value_independently(
+        self, mock_task, mock_session, mock_parent_session
+    ):
+        """A `Tpl` value renders against the triggered session; a bare string
+        next to it stays literal. This is the path a trigger uses to hand a
+        queued value to its task, so it has no `render_input_mapping` flag to
+        turn on — the `Tpl` wrapper is the whole opt-in.
+        """
+        # Arrange
+        mock_session.shared_ctx.render.side_effect = lambda t: (
+            "from-xcom" if t == "{ctx.xcom['q'].pop()}" else t
+        )
+        callback = Callback(
+            task=mock_task,
+            input_mapping={
+                "templated": Tpl("{ctx.xcom['q'].pop()}"),
+                "literal": "{not-a-template}",
+            },
+        )
+
+        # Act
+        await callback.async_run(mock_parent_session, mock_session)
+
+        # Assert
+        assert mock_session.shared_ctx.input["templated"] == "from-xcom"
+        assert mock_session.shared_ctx.input["literal"] == "{not-a-template}"
 
     @pytest.mark.asyncio
     async def test_callback_publishes_to_parent_queues(
@@ -128,3 +156,25 @@ class TestCallbackBehavior:
 
         # Assert
         assert mock_session.shared_ctx.xcom["child_data"] == "secret_data"
+
+
+@pytest.mark.asyncio
+async def test_async_run_logs_error_without_error_queue(mock_session):
+    """A callback failure must be visible in the log even when the user did
+    not configure an error_queue (it used to vanish silently)."""
+    failing_task = MagicMock()
+    failing_task.name = "failing"
+    failing_task.async_run = AsyncMock(side_effect=ValueError("boom"))
+    callback = Callback(
+        task=failing_task,
+        input_mapping={},
+        error_queue=None,
+    )
+    with patch("zrb.callback.callback.CFG") as mock_cfg:
+        result = await callback.async_run(
+            parent_session=mock_session, session=mock_session
+        )
+        mock_logger = mock_cfg.LOGGER
+    assert result is None
+    mock_logger.error.assert_called_once()
+    assert "boom" in str(mock_logger.error.call_args)

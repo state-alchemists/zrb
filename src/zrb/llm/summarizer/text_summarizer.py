@@ -42,13 +42,11 @@ async def summarize_text_plain(
     text: str, agent: Any, limiter: "LLMLimiter", threshold: int
 ) -> str:
     """Summarizes a long text into a plain summary, handling chunks if necessary."""
-    # Ensure text is a string
     if not isinstance(text, str):
         try:
             return str(text)
         except Exception:
             return "[Unconvertible content]"
-    # Ensure threshold is positive
     if threshold <= 0:
         return "[Threshold too low for summarization]"
     text_tokens = limiter.count_tokens(text)
@@ -65,10 +63,8 @@ async def summarize_short_text(
         summary = getattr(result, "output", "")
         if not isinstance(summary, str):
             summary = str(summary) if summary is not None else ""
-        # Ensure summary doesn't exceed threshold
         summary_tokens = limiter.count_tokens(summary)
         if summary_tokens > threshold:
-            # Truncate if summary is longer than threshold
             summary = limiter.truncate_text(summary, threshold)
         return summary
     except Exception as e:
@@ -96,7 +92,6 @@ async def summarize_long_text(
             chunk_summary = getattr(result, "output", "")
             if not isinstance(chunk_summary, str):
                 chunk_summary = str(chunk_summary) if chunk_summary is not None else ""
-            # Ensure chunk summary doesn't exceed chunk limit
             chunk_summary_tokens = limiter.count_tokens(chunk_summary)
             if chunk_summary_tokens > chunk_limit:
                 chunk_summary = limiter.truncate_text(chunk_summary, chunk_limit)
@@ -139,7 +134,6 @@ async def summarize_long_text(
         except Exception as e:
             zrb_print(stylize_error(f"  Error during consolidation: {e}"), plain=True)
             raise e
-    # Final check: ensure consolidated summary doesn't exceed threshold
     final_tokens = limiter.count_tokens(final_summary)
     if final_tokens > threshold:
         final_summary = limiter.truncate_text(final_summary, threshold)

@@ -16,10 +16,10 @@ def _call(tool_name, args):
 
 
 @pytest.mark.asyncio
-async def test_bash_policy_never_auto_approves_escape():
+async def test_shell_policy_never_auto_approves_escape():
     """Even a read-only command must reach a human when escaping the sandbox."""
     policy = bash_safe_command_policy()
-    call = _call("Bash", {"command": "ls -la", "dangerously_skip_sandbox": True})
+    call = _call("Shell", {"command": "ls -la", "dangerously_skip_sandbox": True})
     next_handler = AsyncMock(return_value="ask_user")
 
     result = await policy(MagicMock(), call, next_handler)
@@ -29,11 +29,11 @@ async def test_bash_policy_never_auto_approves_escape():
 
 
 @pytest.mark.asyncio
-async def test_bash_policy_still_approves_safe_command_without_escape():
+async def test_shell_policy_still_approves_safe_command_without_escape():
     from pydantic_ai import ToolApproved
 
     policy = bash_safe_command_policy()
-    call = _call("Bash", {"command": "ls -la", "dangerously_skip_sandbox": False})
+    call = _call("Shell", {"command": "ls -la", "dangerously_skip_sandbox": False})
     next_handler = AsyncMock(return_value="ask_user")
 
     result = await policy(MagicMock(), call, next_handler)

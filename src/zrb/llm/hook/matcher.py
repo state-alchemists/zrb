@@ -72,7 +72,6 @@ def _match_glob(value: Any, matcher_value: Any) -> bool:
     return fnmatch.fnmatch(value, matcher_value)
 
 
-# Dispatcher dictionary for matcher operators
 MATCHER_OPERATORS: dict[MatcherOperator, Callable[[Any, Any], bool]] = {
     MatcherOperator.EQUALS: _match_equals,
     MatcherOperator.NOT_EQUALS: _match_not_equals,

@@ -90,3 +90,29 @@ def test_logging_level_filtering(mock_shared_ctx):
 
     ctx.log_error("should print")
     mock_shared_ctx.append_to_shared_log.assert_called()
+
+
+def test_log_warning_prints_at_default_level(mock_shared_ctx):
+    """Regression: log_warning used to compare against logging.INFO instead of
+    logging.WARNING, so it never printed at the default (WARNING) level."""
+    ctx = Context(mock_shared_ctx, "task1", 32, "icon")
+    mock_shared_ctx.get_logging_level.return_value = logging.WARNING
+
+    mock_shared_ctx.append_to_shared_log.reset_mock()
+    ctx.log_warning("should print at WARNING level")
+    mock_shared_ctx.append_to_shared_log.assert_called()
+    assert (
+        "should print at WARNING level"
+        in mock_shared_ctx.append_to_shared_log.call_args[0][0]
+    )
+
+
+def test_log_warning_suppressed_above_warning_level(mock_shared_ctx):
+    """log_warning must still be suppressed once the configured level is
+    stricter than WARNING (e.g. ERROR)."""
+    ctx = Context(mock_shared_ctx, "task1", 32, "icon")
+    mock_shared_ctx.get_logging_level.return_value = logging.ERROR
+
+    mock_shared_ctx.append_to_shared_log.reset_mock()
+    ctx.log_warning("should not print")
+    mock_shared_ctx.append_to_shared_log.assert_not_called()

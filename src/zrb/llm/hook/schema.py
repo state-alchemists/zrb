@@ -1,6 +1,9 @@
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
+
+if TYPE_CHECKING:
+    from pydantic_ai.models import Model
 
 
 class MatcherConfig:
@@ -23,10 +26,14 @@ class CommandHookConfig:
         command: str,
         shell: bool = True,
         working_dir: str | None = None,
+        plugin_root: str | None = None,
     ):
         self.command = command
         self.shell = shell
         self.working_dir = working_dir
+        # The plugin directory this hook was loaded from, if any — exported to
+        # the child process as CLAUDE_PLUGIN_ROOT (creator.py::_build_hook_env).
+        self.plugin_root = plugin_root
 
 
 class PromptHookConfig:
@@ -48,7 +55,7 @@ class AgentHookConfig:
         self,
         system_prompt: str,
         tools: list[str] | None = None,
-        model: str | None = None,
+        model: "str | Model | None" = None,
     ):
         self.system_prompt = system_prompt
         self.tools = tools if tools is not None else []

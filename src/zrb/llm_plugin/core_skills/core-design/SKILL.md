@@ -1,6 +1,6 @@
 ---
 name: core-design
-description: "Activate when the turn's deliverable is a design — system architecture, API contract, data model, component decomposition, or trade-off analysis. Provides the Constraints → Explore → Decide → Specify → Plan workflow for sound, well-reasoned designs."
+description: "Activate when the turn produces a design — system architecture, API contract, data model, component decomposition, or trade-off analysis. Covers the thinking, not the document: when the deliverable is written up (ADR, RFC, design doc), activate core-writing too. Provides the Constraints → Explore → Decide → Specify → Plan workflow."
 user-invocable: false
 ---
 # Skill: core-design
@@ -52,7 +52,7 @@ When the current step matches a trigger below, `Read` the named companion from t
 ## Safety Rules
 
 - **No premature implementation**: During steps 1-4, do not write or modify any code. Design decisions come before implementation.
-- **Approval gate**: When running interactively, obtain explicit user approval of the design and plan before starting implementation — this overrides the Working Loop's Frame step, which would otherwise work autonomously on directives. When running non-interactively (no user to approve), do not block on approval: present the design and plan inline and then proceed.
+- **Approval gate**: When running interactively, obtain explicit user approval of the design and plan before starting implementation. When running non-interactively (no user to approve), do not block on approval: present the design and plan inline and then proceed.
 
 ## Output Standards
 

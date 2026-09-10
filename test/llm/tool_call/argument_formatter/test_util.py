@@ -106,21 +106,9 @@ class TestFormatDiff:
             result = format_diff("short", long_line, "test.txt")
 
         # The 160-char line fits within 200 cols, so it is NOT wrapped down to
-        # the ~62-col (80 - prefix) width the old shutil fallback produced.
+        # the ~62-col width an 80-column fallback would produce.
         widest = max(len(line) for line in result.split("\n"))
         assert widest > 100
-
-    def test_format_diff_with_ui_parameter(self):
-        """Test format_diff with UI parameter for width detection."""
-        ui = Mock()
-        ui.output_field_width = 76
-
-        old_content = "hello"
-        new_content = "world"
-        result = format_diff(old_content, new_content, "test.txt", ui=ui)
-
-        assert "```diff" in result
-        assert "```" in result
 
     def test_format_diff_empty_file_addition(self):
         """Test format_diff when adding content to empty file."""

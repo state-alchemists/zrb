@@ -14,7 +14,7 @@ Usage:
     zrb triage route
 """
 
-from zrb import Group, LLMTask, Task, cli
+from zrb import Group, LLMTask, Task, Tpl, cli
 
 # =============================================================================
 # Your in-process "systems". The agent can only reach this through a tool —
@@ -59,7 +59,7 @@ triage = triage_group.add_task(
     LLMTask(
         name="triage",
         description="Triage an incoming support ticket",
-        message=(
+        message=Tpl(
             "A support ticket arrived:\n\n{ctx.xcom['intake'].peek()}\n\n"
             "Use the lookup_customer tool to check the customer's plan, then "
             "reply with exactly two lines and nothing else:\n"
@@ -83,4 +83,4 @@ def route(ctx):
 route_task = triage_group.add_task(Task(name="route", action=route))
 
 # Wire the DAG: intake → triage → route
-intake >> triage >> route_task
+_ = intake >> triage >> route_task

@@ -81,7 +81,6 @@ def create_web_app(
 
         yield
 
-        # Cleanup on shutdown
         for coro in _COROS:
             coro.cancel()
         if _COROS:
@@ -94,7 +93,7 @@ def create_web_app(
     app = FastAPI(
         title=CFG.WEB_TITLE,
         version=CFG.VERSION,
-        summary="Your Automation Powerhouse",
+        summary="A coding agent with a built-in task DAG",
         lifespan=lifespan,
         docs_url=None,
     )

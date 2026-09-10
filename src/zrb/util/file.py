@@ -26,13 +26,13 @@ def read_file(file_path: str, replace_map: dict[str, str] | None = None) -> str:
             if is_pdf
             else _read_text_file_content(abs_file_path)
         )
-        for key, val in replace_map.items():
-            content = content.replace(key, val)
-        return content
-    except Exception:
-
+    except UnicodeDecodeError:
+        # Binary file: hand back something lossless instead of raising.
         data = Path(abs_file_path).read_bytes()
         return base64.b64encode(data).decode("ascii")
+    for key, val in replace_map.items():
+        content = content.replace(key, val)
+    return content
 
 
 def _read_text_file_content(file_path: str) -> str:
@@ -48,9 +48,12 @@ def _read_pdf_file_content(file_path: str) -> str:
 
     with pdfplumber.open(file_path) as pdf:
         pdf: PDF
-        return "\n".join(
-            page.extract_text() for page in pdf.pages if page.extract_text()
-        )
+        texts = []
+        for page in pdf.pages:
+            text = page.extract_text()
+            if text:
+                texts.append(text)
+        return "\n".join(texts)
 
 
 def write_file(
@@ -86,14 +89,28 @@ def list_files(
     depth: int = 3,
     excluded_patterns: list[str] | None = None,
 ) -> list[str]:
-    if excluded_patterns is None:
-        excluded_patterns = []
-    all_files: list[str] = []
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
         raise FileNotFoundError(f"Path does not exist: {path}")
+    return walk_files(abs_path, include_hidden, depth, excluded_patterns)
 
-    patterns_to_exclude = excluded_patterns
+
+def walk_files(
+    abs_path: str,
+    include_hidden: bool = False,
+    depth: int = 3,
+    excluded_patterns: list[str] | None = None,
+) -> list[str]:
+    """Depth-limited, exclusion-filtered directory walk.
+
+    `abs_path` must already exist — callers own the existence check (and
+    whatever they want to do when it fails), since `list_files` here and
+    `zrb.llm.tool.file_list.list_files` report a missing path two different
+    ways (raise vs. an error dict).
+    """
+    if excluded_patterns is None:
+        excluded_patterns = []
+    all_files: list[str] = []
     if depth <= 0:
         depth = 1
 
@@ -107,25 +124,33 @@ def list_files(
             d
             for d in dirs
             if (include_hidden or not d.startswith("."))
-            and not is_path_excluded(d, patterns_to_exclude)
+            and not matches_any_pattern(d, excluded_patterns)
         ]
 
         for filename in files:
             if (
                 include_hidden or not filename.startswith(".")
-            ) and not is_path_excluded(filename, patterns_to_exclude):
+            ) and not matches_any_pattern(filename, excluded_patterns):
                 full_path = os.path.join(root, filename)
                 rel_full_path = os.path.relpath(full_path, abs_path)
-                if not is_path_excluded(rel_full_path, patterns_to_exclude):
+                if not matches_any_pattern(rel_full_path, excluded_patterns):
                     all_files.append(rel_full_path)
     return sorted(all_files)
 
 
-def is_path_excluded(name: str, patterns: list[str]) -> bool:
+def matches_any_pattern(name: str, patterns: list[str]) -> bool:
+    """Whether `name`, or any single segment of it, fnmatches a pattern.
+
+    Named for what it does rather than what a caller does with it: the same
+    predicate backs both exclude lists and include lists (`llm/tool/code.py`
+    uses it for both, two lines apart). It used to exist twice under two
+    opposite-meaning names — `is_path_excluded` here and `is_path_included`
+    in `llm/tool/code_constants.py` — with byte-identical bodies.
+    """
     for pattern in patterns:
         if fnmatch.fnmatch(name, pattern):
             return True
-        parts = name.split(os.path.sep)
+        parts = re.split(rf"[{re.escape(os.path.sep)}/]", name)
         for part in parts:
             if fnmatch.fnmatch(part, pattern):
                 return True

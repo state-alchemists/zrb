@@ -28,7 +28,7 @@ from zrb.llm.sandbox.policy import (
 _WRITABLE_DEV_LITERALS = ("/dev/null", "/dev/stdout", "/dev/stderr", "/dev/tty")
 
 
-def _sbpl_quote(path: str) -> str:
+def sbpl_quote(path: str) -> str:
     """Quote a path as an SBPL string literal.
 
     Raises ``ValueError`` for paths SBPL cannot represent safely; the caller
@@ -52,13 +52,13 @@ def build_sbpl(policy: SandboxPolicy, cwd: str = "") -> str:
         "(allow file-write*",
     ]
     for root in writable:
-        lines.append(f"  (subpath {_sbpl_quote(root)})")
+        lines.append(f"  (subpath {sbpl_quote(root)})")
     for dev in _WRITABLE_DEV_LITERALS:
-        lines.append(f"  (literal {_sbpl_quote(dev)})")
+        lines.append(f"  (literal {sbpl_quote(dev)})")
     lines.append('  (subpath "/dev/fd"))')
     if deny_read:
         lines.append("(deny file-read* file-read-metadata")
         for root in deny_read:
-            lines.append(f"  (subpath {_sbpl_quote(root)})")
+            lines.append(f"  (subpath {sbpl_quote(root)})")
         lines[-1] += ")"
     return "\n".join(lines)

@@ -1,30 +1,10 @@
-"""Model-adaptive prompt profiles.
+"""The small, explicit set of system-prompt profiles.
 
-A *profile* controls how each section is phrased and which optional sections are
-composed, independent of *which* sections appear (that is
-``LLM_INCLUDE_SECTIONS``). ``LLM_PROFILE`` selects one:
-
-- ``terse`` — the concise, principle-led base prompts.
-- ``explicit`` — a more directive register for weaker models: per-section
-  phrasing variants where they exist (e.g. ``persona.explicit.md``) plus the
-  ``examples`` section of worked few-shot blocks.
-- ``auto`` (default) — resolves to ``terse`` unless a per-model profile has been
-  declared (see :func:`register_model_profile`).
-
-The base ``*.md`` files **are** the ``terse`` profile; other profiles are variant
-overlays resolved with fallback (a missing variant transparently uses the base
-file — see ``prompt.get_prompt``). This keeps shared rules in one place and forks
-only the sections whose phrasing actually changes.
-
-**On choosing a profile automatically.** There is no reliable way to measure a
-model's capability from its identifier — family names (``deepseek``, ``qwen``,
-``llama``, …) span tiny instruct models through frontier models, so a substring
-match guesses, it does not detect. zrb therefore makes **no** strength inference
-from the model id. ``auto`` resolves to the ``terse`` base unless a per-model
-profile has been **declared** via :func:`register_model_profile` (mirroring the
-curated, user-extensible ``model_capabilities`` registry). Set
-``ZRB_LLM_PROFILE=explicit`` to force the directive profile for a weaker model,
-or declare it once per pattern from ``zrb_init.py``.
+Profiles adjust the final ``profile`` section — ``profile.minimal.md``,
+``profile.standard.md``, or ``profile.capable.md`` — and one tool:
+``minimal`` registers no delegate (sub-agent) tools. They do not infer model
+capability beyond the explicit ``auto`` mode, alter the core sections, or
+otherwise change the tool surface.
 """
 
 from __future__ import annotations
@@ -32,89 +12,116 @@ from __future__ import annotations
 import re
 from typing import Any
 
-# The base ``*.md`` files are written in the terse, principle-led register, so
-# ``terse`` needs no variant files — it resolves straight to the base.
-BASE_PROFILE = "terse"
-EXPLICIT_PROFILE = "explicit"
-VALID_PROFILES = (BASE_PROFILE, EXPLICIT_PROFILE)
+from zrb.config.config import CFG
+
+MINIMAL_PROFILE = "minimal"
+STANDARD_PROFILE = "standard"
+CAPABLE_PROFILE = "capable"
+DEFAULT_PROFILE = STANDARD_PROFILE
+
+PROFILES = (MINIMAL_PROFILE, STANDARD_PROFILE, CAPABLE_PROFILE)
+
+#: Declared parameter count (in billions) → profile, as ascending upper bounds.
+#: A size above the last bound selects ``capable``; an id that declares no size
+#: falls back to the default (``standard``).
+SIZE_BANDS: tuple[tuple[float, str], ...] = (
+    (4, MINIMAL_PROFILE),
+    (14, STANDARD_PROFILE),
+)
+
+#: Vendor small-tier labels. A label alone is not enough to select ``minimal``:
+#: ``nano``/``tiny``/``micro`` sit on models (``gpt-5-nano``) far more capable
+#: than a 3B local one. A label on a locally served model (:data:`LOCAL_PROVIDERS`)
+#: selects ``minimal``; any other label selects ``standard``.
+SMALL_TIER_LABELS: tuple[str, ...] = (
+    "mini",
+    "micro",
+    "nano",
+    "tiny",
+    "small",
+    "lite",
+    "haiku",
+)
+
+#: Provider prefixes that mean "this model runs on the user's own machine".
+#: The one piece of context that changes what a small-tier label claims.
+LOCAL_PROVIDERS: tuple[str, ...] = ("ollama:", "lmstudio:", "llamacpp:", "localai:")
+#: Ollama's hosted tier carries this suffix, which disqualifies it as local.
+_HOSTED_TIER = ":cloud"
+
+# A parameter count as vendors write it: delimited, optionally fractional, and
+# closed by a `b`. The count is captured whole and compared numerically, so
+# `deepseek-r1:1.5b` reads as 1.5B rather than as its trailing `5b`.
+_DECLARED_SIZE = re.compile(r"(?<![a-z0-9.])(\d+(?:\.\d+)?)\s*b(?![a-z0-9])", re.I)
+_SMALL_TIER = re.compile(rf"(?<![a-z])({'|'.join(SMALL_TIER_LABELS)})(?![a-z])", re.I)
 
 
-class ModelProfileRegistry:
-    """User-extensible map of model-name patterns to prompt profiles.
+def builtin_profile(model_id: str) -> str | None:
+    """Profile declared by *model_id* itself, or ``None`` if it declares none.
 
-    Empty by default — zrb ships no built-in model→profile guesses, because a
-    model id does not reveal capability. Users declare their own mappings (e.g.
-    for a known-small local model) from ``zrb_init.py``; most-recently declared
-    wins. Consulted only by the ``auto`` profile. Mirrors ``model_capabilities``
-    (``capabilities.py``).
+    A stated parameter count is the vendor declaring the size; the first count
+    in the id wins. With no count, a small-tier label reaches ``minimal`` only
+    when the model is also locally served (:data:`LOCAL_PROVIDERS`), and
+    ``standard`` otherwise.
     """
-
-    def __init__(self) -> None:
-        self._overrides: list[tuple[str, str]] = []
-
-    def set(self, pattern: str, profile: str) -> None:
-        """Declare the profile for models whose id matches *pattern*.
-
-        *pattern* is a case-insensitive regex matched against the **full** model
-        id exactly as configured — provider prefix and any tier suffix included
-        (e.g. ``ollama:deepseek-v4-flash:cloud``). Nothing is stripped, so a
-        substring like ``deepseek-v4-flash`` matches, and so does a
-        provider-wide ``ollama:`` or a tier-wide ``:cloud``. *profile* must be a
-        valid profile. Most recently declared patterns take priority.
-        """
-        if profile not in VALID_PROFILES:
-            raise ValueError(
-                f"Unknown profile {profile!r}. Valid: {list(VALID_PROFILES)}"
-            )
-        self._overrides.insert(0, (pattern, profile))
-
-    def resolve(self, model: Any | None) -> str | None:
-        """Return the declared profile for *model*, or ``None`` if none match."""
-        name = _model_id(model)
-        if not name:
-            return None
-        for pattern, profile in self._overrides:
-            if re.search(pattern, name, re.IGNORECASE):
-                return profile
+    size = _declared_size(model_id)
+    if size is not None:
+        return next(
+            (profile for limit, profile in SIZE_BANDS if size <= limit),
+            CAPABLE_PROFILE,
+        )
+    if not _SMALL_TIER.search(model_id):
         return None
-
-    def clear(self) -> None:
-        """Drop all declared mappings. Intended for tests."""
-        self._overrides.clear()
+    return MINIMAL_PROFILE if _is_local(model_id) else STANDARD_PROFILE
 
 
-#: Module-level singleton. Import this (or ``register_model_profile``) from user
-#: code; construct the class only in isolated tests.
-model_profile_registry = ModelProfileRegistry()
+def _is_local(model_id: str) -> bool:
+    """Whether *model_id* names a locally-served model rather than a hosted one."""
+    lowered = model_id.lower()
+    if _HOSTED_TIER in lowered:
+        return False
+    return any(lowered.startswith(prefix) for prefix in LOCAL_PROVIDERS)
 
 
-def register_model_profile(pattern: str, profile: str) -> None:
-    """Declare the prompt profile for models matching *pattern* (see
-    :meth:`ModelProfileRegistry.set`). Convenience wrapper over the singleton."""
-    model_profile_registry.set(pattern, profile)
+def _declared_size(model_id: str) -> float | None:
+    """Parameter count in billions stated by *model_id*, or ``None``."""
+    match = _DECLARED_SIZE.search(model_id)
+    return float(match.group(1)) if match else None
 
 
-def resolve_profile(profile: str | None, model: Any | None) -> str:
-    """Resolve the active profile from the ``LLM_PROFILE`` value and the model.
+def resolve_profile(profile: str | None, model: Any | None = None) -> str:
+    """Return a supported profile, falling back to ``standard``.
 
-    ``terse``/``explicit`` select that profile directly. ``auto`` (the default)
-    — or any unrecognized value — consults the user-declared
-    :data:`model_profile_registry`, falling back to the ``terse`` base when no
-    mapping matches. zrb makes no built-in capability guess from the model id.
+    An explicit name selects that profile. ``auto`` (or any unrecognized value)
+    consults :func:`builtin_profile` against *model*'s id, falling back to
+    ``standard`` when the id declares nothing. The fallback keeps a stale
+    environment value from breaking prompt construction while giving every
+    ordinary installation one stable default.
     """
-    value = (profile or "auto").strip().lower()
-    if value in VALID_PROFILES:
+    value = (profile or DEFAULT_PROFILE).strip().lower()
+    if value in PROFILES:
         return value
-    return model_profile_registry.resolve(model) or BASE_PROFILE
+    if value == "auto":
+        return builtin_profile(_model_id(model)) or DEFAULT_PROFILE
+    return DEFAULT_PROFILE
+
+
+def active_profile(model: Any | None = None) -> str:
+    """Return the profile selected by ``LLM_PROFILE`` for *model*.
+
+    *model* is the model id (``str``) or a model object; when omitted it falls
+    back to ``CFG.LLM_MODEL``. The one call every consumer makes — the
+    ``PromptManager`` for the profile section, and tool registration for the
+    ``minimal`` delegate restriction — so the knob and the model are read in
+    one place.
+    """
+    if model is None:
+        model = CFG.LLM_MODEL
+    return resolve_profile(CFG.LLM_PROFILE, model)
 
 
 def _model_id(model: Any | None) -> str:
-    """Full model identifier exactly as configured, or ``""``.
-
-    Nothing is stripped — patterns match the id the user sees (e.g.
-    ``ollama:deepseek-v4-flash:cloud``), so there is no surprise about which
-    segment a regex applies to. ``cloud`` only matches if the pattern says so.
-    """
+    """Full model identifier exactly as configured, or ``""``."""
     if model is None:
         return ""
     if isinstance(model, str):

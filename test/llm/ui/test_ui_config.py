@@ -2,22 +2,17 @@
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.llm.ui import UIConfig
 
 
 class TestUIConfig:
     def test_default_config(self):
         config = UIConfig.default()
-        assert config.assistant_name == "Assistant"
+        assert config.assistant_name == CFG.LLM_ASSISTANT_NAME
         assert isinstance(config.exit_commands, list)
         assert isinstance(config.info_commands, list)
         assert config.is_yolo is False
-
-    def test_minimal_config(self):
-        config = UIConfig.minimal()
-        assert config.exit_commands == ["/exit"]
-        assert config.info_commands == []
-        assert config.save_commands == []
 
     def test_custom_config(self):
         config = UIConfig(
@@ -56,6 +51,11 @@ class TestUIConfig:
         result = config.merge_commands({"attach": ["/a"]})
         assert result.attach_commands == ["/a"]
 
+    def test_merge_commands_with_photo(self):
+        config = UIConfig.default()
+        result = config.merge_commands({"photo": ["/p"]})
+        assert result.photo_commands == ["/p"]
+
     def test_merge_commands_with_redirect(self):
         config = UIConfig.default()
         result = config.merge_commands({"redirect": ["/r"]})
@@ -88,7 +88,7 @@ class TestUIConfig:
 
     def test_yolo_xcom_key_default(self):
         config = UIConfig.default()
-        assert config.yolo_xcom_key == ""
+        assert config.yolo_xcom_key == "yolo"
 
     def test_conversation_session_name_default(self):
         config = UIConfig.default()

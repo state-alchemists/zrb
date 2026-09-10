@@ -10,10 +10,22 @@ def test_llm_model(monkeypatch):
     assert config.LLM_MODEL == "my-model"
 
 
-def test_llm_model_none(monkeypatch):
+def test_llm_model_default(monkeypatch):
     monkeypatch.delenv("ZRB_LLM_MODEL", raising=False)
     config = Config()
-    assert config.LLM_MODEL is None
+    assert config.LLM_MODEL == "openai:gpt-5.6-luna"
+
+
+def test_llm_provider(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_PROVIDER", "anthropic")
+    config = Config()
+    assert config.LLM_PROVIDER == "anthropic"
+
+
+def test_llm_provider_none(monkeypatch):
+    monkeypatch.delenv("ZRB_LLM_PROVIDER", raising=False)
+    config = Config()
+    assert config.LLM_PROVIDER is None
 
 
 def test_llm_base_url(monkeypatch):
@@ -56,6 +68,13 @@ def test_llm_max_token_per_request(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_MAX_TOKEN_PER_REQUEST", "100000")
     config = Config()
     assert config.LLM_MAX_TOKEN_PER_REQUEST == 100000
+
+
+def test_llm_enable_tool_spill_reads_the_legacy_key(monkeypatch):
+    monkeypatch.delenv("ZRB_LLM_ENABLE_TOOL_SPILL", raising=False)
+    monkeypatch.setenv("ZRB_LLM_TOOL_SPILL_ENABLED", "on")
+
+    assert Config().LLM_ENABLE_TOOL_SPILL is True
 
 
 def test_llm_throttle_sleep(monkeypatch):
@@ -130,12 +149,12 @@ def test_llm_configs_types():
     assert isinstance(config.SEARXNG_LANG, str)
 
     assert isinstance(config.BANNER, str)
-    assert isinstance(config.USE_TIKTOKEN, bool)
+    assert isinstance(config.ENABLE_TIKTOKEN, bool)
     assert isinstance(config.TIKTOKEN_ENCODING_NAME, str)
 
 
 def test_llm_plugin_dirs(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_PLUGIN_DIRS", "dir1:dir2")
+    monkeypatch.setenv("ZRB_LLM_PLUGIN_DIRS", f"dir1{os.pathsep}dir2")
     config = Config()
     assert config.LLM_PLUGIN_DIRS == ["dir1", "dir2"]
 
@@ -156,3 +175,27 @@ def test_llm_small_model(monkeypatch):
         config.SHELL == get_current_shell()
     )  # Existing test was slightly wrong in my previous read, it seems config.SHELL defaults to get_current_shell() on Linux/Darwin
     assert config.LLM_SMALL_MODEL == "gpt-4o-mini"
+
+
+def test_llm_max_skills_in_catalog_default(monkeypatch):
+    monkeypatch.delenv("ZRB_LLM_MAX_SKILLS_IN_CATALOG", raising=False)
+    config = Config()
+    assert config.LLM_MAX_SKILLS_IN_CATALOG == 10
+
+
+def test_llm_max_skills_in_catalog_override(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_MAX_SKILLS_IN_CATALOG", "5")
+    config = Config()
+    assert config.LLM_MAX_SKILLS_IN_CATALOG == 5
+
+
+def test_llm_max_agents_in_roster_default(monkeypatch):
+    monkeypatch.delenv("ZRB_LLM_MAX_AGENTS_IN_ROSTER", raising=False)
+    config = Config()
+    assert config.LLM_MAX_AGENTS_IN_ROSTER == 10
+
+
+def test_llm_max_agents_in_roster_override(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_MAX_AGENTS_IN_ROSTER", "3")
+    config = Config()
+    assert config.LLM_MAX_AGENTS_IN_ROSTER == 3

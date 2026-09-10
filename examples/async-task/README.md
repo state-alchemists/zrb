@@ -86,4 +86,4 @@ async def flaky_task(ctx: AnyContext):
 | `async def action(ctx)` | Async task function |
 | `await asyncio.sleep()` | Simulate delay |
 | `await asyncio.gather(*tasks)` | Run concurrently |
-| `retry=N` | Retry on failure |
+| `retries=N` | Retry on failure |

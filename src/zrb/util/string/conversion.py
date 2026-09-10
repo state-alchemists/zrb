@@ -19,7 +19,6 @@ def double_quote(input_string: str) -> str:
     """
     # Escape necessary characters: backslashes and double quotes
     escaped_string = re.sub(r'([\\"])', r"\\\1", input_string)
-    # Wrap in double quotes
     return f'"{escaped_string}"'
 
 
@@ -36,13 +35,13 @@ def to_boolean(text: str) -> bool:
         bool: The boolean representation of the string.
 
     Raises:
-        Exception: If the string cannot be inferred as a boolean value.
+        ValueError: If the string cannot be inferred as a boolean value.
     """
     if text.lower() in TRUE_STRS:
         return True
     if text.lower() in FALSE_STRS:
         return False
-    raise Exception(f'Cannot infer boolean value from "{text}"')
+    raise ValueError(f'Cannot infer boolean value from "{text}"')
 
 
 def to_camel_case(text: str | None) -> str:
@@ -92,6 +91,20 @@ def to_kebab_case(text: str | None) -> str:
     text = str(text) if text is not None else ""
     text = _to_alphanum(text)
     return "-".join([x.lower() for x in _to_space_separated(text).split(" ")])
+
+
+def to_safe_filename(text: str) -> str:
+    """
+    Convert a string to a filesystem-safe filename by replacing every
+    character other than letters, digits, `-`, and `_` with `_`.
+
+    Args:
+        text (str): The input string.
+
+    Returns:
+        str: The filesystem-safe string.
+    """
+    return "".join(c if c.isalnum() or c in "-_" else "_" for c in text)
 
 
 def to_snake_case(text: str | None) -> str:

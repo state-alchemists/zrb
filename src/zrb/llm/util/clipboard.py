@@ -1,11 +1,12 @@
 """
-Cross-platform clipboard image reading.
+Cross-platform clipboard image reading and text writing.
 
 Priority order per platform:
   macOS   : Pillow ImageGrab  →  osascript fallback
   Windows : Pillow ImageGrab  (only option; shows hint if Pillow missing)
   WSL     : powershell.exe  →  wl-paste (multi-type)  →  xclip
   Linux   : wl-paste (Wayland, multi-type)  →  xclip (X11)
+  Termux  : termux-clipboard-set  →  pyperclip  →  OSC 52
 """
 
 from __future__ import annotations
@@ -15,8 +16,11 @@ import base64
 import io
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
+
+from zrb.config.helper import is_wsl
 
 
 async def get_clipboard_image() -> bytes | None:
@@ -44,7 +48,7 @@ async def get_clipboard_image() -> bytes | None:
 async def _macos() -> bytes | None:
     try:
         # lazy: heavy third-party
-        from PIL import ImageGrab  # type: ignore[import]
+        from PIL import ImageGrab
 
         img = await asyncio.to_thread(ImageGrab.grabclipboard)
         # grabclipboard() returns an Image, a list of file paths, or None.
@@ -99,7 +103,7 @@ async def _macos_osascript() -> bytes | None:
 def _windows() -> bytes | None:
     try:
         # lazy: heavy third-party
-        from PIL import ImageGrab  # type: ignore[import]
+        from PIL import ImageGrab
 
         img = ImageGrab.grabclipboard()
         # grabclipboard() returns an Image, a list of file paths, or None.
@@ -121,14 +125,9 @@ def _windows() -> bytes | None:
 _WAYLAND_IMAGE_TYPES = ("image/png", "image/bmp", "image/jpeg", "image/tiff")
 
 
-def _is_wsl() -> bool:
-    """Return True when running inside Windows Subsystem for Linux."""
-    return bool(os.environ.get("WSL_DISTRO_NAME") or os.environ.get("WSLENV"))
-
-
 async def _linux() -> bytes | None:
     # WSL: PowerShell has direct access to the Windows clipboard — most reliable.
-    if _is_wsl():
+    if is_wsl():
         data = await _wsl_powershell()
         if data is not None:
             return data
@@ -172,7 +171,7 @@ def _to_png(data: bytes) -> bytes | None:
     """Convert arbitrary image bytes (e.g. BMP) to PNG using Pillow if available."""
     try:
         # lazy: heavy third-party
-        from PIL import Image  # type: ignore[import]
+        from PIL import Image
 
         img = Image.open(io.BytesIO(data))
         buf = io.BytesIO()
@@ -205,14 +204,41 @@ async def _run(cmd: list[str]) -> bytes | None:
 def copy_text(text: str) -> bool:
     """Copy text to system clipboard.
 
-    Uses ``pyperclip`` (the project's existing clipboard backend) when
-    available, with an OSC 52 terminal-escape fallback that works over
-    SSH. Returns ``True`` if the text was successfully placed on the
-    clipboard.
+    Tries the following in order, returning ``True`` on the first success:
+
+    1. **Termux** — ``termux-clipboard-set`` (native Android clipboard).
+    2. **pyperclip** — the project's existing clipboard backend (xclip /
+       xsel / pbcopy / …).
+    3. **OSC 52** — terminal escape that works over SSH when the terminal
+       emulator supports it.
+
+    Returns ``True`` if the text was successfully placed on the clipboard.
     """
+    # lazy: tests patch zrb.config.helper.is_termux; hoisting would bind
+    # the name at this module's load time and bypass the mock.
+    from zrb.config.helper import is_termux
+
+    if is_termux():
+        try:
+            # Text goes over stdin, not argv: a copied transcript easily exceeds
+            # ARG_MAX, which would fail the whole copy with E2BIG.
+            # ponytail: 3s ceiling blocks the caller; copy_text is sync all the
+            # way up to the /copy command handler, so make it async only if a
+            # hung termux-clipboard-set turns out to be a real problem.
+            proc = subprocess.run(
+                ["termux-clipboard-set"],
+                input=text.encode("utf-8"),
+                timeout=3,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            if proc.returncode == 0:
+                return True
+        except Exception:
+            pass
     try:
         # lazy: heavy third-party
-        import pyperclip  # type: ignore[import]
+        import pyperclip
 
         pyperclip.copy(text)
         return True
@@ -224,6 +250,7 @@ def copy_text(text: str) -> bool:
                 _write_osc52(text)
                 return True
             except Exception:
+                # OSC 52 unsupported by this terminal — report copy failure.
                 pass
         return False
 
@@ -251,7 +278,7 @@ def missing_tool_hint() -> str:
     if sys.platform not in ("linux", "linux2"):
         return ""
 
-    if _is_wsl():
+    if is_wsl():
         # powershell.exe should always be present in WSL2; if we got here it
         # means even that failed — nothing more we can suggest.
         return ""

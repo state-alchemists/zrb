@@ -108,7 +108,7 @@ async def permission_hook(context: HookContext) -> HookResult:
     tool_name = context.tool_name or ""
 
     SAFE_TOOLS = {"Read", "Glob", "Grep", "LS", "LspListServers"}
-    DANGEROUS_TOOLS = {"Bash", "RunShellCommand"}
+    DANGEROUS_TOOLS = {"Shell"}
 
     if tool_name in DANGEROUS_TOOLS:
         tool_input = context.tool_input or {}
@@ -117,7 +117,7 @@ async def permission_hook(context: HookContext) -> HookResult:
         # Allow read-only commands
         safe_patterns = ["ls", "cat", "grep", "find", "git status", "git log"]
         if any(cmd in command for cmd in safe_patterns):
-            print(f"[PERMISSION] Allowing safe Bash: {command[:50]}")
+            print(f"[PERMISSION] Allowing safe Shell command: {command[:50]}")
             return HookResult(
                 success=True,
                 modifications={"permissionDecision": "allow"},
@@ -126,7 +126,7 @@ async def permission_hook(context: HookContext) -> HookResult:
         # Deny dangerous patterns
         dangerous_patterns = ["rm ", "rmdir", "sudo", "chmod", "chown", ">"]
         if any(pat in command for pat in dangerous_patterns):
-            print(f"[PERMISSION] Blocking dangerous Bash: {command[:50]}")
+            print(f"[PERMISSION] Blocking dangerous Shell command: {command[:50]}")
             return HookResult(
                 success=True,
                 modifications={"permissionDecision": "deny"},
@@ -288,7 +288,7 @@ async def tool_result_hook(context: HookContext) -> HookResult:
         tool_result = context.event_data.get("result", {})
 
         # Block empty search results — let the model know
-        if tool_name in {"Grep", "SearchFiles"}:
+        if tool_name in {"Grep"}:
             result_content = str(tool_result.get("content", ""))
             if "no matches" in result_content.lower() or not result_content.strip():
                 return HookResult.block(reason="No results found, try a broader query")
@@ -549,7 +549,7 @@ response_transformer = ResponseTransformerHook(max_length=1000)
 def register_hooks(manager):
     """Register all hooks with the manager.
 
-    Called automatically by add_hook_factory().
+    Called automatically by append_hook_factory().
     """
     # Session tracker — observe multiple events
     manager.register(
@@ -613,7 +613,7 @@ def register_hooks(manager):
 
 
 # Register hooks with llm_chat task
-llm_chat.add_hook_factory(register_hooks)
+llm_chat.append_hook_factory(register_hooks)
 
 
 # =============================================================================

@@ -2,19 +2,20 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any, Coroutine
+from typing import TYPE_CHECKING, Any, Coroutine
 
 from zrb.config.config import CFG
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.context.context import AnyContext, Context
 from zrb.group.any_group import AnyGroup
 from zrb.session.any_session import AnySession
-from zrb.session_state_log.session_state_log import (
-    SessionStateLog,
-    TaskStatusHistoryStateLog,
-    TaskStatusStateLog,
-)
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
+
+if TYPE_CHECKING:
+    from zrb.session_state_log.session_state_log import (
+        SessionStateLog,
+        TaskStatusStateLog,
+    )
 from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.any_task import AnyTask
 from zrb.task_status.task_status import TaskStatus
@@ -32,9 +33,11 @@ from zrb.util.cli.style import (
     YELLOW,
     remove_style,
 )
-from zrb.util.group import get_node_path
+from zrb.util.run import gather_fail_fast, gather_isolated
 from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
+
+SECRET_MASK = "***"
 
 
 class Session(AnySession):
@@ -45,6 +48,17 @@ class Session(AnySession):
         root_group: AnyGroup | None = None,
         state_logger: AnySessionStateLogger | None = None,
     ):
+        """Hold the state of one execution run.
+
+        Args:
+            shared_ctx: Context carrying the inputs, envs, and xcom of this run.
+            parent: Session that spawned this one, for a callback or sub-task.
+                None for a top-level run.
+            root_group: Group the executed task was resolved from, used to
+                report task paths.
+            state_logger: Sink persisting session state. Defaults to no
+                persistence.
+        """
         self._name = get_random_name()
         self._root_group = root_group
         self._state_logger = state_logger
@@ -145,17 +159,23 @@ class Session(AnySession):
         main_task_path = (
             None
             if self._root_group is None
-            else get_node_path(self._root_group, main_task)
+            else self._root_group.get_node_path(main_task)
         )
         self._main_task_path = [] if main_task_path is None else main_task_path
 
-    def as_state_log(self) -> "SessionStateLog":
+    def _build_task_status_log(
+        self,
+    ) -> tuple[dict[str, "TaskStatusStateLog"], str]:
+        """Flatten every task's status history and find the earliest timestamp.
 
+        The start time falls out of the same pass since it's just the minimum
+        of each task's own flattened history, computed as we go.
+        """
         task_status_log: dict[str, TaskStatusStateLog] = {}
         log_start_time = ""
         for task, task_status in self._task_status.items():
             history_log = [
-                TaskStatusHistoryStateLog(
+                _state_log_models().TaskStatusHistoryStateLog(
                     status=status,
                     time=status_at.strftime("%Y-%m-%d %H:%M:%S.%f"),
                 )
@@ -165,7 +185,7 @@ class Session(AnySession):
                 log_start_time == "" or history_log[0].time < log_start_time
             ):
                 log_start_time = history_log[0].time
-            task_status_log[task.name] = TaskStatusStateLog(
+            task_status_log[task.name] = _state_log_models().TaskStatusStateLog(
                 is_started=task_status.is_started,
                 is_ready=task_status.is_ready,
                 is_completed=task_status.is_completed,
@@ -175,18 +195,47 @@ class Session(AnySession):
                 is_terminated=task_status.is_terminated,
                 history=history_log,
             )
+        return task_status_log, log_start_time
 
-        sanitized_input = {}
+    def _sanitize_input(self) -> dict[str, Any]:
+        """Mask secret input values and stringify non-JSON-serializable ones.
+
+        Secrets are masked before the log reaches any persistence layer or
+        HTTP consumer; only the CLI prompt echoes them verbatim.
+        """
+        secret_names = self._get_secret_input_names()
+        sanitized_input: dict[str, Any] = {}
         for key, value in self.shared_ctx.input.items():
+            if key in secret_names:
+                sanitized_input[key] = SECRET_MASK
+                continue
             try:
                 # Test if value is serializable
-
                 json.dumps(value)
                 sanitized_input[key] = value
             except (TypeError, OverflowError):
                 sanitized_input[key] = str(value)
+        return sanitized_input
 
-        return SessionStateLog(
+    def _get_secret_input_names(self) -> set[str]:
+        """Collect names of secret inputs declared by every registered task."""
+        return {
+            task_input.name
+            for task in self._task_status
+            for task_input in task.inputs
+            if task_input.is_secret
+        }
+
+    def as_state_log(self) -> "SessionStateLog":
+        """Snapshot this session as a serializable pydantic log.
+
+        Captures each task's status history and timings. This is what the web
+        UI polls and what the session-state logger persists.
+        """
+        task_status_log, log_start_time = self._build_task_status_log()
+        sanitized_input = self._sanitize_input()
+
+        return _state_log_models().SessionStateLog(
             name=self.name,
             start_time=log_start_time,
             main_task_name="" if self._main_task is None else self._main_task.name,
@@ -206,31 +255,36 @@ class Session(AnySession):
         self._register_single_task(task)
         return self._context[task]
 
+    @staticmethod
+    def _as_task(
+        coro: Coroutine[Any, Any, Any] | asyncio.Task[Any],
+    ) -> asyncio.Task[Any]:
+        """Normalize a coro-or-task into a scheduled Task."""
+        return coro if isinstance(coro, asyncio.Task) else asyncio.create_task(coro)
+
     def defer_monitoring(
         self, task: AnyTask, coro: Coroutine[Any, Any, Any] | asyncio.Task[Any]
     ):
         self._register_single_task(task)
-        if isinstance(coro, asyncio.Task):
-            self._monitoring_coros[task] = coro
-        else:
-            self._monitoring_coros[task] = asyncio.create_task(coro)
+        self._monitoring_coros[task] = self._as_task(coro)
 
     def defer_action(
         self, task: AnyTask, coro: Coroutine[Any, Any, Any] | asyncio.Task[Any]
     ):
         self._register_single_task(task)
-        scheduled = (
-            coro if isinstance(coro, asyncio.Task) else asyncio.create_task(coro)
-        )
+        scheduled = self._as_task(coro)
         if self._is_terminated:
             scheduled.cancel()
             return
+        previous = self._action_coros.get(task)
+        if previous is not None and previous is not scheduled and not previous.done():
+            # A re-defer would orphan the still-running action (never awaited
+            # by wait_deferred, invisible to terminate). Cancel it first.
+            previous.cancel()
         self._action_coros[task] = scheduled
 
     def defer_coro(self, coro: Coroutine[Any, Any, Any] | asyncio.Task[Any]):
-        scheduled = (
-            coro if isinstance(coro, asyncio.Task) else asyncio.create_task(coro)
-        )
+        scheduled = self._as_task(coro)
         if self._is_terminated:
             scheduled.cancel()
             return
@@ -263,19 +317,26 @@ class Session(AnySession):
         while self._coros:
             batch = self._coros
             self._coros = []
-            await asyncio.gather(*batch)
+            await gather_isolated(*batch)
 
     async def _wait_deferred_action(self):
+        # gather_fail_fast: these are the deferred bodies of long-running tasks,
+        # which never return on their own. Waiting for the siblings to settle
+        # would hang the run after one has already failed — two long-running
+        # tasks (a `frontend` + `backend` start) where one crashes must exit
+        # non-zero immediately, not block until the survivor is killed.
         if len(self._action_coros) == 0:
             return
         task_coros = self._action_coros.values()
-        await asyncio.gather(*task_coros)
+        await gather_fail_fast(*task_coros)
 
     async def _wait_deferred_monitoring(self):
+        # Same as above: a monitoring loop (Scheduler/BaseTrigger) polls forever
+        # by design, so it must be cancelled on a sibling's failure, not awaited.
         if len(self._monitoring_coros) == 0:
             return
         task_coros = self._monitoring_coros.values()
-        await asyncio.gather(*task_coros)
+        await gather_fail_fast(*task_coros)
 
     def register_task(self, task: AnyTask):
         self._register_task_graph(task, set())
@@ -380,3 +441,12 @@ class Session(AnySession):
             if not self._task_status[upstream].allow_run_downstream
         ]
         return len(unfulfilled_upstreams) == 0
+
+
+def _state_log_models():
+    # lazy: transitively heavy -- session_state_log declares pydantic models,
+    # so importing it eagerly pulled pydantic.main and the schema-construction
+    # machinery into every `import zrb`. Only as_state_log() needs them.
+    from zrb.session_state_log import session_state_log
+
+    return session_state_log

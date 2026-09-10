@@ -8,41 +8,21 @@ from zrb.context.any_context import AnyContext
 from zrb.group.any_group import AnyGroup
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.task_status.task_status import TaskStatus
+from zrb.util.pydantic_schema import PydanticInstanceSchemaMixin
 
 if TYPE_CHECKING:
-    from pydantic import GetCoreSchemaHandler, GetJsonSchemaHandler
-    from pydantic.json_schema import JsonSchemaValue
-    from pydantic_core import CoreSchema
-
     from zrb.context.any_shared_context import AnySharedContext
     from zrb.session_state_log.session_state_log import SessionStateLog
     from zrb.task.any_task import AnyTask
 
 
-# Note: __get_pydantic_core_schema__ and __get_pudantic_json_schema__ is needed
-# since session generate state_log (which is a pydantic base model)
-class AnySession(ABC):
+class AnySession(PydanticInstanceSchemaMixin, ABC):
     """Abstract base class for managing task execution and context in a session.
 
     This class handles task lifecycle management, context retrieval,
     deferred task execution, and data exchange between tasks using
     XCom-like functionality.
     """
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: "GetCoreSchemaHandler"
-    ) -> "CoreSchema":
-        # lazy: heavy third-party
-        from pydantic_core import core_schema
-
-        return core_schema.is_instance_schema(cls)
-
-    @classmethod
-    def __get_pydantic_json_schema__(
-        cls, core_schema: "CoreSchema", handler: "GetJsonSchemaHandler"
-    ) -> "JsonSchemaValue":
-        return {"type": "object", "title": "AnySession"}
 
     @property
     @abstractmethod

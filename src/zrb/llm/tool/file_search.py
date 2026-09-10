@@ -4,40 +4,80 @@ import re
 import shutil
 import subprocess
 import time
-from typing import Any
+from typing import Annotated, Any
+
+from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.tool.file_list import DEFAULT_EXCLUDED_PATTERNS
-from zrb.util.file import is_path_excluded
+from zrb.util.file import matches_any_pattern
 from zrb.util.truncate import truncate_items, truncate_text
 
 # Per-line snippet cap in search output (a single matched/context line).
 _MAX_LINE_LENGTH = 1000
 # Head-keep cap on the number of matches reported for one file.
-_MAX_MATCHES_PER_FILE = 100
+MAX_MATCHES_PER_FILE = 100
+
+
+def _relpath_or_abs(path: str, start: str) -> str:
+    """`os.path.relpath`, falling back to the absolute path when *path* and
+    *start* are on different Windows drives (`ValueError`) rather than
+    crashing the whole search."""
+    try:
+        return os.path.relpath(path, start)
+    except ValueError:
+        return os.path.abspath(path)
 
 
 def search_files(
-    pattern: str,
-    path: str = ".",
-    file_pattern: str = "",
-    exclude_patterns: list[str] | None = None,
-    timeout: float = 30.0,
-    context_lines: int = 2,
-    files_only: bool = False,
-    case_sensitive: bool = True,
+    pattern: Annotated[
+        str,
+        Field(
+            description=(
+                r"A regular expression (e.g. `def \w+`), NOT a glob — to find "
+                "files by name, use Glob instead."
+            )
+        ),
+    ],
+    path: Annotated[str, Field(description="Directory to search under.")] = ".",
+    file_pattern: Annotated[
+        str,
+        Field(description="A glob restricting which files to search (e.g. `*.py`)."),
+    ] = "",
+    exclude_patterns: Annotated[
+        list[str] | None,
+        Field(
+            description=(
+                "Glob patterns to exclude. Defaults to a standard set "
+                "(.git, node_modules, __pycache__, etc.); pass [] to include all."
+            )
+        ),
+    ] = None,
+    timeout: Annotated[
+        float,
+        Field(
+            description="Seconds before the search gives up and returns partial results."
+        ),
+    ] = 30.0,
+    context_lines: Annotated[
+        int, Field(description="Surrounding lines shown per match.")
+    ] = 2,
+    files_only: Annotated[
+        bool,
+        Field(
+            description=(
+                'True returns {"files": [...], "summary": "..."} — much '
+                "smaller output than the full per-match results."
+            )
+        ),
+    ] = False,
+    case_sensitive: Annotated[
+        bool, Field(description="False makes the search case-insensitive.")
+    ] = True,
 ) -> dict[str, Any]:
     """
     Searches file *contents* for a regular expression. Results include line
-    numbers and context.
-
-    `pattern`: a regular expression (e.g. `def \\w+`), NOT a glob — to find
-        files by name, use Glob instead.
-    `file_pattern`: a glob restricting which files to search (e.g., `*.py`).
-    `context_lines` (default 2): surrounding lines shown per match.
-    `files_only=True`: returns `{"files": [...], "summary": "..."}` — much smaller output.
-    `case_sensitive=False`: case-insensitive search.
-    Lines are truncated at 1000 chars in output.
+    numbers and context. Lines are truncated at 1000 chars in output.
     """
     start_time = time.time()
     flags = 0 if case_sensitive else re.IGNORECASE
@@ -48,7 +88,14 @@ def search_files(
 
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
-        return {"error": f"Path not found: {path}"}
+        return {
+            "error": (
+                f"Path not found: {path} (resolved to {abs_path}). "
+                "[SYSTEM SUGGESTION]: a relative path resolves against the "
+                "current directory, not the project root. Use List to see "
+                "what is there, then search under a path that exists."
+            )
+        }
 
     patterns_to_exclude = (
         exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDED_PATTERNS
@@ -212,9 +259,9 @@ def _search_with_ripgrep(
     skipped_count = 0
 
     for file_path in matching_files:
-        rel_file_path = os.path.relpath(file_path, os.getcwd())
+        rel_file_path = _relpath_or_abs(file_path, os.getcwd())
         try:
-            matches = _get_file_matches(
+            matches = get_file_matches(
                 file_path,
                 pattern,
                 context_lines=context_lines,
@@ -266,7 +313,7 @@ def _search_with_os_walk(
         dirs[:] = [
             d
             for d in dirs
-            if not d.startswith(".") and not is_path_excluded(d, patterns_to_exclude)
+            if not d.startswith(".") and not matches_any_pattern(d, patterns_to_exclude)
         ]
         for filename in files:
             if time.time() - start_time > timeout:
@@ -274,19 +321,19 @@ def _search_with_os_walk(
                 break
             if filename.startswith("."):
                 continue
-            if is_path_excluded(filename, patterns_to_exclude):
+            if matches_any_pattern(filename, patterns_to_exclude):
                 continue
             if file_pattern and not fnmatch.fnmatch(filename, file_pattern):
                 continue
 
             file_path = os.path.join(root, filename)
-            rel_file_path = os.path.relpath(file_path, os.getcwd())
-            if is_path_excluded(rel_file_path, patterns_to_exclude):
+            rel_file_path = _relpath_or_abs(file_path, os.getcwd())
+            if matches_any_pattern(rel_file_path, patterns_to_exclude):
                 continue
             searched_file_count += 1
 
             try:
-                matches = _get_file_matches(
+                matches = get_file_matches(
                     file_path,
                     pattern,
                     context_lines=context_lines,
@@ -315,7 +362,7 @@ def _search_with_os_walk(
     )
 
 
-def _get_file_matches(
+def get_file_matches(
     file_path: str,
     pattern: re.Pattern,
     context_lines: int = 2,
@@ -348,15 +395,15 @@ def _get_file_matches(
             matches.append(match_data)
 
     # Cap matches per file (head-keep) so one busy file can't dominate output.
-    if len(matches) > _MAX_MATCHES_PER_FILE:
-        omitted = len(matches) - _MAX_MATCHES_PER_FILE
-        kept = matches[:_MAX_MATCHES_PER_FILE]
+    if len(matches) > MAX_MATCHES_PER_FILE:
+        omitted = len(matches) - MAX_MATCHES_PER_FILE
+        kept = matches[:MAX_MATCHES_PER_FILE]
         kept.append(
             {
                 "line_number": 0,
                 "line_content": (
                     f"[TRUNCATED {omitted} matches in this file. Showing first "
-                    f"{_MAX_MATCHES_PER_FILE}.]"
+                    f"{MAX_MATCHES_PER_FILE}.]"
                 ),
                 "context_before": [],
                 "context_after": [],

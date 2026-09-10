@@ -10,24 +10,37 @@ def test_ui_public_methods(mock_ui_deps):
     # Test toggle_yolo
     # Test toggle_yolo
     assert (
-        not mock_ui_deps["ctx"].xcom.get(mock_ui_deps["yolo_xcom_key"], {}).get(False)
+        not mock_ui_deps["ctx"]
+        .xcom.get(mock_ui_deps["ui_config"].yolo_xcom_key, {})
+        .get(False)
     )
     ui.toggle_yolo()
-    assert mock_ui_deps["ctx"].xcom.get(mock_ui_deps["yolo_xcom_key"], {}).get(False)
+    assert (
+        mock_ui_deps["ctx"]
+        .xcom.get(mock_ui_deps["ui_config"].yolo_xcom_key, {})
+        .get(False)
+    )
     ui.toggle_yolo()
     assert (
-        not mock_ui_deps["ctx"].xcom.get(mock_ui_deps["yolo_xcom_key"], {}).get(False)
+        not mock_ui_deps["ctx"]
+        .xcom.get(mock_ui_deps["ui_config"].yolo_xcom_key, {})
+        .get(False)
     )
 
     # Test append_to_output
     ui.output_buffer = MagicMock()
-    with patch.object(ui, "_schedule_invalidate"):
+    with patch.object(ui.output_part, "schedule_invalidate"):
         ui.append_to_output("New content")
     # append_to_output internally modifies output_buffer.text
     assert ui.output_buffer.text is not None
 
 
-def _usage(input_tokens=0, output_tokens=0, cache_read_tokens=0, cache_write_tokens=0):
+def _usage(
+    input_tokens: int | None = 0,
+    output_tokens: int | None = 0,
+    cache_read_tokens: int | None = 0,
+    cache_write_tokens: int | None = 0,
+):
     return MagicMock(
         input_tokens=input_tokens,
         output_tokens=output_tokens,
@@ -60,20 +73,25 @@ def test_ui_session_token_usage(mock_ui_deps):
 
 def test_ui_context_tokens_track_last_request(mock_ui_deps):
     ui = UI(**mock_ui_deps)
-    # context = last request's input_tokens (already inclusive of cache read
-    # and write, per pydantic-ai's AbstractUsage contract); it replaces
-    # rather than accumulates.
+    # context = last request's input + output: the prompt (already inclusive of
+    # cache read and write, per pydantic-ai's AbstractUsage contract) plus the
+    # reply that is now in history. It replaces rather than accumulates.
     ui.accumulate_usage(
         _usage(input_tokens=1000, output_tokens=10),
-        _usage(input_tokens=4000, cache_read_tokens=1000, cache_write_tokens=200),
+        _usage(
+            input_tokens=4000,
+            output_tokens=500,
+            cache_read_tokens=1000,
+            cache_write_tokens=200,
+        ),
     )
-    assert ui.context_tokens == 4000
+    assert ui.context_tokens == 4500  # 4000 input + 500 output
     ui.accumulate_usage(
         _usage(input_tokens=1000, output_tokens=10),
-        _usage(input_tokens=3000, cache_read_tokens=100),
+        _usage(input_tokens=3000, output_tokens=200, cache_read_tokens=100),
     )
-    assert ui.context_tokens == 3000  # not accumulated
-    assert "3.0k ctx" in "".join(text for _, text in ui.get_status_bar_text())
+    assert ui.context_tokens == 3200  # 3000 + 200; replaced, not accumulated
+    assert "3.2k ctx" in "".join(text for _, text in ui.get_status_bar_text())
 
     ui.reset_session_token_usage()
     assert ui.context_tokens == 0
@@ -90,3 +108,39 @@ async def test_ui_ask_user(mock_ui_deps):
     # This might be complex to test without deep mocking,
     # but let's see if we can trigger some lines.
     assert hasattr(ui, "ask_user")
+
+
+def test_ui_constructs_without_a_console(mock_ui_deps):
+    """`UI(...)` must not need a terminal to exist.
+
+    `prompt_toolkit.output.create_output` raises on Windows without a Win32
+    console screen buffer (Git Bash, mintty, a redirected run). It used to run
+    from `__init__`, so `UI(...)` was unconstructible there and this whole
+    module had to be skipped on win32. Construction is now console-free; the
+    requirement moves to the `application` property, where the UI really is
+    about to take over the terminal.
+    """
+    boom = RuntimeError("NoConsoleScreenBufferError")
+    with patch("prompt_toolkit.output.create_output", side_effect=boom):
+        ui = UI(**mock_ui_deps)  # must not raise
+        assert ui.context_tokens == 0
+        with pytest.raises(RuntimeError, match="NoConsoleScreenBufferError"):
+            ui.application
+
+
+def test_ui_application_is_built_once_and_cached(mock_ui_deps):
+    """The deferred build memoizes, so every caller shares one app and the
+    render handlers `__init__` used to attach are attached exactly once."""
+    # DummyOutput, not the real `create_output`: on Windows the real one needs
+    # a Win32 console screen buffer that CI does not have. What is under test
+    # is the memoization, not which output prompt_toolkit picks.
+    from prompt_toolkit.output import DummyOutput
+
+    ui = UI(**mock_ui_deps)
+    with patch(
+        "prompt_toolkit.output.create_output", side_effect=lambda **_: DummyOutput()
+    ) as spy:
+        first = ui.application
+        second = ui.application
+    assert first is second
+    assert spy.call_count == 1

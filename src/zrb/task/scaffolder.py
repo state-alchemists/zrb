@@ -1,9 +1,9 @@
 import os
 import shutil
-from collections.abc import Callable
-from typing import cast
+from collections.abc import Callable, Sequence
+from typing import Any, cast
 
-from zrb.attr.type import StrAttr
+from zrb.attr.type import BoolAttr, StrAttr
 from zrb.content_transformer.any_content_transformer import AnyContentTransformer
 from zrb.content_transformer.content_transformer import ContentTransformer
 from zrb.context.any_context import AnyContext
@@ -11,50 +11,62 @@ from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
-from zrb.task.base_task import BaseTask
+from zrb.task.base.base_task import BaseTask
 from zrb.util.attr import get_str_attr
 from zrb.util.cli.style import stylize_muted
 
-_ContentTransformerTransform = (
-    dict[str, str | Callable[[AnyContext], str]] | Callable[[AnyContext, str], None]
-)
-TransformConfig = dict[str, str] | Callable[[AnyContext, str], str]
+# The cast target below; keep in sync with ContentTransformer's `transform`.
+_ContentTransformerTransform = dict[str, StrAttr] | Callable[[AnyContext, str], Any]
+TransformConfig = dict[str, StrAttr] | Callable[[AnyContext, str], str]
 
 
 class Scaffolder(BaseTask):
     def __init__(
         self,
         name: str,
+        *,
         color: int | None = None,
         icon: str | None = None,
         description: str | None = None,
         cli_only: bool = False,
-        input: list[AnyInput | None] | AnyInput | None = None,
-        env: list[AnyEnv | None] | AnyEnv | None = None,
+        input: Sequence[AnyInput | None] | AnyInput | None = None,
+        env: Sequence[AnyEnv | None] | AnyEnv | None = None,
         source_path: StrAttr | None = None,
-        render_source_path: bool = True,
         destination_path: StrAttr | None = None,
-        render_destination_path: bool = True,
         transform_path: TransformConfig | None = None,
-        render_transform_path: bool = True,
         transform_content: (
             list[AnyContentTransformer] | AnyContentTransformer | TransformConfig | None
         ) = None,
-        render_transform_content: bool = True,
-        execute_condition: bool | str | Callable[[AnyContext], bool] = True,
+        execute_condition: BoolAttr = True,
         retries: int = 2,
         retry_period: float = 0,
-        readiness_check: list[AnyTask] | AnyTask | None = None,
+        readiness_check: Sequence[AnyTask] | AnyTask | None = None,
         readiness_check_delay: float = 0.5,
-        readiness_check_period: float = 5,
-        readiness_failure_threshold: int = 1,
-        readiness_timeout: int = 60,
+        readiness_check_period: float | None = 5,
+        readiness_failure_threshold: int | None = 1,
+        readiness_timeout: int | None = 60,
         monitor_readiness: bool = False,
-        upstream: list[AnyTask] | AnyTask | None = None,
-        fallback: list[AnyTask] | AnyTask | None = None,
-        successor: list[AnyTask] | AnyTask | None = None,
+        upstream: Sequence[AnyTask] | AnyTask | None = None,
+        fallback: Sequence[AnyTask] | AnyTask | None = None,
+        successor: Sequence[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
+        """Define a task that copies a template tree, rewriting as it goes.
+
+        Args:
+            source_path: Directory or file to copy from.
+            destination_path: Where to copy to.
+            transform_path: How to rewrite copied paths. A mapping of search
+                string to replacement, or a callable taking the context and a
+                path.
+            transform_content: How to rewrite copied file contents. An
+                `AnyContentTransformer`, a list of them, a mapping of search
+                string to replacement, or a callable taking the context and a
+                file path.
+
+        Every parameter `BaseTask` accepts is also accepted here and behaves
+        identically; see `BaseTask` for those.
+        """
         super().__init__(
             name=name,
             color=color,
@@ -78,21 +90,17 @@ class Scaffolder(BaseTask):
             print_fn=print_fn,
         )
         self._source_path = source_path
-        self._render_source_path = render_source_path
         self._destination_path = destination_path
-        self._render_destination_path = render_destination_path
         self._content_transformers = (
             transform_content if transform_content is not None else []
         )
-        self._render_content_transformers = render_transform_content
         self._path_transformer = transform_path if transform_path is not None else {}
-        self._render_path_transformer = render_transform_path
 
     def _get_source_path(self, ctx: AnyContext) -> str:
-        return get_str_attr(ctx, self._source_path, "", auto_render=True)
+        return get_str_attr(ctx, self._source_path, "")
 
     def _get_destination_path(self, ctx: AnyContext) -> str:
-        return get_str_attr(ctx, self._destination_path, "", auto_render=True)
+        return get_str_attr(ctx, self._destination_path, "")
 
     def _get_content_transformers(self) -> list[AnyContentTransformer]:
         if callable(self._content_transformers) or isinstance(
@@ -108,7 +116,6 @@ class Scaffolder(BaseTask):
                             _ContentTransformerTransform,
                             self._content_transformers,
                         ),
-                        auto_render=self._render_content_transformers,
                     )
                 ],
             )
@@ -158,9 +165,9 @@ class Scaffolder(BaseTask):
             return self._path_transformer(ctx, file_path)
         new_file_path = file_path
         for keyword, replacement in self._path_transformer.items():
-            if self._render_path_transformer:
-                replacement = ctx.render(replacement)
-            new_file_path = new_file_path.replace(keyword, replacement)
+            new_file_path = new_file_path.replace(
+                keyword, get_str_attr(ctx, replacement, "")
+            )
         return new_file_path
 
     def _get_all_file_paths(self, path):

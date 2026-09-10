@@ -1,10 +1,9 @@
+import json
 import os
-import shutil
-import traceback
-from functools import partial
-from typing import Any
+import tomllib
+from urllib.parse import urlparse
 
-import tomlkit
+import requests
 
 from zrb import (
     AnyContext,
@@ -12,22 +11,23 @@ from zrb import (
     CmdTask,
     Env,
     Group,
-    HttpCheck,
     StrInput,
     Task,
     TcpCheck,
+    Tpl,
     cli,
     make_task,
 )
 from zrb.builtin.git import git_commit
-from zrb.config.config import CFG
-from zrb.util.cmd.command import run_command
 from zrb.util.file import read_file
-from zrb.util.load import load_file
 
 _DIR = os.path.dirname(__file__)
 
-_PYPROJECT = tomlkit.loads(read_file(os.path.join(_DIR, "pyproject.toml")))
+# stdlib `tomllib`, not `tomlkit`: this file is loaded by the `zrb` inside the
+# CI container, which installs `--without dev`. It resolves there today only
+# because the image happens to `pip install poetry`, which drags tomlkit into
+# the same site-packages -- and ZRB_INIT_STRICT makes that accident fatal.
+_PYPROJECT = tomllib.loads(read_file(os.path.join(_DIR, "pyproject.toml")))
 _VERSION = _PYPROJECT["project"]["version"]
 
 
@@ -48,7 +48,7 @@ start_test_docker_compose = CmdTask(
     cmd="docker compose down && docker compose up",
     readiness_check=TcpCheck(name="check-start-test-compose", port=2222),
 )
-clean_up_test_resources >> start_test_docker_compose
+_ = clean_up_test_resources >> start_test_docker_compose
 
 run_test = CmdTask(
     name="run-integration-test",
@@ -58,19 +58,19 @@ run_test = CmdTask(
         prompt="Test (i.e., test/file.py::test_name)",
         allow_empty=True,
     ),
-    env=Env(name="TEST", default="{ctx.input.test}", link_to_os=False),
+    env=Env(name="TEST", default=Tpl("{ctx.input.test}"), link_to_os=False),
     cwd=_DIR,
-    cmd=CmdPath(os.path.join(_DIR, "zrb-test.sh"), auto_render=False),
+    cmd=CmdPath(os.path.join(_DIR, "zrb-test.sh")),
     retries=0,
 )
-start_test_docker_compose >> run_test
+_ = start_test_docker_compose >> run_test
 
 stop_test_docker_compose = CmdTask(
     name="stop-test-compose",
     cwd=os.path.join(_DIR, "test", "_compose"),
     cmd="docker compose down",
 )
-run_test >> stop_test_docker_compose
+_ = run_test >> stop_test_docker_compose
 
 prepare_and_run_test = test_group.add_task(
     Task(
@@ -81,7 +81,7 @@ prepare_and_run_test = test_group.add_task(
     ),
     alias="run",
 )
-stop_test_docker_compose >> prepare_and_run_test
+_ = stop_test_docker_compose >> prepare_and_run_test
 
 
 # CODE ========================================================================
@@ -100,7 +100,136 @@ format_code = code_group.add_task(
     ),
     alias="format",
 )
-format_code >> git_commit
+_ = format_code >> git_commit
+
+_REVIEW_REPORT = "code-review.md"
+
+review_code = code_group.add_task(
+    CmdTask(
+        name="review-code",
+        description="🔍 Review changed code with the LLM reviewer",
+        input=[
+            StrInput(
+                name="range",
+                description="Git range to review (e.g. origin/main...HEAD)",
+                prompt="Git range",
+                default="origin/main...HEAD",
+            ),
+            StrInput(
+                name="output",
+                description="File to write the report to",
+                prompt="Report file",
+                default=_REVIEW_REPORT,
+            ),
+        ],
+        cwd=_DIR,
+        env=[
+            Env(
+                name="REVIEW_RANGE",
+                default=Tpl("{ctx.input.range}"),
+                link_to_os=False,
+            ),
+            Env(
+                name="REVIEW_OUTPUT",
+                default=Tpl("{ctx.input.output}"),
+                link_to_os=False,
+            ),
+        ],
+        cmd=[
+            # `set -e`: CmdTask does not add one, and without it a failing
+            # `git diff --stat` (a range that does not resolve) left
+            # REVIEW_STAT empty and sent the reviewer off to review
+            # "Changed files: ." -- a confident report of nothing.
+            "set -e",
+            'REVIEW_STAT="$(git diff --stat "$REVIEW_RANGE")"',
+            (
+                "zrb llm chat --interactive false --yolo true --message"
+                ' "/review the changes in git range $REVIEW_RANGE.'
+                " Changed files:"
+                " $REVIEW_STAT."
+                " Write the full report as markdown to $REVIEW_OUTPUT,"
+                " overwriting it. Give every finding its own section with"
+                " Problem, Location (file:line) and Suggestion, and end the"
+                " report with a verdict line reading either"
+                " 'Request changes' or 'LGTM'."
+                ' Then print that verdict as a single line."'
+            ),
+        ],
+        retries=0,
+    ),
+    alias="review",
+)
+
+
+@make_task(
+    name="submit-comment",
+    description="💬 Post a markdown file as a comment on the current pull request",
+    input=StrInput(
+        name="file",
+        description="Markdown file to post",
+        prompt="Comment file",
+        default=_REVIEW_REPORT,
+    ),
+    # No retries: the POST is not idempotent. A 502 raised *after* GitHub
+    # created the comment would post it again on every attempt, and the other
+    # failure here (missing GITHUB_* variables) cannot be fixed by repeating.
+    retries=0,
+    group=cli,
+)
+def submit_comment(ctx: AnyContext):
+    """Post `--file` as a comment on the PR that triggered this run.
+
+    The PR number is read from GITHUB_EVENT_PATH -- the event payload GitHub
+    writes for every run -- rather than passed in from a workflow `${{ }}`
+    interpolation, so the task takes no argument but the file and works from
+    any workflow that sets the standard GitHub Actions variables.
+    """
+    token = os.environ.get("GITHUB_TOKEN", "")
+    event_path = os.environ.get("GITHUB_EVENT_PATH", "")
+    repository = os.environ.get("GITHUB_REPOSITORY", "")
+    missing = [
+        name
+        for name, value in (
+            ("GITHUB_TOKEN", token),
+            ("GITHUB_EVENT_PATH", event_path),
+            ("GITHUB_REPOSITORY", repository),
+        )
+        if value == ""
+    ]
+    if missing:
+        raise ValueError(
+            f"Not running inside GitHub Actions? Missing: {', '.join(missing)}"
+        )
+    if not os.path.isfile(ctx.input.file):
+        ctx.print(f"No file at {ctx.input.file} - nothing to post.")
+        return
+    body = read_file(ctx.input.file)
+    if body.strip() == "":
+        ctx.print(f"{ctx.input.file} is empty - nothing to post.")
+        return
+    pr_number = json.loads(read_file(event_path)).get("pull_request", {}).get("number")
+    if pr_number is None:
+        raise ValueError("The event payload carries no pull_request.number")
+    api_url = os.environ.get("GITHUB_API_URL", "https://api.github.com")
+    if urlparse(api_url).hostname != "api.github.com":
+        raise ValueError(f"Refusing to send GITHUB_TOKEN to {api_url}")
+    response = requests.post(
+        f"{api_url}/repos/{repository}/issues/{pr_number}/comments",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+        json={"body": body},
+        timeout=30,
+    )
+    if not response.ok:
+        raise RuntimeError(
+            f"Could not comment on PR #{pr_number}: "
+            f"{response.status_code} {response.text}"
+        )
+    ctx.print(f"Posted {len(body)} bytes to PR #{pr_number}")
+
 
 # DOCKER ======================================================================
 
@@ -123,7 +252,7 @@ build_normal_docker_image = docker_build_group.add_task(
     ),
     alias="normal",
 )
-format_code >> build_normal_docker_image
+_ = format_code >> build_normal_docker_image
 
 build_dind_docker_image = docker_build_group.add_task(
     CmdTask(
@@ -134,14 +263,13 @@ build_dind_docker_image = docker_build_group.add_task(
     ),
     alias="dind",
 )
-build_normal_docker_image >> build_dind_docker_image
+_ = build_normal_docker_image >> build_dind_docker_image
 
 build_docker_image = docker_build_group.add_task(
     Task(name="build-zrb-docker-images"),
     alias="all",
 )
-build_normal_docker_image >> build_docker_image
-build_dind_docker_image >> build_docker_image
+_ = build_docker_image << [build_dind_docker_image, build_normal_docker_image]
 
 publish_normal_docker_image = docker_publish_group.add_task(
     CmdTask(
@@ -155,7 +283,7 @@ publish_normal_docker_image = docker_publish_group.add_task(
     ),
     alias="normal",
 )
-build_normal_docker_image >> publish_normal_docker_image
+_ = build_normal_docker_image >> publish_normal_docker_image
 
 publish_dind_docker_image = docker_publish_group.add_task(
     CmdTask(
@@ -169,14 +297,13 @@ publish_dind_docker_image = docker_publish_group.add_task(
     ),
     alias="dind",
 )
-publish_dind_docker_image << [build_dind_docker_image, publish_normal_docker_image]
+_ = publish_dind_docker_image << [build_dind_docker_image, publish_normal_docker_image]
 
 publish_docker_image = docker_publish_group.add_task(
     Task(name="publish-zrb-docker-images"),
     alias="all",
 )
-publish_normal_docker_image >> publish_docker_image
-publish_dind_docker_image >> publish_docker_image
+_ = publish_docker_image << [publish_normal_docker_image, publish_dind_docker_image]
 
 
 # PUBLISH =====================================================================
@@ -194,7 +321,7 @@ publish_code = publish_group.add_task(
     ),
     alias="code",
 )
-format_code >> publish_code
+_ = format_code >> publish_code
 
 publish_pip = publish_group.add_task(
     CmdTask(
@@ -213,146 +340,11 @@ publish_pip = publish_group.add_task(
     ),
     alias="pip",
 )
-format_code >> publish_pip
+_ = format_code >> publish_pip
 
 publish_group.add_task(publish_docker_image, alias="docker")
 
 publish_all = publish_group.add_task(
     Task(name="publish-all", description="Publish Zrb"), alias="all"
 )
-publish_all << [publish_pip, publish_docker_image, publish_code]
-
-# GENERATOR TEST =============================================================
-
-test_generator_group = test_group.add_group(
-    Group("generator", description="🔥 Testing generator")
-)
-
-
-@make_task(
-    name="remove-generated",
-    description="🔄 Remove generated resources",
-)
-async def remove_generated(ctx: AnyContext):
-    generated_dir = os.path.join(_DIR, "playground", "generated")
-    if os.path.exists(generated_dir):
-        ctx.print("Remove generated resources")
-        shutil.rmtree(generated_dir)
-
-
-@make_task(
-    name="test-generate",
-    description="🪄 Generate app",
-    group=test_generator_group,
-    alias="scaffold",
-    retries=0,
-)
-async def test_generate(ctx: AnyContext):
-    # Create project
-    project_dir = os.path.join(_DIR, "playground", "generated")
-    project_name = "Amalgam"
-
-    ctx.print("Generate project")
-    await _run_shell_script(
-        ctx, f"zrb project create --project-dir {project_dir} --project {project_name}"
-    )
-    assert os.path.isfile(os.path.join(project_dir, "zrb_init.py"))
-    # Create fastapp
-    app_name = "fastapp"
-    ctx.print("Generate fastapp")
-    await _run_shell_script(
-        ctx, f"zrb project add fastapp --project-dir {project_dir} --app {app_name}"
-    )
-    assert os.path.isdir(os.path.join(project_dir, app_name))
-    # Create module
-    app_dir_path = os.path.join(project_dir, app_name)
-    ctx.print("Generate module")
-    await _run_shell_script(ctx, "zrb project fastapp create module --module library")
-    assert os.path.isdir(os.path.join(app_dir_path, "module", "library"))
-    # Create entity
-    ctx.print("Generate entity")
-    await _run_shell_script(
-        ctx,
-        "zrb project fastapp create entity --module library --entity book --plural books --column isbn",  # noqa
-    )
-    assert os.path.isfile(os.path.join(app_dir_path, "schema", "book.py"))
-    # Create column
-    ctx.print("Generate column")
-    await _run_shell_script(
-        ctx,
-        "zrb project fastapp create column --module library --entity book --column title --type str",  # noqa
-    )
-    await _run_shell_script(
-        ctx,
-        "zrb project fastapp create column --module library --entity book --column author --type str",  # noqa
-    )
-    # Create migration
-    ctx.print("Generate migration")
-    await _run_shell_script(
-        ctx, 'zrb project fastapp create migration library --message "test migration"'
-    )
-
-
-run_generated_fastapp = test_generator_group.add_task(
-    CmdTask(
-        name="run-generated-app",
-        description="🏃 Run generated app",
-        readiness_check=[
-            HttpCheck(name="check-monolith", url="http://localhost:3000/readiness"),
-            HttpCheck(name="check-gateway", url="http://localhost:3001/readiness"),
-            HttpCheck(name="check-auth-svc", url="http://localhost:3002/readiness"),
-            HttpCheck(name="check-lib-svc", url="http://localhost:3003/readiness"),
-        ],
-        cmd="FASTAPP_AUTH_SUPER_USER_PASSWORD=admin zrb project fastapp run all --env prod",
-        plain_print=True,
-        retries=0,
-    ),
-    alias="launch",
-)
-
-
-test_generated_fastapp = test_generator_group.add_task(
-    CmdTask(
-        name="test-generated-app",
-        description="🧪 Test generated app",
-        cmd="zrb project fastapp test",
-        plain_print=True,
-        retries=0,
-    ),
-    alias="validate",
-)
-
-remove_generated >> test_generate >> [run_generated_fastapp, test_generated_fastapp]
-
-
-# PLAYGROUND ==================================================================
-
-playground_zrb_init_path = os.path.join(_DIR, "playground", "zrb_init.py")
-if os.path.isfile(playground_zrb_init_path):
-    try:
-        load_file(playground_zrb_init_path)
-    except Exception:
-        traceback.print_exc()
-
-# GENERATED ===================================================================
-
-generated_zrb_init_path = os.path.join(_DIR, "playground", "generated", "zrb_init.py")
-if os.path.isfile(generated_zrb_init_path):
-    try:
-        load_file(generated_zrb_init_path)
-    except Exception:
-        traceback.print_exc()
-
-
-async def _run_shell_script(ctx: AnyContext, script: str) -> Any:
-    shell = CFG.SHELL
-    flag = "/c" if shell.lower() == "powershell" else "-c"
-    cmd_result, return_code = await run_command(
-        cmd=[shell, flag, script],
-        cwd=_DIR,
-        print_method=partial(ctx.print, plain=True),
-    )
-    if return_code != 0:
-        ctx.log_error(f"Exit status: {return_code}")
-        raise Exception(f"Process exited ({return_code}): {cmd_result.error}")
-    return cmd_result
+_ = publish_all << [publish_pip, publish_docker_image, publish_code]

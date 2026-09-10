@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
+from zrb.llm.agent.gates import sandbox_gate
 from zrb.llm.permission import Capability, tag
 from zrb.llm.sandbox import SandboxPolicy, current_sandbox_policy
 from zrb.llm.sandbox.state import (
     get_current_sandbox_policy,
     get_effective_sandbox_policy,
-    set_current_sandbox_policy,
+    sandbox_policy,
 )
 
 # --- state ------------------------------------------------------------------
@@ -30,11 +33,18 @@ def test_explicit_policy_wins():
 
 def test_public_setters_and_getters_round_trip():
     policy = SandboxPolicy(enabled=True)
-    set_current_sandbox_policy(policy)
-    try:
+    with sandbox_policy(policy):
         assert get_current_sandbox_policy() is policy
-    finally:
-        set_current_sandbox_policy(None)
+    assert get_current_sandbox_policy() is None
+
+
+def test_sandbox_policy_resets_on_exception():
+    policy = SandboxPolicy(enabled=True)
+    with pytest.raises(RuntimeError):
+        with sandbox_policy(policy):
+            assert get_current_sandbox_policy() is policy
+            raise RuntimeError("boom")
+    assert get_current_sandbox_policy() is None
 
 
 # --- gate via create_safe_wrapper -------------------------------------------
@@ -68,7 +78,7 @@ async def test_gate_inert_when_disabled(tmp_path):
     tag(mutate, Capability.EDIT)
     wrapped = create_safe_wrapper(mutate)
     result = await wrapped(path="/definitely/outside/file.txt")
-    assert result.content == "did it"
+    assert result.return_value == "did it"
     assert "blocked" not in result.metadata
 
 
@@ -94,7 +104,7 @@ async def test_gate_blocks_edit_outside_writable_roots(tmp_path):
         current_sandbox_policy.reset(token)
 
     assert result.metadata.get("blocked") is True
-    assert "Blocked by sandbox policy" in result.content
+    assert "Blocked by sandbox policy" in result.return_value
     assert calls == []  # never executed
 
 
@@ -116,7 +126,7 @@ async def test_gate_allows_edit_inside_writable_roots(tmp_path):
     finally:
         current_sandbox_policy.reset(token)
 
-    assert result.content == "did it"
+    assert result.return_value == "did it"
     assert "blocked" not in result.metadata
 
 
@@ -160,7 +170,7 @@ async def test_gate_does_not_path_check_execute_tools(tmp_path):
     finally:
         current_sandbox_policy.reset(token)
 
-    assert result.content == "ran"
+    assert result.return_value == "ran"
     assert "blocked" not in result.metadata
 
 
@@ -201,7 +211,30 @@ async def test_gate_blocks_escape_when_disallowed(tmp_path):
         current_sandbox_policy.reset(token)
 
     assert result.metadata.get("blocked") is True
-    assert "dangerously_skip_sandbox" in result.content
+    assert "dangerously_skip_sandbox" in result.return_value
+
+
+@pytest.mark.asyncio
+async def test_gate_checks_exit_worktree_path(tmp_path):
+    """ExitWorktree's `worktree_path` arg is write-checked (ADR-0065): it
+    used to appear in neither the sandbox nor permission salient-key lists,
+    so a sandbox policy could never gate its deletion target.
+    """
+    from zrb.llm.agent.common import create_safe_wrapper
+
+    def exit_worktree(worktree_path: str = "", keep_branch: bool = False):
+        return "removed"
+
+    tag(exit_worktree, Capability.EDIT)
+    wrapped = create_safe_wrapper(exit_worktree)
+
+    token = current_sandbox_policy.set(_enabled_policy(tmp_path))
+    try:
+        result = await wrapped(worktree_path=_outside_path())
+    finally:
+        current_sandbox_policy.reset(token)
+
+    assert result.metadata.get("blocked") is True
 
 
 @pytest.mark.asyncio
@@ -232,4 +265,60 @@ async def test_gate_move_checks_src_and_dst(tmp_path):
         current_sandbox_policy.reset(token)
 
     assert blocked.metadata.get("blocked") is True
-    assert allowed.content == "moved"
+    assert allowed.return_value == "moved"
+
+
+# --- gate via explicit ctx.deps (ADR-0069) -----------------------------------
+
+
+def test_gate_uses_ctx_deps_policy_over_ambient(tmp_path):
+    """`SafeToolsetWrapper.call_tool` passes `ctx.deps` (the policy `run_agent`
+    resolved once for this run) — it must win over whatever is ambient, not
+    just fall back to it, or the explicit path is dead code. Ambient here
+    would *allow* the path; `ctx.deps` (empty writable_paths) blocks it — the
+    only way `blocked` comes back is if `ctx.deps` was actually consulted.
+    """
+    # tmp_path lives inside the always-writable system temp dir (see
+    # test_gate_blocks_edit_outside_writable_roots's note), so the
+    # discriminating target must be genuinely outside it: allowed only when
+    # the in-force policy's writable_paths names its directory.
+    import os
+
+    target = _outside_path()
+    ambient = _enabled_policy(tmp_path, writable_paths=(os.path.dirname(target),))
+    deps_policy = _enabled_policy(tmp_path)  # writable_paths=tmp_path/proj only
+
+    token = current_sandbox_policy.set(ambient)
+    try:
+        ctx = SimpleNamespace(deps=deps_policy)
+        blocked = sandbox_gate("mystery", Capability.EDIT, {"path": target}, ctx)
+    finally:
+        current_sandbox_policy.reset(token)
+
+    assert blocked is not None and blocked.metadata.get("blocked") is True
+
+
+def test_gate_falls_back_to_ambient_when_ctx_deps_is_not_a_policy(tmp_path):
+    """A `ctx.deps` that isn't a `SandboxPolicy` (e.g. a mock's auto-vivified
+    attribute, or an agent whose deps carry something unrelated) must not be
+    mistaken for one — the gate falls back to the ambient policy instead.
+    (Were the garbage `deps` used as-is, `policy.enabled` would raise
+    `AttributeError` rather than resolve — so this also fails loudly, not
+    just via a wrong assertion, if the isinstance guard is ever removed.)
+    """
+    (tmp_path / "proj").mkdir()
+    ambient = _enabled_policy(tmp_path)  # allows tmp_path/proj
+
+    token = current_sandbox_policy.set(ambient)
+    try:
+        ctx = SimpleNamespace(deps=object())
+        allowed = sandbox_gate(
+            "mystery",
+            Capability.EDIT,
+            {"path": str(tmp_path / "proj" / "x.txt")},
+            ctx,
+        )
+    finally:
+        current_sandbox_policy.reset(token)
+
+    assert allowed is None

@@ -1,3 +1,11 @@
+"""MD5-only hash/sum/validate tasks.
+
+`hash.py`'s `hash`/`sum` tasks cover the same ground for MD5 plus five other
+algorithms via `--algorithm`; this group is kept for its `validate` task
+(checking a string looks like an MD5 hex digest), which `hash.py` has no
+equivalent for.
+"""
+
 import hashlib
 import re
 
@@ -15,7 +23,6 @@ from zrb.task.make_task import make_task
     alias="hash",
 )
 def hash_md5(ctx: AnyContext) -> str:
-
     result = hashlib.md5(ctx.input.text.encode()).hexdigest()
     ctx.print(result)
     return result
@@ -29,7 +36,6 @@ def hash_md5(ctx: AnyContext) -> str:
     alias="sum",
 )
 def sum_md5(ctx: AnyContext) -> str:
-
     with open(ctx.input.file, mode="rb") as file:
         content = file.read()
     result = hashlib.md5(content).hexdigest()
@@ -49,7 +55,6 @@ def sum_md5(ctx: AnyContext) -> str:
     alias="validate",
 )
 def validate_md5(ctx: AnyContext) -> bool:
-
     pattern = r"^[a-f0-9]{32}$"
     is_valid = bool(re.fullmatch(pattern, ctx.input.hash))
     if is_valid:

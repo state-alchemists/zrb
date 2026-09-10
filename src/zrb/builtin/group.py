@@ -4,7 +4,7 @@ from zrb.runner.cli import cli
 
 
 def _maybe_add_group(group: Group):
-    if CFG.LOAD_BUILTIN:
+    if CFG.ENABLE_BUILTIN_TASKS:
         cli.add_group(group)
     return group
 

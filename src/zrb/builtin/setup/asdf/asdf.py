@@ -1,5 +1,6 @@
 import os
 
+from zrb.attr.tpl import Tpl
 from zrb.builtin.group import setup_group
 from zrb.builtin.setup.asdf.asdf_helper import (
     check_inexist_asdf_dir,
@@ -34,17 +35,17 @@ download_asdf = CmdTask(
     # accepts (AnyContext | AnySharedContext) -> bool | None. AnyContext is the
     # narrower subclass, so the contravariant param trips pyright. Safe at run
     # time — the task layer always passes an AnyContext.
-    execute_condition=check_inexist_asdf_dir,  # type: ignore[arg-type]
+    execute_condition=check_inexist_asdf_dir,
 )
 
 
 @make_task(
     name="setup-asdf-on-bash",
     input=setup_bash_input,
-    execute_condition='{ctx.input["setup-bash"]}',
+    execute_condition=Tpl('{ctx.input["setup-bash"]}'),
     upstream=download_asdf,
 )
-def setup_asdf_on_bash(ctx: AnyContext):
+def setup_asdf_on_bash(ctx: AnyContext) -> None:
     ctx.print("Configure asdf for bash")
     setup_asdf_sh_config(os.path.expanduser(os.path.join("~", ".bashrc")))
 
@@ -52,10 +53,10 @@ def setup_asdf_on_bash(ctx: AnyContext):
 @make_task(
     name="setup-asdf-on-zsh",
     input=setup_zsh_input,
-    execute_condition='{ctx.input["setup-zsh"]}',
+    execute_condition=Tpl('{ctx.input["setup-zsh"]}'),
     upstream=download_asdf,
 )
-def setup_asdf_on_zsh(ctx: AnyContext):
+def setup_asdf_on_zsh(ctx: AnyContext) -> None:
     ctx.print("Configure asdf for zsh")
     setup_asdf_sh_config(os.path.expanduser(os.path.join("~", ".zshrc")))
 
@@ -63,10 +64,10 @@ def setup_asdf_on_zsh(ctx: AnyContext):
 @make_task(
     name="setup-asdf-on-powershell",
     input=setup_powershell_input,
-    execute_condition='{ctx.input["setup-powershell"]}',
+    execute_condition=Tpl('{ctx.input["setup-powershell"]}'),
     upstream=download_asdf,
 )
-def setup_asdf_on_powershell(ctx: AnyContext):
+def setup_asdf_on_powershell(ctx: AnyContext) -> None:
     ctx.print("Configure asdf for powershell")
     setup_asdf_ps_config(
         os.path.expanduser(os.path.join("~", ".config", "powershell", "profile.ps1"))
@@ -80,7 +81,7 @@ def setup_asdf_on_powershell(ctx: AnyContext):
     group=setup_group,
     alias="asdf",
 )
-def setup_asdf(ctx: AnyContext):
+def setup_asdf(ctx: AnyContext) -> None:
     ctx.print("Setup complete, restart your terminal to continue")
     ctx.print("Some useful commands:")
     ctx.print("- asdf plugin add python")

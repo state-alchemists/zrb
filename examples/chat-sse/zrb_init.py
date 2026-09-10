@@ -64,7 +64,7 @@ from typing import Any
 from aiohttp import web
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.approval import ApprovalChannel, ApprovalContext, ApprovalResult
+from zrb.llm.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
 from zrb.llm.ui import EventDrivenUI
 from zrb.llm.util.history_formatter import format_history_as_text
 from zrb.util.cli.style import remove_style
@@ -90,7 +90,7 @@ class SSEServer:
         self._runner: web.AppRunner | None = None
         self._site: web.TCPSite | None = None
         self._ui_instance: "SSEUI | None" = None
-        self._output_queue: asyncio.Queue[str] = asyncio.Queue()
+        self._output_queue: asyncio.Queue[dict[str, str]] = asyncio.Queue()
         self._approval_channel: "SSEApproval | None" = None
 
     @classmethod
@@ -251,8 +251,8 @@ class SSEServer:
 
         return web.json_response(
             {
-                "waiting_for_input": self._ui_instance._waiting_for_input,
-                "session_name": self._ui_instance._conversation_session_name,
+                "waiting_for_input": self._ui_instance.waiting_for_input,
+                "session_name": self._ui_instance.conversation_session_name,
             }
         )
 
@@ -262,13 +262,13 @@ class SSEServer:
             return web.json_response({"error": "UI not initialized"}, status=500)
 
         session_name = request.query.get(
-            "session", self._ui_instance._conversation_session_name
+            "session", self._ui_instance.conversation_session_name
         )
         output_format = request.query.get("format", "text")
         max_length = int(request.query.get("max_length", "10000"))
 
         try:
-            history_manager = self._ui_instance._history_manager
+            history_manager = self._ui_instance.history_manager
             messages = history_manager.load(session_name)
 
             if output_format == "json":
@@ -319,7 +319,7 @@ class SSEServer:
 # =============================================================================
 
 
-class SSEApproval(ApprovalChannel):
+class SSEApproval(AnyApprovalChannel):
     """SSE approval channel supporting approve/deny/edit via text messages.
 
     Similar to TelegramApproval but using plain text responses:
@@ -428,7 +428,7 @@ class SSEApproval(ApprovalChannel):
         if tool_call_id not in self._pending:
             return
 
-        context = self._pending_context.get(tool_call_id)
+        context = self._pending_context[tool_call_id]
         new_args = self._parse_edited_content(response)
         future = self._pending.pop(tool_call_id)
         del self._pending_context[tool_call_id]
@@ -463,7 +463,7 @@ class SSEApproval(ApprovalChannel):
         if tool_call_id not in self._pending:
             return
 
-        context = self._pending_context.get(tool_call_id)
+        context = self._pending_context[tool_call_id]
         future = self._pending.pop(tool_call_id)
         del self._pending_context[tool_call_id]
 
@@ -482,20 +482,6 @@ class SSEApproval(ApprovalChannel):
     def _apply_response(self, tool_call_id: str, response: str) -> None:
         """Apply response to a pending tool call."""
         if tool_call_id not in self._pending:
-            return
-
-        # Handle non-string responses (shouldn't happen, but be defensive)
-        if not isinstance(response, str):
-            asyncio.create_task(
-                self.server.broadcast(
-                    f"🛑 Unexpected response type: {type(response).__name__}"
-                )
-            )
-            future = self._pending.pop(tool_call_id)
-            del self._pending_context[tool_call_id]
-            future.set_result(
-                ApprovalResult(approved=False, message="Invalid response type")
-            )
             return
 
         response_lower = response.lower().strip()
@@ -569,9 +555,9 @@ class SSEApproval(ApprovalChannel):
             return None
         except json.JSONDecodeError:
             pass
-        try:
-            import yaml
+        import yaml
 
+        try:
             result = yaml.safe_load(content)
             if isinstance(result, dict):
                 return result
@@ -618,11 +604,11 @@ class SSEUI(EventDrivenUI):
             if clean_prompt:
                 await self.server.broadcast(f"❓ {clean_prompt}")
 
-        self._waiting_for_input = True
+        self.waiting_for_input = True
         try:
-            return await self._input_queue.get()
+            return await self.input_queue.get()
         finally:
-            self._waiting_for_input = False
+            self.waiting_for_input = False
 
     async def start_event_loop(self) -> None:
         """Start the SSE server."""
@@ -639,39 +625,12 @@ server = SSEServer.get()
 sse_approval = SSEApproval(server)
 server.set_approval_channel(sse_approval)
 
-
-def sse_ui_factory(
-    ctx,
-    llm_task,
-    history_manager,
-    ui_commands,
-    initial_message,
-    initial_conversation_name,
-    initial_yolo,
-    initial_attachments,
-):
-    from zrb.llm.ui import UIConfig
-
-    cfg = UIConfig.default()
-    if ui_commands:
-        cfg = cfg.merge_commands(ui_commands)
-    cfg.yolo = initial_yolo
-    cfg.conversation_session_name = initial_conversation_name
-
-    ui = SSEUI(
-        ctx=ctx,
-        llm_task=llm_task,
-        history_manager=history_manager,
-        config=cfg,
-        initial_message=initial_message,
-        initial_attachments=initial_attachments,
-        server=server,
-    )
-    return ui
-
+# create_ui_factory wires the 8 standard factory kwargs to the UI for us —
+# no hand-rolled factory boilerplate.
+from zrb.llm.ui import create_ui_factory
 
 # Add SSE UI alongside default terminal UI (dual mode)
-llm_chat.append_ui_factory(sse_ui_factory)
+llm_chat.append_ui_factory(create_ui_factory(SSEUI, server=server))
 
 # Add approval channels:
 # - SSE first (gets priority in race conditions)

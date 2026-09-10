@@ -1,15 +1,35 @@
 import os
 import shutil
+from typing import Annotated
+
+from pydantic import Field
+
+from zrb.llm.tool.file_observation import check_listed
 
 
-def remove_file(path: str, recursive: bool = False) -> str:
+def remove_file(
+    path: Annotated[str, Field(description="Absolute or relative path to remove.")],
+    recursive: Annotated[
+        bool,
+        Field(
+            description=(
+                "False (default) only removes a file or empty directory; True "
+                "also removes a non-empty directory's contents — irreversible "
+                "either way."
+            )
+        ),
+    ] = False,
+) -> str:
     """
     Removes a file or directory. Irreversible — there is no trash; the bytes are gone.
 
-    `recursive=False` (default): removes a file or an empty directory only.
-    `recursive=True`: removes a directory and all its contents.
-
-    Before calling, confirm the path is the one the user intended (typo-check, absolute path).
+    Refused unless this session has Read the file, or List/Glob'd its parent
+    directory (or, for `recursive=True`, List/Glob'd the directory itself) —
+    see the `[SYSTEM SUGGESTION]` on refusal for the exact fix. That check only
+    confirms the path was *named* somewhere this session, not that it is the
+    *right* one among similarly-named candidates (e.g. a listing showing both
+    `config.json` and `config.old.json`) — verify it is the one you mean
+    before removing.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
@@ -18,6 +38,9 @@ def remove_file(path: str, recursive: bool = False) -> str:
             "[SYSTEM SUGGESTION]: Check the path; use List to see what exists "
             "in the directory."
         )
+    blocked = check_listed(abs_path, recursive=recursive)
+    if blocked is not None:
+        return blocked
     if os.path.isdir(abs_path):
         if recursive:
             try:

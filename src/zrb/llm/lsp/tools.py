@@ -147,7 +147,6 @@ async def list_available_servers() -> dict:
     }
 
 
-# Set function names for tool display
 find_definition.__name__ = "LspFindDefinition"
 find_references.__name__ = "LspFindReferences"
 get_diagnostics.__name__ = "LspGetDiagnostics"
@@ -158,7 +157,6 @@ rename_symbol.__name__ = "LspRenameSymbol"
 list_available_servers.__name__ = "LspListServers"
 
 
-# Tool creation functions for integration with chat.py
 def create_lsp_tools() -> list:
     """Create LSP tool functions for registration with LLMChatTask."""
     return [

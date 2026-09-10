@@ -51,3 +51,25 @@ def truncate_items(items: list, max_chars: int) -> tuple[list, int]:
             break
         kept.append(item)
     return kept, len(items) - len(kept)
+
+
+def truncate_display(text: str, max_chars: int) -> str:
+    """Clip ``text`` to ``max_chars`` *total*, ending in an ellipsis.
+
+    The terse counterpart to :func:`truncate_chars`. That one appends
+    ``...[TRUNCATED N chars]`` because it serves an audit trail, where knowing
+    how much was dropped matters more than fitting a column; this one is for
+    screen output, where the budget is the whole point and the result must not
+    exceed ``max_chars``.
+
+    Shared by ``history_formatter`` and ``stream_response`` so the live stream
+    and the exported transcript elide a tool call identically.
+    """
+    if len(text) <= max_chars:
+        return text
+    if max_chars < 3:
+        # Too little room for the ellipsis to fit within max_chars; a hard
+        # cut with no ellipsis is the only way to honor the "never exceed
+        # max_chars" contract at this end of the domain.
+        return text[:max_chars]
+    return text[: max_chars - 3] + "..."

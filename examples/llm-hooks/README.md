@@ -25,7 +25,7 @@ Hooks allow you to intercept and modify LLM behavior at specific points in the c
 
 ### 1. Python Hook (Programmatic)
 
-Define hooks in `zrb_init.py` using `add_hook_factory()`:
+Define hooks in `zrb_init.py` using `append_hook_factory()`:
 
 ```python
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
@@ -44,7 +44,7 @@ def register_hooks(hook_manager):
 
 # In zrb_init.py:
 from zrb import llm_chat
-llm_chat.add_hook_factory(lambda mgr: mgr.register(my_hook, events=[HookEvent.STOP]))
+llm_chat.append_hook_factory(lambda mgr: mgr.register(my_hook, events=[HookEvent.STOP]))
 ```
 
 ### 2. JSON/YAML Hook Files
@@ -61,7 +61,7 @@ Place `hooks.json` or `hooks.yaml` in `.zrb/` or `~/.zrb/`:
       "command": "echo '{\"decision\": \"block\", \"reason\": \"Dangerous command blocked\"}'"
     },
     "matchers": [
-      {"field": "tool_name", "operator": "equals", "value": "Bash"}
+      {"field": "tool_name", "operator": "equals", "value": "Shell"}
     ]
   }
 ]
@@ -140,8 +140,7 @@ return HookResult.block(reason="I need more information before concluding.")
 ## Example Files
 
 - `zrb_init.py` — Programmatic hook registration
-- `.zrb/hooks.json` — JSON-based command hooks
-- `.zrb/hooks.yaml` — YAML-based command hooks
+- `.zrb/hooks.json` — JSON-based command hooks, plus a worked agent-hook example (YAML is also supported — see [hooks.md](../../docs/llm/hooks.md))
 - `custom_hook.hook.py` — Python hook module
 
 ## Running
@@ -157,5 +156,4 @@ Then interact with the LLM and observe hook behavior.
 
 - `src/zrb/llm/hook/types.py` — HookEvent enum
 - `src/zrb/llm/hook/interface.py` — HookResult class
-- `src/zrb/llm/hook/journal.py` — Built-in journaling hook
-- `docs/advanced-topics/hooks.md` — Full hooks documentation
+- `docs/llm/hooks.md` — Full hooks documentation

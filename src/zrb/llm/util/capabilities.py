@@ -33,9 +33,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
-    from pydantic_ai.models import Model
+    from zrb.llm.agent.types import Model
 
-Modality = Literal["image", "audio", "video"]
+Modality = Literal["image", "audio", "video", "document"]
 
 
 @dataclass(frozen=True)
@@ -51,7 +51,27 @@ class ModelCapabilities:
     supports_image_input: bool = False
     supports_audio_input: bool = False
     supports_video_input: bool = False
+    # Document (PDF/docx/xlsx/doc/xls) support tracks the image pattern list:
+    # every provider that accepts inline images as multimodal content blocks
+    # (Anthropic, Gemini, OpenAI) accepts inline documents through the same
+    # mechanism. Kept as a separate field/pattern list in case a provider
+    # diverges — see `_DOCUMENT_PATTERNS`.
+    supports_document_input: bool = False
     supports_parallel_tool_calls: bool | None = None
+    # Maximum combined input/output tokens, when zrb knows the model's context
+    # window. ``None`` preserves the configured budget for unknown models.
+    context_window: int | None = None
+    # True for a model that reasons by default but only returns a *readable*
+    # thinking summary when a request explicitly asks for one — e.g. Gemini
+    # 2.5/3 bill `thoughts_tokens` unconditionally but stay silent unless the
+    # request sets `thinking_config.include_thoughts`. Gates the one-time
+    # `thinking=True` default in `create_agent` (see
+    # `zrb.llm.agent.common._apply_reasoning_defaults`) so it only fires for
+    # models that actually need the nudge, not every model with a
+    # `supports_thinking` profile flag (forcing `thinking=True` globally would
+    # turn on Anthropic's opt-in extended thinking too, which is a cost/latency
+    # change this flag is not meant to make).
+    supports_thinking_summary: bool = False
 
 
 class ModelCapabilityRegistry:
@@ -114,6 +134,8 @@ class ModelCapabilityRegistry:
             return caps.supports_audio_input
         if modality == "video":
             return caps.supports_video_input
+        if modality == "document":
+            return caps.supports_document_input
         return False
 
     def _find_override(self, name: str) -> dict[str, Any] | None:
@@ -128,13 +150,30 @@ def is_known_model(model: "str | Model | None") -> bool:
     return bool(_bare_name(model))
 
 
+#: Opaque-binary document types a text-only model cannot read as bytes.
+#: Plain-text formats (txt/csv/html/md) are deliberately excluded — those
+#: are readable as text by any model regardless of vision capability, so
+#: gating them would drop attachments that actually work fine.
+_DOCUMENT_BINARY_TYPES = frozenset(
+    {
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    }
+)
+
+
 def media_type_modality(media_type: str) -> Modality | None:
     """Map a MIME type (e.g. ``image/png``) to a :data:`Modality`."""
     if not media_type:
         return None
     head = media_type.split("/", 1)[0].lower()
     if head in ("image", "audio", "video"):
-        return head  # type: ignore[return-value]
+        return head
+    if media_type.lower() in _DOCUMENT_BINARY_TYPES:
+        return "document"
     return None
 
 
@@ -171,6 +210,17 @@ _IMAGE_PATTERNS = (
     r"internvl",
     r"phi-?3-vision",
     r"phi-?3\.5-vision",
+    r"claude-fable-5",
+    r"claude-mythos",
+    r"claude-opus-5",
+    r"claude-sonnet-5",
+    r"grok-3",
+    r"grok-4",
+    r"glm-4\.5v",
+    r"glm-4\.6v",
+    r"glm-5v",
+    r"moonshot-v1-.*-vision",
+    r"computer-use",
 )
 
 # Deny-list overriding broad image matches (e.g. "claude-haiku-3" without
@@ -184,6 +234,7 @@ _IMAGE_DENY = (
     r"^text-",
     r"^davinci",
     r"^babbage",
+    r"grok-3-mini",
 )
 
 _AUDIO_PATTERNS = (
@@ -195,6 +246,7 @@ _AUDIO_PATTERNS = (
     r"gemini-2",
     r"gemini-3",
     r"qwen2-audio",
+    r"whisper",
 )
 
 _VIDEO_PATTERNS = (
@@ -203,14 +255,50 @@ _VIDEO_PATTERNS = (
     r"gemini-3",
 )
 
-# Models known to malform OpenAI-spec parallel tool calls (they emit a
-# single tool_call with concatenated `name` and concatenated `arguments`
-# JSON, e.g. ``name="ActivateSkillReadRead"``). The model itself can't
-# follow text-level guidance to stop; the only reliable fix is to set
-# ``parallel_tool_calls=False`` at the provider request level.
+# See the `supports_document_input` docstring: same providers, same list.
+_DOCUMENT_PATTERNS = _IMAGE_PATTERNS
+_DOCUMENT_DENY = _IMAGE_DENY
+
+# Models known to *malform* OpenAI-spec parallel tool calls: they emit a single
+# tool_call with concatenated `name` and concatenated `arguments` JSON, e.g.
+# ``name="ActivateSkillReadRead"``, and both calls are lost. The model cannot
+# follow text-level guidance to stop, so it is corrected in two places — the
+# System Context override line and ``parallel_tool_calls=False`` on the request.
+#
+# This list is deliberately *only* that failure mode. "Does not support parallel
+# tool calls" covers three distinct behaviours, and only one belongs here:
+#
+#   1. **Malforms them** (this list). Actively destructive — the turn loses work.
+#   2. **Rejects the parameter.** The provider 400s on `parallel_tool_calls`
+#      itself: OpenAI's o-series ("Unsupported parameter: 'parallel_tool_calls'
+#      is not supported with this model"), kimi-k2.5 via NVIDIA NIM ("This model
+#      only supports single tool-calls at once!"). Listing one of those here
+#      would make `_apply_capability_constraints` send the very parameter that
+#      breaks the request. Do not add them until that is split out.
+#   3. **Simply never emits more than one** — gpt-oss via Ollama, and most
+#      smaller local models. Harmless: encouragement to batch is a no-op, the
+#      model issues one call and the turn proceeds. Nothing to declare.
 _NO_PARALLEL_TOOL_CALLS = (
     r"minimax-m2\.7",
     r"glm-4\.7",
+)
+
+# Mirrors pydantic-ai's own `is_thinking_model` heuristic in
+# `pydantic_ai.profiles.google.google_model_profile` (`'gemini-2.5' in
+# model_name or 'gemini-3' in model_name`) — these are the Gemini generations
+# that think by default and support `thinking_config.include_thoughts`.
+_THINKING_SUMMARY_PATTERNS = (
+    r"gemini-2\.5",
+    r"gemini-3",
+)
+
+# Conservative, documented windows for model families zrb recognises. A missing
+# entry deliberately leaves the user's configured request limit unchanged.
+_CONTEXT_WINDOW_PATTERNS: tuple[tuple[str, int], ...] = (
+    (r"gpt-?4\.1", 1_000_000),
+    (r"gpt-?4o", 128_000),
+    (r"claude-(?:3|(?:haiku|sonnet|opus)-[34])", 200_000),
+    (r"gemini-(1\.5|2|3)", 1_000_000),
 )
 
 
@@ -236,7 +324,10 @@ def _resolve_from_patterns(name: str) -> ModelCapabilities:
         supports_image_input=_resolve_image(name),
         supports_audio_input=_matches_any(name, _AUDIO_PATTERNS),
         supports_video_input=_matches_any(name, _VIDEO_PATTERNS),
+        supports_document_input=_resolve_document(name),
         supports_parallel_tool_calls=_resolve_parallel_tool_calls(name),
+        context_window=_resolve_context_window(name),
+        supports_thinking_summary=_matches_any(name, _THINKING_SUMMARY_PATTERNS),
     )
 
 
@@ -246,9 +337,22 @@ def _resolve_image(name: str) -> bool:
     return _matches_any(name, _IMAGE_PATTERNS)
 
 
+def _resolve_document(name: str) -> bool:
+    if _matches_any(name, _DOCUMENT_DENY):
+        return False
+    return _matches_any(name, _DOCUMENT_PATTERNS)
+
+
 def _resolve_parallel_tool_calls(name: str) -> bool | None:
     if _matches_any(name, _NO_PARALLEL_TOOL_CALLS):
         return False
+    return None
+
+
+def _resolve_context_window(name: str) -> int | None:
+    for pattern, window in _CONTEXT_WINDOW_PATTERNS:
+        if re.search(pattern, name, re.IGNORECASE):
+            return window
     return None
 
 

@@ -5,20 +5,19 @@ from typing import TYPE_CHECKING, Any
 from zrb.config.config import CFG
 from zrb.config.web_auth_config import WebAuthConfig
 from zrb.context.shared_context import SharedContext
-from zrb.group.any_group import AnyGroup
+from zrb.group.any_group import AnyGroup, NodeNotFoundError
 from zrb.runner.web_schema.session import NewSessionResponse
 from zrb.runner.web_util.user import get_user_from_request
 from zrb.session.session import Session
 from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.task.any_task import AnyTask
-from zrb.util.group import NodeNotFoundError, extract_node_from_args, get_node_path
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
 
-def serve_task_session_api(
+def serve_task_session_api(  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     app: "FastAPI",
     root_group: AnyGroup,
     web_auth_config: WebAuthConfig,
@@ -41,14 +40,18 @@ def serve_task_session_api(
         user = await get_user_from_request(web_auth_config, request)
         args = path.strip("/").split("/")
         try:
-            task, _, residual_args = extract_node_from_args(root_group, args)
+            task, _, residual_args = root_group.extract_node(args)
         except NodeNotFoundError:
             # FastAPI returns the Response directly; the model annotation only
             # drives response_model for the success path.
-            return JSONResponse(content={"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
+            return JSONResponse(
+                content={"detail": "Not found"}, status_code=404
+            )  # pyright: ignore[reportReturnType]
         if isinstance(task, AnyTask):
             if not user.can_access_task(task):
-                return JSONResponse(content={"detail": "Forbidden"}, status_code=403)  # type: ignore[return-value]
+                return JSONResponse(
+                    content={"detail": "Forbidden"}, status_code=403
+                )  # pyright: ignore[reportReturnType]
             session_name = residual_args[0] if residual_args else None
             if not session_name:
                 shared_ctx = SharedContext(is_web_mode=True)
@@ -57,7 +60,9 @@ def serve_task_session_api(
                 coroutines.append(coro)
                 coro.add_done_callback(lambda coro: coroutines.remove(coro))
                 return NewSessionResponse(session_name=session.name)
-        return JSONResponse(content={"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
+        return JSONResponse(
+            content={"detail": "Not found"}, status_code=404
+        )  # pyright: ignore[reportReturnType]
 
     @app.get(
         "/api/v1/task-sessions/{path:path}",
@@ -77,24 +82,37 @@ def serve_task_session_api(
         user = await get_user_from_request(web_auth_config, request)
         args = path.strip("/").split("/")
         try:
-            task, _, residual_args = extract_node_from_args(root_group, args)
+            task, _, residual_args = root_group.extract_node(args)
         except NodeNotFoundError:
-            return JSONResponse(content={"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
+            return JSONResponse(
+                content={"detail": "Not found"}, status_code=404
+            )  # pyright: ignore[reportReturnType]
         if isinstance(task, AnyTask) and residual_args:
             if not user.can_access_task(task):
-                return JSONResponse(content={"detail": "Forbidden"}, status_code=403)  # type: ignore[return-value]
+                return JSONResponse(
+                    content={"detail": "Forbidden"}, status_code=403
+                )  # pyright: ignore[reportReturnType]
             if residual_args[0] == "list":
-                task_path = get_node_path(root_group, task)
-                max_start_time = (
-                    datetime.now()
-                    if max_start_query is None
-                    else datetime.strptime(max_start_query, "%Y-%m-%d %H:%M:%S")
-                )
-                min_start_time = (
-                    max_start_time - timedelta(hours=1)
-                    if min_start_query is None
-                    else datetime.strptime(min_start_query, "%Y-%m-%d %H:%M:%S")
-                )
+                task_path = root_group.get_node_path(task)
+                try:
+                    max_start_time = (
+                        datetime.now()
+                        if max_start_query is None
+                        else datetime.strptime(max_start_query, "%Y-%m-%d %H:%M:%S")
+                    )
+                    min_start_time = (
+                        max_start_time - timedelta(hours=1)
+                        if min_start_query is None
+                        else datetime.strptime(min_start_query, "%Y-%m-%d %H:%M:%S")
+                    )
+                except ValueError:
+                    return JSONResponse(
+                        content={
+                            "detail": "Invalid 'from'/'to' timestamp; expected "
+                            "'YYYY-MM-DD HH:MM:SS'"
+                        },
+                        status_code=400,
+                    )  # pyright: ignore[reportReturnType]
                 return sanitize_session_state_log_list(
                     task,
                     session_state_logger.list(
@@ -102,10 +120,42 @@ def serve_task_session_api(
                     ),
                 )
             else:
-                return sanitize_session_state_log(
-                    task, session_state_logger.read(residual_args[0])
+                session_state_log = read_task_session_state_log(
+                    session_state_logger, residual_args[0]
                 )
-        return JSONResponse(content={"detail": "Not found"}, status_code=404)  # type: ignore[return-value]
+                if session_state_log is None or not session_belongs_to_task(
+                    root_group, task, session_state_log
+                ):
+                    return JSONResponse(
+                        content={"detail": "Not found"}, status_code=404
+                    )  # pyright: ignore[reportReturnType]
+                return sanitize_session_state_log(task, session_state_log)
+        return JSONResponse(
+            content={"detail": "Not found"}, status_code=404
+        )  # pyright: ignore[reportReturnType]
+
+
+def read_task_session_state_log(
+    session_state_logger: AnySessionStateLogger, session_name: str
+) -> "SessionStateLog | None":
+    """Read a session log, mapping any storage/validation failure to None."""
+    try:
+        return session_state_logger.read(session_name)
+    except (OSError, ValueError):
+        # OSError: missing/unreadable file. ValueError covers JSON decode
+        # errors and pydantic's ValidationError.
+        return None
+
+
+def session_belongs_to_task(
+    root_group: AnyGroup, task: AnyTask, session_state_log: "SessionStateLog"
+) -> bool:
+    """Check that the log was recorded for the task named in the URL.
+
+    Without this check, anyone authorized for one task could read another
+    task's session by guessing its (random) session name.
+    """
+    return session_state_log.path == (root_group.get_node_path(task) or [])
 
 
 def sanitize_session_state_log_list(
@@ -136,7 +186,9 @@ def sanitize_session_state_log(
     real_inputs = {}
     for real_input in task.inputs:
         real_input_name = real_input.name
-        real_inputs[real_input_name] = enhanced_inputs[real_input_name]
+        # A foreign/legacy log may lack some of this task's inputs; serve an
+        # empty value rather than raising KeyError.
+        real_inputs[real_input_name] = enhanced_inputs.get(real_input_name, "")
     return SessionStateLog(
         name=session_state_log.name,
         start_time=session_state_log.start_time,

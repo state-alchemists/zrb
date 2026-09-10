@@ -1,8 +1,9 @@
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any
 
-from zrb.attr.type import fstring
+from zrb.attr.tpl import Tpl
+from zrb.attr.type import BoolAttr
 from zrb.callback.any_callback import AnyCallback
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
@@ -13,7 +14,7 @@ from zrb.input.any_input import AnyInput
 from zrb.session.any_session import AnySession
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
-from zrb.task.base_task import BaseTask
+from zrb.task.base.base_task import BaseTask
 from zrb.util.cli.style import CYAN
 from zrb.xcom.xcom import Xcom
 
@@ -29,27 +30,28 @@ class BaseTrigger(BaseTask):
     def __init__(
         self,
         name: str,
+        *,
         color: int | None = None,
         icon: str | None = None,
         description: str | None = None,
         cli_only: bool = False,
-        input: list[AnyInput | None] | AnyInput | None = None,
-        env: list[AnyEnv | None] | AnyEnv | None = None,
-        action: fstring | Callable[[AnyContext], Any] | None = None,
-        execute_condition: bool | str | Callable[[AnyContext], bool] = True,
-        queue_name: fstring | None = None,
+        input: Sequence[AnyInput | None] | AnyInput | None = None,
+        env: Sequence[AnyEnv | None] | AnyEnv | None = None,
+        action: str | Tpl | Callable[[AnyContext], Any] | None = None,
+        execute_condition: BoolAttr = True,
+        queue_name: str | None = None,
         callback: list[AnyCallback] | AnyCallback | None = None,
         retries: int = 2,
         retry_period: float = 0,
-        readiness_check: list[AnyTask] | AnyTask | None = None,
+        readiness_check: Sequence[AnyTask] | AnyTask | None = None,
         readiness_check_delay: float = 0.5,
-        readiness_check_period: float = 5,
-        readiness_failure_threshold: int = 1,
-        readiness_timeout: int = 60,
+        readiness_check_period: float | None = 5,
+        readiness_failure_threshold: int | None = 1,
+        readiness_timeout: int | None = 60,
         monitor_readiness: bool = False,
-        upstream: list[AnyTask] | AnyTask | None = None,
-        fallback: list[AnyTask] | AnyTask | None = None,
-        successor: list[AnyTask] | AnyTask | None = None,
+        upstream: Sequence[AnyTask] | AnyTask | None = None,
+        fallback: Sequence[AnyTask] | AnyTask | None = None,
+        successor: Sequence[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
         """
@@ -63,11 +65,15 @@ class BaseTrigger(BaseTask):
             cli_only: If True, the task is only available in the CLI.
             input: The input definition for the task.
             env: The environment variable definition for the task.
-            action: The action to be performed by the task.
+            action: What the trigger does. Either a callable taking the task
+                context, a literal string returned as the result, or a `Tpl`
+                rendered against the context.
             execute_condition: A condition that must be met for the task to execute.
             queue_name: The name of the XCom queue used for data
                 exchange with callbacks. Whenever any data is added
-                to xcom[queue_name], the callback will be triggered.
+                to xcom[queue_name], the callback will be triggered. Read
+                through the `queue_name` property, which has no context, so it
+                is a plain `str` — build it eagerly if it needs to vary.
             callback: A single or list of callbacks to be executed after the trigger action.
             retries: The number of times to retry the task on failure.
             retry_period: The time to wait between retries.
@@ -112,6 +118,7 @@ class BaseTrigger(BaseTask):
 
     @property
     def queue_name(self) -> str:
+        """Name of the xcom queue carrying this trigger's events, defaulting to its name."""
         if self._queue_name is None:
             return f"{self.name}"
         return self._queue_name
@@ -129,13 +136,16 @@ class BaseTrigger(BaseTask):
 
     @property
     def callbacks(self) -> list[AnyCallback]:
+        """Callbacks invoked once per triggered event, always as a list."""
         if isinstance(self._callbacks, AnyCallback):
             return [self._callbacks]
         return self._callbacks
 
     async def exec_root_tasks(self, session: AnySession):
         exchange_xcom = self._get_exchange_xcom(session)
-        exchange_xcom.add_push_callback(lambda: self._exchange_push_callback(session))
+        exchange_xcom.append_push_callback(
+            lambda: self._exchange_push_callback(session)
+        )
         return await super().exec_root_tasks(session)
 
     def _exchange_push_callback(self, session: AnySession):
@@ -161,6 +171,8 @@ class BaseTrigger(BaseTask):
                     callback.async_run(parent_session=session, session=callback_session)
                 )
             )
+        # Fail-fast fan-out: a broken callback should surface immediately, not
+        # be masked by return_exceptions.
         await asyncio.gather(*coros)
 
     def _get_exchange_xcom(self, session: AnySession) -> Xcom:
@@ -170,9 +182,19 @@ class BaseTrigger(BaseTask):
         return shared_ctx.xcom[self.queue_name]
 
     def push_exchange_xcom(self, session: AnySession, data: Any):
+        """Publish an event, waking whatever this trigger drives.
+
+        Call this from a trigger implementation when the external condition it
+        watches fires.
+        """
         exchange_xcom = self._get_exchange_xcom(session)
         exchange_xcom.push(data)
 
     def pop_exchange_xcom(self, session: AnySession) -> Any:
+        """Remove and return the oldest pending event.
+
+        Raises:
+            IndexError: If no event is pending.
+        """
         exchange_xcom = self._get_exchange_xcom(session)
         return exchange_xcom.pop()

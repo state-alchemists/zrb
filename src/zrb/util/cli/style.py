@@ -152,7 +152,6 @@ def stylize(
     Returns:
         str: The stylized string with ANSI escape codes.
     """
-    # Start constructing the ANSI escape code
     code_parts = []
     if style is not None and style in VALID_STYLES:
         code_parts.append(str(style))
@@ -160,7 +159,6 @@ def stylize(
         code_parts.append(str(color))
     if background is not None and background in VALID_BACKGROUNDS:
         code_parts.append(str(background))
-    # Join all parts with ';' and add the escape code ending
     if len(code_parts) > 0:
         return "\033[" + ";".join(code_parts) + "m" + text + "\033[0m"
     return text
@@ -257,45 +255,6 @@ def stylize_red(text: str):
     return stylize(text, color=RED)
 
 
-def stylize_bold_green(text: str):
-    """
-    Stylize text with bold green foreground color.
-
-    Args:
-        text (str): The input string.
-
-    Returns:
-        str: The stylized string.
-    """
-    return stylize(text, color=GREEN, style=BOLD)
-
-
-def stylize_bold_yellow(text: str):
-    """
-    Stylize text with bold yellow foreground color.
-
-    Args:
-        text (str): The input string.
-
-    Returns:
-        str: The stylized string.
-    """
-    return stylize(text, color=YELLOW, style=BOLD)
-
-
-def stylize_bold_red(text: str):
-    """
-    Stylize text with bold red foreground color.
-
-    Args:
-        text (str): The input string.
-
-    Returns:
-        str: The stylized string.
-    """
-    return stylize(text, color=RED, style=BOLD)
-
-
 _COLOR_NAME_MAP: dict[str, int] = {
     "black": BLACK,
     "red": RED,
@@ -337,7 +296,9 @@ def _resolve_style(name: str) -> int | None:
 
 
 def stylize_muted(text: str) -> str:
-    from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import (
+        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    )
 
     return stylize(
         text,
@@ -355,7 +316,9 @@ def stylize_log(text: str) -> str:
 
 
 def stylize_warning(text: str) -> str:
-    from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import (
+        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    )
 
     return stylize(
         text,
@@ -365,7 +328,9 @@ def stylize_warning(text: str) -> str:
 
 
 def stylize_error(text: str) -> str:
-    from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import (
+        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    )
 
     return stylize(
         text,
@@ -375,7 +340,9 @@ def stylize_error(text: str) -> str:
 
 
 def stylize_success(text: str) -> str:
-    from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import (
+        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    )
 
     return stylize(
         text,
@@ -385,7 +352,9 @@ def stylize_success(text: str) -> str:
 
 
 def stylize_highlight(text: str) -> str:
-    from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import (
+        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    )
 
     return stylize(
         text,
@@ -395,7 +364,9 @@ def stylize_highlight(text: str) -> str:
 
 
 def stylize_info(text: str) -> str:
-    from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import (
+        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    )
 
     return stylize(
         text,
@@ -405,18 +376,24 @@ def stylize_info(text: str) -> str:
 
 
 def stylize_todo_project(text: str) -> str:
-    from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import (
+        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    )
 
     return stylize(text, color=_resolve_color(CFG.CLI_COLOR_TODO_PROJECT))
 
 
 def stylize_todo_context(text: str) -> str:
-    from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import (
+        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    )
 
     return stylize(text, color=_resolve_color(CFG.CLI_COLOR_TODO_CONTEXT))
 
 
 def stylize_todo_keyval(text: str) -> str:
-    from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import (
+        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    )
 
     return stylize(text, color=_resolve_color(CFG.CLI_COLOR_TODO_KEYVAL))

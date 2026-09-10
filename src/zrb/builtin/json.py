@@ -36,7 +36,6 @@ def _parse_json(ctx: AnyContext, text: str) -> object:
     alias="format",
 )
 def format_json(ctx: AnyContext) -> str:
-
     result = json.dumps(
         _parse_json(ctx, ctx.input.json), indent=ctx.input.indent, ensure_ascii=False
     )
@@ -53,7 +52,6 @@ def format_json(ctx: AnyContext) -> str:
     alias="minify",
 )
 def minify_json(ctx: AnyContext) -> str:
-
     result = json.dumps(
         _parse_json(ctx, ctx.input.json), separators=(",", ":"), ensure_ascii=False
     )
@@ -70,7 +68,6 @@ def minify_json(ctx: AnyContext) -> str:
     alias="validate",
 )
 def validate_json(ctx: AnyContext) -> bool:
-
     try:
         json.loads(ctx.input.json)
         ctx.print("Valid JSON")
@@ -97,7 +94,6 @@ def validate_json(ctx: AnyContext) -> bool:
     alias="get",
 )
 def get_json(ctx: AnyContext) -> str:
-
     current = _parse_json(ctx, ctx.input.json)
     path = ctx.input.path
     traversed = ""

@@ -1,27 +1,35 @@
 """Interactive user-question tool.
 
 `ask_user_question` lets the model pose structured multiple-choice questions
-to the user mid-turn. Renders through the active `UIProtocol.ask_user`. In
+to the user mid-turn. Renders through the active `AnyUI.ask_user`. In
 non-interactive mode (`zrb llm chat --interactive false`) the tool
 short-circuits with a `[SYSTEM SUGGESTION]` error so the model never blocks
-on stdin in a non-interactive run.
+on stdin in a non-interactive run. That suggestion offers two terminal exits
+— decide-and-continue or stop-and-report — and forbids a retry, so an
+unanswerable question cannot become a re-ask loop.
 
-The interactive flag is propagated via the `interactive_mode` ContextVar,
-set by the `system_context` prompt middleware from `ctx.input.interactive`
-once per prompt build. Sub-agents inherit the parent's value through
-ContextVar's asyncio-task semantics.
+The interactive flag is propagated via the `interactive_mode` ContextVar, set
+per turn by `live_context._wire_ambient_state` from `ctx.input.interactive`.
+Sub-agents inherit the parent's value through ContextVar's asyncio-task
+semantics.
 """
 
 from __future__ import annotations
 
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Annotated, Any, cast
 
+from pydantic import Field
+
+from zrb.config.config import CFG
+from zrb.llm.agent_state import get_current_ui
+from zrb.llm.hook.manager import hook_manager
+from zrb.llm.hook.types import HookEvent
 from zrb.llm.tool.wrapper import tool_safe_async
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
 
 if TYPE_CHECKING:
-    from zrb.llm.tool_call.ui_protocol import ChoiceSpec
+    from zrb.llm.ui.any_ui import ChoiceSpec
 
 interactive_mode: ContextVar[bool] = ContextVar("zrb_interactive_mode", default=True)
 
@@ -37,15 +45,23 @@ def set_interactive_mode(value: bool) -> None:
 
 
 @tool_safe_async
-async def ask_user_question(questions: list[dict[str, Any]]) -> str:
+async def ask_user_question(
+    questions: Annotated[
+        list[dict[str, Any]],
+        Field(
+            description=(
+                "One or more questions to ask. Each entry must have: "
+                "`question` (str) the question text; `options` (list[dict]) "
+                "each with `label` (str) and optional `description` (str); "
+                "`multi_select` (bool, optional, default False) True to allow "
+                "multiple selections; `header` (str, optional) short label "
+                "(≤12 chars) shown as a chip."
+            )
+        ),
+    ],
+) -> str:
     """
     Ask the user one or more structured multiple-choice questions and return the answers.
-
-    Each entry in `questions` must have:
-      - `question` (str): the question text.
-      - `options` (list[dict]): each with `label` (str) and optional `description` (str).
-      - `multi_select` (bool, optional): True to allow multiple selections. Default False.
-      - `header` (str, optional): short label (≤12 chars) shown as a chip.
 
     The user may also type free-form text instead of selecting a labeled option;
     that text is returned verbatim.
@@ -53,25 +69,31 @@ async def ask_user_question(questions: list[dict[str, Any]]) -> str:
     Returns: a structured string listing each question's answer.
 
     Non-interactive mode: returns a `[SYSTEM SUGGESTION]` error directing the
-    model to decide and continue. Never blocks on stdin in that mode.
+    model to either decide and continue or stop and report the open choice.
+    Never blocks on stdin in that mode.
     """
     if not get_interactive_mode():
         return (
             "[SYSTEM SUGGESTION]: AskUserQuestion is unavailable in non-interactive "
-            "mode. Make your best judgement based on the conversation so far and "
-            "continue."
+            "mode. Do not call it again this turn. Pick one: (a) make your best "
+            "judgement from the conversation so far, name the assumption, and "
+            "continue; or (b) if a wrong pick would waste the work, stop and "
+            "report the choice you could not make."
         )
     if not questions:
-        return "Error: no questions provided."
-
-    # lazy: circular — tool → agent.run.runtime_state → ... → tool
-    from zrb.llm.agent.run.runtime_state import get_current_ui
+        return (
+            "Error: no questions provided. "
+            "[SYSTEM SUGGESTION]: provide at least one question with `question` "
+            "and `options` keys, or do not call this tool."
+        )
 
     ui = get_current_ui()
     if ui is None:
         return (
             "[SYSTEM SUGGESTION]: No UI is available to render the question. "
-            "Make your best judgement and continue."
+            "Do not call it again this turn. Either make your best judgement, "
+            "name the assumption, and continue, or stop and report the choice "
+            "you could not make."
         )
 
     required = ("question", "options")
@@ -97,13 +119,9 @@ async def ask_user_question(questions: list[dict[str, Any]]) -> str:
     total = len(questions)
     answers: list[str] = []
     for idx, q in enumerate(questions, start=1):
-        spec = _build_choice_spec(idx, total, q)
+        spec = build_choice_spec(idx, total, q)
         try:
-            if hasattr(ui, "ask_user_choice"):
-                raw = await ui.ask_user_choice(cast("ChoiceSpec", spec))
-            else:
-                # Custom UI predating ask_user_choice — fall back to text.
-                raw = await ui.ask_user(format_choice_spec(spec))
+            raw = await ui.ask_user_choice(cast("ChoiceSpec", spec))
         except (KeyboardInterrupt, EOFError):
             return (
                 "[SYSTEM SUGGESTION]: User cancelled the question prompt. "
@@ -124,21 +142,17 @@ async def _notify_question_pending(questions: list[dict[str, Any]]) -> None:
     failure must never break the prompt.
     """
     try:
-        # lazy: circular — tool → hook.manager → llm internals → tool
-        from zrb.llm.hook.manager import hook_manager
-        from zrb.llm.hook.types import HookEvent
-
         await hook_manager.execute_hooks(
             HookEvent.NOTIFICATION,
             {"questions": questions},
             message="Waiting for your answer to a question",
             notification_type="elicitation_dialog",
         )
-    except Exception:
-        pass
+    except Exception as e:
+        CFG.LOGGER.debug(f"Notification hook for ask failed: {e}")
 
 
-def _build_choice_spec(idx: int, total: int, q: dict[str, Any]) -> dict[str, Any]:
+def build_choice_spec(idx: int, total: int, q: dict[str, Any]) -> dict[str, Any]:
     header = q.get("header") or q.get("question", "").strip().rstrip("?")[:40]
     return {
         "question": q["question"],
@@ -148,27 +162,6 @@ def _build_choice_spec(idx: int, total: int, q: dict[str, Any]) -> dict[str, Any
         "index": idx,
         "total": total,
     }
-
-
-def format_choice_spec(spec: "ChoiceSpec | dict[str, Any]") -> str:
-    """Render a `ChoiceSpec` as numbered text (fallback for non-widget UIs)."""
-    multi = bool(spec.get("multi_select"))
-    idx = spec.get("index", 1)
-    total = spec.get("total", 1)
-    counter = f"{idx}/{total}" if total > 1 else f"{idx}"
-    lines: list[str] = [f"\n[Q{counter}] {spec.get('question', '')}"]
-    for i, opt in enumerate(spec.get("options", []), start=1):
-        label = opt.get("label", f"Option {i}")
-        desc = opt.get("description", "")
-        suffix = f" — {desc}" if desc else ""
-        lines.append(f"  {i}. {label}{suffix}")
-    hint = (
-        "Reply with comma-separated numbers (e.g. 1,3) or free-form text: "
-        if multi
-        else "Reply with a number or free-form text: "
-    )
-    lines.append(hint)
-    return "\n".join(lines)
 
 
 def _resolve_answer(q: dict[str, Any], raw: str) -> str:

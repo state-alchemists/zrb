@@ -1,8 +1,13 @@
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from zrb.builtin.shell.autocomplete.subcmd import get_shell_subcommands
+
+
+def _action(task):
+    """`task.action` narrowed to the callable `@make_task` always sets."""
+    action = task.action
+    assert callable(action)
+    return action
 
 
 def test_get_shell_subcommands_logic():
@@ -21,7 +26,7 @@ def test_get_shell_subcommands_logic():
         "zrb.builtin.shell.autocomplete.subcmd.get_group_subcommands",
         return_value=mock_subcommands,
     ):
-        res = get_shell_subcommands._action(ctx)
+        res = _action(get_shell_subcommands)(ctx)
         assert res == "cmd1 cmd2"
 
 
@@ -32,5 +37,5 @@ def test_get_shell_subcommands_not_found():
     with patch(
         "zrb.builtin.shell.autocomplete.subcmd.get_group_subcommands", return_value=[]
     ):
-        res = get_shell_subcommands._action(ctx)
+        res = _action(get_shell_subcommands)(ctx)
         assert res == ""

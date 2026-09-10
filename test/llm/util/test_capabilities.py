@@ -85,6 +85,16 @@ def test_video_input_only_for_gemini_class():
     )
 
 
+def test_context_window_is_known_for_documented_model_families():
+    assert model_capabilities.get("openai:gpt-4o").context_window == 128_000
+    assert model_capabilities.get("openai:gpt-4.1").context_window == 1_000_000
+    assert (
+        model_capabilities.get("anthropic:claude-sonnet-3.5").context_window == 200_000
+    )
+    assert model_capabilities.get("google:gemini-2.5-pro").context_window == 1_000_000
+    assert model_capabilities.get("local:unknown").context_window is None
+
+
 def test_parallel_tool_calls_unknown_for_general_models():
     # Most models have no explicit entry → tri-state ``None`` ("unknown").
     assert model_capabilities.get("openai:gpt-4o").supports_parallel_tool_calls is None
@@ -105,6 +115,31 @@ def test_parallel_tool_calls_unknown_for_general_models():
 )
 def test_parallel_tool_calls_known_unsupported_models(model_name):
     assert model_capabilities.get(model_name).supports_parallel_tool_calls is False
+
+
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        "google-gla:gemini-2.5-flash",
+        "google-gla:gemini-2.5-pro",
+        "google-vertex:gemini-3-pro-preview",
+    ],
+)
+def test_thinking_summary_supported_for_gemini_2_5_and_3(model_name):
+    assert model_capabilities.get(model_name).supports_thinking_summary is True
+
+
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        "google-gla:gemini-1.5-flash",
+        "google-gla:gemini-2.0-flash",
+        "openai:gpt-5",
+        "anthropic:claude-sonnet-4-6",
+    ],
+)
+def test_thinking_summary_unsupported_outside_gemini_2_5_and_3(model_name):
+    assert model_capabilities.get(model_name).supports_thinking_summary is False
 
 
 def test_get_returns_defaults_for_none_and_empty():
@@ -153,13 +188,47 @@ def test_is_known_model_truthiness():
         ("audio/wav", "audio"),
         ("audio/mpeg", "audio"),
         ("video/mp4", "video"),
-        ("application/pdf", None),
+        ("application/pdf", "document"),
+        ("application/msword", "document"),
+        (
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "document",
+        ),
+        # Plain-text formats are readable by any model regardless of vision
+        # capability, so they are deliberately NOT gated as "document".
         ("text/plain", None),
+        ("text/csv", None),
         ("", None),
     ],
 )
 def test_media_type_modality_maps_mime_heads(media_type, expected):
     assert media_type_modality(media_type) == expected
+
+
+def test_document_input_supported_for_known_vision_models():
+    assert model_capabilities.get("openai:gpt-4o").supports_document_input is True
+    assert (
+        model_capabilities.get("anthropic:claude-opus-4-7").supports_document_input
+        is True
+    )
+
+
+def test_document_input_unsupported_for_text_only_models():
+    assert (
+        model_capabilities.get("openai:gpt-3.5-turbo").supports_document_input is False
+    )
+    assert (
+        model_capabilities.get("anthropic:claude-haiku-3").supports_document_input
+        is False
+    )
+
+
+def test_supports_modality_dispatches_document():
+    assert model_capabilities.supports_modality("openai:gpt-4o", "document") is True
+    assert (
+        model_capabilities.supports_modality("openai:gpt-3.5-turbo", "document")
+        is False
+    )
 
 
 def test_register_override_takes_priority_over_pattern_table():

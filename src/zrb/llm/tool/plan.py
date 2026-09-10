@@ -16,14 +16,17 @@ Usage:
 from __future__ import annotations
 
 import json
-from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
+
+from pydantic import Field
 
 from zrb.context.any_context import zrb_print
+from zrb.llm.agent_state import get_current_ui
+from zrb.llm.tool.ambient_state import get_current_tool_session
+from zrb.util.string.conversion import to_safe_filename
 
-# Todo status types
 TodoStatus = Literal["pending", "in_progress", "completed", "cancelled"]
 
 
@@ -49,6 +52,24 @@ class TodoManager:
             cls._instance._todo_dir.mkdir(parents=True, exist_ok=True)
         return cls._instance
 
+    @property
+    def todo_dir(self) -> Path:
+        """Directory todo files are persisted under."""
+        return self._todo_dir
+
+    @todo_dir.setter
+    def todo_dir(self, value: Path) -> None:
+        self._todo_dir = value
+
+    @property
+    def todos(self) -> dict[str, dict[str, Any]]:
+        """The in-memory per-session todo cache."""
+        return self._todos
+
+    @todos.setter
+    def todos(self, value: dict[str, dict[str, Any]]) -> None:
+        self._todos = value
+
     def write_todos(
         self,
         session_name: str,
@@ -63,14 +84,22 @@ class TodoManager:
         """
         now = datetime.now().isoformat()
 
-        existing = self._load_todos(session_name) if not replace else None
+        existing = self.get_todos(session_name) if not replace else None
         existing_todos = (
             {t["id"]: t for t in existing.get("todos", [])} if existing else {}
         )
 
         new_todos = []
+        used_ids: set[str] = set()
         for i, todo in enumerate(todos):
-            todo_id = todo.get("id") or str(i + 1)
+            todo_id = todo.get("id") or ""
+            # A collision against `existing` is legitimate (an explicit id
+            # targets that todo for update, below) — but a collision against
+            # `used_ids` means this same call already claimed that id for an
+            # earlier item, which would otherwise silently duplicate it.
+            if not todo_id or todo_id in used_ids:
+                todo_id = self._next_auto_id(i, existing_todos, used_ids)
+            used_ids.add(todo_id)
             new_todos.append(
                 self._build_todo_entry(todo, todo_id, existing_todos, replace, now)
             )
@@ -93,32 +122,20 @@ class TodoManager:
         }
 
         self._todos[session_name] = result
-        self._save_todos(session_name)
+        self.save_todos(session_name)
         return result
 
     def get_todos(self, session_name: str) -> dict[str, Any] | None:
         """
-        Get todos for a session.
+        Get todos for a session, loading from disk if not cached.
 
         Returns:
             Todo list with metadata, or None if no todos exist
         """
-        return self._load_todos(session_name)
-
-    def _get_todo_file(self, session_name: str) -> Path:
-        """Get the file path for a session's todos."""
-        # Sanitize session name for filesystem
-        safe_name = "".join(
-            c if c.isalnum() or c in "-_" else "_" for c in session_name
-        )
-        return self._todo_dir / f"{safe_name}.json"
-
-    def _load_todos(self, session_name: str) -> dict[str, Any] | None:
-        """Load todos from disk for a session."""
         if session_name in self._todos:
             return self._todos[session_name]
 
-        todo_file = self._get_todo_file(session_name)
+        todo_file = self.get_todo_file(session_name)
         if todo_file.exists():
             try:
                 with open(todo_file, "r", encoding="utf-8") as f:
@@ -131,12 +148,16 @@ class TodoManager:
                 )
         return None
 
-    def _save_todos(self, session_name: str) -> None:
+    def get_todo_file(self, session_name: str) -> Path:
+        """Get the file path for a session's todos."""
+        return self._todo_dir / f"{to_safe_filename(session_name)}.json"
+
+    def save_todos(self, session_name: str) -> None:
         """Save todos to disk for a session."""
         if session_name not in self._todos:
             return
 
-        todo_file = self._get_todo_file(session_name)
+        todo_file = self.get_todo_file(session_name)
         try:
             with open(todo_file, "w", encoding="utf-8") as f:
                 json.dump(self._todos[session_name], f, indent=2)
@@ -155,6 +176,22 @@ class TodoManager:
             "pending": sum(1 for t in new_todos if t["status"] == "pending"),
             "cancelled": sum(1 for t in new_todos if t["status"] == "cancelled"),
         }
+
+    @staticmethod
+    def _next_auto_id(
+        index: int, existing: dict[str, dict[str, Any]], used: set[str]
+    ) -> str:
+        """Smallest id from `index + 1` upward that collides with neither
+        `existing` (the session's already-persisted todos) nor `used` (ids
+        already claimed earlier in this same call, whether auto-assigned or
+        explicit) — so a new item, labeled or not, never silently merges
+        into an unrelated existing one or duplicates an id this same call
+        already claimed.
+        """
+        candidate = index + 1
+        while str(candidate) in existing or str(candidate) in used:
+            candidate += 1
+        return str(candidate)
 
     @staticmethod
     def _build_todo_entry(
@@ -188,22 +225,7 @@ class TodoManager:
             return (1, t["id"])
 
 
-# Singleton instance
 todo_manager = TodoManager()
-
-
-_current_session: ContextVar[str] = ContextVar("zrb_current_session", default="default")
-
-
-def get_current_context_session() -> str:
-    """Get the current session name, set by set_current_session() before agent runs."""
-    return _current_session.get()
-
-
-def set_current_session(session_name: str) -> None:
-    """Set the current session name so todo tools use the right session automatically."""
-    if session_name:
-        _current_session.set(session_name)
 
 
 # ── Progress visualization ─────────────────────────────────────────────────
@@ -277,29 +299,55 @@ def _broadcast_todo_progress(
     above the list (e.g. ``"✅ Completed: [1] Fix login bug"``).
     """
     text = _render_todo_progress(todo_data, change_description)
-    # lazy: circular — tool → ui → llm_task → here
-    from zrb.llm.agent.run.runtime_state import get_current_ui
-
     ui = get_current_ui()
     if ui is not None:
-        ui.append_to_output(text, kind="todo_progress")
+        # Leading "\n  " matches every other mid-turn status line printed
+        # outside `StreamEventHandler` (see `web.py::_notify`) — without it
+        # this lands at column 0 with no separator from whatever came before.
+        ui.append_to_output(f"\n  {text}", kind="todo_progress")
 
 
 # Tool functions for LLM integration
 
 
 async def write_todos(
-    todos: list[dict[str, Any]],
-    session: str = "",
-    replace: bool = True,
+    todos: Annotated[
+        list[dict[str, Any]],
+        Field(
+            description=(
+                'Each item: {content (str), status ("pending"|"in_progress"|'
+                '"completed"|"cancelled", default "pending"), id (auto-assigned '
+                "if omitted)}."
+            )
+        ),
+    ],
+    session: Annotated[
+        str,
+        Field(
+            description="Session to write todos for; defaults to the current tool session."
+        ),
+    ] = "",
+    replace: Annotated[
+        bool,
+        Field(
+            description=(
+                "True (default) overwrites the whole list; False merges with "
+                "the existing list."
+            )
+        ),
+    ] = True,
 ) -> str:
     """
-    Creates or replaces the session todo list. Each item: {content (str), status
-    ("pending"|"in_progress"|"completed"|"cancelled", default "pending"), id (auto-assigned
-    if omitted)}. replace=True (default) overwrites all; replace=False merges.
+    Creates or replaces the session todo list.
     To advance status, call again with the full list (replace=True).
+
+    Mark an item `completed` only once its work is done *and* verified — the
+    test run, the read-back, the grep. Never on intent, and never because the
+    edit that should accomplish it has landed. An item whose verification is
+    still outstanding stays `in_progress`; one that is blocked stays
+    `in_progress` and gains a follow-up item naming the blocker.
     """
-    session_name = session or get_current_context_session()
+    session_name = session or get_current_tool_session()
 
     error = _validate_todo_keys(todos)
     if error:
@@ -371,11 +419,18 @@ def _validate_todo_keys(todos: list[dict[str, Any]]) -> str | None:
     return None
 
 
-async def get_todos(session: str = "") -> str:
+async def get_todos(
+    session: Annotated[
+        str,
+        Field(
+            description="Session to read todos for; defaults to the current tool session."
+        ),
+    ] = "",
+) -> str:
     """
     Returns the current todo list and progress summary.
     """
-    session_name = session or get_current_context_session()
+    session_name = session or get_current_tool_session()
 
     result = todo_manager.get_todos(session_name)
 

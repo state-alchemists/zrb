@@ -1,3 +1,7 @@
+# This is the master registration list for `zrb <group> <task>` CLI discovery.
+# A new task module under `builtin/` must be imported here AND added to
+# `__all__` below, or it silently never appears in the CLI (no error).
+
 from zrb.builtin.base64 import decode_base64, encode_base64, validate_base64
 from zrb.builtin.case import convert_case, slugify
 from zrb.builtin.changelog import generate_changelog
@@ -25,6 +29,7 @@ from zrb.builtin.json import (
 )
 from zrb.builtin.jwt import decode_jwt, encode_jwt, validate_jwt
 from zrb.builtin.llm.chat import llm_chat
+from zrb.builtin.llm.please import please
 from zrb.builtin.md5 import hash_md5, sum_md5, validate_md5
 from zrb.builtin.number import convert_base
 from zrb.builtin.python import format_python_code
@@ -42,6 +47,7 @@ from zrb.builtin.setup.tmux.tmux import setup_tmux
 from zrb.builtin.setup.ubuntu import setup_ubuntu
 from zrb.builtin.setup.zsh.zsh import setup_zsh
 from zrb.builtin.shell.autocomplete.bash import make_bash_autocomplete
+from zrb.builtin.shell.autocomplete.fish import make_fish_autocomplete
 from zrb.builtin.shell.autocomplete.powershell import make_powershell_autocomplete
 from zrb.builtin.shell.autocomplete.subcmd import get_shell_subcommands
 from zrb.builtin.shell.autocomplete.zsh import make_zsh_autocomplete
@@ -106,6 +112,7 @@ __all__ = [
     "encode_jwt",
     "validate_jwt",
     "llm_chat",
+    "please",
     "hash_md5",
     "sum_md5",
     "validate_md5",
@@ -123,6 +130,7 @@ __all__ = [
     "setup_ubuntu",
     "setup_zsh",
     "make_bash_autocomplete",
+    "make_fish_autocomplete",
     "make_powershell_autocomplete",
     "get_shell_subcommands",
     "make_zsh_autocomplete",

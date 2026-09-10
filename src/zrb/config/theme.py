@@ -5,7 +5,7 @@ A *theme* is a named bundle of default style values. The ``ZRB_THEME`` knob
 from the active theme via :func:`theme_default` (wired as each field's
 ``EnvField(default_factory=...)``). An explicitly set ``ZRB_*`` style env still
 wins, because ``EnvField`` reads the env first and only calls the factory when
-the knob is unset. See ADR-0084.
+the knob is unset.
 
 This module is pure data plus helpers — it must **not** import config, to keep
 ``zrb.config`` importable without a cycle. Keys are style-knob names (e.g.
@@ -13,7 +13,7 @@ This module is pure data plus helpers — it must **not** import config, to keep
 expects (prompt_toolkit style strings, Rich color names, or hex).
 
 Themes are user/plugin-extensible via :func:`register_theme`, mirroring
-``register_model_profile`` (``llm/prompt/profile.py``). Registered themes are
+prompt profiles (``llm/prompt/profile.py``). Registered themes are
 merged onto the ``dark`` palette, so a partial theme only lists what it changes.
 See :func:`register_theme` for the ``zrb_init.py`` recipe, and
 ``examples/themes/`` for a full worked example (monokai).
@@ -29,9 +29,8 @@ DEFAULT_THEME = "dark"
 
 _WARNED_UNKNOWN: set[str] = set()
 
-# "dark" reproduces the historical hardcoded defaults exactly, so a default
-# install is visually unchanged. "light" is a dark-on-light variant that avoids
-# pale-on-white foregrounds (no bright yellow, near-white text, etc.).
+# "dark" is what a default install renders. "light" is a dark-on-light variant
+# that avoids pale-on-white foregrounds (no bright yellow, near-white text).
 _DARK: dict[str, str] = {
     # LLM UI (prompt_toolkit style strings)
     "LLM_UI_STYLE_TITLE_BAR": "#ffffff",
@@ -40,7 +39,6 @@ _DARK: dict[str, str] = {
     "LLM_UI_STYLE_FRAME": "#888888",
     "LLM_UI_STYLE_FRAME_LABEL": "#ffff00",
     "LLM_UI_STYLE_INPUT_FRAME": "#888888",
-    "LLM_UI_STYLE_PROMPT": "ansibrightblue",
     "LLM_UI_STYLE_THINKING": "ansigreen",
     "LLM_UI_STYLE_CONFIRMATION": "ansiyellow",
     "LLM_UI_STYLE_FAINT": "#888888",
@@ -93,7 +91,6 @@ _LIGHT: dict[str, str] = {
     "LLM_UI_STYLE_FRAME": "#999999",
     "LLM_UI_STYLE_FRAME_LABEL": "#0057d8",
     "LLM_UI_STYLE_INPUT_FRAME": "#999999",
-    "LLM_UI_STYLE_PROMPT": "ansiblue",
     "LLM_UI_STYLE_THINKING": "ansigreen",
     "LLM_UI_STYLE_CONFIRMATION": "#b58900",
     "LLM_UI_STYLE_FAINT": "#999999",

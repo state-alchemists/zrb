@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from zrb import Group, IntInput, StrInput, Task
+from zrb import Group, IntInput, PasswordInput, StrInput, Task
+from zrb.attr.tpl import Tpl
 from zrb.config.config import CFG
 from zrb.runner.cli import Cli
 
@@ -10,7 +11,7 @@ def test_show_info_for_existing_group():
     math_group = cli.add_group(Group(name="math"))
     math_group.add_group(Group(name="geometry"))
     math_group.add_task(
-        Task(name="add", action="{int(ctx.args[0]) + int(ctx.args[1])}")
+        Task(name="add", action=Tpl("{int(ctx.args[0]) + int(ctx.args[1])}"))
     )
     error = None
     try:
@@ -25,7 +26,7 @@ def test_show_info_for_inexisting_group():
     math_group = cli.add_group(Group(name="math"))
     math_group.add_group(Group(name="geometry"))
     math_group.add_task(
-        Task(name="add", action="{int(ctx.args[0]) + int(ctx.args[1])}")
+        Task(name="add", action=Tpl("{int(ctx.args[0]) + int(ctx.args[1])}"))
     )
     error = None
     try:
@@ -101,7 +102,7 @@ def test_run_simple_task_with_keyword_arguments_as_inputs():
                 IntInput(name="a"),
                 IntInput(name="b"),
             ],
-            action="{ctx.input.a + ctx.input.b}",
+            action=Tpl("{ctx.input.a + ctx.input.b}"),
         )
     )
     result = cli.run(str_args=["add", "--a", "4", "--b", "5"])
@@ -117,7 +118,7 @@ def test_run_simple_task_with_arguments_as_inputs():
                 IntInput(name="a"),
                 IntInput(name="b"),
             ],
-            action="{ctx.input.a + ctx.input.b}",
+            action=Tpl("{ctx.input.a + ctx.input.b}"),
         )
     )
     result = cli.run(str_args=["add", "4", "5"])
@@ -126,7 +127,7 @@ def test_run_simple_task_with_arguments_as_inputs():
 
 def test_run_simple_task_with_arguments():
     cli = Cli()
-    cli.add_task(Task(name="add", action="{int(ctx.args[0]) + int(ctx.args[1])}"))
+    cli.add_task(Task(name="add", action=Tpl("{int(ctx.args[0]) + int(ctx.args[1])}")))
     result = cli.run(str_args=["add", "4", "5"])
     assert result == "9"
 
@@ -210,7 +211,7 @@ def test_run_keyword_with_equals_sign():
         Task(
             name="add",
             input=[IntInput(name="a"), IntInput(name="b")],
-            action="{ctx.input.a + ctx.input.b}",
+            action=Tpl("{ctx.input.a + ctx.input.b}"),
         )
     )
     result = cli.run(str_args=["add", "--a=4", "--b=5"])
@@ -241,16 +242,45 @@ def test_run_kwarg_without_value_becomes_true_flag():
 def test_get_run_command_param_quotes_strings_with_spaces():
     """Values containing whitespace or quotes get double-quoted in the rerun hint."""
     cli = Cli()
-    out = cli._get_run_command_param("msg", "hello world")
+    out = cli.get_run_command_param("msg", "hello world")
     assert out == '--msg "hello world"'
 
     # Already-quoted values get re-wrapped consistently
-    out2 = cli._get_run_command_param("msg", "")
+    out2 = cli.get_run_command_param("msg", "")
     assert out2 == '--msg ""'
 
     # Plain values don't get quoted
-    out3 = cli._get_run_command_param("flag", "true")
+    out3 = cli.get_run_command_param("flag", "true")
     assert out3 == "--flag true"
+
+
+def test_run_command_omits_secret_input(capsys):
+    cli = Cli()
+    cli.add_task(
+        Task(
+            name="login",
+            input=[
+                StrInput("username"),
+                PasswordInput("password"),
+            ],
+            action="ok",
+        )
+    )
+
+    cli.run(
+        str_args=[
+            "login",
+            "--username",
+            "alice",
+            "--password",
+            "super-secret",
+        ]
+    )
+
+    err = capsys.readouterr().err
+    assert "--username alice" in err
+    assert "--password" not in err
+    assert "super-secret" not in err
 
 
 def test_conversation_name_printed_at_end(capsys):
@@ -308,7 +338,135 @@ def test_start_server_task_builds_and_serves_app():
     mock_log.assert_called_once()
     mock_create.assert_called_once()
     mock_config.assert_called_once()
+    assert mock_config.call_args.kwargs["host"] == "127.0.0.1"
     mock_server.serve.assert_awaited_once()
+
+
+def test_start_server_warns_on_insecure_bind(monkeypatch, capsys):
+    """Non-loopback host + auth off prints a warning but still starts."""
+    from zrb.runner.cli import cli
+
+    monkeypatch.setenv("ZRB_WEB_HTTP_HOST", "0.0.0.0")
+    monkeypatch.setenv("ZRB_WEB_AUTH_ENABLED", "0")
+    mock_server = MagicMock()
+    mock_server.serve = AsyncMock()
+    with (
+        patch("uvicorn.Config") as mock_config,
+        patch("uvicorn.Server", return_value=mock_server),
+        patch("zrb.runner.web_app.create_web_app"),
+        patch("zrb.runner.web_app.configure_uvicorn_logging"),
+    ):
+        cli.run(str_args=["server", "start"])
+
+    assert mock_config.call_args.kwargs["host"] == "0.0.0.0"
+    assert "without authentication" in capsys.readouterr().err
+    mock_server.serve.assert_awaited_once()
+
+
+def test_start_server_warns_on_default_credentials_when_auth_enabled(
+    monkeypatch, capsys
+):
+    """Auth being *on* is not enough: the default password/secret are public
+    knowledge (documented in the repo), so a non-loopback bind still using
+    them must warn too, distinctly from the unauthenticated case."""
+    from zrb.runner.cli import cli
+
+    monkeypatch.setenv("ZRB_WEB_HTTP_HOST", "0.0.0.0")
+    monkeypatch.setenv("ZRB_WEB_AUTH_ENABLED", "1")
+    mock_server = MagicMock()
+    mock_server.serve = AsyncMock()
+    with (
+        patch("uvicorn.Config"),
+        patch("uvicorn.Server", return_value=mock_server),
+        patch("zrb.runner.web_app.create_web_app"),
+        patch("zrb.runner.web_app.configure_uvicorn_logging"),
+    ):
+        cli.run(str_args=["server", "start"])
+
+    err = capsys.readouterr().err
+    assert "without authentication" not in err
+    assert "WEB_SUPER_ADMIN_PASSWORD" in err
+    assert "WEB_SECRET_KEY" in err
+
+
+def test_start_server_uses_programmatic_auth_config_for_warning(monkeypatch, capsys):
+    """Warning decisions follow the auth object used by the web app, not only CFG."""
+    from zrb.config.web_auth_config import WebAuthConfig
+    from zrb.runner.cli import cli
+
+    monkeypatch.setenv("ZRB_WEB_HTTP_HOST", "0.0.0.0")
+    monkeypatch.setenv("ZRB_WEB_AUTH_ENABLED", "1")
+    auth_config = WebAuthConfig(enable_auth=False)
+    mock_server = MagicMock()
+    mock_server.serve = AsyncMock()
+    with (
+        patch("zrb.runner.cli.web_auth_config", auth_config),
+        patch("uvicorn.Config"),
+        patch("uvicorn.Server", return_value=mock_server),
+        patch("zrb.runner.web_app.create_web_app"),
+        patch("zrb.runner.web_app.configure_uvicorn_logging"),
+    ):
+        cli.run(str_args=["server", "start"])
+
+    err = capsys.readouterr().err
+    assert "without authentication" in err
+    mock_server.serve.assert_awaited_once()
+
+
+def test_start_server_no_warning_for_programmatic_custom_credentials(
+    monkeypatch, capsys
+):
+    """Programmatic auth overrides are evaluated instead of CFG defaults."""
+    from zrb.config.web_auth_config import WebAuthConfig
+    from zrb.runner.cli import cli
+
+    monkeypatch.setenv("ZRB_WEB_HTTP_HOST", "0.0.0.0")
+    monkeypatch.setenv("ZRB_WEB_AUTH_ENABLED", "0")
+    auth_config = WebAuthConfig(
+        enable_auth=True,
+        super_admin_password="programmatic-password",
+        secret_key="programmatic-secret",
+    )
+    mock_server = MagicMock()
+    mock_server.serve = AsyncMock()
+    with (
+        patch("zrb.runner.cli.web_auth_config", auth_config),
+        patch("uvicorn.Config"),
+        patch("uvicorn.Server", return_value=mock_server),
+        patch("zrb.runner.web_app.create_web_app"),
+        patch("zrb.runner.web_app.configure_uvicorn_logging"),
+    ):
+        cli.run(str_args=["server", "start"])
+
+    err = capsys.readouterr().err
+    assert "without authentication" not in err
+    assert "still has its default" not in err
+    mock_server.serve.assert_awaited_once()
+
+
+def test_start_server_no_warning_when_auth_enabled_with_custom_credentials(
+    monkeypatch, capsys
+):
+    """No warning at all once auth is on AND the defaults were changed."""
+    from zrb.runner.cli import cli
+
+    monkeypatch.setenv("ZRB_WEB_HTTP_HOST", "0.0.0.0")
+    monkeypatch.setenv("ZRB_WEB_AUTH_ENABLED", "1")
+    monkeypatch.setenv("ZRB_WEB_SUPER_ADMIN_PASSWORD", "a-unique-password")
+    monkeypatch.setenv("ZRB_WEB_SECRET_KEY", "a-unique-secret")
+    mock_server = MagicMock()
+    mock_server.serve = AsyncMock()
+    with (
+        patch("uvicorn.Config"),
+        patch("uvicorn.Server", return_value=mock_server),
+        patch("zrb.runner.web_app.create_web_app"),
+        patch("zrb.runner.web_app.configure_uvicorn_logging"),
+    ):
+        cli.run(str_args=["server", "start"])
+
+    err = capsys.readouterr().err
+    assert "without authentication" not in err
+    assert "still has its default" not in err
 
 
 def test_conversation_name_swallows_lookup_error():
@@ -317,4 +475,4 @@ def test_conversation_name_swallows_lookup_error():
     session = MagicMock()
     session.shared_ctx.xcom.get.side_effect = AttributeError("no xcom")
     # Should not raise despite the lookup blowing up.
-    cli._print_conversation_name(MagicMock(), session)
+    cli.print_conversation_name(MagicMock(), session)

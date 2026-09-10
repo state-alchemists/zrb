@@ -5,18 +5,26 @@ new contributor can scan this file and understand what `from zrb import X`
 exposes. Module-level singletons are typed so IDEs reveal what each one is.
 """
 
+import importlib
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # Resolved lazily at runtime by __getattr__ below; declared here so
+    # type checkers, IDEs and __all__ still see `zrb.User`.
+    from zrb.runner.web_schema.user import User
+
 # --- Builtin tasks (registered as side-effect of import) ------------------
 from zrb import builtin
 
 # --- Attribute descriptors (deferred-eval property types) -----------------
+from zrb.attr.tpl import Tpl
 from zrb.attr.type import (
-    AnyAttr,
     BoolAttr,
     FloatAttr,
     IntAttr,
     StrAttr,
     StrDictAttr,
-    fstring,
+    StrListAttr,
 )
 
 # --- Callbacks ------------------------------------------------------------
@@ -29,6 +37,7 @@ from zrb.cmd.cmd_val import Cmd, CmdPath
 
 # --- Config singleton -----------------------------------------------------
 from zrb.config.config import CFG, Config
+from zrb.config.theme import register_theme
 from zrb.config.web_auth_config import web_auth_config
 
 # --- Content transformers -------------------------------------------------
@@ -63,25 +72,42 @@ from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
 
 # --- LLM agent / chat / config / managers --------------------------------
-from zrb.llm.agent.subagent.manager import SubAgentManager, sub_agent_manager
-from zrb.llm.config.config import LLMConfig, llm_config
+# Each manager is exported with the type you must construct to call it. A
+# manager alone is not a usable API: `hook_manager` without `HookResult` gives
+# you the registry and no way to return from a hook.
+from zrb.llm.agent.subagent.manager import (
+    SubAgentDefinition,
+    SubAgentManager,
+    sub_agent_manager,
+)
+from zrb.llm.agent.subagent.registry import SubAgentRegistry, sub_agent_registry
 from zrb.llm.config.limiter import LLMLimiter, llm_limiter
+from zrb.llm.config.model_resolver import ModelResolver, model_resolver
+from zrb.llm.hook import HookContext, HookEvent, HookResult
 from zrb.llm.hook.manager import HookManager, hook_manager
-from zrb.llm.prompt.tool_guidance import ToolGuidance
+from zrb.llm.hook.registry import HookRegistry, hook_registry
+from zrb.llm.permission import ALLOW, ASK, DENY, PermissionPolicy, Rule
+from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.prompt.registry import PromptRegistry, prompt_registry
+from zrb.llm.skill import Skill, SkillRegistry
 from zrb.llm.skill.manager import SkillManager, skill_manager
+from zrb.llm.skill.registry import skill_registry
 from zrb.llm.task.chat.task import LLMChatTask
 from zrb.llm.task.llm_task import LLMTask
+from zrb.llm.tool.registry import ToolRegistry, tool_registry
+from zrb.llm.tool_call.always_approve import register_always_auto_approve
+from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.util.capabilities import model_capabilities
 
 # --- Runner (CLI + web schemas) ------------------------------------------
 from zrb.runner.cli import Cli, cli
-from zrb.runner.web_schema.user import User
 
 # --- Session --------------------------------------------------------------
 from zrb.session.session import Session
 
 # --- Tasks ---------------------------------------------------------------
 from zrb.task.any_task import AnyTask
-from zrb.task.base_task import BaseTask
+from zrb.task.base.base_task import BaseTask
 from zrb.task.base_trigger import BaseTrigger
 from zrb.task.cmd_task import CmdTask
 from zrb.task.http_check import HttpCheck
@@ -98,26 +124,29 @@ from zrb.util.stream import to_infinite_stream
 from zrb.xcom.xcom import Xcom
 
 # --- Typed annotations for module-level singletons -----------------------
-# `CFG`, `cli`, `*_manager`, `llm_config`, etc. are exported as instances.
+# `CFG`, `cli`, `*_manager`, `model_resolver`, etc. are exported as instances.
 # Type-annotating them at this scope helps IDEs and static analysers report
 # the right interface when users do `from zrb import hook_manager`.
 CFG: Config = CFG
 cli: Cli = cli
-llm_config: LLMConfig = llm_config
 llm_limiter: LLMLimiter = llm_limiter
+model_resolver: ModelResolver = model_resolver
 sub_agent_manager: SubAgentManager = sub_agent_manager
+sub_agent_registry: SubAgentRegistry = sub_agent_registry
 hook_manager: HookManager = hook_manager
+hook_registry: HookRegistry = hook_registry
 skill_manager: SkillManager = skill_manager
+skill_registry: SkillRegistry = skill_registry
 
 __all__ = [
     "builtin",
-    "AnyAttr",
     "BoolAttr",
     "FloatAttr",
     "IntAttr",
     "StrAttr",
     "StrDictAttr",
-    "fstring",
+    "StrListAttr",
+    "Tpl",
     "AnyCallback",
     "Callback",
     "CmdResult",
@@ -168,15 +197,68 @@ __all__ = [
     "Xcom",
     "LLMTask",
     "LLMChatTask",
-    "ToolGuidance",
-    "LLMConfig",
-    "llm_config",
     "LLMLimiter",
     "llm_limiter",
+    "ModelResolver",
+    "model_resolver",
     "SubAgentManager",
     "sub_agent_manager",
+    "SubAgentDefinition",
+    "SubAgentRegistry",
+    "sub_agent_registry",
     "HookManager",
     "hook_manager",
+    "HookEvent",
+    "HookContext",
+    "HookResult",
+    "HookRegistry",
+    "hook_registry",
     "SkillManager",
     "skill_manager",
+    "Skill",
+    "SkillRegistry",
+    "skill_registry",
+    "PromptManager",
+    "PromptRegistry",
+    "prompt_registry",
+    "ToolRegistry",
+    "tool_registry",
+    "AnyUI",
+    "model_capabilities",
+    "register_theme",
+    "register_always_auto_approve",
+    "PermissionPolicy",
+    "Rule",
+    "ALLOW",
+    "DENY",
+    "ASK",
 ]
+
+
+# Public exports resolved on first access: name -> module that defines it.
+_LAZY_EXPORTS = {"User": "zrb.runner.web_schema.user"}
+
+
+def __getattr__(name: str):
+    """Resolve heavy public exports on first access (PEP 562).
+
+    `User` stays a pydantic model, but importing its module eagerly dragged
+    `pydantic.main` and the schema-construction machinery into every
+    `import zrb`. Deferring the *export* keeps `from zrb import User` and
+    `zrb.User` working unchanged, while leaving that cost unpaid for the vast
+    majority of runs that never touch the web UI's auth.
+    """
+    if name in _LAZY_EXPORTS:
+        module = importlib.import_module(_LAZY_EXPORTS[name])
+        return getattr(module, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    """Keep lazily-exported names visible to `dir()` (PEP 562).
+
+    Without this, a name resolved only through `__getattr__` disappears from
+    `dir(zrb)` — and with it REPL and IDE tab-completion — even though the
+    import still works.
+    """
+    return sorted(set(globals()) | set(_LAZY_EXPORTS))

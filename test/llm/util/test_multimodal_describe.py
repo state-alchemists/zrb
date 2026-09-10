@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic_ai.messages import BinaryContent
@@ -25,6 +25,10 @@ def _audio() -> BinaryContent:
 
 def _video() -> BinaryContent:
     return BinaryContent(data=b"\x00\x00\x00\x18ftypmp42", media_type="video/mp4")
+
+
+def _pdf() -> BinaryContent:
+    return BinaryContent(data=b"%PDF-1.4 fake", media_type="application/pdf")
 
 
 @pytest.mark.asyncio
@@ -168,6 +172,53 @@ async def test_image_dropped_when_multimodal_describe_fails():
 
 
 @pytest.mark.asyncio
+async def test_document_dropped_when_main_model_text_only():
+    """A raw PDF (extraction-failure fallback) is not silently passed through."""
+    pdf = _pdf()
+    messages = []
+
+    result = await replace_unsupported_attachments(
+        ["read this", pdf],
+        main_model="openai:gpt-3.5-turbo",
+        multimodal_model=None,
+        print_fn=lambda m: messages.append(m),
+    )
+
+    assert result == "read this"
+    assert any("Dropped document" in m for m in messages)
+    assert any("cannot be auto-described" in m for m in messages)
+
+
+@pytest.mark.asyncio
+async def test_document_kept_when_main_model_supports_documents():
+    pdf = _pdf()
+
+    result = await replace_unsupported_attachments(
+        ["read this"], main_model="openai:gpt-4o", multimodal_model=None
+    )
+    result_with_pdf = await replace_unsupported_attachments(
+        ["read this", pdf], main_model="openai:gpt-4o", multimodal_model=None
+    )
+
+    # An all-string list collapses to plain text (see the function's
+    # docstring/comment) — only the mixed list stays a list.
+    assert result == "read this"
+    assert result_with_pdf[1] is pdf
+
+
+@pytest.mark.asyncio
+async def test_document_never_auto_described_even_with_multimodal_model():
+    """describe_binary_attachment only handles image/audio — documents always drop."""
+    pdf = _pdf()
+
+    described = await describe_binary_attachment(
+        pdf, multimodal_model="openai:gpt-4o-mini"
+    )
+
+    assert described is None
+
+
+@pytest.mark.asyncio
 async def test_describe_returns_none_for_unsupported_modality():
     video = _video()
 
@@ -197,3 +248,105 @@ async def test_describe_returns_none_when_multimodal_model_lacks_modality():
     )
 
     assert result is None
+
+
+class _FakeResult:
+    def __init__(self, text: str):
+        self.text = text
+
+    def __str__(self):
+        return self.text
+
+
+@pytest.mark.asyncio
+async def test_describe_runs_sub_agent_and_returns_text_for_image():
+    """The happy path: a one-shot agent is built with the image prompt and the
+    binary attached, and its output is returned trimmed."""
+    image = _png()
+    captured = {}
+
+    def fake_create_agent(model=None, system_prompt=None, **kwargs):
+        captured["model"] = model
+        captured["system_prompt"] = system_prompt
+        return MagicMock()
+
+    async def fake_run_agent(agent, message, message_history, limiter, attachments):
+        captured["message"] = message
+        captured["attachments"] = attachments
+        return _FakeResult("  a red square  "), None
+
+    with (
+        patch("zrb.llm.agent.create_agent", side_effect=fake_create_agent),
+        patch("zrb.llm.agent.run_agent", side_effect=fake_run_agent),
+        patch(
+            "zrb.llm.config.model_resolver.resolve_configured_model",
+            side_effect=lambda m: f"resolved:{m}",
+        ),
+    ):
+        described = await describe_binary_attachment(
+            image, multimodal_model="openai:gpt-4o-mini"
+        )
+
+    assert described == "a red square"
+    assert captured["model"] == "resolved:openai:gpt-4o-mini"
+    assert "image" in captured["system_prompt"].lower()
+    assert "Describe the attached image" in captured["message"]
+    assert captured["attachments"] == [image]
+
+
+@pytest.mark.asyncio
+async def test_describe_uses_audio_prompt_for_audio_binary():
+    audio = _audio()
+    prompts = []
+
+    def fake_create_agent(system_prompt=None, **kwargs):
+        prompts.append(system_prompt)
+        return MagicMock()
+
+    async def fake_run_agent(**kwargs):
+        return _FakeResult("someone speaking"), None
+
+    with (
+        patch("zrb.llm.agent.create_agent", side_effect=fake_create_agent),
+        patch("zrb.llm.agent.run_agent", side_effect=fake_run_agent),
+        patch(
+            "zrb.llm.config.model_resolver.resolve_configured_model",
+            side_effect=lambda m: m,
+        ),
+    ):
+        described = await describe_binary_attachment(
+            audio, multimodal_model="openai:gpt-4o-audio"
+        )
+
+    assert described == "someone speaking"
+    assert "audio" in prompts[0].lower()
+
+
+@pytest.mark.asyncio
+async def test_describe_returns_none_when_sub_agent_run_fails():
+    image = _png()
+
+    async def failing_run_agent(**kwargs):
+        raise RuntimeError("provider down")
+
+    with (
+        patch("zrb.llm.agent.create_agent", return_value=MagicMock()),
+        patch("zrb.llm.agent.run_agent", side_effect=failing_run_agent),
+        patch(
+            "zrb.llm.config.model_resolver.resolve_configured_model",
+            side_effect=lambda m: m,
+        ),
+    ):
+        described = await describe_binary_attachment(
+            image, multimodal_model="openai:gpt-4o-mini"
+        )
+
+    assert described is None
+
+
+@pytest.mark.asyncio
+async def test_replace_keeps_non_list_non_string_input_untouched():
+    """Tuples and other sequence types pass through without interpretation."""
+    payload = ("keep", "me")
+    result = await replace_unsupported_attachments(payload, main_model="x")
+    assert result is payload

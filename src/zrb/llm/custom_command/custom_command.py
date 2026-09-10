@@ -35,7 +35,6 @@ class CustomCommand(AnyCustomCommand):
 
     def get_prompt(self, kwargs: dict[str, str]) -> str:
         prompt = self._prompt
-        # Prepare replacements
         replacements = dict(kwargs)
         for i, arg_name in enumerate(self.args):
             replacements[str(i + 1)] = kwargs.get(arg_name, "")

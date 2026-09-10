@@ -1,19 +1,19 @@
 import asyncio
-import json
 import os
 from typing import TYPE_CHECKING
 
+from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.argument_formatter.util import format_diff
-from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
-    from pydantic_ai import ToolCallPart
+    from zrb.llm.agent.types import ToolCallPart
+    from zrb.llm.ui.any_agent_output import AnyAgentOutput
 
 
 async def replace_in_file_formatter(
-    ui: UIProtocol,
+    ui: "AnyAgentOutput",
     call: "ToolCallPart",
     args_section: str,
 ) -> str | None:
@@ -24,10 +24,8 @@ async def replace_in_file_formatter(
         return None
 
     try:
-        args = call.args
-        if isinstance(args, str):
-            args = json.loads(args)
-        if not isinstance(args, dict):
+        args = parse_tool_args(call)
+        if args is None:
             return None
 
         path = args.get("path")
@@ -64,7 +62,7 @@ def _format_replace(path, old_text, new_text, count, ui) -> str | None:
     if content == new_content:
         return None
 
-    diff_md = format_diff(content, new_content, path, ui=ui)
+    diff_md = format_diff(content, new_content, path)
     if not diff_md:
         return None
 

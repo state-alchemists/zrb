@@ -8,13 +8,19 @@ without circular imports.
 * ``policy``     — ``Rule`` / ``PermissionPolicy`` (allow|ask|deny) + ``PLAN_MODE_POLICY``
 * ``state``      — ambient ``current_permission_policy`` and ``current_agent_mode``
 
-Default-off invariant: with no policy set and mode ``DEFAULT``, every consumer
+Default-off invariant: with no policy set and mode ``BUILD``, every consumer
 reproduces today's behavior exactly.
 """
 
 from __future__ import annotations
 
-from zrb.llm.permission.capability import Capability, tag, tool_capability
+from zrb.llm.permission.capability import (
+    Capability,
+    capability_metadata,
+    tag,
+    tool_capability,
+)
+from zrb.llm.permission.observability import record_policy_decision
 from zrb.llm.permission.policy import (
     ALLOW,
     ASK,
@@ -32,12 +38,13 @@ from zrb.llm.permission.state import (
     get_current_agent_mode,
     get_current_permission_policy,
     get_effective_policy,
+    permission_policy,
     set_current_agent_mode,
-    set_current_permission_policy,
 )
 
 __all__ = [
     "Capability",
+    "capability_metadata",
     "tag",
     "tool_capability",
     "Rule",
@@ -52,8 +59,9 @@ __all__ = [
     "current_permission_policy",
     "current_agent_mode",
     "get_current_permission_policy",
-    "set_current_permission_policy",
+    "permission_policy",
     "get_current_agent_mode",
     "set_current_agent_mode",
     "get_effective_policy",
+    "record_policy_decision",
 ]

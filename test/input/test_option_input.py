@@ -12,7 +12,6 @@ def test_option_input_initialization():
         prompt="Choose an option",
         options=["option1", "option2", "option3"],
         default="option2",
-        auto_render=True,
         allow_empty=False,
         allow_positional_parsing=True,
         always_prompt=True,
@@ -166,12 +165,11 @@ def test_option_input_to_html_callable_options():
         assert '<option value="dynamic2"' in html
 
 
-def test_option_input_auto_render_false():
-    """Test OptionInput with auto_render=False."""
+def test_option_input_options_resolution():
+    """OptionInput resolves its options through get_str_list_attr."""
     option_input = OptionInput(
         name="test",
         options=["a", "b"],
-        auto_render=False,
     )
 
     shared_ctx = SharedContext(env={})
@@ -303,9 +301,13 @@ class TestOptionInputPromptCli:
         mock_session = MagicMock()
         mock_session.prompt.return_value = "blue"
 
-        # Mock sys.stdin.isatty to return True for TTY mode
+        # Both halves of `SharedContext.is_tty` have to say yes. On Windows the
+        # second one is a real GetConsoleMode probe against stdin, which pytest
+        # has replaced with a capture object -- so patching isatty alone leaves
+        # is_tty False there and the code falls through to `input()`.
         with (
             patch("sys.stdin.isatty", return_value=True),
+            patch("zrb.context.shared_context.is_real_console", return_value=True),
             patch("prompt_toolkit.PromptSession", return_value=mock_session),
         ):
             result = option_input.prompt_cli_str(shared_ctx)
@@ -372,7 +374,6 @@ def test_option_input_to_html_escapes_options():
         name="opt",
         description="<b>desc</b>",
         options=['<img src=x onerror="a">'],
-        auto_render=False,
     )
     rendered = inp.to_html(SharedContext())
     assert "<img" not in rendered

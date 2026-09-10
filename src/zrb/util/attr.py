@@ -1,7 +1,6 @@
 from typing import Any
 
 from zrb.attr.type import (
-    AnyAttr,
     BoolAttr,
     FloatAttr,
     IntAttr,
@@ -17,68 +16,37 @@ from zrb.util.string.conversion import to_boolean
 def get_str_list_attr(
     ctx: AnyContext | AnySharedContext,
     attr: StrListAttr | None,
-    auto_render: bool = True,
 ) -> list[str]:
-    """
-    Retrieve a list of strings from shared context attributes.
-
-    Args:
-        ctx (AnyContext): The shared context object.
-        attr (StrListAttr | None): The string list attribute to retrieve.
-        auto_render (bool): Whether to auto-render the attribute values.
-
-    Returns:
-        list[str]: A list of string attributes.
-    """
+    """Resolve a `StrListAttr` — `None`, a list of literals or `Tpl`/callables,
+    or a callable taking `ctx` — to a plain `list[str]`."""
     if attr is None:
         return []
     if callable(attr):
         return attr(ctx)
-    return [get_str_attr(ctx, val, "", auto_render) for val in attr]
+    return [get_str_attr(ctx, val, "") for val in attr]
 
 
 def get_str_dict_attr(
     ctx: AnyContext | AnySharedContext,
     attr: StrDictAttr | None,
-    auto_render: bool = True,
 ) -> dict[str, Any]:
-    """
-    Retrieve a dictionary of strings from shared context attributes.
-
-    Args:
-        ctx (AnyContext): The shared context object.
-        attr (StrDictAttr | None): The string dictionary attribute to retrieve.
-        auto_render (bool): Whether to auto-render the attribute values.
-
-    Returns:
-        dict[str, Any]: A dictionary of string attributes.
-    """
+    """Resolve a `StrDictAttr` — `None`, a dict of literals or `Tpl`/callables,
+    or a callable taking `ctx` — to a plain `dict[str, Any]`."""
     if attr is None:
         return {}
     if callable(attr):
         return attr(ctx)
-    return {key: get_str_attr(ctx, val, "", auto_render) for key, val in attr.items()}
+    return {key: get_str_attr(ctx, val, "") for key, val in attr.items()}
 
 
 def get_str_attr(
     ctx: AnyContext | AnySharedContext,
     attr: StrAttr | None,
     default: StrAttr = "",
-    auto_render: bool = True,
 ) -> str:
-    """
-    Retrieve a string from shared context attributes.
-
-    Args:
-        ctx (AnyContext): The shared context object.
-        attr (StrAttr | None): The string attribute to retrieve.
-        default (StrAttr): The default value if the attribute is None.
-        auto_render (bool): Whether to auto-render the attribute value.
-
-    Returns:
-        str: The string attribute value.
-    """
-    val = get_attr(ctx, attr, default, auto_render)
+    """Resolve a `StrAttr` to a plain `str`, falling back to `default` (itself
+    resolved the same way) when `attr` is `None`."""
+    val = get_attr(ctx, attr, default)
     if isinstance(val, str):
         return val
     if val is None:
@@ -90,21 +58,10 @@ def get_bool_attr(
     ctx: AnyContext | AnySharedContext,
     attr: BoolAttr | None,
     default: BoolAttr = False,
-    auto_render: bool = True,
 ) -> bool:
-    """
-    Retrieve a boolean from shared context attributes.
-
-    Args:
-        ctx (AnyContext): The shared context object.
-        attr (BoolAttr | None): The boolean attribute to retrieve.
-        default (BoolAttr): The default value if the attribute is None.
-        auto_render (bool): Whether to auto-render the attribute value if it's a string.
-
-    Returns:
-        bool: The boolean attribute value.
-    """
-    val = get_attr(ctx, attr, default, auto_render)
+    """Resolve a `BoolAttr` to a plain `bool`, falling back to `default`
+    (itself resolved the same way) when `attr` is `None`."""
+    val = get_attr(ctx, attr, default)
     if isinstance(val, bool):
         return val
     if val is None:
@@ -116,21 +73,10 @@ def get_int_attr(
     ctx: AnyContext | AnySharedContext,
     attr: IntAttr | None,
     default: IntAttr = 0,
-    auto_render: bool = True,
 ) -> int:
-    """
-    Retrieve an integer from shared context attributes.
-
-    Args:
-        ctx (AnyContext): The shared context object.
-        attr (IntAttr | None): The integer attribute to retrieve.
-        default (IntAttr): The default value if the attribute is None.
-        auto_render (bool): Whether to auto-render the attribute value if it's a string.
-
-    Returns:
-        int: The integer attribute value.
-    """
-    val = get_attr(ctx, attr, default, auto_render)
+    """Resolve an `IntAttr` to a plain `int`, falling back to `default`
+    (itself resolved the same way) when `attr` is `None`."""
+    val = get_attr(ctx, attr, default)
     if isinstance(val, int):
         return val
     if val is None:
@@ -142,21 +88,10 @@ def get_float_attr(
     ctx: AnyContext | AnySharedContext,
     attr: FloatAttr | None,
     default: FloatAttr = 0.0,
-    auto_render: bool = True,
 ) -> float | None:
-    """
-    Retrieve a float from shared context attributes.
-
-    Args:
-        ctx (AnyContext): The shared context object.
-        attr (FloatAttr | None): The float attribute to retrieve.
-        default (FloatAttr): The default value if the attribute is None.
-        auto_render (bool): Whether to auto-render the attribute value if it's a string.
-
-    Returns:
-        float | None: The float attribute value.
-    """
-    val = get_attr(ctx, attr, default, auto_render)
+    """Resolve a `FloatAttr` to a plain `float`, falling back to `default`
+    (itself resolved the same way) when `attr` is `None`."""
+    val = get_attr(ctx, attr, default)
     if isinstance(val, (int, float)):
         return val
     if val is None:
@@ -166,22 +101,16 @@ def get_float_attr(
 
 def get_attr(
     ctx: AnyContext | AnySharedContext,
-    attr: AnyAttr,
-    default: AnyAttr,
-    auto_render: bool = True,
+    attr: Any,
+    default: Any,
 ) -> Any | None:
-    """
-    Retrieve an attribute value from shared context, handling callables and rendering.
+    """Resolve the two shapes every typed `*Attr` getter is built on: `attr`
+    may be a plain value or a callable taking `ctx` (which is what a `Tpl`
+    is) — falling back to `default`, itself resolved the same way, when `attr`
+    is `None`.
 
-    Args:
-        ctx (AnyContext): The shared context object.
-        attr (AnyAttr): The attribute to retrieve. Can be a value, a callable,
-            or a string to render.
-        default (AnyAttr): The default value if the attribute is None.
-        auto_render (bool): Whether to auto-render the attribute value if it's a string.
-
-    Returns:
-        Any | None: The retrieved attribute value or the default value.
+    A plain `str` is a literal. Rendering is opt-in: wrap it in `Tpl` to have
+    it rendered against `ctx`.
     """
     if attr is None:
         if callable(default):
@@ -189,6 +118,4 @@ def get_attr(
         return default
     if callable(attr):
         return attr(ctx)
-    if isinstance(attr, str) and auto_render:
-        return ctx.render(attr)
     return attr

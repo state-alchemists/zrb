@@ -2,7 +2,7 @@
 
 # Built-in Helper Tasks
 
-Zrb comes with a suite of pre-packaged, ready-to-use tasks for common developer operations. You don't need to write these from scratch — by default (`CFG.LOAD_BUILTIN` is `"on"`), simply `import zrb` and every built-in group is auto-registered and ready to run with zero extra code. You can still import individual tasks and bind them to your own `cli` group if you want custom grouping.
+Zrb comes with a suite of pre-packaged, ready-to-use tasks for common developer operations. You don't need to write these from scratch — by default (`CFG.ENABLE_BUILTIN_TASKS` is `"on"`), simply `import zrb` and every built-in group is auto-registered and ready to run with zero extra code. You can still import individual tasks and bind them to your own `cli` group if you want custom grouping.
 
 These are organized into conceptual modules within `zrb.builtin`.
 
@@ -18,14 +18,7 @@ These are organized into conceptual modules within `zrb.builtin`.
 
 ## Available Modules
 
-> Each task below is registered under its group with a short **alias** as the
-> actual CLI subcommand — e.g. the base64-encode task's internal name is
-> `encode-base64`, but its alias is `encode`, so the runnable command is `zrb
-> base64 encode` (not `zrb base64 encode-base64`). The **Command** column
-> below always shows the real, runnable `zrb ...` invocation. The internal
-> task name (used for `from zrb.builtin import ...`, see
-> [Quick Reference](#quick-reference)) is only mentioned where it differs
-> obviously from the alias.
+> Each task below is registered under its group with a short **alias** as the actual CLI subcommand — e.g. the base64-encode task's internal name is `encode-base64`, but its alias is `encode`, so the runnable command is `zrb base64 encode` (not `zrb base64 encode-base64`). The **Command** column below always shows the real, runnable `zrb ...` invocation. The internal task name (used for `from zrb.builtin import ...`, see [Quick Reference](#quick-reference)) is only mentioned where it differs obviously from the alias.
 
 ### 📦 Base64 (`base64`)
 
@@ -107,7 +100,8 @@ AI assistant integration.
 
 ### 🔑 MD5 (`md5`)
 
-Hashing utilities. For other algorithms (SHA family) and HMAC, see the [`hash`](#-hash-hash) group below.
+Hashing utilities. `hash`/`sum` below cover the same ground for MD5 (plus five other algorithms); this
+group is kept for `validate`, which `hash` has no equivalent for. See the [`hash`](#-hash-hash) group.
 
 | Command | Description |
 |---------|-------------|
@@ -225,6 +219,7 @@ All of these are nested under a `shell autocomplete` subgroup.
 |---------|-------------|
 | `zrb shell autocomplete bash` | Generate bash completion script |
 | `zrb shell autocomplete zsh` | Generate zsh completion script |
+| `zrb shell autocomplete fish` | Generate fish completion script |
 | `zrb shell autocomplete powershell` | Generate PowerShell completion script |
 | `zrb shell autocomplete subcmd` | List subcommands for shell completion |
 
@@ -270,14 +265,7 @@ Universally Unique Lexicographically Sortable Identifier generation and validati
 
 To use a built-in task, import it from `zrb.builtin` and add it to your CLI or a specific group.
 
-> **Note:** since these tasks are already auto-registered by default (see the
-> [Available Modules](#available-modules) commands above), you'd normally
-> only do this to set `CFG.LOAD_BUILTIN=off` and cherry-pick specific tasks,
-> or to re-group them under your own custom group/alias. Adding a task
-> directly with `add_task(task)` and no explicit `alias=` uses the task's
-> internal name (e.g. `git-commit`), which is a different, additional command
-> path from the one it already has in its default group (e.g. `zrb git
-> commit`) — both work simultaneously once you've added it this way.
+> **Note:** since these tasks are already auto-registered by default (see the [Available Modules](#available-modules) commands above), you'd normally only do this to set `CFG.ENABLE_BUILTIN_TASKS=off` and cherry-pick specific tasks, or to re-group them under your own custom group/alias. Adding a task directly with `add_task(task)` and no explicit `alias=` uses the task's internal name (e.g. `git-commit`), which is a different, additional command path from the one it already has in its default group (e.g. `zrb git commit`) — both work simultaneously once you've added it this way.
 
 ```python
 from zrb import cli, Group

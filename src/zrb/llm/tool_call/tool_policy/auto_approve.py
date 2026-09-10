@@ -1,14 +1,15 @@
-import json
 import re
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
-from zrb.llm.tool_call.handler import ToolPolicy, UIProtocol
+from zrb.llm.tool_call.args import parse_tool_args
+from zrb.llm.tool_call.handler import ToolPolicy
 
 if TYPE_CHECKING:
-    from pydantic_ai import ToolCallPart
+    from zrb.llm.agent.types import ToolCallPart
+    from zrb.llm.ui.any_agent_output import AnyAgentOutput
 
 
-def auto_approve(
+def auto_approve(  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     tool_name: str,
     kwargs_patterns: dict[str, str] | Callable[[dict[str, Any]], bool] | None = None,
 ) -> ToolPolicy:
@@ -23,32 +24,25 @@ def auto_approve(
         kwargs_patterns = {}
 
     async def approve_tool_call_policy(
-        ui: UIProtocol,
+        ui: "AnyAgentOutput",
         call: "ToolCallPart",
-        next_handler: Callable[[UIProtocol, "ToolCallPart"], Awaitable[Any]],
+        next_handler: Callable[["AnyAgentOutput", "ToolCallPart"], Awaitable[Any]],
     ) -> Any:
-        # lazy: heavy third-party
-        from pydantic_ai import ToolApproved
+        # lazy: zrb internal (heavy via transitive)
+        from zrb.llm.agent.types import ToolApproved
 
-        # Check if tool name matches
         if call.tool_name != tool_name:
             return await next_handler(ui, call)
 
         # Parse arguments (best effort) — needed for the sandbox-escape check
         # even when no kwargs_patterns are configured.
-        args = call.args
-        if isinstance(args, str):
-            try:
-                args = json.loads(args)
-            except (json.JSONDecodeError, ValueError):
-                args = None
+        args = parse_tool_args(call)
 
         # A sandbox-escape request must always reach a human, regardless of
         # any auto-approval configuration.
         if isinstance(args, dict) and args.get("dangerously_skip_sandbox"):
             return await next_handler(ui, call)
 
-        # If kwargs_patterns is empty or None, approve
         if not kwargs_patterns:
             return ToolApproved()
 
@@ -58,7 +52,6 @@ def auto_approve(
             # So we delegate to the next handler.
             return await next_handler(ui, call)
 
-        # Check constraints
         # "all parameter in the call parameter has to match the ones in kwargs_patterns
         # (if that parameter defined in the kwargs_patterns)"
         if callable(kwargs_patterns):
@@ -68,7 +61,6 @@ def auto_approve(
             for arg_name, arg_value in args.items():
                 if arg_name in kwargs_patterns:
                     pattern = kwargs_patterns[arg_name]
-                    # Convert arg_value to string for regex matching
                     if not re.search(pattern, str(arg_value)):
                         return await next_handler(ui, call)
 

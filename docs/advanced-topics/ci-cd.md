@@ -23,9 +23,44 @@ The key principle is to leverage the official Zrb Docker image (`stalchmst/zrb`)
 
 The recommended way to run Zrb commands in a CI/CD environment is by using the official Docker image: `stalchmst/zrb`.
 
-> ⚠️ **Important:** Always specify a version tag (e.g., `stalchmst/zrb:2.35.0`) for reproducible builds, rather than using `latest`.
+> ⚠️ **Important:** Always specify a version tag (e.g., `stalchmst/zrb:3.0.0`) for reproducible builds, rather than using `latest`.
 
 Find available tags on [Docker Hub](https://hub.docker.com/r/stalchmst/zrb/tags).
+
+### Define Your Tasks First
+
+The `zrb test` and `zrb lint` commands used throughout this guide are not built into Zrb — they're your own project's tasks. Define them once in your project's `zrb_init.py`, naming them exactly `test` and `lint` so each shadows the group of the same name (Zrb ships a built-in `test` group with its own `run` subtask; a top-level task you add under the same name takes over `zrb test` directly, no subtask needed):
+
+```python
+from zrb import cli, CmdTask
+
+cli.add_task(CmdTask(name="test", cmd="pytest"))
+cli.add_task(CmdTask(name="lint", cmd="flake8 ."))
+```
+
+Swap `pytest` / `flake8 .` for whatever your project actually uses. Skip this file and `zrb test` falls through to Zrb's own built-in `test` group instead of your project's tests — it prints the group's help and exits 0, so a CI step built on it would silently never fail — and `zrb lint` fails outright, since there's no built-in `lint` command at all.
+
+### Then Set `ZRB_INIT_STRICT=1`
+
+By default, a `zrb_init.py` that raises while loading is reported to stderr and startup continues — the right call at a terminal, where you can read the error and rerun. In CI it is a trap, because the failure is only visible in the log:
+
+```python
+# zrb_init.py
+cli.add_task(CmdTask(name="deploy", cmd="./deploy.sh"))
+config = yaml.safe_load(open("ci.yaml"))   # raises: file missing on this runner
+cli.add_task(CmdTask(name="test", cmd=config["test_cmd"]))
+```
+
+`deploy` was registered before the exception, so `zrb deploy` runs and exits `0`. `test` never was, so `zrb test` falls through to the built-in group and also exits `0`. The pipeline is green and nothing was tested.
+
+Set the variable once, at the job level, and both become hard failures:
+
+```yaml
+env:
+  ZRB_INIT_STRICT: "1"
+```
+
+Zrb still attempts every init source and prints every failure, so one run tells you about all of them — then exits `1` before running your command.
 
 ---
 
@@ -53,7 +88,7 @@ jobs:
   run-zrb-tasks:
     runs-on: ubuntu-latest
     container:
-      image: stalchmst/zrb:2.35.0
+      image: stalchmst/zrb:3.0.0
 
     steps:
       - name: Check out repository code
@@ -94,7 +129,7 @@ GitLab CI/CD uses a `.gitlab-ci.yml` file in the root of your repository.
 ### Example Pipeline
 
 ```yaml
-image: stalchmst/zrb:2.35.0
+image: stalchmst/zrb:3.0.0
 
 stages:
   - setup
@@ -142,7 +177,7 @@ Bitbucket Pipelines uses a `bitbucket-pipelines.yml` file.
 ### Example Pipeline
 
 ```yaml
-image: stalchmst/zrb:2.35.0
+image: stalchmst/zrb:3.0.0
 
 pipelines:
   default:
@@ -183,7 +218,7 @@ pipelines:
 
 | Approach | Pros | Cons |
 |----------|------|------|
-| `stalchmst/zrb:2.35.0` | Reproducible builds | Manual updates needed |
+| `stalchmst/zrb:3.0.0` | Reproducible builds | Manual updates needed |
 | `stalchmst/zrb:latest` | Always newest | May break unexpectedly |
 
 Update the version tag deliberately when ready to adopt newer features or fixes.
@@ -197,6 +232,8 @@ Update the version tag deliberately when ready to adopt newer features or fixes.
 | GitHub Actions | `.github/workflows/ci.yml` | `stalchmst/zrb:VERSION` |
 | GitLab CI/CD | `.gitlab-ci.yml` | `stalchmst/zrb:VERSION` |
 | Bitbucket | `bitbucket-pipelines.yml` | `stalchmst/zrb:VERSION` |
+
+Set `ZRB_INIT_STRICT=1` on every platform: it turns a partially-loaded `zrb_init.py` from a green run into exit `1`. See [Environment Variables](../configuration/env-vars.md#file-discovery--loading).
 
 ---
 

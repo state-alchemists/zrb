@@ -9,13 +9,13 @@ from zrb.llm.tool_call.middleware import (
     ResponseHandler,
     ToolPolicy,
 )
-from zrb.llm.tool_call.ui_protocol import UIProtocol
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.truncate import truncate_chars
 from zrb.util.yaml import yaml_dump
 
 if TYPE_CHECKING:
-    from pydantic_ai import ToolApproved, ToolCallPart, ToolDenied
+    from zrb.llm.agent.types import ToolApproved, ToolCallPart, ToolDenied
+    from zrb.llm.ui.any_agent_output import AnyAgentOutput
 
 # A denial reason is a short human-typed note. Clamp it so a mis-submitted
 # payload (e.g. a whole screen buffer) can never enter the conversation
@@ -25,10 +25,10 @@ MAX_DENIAL_REASON_CHARS = 500
 
 async def check_tool_policies(
     policies: list[ToolPolicy],
-    ui: UIProtocol,
+    ui: AnyAgentOutput,
     call: ToolCallPart,
 ) -> ToolApproved | ToolDenied | None:
-    async def _next_policy(ui: UIProtocol, call: ToolCallPart, index: int) -> Any:
+    async def _next_policy(ui: AnyAgentOutput, call: ToolCallPart, index: int) -> Any:
         if index >= len(policies):
             return None
         policy = policies[index]
@@ -52,31 +52,22 @@ class ToolCallHandler:
         self._argument_formatters = argument_formatters or []
         self._response_handlers = response_handlers or []
 
-    def add_tool_policy(self, *policy: ToolPolicy):
-        self.prepend_tool_policy(*policy)
-
     def prepend_tool_policy(self, *policy: ToolPolicy):
         self._tool_policies = list(policy) + self._tool_policies
 
-    def add_argument_formatter(self, *formatter: ArgumentFormatter):
-        self.prepend_argument_formatter(*formatter)
-
     def prepend_argument_formatter(self, *formatter: ArgumentFormatter):
         self._argument_formatters = list(formatter) + self._argument_formatters
-
-    def add_response_handler(self, *handler: ResponseHandler):
-        self.prepend_response_handler(*handler)
 
     def prepend_response_handler(self, *handler: ResponseHandler):
         self._response_handlers = list(handler) + self._response_handlers
 
     async def handle(
         self,
-        ui: UIProtocol,
+        ui: AnyAgentOutput,
         call: ToolCallPart,
     ) -> ToolApproved | ToolDenied | None:
-        # lazy: heavy third-party
-        from pydantic_ai import ToolApproved, ToolDenied
+        # lazy: zrb internal (heavy via transitive)
+        from zrb.llm.agent.types import ToolApproved, ToolDenied
 
         # Tool Policies (Pre-confirmation)
         policy_result = await self.check_policies(ui, call)
@@ -85,14 +76,17 @@ class ToolCallHandler:
 
         while True:
             message = await self._get_confirm_user_message(ui, call)
-            ui.append_to_output(f"\n\n{message}", end="")
-            # Wait for user input
-            user_input = await ui.ask_user("")
+            # One leading "\n", not two: the confirmation panel is a normal
+            # block boundary like every other (tool call, tool result,
+            # thinking) — a deliberate extra blank line here doubled up
+            # with whatever the previous block already left behind.
+            ui.append_to_output(f"\n{message}", end="")
+            user_input = await ui.ask_user("", output_to_parent=f"\n{message}")
             user_response = user_input.strip()
 
             # Response Handlers (Post-confirmation)
             async def _next_handler(
-                ui: UIProtocol,
+                ui: AnyAgentOutput,
                 call: ToolCallPart,
                 response: str,
                 index: int,
@@ -122,14 +116,14 @@ class ToolCallHandler:
 
     async def check_policies(
         self,
-        ui: UIProtocol,
+        ui: AnyAgentOutput,
         call: ToolCallPart,
     ) -> ToolApproved | ToolDenied | None:
         return await check_tool_policies(self._tool_policies, ui, call)
 
     async def format_approval_message(
         self,
-        ui: UIProtocol,
+        ui: AnyAgentOutput,
         call: ToolCallPart,
         approval_instruction: str | None = None,
     ) -> str:
@@ -141,7 +135,7 @@ class ToolCallHandler:
             approval_instruction: Custom approval instruction. If None, uses default.
 
         This method is public so approval channels can use it to generate
-        consistent messages. Use this instead of the internal _get_confirm_user_message.
+        consistent messages.
         """
         args_section = ""
         if f"{call.args}" != "{}":
@@ -177,7 +171,7 @@ class ToolCallHandler:
 
     async def _get_confirm_user_message(
         self,
-        ui: UIProtocol,
+        ui: AnyAgentOutput,
         call: ToolCallPart,
     ) -> str:
         return await self.format_approval_message(ui, call)

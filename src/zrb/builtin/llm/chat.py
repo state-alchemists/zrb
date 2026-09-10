@@ -1,3 +1,4 @@
+from zrb.attr.tpl import Tpl
 from zrb.builtin.group import llm_group
 from zrb.builtin.llm.chat_tool_policy import (
     approve_if_mv_inside_journal_dir,
@@ -8,25 +9,30 @@ from zrb.builtin.llm.chat_tool_policy import (
 from zrb.config.config import CFG
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
-from zrb.llm.common_tools import defer_common_tools
+from zrb.llm.common_tools import apply_common_tools
 from zrb.llm.custom_command import get_skill_custom_command
-from zrb.llm.hook.journal import create_journaling_hook_factory
 from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.prompt.profile import MINIMAL_PROFILE, active_profile
 from zrb.llm.skill.manager import skill_manager
 from zrb.llm.task.chat.task import LLMChatTask
-from zrb.llm.tool.delegate import create_delegate_to_agent_tool
+from zrb.llm.tool.delegate import (
+    create_delegate_to_agent_tool,
+    create_search_agent_tool,
+)
 from zrb.llm.tool.delegate_background import (
+    background_delegation_live_context,
     create_background_delegate_tool,
     create_get_delegation_result_tool,
 )
 from zrb.llm.tool_call import (
     auto_approve,
-    bash_safe_command_policy,
     read_file_validation_policy,
     replace_in_file_formatter,
     replace_in_file_response_handler,
-    replace_in_file_validation_policy,
     write_file_formatter,
+)
+from zrb.llm.tool_call.tool_policy.replace_in_file_validation import (
+    replace_in_file_validation_policy,
 )
 from zrb.runner.cli import cli
 
@@ -61,73 +67,88 @@ llm_chat = LLMChatTask(
             always_prompt=False,
         ),
     ],
-    # fstring template (StrAttr); LLMChatTask.model omits bare str from its
-    # annotation but renders it at run time via get_attr in _get_model.
-    model="{ctx.input.model}",  # type: ignore[arg-type]
-    yolo="{ctx.input.yolo}",
-    message="{ctx.input.message}",
-    conversation_name="{ctx.input.session}",
+    model=Tpl("{ctx.input.model}"),
+    yolo=Tpl("{ctx.input.yolo}"),
+    message=Tpl("{ctx.input.message}"),
+    conversation_name=Tpl("{ctx.input.session}"),
     # Comma-separated file paths; normalized to BinaryContent in the agent
     # run path (prompt_content.normalize_attachments).
     attachment=lambda ctx: [
         path.strip() for path in ctx.input.attach.split(",") if path.strip()
     ],
-    interactive="{ctx.input.interactive}",
+    interactive=Tpl("{ctx.input.interactive}"),
     sandbox=lambda ctx: ctx.input.get("sandbox") or None,
     history_processors=[],
     prompt_manager=PromptManager(
         assistant_name=lambda ctx: CFG.LLM_ASSISTANT_NAME,
     ),
-    ui_ascii_art=lambda ctx: CFG.LLM_ASSISTANT_ASCII_ART,
-    ui_assistant_name=lambda ctx: CFG.LLM_ASSISTANT_NAME,
-    ui_greeting=lambda ctx: f"{CFG.LLM_ASSISTANT_NAME}\n{CFG.LLM_ASSISTANT_JARGON}",
-    ui_jargon=lambda ctx: CFG.LLM_ASSISTANT_JARGON,
 )
 
-# Register zrb-shipped default tools, factories, and guidance — deferred to the
-# first exec (ExecMixin._exec_action calls ensure_common_tools) so applying it,
-# which transitively imports pydantic_ai, stays off the `import zrb` path. The
-# same deferral is set on `sub_agent_manager` at the bottom of
-# `zrb/llm/agent/subagent/manager/manager.py`, so the main agent and sub-agents
-# share their tool surface and guidance.
-defer_common_tools(llm_chat)
+# Give the singleton the zrb-shipped default tools, factories, and guidance.
+# `apply_common_tools` is storage-only — it appends per-run providers the
+# host's build-time resolution runs against a fresh list, so nothing resolves
+# (and the transitively-imported `pydantic_ai` does not load) until the first
+# exec / agent build. `sub_agent_manager` opts in the same way at the bottom
+# of `zrb/llm/agent/subagent/manager.py`, so both share the tool surface.
+apply_common_tools(llm_chat)
 
 
-def _deferred(tool):
-    """Wrap a tool so its schema is hidden until the model searches for it by name.
+def _tool_factory(tool, defer_loading: bool = True):
+    """Wrap a tool, optionally hiding its schema until searched for by name.
 
-    Delegation is used often enough that the Tool Usage Guide already tells the
-    model its exact name — deferring only removes the schema from every turn's
-    token cost, not the model's knowledge that the tool exists.
+    Deferring removes the schema from every turn's token cost, not the model's
+    knowledge that the tool exists — native tool search still surfaces the
+    name on demand. ``DelegateToAgent`` is the exception that loads eagerly:
+    its schema carries the sub-agent roster, and a model that has to search
+    before it can see which agents exist mostly does not delegate at all.
     """
-    # lazy: pydantic_ai (heavy third-party deferral)
-    from pydantic_ai import Tool
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import Tool
 
-    return Tool(tool, defer_loading=True)
+    return Tool(tool, defer_loading=defer_loading)
 
 
 # Delegate tools — main agent only. Sub-agents filter these out via
-# `zrb_is_delegate_tool` (see SubAgentManager.create_agent), but
-# `apply_common_tools` already registered the matching tool guidance so
-# the prompt mentions them in both places consistently.
-llm_chat.add_tool_factory(
-    lambda ctx: _deferred(create_delegate_to_agent_tool()),
-    lambda ctx: _deferred(create_background_delegate_tool()),
-    lambda ctx: _deferred(create_get_delegation_result_tool()),
+# `zrb_is_delegate_tool` (see SubAgentManager.create_agent). The when-to-
+# delegate judgment lives in the workflow's `Delegating to sub-agents`
+# section; the how (roster, envelope) lives in these docstrings. The `minimal`
+# profile drops delegation entirely (ADR-0049), so the roster schema and the
+# fan-out machinery never reach a ~3B model.
+def _delegate_tool_factory(ctx):
+    # Resolve from this run's model rather than CFG.LLM_MODEL: ``/model`` and
+    # the task's ``model=`` override can select a small model while the global
+    # default remains capable.
+    if active_profile(llm_chat.get_model(ctx)) == MINIMAL_PROFILE:
+        return []
+    return [
+        _tool_factory(create_delegate_to_agent_tool(), defer_loading=False),
+        _tool_factory(create_search_agent_tool(), defer_loading=False),
+        _tool_factory(create_background_delegate_tool()),
+        _tool_factory(create_get_delegation_result_tool()),
+    ]
+
+
+llm_chat.append_tool_factory(_delegate_tool_factory)
+
+# Notify the parent agent when one of its background delegations finishes,
+# instead of leaving it to remember to poll GetDelegationResult.
+llm_chat.prompt_manager.add_live_context(
+    "background_delegations", background_delegation_live_context
 )
 
 # Add argument formatter (show arguments when asking for user confirmation)
-llm_chat.add_argument_formatter(replace_in_file_formatter, write_file_formatter)
+llm_chat.prepend_argument_formatter(replace_in_file_formatter, write_file_formatter)
 
 # Add response handler (update tool)
-llm_chat.add_response_handler(replace_in_file_response_handler)
+llm_chat.prepend_response_handler(replace_in_file_response_handler)
 
 # Add tool policies (automatically approve/disprove tool calling).
 # These also propagate to sub-agent tool calls via the
 # `current_tool_confirmation` ContextVar set by `run_agent` — see the
 # `_confirm_tool_execution` chain in `zrb.llm.ui.base.ui`.
-llm_chat.add_tool_policy(
-    bash_safe_command_policy(),
+llm_chat.prepend_tool_policy(
+    # bash_safe_command_policy is registered by apply_common_tools, alongside the
+    # shell tools it guards.
     replace_in_file_validation_policy,
     read_file_validation_policy,
     auto_approve("Read", approve_if_path_inside_cwd),
@@ -149,14 +170,25 @@ llm_chat.add_tool_policy(
     auto_approve("RM", approve_if_path_inside_journal_dir),
     auto_approve("MV", approve_if_mv_inside_journal_dir),
     auto_approve("SearchJournal"),
+    # The journal writers cannot address anything outside CFG.LLM_JOURNAL_DIR —
+    # they derive every path themselves — so there is nothing for the user to
+    # adjudicate, and prompting would make recording memory expensive enough to
+    # skip.
+    auto_approve("LogActivity"),
+    auto_approve("WriteJournalNote"),
     auto_approve("WebSearch"),
     auto_approve("WebFetch"),
     auto_approve("ActivateSkill"),
+    auto_approve("SearchSkill"),
     # AskUserQuestion is auto-approved intrinsically (it registers itself via
     # register_always_auto_approve in zrb.llm.tool.ask), so the cascade approves
     # it in every path — main agent, sub-agents, web — not just here. See
     # ADR-0062. No entry needed in this list.
     auto_approve("DelegateToAgent"),
+    # Roster search is metadata — it finds delegation targets, it does not
+    # delegate — so it prompts nothing; the sub-agent's own tool calls still
+    # route their approvals to the user.
+    auto_approve("SearchAgent"),
     # Starting a background delegation and polling its result are harmless; the
     # sub-agent's own tool calls still route their approvals to the user.
     auto_approve("DelegateToAgentBackground"),
@@ -167,7 +199,7 @@ llm_chat.add_tool_policy(
     # via the permission policy (PLAN_MODE_POLICY sets it to ASK) so the user
     # must approve the plan before execution resumes.
     # MonitorProcess is read-only (poll/wait); kill still routes through the user.
-    # Starting a background command goes through Shell/Bash (background=True), which
+    # Starting a background command goes through Shell (background=True), which
     # is gated by bash_safe_command_policy like any other shell call.
     auto_approve("MonitorProcess"),
     # LSP tools - read-only, safe to auto-approve
@@ -188,11 +220,7 @@ llm_chat.add_tool_policy(
 )
 
 # Add custom command (slash commands)
-llm_chat.add_custom_command(get_skill_custom_command(skill_manager))
-
-# Add hook factories
-# Journaling hook will check CFG.LLM_INCLUDE_JOURNAL_REMINDER at execution time
-llm_chat.add_hook_factory(create_journaling_hook_factory())
+llm_chat.append_custom_command(get_skill_custom_command(skill_manager))
 
 llm_group.add_task(llm_chat)
 cli.add_task(llm_chat)

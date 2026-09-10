@@ -6,7 +6,6 @@ Handles starting, stopping, and communicating with Language Server Protocol serv
 
 import asyncio
 import json
-from urllib.parse import unquote, urlparse
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
@@ -24,7 +23,7 @@ from zrb.llm.lsp.protocol import (
     LSPServerError,
     LSPTimeoutError,
 )
-from zrb.llm.lsp.server_operations import OperationsMixin
+from zrb.llm.lsp.server_operations import LSPServerOperations
 
 __all__ = [
     "LSP_SERVER_CONFIGS",
@@ -37,7 +36,7 @@ __all__ = [
 ]
 
 
-class LSPServer(OperationsMixin):
+class LSPServer(LSPServerOperations):
     """Manages communication with an LSP server process."""
 
     def __init__(
@@ -76,13 +75,22 @@ class LSPServer(OperationsMixin):
         """Check if the server process is alive."""
         return self.process is not None and self.process.returncode is None
 
+    @property
+    def open_files(self) -> set[str]:
+        """URIs this server has sent `textDocument/didOpen` for."""
+        return self._open_files
+
+    @property
+    def diagnostics(self) -> dict[str, "tuple[int | None, list[dict]]"]:
+        """Cached push-diagnostics per URI, keyed by `(version, diagnostics)`."""
+        return self._diagnostics
+
     async def start(self) -> bool:
         """Start the LSP server process."""
         if self.is_alive:
             return True
 
         try:
-            # Start the process
             self.process = await asyncio.create_subprocess_exec(
                 *self.config.command,
                 stdin=asyncio.subprocess.PIPE,
@@ -94,14 +102,12 @@ class LSPServer(OperationsMixin):
             self.reader = self.process.stdout
             self.writer = self.process.stdin
 
-            # Start reading responses in background
             self._read_task = asyncio.create_task(self._read_loop())
             # Drain stderr so a server that logs verbosely (e.g. node/pyright)
             # can't fill the pipe buffer and block on its own stderr writes,
             # which would stall every request.
             self._stderr_task = asyncio.create_task(self._drain_stderr())
 
-            # Initialize the server
             await self._initialize()
 
             zrb_print(
@@ -117,6 +123,16 @@ class LSPServer(OperationsMixin):
             zrb_print(
                 f"  ✗ Failed to start LSP server '{self.config.name}': {e}", plain=True
             )
+            # The subprocess may already be spawned (e.g. _initialize() timed
+            # out or raised) — stop() tears down the reader/stderr tasks and
+            # terminates the process so a failed start never leaks it.
+            if self.process is not None:
+                try:
+                    await self.stop()
+                except Exception as stop_error:
+                    CFG.LOGGER.debug(
+                        f"LSP cleanup after failed start also failed: {stop_error}"
+                    )
             return False
 
     async def stop(self):
@@ -131,7 +147,6 @@ class LSPServer(OperationsMixin):
 
         if self.process:
             try:
-                # Send shutdown request
                 if self.writer:
                     shutdown_msg = JSONRPCMessage.create_request(
                         "shutdown", None, self._next_id()
@@ -143,7 +158,6 @@ class LSPServer(OperationsMixin):
                     )
                     await self.writer.drain()
 
-                # Send exit notification
                 if self.writer:
                     exit_msg = JSONRPCMessage.create_notification("exit")
                     self.writer.write(
@@ -153,8 +167,8 @@ class LSPServer(OperationsMixin):
                     self.writer.close()
                     await self.writer.wait_closed()
 
-            except Exception:
-                pass
+            except Exception as e:
+                CFG.LOGGER.debug(f"LSP graceful exit failed; forcing terminate: {e}")
 
             finally:
                 try:
@@ -165,6 +179,16 @@ class LSPServer(OperationsMixin):
                     )
                 except asyncio.TimeoutError:
                     self.process.kill()
+                    # Reap the killed process while the loop is still alive. A
+                    # child left un-reaped at loop close logs
+                    # "Loop <...> that handles pid N is closed" when it exits.
+                    try:
+                        await asyncio.wait_for(
+                            self.process.wait(),
+                            timeout=CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
+                        )
+                    except asyncio.TimeoutError:
+                        pass
                 finally:
                     self.process = None
                     self.initialized = False
@@ -175,7 +199,7 @@ class LSPServer(OperationsMixin):
             "initialize",
             {
                 "processId": None,
-                "rootUri": self._path_to_uri(self.root_path),
+                "rootUri": self.path_to_uri(self.root_path),
                 "capabilities": LSPProtocol.CAPABILITIES,
                 "clientInfo": LSPProtocol.CLIENT_INFO,
             },
@@ -184,7 +208,6 @@ class LSPServer(OperationsMixin):
 
         result = await self._send_request_raw(params)
         if result is not None:
-            # Send initialized notification
             initialized = JSONRPCMessage.create_notification("initialized")
             await self._send_notification_raw(initialized)
             self.initialized = True
@@ -196,7 +219,7 @@ class LSPServer(OperationsMixin):
         self.request_id += 1
         return self.request_id
 
-    def _path_to_uri(self, path: str) -> str:
+    def path_to_uri(self, path: str) -> str:
         """Convert file path to URI.
 
         Delegates to the canonical encoder in ``LSPProtocol`` so the URIs we
@@ -206,12 +229,6 @@ class LSPServer(OperationsMixin):
         causing URI mismatches.
         """
         return LSPProtocol.create_text_document_identifier(path)["uri"]
-
-    def _uri_to_path(self, uri: str) -> str:
-        """Convert URI to file path."""
-        if uri.startswith("file://"):
-            return unquote(urlparse(uri).path)
-        return uri
 
     async def _send_request_raw(self, message: str) -> dict | None:
         """Send a raw JSON-RPC request and wait for response."""
@@ -273,13 +290,11 @@ class LSPServer(OperationsMixin):
                     break
                 buffer += data
 
-                # Process all complete messages in buffer
                 while b"\r\n\r\n" in buffer:
                     header_end = buffer.index(b"\r\n\r\n")
                     header = buffer[:header_end]
                     body_start = header_end + 4
 
-                    # Parse content-length (bytes) from header
                     content_length = 0
                     for line in header.split(b"\r\n"):
                         if line.lower().startswith(b"content-length:"):
@@ -319,7 +334,6 @@ class LSPServer(OperationsMixin):
         try:
             msg = json.loads(body)
 
-            # Check if this is a response to a pending request
             if "id" in msg:
                 request_id = msg["id"]
                 future = self.pending_requests.pop(request_id, None)
@@ -336,7 +350,6 @@ class LSPServer(OperationsMixin):
                     elif "result" in msg:
                         future.set_result(msg["result"])
 
-            # Handle server-originated notifications.
             elif "method" in msg:
                 method = msg["method"]
                 params = msg.get("params", {})

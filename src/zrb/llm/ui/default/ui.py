@@ -8,25 +8,28 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.llm.app.keybinding import create_output_keybindings
-from zrb.llm.app.layout import create_input_field, create_layout, create_output_field
-from zrb.llm.app.redirection import GlobalStreamCapture
-from zrb.llm.app.style import create_style
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-from zrb.llm.task.llm_task import LLMTask
-from zrb.llm.tool_call import (
-    ArgumentFormatter,
-    ResponseHandler,
-    ToolPolicy,
-)
+from zrb.llm.tool_call import ArgumentFormatter, ResponseHandler, ToolPolicy
 from zrb.llm.ui.base.ui import BaseUI
-from zrb.llm.ui.default.confirmation_mixin import ConfirmationMixin
-from zrb.llm.ui.default.keybindings_mixin import KeybindingsMixin
-from zrb.llm.ui.default.lifecycle_mixin import LifecycleMixin
-from zrb.llm.ui.default.output_mixin import OutputMixin
-from zrb.llm.ui.default.selection_mixin import SelectionMixin
-from zrb.util.ascii_art.banner import create_banner
+from zrb.llm.ui.default.agent_picker import UIAgentPicker
+from zrb.llm.ui.default.app.keybinding import create_output_keybindings
+from zrb.llm.ui.default.app.layout import (
+    create_input_field,
+    create_layout,
+    create_output_field,
+)
+from zrb.llm.ui.default.app.redirection import GlobalStreamCapture
+from zrb.llm.ui.default.app.style import create_style
+from zrb.llm.ui.default.confirmation import UIConfirmation
+from zrb.llm.ui.default.keybindings import UIKeybindings
+from zrb.llm.ui.default.lifecycle import UILifecycle
+from zrb.llm.ui.default.message_editing import UIMessageEditing
+from zrb.llm.ui.default.output import UIOutput
+from zrb.llm.ui.default.selection import UISelection
+from zrb.llm.ui.ui_config import UIConfig
+from zrb.util.ascii_art.banner import get_ascii_art
+from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
@@ -35,103 +38,98 @@ if TYPE_CHECKING:
     from prompt_toolkit.layout import Layout
     from prompt_toolkit.lexers import Lexer
     from prompt_toolkit.styles import Style
-    from pydantic_ai import UserContent
-    from pydantic_ai.models import Model
     from rich.theme import Theme
+
+    from zrb.llm.agent.types import Model, UserContent
+    from zrb.llm.task.llm_task import LLMTask
 
 logger = logging.getLogger(__name__)
 
+# The greeting shares the screen with the conversation, so it lists at most
+# this many commands and points at `/help` for the rest.
+GREETING_COMMAND_LIMIT = 18
 
-class UI(  # type: ignore[reportIncompatibleVariableOverride]
-    LifecycleMixin,
-    KeybindingsMixin,
-    SelectionMixin,
-    ConfirmationMixin,
-    OutputMixin,
-    BaseUI,
-):
+
+class UI(BaseUI):
+    """The full-screen terminal chat UI — what `zrb llm chat` runs.
+
+    `BaseUI` owns the chat itself (message loop, command dispatch, agent
+    interaction) and leaves rendering abstract; this is the prompt_toolkit
+    implementation of that rendering. It is the default and by far the most
+    used `AnyUI`, so a custom backend is usually better started from
+    `SimpleUI` — see `docs/llm/llm-custom-ui.md`.
+
+    What it adds on top of `BaseUI`:
+        - A prompt_toolkit `Application`: layout, styling, keybindings, and the
+          `Float`s behind tool confirmations, option pickers and agent switching.
+        - Width-dependent output. Blocks appended via `append_rendered` keep
+          their source and renderer in `_rendered_blocks` so `rewrap_output`
+          can redraw them when the terminal resizes.
+        - Collapsible thinking, text and tool-call blocks.
+        - `GlobalStreamCapture`, so a library writing to stdout underneath the
+          agent lands in the transcript instead of tearing the screen.
+
+    Composed parts, each in its own module under `default/`: `UILifecycle`,
+    `UIOutput`, `UIConfirmation`, `UISelection`, `UIMessageEditing`,
+    `UIAgentPicker`, `UIKeybindings`. Per ADR-0035 this class re-exposes their
+    public surface as one-line delegators, which is most of its length.
+
+    Two wrappers take an `AnyUI` and return one, so they compose with this
+    class rather than replacing it: `MultiUI` broadcasts to several UIs at once
+    (terminal plus Telegram, say), and `BufferedUI` buffers a sub-agent's
+    output before flushing it to its parent.
+    """
+
     def __init__(
         self,
         ctx: AnyContext,
-        yolo_xcom_key: str,
-        greeting: str,
-        assistant_name: str,
-        ascii_art: str,
-        jargon: str,
         output_lexer: Lexer,
         llm_task: LLMTask,
         history_manager: AnyHistoryManager,
         initial_message: Any = "",
-        initial_attachments: list["UserContent"] = [],
-        conversation_session_name: str = "",
-        is_yolo: bool | frozenset = False,
-        triggers: list[Callable[[], AsyncIterable[Any]]] = [],
-        response_handlers: list[ResponseHandler] = [],
-        tool_policies: list[ToolPolicy] = [],
-        argument_formatters: list[ArgumentFormatter] = [],
+        initial_attachments: "list[UserContent] | None" = None,
+        ui_config: UIConfig | None = None,
+        triggers: list[Callable[[], AsyncIterable[Any]]] | None = None,
+        response_handlers: list[ResponseHandler] | None = None,
+        tool_policies: list[ToolPolicy] | None = None,
+        argument_formatters: list[ArgumentFormatter] | None = None,
         markdown_theme: "Theme | None" = None,
-        summarize_commands: list[str] = [],
-        attach_commands: list[str] = [],
-        exit_commands: list[str] = [],
-        info_commands: list[str] = [],
-        save_commands: list[str] = [],
-        load_commands: list[str] = [],
-        rewind_commands: list[str] = [],
-        redirect_output_commands: list[str] = [],
-        yolo_toggle_commands: list[str] = [],
-        set_model_commands: list[str] = [],
-        exec_commands: list[str] = [],
-        btw_commands: list[str] = [],
-        plan_commands: list[str] = [],
-        copy_commands: list[str] = [],
-        voice_commands: list[str] = [],
-        custom_commands: list[AnyCustomCommand] = [],
+        custom_commands: list[AnyCustomCommand] | None = None,
         model: "Model | str | None" = None,
-        custom_model_names: list[str] = [],
-        show_ollama_models: bool = True,
-        show_pydantic_ai_models: bool = True,
+        custom_model_names: list[str] | None = None,
         enable_rewind: bool = False,
         snapshot_dir: str = "",
     ):
         self._pending_invalidate = False
         self._invalidate_task: asyncio.Task | None = None
+        # [start, end, source, renderer] per width-dependent block appended
+        # through `append_rendered` — see that method and `rewrap_output`.
+        self._rendered_blocks: list[list] = []
+        self._rendered_width: int | None = None
         super().__init__(
             ctx=ctx,
-            yolo_xcom_key=yolo_xcom_key,
-            assistant_name=assistant_name,
             llm_task=llm_task,
             history_manager=history_manager,
             initial_message=initial_message,
             initial_attachments=initial_attachments,
-            conversation_session_name=conversation_session_name,
-            is_yolo=is_yolo,
+            ui_config=ui_config,
             triggers=triggers,
             response_handlers=response_handlers,
             tool_policies=tool_policies,
             argument_formatters=argument_formatters,
             markdown_theme=markdown_theme,
-            summarize_commands=summarize_commands,
-            attach_commands=attach_commands,
-            exit_commands=exit_commands,
-            info_commands=info_commands,
-            save_commands=save_commands,
-            load_commands=load_commands,
-            rewind_commands=rewind_commands,
-            redirect_output_commands=redirect_output_commands,
-            yolo_toggle_commands=yolo_toggle_commands,
-            set_model_commands=set_model_commands,
-            exec_commands=exec_commands,
-            btw_commands=btw_commands,
-            plan_commands=plan_commands,
-            copy_commands=copy_commands,
-            voice_commands=voice_commands,
             custom_commands=custom_commands,
             model=model,
             enable_rewind=enable_rewind,
             snapshot_dir=snapshot_dir,
         )
-        self._ascii_art = ascii_art
-        self._jargon = jargon
+        self._lifecycle = UILifecycle(self)
+        self._output = UIOutput(self)
+        self._confirmation = UIConfirmation(self)
+        self._selection = UISelection(self, confirmation=self._confirmation)
+        self._message_editing = UIMessageEditing(self)
+        self._agent_picker = UIAgentPicker(self)
+        self._keybindings = UIKeybindings(self)
 
         self._refresh_task: asyncio.Task | None = None
 
@@ -142,54 +140,50 @@ class UI(  # type: ignore[reportIncompatibleVariableOverride]
         from prompt_toolkit.history import InMemoryHistory
 
         self._input_history = InMemoryHistory()
+        # `_ui_config` backs every `self.<x>_commands` property, so it holds
+        # the current aliases. The completer offers all of them; a command
+        # that cannot run reports that from its own handler (ADR-0093).
         self._input_field = create_input_field(
             history_manager=self._history_manager,
-            attach_commands=self._attach_commands,
-            exit_commands=self._exit_commands,
-            info_commands=self._info_commands,
-            save_commands=self._save_commands,
-            load_commands=self._load_commands,
-            rewind_commands=(
-                self._rewind_commands if self._snapshot_manager is not None else []
-            ),
-            redirect_output_commands=self._redirect_output_commands,
-            summarize_commands=self._summarize_commands,
-            set_model_commands=self._set_model_commands,
-            exec_commands=self._exec_commands,
-            btw_commands=self._btw_commands,
-            plan_commands=self._plan_commands,
-            copy_commands=self._copy_commands,
-            voice_commands=self._voice_commands,
+            ui_config=self._ui_config,
             custom_commands=self._custom_commands,
             history=self._input_history,
             custom_model_names=custom_model_names,
-            show_ollama_models=show_ollama_models,
-            show_pydantic_ai_models=show_pydantic_ai_models,
+            up_arrow_handler=self.handle_up_arrow,
+            down_arrow_handler=self.handle_down_arrow,
+            recall_active=self.recall_navigation_active,
         )
 
-        help_text = self._get_help_text(limit=20, max_length=75)
-        full_greeting = create_banner(
-            self._ascii_art,
-            f"{greeting}\n{help_text}",
-            max_width=get_terminal_size().columns,
-        )
         custom_output_kb = create_output_keybindings(self._input_field)
         self._output_field = create_output_field(
-            full_greeting, output_lexer, key_bindings=custom_output_kb
+            "", output_lexer, key_bindings=custom_output_kb
         )
+        # Resolved once: an unknown art name falls back to a *random* file, so
+        # re-resolving per render would reshuffle the image on every resize.
+        greeting_panel = self.get_help_panel(
+            art=get_ascii_art(self.ui_config.ascii_art),
+            header=self.ui_config.greeting,
+            max_commands=GREETING_COMMAND_LIMIT,
+        )
+        self.append_rendered(greeting_panel, render_help_panel)
+        self.append_to_output("")
 
         # AskUserQuestion selection widget (hidden until a choice is active).
-        self._init_selection_state()
+        self._selection.init_selection_state()
         choice_float = self._create_choice_float()
+
+        # Sub-agent picker + live view (hidden until Down Arrow opens it).
+        self._agent_picker.init_agent_picker_state()
+        agent_picker_float = self._create_agent_picker_float()
 
         self._layout = create_layout(
             title=self._assistant_name,
-            jargon=self._jargon,
+            jargon=self.ui_config.jargon,
             input_field=self._input_field,
             output_field=self._output_field,
             info_bar_text=self.get_info_bar_text,
             status_bar_text=self.get_status_bar_text,
-            extra_floats=[choice_float],
+            extra_floats=[choice_float, agent_picker_float],
             agent_activity_text=self.get_agent_activity_text,
         )
 
@@ -200,12 +194,27 @@ class UI(  # type: ignore[reportIncompatibleVariableOverride]
         self.setup_app_keybindings(
             app_keybindings=self._app_kb, llm_task=self._llm_task
         )
-        self._application = self._create_application(
-            layout=self._layout, keybindings=self._app_kb, style=self._style
-        )
+        # Built on first access, not here -- see the `application` property.
+        self._application: "Application | None" = None
 
-        if self._initial_message:
-            self._application.after_render.add_handler(self._on_first_render)
+    def _on_render(self, app: "Application") -> None:
+        try:
+            if self.viewing_agent_id is not None:
+                # While viewing a sub-agent the pane shows that agent's buffer
+                # (see UIAgentPicker); the main transcript's re-wrap is parked
+                # until Esc returns to it.
+                self.sync_output_to_viewed_agent()
+            else:
+                self.rewrap_output()
+        except Exception as e:
+            # Runs on every frame — a re-render failure must not kill the paint.
+            # Log only the first occurrence of each distinct failure: the same
+            # failure on every frame would otherwise print a warning per
+            # redraw (a "recurring error" wall of identical lines).
+            message = f"Output re-wrap skipped: {e}"
+            if message != getattr(self, "_last_render_error", None):
+                self._last_render_error = message
+                logger.warning(message)
 
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
@@ -223,7 +232,75 @@ class UI(  # type: ignore[reportIncompatibleVariableOverride]
 
     @property
     def application(self) -> "Application":
+        """The prompt_toolkit `Application`, built on first access.
+
+        Deferred out of `__init__` because building it calls
+        `prompt_toolkit.output.create_output`, which needs a real console:
+        on Windows, constructing one without a Win32 console screen buffer
+        raises `NoConsoleScreenBufferError`. Doing that from `__init__` made
+        `UI(...)` unconstructible anywhere a console is absent -- a Git Bash
+        or mintty shell, a piped/redirected run, and every test that only
+        wanted the pure post-construction logic. Nothing between `__init__`
+        and `UILifecycle` needs the app object, and by the time it *is* read
+        the UI is genuinely about to take over the terminal, so that is the
+        honest place for the requirement to bite.
+        """
+        if self._application is None:
+            self._application = self._create_application(
+                layout=self._layout, keybindings=self._app_kb, style=self._style
+            )
+            # prompt_toolkit redraws on SIGWINCH, so a render is the cheapest
+            # place to notice a new width and re-wrap the markdown on screen.
+            self._application.after_render.add_handler(self._on_render)
+            if self._initial_message:
+                self._application.after_render.add_handler(self.on_first_render)
         return self._application
+
+    @property
+    def capture(self) -> GlobalStreamCapture:
+        """The stdout/stderr capture guarding the terminal while the app runs."""
+        return self._capture
+
+    @property
+    def refresh_task(self) -> "asyncio.Task | None":
+        """The task running the periodic repaint loop, if started."""
+        return self._refresh_task
+
+    @refresh_task.setter
+    def refresh_task(self, value: "asyncio.Task | None") -> None:
+        self._refresh_task = value
+
+    @property
+    def rendered_blocks(self) -> "list[list]":
+        """[start, end, source, renderer] per width-dependent rendered block."""
+        return self._rendered_blocks
+
+    @property
+    def rendered_width(self) -> "int | None":
+        """The output width the tracked rendered blocks were last wrapped at."""
+        return self._rendered_width
+
+    @rendered_width.setter
+    def rendered_width(self, value: "int | None") -> None:
+        self._rendered_width = value
+
+    @property
+    def pending_invalidate(self) -> bool:
+        """Whether a debounced repaint is already scheduled."""
+        return self._pending_invalidate
+
+    @pending_invalidate.setter
+    def pending_invalidate(self, value: bool) -> None:
+        self._pending_invalidate = value
+
+    @property
+    def invalidate_task(self) -> "asyncio.Task | None":
+        """The task running the debounced repaint, if scheduled."""
+        return self._invalidate_task
+
+    @invalidate_task.setter
+    def invalidate_task(self, value: "asyncio.Task | None") -> None:
+        self._invalidate_task = value
 
     def _create_choice_float(self):
         """Float hosting the AskUserQuestion widget, shown only when active."""
@@ -232,8 +309,13 @@ class UI(  # type: ignore[reportIncompatibleVariableOverride]
         from prompt_toolkit.layout.containers import ConditionalContainer, Float
         from prompt_toolkit.widgets import Frame
 
+        choice_window = self._selection.choice_window
+        if choice_window is None:
+            raise RuntimeError(
+                "init_selection_state was not called before _create_choice_float"
+            )
         framed = Frame(
-            self._choice_window,
+            choice_window,
             title="Select an answer",
             style="class:choice-frame",
         )
@@ -245,6 +327,29 @@ class UI(  # type: ignore[reportIncompatibleVariableOverride]
             right=0,
             content=ConditionalContainer(
                 content=framed, filter=Condition(self.has_active_choice)
+            ),
+        )
+
+    def _create_agent_picker_float(self):
+        """Float hosting the sub-agent picker, shown only while active."""
+        # lazy: heavy third-party
+        from prompt_toolkit.filters import Condition
+        from prompt_toolkit.layout.containers import ConditionalContainer, Float
+        from prompt_toolkit.widgets import Frame
+
+        framed = Frame(
+            self._agent_picker.agent_picker_window,
+            title="Talk to a sub-agent",
+            style="class:agent-picker-frame",
+        )
+        # Full-width (left=right=0), anchored just above the input, matching
+        # the choice float.
+        return Float(
+            bottom=4,
+            left=0,
+            right=0,
+            content=ConditionalContainer(
+                content=framed, filter=Condition(self.has_active_agent_picker)
             ),
         )
 
@@ -301,3 +406,273 @@ class UI(  # type: ignore[reportIncompatibleVariableOverride]
             output=output,
             clipboard=clipboard,
         )
+
+    # =========================================================================
+    # UILifecycle delegators
+    # =========================================================================
+
+    async def cleanup_background_tasks(self) -> None:
+        await self._lifecycle.cleanup_background_tasks()
+
+    def handle_application_run_error(self, exc: Exception) -> None:
+        self._lifecycle.handle_application_run_error(exc)
+
+    async def run_async(self) -> Any:
+        return await self._lifecycle.run_async()
+
+    def handle_first_render(self) -> None:
+        self._lifecycle.handle_first_render()
+
+    def on_first_render(self, app: "Application") -> None:
+        self._lifecycle.on_first_render(app)
+
+    def invalidate_ui(self) -> None:
+        self._lifecycle.invalidate_ui()
+
+    def on_exit(self) -> None:
+        self._lifecycle.on_exit()
+
+    # =========================================================================
+    # UIAgentPicker delegators
+    # =========================================================================
+
+    def has_active_agent_picker(self) -> bool:
+        return self._agent_picker.has_active_agent_picker()
+
+    @property
+    def viewing_agent_id(self) -> str | None:
+        return self._agent_picker.viewing_agent_id
+
+    @property
+    def saved_main_output(self) -> str | None:
+        return self._agent_picker.saved_main_output
+
+    @saved_main_output.setter
+    def saved_main_output(self, value: str | None) -> None:
+        self._agent_picker.saved_main_output = value
+
+    def open_agent_picker(self) -> bool:
+        return self._agent_picker.open_agent_picker()
+
+    def close_agent_picker(self) -> None:
+        self._agent_picker.close_agent_picker()
+
+    def move_agent_picker_cursor(self, delta: int) -> None:
+        self._agent_picker.move_agent_picker_cursor(delta)
+
+    def confirm_agent_picker(self) -> bool:
+        return self._agent_picker.confirm_agent_picker()
+
+    def enter_agent_view(self, session: Any) -> None:
+        self._agent_picker.enter_agent_view(session)
+
+    def exit_agent_view(self) -> None:
+        self._agent_picker.exit_agent_view()
+
+    def cancel_viewed_agent(self) -> bool:
+        return self._agent_picker.cancel_viewed_agent()
+
+    def sync_output_to_viewed_agent(self) -> None:
+        self._agent_picker.sync_output_to_viewed_agent()
+
+    # =========================================================================
+    # UIMessageEditing delegators
+    # =========================================================================
+
+    @property
+    def queued_edit_entry(self) -> Any:
+        return self._message_editing.queued_edit_entry
+
+    def handle_up_arrow(self, event: Any) -> bool:
+        return self._message_editing.handle_up_arrow(event)
+
+    def handle_down_arrow(self, event: Any) -> bool:
+        return self._message_editing.handle_down_arrow(event)
+
+    def recall_navigation_active(self) -> bool:
+        return self._message_editing.recall_navigation_active()
+
+    def handle_enter_queued_edit(self, event: Any) -> bool:
+        return self._message_editing.handle_enter_queued_edit(event)
+
+    def _track_echo_span(self, entry: Any, echo: str) -> None:
+        """Override hook `BaseUI` invokes polymorphically (see its base no-op)."""
+        self._message_editing.track_echo_span(entry, echo)
+
+    def _redraw_echo(self, entry: Any) -> None:
+        """Override hook `BaseUI` invokes polymorphically (see its base no-op)."""
+        self._message_editing.redraw_echo(entry)
+
+    # =========================================================================
+    # UIOutput delegators
+    # =========================================================================
+    # `is_thinking`/`current_confirmation` are not redeclared here: `UI` is a
+    # genuine `BaseUI` subclass (is-a, not composed), and `BaseUI` already
+    # owns that state and exposes it correctly — inheriting it is enough.
+
+    @property
+    def output_part(self) -> "UIOutput":
+        """The composed `UIOutput` part (public seam for tests)."""
+        return self._output
+
+    @property
+    def output_text(self) -> str:
+        return self._output.output_text
+
+    @property
+    def output_field(self) -> Any:
+        """The prompt-toolkit output-field widget (own field, TUI-specific)."""
+        return self._output_field
+
+    @property
+    def input_field(self) -> Any:
+        """The prompt-toolkit input-field widget (own field, TUI-specific)."""
+        return self._input_field
+
+    def append_to_output(
+        self,
+        *values: object,
+        sep: str = " ",
+        end: str = "\n",
+        file: Any = None,
+        flush: bool = False,
+        kind: str = "text",
+    ) -> None:
+        self._output.append_to_output(
+            *values, sep=sep, end=end, file=file, flush=flush, kind=kind
+        )
+
+    def append_markdown(self, markdown_text: str) -> None:
+        self._output.append_markdown(markdown_text)
+
+    def print_help(self) -> None:
+        self._output.print_help()
+
+    def append_rendered(
+        self, source: Any, renderer: "Callable[[Any, int | None], str]"
+    ) -> None:
+        self._output.append_rendered(source, renderer)
+
+    def rewrap_output(self) -> None:
+        self._output.rewrap_output()
+
+    def replace_output_span(self, start: int, end: int, replacement: str) -> bool:
+        return self._output.replace_output_span(start, end, replacement)
+
+    def record_tool_call_block(self, collapsed: str, full: str) -> None:
+        self._output.append_toggle_block(collapsed, full)
+
+    def mark_thinking_block_start(self) -> None:
+        self._output.mark_thinking_block_start()
+
+    def collapse_thinking_block(self, collapsed: str, full: str) -> bool:
+        return self._output.collapse_thinking_block(collapsed, full)
+
+    def mark_text_block_start(self) -> None:
+        self._output.mark_text_block_start()
+
+    def collapse_text_block(self, collapsed: str, full: str) -> bool:
+        return self._output.collapse_text_block(collapsed, full)
+
+    def update_tool_prepare(self, key: str, text: str) -> None:
+        self._output.update_tool_prepare(key, text)
+
+    def update_shell_output(self, key: str, text: str) -> None:
+        self._output.update_shell_output(key, text)
+
+    def finish_shell_output(self, key: str, collapsed: str, full: str) -> bool:
+        return self._output.finish_shell_output(key, collapsed, full)
+
+    def toggle_collapsible_block(self) -> bool:
+        # While viewing a sub-agent, the output pane shows THAT sub-agent's
+        # own buffered text, tracked by its own toggle-block scope — not the
+        # main transcript's `rendered_blocks`. Route there so Ctrl+O always
+        # operates on whatever is actually displayed.
+        toggled = (
+            self._agent_picker.toggle_viewed_agent_block()
+            if self.viewing_agent_id is not None
+            else self._output.toggle_collapsible_block_at_cursor()
+        )
+        if toggled:
+            self.invalidate_ui()
+        return toggled
+
+    def set_output_text(self, text: str) -> None:
+        self._output.set_output_text(text)
+
+    @property
+    def output_field_width(self) -> int | None:
+        return self._output.output_field_width
+
+    def get_info_bar_text(self) -> Any:
+        return self._output.get_info_bar_text()
+
+    def get_agent_activity_text(self) -> Any:
+        return self._output.get_agent_activity_text()
+
+    def get_status_bar_text(self) -> Any:
+        return self._output.get_status_bar_text()
+
+    def schedule_invalidate(self) -> None:
+        self._output.schedule_invalidate()
+
+    # =========================================================================
+    # UIConfirmation delegators
+    # =========================================================================
+
+    async def ask_user(
+        self,
+        prompt: str,
+        output_to_parent: str = "",
+        agent_id: str | None = None,
+    ) -> str:
+        return await self._confirmation.ask_user(prompt, output_to_parent, agent_id)
+
+    async def ask_user_choice(self, spec: Any, agent_id: str | None = None) -> str:
+        return await self._confirmation.ask_user_choice(spec, agent_id)
+
+    def submit_user_answer(self, text: str) -> bool:
+        return self._confirmation.submit_user_answer(text)
+
+    def cancel_pending_confirmations(self, flush: bool = True) -> None:
+        self._confirmation.cancel_pending_confirmations(flush=flush)
+
+    def resolve_current(self, text: str, echo: str | None) -> bool:
+        return self._confirmation.resolve_current(text, echo)
+
+    def begin_choice(self, spec: Any) -> None:
+        self._selection.begin_choice(spec)
+
+    def end_choice(self) -> None:
+        self._selection.end_choice()
+
+    def handle_confirmation(self, event: Any) -> bool:
+        # `UISelection` is the front: it handles the pending-free-text case
+        # and falls through to `UIConfirmation`'s base case otherwise —
+        # mirroring the old MRO where `UISelection` preceded `UIConfirmation`.
+        return self._selection.handle_confirmation(event)
+
+    # =========================================================================
+    # UISelection delegators
+    # =========================================================================
+
+    def has_active_choice(self) -> bool:
+        return self._selection.has_active_choice()
+
+    def move_choice_cursor(self, delta: int) -> None:
+        self._selection.move_choice_cursor(delta)
+
+    def toggle_choice_current(self) -> None:
+        self._selection.toggle_choice_current()
+
+    def confirm_choice(self) -> bool:
+        return self._selection.confirm_choice()
+
+    # =========================================================================
+    # UIKeybindings delegators
+    # =========================================================================
+
+    def setup_app_keybindings(
+        self, app_keybindings: "KeyBindings", llm_task: Any
+    ) -> None:
+        self._keybindings.setup_app_keybindings(app_keybindings, llm_task)

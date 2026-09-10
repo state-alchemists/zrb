@@ -33,6 +33,7 @@ from zrb.llm.agent.run.error_classifier import (
     is_retryable_error,
 )
 from zrb.llm.agent.run.history_utils import (
+    TurnPruneFloor,
     drop_oldest_turn,
     strip_thinking_parts,
     strip_to_text_only,
@@ -79,7 +80,7 @@ async def handle_stream_error(
     current_message: Any,
     run_history: list[Any],
     print_fn: Callable[[str], Awaitable[Any] | Any],
-    min_turns: int = 0,
+    min_turns: TurnPruneFloor = TurnPruneFloor.ANY_TURN_MAY_DROP,
 ) -> RetryOutcome:
     """Decide whether/how to retry after a stream error. Sleeps for transient errors."""
     # lazy: heavy third-party — pydantic_ai pulls in OpenAI/Anthropic SDKs.
@@ -235,7 +236,6 @@ async def handle_stream_error(
             sanitized = list(sanitized) + [
                 ModelRequest(parts=[UserPromptPart(content=explainer)])
             ]
-            fallback_message = current_message
             print_fn(
                 "\n[SYSTEM] Model response rejected by provider — "
                 "collapsing history to text-only and retrying..."
@@ -246,7 +246,7 @@ async def handle_stream_error(
             return RetryOutcome(
                 should_retry=True,
                 new_history=sanitized,
-                new_message=fallback_message,
+                new_message=current_message,
             )
 
     # Deferred-tool-results mismatch after history compression.

@@ -19,17 +19,23 @@ class OptionInput(BaseInput):
         prompt: str | None = None,
         options: StrListAttr | None = None,
         default: StrAttr = "",
-        auto_render: bool = True,
         allow_empty: bool = False,
         allow_positional_parsing: bool = True,
         always_prompt: bool = True,
     ):
+        """Define an input restricted to a fixed set of choices.
+
+        Args:
+            options: The allowed values, or a callable returning them. Each value
+                may be a `Tpl` rendered against the context.
+
+        Every other parameter is `BaseInput`'s and behaves identically.
+        """
         super().__init__(
             name=name,
             description=description,
             prompt=prompt,
             default=default,
-            auto_render=auto_render,
             allow_empty=allow_empty,
             allow_positional_parsing=allow_positional_parsing,
             always_prompt=always_prompt,
@@ -41,7 +47,7 @@ class OptionInput(BaseInput):
         description = html.escape(self.description)
         default = self.get_default_str(shared_ctx)
         lines = [f'<select name="{name}" placeholder="{description}">']
-        for value in get_str_list_attr(shared_ctx, self._options, self._auto_render):
+        for value in get_str_list_attr(shared_ctx, self._options):
             selected = "selected" if value == default else ""
             escaped_value = html.escape(value)
             lines.append(
@@ -53,7 +59,7 @@ class OptionInput(BaseInput):
     def _prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
         prompt_message = self.prompt_message
         default_value = self.get_default_str(shared_ctx)
-        options = get_str_list_attr(shared_ctx, self._options, self._auto_render)
+        options = get_str_list_attr(shared_ctx, self._options)
         option_str = ", ".join(options)
         if default_value != "":
             prompt_message = f"{prompt_message} ({option_str}) [{default_value}]"

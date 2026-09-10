@@ -3,21 +3,25 @@ config dir names, and LSP server preference."""
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from zrb.config.env_field import (
     EnvField,
-    colon_join,
-    colon_list,
     comma_join,
     comma_list,
-    expanduser_colon_list,
+    expanduser_path_list,
     on_off,
+    path_list,
+    path_list_join,
 )
 from zrb.util.string.conversion import to_boolean
 
 
 class LLMSearchMixin:
-    ENV_PREFIX: str
-    ROOT_GROUP_NAME: str
+    if TYPE_CHECKING:
+        # Attributes supplied by sibling mixins on the composed Config class.
+        ENV_PREFIX: str  # FoundationMixin
+        ROOT_GROUP_NAME: str  # FoundationMixin
 
     def __init__(self):
         self.DEFAULT_LLM_SEARCH_PROJECT: str = "on"
@@ -30,12 +34,17 @@ class LLMSearchMixin:
         self.DEFAULT_LLM_LSP_PREFERRED_SERVERS: str = ""
         self.DEFAULT_LLM_ENABLE_BUILTIN_SKILLS: str = "on"
         self.DEFAULT_LLM_ENABLE_BUILTIN_AGENTS: str = "on"
+        self.DEFAULT_LLM_SKILLS: str = ""
+        self.DEFAULT_LLM_AGENTS: str = ""
         super().__init__()
 
     LLM_PLUGIN_DIRS = EnvField(
-        expanduser_colon_list,
-        serialize=colon_join,
-        doc="Colon-separated directories to scan for LLM plugin packages (skills, agents).",
+        expanduser_path_list,
+        serialize=path_list_join,
+        doc=(
+            "Colon-separated (semicolon on Windows) directories to scan for "
+            "LLM plugin packages (skills, agents)."
+        ),
     )
 
     LLM_LSP_PREFERRED_SERVERS = EnvField(
@@ -65,36 +74,38 @@ class LLMSearchMixin:
     )
 
     LLM_CONFIG_DIR_NAMES = EnvField(
-        colon_list,
-        serialize=colon_join,
+        path_list,
+        serialize=path_list_join,
         default_factory=lambda cfg: (
-            cfg.DEFAULT_LLM_CONFIG_DIR_NAMES or f".claude:.{cfg.ROOT_GROUP_NAME}"
+            cfg.DEFAULT_LLM_CONFIG_DIR_NAMES
+            or path_list_join([".claude", f".{cfg.ROOT_GROUP_NAME}"])
         ),
         doc=(
             "Config subdirectory names to look for in each traversed dir "
-            "(colon-separated). Default: ['.claude', '.{ROOT_GROUP_NAME}']."
+            "(colon-separated; semicolon on Windows). "
+            "Default: ['.claude', '.{ROOT_GROUP_NAME}']."
         ),
     )
 
     LLM_BASE_SEARCH_DIRS = EnvField(
-        colon_list,
-        serialize=colon_join,
+        path_list,
+        serialize=path_list_join,
         doc=(
             "Explicit base directories containing skills/, agents/, plugins/ "
-            "subdirs (colon-separated)."
+            "subdirs (colon-separated; semicolon on Windows)."
         ),
     )
 
     LLM_EXTRA_SKILL_DIRS = EnvField(
-        colon_list,
-        serialize=colon_join,
-        doc="Additional direct skill directories (colon-separated).",
+        path_list,
+        serialize=path_list_join,
+        doc="Additional direct skill directories (colon-separated; semicolon on Windows).",
     )
 
     LLM_EXTRA_AGENT_DIRS = EnvField(
-        colon_list,
-        serialize=colon_join,
-        doc="Additional direct agent directories (colon-separated).",
+        path_list,
+        serialize=path_list_join,
+        doc="Additional direct agent directories (colon-separated; semicolon on Windows).",
     )
 
     LLM_ENABLE_BUILTIN_SKILLS = EnvField(
@@ -113,5 +124,27 @@ class LLMSearchMixin:
         doc=(
             "Enable/disable the builtin sub-agents (src/zrb/llm_plugin/agents). "
             "User/project/plugin agents are unaffected."
+        ),
+    )
+
+    LLM_SKILLS = EnvField(
+        comma_list,
+        serialize=comma_join,
+        doc=(
+            "Name allowlist for visible skills, the env twin of `skill_registry`. "
+            "Empty means all discovered + built-in skills. Non-empty "
+            "restricts the catalogue to the named skills; `LLM_ENABLE_BUILTIN_SKILLS` "
+            "still gates built-ins independently."
+        ),
+    )
+
+    LLM_AGENTS = EnvField(
+        comma_list,
+        serialize=comma_join,
+        doc=(
+            "Name allowlist for the sub-agent roster, the env twin of "
+            "`sub_agent_registry`. Empty means all discovered + built-in "
+            "agents. Non-empty restricts the roster to the named agents; "
+            "`LLM_ENABLE_BUILTIN_AGENTS` still gates built-ins independently."
         ),
     )

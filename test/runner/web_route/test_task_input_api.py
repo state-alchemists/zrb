@@ -1,6 +1,5 @@
 """Tests for task_input_api_route.py."""
 
-import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -8,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from zrb.config.web_auth_config import WebAuthConfig
-from zrb.group.any_group import AnyGroup
+from zrb.group.any_group import AnyGroup, NodeNotFoundError
 from zrb.runner.web_route.task_input_api_route import serve_task_input_api
 from zrb.task.any_task import AnyTask
 
@@ -34,8 +33,6 @@ class TestTaskInputAPI:
 
     def test_task_not_found(self, web_auth_config, root_group):
         """Returns 404 when task/group not found."""
-        from zrb.util.group import NodeNotFoundError
-
         app = FastAPI()
         serve_task_input_api(app, root_group, web_auth_config)
         client = TestClient(app)
@@ -45,11 +42,8 @@ class TestTaskInputAPI:
         ) as mock_user:
             mock_user.return_value = MagicMock(can_access_task=lambda t: True)
 
-            with patch(
-                "zrb.runner.web_route.task_input_api_route.extract_node_from_args",
-                side_effect=NodeNotFoundError("not found"),
-            ):
-                response = client.get("/api/v1/task-inputs/nonexistent")
+            root_group.extract_node.side_effect = NodeNotFoundError("not found")
+            response = client.get("/api/v1/task-inputs/nonexistent")
 
         assert response.status_code == 404
 
@@ -70,11 +64,8 @@ class TestTaskInputAPI:
         ) as mock_user:
             mock_user.return_value = user
 
-            with patch(
-                "zrb.runner.web_route.task_input_api_route.extract_node_from_args",
-                return_value=(task, ["task"], []),
-            ):
-                response = client.get("/api/v1/task-inputs/protected_task")
+            root_group.extract_node.return_value = (task, ["task"], [])
+            response = client.get("/api/v1/task-inputs/protected_task")
 
         assert response.status_code == 403
 
@@ -95,15 +86,12 @@ class TestTaskInputAPI:
         ) as mock_user:
             mock_user.return_value = user
 
+            root_group.extract_node.return_value = (task, ["task"], [])
             with patch(
-                "zrb.runner.web_route.task_input_api_route.extract_node_from_args",
-                return_value=(task, ["task"], []),
+                "zrb.runner.web_route.task_input_api_route.get_task_str_kwargs",
+                return_value={"input1": "default_value"},
             ):
-                with patch(
-                    "zrb.runner.web_route.task_input_api_route.get_task_str_kwargs",
-                    return_value={"input1": "default_value"},
-                ):
-                    response = client.get("/api/v1/task-inputs/test_task")
+                response = client.get("/api/v1/task-inputs/test_task")
 
         assert response.status_code == 200
 
@@ -123,10 +111,7 @@ class TestTaskInputAPI:
         ) as mock_user:
             mock_user.return_value = user
 
-            with patch(
-                "zrb.runner.web_route.task_input_api_route.extract_node_from_args",
-                return_value=(group, ["group"], []),
-            ):
-                response = client.get("/api/v1/task-inputs/some_group")
+            root_group.extract_node.return_value = (group, ["group"], [])
+            response = client.get("/api/v1/task-inputs/some_group")
 
         assert response.status_code == 404

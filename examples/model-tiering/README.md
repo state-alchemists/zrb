@@ -50,7 +50,6 @@ Send a few messages and watch the model name in the info bar cycle through the t
 
 ```python
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.config.config import llm_config
 from zrb.config.config import CFG
 
 MODEL_PRO = "zrb:model-pro"
@@ -86,8 +85,8 @@ def render_model(model):
 tracker = ModelTierTracker()
 
 llm_chat.custom_model_names = CUSTOM_MODEL_NAMES
-llm_config.model_getter = tracker
-llm_config.model_renderer = render_model
+llm_chat.model_getter = tracker
+llm_chat.model_renderer = render_model
 ```
 
 ## Customization
@@ -102,7 +101,9 @@ llm_config.model_renderer = render_model
 
 ## See Also
 
-- `src/zrb/llm/config/config.py` — `model_getter` and `model_renderer`
+- `src/zrb/llm/config/model_resolver.py` — model-name resolution (the old `LLMConfig`
+  singleton is removed in 3.x)
+- `src/zrb/llm/task/llm_task.py` — `model_getter` / `model_renderer` (task-scoped properties)
 - `src/zrb/llm/task/chat/task.py` — `custom_model_names` parameter on `LLMChatTask`
 - `examples/llm-hooks/` — hook system for session lifecycle events
 - `src/zrb/config/config.py` — `CFG.LLM_MODEL` and other defaults

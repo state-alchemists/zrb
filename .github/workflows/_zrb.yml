@@ -6,10 +6,19 @@ on:
       command:
         required: true
         type: string
-      environment:
-        required: true
+      comment-file:
+        required: false
         type: string
-    secrets: {}
+        default: ""
+      fetch-depth:
+        required: false
+        type: number
+        default: 2
+    secrets:
+      OPENAI_API_KEY:
+        required: false
+      ZRB_LLM_MODEL:
+        required: false
 
 jobs:
 
@@ -17,12 +26,21 @@ jobs:
   Run-command:
     runs-on: ubuntu-latest
     container:
-      image: stalchmst/zrb:2.31.0
+      image: stalchmst/zrb:3.0.0b11
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ZRB_LLM_MODEL: ${{ secrets.ZRB_LLM_MODEL || vars.ZRB_LLM_MODEL }}
+      ZRB_LLM_JOURNAL_ENABLED: "false"
+      ZRB_INIT_STRICT: "1"
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: ${{ inputs.fetch-depth }}
+
+      - name: Trust the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Show Info
         run: |
           echo "🙋 PIC: ${{ github.actor }}"
@@ -30,10 +48,20 @@ jobs:
           echo "🐧 OS: ${{ runner.os }}"
           echo "🔎 Branch: ${{ github.ref }}"
           echo "🔎 Repo: ${{ github.repository }}"
+
       - name: Run command
         shell: bash
         run: |
           set -e
           echo "🏁 Start running"
           ${{ inputs.command }}
+
+      - name: Post report as a pull-request comment
+        if: always() && inputs.comment-file != '' && github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          COMMENT_FILE: ${{ inputs.comment-file }}
+        shell: bash
+        run: zrb submit-comment --file "$COMMENT_FILE"
+
       - run: echo "🍏 This job's status is ${{ job.status }}."

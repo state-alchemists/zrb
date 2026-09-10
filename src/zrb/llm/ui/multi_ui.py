@@ -1,31 +1,44 @@
 import asyncio
+import inspect
 import logging
 import sys
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, TextIO
 
 if TYPE_CHECKING:
-    from zrb.llm.tool_call.ui_protocol import ChoiceSpec
+    from zrb.llm.agent.types import RequestUsage, RunUsage
+
+    from zrb.llm.ui.any_ui import ChoiceSpec
 
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
-from zrb.llm.approval.approval_channel import ApprovalContext
+from zrb.llm.approval.any_approval_channel import ApprovalContext
+from zrb.llm.permission.state import (
+    AgentMode,
+    get_current_agent_mode,
+    set_current_agent_mode,
+)
+from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.ui.base.message_queue import MessageQueue, submit_user_message_via_queue
+from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
 from zrb.session.session import Session
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
 
+logger = logging.getLogger(__name__)
 
-class MultiUI:
+
+class MultiUI(UIStateDefaultsMixin, AnyUI):
     """UI wrapper that broadcasts output to multiple UIs and waits for first response.
 
-    This class implements UIProtocol and delegates to multiple child UIs:
+    This class implements AnyUI and delegates to multiple child UIs:
     - Output is broadcast to ALL child UIs
     - Input waits for FIRST response from ANY child UI
     - All child UIs share a SINGLE message queue (shared state)
     - Main UI (first by default) runs the main event loop
 
     Architecture:
-        When any child UI receives user input, it should call MultiUI._submit_user_message()
+        When any child UI receives user input, it should call MultiUI.submit_user_message()
         which:
         1. Broadcasts the user message to ALL UIs
         2. Puts a job in the shared message queue
@@ -33,11 +46,11 @@ class MultiUI:
 
     Usage:
         multi_ui = MultiUI([terminal_ui, telegram_ui])
-        # Child UIs should route _submit_user_message through multi_ui
+        # Child UIs should route submit_user_message through multi_ui
         llm_task.set_ui(multi_ui)
     """
 
-    def __init__(self, uis: list[Any], main_ui_index: int = 0):
+    def __init__(self, uis: list[AnyUI], main_ui_index: int = 0):
         self._uis = uis
         self._main_ui_index = main_ui_index
         self._responses: dict[int, asyncio.Future[str]] = {}
@@ -46,7 +59,8 @@ class MultiUI:
         self._child_tasks: list[asyncio.Task] = []
         self._pending_input_tasks: list[asyncio.Task] = []
         # Shared message queue for all UIs
-        self._message_queue: asyncio.Queue = asyncio.Queue()
+        self._message_queue: MessageQueue = MessageQueue()
+        self._active_run_context: Any = None
         self._process_messages_task: asyncio.Task | None = None
         self._running_llm_task: asyncio.Task | None = None
         self._is_thinking: bool = False
@@ -74,6 +88,42 @@ class MultiUI:
         """Get the tool call handler."""
         return self._tool_call_handler
 
+    @property
+    def last_winning_ui(self) -> Any:
+        """The child UI whose input won the last confirmation race, if any."""
+        return self._last_winning_ui
+
+    @last_winning_ui.setter
+    def last_winning_ui(self, value: Any) -> None:
+        self._last_winning_ui = value
+
+    @property
+    def child_tasks(self) -> list[asyncio.Task]:
+        """Background tasks spawned per-child (e.g. trigger loops)."""
+        return self._child_tasks
+
+    @child_tasks.setter
+    def child_tasks(self, value: list[asyncio.Task]) -> None:
+        self._child_tasks = value
+
+    @property
+    def pending_input_tasks(self) -> list[asyncio.Task]:
+        """In-flight `ask_user`/`ask_user_choice` races across child UIs."""
+        return self._pending_input_tasks
+
+    @pending_input_tasks.setter
+    def pending_input_tasks(self, value: list[asyncio.Task]) -> None:
+        self._pending_input_tasks = value
+
+    @property
+    def process_messages_task(self) -> "asyncio.Task | None":
+        """The background task running `process_messages_loop`, if started."""
+        return self._process_messages_task
+
+    @process_messages_task.setter
+    def process_messages_task(self, value: "asyncio.Task | None") -> None:
+        self._process_messages_task = value
+
     def set_approval_channel(self, channel: Any):
         """Set the approval channel for tool confirmations."""
         self._approval_channel = channel
@@ -88,15 +138,63 @@ class MultiUI:
         return list(self._uis)
 
     @property
-    def _main_ui(self) -> Any:
+    def main_ui(self) -> Any:
         return self._uis[self._main_ui_index] if self._uis else None
+
+    @property
+    def small_model(self):
+        """The main child's `/model small ...` override (delegated so the agent
+        runner's `run_agent` binds `current_small_model` from the MultiUI itself
+        rather than seeing `None` and falling back to CFG)."""
+        return getattr(self.main_ui, "small_model", None)
+
+    @property
+    def multimodal_model(self):
+        """The main child's `/model multimodal ...` override — same delegation
+        rationale as `small_model`."""
+        return getattr(self.main_ui, "multimodal_model", None)
+
+    @property
+    def message_queue(self) -> "MessageQueue":
+        """The shared queue every child UI's turn is submitted through."""
+        return self._message_queue
+
+    @property
+    def is_thinking(self) -> bool:
+        """Whether a turn is currently streaming through this MultiUI."""
+        return self._is_thinking
+
+    @is_thinking.setter
+    def is_thinking(self, value: bool) -> None:
+        self._is_thinking = value
+
+    @property
+    def last_result_data(self) -> "str | None":
+        """The raw last-turn result, or None before any turn has completed."""
+        return self._last_result_data
+
+    @last_result_data.setter
+    def last_result_data(self, value: "str | None") -> None:
+        self._last_result_data = value
+
+    @property
+    def active_run_context(self) -> Any:
+        """Mirrors `BaseUI.active_run_context` — the live pydantic-ai
+        `RunContext` for the turn currently streaming through this MultiUI, or
+        None between turns / while a turn is suspended. Read by
+        `submit_user_message` to steer a new message into the live turn
+        instead of queuing it."""
+        return self._active_run_context
+
+    @active_run_context.setter
+    def active_run_context(self, ctx: Any) -> None:
+        self._active_run_context = ctx
 
     def set_llm_task(self, llm_task: Any):
         """Set the LLM task for shared processing."""
         self._llm_task = llm_task
         for ui in self._uis:
-            if hasattr(ui, "llm_task"):
-                ui.llm_task = llm_task
+            ui.llm_task = llm_task
 
     def append_to_output(
         self,
@@ -113,40 +211,155 @@ class MultiUI:
                 ui.append_to_output(
                     *values, sep=sep, end=end, file=file, flush=flush, kind=kind
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                CFG.LOGGER.debug(f"Child UI append_to_output failed: {e}")
+
+    def _fanout(self, method_name: str, /, *args, **kwargs) -> None:
+        """Call `method_name` on every child that implements it.
+
+        Children are best-effort: one child raising must not stop the others,
+        because a MultiUI fans one agent run out to independent channels (TUI,
+        SSE, Telegram) and a dead channel is not a dead run.
+        """
+        for ui in self._uis:
+            fn = getattr(ui, method_name, None)
+            if not callable(fn):
+                continue
+            try:
+                fn(*args, **kwargs)
+            except Exception as e:
+                CFG.LOGGER.debug(f"Child UI {method_name} failed: {e}")
+
+    def accumulate_usage(
+        self, usage: "RunUsage", context_usage: "RequestUsage | None" = None
+    ) -> None:
+        """Forward one run's usage totals to every child UI.
+
+        Mirrors `append_to_output`: the agent runner wires its usage callback
+        to the effective UI, which is a MultiUI in dual/multi-UI mode. Without
+        forwarding, session token totals never accumulate on child UIs and the
+        terminal status-bar meter stays empty.
+        """
+        self._fanout("accumulate_usage", usage, context_usage)
+
+    def record_tool_call_block(self, collapsed: str, full: str) -> None:
+        """Give every child its tool-call/result line.
+
+        Tracks it as a toggle span on whichever children support that (the
+        default TUI, via their own `record_tool_call_block`), and falls back
+        to a plain `append_to_output` for children that don't (Telegram,
+        SSE) — so those channels keep receiving the line exactly as they did
+        before expand/collapse existed. `StreamEventHandler` calls either
+        this method or `append_to_output` for a given line, never both, so
+        every child must be reached from right here.
+        """
+        for ui in self._uis:
+            record = getattr(ui, "record_tool_call_block", None)
+            if callable(record):
+                try:
+                    record(collapsed, full)
+                    continue
+                except Exception as e:
+                    CFG.LOGGER.debug(f"Child UI record_tool_call_block failed: {e}")
+            try:
+                ui.append_to_output(collapsed, end="", kind="tool_call")
+            except Exception as e:
+                CFG.LOGGER.debug(f"Child UI append_to_output failed: {e}")
+
+    def mark_thinking_block_start(self) -> None:
+        """Let whichever children support toggling record where a live
+        thinking block begins.
+
+        Unlike `record_tool_call_block`, no fallback is needed here: the
+        thinking text itself already reached every child via the normal
+        `append_to_output` broadcast (StreamEventHandler never withholds
+        it) — this only lets toggle-capable children prepare to collapse
+        it later. A child that doesn't support it just keeps showing that
+        thinking text uncollapsed, which is a harmless default.
+        """
+        self._fanout("mark_thinking_block_start")
+
+    def collapse_thinking_block(self, collapsed: str, full: str) -> None:
+        """Counterpart to `mark_thinking_block_start` — see its docstring."""
+        self._fanout("collapse_thinking_block", collapsed, full)
+
+    def mark_text_block_start(self) -> None:
+        """Counterpart to `mark_thinking_block_start` for the assistant's
+        final-text reply instead of its reasoning — same fallback story."""
+        self._fanout("mark_text_block_start")
+
+    def collapse_text_block(self, collapsed: str, full: str) -> None:
+        """Counterpart to `mark_text_block_start` — see its docstring."""
+        self._fanout("collapse_text_block", collapsed, full)
+
+    def update_tool_prepare(self, key: str, text: str) -> None:
+        """Forward a tool call's "Prepare tool parameters" update to whichever
+        children support it — same fallback story as `mark_thinking_block_start`."""
+        self._fanout("update_tool_prepare", key, text)
+
+    def update_shell_output(self, key: str, text: str) -> None:
+        """Forward to whichever children support it — same fallback story
+        as `update_tool_prepare`."""
+        self._fanout("update_shell_output", key, text)
+
+    def finish_shell_output(self, key: str, collapsed: str, full: str) -> None:
+        """Counterpart to `update_shell_output` — see its docstring."""
+        self._fanout("finish_shell_output", key, collapsed, full)
 
     def replay_history(self, messages: list) -> None:
         """Replay loaded history on every child UI that supports it."""
-        self._replay_history(messages)
+        self._fanout("replay_history", messages)
 
-    def _replay_history(self, messages: list) -> None:
-        """Replay loaded history on every child UI that supports it."""
-        for ui in self._uis:
-            replay = getattr(ui, "replay_history", None)
-            if callable(replay):
-                try:
-                    replay(messages)
-                except Exception:
-                    pass
-
-    async def _stream_ai_response(
+    async def stream_ai_response(
         self,
         llm_task: Any,
         user_message: str,
-        attachments: list[Any] = [],
+        attachments: list[Any] | None = None,
     ):
         """Stream AI response to all UIs via shared queue."""
-        self._is_thinking = True
-        self.invalidate_all_uis()
+        attachments = list(attachments or [])
+        # A fresh turn has no answer yet; a non-string result or an error must
+        # not leave last_output carrying the previous turn's answer.
+        self._last_result_data = None
+        self.set_thinking(True)
         try:
             timestamp = datetime.now().strftime("%H:%M")
+            # Take filesystem snapshot before this AI turn (also records message
+            # count so that a rewind can restore conversation history to a
+            # consistent state). Failures are non-fatal — the AI turn must
+            # proceed regardless. Mirrors BaseUI._stream_ai_response.
+            snapshot_manager = getattr(self.main_ui, "snapshot_manager", None)
+            if snapshot_manager is not None:
+                try:
+                    label = user_message[:80].replace("\n", " ").strip()
+                    current_msgs = getattr(self.main_ui, "history_manager", None)
+                    session_name = getattr(
+                        self.main_ui, "conversation_session_name", ""
+                    )
+                    msgs = (
+                        current_msgs.load(session_name)
+                        if current_msgs is not None
+                        else []
+                    )
+                    await snapshot_manager.take_snapshot(
+                        f"{timestamp}: {label}", message_count=len(msgs)
+                    )
+                except Exception as snap_err:
+                    logger.warning(f"Snapshot skipped: {snap_err}")
             self.append_to_output(f"\n🤖 {timestamp} >>\n")
             self.append_to_output(stylize_muted("\n  🔢 Streaming response..."))
 
-            session = self._create_session_for_llm_task(user_message, attachments)
+            # Sync plan mode to the shared mutable state before the LLM run
+            # so the agent inherits the mode set by /plan on the main UI.
+            set_current_agent_mode(
+                AgentMode.PLAN
+                if getattr(self.main_ui, "plan_mode_active", False)
+                else AgentMode.BUILD
+            )
+
+            session = self.create_session_for_llm_task(user_message, attachments)
             llm_task.set_ui(self)
-            llm_task.tool_confirmation = self._confirm_tool_execution
+            llm_task.tool_confirmation = self.confirm_tool_execution
 
             async def run_task():
                 return await llm_task.async_run(session)
@@ -164,11 +377,32 @@ class MultiUI:
                 return
 
             self._running_llm_task = None
+
+            # Sync plan mode after LLM response (tools like EnterPlanMode set
+            # the ContextVar which is visible here in the same Task context), so
+            # the main UI's /plan badge follows in-run mode changes.
+            if hasattr(self.main_ui, "plan_mode_active"):
+                self.main_ui.plan_mode_active = (
+                    get_current_agent_mode() == AgentMode.PLAN
+                )
+
             if result_data is not None:
                 if isinstance(result_data, str):
                     self._last_result_data = result_data
                     self.append_to_output("\n")
-                    self.append_to_output(render_markdown(result_data, width=None))
+                    # Render the final answer on the main UI with its themed,
+                    # re-wrappable markdown path; other children keep the
+                    # pre-rendered text they consumed before.
+                    rendered = render_markdown(result_data, width=None)
+                    for ui in self._uis:
+                        try:
+                            append_markdown = getattr(ui, "append_markdown", None)
+                            if callable(append_markdown):
+                                append_markdown(result_data)
+                            else:
+                                ui.append_to_output(rendered, end="")
+                        except Exception as e:
+                            CFG.LOGGER.debug(f"Child UI append failed: {e}")
 
         except asyncio.CancelledError:
             self.append_to_output("\n[Cancelled]\n")
@@ -176,19 +410,44 @@ class MultiUI:
         except Exception as e:
             self.append_to_output(f"\n[Error: {e}]\n")
         finally:
-            self._is_thinking = False
+            # Stop the animation flag first, then refresh system/git info,
+            # then repaint — mirrors BaseUI's finally order
+            # (flag → update_system_info → invalidate) so the status bar
+            # shows fresh values instead of a stale repaint.
+            self.set_thinking(False, repaint=False)
+            for ui in self._uis:
+                update_info = getattr(ui, "update_system_info", None)
+                if inspect.iscoroutinefunction(update_info):
+                    try:
+                        await update_info()
+                    except Exception as e:
+                        CFG.LOGGER.debug(f"Child UI system info update failed: {e}")
+            self.invalidate_all_uis()
+
+    def set_thinking(self, value: bool, repaint: bool = True) -> None:
+        """Mirror the thinking flag to every child UI, then repaint.
+
+        The status-bar animation ("⏳ working…") and the fast refresh loop
+        read each UI's own `is_thinking`, so the flag must live on the
+        children, not only on the MultiUI wrapper. `repaint=False` defers the
+        repaint so callers can refresh system info first.
+        """
+        self._is_thinking = value
+        for ui in self._uis:
+            ui.is_thinking = value
+        if repaint:
             self.invalidate_all_uis()
 
     def invalidate_all_uis(self):
         """Invalidate all child UIs."""
         for ui in self._uis:
             try:
-                if hasattr(ui, "invalidate_ui"):
-                    ui.invalidate_ui()
-            except Exception:
-                pass
+                ui.invalidate_ui()
+            except Exception as e:
+                # Best-effort repaint of each child UI.
+                CFG.LOGGER.debug(f"Child UI invalidate_ui failed: {e}")
 
-    def _create_session_for_llm_task(
+    def create_session_for_llm_task(
         self,
         user_message: str,
         attachments: list[Any],
@@ -209,7 +468,7 @@ class MultiUI:
         )
         return Session(shared_ctx)
 
-    async def _confirm_tool_execution(self, call: Any):
+    async def confirm_tool_execution(self, call: Any):
         """Handle tool execution confirmation.
 
         Priority:
@@ -221,8 +480,7 @@ class MultiUI:
         if self._tool_call_handler is not None:
             return await self._tool_call_handler.handle(self, call)
 
-        # Try winning UI's handler
-        winning_ui = getattr(self, "_last_winning_ui", None)
+        winning_ui = self.last_winning_ui
         winning_handler = getattr(winning_ui, "tool_call_handler", None)
         if winning_handler is not None:
             return await winning_handler.handle(self, call)
@@ -239,57 +497,87 @@ class MultiUI:
             return result.to_pydantic_result()
 
         # Final fallback: use default handler from first UI
-        if self._uis and hasattr(self._uis[0], "tool_call_handler"):
+        if self._uis and self._uis[0].tool_call_handler is not None:
             return await self._uis[0].tool_call_handler.handle(self, call)
 
-        raise RuntimeError("No UI available for tool confirmation")
+        raise RuntimeError(
+            "MultiUI has no attached UI and no approval channel that can "
+            "confirm this tool call — construct it with at least one UI, or "
+            "call set_approval_channel(...) before running."
+        )
 
     def submit_user_message(self, llm_task: Any, user_message: str):
-        """Submit user message through the shared queue."""
-        self._submit_user_message(llm_task, user_message)
-
-    def _submit_user_message(self, llm_task: Any, user_message: str):
         """Submit user message to shared queue.
 
         This is called by child UIs when they receive user input.
-        Broadcasts to ALL UIs and puts job in shared queue.
+        Broadcasts to ALL UIs and puts job in shared queue. Attachments and
+        the echo-span redraw fan out to every child (`self._uis`) — `MultiUI`
+        holds no attachments or echo buffer of its own, unlike a standalone
+        `BaseUI`, which submits on behalf of itself alone.
         """
-        timestamp = datetime.now().strftime("%H:%M")
-        self.append_to_output(f"\n💬 {timestamp} >> {user_message.strip()}\n")
+        submit_user_message_via_queue(
+            append_to_output=self.append_to_output,
+            active_run_context=self.active_run_context,
+            stream_ai_response=self.stream_ai_response,
+            queue=self._message_queue,
+            attachment_sources=self._uis,
+            echo_targets=self._uis,
+            llm_task=llm_task,
+            user_message=user_message,
+            marker="💬",
+        )
 
-        # Collect pending attachments from all child UIs (e.g. images pasted
-        # via Ctrl+V in the default terminal UI) and clear their queues.
-        attachments = []
-        for ui in self._uis:
-            if hasattr(ui, "take_pending_attachments"):
-                attachments.extend(ui.take_pending_attachments())
+    def submit_message(self, user_message: str) -> None:
+        """Queue *user_message* for the shared agent turn (steer into the live
+        run when one is in flight). Uses the shared queue's own task
+        — sub-agent continuation code calls this to hand the main agent a
+        synthesized report."""
+        self.submit_user_message(self._llm_task, user_message)
 
-        async def job():
-            await self._stream_ai_response(llm_task, user_message, attachments)
-
-        self._message_queue.put_nowait(job)
-
-    async def _process_messages_loop(self):
+    async def process_messages_loop(self):
         """Process jobs from shared queue sequentially."""
         while True:
             try:
-                job = await self._message_queue.get()
+                entry = await self._message_queue.get()
 
-                while (
+                # Wait for any still-running task from a previous iteration to
+                # finish. Await it directly instead of polling — this removes
+                # the busy-wait and the check-then-act race between done() and
+                # the next assignment. Swallow its outcome (incl. cancellation);
+                # this loop only needs it settled before starting the next job.
+                if (
                     self._running_llm_task is not None
                     and not self._running_llm_task.done()
                 ):
-                    await asyncio.sleep(0.1)
+                    try:
+                        await self._running_llm_task
+                    except (KeyboardInterrupt, SystemExit):
+                        raise
+                    except BaseException:
+                        current = asyncio.current_task()
+                        if current is not None and current.cancelling() > 0:
+                            raise
 
                 current_task = asyncio.current_task()
                 if current_task:
-                    task = asyncio.create_task(job())
+                    task = asyncio.create_task(entry.run())
                     self._running_llm_task = task
 
                     try:
                         await task
                     except asyncio.CancelledError:
-                        pass
+                        # Two different cancellations arrive here and they need
+                        # opposite handling. A cancel aimed at THIS loop (the
+                        # shutdown path in run_async/on_exit) must land, or the
+                        # queue keeps running and `await self._process_messages_task`
+                        # never returns. A cancel aimed only at the job — one
+                        # response interrupted, session continuing — must not,
+                        # or the loop exits and no further user message is ever
+                        # processed. `cancelling()` tells them apart, the same
+                        # guard base/ui.py's twin uses.
+                        current = asyncio.current_task()
+                        if current is not None and current.cancelling() > 0:
+                            raise
                     finally:
                         self._running_llm_task = None
 
@@ -302,7 +590,12 @@ class MultiUI:
                 logging.getLogger(__name__).error(f"Error in message queue: {e}")
                 await asyncio.sleep(CFG.LLM_UI_STATUS_INTERVAL / 1000)
 
-    async def ask_user(self, prompt: str) -> str:
+    async def ask_user(
+        self,
+        prompt: str,
+        output_to_parent: str = "",
+        agent_id: str | None = None,
+    ) -> str:
         """Race all UIs for input and return the first response.
 
         When one UI wins, cancel and clear pending confirmations in other UIs.
@@ -316,11 +609,14 @@ class MultiUI:
 
         for i, ui in enumerate(self._uis):
             try:
-                if hasattr(ui, "ask_user"):
-                    task = loop.create_task(ui.ask_user(prompt))
-                    pending_tasks[task] = (i, ui)
-            except Exception:
-                pass
+                task = loop.create_task(
+                    ui.ask_user(
+                        prompt, output_to_parent=output_to_parent, agent_id=agent_id
+                    )
+                )
+                pending_tasks[task] = (i, ui)
+            except Exception as e:
+                CFG.LOGGER.debug(f"Child UI ask_user setup failed: {e}")
 
         if not pending_tasks:
             return ""
@@ -333,25 +629,37 @@ class MultiUI:
                 pending_tasks.keys(), return_when=asyncio.FIRST_COMPLETED
             )
 
-            completed_task = done.pop()
+            # Several UIs may finish in the same wait round; pick the one
+            # with the lowest UI index so the winner never depends on set
+            # iteration order.
+            completed_task = min(done, key=lambda t: pending_tasks[t][0])
             winning_ui_index, winning_ui = pending_tasks[completed_task]
 
             # Store winning UI for use in tool confirmations
             self._last_winning_ui = winning_ui
 
+            for task in done:
+                if task is not completed_task:
+                    task.cancel()
             for task in pending:
                 task.cancel()
 
             try:
                 result = completed_task.result()
-                self._clear_pending_confirmations_except(winning_ui_index)
-                return result
-            except Exception:
+            except Exception as e:
+                CFG.LOGGER.debug(f"Winning UI ask_user failed: {e}")
+                # Still sync sibling confirmation queues: no input race is in
+                # flight anymore, so stale confirmations must not linger.
+                self.clear_pending_confirmations_except(winning_ui_index)
                 return ""
+            self.clear_pending_confirmations_except(winning_ui_index)
+            return result
         finally:
             self._pending_input_tasks = []
 
-    async def ask_user_choice(self, spec: "ChoiceSpec") -> str:
+    async def ask_user_choice(
+        self, spec: "ChoiceSpec", agent_id: str | None = None
+    ) -> str:
         """Race all UIs for a multiple-choice answer and return the first.
 
         Mirrors `ask_user`: the first UI to answer wins, the others are
@@ -366,11 +674,10 @@ class MultiUI:
 
         for i, ui in enumerate(self._uis):
             try:
-                if hasattr(ui, "ask_user_choice"):
-                    task = loop.create_task(ui.ask_user_choice(spec))
-                    pending_tasks[task] = (i, ui)
-            except Exception:
-                pass
+                task = loop.create_task(ui.ask_user_choice(spec, agent_id=agent_id))
+                pending_tasks[task] = (i, ui)
+            except Exception as e:
+                CFG.LOGGER.debug(f"Child UI ask_user_choice setup failed: {e}")
 
         if not pending_tasks:
             return ""
@@ -382,23 +689,29 @@ class MultiUI:
                 pending_tasks.keys(), return_when=asyncio.FIRST_COMPLETED
             )
 
-            completed_task = done.pop()
+            # Same deterministic winner rule as `ask_user`.
+            completed_task = min(done, key=lambda t: pending_tasks[t][0])
             winning_ui_index, winning_ui = pending_tasks[completed_task]
             self._last_winning_ui = winning_ui
 
+            for task in done:
+                if task is not completed_task:
+                    task.cancel()
             for task in pending:
                 task.cancel()
 
             try:
                 result = completed_task.result()
-                self._clear_pending_confirmations_except(winning_ui_index)
-                return result
-            except Exception:
+            except Exception as e:
+                CFG.LOGGER.debug(f"Winning UI ask_user_choice failed: {e}")
+                self.clear_pending_confirmations_except(winning_ui_index)
                 return ""
+            self.clear_pending_confirmations_except(winning_ui_index)
+            return result
         finally:
             self._pending_input_tasks = []
 
-    def _clear_pending_confirmations_except(self, except_index: int):
+    def clear_pending_confirmations_except(self, except_index: int):
         """Cancel pending confirmation futures in all UIs except the winner.
 
         This prevents Terminal's confirmation queue from getting out of sync
@@ -408,10 +721,10 @@ class MultiUI:
             if i == except_index:
                 continue
             try:
-                if hasattr(ui, "cancel_pending_confirmations"):
-                    ui.cancel_pending_confirmations()
-            except Exception:
-                pass
+                ui.cancel_pending_confirmations()
+            except Exception as e:
+                # Best-effort cancel across child UIs during teardown.
+                CFG.LOGGER.debug(f"Child UI cancel_pending_confirmations failed: {e}")
 
     def stream_to_parent(
         self,
@@ -427,51 +740,63 @@ class MultiUI:
                 ui.stream_to_parent(
                     *values, sep=sep, end=end, file=file, flush=flush, kind=kind
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                CFG.LOGGER.debug(f"Child UI stream_to_parent failed: {e}")
 
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
     ) -> Any:
-        return await self._main_ui.run_interactive_command(cmd, shell=shell)
+        return await self.main_ui.run_interactive_command(cmd, shell=shell)
 
-    async def _start_child_ui(self, ui: Any) -> None:
+    async def _start_child_ui(self, ui: AnyUI) -> None:
         """Start a child UI's event loop if it has one."""
-        if hasattr(ui, "start_event_loop"):
-            await ui.start_event_loop()
-        elif hasattr(ui, "run_async") and ui is not self._main_ui:
+        # `start_event_loop` is EventDrivenUI's alone, so it stays a capability
+        # probe. `run_async` is on the AnyUI contract, so it needs no probe.
+        start_event_loop: Any = getattr(ui, "start_event_loop", None)
+        if start_event_loop is not None:
+            await start_event_loop()
+        elif ui is not self.main_ui:
             await ui.run_async()
 
     async def run_async(self) -> str:
         """Run all child UIs and the shared message loop."""
-        if not self._main_ui:
+        if not self.main_ui:
             return ""
+
+        self._last_result_data = None
 
         self._shutdown_event = asyncio.Event()
 
-        # Start shared message processor
-        self._process_messages_task = asyncio.create_task(self._process_messages_loop())
+        self._process_messages_task = asyncio.create_task(self.process_messages_loop())
 
-        # Set LLM task on all UIs
-        if hasattr(self._main_ui, "llm_task"):
-            self.set_llm_task(self._main_ui.llm_task)
+        if hasattr(self.main_ui, "llm_task"):
+            self.set_llm_task(self.main_ui.llm_task)
 
-        # Start all child UIs' event loops (except main UI)
         for i, ui in enumerate(self._uis):
             if i != self._main_ui_index:
                 task = asyncio.create_task(self._start_child_ui(ui))
                 self._child_tasks.append(task)
 
-        # Run main UI's async loop
-        main_task = asyncio.create_task(self._main_ui.run_async())
+        main_task = asyncio.create_task(self.main_ui.run_async())
 
         try:
             await main_task
         except asyncio.CancelledError:
             main_task.cancel()
-            await main_task
-        except Exception:
-            pass
+            # Guard the unwind: an error raised while the main UI tears down
+            # would propagate from here and mask the cancellation, so callers
+            # would see an ordinary failure instead of a cancelled run.
+            try:
+                await main_task
+            except asyncio.CancelledError:
+                pass
+            except Exception as unwind_error:
+                CFG.LOGGER.warning(
+                    f"Main UI error during cancel-unwind: {unwind_error!r}"
+                )
+            raise
+        except Exception as e:
+            CFG.LOGGER.debug(f"Main UI task ended with error: {e}")
         finally:
             # Cancel all tasks
             if self._process_messages_task:
@@ -491,7 +816,11 @@ class MultiUI:
                     task.cancel()
             self._pending_input_tasks = []
 
-        self.last_output = getattr(self._main_ui, "last_output", "")
+        self.last_output = (
+            self._last_result_data
+            if self._last_result_data is not None
+            else getattr(self.main_ui, "last_output", "")
+        )
         return self.last_output
 
     def on_exit(self):
@@ -504,9 +833,10 @@ class MultiUI:
         if self._process_messages_task:
             self._process_messages_task.cancel()
         try:
-            self._main_ui.on_exit()
-        except Exception:
-            pass
+            self.main_ui.on_exit()
+        except Exception as e:
+            # Best-effort teardown of the main UI.
+            CFG.LOGGER.debug(f"Main UI on_exit failed: {e}")
 
 
 def is_shutdown_requested() -> bool:

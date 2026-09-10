@@ -1,28 +1,33 @@
 import datetime
 import os
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
-from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.util.file import read_file, write_file
+
+if TYPE_CHECKING:
+    from zrb.session_state_log.session_state_log import (
+        SessionStateLog,
+        SessionStateLogList,
+    )
 
 
 class FileSessionStateLogger(AnySessionStateLogger):
     def __init__(self, session_log_dir: str | Callable[[], str]):
-        self._session_log_dir_param = session_log_dir
+        self.session_log_dir_param = session_log_dir
 
-    def _get_session_log_dir(self) -> str:
+    def get_session_log_dir(self) -> str:
         """Get the session log directory as a string.
 
         If session_log_dir was provided as a callable, it will be called.
         If it was provided as a string, it will be returned directly.
         """
-        if callable(self._session_log_dir_param):
-            return self._session_log_dir_param()
-        return self._session_log_dir_param
+        if callable(self.session_log_dir_param):
+            return self.session_log_dir_param()
+        return self.session_log_dir_param
 
     def write(self, session_log: "SessionStateLog"):
-        session_file_path = self._get_session_file_path(session_log.name)
+        session_file_path = self.get_session_file_path(session_log.name)
         session_dir_path = os.path.dirname(session_file_path)
         if not os.path.isdir(session_dir_path):
             os.makedirs(session_dir_path, exist_ok=True)
@@ -35,8 +40,10 @@ class FileSessionStateLogger(AnySessionStateLogger):
 
     def read(self, session_name: str) -> "SessionStateLog":
 
-        session_file_path = self._get_session_file_path(session_name)
-        return SessionStateLog.model_validate_json(read_file(session_file_path))
+        session_file_path = self.get_session_file_path(session_name)
+        return _state_log_models().SessionStateLog.model_validate_json(
+            read_file(session_file_path)
+        )
 
     def list(
         self,
@@ -48,34 +55,26 @@ class FileSessionStateLogger(AnySessionStateLogger):
     ) -> "SessionStateLogList":
 
         matching_sessions = []
-        # Traverse the timeline directory and filter sessions
-        timeline_dir = os.path.join(
-            self._get_session_log_dir(), "_timeline", *task_path
-        )
+        timeline_dir = os.path.join(self.get_session_log_dir(), "_timeline", *task_path)
         if not os.path.exists(timeline_dir):
-            return SessionStateLogList(total=0, data=[])
+            return _state_log_models().SessionStateLogList(total=0, data=[])
         for root, _, files in os.walk(timeline_dir):
             for file_name in files:
                 session_name = os.path.splitext(file_name)[0]
-                # Read the session and retrieve start time
                 session_log = self.read(session_name)
                 start_time = self._get_start_time(session_log)
-                # Filter sessions based on start time
                 if start_time and min_start_time <= start_time <= max_start_time:
                     matching_sessions.append((start_time, session_log))
-        # Sort sessions by start time, descending
         matching_sessions.sort(key=lambda x: x[0], reverse=True)
         total = len(matching_sessions)
-        # Apply pagination
         start_index = page * limit
         end_index = start_index + limit
         paginated_sessions = matching_sessions[start_index:end_index]
-        # Extract session logs from the sorted list of tuples
         data = [session_log for _, session_log in paginated_sessions]
-        return SessionStateLogList(total=total, data=data)
+        return _state_log_models().SessionStateLogList(total=total, data=data)
 
-    def _get_session_file_path(self, session_name: str) -> str:
-        return os.path.join(self._get_session_log_dir(), f"{session_name}.json")
+    def get_session_file_path(self, session_name: str) -> str:
+        return os.path.join(self.get_session_log_dir(), f"{session_name}.json")
 
     def _get_timeline_dir_path(self, session_log: "SessionStateLog") -> str:
         start_time = self._get_start_time(session_log)
@@ -93,9 +92,16 @@ class FileSessionStateLogger(AnySessionStateLogger):
             f"{minute}",
             f"{second}",
         ]
-        return os.path.join(self._get_session_log_dir(), "_timeline", *paths)
+        return os.path.join(self.get_session_log_dir(), "_timeline", *paths)
 
     def _get_start_time(self, session_log: "SessionStateLog") -> datetime.datetime:
         return datetime.datetime.strptime(
             session_log.start_time, "%Y-%m-%d %H:%M:%S.%f"
         )
+
+
+def _state_log_models():
+    # lazy: transitively heavy -- session_state_log declares pydantic models.
+    from zrb.session_state_log import session_state_log
+
+    return session_state_log

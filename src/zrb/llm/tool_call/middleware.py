@@ -2,29 +2,30 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
-from zrb.llm.tool_call.ui_protocol import UIProtocol
-
 if TYPE_CHECKING:
-    from pydantic_ai import ToolCallPart
+    from zrb.llm.agent.types import ToolCallPart
+    from zrb.llm.ui.any_agent_output import AnyAgentOutput
 
 
 ResponseHandler = Callable[
     [
-        UIProtocol,
+        "AnyAgentOutput",
         "ToolCallPart",
         str,
-        Callable[[UIProtocol, "ToolCallPart", str], Awaitable[Any]],
+        Callable[["AnyAgentOutput", "ToolCallPart", str], Awaitable[Any]],
     ],
     Awaitable[Any],
 ]
 
 ToolPolicy = Callable[
     [
-        UIProtocol,
+        "AnyAgentOutput",
         "ToolCallPart",
-        Callable[[UIProtocol, "ToolCallPart"], Awaitable[Any]],
+        Callable[["AnyAgentOutput", "ToolCallPart"], Awaitable[Any]],
     ],
     Awaitable[Any],
 ]
 
-ArgumentFormatter = Callable[[UIProtocol, "ToolCallPart", str], Awaitable[str | None]]
+ArgumentFormatter = Callable[
+    ["AnyAgentOutput", "ToolCallPart", str], Awaitable[str | None]
+]

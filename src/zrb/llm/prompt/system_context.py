@@ -14,8 +14,10 @@ import shutil
 from functools import lru_cache
 from typing import Any, Callable
 
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.llm.prompt.live_context import _LIVE_CONTEXT_ANCHOR
+from zrb.llm.prompt.live_context import LIVE_CONTEXT_ANCHOR
+from zrb.llm.sandbox.state import get_effective_sandbox_policy
 
 _DEFAULT_TOOLS: list[tuple[str, str]] = [
     ("docker", "Docker"),
@@ -95,12 +97,20 @@ def system_context(
     project_types = _detect_project_types(cwd)
     infra_types = _detect_infra_types(cwd, home)
     found_markers = list(_detect_project_markers(cwd))
-    found_tools = _resolve_available_tools(project_types, infra_types)
+    # `.get("PATH")` with no default on purpose: `None` (PATH unset) is a
+    # distinct state `shutil.which` resolves via `CS_PATH`/`os.defpath`, and
+    # passing "" instead would make it match nothing (bpo-35755).
+    found_tools = _resolve_available_tools(
+        project_types, infra_types, os.environ.get("PATH")
+    )
 
     parts: list[str] = [
         f"- OS: {platform.platform()}",
         f"- CWD: {cwd}",
     ]
+    sandbox_line = _format_sandbox_line()
+    if sandbox_line:
+        parts.append(sandbox_line)
     model_line = _format_model_line(model)
     if model_line:
         parts.append(model_line)
@@ -109,9 +119,72 @@ def system_context(
     if found_markers:
         parts.append(f"- Project: {', '.join(found_markers)}")
 
+    parallel_line = _format_parallel_tool_call_line(model)
+    if parallel_line:
+        parts.append(parallel_line)
+
     context_block = "# System Context\n" + "\n".join(parts)
-    context_block += "\n\n" + _LIVE_CONTEXT_ANCHOR
+    context_block += "\n\n" + LIVE_CONTEXT_ANCHOR
     return next_handler(ctx, f"{current_prompt}\n\n{context_block}")
+
+
+def _format_sandbox_line() -> str | None:
+    """State that tool calls reach the real machine, when they do.
+
+    Priority Order rank 1 tells the model to confirm anything destructive or
+    irreversible, and nothing else in the prompt says whether "irreversible" is
+    even true here — ``LLM_SANDBOX_ENABLED`` defaults to ``False``, so by
+    default both enforcement layers (the FS gate in ``agent.gates`` and the OS
+    shell wrapper) are off and every write lands on the user's disk. A rule
+    whose stakes the model cannot see is a rule it under-applies.
+
+    One branch on purpose, and the *opposite* one to
+    :func:`_format_parallel_tool_call_line`: that function announces the rare
+    exception, this one announces the risky state. A "you are sandboxed" line
+    would be a licence to relax, gated on a config the model cannot verify;
+    silence leaves the unconditional rank-1 rule in force, which is the safe
+    way to be wrong.
+
+    Session-invariant — the policy is bound once per run, so this belongs with
+    the other cached system facts rather than in ``live_context``.
+    """
+    if get_effective_sandbox_policy().enabled:
+        return None
+    return (
+        "- Sandbox: none — file writes and shell commands take effect on this "
+        "machine directly and are not contained."
+    )
+
+
+def _format_parallel_tool_call_line(model: "Any") -> str | None:
+    """Announce only the *exception* to the prompt's batch-by-default rule.
+
+    There is no affirmative branch on purpose. The registry resolves
+    ``supports_parallel_tool_calls`` to ``True`` for no built-in model — it is a
+    deny-list — so an affirmative line gated on it could never render, while
+    ``workflow.md`` gated batching on that line appearing. Every model therefore
+    read the rule as unsatisfied and serialized its calls. Batching is now the
+    unconditional default in the prompt, and this line exists to withdraw it
+    from the models known to malform parallel calls.
+
+    Session-invariant (it only changes on ``/model``, which recomposes the
+    prompt anyway), so it belongs with the other system facts rather than in a
+    section of its own.
+    """
+    # lazy: zrb internal (heavy via transitive) — not a cycle, verified
+    # empirically.
+    from zrb.llm.util.capabilities import model_capabilities
+
+    supports = model_capabilities.get(model).supports_parallel_tool_calls
+    if supports is False:
+        return (
+            "- Parallel tool calls: NOT supported by this model — issue exactly "
+            "one tool call per response. This overrides every batching "
+            "instruction elsewhere, in the workflow rules and in any tool "
+            "description. Two calls in one response arrive as a single "
+            "malformed call with the names concatenated, and both are lost."
+        )
+    return None
 
 
 def _format_model_line(model: "Any") -> str | None:
@@ -119,11 +192,9 @@ def _format_model_line(model: "Any") -> str | None:
 
     Returns ``None`` when *model* is None or its identifier cannot be
     resolved (e.g. ``MagicMock`` without a real ``model_name``).
-    Capability-driven guidance (parallel tool call policy, etc.) lives
-    in the Tool Usage Guide via ``get_parallel_tool_call_section`` —
-    see ``src/zrb/builtin/llm/chat.py`` for the section-factory wiring.
     """
-    # lazy: zrb internal (heavy via transitive / circular)
+    # lazy: zrb internal (heavy via transitive) — not a cycle, verified
+    # empirically.
     from zrb.llm.util.capabilities import is_known_model
 
     if model is None or not is_known_model(model):
@@ -134,10 +205,17 @@ def _format_model_line(model: "Any") -> str | None:
     return f"- Model: {name}"
 
 
+@lru_cache(maxsize=8)
 def _resolve_available_tools(
-    project_types: tuple[str, ...], infra_types: tuple[str, ...]
-) -> list[str]:
-    """Resolve the available tool labels by checking project/infra types + PATH."""
+    project_types: tuple[str, ...], infra_types: tuple[str, ...], path: str | None
+) -> tuple[str, ...]:
+    """Resolve the available tool labels by checking project/infra types + PATH.
+
+    Cached here rather than around the individual `shutil.which` probe so the
+    key covers every input the answer depends on — including `$PATH`, which
+    `shutil.which` reads but a per-command key could not see. One entry per
+    (project, infra, PATH) shape replaces ~21 per-command entries.
+    """
     extra_tools: list[tuple[str, str]] = []
     for pt in project_types:
         if pt in _PROJECT_TOOLS:
@@ -149,16 +227,10 @@ def _resolve_available_tools(
     found_tools: list[str] = []
     seen_labels: set[str] = set()
     for cmd, label in _DEFAULT_TOOLS + _UTILITY_TOOLS + extra_tools:
-        if label not in seen_labels and _which(cmd):
+        if label not in seen_labels and shutil.which(cmd, path=path):
             found_tools.append(label)
             seen_labels.add(label)
-    return found_tools
-
-
-@lru_cache(maxsize=32)
-def _which(cmd: str) -> bool:
-    """Check tool availability once per command — tools don't appear/disappear mid-session."""
-    return bool(shutil.which(cmd))
+    return tuple(found_tools)
 
 
 @lru_cache(maxsize=8)
@@ -217,6 +289,7 @@ def _detect_infra_types(cwd: str, home: str) -> tuple[str, ...]:
             found.append("GCP")
         if os.path.isdir(os.path.join(home, ".azure")):
             found.append("Azure")
-    except Exception:
-        pass
+    except Exception as e:
+        # Best-effort tooling detection; skip silently if home is unreadable.
+        CFG.LOGGER.debug(f"Infra-type detection failed: {e}")
     return tuple(found)

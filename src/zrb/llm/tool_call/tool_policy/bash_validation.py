@@ -1,10 +1,11 @@
-import json
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
-from zrb.llm.tool_call.handler import ToolPolicy, UIProtocol
+from zrb.llm.tool_call.args import parse_tool_args
+from zrb.llm.tool_call.handler import ToolPolicy
 
 if TYPE_CHECKING:
-    from pydantic_ai import ToolCallPart
+    from zrb.llm.agent.types import ToolCallPart
+    from zrb.llm.ui.any_agent_output import AnyAgentOutput
 
 # Shell metacharacters that could indicate state-changing operations.
 # Checked as plain substrings (conservative: even inside quotes triggers approval).
@@ -81,7 +82,7 @@ _SAFE_PREFIXES = (
 )
 
 
-def _is_safe_command(command: str) -> bool:
+def is_safe_command(command: str) -> bool:
     """Return True only when the command is known read-only with no dangerous metacharacters."""
     stripped = command.strip()
 
@@ -106,7 +107,7 @@ def _is_safe_command(command: str) -> bool:
 
 def bash_safe_command_policy() -> ToolPolicy:
     """
-    Returns a ToolPolicy that auto-approves Bash tool calls whose command is
+    Returns a ToolPolicy that auto-approves Shell tool calls whose command is
     read-only and contains no state-changing shell metacharacters.
 
     Uses an allowlist: only explicitly known-safe command prefixes are auto-approved.
@@ -114,26 +115,21 @@ def bash_safe_command_policy() -> ToolPolicy:
     """
 
     async def _policy(
-        ui: UIProtocol,
+        ui: "AnyAgentOutput",
         call: "ToolCallPart",
-        next_handler: Callable[[UIProtocol, "ToolCallPart"], Awaitable[Any]],
+        next_handler: Callable[["AnyAgentOutput", "ToolCallPart"], Awaitable[Any]],
     ) -> Any:
-        # lazy: heavy third-party
-        from pydantic_ai import ToolApproved
+        # lazy: zrb internal (heavy via transitive)
+        from zrb.llm.agent.types import ToolApproved
 
-        if call.tool_name not in ("Shell", "Bash"):
+        if call.tool_name != "Shell":
             return await next_handler(ui, call)
 
-        try:
-            args = call.args
-            if isinstance(args, str):
-                args = json.loads(args)
-            if not isinstance(args, dict):
-                return await next_handler(ui, call)
-            command = args.get("command", "")
-            if not isinstance(command, str):
-                return await next_handler(ui, call)
-        except (json.JSONDecodeError, ValueError):
+        args = parse_tool_args(call)
+        if args is None:
+            return await next_handler(ui, call)
+        command = args.get("command", "")
+        if not isinstance(command, str):
             return await next_handler(ui, call)
 
         # A sandbox-escape request must always reach a human, no matter how
@@ -141,7 +137,7 @@ def bash_safe_command_policy() -> ToolPolicy:
         if args.get("dangerously_skip_sandbox"):
             return await next_handler(ui, call)
 
-        if _is_safe_command(command):
+        if is_safe_command(command):
             return ToolApproved()
 
         return await next_handler(ui, call)

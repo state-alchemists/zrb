@@ -2,6 +2,7 @@ import os
 import secrets
 import shutil
 
+from zrb.attr.tpl import Tpl
 from zrb.builtin.group import searxng_group
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
@@ -27,11 +28,11 @@ def copy_searxng_setting(ctx: AnyContext):
         src_config_file = os.path.join(
             os.path.dirname(__file__), "config", "settings.yml.new"
         )
-        with open(src_config_file, "r") as f:
+        with open(src_config_file, "r", encoding="utf-8") as f:
             content = f.read()
         secret_key = secrets.token_hex(32)
         content = content.replace('"ultrasecretkey"', f'"{secret_key}"')
-        with open(dest_config_file, "w") as f:
+        with open(dest_config_file, "w", encoding="utf-8") as f:
             f.write(content)
         ctx.print(f"Searxng config file created: {dest_config_file}")
 
@@ -46,13 +47,17 @@ def copy_searxng_setting(ctx: AnyContext):
 start_searxng = searxng_group.add_task(
     CmdTask(
         name="start-searxng",
-        input=IntInput(name="port", default=CFG.SEARXNG_PORT),
+        input=IntInput(name="port", default=lambda _: CFG.SEARXNG_PORT),
         upstream=copy_searxng_setting,
         cwd=os.path.expanduser("~"),
-        cmd="docker run --rm -p {ctx.input.port}:8080 -e SEARXNG_LIMITER=false -v ./.config/searxng/:/etc/searxng/ docker.io/searxng/searxng:2026.5.6-36bcd6b55 -d",  # noqa
+        cmd=Tpl(
+            "docker run --rm -p {ctx.input.port}:8080 -e SEARXNG_LIMITER=false"
+            " -v ./.config/searxng/:/etc/searxng/"
+            " docker.io/searxng/searxng:2026.5.6-36bcd6b55 -d"
+        ),
         readiness_check=HttpCheck(
             "check-searxng",
-            url="http://localhost:{ctx.input.port}",
+            url=Tpl("http://localhost:{ctx.input.port}"),
         ),
     ),
     alias="start",

@@ -12,6 +12,7 @@ import psutil
 
 from zrb.cmd.cmd_result import CmdResult
 from zrb.config.config import CFG
+from zrb.config.helper import get_shell_name, get_windows_posix_shell
 
 
 def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
@@ -26,30 +27,40 @@ def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
             and values are the reasons they are unrecommended.
     """
     banned_commands = {
-        "<(": "Process substitution isn't POSIX compliant and causes trouble",
         "column": "Command isn't included in Ubuntu packages and is not POSIX compliant",
-        "echo": "echo isn't consistent across OS; use printf instead",
         "eval": "Avoid eval as it can accidentally execute arbitrary strings",
         "realpath": "Not available by default on OSX",
         "source": "Not POSIX compliant; use '.' instead",
-        " test": "Use '[' instead for consistency",
         "which": "Command in not POSIX compliant, use command -v",
+    }
+    banned_substrings = {
+        "<(": "Process substitution isn't POSIX compliant and causes trouble",
     }
     banned_commands_regex = {
         r"grep.* -y": "grep -y does not work on Alpine; use grep -i",
         r"grep.* -P": "grep -P is not valid on OSX",
-        r"grep[^|]+--\w{2,}": "grep long commands do not work on Alpine",
         r'readlink.+-.*f.+["$]': "readlink -f behaves differently on OSX",
         r"sort.*-V": "sort -V is not supported everywhere",
         r"sort.*--sort-versions": "sort --sort-version is not supported everywhere",
-        r"\bls ": "Avoid using ls; use shell globs or find instead",
+        r"(?:^|[|;&]\s*)ls\s": "Avoid using ls; use shell globs or find instead",
+        # `echo` itself is portable: bash, dash and zsh print a plain literal
+        # identically. Only these two forms differ between them, so a blanket
+        # ban on the command would flag `echo 'done'` for nothing.
+        r"(?<![\w-])echo\s+-[neE]": (
+            "echo -n/-e is not portable (dash and zsh differ); use printf instead"
+        ),
+        r"(?<![\w-])echo\s[^|;&]*\\": (
+            "dash and zsh interpret backslash escapes in echo, bash does not; "
+            "use printf instead"
+        ),
     }
     violations = {}
-    # Check banned commands
     for cmd, reason in banned_commands.items():
-        if cmd in cmd_script:
+        if re.search(rf"(?<![\w-]){re.escape(cmd)}(?![\w-])", cmd_script):
             violations[cmd] = reason
-    # Check banned regex patterns
+    for frag, reason in banned_substrings.items():
+        if frag in cmd_script:
+            violations[frag] = reason
     for pattern, reason in banned_commands_regex.items():
         if re.search(pattern, cmd_script):
             violations[pattern] = reason
@@ -67,6 +78,11 @@ def resolve_shell(shell: str = "") -> tuple[str, str]:
     POSIX shells, ``-Command`` for PowerShell, ``/c`` for cmd, ``-e``/``-r`` for
     runtimes).
 
+    On Windows a bare ``bash``/``sh`` resolves to the absolute path of a real
+    POSIX shell rather than being handed to the PATH lookup, which finds
+    ``System32\\bash.exe`` -- the WSL launcher, not a shell. See
+    ``get_windows_posix_shell``. Every other name is returned as given.
+
     Args:
         shell (str): The shell/interpreter to use. Empty uses ``CFG.SHELL``.
 
@@ -82,7 +98,14 @@ def resolve_shell(shell: str = "") -> tuple[str, str]:
         "powershell": "-Command",
         "cmd": "/c",
     }
-    return shell, flags.get(shell.lower(), "-c")
+    # The flag is looked up by shell *name*, so an absolute setting such as
+    # `C:\...\pwsh.exe` still resolves to `-Command` instead of falling
+    # through to the POSIX `-c`. The substitution below stays keyed on the raw
+    # string: only a bare name needs resolving to a path.
+    flag = flags.get(get_shell_name(shell), "-c")
+    if shell.lower() in ("bash", "sh"):
+        shell = get_windows_posix_shell() or shell
+    return shell, flag
 
 
 def _process_tree_pids(pid: int) -> list[int]:
@@ -122,6 +145,18 @@ async def terminate_process(
     for pid in pids:
         if psutil.pid_exists(pid):
             kill_pid(pid, print_method=print_method)
+    # Reap whatever survived the grace period. The force-kill sends SIGKILL to
+    # the OS process, but an asyncio subprocess is not reaped until wait() is
+    # called. If that lands after the event loop closes (top-level
+    # ``asyncio.run`` teardown), the child watcher logs
+    # "Loop <...> that handles pid N is closed" — the exit event could not be
+    # delivered. SIGKILLed processes exit immediately, so the bounded wait is a
+    # pure safety net.
+    if process.returncode is None:
+        try:
+            await asyncio.wait_for(process.wait(), timeout=grace_seconds)
+        except asyncio.TimeoutError:
+            pass
 
 
 def terminate_pid(pid: int, print_method: Callable[..., None] | None = None) -> None:
@@ -158,7 +193,7 @@ async def run_command(
     max_output_line: int = 1000,
     max_error_line: int = 1000,
     max_display_line: int | None = None,
-    timeout: int = 3600,
+    timeout: float = 3600,
     is_interactive: bool = False,
 ) -> tuple[CmdResult, int]:
     """
@@ -179,9 +214,11 @@ async def run_command(
         max_display_line = max(max_output_line, max_error_line)
     # While environment variables alone weren't the fix, they are still
     # good practice for encouraging simpler output from tools.
+    # NO_COLOR is deliberately NOT set here: per the NO_COLOR convention any
+    # non-empty value (even "0") disables color, so there is no value that
+    # "explicitly allows" it — absence simply inherits the user's choice.
     child_env = (env_map or os.environ).copy()
     child_env["TERM"] = "xterm-256color"  # A capable but standard terminal
-    child_env["NO_COLOR"] = "0"  # Explicitly allow color
     cmd_process = await asyncio.create_subprocess_exec(
         *cmd,
         cwd=cwd,
@@ -225,19 +262,7 @@ async def run_command(
         display = "\r\n".join(display_lines)
         return CmdResult(stdout, stderr, display=display), return_code
     except (KeyboardInterrupt, asyncio.CancelledError, asyncio.TimeoutError):
-        try:
-            os.killpg(cmd_process.pid, signal.SIGINT)
-            await asyncio.wait_for(
-                cmd_process.wait(), timeout=CFG.CMD_CLEANUP_TIMEOUT / 1000
-            )
-        except asyncio.TimeoutError:
-            # If it doesn't terminate, kill it forcefully
-            actual_print_method(
-                f"Process {cmd_process.pid} did not terminate gracefully, killing."
-            )
-            kill_pid(cmd_process.pid, print_method=actual_print_method)
-        except Exception:
-            pass
+        await __terminate_on_cancel(cmd_process, actual_print_method)
         raise
     finally:
         # Cancel every helper task and close the subprocess transport while the
@@ -254,6 +279,38 @@ async def run_command(
         transport = getattr(cmd_process, "_transport", None)
         if transport is not None:
             transport.close()
+
+
+async def __terminate_on_cancel(
+    cmd_process: "asyncio.subprocess.Process", print_method: Callable[..., None]
+) -> None:
+    """Best-effort termination of *cmd_process* on interrupt/cancel/timeout.
+
+    Escalates to a forceful kill if graceful termination doesn't land within
+    `CFG.CMD_CLEANUP_TIMEOUT`, and swallows any secondary error so the
+    original interrupt/cancel/timeout always propagates from the caller.
+    """
+    try:
+        if hasattr(os, "killpg"):
+            os.killpg(cmd_process.pid, signal.SIGINT)
+        else:
+            # Windows has no POSIX process groups; terminate the tree via
+            # psutil (a hard kill there) instead of leaving the child
+            # orphaned by a swallowed AttributeError.
+            terminate_pid(cmd_process.pid, print_method=print_method)
+        await asyncio.wait_for(
+            cmd_process.wait(), timeout=CFG.CMD_CLEANUP_TIMEOUT / 1000
+        )
+    except asyncio.TimeoutError:
+        # If it doesn't terminate, kill it forcefully
+        print_method(
+            f"Process {cmd_process.pid} did not terminate gracefully, killing."
+        )
+        kill_pid(cmd_process.pid, print_method=print_method)
+    except Exception:
+        # Cleanup path during unwind; swallow secondary errors and re-raise
+        # the original exception below.
+        pass
 
 
 def __get_cmd_stdin(is_interactive: bool) -> int | TextIO:

@@ -5,7 +5,22 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from zrb.config.config import CFG
-from zrb.llm.history_manager.file_history_manager import FileHistoryManager
+from zrb.llm.agent.activity import agent_activity_registry
+from zrb.llm.history_manager.file_history_manager import (
+    FileHistoryManager,
+    default_history_manager,
+)
+from zrb.llm.prompt.live_context import split_live_context
+
+# Re-exported: existing callers (chat_api_route.py) and tests import
+# parse_delegated_session from this module; the definition itself lives in
+# subagent_session_naming.py, shared with delegate.py (which formats the
+# name) and the CLI TUI's persona-swap-on-/load, without dragging
+# delegate.py's heavy transitive imports into the web session lister.
+from zrb.llm.util.subagent_session_naming import (
+    parse_delegated_session,
+    subagent_history_directories,
+)
 from zrb.util.string.name import get_random_name
 
 _timestamp_pattern = re.compile(r"-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d{2})?$")
@@ -30,7 +45,7 @@ class ChatSessionManager:
 
     def __init__(self):
         self._sessions: dict[str, ChatSession] = {}
-        self._history_manager = FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
+        self._history_manager = default_history_manager()
         self._init_coros: list[asyncio.Task] = []
         # Serializes drives of the single shared LLMChatTask. Multiple SSE sessions
         # share one task instance whose ui_factories/approval_channels/history_manager
@@ -52,6 +67,14 @@ class ChatSessionManager:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
+
+    @classmethod
+    def reset_instance(cls) -> None:
+        """Drop the singleton so the next `get_instance*()` builds a fresh one.
+
+        Test-only seam: production never resets the shared singleton mid-run.
+        """
+        cls._instance = None
 
     @property
     def task_lock(self) -> asyncio.Lock:
@@ -97,14 +120,15 @@ class ChatSessionManager:
     def _extract_base_name(self, session_name: str) -> str:
         return _timestamp_pattern.sub("", session_name)
 
-    def _scan_sessions(self) -> list[tuple[str, float, int]]:
+    def scan_sessions(self) -> list[tuple[str, float, int]]:
         """Group history files by base session name in one directory scan.
 
         Returns ``(base_name, newest_mtime, file_count)`` tuples, newest first.
         The history dir holds a main file per session plus every timestamped
-        backup, so it grows fast — a single ``scandir`` pass with O(n) grouping
-        replaces the old three-listdir + per-file ``getmtime`` + O(n²) name
-        matching that made listing heavy.
+        backup, so it grows fast — hence a single ``scandir`` pass with O(n)
+        grouping, which keeps listing cheap as the directory grows. Delegated
+        sub-agent transcripts live under ``subagent/{agent_type}/`` and are
+        scanned there (the history root still counts legacy flat ones).
         """
         if not CFG.LLM_HISTORY_DIR:
             return []
@@ -112,22 +136,27 @@ class ChatSessionManager:
         if not os.path.isdir(history_dir):
             return []
         grouped: dict[str, list] = {}  # base -> [max_mtime, count]
-        with os.scandir(history_dir) as entries:
-            for entry in entries:
-                if not entry.name.endswith(".json"):
-                    continue
-                base_name = self._extract_base_name(entry.name[:-5])
-                try:
-                    mtime = entry.stat().st_mtime
-                except OSError:
-                    continue
-                slot = grouped.get(base_name)
-                if slot is None:
-                    grouped[base_name] = [mtime, 1]
-                else:
-                    if mtime > slot[0]:
-                        slot[0] = mtime
-                    slot[1] += 1
+        for directory in subagent_history_directories(history_dir):
+            try:
+                entries = os.scandir(directory)
+            except OSError:
+                continue
+            with entries:
+                for entry in entries:
+                    if not entry.name.endswith(".json"):
+                        continue
+                    base_name = self._extract_base_name(entry.name[:-5])
+                    try:
+                        mtime = entry.stat().st_mtime
+                    except OSError:
+                        continue
+                    slot = grouped.get(base_name)
+                    if slot is None:
+                        grouped[base_name] = [mtime, 1]
+                    else:
+                        if mtime > slot[0]:
+                            slot[0] = mtime
+                        slot[1] += 1
         ranked = [(base, mt, count) for base, (mt, count) in grouped.items()]
         ranked.sort(key=lambda item: item[1], reverse=True)
         return ranked
@@ -136,9 +165,13 @@ class ChatSessionManager:
         """History + active sessions as display dicts, most recent first."""
         listing: list[dict[str, Any]] = []
         seen: set[str] = set()
-        for base_name, _mtime, file_count in self._scan_sessions():
+        for base_name, _mtime, file_count in self.scan_sessions():
             seen.add(base_name)
             is_active = base_name in self._sessions
+            # Only ever classify a non-active (history-file-only) entry as a
+            # delegated sub-agent session — an active human ChatSession whose
+            # name happens to match the shape is still a real root session.
+            delegated = None if is_active else parse_delegated_session(base_name)
             listing.append(
                 {
                     "session_id": base_name,
@@ -148,9 +181,13 @@ class ChatSessionManager:
                         self._sessions[base_name].is_processing if is_active else False
                     ),
                     "message_count": file_count,
+                    "parent_session_id": delegated[0] if delegated else None,
+                    "agent_name": delegated[1] if delegated else None,
                 }
             )
         # Active sessions with no history file yet are the newest → put on top.
+        # Always a real (human-driven) session, never a delegated one — those
+        # only ever reach the listing through the history-file scan above.
         extras = [
             {
                 "session_id": session_id,
@@ -158,6 +195,8 @@ class ChatSessionManager:
                 "is_active": True,
                 "is_processing": session.is_processing,
                 "message_count": 0,
+                "parent_session_id": None,
+                "agent_name": None,
             }
             for session_id, session in self._sessions.items()
             if session_id not in seen
@@ -215,6 +254,37 @@ class ChatSessionManager:
                 except asyncio.CancelledError:
                     pass
             del self._sessions[session_id]
+            # Otherwise this session's (now-empty) activity bucket and
+            # counter outlive it in agent_activity_registry for the rest of
+            # the process's life — a per-session-id leak, one dict entry per
+            # session ever seen (keying the registry by session traded
+            # cross-session bleed for this leak; this closes it).
+            agent_activity_registry.clear(session_id=session_id)
+            # lazy: transitively heavy via internal — live_session.py imports
+            # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai;
+            # deferring keeps that off chat_session_manager's module-load path.
+            from zrb.llm.agent.subagent.live_session import (
+                live_subagent_session_registry,
+            )
+
+            live_subagent_session_registry.clear(session_id=session_id)
+            # Otherwise a background Shell(background=True) process this
+            # session started (e.g. via a delegated sub-agent) outlives the
+            # session with no cleanup path: the per-message teardown
+            # deliberately skips it (a background process must survive across
+            # messages in the same session), and full-shutdown cancellation
+            # never reaches it either. Session-scoped, not cancel_all() —
+            # other sessions may still have their own background processes
+            # running. Keyed by this method's own `session_id` argument (the
+            # unique dict key), never `session.session_name` — that is a
+            # client-supplied display label with no uniqueness guarantee
+            # (`create_session` never checks it), so using it here could
+            # reach into an unrelated session that happens to share a name.
+            # lazy: zrb internal (heavy via transitive — shell_background.py
+            # is otherwise loaded lazily off this module's hot path)
+            from zrb.llm.tool.shell_background import get_shell_background_registry
+
+            await get_shell_background_registry().cancel_for_session(session_id)
             return True
 
     def get_messages(self, session_id: str) -> list[dict[str, Any]]:
@@ -236,10 +306,14 @@ class ChatSessionManager:
                             content += part_content
                         else:
                             content += str(part_content)
+            live_context = None
+            if role == "user":
+                content, live_context = split_live_context(content)
             result.append(
                 {
                     "role": role,
                     "content": content,
+                    "live_context": live_context,
                     "timestamp": getattr(msg, "timestamp", None),
                 }
             )
@@ -252,11 +326,15 @@ class ChatSessionManager:
         await session.output_queue.put({"text": text, "kind": kind})
         return True
 
-    async def send_input(self, session_id: str, text: str) -> bool:
+    async def send_input(
+        self, session_id: str, text: str, attachments: "list[str] | None" = None
+    ) -> bool:
         session = self._sessions.get(session_id)
         if session is None:
             return False
-        session.input_queue.put_nowait(text)
+        session.input_queue.put_nowait(
+            {"message": text, "attachments": attachments or []}
+        )
         return True
 
     def set_processing(self, session_id: str, is_processing: bool) -> bool:
@@ -299,10 +377,20 @@ class ChatSessionManager:
         approval_channel = session.approval_channel
         if is_json or approval_channel.is_waiting_for_edit():
             if is_json:
-                approval_channel.handle_edit_response_obj(response)
+                handled = approval_channel.handle_edit_response_obj(response)
             else:
-                approval_channel.handle_edit_response(response)
-            return {"handled": True, "type": "edit"}
+                handled = approval_channel.handle_edit_response(response)
+            # The edit handlers report whether a pending call actually consumed
+            # the response. Reporting an unconditional True here made a dropped
+            # answer look successful while the tool call hung forever.
+            if handled:
+                return {"handled": True, "type": "edit"}
+            if is_json:
+                # Decoded args with no edit slot to consume them (the client
+                # raced edit-mode entry). Report the miss: falling through would
+                # hand a dict to handle_response, which cannot parse it and
+                # denies the pending approval outright.
+                return {"handled": False, "error": "No pending edit request"}
         if approval_channel.has_pending_approvals():
             handled = approval_channel.handle_response(response)
             return {"handled": handled, "type": "approval"}

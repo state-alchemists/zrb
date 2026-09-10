@@ -6,12 +6,12 @@ import pytest
 
 from zrb.config.env_field import (
     EnvField,
-    colon_join,
-    colon_list,
     comma_join,
     comma_list,
-    expanduser_colon_list,
+    expanduser_path_list,
     on_off,
+    path_list,
+    path_list_join,
 )
 from zrb.util.string.conversion import to_boolean
 
@@ -31,7 +31,7 @@ class _Host:
     EXPLICIT_DEFAULT = EnvField(int, default="42")
     FACTORY = EnvField(str, default_factory=lambda host: f"dir-{host.ROOT_GROUP_NAME}")
     FLAG = EnvField(to_boolean, serialize=on_off, default="false")
-    ITEMS = EnvField(colon_list, serialize=colon_join, default="")
+    ITEMS = EnvField(path_list, serialize=path_list_join, default="")
     CMDS = EnvField(comma_list, serialize=comma_join, default="")
     NULLABLE = EnvField(str, nullable=True)
     FALLBACK_INT = EnvField(int, fallback=0, default="42")
@@ -119,12 +119,28 @@ def test_bool_cast_and_on_off_serialize(host, monkeypatch):
     assert os.environ["TESTCFG_FLAG"] == "off"
 
 
-def test_colon_list_round_trip(host, monkeypatch):
+def test_path_list_round_trip(host, monkeypatch):
+    sep = os.pathsep
     assert host.ITEMS == []
-    monkeypatch.setenv("TESTCFG_ITEMS", "a :: b:")
+    monkeypatch.setenv("TESTCFG_ITEMS", f"a {sep}{sep} b{sep}")
     assert host.ITEMS == ["a", "b"]
     host.ITEMS = ["x", "y"]
-    assert os.environ["TESTCFG_ITEMS"] == "x:y"
+    assert os.environ["TESTCFG_ITEMS"] == f"x{sep}y"
+
+
+def test_path_list_splits_on_semicolon_on_windows(monkeypatch):
+    monkeypatch.setattr(os, "pathsep", ";")
+    assert path_list(r"C:\foo;D:\bar") == [r"C:\foo", r"D:\bar"]
+    assert path_list("C:/foo; C:/bar ;") == ["C:/foo", "C:/bar"]
+    # A colon is never a separator there, so drive letters survive.
+    assert path_list(r"C:\foo") == [r"C:\foo"]
+    assert path_list_join([r"C:\foo", r"D:\bar"]) == r"C:\foo;D:\bar"
+
+
+def test_path_list_splits_on_colon_on_posix(monkeypatch):
+    monkeypatch.setattr(os, "pathsep", ":")
+    assert path_list("x:/tmp:/var") == ["x", "/tmp", "/var"]
+    assert path_list("foo;bar") == ["foo;bar"]
 
 
 def test_comma_list_round_trip(host, monkeypatch):
@@ -135,10 +151,10 @@ def test_comma_list_round_trip(host, monkeypatch):
     assert os.environ["TESTCFG_CMDS"] == "/x,/y"
 
 
-def test_expanduser_colon_list_expands_home():
-    result = expanduser_colon_list("~/a : ~/b")
+def test_expanduser_path_list_expands_home():
+    result = expanduser_path_list(f"~/a {os.pathsep} ~/b")
     assert result == [os.path.expanduser("~/a"), os.path.expanduser("~/b")]
-    assert expanduser_colon_list("") == []
+    assert expanduser_path_list("") == []
 
 
 def test_nullable_reads_none_when_unset(host):

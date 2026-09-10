@@ -1,9 +1,12 @@
 """Voice dictation config mixin.
 
-Opt-in feature gated by `LLM_VOICE_ENABLED`. When enabled, the `/voice` command
-toggles push-to-talk mode in the chat TUI. Heavy audio dependencies
-(sounddevice, numpy) or LLM agent stack are lazy-imported — they are only loaded
-when voice mode is actually activated, not at startup.
+Gated by `LLM_VOICE_ENABLED`; when the env var is left unset and vosk is
+installed, `/voice` works without explicit opt-in (offline default). An
+explicit value always wins: `on` enables any backend, `off` disables even
+with vosk present. When enabled, the `/voice` command toggles push-to-talk
+mode in the chat TUI. Heavy audio dependencies (sounddevice, numpy) or LLM
+agent stack are lazy-imported — they are only loaded when voice mode is
+actually activated, not at startup.
 
 The default backend is ``vosk`` (offline, cross-platform). Other options:
 ``openai`` (Whisper API, model configurable via ``LLM_VOICE_OPENAI_MODEL``),
@@ -40,7 +43,8 @@ class LLMVoiceMixin:
         doc=(
             "Enable voice dictation in the chat TUI. When true, the /voice "
             "command toggles push-to-talk mode. Requires sounddevice + an STT "
-            "backend (multimodal LLM, Whisper API, or vosk). Default: false."
+            "backend (multimodal LLM, Whisper API, or vosk). When unset and "
+            "vosk is installed, voice is enabled automatically. Default: false."
         ),
     )
 

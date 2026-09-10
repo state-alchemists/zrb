@@ -32,6 +32,11 @@ from zrb.llm.agent.run.hook_result_extractor import (
 # consecutive Stop-hook blocks without the turn ending, allow the stop so a
 # misbehaving hook can't loop the agent forever.
 STOP_HOOK_BLOCK_CAP = 8
+# The same backstop for the systemMessage extension. A hook that returns a
+# systemMessage on every STOP re-runs the turn each time, so this path needs its
+# own ceiling — a hook whose own once-per-turn guard misfires would otherwise
+# loop the agent with no bound at all.
+STOP_HOOK_SYSTEM_MESSAGE_CAP = 8
 
 
 @dataclass
@@ -43,6 +48,7 @@ class ExtensionState:
     original_output: Any = None
     original_history: list[Any] | None = None
     block_count: int = 0
+    system_message_count: int = 0
 
 
 @dataclass
@@ -116,6 +122,14 @@ def apply_turn_end_extension(
     message = extract_system_message(stop_results)
     if not message:
         return ExtensionOutcome(should_continue=False)
+    if state.system_message_count >= STOP_HOOK_SYSTEM_MESSAGE_CAP:
+        CFG.LOGGER.warning(
+            "Stop hook returned a systemMessage %d times in a row; allowing the "
+            "turn to end.",
+            STOP_HOOK_SYSTEM_MESSAGE_CAP,
+        )
+        return ExtensionOutcome(should_continue=False)
+    state.system_message_count += 1
 
     replace_response = extract_replace_response(stop_results)
     CFG.LOGGER.debug(

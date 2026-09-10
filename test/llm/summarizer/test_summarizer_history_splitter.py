@@ -17,12 +17,12 @@ from zrb.llm.summarizer.history_splitter import (
 
 
 class DummyLimiter(LLMLimiter):
-    def count_tokens(self, obj):
+    def count_tokens(self, obj) -> int:
         if isinstance(obj, list):
             return sum(self.count_tokens(x) for x in obj)
         return 1
 
-    def truncate_text(self, text, limit):
+    def truncate_text(self, text: str, max_tokens: int) -> str:
         return text
 
 

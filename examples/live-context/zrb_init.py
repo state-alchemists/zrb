@@ -5,7 +5,7 @@ Demonstrates `prompt_manager.add_live_context(name, provider)` — injecting
 volatile, per-turn runtime state into the `<live-context>` block that is
 appended to every user message.
 
-Unlike `register_section` (which adds to the CACHED system prompt), live-context
+Unlike `append_prompt` (which adds to the CACHED system prompt), live-context
 providers run every turn and carry state that changes between turns WITHOUT
 invalidating the cacheable prompt prefix. That makes them the right tool for
 "what is true right now" facts: current time, a deploy-freeze flag, the active

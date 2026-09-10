@@ -1,12 +1,16 @@
 #!/usr/bin/env pwsh
 # PowerShell installation script for Zrb on Windows
-# Usage: .\install.ps1 [-Yes]
+# Usage: .\install.ps1 [-Yes] [-Pre]
+#   -Yes  Answer yes to every prompt
+#   -Pre  Install the latest pre-release instead of the latest stable
 
 param(
-    [switch]$Yes
+    [switch]$Yes,
+    [switch]$Pre
 )
 
 $AUTO_YES = $Yes.IsPresent
+$PRE_RELEASE = $Pre.IsPresent
 
 #########################################################################################
 # Functions
@@ -218,9 +222,14 @@ function Pipx-Install-Zrb {
     # (swallowed below), leaving the old venv in place so the install that
     # follows hits pipx's "already installed" guard and does nothing.
     pipx uninstall zrb 2>$null | Out-Null
-    # --pip-args (not the PIP_PRE env var) persists in pipx's metadata, so later
-    # `pipx upgrade`/`pipx reinstall` keep tracking pre-releases automatically.
-    pipx install --pip-args='--pre' --python $script:PY_CMD "zrb$($script:ZrbExtras)"
+    if ($PRE_RELEASE) {
+        # --pip-args (not the PIP_PRE env var) persists in pipx's metadata, so later
+        # `pipx upgrade`/`pipx reinstall` keep tracking pre-releases automatically.
+        Log-Info "Installing the latest pre-release (--pre)"
+        pipx install --pip-args='--pre' --python $script:PY_CMD "zrb$($script:ZrbExtras)"
+    } else {
+        pipx install --python $script:PY_CMD "zrb$($script:ZrbExtras)"
+    }
 }
 
 function Install-Zrb {
@@ -358,8 +367,8 @@ function Install-Lsps {
 Write-Host @"
 
     ╔════════════════════════════╗
-    ║  Zrb — Your Automation     ║
-    ║        Powerhouse          ║
+    ║            Zrb             ║
+    ║ Coding Agent + Task Engine ║
     ╚════════════════════════════╝
 
 "@

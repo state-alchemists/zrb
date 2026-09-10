@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -21,7 +22,7 @@ _mock_sm = MagicMock()
 def mock_heavy_runners():
     with (
         patch(
-            "zrb.runner.chat.chat_api_route._run_chat_session", new_callable=AsyncMock
+            "zrb.runner.chat.chat_api_route.run_chat_session", new_callable=AsyncMock
         ),
         patch("zrb.llm.agent.common.create_agent"),
     ):
@@ -36,6 +37,7 @@ def app():
         mock_root.name = "root"
         mock_root.tasks = []
         mock_root.groups = []
+        mock_root.extract_node.return_value = (MagicMock(), ["llm", "chat"], [])
         # We patch get_instance_sync before creating the app so serve_chat_api gets our mock
         with patch(
             "zrb.runner.chat.chat_api_route.ChatSessionManager.get_instance_sync",
@@ -125,6 +127,111 @@ async def test_post_message_creates_session(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_post_message_forwards_attachments(client: AsyncClient):
+    """Attachment paths in the request body reach send_input as a kwarg."""
+    _mock_sm.get_session.return_value = MagicMock()
+    _mock_sm.send_input = AsyncMock()
+
+    response = await client.post(
+        "/api/v1/chat/sessions/test/messages",
+        json={"message": "look", "attachments": ["/tmp/a.png"]},
+    )
+
+    assert response.status_code == 200
+    assert _mock_sm.send_input.await_args.kwargs["attachments"] == ["/tmp/a.png"]
+
+
+@pytest.mark.asyncio
+async def test_post_message_defaults_attachments_to_empty_list(client: AsyncClient):
+    _mock_sm.get_session.return_value = MagicMock()
+    _mock_sm.send_input = AsyncMock()
+
+    response = await client.post(
+        "/api/v1/chat/sessions/test/messages", json={"message": "hi"}
+    )
+
+    assert response.status_code == 200
+    assert _mock_sm.send_input.await_args.kwargs["attachments"] == []
+
+
+@pytest.mark.asyncio
+async def test_upload_attachment_success(client: AsyncClient, tmp_path):
+    dest = tmp_path / "saved.png"
+    with patch(
+        "zrb.runner.chat.chat_api_route.save_uploaded_attachment",
+        return_value=str(dest),
+    ) as mock_save:
+        response = await client.post(
+            "/api/v1/chat/sessions/test/attachments",
+            files={"file": ("photo.png", b"\x89PNG\r\n\x1a\n" + b"rest", "image/png")},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["path"] == str(dest)
+    assert data["name"] == "photo.png"
+    mock_save.assert_called_once()
+    assert mock_save.call_args[0][0] == "test"
+    assert mock_save.call_args[0][1] == "photo.png"
+
+
+@pytest.mark.asyncio
+async def test_upload_attachment_rejects_unsupported_type(client: AsyncClient):
+    response = await client.post(
+        "/api/v1/chat/sessions/test/attachments",
+        files={"file": ("evil.xyz", b"whatever", "application/octet-stream")},
+    )
+    assert response.status_code == 400
+    assert "Unsupported file type" in response.json()["error"]
+
+
+@pytest.mark.asyncio
+async def test_upload_attachment_rejects_spoofed_content(client: AsyncClient):
+    response = await client.post(
+        "/api/v1/chat/sessions/test/attachments",
+        files={"file": ("fake.png", b"not actually a png", "image/png")},
+    )
+    assert response.status_code == 400
+    assert "doesn't look like" in response.json()["error"]
+
+
+@pytest.mark.asyncio
+async def test_upload_attachment_rejects_oversized(client: AsyncClient, monkeypatch):
+    from zrb.config.config import CFG
+
+    monkeypatch.setattr(CFG, "LLM_MAX_ATTACHMENT_BYTES", 4)
+    response = await client.post(
+        "/api/v1/chat/sessions/test/attachments",
+        files={"file": ("photo.png", b"\x89PNG\r\n\x1a\n" + b"rest", "image/png")},
+    )
+    assert response.status_code == 400
+    assert "too large" in response.json()["error"]
+
+
+@pytest.mark.asyncio
+async def test_upload_attachment_forbidden_without_access(client: AsyncClient):
+    no_access_user = MagicMock()
+    no_access_user.can_access_task.return_value = False
+    mock_task = MagicMock()
+
+    with (
+        patch(
+            "zrb.runner.chat.chat_api_route.get_user_from_request",
+            new=AsyncMock(return_value=no_access_user),
+        ),
+        patch(
+            "zrb.runner.chat.chat_api_route.get_llm_chat_task",
+            new=AsyncMock(return_value=mock_task),
+        ),
+    ):
+        response = await client.post(
+            "/api/v1/chat/sessions/test/attachments",
+            files={"file": ("photo.png", b"\x89PNG\r\n\x1a\n" + b"rest", "image/png")},
+        )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_approval_action_json_edit_handled(client: AsyncClient):
     _mock_sm.get_session.return_value = MagicMock()
     _mock_sm.is_waiting_for_edit.return_value = True
@@ -152,6 +259,62 @@ async def test_approval_action_waiting_edit_non_json_returns_400(client: AsyncCl
 
     assert response.status_code == 400
     assert "JSON" in response.json()["error"]
+
+
+@pytest.mark.asyncio
+async def test_unhandled_json_edit_is_never_retried_as_a_text_response(
+    client: AsyncClient,
+):
+    """A missed edit must not be re-sent down the is_json=False path.
+
+    handle_response cannot parse a dict, so retrying there denies the pending
+    tool call outright — a raced edit turning into a spurious denial. The route
+    must report the miss without a second, text-mode attempt.
+    """
+    _mock_sm.get_session.return_value = MagicMock()
+    _mock_sm.is_waiting_for_edit.return_value = True
+    _mock_sm.has_pending_approvals.return_value = True
+    _mock_sm.handle_approval_response.reset_mock()
+    _mock_sm.handle_approval_response.return_value = {
+        "handled": False,
+        "error": "No pending edit request",
+    }
+
+    response = await client.post(
+        "/api/v1/chat/sessions/test/messages",
+        json={"message": {"key": "value"}, "isApprovalAction": True},
+    )
+
+    assert response.status_code == 400
+    calls = _mock_sm.handle_approval_response.call_args_list
+    assert len(calls) == 1, "the dict was retried in text mode"
+    assert calls[0].kwargs["is_json"] is True
+
+
+@pytest.mark.asyncio
+async def test_approval_action_dict_without_pending_edit_falls_through_to_send(
+    client: AsyncClient,
+):
+    """No edit slot and nothing pending: the dict is still an ordinary message.
+
+    Skipping the text-mode retry must not swallow this pre-existing path.
+    """
+    _mock_sm.get_session.return_value = MagicMock()
+    _mock_sm.is_waiting_for_edit.return_value = False
+    _mock_sm.has_pending_approvals.return_value = False
+    _mock_sm.handle_approval_response.reset_mock()
+    _mock_sm.send_input = AsyncMock()
+
+    response = await client.post(
+        "/api/v1/chat/sessions/test/messages",
+        json={"message": {"hello": "world"}, "isApprovalAction": True},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "sent"
+    _mock_sm.handle_approval_response.assert_not_called()
+    _mock_sm.send_input.assert_awaited_once()
+    assert json.loads(_mock_sm.send_input.await_args.args[1]) == {"hello": "world"}
 
 
 @pytest.mark.asyncio
@@ -219,9 +382,9 @@ async def test_post_message_dict_is_json_serialized(client: AsyncClient):
 async def test_routes_forbid_user_without_task_access(client: AsyncClient):
     """With a resolvable chat task, a user who can't access it gets 403.
 
-    Regression test for C1: the chat routes previously discarded the user and
-    never called `can_access_task`, so an unauthorized client could reach the
-    `llm chat` agent (tool/shell execution).
+    The chat routes must pass the user to `can_access_task`; dropping it would
+    let an unauthorized client reach the `llm chat` agent (tool/shell
+    execution).
     """
     no_access_user = MagicMock()
     no_access_user.can_access_task.return_value = False
@@ -233,7 +396,7 @@ async def test_routes_forbid_user_without_task_access(client: AsyncClient):
             new=AsyncMock(return_value=no_access_user),
         ),
         patch(
-            "zrb.runner.chat.chat_api_route._get_llm_chat_task",
+            "zrb.runner.chat.chat_api_route.get_llm_chat_task",
             new=AsyncMock(return_value=mock_task),
         ),
     ):
@@ -267,7 +430,7 @@ async def test_routes_allow_user_with_task_access(client: AsyncClient):
             new=AsyncMock(return_value=ok_user),
         ),
         patch(
-            "zrb.runner.chat.chat_api_route._get_llm_chat_task",
+            "zrb.runner.chat.chat_api_route.get_llm_chat_task",
             new=AsyncMock(return_value=mock_task),
         ),
     ):
@@ -275,16 +438,57 @@ async def test_routes_allow_user_with_task_access(client: AsyncClient):
         assert response.status_code == 200
 
 
+def testsave_uploaded_attachment_writes_file_and_returns_path():
+    from zrb.runner.chat.chat_api_route import save_uploaded_attachment
+
+    path = save_uploaded_attachment("some-session", "photo.png", b"data")
+    try:
+        assert os.path.isfile(path)
+        assert os.path.basename(path).endswith("_photo.png")
+        with open(path, "rb") as f:
+            assert f.read() == b"data"
+    finally:
+        os.remove(path)
+
+
 @pytest.mark.asyncio
-async def test_get_llm_chat_task_returns_none_when_missing():
+async def testget_llm_chat_task_returns_none_when_missing():
     """Internal helper returns None when the chat node isn't registered."""
-    from zrb.runner.chat.chat_api_route import _get_llm_chat_task
-    from zrb.util.group import NodeNotFoundError
+    from zrb.group.any_group import NodeNotFoundError
+    from zrb.runner.chat.chat_api_route import get_llm_chat_task
 
     mock_root = MagicMock()
-    with patch(
-        "zrb.runner.chat.chat_api_route.extract_node_from_args",
-        side_effect=NodeNotFoundError("nope"),
-    ):
-        result = await _get_llm_chat_task(mock_root)
+    mock_root.extract_node.side_effect = NodeNotFoundError("nope")
+    result = await get_llm_chat_task(mock_root)
     assert result is None
+
+
+@pytest.mark.asyncio
+async def test_cleared_stale_edit_slot_is_not_reported_as_still_waiting(
+    client: AsyncClient,
+):
+    """Don't tell a client that just sent JSON args to "send JSON args".
+
+    An unhandled claim clears a stale edit slot, so the edit state captured
+    before handle_approval_response is out of date by the time the route builds
+    its error. Re-reading it lets the response describe what is actually
+    pending.
+    """
+    _mock_sm.get_session.return_value = MagicMock()
+    # True on the pre-call read, False afterwards: the stale slot was cleared.
+    _mock_sm.is_waiting_for_edit.side_effect = [True, False]
+    _mock_sm.has_pending_approvals.return_value = True
+    _mock_sm.handle_approval_response.return_value = {
+        "handled": False,
+        "error": "No pending edit request",
+    }
+
+    response = await client.post(
+        "/api/v1/chat/sessions/test/messages",
+        json={"message": {"key": "value"}, "isApprovalAction": True},
+    )
+
+    _mock_sm.is_waiting_for_edit.side_effect = None
+    assert response.status_code == 400
+    assert "send JSON args" not in response.json()["error"]
+    assert "y/n/e" in response.json()["error"]

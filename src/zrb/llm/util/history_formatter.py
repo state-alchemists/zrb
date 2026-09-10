@@ -2,15 +2,18 @@
 
 import json
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from zrb.config.config import CFG
+from zrb.llm.tool_call.args import parse_tool_args_value
+from zrb.llm.util.tool_args import is_empty_tool_args, truncate_tool_args_values
+from zrb.util.truncate import truncate_display
 
 if TYPE_CHECKING:
-    from pydantic_ai import ModelMessage
+    from zrb.llm.agent.types import ModelMessage
 
 
-def extract_last_response_text(messages: "list[ModelMessage]") -> str:
+def extract_last_response_text(messages: "Sequence[ModelMessage]") -> str:
     """Return the text of the most recent assistant response, or ``""``.
 
     Scans messages newest-first and returns the joined ``TextPart`` contents
@@ -35,7 +38,10 @@ def extract_last_response_text(messages: "list[ModelMessage]") -> str:
 
 
 def format_history_as_text(
-    messages: "list[ModelMessage]", max_length: int | None = None, *, full: bool = False
+    messages: "Sequence[ModelMessage]",
+    max_length: int | None = None,
+    *,
+    full: bool = False,
 ) -> str:
     """Format pydantic-ai conversation history as human-readable text.
 
@@ -68,13 +74,13 @@ def format_history_as_text(
     # Track tool call IDs to tool names for matching returns
     pending_tool_calls: dict[str, str] = {}
 
-    for i, msg in enumerate(messages):
+    for msg in messages:
         kind = getattr(msg, "kind", "unknown")
 
         if kind == "request":
-            lines.extend(_format_request(msg, i, pending_tool_calls, full))
+            lines.extend(_format_request(msg, pending_tool_calls, full))
         elif kind == "response":
-            lines.extend(_format_response(msg, i, pending_tool_calls, full))
+            lines.extend(_format_response(msg, pending_tool_calls, full))
 
     result = "\n".join(lines)
 
@@ -89,7 +95,7 @@ def format_history_as_text(
 
 
 def _format_request(
-    msg, index: int, pending_tool_calls: dict[str, str], full: bool = False
+    msg, pending_tool_calls: dict[str, str], full: bool = False
 ) -> list[str]:
     """Format a ModelRequest message.
 
@@ -124,11 +130,10 @@ def _format_request(
     for part in tool_return_parts:
         lines.extend(_format_tool_return(part, pending_tool_calls, full))
 
-    # Show user prompt(s)
     for part in user_prompt_parts:
         content = getattr(part, "content", "")
         ts_display = f"{timestamp} " if timestamp else ""
-        text = str(content) if full else truncate(str(content), 500)
+        text = _render_user_content(content, full)
         lines.append(f"💬 {ts_display}>> {text}")
 
     indent_max = None if full else 50
@@ -140,22 +145,64 @@ def _format_request(
         lines.append("📋 System Prompt:")
         if dynamic_ref:
             lines.append(f"  Ref: {dynamic_ref}")
-        lines.extend(_indent_lines(str(content), 2, max_lines=indent_max))
+        lines.extend(indent_lines(str(content), 2, max_lines=indent_max))
 
-    # Retry prompts
     for part in retry_parts:
         content = getattr(part, "content", "")
         tool_name = getattr(part, "tool_name", None)
         lines.append("🔄 Retry Prompt:")
         if tool_name:
             lines.append(f"  Tool: {tool_name}")
-        lines.extend(_indent_lines(str(content), 2, max_lines=indent_max))
+        lines.extend(indent_lines(str(content), 2, max_lines=indent_max))
 
     return lines
 
 
+def _render_user_content(content, full: bool = False) -> str:
+    """Render a UserPromptPart's content, which may be plain text or a
+    multimodal sequence (text interleaved with image/audio/video/document
+    attachments)."""
+    if isinstance(content, str):
+        return content if full else truncate(content, 500)
+    if isinstance(content, Sequence):
+        rendered = " ".join(format_multimodal_item(item) for item in content)
+        return rendered if full else truncate(rendered, 500)
+    return str(content) if full else truncate(str(content), 500)
+
+
+def format_multimodal_item(item) -> str:
+    """Render one item of a multimodal ``UserPromptPart.content`` sequence.
+
+    Shared with ``llm/summarizer/message_converter.py`` so the two transcript
+    renderers describe attachments identically instead of drifting apart.
+    """
+    if isinstance(item, str):
+        return item
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import (
+        AudioUrl,
+        BinaryContent,
+        DocumentUrl,
+        ImageUrl,
+        VideoUrl,
+    )
+
+    if isinstance(item, ImageUrl):
+        return f"[Image URL: {item.url}]"
+    if isinstance(item, AudioUrl):
+        return f"[Audio URL: {item.url}]"
+    if isinstance(item, VideoUrl):
+        return f"[Video URL: {item.url}]"
+    if isinstance(item, DocumentUrl):
+        return f"[Document URL: {item.url}]"
+    if isinstance(item, BinaryContent):
+        media_type = getattr(item, "media_type", "unknown")
+        return f"[Binary Content: {media_type}]"
+    return f"[Unknown User Content: {type(item).__name__}]"
+
+
 def _format_response(
-    msg, index: int, pending_tool_calls: dict[str, str], full: bool = False
+    msg, pending_tool_calls: dict[str, str], full: bool = False
 ) -> list[str]:
     """Format a ModelResponse message.
 
@@ -178,13 +225,12 @@ def _format_response(
     for part in thinking_parts:
         content = getattr(part, "content", "")
         lines.append("  💭 Thinking:")
-        lines.extend(_indent_lines(str(content), 4, max_lines=None if full else 10))
+        lines.extend(indent_lines(str(content), 4, max_lines=None if full else 10))
 
-    # Then show text content
     text_parts = [p for p in parts if getattr(p, "part_kind", None) == "text"]
     for part in text_parts:
         content = getattr(part, "content", "")
-        lines.extend(_indent_lines(str(content), 2, max_lines=None if full else 50))
+        lines.extend(indent_lines(str(content), 2, max_lines=None if full else 50))
 
     # Then show tool calls (mimicking streaming style with 🧰)
     tool_call_parts = [p for p in parts if getattr(p, "part_kind", None) == "tool-call"]
@@ -236,7 +282,6 @@ def _format_tool_return(
     content = getattr(part, "content", "")
     outcome = getattr(part, "outcome", "success")
 
-    # Status indicator
     status_icon = "✅" if str(outcome) == "success" else "❌"
 
     id_display = tool_call_id or "?"
@@ -254,12 +299,12 @@ def _format_tool_return(
 
     lines.append(f"  🔠 {id_display} | {name_display} {status_icon}")
     if shown.strip():
-        lines.extend(_indent_lines(shown, 4, max_lines=None if full else 3))
+        lines.extend(indent_lines(shown, 4, max_lines=None if full else 3))
 
     return lines
 
 
-def _indent_lines(text: str, indent: int = 2, max_lines: int | None = 50) -> list[str]:
+def indent_lines(text: str, indent: int = 2, max_lines: int | None = 50) -> list[str]:
     """Indent each line of text with proper truncation.
 
     Args:
@@ -290,9 +335,7 @@ def truncate(text: str, max_length: int | None = None) -> str:
 
     if max_length is None:
         max_length = CFG.LLM_HISTORY_TRUNCATE_LENGTH
-    if len(text) <= max_length:
-        return text
-    return text[: max_length - 3] + "..."
+    return truncate_display(text, max_length)
 
 
 def format_args(args, full: bool = False) -> str:
@@ -302,33 +345,24 @@ def format_args(args, full: bool = False) -> str:
     truncation) for an export transcript.
     """
 
-    if args is None:
+    if is_empty_tool_args(args):
         return "{}"
-    if isinstance(args, str):
-        if args.strip() in ["", "null", "{}"]:
-            return "{}"
-        try:
-            obj = json.loads(args)
-            if isinstance(obj, dict):
-                return _truncate_kwargs(obj, full=full)
-        except (json.JSONDecodeError, TypeError):
-            return args if full else truncate(args, 50)
     if isinstance(args, dict):
         # Remove 'dummy' key if present (schema sanitization artifact)
         args_clean = {k: v for k, v in args.items() if k != "dummy"}
-        return _truncate_kwargs(args_clean, full=full)
+        return _dump_truncated(args_clean, full=full)
+    if isinstance(args, str):
+        parsed = parse_tool_args_value(args)
+        if parsed is not None:
+            return _dump_truncated(parsed, full=full)
+        return args if full else truncate(args, 50)
     return str(args) if full else truncate(str(args), 50)
 
 
-def _truncate_kwargs(kwargs: dict, max_length: int = 30, full: bool = False) -> str:
-    """Truncate keyword arguments for display (no truncation when ``full``)."""
+def _dump_truncated(kwargs: dict, full: bool = False) -> str:
+    """Truncate keyword arguments and render as JSON (no truncation when ``full``)."""
 
-    truncated = {}
-    for key, val in kwargs.items():
-        if not full and isinstance(val, str) and len(val) > max_length:
-            truncated[key] = f"{val[:max_length-3]}..."
-        else:
-            truncated[key] = val
+    truncated = truncate_tool_args_values(kwargs, full=full)
     try:
         return json.dumps(truncated, ensure_ascii=False)
     except (TypeError, ValueError):
@@ -349,7 +383,6 @@ def format_timestamp(timestamp) -> str:
 
     try:
         if isinstance(timestamp, str):
-            # Parse ISO format
             if timestamp.endswith("Z"):
                 timestamp = timestamp[:-1] + "+00:00"
             dt = datetime.fromisoformat(timestamp)

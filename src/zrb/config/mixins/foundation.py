@@ -8,11 +8,12 @@ from importlib import metadata as _metadata
 
 from zrb.config.env_field import (
     EnvField,
-    colon_join,
-    colon_list,
     comma_join,
+    comma_list,
     comma_or_colon_list,
     on_off,
+    path_list,
+    path_list_join,
 )
 from zrb.config.helper import (
     get_current_shell,
@@ -25,7 +26,7 @@ from zrb.util.string.format import fstring_format
 
 
 def _serialize_log_level(value) -> str:
-    """Mirror the old setter: accept a numeric level or a name, store a name."""
+    """Accept a numeric level or a name, store a name."""
     if isinstance(value, int):
         return logging.getLevelName(value)
     return str(value)
@@ -38,7 +39,7 @@ _DEFAULT_BANNER = """
     zz   rr     bb   bb
    zzzzz rr     bbbbbb   {VERSION} Jinrui
    _ _ . .  . _ .  _ . . .
-Your Automation Powerhouse
+Coding Agent + Task Engine
 ☕ Donate at: https://stalchmst.com
 🐙 Submit issues/PR at: https://github.com/state-alchemists/zrb
 🐤 Follow us at: https://twitter.com/zarubastalchmst
@@ -53,12 +54,32 @@ class FoundationMixin:
         self.DEFAULT_DIFF_EDIT_COMMAND_TPL: str = ""
         self.DEFAULT_INIT_MODULES: str = ""
         self.DEFAULT_ROOT_GROUP_NAME: str = "zrb"
-        self.DEFAULT_ROOT_GROUP_DESCRIPTION: str = "Your Automation Powerhouse"
+        self.DEFAULT_ROOT_GROUP_DESCRIPTION: str = (
+            "A coding agent with a built-in task DAG"
+        )
         self.DEFAULT_INIT_SCRIPTS: str = ""
         self.DEFAULT_INIT_FILE_NAME: str = "zrb_init.py"
+        self.DEFAULT_INIT_STRICT: str = "off"
         self.DEFAULT_LOGGING_LEVEL: str = "WARNING"
-        self.DEFAULT_LOAD_BUILTIN: str = "on"
-        self.DEFAULT_WARN_UNRECOMMENDED_COMMAND: str = "on"
+        self.DEFAULT_ENABLE_BUILTIN_TASKS: str = "on"
+        self.DEFAULT_SHOW_UNRECOMMENDED_COMMAND_WARNING: str = "on"
+        # Name fragments that mark an environment variable as holding a
+        # credential. Tuned to over-redact: a false positive costs one
+        # unhelpful `***` in a debug log, a false negative leaks a key.
+        self.DEFAULT_SECRET_ENV_PATTERNS: str = ",".join(
+            [
+                "KEY",
+                "SECRET",
+                "TOKEN",
+                "PASSWORD",
+                "PASSWD",
+                "CREDENTIAL",
+                "AUTH",
+                "PRIVATE",
+                "SIGNATURE",
+                "SALT",
+            ]
+        )
         self.DEFAULT_SESSION_LOG_DIR: str = ""
         self.DEFAULT_TODO_DIR: str = ""
         self.DEFAULT_TODO_VISUAL_FILTER: str = ""
@@ -66,7 +87,7 @@ class FoundationMixin:
         self.DEFAULT_VERSION: str = ""
         self.DEFAULT_ASCII_ART_DIR: str = ""
         self.DEFAULT_BANNER: str = _DEFAULT_BANNER
-        self.DEFAULT_USE_TIKTOKEN: str = "off"
+        self.DEFAULT_ENABLE_TIKTOKEN: str = "off"
         self.DEFAULT_TIKTOKEN_ENCODING_NAME: str = "cl100k_base"
         self.DEFAULT_MCP_CONFIG_FILE: str = "mcp-config.json"
         super().__init__()
@@ -83,6 +104,7 @@ class FoundationMixin:
 
     @property
     def LOGGER(self) -> logging.Logger:
+        """The root logger. Its level follows `LOGLEVEL`."""
         return logging.getLogger()
 
     SHELL = EnvField(
@@ -95,8 +117,10 @@ class FoundationMixin:
         to_boolean,
         serialize=on_off,
         default_factory=lambda c: on_off(is_termux()),
-        doc="Whether zrb runs under Termux. Auto-detected; override to force "
-        "Termux-specific behavior such as Tab-to-cycle-mode keybindings.",
+        doc=(
+            "Whether zrb runs under Termux. Auto-detected; override to force "
+            "Termux-specific behavior such as Tab-to-cycle-mode keybindings."
+        ),
     )
 
     EDITOR = EnvField(str, doc="Default text editor for interactive prompts.")
@@ -114,9 +138,11 @@ class FoundationMixin:
     INIT_MODULES = EnvField(
         comma_or_colon_list,
         serialize=comma_join,
-        doc="Comma-separated importable module names zrb imports on startup so "
-        "their task definitions register (e.g. a shared team task package). "
-        "Colon-separated values are still accepted.",
+        doc=(
+            "Comma-separated importable module names zrb imports on startup so "
+            "their task definitions register (e.g. a shared team task package). "
+            "Colon-separated values are still accepted."
+        ),
     )
 
     ROOT_GROUP_NAME = EnvField(str, doc="Name of the root command group in help menus.")
@@ -126,17 +152,34 @@ class FoundationMixin:
     )
 
     INIT_SCRIPTS = EnvField(
-        colon_list,
-        serialize=colon_join,
-        doc="Colon-separated Python script paths zrb runs on startup (in addition "
-        "to the discovered INIT_FILE_NAME files) to register task definitions.",
+        path_list,
+        serialize=path_list_join,
+        doc=(
+            "Colon-separated (semicolon on Windows) Python script paths zrb "
+            "runs on startup (in addition "
+            "to the discovered INIT_FILE_NAME files) to register task definitions."
+        ),
     )
 
     INIT_FILE_NAME = EnvField(
         str,
-        doc="Name of the task-definition file zrb auto-loads. On startup zrb walks "
-        "from the current directory up to the filesystem root and loads every "
-        "file with this name it finds.",
+        doc=(
+            "Name of the task-definition file zrb auto-loads. On startup zrb walks "
+            "from the current directory up to the filesystem root and loads every "
+            "file with this name it finds."
+        ),
+    )
+
+    INIT_STRICT = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Exit non-zero when any init module or script fails to load, instead "
+            "of reporting it and starting anyway. Off by default: interactively, a "
+            "user who can still run zrb can fix the error and rerun. Turn it on in "
+            "CI, where a half-loaded init file otherwise yields a green run against "
+            "state that was never fully registered."
+        ),
     )
 
     LOGGING_LEVEL = EnvField(
@@ -152,16 +195,28 @@ class FoundationMixin:
         ),
     )
 
-    LOAD_BUILTIN = EnvField(
+    ENABLE_BUILTIN_TASKS = EnvField(
         to_boolean,
         serialize=on_off,
         doc="Whether to load pre-packaged tasks (Git, UUID, base64, etc.).",
     )
 
-    WARN_UNRECOMMENDED_COMMAND = EnvField(
+    SHOW_UNRECOMMENDED_COMMAND_WARNING = EnvField(
         to_boolean,
         serialize=on_off,
         doc="Show warnings for potentially unsafe shell commands.",
+    )
+
+    SECRET_ENV_PATTERNS = EnvField(
+        comma_list,
+        serialize=comma_join,
+        doc=(
+            "Comma-separated name fragments marking an environment variable as "
+            "secret. Matched case-insensitively as a substring, so `KEY` covers "
+            "`OPENAI_API_KEY` and `aws_access_key`. Values whose name matches are "
+            "replaced with `***` in `CmdTask`'s DEBUG environment dump. Set to an "
+            "empty string to redact nothing."
+        ),
     )
 
     SESSION_LOG_DIR = EnvField(
@@ -218,7 +273,7 @@ class FoundationMixin:
         doc="Banner shown at CLI start. Supports {VERSION} formatting.",
     )
 
-    USE_TIKTOKEN = EnvField(
+    ENABLE_TIKTOKEN = EnvField(
         to_boolean,
         serialize=on_off,
         doc="Whether to use tiktoken for token counting.",
@@ -226,7 +281,7 @@ class FoundationMixin:
 
     TIKTOKEN_ENCODING_NAME = EnvField(
         str,
-        aliases=["TIKTOKEN_ENCODING", "TIKTOKEN_ENCODING_NAME"],
+        aliases=["TIKTOKEN_ENCODING_NAME", "TIKTOKEN_ENCODING"],
         doc="Tiktoken encoding name (e.g. cl100k_base).",
     )
 

@@ -4,12 +4,12 @@ The sandbox is **off by default** (see the default-off invariant in
 ``zrb.llm.permission``). When enabled it constrains LLM tool calls in two
 layers: a Python-level filesystem gate for in-process file tools, and an
 OS-level wrapper (Seatbelt on macOS, bubblewrap on Linux) for shell commands.
-See ``zrb.llm.sandbox`` and docs/advanced-topics/sandbox.md.
+See ``zrb.llm.sandbox`` and docs/llm/sandbox.md.
 """
 
 from __future__ import annotations
 
-from zrb.config.env_field import EnvField, colon_join, expanduser_colon_list
+from zrb.config.env_field import EnvField, expanduser_path_list, on_off, path_list_join
 from zrb.util.string.conversion import to_boolean
 
 # Directories that commonly hold credentials. Defined here (config is a leaf
@@ -41,7 +41,7 @@ class LLMSandboxMixin:
         self.DEFAULT_LLM_SANDBOX_ENABLED: str = "false"
         self.DEFAULT_LLM_SANDBOX_OS_SHELL: str = "auto"
         self.DEFAULT_LLM_SANDBOX_WRITABLE_PATHS: str = ""
-        self.DEFAULT_LLM_SANDBOX_DENY_READ_PATHS: str = ":".join(
+        self.DEFAULT_LLM_SANDBOX_DENY_READ_PATHS: str = path_list_join(
             DEFAULT_LLM_SANDBOX_DENY_READ_PATHS
         )
         self.DEFAULT_LLM_SANDBOX_FALLBACK: str = "warn"
@@ -50,6 +50,7 @@ class LLMSandboxMixin:
 
     LLM_SANDBOX_ENABLED = EnvField(
         to_boolean,
+        serialize=on_off,
         doc=(
             "Master switch for the LLM tool sandbox (both the Python-level "
             "filesystem gate and the OS-level shell wrapper). Off by default; "
@@ -67,20 +68,22 @@ class LLMSandboxMixin:
     )
 
     LLM_SANDBOX_WRITABLE_PATHS = EnvField(
-        expanduser_colon_list,
-        serialize=colon_join,
+        expanduser_path_list,
+        serialize=path_list_join,
         doc=(
-            "Colon-separated directories LLM tool calls may write to. Empty "
+            "Colon-separated (semicolon on Windows) directories LLM tool "
+            "calls may write to. Empty "
             "(default) means automatic: the current working directory plus the "
             "system temp directory."
         ),
     )
 
     LLM_SANDBOX_DENY_READ_PATHS = EnvField(
-        expanduser_colon_list,
-        serialize=colon_join,
+        expanduser_path_list,
+        serialize=path_list_join,
         doc=(
-            "Colon-separated paths LLM tool calls may never read (credential "
+            "Colon-separated (semicolon on Windows) paths LLM tool calls "
+            "may never read (credential "
             "stores). Setting this replaces the built-in default list."
         ),
     )
@@ -96,6 +99,7 @@ class LLMSandboxMixin:
 
     LLM_SANDBOX_ALLOW_ESCAPE = EnvField(
         to_boolean,
+        serialize=on_off,
         doc=(
             "Whether the dangerously_skip_sandbox tool argument is honored. "
             "When false, escape requests are blocked outright. Set false for "

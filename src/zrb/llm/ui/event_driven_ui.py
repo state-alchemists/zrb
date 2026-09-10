@@ -1,15 +1,18 @@
+from __future__ import annotations
+
 import asyncio
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-from zrb.llm.task.llm_task import LLMTask
+from zrb.llm.ui.queue_based_input import QueueBasedInput
 from zrb.llm.ui.simple_ui_base import SimpleUI
 from zrb.llm.ui.ui_config import UIConfig
 
 if TYPE_CHECKING:
-    from pydantic_ai import UserContent
+    from zrb.llm.agent.types import UserContent
+    from zrb.llm.task.llm_task import LLMTask
 
 
 class EventDrivenUI(SimpleUI):
@@ -44,7 +47,7 @@ class EventDrivenUI(SimpleUI):
         ctx,
         llm_task: LLMTask,
         history_manager: AnyHistoryManager,
-        config: UIConfig | None = None,
+        ui_config: UIConfig | None = None,
         initial_message: str = "",
         initial_attachments: "list[UserContent] | None" = None,
         model: str | None = None,
@@ -54,22 +57,31 @@ class EventDrivenUI(SimpleUI):
             ctx=ctx,
             llm_task=llm_task,
             history_manager=history_manager,
-            config=config,
+            ui_config=ui_config,
             initial_message=initial_message,
             initial_attachments=initial_attachments,
             model=model,
             **kwargs,
         )
-        self._input_queue: asyncio.Queue[str] = asyncio.Queue()
-        self._waiting_for_input = False
+        self._input_handling = QueueBasedInput(self)
 
     @property
-    def input_queue(self) -> asyncio.Queue[str]:
-        """Public accessor for input queue (backward compatibility).
+    def input_queue(self) -> "asyncio.Queue[str]":
+        return self._input_handling.input_queue
 
-        Prefer using handle_incoming_message() for routing messages.
-        """
-        return self._input_queue
+    @property
+    def waiting_for_input(self) -> bool:
+        return self._input_handling.waiting_for_input
+
+    @waiting_for_input.setter
+    def waiting_for_input(self, value: bool) -> None:
+        self._input_handling.waiting_for_input = value
+
+    async def get_input(self, prompt: str) -> str:
+        return await self._input_handling.get_input(prompt)
+
+    def handle_incoming_message(self, text: str) -> None:
+        self._input_handling.handle_incoming_message(text)
 
     @abstractmethod
     async def start_event_loop(self):
@@ -85,28 +97,6 @@ class EventDrivenUI(SimpleUI):
         raise NotImplementedError(
             f"{self.__class__.__name__} must implement start_event_loop()"
         )
-
-    def handle_incoming_message(self, text: str):
-        """Call this when a message arrives from your backend.
-
-        Routes the message to the appropriate handler:
-        - If waiting for input (ask_user blocked), it goes to the queue
-        - Otherwise, it's submitted as a new user message to the LLM
-        """
-        if self._waiting_for_input:
-            self._input_queue.put_nowait(text)
-        else:
-            self._submit_user_message(self._llm_task, text)
-
-    async def get_input(self, prompt: str) -> str:
-        """Blocks until handle_incoming_message() receives a response."""
-        if prompt:
-            await self.print(f"❓ {prompt}", kind="text")
-        self._waiting_for_input = True
-        try:
-            return await self._input_queue.get()
-        finally:
-            self._waiting_for_input = False
 
     async def _run_loop(self):
         """Start the event loop and wait."""

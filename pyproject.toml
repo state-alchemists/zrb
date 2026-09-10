@@ -1,17 +1,21 @@
 [project]
 name = "zrb"
-version = "2.50.3"
-description = "Your Automation Powerhouse"
+version = "3.0.0"
+description = "A terminal coding agent with a build system inside"
 authors = [{name = "Go Frendi Gunawan", email = "gofrendiasgard@gmail.com"}]
 license = "AGPL-3.0-or-later"
 readme = "README.pypi.md"
-keywords = ["Automation", "Task Runner", "Code Generator", "Monorepo", "Low Code"]
+keywords = [
+    "AI Agent", "Coding Agent", "LLM", "MCP", "Agentic",
+    "Automation", "Task Runner", "DAG", "Pipeline", "Code Generator",
+]
 requires-python = ">=3.11.0,<3.15.0"
 dependencies = [
     "python-dotenv>=1.1.1,<2.0.0",
     "beautifulsoup4>=4.14.2,<5.0.0",
     "pdfplumber>=0.11.7,<0.12.0",
-    "fastapi[standard]>=0.136.3,<0.137.0",
+    "fastapi>=0.141.1,<0.142.0",
+    "uvicorn>=0.52.4,<0.53.0",
     "jinja2>=3.1.0,<4.0.0",
     # PyJWT and pyjwt normalize to the same distribution; consolidated to the
     # stricter pin so PEP-621 does not see a duplicate dependency.
@@ -24,20 +28,38 @@ dependencies = [
     # Security fix: GHSA-4xgf-cpjx-pc3j - NestedSecretsSettingsSource follows symlinks outside secrets_dir.
     # pydantic-settings is transitive via pydantic-ai-slim → fastmcp-slim → mcp. Pin >=2.14.2.
     "pydantic-settings>=2.14.2",
-    "pydantic-ai-slim[mcp]>=2.8.0,<2.9.0",
+    "pydantic-ai-slim[mcp]>=2.41.0,<2.42.0",
     # NOTE: Make sure the following dependencies are not conflicting with pydantic-ai-slim
-    "openai>=2.29.0",
+    # `openai` is a core dependency (not an extra) because every OpenAI-compatible
+    # provider routes through it — OpenAI, Ollama, DeepSeek, OpenRouter, Z.ai,
+    # Cerebras, Together, and the rest.
+    # >=3.8.0 is a hard floor, not a preference: it's pydantic-ai's own `openai`
+    # extra floor as of 2.41.0. An older SDK is untested against this pydantic-ai
+    # version and may miss parameters `OpenAIChatModel` now sends unconditionally
+    # (e.g. `prompt_cache_options=`, required since openai 2.45.0).
+    "openai>=3.8.0",
     "prompt-toolkit>=3",
     "rich>=13",
-    "mcp>1.25.0,<2.0",
+    # Security fix: GHSA/CVE-2026-59950 - Cross-Site WebSocket Hijacking via unvalidated Host/Origin
+    # headers in the deprecated WebSocket server transport. We pin >=1.28.1.
+    "mcp>=1.28.1,<2.0",
     "requests>=2.33.0,<3.0.0",
     "tiktoken>=0.12.0,<0.13.0",
     "markdownify>=1.2.2,<2.0.0",
     "pyyaml>=6.0.3,<7.0.0",
     "pyperclip>=1.11.0,<2.0.0",
+    # Pure-Python LaTeX->Unicode conversion for markdown math rendering
+    # (util/cli/latex_math.py). Zero transitive deps, tiny (<1MB) -- core
+    # rather than an extra, since the render toggle defaults on.
+    "pylatexenc>=2.10,<3.0.0",
+    # Pure-Python Mermaid->Unicode diagram rendering
+    # (util/cli/mermaid_diagram.py). Zero transitive deps. Pinned tight
+    # (<0.9.0): termaid is pre-1.0.
+    "termaid>=0.8.0,<0.9.0",
     # Security fix: CVE-2026-40192 - Decompression bomb via unlimited GZIP read in FITS decoding.
-    # Pillow is a transitive dependency via pdfplumber. We pin >=12.2.0 to ensure the patched version is used.
-    "Pillow>=12.2.0",
+    # Security fix: CVE-2026-59204 - DoS via memory-allocation state accumulation in the JPEG2000 decoder. We pin >=12.3.0.
+    # Pillow is a transitive dependency via pdfplumber. We pin >=12.3.0 to ensure the patched version is used.
+    "Pillow>=12.3.0",
     # Security fix: CVE-2026-4539 - ReDoS vulnerability in AdlLexer (GUID regex).
     # pygments is a transitive dependency via rich and pytest. We pin >=2.20.0.
     "pygments>=2.20.0",
@@ -60,6 +82,9 @@ dependencies = [
     # Security fix: GHSA-65pc-fj4g-8rjx (CVE-2026-45409) - DoS via crafted input to idna.encode().
     # idna is transitive via requests, httpx, anyio (pydantic-ai). We pin >=3.15.
     "idna>=3.15",
+    # pydantic-ai-slim's HTTP layer moved to httpx2 (was httpx) as of 2.36.0.
+    # >=2.7 matches pydantic-ai's own floor for it.
+    "httpx2>=2.7.0",
 ]
 
 [project.urls]
@@ -87,29 +112,43 @@ cohere = ["cohere>=5.20.6"]
 vertexai = [
     "google-auth>=2.36.0",
     # Security fix: CVE-2026-23491 - DoS via uncontrolled recursion in ASN.1 decoding (via google-auth).
-    "pyasn1>=0.6.3",
+    # Security fix: CVE-2026-59886 - resource exhaustion via large exponents in univ.Real decoding. We pin >=0.6.4.
+    "pyasn1>=0.6.4",
 ]
-google = ["google-genai>=1.70.0"]
-anthropic = ["anthropic>=0.108.0"]
+google = ["google-genai>=2.18.0"]
+anthropic = ["anthropic>=1.3.0"]
 groq = ["groq>=0.25.0"]
-# Security fix (GHSA for supply-chain attack, see pydantic-ai #5382): mistralai==2.4.6 was
-# quarantined on PyPI. We exclude it the same way pydantic-ai-slim's mistral extra does.
-mistral = ["mistralai>=2.0.0,!=2.4.6"]
+# >=2.9.2 is pydantic-ai-slim's own mistral extra floor as of 2.41.0. This also
+# clears the mistralai==2.4.6 PyPI quarantine (GHSA, see pydantic-ai #5382) that
+# an explicit `!=2.4.6` exclusion used to be needed for.
+mistral = ["mistralai>=2.9.2"]
 xai = [
-    "xai-sdk>=1.12.2",
+    # >=1.16.0 matches pydantic-ai's floor for the xAI SDK.
+    "xai-sdk>=1.16.0",
     # Security fix: GHSA-hg6j-4rv6-33pg (CVE-2026-47265) - cross-origin redirect leaks per-request cookies.
-    # Security fix: GHSA-xcgm-r5h9-7989 (CVE-2026-54274) - incomplete WebSocket frame payloads bypass memory limits. We pin >=3.14.1.
-    "aiohttp>=3.14.1",
+    # Security fix: GHSA-xcgm-r5h9-7989 (CVE-2026-54274) - incomplete WebSocket frame payloads bypass memory limits.
+    # Security fix: GHSA-mfx4-hv73-q22v (CVE-2026-69243) - HTTP request smuggling via WebSocket upgrade.
+    # Security fix: GHSA-mq44-7p77-q5h7 (CVE-2026-59881) - WebSocket client accepts compressed frames without negotiated permessage-deflate.
+    # Security fix: GHSA-cq5v-8q36-5273 (CVE-2026-69244) - out-of-bounds heap read in the C response parser. We pin >=3.14.3.
+    "aiohttp>=3.14.3",
 ]
 bedrock = ["boto3>=1.42.63"]
-huggingface = ["huggingface-hub[inference]>=1.3.4,<2.0.0"]
+huggingface = [
+    "huggingface-hub[inference]>=1.3.4,<2.0.0",
+    # huggingface_hub 1.3.x calls the deprecated hf_xet.download_files() API,
+    # so hf-xet must stay below 1.5.0. Mirrors pydantic-ai-slim's huggingface extra.
+    "hf-xet<1.5.0; platform_machine == 'x86_64' or platform_machine == 'amd64' or platform_machine == 'AMD64' or platform_machine == 'arm64' or platform_machine == 'aarch64'",
+]
 voyageai = [
     "voyageai>=0.3.7 ; python_version < '3.14'",
     # Security fix: CVE-2026-34070, CVE-2026-44843 (GHSA-pjwx-r37v-7724) - unsafe deserialization.
     "langchain-core>=1.3.3",
     # Security fix: GHSA-hg6j-4rv6-33pg (CVE-2026-47265) - cross-origin redirect leaks per-request cookies.
-    # Security fix: GHSA-xcgm-r5h9-7989 (CVE-2026-54274) - incomplete WebSocket frame payloads bypass memory limits. We pin >=3.14.1.
-    "aiohttp>=3.14.1",
+    # Security fix: GHSA-xcgm-r5h9-7989 (CVE-2026-54274) - incomplete WebSocket frame payloads bypass memory limits.
+    # Security fix: GHSA-mfx4-hv73-q22v (CVE-2026-69243) - HTTP request smuggling via WebSocket upgrade.
+    # Security fix: GHSA-mq44-7p77-q5h7 (CVE-2026-59881) - WebSocket client accepts compressed frames without negotiated permessage-deflate.
+    # Security fix: GHSA-cq5v-8q36-5273 (CVE-2026-69244) - out-of-bounds heap read in the C response parser. We pin >=3.14.3.
+    "aiohttp>=3.14.3",
     # Security fix: GHSA-fv5p-p927-qmxr - SSRF via redirect bypass in HTMLHeaderTextSplitter.split_text_from_url().
     "langchain-text-splitters>=1.1.2",
     # Security fix: GHSA-3644-q5cj-c5c7 (CVE-2026-45134) - unsafe prompt-manifest deserialization.
@@ -157,14 +196,28 @@ exclude = [
 [tool.poetry.group.dev.dependencies]
 autopep8 = "^2.3.2"
 flake8 = "^7.2.0"
+# Pinned exact: pyright ships frequent releases that add diagnostics; a caret
+# range could break the CI type-gate on an unrelated auto-upgrade.
+pyright = "1.1.411"
 # Security fix: CVE-2025-71176 - Local privilege escalation via /tmp/pytest-of-{user} directories.
 pytest = ">=9.0.3"
 pytest-cov = "^6.1.0"
 pytest-asyncio = "^1.3.0"
+# The suite is wait-bound (real subprocess timeouts/kills), not CPU-bound —
+# ~33% average CPU utilization on a full run. Parallel workers overlap those
+# real-time waits instead of serializing them.
+pytest-xdist = "^3.6.1"
 tomlkit = "^0.13.3"
-httpx2 = ">=2.4.0"
+radon = "^6.0.1"
+pdoc = ">=15"
 
 [tool.pytest.ini_options]
+# Pin the suite to `src/`. Without it `import zrb` resolves by whatever is on
+# sys.path, so a venv out of step with poetry.lock serves a stale
+# `site-packages/zrb` and the run reports green against code that is not in
+# the diff. `.coveragerc` omits `src/zrb/__main__.py` by the path this
+# guarantees.
+pythonpath = ["src"]
 asyncio_default_fixture_loop_scope = "function"
 norecursedirs = "playground examples"
 

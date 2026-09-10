@@ -11,13 +11,23 @@ class Env(AnyEnv):
         self,
         name: str,
         default: StrAttr = "",
-        auto_render: bool = True,
         link_to_os: bool = True,
         os_name: str | None = None,
     ):
+        """Declare a single environment variable for a task.
+
+        Args:
+            name: Variable name as the task sees it on `ctx.env`.
+            default: Value used when the OS does not provide one. A literal, a
+                `Tpl` rendered against the context, or a callable taking it.
+            link_to_os: Whether to read the value from the OS environment. When
+                False, only `default` is used.
+            os_name: OS variable to read instead of `name`, letting a task see
+                `DB_HOST` while the environment supplies `PROD_DB_HOST`.
+                Ignored when `link_to_os` is False.
+        """
         self._name = name
         self._default = default
-        self._auto_render = auto_render
         self._link_to_os = link_to_os
         self._os_name = os_name
 
@@ -30,11 +40,6 @@ class Env(AnyEnv):
     def default(self) -> StrAttr:
         """Get the default value."""
         return self._default
-
-    @property
-    def auto_render(self) -> bool:
-        """Check if auto_render is enabled."""
-        return self._auto_render
 
     @property
     def link_to_os(self) -> bool:
@@ -55,4 +60,4 @@ class Env(AnyEnv):
         shared_ctx.env[self._name] = value
 
     def _get_default_value(self, shared_ctx: AnySharedContext) -> str:
-        return get_str_attr(shared_ctx, self._default, "", self._auto_render)
+        return get_str_attr(shared_ctx, self._default, "")

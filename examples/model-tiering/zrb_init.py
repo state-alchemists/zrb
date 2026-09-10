@@ -13,9 +13,9 @@ All three tier names are mapped to CFG.LLM_MODEL by the renderer, so you only
 need one real model configured. The tier names appear in the UI info bar and
 autocomplete so the user can always see (and override) the active tier.
 
-The renderer is also registered on `llm_config` so that every background
-sub-agent (web-page summarizer, code analyzer, history compressor, etc.) goes
-through the same provider mapping — not just the main chat agent.
+The renderer and getter are registered directly on `llm_chat` (they are
+task-scoped properties in zrb 3.x — the old process-wide `llm_config`
+singleton is gone).
 
 Usage:
     cd examples/model-tiering
@@ -24,7 +24,6 @@ Usage:
 
 from zrb.builtin.llm.chat import llm_chat
 from zrb.config.config import CFG
-from zrb.llm.config.config import llm_config
 
 # =============================================================================
 # Tier name constants
@@ -95,7 +94,7 @@ def render_model(model):
 
 
 # =============================================================================
-# Wire everything into llm_chat and llm_config
+# Wire everything into llm_chat
 # =============================================================================
 
 tracker = ModelTierTracker()
@@ -103,9 +102,10 @@ tracker = ModelTierTracker()
 llm_chat.custom_model_names = CUSTOM_MODEL_NAMES  # shown in /model autocomplete
 
 # =============================================================================
-# Register the getter and renderer on llm_config so ALL agents use the same
-# model resolution logic (main chat, web summarizer, code analyzer, etc.).
+# Register the getter and renderer on llm_chat. These are task-scoped in 3.x:
+# they affect this chat task only, not every agent zrb creates (sub-agents,
+# the summarizer, tool-internal agents resolve CFG.LLM_* directly).
 # =============================================================================
 
-llm_config.model_renderer = render_model
-llm_config.model_getter = tracker
+llm_chat.model_renderer = render_model
+llm_chat.model_getter = tracker

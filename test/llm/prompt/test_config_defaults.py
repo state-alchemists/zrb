@@ -17,68 +17,51 @@ from unittest.mock import patch
 import pytest
 
 from zrb.config.config import CFG
+from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.prompt.manager import PromptManager
 
 
 def test_config_llm_include_sections_default():
     """Test that LLM_INCLUDE_SECTIONS has the correct default."""
-    # Reset CFG to ensure clean state
-    CFG._instance = None
-
     assert hasattr(
         CFG, "LLM_INCLUDE_SECTIONS"
     ), "Config should have LLM_INCLUDE_SECTIONS property"
 
     sections = CFG.LLM_INCLUDE_SECTIONS
     assert isinstance(sections, list)
-    # Default order: persona, mandate, git_mandate, journal_mandate,
-    # system_context, project_context, tool_guidance. The skill catalogue is
-    # folded into mandate via placeholders, so there is no claude_skills section.
     assert sections == [
         "persona",
-        "mandate",
-        "examples",
-        "git_mandate",
-        "journal_mandate",
+        "principle",
+        "workflow",
+        "example",
+        "profile",
         "system_context",
         "project_context",
-        "tool_guidance",
     ]
 
 
 def test_config_llm_include_sections_setter():
     """Test that the LLM_INCLUDE_SECTIONS setter works."""
-    CFG._instance = None
-
-    CFG.LLM_INCLUDE_SECTIONS = ["persona", "mandate"]
-    assert CFG.LLM_INCLUDE_SECTIONS == ["persona", "mandate"]
-
-    # Reset
-    CFG._instance = None
+    CFG.LLM_INCLUDE_SECTIONS = ["persona", "workflow"]
+    assert CFG.LLM_INCLUDE_SECTIONS == ["persona", "workflow"]
 
 
 def test_environment_variable_overrides():
     """Test that environment variables can override LLM_INCLUDE_SECTIONS."""
     env_vars = {
-        "ZRB_LLM_INCLUDE_SECTIONS": "persona,system_context",
+        "ZRB_LLM_INCLUDE_SECTIONS": "persona,principle",
         "_ZRB_ENV_PREFIX": "ZRB",
     }
 
     with patch.dict(os.environ, env_vars):
-        CFG._instance = None
-
         sections = CFG.LLM_INCLUDE_SECTIONS
-        assert sections == ["persona", "system_context"]
-        assert "mandate" not in sections
-        assert "git_mandate" not in sections
+        assert sections == ["persona", "principle"]
 
 
 def test_prompt_manager_uses_config_defaults():
     """Test that PromptManager uses config defaults when include_sections is None."""
-    CFG._instance = None
-
-    ctx = SharedContext()
+    ctx = Context(SharedContext(), "test", 0, "")
 
     # include_sections=None means use CFG defaults
     manager = PromptManager()
@@ -88,15 +71,13 @@ def test_prompt_manager_uses_config_defaults():
     assert len(prompt) > 0
 
 
-def test_prompt_manager_explicit_overrides():
+def test_prompt_manager_mini_overrides():
     """Test that explicit include_sections overrides config defaults."""
-    CFG._instance = None
-
-    ctx = SharedContext()
+    ctx = Context(SharedContext(), "test", 0, "")
 
     # Explicit include_sections takes precedence
     manager = PromptManager(
-        include_sections=["persona", "mandate"],
+        include_sections=["persona", "principle"],
     )
 
     prompt = manager.compose_prompt()(ctx)
@@ -104,14 +85,12 @@ def test_prompt_manager_explicit_overrides():
     assert len(prompt) > 0
 
 
-def test_prompt_manager_include_sections_explicit_subset():
+def test_prompt_manager_include_sections_mini_subset():
     """Explicit include_sections selects only listed sections."""
-    CFG._instance = None
-
-    ctx = SharedContext()
+    ctx = Context(SharedContext(), "test", 0, "")
 
     manager = PromptManager(
-        include_sections=["persona", "git_mandate", "journal_mandate"],
+        include_sections=["persona", "example"],
     )
 
     prompt = manager.compose_prompt()(ctx)
@@ -121,25 +100,21 @@ def test_prompt_manager_include_sections_explicit_subset():
 
 def test_prompt_manager_include_sections_ordering():
     """Section ordering follows include_sections order."""
-    CFG._instance = None
-
-    ctx = SharedContext()
+    ctx = Context(SharedContext(), "test", 0, "")
 
     manager = PromptManager(
-        include_sections=["mandate", "persona"],
+        include_sections=["workflow", "persona"],
     )
 
     prompt = manager.compose_prompt()(ctx)
-    # mandate header comes before persona header
-    assert prompt.index("# Operating Rules") < prompt.index("# Identity")
+    # workflow header comes before persona header
+    assert prompt.index("# Workflow") < prompt.index("# Persona")
 
 
 @pytest.mark.asyncio
 async def test_prompt_manager_integration():
     """Integration test - verify PromptManager works end-to-end with config."""
-    CFG._instance = None
-
-    ctx = SharedContext()
+    ctx = Context(SharedContext(), "test", 0, "")
 
     # Test 1: Default behavior (use CFG defaults)
     manager1 = PromptManager()
@@ -148,13 +123,11 @@ async def test_prompt_manager_integration():
 
     # Test 2: With environment variable overrides
     env_vars = {
-        "ZRB_LLM_INCLUDE_SECTIONS": "persona,mandate",
+        "ZRB_LLM_INCLUDE_SECTIONS": "persona,principle",
         "_ZRB_ENV_PREFIX": "ZRB",
     }
 
     with patch.dict(os.environ, env_vars):
-        CFG._instance = None
-
         manager2 = PromptManager()
         prompt2 = manager2.compose_prompt()(ctx)
         assert isinstance(prompt2, str)
@@ -164,9 +137,7 @@ async def test_prompt_manager_integration():
 
 def test_prompt_manager_empty_sections_produces_no_builtin_content():
     """include_sections=[] means no built-in sections."""
-    CFG._instance = None
-
-    ctx = SharedContext()
+    ctx = Context(SharedContext(), "test", 0, "")
 
     manager = PromptManager(include_sections=[])
     prompt = manager.compose_prompt()(ctx)

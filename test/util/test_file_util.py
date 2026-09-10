@@ -2,15 +2,15 @@ import os
 
 import pytest
 
-from zrb.util.file import is_path_excluded, list_files, read_file, write_file
+from zrb.util.file import list_files, matches_any_pattern, read_file, write_file
 
 
-def test_is_path_excluded():
+def test_matches_any_pattern():
     patterns = ["*.pyc", "__pycache__", "node_modules"]
-    assert is_path_excluded("test.pyc", patterns) is True
-    assert is_path_excluded("src/test.py", patterns) is False
-    assert is_path_excluded("node_modules/abc", patterns) is True
-    assert is_path_excluded("__pycache__", patterns) is True
+    assert matches_any_pattern("test.pyc", patterns) is True
+    assert matches_any_pattern("src/test.py", patterns) is False
+    assert matches_any_pattern("node_modules/abc", patterns) is True
+    assert matches_any_pattern("__pycache__", patterns) is True
 
 
 def test_read_file_with_replace(tmp_path):
@@ -96,13 +96,13 @@ def test_list_files_depth(tmp_path):
     # depth 1: only file1.txt
     files1 = list_files(str(tmp_path), depth=1)
     assert "file1.txt" in files1
-    assert "subdir/file2.txt" not in files1
+    assert os.path.join("subdir", "file2.txt") not in files1
 
     # depth 2: file1.txt and subdir/file2.txt
     files2 = list_files(str(tmp_path), depth=2)
     assert "file1.txt" in files2
-    assert "subdir/file2.txt" in files2
-    assert "subdir/subsubdir/file3.txt" not in files2
+    assert os.path.join("subdir", "file2.txt") in files2
+    assert os.path.join("subdir", "subsubdir", "file3.txt") not in files2
 
 
 def test_list_files_nonexistent_path():
@@ -133,8 +133,8 @@ def test_list_files_hidden_included(tmp_path):
     assert "visible" in files
 
 
-def test_is_path_excluded_part_match():
-    """Test is_path_excluded matches parts of path."""
+def test_matches_any_pattern_part_match():
+    """Test matches_any_pattern matches parts of path."""
     patterns = ["__pycache__"]
-    assert is_path_excluded("src/__pycache__/module.pyc", patterns) is True
-    assert is_path_excluded("node_modules/pkg/index.js", ["node_modules"]) is True
+    assert matches_any_pattern("src/__pycache__/module.pyc", patterns) is True
+    assert matches_any_pattern("node_modules/pkg/index.js", ["node_modules"]) is True

@@ -1,8 +1,12 @@
-from typing import Callable
+from typing import TYPE_CHECKING, Callable, TypeVar
 
 from zrb.config.config import CFG
-from zrb.runner.web_schema.user import User
 from zrb.task.any_task import AnyTask
+
+if TYPE_CHECKING:
+    from zrb.runner.web_schema.user import User
+
+T = TypeVar("T")
 
 
 class WebAuthConfig:
@@ -37,11 +41,13 @@ class WebAuthConfig:
         )
         self._find_user_by_username = find_user_by_username
 
+    def _override_or(self, override: T | None, cfg_value: T) -> T:
+        """The constructor override if set, else the live `CFG` value."""
+        return override if override is not None else cfg_value
+
     @property
     def secret_key(self) -> str:
-        if self._secret_key is not None:
-            return self._secret_key
-        return CFG.WEB_SECRET_KEY
+        return self._override_or(self._secret_key, CFG.WEB_SECRET_KEY)
 
     @secret_key.setter
     def secret_key(self, secret_key: str):
@@ -49,9 +55,10 @@ class WebAuthConfig:
 
     @property
     def access_token_expire_minutes(self) -> int:
-        if self._access_token_expire_minutes is not None:
-            return self._access_token_expire_minutes
-        return CFG.WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES
+        return self._override_or(
+            self._access_token_expire_minutes,
+            CFG.WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES,
+        )
 
     @access_token_expire_minutes.setter
     def access_token_expire_minutes(self, minutes: int):
@@ -59,9 +66,10 @@ class WebAuthConfig:
 
     @property
     def refresh_token_expire_minutes(self) -> int:
-        if self._refresh_token_expire_minutes is not None:
-            return self._refresh_token_expire_minutes
-        return CFG.WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES
+        return self._override_or(
+            self._refresh_token_expire_minutes,
+            CFG.WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES,
+        )
 
     @refresh_token_expire_minutes.setter
     def refresh_token_expire_minutes(self, minutes: int):
@@ -69,9 +77,9 @@ class WebAuthConfig:
 
     @property
     def access_token_cookie_name(self) -> str:
-        if self._access_token_cookie_name is not None:
-            return self._access_token_cookie_name
-        return CFG.WEB_ACCESS_TOKEN_COOKIE_NAME
+        return self._override_or(
+            self._access_token_cookie_name, CFG.WEB_ACCESS_TOKEN_COOKIE_NAME
+        )
 
     @access_token_cookie_name.setter
     def access_token_cookie_name(self, name: str):
@@ -79,9 +87,9 @@ class WebAuthConfig:
 
     @property
     def refresh_token_cookie_name(self) -> str:
-        if self._refresh_token_cookie_name is not None:
-            return self._refresh_token_cookie_name
-        return CFG.WEB_REFRESH_TOKEN_COOKIE_NAME
+        return self._override_or(
+            self._refresh_token_cookie_name, CFG.WEB_REFRESH_TOKEN_COOKIE_NAME
+        )
 
     @refresh_token_cookie_name.setter
     def refresh_token_cookie_name(self, name: str):
@@ -89,9 +97,7 @@ class WebAuthConfig:
 
     @property
     def enable_auth(self) -> bool:
-        if self._enable_auth is not None:
-            return self._enable_auth
-        return CFG.WEB_AUTH_ENABLED
+        return self._override_or(self._enable_auth, CFG.WEB_AUTH_ENABLED)
 
     @enable_auth.setter
     def enable_auth(self, enable: bool):
@@ -99,9 +105,7 @@ class WebAuthConfig:
 
     @property
     def secure_cookies(self) -> bool:
-        if self._secure_cookies is not None:
-            return self._secure_cookies
-        return CFG.WEB_ENABLE_SECURE_COOKIES
+        return self._override_or(self._secure_cookies, CFG.WEB_AUTH_SECURE_COOKIES)
 
     @secure_cookies.setter
     def secure_cookies(self, secure: bool):
@@ -109,9 +113,9 @@ class WebAuthConfig:
 
     @property
     def super_admin_username(self) -> str:
-        if self._super_admin_username is not None:
-            return self._super_admin_username
-        return CFG.WEB_SUPER_ADMIN_USERNAME
+        return self._override_or(
+            self._super_admin_username, CFG.WEB_SUPER_ADMIN_USERNAME
+        )
 
     @super_admin_username.setter
     def super_admin_username(self, username: str):
@@ -119,9 +123,9 @@ class WebAuthConfig:
 
     @property
     def super_admin_password(self) -> str:
-        if self._super_admin_password is not None:
-            return self._super_admin_password
-        return CFG.WEB_SUPER_ADMIN_PASSWORD
+        return self._override_or(
+            self._super_admin_password, CFG.WEB_SUPER_ADMIN_PASSWORD
+        )
 
     @super_admin_password.setter
     def super_admin_password(self, password: str):
@@ -129,9 +133,7 @@ class WebAuthConfig:
 
     @property
     def guest_username(self) -> str:
-        if self._guest_username is not None:
-            return self._guest_username
-        return CFG.WEB_GUEST_USERNAME
+        return self._override_or(self._guest_username, CFG.WEB_GUEST_USERNAME)
 
     @guest_username.setter
     def guest_username(self, username: str):
@@ -159,13 +161,13 @@ class WebAuthConfig:
     def default_user(self) -> "User":
 
         if self.enable_auth:
-            return User(
+            return _user_cls()(
                 username=self.guest_username,
                 password="",
                 is_guest=True,
                 accessible_tasks=self.guest_accessible_tasks,
             )
-        return User(
+        return _user_cls()(
             username=self.guest_username,
             password="",
             is_guest=True,
@@ -175,7 +177,7 @@ class WebAuthConfig:
     @property
     def super_admin(self) -> "User":
 
-        return User(
+        return _user_cls()(
             username=self.super_admin_username,
             password=self.super_admin_password,
             is_super_admin=True,
@@ -187,7 +189,7 @@ class WebAuthConfig:
             return [self.default_user]
         return self._user_list + [self.super_admin, self.default_user]
 
-    def append_user(self, user: "User"):
+    def add_user(self, user: "User"):
         duplicates = [
             existing_user
             for existing_user in self.user_list
@@ -207,3 +209,14 @@ class WebAuthConfig:
 
 
 web_auth_config = WebAuthConfig()
+
+
+def _user_cls() -> type["User"]:
+    # lazy: transitively heavy -- web_schema/user.py declares a pydantic model,
+    # so importing it eagerly pulled pydantic.main and the schema-construction
+    # machinery into every `import zrb` (~19ms). Every annotation in this
+    # module is already a string, so these three constructions are the only
+    # sites that need the real class.
+    from zrb.runner.web_schema.user import User
+
+    return User

@@ -1,6 +1,5 @@
 """Tests for edit_util.py - Content editing via text editor."""
 
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest

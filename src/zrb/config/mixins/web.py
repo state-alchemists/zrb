@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from zrb.config.env_field import EnvField, colon_join, colon_list, on_off
+from zrb.config.env_field import EnvField, on_off, path_list, path_list_join
 from zrb.util.string.conversion import to_boolean
 
 
@@ -14,6 +14,7 @@ class WebMixin:
         self.DEFAULT_WEB_JS_PATH: str = ""
         self.DEFAULT_WEB_FAVICON_PATH: str = "/static/favicon-32x32.png"
         self.DEFAULT_WEB_COLOR: str = ""
+        self.DEFAULT_WEB_HTTP_HOST: str = "127.0.0.1"
         self.DEFAULT_WEB_HTTP_PORT: str = "21213"
         self.DEFAULT_WEB_GUEST_USERNAME: str = "user"
         self.DEFAULT_WEB_SUPER_ADMIN_USERNAME: str = "admin"
@@ -22,11 +23,11 @@ class WebMixin:
         self.DEFAULT_WEB_REFRESH_TOKEN_COOKIE_NAME: str = "refresh_token"
         self.DEFAULT_WEB_SECRET_KEY: str = "zrb"
         self.DEFAULT_WEB_AUTH_ENABLED: str = "off"
-        self.DEFAULT_WEB_ENABLE_SECURE_COOKIES: str = "on"
+        self.DEFAULT_WEB_AUTH_SECURE_COOKIES: str = "on"
         self.DEFAULT_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: str = "30"
         self.DEFAULT_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES: str = "60"
         self.DEFAULT_WEB_TITLE: str = "Zrb"
-        self.DEFAULT_WEB_JARGON: str = "Your Automation PowerHouse"
+        self.DEFAULT_WEB_JARGON: str = "Coding Agent + Task Engine"
         self.DEFAULT_WEB_HOMEPAGE_INTRO: str = "Welcome to Zrb Web Interface"
         self.DEFAULT_WEB_SHUTDOWN_TIMEOUT: str = "10000"
         self.DEFAULT_WEB_SESSION_PAGE_SIZE: str = "20"
@@ -35,15 +36,17 @@ class WebMixin:
         super().__init__()
 
     WEB_CSS_PATH = EnvField(
-        colon_list,
-        serialize=colon_join,
-        doc="Colon-separated paths to additional CSS files injected into the web UI.",
+        path_list,
+        serialize=path_list_join,
+        doc="Colon-separated (semicolon on Windows) paths to additional CSS "
+        "files injected into the web UI.",
     )
 
     WEB_JS_PATH = EnvField(
-        colon_list,
-        serialize=colon_join,
-        doc="Colon-separated paths to additional JavaScript files injected into the web UI.",
+        path_list,
+        serialize=path_list_join,
+        doc="Colon-separated (semicolon on Windows) paths to additional "
+        "JavaScript files injected into the web UI.",
     )
 
     WEB_FAVICON_PATH = EnvField(
@@ -52,6 +55,15 @@ class WebMixin:
 
     WEB_COLOR = EnvField(
         str, doc="Primary brand color for the web UI (CSS color value, e.g. #3b82f6)."
+    )
+
+    WEB_HTTP_HOST = EnvField(
+        str,
+        doc=(
+            "Host/interface the web server binds to. Defaults to loopback-only; "
+            "binding to a non-loopback address (e.g. 0.0.0.0) exposes the server "
+            "to the network, so pair it with WEB_AUTH_ENABLED=on."
+        ),
     )
 
     WEB_HTTP_PORT = EnvField(int, doc="HTTP port the web server listens on.")
@@ -86,9 +98,10 @@ class WebMixin:
         to_boolean, serialize=on_off, doc="Enable/disable web authentication."
     )
 
-    WEB_ENABLE_SECURE_COOKIES = EnvField(
+    WEB_AUTH_SECURE_COOKIES = EnvField(
         to_boolean,
         serialize=on_off,
+        aliases=["WEB_AUTH_SECURE_COOKIES", "WEB_ENABLE_SECURE_COOKIES"],
         doc=(
             "Set the Secure flag on auth cookies (sent over HTTPS only). "
             "Turn off for plain-HTTP deployments where browsers would "

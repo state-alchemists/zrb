@@ -74,7 +74,8 @@ class TestTimeoutConfig:
     def test_llm_git_cmd_timeout_default(self, monkeypatch):
         monkeypatch.delenv("ZRB_LLM_GIT_CMD_TIMEOUT", raising=False)
         config = Config()
-        assert config.LLM_GIT_CMD_TIMEOUT == 1000
+        # 5000 matches the timeout the live-context git calls hardcoded before
+        assert config.LLM_GIT_CMD_TIMEOUT == 5000
 
     def test_llm_git_cmd_timeout_setter(self, monkeypatch):
         config = Config()
@@ -181,11 +182,6 @@ class TestSizeLimitConfig:
         monkeypatch.delenv("ZRB_LLM_HISTORY_TRUNCATE_LENGTH", raising=False)
         config = Config()
         assert config.LLM_HISTORY_TRUNCATE_LENGTH == 100
-
-    def test_llm_project_doc_max_chars_default(self, monkeypatch):
-        monkeypatch.delenv("ZRB_LLM_PROJECT_DOC_MAX_CHARS", raising=False)
-        config = Config()
-        assert config.LLM_PROJECT_DOC_MAX_CHARS == 8000
 
     def test_cmd_buffer_limit_default(self, monkeypatch):
         monkeypatch.delenv("ZRB_CMD_BUFFER_LIMIT", raising=False)

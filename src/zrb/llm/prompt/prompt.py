@@ -3,7 +3,6 @@ from functools import lru_cache
 from pathlib import Path
 
 from zrb.config.config import CFG
-from zrb.llm.prompt.profile import BASE_PROFILE
 from zrb.util.string.conversion import to_snake_case
 
 
@@ -13,9 +12,9 @@ def get_prompt(name: str, profile: str | None = None, **extra_replacements: str)
     This is the canonical function that replaces all individual
     ``get_*_prompt()`` functions. Call it directly:
 
-        prompt = get_prompt("mandate")
+        prompt = get_prompt("workflow")
         prompt = get_prompt("persona", ASSISTANT_NAME="Zrb")
-        prompt = get_prompt("persona", profile="explicit")
+        prompt = get_prompt("persona", profile="minimal")
 
     Standard replacements (journal dir, root group name, etc.) are
     always applied automatically.  Pass extra keyword arguments for
@@ -23,11 +22,9 @@ def get_prompt(name: str, profile: str | None = None, **extra_replacements: str)
 
     Args:
         name: Prompt file name (without ``.md`` suffix), e.g. ``"persona"``,
-            ``"mandate"``, ``"journal_mandate"``.
-        profile: Optional profile variant (ADR-0083). When set to a non-base
-            profile, ``{name}.{profile}`` is resolved first through the full
-            override chain, falling back to the base ``{name}`` when no variant
-            exists.
+            ``"workflow"``, ``"examples"``.
+        profile: Optional explicit profile adjustment. When supplied,
+            ``{name}.{profile}`` is resolved through the normal override chain.
         extra_replacements: Additional ``{PLACEHOLDER}`` → value entries
             merged on top of the standard replacements.
 
@@ -44,15 +41,8 @@ def get_prompt(name: str, profile: str | None = None, **extra_replacements: str)
 
 
 def _load_prompt_for_profile(name: str, profile: str | None) -> str:
-    """Resolve a section's raw text, preferring a profile-specific variant.
-
-    Tries ``{name}.{profile}`` through the full override chain first (so a
-    project override of the variant still wins over the packaged base), falling
-    back to the base ``{name}`` when no variant resolves. The base ``*.md`` files
-    are the ``terse`` profile, so ``terse``/``None``/empty short-circuit straight
-    to the base. See ADR-0083.
-    """
-    if profile and profile != BASE_PROFILE:
+    """Resolve a section's raw text, preferring a named profile file."""
+    if profile:
         variant = get_default_prompt(f"{name}.{profile}")
         if variant:
             return variant
@@ -85,16 +75,22 @@ def get_default_prompt(name: str) -> str:
             try:
                 with open(base_prompt_path, "r", encoding="utf-8") as f:
                     return f.read()
-            except Exception:
-                pass
+            except Exception as e:
+                CFG.LOGGER.debug(f"Failed to read prompt {base_prompt_path}: {e}")
 
     # 4. Fallback to package default (cached — bundled files never change at runtime)
     return _read_package_prompt(name)
 
 
-@lru_cache(maxsize=64)
 def _find_custom_prompt(name: str, cwd: str, prompt_dir: str) -> str:
-    """Return the first matching local override content, or empty string."""
+    """Return the first matching local override content, or empty string.
+
+    Deliberately not cached: unlike package-bundled prompts, project-local
+    overrides under LLM_PROMPT_DIR can be edited mid-session (env-var
+    overrides above are re-read live too), and pinning them until restart
+    would make freshness inconsistent. The lookup costs a handful of
+    ``os.path.exists`` calls per section per composition.
+    """
     for search_path in _get_default_prompt_search_path(cwd):
         local_prompt_path = os.path.abspath(
             os.path.join(search_path, prompt_dir, f"{name}.md")
@@ -103,26 +99,46 @@ def _find_custom_prompt(name: str, cwd: str, prompt_dir: str) -> str:
             try:
                 with open(local_prompt_path, "r", encoding="utf-8") as f:
                     return f.read()
-            except Exception:
-                pass
+            except Exception as e:
+                CFG.LOGGER.debug(f"Failed to read prompt {local_prompt_path}: {e}")
     return ""
 
 
-@lru_cache(maxsize=32)
 def _get_default_prompt_search_path(cwd: str) -> tuple[str, ...]:
+    return _get_default_prompt_search_path_cached(
+        cwd, CFG.LLM_SEARCH_PROJECT, CFG.LLM_SEARCH_HOME
+    )
+
+
+@lru_cache(maxsize=32)
+def _get_default_prompt_search_path_cached(
+    cwd: str, search_project: bool, search_home: bool
+) -> tuple[str, ...]:
+    """Directories to check for a ``{prompt_dir}/{name}.md`` override, in order.
+
+    Mirrors the project/home search toggles skills and agents already honor
+    (``SkillManager._get_project_search_dirs`` / ``_get_home_search_dirs``):
+    project ancestors are walked only when ``LLM_SEARCH_PROJECT`` is on, and
+    the home directory is always a candidate — regardless of where the
+    project lives — when ``LLM_SEARCH_HOME`` is on.
+    """
     home_path = os.path.abspath(os.path.expanduser("~"))
-    search_paths = [cwd]
-    try:
-        if os.path.commonpath([cwd, home_path]) == home_path:
-            temp_path = cwd
-            while temp_path != home_path:
-                new_temp_path = os.path.dirname(temp_path)
-                if new_temp_path == temp_path:
-                    break
-                temp_path = new_temp_path
-                search_paths.append(temp_path)
-    except ValueError:
-        pass
+    search_paths: list[str] = []
+    if search_project:
+        search_paths.append(cwd)
+        try:
+            if os.path.commonpath([cwd, home_path]) == home_path:
+                temp_path = cwd
+                while temp_path != home_path:
+                    new_temp_path = os.path.dirname(temp_path)
+                    if new_temp_path == temp_path:
+                        break
+                    temp_path = new_temp_path
+                    search_paths.append(temp_path)
+        except ValueError:
+            pass
+    if search_home and home_path not in search_paths:
+        search_paths.append(home_path)
     return tuple(search_paths)
 
 
@@ -162,8 +178,7 @@ def _get_prompt_replacements_cached(
     The journal index *content* is deliberately NOT included here. Embedding the
     mutable index in this cached system-prompt section invalidated the cacheable
     prefix every time the agent journaled mid-session; the snapshot is now
-    injected into the ``<live-context>`` block instead (see ``live_context.py``
-    and ADR-0082)."""
+    injected into the ``<live-context>`` block instead (see ``live_context.py``)."""
     replacements: dict[str, str] = {}
     cfg_values = {
         "LLM_JOURNAL_DIR": journal_dir,

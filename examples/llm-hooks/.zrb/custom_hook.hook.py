@@ -24,7 +24,7 @@ async def notify_on_file_write(context: HookContext) -> HookResult:
         return HookResult()
 
     # Check if tool is file-related
-    file_tools = {"Write", "Edit", "WriteMany"}
+    file_tools = {"Write", "Edit"}
     if context.tool_name not in file_tools:
         return HookResult()
 

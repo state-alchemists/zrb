@@ -1,8 +1,9 @@
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.llm.ui.simple_ui_base import SimpleUI
 
 
@@ -31,18 +32,17 @@ def deps():
 
 def test_simple_ui_init(deps):
     ui = ConcreteSimpleUI(**deps)
-    assert ui.assistant_name == "Assistant"  # From UIConfig.default()
+    assert ui.assistant_name == CFG.LLM_ASSISTANT_NAME  # From UIConfig.default()
     assert ui.yolo is False
 
 
 def test_simple_ui_incomplete_methods(deps):
-    ui = IncompleteUI(**deps)
-    with pytest.raises(NotImplementedError):
-        # We need an event loop to run the async method
-        asyncio.run(ui.print("test", "text"))
-
-    with pytest.raises(NotImplementedError):
-        asyncio.run(ui.get_input("prompt"))
+    """`BaseUI` now subclasses the `AnyUI` ABC, so `SimpleUI`'s `print`/
+    `get_input` `@abstractmethod`s are enforced at instantiation — a
+    subclass missing either fails fast with `TypeError`, not at first call
+    with `NotImplementedError`."""
+    with pytest.raises(TypeError, match="print|get_input"):
+        IncompleteUI(**deps)
 
 
 @pytest.mark.asyncio
@@ -53,6 +53,23 @@ async def test_simple_ui_append_to_output(deps):
     await asyncio.sleep(0.01)
     assert len(ui.prints) == 1
     assert ui.prints[0] == ("hello world\n", "progress")
+
+
+@pytest.mark.asyncio
+async def test_simple_ui_append_to_output_tracks_background_task(deps):
+    # Regression: asyncio only holds a weak reference to a scheduled task —
+    # without tracking it somewhere, it can be silently garbage-collected
+    # mid-execution. Every other fire-and-forget task in this package tracks
+    # itself in `_background_tasks`; this call site must too.
+    ui = ConcreteSimpleUI(**deps)
+    assert hasattr(ui, "_background_tasks")
+
+    ui.append_to_output("hello")
+    assert len(ui.background_tasks) == 1
+
+    await asyncio.sleep(0.01)
+    # The done-callback discards it once it completes.
+    assert len(ui.background_tasks) == 0
 
 
 def test_simple_ui_append_to_output_sync_fallback(deps, capsys):
@@ -83,16 +100,17 @@ async def test_simple_ui_run_interactive_command(deps):
     assert "not supported" in ui.prints[0][0]
 
 
-@pytest.mark.asyncio
-async def test_simple_ui_run_async(deps):
-    ui = ConcreteSimpleUI(initial_message="start", **deps)
-    ui._submit_user_message = MagicMock()
+class FastLoopSimpleUI(ConcreteSimpleUI):
+    """`_run_loop` overridden to return immediately (no polling delay)."""
 
-    async def fast_loop():
-        # Stop quickly
+    async def _run_loop(self) -> None:
         return
 
-    ui._run_loop = fast_loop
+
+@pytest.mark.asyncio
+async def test_simple_ui_run_async(deps):
+    ui = FastLoopSimpleUI(initial_message="start", **deps)
+    ui.submit_user_message = MagicMock()
 
     with patch(
         "zrb.llm.ui.base.ui.BaseUI.last_output", new_callable=PropertyMock
@@ -101,17 +119,18 @@ async def test_simple_ui_run_async(deps):
         res = await ui.run_async()
         assert res == "Done"
 
-    ui._submit_user_message.assert_called_once_with(ui.llm_task, "start")
+    ui.submit_user_message.assert_called_once_with(ui.llm_task, "start")
+
+
+class CancellingSimpleUI(ConcreteSimpleUI):
+    """`_run_loop` overridden to immediately raise `CancelledError`."""
+
+    async def _run_loop(self) -> None:
+        raise asyncio.CancelledError()
 
 
 @pytest.mark.asyncio
 async def test_simple_ui_run_async_cancelled(deps):
-    ui = ConcreteSimpleUI(**deps)
+    ui = CancellingSimpleUI(**deps)
 
-    async def cancel_loop():
-        raise asyncio.CancelledError()
-
-    ui._run_loop = cancel_loop
-
-    res = await ui.run_async()
-    assert True
+    await ui.run_async()

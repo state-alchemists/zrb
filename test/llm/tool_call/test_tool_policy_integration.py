@@ -10,7 +10,6 @@ from pydantic_ai import Agent, Tool, ToolApproved, ToolCallPart, ToolDenied
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.tool_call.handler import ToolCallHandler
-from zrb.llm.tool_call.middleware import ResponseHandler, ToolPolicy
 
 
 # Define a simple tool

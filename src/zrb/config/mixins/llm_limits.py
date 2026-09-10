@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from zrb.config.env_field import EnvField
+from zrb.config.env_field import EnvField, on_off
+from zrb.util.string.conversion import to_boolean
 
 
 class LLMLimitsMixin:
@@ -13,6 +14,18 @@ class LLMLimitsMixin:
         self.DEFAULT_LLM_MAX_TOKEN_PER_MINUTE: str = "128000"
         self.DEFAULT_LLM_MAX_TOKEN_PER_REQUEST: str = "128000"
         self.DEFAULT_LLM_THROTTLE_SLEEP: str = "1.0"
+        # Backstop for a run that stops converging. Chosen from measurement, not
+        # taste: the largest *legitimate* run observed in benchmarking was a
+        # 44-site migration at 79 tool calls, while the pathological case — a
+        # weak model re-editing the same nine files from memory — reached 343
+        # and would have kept going. 300 leaves ~4x headroom over real work and
+        # still cuts the loop well before a wall-clock timeout does.
+        self.DEFAULT_LLM_MAX_REQUEST_PER_RUN: str = "300"
+        # Mirrors LLM_MAX_AGENTS_IN_ROSTER's default: 10 concurrent sub-agent
+        # runs is generous for real fan-out (each is its own LLM run against
+        # the shared rate limiter, and possibly its own git worktree) while
+        # still bounding a model that requests an unreasonably large batch.
+        self.DEFAULT_LLM_MAX_PARALLEL_DELEGATIONS: str = "10"
         self.DEFAULT_LLM_MAX_CONTEXT_RETRIES: str = "5"
         self.DEFAULT_LLM_TOOL_MAX_RETRIES: str = "3"
         self.DEFAULT_LLM_MCP_MAX_RETRIES: str = "3"
@@ -26,15 +39,25 @@ class LLMLimitsMixin:
         self.DEFAULT_LLM_WEB_PAGE_TIMEOUT: str = "30000"
         self.DEFAULT_LLM_WEB_HTTP_TIMEOUT: str = "30000"
         self.DEFAULT_LLM_MODEL_FETCH_TIMEOUT: str = "5000"
-        self.DEFAULT_LLM_GIT_CMD_TIMEOUT: str = "1000"
+        self.DEFAULT_LLM_GIT_CMD_TIMEOUT: str = "5000"
         self.DEFAULT_LLM_MAX_OUTPUT_CHARS: str = "100000"
+        # 10x the model-facing cap: generous enough that a normal build, test
+        # run, or install still scrolls in full, small enough that a runaway
+        # command (an unscoped `git diff` in a dirty monorepo) cannot spend
+        # minutes of wall clock being printed.
+        self.DEFAULT_LLM_MAX_CONSOLE_OUTPUT_CHARS: str = "1000000"
         self.DEFAULT_LLM_MAX_TOOL_RESULT_CHARS: str = "100000"
-        self.DEFAULT_LLM_PROJECT_DOC_MAX_CHARS: str = "8000"
+        self.DEFAULT_LLM_ENABLE_TOOL_SPILL: str = "off"
         self.DEFAULT_LLM_MAX_COMPLETION_FILES: str = "5000"
         # Image scaling — 1568px is Anthropic's no-extra-cost tier; JPEG q85 is
         # near-lossless for screenshots while halving size vs. PNG re-encode.
         self.DEFAULT_LLM_MAX_IMAGE_DIMENSION: str = "1568"
         self.DEFAULT_LLM_IMAGE_JPEG_QUALITY: str = "85"
+        # 20MB: comfortably above a phone photo or a few-minute voice memo,
+        # well under providers' own per-attachment ceilings (e.g. Anthropic's
+        # 32MB document / 5MB image limits), and small enough that a runaway
+        # `/attach` can't balloon the on-disk conversation history.
+        self.DEFAULT_LLM_MAX_ATTACHMENT_BYTES: str = "20000000"
         super().__init__()
 
     LLM_MAX_REQUEST_PER_MINUTE = EnvField(
@@ -46,8 +69,7 @@ class LLMLimitsMixin:
         ),
     )
 
-    # Reads either alias; setter writes the plural TOKENS_ form (kept for
-    # backward compatibility with previously written env vars).
+    # Reads either alias; setter writes the plural TOKENS_ form.
     LLM_MAX_TOKEN_PER_MINUTE = EnvField(
         int,
         aliases=["LLM_MAX_TOKEN_PER_MINUTE", "LLM_MAX_TOKENS_PER_MINUTE"],
@@ -68,6 +90,28 @@ class LLMLimitsMixin:
     LLM_THROTTLE_SLEEP = EnvField(
         float,
         doc="Number of seconds to sleep when throttling is required.",
+    )
+
+    LLM_MAX_REQUEST_PER_RUN = EnvField(
+        int,
+        doc=(
+            "Maximum model requests a single agent run may make before it is "
+            "halted. The backstop for a run that stops converging — retrying an "
+            "edit it has already tried, or re-reading output it has already "
+            "seen — which the prompt tells the model to stop doing but nothing "
+            "could enforce. 0 or negative disables the cap."
+        ),
+    )
+
+    LLM_MAX_PARALLEL_DELEGATIONS = EnvField(
+        int,
+        doc=(
+            "Maximum sub-agent tasks DelegateToAgent's fan-out (`tasks=[...]`) "
+            "runs concurrently in one call. Each concurrent task is its own LLM "
+            "run against the shared rate limiter and, if isolate_worktree is "
+            "set, its own git worktree — unbounded fan-out lets one call "
+            "multiply both unboundedly. 0 or negative disables the cap."
+        ),
     )
 
     # --- Retries ----------------------------------------------------------
@@ -134,13 +178,33 @@ class LLMLimitsMixin:
         int, doc="Timeout in milliseconds for fetching model lists."
     )
 
-    LLM_GIT_CMD_TIMEOUT = EnvField(int, doc="Timeout in milliseconds for git commands.")
+    LLM_GIT_CMD_TIMEOUT = EnvField(
+        int,
+        doc=(
+            "Timeout in milliseconds for the git commands that build live/system "
+            "context (branch, status, log, and the is-a-git-dir probe). Does not "
+            "apply to agent-invoked git work (snapshots, worktrees), which is "
+            "open-ended by nature."
+        ),
+    )
 
     # --- Size caps --------------------------------------------------------
 
     LLM_MAX_OUTPUT_CHARS = EnvField(
         int,
         doc="Maximum characters for tool output (shell commands, file reads).",
+    )
+
+    LLM_MAX_CONSOLE_OUTPUT_CHARS = EnvField(
+        int,
+        doc=(
+            "Cap (characters) on how much of a shell command's output is "
+            "mirrored to the console. Separate from LLM_MAX_OUTPUT_CHARS, "
+            "which caps what the model sees: a human watching a build wants "
+            "far more scrollback than the model needs, but neither wants a "
+            "runaway command echoed line by line. Beyond the cap the output "
+            "is still captured and still reaches the model."
+        ),
     )
 
     LLM_MAX_TOOL_RESULT_CHARS = EnvField(
@@ -150,6 +214,19 @@ class LLMLimitsMixin:
             "result, applied after the tool runs. Catches outputs not already "
             "capped by a tool (Grep, AnalyzeCode, web, MCP). 0 disables it; "
             "only the model-facing text is affected, not structured returns."
+        ),
+    )
+
+    LLM_ENABLE_TOOL_SPILL = EnvField(
+        to_boolean,
+        aliases=["LLM_ENABLE_TOOL_SPILL", "LLM_TOOL_SPILL_ENABLED"],
+        write_key="LLM_ENABLE_TOOL_SPILL",
+        serialize=on_off,
+        doc=(
+            "When on, a tool result whose model-facing text exceeds "
+            "LLM_MAX_TOOL_RESULT_CHARS is spilled (losslessly) to a queryable "
+            "local store instead of being passed whole; the model gets a "
+            "ReadToolResult handle plus a preview. Off by default."
         ),
     )
 
@@ -163,10 +240,15 @@ class LLMLimitsMixin:
         doc="JPEG quality (1-95) used when re-encoding photos. Ignored for PNGs.",
     )
 
-    LLM_PROJECT_DOC_MAX_CHARS = EnvField(
-        int, doc="Maximum characters for project documentation."
-    )
-
     LLM_MAX_COMPLETION_FILES = EnvField(
         int, doc="Maximum number of files for completion."
+    )
+
+    LLM_MAX_ATTACHMENT_BYTES = EnvField(
+        int,
+        doc=(
+            "Maximum file size (bytes) accepted by /attach and other "
+            "attachment paths. Checked before the file is read. "
+            "0 or negative disables the cap."
+        ),
     )

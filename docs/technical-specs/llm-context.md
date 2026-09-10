@@ -14,20 +14,19 @@ Zrb provides a directory-based journal system for maintaining persistent context
 - [Automatic Creation](#4-automatic-creation)
 - [Configuration Placeholders](#5-configuration-placeholders)
 - [Documentation Separation](#6-documentation-separation)
-- [Migration Guide](#7-migration-from-old-note-system)
 
 ---
 
 ## 1. Overview
 
-The journal system replaces the old JSON-based note system with a more flexible directory-based approach. It provides a structured way to maintain context through Markdown files organized hierarchically by topic or project.
+The journal is a directory of Markdown files organized hierarchically by topic or project, giving the assistant a structured place to keep context that outlives a single session.
 
-| Feature | Old System | New System |
-|---------|------------|------------|
-| Storage | Single JSON file | Directory of Markdown files |
-| Organization | Flat | Hierarchical |
-| Format | JSON | Markdown |
-| Index | N/A | `index.md` |
+| Property | Value |
+|----------|-------|
+| Storage | Directory of Markdown files |
+| Organization | Hierarchical, by topic or project |
+| Entry point | `index.md`, the only file injected into a session |
+| Written by | `LogActivity` and `WriteJournalNote`, which own the on-disk format |
 
 ---
 
@@ -37,22 +36,28 @@ Journal entries are stored in a directory structure with a central index file.
 
 | Setting | Environment Variable | Default |
 |---------|---------------------|---------|
+| Enabled | `ZRB_LLM_JOURNAL_ENABLED` | `on` |
 | Journal Directory | `ZRB_LLM_JOURNAL_DIR` | `~/.zrb/llm-notes/` |
 | Index File | `ZRB_LLM_JOURNAL_INDEX_FILE` | `index.md` |
+| Injected index cap | `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` | `2500` |
+
+`ZRB_LLM_JOURNAL_ENABLED=false` turns the whole subsystem off. There is no journal prompt section to suppress — the journal *is* its three tools (`SearchJournal`, `LogActivity`, `WriteJournalNote`), so the flag unregisters them in `apply_common_tools`, and `render_journal_index` checks the same flag for the `<journal-index>` injection. The model is then never told a journal exists (ADR-0055).
+
+`ZRB_LLM_JOURNAL_DIR` is **not** an off switch: clearing it falls back to `~/.zrb/llm-notes/` rather than disabling journaling.
 
 ### Directory Organization
 
-```
-~/.zrb/llm-notes/
-├── index.md                    # Main index (auto-injected)
-├── project-a/
-│   ├── design.md              # Design decisions
-│   ├── meeting-notes.md       # Meeting notes
-│   └── api-spec.md            # API specs
-├── project-b/
-│   ├── requirements.md        # Requirements
-│   └── architecture.md        # Architecture
-└── user-preferences.md        # Global preferences
+```mermaid
+flowchart LR
+    Root["~/.zrb/llm-notes/"] --> Index["index.md — main index, auto-injected"]
+    Root --> PA["project-a/"]
+    Root --> PB["project-b/"]
+    Root --> Prefs["user-preferences.md — global preferences"]
+    PA --> PAD["design.md — design decisions"]
+    PA --> PAM["meeting-notes.md — meeting notes"]
+    PA --> PAA["api-spec.md — API specs"]
+    PB --> PBR["requirements.md — requirements"]
+    PB --> PBA["architecture.md — architecture"]
 ```
 
 ### Index File Structure
@@ -77,7 +82,7 @@ Journal entries are stored in a directory structure with a central index file.
 
 ## 3. Prompt Injection
 
-The `index.md` snapshot is deliberately kept **out of** the cached system prompt (`src/zrb/llm/prompt/live_context.py::render_journal_index`). Embedding the mutable index in the cached prefix would invalidate that cache every time the agent journaled mid-session (ADR-0082), so instead it travels through the conversation itself, as part of the `<live-context>` block appended to the latest **user** message — never the system prompt.
+The `index.md` snapshot is deliberately kept **out of** the cached system prompt (`src/zrb/llm/prompt/live_context.py::render_journal_index`). Embedding the mutable index in the cached prefix would invalidate that cache every time the agent journaled mid-session (ADR-0042), so instead it travels through the conversation itself, as part of the `<live-context>` block appended to the latest **user** message — never the system prompt.
 
 The index is only injected at the two moments it could otherwise be missing from context:
 
@@ -90,20 +95,32 @@ When present, the block is wrapped as its own tag inside the live-context payloa
 
 ```
 <journal-index>
-Your persistent memory (index file: index.md). Use SearchJournal for full entries.
-[content of index.md, truncated to ~1000 characters, with " (...more)" appended if truncated]
+Your persistent memory (index file: /abs/path/to/index.md). Use SearchJournal for full entries.
+[content of index.md, capped at ZRB_LLM_JOURNAL_INDEX_MAX_CHARS]
 </journal-index>
 ```
 
-If the index file is missing, unreadable, or empty, nothing is injected at all.
+The header carries the **absolute path** of the index file, so the agent can `Read` the file directly when it needs more than the cap allows. The `SearchJournal` directive stays — searching is the intended interface for content, not dumping the whole file into context.
+
+When the content exceeds the cap it is cut **on a line boundary** and ` (...more)` is appended, and the block marks the truncation:
+
+```
+Your persistent memory (index file: /abs/path/to/index.md). Truncated at `(...more)`. Use SearchJournal for full entries.
+```
+
+Cutting on a line boundary matters because the entries are facts about the user — half a sentence is worse than none. Overflow is dropped from the **end**, so the index should be written most-durable-first. `WriteJournalNote` enforces that order when it creates the root index: identity and standing preferences first, unbounded "Recent Insights" last, so growth only ever evicts itself.
+
+Nothing is injected at all when the index file is missing, unreadable, or empty; when `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` is `0`; or when `ZRB_LLM_JOURNAL_ENABLED` is `false`. A missing block therefore does not prove an empty journal — and nothing tells the model so. Stating the caveat would cost either prompt weight or a tool docstring paid for on every request, so it is a known gap rather than shipped text (`render_journal_index`'s docstring records it). It matters only when `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` is `0` while the journal tools stay registered — a deliberate and unusual pairing.
 
 ---
 
 ## 4. Automatic Creation
 
-Zrb does **not** auto-create the journal directory or the index file. There is no code path under `src/zrb/llm/` that calls `os.makedirs` or otherwise materializes `~/.zrb/llm-notes/` or `index.md` on startup — `src/zrb/llm/tool/journal.py` only implements a `search_journal` tool (exposed to the agent as `SearchJournal`) for reading existing entries.
+`search_journal` (`src/zrb/llm/tool/journal.py`, exposed to the agent as `SearchJournal`) calls `os.makedirs(..., exist_ok=True)` when the configured directory is absent and reports the same empty result an unmatched search returns.
 
-Creating the directory, the index file, and any per-topic Markdown files is the agent's own responsibility, driven entirely by prompt/skill guidance (see the `core-journaling` skill under `src/zrb/llm_plugin/core_skills/`) rather than by zrb's runtime code. If the agent never decides to journal, the directory and index simply never come into existence.
+That behaviour is deliberate. Reporting a missing directory as an error made the whole memory layer read as unavailable, and the agent responded by declaring it could not journal rather than by writing its first note. An unwritten journal is *empty*, not broken.
+
+**The rest of the tree is created by the writers, not by the agent.** `LogActivity` and `WriteJournalNote` (`src/zrb/llm/tool/journal_write.py`) derive every path and timestamp themselves, create the root index and the five directory indexes on first write, and maintain the link graph — each note registered in its directory index, each forward link matched by a reciprocal backlink. The agent supplies content; the structure is code (ADR-0055).
 
 ---
 
@@ -130,29 +147,4 @@ The journal system uses configuration placeholders that are automatically replac
 
 > 💡 **Best Practice:** Use `AGENTS.md` for rules the LLM must follow. Use the journal for information the LLM should remember.
 
----
-
-## 7. Migration from Old Note System
-
-The old JSON-based note system (`NoteManager`, `LLM_NOTE_FILE`) was removed in version 2.4.0.
-
-### Migration Steps
-
-```bash
-# 1. Create journal directory
-mkdir -p ~/.zrb/llm-notes/
-
-# 2. Create index file
-touch ~/.zrb/llm-notes/index.md
-
-# 3. Organize notes into Markdown files
-# Move content from old JSON to categorized .md files
-```
-
-| Old System | New System |
-|------------|------------|
-| Single JSON file | Directory structure |
-| `NoteManager` class | Direct file access |
-| `LLM_NOTE_FILE` env var | `ZRB_LLM_JOURNAL_DIR` |
-
----
+🔖 [Documentation Home](../../README.md) > [Technical Specs](./llm-context.md)

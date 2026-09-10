@@ -1,3 +1,4 @@
+import json
 import time
 from unittest.mock import MagicMock
 
@@ -201,3 +202,45 @@ class TestJwtErrorHandling:
                     "algorithm": "HS256",
                 },
             )
+
+
+@pytest.mark.asyncio
+async def test_decode_jwt_humanizes_timestamp_claims():
+    """exp/iat/nbf/auth_time values are echoed as human-readable UTC times."""
+    import datetime
+
+    now = int(
+        datetime.datetime(
+            2026, 8, 24, 12, 0, 0, tzinfo=datetime.timezone.utc
+        ).timestamp()
+    )
+    enc_lines = []
+    s1 = Session(
+        shared_ctx=SharedContext(print_fn=lambda *a, **k: enc_lines.append(str(a[0]))),
+        state_logger=MagicMock(),
+    )
+    token = await encode_jwt.async_run(
+        session=s1,
+        kwargs={
+            "secret": "secret",
+            "payload": json.dumps({"exp": now, "iat": 12345}),
+            "algorithm": "HS256",
+        },
+    )
+    lines = []
+    s2 = Session(
+        shared_ctx=SharedContext(print_fn=lambda *a, **k: lines.append(str(a[0]))),
+        state_logger=MagicMock(),
+    )
+    await decode_jwt.async_run(
+        session=s2,
+        kwargs={
+            "token": token,
+            "secret": "secret",
+            "algorithm": "HS256",
+            "verify": False,
+        },
+    )
+    humanized = [line for line in lines if "  exp: " in line or "  iat: " in line]
+    assert any("2026-08-24T12:00:00+00:00" in line for line in humanized)
+    assert any("1970-01-01" in line for line in humanized)

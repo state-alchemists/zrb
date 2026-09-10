@@ -1,3 +1,4 @@
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from zrb.config.config import CFG
@@ -26,7 +27,7 @@ from zrb.util.cli.style import stylize_error, stylize_warning
 from zrb.util.markdown import make_markdown_section
 
 if TYPE_CHECKING:
-    from pydantic_ai.messages import ModelMessage
+    from zrb.llm.agent.types import ModelMessage
 else:
     ModelMessage = Any
 
@@ -38,22 +39,14 @@ def create_summarizer_history_processor(
     conversational_token_threshold: int | None = None,
     message_token_threshold: int | None = None,
     summary_window: int | None = None,
-    inject_journal_index: bool = True,
-    # Backward compatibility
-    agent: Any = None,
-    token_threshold: int | None = None,
 ) -> "Callable[[list[ModelMessage]], Awaitable[list[ModelMessage]]]":
     """
     Creates a history processor that auto-summarizes history when it exceeds `token_threshold`.
-
-    `inject_journal_index` is forwarded to `summarize_history`: pass ``False`` when
-    the agent's ``journal_mandate`` section is inactive so compaction does not
-    re-seed the journal index into a prompt that omits it (ADR-0082).
     """
     llm_limiter = limiter or default_llm_limiter
     if conversational_token_threshold is None:
         conversational_token_threshold = (
-            token_threshold or CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
+            CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
         )
     if message_token_threshold is None:
         message_token_threshold = CFG.LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD
@@ -65,90 +58,139 @@ def create_summarizer_history_processor(
     ) -> "list[ModelMessage]":
         # Create fresh summarizer agents each call so model changes
         # from /model small take effect immediately.
-        active_message_agent = message_agent or create_message_summarizer_agent()
-        active_conversational_agent = (
-            conversational_agent or create_conversational_summarizer_agent()
-        )
-
-        # 1. Summarize individual fat messages first
+        #
+        # Guarded: both helpers below already treat a *failed* summarization as
+        # "keep the original messages", but until this guard the construction
+        # itself sat outside that tolerance — so a small model whose provider
+        # has no credentials killed the whole turn, on a summarization pass that
+        # may not even have been needed.
         try:
-            messages = await summarize_messages(
-                messages,
-                agent=active_message_agent,
-                limiter=llm_limiter,
-                message_token_threshold=message_token_threshold,
-                conversational_token_threshold=conversational_token_threshold,
+            active_message_agent = message_agent or create_message_summarizer_agent()
+            active_conversational_agent = (
+                conversational_agent or create_conversational_summarizer_agent()
             )
         except Exception as e:
             zrb_print(
-                stylize_error(f"  Error processing messages in history processor: {e}"),
-                plain=True,
-            )
-            # Continue with original messages if summarization fails
-
-        # 2. Check if total history + system prompt exceeds threshold
-        try:
-            adjusted_threshold = max(
-                1, conversational_token_threshold - system_prompt_overhead
-            )
-
-            current_tokens = llm_limiter.count_tokens(messages)
-            is_short_enough = len(messages) <= summary_window
-            is_within_tokens = current_tokens <= adjusted_threshold
-            if is_short_enough and is_within_tokens:
-                return messages
-            to_summarize, _ = split_history(
-                messages, summary_window, llm_limiter, adjusted_threshold
-            )
-            if (
-                is_within_tokens
-                and llm_limiter.count_tokens(to_summarize) < 0.3 * adjusted_threshold
-            ):
-                # There is no need to summarize if we cannot save at least 0.3 of context window
-                return messages
-
-            zrb_print(
-                stylize_warning(
-                    (
-                        f"\n  History limits exceeded (tokens: {current_tokens}/{adjusted_threshold}, messages: {len(messages)}/{summary_window}). "
-                        "Compressing conversation..."
-                    )
+                stylize_error(
+                    f"  Summarizer unavailable, history left unsummarized: {e}"
                 ),
-                plain=True,
-            )
-            result = await summarize_history(
-                messages,
-                agent=active_conversational_agent,
-                summary_window=summary_window,
-                limiter=llm_limiter,
-                conversational_token_threshold=adjusted_threshold,
-                inject_journal_index=inject_journal_index,
-            )
-            if result != messages:
-                new_tokens = llm_limiter.count_tokens(result)
-                zrb_print(
-                    stylize_warning(
-                        f"  Conversation compressed "
-                        f"({new_tokens}/{conversational_token_threshold})"
-                    ),
-                    plain=True,
-                )
-            else:
-                zrb_print(
-                    stylize_warning(
-                        "  Conversation compression produced no change (API error or empty input)"
-                    ),
-                    plain=True,
-                )
-            return result
-        except Exception as e:
-            zrb_print(
-                stylize_error(f"  Error processing history in history processor: {e}"),
                 plain=True,
             )
             return messages
 
+        messages = await _summarize_fat_messages(
+            messages,
+            agent=active_message_agent,
+            limiter=llm_limiter,
+            message_token_threshold=message_token_threshold,
+            conversational_token_threshold=conversational_token_threshold,
+        )
+
+        return await _maybe_compress_history(
+            messages,
+            agent=active_conversational_agent,
+            summary_window=summary_window,
+            limiter=llm_limiter,
+            conversational_token_threshold=conversational_token_threshold,
+            system_prompt_overhead=system_prompt_overhead,
+        )
+
     return process_history
+
+
+async def _summarize_fat_messages(
+    messages: "list[ModelMessage]",
+    agent: Any,
+    limiter: "LLMLimiter",
+    message_token_threshold: int,
+    conversational_token_threshold: int,
+) -> "list[ModelMessage]":
+    """Summarize individual fat messages first; keeps the originals on error."""
+    try:
+        return await summarize_messages(
+            messages,
+            agent=agent,
+            limiter=limiter,
+            message_token_threshold=message_token_threshold,
+            conversational_token_threshold=conversational_token_threshold,
+        )
+    except Exception as e:
+        zrb_print(
+            stylize_error(f"  Error processing messages in history processor: {e}"),
+            plain=True,
+        )
+        # Continue with original messages if summarization fails
+        return messages
+
+
+async def _maybe_compress_history(
+    messages: "list[ModelMessage]",
+    agent: Any,
+    summary_window: int,
+    limiter: "LLMLimiter",
+    conversational_token_threshold: int,
+    system_prompt_overhead: int,
+) -> "list[ModelMessage]":
+    """Compress history when it exceeds the token/window threshold."""
+    try:
+        adjusted_threshold = max(
+            1, conversational_token_threshold - system_prompt_overhead
+        )
+
+        current_tokens = limiter.count_tokens(messages)
+        is_short_enough = len(messages) <= summary_window
+        is_within_tokens = current_tokens <= adjusted_threshold
+        if is_short_enough and is_within_tokens:
+            return messages
+        to_summarize, _ = split_history(
+            messages, summary_window, limiter, adjusted_threshold
+        )
+        if (
+            is_within_tokens
+            and limiter.count_tokens(to_summarize) < 0.3 * adjusted_threshold
+        ):
+            # There is no need to summarize if we cannot save at least 0.3 of context window
+            return messages
+
+        zrb_print(
+            stylize_warning(
+                (
+                    f"\n  History limits exceeded (tokens: {current_tokens}/{adjusted_threshold}, messages: {len(messages)}/{summary_window}). "
+                    "Compressing conversation..."
+                )
+            ),
+            plain=True,
+        )
+        result = await summarize_history(
+            messages,
+            agent=agent,
+            summary_window=summary_window,
+            limiter=limiter,
+            conversational_token_threshold=adjusted_threshold,
+        )
+        if result != messages:
+            new_tokens = limiter.count_tokens(result)
+            zrb_print(
+                stylize_warning(
+                    f"  Conversation compressed "
+                    f"({new_tokens}/{conversational_token_threshold})"
+                ),
+                plain=True,
+            )
+        else:
+            zrb_print(
+                stylize_warning(
+                    "  Conversation compression produced no change (API error or empty input)"
+                ),
+                plain=True,
+            )
+        return result
+    except Exception as e:
+        zrb_print(
+            stylize_error(f"  Error processing history in history processor: {e}"),
+            plain=True,
+        )
+        return messages
 
 
 async def summarize_messages(
@@ -194,7 +236,6 @@ async def summarize_history(
     limiter: "LLMLimiter | None" = None,
     conversational_token_threshold: int | None = None,
     force: bool = False,
-    inject_journal_index: bool = True,
 ) -> "list[ModelMessage]":
     """
     Summarizes the history, keeping the last `summary_window` messages intact.
@@ -204,12 +245,10 @@ async def summarize_history(
     When `force=True`, compression is performed even if the conversation is within
     the normal token/window limits (e.g. triggered by an explicit /compress command).
 
-    `inject_journal_index` re-seeds the journal index into the summary (ADR-0082).
-    Callers pass ``False`` when the ``journal_mandate`` section is not active, so
-    the index is never re-introduced into a prompt that deliberately omits it.
+    The journal index is re-seeded into the summary;
+    ``render_journal_index`` returns nothing when journaling is off.
     """
     try:
-        # 1. Setup Configs
         llm_limiter = limiter or default_llm_limiter
         if conversational_token_threshold is None:
             conversational_token_threshold = (
@@ -217,7 +256,6 @@ async def summarize_history(
             )
         if summary_window is None:
             summary_window = CFG.LLM_HISTORY_SUMMARIZATION_WINDOW
-        # Ensure we have things to summarize
         to_summarize, to_keep = split_history(
             messages, summary_window, llm_limiter, conversational_token_threshold
         )
@@ -227,7 +265,6 @@ async def summarize_history(
             # Force mode: compress everything regardless of limits
             to_summarize = messages
             to_keep = []
-        # 2. Iterative Summarization of Historical turns
         summarizer_agent = agent or create_conversational_summarizer_agent()
         summary_text = await chunk_and_summarize(
             to_summarize,
@@ -236,9 +273,7 @@ async def summarize_history(
             conversational_token_threshold,
             include_last_user_intent_instruction=(len(to_keep) == 0),
         )
-        # 3. Final Aggregation and potential re-summarization
         final_summary_tokens = llm_limiter.count_tokens(summary_text)
-        # Check if we have multiple snapshots or if we are still near the threshold
         has_multiple_snapshots = summary_text.count("<state_snapshot>") > 1
         is_near_threshold = final_summary_tokens > (
             conversational_token_threshold * 0.8
@@ -251,24 +286,36 @@ async def summarize_history(
                 has_multiple_snapshots,
                 limiter=llm_limiter,
             )
-        # 4. Create Result. Re-seed the journal index into the summary so it
+        # Re-seed the journal index into the summary so it
         # survives compaction — summarization is one of exactly two moments the
         # index can otherwise vanish (the other being a fresh session, handled by
         # the first-turn live-context). Baking it into the summary message keeps
         # the message structure intact (no extra turn to break role alternation
         # or tool-call pairing) and means the index is present in the very same
-        # request the processor compacts for. See ADR-0082. Skipped when the
-        # caller has no active journal_mandate section, keeping the index coupled
-        # to that section across compaction.
-        if inject_journal_index:
-            journal_block = render_journal_index()
-            if journal_block:
-                summary_text = f"{summary_text}\n\n{journal_block}"
+        # request the processor compacts for. See ADR-0042. render_journal_index
+        # honours LLM_JOURNAL_ENABLED, so a disabled journal adds nothing here.
+        journal_block = render_journal_index()
+        if journal_block:
+            summary_text = f"{summary_text}\n\n{journal_block}"
         summary_message = _create_summary_model_request(summary_text)
         if summary_message is None:
             return messages
+
+        # Preserve the opening user turn verbatim: it carries the task's original
+        # goal, which summarization would otherwise drop first. It is a pure user
+        # turn (no tool parts), so re-adding it cannot break tool-call pairing;
+        # ensure_alternating_roles folds it into the summary message when roles
+        # would otherwise collide. (Harness `preserve_first_user_message`.)
+        first_user_message = _find_first_user_message(messages)
+        keep_first_user = first_user_message is not None and all(
+            m is not first_user_message for m in to_keep
+        )
+
+        result: list[Any] = [summary_message]
+        if keep_first_user:
+            result.append(first_user_message)
         if not to_keep:
-            return [summary_message]
+            return ensure_alternating_roles(result)
         # Fix orphaned tool RETURNS before returning. split_history never
         # separates a *complete* call/return pair, so the only orphan compression
         # can introduce into `to_keep` is a ToolReturnPart whose matching call was
@@ -290,23 +337,79 @@ async def summarize_history(
             )
             to_keep = strip_orphaned_returns(to_keep)
 
-        return ensure_alternating_roles([summary_message] + to_keep)
+        result.extend(to_keep)
+        return ensure_alternating_roles(result)
     except Exception as e:
         zrb_print(stylize_error(f"  Error in summarize_history: {e}"), plain=True)
         return messages
 
 
+_SUMMARY_HEADER = "SYSTEM: Automated Context Restoration"
+
+
+def _is_summary_part(part: Any) -> bool:
+    """Whether *part* is the synthetic content built by `_create_summary_model_request`.
+
+    Matched by its section header so a prior compaction round's own summary is
+    never mistaken for a real user turn by `_find_first_user_message`.
+    """
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import UserPromptPart
+
+    return (
+        isinstance(part, UserPromptPart)
+        and isinstance(part.content, str)
+        and part.content.startswith(f"# {_SUMMARY_HEADER}")
+    )
+
+
+def _drop_summary_parts(msg: Any) -> Any:
+    """*msg* with any synthetic summary parts removed, keeping the rest intact.
+
+    `ensure_alternating_roles` merges adjacent same-role ``ModelRequest``s by
+    concatenating their ``parts`` — so a message preserved across compaction
+    rounds can carry both a prior round's synthetic summary part and a
+    genuinely preserved user part together. Stripping just the synthetic
+    part(s) avoids re-preserving that summary text forward on every later
+    round while keeping the real content.
+    """
+    parts = [part for part in getattr(msg, "parts", []) if not _is_summary_part(part)]
+    if len(parts) == len(msg.parts):
+        return msg
+    return replace(msg, parts=parts)
+
+
+def _find_first_user_message(messages: "list[ModelMessage]") -> Any:
+    """Return the first ModelRequest carrying a real (non-synthetic) user part.
+
+    Synthetic summary parts are stripped from the returned message — see
+    `_drop_summary_parts`.
+    """
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ModelRequest, UserPromptPart
+
+    for msg in messages:
+        if not isinstance(msg, ModelRequest):
+            continue
+        if any(
+            isinstance(part, UserPromptPart) and not _is_summary_part(part)
+            for part in getattr(msg, "parts", [])
+        ):
+            return _drop_summary_parts(msg)
+    return None
+
+
 def _create_summary_model_request(summary_text: str) -> Any:
     """Construct a ModelRequest message from summary text."""
-    # lazy: heavy third-party
-    from pydantic_ai.messages import ModelRequest, UserPromptPart
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ModelRequest, UserPromptPart
 
     try:
         return ModelRequest(
             parts=[
                 UserPromptPart(
                     content=make_markdown_section(
-                        "SYSTEM: Automated Context Restoration",
+                        _SUMMARY_HEADER,
                         "This is an automated summary of the preceding conversation history to "
                         "preserve context within the token limit. Continue the conversation "
                         "based on the state snapshot below.\n\n"

@@ -78,7 +78,6 @@ def _validate_cron_expression(ctx: AnyContext, expression: str) -> None:
     alias="parse",
 )
 def parse_cron(ctx: AnyContext) -> str:
-
     expression = ctx.input.expression.strip()
     _validate_cron_expression(ctx, expression)
 

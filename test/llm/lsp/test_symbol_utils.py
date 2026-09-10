@@ -1,6 +1,6 @@
 """Tests for llm/lsp/manager/symbol_utils.py."""
 
-from zrb.llm.lsp.manager.symbol_utils import format_document_symbols, uri_to_path
+from zrb.llm.lsp.symbol_utils import format_document_symbols, uri_to_path
 
 
 def test_uri_to_path_strips_scheme():

@@ -20,9 +20,6 @@ def generate_ulid(ctx: AnyContext) -> str:
     return result
 
 
-ulid_group.add_task(generate_ulid, alias="generate")
-
-
 @make_task(
     name="validate-ulid",
     description="✅ Validate ULID",

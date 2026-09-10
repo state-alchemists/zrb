@@ -2,6 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Callable
 
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.skill.manager import Skill, SkillManager
 from zrb.util.markdown import make_markdown_section
@@ -17,13 +18,23 @@ def build_skill_replacements(
 
     Returns ``{CORE_SKILLS}``, ``{AVAILABLE_SKILLS}``, ``{PREACTIVATED_SKILLS}``:
 
-    - ``CORE_SKILLS`` — the always-on methodology baseline (built-in skills
-      under ``llm_plugin/core_skills/``), as a bullet list.
+    - ``CORE_SKILLS`` — activatable core methodologies (built-in skills under
+      ``llm_plugin/core_skills/``), as a bullet list. They are named
+      methodologies in the prompt to distinguish their role from optional
+      domain-specific skills; both use ``ActivateSkill``.
     - ``AVAILABLE_SKILLS`` — every other model-invocable skill (user, project,
-      plugin), as a bullet list.
-    - ``PREACTIVATED_SKILLS`` — full content of any pre-activated skills, loaded up
-      front; empty when none. Active skills are dropped from the two lists above
-      so the model is not told to activate something already loaded.
+      plugin), as a bullet list **under its own heading**, or ``""`` when there
+      are none. The heading rides here rather than sitting literally in
+      ``workflow.md`` because a stock install has no such skills: every built-in
+      utility skill under ``llm_plugin/skills/`` is ``disable-model-invocation``
+      (it is a slash command, reached by the user). A literal heading would
+      render over ``_(none registered)_``, and paying for a heading that
+      introduces nothing teaches the model that catalogue entries are
+      decorative.
+    - ``PREACTIVATED_SKILLS`` — full content of any pre-activated instruction
+      bundles, loaded up front; empty when none. Active entries are dropped from
+      the two lists above so the model is not told to activate something already
+      loaded.
     """
     active = set(active_skills or [])
     core: list[Skill] = []
@@ -32,9 +43,17 @@ def build_skill_replacements(
         if not skill.model_invocable or skill.name in active:
             continue
         (core if _is_core_skill(skill) else other).append(skill)
+    # Sort by name so the catalogue (and its truncation boundary) is
+    # deterministic: the scan is filesystem-ordered, and once the cap cuts the
+    # list the visible subset must not depend on readdir order.
+    core.sort(key=lambda s: s.name)
+    other.sort(key=lambda s: s.name)
+    available = _format_skill_list(other)
     return {
         "CORE_SKILLS": _format_skill_list(core),
-        "AVAILABLE_SKILLS": _format_skill_list(other) or "_(none registered)_",
+        "AVAILABLE_SKILLS": (
+            f"\n### Available Skills\n\n{available}\n" if available else ""
+        ),
         "PREACTIVATED_SKILLS": _format_active_skills(skill_manager, active_skills),
     }
 
@@ -45,7 +64,20 @@ def _is_core_skill(skill: Skill) -> bool:
 
 
 def _format_skill_list(skills: list[Skill]) -> str:
-    return "\n".join(f"- **{s.name}** — {s.description}" for s in skills)
+    """Bullet the *skills*, capped by ``LLM_MAX_SKILLS_IN_CATALOG``.
+
+    A catalogue that outgrows the cap is truncated with a pointer to
+    ``SearchSkill``: the overflow is reachable on demand, so the cap only ever
+    saves tokens, and the note keeps the truncated entries discoverable instead
+    of silently dropped.
+    """
+    cap = CFG.LLM_MAX_SKILLS_IN_CATALOG
+    shown = skills if cap < 1 else skills[:cap]
+    lines = "\n".join(f"- **{s.name}** — {s.description}" for s in shown)
+    hidden = len(skills) - len(shown)
+    if hidden > 0:
+        lines += f"\n(+{hidden} more — use SearchSkill to find them)"
+    return lines
 
 
 def _format_active_skills(
@@ -63,13 +95,13 @@ def _format_active_skills(
     return make_markdown_section("Active Skills (Fully Loaded)", "\n\n".join(parts))
 
 
-def create_project_context_prompt():
+def create_project_context_prompt():  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     def project_context(
         ctx: AnyContext,
         current_prompt: str,
         next_handler: Callable[[AnyContext, str], str],
     ) -> str:
-        search_dirs = _get_search_directories()
+        search_dirs = get_search_directories()
 
         doc_files: dict[str, list[Path]] = {
             "AGENTS.md": [],
@@ -84,31 +116,70 @@ def create_project_context_prompt():
                 if file_path.exists() and file_path.is_file():
                     doc_files[filename].append(file_path)
 
-        # Collect all found file paths, ordered least to most specific
+        # Collect all found file paths, ordered least to most specific, split by
+        # scope: a doc sitting in the home directory describes the user's
+        # cross-project habits, not this project's rules, so it must not be
+        # presented as a project override the mandate forces a full Read of.
         listed_files: list[str] = []
+        user_level_files: list[str] = []
         for filename in doc_files.keys():
             for file_path in doc_files[filename]:
-                listed_files.append(f"- `{file_path}`")
+                bucket = (
+                    user_level_files
+                    if _is_user_level_dir(file_path.parent)
+                    else listed_files
+                )
+                bucket.append(f"- `{file_path}`")
 
-        if not listed_files:
+        if not listed_files and not user_level_files:
             return next_handler(ctx, current_prompt)
 
-        parts = [
-            "### Documentation Files Found",
-            "(See Operating Rules → Project Documentation for when to read these.)",
-            *listed_files,
-        ]
+        parts: list[str] = []
+        if listed_files:
+            parts += [
+                "### Documentation Files Found",
+                "(See Project Documentation for when to read these.)",
+                *listed_files,
+            ]
+        if user_level_files:
+            if parts:
+                parts.append("")
+            parts += [
+                "### User-Level Guidance",
+                "(Outside this project — the user's cross-project preferences, not "
+                "project rules. Not part of the mandatory read; consult only when "
+                "the turn's work depends on it.)",
+                *user_level_files,
+            ]
 
         context_message = "\n".join(parts)
         return next_handler(
             ctx,
-            f"{current_prompt}\n\n{make_markdown_section('Project Documentation', context_message)}",
+            f"{current_prompt}\n\n{make_markdown_section('Project Context', context_message)}",
         )
 
     return project_context
 
 
-def _get_search_directories() -> list[Path]:
+def _is_user_level_dir(directory: Path) -> bool:
+    """True when *directory* holds user-level (not project-level) docs.
+
+    Only the home directory itself and ``~/.claude`` qualify: those are the two
+    the search path contributes regardless of where the user is working, so a doc
+    there is about the user, not the project. Every other entry comes from the
+    cwd's parent chain and is genuinely project scoped. Returns ``False`` when
+    home cannot be resolved — the mandatory-read bucket is the safe default,
+    since that is the pre-split behavior.
+    """
+    try:
+        home = Path.home().resolve()
+        resolved = directory.resolve()
+    except Exception:
+        return False
+    return resolved == home or resolved == home / ".claude"
+
+
+def get_search_directories() -> list[Path]:
     try:
         home_str = str(Path.home())
     except Exception:

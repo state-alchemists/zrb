@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pydantic_ai import ModelMessage
+    from zrb.llm.agent.types import ModelMessage
 
 
 class AnyHistoryManager(ABC):
@@ -11,7 +11,7 @@ class AnyHistoryManager(ABC):
         pass
 
     @abstractmethod
-    def save(self, conversation_name: str):
+    def save(self, conversation_name: str, write_backup: bool = True):
         pass
 
     @abstractmethod

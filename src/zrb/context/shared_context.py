@@ -7,6 +7,7 @@ from zrb.context.any_shared_context import AnySharedContext
 from zrb.context.print_fn import PrintFn
 from zrb.dot_dict.dot_dict import DotDict
 from zrb.session.any_session import AnySession
+from zrb.util.cli.terminal import is_real_console
 from zrb.util.string.conversion import (
     double_quote,
     to_boolean,
@@ -31,6 +32,22 @@ class SharedContext(AnySharedContext):
         is_web_mode: bool = False,
         print_fn: PrintFn | None = None,
     ):
+        """Build the session-wide context shared by every task in a run.
+
+        Args:
+            input: Initial input values by name. Inputs resolved later are added
+                to this.
+            args: Positional CLI arguments left after inputs were parsed.
+            env: Initial environment variables by name.
+            xcom: Pre-seeded cross-task queues by task name. Missing entries are
+                created on demand.
+            logging_level: Standard `logging` level for this session. Defaults to
+                the level from config.
+            is_web_mode: Whether the session is driven by the web UI, which
+                suppresses terminal prompts.
+            print_fn: Callable receiving output lines. Defaults to printing to
+                stderr.
+        """
         self.__logging_level = logging_level
         self._input = DotDict(input if input is not None else {})
         self._args = list(args) if args is not None else []
@@ -52,7 +69,7 @@ class SharedContext(AnySharedContext):
     @property
     def is_tty(self) -> bool:
         try:
-            return sys.stdin.isatty()
+            return sys.stdin.isatty() and is_real_console(sys.stdin)
         except Exception:
             return False
 

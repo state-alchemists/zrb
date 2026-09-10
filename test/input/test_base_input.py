@@ -139,6 +139,17 @@ def test_base_input_update_shared_context_snake_case_conflict():
         inp.update_shared_context(shared_ctx, value="new_value")
 
 
+def test_base_input_update_shared_context_snake_case_conflict_message():
+    """Regression: the snake_case-conflict error was missing an `f` prefix,
+    so the message showed the literal text "{snake_key}" instead of the key."""
+    inp = ConcreteInput("my-input")  # snake_case: my_input
+    shared_ctx = SharedContext()
+    shared_ctx.input["my_input"] = "existing"
+    with pytest.raises(ValueError, match="my_input") as exc_info:
+        inp.update_shared_context(shared_ctx, value="new_value")
+    assert "{snake_key}" not in str(exc_info.value)
+
+
 def test_base_input_update_shared_context_same_name_no_duplicate():
     """Test update_shared_context doesn't add duplicate for snake_case == original."""
     inp = ConcreteInput("simple")  # snake_case is same as original
@@ -186,3 +197,68 @@ def test_base_input_to_html_escapes_values():
     assert "<script>" not in rendered
     assert '"><img' not in rendered
     assert "&lt;script&gt;" in rendered
+
+
+@pytest.fixture
+def non_tty(monkeypatch):
+    """Force the plain-input() prompting path regardless of the test runner."""
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+
+
+def _prompt_cli(inp, shared_ctx, answers):
+    """Drive prompt_cli_str with a queued sequence of typed answers."""
+    queue = iter(answers)
+    monkeypatched = lambda *a, **k: next(queue)  # noqa: E731
+    return inp, monkeypatched
+
+
+def test_base_input_prompt_cli_str_retries_until_non_empty(non_tty, monkeypatch):
+    """With allow_empty=False (the default) a blank answer is asked again."""
+    inp = ConcreteInput("test", prompt="Enter value")
+    answers = iter(["", "  ", "final"])
+    monkeypatch.setattr("builtins.input", lambda: next(answers))
+    shared_ctx = SharedContext()
+    assert inp.prompt_cli_str(shared_ctx) == "final"
+
+
+def test_base_input_prompt_cli_str_accepts_empty_when_allowed(non_tty, monkeypatch):
+    inp = ConcreteInput("test", prompt="Enter value", allow_empty=True)
+    monkeypatch.setattr("builtins.input", lambda: "")
+    shared_ctx = SharedContext()
+    assert inp.prompt_cli_str(shared_ctx) == ""
+
+
+def test_base_input_prompt_cli_str_blank_answer_falls_back_to_default(
+    non_tty, monkeypatch, capsys
+):
+    """A blank answer resolves to the default, which is also shown in the prompt."""
+    inp = ConcreteInput("test", prompt="Enter value", default="fallback")
+    monkeypatch.setattr("builtins.input", lambda: "")
+    shared_ctx = SharedContext()
+    assert inp.prompt_cli_str(shared_ctx) == "fallback"
+    assert "Enter value [fallback]" in capsys.readouterr().out
+
+
+def test_base_input_prompt_cli_str_default_satisfies_non_empty_check(
+    non_tty, monkeypatch
+):
+    """A blank answer that maps to a non-empty default does not re-prompt."""
+    inp = ConcreteInput("test", prompt="Enter value", default="prefilled")
+    calls = []
+
+    def fake_input():
+        calls.append(1)
+        return ""
+
+    monkeypatch.setattr("builtins.input", fake_input)
+    shared_ctx = SharedContext()
+    assert inp.prompt_cli_str(shared_ctx) == "prefilled"
+    assert len(calls) == 1
+
+
+def test_base_input_read_line_prints_prompt_when_not_tty(non_tty, monkeypatch, capsys):
+    inp = ConcreteInput("test", prompt="Enter value")
+    monkeypatch.setattr("builtins.input", lambda: "typed-answer")
+    shared_ctx = SharedContext()
+    assert inp.prompt_cli_str(shared_ctx) == "typed-answer"
+    assert "Enter value" in capsys.readouterr().out

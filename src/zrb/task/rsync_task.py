@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from zrb.attr.type import BoolAttr, IntAttr, StrAttr
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
@@ -12,36 +14,27 @@ class RsyncTask(CmdTask):
     def __init__(
         self,
         name: str,
+        *,
         color: int | None = None,
         icon: str | None = None,
         description: str | None = None,
         cli_only: bool = False,
-        input: list[AnyInput | None] | AnyInput | None = None,
-        env: list[AnyEnv | None] | AnyEnv | None = None,
+        input: Sequence[AnyInput | None] | AnyInput | None = None,
+        env: Sequence[AnyEnv | None] | AnyEnv | None = None,
         shell: StrAttr | None = None,
-        auto_render_shell: bool = True,
+        shell_flag: StrAttr | None = None,
+        is_interactive: bool = False,
         remote_host: StrAttr | None = None,
-        render_remote_host: bool = True,
         remote_port: IntAttr | None = None,
-        render_remote_port: bool = True,
         remote_user: StrAttr | None = None,
-        render_remote_user: bool = True,
         remote_password: StrAttr | None = None,
-        render_remote_password: bool = True,
         remote_ssh_key: StrAttr | None = None,
-        render_remote_ssh_key: bool = True,
         remote_source_path: StrAttr | None = None,
-        render_remote_source_path: bool = True,
         remote_destination_path: StrAttr | None = None,
-        render_remote_destination_path: bool = True,
         local_source_path: StrAttr | None = None,
-        render_local_source_path: bool = True,
         local_destination_path: StrAttr | None = None,
-        render_local_destination_path: bool = True,
         exclude_from: StrAttr | None = None,
-        render_exclude_from: bool = True,
         cwd: str | None = None,
-        render_cwd: bool = True,
         plain_print: bool = False,
         max_output_line: int = 1000,
         max_error_line: int = 1000,
@@ -49,12 +42,41 @@ class RsyncTask(CmdTask):
         execute_condition: BoolAttr = True,
         retries: int = 2,
         retry_period: float = 0,
-        readiness_check: list[AnyTask] | AnyTask | None = None,
-        upstream: list[AnyTask] | AnyTask | None = None,
-        fallback: list[AnyTask] | AnyTask | None = None,
-        successor: list[AnyTask] | AnyTask | None = None,
+        readiness_check: Sequence[AnyTask] | AnyTask | None = None,
+        readiness_check_delay: float = 0.5,
+        readiness_check_period: float | None = 5,
+        readiness_failure_threshold: int | None = 1,
+        readiness_timeout: int | None = 60,
+        monitor_readiness: bool = False,
+        upstream: Sequence[AnyTask] | AnyTask | None = None,
+        fallback: Sequence[AnyTask] | AnyTask | None = None,
+        successor: Sequence[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
+        """Define a task that copies files with `rsync`, locally or over SSH.
+
+        Exactly one side may be remote. Pair `local_source_path` with
+        `remote_destination_path` to upload, or `remote_source_path` with
+        `local_destination_path` to download. The SSH connection reuses `CmdTask`'s
+        `remote_*` parameters.
+
+        Every value below is a literal unless it is a `Tpl` or a callable, in
+        which case it is resolved against the task context at run time.
+
+        Args:
+            local_source_path: Path on this machine to copy from.
+            local_destination_path: Path on this machine to copy to.
+            remote_source_path: Path on the remote host to copy from.
+            remote_destination_path: Path on the remote host to copy to.
+            exclude_from: Path to a file listing rsync exclude patterns, passed
+                through as `--exclude-from`.
+
+        Every parameter `CmdTask` accepts is also accepted here and behaves
+        identically, except for the two that only make sense for a
+        user-supplied command: `cmd`, which is generated here from the paths
+        above, and `warn_unrecommended_command`, which screens a command you
+        wrote.
+        """
         super().__init__(
             name=name,
             color=color,
@@ -64,19 +86,14 @@ class RsyncTask(CmdTask):
             input=input,
             env=env,
             shell=shell,
-            render_shell=auto_render_shell,
+            shell_flag=shell_flag,
+            is_interactive=is_interactive,
             remote_host=remote_host,
-            render_remote_host=render_remote_host,
             remote_port=remote_port,
-            render_remote_port=render_remote_port,
             remote_user=remote_user,
-            render_remote_user=render_remote_user,
             remote_password=remote_password,
-            render_remote_password=render_remote_password,
             remote_ssh_key=remote_ssh_key,
-            render_remote_ssh_key=render_remote_ssh_key,
             cwd=cwd,
-            render_cwd=render_cwd,
             plain_print=plain_print,
             max_output_line=max_output_line,
             max_error_line=max_error_line,
@@ -85,21 +102,21 @@ class RsyncTask(CmdTask):
             retries=retries,
             retry_period=retry_period,
             readiness_check=readiness_check,
+            readiness_check_delay=readiness_check_delay,
+            readiness_check_period=readiness_check_period,
+            readiness_failure_threshold=readiness_failure_threshold,
+            readiness_timeout=readiness_timeout,
+            monitor_readiness=monitor_readiness,
             upstream=upstream,
             fallback=fallback,
             successor=successor,
             print_fn=print_fn,
         )
         self._remote_source_path = remote_source_path
-        self._render_remote_source_path = render_remote_source_path
         self._remote_destination_path = remote_destination_path
-        self._render_remote_destination_path = render_remote_destination_path
         self._local_source_path = local_source_path
-        self._render_local_source_path = render_local_source_path
         self._local_destination_path = local_destination_path
-        self._render_local_destination_path = render_local_destination_path
         self._exclude_from = exclude_from
-        self._render_exclude_from = render_exclude_from
 
     def _get_source_path(self, ctx: AnyContext) -> str:
         local_source_path = self._get_local_source_path(ctx)
@@ -124,7 +141,6 @@ class RsyncTask(CmdTask):
             ctx,
             self._remote_source_path,
             "",
-            auto_render=self._render_remote_source_path,
         )
 
     def _get_remote_destination_path(self, ctx: AnyContext) -> str:
@@ -132,7 +148,6 @@ class RsyncTask(CmdTask):
             ctx,
             self._remote_destination_path,
             "",
-            auto_render=self._render_remote_destination_path,
         )
 
     def _get_local_source_path(self, ctx: AnyContext) -> str:
@@ -140,7 +155,6 @@ class RsyncTask(CmdTask):
             ctx,
             self._local_source_path,
             "",
-            auto_render=self._render_local_source_path,
         )
 
     def _get_local_destination_path(self, ctx: AnyContext) -> str:
@@ -148,7 +162,6 @@ class RsyncTask(CmdTask):
             ctx,
             self._local_destination_path,
             "",
-            auto_render=self._render_local_destination_path,
         )
 
     def _get_exclude_from_param(self, ctx: AnyContext) -> str:
@@ -156,7 +169,6 @@ class RsyncTask(CmdTask):
             ctx,
             self._exclude_from,
             "",
-            auto_render=self._render_exclude_from,
         ).strip()
         if exclude_from == "":
             return ""

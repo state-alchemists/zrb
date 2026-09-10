@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any, Sequence
 
 if TYPE_CHECKING:
-    from pydantic_ai.messages import ModelRequest, ModelResponse
+    from zrb.llm.agent.types import ModelRequest, ModelResponse
 else:
     ModelRequest = Any
     ModelResponse = Any
@@ -9,14 +9,13 @@ else:
 
 def message_to_text(msg: Any) -> str:
     """Convert a pydantic_ai message to a readable text representation for summarization."""
-    # lazy: heavy third-party
-    from pydantic_ai.messages import ModelRequest, ModelResponse
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ModelRequest, ModelResponse
 
     if isinstance(msg, ModelRequest):
         return model_request_to_text(msg)
     if isinstance(msg, ModelResponse):
         return model_response_to_text(msg)
-    # Fallback for unknown message types
     try:
         return str(msg)
     except Exception:
@@ -24,20 +23,11 @@ def message_to_text(msg: Any) -> str:
 
 
 def model_request_to_text(msg: ModelRequest) -> str:
-    # lazy: heavy third-party
-    from pydantic_ai.messages import (
-        AudioUrl,
-        BinaryContent,
-        DocumentUrl,
-        ImageUrl,
-        SystemPromptPart,
-        ToolReturnPart,
-        UserPromptPart,
-        VideoUrl,
-    )
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import SystemPromptPart, ToolReturnPart, UserPromptPart
+    from zrb.llm.util.history_formatter import format_multimodal_item
 
     parts = []
-    # Safely get parts with default
     msg_parts = getattr(msg, "parts", [])
     for p in msg_parts:
         if isinstance(p, UserPromptPart):
@@ -48,19 +38,8 @@ def model_request_to_text(msg: ModelRequest) -> str:
                 for item in content:
                     if isinstance(item, str):
                         parts.append(f"User: {item}")
-                    elif isinstance(item, ImageUrl):
-                        parts.append(f"[Image URL: {item.url}]")
-                    elif isinstance(item, BinaryContent):
-                        media_type = getattr(item, "media_type", "unknown")
-                        parts.append(f"[Binary Content: {media_type}]")
-                    elif isinstance(item, AudioUrl):
-                        parts.append(f"[Audio URL: {item.url}]")
-                    elif isinstance(item, VideoUrl):
-                        parts.append(f"[Video URL: {item.url}]")
-                    elif isinstance(item, DocumentUrl):
-                        parts.append(f"[Document URL: {item.url}]")
                     else:
-                        parts.append(f"[Unknown User Content: {type(item).__name__}]")
+                        parts.append(format_multimodal_item(item))
             else:
                 parts.append(f"User: {str(content)}")
         elif isinstance(p, ToolReturnPart):
@@ -76,14 +55,13 @@ def model_request_to_text(msg: ModelRequest) -> str:
             if content is not None:
                 parts.append(f"System: {content}")
         else:
-            # Fallback for unknown part types
             parts.append(f"[Unknown part type: {type(p).__name__}]")
     return "\n".join(parts) if parts else "[Empty ModelRequest]"
 
 
 def model_response_to_text(msg: ModelResponse) -> str:
-    # lazy: heavy third-party
-    from pydantic_ai.messages import FilePart, TextPart, ToolCallPart, ToolReturnPart
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import FilePart, TextPart, ToolCallPart, ToolReturnPart
 
     parts = []
     msg_parts = getattr(msg, "parts", [])

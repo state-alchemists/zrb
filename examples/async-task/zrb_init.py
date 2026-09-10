@@ -6,14 +6,14 @@ Shows how to create async tasks with asyncio.
 
 import asyncio
 
-from zrb import AnyContext, IntInput, Task, cli, make_task
+from zrb import AnyContext, IntInput, cli, make_task
 
 # =============================================================================
 # Basic Async Task
 # =============================================================================
 
 
-@make_task(name="sleep")
+@make_task(name="sleep", group=cli)
 async def sleep_task(ctx: AnyContext):
     """Sleep for a moment and return."""
     ctx.print("Starting sleep...")
@@ -29,6 +29,7 @@ async def sleep_task(ctx: AnyContext):
 
 @make_task(
     name="countdown",
+    group=cli,
     description="Count down from a number",
     input=[IntInput(name="start", description="Starting number", default=5)],
 )
@@ -48,13 +49,14 @@ async def countdown(ctx: AnyContext):
 
 @make_task(
     name="process",
+    group=cli,
     description="Process items with progress",
     input=[IntInput(name="items", description="Number of items", default=10)],
 )
 async def process_items(ctx: AnyContext):
     """Process items one by one with async delay."""
     results = []
-    for i in range(ctx.input.items):
+    for i in range(ctx.input.get("items", [])):
         # Simulate async work
         await asyncio.sleep(0.2)
         results.append(f"item-{i}")
@@ -75,7 +77,7 @@ async def fetch_data(url: str, delay: float) -> str:
     return f"Data from {url}"
 
 
-@make_task(name="fetch-all")
+@make_task(name="fetch-all", group=cli)
 async def fetch_all(ctx: AnyContext):
     """Fetch from multiple URLs concurrently."""
     urls = [
@@ -100,6 +102,7 @@ async def fetch_all(ctx: AnyContext):
 
 @make_task(
     name="retry-task",
+    group=cli,
     description="Task with retry logic",
     retries=3,
 )
@@ -121,7 +124,7 @@ async def retry_task(ctx: AnyContext):
 # =============================================================================
 
 
-@make_task(name="mixed")
+@make_task(name="mixed", group=cli)
 async def mixed_task(ctx: AnyContext):
     """Mix sync and async operations."""
     # Sync part

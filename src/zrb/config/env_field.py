@@ -20,7 +20,7 @@ as hand-written properties (e.g. `LOGGER`, which is `logging.getLogger()`).
 from __future__ import annotations
 
 import os
-from typing import Any, Callable, Generic, TypeVar, overload
+from typing import Any, Callable, Generic, Sequence, TypeVar, overload
 
 from zrb.config.helper import get_env
 
@@ -33,18 +33,18 @@ def on_off(value: Any) -> str:
     return "on" if value else "off"
 
 
-def colon_list(raw: str) -> list[str]:
-    """Parse a ``:``-delimited string, stripping and dropping empty segments."""
-    return [part.strip() for part in raw.split(":") if part.strip() != ""]
+def path_list(raw: str) -> list[str]:
+    """Parse an `os.pathsep`-delimited path list (`;` on Windows, `:` elsewhere).
+
+    Splitting on `os.pathsep` rather than always `:` keeps Windows drive
+    letters (`C:\\foo`) intact.
+    """
+    return [part.strip() for part in raw.split(os.pathsep) if part.strip() != ""]
 
 
-def expanduser_colon_list(raw: str) -> list[str]:
-    """Like `colon_list` but `~`-expands each entry (matches LLM_PLUGIN_DIRS)."""
-    return [
-        os.path.expanduser(part.strip())
-        for part in raw.split(":")
-        if part.strip() != ""
-    ]
+def expanduser_path_list(raw: str) -> list[str]:
+    """Like `path_list` but `~`-expands each entry (matches LLM_PLUGIN_DIRS)."""
+    return [os.path.expanduser(part) for part in path_list(raw)]
 
 
 def comma_list(raw: str) -> list[str]:
@@ -59,8 +59,8 @@ def comma_or_colon_list(raw: str) -> list[str]:
     return [part.strip() for part in raw.replace(":", ",").split(",") if part.strip()]
 
 
-def colon_join(value: list[str]) -> str:
-    return ":".join(value)
+def path_list_join(value: Sequence[str]) -> str:
+    return os.pathsep.join(value)
 
 
 def comma_join(value: list[str]) -> str:
@@ -74,7 +74,7 @@ class EnvField(Generic[T]):
     ----------
     cast:
         Callable applied to the raw string on read (e.g. ``int``, ``float``,
-        ``to_boolean``, ``colon_list``). Defaults to ``str`` (identity).
+        ``to_boolean``, ``path_list``). Defaults to ``str`` (identity).
     transform:
         Optional ``callable(value, host) -> value`` applied after ``cast``.
         Receives the already-cast value and the host config object, enabling
@@ -82,7 +82,7 @@ class EnvField(Generic[T]):
         a token threshold against ``LLM_MAX_TOKEN_PER_MINUTE``).
     serialize:
         Callable applied to the value on write before storing in os.environ
-        (e.g. ``on_off``, ``colon_join``). Defaults to ``str``.
+        (e.g. ``on_off``, ``path_list_join``). Defaults to ``str``.
     aliases:
         Env-var names (without prefix) to try in order on read. Defaults to
         ``[attribute_name]``.
@@ -119,7 +119,7 @@ class EnvField(Generic[T]):
 
     def __init__(
         self,
-        cast: Callable[[str], T] = str,  # type: ignore[assignment]
+        cast: Callable[[str], T] = str,
         *,
         transform: Callable[[T, Any], T] | None = None,
         serialize: Callable[[Any], str] = str,
@@ -161,6 +161,23 @@ class EnvField(Generic[T]):
         if self._no_prefix:
             return self._write_name
         return f"{prefix}_{self._write_name}"
+
+    def is_set(self, prefix: str) -> bool:
+        """Whether any env var this field *reads* is present.
+
+        Aliases count: a renamed knob is still "set" when the environment
+        carries its old key. Distinct from a truthy read — a field falls back to
+        its default when unset, so the value alone cannot tell a caller whether
+        the user chose it. Reach it through ``CFG.is_env_set(name)``.
+        """
+        return any(
+            (name if self._no_prefix else f"{prefix}_{name}") in os.environ
+            for name in self._read_names
+        )
+
+    def serialize(self, value: Any) -> str:
+        """Render *value* the way this field writes it to the environment."""
+        return self._serialize(value)
 
     def _read_raw(self, obj: Any) -> str:
         default = self._resolve_default(obj)
@@ -211,7 +228,34 @@ class EnvField(Generic[T]):
 
     def __set__(self, obj: Any, value: Any) -> None:
         key = self.env_key(obj.ENV_PREFIX)
-        if value is None and self._nullable:
-            os.environ.pop(key, None)
-            return
-        os.environ[key] = self._serialize(value)
+        if value is None:
+            if self._nullable:
+                os.environ.pop(key, None)
+                return
+            raise ValueError(
+                f"CFG.{self._name} cannot be None — this setting has no null form. "
+                f"Assign a {self._cast.__name__} value instead."
+            )
+        raw = self._serialize(value)
+        try:
+            round_tripped = self._cast(raw)
+        except (ValueError, TypeError) as error:
+            raise ValueError(
+                f"CFG.{self._name} = {value!r} is not valid: it serializes to "
+                f"{raw!r}, which {self._cast.__name__}() rejects ({error})."
+            ) from error
+        # Guard against a non-idempotent serialize/cast pair silently rewriting
+        # the value. Two cases to catch, one to allow:
+        #   - ok: a bare string assigned to any field (e.g. "INFO" -> 20 for a
+        #     log-level field, or "A,B" -> ["A","B"] for a list field) — a str is
+        #     always the canonical env form, so this is documented coercion.
+        #   - catch: a non-string value (a Model, a list, a bare int) that
+        #     serializes/parseaways into a different shape.
+        if round_tripped != value and not isinstance(value, str):
+            raise ValueError(
+                f"CFG.{self._name} = {value!r} is not a value this field can "
+                f"round-trip: it serializes to {raw!r} but reads back as "
+                f"{round_tripped!r}. Assign a {self._cast.__name__}-shaped "
+                "value instead (e.g. a model name string, not a Model object)."
+            )
+        os.environ[key] = raw

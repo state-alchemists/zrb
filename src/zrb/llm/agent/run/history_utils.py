@@ -7,14 +7,15 @@ themselves produced one turn earlier — `content: null`, missing
 each `converse_stream` call to neutralise those provider-side inconsistencies.
 
 For the full failure catalogue and the rationale behind each step, see
-docs/advanced-topics/maintainer-guide.md#llm-history-sanitization-layer.
+docs/contributing/maintainer-guide.md#llm-history-sanitization-layer.
 """
 
 from __future__ import annotations
 
 import logging
 from dataclasses import is_dataclass, replace
-from typing import Any
+from enum import IntEnum
+from typing import Any, Callable
 
 from zrb.config.config import CFG
 from zrb.llm.config.limiter import is_turn_start
@@ -30,7 +31,26 @@ from zrb.llm.message import (
 _TOOL_RESULT_MAX_CHARS = 500
 
 
-def drop_oldest_turn(history: list[Any], min_turns: int = 0) -> list[Any]:
+class TurnPruneFloor(IntEnum):
+    """How many oldest turns `drop_oldest_turn` refuses to remove.
+
+    `ANY_TURN_MAY_DROP` — no in-flight deferred tool call; free to prune down
+    to nothing if that's what it takes.
+
+    `KEEP_DEFERRED_TURN` — a deferred tool call is pending re-execution (see
+    `TurnCursor.prune_floor` in `turn_cursor.py`); dropping its turn would
+    make the retry re-run an already-approved, possibly side-effecting tool.
+    Never go below 1 while this holds.
+    """
+
+    ANY_TURN_MAY_DROP = 0
+    KEEP_DEFERRED_TURN = 1
+
+
+def drop_oldest_turn(
+    history: list[Any],
+    min_turns: "TurnPruneFloor | int" = TurnPruneFloor.ANY_TURN_MAY_DROP,
+) -> list[Any]:
     """Removes the oldest conversation turn from history.
 
     If `min_turns` is specified, it will not drop turns if it would result in
@@ -39,7 +59,6 @@ def drop_oldest_turn(history: list[Any], min_turns: int = 0) -> list[Any]:
     if not history:
         return history
 
-    # Count existing turns
     turn_count = 0
     for msg in history:
         if is_turn_start(msg):
@@ -91,37 +110,42 @@ def sanitize_history(
 ) -> list[Any]:
     """Comprehensive history sanitization applied before every model call.
 
-    Applies fixes in a fixed order so each step's output is valid input for the next:
-    1. filter_nil_content         — fix None/empty part content; inject "(tool call)" placeholder only when a response has neither text nor tool calls
-    2. sanitize_orphaned_tool_calls — remove unmatched ToolCallPart/ToolReturnPart pairs
-       (skipped when allow_orphaned_tool_calls=True, i.e. when deferred_tool_results is set:
-        ToolCallParts in history legitimately have no matching return in that path)
-    3. Drop messages that are now empty (all parts were removed by the above steps)
-    4. ensure_alternating_roles   — merge consecutive same-role messages
+    Applies the steps in `_SANITIZE_STEPS` (defined below, next to
+    `filter_nil_content`) in order — each step's output must be valid input
+    for the next (see each step's own docstring for why). That fixed order
+    lives in the tuple, not in this function's statements, so reordering the
+    pipeline is a visible edit to a data structure rather than an invisible
+    statement reorder. `sanitize_orphaned_tool_calls` is skipped when
+    `allow_orphaned_tool_calls=True` (i.e. when `deferred_tool_results` is
+    set: `ToolCallPart`s in history legitimately have no matching return in
+    that path). Both remaining steps already drop messages left with no
+    parts, so there is no separate empty-message pass.
 
-    Violations found before fixing are logged at DEBUG level so that the root cause
-    of provider 400 errors can be traced in logs without any production overhead.
+    Violations found before fixing — and any that remain after, which means
+    the pipeline order or a step's contract is wrong — are logged at DEBUG
+    level so the root cause of provider 400 errors can be traced without any
+    production overhead.
     """
-
+    debug = CFG.LOGGER.isEnabledFor(logging.DEBUG)
     # _detect_problems also calls validate_tool_pair_integrity (relational
     # walk). Skip the audit entirely when DEBUG logging is off — the fix-up
     # pipeline below is what actually mutates history.
-    if CFG.LOGGER.isEnabledFor(logging.DEBUG):
-        problems = _detect_problems(messages)
-        if problems:
-            for p in problems:
-                CFG.LOGGER.debug(f"sanitize_history [pre-fix]: {p}")
+    if debug:
+        for p in _detect_problems(messages):
+            CFG.LOGGER.debug(f"sanitize_history [pre-fix]: {p}")
 
-    # filter_nil_content drops messages whose valid_parts list ends up empty
-    # (see line in filter_nil_content: ``if valid_parts: filtered.append(...)``).
-    # sanitize_orphaned_tool_calls drops messages whose _strip_orphaned_parts
-    # returns None. Both upstream steps already filter empties, so the
-    # standalone ``[m for m in messages if getattr(m, "parts", None)]`` pass
-    # that used to live here is redundant.
-    messages = filter_nil_content(messages)
-    if not allow_orphaned_tool_calls:
-        messages = sanitize_orphaned_tool_calls(messages)
-    messages = ensure_alternating_roles(messages)
+    for step in _SANITIZE_STEPS:
+        if step is sanitize_orphaned_tool_calls and allow_orphaned_tool_calls:
+            continue
+        messages = step(messages)
+
+    if debug:
+        remaining = _detect_problems(messages)
+        if remaining:
+            CFG.LOGGER.debug(
+                "sanitize_history: problems remain after the pipeline — "
+                f"step order or a step's contract may be wrong: {remaining}"
+            )
     return messages
 
 
@@ -206,6 +230,17 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
             filtered.append(replace(msg, parts=valid_parts))
 
     return filtered
+
+
+# The fixed order `sanitize_history` applies its steps in — see that
+# function's docstring. `sanitize_orphaned_tool_calls` is conditionally
+# skipped by identity check, not removed from the tuple, so the order stays
+# a single source of truth regardless of `allow_orphaned_tool_calls`.
+_SANITIZE_STEPS: tuple[Callable[[list[Any]], list[Any]], ...] = (
+    filter_nil_content,
+    sanitize_orphaned_tool_calls,
+    ensure_alternating_roles,
+)
 
 
 def _detect_problems(messages: list[Any]) -> list[str]:
@@ -413,28 +448,7 @@ def _retry_prompt_to_text(part: Any) -> str:
     return f'(sanitized-history) prior retry feedback for tool "{name}": ' f"{content}"
 
 
-def _append_live_context(prompt_content: Any, live_context: str) -> Any:
-    """Append the ``<live-context>`` block to the end of the current user turn.
-
-    Handles all three ``prompt_content`` shapes produced by
-    ``get_prompt_content``: ``str`` (text-only), ``list[UserContent]``
-    (multimodal — a trailing text element is added, keeping the block last for
-    recency), and ``None`` (empty turn — the block becomes the content). A
-    falsy ``live_context`` is a no-op, so callers that pass nothing keep the
-    legacy behaviour.
-    """
-    if not live_context:
-        return prompt_content
-    if prompt_content is None:
-        return live_context
-    if isinstance(prompt_content, str):
-        return f"{prompt_content}\n\n{live_context}"
-    if isinstance(prompt_content, list):
-        return [*prompt_content, live_context]
-    return prompt_content
-
-
-def _merge_consecutive_messages(current_history, current_message):
+def merge_consecutive_messages(current_history, current_message):
     # lazy: heavy third-party
     from pydantic_ai.messages import ModelRequest, UserPromptPart
 
@@ -464,7 +478,7 @@ _EMPTY_COMPLETION_MARKERS = frozenset(
 )
 
 
-def _is_empty_completion(result_output: Any) -> bool:
+def is_empty_completion(result_output: Any) -> bool:
     """True when the model's final text output carries no real content.
 
     Two degenerate cases seen in production with weak/overloaded models:
@@ -480,7 +494,39 @@ def _is_empty_completion(result_output: Any) -> bool:
     return not stripped or stripped in _EMPTY_COMPLETION_MARKERS
 
 
-def _history_without_trailing_response(run_history: list[Any]) -> list[Any]:
+def close_dangling_tool_calls(history: list[Any], reason: str) -> list[Any]:
+    """Synthesize a `ToolReturnPart` for every unresolved `ToolCallPart`.
+
+    A run interrupted (error, cancellation, hard crash) between a
+    `ModelResponse` carrying tool calls and the `ModelRequest` that would
+    normally carry their results leaves those calls dangling — most
+    providers reject history where a `ToolCallPart` has no matching
+    `ToolReturnPart`. No-op unless the history's last message is a
+    `ModelResponse` with at least one `ToolCallPart`.
+    """
+    # lazy: heavy third-party
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        ToolCallPart,
+        ToolReturnPart,
+    )
+
+    if not history or not isinstance(history[-1], ModelResponse):
+        return history
+    tool_returns = [
+        ToolReturnPart(
+            tool_name=part.tool_name, content=reason, tool_call_id=part.tool_call_id
+        )
+        for part in history[-1].parts
+        if isinstance(part, ToolCallPart)
+    ]
+    if not tool_returns:
+        return history
+    return [*history, ModelRequest(parts=tool_returns)]
+
+
+def history_without_trailing_response(run_history: list[Any]) -> list[Any]:
     """Drop the trailing assistant ModelResponse so it can be regenerated.
 
     Used when retrying an empty completion: ``result.all_messages()`` ends with

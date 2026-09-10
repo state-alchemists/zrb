@@ -1,4 +1,4 @@
-"""LLM UI slash-command aliases (15 command-list properties).
+"""LLM UI slash-command aliases (16 command-list properties).
 
 Each property reads a comma-separated env value and returns a parsed list.
 Setters serialize back to comma-separated form.
@@ -15,10 +15,10 @@ class LLMUICommandsMixin:
     def __init__(self):
         self.DEFAULT_LLM_UI_COMMAND_SUMMARIZE: str = "/compress, /compact"
         self.DEFAULT_LLM_UI_COMMAND_ATTACH: str = "/attach"
-        self.DEFAULT_LLM_UI_COMMAND_EXIT: str = "/q, /bye, /quit, /exit"
+        self.DEFAULT_LLM_UI_COMMAND_EXIT: str = "/q, :q, /bye, /quit, /exit"
         self.DEFAULT_LLM_UI_COMMAND_INFO: str = "/info, /help"
         self.DEFAULT_LLM_UI_COMMAND_SAVE: str = "/save"
-        self.DEFAULT_LLM_UI_COMMAND_LOAD: str = "/load"
+        self.DEFAULT_LLM_UI_COMMAND_LOAD: str = "/load, /resume"
         self.DEFAULT_LLM_UI_COMMAND_REWIND: str = "/rewind"
         self.DEFAULT_LLM_UI_COMMAND_YOLO_TOGGLE: str = "/yolo"
         self.DEFAULT_LLM_UI_COMMAND_REDIRECT_OUTPUT: str = ">, /redirect"
@@ -27,7 +27,8 @@ class LLMUICommandsMixin:
         self.DEFAULT_LLM_UI_COMMAND_BTW: str = "/btw"
         self.DEFAULT_LLM_UI_COMMAND_PLAN_TOGGLE: str = "/plan"
         self.DEFAULT_LLM_UI_COMMAND_COPY: str = "/copy"
-        self.DEFAULT_LLM_UI_COMMAND_VOICE: str = "/voice"
+        self.DEFAULT_LLM_UI_COMMAND_VOICE: str = "/voice, /v"
+        self.DEFAULT_LLM_UI_COMMAND_PHOTO: str = "/photo, /p"
         super().__init__()
 
     LLM_UI_COMMAND_SUMMARIZE = EnvField(
@@ -81,7 +82,10 @@ class LLMUICommandsMixin:
     LLM_UI_COMMAND_REDIRECT_OUTPUT = EnvField(
         comma_list,
         serialize=comma_join,
-        doc="Comma-separated command aliases to redirect the next response to a file.",
+        doc=(
+            "Comma-separated command aliases acting on the *last* response: bare "
+            "copies it to the clipboard, `<alias> <path>` writes it to a file."
+        ),
     )
 
     LLM_UI_COMMAND_EXEC = EnvField(
@@ -111,11 +115,23 @@ class LLMUICommandsMixin:
     LLM_UI_COMMAND_COPY = EnvField(
         comma_list,
         serialize=comma_join,
-        doc="Comma-separated command aliases to copy the last assistant response to the clipboard.",
+        doc=(
+            "Comma-separated command aliases to copy the full conversation "
+            "transcript to the clipboard."
+        ),
     )
 
     LLM_UI_COMMAND_VOICE = EnvField(
         comma_list,
         serialize=comma_join,
         doc="Comma-separated command aliases to toggle voice dictation mode.",
+    )
+
+    LLM_UI_COMMAND_PHOTO = EnvField(
+        comma_list,
+        serialize=comma_join,
+        doc=(
+            "Comma-separated command aliases to capture a photo from the "
+            "camera and attach it to the next message (usage: {cmd} [device])."
+        ),
     )

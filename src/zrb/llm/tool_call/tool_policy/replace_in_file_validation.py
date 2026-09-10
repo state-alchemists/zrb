@@ -1,17 +1,18 @@
-import json
 import os
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
-from zrb.llm.tool_call.handler import UIProtocol
+from zrb.llm.tool.file_edit import find_fuzzy_match
+from zrb.llm.tool_call.args import parse_tool_args
 
 if TYPE_CHECKING:
-    from pydantic_ai import ToolCallPart
+    from zrb.llm.agent.types import ToolCallPart
+    from zrb.llm.ui.any_agent_output import AnyAgentOutput
 
 
 async def replace_in_file_validation_policy(
-    ui: UIProtocol,
+    ui: "AnyAgentOutput",
     call: "ToolCallPart",
-    next_handler: Callable[[UIProtocol, "ToolCallPart"], Awaitable[Any]],
+    next_handler: Callable[["AnyAgentOutput", "ToolCallPart"], Awaitable[Any]],
 ) -> Any:
     """
     Validates 'Edit' (replace_in_file) tool calls.
@@ -20,21 +21,14 @@ async def replace_in_file_validation_policy(
     2. File does not exist.
     3. old_text is not found in the file.
     """
-    # lazy: heavy third-party
-    from pydantic_ai import ToolDenied
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ToolDenied
 
     if call.tool_name != "Edit":
         return await next_handler(ui, call)
 
-    # Parse arguments
-    args = call.args
-    try:
-        if isinstance(args, str):
-            args = json.loads(args)
-    except (json.JSONDecodeError, ValueError):
-        return await next_handler(ui, call)
-
-    if not isinstance(args, dict):
+    args = parse_tool_args(call)
+    if args is None:
         return await next_handler(ui, call)
 
     path = args.get("path")
@@ -46,27 +40,34 @@ async def replace_in_file_validation_policy(
 
     # 1. Check if identical
     if old_text == new_text:
-        return ToolDenied("Old text and new text are identical.")
+        return ToolDenied(
+            "Old text and new text are identical. "
+            "[SYSTEM SUGGESTION]: no edit is needed here — old_text and "
+            "new_text must differ."
+        )
 
     abs_path = os.path.abspath(os.path.expanduser(path))
 
     # 2. Check if file exists
     if not os.path.exists(abs_path):
-        return ToolDenied(f"File not found: {path}")
+        return ToolDenied(
+            f"File not found: {path} (resolved to {abs_path}). "
+            "[SYSTEM SUGGESTION]: a relative path resolves against the current "
+            "directory, not the project root. Use List to confirm the path."
+        )
 
     # 3. Check if old_text is in file. Accept either an exact substring match
     #    or a fuzzy match (whitespace/indentation tolerant), mirroring the
     #    replace_in_file tool's own matching so we don't deny edits the tool
     #    would actually be able to apply.
-    # lazy: circular — file_edit pulls in post_write_check → llm tool stack
-    from zrb.llm.tool.file_edit import _find_fuzzy_match
-
     try:
         with open(abs_path, "r", encoding="utf-8") as f:
             content = f.read()
-        if old_text not in content and _find_fuzzy_match(content, old_text) is None:
+        if old_text not in content and find_fuzzy_match(content, old_text) is None:
             return ToolDenied(
-                f"Old text not found in {path}. Please read the file first."
+                f"Old text not found in {path}. Please read the file first. "
+                "[SYSTEM SUGGESTION]: Read the file to get its exact current "
+                "content, then retry with old_text copied from that content."
             )
     except Exception as e:
         return ToolDenied(f"Error reading file {path}: {e}")

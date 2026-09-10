@@ -1,50 +1,37 @@
-"""
-Minimal UI Example - Simplified with SimpleUI
+"""Minimal custom chat UI, built on SimpleUI.
 
-This example demonstrates the SIMPLEST way to create a custom UI backend
-using the new SimpleUI base class.
-
-══════════════════════════════════════════════════════════════════════════════
-BEFORE (BaseUI):                    AFTER (SimpleUI):
-══════════════════════════════════════════════════════════════════════════════
-- 180 lines                        → 40 lines
-- 25+ constructor params           → 2 methods to implement
-- Complex run_async()              → Just print() and get_input()
-- Factory with 8 params            → Factory in 1 line
-
-══════════════════════════════════════════════════════════════════════════════
+`SimpleUI` runs the message loop, slash-command dispatch and tool approvals;
+a subclass supplies the two ends of the conversation — `print()` to show
+output and `get_input()` to read a line. `create_ui_factory` wires the class
+into the built-in `llm_chat` task, so `zrb llm chat` uses it in place of the
+default terminal UI.
 
 Usage:
-    zrb llm chat                        # Start chat with minimal UI
-    zrb llm chat --message "Hello"     # Start with initial message
-    ZRB_CHAT_LOG_FILE=chat.log zrb llm chat  # Log to file
+    zrb llm chat                              # Start chat with this UI
+    zrb llm chat --message "Hello"            # Start with an initial message
+    ZRB_CHAT_LOG_FILE=chat.log zrb llm chat   # Also append output to a file
 
-Extension Levels:
-    ┌─────────────────────────────────────────────────────────────────┐
-    │ Level 0: UIProtocol (minimal, 4 methods)                        │
-    │         - For tool confirmations only                           │
-    ├─────────────────────────────────────────────────────────────────┤
-    │ Level 1: SimpleUI (THIS EXAMPLE - simplest)                     │
-    │         - Implement 2 methods: print(), get_input()             │
-    │         - For basic backends (CLI, simple WebSocket)            │
-    ├─────────────────────────────────────────────────────────────────┤
-    │ Level 2: EventDrivenUI (event-driven)                           │
-    │         - Implement: print(), start_event_loop()                │
-    │         - Call handle_incoming_message() on events              │
-    │         - For Telegram, Discord, WhatsApp                       │
-    ├─────────────────────────────────────────────────────────────────┤
-    │ Level 3: PollingUI (polling-based)                              │
-    │         - Implement: print()                                    │
-    │         - Use output_queue / input_queue                        │
-    │         - For HTTP API, WebSocket polling                       │
-    └─────────────────────────────────────────────────────────────────┘
+Which base class to subclass:
+
+    AnyUI           The full UI contract. For tool confirmations outside a
+                    chat loop; everything below implements it for you.
+    SimpleUI        Implement print() and get_input(). For backends that
+                    block waiting for a line — a CLI, a log, a simple socket.
+                    Used here.
+    EventDrivenUI   Implement print() and start_event_loop(), then call
+                    handle_incoming_message() as messages arrive. For
+                    Telegram, Discord, HTTP and WebSocket backends.
+    BaseUI          Nothing is required; override what you want to change.
+                    For a UI whose structure differs from both loops above.
+
+`docs/llm/llm-custom-ui.md` covers each level in full.
 """
 
 import asyncio
 import os
 
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui import SimpleUI, UIConfig, create_ui_factory
+from zrb.llm.ui import SimpleUI, create_ui_factory
 
 # =============================================================================
 # Configuration (optional)
@@ -94,7 +81,7 @@ class MinimalUI(SimpleUI):
 # =============================================================================
 
 # The simplest way: use create_ui_factory
-llm_chat.set_ui_factory(create_ui_factory(MinimalUI, log_file=LOG_FILE))
+llm_chat.ui_factories = [create_ui_factory(MinimalUI, log_file=LOG_FILE)]
 
 # That's it! When user runs `zrb llm chat`, it uses MinimalUI.
 # No need to handle the factory parameters - create_ui_factory does it for you.

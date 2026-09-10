@@ -65,6 +65,40 @@ async def test_lsp_server_lifecycle(lsp_server):
 
 
 @pytest.mark.asyncio
+async def test_lsp_server_start_cleans_up_process_on_initialize_failure(lsp_server):
+    """A spawned subprocess whose handshake fails must not leak: start()
+    should tear the process down (not just return False) so shutdown_all()/
+    the atexit backstop aren't the only things standing between a failed
+    start and an orphaned server process."""
+    with patch("asyncio.create_subprocess_exec") as mock_exec:
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        mock_proc.stdout = AsyncMock()
+        mock_proc.stdout.read = AsyncMock(return_value=b"")  # EOF: read loop exits
+        mock_proc.stderr = None
+        mock_proc.stdin = MagicMock()
+        mock_proc.stdin.write = MagicMock()
+        mock_proc.stdin.drain = AsyncMock()
+        mock_proc.terminate = MagicMock()
+        mock_proc.kill = MagicMock()
+        mock_proc.wait = AsyncMock()
+        mock_proc.wait_closed = AsyncMock()
+        mock_exec.return_value = mock_proc
+
+        with patch.object(
+            lsp_server, "_initialize", AsyncMock(side_effect=RuntimeError("boom"))
+        ):
+            started = await lsp_server.start()
+
+        assert started is False
+        # stop() ran as part of the failure path: process handle cleared and
+        # the still-alive mock process was asked to terminate.
+        assert lsp_server.process is None
+        assert lsp_server.initialized is False
+        mock_proc.terminate.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_lsp_server_queries(lsp_server):
     """Test public query methods by simulating server responses."""
     with patch("asyncio.create_subprocess_exec") as mock_exec:
@@ -110,7 +144,7 @@ async def test_lsp_server_queries(lsp_server):
         # textDocument/publishDiagnostics. The server cache reads from there;
         # the pull-diagnostics request is now only a fallback when no push
         # arrived within wait_for_publish.
-        diag_uri = lsp_server._path_to_uri("/test/file.py")
+        diag_uri = lsp_server.path_to_uri("/test/file.py")
         diag_notif = json.dumps(
             {
                 "jsonrpc": "2.0",
@@ -172,7 +206,7 @@ async def test_read_loop_handles_nonascii_split_across_reads(lsp_server):
 
         # Feed the symbol response split mid-em-dash, then mark it open so the
         # query skips _ensure_open's sync.
-        lsp_server._open_files.add(lsp_server._path_to_uri("/test/file.py"))
+        lsp_server.open_files.add(lsp_server.path_to_uri("/test/file.py"))
         chunks.put_nowait(chunk1)
         chunks.put_nowait(chunk2)
 
@@ -192,7 +226,7 @@ async def test_query_opens_document_first(lsp_server, tmp_path):
     lsp_server.writer = MagicMock()
     # Pre-seed the diagnostics cache so the first-open readiness wait returns at
     # once instead of polling for the full timeout.
-    lsp_server._diagnostics[lsp_server._path_to_uri(str(target))] = (None, [])
+    lsp_server.diagnostics[lsp_server.path_to_uri(str(target))] = (None, [])
     sent: list = []
 
     async def fake_notify(message):
@@ -208,9 +242,10 @@ async def test_query_opens_document_first(lsp_server, tmp_path):
     assert "textDocument/didOpen" in methods
 
 
-def test_path_to_uri_encodes_special_characters(lsp_server):
+def testpath_to_uri_encodes_special_characters(lsp_server):
     """B26: path_to_uri must quote #/?/%/non-ASCII, matching protocol encoder."""
     from zrb.llm.lsp.protocol import LSPProtocol
+    from zrb.llm.lsp.symbol_utils import uri_to_path
 
     for path in [
         "/tmp/a b.py",
@@ -219,11 +254,12 @@ def test_path_to_uri_encodes_special_characters(lsp_server):
         "/tmp/h%i.py",
         "/tmp/ünî.py",
     ]:
-        uri = lsp_server._path_to_uri(path)
+        uri = lsp_server.path_to_uri(path)
         expected = LSPProtocol.create_text_document_identifier(path)["uri"]
         assert uri == expected
-        # Round-trips back to the original absolute path.
-        assert lsp_server._uri_to_path(uri).endswith(path.split("/")[-1])
+        # Round-trips back to the original absolute path via the shared
+        # symbol_utils helper (LSPServer no longer duplicates this itself).
+        assert uri_to_path(uri).endswith(path.split("/")[-1])
         # Spaces and reserved chars are percent-encoded, not left raw.
         assert " " not in uri
 
@@ -236,7 +272,7 @@ async def test_rename_applies_workspace_edit_to_disk(lsp_server, tmp_path):
 
     workspace_edit = {
         "changes": {
-            lsp_server._path_to_uri(str(target)): [
+            lsp_server.path_to_uri(str(target)): [
                 {
                     "range": {
                         "start": {"line": 0, "character": 4},
@@ -274,7 +310,7 @@ async def test_rename_dry_run_does_not_write(lsp_server, tmp_path):
 
     workspace_edit = {
         "changes": {
-            lsp_server._path_to_uri(str(target)): [
+            lsp_server.path_to_uri(str(target)): [
                 {
                     "range": {
                         "start": {"line": 0, "character": 4},

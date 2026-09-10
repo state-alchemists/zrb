@@ -37,7 +37,6 @@ class HookEvent(str, Enum):
         try:
             return cls(value)
         except ValueError:
-            # Handle any case variations
             upper_value = value.upper()
             for event in cls:
                 if event.value.upper() == upper_value:

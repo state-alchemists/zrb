@@ -19,7 +19,7 @@ from zrb.llm.permission import (
 )
 
 # Apply a base permission policy to the built-in chat task. Plan Mode
-# (toggle with /plan or Ctrl+P) layers its read-only restrictions on top.
+# (toggle with /plan or Shift+Tab) layers its read-only restrictions on top.
 llm_chat.permissions = PermissionPolicy(
     (
         # Deny editing any .env files even outside plan mode

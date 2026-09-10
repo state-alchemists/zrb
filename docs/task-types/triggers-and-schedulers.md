@@ -20,20 +20,20 @@ While most tasks run once and exit, Zrb supports long-running daemon tasks that 
 To connect an event to a task execution, you must wrap the target task in a `Callback` object. The `Callback` maps data emitted by the trigger into the inputs of the target task.
 
 ```python
-from zrb import Callback, CmdTask, StrInput
+from zrb import Callback, CmdTask, StrInput, Tpl
 
 # The task to run
 print_event = CmdTask(
     name="print-event", 
     input=StrInput(name="message"),
-    cmd="echo 'Event received: {ctx.input.message}'"
+    cmd=Tpl("echo 'Event received: {ctx.input.message}'")
 )
 
 # The wrapper
 my_callback = Callback(
     task=print_event,
     # Map the XCom data from the trigger queue to the 'message' input
-    input_mapping={"message": "{ctx.xcom.event_queue.pop()}"}
+    input_mapping={"message": Tpl("{ctx.xcom.event_queue.pop()}")}
 )
 ```
 
@@ -115,13 +115,13 @@ The `Scheduler` is a specialized trigger with a built-in time loop. It acts like
 ### Example: A Daily Cron Job
 
 ```python
-from zrb import cli, CmdTask, Scheduler, Callback
+from zrb import cli, CmdTask, Scheduler, Callback, Tpl
 
 # The job to run
 generate_report = CmdTask(
     name="generate-report",
     input=StrInput(name="timestamp"),
-    cmd="echo 'Generating report for: {ctx.input.timestamp}'"
+    cmd=Tpl("echo 'Generating report for: {ctx.input.timestamp}'")
 )
 
 # The Scheduler daemon
@@ -132,7 +132,7 @@ daily_scheduler = cli.add_task(
         queue_name="cron_queue",
         callback=Callback(
             task=generate_report,
-            input_mapping={"timestamp": "{ctx.xcom.cron_queue.pop()}"}
+            input_mapping={"timestamp": Tpl("{ctx.xcom.cron_queue.pop()}")}
         )
     )
 )
@@ -187,17 +187,17 @@ Scheduler(
 )
 ```
 
-The five fields are:
+The schedule is five space-separated fields, in this order:
 
-```
-┌───────── minute (0-59)
-│ ┌──────── hour (0-23)
-│ │ ┌─────── day of month (1-31)
-│ │ │ ┌────── month (1-12)
-│ │ │ │ ┌───── day of week (0-7, 0 or 7=Sunday)
-│ │ │ │ │
-* * * * *
-```
+| Position | Field | Range |
+|----------|-------|-------|
+| 1 | minute | `0`-`59` |
+| 2 | hour | `0`-`23` |
+| 3 | day of month | `1`-`31` |
+| 4 | month | `1`-`12` |
+| 5 | day of week | `0`-`7` (`0` and `7` both mean Sunday) |
+
+So in `*/15 * * * *` the `*/15` is the minute field and the four `*` are hour, day of month, month, and day of week.
 
 ### Cron Operators
 
@@ -255,7 +255,7 @@ process = CmdTask(name="process", cmd="echo 'Processing...'", successor=[notify]
 
 my_callback = Callback(
     task=process,
-    input_mapping={"file": "{ctx.xcom.event_queue.pop()}"}
+    input_mapping={"file": Tpl("{ctx.xcom.event_queue.pop()}")}
 )
 ```
 
@@ -271,9 +271,9 @@ daily_backup = cli.add_task(
             task=CmdTask(
                 name="run-backup",
                 execute_condition=lambda ctx: ctx.env.ENABLE_BACKUP == "true",
-                cmd="echo 'Running backup at {ctx.xcom.backup_queue.pop()}'",
+                cmd=Tpl("echo 'Running backup at {ctx.xcom.backup_queue.pop()}'"),
             ),
-            input_mapping={"timestamp": "{ctx.xcom.backup_queue.pop()}"}
+            input_mapping={"timestamp": Tpl("{ctx.xcom.backup_queue.pop()}")}
         )
     )
 )

@@ -1,6 +1,10 @@
 import re
 from typing import TYPE_CHECKING
 
+from zrb.util.cli.ansi import strip_trailing_padding
+from zrb.util.cli.latex_math import convert_math_to_unicode
+from zrb.util.cli.mermaid_diagram import convert_mermaid_to_art
+
 if TYPE_CHECKING:
     from rich.theme import Theme
 
@@ -16,9 +20,16 @@ def render_markdown(
     from rich.markdown import Markdown
     from rich.theme import Theme
 
-    if theme is None:
-        from zrb.config.config import CFG  # lazy: defer CFG load
+    from zrb.config.config import (
+        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    )
 
+    if CFG.LLM_UI_ENABLE_MARKDOWN_MATH:
+        markdown_text = convert_math_to_unicode(markdown_text)
+    if CFG.LLM_UI_ENABLE_MARKDOWN_MERMAID:
+        markdown_text = convert_mermaid_to_art(markdown_text, width=width)
+
+    if theme is None:
         theme = Theme(
             {
                 "markdown.link": CFG.LLM_UI_STYLE_MARKDOWN_LINK,
@@ -39,17 +50,4 @@ def render_markdown(
     # Matches ;48;2;... or [48;2;...
     output = re.sub(r"(?:(?<=\[)|;)48;2;\d+;\d+;\d+", "", output)
 
-    # Remove Rich's padding spaces from each line, handling ANSI codes
-    # Simple rstrip() fails if the line ends with ANSI codes (e.g., reset)
-    def _strip_ansi_aware(line: str) -> str:
-        # Match trailing sequence of spaces and ANSI codes
-        match = re.search(r"((?:\s|\x1b\[[0-9;]*m)+)$", line)
-        if match:
-            tail = match.group(1)
-            # Remove spaces from the tail
-            clean_tail = re.sub(r"\s+", "", tail)
-            return line[: match.start(1)] + clean_tail
-        return line
-
-    output = "\n".join(_strip_ansi_aware(line) for line in output.splitlines())
-    return output
+    return strip_trailing_padding(output)

@@ -21,16 +21,16 @@ Zrb tasks are Python code, so they can be tested with standard Python testing to
 
 Tests live in the `test/` directory, mirroring the `src/` structure:
 
-```
-test/
-├── conftest.py              # Shared fixtures
-├── builtin/
-│   └── test_git.py
-├── llm/
-│   └── prompt/
-│       └── test_manager.py
-└── task/
-    └── test_base_task.py
+```mermaid
+flowchart LR
+    T["test/"] --> Conf["conftest.py — shared fixtures"]
+    T --> B["builtin/"]
+    T --> L["llm/"]
+    T --> K["task/"]
+    B --> BG["test_git.py"]
+    L --> LP["prompt/"]
+    LP --> LPM["test_manager.py"]
+    K --> KB["test_base_task.py"]
 ```
 
 ### Basic Fixture (`conftest.py`)

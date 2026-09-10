@@ -35,7 +35,6 @@ register_theme(
         "LLM_UI_STYLE_FRAME": "#75715e",
         "LLM_UI_STYLE_FRAME_LABEL": "#e6db74",
         "LLM_UI_STYLE_INPUT_FRAME": "#75715e",
-        "LLM_UI_STYLE_PROMPT": "#66d9ef",
         # --- Status & indicators ---
         "LLM_UI_STYLE_THINKING": "#a6e22e",
         "LLM_UI_STYLE_CONFIRMATION": "#e6db74",

@@ -11,14 +11,14 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from zrb.llm.approval.approval_channel import ApprovalContext
+from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.ui import EventDrivenUI, UIConfig
 from zrb.runner.chat.chat_session_manager import ChatSessionManager
 from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 from zrb.util.cli.style import remove_style
 
 
-def create_http_ui_factory(
+def create_http_ui_factory(  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     session_manager: ChatSessionManager,
     session_id: str,
     session_name: str,
@@ -33,20 +33,24 @@ def create_http_ui_factory(
             self._approval_channel = approval_channel
             super().__init__(**kwargs)
             self._input_queue: asyncio.Queue[str] = asyncio.Queue()
-            self._streaming_started = False
 
         async def print(self, text: str, kind: str = "text") -> None:
-            if kind == "streaming":
-                self._streaming_started = True
-            elif kind == "text":
-                if self._streaming_started:
-                    self._streaming_started = False
-                    return
             clean = remove_style(text)
             if clean.strip():
                 await self._session_manager.broadcast(
                     self._session_id, clean, kind=kind
                 )
+
+        def append_markdown(self, markdown_text: str) -> None:
+            """Send the raw (unrendered) markdown for the browser to render.
+
+            Overrides `BaseUI.append_markdown`, which would otherwise run
+            `render_markdown` -- the CLI's ANSI/Unicode-art pipeline. The
+            browser has real renderers (a markdown parser, KaTeX, the
+            already-vendored `mermaid.min.js`), so the source is sent as-is
+            under its own kind rather than converted server-side.
+            """
+            self.append_to_output(markdown_text, kind="markdown")
 
         def handle_incoming_message(self, text: str) -> None:
             """Put an incoming message into the input queue."""
@@ -65,7 +69,7 @@ def create_http_ui_factory(
             finally:
                 self._waiting_for_input = False
 
-        async def _confirm_tool_execution(self, call: Any) -> Any:
+        async def confirm_tool_execution(self, call: Any) -> Any:
             context = ApprovalContext(
                 tool_name=call.tool_name,
                 tool_args=call.args if isinstance(call.args, dict) else {},
@@ -78,7 +82,9 @@ def create_http_ui_factory(
             # No-op: `_run_loop` is overridden directly.
             pass
 
-        async def _run_loop(self) -> None:  # type: ignore[override]
+        async def _run_loop(  # pyright: ignore[reportIncompatibleMethodOverride]
+            self,
+        ) -> None:
             """Process one message then return; multi-turn handled by session runner."""
             # Block until every submitted user message has been task_done()'d.
             await self._message_queue.join()
@@ -86,13 +92,13 @@ def create_http_ui_factory(
         async def run_async(self) -> str:
             """Override so `CancelledError` propagates on server shutdown."""
             self._process_messages_task = asyncio.create_task(
-                self._process_messages_loop()
+                self.process_messages_loop()
             )
             if hasattr(self, "_background_tasks"):
                 self._background_tasks.add(self._process_messages_task)
 
             if self._initial_message:
-                self._submit_user_message(self._llm_task, self._initial_message)
+                self.submit_user_message(self._llm_task, self._initial_message)
 
             _was_cancelled = False
             try:
@@ -122,6 +128,7 @@ def create_http_ui_factory(
         initial_conversation_name,
         initial_yolo,
         initial_attachments,
+        custom_commands=None,
     ):
         cfg = UIConfig.default()
         if ui_commands:
@@ -133,7 +140,7 @@ def create_http_ui_factory(
             ctx=ctx,
             llm_task=llm_task,
             history_manager=history_manager,
-            config=cfg,
+            ui_config=cfg,
             initial_message=initial_message,
             initial_attachments=initial_attachments,
         )

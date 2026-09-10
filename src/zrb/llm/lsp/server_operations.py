@@ -1,11 +1,12 @@
 """
 LSP document and query operations.
 
-Mixin holding the document-synchronization and query methods for an LSP
-server (definition, references, diagnostics, symbols, hover, rename, and the
-workspace-edit application helpers). Mixed into ``LSPServer``; relies on the
-host class for transport/state (``self._send_request_raw``, ``self._next_id``,
-``self._path_to_uri``, ``self._uri_to_path``, ``self.initialized``, etc.).
+The document-synchronization and query half of ``LSPServer`` (definition,
+references, diagnostics, symbols, hover, rename, and the workspace-edit
+application helpers), split out to keep ``server.py`` on transport and
+lifecycle. Not a reusable mixin — it reads host state it never sets
+(``self._send_request_raw``, ``self._next_id``, ``self.path_to_uri``,
+``self.initialized``), so ``LSPServer`` is its only possible host.
 """
 
 import asyncio
@@ -14,14 +15,15 @@ from typing import TYPE_CHECKING, Any
 from zrb.context.any_context import zrb_print
 from zrb.llm.lsp.configs import detect_language_from_file
 from zrb.llm.lsp.protocol import JSONRPCMessage, LSPServerError
+from zrb.llm.lsp.symbol_utils import uri_to_path
 
 
-class OperationsMixin:
+class LSPServerOperations:
     """Document/query operations for an LSP server."""
 
     if TYPE_CHECKING:
         # Transport/state provided by the host class (LSPServer). Declared so
-        # pyright can resolve them when OperationsMixin is checked in isolation.
+        # pyright can resolve them when LSPServerOperations is checked in isolation.
         config: Any
         writer: "asyncio.StreamWriter | None"
         initialized: bool
@@ -29,8 +31,7 @@ class OperationsMixin:
         _open_files: set[str]
         _versions: dict[str, int]
         _next_id: Any
-        _path_to_uri: Any
-        _uri_to_path: Any
+        path_to_uri: Any
         _send_request_raw: Any
         _send_notification_raw: Any
 
@@ -47,7 +48,7 @@ class OperationsMixin:
         request = JSONRPCMessage.create_request(
             "textDocument/definition",
             {
-                "textDocument": {"uri": self._path_to_uri(file_path)},
+                "textDocument": {"uri": self.path_to_uri(file_path)},
                 "position": {"line": line, "character": character},
             },
             self._next_id(),
@@ -57,7 +58,6 @@ class OperationsMixin:
         if result is None:
             return None
 
-        # Handle both Location and LocationLink
         if isinstance(result, list):
             return result
         elif isinstance(result, dict) and "uri" in result:
@@ -79,7 +79,7 @@ class OperationsMixin:
         request = JSONRPCMessage.create_request(
             "textDocument/references",
             {
-                "textDocument": {"uri": self._path_to_uri(file_path)},
+                "textDocument": {"uri": self.path_to_uri(file_path)},
                 "position": {"line": line, "character": character},
                 "context": {"includeDeclaration": include_declaration},
             },
@@ -100,7 +100,7 @@ class OperationsMixin:
         """
         if not self.initialized:
             return
-        uri = self._path_to_uri(file_path)
+        uri = self.path_to_uri(file_path)
         if uri in self._open_files:
             return
         try:
@@ -141,7 +141,7 @@ class OperationsMixin:
         """
         if not self.initialized:
             return
-        uri = self._path_to_uri(file_path)
+        uri = self.path_to_uri(file_path)
         if uri not in self._open_files:
             await self.did_open_text_document(file_path)
             return
@@ -176,7 +176,7 @@ class OperationsMixin:
         """
         if not self.initialized or not self.writer:
             return
-        uri = self._path_to_uri(file_path)
+        uri = self.path_to_uri(file_path)
         first_open = uri not in self._open_files
         if first_open:
             await self.did_open_text_document(file_path)
@@ -208,7 +208,7 @@ class OperationsMixin:
         if not self.initialized:
             return None
 
-        uri = self._path_to_uri(file_path)
+        uri = self.path_to_uri(file_path)
         # Drop the cached entry so we can detect the fresh publish.
         self._diagnostics.pop(uri, None)
 
@@ -265,7 +265,7 @@ class OperationsMixin:
 
         request = JSONRPCMessage.create_request(
             "textDocument/documentSymbol",
-            {"textDocument": {"uri": self._path_to_uri(file_path)}},
+            {"textDocument": {"uri": self.path_to_uri(file_path)}},
             self._next_id(),
         )
 
@@ -295,7 +295,7 @@ class OperationsMixin:
         request = JSONRPCMessage.create_request(
             "textDocument/hover",
             {
-                "textDocument": {"uri": self._path_to_uri(file_path)},
+                "textDocument": {"uri": self.path_to_uri(file_path)},
                 "position": {"line": line, "character": character},
             },
             self._next_id(),
@@ -322,7 +322,7 @@ class OperationsMixin:
             prepare_request = JSONRPCMessage.create_request(
                 "textDocument/prepareRename",
                 {
-                    "textDocument": {"uri": self._path_to_uri(file_path)},
+                    "textDocument": {"uri": self.path_to_uri(file_path)},
                     "position": {"line": line, "character": character},
                 },
                 self._next_id(),
@@ -336,7 +336,7 @@ class OperationsMixin:
         request = JSONRPCMessage.create_request(
             "textDocument/rename",
             {
-                "textDocument": {"uri": self._path_to_uri(file_path)},
+                "textDocument": {"uri": self.path_to_uri(file_path)},
                 "position": {"line": line, "character": character},
                 "newName": new_name,
             },
@@ -347,7 +347,7 @@ class OperationsMixin:
         if result and isinstance(result, dict):
             workspace_edit = result
             if dry_run:
-                return workspace_edit  # Return the edit without applying
+                return workspace_edit
             # Option (a): actually apply the WorkspaceEdit to disk. We parse
             # the LSP ``changes`` / ``documentChanges`` payload and write the
             # text edits ourselves. ``applied`` flags whether every edit
@@ -394,7 +394,7 @@ class OperationsMixin:
 
     def _apply_text_edits_to_file(self, uri: str, edits: list[dict]) -> bool:
         """Apply a list of LSP ``TextEdit``s to a single file."""
-        path = self._uri_to_path(uri)
+        path = uri_to_path(uri)
         try:
             with open(path, "r", encoding="utf-8") as f:
                 lines = f.read().splitlines(keepends=True)

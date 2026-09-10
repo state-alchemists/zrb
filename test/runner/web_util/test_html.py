@@ -68,57 +68,36 @@ def test_group_li_appends_trailing_slash_when_missing():
 def test_subtask_info_empty_returns_empty_string():
     user = User(username="u", is_super_admin=True)
     group = _mk_group()
-    # No subtasks — internal helper returns {}
-    import zrb.runner.web_util.html as html_mod
+    group.get_subtasks.return_value = {}
 
-    orig = html_mod.get_subtasks
-    html_mod.get_subtasks = lambda *a, **kw: {}
-    try:
-        assert get_html_subtask_info(user, "/api", group) == ""
-    finally:
-        html_mod.get_subtasks = orig
+    assert get_html_subtask_info(user, "/api", group) == ""
 
 
 def test_subtask_info_renders_when_accessible():
     user = User(username="u", is_super_admin=True)
     group = _mk_group()
     task = _mk_task("run", "Do thing")
-    import zrb.runner.web_util.html as html_mod
+    group.get_subtasks.return_value = {"run": task}
 
-    orig = html_mod.get_subtasks
-    html_mod.get_subtasks = lambda *a, **kw: {"run": task}
-    try:
-        html = get_html_subtask_info(user, "/api", group)
-        assert "<h5>Tasks</h5>" in html
-        assert "Do thing" in html
-    finally:
-        html_mod.get_subtasks = orig
+    html = get_html_subtask_info(user, "/api", group)
+    assert "<h5>Tasks</h5>" in html
+    assert "Do thing" in html
 
 
 def test_subgroup_info_empty_returns_empty_string():
     user = User(username="u", is_super_admin=True)
     group = _mk_group()
-    import zrb.runner.web_util.html as html_mod
+    group.get_non_empty_subgroups.return_value = {}
 
-    orig = html_mod.get_non_empty_subgroups
-    html_mod.get_non_empty_subgroups = lambda *a, **kw: {}
-    try:
-        assert get_html_subgroup_info(user, "/api", group) == ""
-    finally:
-        html_mod.get_non_empty_subgroups = orig
+    assert get_html_subgroup_info(user, "/api", group) == ""
 
 
 def test_subgroup_info_renders_when_accessible():
     user = User(username="u", is_super_admin=True)
     parent = _mk_group()
     child = _mk_group("Child group")
-    import zrb.runner.web_util.html as html_mod
+    parent.get_non_empty_subgroups.return_value = {"child": child}
 
-    orig = html_mod.get_non_empty_subgroups
-    html_mod.get_non_empty_subgroups = lambda *a, **kw: {"child": child}
-    try:
-        html = get_html_subgroup_info(user, "/api", parent)
-        assert "<h5>Groups</h5>" in html
-        assert "Child group" in html
-    finally:
-        html_mod.get_non_empty_subgroups = orig
+    html = get_html_subgroup_info(user, "/api", parent)
+    assert "<h5>Groups</h5>" in html
+    assert "Child group" in html

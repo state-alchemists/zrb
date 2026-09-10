@@ -1,14 +1,8 @@
 """Tests for LLM history summarizer logic."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from pydantic_ai.messages import (
-    ModelRequest,
-    ModelResponse,
-    ToolCallPart,
-    UserPromptPart,
-)
 
 from zrb.llm.summarizer.history_splitter import find_best_effort_split
 from zrb.llm.summarizer.history_summarizer import summarize_history, summarize_messages

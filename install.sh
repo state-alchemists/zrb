@@ -1,4 +1,7 @@
 #!/bin/sh
+# Usage: install.sh [-y|--yes] [--pre]
+#   -y, --yes  Answer yes to every prompt
+#   --pre      Install the latest pre-release instead of the latest stable
 set -e
 
 #########################################################################################
@@ -268,9 +271,14 @@ confirm_extras() {
 
 pipx_install_zrb() {
     pipx uninstall zrb 2>/dev/null || true
-    # --pip-args (not the PIP_PRE env var) persists in pipx's metadata, so later
-    # `pipx upgrade`/`pipx reinstall` keep tracking pre-releases automatically.
-    pipx install --pip-args='--pre' --python "$PY_CMD" "zrb${ZRB_EXTRAS}"
+    if [ "$PRE_RELEASE" = "1" ]; then
+        # --pip-args (not the PIP_PRE env var) persists in pipx's metadata, so later
+        # `pipx upgrade`/`pipx reinstall` keep tracking pre-releases automatically.
+        log_info "Installing the latest pre-release (--pre)"
+        pipx install --pip-args='--pre' --python "$PY_CMD" "zrb${ZRB_EXTRAS}"
+    else
+        pipx install --python "$PY_CMD" "zrb${ZRB_EXTRAS}"
+    fi
 }
 
 install_zrb() {
@@ -311,23 +319,51 @@ expose_python_tools() {
 }
 
 register_autocomplete() {
-    if command_exists zrb; then
-        for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
-            [ -f "$rc" ] || continue
-            shell_name=$(basename "$rc" | sed 's/\.//')
-            if ! grep -q "zrb shell autocomplete" "$rc" 2>/dev/null; then
-                log_info "Registering zrb autocomplete to $rc"
-                {
-                    echo ""
-                    echo "# Zrb autocomplete"
-                    echo "if command -v zrb >/dev/null 2>&1; then"
-                    echo "    eval \"\$(zrb shell autocomplete $shell_name)\""
-                    echo "fi"
-                } >> "$rc"
-            fi
-        done
-        log_ok "Autocomplete registered"
+    if ! command_exists zrb; then
+        return
     fi
+
+    # POSIX-ish shells: rc file name maps to the `zrb shell autocomplete`
+    # subcommand name directly (bash -> .bashrc, zsh -> .zshrc). Listed
+    # explicitly rather than derived from the filename -- fish's config file
+    # doesn't follow the same ".<shell>rc" naming, so a generic derivation
+    # can't cover it anyway.
+    for entry in "bash:$HOME/.bashrc" "zsh:$HOME/.zshrc"; do
+        shell_name="${entry%%:*}"
+        rc="${entry#*:}"
+        [ -f "$rc" ] || continue
+        if ! grep -q "zrb shell autocomplete" "$rc" 2>/dev/null; then
+            log_info "Registering zrb autocomplete to $rc"
+            {
+                echo ""
+                echo "# Zrb autocomplete"
+                echo "if command -v zrb >/dev/null 2>&1; then"
+                echo "    eval \"\$(zrb shell autocomplete $shell_name)\""
+                echo "fi"
+            } >> "$rc"
+        fi
+    done
+
+    # Fish: different config location, different syntax (no eval/fi), and
+    # the generated script is meant to be sourced, not eval'd.
+    if command_exists fish; then
+        fish_config_dir="$HOME/.config/fish"
+        fish_config="$fish_config_dir/config.fish"
+        mkdir -p "$fish_config_dir"
+        [ -f "$fish_config" ] || touch "$fish_config"
+        if ! grep -q "zrb shell autocomplete" "$fish_config" 2>/dev/null; then
+            log_info "Registering zrb autocomplete to $fish_config"
+            {
+                echo ""
+                echo "# Zrb autocomplete"
+                echo "if command -v zrb >/dev/null 2>&1"
+                echo "    zrb shell autocomplete fish | source"
+                echo "end"
+            } >> "$fish_config"
+        fi
+    fi
+
+    log_ok "Autocomplete registered"
 }
 
 cleanup_local_venv() {
@@ -402,9 +438,11 @@ setup_termux() {
 
 # Parse flags
 AUTO_YES=0
+PRE_RELEASE=0
 for arg in "$@"; do
     case "$arg" in
         -y|--yes) AUTO_YES=1 ;;
+        --pre) PRE_RELEASE=1 ;;
     esac
 done
 
@@ -419,8 +457,8 @@ fi
 cat << 'EOF'
 
     ╔════════════════════════════╗
-    ║  Zrb — Your Automation     ║
-    ║        Powerhouse          ║
+    ║            Zrb             ║
+    ║ Coding Agent + Task Engine ║
     ╚════════════════════════════╝
 
 EOF
