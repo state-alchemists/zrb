@@ -25,8 +25,15 @@ class LLMCoreMixin:
         # model picker, ModelResolver's resolve_configured_model(), …) reads
         # it from here rather than carrying a second hardcoded fallback.
         self.DEFAULT_LLM_MODEL: str = "openai:gpt-5.6-luna"
+        self.DEFAULT_LLM_SMALL_MODEL: str = ""
+        self.DEFAULT_LLM_MULTIMODAL_MODEL: str = ""
+        self.DEFAULT_LLM_BASE_URL: str = ""
+        self.DEFAULT_LLM_API_KEY: str = ""
+        self.DEFAULT_LLM_PROVIDER: str = ""
         self.DEFAULT_LLM_SHOW_OLLAMA_MODELS: str = "on"
         self.DEFAULT_LLM_SHOW_PYDANTIC_AI_MODELS: str = "on"
+        self.DEFAULT_LLM_PERMISSIONS: str = ""
+        self.DEFAULT_LLM_THINKING: str = ""
         super().__init__()
 
     LLM_MODEL = EnvField(
