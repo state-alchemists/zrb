@@ -1,8 +1,11 @@
+import json
 import os
 
+import requests
 import tomlkit
 
 from zrb import (
+    AnyContext,
     CmdPath,
     CmdTask,
     Env,
@@ -12,6 +15,7 @@ from zrb import (
     TcpCheck,
     Tpl,
     cli,
+    make_task,
 )
 from zrb.builtin.git import git_commit
 from zrb.util.file import read_file
@@ -92,6 +96,118 @@ format_code = code_group.add_task(
     alias="format",
 )
 _ = format_code >> git_commit
+
+# The handoff between `code review` (writes it) and `submit-comment` (posts
+# it). They are deliberately NOT wired as a DAG: `code review` runs an LLM with
+# --yolo over a diff somebody else wrote, and chaining them would put the
+# GITHUB_TOKEN that `submit-comment` needs into that agent's environment.
+# Untrusted input plus a write credential in one process is the thing to avoid,
+# so CI runs them as two steps and only the second one sees the token.
+_REVIEW_REPORT = "code-review.md"
+
+review_code = code_group.add_task(
+    CmdTask(
+        name="review-code",
+        description="🔍 Review changed code with the LLM reviewer",
+        input=[
+            StrInput(
+                name="range",
+                description="Git range to review (e.g. origin/main...HEAD)",
+                prompt="Git range",
+                default="origin/main...HEAD",
+            ),
+            StrInput(
+                name="output",
+                description="File to write the report to",
+                prompt="Report file",
+                default=_REVIEW_REPORT,
+            ),
+        ],
+        cwd=_DIR,
+        # `/review` is a built-in user-invocable skill; the non-interactive
+        # session resolves slash commands on --message the same way the TUI
+        # does. --yolo is required because the reviewer reads files and shells
+        # out to git, and there is nobody at a CI prompt to approve each call.
+        # The report goes to a file rather than stdout because CmdTask
+        # prefixes every subprocess line with its own log decoration -- fine to
+        # read, useless to post verbatim as a PR comment.
+        cmd=Tpl(
+            "zrb llm chat --interactive false --yolo true --message"
+            ' "/review the changes in git range {ctx.input.range}.'
+            " Write the full report as markdown to {ctx.input.output},"
+            ' overwriting it, then print a one-line verdict."'
+        ),
+        # The agent already retries the model call three times internally; a
+        # task-level retry would re-run the whole review and re-spend tokens.
+        retries=0,
+    ),
+    alias="review",
+)
+
+
+@make_task(
+    name="submit-comment",
+    description="💬 Post a markdown file as a comment on the current pull request",
+    input=StrInput(
+        name="file",
+        description="Markdown file to post",
+        prompt="Comment file",
+        default=_REVIEW_REPORT,
+    ),
+    group=cli,
+)
+def submit_comment(ctx: AnyContext):
+    """Post `--file` as a comment on the PR that triggered this run.
+
+    The PR number is read from GITHUB_EVENT_PATH -- the event payload GitHub
+    writes for every run -- rather than passed in from a workflow `${{ }}`
+    interpolation, so the task takes no argument but the file and works from
+    any workflow that sets the standard GitHub Actions variables.
+    """
+    token = os.environ.get("GITHUB_TOKEN", "")
+    event_path = os.environ.get("GITHUB_EVENT_PATH", "")
+    repository = os.environ.get("GITHUB_REPOSITORY", "")
+    missing = [
+        name
+        for name, value in (
+            ("GITHUB_TOKEN", token),
+            ("GITHUB_EVENT_PATH", event_path),
+            ("GITHUB_REPOSITORY", repository),
+        )
+        if value == ""
+    ]
+    if missing:
+        raise ValueError(
+            f"Not running inside GitHub Actions? Missing: {', '.join(missing)}"
+        )
+    if not os.path.isfile(ctx.input.file):
+        ctx.print(f"No file at {ctx.input.file} - nothing to post.")
+        return
+    body = read_file(ctx.input.file)
+    if body.strip() == "":
+        ctx.print(f"{ctx.input.file} is empty - nothing to post.")
+        return
+    pr_number = json.loads(read_file(event_path)).get("pull_request", {}).get("number")
+    if pr_number is None:
+        raise ValueError("The event payload carries no pull_request.number")
+    api_url = os.environ.get("GITHUB_API_URL", "https://api.github.com")
+    response = requests.post(
+        f"{api_url}/repos/{repository}/issues/{pr_number}/comments",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+        json={"body": body},
+        timeout=30,
+    )
+    if not response.ok:
+        raise RuntimeError(
+            f"Could not comment on PR #{pr_number}: "
+            f"{response.status_code} {response.text}"
+        )
+    ctx.print(f"Posted {len(body)} bytes to PR #{pr_number}")
+
 
 # DOCKER ======================================================================
 

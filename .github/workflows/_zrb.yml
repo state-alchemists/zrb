@@ -9,7 +9,27 @@ on:
       environment:
         required: true
         type: string
-    secrets: {}
+      comment-file:
+        # When set, the file at this path is posted as a pull-request comment
+        # once the command finishes. Empty (the default) posts nothing.
+        required: false
+        type: string
+        default: ""
+      fetch-depth:
+        # 2 preserves the original behavior for existing callers. A caller that
+        # diffs against a merge base (the code review) passes 0 for full history.
+        required: false
+        type: number
+        default: 2
+    secrets:
+      # Declared individually rather than taking `secrets: inherit`. The command
+      # this workflow runs may be an LLM agent with shell access, so only the
+      # credentials it actually needs should be present in its environment --
+      # inheriting would hand it every secret in the repository.
+      DEEPSEEK_API_KEY:
+        required: false
+      ZRB_LLM_MODEL:
+        required: false
 
 jobs:
 
@@ -18,11 +38,27 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: stalchmst/zrb:3.0.0b11
+    env:
+      # An undeclared secret interpolates to "", which every CFG knob reads as
+      # unset -- so a caller that passes neither still gets zrb's defaults.
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      ZRB_LLM_MODEL: ${{ secrets.ZRB_LLM_MODEL }}
+      # docs/advanced-topics/ci-cd.md: without this, a zrb_init.py that raises
+      # part-way still registers the tasks defined before the exception, so the
+      # job runs a half-configured CLI and exits 0.
+      ZRB_INIT_STRICT: "1"
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: ${{ inputs.fetch-depth }}
+
+      - name: Trust the workspace
+        # The container runs as a different UID than the one owning the
+        # checkout, so git refuses to touch it ("detected dubious ownership")
+        # until the path is marked safe. Anything shelling out to git needs it.
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Show Info
         run: |
           echo "🙋 PIC: ${{ github.actor }}"
@@ -30,10 +66,25 @@ jobs:
           echo "🐧 OS: ${{ runner.os }}"
           echo "🔎 Branch: ${{ github.ref }}"
           echo "🔎 Repo: ${{ github.repository }}"
+
       - name: Run command
         shell: bash
         run: |
           set -e
           echo "🏁 Start running"
           ${{ inputs.command }}
+
+      # Deliberately a separate step from "Run command": GITHUB_TOKEN can write
+      # to this repository, and the command above may be an LLM agent with shell
+      # access. Scoping the token here keeps it out of the agent's environment.
+      # The posting itself is a zrb task (`submit-comment` in zrb_init.py), so
+      # this stays a one-liner and the logic is testable outside CI.
+      - name: Post report as a pull-request comment
+        if: always() && inputs.comment-file != '' && github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          COMMENT_FILE: ${{ inputs.comment-file }}
+        shell: bash
+        run: zrb submit-comment --file "$COMMENT_FILE"
+
       - run: echo "🍏 This job's status is ${{ job.status }}."
