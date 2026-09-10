@@ -123,6 +123,7 @@ Default to module-level imports. An in-function import must justify itself with 
 2. **Transitively heavy via internal** — an internal `zrb.*` module that eagerly imports a heavy package inherits the rule. Hoisting silently re-introduces the slow load.
 3. **Circular import** — name the cycle: `# lazy: circular — tool → ui → llm_task → here`.
 4. **Test patch seam** — tests patch at the source path and rely on the patch taking effect inside a consumer; hoisting binds the name at consumer-load time and bypasses the mock. Tag: `# lazy: tests patch <path>; hoisting bypasses the mock`.
+5. **Platform-only module** — the module does not exist on every supported platform (`msvcrt`, `fcntl`, `termios`), or is reached on only one of them and costs real import time on the others. Tag: `# lazy: platform-only — <which platform, and what the others would pay>`. When the *whole* module needs the name, a module-level `try: import X / except ImportError: X = None` is the better shape (see `fcntl` in `llm/tool/journal_write.py`); the in-function form is for a single platform-guarded branch.
 
 `# noqa: F401` belongs only on imports that exist as a test-patch attribute on the module itself — verify the patch targets working code; a patch against a name nothing reads should be deleted, not preserved.
 

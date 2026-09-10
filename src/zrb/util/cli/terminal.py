@@ -23,6 +23,9 @@ def is_real_console(stream: Any) -> bool:
     if os.name != "nt":
         return True
     try:
+        # lazy: platform-only — `msvcrt` does not exist off Windows, so this
+        # cannot hoist; and `ctypes` costs ~14ms every POSIX start for a
+        # branch POSIX returns above without reaching.
         import ctypes
         import msvcrt
 

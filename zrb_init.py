@@ -1,9 +1,9 @@
 import json
 import os
+import tomllib
 from urllib.parse import urlparse
 
 import requests
-import tomlkit
 
 from zrb import (
     AnyContext,
@@ -23,7 +23,11 @@ from zrb.util.file import read_file
 
 _DIR = os.path.dirname(__file__)
 
-_PYPROJECT = tomlkit.loads(read_file(os.path.join(_DIR, "pyproject.toml")))
+# stdlib `tomllib`, not `tomlkit`: this file is loaded by the `zrb` inside the
+# CI container, which installs `--without dev`. It resolves there today only
+# because the image happens to `pip install poetry`, which drags tomlkit into
+# the same site-packages -- and ZRB_INIT_STRICT makes that accident fatal.
+_PYPROJECT = tomllib.loads(read_file(os.path.join(_DIR, "pyproject.toml")))
 _VERSION = _PYPROJECT["project"]["version"]
 
 
@@ -132,6 +136,11 @@ review_code = code_group.add_task(
             ),
         ],
         cmd=[
+            # `set -e`: CmdTask does not add one, and without it a failing
+            # `git diff --stat` (a range that does not resolve) left
+            # REVIEW_STAT empty and sent the reviewer off to review
+            # "Changed files: ." -- a confident report of nothing.
+            "set -e",
             'REVIEW_STAT="$(git diff --stat "$REVIEW_RANGE")"',
             (
                 "zrb llm chat --interactive false --yolo true --message"
@@ -161,6 +170,10 @@ review_code = code_group.add_task(
         prompt="Comment file",
         default=_REVIEW_REPORT,
     ),
+    # No retries: the POST is not idempotent. A 502 raised *after* GitHub
+    # created the comment would post it again on every attempt, and the other
+    # failure here (missing GITHUB_* variables) cannot be fixed by repeating.
+    retries=0,
     group=cli,
 )
 def submit_comment(ctx: AnyContext):

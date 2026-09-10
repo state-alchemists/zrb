@@ -34,7 +34,16 @@ jobs:
       # The second half of that guarantee is in zrb_init.py, where the review
       # task passes --range on to the agent through an environment variable
       # instead of rendering it into another command string.
+      #
+      # The key check is a step guard rather than a job-level `if:`, because
+      # the `secrets` context is not available in `jobs.<id>.if` -- so a repo
+      # without OPENAI_API_KEY configured would otherwise fail this job on
+      # every pull request, with nothing the author could do about it.
       command: |
+        if [ -z "$OPENAI_API_KEY" ]; then
+          echo "⏭️  OPENAI_API_KEY is not configured; skipping the LLM review."
+          exit 0
+        fi
         zrb code review --range "origin/$GITHUB_BASE_REF...HEAD" --output code-review.md
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

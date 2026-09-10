@@ -12,6 +12,10 @@ on:
 jobs:
   test:
     runs-on: ${{ matrix.os }}
+    # The suite drives real subprocesses, readiness checks and kill timeouts,
+    # so a hang is a plausible failure mode -- and GitHub's default ceiling is
+    # 6 hours of runner time before it notices.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:

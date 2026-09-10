@@ -413,9 +413,13 @@ class InputCompleter(Completer):
         # prefix as much as "/" is. Without the drive form it fell through to
         # the fuzzy walk of the current repo, which can never match a file
         # outside that tree -- so typing an absolute path offered nothing.
-        if re.match(r"^[A-Za-z]:[\\/]", text):
-            return True
-        return text.startswith(("/", "\\", ".", "~"))
+        # The bare "\\" root is Windows-only on purpose: on POSIX a leading
+        # backslash is an escape, and treating it as a path start would hand
+        # the fuzzy walk's job to a PathCompleter that can never match.
+        if os.name == "nt":
+            if re.match(r"^[A-Za-z]:[\\/]", text) or text.startswith("\\"):
+                return True
+        return text.startswith(("/", ".", "~"))
 
     def _get_path_completions(
         self,

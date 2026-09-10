@@ -87,7 +87,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 
 - **ADR-0036** — [pydantic-ai as the agent framework](adr-0036.md)
 - **ADR-0037** — [Provider-agnostic, multi-vendor LLM support](adr-0037.md)
-- **ADR-0094** — [A vendor's own API-key variable outranks the generic `LLM_API_KEY`](adr-0094.md)
+- **ADR-0094** — [`LLM_API_KEY` reaches only the provider it was configured for](adr-0094.md)
 - **ADR-0038** — [Model capabilities are a deny-list; the prompt states the default](adr-0038.md)
 - **ADR-0039** — [Stream errors are classified; each class gets a one-shot fix](adr-0039.md)
 - **ADR-0040** — [Run-loop guards for corrupted history and degenerate output](adr-0040.md)
