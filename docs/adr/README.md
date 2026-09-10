@@ -68,6 +68,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0025** — [White-labeling through `_ZRB_ENV_PREFIX` and `ROOT_GROUP_NAME`](adr-0025.md)
 - **ADR-0026** — [Boolean config naming: verb-first vs `_ENABLED`](adr-0026.md)
 - **ADR-0027** — [Semantic style names and one `ZRB_THEME`](adr-0027.md)
+- **ADR-0095** — [On Windows, a real POSIX shell is preferred, and shells are compared by name](adr-0095.md)
 
 ### Runners, packaging and code conventions
 
@@ -86,6 +87,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 
 - **ADR-0036** — [pydantic-ai as the agent framework](adr-0036.md)
 - **ADR-0037** — [Provider-agnostic, multi-vendor LLM support](adr-0037.md)
+- **ADR-0094** — [A vendor's own API-key variable outranks the generic `LLM_API_KEY`](adr-0094.md)
 - **ADR-0038** — [Model capabilities are a deny-list; the prompt states the default](adr-0038.md)
 - **ADR-0039** — [Stream errors are classified; each class gets a one-shot fix](adr-0039.md)
 - **ADR-0040** — [Run-loop guards for corrupted history and degenerate output](adr-0040.md)

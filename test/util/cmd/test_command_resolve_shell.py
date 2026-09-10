@@ -282,3 +282,22 @@ def test_get_remote_cmd_script_quotes_injection_in_credentials():
     # sshpass -e reads the password from SSHPASS — never on the command line.
     assert "sshpass -e" in result
     assert malicious not in result
+
+
+@pytest.mark.parametrize(
+    "shell, expected_flag",
+    [
+        ("C:\\Program Files\\PowerShell\\7\\pwsh.exe", "-Command"),
+        ("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-Command"),
+        ("C:\\Windows\\System32\\cmd.exe", "/c"),
+        ("C:\\Program Files\\Git\\bin\\bash.exe", "-c"),
+        ("/bin/bash", "-c"),
+    ],
+)
+def test_resolve_shell_reads_the_flag_from_an_absolute_path(shell, expected_flag):
+    """`CFG.SHELL` is an absolute `.exe` path on Windows, so a flag table keyed
+    on the raw string would hand PowerShell the POSIX `-c` and break it."""
+    resolved, flag = resolve_shell(shell)
+
+    assert resolved == shell
+    assert flag == expected_flag

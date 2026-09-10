@@ -349,3 +349,47 @@ async def test_cmd_task_exec_remote(mock_session):
     finally:
         zrb.task.cmd_task.run_command = original_run_command
         zrb.task.cmd_task.get_remote_cmd_script = original_get_remote_cmd_script
+
+
+@pytest.mark.parametrize(
+    "shell, should_warn",
+    [
+        ("bash", True),
+        ("/bin/bash", True),
+        # The Windows default since `get_current_shell` started preferring Git
+        # Bash. A raw `shell.endswith("bash")` answers False here, which
+        # silently disabled the POSIX lint on the one platform whose default
+        # shell is a `.exe` path.
+        ("C:\\Program Files\\Git\\bin\\bash.exe", True),
+        ("/usr/bin/zsh", True),
+        ("cmd", False),
+        ("C:\\Windows\\System32\\cmd.exe", False),
+    ],
+)
+@pytest.mark.asyncio
+async def test_cmd_task_warns_about_unrecommended_commands_by_shell_name(
+    mock_session, shell, should_warn
+):
+    """The POSIX-command lint keys off the shell's *name*, so it survives an
+    absolute path with an `.exe` suffix."""
+    import zrb.task.cmd_task
+
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            return (CmdResult(output="", error="", display=""), 0)
+
+        return _coro()
+
+    original = zrb.task.cmd_task.run_command
+    zrb.task.cmd_task.run_command = mock_run_command
+    try:
+        task = CmdTask(name="lint_shell", cmd="realpath .", shell=shell)
+        mock_session.register_task(task)
+        await task.exec(mock_session)
+    finally:
+        zrb.task.cmd_task.run_command = original
+
+    # `shared_log` rather than captured stderr: it is the public, stream-
+    # independent record of everything the task printed.
+    log = "".join(mock_session.shared_ctx.shared_log)
+    assert ("unrecommended commands" in log) is should_warn

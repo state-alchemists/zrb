@@ -8,9 +8,12 @@ object itself.
 
 from unittest import mock
 
+import pytest
+
 from zrb.config.config import Config
 from zrb.config.helper import (
     get_current_shell,
+    get_shell_name,
     get_windows_posix_shell,
     is_termux,
     is_wsl,
@@ -242,3 +245,57 @@ def test_cfg_is_termux_env_override_wins(monkeypatch):
     monkeypatch.setenv("TERMUX_VERSION", "0.118.0")
     monkeypatch.setenv("ZRB_IS_TERMUX", "false")
     assert Config().IS_TERMUX is False
+
+
+# ---------------------------------------------------------------------------
+# get_shell_name
+#
+# Every comparison against a shell setting goes through this, because a
+# Windows setting is an absolute `.exe` path -- `get_current_shell` returns
+# `get_windows_posix_shell()` verbatim there.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "setting, expected",
+    [
+        ("bash", "bash"),
+        ("/bin/bash", "bash"),
+        ("/usr/local/bin/zsh", "zsh"),
+        ("C:\\Program Files\\Git\\bin\\bash.exe", "bash"),
+        ("C:/Program Files/Git/bin/bash.exe", "bash"),
+        ("C:\\Program Files\\PowerShell\\7\\PWSH.EXE", "pwsh"),
+        ("cmd", "cmd"),
+        ("node", "node"),
+        ("", ""),
+    ],
+)
+def test_get_shell_name_reduces_a_setting_to_its_bare_name(setting, expected):
+    assert get_shell_name(setting) == expected
+
+
+def test_get_shell_name_is_platform_independent():
+    """Both separators are split on regardless of the running platform, so a
+    Windows setting resolves the same way when a POSIX box is asked about it
+    (which is what the whole test suite does)."""
+    with mock.patch("platform.system", return_value="Linux"):
+        assert get_shell_name("C:\\Git\\bin\\bash.exe") == "bash"
+
+
+@mock.patch("platform.system", return_value="Windows")
+def test_windows_posix_shell_lookup_is_cached(mock_platform_system):
+    """The lookup sits on the `CFG.SHELL` hot path -- `EnvField` re-runs its
+    `default_factory` on every read, and `resolve_shell` asks again for a bare
+    `bash`/`sh` -- so it must probe PATH and the filesystem only once."""
+    get_windows_posix_shell.cache_clear()
+    with (
+        mock.patch("shutil.which", side_effect=_which("git")) as which,
+        mock.patch("os.path.isfile", return_value=True),
+    ):
+        first = get_windows_posix_shell()
+        calls_after_first = which.call_count
+        repeats = [get_windows_posix_shell() for _ in range(5)]
+
+    assert calls_after_first > 0
+    assert repeats == [first] * 5
+    assert which.call_count == calls_after_first

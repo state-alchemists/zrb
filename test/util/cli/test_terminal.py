@@ -318,3 +318,68 @@ class TestGetTerminalSize:
                                         assert size.columns == 80
                                         # os.close should still be called
                                         mock_close.assert_called_once_with(mock_fd)
+
+
+class TestIsRealConsole:
+    """`is_real_console` — the Windows-only console-handle probe.
+
+    The Windows branch is driven with fake `msvcrt`/`ctypes` modules rather
+    than skipped off-platform: the whole point of the function is behavior
+    this repo's POSIX developers and its ubuntu/macOS CI jobs never execute,
+    so a `skipif` would leave it covered nowhere.
+    """
+
+    def _windows_modules(self, *, console: bool, get_osfhandle=None):
+        """Stand-in `msvcrt` and `ctypes` for the win32 branch.
+
+        `GetConsoleMode` returns non-zero only for a genuine console handle,
+        which is exactly the distinction `isatty()` cannot make on Windows.
+        """
+        msvcrt = MagicMock()
+        msvcrt.get_osfhandle = get_osfhandle or (lambda fd: 42)
+        ctypes = MagicMock()
+        ctypes.windll.kernel32.GetConsoleMode.return_value = 1 if console else 0
+        return {"msvcrt": msvcrt, "ctypes": ctypes}
+
+    def test_posix_is_always_a_real_console(self):
+        """POSIX `isatty()` already excludes /dev/null, so nothing to check."""
+        from zrb.util.cli.terminal import is_real_console
+
+        with patch.object(os, "name", "posix"):
+            assert is_real_console(MagicMock()) is True
+
+    def test_windows_console_handle_is_accepted(self):
+        from zrb.util.cli.terminal import is_real_console
+
+        with patch.object(os, "name", "nt"):
+            with patch.dict(sys.modules, self._windows_modules(console=True)):
+                assert is_real_console(MagicMock()) is True
+
+    def test_windows_nul_device_is_rejected(self):
+        """`isatty()` says True for NUL on Windows; `GetConsoleMode` says no."""
+        from zrb.util.cli.terminal import is_real_console
+
+        with patch.object(os, "name", "nt"):
+            with patch.dict(sys.modules, self._windows_modules(console=False)):
+                assert is_real_console(MagicMock()) is False
+
+    def test_windows_unfileno_able_stream_is_rejected(self):
+        """A stream with no OS handle cannot be a console; it must not raise."""
+        from zrb.util.cli.terminal import is_real_console
+
+        stream = MagicMock()
+        stream.fileno.side_effect = OSError("no fileno")
+        with patch.object(os, "name", "nt"):
+            with patch.dict(sys.modules, self._windows_modules(console=True)):
+                assert is_real_console(stream) is False
+
+    def test_windows_get_osfhandle_failure_is_rejected(self):
+        from zrb.util.cli.terminal import is_real_console
+
+        def boom(fd):
+            raise OSError("invalid handle")
+
+        modules = self._windows_modules(console=True, get_osfhandle=boom)
+        with patch.object(os, "name", "nt"):
+            with patch.dict(sys.modules, modules):
+                assert is_real_console(MagicMock()) is False

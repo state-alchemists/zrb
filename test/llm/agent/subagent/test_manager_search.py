@@ -116,7 +116,7 @@ def test_get_search_directories_includes_builtin_agents_when_enabled(manager):
         cfg.LLM_EXTRA_AGENT_DIRS = []
         cfg.LLM_ENABLE_BUILTIN_AGENTS = True
         dirs = _posix(manager.search_dirs)
-    assert any(d.replace("\\", "/").endswith("llm_plugin/agents") for d in dirs)
+    assert any(d.endswith("llm_plugin/agents") for d in dirs)
 
 
 def test_get_search_directories_excludes_builtin_agents_when_disabled(manager):
@@ -129,5 +129,5 @@ def test_get_search_directories_excludes_builtin_agents_when_disabled(manager):
         cfg.LLM_EXTRA_AGENT_DIRS = []
         cfg.LLM_ENABLE_BUILTIN_AGENTS = False
         dirs = _posix(manager.search_dirs)
-    assert any(d.replace("\\", "/").endswith("llm_plugin/core_agents") for d in dirs)
-    assert not any(d.replace("\\", "/").endswith("llm_plugin/agents") for d in dirs)
+    assert any(d.endswith("llm_plugin/core_agents") for d in dirs)
+    assert not any(d.endswith("llm_plugin/agents") for d in dirs)

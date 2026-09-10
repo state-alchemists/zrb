@@ -2,7 +2,9 @@ import logging
 import ntpath
 import os
 import platform
+import re
 import shutil
+from functools import lru_cache
 
 
 def get_env(env_name: str | list[str], default: str = "", prefix: str = "ZRB") -> str:
@@ -14,8 +16,17 @@ def get_env(env_name: str | list[str], default: str = "", prefix: str = "ZRB") -
     return default
 
 
+@lru_cache(maxsize=1)
 def get_windows_posix_shell() -> str:
     """Absolute path to a real POSIX shell on Windows, or `""` when there is none.
+
+    Cached because it is on a hot path and its answer cannot change within a
+    run: `EnvField` re-evaluates `default_factory` on *every* `CFG.SHELL`
+    read, and `resolve_shell` calls this again for a bare `bash`/`sh`, so an
+    uncached lookup means a `shutil.which` PATH scan plus four `isfile` probes
+    per command executed. Tests that stub `shutil.which`/`os.path.isfile` must
+    call `get_windows_posix_shell.cache_clear()` first -- `conftest` does this
+    automatically.
 
     A bare `shutil.which("bash")` is not enough, which is what made this a
     function. Windows ships `System32\\bash.exe` -- the WSL *launcher* -- and it
@@ -76,6 +87,24 @@ def _is_in_windows_dir(path: str) -> bool:
     return ntpath.normcase(path).startswith(prefix)
 
 
+_EXE_SUFFIX = re.compile(r"\.exe$", re.IGNORECASE)
+
+
+def get_shell_name(shell: str) -> str:
+    """The bare shell name behind a shell setting: `bash` for `bash`,
+    `/bin/bash` and `C:\\Program Files\\Git\\bin\\bash.exe` alike.
+
+    Every name comparison against a shell setting has to go through here,
+    because a Windows setting is an absolute `.exe` path (see
+    `get_windows_posix_shell`, which `get_current_shell` returns directly):
+    `shell.endswith("bash")` answers False for `...\\bin\\bash.exe`, which is
+    the shell most likely to be configured on that platform. Both separators
+    are split on rather than using `os.path`, so the answer does not depend on
+    which platform is asking.
+    """
+    return _EXE_SUFFIX.sub("", re.split(r"[\\/]", shell)[-1]).lower()
+
+
 def get_current_shell() -> str:
     """Return the name of a shell that actually exists on this system.
 
@@ -98,7 +127,7 @@ def get_current_shell() -> str:
                 return candidate
         return "cmd"
     current_shell = os.getenv("SHELL", "")
-    if current_shell.endswith("zsh") and shutil.which("zsh"):
+    if get_shell_name(current_shell) == "zsh" and shutil.which("zsh"):
         return "zsh"
     for candidate in ("bash", "sh"):
         if shutil.which(candidate):

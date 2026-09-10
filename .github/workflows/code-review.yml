@@ -23,7 +23,6 @@ jobs:
       pull-requests: write
     uses: ./.github/workflows/_zrb.yml
     with:
-      environment: DEV
       # The reviewer diffs against the merge base, so it needs full history --
       # the default depth of 2 has no origin/<base> to compare against.
       fetch-depth: 0
@@ -32,6 +31,9 @@ jobs:
       # $GITHUB_BASE_REF is read at runtime instead of interpolated with
       # ${{ }}: a branch name comes from the PR author, and interpolation
       # would splice it into the shell command rather than pass it as a value.
+      # The second half of that guarantee is in zrb_init.py, where the review
+      # task passes --range on to the agent through an environment variable
+      # instead of rendering it into another command string.
       command: |
         zrb code review --range "origin/$GITHUB_BASE_REF...HEAD" --output code-review.md
     secrets:

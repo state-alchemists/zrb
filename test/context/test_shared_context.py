@@ -23,6 +23,32 @@ def test_is_tty_falls_back_to_false_on_exception():
         assert ctx.is_tty is False
 
 
+def test_is_tty_requires_a_real_console_not_just_a_character_device():
+    """`isatty()` alone is not enough on Windows.
+
+    Its CRT `_isatty` says True for any character device, NUL included, so a
+    run with stdin redirected from NUL would otherwise be treated as
+    interactive and start prompting into a void.
+    """
+    ctx = SharedContext()
+    with (
+        patch("zrb.context.shared_context.sys") as mock_sys,
+        patch("zrb.context.shared_context.is_real_console", return_value=False),
+    ):
+        mock_sys.stdin.isatty.return_value = True
+        assert ctx.is_tty is False
+
+
+def test_is_tty_is_true_for_a_genuine_console():
+    ctx = SharedContext()
+    with (
+        patch("zrb.context.shared_context.sys") as mock_sys,
+        patch("zrb.context.shared_context.is_real_console", return_value=True),
+    ):
+        mock_sys.stdin.isatty.return_value = True
+        assert ctx.is_tty is True
+
+
 def test_append_to_shared_log_propagates_to_parent_session():
     parent_ctx = SharedContext()
     parent_session = MagicMock()

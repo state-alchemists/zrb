@@ -1,4 +1,5 @@
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
@@ -365,3 +366,103 @@ def test_resolve_configured_model_applies_global_hooks(monkeypatch):
     monkeypatch.setattr(model_resolver, "_model_renderer", lambda m: f"proxy:{m}")
 
     assert resolve_configured_model() == "proxy:bsim:gemini-3.5-flash"
+
+
+# ---------------------------------------------------------------------------
+# Native-provider credential precedence
+#
+# `LLM_API_KEY` is provider-*agnostic*: it says nothing about which vendor it
+# is a key for. A vendor variable is provider-*specific*, so it has to win,
+# or a key set for `LLM_MODEL`'s provider gets force-fed to a differently
+# prefixed `LLM_SMALL_MODEL` and 401s.
+# ---------------------------------------------------------------------------
+
+
+def test_vendor_env_var_beats_the_generic_api_key(resolver, monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "vendor-anthropic-key")
+
+    model = resolver.resolve("anthropic:claude-sonnet-4-5", api_key="generic-key")
+
+    assert model.provider.client.api_key == "vendor-anthropic-key"
+
+
+def test_generic_api_key_is_used_when_the_vendor_has_no_variable(resolver, monkeypatch):
+    """The case the native branch exists for: an explicit `LLM_API_KEY` must
+    not be silently dropped in favour of a vendor variable nobody set."""
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+
+    model = resolver.resolve("deepseek:deepseek-chat", api_key="generic-key")
+
+    assert model.provider.name == "deepseek"
+    assert model.provider.client.api_key == "generic-key"
+
+
+def test_explicit_base_url_overrides_the_vendor_default(resolver, monkeypatch):
+    """A custom endpoint is a deliberate override, so it skips the vendor rung
+    even when the vendor variable is set."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "vendor-anthropic-key")
+
+    model = resolver.resolve(
+        "anthropic:claude-sonnet-4-5",
+        api_key="generic-key",
+        base_url="https://proxy/v1",
+    )
+
+    assert str(model.provider.base_url).startswith("https://proxy/v1")
+    assert model.provider.client.api_key == "generic-key"
+
+
+def test_base_url_a_native_provider_rejects_falls_back_to_openai_compatible(
+    resolver, monkeypatch
+):
+    """`DeepSeekProvider` takes no `base_url`, and dropping it would silently
+    ignore the whole reason the knob was set."""
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+
+    model = resolver.resolve(
+        "deepseek:deepseek-chat", api_key="generic-key", base_url="https://proxy/v1"
+    )
+
+    assert model.provider.name == "openai"
+    assert str(model.provider.base_url).startswith("https://proxy/v1")
+
+
+def test_explicit_provider_instance_for_the_same_vendor_is_honored(
+    resolver, monkeypatch
+):
+    """A caller who hands over a configured `Provider` gets that object back,
+    not a rebuild from `LLM_API_KEY` that quietly loses its `base_url`."""
+    # lazy: heavy third-party
+    from pydantic_ai.providers.anthropic import AnthropicProvider
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "vendor-anthropic-key")
+    mine = AnthropicProvider(api_key="my-key", base_url="https://mine/v1")
+
+    model = resolver.resolve(
+        "anthropic:claude-sonnet-4-5", api_key="generic-key", provider=mine
+    )
+
+    assert model.provider is mine
+
+
+def test_unbuildable_native_provider_falls_back_to_the_bare_name(resolver, monkeypatch):
+    """`infer_provider_class` raising must not take the whole resolve with it.
+
+    The bare name is the right fallback: pydantic-ai then raises its own
+    "set `<VENDOR>_API_KEY`" message instead of this code inventing a worse
+    one. The first resolve primes the resolver's native-provider cache so the
+    patch below is seen only by `_resolve_native_model`, which is the call
+    site under test.
+    """
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    assert resolver.resolve("anthropic:claude-sonnet-4-5") == (
+        "anthropic:claude-sonnet-4-5"
+    )
+
+    with patch(
+        "pydantic_ai.providers.infer_provider_class",
+        side_effect=ValueError("Unknown provider"),
+    ):
+        resolved = resolver.resolve("anthropic:claude-sonnet-4-5", api_key="generic")
+
+    assert resolved == "anthropic:claude-sonnet-4-5"

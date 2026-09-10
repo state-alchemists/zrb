@@ -1,23 +1,8 @@
-import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from zrb.llm.ui.default.ui import UI
-
-pytestmark = pytest.mark.skipif(
-    sys.platform == "win32",
-    reason=(
-        "UI.__init__ unconditionally builds a real prompt_toolkit Application "
-        "(_create_application -> prompt_toolkit.output.create_output), which "
-        "requires a genuine Win32 console screen buffer. The CI runner's "
-        "Git-Bash shell doesn't provide one, so constructing a UI() at all "
-        "raises NoConsoleScreenBufferError here -- even for these tests, "
-        "which only exercise pure post-construction logic and never touch "
-        "rendering. See fork report for the suggested real fix (defer "
-        "Application/output construction out of __init__)."
-    ),
-)
 
 
 def test_ui_public_methods(mock_ui_deps):
@@ -123,3 +108,34 @@ async def test_ui_ask_user(mock_ui_deps):
     # This might be complex to test without deep mocking,
     # but let's see if we can trigger some lines.
     assert hasattr(ui, "ask_user")
+
+
+def test_ui_constructs_without_a_console(mock_ui_deps):
+    """`UI(...)` must not need a terminal to exist.
+
+    `prompt_toolkit.output.create_output` raises on Windows without a Win32
+    console screen buffer (Git Bash, mintty, a redirected run). It used to run
+    from `__init__`, so `UI(...)` was unconstructible there and this whole
+    module had to be skipped on win32. Construction is now console-free; the
+    requirement moves to the `application` property, where the UI really is
+    about to take over the terminal.
+    """
+    boom = RuntimeError("NoConsoleScreenBufferError")
+    with patch("prompt_toolkit.output.create_output", side_effect=boom):
+        ui = UI(**mock_ui_deps)  # must not raise
+        assert ui.context_tokens == 0
+        with pytest.raises(RuntimeError, match="NoConsoleScreenBufferError"):
+            ui.application
+
+
+def test_ui_application_is_built_once_and_cached(mock_ui_deps):
+    """The deferred build memoizes, so every caller shares one app and the
+    render handlers `__init__` used to attach are attached exactly once."""
+    from prompt_toolkit.output import create_output
+
+    ui = UI(**mock_ui_deps)
+    with patch("prompt_toolkit.output.create_output", side_effect=create_output) as spy:
+        first = ui.application
+        second = ui.application
+    assert first is second
+    assert spy.call_count == 1

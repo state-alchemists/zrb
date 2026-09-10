@@ -124,6 +124,27 @@ review_code = code_group.add_task(
             ),
         ],
         cwd=_DIR,
+        # Both inputs reach the script as environment variables rather than
+        # being rendered into it. `--range` carries a git ref name chosen by
+        # whoever opened the pull request, and ref names may legally contain
+        # `$`, backticks, quotes and parentheses -- rendering one into a
+        # command string would hand it to the shell as syntax. A parameter
+        # expansion is not re-parsed for metacharacters, so `"$REVIEW_RANGE"`
+        # is a value and only ever a value. `link_to_os=False` keeps the
+        # task's own inputs authoritative: an ambient REVIEW_RANGE in the
+        # environment must not silently retarget the review.
+        env=[
+            Env(
+                name="REVIEW_RANGE",
+                default=Tpl("{ctx.input.range}"),
+                link_to_os=False,
+            ),
+            Env(
+                name="REVIEW_OUTPUT",
+                default=Tpl("{ctx.input.output}"),
+                link_to_os=False,
+            ),
+        ],
         # `/review` is a built-in user-invocable skill; the non-interactive
         # session resolves slash commands on --message the same way the TUI
         # does. --yolo is required because the reviewer reads files and shells
@@ -131,10 +152,10 @@ review_code = code_group.add_task(
         # The report goes to a file rather than stdout because CmdTask
         # prefixes every subprocess line with its own log decoration -- fine to
         # read, useless to post verbatim as a PR comment.
-        cmd=Tpl(
+        cmd=(
             "zrb llm chat --interactive false --yolo true --message"
-            ' "/review the changes in git range {ctx.input.range}.'
-            " Write the full report as markdown to {ctx.input.output},"
+            ' "/review the changes in git range $REVIEW_RANGE.'
+            " Write the full report as markdown to $REVIEW_OUTPUT,"
             ' overwriting it, then print a one-line verdict."'
         ),
         # The agent already retries the model call three times internally; a

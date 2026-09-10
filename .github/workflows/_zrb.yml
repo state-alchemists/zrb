@@ -6,9 +6,6 @@ on:
       command:
         required: true
         type: string
-      environment:
-        required: true
-        type: string
       comment-file:
         # When set, the file at this path is posted as a pull-request comment
         # once the command finishes. Empty (the default) posts nothing.
@@ -43,7 +40,6 @@ jobs:
   # Docs: https://docs.github.com/en/actions/using-workflows/reusing-workflows
   Run-command:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
     container:
       image: stalchmst/zrb:3.0.0b11
     env:

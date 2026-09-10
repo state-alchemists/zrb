@@ -487,7 +487,7 @@ def _write_note_file(
     related = _merge_entries(
         _entries_under(note_path, "## Related"),
         [
-            f"- [{_title_of(target)}]({os.path.relpath(target, os.path.dirname(note_path))})"
+            f"- [{_title_of(target)}]({_posix_relpath(target, os.path.dirname(note_path))})"
             for target in targets
         ],
     )

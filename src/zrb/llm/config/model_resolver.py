@@ -187,28 +187,57 @@ class ModelResolver:
         base_url: str | None,
         provider: "str | Provider",
     ) -> "str | Model":
-        """Build a natively-supported model with explicit credentials.
+        """Build a natively-supported model, choosing whose credentials to use.
 
-        `infer_model`'s `provider_factory` seam is what lets them through:
-        pydantic-ai still picks the `Model` subclass its prefix maps to, but
-        the provider it wraps is built here rather than from the vendor's own
-        env var. Providers take different keyword arguments — `AnthropicProvider`
-        accepts `base_url`, `DeepSeekProvider` does not — so each is passed
-        only when the constructor declares it.
+        `infer_model`'s `provider_factory` seam is what makes the choice
+        possible: pydantic-ai still picks the `Model` subclass the prefix maps
+        to, but the provider it wraps is built here.
 
-        A `base_url` the native provider cannot accept falls through to the
-        OpenAI-compatible path instead of being dropped: a custom endpoint is
-        the whole reason to set that knob, and every provider zrb reaches this
-        way speaks the OpenAI wire format.
+        Precedence, highest first:
+
+        1. a `Provider` **instance** the caller handed in *for this same
+           vendor* — fully configured already, so nothing here may second-guess
+           it. The instance auto-built from `LLM_API_KEY` upstream is an
+           `OpenAIProvider`, whose `.name` never matches a native non-openai
+           prefix, so it correctly does not qualify;
+        2. the vendor's own environment variable (`ANTHROPIC_API_KEY`,
+           `DEEPSEEK_API_KEY`, ...) — provider-*specific* by construction, so
+           it beats the provider-*agnostic* `LLM_API_KEY`, which says nothing
+           about which vendor it is a key for. This is what stops a key set
+           for `LLM_MODEL`'s provider from being force-fed to a differently
+           prefixed `LLM_SMALL_MODEL` and 401-ing. A bare construction that
+           succeeds is exactly the test for "this vendor is already
+           configured": every provider that needs a credential raises without
+           one, and one that needs none (Ollama on localhost) is right to win
+           anyway. An explicit `LLM_BASE_URL` skips this rung — a custom
+           endpoint is a deliberate override of the vendor default;
+        3. `LLM_API_KEY`/`LLM_BASE_URL`, passed as whichever keyword arguments
+           the constructor actually declares (`AnthropicProvider` takes
+           `base_url`, `DeepSeekProvider` does not).
+
+        With none of those available the bare name is returned unchanged, so
+        pydantic-ai raises its own "set `<VENDOR>_API_KEY`" message rather than
+        this code inventing a worse one. A `base_url` the native provider
+        cannot accept falls through to the OpenAI-compatible path instead of
+        being dropped: a custom endpoint is the whole reason to set that knob,
+        and every provider zrb reaches this way speaks the OpenAI wire format.
         """
         # lazy: heavy third-party
         from pydantic_ai.models import infer_model
         from pydantic_ai.providers import infer_provider_class
 
+        if not isinstance(provider, str) and provider.name == provider_name:
+            return infer_model(model_name, provider_factory=lambda _: provider)
         try:
             provider_class = infer_provider_class(provider_name)
         except (ImportError, ValueError):
             return model_name
+        if not base_url:
+            vendor_provider = _build_from_vendor_env(provider_class)
+            if vendor_provider is not None:
+                return infer_model(
+                    model_name, provider_factory=lambda _: vendor_provider
+                )
         accepted = inspect.signature(provider_class.__init__).parameters
         if base_url and "base_url" not in accepted:
             return self._resolve_model(model_name, provider)
@@ -217,6 +246,8 @@ class ModelResolver:
             kwargs["api_key"] = api_key
         if base_url:
             kwargs["base_url"] = base_url
+        if not kwargs:
+            return model_name
         return infer_model(
             model_name, provider_factory=lambda _: provider_class(**kwargs)
         )
@@ -256,6 +287,24 @@ class ModelResolver:
             return f"{provider}:{clean_model_name}"
         # Fallback (Provider is None or unknown object)
         return model_name
+
+
+def _build_from_vendor_env(provider_class: type) -> "Provider | None":
+    """The provider built from its own environment variable, or `None` when
+    that variable is not set.
+
+    A no-argument construction is the probe: pydantic-ai providers read their
+    vendor variable in `__init__` and raise `UserError` when it is missing, so
+    success means the vendor is already configured and the returned instance
+    is the one to use — nothing is built and thrown away. The catch is broad
+    on purpose: any failure to construct means "no usable vendor credential
+    here", and the caller's next rung handles it. See
+    `ModelResolver._resolve_native_model` for where this sits in precedence.
+    """
+    try:
+        return provider_class()
+    except Exception:
+        return None
 
 
 #: The shared model resolver every zrb LLM call site uses. Stateless besides
