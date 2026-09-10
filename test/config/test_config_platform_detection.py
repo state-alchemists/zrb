@@ -138,8 +138,14 @@ def test_windows_posix_shell_accepts_a_bash_outside_the_windows_dir(
         assert get_windows_posix_shell() == msys_bash
 
 
-def test_windows_posix_shell_is_empty_off_windows():
-    """Nothing to disambiguate anywhere else: `bash` means bash."""
+@mock.patch("platform.system", return_value="Linux")
+def test_windows_posix_shell_is_empty_off_windows(mock_platform_system):
+    """Nothing to disambiguate anywhere else: `bash` means bash.
+
+    The platform is stated rather than inherited from the host -- read from the
+    host, this asserted nothing on every machine but a Windows one, which is
+    the only machine the answer could be wrong on.
+    """
     assert get_windows_posix_shell() == ""
 
 
