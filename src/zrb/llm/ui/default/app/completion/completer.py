@@ -426,7 +426,10 @@ class InputCompleter(Completer):
     ) -> Iterable[Completion]:
         fake_document = Document(text=text, cursor_position=len(text))
         for c in self._path_completer.get_completions(fake_document, complete_event):
-            if only_files and c.text.endswith(os.sep):
+            # PathCompleter marks a directory with "/" on every platform, not
+            # with os.sep -- so an os.sep-only test let directories through the
+            # files-only filter on Windows.
+            if only_files and c.text.endswith(("/", os.sep)):
                 continue
             if display_meta is not None:
                 yield Completion(

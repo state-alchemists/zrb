@@ -1,4 +1,5 @@
 import logging
+import ntpath
 import os
 import platform
 import shutil
@@ -33,21 +34,24 @@ def get_windows_posix_shell() -> str:
     """
     if platform.system() != "Windows":
         return ""
+    # `ntpath`, not `os.path`: these are Windows paths, and on Windows the two
+    # are the same module anyway -- so building them this way costs nothing
+    # there and keeps the whole lookup testable from any platform.
     candidates = []
     git_path = shutil.which("git")
     if git_path:
         # <root>/cmd/git.exe or <root>/bin/git.exe -> <root>/bin/bash.exe
-        git_root = os.path.dirname(os.path.dirname(git_path))
-        candidates.append(os.path.join(git_root, "bin", "bash.exe"))
+        git_root = ntpath.dirname(ntpath.dirname(git_path))
+        candidates.append(ntpath.join(git_root, "bin", "bash.exe"))
     local_programs = os.getenv("LOCALAPPDATA", "")
     for base in (
         os.getenv("ProgramFiles", ""),
         os.getenv("ProgramW6432", ""),
         os.getenv("ProgramFiles(x86)", ""),
-        os.path.join(local_programs, "Programs") if local_programs else "",
+        ntpath.join(local_programs, "Programs") if local_programs else "",
     ):
         if base:
-            candidates.append(os.path.join(base, "Git", "bin", "bash.exe"))
+            candidates.append(ntpath.join(base, "Git", "bin", "bash.exe"))
     for candidate in candidates:
         if os.path.isfile(candidate):
             return candidate
@@ -60,10 +64,16 @@ def get_windows_posix_shell() -> str:
 
 def _is_in_windows_dir(path: str) -> bool:
     """Whether *path* sits under the Windows directory -- where the only `bash`
-    is the WSL launcher."""
+    is the WSL launcher.
+
+    Compared through `ntpath` rather than `os.path`: the paths are Windows
+    paths whichever platform is asking, and `ntpath.normcase` folds case and
+    slashes without consulting the running OS -- so this stays a pure string
+    question and the tests do not need a Windows host to ask it.
+    """
     system_root = os.getenv("SystemRoot") or "C:\\Windows"
-    prefix = os.path.normcase(os.path.abspath(system_root)) + os.sep
-    return os.path.normcase(os.path.abspath(path)).startswith(prefix)
+    prefix = ntpath.normcase(system_root).rstrip("\\") + "\\"
+    return ntpath.normcase(path).startswith(prefix)
 
 
 def get_current_shell() -> str:

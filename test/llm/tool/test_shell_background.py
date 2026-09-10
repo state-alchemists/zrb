@@ -135,11 +135,21 @@ async def test_cancel_for_session_only_kills_that_sessions_processes(tmp_path):
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(
+    os.name != "posix",
+    reason="`$$` under a Windows POSIX shell is an MSYS pid, not an OS one",
+)
 async def test_force_kill_all_kills_real_process(tmp_path):
     """`force_kill_all` is the atexit backstop — it must actually terminate
     the OS process, not just forget it in the registry. Reads the real OS pid
     back from a file the process writes itself, rather than reaching into the
-    registry's internals."""
+    registry's internals.
+
+    POSIX-only for how it *observes* that, not for what it asserts: `$$` in a
+    POSIX shell on Windows reports the shell's MSYS pid, which names nothing
+    the Windows API can be asked about (`os.kill` answers WinError 87), and
+    that shell has no way to report its own Windows pid.
+    """
     pid_file = tmp_path / "pid"
     # `pid_file.as_posix()`, not str(): backslashes are escape characters to
     # the shell, and a POSIX shell on Windows accepts "C:/...".
