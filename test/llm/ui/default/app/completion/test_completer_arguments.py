@@ -1,3 +1,4 @@
+import os
 from dataclasses import fields
 from unittest.mock import MagicMock, patch
 
@@ -219,7 +220,7 @@ def test_file_at_prefix_path_navigation(mock_history_manager, complete_event, tm
     doc = Document(text=f"@{target}", cursor_position=len(f"@{target}"))
     completions = list(completer.get_completions(doc, complete_event))
     # @ completion is only_files=False, so the directory is offered.
-    assert any(c.display_text == "beta/" for c in completions)
+    assert any(c.display_text == f"beta{os.sep}" for c in completions)
 
 
 def test_fuzzy_walk_too_many_files_falls_back_to_path_completer(

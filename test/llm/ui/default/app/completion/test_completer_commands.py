@@ -1,3 +1,4 @@
+import os
 import time
 from dataclasses import fields
 from datetime import datetime
@@ -156,7 +157,9 @@ async def test_file_completion_public_api(completer, complete_event):
         # Test completion for "@dir1/"
         doc = Document(text="@dir1/", cursor_position=6)
         completions = list(completer.get_completions(doc, complete_event))
-        assert any(c.text == "dir1/nested_file.md" for c in completions)
+        assert any(
+            c.text == os.path.join("dir1", "nested_file.md") for c in completions
+        )
 
         # Test completion for "/attach f"
         doc = Document(text="/attach f", cursor_position=9)
@@ -170,7 +173,10 @@ async def test_file_completion_public_api(completer, complete_event):
         # Test completion for "/attach dir2/sub_dir/"
         doc = Document(text="/attach dir2/sub_dir/", cursor_position=21)
         completions = list(completer.get_completions(doc, complete_event))
-        assert any(c.text == "dir2/sub_dir/another.txt" for c in completions)
+        assert any(
+            c.text == os.path.join("dir2", "sub_dir", "another.txt")
+            for c in completions
+        )
 
 
 def test_custom_model_names_appear_in_model_completions(
