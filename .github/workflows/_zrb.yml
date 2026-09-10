@@ -23,16 +23,9 @@ on:
       # this workflow runs may be an LLM agent with shell access, so only the
       # credentials it actually needs should be present in its environment --
       # inheriting would hand it every secret in the repository.
-      #
-      # These are zrb's own provider-agnostic knobs, not a vendor's variable:
-      # the model resolver feeds LLM_API_KEY to whichever provider LLM_MODEL
-      # names, so switching provider means changing the secret's *value* and
-      # LLM_MODEL, never editing this file.
-      ZRB_LLM_API_KEY:
+      OPENAI_API_KEY:
         required: false
       ZRB_LLM_MODEL:
-        required: false
-      ZRB_LLM_BASE_URL:
         required: false
 
 jobs:
@@ -45,11 +38,15 @@ jobs:
     env:
       # An undeclared secret interpolates to "", which every CFG knob reads as
       # unset -- so a caller that passes none still gets zrb's defaults. The
-      # `||` falls back to a repository *variable*, since a model name and a
-      # base URL are not sensitive and are easier to see as plain vars.
-      ZRB_LLM_API_KEY: ${{ secrets.ZRB_LLM_API_KEY }}
+      # `||` falls back to a repository *variable*, since a model name is not
+      # sensitive and is easier to see as a plain var.
+      #
+      # The key keeps its vendor name: with no ZRB_LLM_API_KEY set, zrb's model
+      # resolver hands `openai:...` straight to pydantic-ai, whose OpenAIProvider
+      # reads OPENAI_API_KEY itself. Switching provider means swapping this pair
+      # for that vendor's own variable plus a matching ZRB_LLM_MODEL.
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ZRB_LLM_MODEL: ${{ secrets.ZRB_LLM_MODEL || vars.ZRB_LLM_MODEL }}
-      ZRB_LLM_BASE_URL: ${{ secrets.ZRB_LLM_BASE_URL || vars.ZRB_LLM_BASE_URL }}
       # docs/advanced-topics/ci-cd.md: without this, a zrb_init.py that raises
       # part-way still registers the tasks defined before the exception, so the
       # job runs a half-configured CLI and exits 0.

@@ -37,6 +37,5 @@ jobs:
       command: |
         zrb code review --range "origin/$GITHUB_BASE_REF...HEAD" --output code-review.md
     secrets:
-      ZRB_LLM_API_KEY: ${{ secrets.ZRB_LLM_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ZRB_LLM_MODEL: ${{ secrets.ZRB_LLM_MODEL }}
-      ZRB_LLM_BASE_URL: ${{ secrets.ZRB_LLM_BASE_URL }}

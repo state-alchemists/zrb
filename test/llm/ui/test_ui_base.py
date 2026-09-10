@@ -131,10 +131,15 @@ def test_ui_constructs_without_a_console(mock_ui_deps):
 def test_ui_application_is_built_once_and_cached(mock_ui_deps):
     """The deferred build memoizes, so every caller shares one app and the
     render handlers `__init__` used to attach are attached exactly once."""
-    from prompt_toolkit.output import create_output
+    # DummyOutput, not the real `create_output`: on Windows the real one needs
+    # a Win32 console screen buffer that CI does not have. What is under test
+    # is the memoization, not which output prompt_toolkit picks.
+    from prompt_toolkit.output import DummyOutput
 
     ui = UI(**mock_ui_deps)
-    with patch("prompt_toolkit.output.create_output", side_effect=create_output) as spy:
+    with patch(
+        "prompt_toolkit.output.create_output", side_effect=lambda **_: DummyOutput()
+    ) as spy:
         first = ui.application
         second = ui.application
     assert first is second
