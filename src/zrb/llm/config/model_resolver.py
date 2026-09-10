@@ -137,9 +137,30 @@ class ModelResolver:
         base_url: str | None,
         provider: "str | Provider",
     ) -> "str | Model":
-        provider_name, has_prefix = "openai", False
+        provider_name = "openai"
         if ":" in model_name:
-            provider_name, has_prefix = model_name.split(":", 1)[0], True
+            provider_name = model_name.split(":", 1)[0]
+        elif provider:
+            # An explicit provider on a bare model name names the vendor as
+            # surely as a `provider:` prefix does, so it has to steer the
+            # routing below. Defaulting to "openai" instead sent
+            # `LLM_PROVIDER=anthropic` + `LLM_MODEL=claude-x` down the OpenAI
+            # branch, where the only reachable outcome for a *string* provider
+            # was a bare `"anthropic:claude-x"` -- dropping LLM_API_KEY and,
+            # worse, LLM_BASE_URL, so traffic meant for a private gateway went
+            # to the vendor's public endpoint instead. A `Provider` instance
+            # answers the same question through `.name`, which is also what
+            # `_resolve_native_model` matches its rung 1 on.
+            named = provider if isinstance(provider, str) else provider.name
+            provider_name = named
+            model_name = f"{named}:{model_name}"
+        # A `Provider` *instance* is itself a credential -- fully configured,
+        # with its own key and endpoint. Gating the branches below on
+        # `api_key or base_url` alone dropped one handed in without them, and
+        # returned the bare name as if nothing had been supplied.
+        # `_resolve_provider` yields the plain string "openai" when there is
+        # genuinely nothing, so this stays False in that case.
+        has_credentials = bool(api_key or base_url) or not isinstance(provider, str)
         # Special case: the OpenAI backend goes through resolve logic when API
         # config is set (OpenAIProvider handles both OpenAI and OpenAI-compatible
         # APIs). "openai-chat" — pydantic-ai's model-prefix form, mirrored by the
@@ -147,20 +168,13 @@ class ModelResolver:
         # — is the same backend, so neither must slip past this branch and
         # silently ignore a custom LLM_API_KEY/LLM_BASE_URL.
         if provider_name in ("openai", "openai-chat"):
-            # An explicit `LLM_PROVIDER` on a bare model name (no provider prefix)
-            # with no API key/base URL to pin an OpenAIProvider: honor it, so
-            # `ZRB_LLM_PROVIDER=anthropic` + `ZRB_LLM_MODEL=claude-x` isn't
-            # silently dropped. An explicit `openai:`/`openai-chat:` prefix, or
-            # API credentials present, takes the normal OpenAI path below.
-            if (
-                isinstance(provider, str)
-                and provider
-                and not has_prefix
-                and not (api_key or base_url)
-            ):
-                return f"{provider}:{model_name}"
-            if api_key or base_url:
-                return self._resolve_model(model_name, provider)
+            if has_credentials:
+                return self._resolve_model(
+                    model_name,
+                    self._credentialed_provider(
+                        provider, api_key, base_url, model_name
+                    ),
+                )
             return model_name
         # If provider is natively supported by pydantic-ai, let it build that
         # provider — but the credentials still have to reach it. A native
@@ -171,16 +185,44 @@ class ModelResolver:
         # the user never set. With no credentials configured, the bare name is
         # still right: that vendor env var is exactly what should be read.
         if self._is_native_provider(provider_name):
-            if api_key or base_url:
+            if has_credentials:
                 return self._resolve_native_model(
                     model_name, provider_name, api_key, base_url, provider
                 )
             return model_name
         # Unknown provider without pydantic-ai support
         # Use OpenAIProvider if API config is set (for OpenAI-compatible endpoints)
-        if api_key or base_url:
-            return self._resolve_model(model_name, provider)
+        if has_credentials:
+            return self._resolve_model(
+                model_name,
+                self._credentialed_provider(provider, api_key, base_url, model_name),
+            )
         return model_name
+
+    def _credentialed_provider(
+        self,
+        provider: "str | Provider",
+        api_key: str | None,
+        base_url: str | None,
+        model_name: str,
+    ) -> "str | Provider":
+        """*provider*, or an OpenAI-compatible one built from the credentials
+        when *provider* is only a name.
+
+        `_resolve_model` can do nothing with a **string** provider but turn it
+        back into a bare `"<provider>:<model>"` name, so handing it one while
+        `api_key`/`base_url` are set discards them silently.
+
+        A `Provider` instance is passed straight through -- it is already
+        configured, and `_resolve_model` knows what to do with it. Falling past
+        that therefore means the provider is a *name*, which is the only way
+        `has_credentials` could have been satisfied by `api_key`/`base_url`
+        rather than by the instance -- so `_resolve_provider` builds a real
+        provider here and never reaches its bare "openai" fallback.
+        """
+        if not isinstance(provider, str):
+            return provider
+        return self._resolve_provider(None, api_key, base_url, model_name)
 
     def _resolve_native_model(
         self,

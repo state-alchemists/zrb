@@ -65,13 +65,33 @@ def test_resolve_unknown_provider_with_api_key_resolves_to_model_object(
 def test_resolve_unknown_provider_with_explicit_string_provider(
     resolver: ModelResolver,
 ):
+    """A provider name is not a provider: it carries no credentials. This used
+    to return the bare `"custom-provider:some-model"`, silently discarding the
+    `api_key` -- and a `base_url` with it, so traffic aimed at a private
+    gateway went to the vendor's public endpoint."""
+    from pydantic_ai.models.openai import OpenAIChatModel
+
     resolved = resolver.resolve(
         "totally-unknown-provider:some-model",
         api_key="secret",
         provider="custom-provider",
     )
 
-    assert resolved == "custom-provider:some-model"
+    assert isinstance(resolved, OpenAIChatModel)
+    assert resolved.model_name == "some-model"
+    assert resolved.provider.client.api_key == "secret"
+
+
+def test_resolve_unknown_provider_string_without_credentials_stays_a_name(
+    resolver: ModelResolver,
+):
+    """Nothing to attach means nothing to build, so the name passes through --
+    and the model's *own* prefix wins over the `provider` argument, being the
+    more specific statement of the two."""
+    assert (
+        resolver.resolve("totally-unknown-provider:some-model", provider="custom")
+        == "totally-unknown-provider:some-model"
+    )
 
 
 def test_resolve_model_without_provider_prefix_defaults_to_openai(
