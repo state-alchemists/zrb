@@ -62,7 +62,7 @@ class TestConfigSetters:
     def test_init_scripts_setter(self, monkeypatch):
         config = Config()
         config.INIT_SCRIPTS = ["script1", "script2"]
-        assert os.environ["ZRB_INIT_SCRIPTS"] == "script1:script2"
+        assert os.environ["ZRB_INIT_SCRIPTS"] == os.pathsep.join(["script1", "script2"])
 
     def test_init_file_name_setter(self, monkeypatch):
         config = Config()

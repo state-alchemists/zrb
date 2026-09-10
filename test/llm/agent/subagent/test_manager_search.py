@@ -49,7 +49,7 @@ def test_get_search_directories_includes_extra_agent_dirs(manager, tmp_path):
         cfg.LLM_BASE_SEARCH_DIRS = []
         cfg.LLM_EXTRA_AGENT_DIRS = [str(extra)]
         dirs = _posix(manager.search_dirs)
-    assert any(str(extra) in d for d in dirs)
+    assert any(Path(extra).as_posix() in d for d in dirs)
 
 
 def test_get_search_directories_skips_missing_extra_dir(manager, tmp_path):

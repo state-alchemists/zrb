@@ -137,7 +137,7 @@ class TestLLMConfigSetters:
     def test_llm_plugin_dirs_setter(self, monkeypatch):
         config = Config()
         config.LLM_PLUGIN_DIRS = ["p1", "p2"]
-        assert os.environ["ZRB_LLM_PLUGIN_DIRS"] == "p1:p2"
+        assert os.environ["ZRB_LLM_PLUGIN_DIRS"] == os.pathsep.join(["p1", "p2"])
 
     def test_llm_show_tool_call_detail_setter_true(self, monkeypatch):
         config = Config()
@@ -192,22 +192,30 @@ class TestLLMConfigSetters:
     def test_llm_config_dir_names_setter(self, monkeypatch):
         config = Config()
         config.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
-        assert os.environ["ZRB_LLM_CONFIG_DIR_NAMES"] == ".claude:.zrb"
+        assert os.environ["ZRB_LLM_CONFIG_DIR_NAMES"] == os.pathsep.join(
+            [".claude", ".zrb"]
+        )
 
     def test_llm_base_search_dirs_setter(self, monkeypatch):
         config = Config()
         config.LLM_BASE_SEARCH_DIRS = ["/dir1", "/dir2"]
-        assert os.environ["ZRB_LLM_BASE_SEARCH_DIRS"] == "/dir1:/dir2"
+        assert os.environ["ZRB_LLM_BASE_SEARCH_DIRS"] == os.pathsep.join(
+            ["/dir1", "/dir2"]
+        )
 
     def test_llm_extra_skill_dirs_setter(self, monkeypatch):
         config = Config()
         config.LLM_EXTRA_SKILL_DIRS = ["/skill1", "/skill2"]
-        assert os.environ["ZRB_LLM_EXTRA_SKILL_DIRS"] == "/skill1:/skill2"
+        assert os.environ["ZRB_LLM_EXTRA_SKILL_DIRS"] == os.pathsep.join(
+            ["/skill1", "/skill2"]
+        )
 
     def test_llm_extra_agent_dirs_setter(self, monkeypatch):
         config = Config()
         config.LLM_EXTRA_AGENT_DIRS = ["/agent1", "/agent2"]
-        assert os.environ["ZRB_LLM_EXTRA_AGENT_DIRS"] == "/agent1:/agent2"
+        assert os.environ["ZRB_LLM_EXTRA_AGENT_DIRS"] == os.pathsep.join(
+            ["/agent1", "/agent2"]
+        )
 
     def test_enable_tiktoken_setter(self, monkeypatch):
         # Renamed from USE_TIKTOKEN (ADR-0026).
@@ -233,7 +241,7 @@ class TestLLMConfigSetters:
     def test_hooks_dirs_setter(self, monkeypatch):
         config = Config()
         config.HOOKS_DIRS = ["/hooks1", "/hooks2"]
-        assert os.environ["ZRB_HOOKS_DIRS"] == "/hooks1:/hooks2"
+        assert os.environ["ZRB_HOOKS_DIRS"] == os.pathsep.join(["/hooks1", "/hooks2"])
 
     def test_hooks_timeout_default(self, monkeypatch):
         monkeypatch.delenv("ZRB_HOOKS_TIMEOUT", raising=False)

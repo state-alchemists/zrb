@@ -13,6 +13,59 @@ def get_env(env_name: str | list[str], default: str = "", prefix: str = "ZRB") -
     return default
 
 
+def get_windows_posix_shell() -> str:
+    """Absolute path to a real POSIX shell on Windows, or `""` when there is none.
+
+    A bare `shutil.which("bash")` is not enough, which is what made this a
+    function. Windows ships `System32\\bash.exe` -- the WSL *launcher* -- and it
+    wins the PATH lookup on a stock install. It is not a shell: with no distro
+    installed it prints "Windows Subsystem for Linux has no installed
+    distributions" as UTF-16 on stdout and exits 1, so every command run
+    through it fails while looking like it produced output; and with a distro
+    installed it runs inside the WSL filesystem namespace, where the caller's
+    `D:\\...` working directory does not exist.
+
+    Git for Windows ships a genuine bash, so it is what "bash" should mean
+    here. It is located from `git` on PATH first (whatever prefix the user
+    installed into), then the standard install roots, and only then from PATH
+    -- and a PATH hit inside the Windows directory is rejected as the launcher
+    again. Returns "" on non-Windows platforms, which have no such ambiguity.
+    """
+    if platform.system() != "Windows":
+        return ""
+    candidates = []
+    git_path = shutil.which("git")
+    if git_path:
+        # <root>/cmd/git.exe or <root>/bin/git.exe -> <root>/bin/bash.exe
+        git_root = os.path.dirname(os.path.dirname(git_path))
+        candidates.append(os.path.join(git_root, "bin", "bash.exe"))
+    local_programs = os.getenv("LOCALAPPDATA", "")
+    for base in (
+        os.getenv("ProgramFiles", ""),
+        os.getenv("ProgramW6432", ""),
+        os.getenv("ProgramFiles(x86)", ""),
+        os.path.join(local_programs, "Programs") if local_programs else "",
+    ):
+        if base:
+            candidates.append(os.path.join(base, "Git", "bin", "bash.exe"))
+    for candidate in candidates:
+        if os.path.isfile(candidate):
+            return candidate
+    for name in ("bash", "sh"):
+        found = shutil.which(name)
+        if found and not _is_in_windows_dir(found):
+            return found
+    return ""
+
+
+def _is_in_windows_dir(path: str) -> bool:
+    """Whether *path* sits under the Windows directory -- where the only `bash`
+    is the WSL launcher."""
+    system_root = os.getenv("SystemRoot") or "C:\\Windows"
+    prefix = os.path.normcase(os.path.abspath(system_root)) + os.sep
+    return os.path.normcase(os.path.abspath(path)).startswith(prefix)
+
+
 def get_current_shell() -> str:
     """Return the name of a shell that actually exists on this system.
 
@@ -24,12 +77,12 @@ def get_current_shell() -> str:
     if platform.system() == "Windows":
         # Git Bash ships on GitHub's windows-latest runner (and is a common
         # dev install), and most of zrb's own shell commands are written in
-        # POSIX syntax -- so a bash on PATH is preferred over PowerShell/cmd,
-        # matching the POSIX branch below rather than assuming Windows means
-        # no POSIX shell is available.
-        for candidate in ("bash", "sh"):
-            if shutil.which(candidate):
-                return candidate
+        # POSIX syntax -- so a real POSIX shell is preferred over
+        # PowerShell/cmd, matching the POSIX branch below rather than assuming
+        # Windows means no POSIX shell is available.
+        posix_shell = get_windows_posix_shell()
+        if posix_shell:
+            return posix_shell
         for candidate in ("pwsh", "powershell"):
             if shutil.which(candidate):
                 return candidate

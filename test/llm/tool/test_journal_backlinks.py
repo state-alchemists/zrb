@@ -3,6 +3,12 @@ from unittest.mock import patch
 
 import pytest
 
+# The journal's write lock is `fcntl.flock`; the module does not exist on
+# Windows, so there is no lock there to verify.
+needs_fcntl = pytest.mark.skipif(
+    os.name != "posix", reason="fcntl (the lock under test) is POSIX-only"
+)
+
 
 @pytest.fixture
 def writable_journal(tmp_path):
@@ -241,6 +247,7 @@ def test_delete_journal_note_rejects_an_unknown_category(writable_journal):
     assert "unknown category" in str(excinfo.value)
 
 
+@needs_fcntl
 def test_write_journal_note_holds_an_exclusive_lock_for_the_whole_call(
     writable_journal,
 ):
@@ -272,6 +279,7 @@ def test_write_journal_note_holds_an_exclusive_lock_for_the_whole_call(
     assert os.path.isfile(os.path.join(writable_journal, ".lock"))
 
 
+@needs_fcntl
 def test_log_activity_holds_the_same_lock(writable_journal):
     import fcntl
 

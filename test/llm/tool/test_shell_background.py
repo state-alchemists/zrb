@@ -141,7 +141,11 @@ async def test_force_kill_all_kills_real_process(tmp_path):
     back from a file the process writes itself, rather than reaching into the
     registry's internals."""
     pid_file = tmp_path / "pid"
-    await _start_bg(f"echo $$ > {pid_file}; sleep 30", "pidwriter", str(tmp_path))
+    # `pid_file.as_posix()`, not str(): backslashes are escape characters to
+    # the shell, and a POSIX shell on Windows accepts "C:/...".
+    await _start_bg(
+        f"echo $$ > {pid_file.as_posix()}; sleep 30", "pidwriter", str(tmp_path)
+    )
     for _ in range(50):
         if pid_file.exists() and pid_file.read_text().strip():
             break
@@ -220,7 +224,7 @@ async def test_poll_reuses_same_spill_path_across_polls(tmp_path, monkeypatch):
     gate = tmp_path / "gate"
     command = (
         "head -c 50 /dev/zero | tr '\\0' 'X'; echo; "
-        f"while [ ! -f {gate} ]; do sleep 0.02; done; "
+        f"while [ ! -f {gate.as_posix()} ]; do sleep 0.02; done; "
         "head -c 50 /dev/zero | tr '\\0' 'Y'; echo; "
         "sleep 30"
     )

@@ -190,7 +190,8 @@ async def test_network_stays_open_in_v1(tmp_path):
 async def test_disabled_sandbox_leaves_shell_untouched(tmp_path):
     """Default-off invariant for the shell tool."""
     out = tmp_path / "anywhere.txt"
-    result = await run_shell_command(f"echo free > {out}")
+    # Forward slashes: a backslash is an escape character to the shell.
+    result = await run_shell_command(f"echo free > {out.as_posix()}")
     assert "Exit Code: 0" in result
     assert out.exists()
     assert os.path.exists(out)

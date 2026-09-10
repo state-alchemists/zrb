@@ -84,7 +84,7 @@ def test_list_files(temp_dir):
     res = list_files(temp_dir)
     files = res.get("files", [])
     assert "file1.txt" in files
-    assert "subdir/file2.txt" in files
+    assert os.path.join("subdir", "file2.txt") in files
 
 
 def test_glob_files(temp_dir):
@@ -200,7 +200,13 @@ def test_search_files(temp_dir):
     res = search_files("zrb", path=temp_dir)
     assert "Found 1 matches" in res.get("summary", "")
     assert len(res.get("results", [])) == 1
-    assert res["results"][0]["file"] == os.path.relpath(file_path, os.getcwd())
+    # relpath raises across drives (Windows CI puts tmp on C: and the repo on
+    # D:), which is exactly when the tool reports an absolute path instead.
+    try:
+        expected = os.path.relpath(file_path, os.getcwd())
+    except ValueError:
+        expected = file_path
+    assert res["results"][0]["file"] == expected
 
 
 def test_search_files_pattern_is_keyword(temp_dir):

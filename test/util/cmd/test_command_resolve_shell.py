@@ -9,6 +9,7 @@ import psutil
 import pytest
 
 from zrb.config.config import CFG
+from zrb.config.helper import get_windows_posix_shell
 from zrb.util.cmd.command import (
     check_unrecommended_commands,
     kill_pid,
@@ -19,24 +20,29 @@ from zrb.util.cmd.command import (
 )
 from zrb.util.cmd.remote import get_remote_cmd_script
 
+# On Windows a bare "bash" resolves to a real POSIX shell's absolute path
+# instead of the WSL launcher PATH would find; everywhere else it stays "bash".
+_BASH = get_windows_posix_shell() or "bash"
+
 
 def test_resolve_shell_empty_uses_cfg_shell(monkeypatch):
     # No explicit shell -> fall back to CFG.SHELL.
     monkeypatch.delenv(f"{CFG.ENV_PREFIX}_SHELL", raising=False)
     monkeypatch.setattr(CFG, "DEFAULT_SHELL", "bash")
     sh, flag = resolve_shell("")
-    assert sh == CFG.SHELL == "bash"
+    assert CFG.SHELL == "bash"
+    assert sh == _BASH
     assert flag == "-c"
 
 
 def test_resolve_shell_env_opt_in(monkeypatch):
     # An explicit ZRB_SHELL opts the empty call into that shell.
     monkeypatch.setenv(f"{CFG.ENV_PREFIX}_SHELL", "bash")
-    assert resolve_shell("") == ("bash", "-c")
+    assert resolve_shell("") == (_BASH, "-c")
 
 
 def test_resolve_shell_posix():
-    assert resolve_shell("bash") == ("bash", "-c")
+    assert resolve_shell("bash") == (_BASH, "-c")
     assert resolve_shell("zsh") == ("zsh", "-c")
 
 

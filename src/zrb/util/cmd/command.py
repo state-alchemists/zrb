@@ -12,6 +12,7 @@ import psutil
 
 from zrb.cmd.cmd_result import CmdResult
 from zrb.config.config import CFG
+from zrb.config.helper import get_windows_posix_shell
 
 
 def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
@@ -77,6 +78,11 @@ def resolve_shell(shell: str = "") -> tuple[str, str]:
     POSIX shells, ``-Command`` for PowerShell, ``/c`` for cmd, ``-e``/``-r`` for
     runtimes).
 
+    On Windows a bare ``bash``/``sh`` resolves to the absolute path of a real
+    POSIX shell rather than being handed to the PATH lookup, which finds
+    ``System32\\bash.exe`` -- the WSL launcher, not a shell. See
+    ``get_windows_posix_shell``. Every other name is returned as given.
+
     Args:
         shell (str): The shell/interpreter to use. Empty uses ``CFG.SHELL``.
 
@@ -92,7 +98,10 @@ def resolve_shell(shell: str = "") -> tuple[str, str]:
         "powershell": "-Command",
         "cmd": "/c",
     }
-    return shell, flags.get(shell.lower(), "-c")
+    flag = flags.get(shell.lower(), "-c")
+    if shell.lower() in ("bash", "sh"):
+        shell = get_windows_posix_shell() or shell
+    return shell, flag
 
 
 def _process_tree_pids(pid: int) -> list[int]:

@@ -1,3 +1,6 @@
+import shlex
+import sys
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -7,6 +10,11 @@ from zrb.llm.sandbox.os_sandbox import SandboxUnavailableError
 from zrb.llm.tool import shell as shell_mod
 from zrb.llm.tool import stream_capture as capture_mod
 from zrb.llm.tool.shell import run_shell_command
+
+# The interpreter running the suite, spelled for a POSIX shell: Windows has no
+# `python3` on PATH, and its executable path is full of backslashes the shell
+# would read as escapes.
+_PYTHON = shlex.quote(Path(sys.executable).as_posix())
 
 
 class _MockStreamReader:
@@ -102,7 +110,7 @@ async def test_run_shell_command_with_bash_shell_bashism():
     [
         # A heredoc: `EOF ; }` stops being a delimiter alone on its line, so the
         # shell swallowed the rest of the wrapper hunting for one.
-        ("python3 - <<'EOF'\nprint('heredoc-ok')\nEOF", "heredoc-ok"),
+        (f"{_PYTHON} - <<'EOF'\nprint('heredoc-ok')\nEOF", "heredoc-ok"),
         ("cat <<-EOF\n\tdash-ok\n\tEOF", "dash-ok"),
         # A trailing comment ate the wrapper's own `; }`.
         ("echo comment-ok  # explain the command", "comment-ok"),
@@ -276,7 +284,7 @@ async def test_run_shell_command_survives_long_single_line():
     # raise on one long line (minified JS, single-line JSON), losing all output
     # and leaving the process running detached.
     res = await run_shell_command(
-        "python3 -c \"print('x' * 200000)\"", max_chars=300000
+        f"{_PYTHON} -c \"print('x' * 200000)\"", max_chars=300000
     )
     assert "Exit Code: 0" in res
     assert "xxxx" in res

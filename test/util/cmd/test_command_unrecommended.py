@@ -2,7 +2,12 @@ import subprocess
 
 import pytest
 
+from zrb.config.helper import get_windows_posix_shell
 from zrb.util.cmd.command import check_unrecommended_commands, kill_pid, run_command
+
+# Spawned by name rather than through resolve_shell, so it needs the same
+# real-POSIX-shell lookup: PATH's first `bash` on Windows is the WSL launcher.
+_BASH = get_windows_posix_shell() or "bash"
 
 
 def test_check_unrecommended_commands_process_substitution():
@@ -93,7 +98,7 @@ async def test_run_command_with_print_method():
 @pytest.mark.asyncio
 async def test_run_command_nonzero_exit():
     """Test run_command with non-zero exit code."""
-    cmd = ["bash", "-c", "exit 42"]
+    cmd = [_BASH, "-c", "exit 42"]
     result, return_code = await run_command(cmd)
     assert return_code == 42
 

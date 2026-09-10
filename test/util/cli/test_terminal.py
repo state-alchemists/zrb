@@ -142,28 +142,37 @@ class TestGetTerminalSize:
         mock_stdout = MagicMock()
         mock_stdout.fileno.side_effect = AttributeError("No fileno")
 
-        with patch.object(sys, "__stdout__", mock_stdout):
-            with patch.object(sys, "__stderr__", None):
-                with patch.object(sys, "__stdin__", None):
-                    with patch("shutil.get_terminal_size") as mock_shutil:
-                        mock_shutil.return_value.columns = 80
-                        mock_shutil.return_value.lines = 24
-                        size = get_terminal_size()
-                        assert size.columns == 80
+        # Between the file descriptors and the shutil fallback sits a Windows
+        # CONOUT$ probe, which succeeds whenever a real console is attached and
+        # would answer first. A failing open is what "no console" looks like;
+        # on POSIX that probe is skipped entirely, so this changes nothing.
+        with (
+            patch.object(sys, "__stdout__", mock_stdout),
+            patch.object(sys, "__stderr__", None),
+            patch.object(sys, "__stdin__", None),
+            patch("os.open", side_effect=OSError("no console")),
+            patch("shutil.get_terminal_size") as mock_shutil,
+        ):
+            mock_shutil.return_value.columns = 80
+            mock_shutil.return_value.lines = 24
+            size = get_terminal_size()
+            assert size.columns == 80
 
     def test_shutil_exception_fallback(self):
         """Test get_terminal_size fallback when shutil raises exception."""
         from zrb.util.cli.terminal import get_terminal_size
 
-        with patch.object(sys, "__stdout__", None):
-            with patch.object(sys, "__stderr__", None):
-                with patch.object(sys, "__stdin__", None):
-                    with patch(
-                        "shutil.get_terminal_size", side_effect=RuntimeError("Error")
-                    ):
-                        size = get_terminal_size(fallback=(100, 30))
-                        assert size.columns == 100
-                        assert size.lines == 30
+        with (
+            patch.object(sys, "__stdout__", None),
+            patch.object(sys, "__stderr__", None),
+            patch.object(sys, "__stdin__", None),
+            # See the CONOUT$ note above.
+            patch("os.open", side_effect=OSError("no console")),
+            patch("shutil.get_terminal_size", side_effect=RuntimeError("Error")),
+        ):
+            size = get_terminal_size(fallback=(100, 30))
+            assert size.columns == 100
+            assert size.lines == 30
 
     def test_stderr_stream_success(self):
         """Test get_terminal_size uses stderr when stdout fails."""

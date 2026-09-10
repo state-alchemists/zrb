@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Any, Callable, Iterable
 
 from prompt_toolkit.completion import (
@@ -408,7 +409,13 @@ class InputCompleter(Completer):
             )
 
     def _is_path_navigation(self, text: str) -> bool:
-        return text.startswith("/") or text.startswith(".") or text.startswith("~")
+        # A Windows absolute path ("C:\\Users\\me\\", "C:/Users/me/") is a path
+        # prefix as much as "/" is. Without the drive form it fell through to
+        # the fuzzy walk of the current repo, which can never match a file
+        # outside that tree -- so typing an absolute path offered nothing.
+        if re.match(r"^[A-Za-z]:[\\/]", text):
+            return True
+        return text.startswith(("/", "\\", ".", "~"))
 
     def _get_path_completions(
         self,

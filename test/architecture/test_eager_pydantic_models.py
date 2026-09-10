@@ -61,7 +61,19 @@ def _clean_env() -> dict[str, str]:
     if sys.platform != "win32":
         env["PATH"] = "/usr/bin:/bin"
         return env
-    for name in ("SYSTEMROOT", "SYSTEMDRIVE", "COMSPEC", "PATHEXT", "PATH", "TEMP"):
+    for name in (
+        "SYSTEMROOT",
+        "SYSTEMDRIVE",
+        "COMSPEC",
+        "PATHEXT",
+        "PATH",
+        "TEMP",
+        # `Path.home()` runs during zrb's import chain, and ntpath's
+        # expanduser reads these -- never HOME.
+        "USERPROFILE",
+        "HOMEDRIVE",
+        "HOMEPATH",
+    ):
         value = os.environ.get(name)
         if value is not None:
             env[name] = value

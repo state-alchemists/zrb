@@ -102,10 +102,15 @@ def test_default_shell_windows_prefers_bash_over_powershell(
 ):
     """Git Bash on PATH (ships on GitHub's windows-latest runner, and a
     common dev install) wins over PowerShell -- most zrb shell commands are
-    POSIX syntax, so a bash on PATH is the better default."""
+    POSIX syntax, so a bash on PATH is the better default.
+
+    Its *absolute path* is what comes back, not the name: PATH's own first
+    `bash` on Windows is `System32\\bash.exe`, the WSL launcher, so the name
+    alone would not name this shell when it is handed to a subprocess.
+    """
     monkeypatch.delenv("ZRB_SHELL", raising=False)
     with mock.patch("shutil.which", side_effect=_which("bash", "pwsh", "powershell")):
-        assert get_current_shell() == "bash"
+        assert get_current_shell() == "/usr/bin/bash"
 
 
 @mock.patch("platform.system", return_value="Windows")
@@ -269,7 +274,7 @@ def test_root_group_description(monkeypatch):
 
 
 def test_init_scripts(monkeypatch):
-    monkeypatch.setenv("ZRB_INIT_SCRIPTS", "script1:script2")
+    monkeypatch.setenv("ZRB_INIT_SCRIPTS", f"script1{os.pathsep}script2")
     config = Config()
     assert config.INIT_SCRIPTS == ["script1", "script2"]
 

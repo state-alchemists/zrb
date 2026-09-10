@@ -8,6 +8,7 @@ volatile content stays *out* of the system prompt (so the cacheable prefix
 survives) and the stable content stays *out* of the live block.
 """
 
+import os
 from unittest.mock import MagicMock, patch
 
 from zrb.context.any_context import AnyContext
@@ -121,7 +122,9 @@ class TestSystemContext:
         """
         bin_dir = tmp_path / "bin"
         bin_dir.mkdir()
-        docker = bin_dir / "docker"
+        # `shutil.which("docker")` only accepts a file whose extension is in
+        # PATHEXT on Windows, so the stub carries one there.
+        docker = bin_dir / ("docker.exe" if os.name == "nt" else "docker")
         docker.write_text("#!/bin/sh\nexit 0\n")
         docker.chmod(0o755)
         monkeypatch.setenv("PATH", str(bin_dir))
