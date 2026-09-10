@@ -19,7 +19,7 @@ def _drain_fake_pipe(pipe: "_FakePipe | None") -> bytes:
     chunks = []
     while True:
         try:
-            data = os.read(pipe._fd, 65536)
+            data = os.read(pipe.fileno(), 65536)
         except OSError:
             break
         if not data:
@@ -80,7 +80,7 @@ class _FakeProc:
     def communicate(self, input=None):
         # The non-POSIX path in read_hook_output calls this directly.
         if input and self.stdin is not None:
-            os.write(self.stdin._fd, input)
+            os.write(self.stdin.fileno(), input)
         if self.stdin is not None:
             self.stdin.close()
         out = _drain_fake_pipe(self.stdout)
@@ -157,7 +157,7 @@ class _ProcThatExitsAfterTheFirstPoll:
         # The non-POSIX path in read_hook_output calls this directly, with no
         # selector loop to trigger the child's exit -- poll() does that here.
         if input and self.stdin is not None:
-            os.write(self.stdin._fd, input)
+            os.write(self.stdin.fileno(), input)
         if self.stdin is not None:
             self.stdin.close()
         self.poll()
