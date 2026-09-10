@@ -312,7 +312,9 @@ def _journal_lock(root: str):
         yield
         return
     lock_path = os.path.join(root, ".lock")
-    with open(lock_path, "w") as lock_file:
+    # Binary: the file is a flock handle and never carries text, so there is
+    # no encoding for it to get wrong.
+    with open(lock_path, "wb") as lock_file:
         fcntl.flock(lock_file, fcntl.LOCK_EX)
         try:
             yield

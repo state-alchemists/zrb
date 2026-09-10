@@ -26,9 +26,16 @@ on:
       # this workflow runs may be an LLM agent with shell access, so only the
       # credentials it actually needs should be present in its environment --
       # inheriting would hand it every secret in the repository.
-      DEEPSEEK_API_KEY:
+      #
+      # These are zrb's own provider-agnostic knobs, not a vendor's variable:
+      # the model resolver feeds LLM_API_KEY to whichever provider LLM_MODEL
+      # names, so switching provider means changing the secret's *value* and
+      # LLM_MODEL, never editing this file.
+      ZRB_LLM_API_KEY:
         required: false
       ZRB_LLM_MODEL:
+        required: false
+      ZRB_LLM_BASE_URL:
         required: false
 
 jobs:
@@ -40,9 +47,12 @@ jobs:
       image: stalchmst/zrb:3.0.0b11
     env:
       # An undeclared secret interpolates to "", which every CFG knob reads as
-      # unset -- so a caller that passes neither still gets zrb's defaults.
-      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-      ZRB_LLM_MODEL: ${{ secrets.ZRB_LLM_MODEL }}
+      # unset -- so a caller that passes none still gets zrb's defaults. The
+      # `||` falls back to a repository *variable*, since a model name and a
+      # base URL are not sensitive and are easier to see as plain vars.
+      ZRB_LLM_API_KEY: ${{ secrets.ZRB_LLM_API_KEY }}
+      ZRB_LLM_MODEL: ${{ secrets.ZRB_LLM_MODEL || vars.ZRB_LLM_MODEL }}
+      ZRB_LLM_BASE_URL: ${{ secrets.ZRB_LLM_BASE_URL || vars.ZRB_LLM_BASE_URL }}
       # docs/advanced-topics/ci-cd.md: without this, a zrb_init.py that raises
       # part-way still registers the tasks defined before the exception, so the
       # job runs a half-configured CLI and exits 0.

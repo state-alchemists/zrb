@@ -28,11 +28,11 @@ def copy_searxng_setting(ctx: AnyContext):
         src_config_file = os.path.join(
             os.path.dirname(__file__), "config", "settings.yml.new"
         )
-        with open(src_config_file, "r") as f:
+        with open(src_config_file, "r", encoding="utf-8") as f:
             content = f.read()
         secret_key = secrets.token_hex(32)
         content = content.replace('"ultrasecretkey"', f'"{secret_key}"')
-        with open(dest_config_file, "w") as f:
+        with open(dest_config_file, "w", encoding="utf-8") as f:
             f.write(content)
         ctx.print(f"Searxng config file created: {dest_config_file}")
 
