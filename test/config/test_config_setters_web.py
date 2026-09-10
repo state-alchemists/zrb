@@ -11,12 +11,12 @@ class TestWebConfigSetters:
     def test_web_css_path_setter(self, monkeypatch):
         config = Config()
         config.WEB_CSS_PATH = ["css1", "css2"]
-        assert os.environ["ZRB_WEB_CSS_PATH"] == "css1:css2"
+        assert os.environ["ZRB_WEB_CSS_PATH"] == os.pathsep.join(["css1", "css2"])
 
     def test_web_js_path_setter(self, monkeypatch):
         config = Config()
         config.WEB_JS_PATH = ["js1", "js2"]
-        assert os.environ["ZRB_WEB_JS_PATH"] == "js1:js2"
+        assert os.environ["ZRB_WEB_JS_PATH"] == os.pathsep.join(["js1", "js2"])
 
     def test_web_favicon_path_setter(self, monkeypatch):
         config = Config()

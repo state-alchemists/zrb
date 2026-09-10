@@ -1,3 +1,4 @@
+import os
 from dataclasses import fields
 from unittest.mock import MagicMock, patch
 
@@ -201,7 +202,7 @@ def test_attach_path_navigation_uses_path_completer(
         history_manager=mock_history_manager,
         ui_config=_config(attach_commands=["/attach"]),
     )
-    target = str(tmp_path) + "/al"
+    target = os.path.join(str(tmp_path), "al")
     doc = Document(text=f"/attach {target}", cursor_position=len(f"/attach {target}"))
     completions = list(completer.get_completions(doc, complete_event))
     assert any(c.display_text == "alpha.txt" for c in completions)
@@ -215,10 +216,12 @@ def test_file_at_prefix_path_navigation(mock_history_manager, complete_event, tm
     completer = InputCompleter(
         history_manager=mock_history_manager, ui_config=_config()
     )
-    target = str(tmp_path) + "/be"
+    target = os.path.join(str(tmp_path), "be")
     doc = Document(text=f"@{target}", cursor_position=len(f"@{target}"))
     completions = list(completer.get_completions(doc, complete_event))
-    # @ completion is only_files=False, so the directory is offered.
+    # @ completion is only_files=False, so the directory is offered. The
+    # trailing mark is PathCompleter's own "/", not os.sep -- it does not vary
+    # by platform.
     assert any(c.display_text == "beta/" for c in completions)
 
 

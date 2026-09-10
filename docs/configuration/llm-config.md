@@ -53,6 +53,68 @@ These variables define which LLM Zrb uses for its primary reasoning and how it c
 
 Every agent also gets `openai_reasoning_summary="auto"` and `openai_prompt_cache_retention="24h"` by default (silently ignored by non-OpenAI providers) — without a requested summary, OpenAI's reasoning models return only an opaque encrypted signature, no readable reasoning text at all. Override either, or add other OpenAI-specific settings (`openai_prompt_cache_key`, `openai_reasoning_effort`, …), via a task's own `model_settings=` — caller-supplied keys always win over these defaults.
 
+### Which API Key Gets Used
+
+`ZRB_LLM_API_KEY` is a key **for one provider**: the one `ZRB_LLM_PROVIDER` names, or failing that the `provider:` prefix on `ZRB_LLM_MODEL`. It reaches a model whose prefix matches and is withheld from one that does not, so `ZRB_LLM_SMALL_MODEL=anthropic:…` beside `ZRB_LLM_MODEL=openai:…` falls back to `ANTHROPIC_API_KEY` instead of 401-ing on an OpenAI key.
+
+`ZRB_LLM_BASE_URL` overrides that scoping. Pointing zrb at one endpoint says that endpoint serves every tier — the LiteLLM / OpenRouter gateway case — so the key travels with the URL regardless of prefix.
+
+```mermaid
+flowchart TD
+    Start(["resolve a model for any tier<br />(main, small, multimodal)"]) --> URL{"ZRB_LLM_BASE_URL set?"}
+    URL -->|yes| Gateway["use ZRB_LLM_API_KEY<br />+ that URL, every tier"]
+    URL -->|no| HasKey{"ZRB_LLM_API_KEY set?"}
+    HasKey -->|no| Nothing["send no credentials"]
+    HasKey -->|yes| Match{"model prefix matches<br />ZRB_LLM_PROVIDER, else<br />ZRB_LLM_MODEL's prefix?"}
+    Match -->|"matches, or no prefix"| UseKey["use ZRB_LLM_API_KEY"]
+    Match -->|"a different vendor"| Nothing
+    Nothing --> Bare["bare provider:model goes to pydantic-ai,<br />which reads that vendor's own variable<br />(DEEPSEEK_API_KEY, ANTHROPIC_API_KEY, …)<br />or raises UserError"]
+    UseKey --> Native["native provider, built with that key"]
+    Gateway --> Accepts{"does the native provider<br />accept base_url?"}
+    Accepts -->|yes| Native
+    Accepts -->|"no (DeepSeek, Mistral)"| Compat["OpenAI-compatible provider.<br />OPENAI_API_KEY is not inherited<br />for a non-openai prefix"]
+```
+
+In the tables below, ✅ means set, — means unset, and *any* means the variable makes no difference to that row.
+
+**`ZRB_LLM_MODEL` unset or `openai:`-prefixed.** No other vendor variable participates.
+
+| `ZRB_LLM_API_KEY` | `ZRB_LLM_BASE_URL` | `OPENAI_API_KEY` | Endpoint | Key sent |
+|---|---|---|---|---|
+| — | — | — | — | ❌ `UserError: set OPENAI_API_KEY` |
+| — | — | ✅ | `api.openai.com` | `OPENAI_API_KEY` |
+| — | ✅ | — | your URL | `api-key-not-set` ⚠️ |
+| — | ✅ | ✅ | your URL | `OPENAI_API_KEY` |
+| ✅ | — | *any* | `api.openai.com` | `ZRB_LLM_API_KEY` |
+| ✅ | ✅ | *any* | your URL | `ZRB_LLM_API_KEY` |
+
+**`ZRB_LLM_MODEL=deepseek:deepseek-chat`**, standing in for any natively-supported non-OpenAI vendor.
+
+| `ZRB_LLM_API_KEY` | `ZRB_LLM_BASE_URL` | `DEEPSEEK_API_KEY` | `OPENAI_API_KEY` | Endpoint | Key sent |
+|---|---|---|---|---|---|
+| — | — | — | *any* | — | ❌ `UserError: set DEEPSEEK_API_KEY` |
+| — | — | ✅ | *any* | `api.deepseek.com` | `DEEPSEEK_API_KEY` |
+| — | ✅ | *any* | *any* | your URL | `api-key-not-set` ⚠️ |
+| ✅ | — | *any* | *any* | `api.deepseek.com` | `ZRB_LLM_API_KEY` |
+| ✅ | ✅ | *any* | *any* | your URL | `ZRB_LLM_API_KEY` |
+
+**Mixed vendors** — `ZRB_LLM_MODEL=openai:gpt-5` with `ZRB_LLM_SMALL_MODEL=deepseek:deepseek-chat`, resolving the *small* model. `ZRB_LLM_MULTIMODAL_MODEL` behaves identically.
+
+| `ZRB_LLM_API_KEY` | `ZRB_LLM_BASE_URL` | `DEEPSEEK_API_KEY` | Endpoint | Key sent | Why |
+|---|---|---|---|---|---|
+| — | — | — | — | ❌ `UserError: set DEEPSEEK_API_KEY` | nothing to use |
+| — | — | ✅ | `api.deepseek.com` | `DEEPSEEK_API_KEY` | vendor variable |
+| — | ✅ | *any* | your URL | `api-key-not-set` ⚠️ | gateway, no key configured |
+| ✅ | — | — | — | ❌ `UserError: set DEEPSEEK_API_KEY` | key withheld — it is an OpenAI key |
+| ✅ | — | ✅ | `api.deepseek.com` | `DEEPSEEK_API_KEY` | key withheld, vendor variable fills in |
+| ✅ | ✅ | *any* | your URL | `ZRB_LLM_API_KEY` | base URL disables withholding |
+
+> ⚠️ **A base URL with no key configured anywhere sends an unauthenticated request.** The client carries the literal placeholder `api-key-not-set` and no error is raised until the endpoint rejects it. That is deliberate — a local Ollama or LiteLLM instance often needs no key — but against an endpoint that does check, the failure arrives as a 401 rather than a configuration error.
+
+> ⚠️ **A withheld key is not mentioned in the error.** Rows 4 and 5 above report "set `DEEPSEEK_API_KEY`" without saying that `ZRB_LLM_API_KEY` was deliberately skipped because it belongs to a different provider. Set the vendor's own variable for the second vendor, or set `ZRB_LLM_BASE_URL` if one endpoint really does serve both.
+
+See [ADR-0094](../adr/adr-0094.md) for why credentials are scoped this way rather than injected everywhere.
+
 ### Supported Providers
 
 Anything `ZRB_LLM_MODEL` names as `provider:model` is resolved by pydantic-ai, so every provider it ships works in zrb without registration. Providers that speak the OpenAI wire protocol need no extra at all — `openai` is a core zrb dependency. The rest bring their own vendor SDK.

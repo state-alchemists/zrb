@@ -152,7 +152,7 @@ def test_comma_list_round_trip(host, monkeypatch):
 
 
 def test_expanduser_path_list_expands_home():
-    result = expanduser_path_list("~/a : ~/b")
+    result = expanduser_path_list(f"~/a {os.pathsep} ~/b")
     assert result == [os.path.expanduser("~/a"), os.path.expanduser("~/b")]
     assert expanduser_path_list("") == []
 

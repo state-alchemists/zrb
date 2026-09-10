@@ -71,7 +71,7 @@ async def generate_changelog(ctx: AnyContext):
     repo_dir = await get_repo_dir(print_method=ctx.print)
     model = str(ctx.input.model).strip() or resolve_configured_model()
     os.makedirs(ctx.input.dir, exist_ok=True)
-    with open(ctx.input.template) as f:
+    with open(ctx.input.template, encoding="utf-8") as f:
         template = f.read()
     regex = re.compile(ctx.input.pattern)
     tags = await _matching_tags(ctx, repo_dir, ctx.input.sort, regex)
@@ -87,7 +87,7 @@ async def generate_changelog(ctx: AnyContext):
         previous = tags[index - 1] if index > 0 else ""
         ctx.print(stylize_muted(f"Generating {tag} (since {previous or 'start'})"))
         content = await _summarize(ctx, repo_dir, template, tag, previous, model)
-        with open(out_path, "w") as f:
+        with open(out_path, "w", encoding="utf-8") as f:
             f.write(content)
         written.append(out_path)
         ctx.print(stylize_green(f"Wrote {out_path}"))

@@ -34,7 +34,7 @@ FACADE_BUDGETS = {
 def test_facade_files_stay_within_their_size_budget():
     over_budget = {}
     for rel_path, budget in FACADE_BUDGETS.items():
-        actual = len((SRC / rel_path).read_text().splitlines())
+        actual = len((SRC / rel_path).read_text(encoding="utf-8").splitlines())
         if actual > budget:
             over_budget[rel_path] = (actual, budget)
     assert not over_budget, (

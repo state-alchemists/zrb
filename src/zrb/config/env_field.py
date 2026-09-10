@@ -20,7 +20,7 @@ as hand-written properties (e.g. `LOGGER`, which is `logging.getLogger()`).
 from __future__ import annotations
 
 import os
-from typing import Any, Callable, Generic, TypeVar, overload
+from typing import Any, Callable, Generic, Sequence, TypeVar, overload
 
 from zrb.config.helper import get_env
 
@@ -59,7 +59,7 @@ def comma_or_colon_list(raw: str) -> list[str]:
     return [part.strip() for part in raw.replace(":", ",").split(",") if part.strip()]
 
 
-def path_list_join(value: list[str]) -> str:
+def path_list_join(value: Sequence[str]) -> str:
     return os.pathsep.join(value)
 
 

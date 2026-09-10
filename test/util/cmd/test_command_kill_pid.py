@@ -1,11 +1,17 @@
 import asyncio
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import psutil
 import pytest
 
 from zrb.config.config import CFG
+from zrb.config.helper import get_windows_posix_shell
 from zrb.util.cmd.command import kill_pid, run_command, terminate_pid, terminate_process
+
+# Spawned by name rather than through resolve_shell, so it needs the same
+# real-POSIX-shell lookup: PATH's first `bash` on Windows is the WSL launcher.
+_BASH = get_windows_posix_shell() or "bash"
 
 
 class TestKillPidWithChildren:
@@ -16,7 +22,7 @@ class TestKillPidWithChildren:
         import subprocess
 
         # Start a shell that spawns a child process
-        proc = subprocess.Popen(["bash", "-c", "sleep 60 & sleep 60"])
+        proc = subprocess.Popen([_BASH, "-c", "sleep 60 & sleep 60"])
         pid = proc.pid
 
         printed_messages = []
@@ -170,6 +176,9 @@ class TestTerminatePidErrors:
 class TestRunCommandKillFallbacks:
     """Cover run_command cleanup branches (lines 230-237)."""
 
+    @pytest.mark.skipif(
+        os.name != "posix", reason="os.killpg (the branch under test) is POSIX-only"
+    )
     @pytest.mark.asyncio
     async def test_timeout_killpg_then_force_kill(self):
         """On timeout, a process that ignores SIGINT is force-killed via kill_pid."""
@@ -196,6 +205,9 @@ class TestRunCommandKillFallbacks:
         # The stubborn process forced the kill_pid fallback.
         assert kill.called
 
+    @pytest.mark.skipif(
+        os.name != "posix", reason="os.killpg (the branch under test) is POSIX-only"
+    )
     @pytest.mark.asyncio
     async def test_timeout_killpg_raises_is_swallowed(self):
         """If os.killpg itself raises (e.g. process already gone), it is swallowed (line 236-237)."""

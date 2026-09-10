@@ -1,12 +1,15 @@
 import asyncio
 import os
 import subprocess
+import sys
+import tempfile
 from unittest.mock import patch
 
 import psutil
 import pytest
 
 from zrb.config.config import CFG
+from zrb.config.helper import get_windows_posix_shell
 from zrb.util.cmd.command import (
     check_unrecommended_commands,
     kill_pid,
@@ -17,24 +20,29 @@ from zrb.util.cmd.command import (
 )
 from zrb.util.cmd.remote import get_remote_cmd_script
 
+# On Windows a bare "bash" resolves to a real POSIX shell's absolute path
+# instead of the WSL launcher PATH would find; everywhere else it stays "bash".
+_BASH = get_windows_posix_shell() or "bash"
+
 
 def test_resolve_shell_empty_uses_cfg_shell(monkeypatch):
     # No explicit shell -> fall back to CFG.SHELL.
     monkeypatch.delenv(f"{CFG.ENV_PREFIX}_SHELL", raising=False)
     monkeypatch.setattr(CFG, "DEFAULT_SHELL", "bash")
     sh, flag = resolve_shell("")
-    assert sh == CFG.SHELL == "bash"
+    assert CFG.SHELL == "bash"
+    assert sh == _BASH
     assert flag == "-c"
 
 
 def test_resolve_shell_env_opt_in(monkeypatch):
     # An explicit ZRB_SHELL opts the empty call into that shell.
     monkeypatch.setenv(f"{CFG.ENV_PREFIX}_SHELL", "bash")
-    assert resolve_shell("") == ("bash", "-c")
+    assert resolve_shell("") == (_BASH, "-c")
 
 
 def test_resolve_shell_posix():
-    assert resolve_shell("bash") == ("bash", "-c")
+    assert resolve_shell("bash") == (_BASH, "-c")
     assert resolve_shell("zsh") == ("zsh", "-c")
 
 
@@ -159,7 +167,8 @@ async def test_run_command_timeout_without_killpg_falls_back_to_terminate_pid(
     monkeypatch,
 ):
     """Windows has no os.killpg; the timeout cleanup must fall back to psutil."""
-    monkeypatch.delattr(os, "killpg")
+    # Already absent when the suite actually runs on Windows.
+    monkeypatch.delattr(os, "killpg", raising=False)
     with patch("zrb.util.cmd.command.terminate_pid") as mock_terminate:
         with pytest.raises(asyncio.TimeoutError):
             await run_command(["sleep", "2"], timeout=0.5)
@@ -169,12 +178,14 @@ async def test_run_command_timeout_without_killpg_falls_back_to_terminate_pid(
 @pytest.mark.asyncio
 async def test_run_command_cwd():
     # Print current working directory
-    cmd = ["pwd"]
-    cwd = "/tmp"
+    # `pwd` and a hardcoded /tmp are POSIX; the interpreter running the suite
+    # reports its own cwd the same way everywhere.
+    cmd = [sys.executable, "-c", "import os; print(os.getcwd())"]
+    cwd = tempfile.gettempdir()
     result, return_code = await run_command(cmd, cwd=cwd)
 
     assert return_code == 0
-    # Resolving symlinks for /tmp on some systems
+    # macOS resolves /tmp through a symlink, so compare the real paths.
     assert os.path.realpath(result.output.strip()) == os.path.realpath(cwd)
 
 
@@ -271,3 +282,22 @@ def test_get_remote_cmd_script_quotes_injection_in_credentials():
     # sshpass -e reads the password from SSHPASS — never on the command line.
     assert "sshpass -e" in result
     assert malicious not in result
+
+
+@pytest.mark.parametrize(
+    "shell, expected_flag",
+    [
+        ("C:\\Program Files\\PowerShell\\7\\pwsh.exe", "-Command"),
+        ("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-Command"),
+        ("C:\\Windows\\System32\\cmd.exe", "/c"),
+        ("C:\\Program Files\\Git\\bin\\bash.exe", "-c"),
+        ("/bin/bash", "-c"),
+    ],
+)
+def test_resolve_shell_reads_the_flag_from_an_absolute_path(shell, expected_flag):
+    """`CFG.SHELL` is an absolute `.exe` path on Windows, so a flag table keyed
+    on the raw string would hand PowerShell the POSIX `-c` and break it."""
+    resolved, flag = resolve_shell(shell)
+
+    assert resolved == shell
+    assert flag == expected_flag

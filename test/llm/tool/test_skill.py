@@ -1,6 +1,7 @@
 """Tests for llm/tool/skill.py - Skill activation tool."""
 
 import asyncio
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -92,7 +93,8 @@ class TestCreateActivateSkillTool:
         result = await func(skill="test-skill")
 
         # Check header elements
-        assert "Skill directory (working directory): /test" in result
+        expected_dir = os.path.dirname(os.path.normpath("/test/SKILL.md"))
+        assert f"Skill directory (working directory): {expected_dir}" in result
         assert "Companion files available in this directory:" in result
         # Standalone file
         assert "  README.md" in result

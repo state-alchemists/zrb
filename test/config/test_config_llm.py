@@ -154,7 +154,7 @@ def test_llm_configs_types():
 
 
 def test_llm_plugin_dirs(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_PLUGIN_DIRS", "dir1:dir2")
+    monkeypatch.setenv("ZRB_LLM_PLUGIN_DIRS", f"dir1{os.pathsep}dir2")
     config = Config()
     assert config.LLM_PLUGIN_DIRS == ["dir1", "dir2"]
 

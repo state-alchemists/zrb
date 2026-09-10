@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -50,11 +51,13 @@ Fallback content
         encoding="utf-8",
     )
 
-    # Mock Path.home() and current directory for SkillManager
-    original_home = os.environ.get("HOME")
-    os.environ["HOME"] = str(tmp_path / "home")
-
-    with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
+    # Mock Path.home() for SkillManager. The `HOME` env var alone doesn't
+    # work here on Windows: `Path.home()`/`os.path.expanduser` consult
+    # `USERPROFILE`, not `HOME`, on that platform.
+    with (
+        patch.object(Path, "home", return_value=tmp_path / "home"),
+        patch("zrb.llm.skill.manager.CFG") as mock_cfg,
+    ):
         mock_cfg.ROOT_GROUP_NAME = "zrb"
         mock_cfg.LLM_SEARCH_HOME = True
         mock_cfg.LLM_SEARCH_PROJECT = True
@@ -64,11 +67,6 @@ Fallback content
         mock_cfg.LLM_EXTRA_SKILL_DIRS = []
 
         yield project_dir
-
-    if original_home:
-        os.environ["HOME"] = original_home
-    else:
-        del os.environ["HOME"]
 
 
 @pytest.fixture
@@ -349,9 +347,9 @@ def test_skill_manager_get_search_directories_project_hierarchy(tmp_path):
         mock_cfg.LLM_SEARCH_PROJECT = True
         mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
         dirs = [str(d) for d in manager.search_dirs]
-        assert any("root/.zrb/skills" in d for d in dirs)
-        assert any("mid/.claude/skills" in d for d in dirs)
-        assert any("leaf/.zrb/skills" in d for d in dirs)
+        assert any(os.path.join("root", ".zrb", "skills") in d for d in dirs)
+        assert any(os.path.join("mid", ".claude", "skills") in d for d in dirs)
+        assert any(os.path.join("leaf", ".zrb", "skills") in d for d in dirs)
 
 
 def test_skill_manager_get_search_directories_plugins(skill_manager, tmp_path):
@@ -387,7 +385,7 @@ def test_skill_manager_get_search_directories_with_plugins(skill_manager, tmp_pa
         mock_cfg.LLM_PLUGIN_DIRS = [str(plugin_root)]
         dirs = skill_manager.search_dirs
         # Should find skills inside plugins
-        assert any("my-plugin/skills" in str(d) for d in dirs)
+        assert any(os.path.join("my-plugin", "skills") in str(d) for d in dirs)
 
 
 def test_skill_manager_scan_permission_error(skill_manager, tmp_path):

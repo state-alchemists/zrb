@@ -202,6 +202,15 @@ async def test_claude_settings_json_hooks_are_loaded(tmp_path):
     assert any(r.output and "from settings" in r.output for r in results)
 
 
+def _to_msys_path(path: str) -> str:
+    """`C:\\Users\\x` -> `/c/Users/x`, matching Git-for-Windows coreutils'
+    own path translation."""
+    drive, rest = os.path.splitdrive(path)
+    if not drive:
+        return path
+    return f"/{drive[0].lower()}{rest.replace(os.sep, '/')}"
+
+
 @pytest.mark.asyncio
 async def test_command_hook_tolerates_tilde_and_missing_cwd():
     """A hook cwd with an unexpanded ``~`` (or a missing dir) must not crash.
@@ -223,7 +232,17 @@ async def test_command_hook_tolerates_tilde_and_missing_cwd():
 
     res = await manager.execute_hooks(HookEvent.NOTIFICATION, {}, cwd="~")
     assert res and res[0].success
-    assert (res[0].message or "").strip() == os.path.expanduser("~")
+    expected = os.path.expanduser("~")
+    actual = (res[0].message or "").strip()
+    if os.name == "nt":
+        # `shell=True` on Windows runs via cmd.exe, which resolves `pwd` to
+        # Git's coreutils `pwd.exe` when it's on PATH (as it is on GitHub's
+        # windows-latest runner) -- that binary prints its own MSYS-translated
+        # path (`/c/Users/x`) regardless of which shell invoked it. The point
+        # here is tilde expansion and cwd resolution, not which `pwd` answered.
+        assert actual in (expected, _to_msys_path(expected))
+    else:
+        assert actual == expected
 
     res2 = await manager.execute_hooks(
         HookEvent.NOTIFICATION, {}, cwd="/no/such/dir/zzz"
@@ -331,6 +350,10 @@ async def test_sync_command_hook_is_killed_on_timeout():
     assert "timed out" in combined.lower()
 
 
+@pytest.mark.skipif(
+    os.name != "posix",
+    reason="`${#VAR}` is POSIX parameter expansion; cmd.exe echoes it verbatim",
+)
 @pytest.mark.asyncio
 async def test_command_hook_drops_oversized_env_value():
     """Oversized event_data is dropped from the subprocess environment, not

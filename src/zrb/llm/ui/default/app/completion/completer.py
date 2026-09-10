@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Any, Callable, Iterable
 
 from prompt_toolkit.completion import (
@@ -408,7 +409,17 @@ class InputCompleter(Completer):
             )
 
     def _is_path_navigation(self, text: str) -> bool:
-        return text.startswith("/") or text.startswith(".") or text.startswith("~")
+        # A Windows absolute path ("C:\\Users\\me\\", "C:/Users/me/") is a path
+        # prefix as much as "/" is. Without the drive form it fell through to
+        # the fuzzy walk of the current repo, which can never match a file
+        # outside that tree -- so typing an absolute path offered nothing.
+        # The bare "\\" root is Windows-only on purpose: on POSIX a leading
+        # backslash is an escape, and treating it as a path start would hand
+        # the fuzzy walk's job to a PathCompleter that can never match.
+        if os.name == "nt":
+            if re.match(r"^[A-Za-z]:[\\/]", text) or text.startswith("\\"):
+                return True
+        return text.startswith(("/", ".", "~"))
 
     def _get_path_completions(
         self,
@@ -419,7 +430,10 @@ class InputCompleter(Completer):
     ) -> Iterable[Completion]:
         fake_document = Document(text=text, cursor_position=len(text))
         for c in self._path_completer.get_completions(fake_document, complete_event):
-            if only_files and c.text.endswith(os.sep):
+            # PathCompleter marks a directory with "/" on every platform, not
+            # with os.sep -- so an os.sep-only test let directories through the
+            # files-only filter on Windows.
+            if only_files and c.text.endswith(("/", os.sep)):
                 continue
             if display_meta is not None:
                 yield Completion(

@@ -122,6 +122,10 @@ async def test_shutdown_is_a_noop_when_nothing_is_pending():
     await manager.shutdown()  # idempotent
 
 
+@pytest.mark.skipif(
+    os.name != "posix",
+    reason="chains `sleep; touch` with `;`, which cmd.exe does not parse",
+)
 @pytest.mark.asyncio
 async def test_shutdown_drain_lets_a_quick_hook_finish_first():
     """`drain=True` is the per-run shape: finish, then cancel the stragglers.

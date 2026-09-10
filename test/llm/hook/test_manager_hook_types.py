@@ -32,6 +32,13 @@ def _fake_popen(stdout: bytes = b"", stderr: bytes = b"", returncode: int = 0):
     process.stderr = _loaded(stderr)
     process.poll.return_value = returncode
     process.wait.return_value = returncode
+    # `read_hook_output` calls communicate() on Windows, where the selector
+    # cannot poll pipes. Drain the same fds the POSIX path reads chunk by chunk,
+    # so one fake serves both readers.
+    process.communicate.side_effect = lambda input=None: (
+        process.stdout.read(),
+        process.stderr.read(),
+    )
     return process
 
 

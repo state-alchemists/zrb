@@ -2,6 +2,7 @@
 
 import json
 import os
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -78,9 +79,11 @@ class TestHookManagerLifecycle:
             patch("pathlib.Path.cwd", return_value=leaf),
             patch.dict(os.environ, {"ZRB_ROOT_GROUP_NAME": "zrb"}),
         ):
-            dirs = HookManager().search_dirs
-            assert any("root/.zrb/hooks" in str(d) for d in dirs)
-            assert any("leaf/.claude/hooks" in str(d) for d in dirs)
+            # Forward slashes on every platform: the nested path is the point
+            # of the assertion, the separator is not.
+            dirs = [Path(str(d)).as_posix() for d in HookManager().search_dirs]
+            assert any("root/.zrb/hooks" in d for d in dirs)
+            assert any("leaf/.claude/hooks" in d for d in dirs)
 
     @pytest.mark.asyncio
     async def test_get_search_directories_plugins(self, tmp_path):

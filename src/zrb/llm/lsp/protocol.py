@@ -9,7 +9,6 @@ import uuid
 from enum import Enum
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote
 
 
 class LSPError(Exception):
@@ -143,4 +142,10 @@ class LSPProtocol:
         """Create TextDocumentIdentifier for a file."""
 
         abs_path = Path(file_path).absolute()
-        return {"uri": "file://" + quote(str(abs_path), safe="/")}
+        # `Path.as_uri()` rather than quoting the string form: on Windows the
+        # string form is `D:\\dir\\file.py`, and quoting it escapes the drive
+        # colon and every separator ("file://D%3A%5Cdir%5Cfile.py") -- a URI no
+        # language server can resolve and that no longer round-trips back to a
+        # path. as_uri() produces the "file:///D:/dir/file.py" the protocol
+        # asks for, and escapes #/?/%/non-ASCII exactly as before on POSIX.
+        return {"uri": abs_path.as_uri()}

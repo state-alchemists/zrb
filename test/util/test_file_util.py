@@ -96,13 +96,13 @@ def test_list_files_depth(tmp_path):
     # depth 1: only file1.txt
     files1 = list_files(str(tmp_path), depth=1)
     assert "file1.txt" in files1
-    assert "subdir/file2.txt" not in files1
+    assert os.path.join("subdir", "file2.txt") not in files1
 
     # depth 2: file1.txt and subdir/file2.txt
     files2 = list_files(str(tmp_path), depth=2)
     assert "file1.txt" in files2
-    assert "subdir/file2.txt" in files2
-    assert "subdir/subsubdir/file3.txt" not in files2
+    assert os.path.join("subdir", "file2.txt") in files2
+    assert os.path.join("subdir", "subsubdir", "file3.txt") not in files2
 
 
 def test_list_files_nonexistent_path():

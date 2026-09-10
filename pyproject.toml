@@ -1,6 +1,6 @@
 [project]
 name = "zrb"
-version = "3.0.0b11"
+version = "3.0.0"
 description = "A terminal coding agent with a build system inside"
 authors = [{name = "Go Frendi Gunawan", email = "gofrendiasgard@gmail.com"}]
 license = "AGPL-3.0-or-later"

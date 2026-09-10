@@ -1,8 +1,12 @@
+import json
 import os
+import tomllib
+from urllib.parse import urlparse
 
-import tomlkit
+import requests
 
 from zrb import (
+    AnyContext,
     CmdPath,
     CmdTask,
     Env,
@@ -12,13 +16,18 @@ from zrb import (
     TcpCheck,
     Tpl,
     cli,
+    make_task,
 )
 from zrb.builtin.git import git_commit
 from zrb.util.file import read_file
 
 _DIR = os.path.dirname(__file__)
 
-_PYPROJECT = tomlkit.loads(read_file(os.path.join(_DIR, "pyproject.toml")))
+# stdlib `tomllib`, not `tomlkit`: this file is loaded by the `zrb` inside the
+# CI container, which installs `--without dev`. It resolves there today only
+# because the image happens to `pip install poetry`, which drags tomlkit into
+# the same site-packages -- and ZRB_INIT_STRICT makes that accident fatal.
+_PYPROJECT = tomllib.loads(read_file(os.path.join(_DIR, "pyproject.toml")))
 _VERSION = _PYPROJECT["project"]["version"]
 
 
@@ -92,6 +101,135 @@ format_code = code_group.add_task(
     alias="format",
 )
 _ = format_code >> git_commit
+
+_REVIEW_REPORT = "code-review.md"
+
+review_code = code_group.add_task(
+    CmdTask(
+        name="review-code",
+        description="🔍 Review changed code with the LLM reviewer",
+        input=[
+            StrInput(
+                name="range",
+                description="Git range to review (e.g. origin/main...HEAD)",
+                prompt="Git range",
+                default="origin/main...HEAD",
+            ),
+            StrInput(
+                name="output",
+                description="File to write the report to",
+                prompt="Report file",
+                default=_REVIEW_REPORT,
+            ),
+        ],
+        cwd=_DIR,
+        env=[
+            Env(
+                name="REVIEW_RANGE",
+                default=Tpl("{ctx.input.range}"),
+                link_to_os=False,
+            ),
+            Env(
+                name="REVIEW_OUTPUT",
+                default=Tpl("{ctx.input.output}"),
+                link_to_os=False,
+            ),
+        ],
+        cmd=[
+            # `set -e`: CmdTask does not add one, and without it a failing
+            # `git diff --stat` (a range that does not resolve) left
+            # REVIEW_STAT empty and sent the reviewer off to review
+            # "Changed files: ." -- a confident report of nothing.
+            "set -e",
+            'REVIEW_STAT="$(git diff --stat "$REVIEW_RANGE")"',
+            (
+                "zrb llm chat --interactive false --yolo true --message"
+                ' "/review the changes in git range $REVIEW_RANGE.'
+                " Changed files:"
+                " $REVIEW_STAT."
+                " Write the full report as markdown to $REVIEW_OUTPUT,"
+                " overwriting it. Give every finding its own section with"
+                " Problem, Location (file:line) and Suggestion, and end the"
+                " report with a verdict line reading either"
+                " 'Request changes' or 'LGTM'."
+                ' Then print that verdict as a single line."'
+            ),
+        ],
+        retries=0,
+    ),
+    alias="review",
+)
+
+
+@make_task(
+    name="submit-comment",
+    description="💬 Post a markdown file as a comment on the current pull request",
+    input=StrInput(
+        name="file",
+        description="Markdown file to post",
+        prompt="Comment file",
+        default=_REVIEW_REPORT,
+    ),
+    # No retries: the POST is not idempotent. A 502 raised *after* GitHub
+    # created the comment would post it again on every attempt, and the other
+    # failure here (missing GITHUB_* variables) cannot be fixed by repeating.
+    retries=0,
+    group=cli,
+)
+def submit_comment(ctx: AnyContext):
+    """Post `--file` as a comment on the PR that triggered this run.
+
+    The PR number is read from GITHUB_EVENT_PATH -- the event payload GitHub
+    writes for every run -- rather than passed in from a workflow `${{ }}`
+    interpolation, so the task takes no argument but the file and works from
+    any workflow that sets the standard GitHub Actions variables.
+    """
+    token = os.environ.get("GITHUB_TOKEN", "")
+    event_path = os.environ.get("GITHUB_EVENT_PATH", "")
+    repository = os.environ.get("GITHUB_REPOSITORY", "")
+    missing = [
+        name
+        for name, value in (
+            ("GITHUB_TOKEN", token),
+            ("GITHUB_EVENT_PATH", event_path),
+            ("GITHUB_REPOSITORY", repository),
+        )
+        if value == ""
+    ]
+    if missing:
+        raise ValueError(
+            f"Not running inside GitHub Actions? Missing: {', '.join(missing)}"
+        )
+    if not os.path.isfile(ctx.input.file):
+        ctx.print(f"No file at {ctx.input.file} - nothing to post.")
+        return
+    body = read_file(ctx.input.file)
+    if body.strip() == "":
+        ctx.print(f"{ctx.input.file} is empty - nothing to post.")
+        return
+    pr_number = json.loads(read_file(event_path)).get("pull_request", {}).get("number")
+    if pr_number is None:
+        raise ValueError("The event payload carries no pull_request.number")
+    api_url = os.environ.get("GITHUB_API_URL", "https://api.github.com")
+    if urlparse(api_url).hostname != "api.github.com":
+        raise ValueError(f"Refusing to send GITHUB_TOKEN to {api_url}")
+    response = requests.post(
+        f"{api_url}/repos/{repository}/issues/{pr_number}/comments",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+        json={"body": body},
+        timeout=30,
+    )
+    if not response.ok:
+        raise RuntimeError(
+            f"Could not comment on PR #{pr_number}: "
+            f"{response.status_code} {response.text}"
+        )
+    ctx.print(f"Posted {len(body)} bytes to PR #{pr_number}")
+
 
 # DOCKER ======================================================================
 

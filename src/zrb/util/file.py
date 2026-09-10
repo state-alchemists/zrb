@@ -150,7 +150,7 @@ def matches_any_pattern(name: str, patterns: list[str]) -> bool:
     for pattern in patterns:
         if fnmatch.fnmatch(name, pattern):
             return True
-        parts = name.split(os.path.sep)
+        parts = re.split(rf"[{re.escape(os.path.sep)}/]", name)
         for part in parts:
             if fnmatch.fnmatch(part, pattern):
                 return True

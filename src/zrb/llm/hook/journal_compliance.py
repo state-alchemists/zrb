@@ -51,7 +51,12 @@ def build_journal_compliance_hook_config() -> HookConfig:
         config=AgentHookConfig(
             system_prompt=get_prompt("journal_compliance"),
             tools=["LogActivity", "WriteJournalNote", "SearchJournal"],
-            model=str(resolve_configured_small_model()),
+            # The resolved object, not `str()` of it: when the small model
+            # falls back to the run's own model, that is already a pydantic-ai
+            # `Model` instance, and `str()` of one is its repr
+            # ("OpenAIResponsesModel()") -- which then went out as the model
+            # name and came back a 404.
+            model=resolve_configured_small_model(),
         ),
         matchers=[
             MatcherConfig(

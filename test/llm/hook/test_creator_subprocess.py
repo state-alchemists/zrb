@@ -22,6 +22,14 @@ from zrb.llm.hook.interface import HookContext
 from zrb.llm.hook.schema import CommandHookConfig
 from zrb.llm.hook.types import HookEvent
 
+# `shell=True` is `cmd.exe /c` on Windows: no `;` separator, no `&`
+# backgrounding, no `disown`/`wait`. The behavior these pin is platform-
+# independent; the script that provokes it is POSIX.
+posix_shell_only = pytest.mark.skipif(
+    os.name != "posix",
+    reason="drives a POSIX shell script; cmd.exe does not share the syntax",
+)
+
 _PROCESS_STOP_TIMEOUT_SECONDS = 1.0
 _PROCESS_STOP_POLL_SECONDS = 0.05
 _SENTINEL_TIMEOUT_SECONDS = 5.0
@@ -111,6 +119,13 @@ class _StubProc:
         time.sleep(0.3)
         return 0
 
+    def communicate(self, input=None):
+        # The non-POSIX path in read_hook_output calls this directly; no pipes
+        # means nothing to drain, matching real Popen's `(None, None)` when
+        # stdout/stderr aren't PIPE.
+        self.wait()
+        return None, None
+
     def kill(self):
         if self._on_kill is not None:
             self._on_kill()
@@ -137,6 +152,7 @@ async def test_command_hook_timeout_returns_clean_result():
     assert "can't be awaited" not in (result.output or "")
 
 
+@posix_shell_only
 @pytest.mark.asyncio
 async def test_command_hook_timeout_kills_grandchildren_not_just_the_shell():
     """A timed-out hook must leave no surviving descendants.
@@ -167,6 +183,7 @@ async def test_command_hook_timeout_kills_grandchildren_not_just_the_shell():
         await _assert_recorded_process_stops(pid_path)
 
 
+@posix_shell_only
 @pytest.mark.asyncio
 async def test_command_hook_returns_when_the_child_exits_not_at_pipe_eof():
     """A hook that backgrounds work and exits succeeds at once, keeping output.
@@ -213,6 +230,7 @@ async def test_command_hook_returns_when_the_child_exits_not_at_pipe_eof():
         assert os.path.exists(sentinel), "background work was killed off"
 
 
+@posix_shell_only
 @pytest.mark.asyncio
 async def test_command_hook_timeout_kills_descendants_of_a_shell_that_already_exited():
     """The group kill must reach descendants when the shell is already gone.

@@ -135,3 +135,16 @@ async def test_factory_fires_via_the_normal_lazy_load_path():
 
     assert manager.has_pending_background_hooks is True
     await manager.shutdown()
+
+
+def test_hook_config_keeps_a_resolved_model_object():
+    """The run's own model is a pydantic-ai `Model`, and `str()` of one is its
+    repr ("OpenAIResponsesModel()"), which used to go out as the model name and
+    come back a 404. The config must carry the object through untouched."""
+    resolved = MagicMock()
+    with patch(
+        "zrb.llm.hook.journal_compliance.resolve_configured_small_model",
+        return_value=resolved,
+    ):
+        config = build_journal_compliance_hook_config()
+    assert config.config.model is resolved

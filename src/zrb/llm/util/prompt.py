@@ -59,8 +59,12 @@ def get_path_references(prompt: str) -> list[re.Match]:
         return []
     # Regex to capture @path.
     # Matches @ followed by typical path chars.
-    # We'll allow alphanumeric, _, -, ., /, \, and ~ (home dir).
-    pattern = re.compile(r"@(?P<path>[\w~\-\./\\]+)")
+    # We'll allow alphanumeric, _, -, ., /, \, and ~ (home dir), plus an
+    # optional leading drive letter -- without it `@C:\\Users\\me\\notes.md`
+    # captured just "C" and every Windows absolute path silently failed to
+    # expand. The drive group is anchored and single-letter, so an ordinary
+    # `@word:something` still captures only "word".
+    pattern = re.compile(r"@(?P<path>(?:[A-Za-z]:)?[\w~\-\./\\]+)")
     return list(pattern.finditer(prompt))
 
 

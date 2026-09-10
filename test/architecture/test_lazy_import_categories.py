@@ -1,9 +1,9 @@
 """Guards against a `# lazy:` comment that doesn't justify itself.
 
 AGENTS.md (Imports) requires every in-function import to carry a `# lazy:
-<reason>` comment matching one of four categories: heavy third-party
-deferral, transitively-heavy-via-internal, circular import, or a test-patch
-seam. `test_circular_import_allowlist.py` only checks the circular category
+<reason>` comment matching one of five categories: heavy third-party
+deferral, transitively-heavy-via-internal, circular import, a test-patch
+seam, or a platform-only module. `test_circular_import_allowlist.py` only checks the circular category
 (and only the canonical `# lazy: circular` tag). This test classifies every
 `# lazy:` comment in the tree into one of those categories (folding
 call-frequency/"hot path" avoidance of an internal import under the
@@ -81,6 +81,8 @@ def _is_categorized(blocktext: str) -> bool:
         return True
     if re.search(r"transitiv|hot[- ]path", blocktext, re.IGNORECASE):
         return True
+    if re.search(r"platform[- ]only", blocktext, re.IGNORECASE):
+        return True
     if any(pkg in blocktext for pkg in HEAVY_PACKAGES) or "heavy" in blocktext.lower():
         return True
     return False
@@ -89,7 +91,7 @@ def _is_categorized(blocktext: str) -> bool:
 def _find_uncategorized() -> list[str]:
     uncategorized: list[str] = []
     for path in SRC.rglob("*.py"):
-        lines = path.read_text().splitlines()
+        lines = path.read_text(encoding="utf-8").splitlines()
         i = 0
         while i < len(lines):
             if "# lazy:" not in lines[i]:
@@ -118,7 +120,8 @@ def test_every_lazy_import_states_a_recognized_reason():
     assert not uncategorized, (
         "These `# lazy:` comments don't state a reason this test recognizes "
         "(heavy third-party, transitively-heavy/hot-path internal, "
-        "circular, or test-patch-seam). Reword the comment to state the "
+        "circular, test-patch-seam, or platform-only). Reword the comment "
+        "to state the "
         "real reason, or update this test's keyword lists and AGENTS.md's "
         "Imports section together if it's a genuinely new category:\n"
         + "\n".join(uncategorized)

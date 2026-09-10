@@ -68,6 +68,25 @@ def _hermetic_environment():
 
 
 @pytest.fixture(autouse=True)
+def _reset_shell_detection_cache():
+    """Clear the memoized Windows POSIX-shell lookup around every test.
+
+    ``get_windows_posix_shell`` is ``lru_cache``d because it sits on the
+    ``CFG.SHELL`` hot path (see its docstring). That cache is process-wide, so
+    without this the first test to stub ``shutil.which``/``os.path.isfile``
+    would pin the answer for every later test — and, worse, the real
+    machine's answer would be pinned before the first stub ever ran.
+    """
+    from zrb.config.helper import get_windows_posix_shell
+
+    get_windows_posix_shell.cache_clear()
+    try:
+        yield
+    finally:
+        get_windows_posix_shell.cache_clear()
+
+
+@pytest.fixture(autouse=True)
 def _reset_unscoped_ambient_state():
     """Restore every unscoped ambient ``ContextVar`` after each test.
 

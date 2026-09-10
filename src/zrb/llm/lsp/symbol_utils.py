@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from urllib.parse import unquote, urlparse
 
 from zrb.llm.lsp.protocol import SymbolKind
@@ -9,9 +10,15 @@ from zrb.llm.lsp.protocol import SymbolKind
 
 def uri_to_path(uri: str) -> str:
     """Convert a `file://` URI to a filesystem path. Pass-through otherwise."""
-    if uri.startswith("file://"):
-        return unquote(urlparse(uri).path)
-    return uri
+    if not uri.startswith("file://"):
+        return uri
+    path = unquote(urlparse(uri).path)
+    # A Windows file URI carries the drive *after* the root slash
+    # ("file:///D:/dir/file.py" -> "/D:/dir/file.py"), which is not a path
+    # anything can open until that slash is dropped.
+    if re.match(r"^/[A-Za-z]:", path):
+        return path[1:]
+    return path
 
 
 def format_document_symbols(symbols: list, depth: int = 0) -> list[dict]:

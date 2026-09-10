@@ -160,9 +160,7 @@ class SubAgentManager:
         )
         self._scanned_agents.clear()
         for search_dir in target_search_dirs:
-            self._loading.scan_dir(
-                Path(search_dir), max_depth=self._max_depth, root_dir=self._scan_root
-            )
+            self._loading.scan_dir(Path(search_dir), max_depth=self._max_depth)
         self._registry.set_discovered(list(self._scanned_agents.values()))
         self._loaded = True
         return self.get_agents()
@@ -265,9 +263,7 @@ class SubAgentManager:
         """Internal: scan filesystem and load agents without resetting existing ones."""
         self._scanned_agents.clear()
         for search_dir in self.search_dirs:
-            self._loading.scan_dir(
-                Path(search_dir), max_depth=self._max_depth, root_dir=self._scan_root
-            )
+            self._loading.scan_dir(Path(search_dir), max_depth=self._max_depth)
         self._registry.set_discovered(list(self._scanned_agents.values()))
 
     def get_tool_registry(self) -> "dict[str, Callable | Tool]":

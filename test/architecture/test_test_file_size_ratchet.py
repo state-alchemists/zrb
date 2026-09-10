@@ -22,7 +22,9 @@ MAX_TEST_FILE_LINES = 500
 
 def test_no_test_file_exceeds_the_split_threshold():
     offenders = {
-        str(path.relative_to(TEST_ROOT)): len(path.read_text().splitlines())
+        str(path.relative_to(TEST_ROOT)): len(
+            path.read_text(encoding="utf-8").splitlines()
+        )
         for path in TEST_ROOT.rglob("test_*.py")
     }
     over = {name: n for name, n in offenders.items() if n > MAX_TEST_FILE_LINES}

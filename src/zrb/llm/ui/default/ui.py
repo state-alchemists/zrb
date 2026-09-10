@@ -194,16 +194,8 @@ class UI(BaseUI):
         self.setup_app_keybindings(
             app_keybindings=self._app_kb, llm_task=self._llm_task
         )
-        self._application = self._create_application(
-            layout=self._layout, keybindings=self._app_kb, style=self._style
-        )
-
-        # prompt_toolkit redraws on SIGWINCH, so a render is the cheapest place
-        # to notice a new width and re-wrap the markdown already on screen.
-        self._application.after_render.add_handler(self._on_render)
-
-        if self._initial_message:
-            self._application.after_render.add_handler(self.on_first_render)
+        # Built on first access, not here -- see the `application` property.
+        self._application: "Application | None" = None
 
     def _on_render(self, app: "Application") -> None:
         try:
@@ -240,6 +232,28 @@ class UI(BaseUI):
 
     @property
     def application(self) -> "Application":
+        """The prompt_toolkit `Application`, built on first access.
+
+        Deferred out of `__init__` because building it calls
+        `prompt_toolkit.output.create_output`, which needs a real console:
+        on Windows, constructing one without a Win32 console screen buffer
+        raises `NoConsoleScreenBufferError`. Doing that from `__init__` made
+        `UI(...)` unconstructible anywhere a console is absent -- a Git Bash
+        or mintty shell, a piped/redirected run, and every test that only
+        wanted the pure post-construction logic. Nothing between `__init__`
+        and `UILifecycle` needs the app object, and by the time it *is* read
+        the UI is genuinely about to take over the terminal, so that is the
+        honest place for the requirement to bite.
+        """
+        if self._application is None:
+            self._application = self._create_application(
+                layout=self._layout, keybindings=self._app_kb, style=self._style
+            )
+            # prompt_toolkit redraws on SIGWINCH, so a render is the cheapest
+            # place to notice a new width and re-wrap the markdown on screen.
+            self._application.after_render.add_handler(self._on_render)
+            if self._initial_message:
+                self._application.after_render.add_handler(self.on_first_render)
         return self._application
 
     @property

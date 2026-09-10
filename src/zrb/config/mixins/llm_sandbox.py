@@ -41,7 +41,7 @@ class LLMSandboxMixin:
         self.DEFAULT_LLM_SANDBOX_ENABLED: str = "false"
         self.DEFAULT_LLM_SANDBOX_OS_SHELL: str = "auto"
         self.DEFAULT_LLM_SANDBOX_WRITABLE_PATHS: str = ""
-        self.DEFAULT_LLM_SANDBOX_DENY_READ_PATHS: str = ":".join(
+        self.DEFAULT_LLM_SANDBOX_DENY_READ_PATHS: str = path_list_join(
             DEFAULT_LLM_SANDBOX_DENY_READ_PATHS
         )
         self.DEFAULT_LLM_SANDBOX_FALLBACK: str = "warn"

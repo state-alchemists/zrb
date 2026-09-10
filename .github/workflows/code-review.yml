@@ -1,0 +1,50 @@
+name: "Code Review"
+run-name: "Review PR #${{ github.event.pull_request.number }} by ${{ github.actor }}"
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  review:
+    # Two separate guards. author_association stops a drive-by PR from
+    # spending tokens on an LLM run. The head-repo check is about mechanics:
+    # GitHub withholds secrets from fork PRs, so the review would 401 there
+    # regardless of who opened it -- skipping beats a red X nobody can fix.
+    if: >-
+      (github.event.pull_request.author_association == 'OWNER' ||
+       github.event.pull_request.author_association == 'MEMBER' ||
+       github.event.pull_request.author_association == 'COLLABORATOR') &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    # pull-requests: write is what lets the reusable workflow post the report.
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/_zrb.yml
+    with:
+      # The reviewer diffs against the merge base, so it needs full history --
+      # the default depth of 2 has no origin/<base> to compare against.
+      fetch-depth: 0
+      # Written by the review task, posted by _zrb.yml once the command exits.
+      comment-file: code-review.md
+      # $GITHUB_BASE_REF is read at runtime instead of interpolated with
+      # ${{ }}: a branch name comes from the PR author, and interpolation
+      # would splice it into the shell command rather than pass it as a value.
+      # The second half of that guarantee is in zrb_init.py, where the review
+      # task passes --range on to the agent through an environment variable
+      # instead of rendering it into another command string.
+      #
+      # The key check is a step guard rather than a job-level `if:`, because
+      # the `secrets` context is not available in `jobs.<id>.if` -- so a repo
+      # without OPENAI_API_KEY configured would otherwise fail this job on
+      # every pull request, with nothing the author could do about it.
+      command: |
+        if [ -z "$OPENAI_API_KEY" ]; then
+          echo "⏭️  OPENAI_API_KEY is not configured; skipping the LLM review."
+          exit 0
+        fi
+        zrb code review --range "origin/$GITHUB_BASE_REF...HEAD" --output code-review.md
+    secrets:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ZRB_LLM_MODEL: ${{ secrets.ZRB_LLM_MODEL }}

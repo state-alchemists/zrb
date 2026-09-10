@@ -1,5 +1,6 @@
 """Tests for replace_in_file_formatter.py."""
 
+import json
 import os
 import tempfile
 from unittest.mock import patch
@@ -179,8 +180,8 @@ class TestReplaceInFileFormatter:
             temp_path = f.name
 
         try:
-            args_str = (
-                '{"path": "' + temp_path + '", "old_text": "Test", "new_text": "New"}'
+            args_str = json.dumps(
+                {"path": temp_path, "old_text": "Test", "new_text": "New"}
             )
             call = _call(args_str)
 

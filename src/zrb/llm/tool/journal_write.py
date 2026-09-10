@@ -89,7 +89,7 @@ def log_activity(
         entry = f"- {now.strftime('%H:%M')} — {summary.strip()}. Files: {file_note}."
         _insert_before_backlinks(day_file, entry)
         _git_commit(root, f"activity: {now:%Y-%m-%d %H:%M}")
-        return f"Logged to {os.path.relpath(day_file, root)}"
+        return f"Logged to {_posix_relpath(day_file, root)}"
 
 
 log_activity.__name__ = "LogActivity"
@@ -203,7 +203,7 @@ def write_journal_note(
         if hud_line:
             _upsert_hud_line(root, _HUD_SECTION[category], hud_line.strip())
         _git_commit(root, f"write: {category}/{slug}")
-        return f"Wrote {os.path.relpath(note_path, root)}"
+        return f"Wrote {_posix_relpath(note_path, root)}"
 
 
 write_journal_note.__name__ = "WriteJournalNote"
@@ -255,7 +255,7 @@ def delete_journal_note(
         _scrub_links_to(root, note_path)
         os.remove(note_path)
         _git_commit(root, f"delete: {category}/{slug}")
-        return f"Deleted {os.path.relpath(note_path, root)}"
+        return f"Deleted {_posix_relpath(note_path, root)}"
 
 
 delete_journal_note.__name__ = "DeleteJournalNote"
@@ -312,7 +312,9 @@ def _journal_lock(root: str):
         yield
         return
     lock_path = os.path.join(root, ".lock")
-    with open(lock_path, "w") as lock_file:
+    # Binary: the file is a flock handle and never carries text, so there is
+    # no encoding for it to get wrong.
+    with open(lock_path, "wb") as lock_file:
         fcntl.flock(lock_file, fcntl.LOCK_EX)
         try:
             yield
@@ -485,7 +487,7 @@ def _write_note_file(
     related = _merge_entries(
         _entries_under(note_path, "## Related"),
         [
-            f"- [{_title_of(target)}]({os.path.relpath(target, os.path.dirname(note_path))})"
+            f"- [{_title_of(target)}]({_posix_relpath(target, os.path.dirname(note_path))})"
             for target in targets
         ],
     )
@@ -577,8 +579,15 @@ def _is_inside(path: str, parent: str) -> bool:
     return path == parent or path.startswith(f"{parent}{os.sep}")
 
 
+def _posix_relpath(path: str, start: str) -> str:
+    """`os.path.relpath`, normalized to `/` so journal messages and the
+    markdown links written into index/backlink files stay portable across
+    the platform that wrote them and whatever platform later reads them."""
+    return os.path.relpath(path, start).replace(os.sep, "/")
+
+
 def _add_backlink(target: str, source_path: str, source_title: str) -> None:
-    rel = os.path.relpath(source_path, os.path.dirname(target))
+    rel = _posix_relpath(source_path, os.path.dirname(target))
     entry = f"- [{source_title}]({rel})"
     text = _read_text(target)
     if entry in text:
@@ -591,7 +600,7 @@ def _add_backlink(target: str, source_path: str, source_title: str) -> None:
 def _register_in_index(
     index_path: str, note_path: str, title: str, heading: str | None = None
 ) -> None:
-    rel = os.path.relpath(note_path, os.path.dirname(index_path))
+    rel = _posix_relpath(note_path, os.path.dirname(index_path))
     _register_link(index_path, rel, title, heading=heading)
 
 

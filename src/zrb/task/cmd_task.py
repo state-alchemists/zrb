@@ -7,6 +7,7 @@ from zrb.cmd.any_cmd_val import AnyCmdVal
 from zrb.cmd.cmd_result import CmdResult
 from zrb.cmd.cmd_val import CmdVal, SingleCmdVal
 from zrb.config.config import CFG
+from zrb.config.helper import get_shell_name
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
@@ -201,7 +202,11 @@ class CmdTask(BaseTask):
     def _check_unrecommended_commands(
         self, ctx: AnyContext, shell: str, cmd_script: str
     ):
-        if shell.endswith("bash") or shell.endswith("zsh"):
+        # `get_shell_name`, not `endswith`: on Windows `shell` is an absolute
+        # `...\bin\bash.exe` path, and a raw suffix test would silently skip
+        # the POSIX lint on the one platform whose default shell is now Git
+        # Bash -- i.e. exactly where these warnings matter most.
+        if get_shell_name(shell) in ("bash", "zsh"):
             unrecommended_commands = check_unrecommended_commands(cmd_script)
             if unrecommended_commands:
                 ctx.log_warning("The script contains unrecommended commands")
@@ -231,7 +236,9 @@ class CmdTask(BaseTask):
             "powershell": "-Command",
             "cmd": "/c",
         }
-        default_shell_flag = default_shell_flags.get(self._get_shell(ctx).lower(), "-c")
+        default_shell_flag = default_shell_flags.get(
+            get_shell_name(self._get_shell(ctx)), "-c"
+        )
         return get_str_attr(
             ctx,
             self._shell_flag,
