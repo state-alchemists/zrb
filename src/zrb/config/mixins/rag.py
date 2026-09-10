@@ -9,8 +9,6 @@ class RAGMixin:
     ENV_PREFIX: str
 
     def __init__(self):
-        self.DEFAULT_RAG_EMBEDDING_API_KEY: str = ""
-        self.DEFAULT_RAG_EMBEDDING_BASE_URL: str = ""
         self.DEFAULT_RAG_EMBEDDING_MODEL: str = "text-embedding-ada-002"
         self.DEFAULT_RAG_CHUNK_SIZE: str = "1024"
         self.DEFAULT_RAG_OVERLAP: str = "128"

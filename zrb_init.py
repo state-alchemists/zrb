@@ -152,12 +152,25 @@ review_code = code_group.add_task(
         # The report goes to a file rather than stdout because CmdTask
         # prefixes every subprocess line with its own log decoration -- fine to
         # read, useless to post verbatim as a PR comment.
-        cmd=(
-            "zrb llm chat --interactive false --yolo true --message"
-            ' "/review the changes in git range $REVIEW_RANGE.'
-            " Write the full report as markdown to $REVIEW_OUTPUT,"
-            ' overwriting it, then print a one-line verdict."'
-        ),
+        # The diffstat is computed here and pasted into the message so the
+        # agent starts with the scope in hand instead of spending a tool call
+        # discovering it. `$(...)` output is substituted as text, never
+        # re-parsed as syntax, so a hostile filename in the diff stays data.
+        cmd=[
+            'REVIEW_STAT="$(git diff --stat "$REVIEW_RANGE")"',
+            (
+                "zrb llm chat --interactive false --yolo true --message"
+                ' "/review the changes in git range $REVIEW_RANGE.'
+                " Changed files:"
+                " $REVIEW_STAT."
+                " Write the full report as markdown to $REVIEW_OUTPUT,"
+                " overwriting it. Give every finding its own section with"
+                " Problem, Location (file:line) and Suggestion, and end the"
+                " report with a verdict line reading either"
+                " 'Request changes' or 'LGTM'."
+                ' Then print that verdict as a single line."'
+            ),
+        ],
         # The agent already retries the model call three times internally; a
         # task-level retry would re-run the whole review and re-spend tokens.
         retries=0,

@@ -15,6 +15,7 @@ import logging
 import os
 import signal
 import subprocess
+from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.agent_state import get_current_model
@@ -24,6 +25,9 @@ from zrb.llm.hook.process_io import read_hook_output, run_detached
 from zrb.llm.hook.process_kill import kill_process_tree, read_process_group
 from zrb.llm.hook.schema import CommandHookConfig, PromptHookConfig
 from zrb.llm.hook.types import HookEvent
+
+if TYPE_CHECKING:
+    from pydantic_ai.models import Model
 
 logger = logging.getLogger(__name__)
 
@@ -366,7 +370,7 @@ def _render_prompt_template(template: str, context: HookContext) -> str:
 
 async def run_llm_hook(
     kind: str,
-    model: str | None,
+    model: "str | Model | None",
     system_prompt: str,
     user_prompt: str,
     tools: list | None = None,

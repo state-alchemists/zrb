@@ -1,6 +1,9 @@
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
+
+if TYPE_CHECKING:
+    from pydantic_ai.models import Model
 
 
 class MatcherConfig:
@@ -52,7 +55,7 @@ class AgentHookConfig:
         self,
         system_prompt: str,
         tools: list[str] | None = None,
-        model: str | None = None,
+        model: "str | Model | None" = None,
     ):
         self.system_prompt = system_prompt
         self.tools = tools if tools is not None else []

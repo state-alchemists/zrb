@@ -322,3 +322,21 @@ def test_config_properties_access():
     _ = CFG.LLM_UI_COMMAND_REDIRECT_OUTPUT
     _ = CFG.LLM_UI_COMMAND_EXEC
     _ = CFG.LLM_UI_COMMAND_SET_MODEL
+
+
+def test_no_nullable_field_declares_an_unreachable_empty_default():
+    """A `nullable=True` field turns an empty raw value into `None` *after*
+    resolving its default, so a `DEFAULT_<NAME> = ""` beside one can never be
+    observed -- it only claims a `str` the field never returns."""
+    from zrb.config.config import CFG
+    from zrb.config.env_field import EnvField
+
+    cfg_type = type(CFG)
+    unreachable = [
+        name
+        for name in dir(cfg_type)
+        if isinstance(getattr(cfg_type, name, None), EnvField)
+        and getattr(cfg_type, name).__get__(CFG) is None
+        and getattr(CFG, f"DEFAULT_{name}", None) == ""
+    ]
+    assert unreachable == []
