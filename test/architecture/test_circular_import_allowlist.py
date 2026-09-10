@@ -77,7 +77,7 @@ CIRCULAR_IMPORT_ALLOWLIST: dict[str, int] = {}
 def _circular_import_counts() -> dict[str, int]:
     counts: dict[str, int] = {}
     for path in SRC.rglob("*.py"):
-        n = len(re.findall(r"# lazy: circular", path.read_text()))
+        n = len(re.findall(r"# lazy: circular", path.read_text(encoding="utf-8")))
         if n:
             counts[str(path.relative_to(SRC))] = n
     return counts
@@ -131,7 +131,7 @@ _ISOLATED_IMPORT = textwrap.dedent("""
 
 def _all_packages() -> list[str]:
     return sorted(
-        "zrb." + str(path.parent.relative_to(SRC)).replace("/", ".")
+        ".".join(("zrb", *path.parent.relative_to(SRC).parts))
         for path in SRC.rglob("__init__.py")
         if path.parent != SRC
     )

@@ -111,6 +111,13 @@ class _StubProc:
         time.sleep(0.3)
         return 0
 
+    def communicate(self, input=None):
+        # The non-POSIX path in read_hook_output calls this directly; no pipes
+        # means nothing to drain, matching real Popen's `(None, None)` when
+        # stdout/stderr aren't PIPE.
+        self.wait()
+        return None, None
+
     def kill(self):
         if self._on_kill is not None:
             self._on_kill()

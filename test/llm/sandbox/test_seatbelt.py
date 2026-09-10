@@ -26,12 +26,12 @@ def test_profile_structure(tmp_path):
     assert lines[1] == "(allow default)"
     assert lines[2] == "(deny file-write*)"
     # Writable roots are realpath'd subpaths inside the allow clause.
-    assert f'  (subpath "{os.path.realpath(str(proj))}")' in lines
+    assert f"  (subpath {sbpl_quote(os.path.realpath(str(proj)))})" in lines
     # Device literals stay writable for non-interactive shells.
     assert '  (literal "/dev/null")' in lines
     # Deny-read clause covers the secret dir.
     assert "(deny file-read* file-read-metadata" in profile
-    assert f'"{os.path.realpath(str(secrets))}"' in profile
+    assert sbpl_quote(os.path.realpath(str(secrets))) in profile
 
 
 def test_profile_omits_deny_clause_when_no_roots_exist(tmp_path):

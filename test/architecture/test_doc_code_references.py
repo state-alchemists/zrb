@@ -83,7 +83,7 @@ def test_live_docs_do_not_cite_a_module_that_no_longer_exists():
     dead = [
         f"{doc.relative_to(REPO_ROOT)}: {ref}"
         for doc in _live_docs()
-        for ref in _PY_REF.findall(doc.read_text())
+        for ref in _PY_REF.findall(doc.read_text(encoding="utf-8"))
         if not _NOT_OURS.search(ref)
         and ref not in known
         and ref not in REFERENCE_EXCEPTIONS.get(str(doc.relative_to(REPO_ROOT)), set())
@@ -99,7 +99,7 @@ def test_live_docs_do_not_cite_a_package_that_no_longer_exists():
     dead = [
         f"{doc.relative_to(REPO_ROOT)}: {ref}"
         for doc in _live_docs()
-        for ref in _DIR_REF.findall(doc.read_text())
+        for ref in _DIR_REF.findall(doc.read_text(encoding="utf-8"))
         if ref not in known
     ]
     assert not dead, f"Live doc(s) cite a package directory that does not exist: {dead}"

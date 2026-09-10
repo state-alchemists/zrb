@@ -7,6 +7,7 @@ from zrb.context.any_shared_context import AnySharedContext
 from zrb.context.print_fn import PrintFn
 from zrb.dot_dict.dot_dict import DotDict
 from zrb.session.any_session import AnySession
+from zrb.util.cli.terminal import is_real_console
 from zrb.util.string.conversion import (
     double_quote,
     to_boolean,
@@ -68,7 +69,7 @@ class SharedContext(AnySharedContext):
     @property
     def is_tty(self) -> bool:
         try:
-            return sys.stdin.isatty()
+            return sys.stdin.isatty() and is_real_console(sys.stdin)
         except Exception:
             return False
 

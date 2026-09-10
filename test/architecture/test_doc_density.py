@@ -73,7 +73,7 @@ def _offenders(paths, limit: int, exceptions: dict[str, set[int]]):
     for path in paths:
         rel = str(path.relative_to(REPO_ROOT))
         exempt_lines = exceptions.get(rel, set())
-        for para, lineno in _iter_paragraphs(path.read_text()):
+        for para, lineno in _iter_paragraphs(path.read_text(encoding="utf-8")):
             stripped = para.strip()
             if not stripped:
                 continue
@@ -132,7 +132,7 @@ def test_long_doc_pages_have_a_table_of_contents():
         rel = str(path)
         if "changelog" in rel or "/adr/" in rel:
             continue
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         if len(text.splitlines()) <= MIN_LINES_REQUIRING_TOC:
             continue
         if "table of contents" not in text.lower():

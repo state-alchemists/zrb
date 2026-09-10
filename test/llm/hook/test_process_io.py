@@ -11,6 +11,24 @@ import os
 from zrb.llm.hook.process_io import read_hook_output
 
 
+def _drain_fake_pipe(pipe: "_FakePipe | None") -> bytes:
+    """Read a `_FakePipe` to EOF and close it — the `communicate()` stand-in's
+    read side, mirroring what the selector loop does one chunk at a time."""
+    if pipe is None:
+        return b""
+    chunks = []
+    while True:
+        try:
+            data = os.read(pipe._fd, 65536)
+        except OSError:
+            break
+        if not data:
+            break
+        chunks.append(data)
+    pipe.close()
+    return b"".join(chunks)
+
+
 class _FakePipe:
     """A read/write end of a real OS pipe, with an optionally failing close()."""
 
@@ -58,6 +76,17 @@ class _FakeProc:
 
     def wait(self):
         return self.returncode
+
+    def communicate(self, input=None):
+        # The non-POSIX path in read_hook_output calls this directly.
+        if input and self.stdin is not None:
+            os.write(self.stdin._fd, input)
+        if self.stdin is not None:
+            self.stdin.close()
+        out = _drain_fake_pipe(self.stdout)
+        err = _drain_fake_pipe(self.stderr)
+        self.wait()
+        return out, err
 
 
 def test_read_hook_output_collects_both_streams_to_eof():
@@ -123,6 +152,19 @@ class _ProcThatExitsAfterTheFirstPoll:
 
     def wait(self):
         return self.returncode
+
+    def communicate(self, input=None):
+        # The non-POSIX path in read_hook_output calls this directly, with no
+        # selector loop to trigger the child's exit -- poll() does that here.
+        if input and self.stdin is not None:
+            os.write(self.stdin._fd, input)
+        if self.stdin is not None:
+            self.stdin.close()
+        self.poll()
+        out = _drain_fake_pipe(self.stdout)
+        err = _drain_fake_pipe(self.stderr)
+        self.wait()
+        return out, err
 
 
 def test_read_hook_output_does_not_drop_a_child_that_exits_in_the_first_poll():

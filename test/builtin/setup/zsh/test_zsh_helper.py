@@ -30,12 +30,14 @@ def test_check_inexist_omz_dir_not_exists():
 
 def test_check_inexist_zinit_dir_exists_via_xdg_data_home():
     """Test check_inexist_zinit_dir when $XDG_DATA_HOME/zinit/zinit.git exists."""
-    with patch.dict(os.environ, {"XDG_DATA_HOME": "/tmp/data"}):
+    with patch.dict(os.environ, {"XDG_DATA_HOME": os.path.join("/tmp", "data")}):
         with patch("os.path.isdir", return_value=True) as mock_isdir:
             ctx = MagicMock()
             result = check_inexist_zinit_dir(ctx)
             assert result is False
-            mock_isdir.assert_called_once_with("/tmp/data/zinit/zinit.git")
+            mock_isdir.assert_called_once_with(
+                os.path.join("/tmp", "data", "zinit", "zinit.git")
+            )
 
 
 def test_check_inexist_zinit_dir_not_exists_default_path():
@@ -45,7 +47,11 @@ def test_check_inexist_zinit_dir_not_exists_default_path():
             ctx = MagicMock()
             result = check_inexist_zinit_dir(ctx)
             assert result is True
-            mock_isdir.assert_called_once_with("/tmp/.local/share/zinit/zinit.git")
+            mock_isdir.assert_called_once_with(
+                os.path.expanduser(
+                    os.path.join("~", ".local", "share", "zinit", "zinit.git")
+                )
+            )
 
 
 def test_get_install_zsh_cmd_with_apt():

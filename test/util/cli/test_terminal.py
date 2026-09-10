@@ -43,16 +43,20 @@ class TestGetTerminalSize:
         """Test get_terminal_size with default fallback."""
         from zrb.util.cli.terminal import get_terminal_size
 
-        # When streams are None or unavailable, should return fallback
+        # When streams are None or unavailable, should return fallback.
+        # os.name is pinned off "nt" so the Windows CONOUT$ probe (which a
+        # real Windows runner can satisfy for real, short-circuiting before
+        # the shutil mock below) doesn't mask what this test targets.
         with patch.object(sys, "__stdout__", None):
             with patch.object(sys, "__stderr__", None):
                 with patch.object(sys, "__stdin__", None):
-                    with patch("shutil.get_terminal_size") as mock_shutil:
-                        mock_shutil.return_value.columns = 80
-                        mock_shutil.return_value.lines = 24
-                        size = get_terminal_size()
-                        assert size.columns == 80
-                        assert size.lines == 24
+                    with patch.object(os, "name", "posix"):
+                        with patch("shutil.get_terminal_size") as mock_shutil:
+                            mock_shutil.return_value.columns = 80
+                            mock_shutil.return_value.lines = 24
+                            size = get_terminal_size()
+                            assert size.columns == 80
+                            assert size.lines == 24
 
     def test_custom_fallback(self):
         """Test get_terminal_size with custom fallback."""
@@ -61,12 +65,13 @@ class TestGetTerminalSize:
         with patch.object(sys, "__stdout__", None):
             with patch.object(sys, "__stderr__", None):
                 with patch.object(sys, "__stdin__", None):
-                    with patch("shutil.get_terminal_size") as mock_shutil:
-                        mock_shutil.return_value.columns = 120
-                        mock_shutil.return_value.lines = 40
-                        size = get_terminal_size(fallback=(120, 40))
-                        assert size.columns == 120
-                        assert size.lines == 40
+                    with patch.object(os, "name", "posix"):
+                        with patch("shutil.get_terminal_size") as mock_shutil:
+                            mock_shutil.return_value.columns = 120
+                            mock_shutil.return_value.lines = 40
+                            size = get_terminal_size(fallback=(120, 40))
+                            assert size.columns == 120
+                            assert size.lines == 40
 
     def test_returns_terminal_size(self):
         """Test that get_terminal_size returns TerminalSize."""

@@ -66,7 +66,7 @@ def _closure_of(target: str) -> set[str]:
 def _declares_a_model(path: Path) -> bool:
     """Whether *path* subclasses pydantic's model base at module level."""
     try:
-        tree = ast.parse(path.read_text())
+        tree = ast.parse(path.read_text(encoding="utf-8"))
     except (OSError, SyntaxError):
         return False
     return any(

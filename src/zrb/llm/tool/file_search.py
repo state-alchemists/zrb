@@ -19,6 +19,16 @@ _MAX_LINE_LENGTH = 1000
 MAX_MATCHES_PER_FILE = 100
 
 
+def _relpath_or_abs(path: str, start: str) -> str:
+    """`os.path.relpath`, falling back to the absolute path when *path* and
+    *start* are on different Windows drives (`ValueError`) rather than
+    crashing the whole search."""
+    try:
+        return os.path.relpath(path, start)
+    except ValueError:
+        return os.path.abspath(path)
+
+
 def search_files(
     pattern: Annotated[
         str,
@@ -249,7 +259,7 @@ def _search_with_ripgrep(
     skipped_count = 0
 
     for file_path in matching_files:
-        rel_file_path = os.path.relpath(file_path, os.getcwd())
+        rel_file_path = _relpath_or_abs(file_path, os.getcwd())
         try:
             matches = get_file_matches(
                 file_path,
@@ -317,7 +327,7 @@ def _search_with_os_walk(
                 continue
 
             file_path = os.path.join(root, filename)
-            rel_file_path = os.path.relpath(file_path, os.getcwd())
+            rel_file_path = _relpath_or_abs(file_path, os.getcwd())
             if matches_any_pattern(rel_file_path, patterns_to_exclude):
                 continue
             searched_file_count += 1

@@ -152,7 +152,7 @@ def test_no_part_reaches_another_objects_private_state():
         rel = str(path.relative_to(REPO_ROOT))
         if rel in MONKEYPATCH_EXCEPTIONS:
             continue
-        tree = ast.parse(path.read_text(), filename=str(path))
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         violations = _private_cross_accesses(tree)
         if violations:
             offenders[rel] = violations
@@ -173,7 +173,7 @@ def test_business_logic_stays_free_of_presentation_frameworks():
         rel = str(path.relative_to(SRC))
         if rel.startswith(FRAMEWORK_EXEMPT_DIRS):
             continue
-        tree = ast.parse(path.read_text(), filename=str(path))
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         found = _forbidden_import(tree)
         if found:
             offenders[rel] = found
@@ -235,7 +235,7 @@ def test_every_extension_point_is_named_any_thing_in_any_thing_py():
     """
     offenders = []
     for path in _iter_py_files():
-        tree = ast.parse(path.read_text(), filename=str(path))
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
             if not isinstance(node, ast.ClassDef) or not _is_extension_point(node):
                 continue
@@ -271,7 +271,7 @@ def test_no_bare_exception_is_raised():
     caught selectively — every raise site names a real exception type."""
     offenders = []
     for path in _iter_py_files():
-        tree = ast.parse(path.read_text(), filename=str(path))
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in _iter_raises(tree):
             func = node.exc.func  # type: ignore[union-attr]
             if isinstance(func, ast.Name) and func.id == "Exception":
@@ -289,7 +289,7 @@ def test_no_error_message_is_shorter_than_forty_characters():
     for path in _iter_py_files():
         rel = str(path.relative_to(SRC))
         exempt_lines = SHORT_MESSAGE_EXCEPTIONS.get(rel, set())
-        tree = ast.parse(path.read_text(), filename=str(path))
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in _iter_raises(tree):
             call = node.exc
             if not call.args:  # type: ignore[union-attr]
@@ -313,7 +313,7 @@ def test_config_mixins_share_one_naming_convention():
     mixins_dir = SRC / "config" / "mixins"
     offenders = []
     for path in mixins_dir.glob("*.py"):
-        tree = ast.parse(path.read_text(), filename=str(path))
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in tree.body:
             if isinstance(node, ast.ClassDef) and not node.name.endswith("Mixin"):
                 offenders.append(f"{path.relative_to(SRC)}:{node.lineno} {node.name}")

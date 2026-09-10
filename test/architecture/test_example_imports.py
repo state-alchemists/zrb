@@ -32,7 +32,7 @@ def _zrb_imports(tree: ast.Module):
     "path", sorted(EXAMPLES.rglob("*.py")), ids=lambda p: str(p.relative_to(EXAMPLES))
 )
 def test_example_imports_resolve(path: Path):
-    tree = ast.parse(path.read_text())
+    tree = ast.parse(path.read_text(encoding="utf-8"))
     for module_name, names in _zrb_imports(tree):
         module = importlib.import_module(module_name)
         missing = [n for n in names if n != "*" and not hasattr(module, n)]

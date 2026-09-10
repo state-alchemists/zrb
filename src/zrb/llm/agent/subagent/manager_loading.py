@@ -43,32 +43,29 @@ class SubAgentManagerLoading:
     and handed in once here; `agents` is the *same* dict object held by
     `SubAgentManager` (never reassigned wholesale — `SubAgentManager.reload`
     clears it in place), so mutations made here stay visible to the manager.
-    `root_dir` is passed per
-    call instead of cached, since it can change after construction.
     """
 
     def __init__(self, ignore_dirs: list[str], agents: "dict[str, SubAgentDefinition]"):
         self._ignore_dirs = ignore_dirs
         self._agents = agents
 
-    def scan_dir(self, directory: Path, max_depth: int, root_dir: str) -> None:
+    def scan_dir(self, directory: Path, max_depth: int) -> None:
         """Walk ``directory`` and load every agent file found under it."""
         try:
             scan_files(
                 Path(directory),
                 max_depth,
-                lambda item: self._on_file_found(item, root_dir),
+                self._on_file_found,
                 self._ignore_dirs,
             )
         except Exception as e:
             CFG.LOGGER.debug(f"Failed to scan agent directory {directory}: {e}")
 
-    def _on_file_found(self, item: Path, root_dir: str) -> None:
+    def _on_file_found(self, item: Path) -> None:
         full_path = str(item)
-        rel_path = os.path.relpath(full_path, root_dir)
 
         if item.name == "AGENT.py" or item.name.endswith(".agent.py"):
-            self._load_agent_from_python(rel_path, full_path)
+            self._load_agent_from_python(full_path)
         else:
             is_agent_file = item.name == "AGENT.md" or item.name.endswith(".agent.md")
             # Claude also accepts plain ``.md`` files inside ``agents/``.
@@ -79,9 +76,9 @@ class SubAgentManagerLoading:
                 ):
                     is_agent_file = True
             if is_agent_file:
-                self._load_agent_from_markdown(rel_path, full_path)
+                self._load_agent_from_markdown(full_path)
 
-    def _load_agent_from_python(self, rel_path: str, full_path: str) -> None:
+    def _load_agent_from_python(self, full_path: str) -> None:
         # lazy: heavy third-party
         from pydantic_ai import Agent
 
@@ -123,7 +120,7 @@ class SubAgentManagerLoading:
         except Exception as e:
             CFG.LOGGER.debug(f"Failed to load Python agent {full_path}: {e}")
 
-    def _load_agent_from_markdown(self, rel_path: str, full_path: str) -> None:
+    def _load_agent_from_markdown(self, full_path: str) -> None:
         try:
             with open(full_path, "r", encoding="utf-8") as f:
                 content = f.read()

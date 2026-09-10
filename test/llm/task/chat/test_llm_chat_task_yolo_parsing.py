@@ -1,3 +1,4 @@
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -208,6 +209,16 @@ async def test_llm_chat_task_non_interactive_run():
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason=(
+        "LLMChatTask(interactive=True) constructs a real zrb.llm.ui.default.ui.UI, "
+        "whose __init__ unconditionally builds a prompt_toolkit Application "
+        "(create_output) requiring a genuine Win32 console screen buffer -- "
+        "not provided by the CI runner's Git-Bash shell. Same root cause as "
+        "test/llm/ui/test_ui_base.py's skip."
+    ),
+)
 async def test_llm_chat_task_interactive_ui_trigger():
     """Test that LLMChatTask triggers UI in interactive mode."""
     # We mock UI.run_async to avoid launching the actual terminal app

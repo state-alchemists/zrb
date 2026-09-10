@@ -1,3 +1,4 @@
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -59,9 +60,16 @@ async def test_get_diff():
 
 @pytest.mark.asyncio
 async def test_get_repo_dir():
+    # A bare rooted path with no drive letter (what `git rev-parse
+    # --show-toplevel` would never actually emit on Windows, which always
+    # includes one) — `os.path.abspath` resolves it against the current
+    # drive, so the expected value must go through the same call rather
+    # than hardcode a POSIX-style literal.
+    raw_output = os.path.join(os.sep, "path", "to", "repo")
+
     def mock_run_command(*args, **kwargs):
         async def _coro():
-            return (CmdResult("/path/to/repo\n", "", ""), 0)
+            return (CmdResult(f"{raw_output}\n", "", ""), 0)
 
         return _coro()
 
@@ -69,7 +77,7 @@ async def test_get_repo_dir():
         "zrb.util.git.commands.run_command", new=MagicMock(side_effect=mock_run_command)
     ):
         result = await get_repo_dir()
-        assert result == "/path/to/repo"
+        assert result == os.path.abspath(raw_output)
 
 
 @pytest.mark.asyncio

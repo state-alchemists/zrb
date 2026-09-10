@@ -89,7 +89,7 @@ def _is_categorized(blocktext: str) -> bool:
 def _find_uncategorized() -> list[str]:
     uncategorized: list[str] = []
     for path in SRC.rglob("*.py"):
-        lines = path.read_text().splitlines()
+        lines = path.read_text(encoding="utf-8").splitlines()
         i = 0
         while i < len(lines):
             if "# lazy:" not in lines[i]:

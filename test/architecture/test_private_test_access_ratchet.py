@@ -38,7 +38,7 @@ def _non_self_private_access_count() -> int:
     return sum(
         1
         for path in TEST_ROOT.rglob("*.py")
-        for m in _PRIVATE_ACCESS_PATTERN.finditer(path.read_text())
+        for m in _PRIVATE_ACCESS_PATTERN.finditer(path.read_text(encoding="utf-8"))
         if not m.group().startswith("self.")
     )
 

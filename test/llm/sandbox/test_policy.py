@@ -55,7 +55,9 @@ def test_env_enables_sandbox(monkeypatch):
 
 
 def test_env_writable_paths_path_list_expands_user(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_SANDBOX_WRITABLE_PATHS", "~/proj:/var/data")
+    monkeypatch.setenv(
+        "ZRB_LLM_SANDBOX_WRITABLE_PATHS", os.pathsep.join(["~/proj", "/var/data"])
+    )
     policy = resolve_sandbox_policy_from_config()
     assert os.path.expanduser("~/proj") in policy.writable_paths
     assert "/var/data" in policy.writable_paths

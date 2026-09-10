@@ -43,6 +43,7 @@ jobs:
   # Docs: https://docs.github.com/en/actions/using-workflows/reusing-workflows
   Run-command:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
     container:
       image: stalchmst/zrb:3.0.0b11
     env:

@@ -69,7 +69,7 @@ def _find_violations() -> list[str]:
         rel = path.relative_to(SRC).as_posix()
         if any(rel.startswith(prefix) or rel == prefix for prefix in EXEMPT_PREFIXES):
             continue
-        tree = ast.parse(path.read_text(), filename=str(path))
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for lineno, attr in _collect_violations(tree):
             found.append(f"{rel}:{lineno}: CFG.{attr}")
     return found

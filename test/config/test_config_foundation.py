@@ -97,6 +97,18 @@ def test_default_shell_windows_prefers_pwsh(mock_platform_system, monkeypatch):
 
 
 @mock.patch("platform.system", return_value="Windows")
+def test_default_shell_windows_prefers_bash_over_powershell(
+    mock_platform_system, monkeypatch
+):
+    """Git Bash on PATH (ships on GitHub's windows-latest runner, and a
+    common dev install) wins over PowerShell -- most zrb shell commands are
+    POSIX syntax, so a bash on PATH is the better default."""
+    monkeypatch.delenv("ZRB_SHELL", raising=False)
+    with mock.patch("shutil.which", side_effect=_which("bash", "pwsh", "powershell")):
+        assert get_current_shell() == "bash"
+
+
+@mock.patch("platform.system", return_value="Windows")
 def test_default_shell_windows_falls_back_to_cmd(mock_platform_system, monkeypatch):
     monkeypatch.delenv("ZRB_SHELL", raising=False)
     # Neither pwsh nor powershell present -> cmd, which always exists on Windows.

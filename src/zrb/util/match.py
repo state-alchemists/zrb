@@ -22,7 +22,7 @@ def fuzzy_match(text: str, pattern: str) -> tuple[bool, float]:
     # Normalize pattern -> tokens split on path separators or whitespace
     search_pattern = pattern.strip()
     tokens = (
-        [t for t in re.split(rf"[{re.escape(os.path.sep)}\s]+", search_pattern) if t]
+        [t for t in re.split(rf"[{re.escape(os.path.sep)}/\s]+", search_pattern) if t]
         if search_pattern
         else []
     )

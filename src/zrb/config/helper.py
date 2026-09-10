@@ -22,6 +22,14 @@ def get_current_shell() -> str:
     are effectively always present on their respective platforms.
     """
     if platform.system() == "Windows":
+        # Git Bash ships on GitHub's windows-latest runner (and is a common
+        # dev install), and most of zrb's own shell commands are written in
+        # POSIX syntax -- so a bash on PATH is preferred over PowerShell/cmd,
+        # matching the POSIX branch below rather than assuming Windows means
+        # no POSIX shell is available.
+        for candidate in ("bash", "sh"):
+            if shutil.which(candidate):
+                return candidate
         for candidate in ("pwsh", "powershell"):
             if shutil.which(candidate):
                 return candidate
