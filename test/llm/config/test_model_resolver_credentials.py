@@ -315,3 +315,105 @@ def test_a_bare_model_name_over_a_custom_url_still_inherits_openai_key(
     model = resolver.resolve("some-local-model", base_url="https://gw.example/v1")
 
     assert model.provider.client.api_key == "sk-my-real-openai-secret"
+
+
+# ---------------------------------------------------------------------------
+# An explicit provider on a bare model name
+#
+# A provider *name* is not a provider: it carries no credentials. Until 3.0.0
+# a bare model name plus `LLM_PROVIDER` routed to the OpenAI branch, whose
+# only reachable outcome for a string provider was a bare
+# `"<provider>:<model>"` -- discarding LLM_API_KEY and, worse, LLM_BASE_URL,
+# so traffic meant for a private gateway went to the vendor's public endpoint.
+# ---------------------------------------------------------------------------
+
+
+def test_bare_model_with_provider_openai_keeps_its_api_key(resolver):
+    from pydantic_ai.models.openai import OpenAIChatModel
+
+    model = resolver.resolve("gpt-5", api_key="zrb-key", provider="openai")
+
+    assert isinstance(model, OpenAIChatModel)
+    assert model.model_name == "gpt-5"
+    assert model.provider.client.api_key == "zrb-key"
+
+
+def test_bare_model_with_provider_openai_keeps_its_base_url(resolver):
+    model = resolver.resolve(
+        "gpt-5", api_key="zrb-key", base_url="https://gw/v1", provider="openai"
+    )
+
+    assert model.provider.client.api_key == "zrb-key"
+    assert str(model.provider.base_url).startswith("https://gw/v1")
+
+
+def test_bare_model_with_provider_anthropic_routes_to_anthropic(resolver):
+    """Routing first: attaching credentials without fixing the route would
+    have sent a Claude model name to OpenAI's endpoint."""
+    from pydantic_ai.models.anthropic import AnthropicModel
+
+    model = resolver.resolve("claude-x", api_key="zrb-key", provider="anthropic")
+
+    assert isinstance(model, AnthropicModel)
+    assert model.model_name == "claude-x"
+    assert model.provider.name == "anthropic"
+    assert model.provider.client.api_key == "zrb-key"
+
+
+def test_bare_model_with_provider_anthropic_keeps_its_base_url(resolver):
+    model = resolver.resolve(
+        "claude-x", api_key="zrb-key", base_url="https://gw/v1", provider="anthropic"
+    )
+
+    assert model.provider.client.api_key == "zrb-key"
+    assert str(model.provider.base_url).startswith("https://gw/v1")
+
+
+def test_bare_model_with_a_provider_instance_routes_by_its_name(resolver):
+    """A `Provider` instance answers "which vendor" through `.name`, and had
+    the same hole: it fell past `_resolve_model`'s type checks to a bare name."""
+    # lazy: heavy third-party
+    from pydantic_ai.providers.anthropic import AnthropicProvider
+
+    mine = AnthropicProvider(api_key="my-key", base_url="https://mine/v1")
+
+    model = resolver.resolve("claude-x", provider=mine)
+
+    assert model.provider is mine
+    assert model.model_name == "claude-x"
+
+
+def test_bare_model_with_provider_string_and_no_credentials_is_unchanged(resolver):
+    """Nothing to attach, so the prefixed name still goes to pydantic-ai --
+    the behavior an explicit `LLM_PROVIDER` already had."""
+    assert resolver.resolve("claude-x", provider="anthropic") == "anthropic:claude-x"
+
+
+def test_configured_provider_and_bare_model_carry_credentials_end_to_end(monkeypatch):
+    """The whole reported shape, through the knobs a user actually sets."""
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setattr(CFG, "LLM_PROVIDER", "anthropic")
+    monkeypatch.setattr(CFG, "LLM_MODEL", "claude-sonnet-4-5")
+    monkeypatch.setattr(CFG, "LLM_API_KEY", "my-anthropic-key")
+    monkeypatch.setattr(CFG, "LLM_BASE_URL", "https://my-gateway/v1")
+
+    model = resolve_configured_model()
+
+    assert model.provider.client.api_key == "my-anthropic-key"
+    assert str(model.provider.base_url).startswith("https://my-gateway/v1")
+
+
+def test_configured_provider_still_scopes_the_key_for_a_foreign_small_model(
+    monkeypatch,
+):
+    """Routing by `LLM_PROVIDER` must not undo the withholding rule: the key
+    still belongs to `LLM_PROVIDER`'s vendor, so a `deepseek:` small model
+    beside an anthropic-configured main model does not get it."""
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    monkeypatch.setattr(CFG, "LLM_PROVIDER", "anthropic")
+    monkeypatch.setattr(CFG, "LLM_MODEL", "claude-sonnet-4-5")
+    monkeypatch.setattr(CFG, "LLM_SMALL_MODEL", "deepseek:deepseek-chat")
+    monkeypatch.setattr(CFG, "LLM_API_KEY", "my-anthropic-key")
+    monkeypatch.setattr(CFG, "LLM_BASE_URL", "")
+
+    assert resolve_configured_small_model() == "deepseek:deepseek-chat"

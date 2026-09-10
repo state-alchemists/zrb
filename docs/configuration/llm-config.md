@@ -59,6 +59,8 @@ Every agent also gets `openai_reasoning_summary="auto"` and `openai_prompt_cache
 
 `ZRB_LLM_BASE_URL` overrides that scoping. Pointing zrb at one endpoint says that endpoint serves every tier — the LiteLLM / OpenRouter gateway case — so the key travels with the URL regardless of prefix.
 
+A **bare model name takes its vendor from `ZRB_LLM_PROVIDER`**, and is then treated exactly like the prefixed form. `ZRB_LLM_PROVIDER=anthropic` with `ZRB_LLM_MODEL=claude-sonnet-4-5` resolves to Anthropic and receives your `ZRB_LLM_API_KEY` and `ZRB_LLM_BASE_URL`, just as `anthropic:claude-sonnet-4-5` would. The tables below leave `ZRB_LLM_PROVIDER` unset, so the vendor comes from the prefix in every row.
+
 ```mermaid
 flowchart TD
     Start(["resolve a model for any tier<br />(main, small, multimodal)"]) --> URL{"ZRB_LLM_BASE_URL set?"}
