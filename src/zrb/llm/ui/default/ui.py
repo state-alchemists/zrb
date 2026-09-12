@@ -648,6 +648,5 @@ class UI(BaseUI):
 
     def handle_confirmation(self, event: Any) -> bool:
         # `UISelection` is the front: it handles the pending-free-text case
-        # and falls through to `UIConfirmation`'s base case otherwise —
-        # mirroring the old MRO where `UISelection` preceded `UIConfirmation`.
+        # and falls through to `UIConfirmation`'s base case otherwise.
         return self._selection.handle_confirmation(event)

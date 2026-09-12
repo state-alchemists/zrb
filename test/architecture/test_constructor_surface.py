@@ -17,8 +17,8 @@ parameter `X` accepts is also accepted here"* over a signature that quietly
 drops nine of them, so a task can declare a readiness check it will never
 configure or monitor.
 
-`BaseUI` is the other host measured here; routing its UI-backend settings
-through `UIConfig` shrank it from 34 parameters to 15.
+`BaseUI` is the other host measured here; its UI-backend settings route
+through `UIConfig` rather than its own signature.
 """
 
 import ast
@@ -51,12 +51,7 @@ from zrb.task.tcp_check import TcpCheck
 # below exist to keep exactly those in sync. The number worth driving down is
 # the rest.
 #
-# ADR-0090/0091 (R12) records the `llm_config` split that set the previous
-# numbers. LLMChatTask 62 -> 58: the four `ui_*` text params folded into
-# `UIConfig`, which already carried `assistant_name`.
-# +1 each for `retry_if`: BaseTask's retry loop now takes a predicate so a
-# permanent provider error (bad credentials, unknown model) fails on the first
-# attempt instead of burning every retry on an error that cannot succeed.
+# ADR-0090/0091 (R12) records the `llm_config` split these numbers reflect.
 PARAM_BUDGETS = {
     LLMChatTask: 59,
     LLMTask: 49,
