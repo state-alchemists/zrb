@@ -63,7 +63,10 @@ async def _macos() -> bytes | None:
 
 async def _macos_osascript() -> bytes | None:
     """Fallback: dump clipboard PNG via AppleScript when Pillow is absent."""
-    tmp = os.path.join(tempfile.gettempdir(), "zrb_clipboard_img.png")
+    # Unique per call: a fixed name would hand back a stale image from an
+    # earlier run whenever AppleScript writes nothing.
+    fd, tmp = tempfile.mkstemp(prefix="zrb_clipboard_img", suffix=".png")
+    os.close(fd)
     script = (
         "try\n"
         "  set imgData to (the clipboard as \u00abclass PNGf\u00bb)\n"
@@ -84,15 +87,16 @@ async def _macos_osascript() -> bytes | None:
         stderr=asyncio.subprocess.DEVNULL,
     )
     await proc.communicate()
-    if os.path.exists(tmp) and os.path.getsize(tmp) > 0:
+    try:
         with open(tmp, "rb") as fh:
             data = fh.read()
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        return data
-    return None
+    except OSError:
+        data = b""
+    try:
+        os.unlink(tmp)
+    except OSError:
+        pass
+    return data or None
 
 
 # ---------------------------------------------------------------------------
