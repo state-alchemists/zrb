@@ -134,6 +134,32 @@ When you use `append_ui_factory()`:
 - **Input**: Waits for FIRST response from ANY channel
 - **Approvals**: First approval response wins (CLI or external)
 
+### Optional Enrichment Hooks
+
+`MultiUI` also forwards nine richer output events to any child that implements
+them. **None of these is required** — `MultiUI` checks each child and skips the
+ones that don't have the method, which is why a Telegram channel can ignore the
+terminal's block-collapsing entirely and still receive everything through
+`append_to_output`. They are not part of `AnyUI` for the same reason: a chat
+channel has no thinking block to collapse.
+
+Implement one only when your channel can render it better than a plain line:
+
+| Hook | Fired when |
+| --- | --- |
+| `accumulate_usage(usage, context_usage)` | A run reports token totals — needed for a session token meter |
+| `mark_text_block_start()` | The assistant begins a text block |
+| `collapse_text_block(collapsed, full)` | That text block ends, with a short and a full form |
+| `mark_thinking_block_start()` | The assistant begins a reasoning block |
+| `collapse_thinking_block(collapsed, full)` | That reasoning block ends |
+| `update_tool_prepare(key, text)` | A tool call is being prepared |
+| `update_shell_output(key, text)` | A running shell command emits output |
+| `finish_shell_output(key, collapsed, full)` | That shell command completes |
+| `replay_history(messages)` | A conversation is replayed on resume |
+
+The canonical list lives in `test/architecture/test_multi_ui_fanout_surface.py`,
+which fails if `MultiUI` fans out a name that isn't on it.
+
 ### Quick Start
 
 ```python

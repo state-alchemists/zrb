@@ -1,12 +1,8 @@
 """Fitness function for facade-file growth.
 
-AGENTS.md's Part pattern expects extracting a part to shrink its owner's
-facade. That didn't happen for `llm/ui/base/ui.py`: this branch split
-`confirmation_state.py`, `persona_state.py`, `usage.py`, and `voice_state.py`
-out of it, but `ui.py` is still the largest file in `src/zrb` — every property
-getter/setter and one-line delegator for those parts still lives in the
-facade class itself, so extraction moved logic out without moving the
-boilerplate that points at it.
+Extracting a part is meant to shrink its owner's facade, and does not when
+the property getters, setters and delegators pointing at the part stay
+behind — logic moves out, boilerplate doesn't, and the file keeps its size.
 
 This budget doesn't ban growth — a facade legitimately grows as its owner
 gains genuine new public surface. It makes growth a conscious, reviewed
@@ -24,10 +20,11 @@ SRC = REPO_ROOT / "src" / "zrb"
 # just to make the test pass.
 # Ceilings that only ever go DOWN — see test_constructor_surface.py's note.
 FACADE_BUDGETS = {
-    "llm/ui/base/ui.py": 1450,
-    "llm/task/chat/task.py": 1150,
-    "llm/task/llm_task.py": 915,
-    "llm/agent/subagent/manager.py": 310,
+    "llm/ui/base/ui.py": 1330,
+    "llm/ui/default/ui.py": 653,
+    "llm/task/chat/task.py": 1072,
+    "llm/task/llm_task.py": 879,
+    "llm/agent/subagent/manager.py": 299,
 }
 
 

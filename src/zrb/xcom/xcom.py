@@ -1,9 +1,9 @@
 from collections import deque
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Callable, Iterable
+from typing import Any, SupportsIndex
 
 
-class Xcom(deque):
+class Xcom(deque[Any]):
     """A cross-task message queue, reachable as `ctx.xcom[task_name]`.
 
     One task pushes a value, another pops it. This is the supported way to move
@@ -25,49 +25,51 @@ class Xcom(deque):
     `popright` for the LIFO behaviour `deque.pop` normally has.
     """
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         class_name = self.__class__.__name__
         return f"<{class_name} {list(self)}>"
 
-    def append(self, value):
+    def append(self, value: Any) -> None:
         """Add a value to the end of the queue and fire push callbacks."""
         super().append(value)
         self.__call_push_callbacks()
 
-    def appendleft(self, value):
+    def appendleft(self, value: Any) -> None:
         """Add a value to the front of the queue and fire push callbacks."""
         super().appendleft(value)
         self.__call_push_callbacks()
 
-    def extend(self, values):
+    def extend(self, values: Iterable[Any]) -> None:
         """Add every value to the end of the queue, firing push callbacks once."""
         super().extend(values)
         self.__call_push_callbacks()
 
-    def extendleft(self, values):
+    def extendleft(self, values: Iterable[Any]) -> None:
         """Prepend every value (in reverse), firing push callbacks once."""
         super().extendleft(values)
         self.__call_push_callbacks()
 
-    def insert(self, index, value):
+    def insert(self, index: int, value: Any) -> None:
         """Insert a value at *index*, firing push callbacks."""
         super().insert(index, value)
         self.__call_push_callbacks()
 
-    def remove(self, value):
+    def remove(self, value: Any) -> None:
         """Remove the first matching value, firing pop callbacks."""
         super().remove(value)
         self.__call_pop_callbacks()
 
-    def __setitem__(self, index, value):
-        super().__setitem__(index, value)
+    def __setitem__(self, index: "SupportsIndex | slice", value: Any) -> None:
+        # `deque.__setitem__` is two overloads -- (SupportsIndex, value) and
+        # (slice, iterable) -- which no single forwarding call can satisfy.
+        super().__setitem__(index, value)  # pyright: ignore[reportArgumentType]
         self.__call_push_callbacks()
 
-    def push(self, value):
+    def push(self, value: Any) -> None:
         """Add a value to the end of the queue. Alias of `append`."""
         self.append(value)
 
-    def popleft(self):
+    def popleft(self) -> Any:
         """Remove and return the oldest value, firing pop callbacks.
 
         Raises:
@@ -77,7 +79,7 @@ class Xcom(deque):
         self.__call_pop_callbacks()
         return value
 
-    def pop(self):
+    def pop(self) -> Any:
         """Remove and return the oldest value. Alias of `popleft`.
 
         Overrides `deque.pop`, which removes from the right. Use `popright` for
@@ -98,7 +100,7 @@ class Xcom(deque):
         self.__call_pop_callbacks()
         return value
 
-    def peek(self):
+    def peek(self) -> Any:
         """Return the oldest value without removing it.
 
         The non-destructive counterpart of `pop`, so both see the same element.
@@ -135,7 +137,7 @@ class Xcom(deque):
             return self[-1]
         return default_value
 
-    def set(self, new_value: Any):
+    def set(self, new_value: Any) -> None:
         """Replace the contents with a single value.
 
         Pairs with `get` for single-variable use: everything already queued is
@@ -145,7 +147,7 @@ class Xcom(deque):
         while len(self) > 1:
             self.pop()
 
-    def append_push_callback(self, callback: Callable[[], Any]):
+    def append_push_callback(self, callback: Callable[[], Any]) -> None:
         """Register a zero-argument callback fired after every push.
 
         Callbacks run in registration order and receive nothing — read the
@@ -155,7 +157,7 @@ class Xcom(deque):
             self.push_callbacks: list[Callable[[], Any]] = []
         self.push_callbacks.append(callback)
 
-    def append_pop_callback(self, callback: Callable[[], Any]):
+    def append_pop_callback(self, callback: Callable[[], Any]) -> None:
         """Register a zero-argument callback fired after every pop.
 
         Fires for `pop`, `popleft`, and `popright` alike.
@@ -164,13 +166,13 @@ class Xcom(deque):
             self.pop_callbacks: list[Callable[[], Any]] = []
         self.pop_callbacks.append(callback)
 
-    def __call_push_callbacks(self):
+    def __call_push_callbacks(self) -> None:
         if not hasattr(self, "push_callbacks"):
             return
         for callback in self.push_callbacks:
             callback()
 
-    def __call_pop_callbacks(self):
+    def __call_pop_callbacks(self) -> None:
         if not hasattr(self, "pop_callbacks"):
             return
         for callback in self.pop_callbacks:

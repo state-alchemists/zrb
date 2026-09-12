@@ -40,7 +40,7 @@ class OptionInput(BaseInput):
             allow_positional_parsing=allow_positional_parsing,
             always_prompt=always_prompt,
         )
-        self._options = options if options is not None else []
+        self._options: StrListAttr = options if options is not None else []
 
     def to_html(self, shared_ctx: AnySharedContext) -> str:
         name = html.escape(self.name)
@@ -77,7 +77,7 @@ class OptionInput(BaseInput):
         from prompt_toolkit import PromptSession
 
         if shared_ctx.is_tty:
-            reader = PromptSession()
+            reader: "PromptSession[str]" = PromptSession()
             option_completer = self._get_option_completer(options)
             return reader.prompt(f"{prompt_message}: ", completer=option_completer)
         return input(f"{prompt_message}: ")
@@ -95,7 +95,7 @@ class OptionInput(BaseInput):
                 self, document: Document, complete_event: CompleteEvent
             ):
                 search_pattern = document.get_word_before_cursor(WORD=True)
-                candidates = []
+                candidates: list[tuple[float, str]] = []
                 for option in self._options:
                     matched, score = fuzzy_match(option, search_pattern)
                     if matched:

@@ -18,17 +18,17 @@ These are organized into conceptual modules within `zrb.builtin`.
 
 ## Available Modules
 
-> Each task below is registered under its group with a short **alias** as the actual CLI subcommand — e.g. the base64-encode task's internal name is `encode-base64`, but its alias is `encode`, so the runnable command is `zrb base64 encode` (not `zrb base64 encode-base64`). The **Command** column below always shows the real, runnable `zrb ...` invocation. The internal task name (used for `from zrb.builtin import ...`, see [Quick Reference](#quick-reference)) is only mentioned where it differs obviously from the alias.
+> Each task below is registered under its group with a short **alias** as the actual CLI subcommand — e.g. the base64-encode task's internal name is `encode-base64`, but its alias is `encode`, so the runnable command is `zrb util base64 encode` (not `zrb util base64 encode-base64`). The **Command** column below always shows the real, runnable `zrb ...` invocation. The internal task name (used for `from zrb.builtin import ...`, see [Quick Reference](#quick-reference)) is only mentioned where it differs obviously from the alias.
 
-### 📦 Base64 (`base64`)
+### 📦 Base64 (`util base64`)
 
 Encode, decode, and validate base64 strings.
 
 | Command | Description |
 |---------|-------------|
-| `zrb base64 encode` | Encode string to base64 (`--url-safe` for the `-_` alphabet) |
-| `zrb base64 decode` | Decode base64 to string (`--url-safe` for the `-_` alphabet) |
-| `zrb base64 validate` | Validate base64 string (accepts base64 of binary data, not only UTF-8 text) |
+| `zrb util base64 encode` | Encode string to base64 (`--url-safe` for the `-_` alphabet) |
+| `zrb util base64 decode` | Decode base64 to string (`--url-safe` for the `-_` alphabet) |
+| `zrb util base64 validate` | Validate base64 string (accepts base64 of binary data, not only UTF-8 text) |
 
 ### ⚙️ Config (`config`)
 
@@ -80,15 +80,15 @@ Network utilities.
 | `zrb http request` | Send HTTP request; returns the response body (pipe-friendly). Supports `--body-format` (`json`/`form`/`raw`), `--params`, and `--timeout` |
 | `zrb http curl` | Generate curl command from request setup |
 
-### 🔐 JWT (`jwt`)
+### 🔐 JWT (`util jwt`)
 
 JSON Web Token operations.
 
 | Command | Description |
 |---------|-------------|
-| `zrb jwt encode` | Create a JWT |
-| `zrb jwt decode` | Decode and inspect a JWT's claims (no signature check by default; pass `--verify` with a secret to verify) |
-| `zrb jwt validate` | Validate JWT signature |
+| `zrb util jwt encode` | Create a JWT |
+| `zrb util jwt decode` | Decode and inspect a JWT's claims (no signature check by default; pass `--verify` with a secret to verify) |
+| `zrb util jwt validate` | Validate JWT signature |
 
 ### 🤖 LLM (`llm`)
 
@@ -98,82 +98,82 @@ AI assistant integration.
 |---------|-------------|
 | `zrb llm chat` (also available directly as `zrb chat`) | Start an interactive chat session with the configured LLM assistant |
 
-### 🔑 MD5 (`md5`)
+### 🔑 MD5 (`util md5`)
 
 Hashing utilities. `hash`/`sum` below cover the same ground for MD5 (plus five other algorithms); this
 group is kept for `validate`, which `hash` has no equivalent for. See the [`hash`](#-hash-hash) group.
 
 | Command | Description |
 |---------|-------------|
-| `zrb md5 hash` | Hash a string with MD5 |
-| `zrb md5 sum` | Calculate file checksum |
-| `zrb md5 validate` | Validate MD5 hash |
+| `zrb util md5 hash` | Hash a string with MD5 |
+| `zrb util md5 sum` | Calculate file checksum |
+| `zrb util md5 validate` | Validate MD5 hash |
 
-### 🧩 Hash (`hash`)
+### 🧩 Hash (`util hash`)
 
 Hash text or files and compute HMACs with any `hashlib` algorithm (`sha256` default; also `sha1`, `sha224`, `sha384`, `sha512`, `md5`). Select with `--algorithm`.
 
 | Command | Description |
 |---------|-------------|
-| `zrb hash hash` | Hash a string |
-| `zrb hash sum` | Hash a file (streamed) |
-| `zrb hash hmac` | Compute an HMAC of text with a secret key |
+| `zrb util hash hash` | Hash a string |
+| `zrb util hash sum` | Hash a file (streamed) |
+| `zrb util hash hmac` | Compute an HMAC of text with a secret key |
 
-### 🕒 Time (`time`)
+### 🕒 Time (`util time`)
 
 Convert between Unix epoch timestamps and ISO 8601. `--timezone` accepts `utc` (default) or `local`.
 
 | Command | Description |
 |---------|-------------|
-| `zrb time now` | Show the current time as epoch and ISO 8601 |
-| `zrb time to-iso` | Convert a Unix epoch to ISO 8601 |
-| `zrb time to-epoch` | Convert an ISO 8601 datetime to a Unix epoch (naive input treated as UTC) |
+| `zrb util time now` | Show the current time as epoch and ISO 8601 |
+| `zrb util time to-iso` | Convert a Unix epoch to ISO 8601 |
+| `zrb util time to-epoch` | Convert an ISO 8601 datetime to a Unix epoch (naive input treated as UTC) |
 
-### 🔗 URL (`url`)
-
-| Command | Description |
-|---------|-------------|
-| `zrb url encode` | Percent-encode text for safe use in a URL |
-| `zrb url decode` | Decode percent-encoded URL text |
-| `zrb url parse` | Parse a URL into its components (as JSON) |
-
-### 📦 JSON (`json`)
+### 🔗 URL (`util url`)
 
 | Command | Description |
 |---------|-------------|
-| `zrb json format` | Pretty-print (indent) JSON |
-| `zrb json minify` | Minify JSON |
-| `zrb json validate` | Validate JSON |
-| `zrb json get` | Extract a value by dotted path (e.g. `user.roles[0]`) |
-| `zrb json to-yaml` | Convert JSON to YAML |
-| `zrb json from-yaml` | Convert YAML to JSON |
+| `zrb util url encode` | Percent-encode text for safe use in a URL |
+| `zrb util url decode` | Decode percent-encoded URL text |
+| `zrb util url parse` | Parse a URL into its components (as JSON) |
 
-### 🔤 Case (`case`)
+### 📦 JSON (`util json`)
 
 | Command | Description |
 |---------|-------------|
-| `zrb case convert` | Convert between snake/camel/pascal/kebab/constant/title case (`--style`) |
-| `zrb case slugify` | Turn text into a URL-friendly slug |
+| `zrb util json format` | Pretty-print (indent) JSON |
+| `zrb util json minify` | Minify JSON |
+| `zrb util json validate` | Validate JSON |
+| `zrb util json get` | Extract a value by dotted path (e.g. `user.roles[0]`) |
+| `zrb util json to-yaml` | Convert JSON to YAML |
+| `zrb util json from-yaml` | Convert YAML to JSON |
 
-### 📅 Cron (`cron`)
-
-| Command | Description |
-|---------|-------------|
-| `zrb cron parse` | Validate a cron expression and list its next run times (`--count`) |
-
-### 🔣 Hex (`hex`)
+### 🔤 Case (`util case`)
 
 | Command | Description |
 |---------|-------------|
-| `zrb hex encode` | Encode text to hexadecimal |
-| `zrb hex decode` | Decode hexadecimal to text (tolerates spaces and a `0x` prefix) |
-| `zrb hex dump` | Produce a hexdump (offset + hex + ASCII) of text |
+| `zrb util case convert` | Convert between snake/camel/pascal/kebab/constant/title case (`--style`) |
+| `zrb util case slugify` | Turn text into a URL-friendly slug |
 
-### 🔢 Number (`number`)
+### 📅 Cron (`util cron`)
 
 | Command | Description |
 |---------|-------------|
-| `zrb number convert` | Convert a number between bases 2, 8, 10, and 16 |
+| `zrb util cron parse` | Validate a cron expression and list its next run times (`--count`) |
+
+### 🔣 Hex (`util hex`)
+
+| Command | Description |
+|---------|-------------|
+| `zrb util hex encode` | Encode text to hexadecimal |
+| `zrb util hex decode` | Decode hexadecimal to text (tolerates spaces and a `0x` prefix) |
+| `zrb util hex dump` | Produce a hexdump (offset + hex + ASCII) of text |
+
+### 🔢 Number (`util number`)
+
+| Command | Description |
+|---------|-------------|
+| `zrb util number convert` | Convert a number between bases 2, 8, 10, and 16 |
 
 ### 🐍 Python (`python`)
 
@@ -181,15 +181,15 @@ Convert between Unix epoch timestamps and ISO 8601. `--timezone` accepts `utc` (
 |---------|-------------|
 | `zrb python format` | Format code using `isort` and `black` (internal task name: `format-code`) |
 
-### 🎲 Random (`random`)
+### 🎲 Random (`util random`)
 
 | Command | Description |
 |---------|-------------|
-| `zrb random throw` | Simulate dice throws |
-| `zrb random shuffle` | Randomize list orders |
-| `zrb random password` | Generate a cryptographically secure password |
-| `zrb random token` | Generate a secure URL-safe token |
-| `zrb random string` | Generate a secure random alphanumeric string |
+| `zrb util random throw` | Simulate dice throws |
+| `zrb util random shuffle` | Randomize list orders |
+| `zrb util random password` | Generate a cryptographically secure password |
+| `zrb util random token` | Generate a secure URL-safe token |
+| `zrb util random string` | Generate a secure random alphanumeric string |
 
 ### 🔎 SearXNG (`searxng`)
 
@@ -237,27 +237,27 @@ Todo.txt-compatible task management.
 | `zrb todo log` | Log work time against a todo item |
 | `zrb todo edit` | Edit the raw todo.txt content |
 
-### 🆔 UUID (`uuid`)
+### 🆔 UUID (`util uuid`)
 
 Identifier generation and validation. The top-level `uuid generate`/`uuid validate` default to UUID v4; each version also has its own nested subgroup.
 
 | Command | Description |
 |---------|-------------|
-| `zrb uuid generate` | Generate a UUID v4 (random) |
-| `zrb uuid validate` | Check UUID v4 validity |
-| `zrb uuid v1 generate` / `zrb uuid v1 validate` | UUID v1 (time-based) generate/validate |
-| `zrb uuid v3 generate` / `zrb uuid v3 validate` | UUID v3 (namespace + MD5) generate/validate |
-| `zrb uuid v4 generate` / `zrb uuid v4 validate` | UUID v4 (random) generate/validate |
-| `zrb uuid v5 generate` / `zrb uuid v5 validate` | UUID v5 (namespace + SHA-1) generate/validate |
+| `zrb util uuid generate` | Generate a UUID v4 (random) |
+| `zrb util uuid validate` | Check UUID v4 validity |
+| `zrb util uuid v1 generate` / `zrb util uuid v1 validate` | UUID v1 (time-based) generate/validate |
+| `zrb util uuid v3 generate` / `zrb util uuid v3 validate` | UUID v3 (namespace + MD5) generate/validate |
+| `zrb util uuid v4 generate` / `zrb util uuid v4 validate` | UUID v4 (random) generate/validate |
+| `zrb util uuid v5 generate` / `zrb util uuid v5 validate` | UUID v5 (namespace + SHA-1) generate/validate |
 
-### 🆔 ULID (`ulid`)
+### 🆔 ULID (`util ulid`)
 
 Universally Unique Lexicographically Sortable Identifier generation and validation.
 
 | Command | Description |
 |---------|-------------|
-| `zrb ulid generate` | Create a ULID |
-| `zrb ulid validate` | Check ULID validity |
+| `zrb util ulid generate` | Create a ULID |
+| `zrb util ulid validate` | Check ULID validity |
 
 ---
 

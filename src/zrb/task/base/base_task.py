@@ -57,6 +57,7 @@ class BaseTask(AnyTask):
         execute_condition: BoolAttr = True,
         retries: int = 2,
         retry_period: float = 0,
+        retry_if: Callable[[BaseException], bool] | None = None,
         readiness_check: Sequence[AnyTask] | AnyTask | None = None,
         readiness_check_delay: float = 0.5,
         readiness_check_period: float | None = 5,
@@ -98,6 +99,11 @@ class BaseTask(AnyTask):
             retries: Number of *additional* attempts after a failure. The
                 default of 2 means up to 3 total attempts.
             retry_period: Seconds to wait between retry attempts.
+            retry_if: Predicate deciding whether a given failure is worth
+                retrying at all, called with the exception. A falsy result
+                fails the task immediately instead of burning the remaining
+                attempts on an error that cannot succeed (bad credentials, an
+                unknown model). `None`, the default, retries every failure.
             readiness_check: Task(s) that must succeed before this task is
                 considered ready. Presence of any check turns this into a
                 long-running task: `run` returns once the checks pass, while
@@ -145,6 +151,7 @@ class BaseTask(AnyTask):
         self._envs = env
         self._retries = retries
         self._retry_period = retry_period
+        self._retry_if = retry_if
         self._upstreams = self._ensure_task_list(upstream)
         self._fallbacks = self._ensure_task_list(fallback)
         self._successors = self._ensure_task_list(successor)
@@ -253,6 +260,11 @@ class BaseTask(AnyTask):
     def retry_period(self) -> float:
         """Seconds to wait between retry attempts."""
         return self._retry_period if self._retry_period is not None else 0
+
+    @property
+    def retry_if(self) -> "Callable[[BaseException], bool] | None":
+        """Predicate gating retries; `None` retries every failure."""
+        return self._retry_if
 
     @property
     def readiness_check_delay(self) -> float:

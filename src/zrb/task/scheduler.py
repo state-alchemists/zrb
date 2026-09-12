@@ -1,6 +1,6 @@
 import asyncio
 import datetime
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from zrb.attr.type import BoolAttr, StrAttr
 from zrb.callback.any_callback import AnyCallback
@@ -32,6 +32,7 @@ class Scheduler(BaseTrigger):
         queue_name: str | None = None,
         callback: list[AnyCallback] | AnyCallback | None = None,
         retries: int = 2,
+        retry_if: Callable[[BaseException], bool] | None = None,
         retry_period: float = 0,
         readiness_check: Sequence[AnyTask] | AnyTask | None = None,
         readiness_check_delay: float = 0.5,
@@ -65,6 +66,7 @@ class Scheduler(BaseTrigger):
             queue_name=queue_name,
             callback=callback,
             retries=retries,
+            retry_if=retry_if,
             retry_period=retry_period,
             readiness_check=readiness_check,
             readiness_check_delay=readiness_check_delay,

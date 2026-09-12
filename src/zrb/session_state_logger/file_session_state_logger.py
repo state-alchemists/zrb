@@ -54,11 +54,11 @@ class FileSessionStateLogger(AnySessionStateLogger):
         limit: int = 10,
     ) -> "SessionStateLogList":
 
-        matching_sessions = []
+        matching_sessions: list[tuple[datetime.datetime, "SessionStateLog"]] = []
         timeline_dir = os.path.join(self.get_session_log_dir(), "_timeline", *task_path)
         if not os.path.exists(timeline_dir):
             return _state_log_models().SessionStateLogList(total=0, data=[])
-        for root, _, files in os.walk(timeline_dir):
+        for _, _, files in os.walk(timeline_dir):
             for file_name in files:
                 session_name = os.path.splitext(file_name)[0]
                 session_log = self.read(session_name)

@@ -1,5 +1,5 @@
 import os
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from functools import partial
 
 from zrb.attr.type import BoolAttr, IntAttr, StrAttr
@@ -62,6 +62,7 @@ class CmdTask(BaseTask):
         is_interactive: bool = False,
         execute_condition: BoolAttr = True,
         retries: int = 2,
+        retry_if: Callable[[BaseException], bool] | None = None,
         retry_period: float = 0,
         readiness_check: Sequence[AnyTask] | AnyTask | None = None,
         readiness_check_delay: float = 0.5,
@@ -119,6 +120,7 @@ class CmdTask(BaseTask):
             env=env,
             execute_condition=execute_condition,
             retries=retries,
+            retry_if=retry_if,
             retry_period=retry_period,
             readiness_check=readiness_check,
             readiness_check_delay=readiness_check_delay,

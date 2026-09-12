@@ -12,7 +12,7 @@ from zrb.config.web_auth_config import web_auth_config
 web_auth_config.enable_auth = True
 
 # Add users
-web_auth_config.append_user(
+web_auth_config.add_user(
     User(
         username="boss",
         password="secret",
@@ -88,7 +88,7 @@ flowchart TB
 | Concept | Description |
 |---------|-------------|
 | `enable_auth` | Turn on authentication |
-| `append_user()` | Add a user |
+| `add_user()` | Add a user |
 | `accessible_tasks` | Tasks user can run |
 | `*` | Wildcard for all tasks |
 | `guest_accessible_tasks` | Public tasks |
@@ -102,7 +102,7 @@ flowchart TB
 ```python
 import os
 
-web_auth_config.append_user(
+web_auth_config.add_user(
     User(
         username="boss",
         password=os.environ.get("BOSS_PASSWORD", "change-me"),

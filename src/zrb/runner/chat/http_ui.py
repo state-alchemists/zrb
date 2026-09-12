@@ -98,7 +98,7 @@ def create_http_ui_factory(  # noqa: C901 -- registration/factory fn; mccabe sum
                 self._background_tasks.add(self._process_messages_task)
 
             if self._initial_message:
-                self.submit_user_message(self._llm_task, self._initial_message)
+                self.submit_user_message(self.llm_task, self._initial_message)
 
             _was_cancelled = False
             try:

@@ -246,8 +246,8 @@ class Group(AnyGroup):
                 given argument.
         """
         node: "AnyGroup | AnyTask" = self
-        node_path = []
-        residual_args = []
+        node_path: list[str] = []
+        residual_args: list[str] = []
         for index, name in enumerate(args):
             task = node.get_task_by_alias(name)
             if web_only and task is not None and task.cli_only:
@@ -262,13 +262,9 @@ class Group(AnyGroup):
                 group = None
             if task is None and group is None:
                 # `node` is always a group here: the loop breaks as soon as
-                # it resolves to a task. The isinstance narrows it for the
-                # type checker, which cannot see that from the loop body.
-                candidates = (
-                    sorted([*node.subtasks, *node.subgroups])
-                    if isinstance(node, AnyGroup)
-                    else []
-                )
+                # it resolves to a task, so the type checker narrows it to
+                # AnyGroup on its own.
+                candidates: list[str] = sorted([*node.subtasks, *node.subgroups])
                 raise NodeNotFoundError(
                     f"Invalid subcommand: {self.name} {' '.join(args)}."
                     f"{format_suggestion(name, candidates)}"

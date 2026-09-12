@@ -17,9 +17,8 @@ false-positive of the regex itself:
     the same test — no foreign object involved; the regex can't tell.
   - test_boundaries.py's own docstring names the singleton `__new__`
     exception pattern using a dotted example — text, not code; the regex
-    can't tell that either. (This file's docstring used to make the same
-    mistake about itself — say "some other name than self" instead of a
-    literal dotted example, or it inflates its own count.)
+    can't tell that either. Prose here must say "some other name than
+    self" rather than spell a dotted example, or it inflates its own count.
 """
 
 import re

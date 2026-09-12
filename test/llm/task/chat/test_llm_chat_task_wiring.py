@@ -180,3 +180,72 @@ async def test_non_interactive_run_settles_its_background_hooks():
         await task.async_run(Session(SharedContext(), state_logger=MagicMock()))
 
     mock_shutdown.assert_awaited_once_with(drain=True)
+
+
+@pytest.mark.asyncio
+async def test_chat_task_with_no_retries_calls_the_agent_once():
+    """The inner LLMTask used to default to 2 retries of its own, multiplying
+    against the outer chat task's -- so retries=0 still ran the agent 3 times."""
+    from pydantic_ai.exceptions import UserError
+
+    task = LLMChatTask(name="test-task", interactive=False)
+    assert task.retries == 0
+
+    with (
+        patch("zrb.llm.task.llm_task.create_agent"),
+        patch(
+            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+    ):
+        mock_run_agent.side_effect = UserError("Set the `OPENAI_API_KEY` env var")
+        session = Session(SharedContext(), state_logger=MagicMock())
+        with pytest.raises(UserError):
+            await task.async_run(session)
+
+    assert mock_run_agent.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_permanent_error_is_not_retried_even_when_retries_allowed():
+    """retries=2 still means one attempt when the failure cannot succeed."""
+    from pydantic_ai.exceptions import UserError
+
+    task = LLMChatTask(name="test-task", interactive=False, retries=2)
+
+    with (
+        patch("zrb.llm.task.llm_task.create_agent"),
+        patch(
+            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+    ):
+        mock_run_agent.side_effect = UserError("Set the `OPENAI_API_KEY` env var")
+        session = Session(SharedContext(), state_logger=MagicMock())
+        with pytest.raises(UserError):
+            await task.async_run(session)
+
+    assert mock_run_agent.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_transient_error_still_burns_every_retry():
+    """A 429 is exactly what retries exist for -- the gate must not eat it.
+
+    3 attempts, not 9: the inner per-turn LLMTask no longer retries on top of
+    the outer chat task's own retry loop.
+    """
+    task = LLMChatTask(name="test-task", interactive=False, retries=2)
+    rate_limited = Exception("slow down")
+    rate_limited.status_code = 429
+
+    with (
+        patch("zrb.llm.task.llm_task.create_agent"),
+        patch(
+            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+    ):
+        mock_run_agent.side_effect = rate_limited
+        session = Session(SharedContext(), state_logger=MagicMock())
+        with pytest.raises(Exception):
+            await task.async_run(session)
+
+    assert mock_run_agent.call_count == 3

@@ -5,6 +5,7 @@ from zrb.llm.agent.run.error_classifier import (
     get_retry_wait,
     is_invalid_tool_call_error,
     is_missing_reasoning_content_error,
+    is_permanent_error,
     is_prompt_too_long_error,
     is_retryable_error,
 )
@@ -169,3 +170,30 @@ def test_classify_error_type_context_length_wins():
 
 def test_classify_error_type_unknown_fallback():
     assert classify_error_type(Exception("something odd happened")) == "unknown"
+
+
+def test_is_permanent_error_flags_pydantic_user_error():
+    """A missing API key arrives as pydantic-ai's UserError -- never transient."""
+    from pydantic_ai.exceptions import UserError
+
+    assert is_permanent_error(UserError("Set the `OPENAI_API_KEY` env var")) is True
+
+
+def test_is_permanent_error_flags_bad_credentials_and_model():
+    for status_code in (401, 403, 404, 400):
+        e = Exception("nope")
+        e.status_code = status_code
+        assert is_permanent_error(e) is True, status_code
+    assert is_permanent_error(Exception("context length exceeded")) is True
+
+
+def test_is_permanent_error_keeps_unknown_and_transient_retryable():
+    """Not the inverse of is_retryable_error: anything unrecognized stays retryable."""
+    assert is_permanent_error(ConnectionError("connection reset by peer")) is False
+    assert is_permanent_error(Exception("something weird")) is False
+    rate_limited = Exception("slow down")
+    rate_limited.status_code = 429
+    assert is_permanent_error(rate_limited) is False
+    server_error = Exception("boom")
+    server_error.status_code = 503
+    assert is_permanent_error(server_error) is False

@@ -1,5 +1,7 @@
 {
-  "include": ["src/zrb"],
+  "include": [
+    "src/zrb"
+  ],
   "exclude": [
     "**/__pycache__",
     "**/.venv",
@@ -9,5 +11,14 @@
   ],
   "pythonVersion": "3.11",
   "typeCheckingMode": "standard",
-  "reportMissingModuleSource": false
+  "reportMissingModuleSource": false,
+  "strict": [
+    "src/zrb/callback",
+    "src/zrb/dot_dict",
+    "src/zrb/group",
+    "src/zrb/input",
+    "src/zrb/session",
+    "src/zrb/session_state_logger",
+    "src/zrb/xcom"
+  ]
 }

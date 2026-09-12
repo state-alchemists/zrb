@@ -70,18 +70,18 @@ def test_get_live_contexts_returns_registered_pairs():
 
 def test_remove_live_context_drops_it():
     manager = PromptManager(include_sections=[])
-    manager.add_live_context("x", lambda ctx: "hello")
+    manager.add_live_context("x", lambda ctx: "dropped-value")
     manager.remove_live_context("x")
     assert manager.get_live_contexts() == []
-    assert "hello" not in manager.create_live_context(_ctx())
+    assert "dropped-value" not in manager.create_live_context(_ctx())
 
 
 def test_set_live_contexts_replaces_wholesale():
     manager = PromptManager(include_sections=[])
-    manager.add_live_context("old", lambda ctx: "old")
+    manager.add_live_context("old", lambda ctx: "old-value")
     manager.set_live_contexts([("new", lambda ctx: "new-value")])
     context = manager.create_live_context(_ctx())
-    assert "old" not in context
+    assert "old-value" not in context
     assert "new-value" in context
 
 

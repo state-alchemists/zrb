@@ -329,3 +329,59 @@ class TestBaseTaskToFunction:
         sig = fn.__signature__
         assert isinstance(sig, inspect.Signature)
         assert len(sig.parameters) == 0
+
+
+@pytest.mark.asyncio
+async def test_retry_if_stops_before_burning_remaining_attempts():
+    """A failure the predicate rejects fails the task on the first attempt."""
+    attempts = []
+
+    def action(ctx):
+        attempts.append(1)
+        raise ValueError("bad credentials")
+
+    task = BaseTask(
+        name="permanent",
+        action=action,
+        retries=2,
+        retry_if=lambda e: False,
+    )
+    session = Session(shared_ctx=SharedContext())
+    session.register_task(task)
+    with pytest.raises(ValueError):
+        await task.exec_chain(session)
+    assert len(attempts) == 1
+
+
+@pytest.mark.asyncio
+async def test_retry_if_allows_retry_and_defaults_to_retrying_everything():
+    accepted = []
+    rejected = []
+
+    def make_action(sink):
+        def action(ctx):
+            sink.append(1)
+            if len(sink) < 3:
+                raise ValueError("transient")
+            return "done"
+
+        return action
+
+    retrying = BaseTask(
+        name="retrying",
+        action=make_action(accepted),
+        retries=2,
+        retry_if=lambda e: True,
+    )
+    session = Session(shared_ctx=SharedContext())
+    session.register_task(retrying)
+    assert await retrying.exec_chain(session) == "done"
+    assert len(accepted) == 3
+
+    # retry_if unset keeps the pre-existing "retry every failure" behavior.
+    default = BaseTask(name="default", action=make_action(rejected), retries=2)
+    assert default.retry_if is None
+    session2 = Session(shared_ctx=SharedContext())
+    session2.register_task(default)
+    assert await default.exec_chain(session2) == "done"
+    assert len(rejected) == 3
