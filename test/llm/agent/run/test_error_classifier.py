@@ -5,8 +5,8 @@ from zrb.llm.agent.run.error_classifier import (
     get_retry_wait,
     is_invalid_tool_call_error,
     is_missing_reasoning_content_error,
-    is_prompt_too_long_error,
     is_permanent_error,
+    is_prompt_too_long_error,
     is_retryable_error,
 )
 

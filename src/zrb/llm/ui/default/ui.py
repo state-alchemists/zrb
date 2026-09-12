@@ -14,8 +14,11 @@ from zrb.llm.tool_call import ArgumentFormatter, ResponseHandler, ToolPolicy
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.default.agent_picker import UIAgentPicker
 from zrb.llm.ui.default.app.keybinding import create_output_keybindings
-from zrb.llm.ui.default.app.layout import (create_input_field, create_layout,
-                                           create_output_field)
+from zrb.llm.ui.default.app.layout import (
+    create_input_field,
+    create_layout,
+    create_output_field,
+)
 from zrb.llm.ui.default.app.redirection import GlobalStreamCapture
 from zrb.llm.ui.default.app.style import create_style
 from zrb.llm.ui.default.confirmation import UIConfirmation
@@ -303,8 +306,7 @@ class UI(BaseUI):
         """Float hosting the AskUserQuestion widget, shown only when active."""
         # lazy: heavy third-party
         from prompt_toolkit.filters import Condition
-        from prompt_toolkit.layout.containers import (ConditionalContainer,
-                                                      Float)
+        from prompt_toolkit.layout.containers import ConditionalContainer, Float
         from prompt_toolkit.widgets import Frame
 
         choice_window = self._selection.choice_window
@@ -332,8 +334,7 @@ class UI(BaseUI):
         """Float hosting the sub-agent picker, shown only while active."""
         # lazy: heavy third-party
         from prompt_toolkit.filters import Condition
-        from prompt_toolkit.layout.containers import (ConditionalContainer,
-                                                      Float)
+        from prompt_toolkit.layout.containers import ConditionalContainer, Float
         from prompt_toolkit.widgets import Frame
 
         framed = Frame(
