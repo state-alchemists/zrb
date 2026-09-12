@@ -5,6 +5,7 @@ from typing import Any, overload
 
 from zrb.attr.tpl import Tpl
 from zrb.attr.type import BoolAttr
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
 from zrb.context.shared_context import SharedContext
@@ -60,7 +61,7 @@ class BaseTask(AnyTask):
         readiness_check_delay: float = 0.5,
         readiness_check_period: float | None = 5,
         readiness_failure_threshold: int | None = 1,
-        readiness_timeout: int | None = 60,
+        readiness_timeout: int | None = None,
         monitor_readiness: bool = False,
         upstream: Sequence[AnyTask] | AnyTask | None = None,
         fallback: Sequence[AnyTask] | AnyTask | None = None,
@@ -107,8 +108,13 @@ class BaseTask(AnyTask):
                 monitoring, i.e. when `monitor_readiness` is True.
             readiness_failure_threshold: Consecutive readiness-check failures
                 tolerated before the task is declared failed.
-            readiness_timeout: Seconds a single readiness check may take before
-                it counts as failed.
+            readiness_timeout: Seconds the readiness checks may take before
+                the task is declared failed. Bounds both the initial wait
+                before the task is marked ready and each re-check round when
+                `monitor_readiness` is True. `None` (default) uses
+                `CFG.TASK_READINESS_TIMEOUT` (60s); an explicit `0` or negative
+                value removes the cap, so a check that never returns hangs the
+                run forever.
             monitor_readiness: When True, keep re-running readiness checks after
                 the task is ready and restart the action if they start failing.
             upstream: Task(s) that must complete before this one starts.
@@ -277,12 +283,16 @@ class BaseTask(AnyTask):
 
     @property
     def readiness_timeout(self) -> float:
-        """Seconds a single readiness check may take before failing (default 60).
+        """Seconds the readiness checks may take before the task fails.
 
-        An explicit non-positive value disables the cap, matching how
-        :mod:`zrb.task.base.monitoring` consumes it.
+        Bounds the initial readiness wait (:mod:`zrb.task.base.execution`) and
+        each monitoring re-check round (:mod:`zrb.task.base.monitoring`) alike.
+        Unset falls back to `CFG.TASK_READINESS_TIMEOUT` (60s by default); an
+        explicit non-positive value disables the cap.
         """
-        return self._readiness_timeout if self._readiness_timeout is not None else 60
+        if self._readiness_timeout is not None:
+            return self._readiness_timeout
+        return CFG.TASK_READINESS_TIMEOUT / 1000
 
     @property
     def monitor_readiness(self) -> bool:

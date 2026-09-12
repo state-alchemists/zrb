@@ -1,5 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from zrb import Group, IntInput, PasswordInput, StrInput, Task
 from zrb.attr.tpl import Tpl
 from zrb.config.config import CFG
@@ -342,8 +344,8 @@ def test_start_server_task_builds_and_serves_app():
     mock_server.serve.assert_awaited_once()
 
 
-def test_start_server_warns_on_insecure_bind(monkeypatch, capsys):
-    """Non-loopback host + auth off prints a warning but still starts."""
+def test_start_server_refuses_insecure_bind(monkeypatch, capsys):
+    """Non-loopback host + auth off must fail closed, never start."""
     from zrb.runner.cli import cli
 
     monkeypatch.setenv("ZRB_WEB_HTTP_HOST", "0.0.0.0")
@@ -351,24 +353,29 @@ def test_start_server_warns_on_insecure_bind(monkeypatch, capsys):
     mock_server = MagicMock()
     mock_server.serve = AsyncMock()
     with (
-        patch("uvicorn.Config") as mock_config,
+        patch("uvicorn.Config"),
         patch("uvicorn.Server", return_value=mock_server),
-        patch("zrb.runner.web_app.create_web_app"),
+        patch("zrb.runner.web_app.create_web_app") as mock_create,
         patch("zrb.runner.web_app.configure_uvicorn_logging"),
+        pytest.raises(SystemExit) as exc_info,
     ):
         cli.run(str_args=["server", "start"])
 
-    assert mock_config.call_args.kwargs["host"] == "0.0.0.0"
-    assert "without authentication" in capsys.readouterr().err
-    mock_server.serve.assert_awaited_once()
+    assert exc_info.value.code == 1
+    err = capsys.readouterr().err
+    assert "Refusing to bind" in err
+    assert "without authentication" in err
+    # The app is never even built, let alone served.
+    mock_create.assert_not_called()
+    mock_server.serve.assert_not_awaited()
 
 
-def test_start_server_warns_on_default_credentials_when_auth_enabled(
+def test_start_server_refuses_default_credentials_when_auth_enabled(
     monkeypatch, capsys
 ):
     """Auth being *on* is not enough: the default password/secret are public
     knowledge (documented in the repo), so a non-loopback bind still using
-    them must warn too, distinctly from the unauthenticated case."""
+    them fails closed too, distinctly from the unauthenticated case."""
     from zrb.runner.cli import cli
 
     monkeypatch.setenv("ZRB_WEB_HTTP_HOST", "0.0.0.0")
@@ -380,17 +387,25 @@ def test_start_server_warns_on_default_credentials_when_auth_enabled(
         patch("uvicorn.Server", return_value=mock_server),
         patch("zrb.runner.web_app.create_web_app"),
         patch("zrb.runner.web_app.configure_uvicorn_logging"),
+        pytest.raises(SystemExit) as exc_info,
     ):
         cli.run(str_args=["server", "start"])
 
+    assert exc_info.value.code == 1
     err = capsys.readouterr().err
+    assert "Refusing to bind" in err
     assert "without authentication" not in err
     assert "WEB_SUPER_ADMIN_PASSWORD" in err
     assert "WEB_SECRET_KEY" in err
+    mock_server.serve.assert_not_awaited()
 
 
-def test_start_server_uses_programmatic_auth_config_for_warning(monkeypatch, capsys):
-    """Warning decisions follow the auth object used by the web app, not only CFG."""
+def test_start_server_uses_programmatic_auth_config_for_refusal(monkeypatch, capsys):
+    """Refusal follows the auth object used by the web app, not only CFG.
+
+    CFG says auth is on here; the programmatic object says it is off. The
+    object wins, because it is what the running app will actually enforce.
+    """
     from zrb.config.web_auth_config import WebAuthConfig
     from zrb.runner.cli import cli
 
@@ -405,18 +420,23 @@ def test_start_server_uses_programmatic_auth_config_for_warning(monkeypatch, cap
         patch("uvicorn.Server", return_value=mock_server),
         patch("zrb.runner.web_app.create_web_app"),
         patch("zrb.runner.web_app.configure_uvicorn_logging"),
+        pytest.raises(SystemExit) as exc_info,
     ):
         cli.run(str_args=["server", "start"])
 
+    assert exc_info.value.code == 1
     err = capsys.readouterr().err
+    assert "Refusing to bind" in err
     assert "without authentication" in err
-    mock_server.serve.assert_awaited_once()
+    mock_server.serve.assert_not_awaited()
 
 
-def test_start_server_no_warning_for_programmatic_custom_credentials(
-    monkeypatch, capsys
-):
-    """Programmatic auth overrides are evaluated instead of CFG defaults."""
+def test_start_server_allows_programmatic_custom_credentials(monkeypatch, capsys):
+    """Programmatic auth overrides are evaluated instead of CFG defaults.
+
+    CFG says auth is off, which would refuse; the programmatic object supplies
+    auth plus unique credentials, so the bind is allowed.
+    """
     from zrb.config.web_auth_config import WebAuthConfig
     from zrb.runner.cli import cli
 
@@ -444,10 +464,8 @@ def test_start_server_no_warning_for_programmatic_custom_credentials(
     mock_server.serve.assert_awaited_once()
 
 
-def test_start_server_no_warning_when_auth_enabled_with_custom_credentials(
-    monkeypatch, capsys
-):
-    """No warning at all once auth is on AND the defaults were changed."""
+def test_start_server_allows_auth_enabled_with_custom_credentials(monkeypatch, capsys):
+    """A public bind starts cleanly once auth is on AND the defaults changed."""
     from zrb.runner.cli import cli
 
     monkeypatch.setenv("ZRB_WEB_HTTP_HOST", "0.0.0.0")

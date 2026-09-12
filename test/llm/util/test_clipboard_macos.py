@@ -318,9 +318,7 @@ async def test_macos_osascript_unlink_failure_does_not_propagate(clean_env, tmp_
 
 
 @pytest.mark.asyncio
-async def test_macos_osascript_returns_none_when_binary_is_missing(
-    clean_env, tmp_path
-):
+async def test_macos_osascript_returns_none_when_binary_is_missing(clean_env, tmp_path):
     """No osascript on PATH: no image, and no tempfile left behind."""
     clean_env.setattr("sys.platform", "darwin")
     clean_env.setattr("tempfile.tempdir", str(tmp_path))

@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.session.any_session import AnySession
 from zrb.task.base.base_task import BaseTask
@@ -306,3 +307,85 @@ async def test_diamond_upstreams_run_readiness_task_once():
     await d.async_run()
 
     assert executions == ["d"]
+
+
+@pytest.mark.asyncio
+async def test_initial_readiness_wait_is_bounded_by_task_readiness_timeout():
+    """A readiness check that never returns fails the task instead of hanging.
+
+    Regression: the initial wait read `CFG.TASK_READINESS_TIMEOUT`, which
+    defaulted to 0 ("no cap"), while the `readiness_timeout` constructor
+    parameter — defaulted to a reassuring 60 — was consumed *only* by the
+    monitoring re-check loop. So `zrb <task>` against a service that never came
+    up ran forever with no output. Both paths now read the same knob.
+    """
+    never = asyncio.Event()
+
+    async def poll_forever(_session):
+        await never.wait()
+
+    polling_check = BaseTask(name="polling_check")
+    polling_check.exec_chain = poll_forever
+
+    task = BaseTask(
+        name="task",
+        readiness_check=polling_check,
+        readiness_check_delay=0,
+        readiness_timeout=1,
+    )
+    execution = BaseTaskExecution(task)
+
+    session = MagicMock(spec=AnySession)
+    session.is_terminated = False
+
+    ctx = MagicMock(spec=AnyContext)
+    ctx.xcom = MagicMock()
+    ctx.xcom.get.return_value = None
+
+    task_status = MagicMock(spec=TaskStatus)
+    task_status.is_permanently_failed = False
+    task_status.is_completed = False
+    session.get_task_status.side_effect = lambda t: (
+        task_status if t is task else MagicMock(spec=TaskStatus)
+    )
+
+    with patch.object(task, "get_ctx", return_value=ctx):
+        with patch.object(
+            execution,
+            "execute_action_with_retry",
+            new=AsyncMock(return_value="result"),
+        ):
+            with pytest.raises(asyncio.TimeoutError):
+                # The outer 10s is the harness's own safety net: if the cap
+                # regressed, this fails on the wait_for below rather than
+                # hanging the suite. The task's own 1s cap is what should fire.
+                await asyncio.wait_for(
+                    execution.execute_action_until_ready(session), timeout=10
+                )
+
+    task_status.mark_as_ready.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_unset_readiness_timeout_falls_back_to_cfg():
+    """`readiness_timeout=None` reads CFG.TASK_READINESS_TIMEOUT (ms -> s).
+
+    The fallback lives in the property so a single knob covers every task that
+    does not override it; pinning it here keeps the two units from drifting.
+    """
+    task = BaseTask(name="task")
+
+    with patch("zrb.task.base.base_task.CFG") as mock_cfg:
+        mock_cfg.TASK_READINESS_TIMEOUT = 90000
+        assert task.readiness_timeout == 90
+
+    explicit = BaseTask(name="explicit", readiness_timeout=5)
+    assert explicit.readiness_timeout == 5
+
+
+def test_default_readiness_timeout_is_finite():
+    """The shipped default must cap the wait, not disable it.
+
+    A 0 default means "no timeout": a hung health check holds a CI job forever.
+    """
+    assert CFG.TASK_READINESS_TIMEOUT > 0

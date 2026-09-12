@@ -13,10 +13,10 @@ from zrb.session_state_logger.session_state_logger_factory import session_state_
 from zrb.task.any_task import AnyTask
 from zrb.task.make_task import make_task
 from zrb.util.cli.style import (
+    stylize_error,
     stylize_highlight,
     stylize_muted,
     stylize_section_header,
-    stylize_warning,
 )
 from zrb.util.string.conversion import double_quote
 
@@ -244,7 +244,7 @@ async def start_server(_: AnyContext):
     from zrb.runner.web_app import configure_uvicorn_logging, create_web_app
 
     configure_uvicorn_logging()
-    _warn_if_insecure_bind(CFG.WEB_HTTP_HOST, web_auth_config)
+    _refuse_insecure_bind(CFG.WEB_HTTP_HOST, web_auth_config)
     app = create_web_app(cli, web_auth_config, session_state_logger)
     server = Server(
         Config(
@@ -261,40 +261,48 @@ async def start_server(_: AnyContext):
 _LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
 
 
-def _warn_if_insecure_bind(host: str, auth_config: WebAuthConfig) -> None:
-    """Warn (never refuse) when a network-exposed bind is not actually safe.
+def _refuse_insecure_bind(host: str, auth_config: WebAuthConfig) -> None:
+    """Refuse to start a network-exposed server that is not actually secured.
 
-    A non-loopback bind is a legitimate, intentional choice for LAN/container
-    deployments, so this never blocks startup — it only makes the risk
-    impossible to miss. Inspect the effective auth object because callers may
-    override the CFG-backed defaults programmatically.
+    A non-loopback bind publishes task execution -- arbitrary command
+    execution -- to everyone who can route to this host, so the unsafe
+    combinations fail closed rather than printing a warning the operator
+    scrolls past. There is deliberately no override flag: the two supported
+    ways to run exposed are to enable auth with non-default credentials, or to
+    bind loopback and put your own proxy in front.
+
+    Inspect the effective auth object rather than CFG alone, because callers
+    may override the CFG-backed defaults programmatically.
     """
     if host in _LOOPBACK_HOSTS:
         return
     if not auth_config.enable_auth:
-        print(
-            stylize_warning(
-                f"\nWarning: binding to '{host}' without authentication "
-                "(WEB_AUTH_ENABLED=off) exposes task execution to anyone who "
-                "can reach this host. Set WEB_AUTH_ENABLED=on, or bind to "
-                "127.0.0.1 (the default)."
-            ),
-            file=sys.stderr,
+        _abort_insecure_bind(
+            f"Refusing to bind to '{host}' without authentication "
+            "(WEB_AUTH_ENABLED=off): this exposes task execution to anyone "
+            "who can reach this host.\n"
+            "  Fix: set WEB_AUTH_ENABLED=on together with a unique "
+            "WEB_SUPER_ADMIN_PASSWORD and WEB_SECRET_KEY,\n"
+            "       or bind to 127.0.0.1 (the default)."
         )
-        return
     stale_defaults = []
     if auth_config.super_admin_password == CFG.DEFAULT_WEB_SUPER_ADMIN_PASSWORD:
         stale_defaults.append("WEB_SUPER_ADMIN_PASSWORD")
     if auth_config.secret_key == CFG.DEFAULT_WEB_SECRET_KEY:
         stale_defaults.append("WEB_SECRET_KEY")
     if stale_defaults:
-        print(
-            stylize_warning(
-                f"\nWarning: binding to '{host}' with authentication enabled, "
-                f"but {' and '.join(stale_defaults)} still has its default, "
-                "publicly-documented value. Anyone who read zrb's docs has "
-                "these credentials. Set them to unique values before "
-                "exposing this server."
-            ),
-            file=sys.stderr,
+        joined = " and ".join(stale_defaults)
+        verb = "still has its" if len(stale_defaults) == 1 else "still have their"
+        _abort_insecure_bind(
+            f"Refusing to bind to '{host}': authentication is enabled, but "
+            f"{joined} {verb} default, publicly-documented value.\n"
+            "  Anyone who read zrb's docs has these credentials.\n"
+            f"  Fix: set {joined} to unique values, or bind to 127.0.0.1 "
+            "(the default)."
         )
+
+
+def _abort_insecure_bind(message: str) -> None:
+    """Print a refusal and exit non-zero, so CI and shells see the failure."""
+    print(stylize_error(f"\n{message}"), file=sys.stderr)
+    raise SystemExit(1)

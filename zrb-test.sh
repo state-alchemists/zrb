@@ -32,6 +32,18 @@ if [ "$#" -eq 0 ]; then
     cov_fail_under="--cov-fail-under=90"
 fi
 
+# Coverage fragments land in the repo root as gitignored `.coverage.*` files,
+# one per xdist worker, and pytest-cov combines whatever it finds there. An
+# interrupted run -- or a second run started concurrently -- leaves fragments
+# behind, and combining fragments recorded under different settings fails the
+# whole command with "Can't combine branch coverage data with statement data"
+# after the tests have already passed. Give each run its own data file and
+# clear any leftovers first, so the command is hermetic.
+rm -f "${PWD}/.coverage" "${PWD}"/.coverage.*
+COVERAGE_DIR="$(mktemp -d)"
+trap 'rm -rf "${COVERAGE_DIR}"' EXIT
+export COVERAGE_FILE="${COVERAGE_DIR}/.coverage"
+
 ZRB_INIT_SCRIPTS="" pytest \
     -n auto \
     --ignore-glob="**/template/**" \

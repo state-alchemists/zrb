@@ -141,7 +141,7 @@ class BaseTaskExecution:
             ctx.log_info("Waiting for readiness checks")
             readiness_passed = False
             readiness_error: BaseException | None = None
-            readiness_timeout = CFG.TASK_READINESS_TIMEOUT / 1000
+            readiness_timeout = task.readiness_timeout
             try:
                 # gather_fail_fast, not gather_isolated: readiness checks are the one
                 # place where waiting for the siblings hangs, because a check polls
@@ -149,8 +149,11 @@ class BaseTaskExecution:
                 # a sibling would outlive the failure. Everywhere else (successors,
                 # fallbacks, deferred actions) peers must be allowed to finish.
                 gather_coro = gather_fail_fast(*readiness_check_coros)
-                # Optional aggregate cap (CFG.TASK_READINESS_TIMEOUT; 0 = off). Without
-                # it, checks that all hang and never return hang the whole run here.
+                # Aggregate cap, from `task.readiness_timeout` (CFG.TASK_READINESS_TIMEOUT
+                # when the task leaves it unset; 60s by default). The same knob bounds
+                # each monitoring re-check round, so one number covers both. A
+                # non-positive value switches the cap off, and checks that never return
+                # then hang the whole run here -- which is why the default is finite.
                 if readiness_timeout > 0:
                     await asyncio.wait_for(gather_coro, timeout=readiness_timeout)
                 else:
@@ -183,7 +186,8 @@ class BaseTaskExecution:
                 if readiness_timeout > 0:
                     ctx.log_error(
                         f"Readiness checks exceeded the {readiness_timeout}s aggregate "
-                        "timeout (TASK_READINESS_TIMEOUT); failing task"
+                        "timeout (readiness_timeout / TASK_READINESS_TIMEOUT); "
+                        "failing task"
                     )
                 else:
                     ctx.log_error(f"Readiness check timed out: {e}")
@@ -299,7 +303,15 @@ class BaseTaskExecution:
                 await run_async(self.execute_successors(session))
                 return result
 
-            except (asyncio.CancelledError, KeyboardInterrupt, GeneratorExit):
+            except (
+                asyncio.CancelledError,
+                KeyboardInterrupt,
+                GeneratorExit,
+                SystemExit,
+            ):
+                # SystemExit is a deliberate "stop the process" request from the
+                # action body (a refused insecure bind, an explicit sys.exit), not
+                # a task failure to retry and report as `Attempt 1/N failed: 1`.
                 ctx.log_warning("Task cancelled or interrupted")
                 session.get_task_status(task).mark_as_failed()
                 # Do not trigger fallbacks/successors on cancellation

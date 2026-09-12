@@ -44,7 +44,7 @@ export ZRB_WEB_HTTP_HOST=0.0.0.0
 zrb server start
 ```
 
-> ⚠️ **Warning:** Binding beyond `127.0.0.1` exposes task execution to anyone who can reach this host. Enable [authentication](#3-web-authentication-experimental) first, **and** change the default admin password and secret key — the server prints a startup warning if either still has its documented default value.
+> ⚠️ **The server refuses to start on a non-loopback host unless it is actually secured.** Binding beyond `127.0.0.1` exposes task execution — arbitrary command execution — to anyone who can reach this host, so `zrb server start` exits non-zero if authentication is off, or if `ZRB_WEB_SUPER_ADMIN_PASSWORD` or `ZRB_WEB_SECRET_KEY` still holds its documented default. Enable [authentication](#3-web-authentication-experimental) and set both to unique values, or keep the loopback bind and put your own proxy in front. There is no override flag.
 
 ---
 

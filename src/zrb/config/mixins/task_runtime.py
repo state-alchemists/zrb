@@ -13,7 +13,7 @@ class TaskRuntimeMixin:
         self.DEFAULT_HTTP_CHECK_INTERVAL: str = "5000"
         self.DEFAULT_TCP_CHECK_INTERVAL: str = "5000"
         self.DEFAULT_TASK_READINESS_DELAY: str = "500"
-        self.DEFAULT_TASK_READINESS_TIMEOUT: str = "0"
+        self.DEFAULT_TASK_READINESS_TIMEOUT: str = "60000"
         self.DEFAULT_CMD_CLEANUP_TIMEOUT: str = "2000"
         self.DEFAULT_CMD_BUFFER_LIMIT: str = "102400"
         super().__init__()
@@ -37,9 +37,11 @@ class TaskRuntimeMixin:
     TASK_READINESS_TIMEOUT = EnvField(
         int,
         doc=(
-            "Aggregate timeout in milliseconds for the initial readiness wait. "
-            "0 (default) disables the cap; a readiness check that never returns "
-            "hangs the run. Set a positive value to fail fast instead."
+            "Default timeout in milliseconds for a readiness wait, used by any "
+            "task that does not set `readiness_timeout` itself. Bounds both the "
+            "initial wait and each monitoring re-check round. Default 60000 "
+            "(60s). 0 disables the cap, and a check that never returns then "
+            "hangs the run forever."
         ),
     )
 
