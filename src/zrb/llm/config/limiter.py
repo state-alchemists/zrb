@@ -123,7 +123,7 @@ class LLMLimiter:
     @property
     def tiktoken_encoding(self) -> str:
         """Encoding name used when `use_tiktoken` is on (default `cl100k_base`)."""
-        return getattr(CFG, "TIKTOKEN_ENCODING_NAME", "cl100k_base")
+        return CFG.TIKTOKEN_ENCODING_NAME
 
     # --- Public API ---
 
