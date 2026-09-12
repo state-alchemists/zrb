@@ -315,3 +315,41 @@ async def test_macos_osascript_unlink_failure_does_not_propagate(clean_env, tmp_
             result = await get_clipboard_image()
 
     assert result == payload
+
+
+@pytest.mark.asyncio
+async def test_macos_osascript_returns_none_when_binary_is_missing(
+    clean_env, tmp_path
+):
+    """No osascript on PATH: no image, and no tempfile left behind."""
+    clean_env.setattr("sys.platform", "darwin")
+    clean_env.setattr("tempfile.tempdir", str(tmp_path))
+    _block_pil_import(clean_env)
+
+    with patch(
+        "asyncio.create_subprocess_exec",
+        new=AsyncMock(side_effect=FileNotFoundError("osascript")),
+    ):
+        result = await get_clipboard_image()
+
+    assert result is None
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.asyncio
+async def test_macos_osascript_removes_tempfile_when_subprocess_raises(
+    clean_env, tmp_path
+):
+    """Cleanup also runs for failures the read path does not catch."""
+    clean_env.setattr("sys.platform", "darwin")
+    clean_env.setattr("tempfile.tempdir", str(tmp_path))
+    _block_pil_import(clean_env)
+
+    with patch(
+        "asyncio.create_subprocess_exec",
+        new=AsyncMock(side_effect=RuntimeError("boom")),
+    ):
+        result = await get_clipboard_image()
+
+    assert result is None
+    assert list(tmp_path.iterdir()) == []
