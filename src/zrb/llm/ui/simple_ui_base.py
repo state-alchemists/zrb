@@ -197,7 +197,7 @@ class SimpleUI(BaseUI):
             self._background_tasks.add(self._process_messages_task)
 
         if self._initial_message:
-            self.submit_user_message(self._llm_task, self._initial_message)
+            self.submit_user_message(self.llm_task, self._initial_message)
 
         try:
             await self._run_loop()

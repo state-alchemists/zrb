@@ -91,6 +91,44 @@ def is_retryable_error(e: Exception) -> bool:
     )
 
 
+# Categories `classify_error_type` returns that no amount of retrying can fix:
+# the credentials, the model name, or the request itself is wrong.
+_PERMANENT_ERROR_TYPES = frozenset(
+    {"authentication_failed", "model_not_found", "invalid_request", "context_length"}
+)
+
+
+def is_permanent_error(e: BaseException) -> bool:
+    """Returns True for failures a retry cannot fix.
+
+    The inverse of `is_retryable_error` is deliberately NOT this function: that
+    one answers "do we positively know this is transient?", and everything it
+    cannot identify (a connection blip, an unrecognized provider error) should
+    still be retried. This one answers "do we positively know this is
+    permanent?", so an unknown error keeps the retry it would have had.
+    """
+    # lazy: heavy third-party -- pydantic_ai
+    from pydantic_ai.exceptions import UserError
+
+    # UserError is pydantic-ai's "you configured this wrong" class: a missing
+    # API key, an unresolvable model string, a bad agent setup. Never transient.
+    if isinstance(e, UserError):
+        return True
+    if not isinstance(e, Exception):
+        return False
+    return classify_error_type(e) in _PERMANENT_ERROR_TYPES
+
+
+def retry_unless_permanent(e: BaseException) -> bool:
+    """Default `retry_if` for the LLM tasks: retry blips, not misconfiguration.
+
+    An LLM provider is intermittently flaky the way HTTP is -- a 429 or a 5xx
+    is exactly what retries exist for -- so this stays permissive and refuses
+    only what `is_permanent_error` positively identifies as unfixable.
+    """
+    return not is_permanent_error(e)
+
+
 def classify_error_type(e: Exception) -> str:
     """Classify an exception into a coarse category token for StopFailure.
 

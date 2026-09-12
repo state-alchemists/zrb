@@ -191,9 +191,7 @@ class UI(BaseUI):
         from prompt_toolkit.key_binding import KeyBindings
 
         self._app_kb = KeyBindings()
-        self.setup_app_keybindings(
-            app_keybindings=self._app_kb, llm_task=self._llm_task
-        )
+        self.setup_app_keybindings(app_keybindings=self._app_kb, llm_task=self.llm_task)
         # Built on first access, not here -- see the `application` property.
         self._application: "Application | None" = None
 

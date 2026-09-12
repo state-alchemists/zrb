@@ -19,7 +19,7 @@ web_auth_config.enable_auth = True
 # =============================================================================
 
 # Add a user with access to specific tasks
-web_auth_config.append_user(
+web_auth_config.add_user(
     User(
         username="jack",
         password="jack123",
@@ -29,7 +29,7 @@ web_auth_config.append_user(
 
 # Note: a built-in super-admin (username "admin") already exists when auth is
 # enabled, so we add a different full-access user here to avoid a name clash.
-web_auth_config.append_user(
+web_auth_config.add_user(
     User(
         username="boss",
         password="boss123",

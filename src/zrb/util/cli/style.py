@@ -120,7 +120,7 @@ ICONS = [
 ]
 
 
-def remove_style(text):
+def remove_style(text: str) -> str:
     """
     Remove ANSI escape codes from a string.
 

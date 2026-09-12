@@ -44,13 +44,14 @@ class TcpCheck(BaseTask):
                 period.
 
         Every parameter `BaseTask` accepts is also accepted here and behaves
-        identically, except for the eight that only make sense on a task
-        something else waits for: `retries` and `retry_period`, and the
-        `readiness_check`, `readiness_check_delay`, `readiness_check_period`,
+        identically, except for the nine that only make sense on a task
+        something else waits for: `retries`, `retry_period` and `retry_if`, and
+        the `readiness_check`, `readiness_check_delay`, `readiness_check_period`,
         `readiness_failure_threshold`, `readiness_timeout` and
         `monitor_readiness` cluster. This task *is* a readiness check — it
         retries by connecting on its own `interval` (so `retries` is fixed at
-        0), and giving it a readiness check would nest one inside itself.
+        0, leaving `retry_if` nothing to gate), and giving it a readiness check
+        would nest one inside itself.
         """
         super().__init__(
             name=name,

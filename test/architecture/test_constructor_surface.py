@@ -54,9 +54,12 @@ from zrb.task.tcp_check import TcpCheck
 # ADR-0090/0091 (R12) records the `llm_config` split that set the previous
 # numbers. LLMChatTask 62 -> 58: the four `ui_*` text params folded into
 # `UIConfig`, which already carried `assistant_name`.
+# +1 each for `retry_if`: BaseTask's retry loop now takes a predicate so a
+# permanent provider error (bad credentials, unknown model) fails on the first
+# attempt instead of burning every retry on an error that cannot succeed.
 PARAM_BUDGETS = {
-    LLMChatTask: 58,
-    LLMTask: 48,
+    LLMChatTask: 59,
+    LLMTask: 49,
     BaseUI: 15,
 }
 
@@ -92,6 +95,7 @@ for _check in (HttpCheck, TcpCheck):
     for _param in (
         "retries",
         "retry_period",
+        "retry_if",
         "readiness_check",
         "readiness_check_delay",
         "readiness_check_period",

@@ -151,7 +151,7 @@ class BaseInput(AnyInput):
         # lazy: heavy third-party
         from prompt_toolkit import PromptSession
 
-        reader = PromptSession()
+        reader: "PromptSession[str]" = PromptSession()
         return reader.prompt(f"{prompt_message}: ")
 
     def get_default_str(self, shared_ctx: AnySharedContext) -> str:

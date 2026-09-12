@@ -362,6 +362,15 @@ class ChatExecution:
         # Pass resolved tools/toolsets to LLMTask (no factories needed since already resolved)
         return LLMTask(
             name=f"{llm_chat_task.name}-process",
+            # No turn-level retry. `async_run` on this task is ONE conversation
+            # turn, and a turn is not safely repeatable: by the time an error
+            # surfaces, tools have already executed and `_checkpoint` has
+            # already written their results to history, so a second attempt
+            # re-runs those side effects against a history that now contains
+            # them. Transient provider errors are retried where it *is* safe --
+            # at the model-request boundary inside a single run, by the agent's
+            # retry_loop (CFG.LLM_API_MAX_RETRIES, honouring Retry-After).
+            retries=0,
             input=[
                 StrInput("message", "Message"),
                 StrInput("session", "Conversation Session"),

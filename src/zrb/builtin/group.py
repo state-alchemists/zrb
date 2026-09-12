@@ -9,40 +9,48 @@ def _maybe_add_group(group: Group):
     return group
 
 
-base64_group = _maybe_add_group(
+util_group = _maybe_add_group(
+    Group(name="util", description="🧰 Encode, convert, hash & generate")
+)
+
+base64_group = util_group.add_group(
     Group(name="base64", description="📄 Base64 operations")
 )
-uuid_group = _maybe_add_group(Group(name="uuid", description="🆔 UUID operations"))
+uuid_group = util_group.add_group(Group(name="uuid", description="🆔 UUID operations"))
 uuid_v1_group = uuid_group.add_group(Group(name="v1", description="UUID V1 operations"))
 uuid_v3_group = uuid_group.add_group(Group(name="v3", description="UUID V3 operations"))
 uuid_v4_group = uuid_group.add_group(Group(name="v4", description="UUID V4 operations"))
 uuid_v5_group = uuid_group.add_group(Group(name="v5", description="UUID V5 operations"))
-ulid_group = _maybe_add_group(Group(name="ulid", description="🆔 ULID operations"))
-jwt_group = _maybe_add_group(Group(name="jwt", description="🔒 JWT encode/decode"))
+ulid_group = util_group.add_group(Group(name="ulid", description="🆔 ULID operations"))
+jwt_group = util_group.add_group(Group(name="jwt", description="🔒 JWT encode/decode"))
 http_group = _maybe_add_group(
     Group(name="http", description="🌐 HTTP request operations")
 )
 
-hash_group = _maybe_add_group(
+hash_group = util_group.add_group(
     Group(name="hash", description="🧩 Hash & HMAC operations")
 )
-time_group = _maybe_add_group(
+time_group = util_group.add_group(
     Group(name="time", description="🕒 Time & epoch operations")
 )
-url_group = _maybe_add_group(
+url_group = util_group.add_group(
     Group(name="url", description="🔗 URL encode/decode/parse")
 )
-json_group = _maybe_add_group(Group(name="json", description="📦 JSON operations"))
-case_group = _maybe_add_group(
+json_group = util_group.add_group(Group(name="json", description="📦 JSON operations"))
+case_group = util_group.add_group(
     Group(name="case", description="🔤 String case operations")
 )
-cron_group = _maybe_add_group(Group(name="cron", description="📅 Cron operations"))
-hex_group = _maybe_add_group(Group(name="hex", description="🔣 Hexadecimal operations"))
-number_group = _maybe_add_group(
+cron_group = util_group.add_group(Group(name="cron", description="📅 Cron operations"))
+hex_group = util_group.add_group(
+    Group(name="hex", description="🔣 Hexadecimal operations")
+)
+number_group = util_group.add_group(
     Group(name="number", description="🔢 Number base operations")
 )
 
-random_group = _maybe_add_group(Group(name="random", description="🔀 Random operation"))
+random_group = util_group.add_group(
+    Group(name="random", description="🔀 Random operation")
+)
 git_group = _maybe_add_group(Group(name="git", description="🌱 Git related commands"))
 git_branch_group = git_group.add_group(
     Group(name="branch", description="🌿 Git branch related commands")
@@ -54,7 +62,7 @@ git_changelog_group = git_group.add_group(
     Group(name="changelog", description="📝 Git changelog related commands")
 )
 llm_group = _maybe_add_group(Group(name="llm", description="🤖 LLM operations"))
-md5_group = _maybe_add_group(Group(name="md5", description="🔢 Md5 operations"))
+md5_group = util_group.add_group(Group(name="md5", description="🔢 Md5 operations"))
 python_group = _maybe_add_group(
     Group(name="python", description="🐍 Python related commands")
 )

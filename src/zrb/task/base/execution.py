@@ -320,6 +320,13 @@ class BaseTaskExecution:
                 ctx.log_error(f"Attempt {attempt + 1}/{max_attempt} failed: {e}")
                 session.get_task_status(task).mark_as_failed()
 
+                retry_if = task.retry_if
+                # A failure the task itself calls unretryable (bad credentials,
+                # an unknown model) will not succeed on attempt 2 either.
+                if attempt < max_attempt - 1 and retry_if is not None:
+                    if not retry_if(e):
+                        ctx.log_error("Not retryable, skipping remaining attempts")
+                        attempt = max_attempt - 1
                 if attempt < max_attempt - 1:
                     continue
                 else:

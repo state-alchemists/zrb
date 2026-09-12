@@ -202,16 +202,15 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         # friends, built without an LLMChatTask-provided key) never collide
         # on the same xcom slot.
         self._yolo_xcom_key = self._ui_config.yolo_xcom_key or f"_yolo_{id(self)}"
-        self._is_thinking = False
         self._running_llm_task: asyncio.Task | None = None
-        self._llm_task = llm_task
+        self.llm_task = llm_task
         self._history_manager = history_manager
         self._assistant_name = self._ui_config.assistant_name
         self._initial_message = initial_message
         self._conversation_session_name = self._ui_config.conversation_session_name
         if not self._conversation_session_name:
             self._conversation_session_name = get_random_name()
-        self._model = model
+        self.model = model
         self._small_model: Any = None
         self._multimodal_model: Any = None
         self._base_persona = BaseUIPersonaState()
@@ -263,7 +262,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         # The dispatcher constructs the three handler parts; the facade
         # methods below forward straight to them.
         self._conversation = self._base_commands.conversation
-        self._models = self._base_commands.models
+        self.models = self._base_commands.models
         self._exec = self._base_commands.exec
         self._base_replay = BaseUIReplay(self)
         self._base_system_info = BaseUISystemInfo(self)
@@ -274,26 +273,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     # =========================================================================
     # Construction-time / runtime state (own fields, read/written directly)
     # =========================================================================
-
-    @property
-    def llm_task(self) -> Any:
-        """Get the LLM task."""
-        return self._llm_task
-
-    @llm_task.setter
-    def llm_task(self, value: Any):
-        """Set the LLM task."""
-        self._llm_task = value
-
-    @property
-    def model(self) -> Any:
-        """Get the current model."""
-        return self._model
-
-    @model.setter
-    def model(self, value: Any):
-        """Set the model."""
-        self._model = value
 
     @property
     def small_model(self) -> Any:
@@ -429,15 +408,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     @voice_mode_active.setter
     def voice_mode_active(self, value: bool):
         self._base_voice.mode_active = value
-
-    @property
-    def is_thinking(self) -> bool:
-        """Whether the assistant is currently producing a response."""
-        return self._is_thinking
-
-    @is_thinking.setter
-    def is_thinking(self, value: bool):
-        self._is_thinking = value
 
     @property
     def current_confirmation(self) -> "asyncio.Future[str] | None":
@@ -662,25 +632,25 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
     # --- model commands ---
     def toggle_yolo(self) -> None:
-        self._models.toggle_yolo()
+        self.models.toggle_yolo()
 
     def handle_toggle_yolo(self, text: str) -> bool:
-        return self._models.handle_toggle_yolo(text)
+        return self.models.handle_toggle_yolo(text)
 
     def toggle_plan(self) -> None:
-        self._models.toggle_plan()
+        self.models.toggle_plan()
 
     def handle_toggle_plan(self, text: str) -> bool:
-        return self._models.handle_toggle_plan(text)
+        return self.models.handle_toggle_plan(text)
 
     def current_cycle_mode(self) -> str:
-        return self._models.current_cycle_mode()
+        return self.models.current_cycle_mode()
 
     def cycle_mode(self) -> None:
-        self._models.cycle_mode()
+        self.models.cycle_mode()
 
     def handle_set_model_command(self, text: str) -> bool:
-        return self._models.handle_set_model_command(text)
+        return self.models.handle_set_model_command(text)
 
     # --- exec commands ---
     def handle_exec_command(self, text: str) -> bool:
@@ -756,15 +726,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     def tool_call_handler(self) -> Any:
         """Get the tool call handler for this UI."""
         return self._tool_call_handler
-
-    @property
-    def multi_ui_parent(self) -> Any:
-        """The MultiUI this UI is a child of, or None when standalone."""
-        return getattr(self, "_multi_ui_parent", None)
-
-    @multi_ui_parent.setter
-    def multi_ui_parent(self, parent: Any) -> None:
-        self._multi_ui_parent = parent
 
     @property
     def active_run_context(self) -> Any:
@@ -967,7 +928,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
                     self.process_messages_loop()
                 )
                 if self._initial_message:
-                    self.submit_user_message(self._llm_task, self._initial_message)
+                    self.submit_user_message(self.llm_task, self._initial_message)
                 try:
                     while self._running:
                         await asyncio.sleep(0.1)
@@ -1014,17 +975,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self.append_to_output(
             *values, sep=sep, end=end, file=file, flush=flush, kind=kind
         )
-
-    def invalidate_ui(self):
-        """[OPTIONAL] Refresh the UI state.
-
-        Called when the UI needs to be redrawn or refreshed. Override this
-        method if your UI backend requires explicit refresh calls (e.g.,
-        terminal TUI frameworks, websockets).
-
-        Default implementation does nothing.
-        """
-        pass
 
     def on_exit(self):
         """[OPTIONAL] Handle application exit.
@@ -1216,7 +1166,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         # No parent - process locally (original behavior). While a turn is in
         # flight the message only joins the queue, so the marker says so
         # rather than implying it was sent.
-        marker = "⏳" if self._is_thinking else "💬"
+        marker = "⏳" if self.is_thinking else "💬"
         submit_user_message_via_queue(
             append_to_output=self.append_to_output,
             active_run_context=self.active_run_context,
@@ -1246,7 +1196,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         attachments: "list[UserContent] | None" = None,
     ):
         attachments = list(attachments or [])
-        self._is_thinking = True
+        self.is_thinking = True
         self.invalidate_ui()
         try:
             timestamp = datetime.now().strftime("%H:%M")
@@ -1299,7 +1249,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         except Exception as e:
             self.append_to_output(f"\n[Error: {e}]\n")
         finally:
-            self._is_thinking = False
+            self.is_thinking = False
             self._running_llm_task = None
             await self.update_system_info()
             self.invalidate_ui()
@@ -1315,7 +1265,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             "session": self._conversation_session_name,
             "yolo": self.yolo,
             "attachments": attachments,
-            "model": self._model,
+            "model": self.model,
         }
         shared_ctx = SharedContext(
             input=session_input,
@@ -1363,7 +1313,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
                     except StopAsyncIteration:
                         break
                     if result:
-                        self.submit_user_message(self._llm_task, str(result))
+                        self.submit_user_message(self.llm_task, str(result))
             else:
                 self.append_to_output(
                     stylize_error(

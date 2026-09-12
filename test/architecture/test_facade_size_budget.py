@@ -24,7 +24,7 @@ SRC = REPO_ROOT / "src" / "zrb"
 # just to make the test pass.
 # Ceilings that only ever go DOWN — see test_constructor_surface.py's note.
 FACADE_BUDGETS = {
-    "llm/ui/base/ui.py": 1450,
+    "llm/ui/base/ui.py": 1330,
     "llm/task/chat/task.py": 1150,
     "llm/task/llm_task.py": 915,
     "llm/agent/subagent/manager.py": 310,

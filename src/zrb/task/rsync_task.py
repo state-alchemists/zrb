@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from zrb.attr.type import BoolAttr, IntAttr, StrAttr
 from zrb.context.any_context import AnyContext
@@ -41,6 +41,7 @@ class RsyncTask(CmdTask):
         execution_timeout: int = 3600,
         execute_condition: BoolAttr = True,
         retries: int = 2,
+        retry_if: Callable[[BaseException], bool] | None = None,
         retry_period: float = 0,
         readiness_check: Sequence[AnyTask] | AnyTask | None = None,
         readiness_check_delay: float = 0.5,
@@ -100,6 +101,7 @@ class RsyncTask(CmdTask):
             execution_timeout=execution_timeout,
             execute_condition=execute_condition,
             retries=retries,
+            retry_if=retry_if,
             retry_period=retry_period,
             readiness_check=readiness_check,
             readiness_check_delay=readiness_check_delay,

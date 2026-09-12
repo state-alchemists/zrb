@@ -28,6 +28,7 @@ from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput
 from zrb.llm.agent import AnyToolConfirmation, create_agent, run_agent
+from zrb.llm.agent.run.error_classifier import retry_unless_permanent
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
@@ -133,6 +134,7 @@ class LLMTask(BaseTask):
         execute_condition: BoolAttr = True,
         retries: int = 2,
         retry_period: float = 0,
+        retry_if: Callable[[BaseException], bool] | None = None,
         readiness_check: Sequence[AnyTask] | AnyTask | None = None,
         readiness_check_delay: float = 0.5,
         readiness_check_period: float | None = 5,
@@ -218,6 +220,7 @@ class LLMTask(BaseTask):
             execute_condition=execute_condition,
             retries=retries,
             retry_period=retry_period,
+            retry_if=retry_if if retry_if is not None else retry_unless_permanent,
             readiness_check=readiness_check,
             readiness_check_delay=readiness_check_delay,
             readiness_check_period=readiness_check_period,

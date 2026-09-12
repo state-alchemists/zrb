@@ -147,6 +147,15 @@ Default to module-level imports. An in-function import must justify itself with 
 - ✅ Split files >500 lines by **feature group** (`test_manager_lifecycle.py`, `test_manager_search.py`), not by depth or coverage level
 - ⚠️ Mirroring `src/` produces **duplicate basenames** (`test_manager.py` under `hook/`, `lsp/`, `snapshot/`, …). pytest imports rootdir-relative, so two bare `test_manager.py` files collide at collection. Fix by adding an empty `__init__.py` to the test directory. Keep the mirrored filename; do not rename the test to dodge the clash.
 
+**Type checking:** the tree runs at pyright `standard`, with a `strict` array in
+`pyrightconfig.json` naming the packages held to `strict` (`callback`,
+`dot_dict`, `group`, `input`, `session`, `session_state_logger`, `xcom`).
+`./zrb-test.sh` gates both through the one `pyright src/zrb` call. Add a package
+to that list once it is strict-clean; never remove one. Prefer fixing the *root*
+of an inference failure over annotating each site that inherits it — one
+unannotated parameter in `util/cli/style.py` accounted for 335 strict errors in
+`builtin/` alone.
+
 **Coverage exclusions** (`.coveragerc`) — do not test these directly:
 
 - `any_*.py` — protocols / interfaces (no implementation)
