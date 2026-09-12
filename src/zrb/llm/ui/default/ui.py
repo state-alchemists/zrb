@@ -14,11 +14,8 @@ from zrb.llm.tool_call import ArgumentFormatter, ResponseHandler, ToolPolicy
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.default.agent_picker import UIAgentPicker
 from zrb.llm.ui.default.app.keybinding import create_output_keybindings
-from zrb.llm.ui.default.app.layout import (
-    create_input_field,
-    create_layout,
-    create_output_field,
-)
+from zrb.llm.ui.default.app.layout import (create_input_field, create_layout,
+                                           create_output_field)
 from zrb.llm.ui.default.app.redirection import GlobalStreamCapture
 from zrb.llm.ui.default.app.style import create_style
 from zrb.llm.ui.default.confirmation import UIConfirmation
@@ -149,8 +146,8 @@ class UI(BaseUI):
             custom_commands=self._custom_commands,
             history=self._input_history,
             custom_model_names=custom_model_names,
-            up_arrow_handler=self.handle_up_arrow,
-            down_arrow_handler=self.handle_down_arrow,
+            up_arrow_handler=self._message_editing.handle_up_arrow,
+            down_arrow_handler=self._message_editing.handle_down_arrow,
             recall_active=self.recall_navigation_active,
         )
 
@@ -181,17 +178,19 @@ class UI(BaseUI):
             jargon=self.ui_config.jargon,
             input_field=self._input_field,
             output_field=self._output_field,
-            info_bar_text=self.get_info_bar_text,
-            status_bar_text=self.get_status_bar_text,
+            info_bar_text=self._output.get_info_bar_text,
+            status_bar_text=self._output.get_status_bar_text,
             extra_floats=[choice_float, agent_picker_float],
-            agent_activity_text=self.get_agent_activity_text,
+            agent_activity_text=self._output.get_agent_activity_text,
         )
 
         # lazy: heavy third-party
         from prompt_toolkit.key_binding import KeyBindings
 
         self._app_kb = KeyBindings()
-        self.setup_app_keybindings(app_keybindings=self._app_kb, llm_task=self.llm_task)
+        self._keybindings.setup_app_keybindings(
+            app_keybindings=self._app_kb, llm_task=self.llm_task
+        )
         # Built on first access, not here -- see the `application` property.
         self._application: "Application | None" = None
 
@@ -201,7 +200,7 @@ class UI(BaseUI):
                 # While viewing a sub-agent the pane shows that agent's buffer
                 # (see UIAgentPicker); the main transcript's re-wrap is parked
                 # until Esc returns to it.
-                self.sync_output_to_viewed_agent()
+                self._agent_picker.sync_output_to_viewed_agent()
             else:
                 self.rewrap_output()
         except Exception as e:
@@ -304,7 +303,8 @@ class UI(BaseUI):
         """Float hosting the AskUserQuestion widget, shown only when active."""
         # lazy: heavy third-party
         from prompt_toolkit.filters import Condition
-        from prompt_toolkit.layout.containers import ConditionalContainer, Float
+        from prompt_toolkit.layout.containers import (ConditionalContainer,
+                                                      Float)
         from prompt_toolkit.widgets import Frame
 
         choice_window = self._selection.choice_window
@@ -324,7 +324,7 @@ class UI(BaseUI):
             left=0,
             right=0,
             content=ConditionalContainer(
-                content=framed, filter=Condition(self.has_active_choice)
+                content=framed, filter=Condition(self._selection.has_active_choice)
             ),
         )
 
@@ -332,7 +332,8 @@ class UI(BaseUI):
         """Float hosting the sub-agent picker, shown only while active."""
         # lazy: heavy third-party
         from prompt_toolkit.filters import Condition
-        from prompt_toolkit.layout.containers import ConditionalContainer, Float
+        from prompt_toolkit.layout.containers import (ConditionalContainer,
+                                                      Float)
         from prompt_toolkit.widgets import Frame
 
         framed = Frame(
@@ -347,7 +348,8 @@ class UI(BaseUI):
             left=0,
             right=0,
             content=ConditionalContainer(
-                content=framed, filter=Condition(self.has_active_agent_picker)
+                content=framed,
+                filter=Condition(self._agent_picker.has_active_agent_picker),
             ),
         )
 
@@ -412,14 +414,8 @@ class UI(BaseUI):
     async def cleanup_background_tasks(self) -> None:
         await self._lifecycle.cleanup_background_tasks()
 
-    def handle_application_run_error(self, exc: Exception) -> None:
-        self._lifecycle.handle_application_run_error(exc)
-
     async def run_async(self) -> Any:
         return await self._lifecycle.run_async()
-
-    def handle_first_render(self) -> None:
-        self._lifecycle.handle_first_render()
 
     def on_first_render(self, app: "Application") -> None:
         self._lifecycle.on_first_render(app)
@@ -433,9 +429,6 @@ class UI(BaseUI):
     # =========================================================================
     # UIAgentPicker delegators
     # =========================================================================
-
-    def has_active_agent_picker(self) -> bool:
-        return self._agent_picker.has_active_agent_picker()
 
     @property
     def viewing_agent_id(self) -> str | None:
@@ -470,9 +463,6 @@ class UI(BaseUI):
     def cancel_viewed_agent(self) -> bool:
         return self._agent_picker.cancel_viewed_agent()
 
-    def sync_output_to_viewed_agent(self) -> None:
-        self._agent_picker.sync_output_to_viewed_agent()
-
     # =========================================================================
     # UIMessageEditing delegators
     # =========================================================================
@@ -480,12 +470,6 @@ class UI(BaseUI):
     @property
     def queued_edit_entry(self) -> Any:
         return self._message_editing.queued_edit_entry
-
-    def handle_up_arrow(self, event: Any) -> bool:
-        return self._message_editing.handle_up_arrow(event)
-
-    def handle_down_arrow(self, event: Any) -> bool:
-        return self._message_editing.handle_down_arrow(event)
 
     def recall_navigation_active(self) -> bool:
         return self._message_editing.recall_navigation_active()
@@ -512,6 +496,36 @@ class UI(BaseUI):
     def output_part(self) -> "UIOutput":
         """The composed `UIOutput` part (public seam for tests)."""
         return self._output
+
+    @property
+    def selection_part(self) -> "UISelection":
+        """The composed `UISelection` part (public seam for tests)."""
+        return self._selection
+
+    @property
+    def confirmation_part(self) -> "UIConfirmation":
+        """The composed `UIConfirmation` part (public seam for tests)."""
+        return self._confirmation
+
+    @property
+    def message_editing_part(self) -> "UIMessageEditing":
+        """The composed `UIMessageEditing` part (public seam for tests)."""
+        return self._message_editing
+
+    @property
+    def agent_picker_part(self) -> "UIAgentPicker":
+        """The composed `UIAgentPicker` part (public seam for tests)."""
+        return self._agent_picker
+
+    @property
+    def lifecycle_part(self) -> "UILifecycle":
+        """The composed `UILifecycle` part (public seam for tests)."""
+        return self._lifecycle
+
+    @property
+    def keybindings_part(self) -> "UIKeybindings":
+        """The composed `UIKeybindings` part (public seam for tests)."""
+        return self._keybindings
 
     @property
     def output_text(self) -> str:
@@ -602,15 +616,6 @@ class UI(BaseUI):
     def output_field_width(self) -> int | None:
         return self._output.output_field_width
 
-    def get_info_bar_text(self) -> Any:
-        return self._output.get_info_bar_text()
-
-    def get_agent_activity_text(self) -> Any:
-        return self._output.get_agent_activity_text()
-
-    def get_status_bar_text(self) -> Any:
-        return self._output.get_status_bar_text()
-
     def schedule_invalidate(self) -> None:
         self._output.schedule_invalidate()
 
@@ -629,9 +634,6 @@ class UI(BaseUI):
     async def ask_user_choice(self, spec: Any, agent_id: str | None = None) -> str:
         return await self._confirmation.ask_user_choice(spec, agent_id)
 
-    def submit_user_answer(self, text: str) -> bool:
-        return self._confirmation.submit_user_answer(text)
-
     def cancel_pending_confirmations(self, flush: bool = True) -> None:
         self._confirmation.cancel_pending_confirmations(flush=flush)
 
@@ -649,28 +651,3 @@ class UI(BaseUI):
         # and falls through to `UIConfirmation`'s base case otherwise —
         # mirroring the old MRO where `UISelection` preceded `UIConfirmation`.
         return self._selection.handle_confirmation(event)
-
-    # =========================================================================
-    # UISelection delegators
-    # =========================================================================
-
-    def has_active_choice(self) -> bool:
-        return self._selection.has_active_choice()
-
-    def move_choice_cursor(self, delta: int) -> None:
-        self._selection.move_choice_cursor(delta)
-
-    def toggle_choice_current(self) -> None:
-        self._selection.toggle_choice_current()
-
-    def confirm_choice(self) -> bool:
-        return self._selection.confirm_choice()
-
-    # =========================================================================
-    # UIKeybindings delegators
-    # =========================================================================
-
-    def setup_app_keybindings(
-        self, app_keybindings: "KeyBindings", llm_task: Any
-    ) -> None:
-        self._keybindings.setup_app_keybindings(app_keybindings, llm_task)

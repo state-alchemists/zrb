@@ -1,5 +1,6 @@
 from zrb.builtin.git import git_commit
 from zrb.builtin.group import git_subtree_group
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
@@ -61,7 +62,8 @@ async def git_pull_subtree(ctx: AnyContext) -> None:
     if not config.data:
         raise ValueError(
             f"No subtrees.json in {repo_dir!r}. Run "
-            "`zrb git-subtree add` to register one before pulling/pushing it."
+            f"`{CFG.ROOT_GROUP_NAME} git subtree add` to register one before "
+            "pulling/pushing it."
         )
     first_err: Exception | None = None
     for name, detail in config.data.items():
@@ -96,7 +98,8 @@ async def git_push_subtree(ctx: AnyContext) -> None:
     if not config.data:
         raise ValueError(
             f"No subtrees.json in {repo_dir!r}. Run "
-            "`zrb git-subtree add` to register one before pulling/pushing it."
+            f"`{CFG.ROOT_GROUP_NAME} git subtree add` to register one before "
+            "pulling/pushing it."
         )
     first_err: Exception | None = None
     for name, detail in config.data.items():

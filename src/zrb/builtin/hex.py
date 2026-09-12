@@ -1,4 +1,5 @@
 from zrb.builtin.group import hex_group
+from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
@@ -42,8 +43,8 @@ def decode_hex(ctx: AnyContext) -> str:
         result = raw.decode()
     except UnicodeDecodeError:
         message = (
-            "Decoded bytes are not valid UTF-8 text. Use `zrb hex dump` to inspect "
-            "binary data instead."
+            "Decoded bytes are not valid UTF-8 text. Use "
+            f"`{CFG.ROOT_GROUP_NAME} util hex dump` to inspect binary data instead."
         )
         ctx.print_err(f"❌ {message}")
         raise ValueError(message) from None

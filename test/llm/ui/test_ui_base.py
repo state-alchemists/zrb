@@ -55,7 +55,11 @@ def test_ui_session_token_usage(mock_ui_deps):
     assert ui.session_cache_read_tokens == 0
     assert ui.context_tokens == 0
     # No tokens yet -> status bar shows no usage fragment
-    assert all("in" not in text for _, text in ui.get_status_bar_text() if "💸" in text)
+    assert all(
+        "in" not in text
+        for _, text in ui.output_part.get_status_bar_text()
+        if "💸" in text
+    )
 
     ui.accumulate_usage(
         _usage(input_tokens=1200, output_tokens=34, cache_read_tokens=800)
@@ -65,7 +69,7 @@ def test_ui_session_token_usage(mock_ui_deps):
     # Session cache-read accumulates like the in/out totals.
     assert ui.session_cache_read_tokens == 800
 
-    status = "".join(text for _, text in ui.get_status_bar_text())
+    status = "".join(text for _, text in ui.output_part.get_status_bar_text())
     assert "1.5k in" in status
     assert "34 out" in status
     assert "800 cached" in status
@@ -91,7 +95,9 @@ def test_ui_context_tokens_track_last_request(mock_ui_deps):
         _usage(input_tokens=3000, output_tokens=200, cache_read_tokens=100),
     )
     assert ui.context_tokens == 3200  # 3000 + 200; replaced, not accumulated
-    assert "3.2k ctx" in "".join(text for _, text in ui.get_status_bar_text())
+    assert "3.2k ctx" in "".join(
+        text for _, text in ui.output_part.get_status_bar_text()
+    )
 
     ui.reset_session_token_usage()
     assert ui.context_tokens == 0
