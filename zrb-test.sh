@@ -32,14 +32,18 @@ if [ "$#" -eq 0 ]; then
     cov_fail_under="--cov-fail-under=90"
 fi
 
-# Coverage fragments land in the repo root as gitignored `.coverage.*` files,
-# one per xdist worker, and pytest-cov combines whatever it finds there. An
-# interrupted run -- or a second run started concurrently -- leaves fragments
-# behind, and combining fragments recorded under different settings fails the
-# whole command with "Can't combine branch coverage data with statement data"
-# after the tests have already passed. Give each run its own data file and
-# clear any leftovers first, so the command is hermetic.
-rm -f "${PWD}/.coverage" "${PWD}"/.coverage.*
+# Coverage fragments (one per xdist worker) used to land in the repo root as
+# gitignored `.coverage.*` files, and pytest-cov combined whatever it found
+# there -- so an interrupted run, or a second run started concurrently, could
+# fail the whole command with "Can't combine branch coverage data with
+# statement data" after the tests had already passed. Pointing COVERAGE_FILE at
+# a per-run temporary directory is the entire fix: fragments are written and
+# combined there, and anything left in the repo root by another tool or an
+# older version of this script is ignored rather than deleted.
+#
+# `--cov-report=html` still writes to the shared ./htmlcov, deliberately -- the
+# report is meant to be found at a predictable path. Two runs racing will
+# interleave it; the pass/fail result above is unaffected.
 COVERAGE_DIR="$(mktemp -d)"
 trap 'rm -rf "${COVERAGE_DIR}"' EXIT
 export COVERAGE_FILE="${COVERAGE_DIR}/.coverage"

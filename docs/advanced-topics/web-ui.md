@@ -44,7 +44,15 @@ export ZRB_WEB_HTTP_HOST=0.0.0.0
 zrb server start
 ```
 
-> ⚠️ **The server refuses to start on a non-loopback host unless it is actually secured.** Binding beyond `127.0.0.1` exposes task execution — arbitrary command execution — to anyone who can reach this host, so `zrb server start` exits non-zero if authentication is off, or if `ZRB_WEB_SUPER_ADMIN_PASSWORD` or `ZRB_WEB_SECRET_KEY` still holds its documented default. Enable [authentication](#3-web-authentication-experimental) and set both to unique values, or keep the loopback bind and put your own proxy in front. There is no override flag.
+> ⚠️ **The server refuses to start on a non-loopback host unless it is actually secured.** Binding beyond loopback exposes task execution — arbitrary command execution — to anyone who can reach this host, so `zrb server start` exits non-zero unless *all* of the following hold:
+>
+> | Requirement | Why |
+> |---|---|
+> | `ZRB_WEB_AUTH_ENABLED=1` | Otherwise there is no login at all |
+> | `ZRB_WEB_SUPER_ADMIN_PASSWORD` is non-empty, not the default, ≥ 12 characters | It is the only thing standing between the internet and your shell |
+> | `ZRB_WEB_SECRET_KEY` is non-empty, not the default, ≥ 32 characters | It signs the session JWTs; a short key is forgeable |
+>
+> Every failing requirement is listed at once. "Not the default" is not sufficient on its own — an explicitly empty or one-character value is rejected too. Any loopback address is exempt (`127.0.0.1`, `127.0.0.2`, `::1`, its expanded `0:0:0:0:0:0:0:1` form, and `localhost`); a hostname that cannot be proven loopback-only is treated as exposed. There is no override flag — the alternative to meeting these requirements is to keep the loopback bind and put your own proxy in front.
 
 ---
 

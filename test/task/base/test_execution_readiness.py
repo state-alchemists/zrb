@@ -5,9 +5,12 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
+from zrb.llm.task.chat.task import LLMChatTask
+from zrb.llm.task.llm_task import LLMTask
 from zrb.session.any_session import AnySession
 from zrb.task.base.base_task import BaseTask
 from zrb.task.base.execution import BaseTaskExecution
+from zrb.task.cmd_task import CmdTask
 from zrb.task_status.task_status import TaskStatus
 
 
@@ -381,6 +384,30 @@ async def test_unset_readiness_timeout_falls_back_to_cfg():
 
     explicit = BaseTask(name="explicit", readiness_timeout=5)
     assert explicit.readiness_timeout == 5
+
+
+@pytest.mark.parametrize(
+    "task_factory",
+    [
+        pytest.param(lambda: BaseTask(name="t"), id="BaseTask"),
+        pytest.param(lambda: CmdTask(name="t"), id="CmdTask"),
+        pytest.param(lambda: LLMTask(name="t"), id="LLMTask"),
+        pytest.param(lambda: LLMChatTask(name="t"), id="LLMChatTask"),
+    ],
+)
+def test_cfg_readiness_timeout_reaches_every_task_class(task_factory):
+    """`ZRB_TASK_READINESS_TIMEOUT` is a global default, not a BaseTask-only one.
+
+    Regression: `LLMTask` and `LLMChatTask` re-declared `readiness_timeout=60`
+    and forwarded that explicit value, so the base class never saw `None` and
+    the environment variable silently did nothing for them -- exactly the kind
+    of shadowed default this parameter was changed to `None` to avoid.
+    """
+    task = task_factory()
+
+    with patch("zrb.task.base.base_task.CFG") as mock_cfg:
+        mock_cfg.TASK_READINESS_TIMEOUT = 90000
+        assert task.readiness_timeout == 90
 
 
 def test_default_readiness_timeout_is_finite():
