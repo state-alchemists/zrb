@@ -44,7 +44,7 @@ class Scaffolder(BaseTask):
         readiness_check_delay: float = 0.5,
         readiness_check_period: float | None = 5,
         readiness_failure_threshold: int | None = 1,
-        readiness_timeout: int | None = 60,
+        readiness_timeout: int | None = None,
         monitor_readiness: bool = False,
         upstream: Sequence[AnyTask] | AnyTask | None = None,
         fallback: Sequence[AnyTask] | AnyTask | None = None,

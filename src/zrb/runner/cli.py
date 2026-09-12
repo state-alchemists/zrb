@@ -1,3 +1,4 @@
+import ipaddress
 import sys
 from typing import Any
 
@@ -13,10 +14,10 @@ from zrb.session_state_logger.session_state_logger_factory import session_state_
 from zrb.task.any_task import AnyTask
 from zrb.task.make_task import make_task
 from zrb.util.cli.style import (
+    stylize_error,
     stylize_highlight,
     stylize_muted,
     stylize_section_header,
-    stylize_warning,
 )
 from zrb.util.string.conversion import double_quote
 
@@ -244,7 +245,7 @@ async def start_server(_: AnyContext):
     from zrb.runner.web_app import configure_uvicorn_logging, create_web_app
 
     configure_uvicorn_logging()
-    _warn_if_insecure_bind(CFG.WEB_HTTP_HOST, web_auth_config)
+    _refuse_insecure_bind(CFG.WEB_HTTP_HOST, web_auth_config)
     app = create_web_app(cli, web_auth_config, session_state_logger)
     server = Server(
         Config(
@@ -258,43 +259,114 @@ async def start_server(_: AnyContext):
     await server.serve()
 
 
-_LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
+# Hostnames that resolve to loopback and nothing else. Literal IP addresses are
+# not listed here -- they are parsed, so every spelling of loopback is accepted
+# (`::1` and its expanded `0:0:0:0:0:0:0:1` form, anything in `127.0.0.0/8`).
+_LOOPBACK_HOSTNAMES = {"localhost"}
+
+# Floors for a network-exposed bind, enforced only there. A LAN/public server is
+# reachable by anyone who can route to it, so the admin password and the JWT
+# signing key have to be more than non-default -- "a" is not the documented
+# default either. These are minimums, not recommendations.
+_MIN_PUBLIC_PASSWORD_LENGTH = 12
+_MIN_PUBLIC_SECRET_KEY_LENGTH = 32
 
 
-def _warn_if_insecure_bind(host: str, auth_config: WebAuthConfig) -> None:
-    """Warn (never refuse) when a network-exposed bind is not actually safe.
+def _is_loopback_bind(host: str) -> bool:
+    """True when `host` provably binds to loopback only.
 
-    A non-loopback bind is a legitimate, intentional choice for LAN/container
-    deployments, so this never blocks startup — it only makes the risk
-    impossible to miss. Inspect the effective auth object because callers may
-    override the CFG-backed defaults programmatically.
+    Literal addresses are parsed rather than string-matched, so `::1`,
+    `0:0:0:0:0:0:0:1` and `127.0.0.2` are all recognised. A name that is not a
+    known loopback alias is treated as exposed: it may resolve anywhere, and
+    guessing wrong here fails open.
     """
-    if host in _LOOPBACK_HOSTS:
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return host.lower() in _LOOPBACK_HOSTNAMES
+
+
+def _refuse_insecure_bind(host: str, auth_config: WebAuthConfig) -> None:
+    """Refuse to start a network-exposed server that is not actually secured.
+
+    A non-loopback bind publishes task execution -- arbitrary command
+    execution -- to everyone who can route to this host, so the unsafe
+    combinations fail closed rather than printing a warning the operator
+    scrolls past. There is deliberately no override flag: the two supported
+    ways to run exposed are to enable auth with real credentials, or to bind
+    loopback and put your own proxy in front.
+
+    Inspect the effective auth object rather than CFG alone, because callers
+    may override the CFG-backed defaults programmatically -- including with an
+    empty string, which `WebAuthConfig` treats as a deliberate override (only
+    `None` falls back to CFG) and which would otherwise sail past a check that
+    asked merely whether the value still equalled the shipped default.
+    """
+    if _is_loopback_bind(host):
         return
     if not auth_config.enable_auth:
-        print(
-            stylize_warning(
-                f"\nWarning: binding to '{host}' without authentication "
-                "(WEB_AUTH_ENABLED=off) exposes task execution to anyone who "
-                "can reach this host. Set WEB_AUTH_ENABLED=on, or bind to "
-                "127.0.0.1 (the default)."
-            ),
-            file=sys.stderr,
+        _abort_insecure_bind(
+            f"Refusing to bind to '{host}' without authentication "
+            "(WEB_AUTH_ENABLED=off): this exposes task execution to anyone "
+            "who can reach this host.\n"
+            "  Fix: set WEB_AUTH_ENABLED=on together with a real "
+            "WEB_SUPER_ADMIN_PASSWORD and WEB_SECRET_KEY,\n"
+            "       or bind to 127.0.0.1 (the default)."
         )
-        return
-    stale_defaults = []
-    if auth_config.super_admin_password == CFG.DEFAULT_WEB_SUPER_ADMIN_PASSWORD:
-        stale_defaults.append("WEB_SUPER_ADMIN_PASSWORD")
-    if auth_config.secret_key == CFG.DEFAULT_WEB_SECRET_KEY:
-        stale_defaults.append("WEB_SECRET_KEY")
-    if stale_defaults:
-        print(
-            stylize_warning(
-                f"\nWarning: binding to '{host}' with authentication enabled, "
-                f"but {' and '.join(stale_defaults)} still has its default, "
-                "publicly-documented value. Anyone who read zrb's docs has "
-                "these credentials. Set them to unique values before "
-                "exposing this server."
-            ),
-            file=sys.stderr,
+    problems = _credential_problems(auth_config)
+    if problems:
+        listed = "\n".join(f"  - {problem}" for problem in problems)
+        _abort_insecure_bind(
+            f"Refusing to bind to '{host}': authentication is enabled, but "
+            f"the credentials protecting it are not usable.\n{listed}\n"
+            "  Fix: set each to a unique value of the stated length, or bind "
+            "to 127.0.0.1 (the default)."
         )
+
+
+def _credential_problems(auth_config: WebAuthConfig) -> list[str]:
+    """Every reason the effective credentials cannot protect a public bind.
+
+    Returns all of them at once: fixing one only to be refused for the next is
+    a worse experience than being told both up front.
+    """
+    return [
+        problem
+        for problem in (
+            _credential_problem(
+                "WEB_SUPER_ADMIN_PASSWORD",
+                auth_config.super_admin_password,
+                CFG.DEFAULT_WEB_SUPER_ADMIN_PASSWORD,
+                _MIN_PUBLIC_PASSWORD_LENGTH,
+            ),
+            _credential_problem(
+                "WEB_SECRET_KEY",
+                auth_config.secret_key,
+                CFG.DEFAULT_WEB_SECRET_KEY,
+                _MIN_PUBLIC_SECRET_KEY_LENGTH,
+            ),
+        )
+        if problem is not None
+    ]
+
+
+def _credential_problem(
+    name: str, value: str, shipped_default: str, min_length: int
+) -> str | None:
+    """Why `value` is unfit to protect a public bind, or None when it is fit."""
+    if value.strip() == "":
+        return f"{name} is empty."
+    if value == shipped_default:
+        return (
+            f"{name} still has its default, publicly-documented value -- "
+            "anyone who read zrb's docs has it."
+        )
+    if len(value) < min_length:
+        return f"{name} is shorter than the {min_length}-character minimum."
+    return None
+
+
+def _abort_insecure_bind(message: str) -> None:
+    """Print a refusal and exit non-zero, so CI and shells see the failure."""
+    print(stylize_error(f"\n{message}"), file=sys.stderr)
+    raise SystemExit(1)

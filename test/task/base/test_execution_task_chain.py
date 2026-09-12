@@ -458,3 +458,39 @@ async def test_readiness_check_exception_fails_task_instead_of_hanging():
 
     task_status.mark_as_permanently_failed.assert_called_once()
     session.defer_action.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_system_exit_is_not_retried_as_a_task_failure():
+    """`sys.exit()` in an action body stops the run, it is not a failed attempt.
+
+    Regression: `SystemExit` fell into the generic `except BaseException`, so a
+    deliberate exit was logged as `Attempt 1/N failed: 1` -- printing the exit
+    *code* where the error message goes -- retried up to `retries` times, and
+    then reported as permanently failed. It now passes through alongside the
+    other control-flow exceptions, like a refused insecure server bind does.
+    """
+    attempts = 0
+
+    async def mock_action(ctx):
+        nonlocal attempts
+        attempts += 1
+        raise SystemExit(1)
+
+    mock_action.__name__ = "mock_action"
+
+    task = BaseTask(name="task", retries=2, retry_period=0, action=mock_action)
+    execution = BaseTaskExecution(task)
+
+    session = MagicMock(spec=AnySession)
+    status = MagicMock(spec=TaskStatus)
+    session.get_task_status.return_value = status
+
+    ctx = MagicMock(spec=AnyContext)
+    with patch.object(task, "get_ctx", return_value=ctx):
+        with pytest.raises(SystemExit) as exc_info:
+            await execution.execute_action_with_retry(session)
+
+    assert exc_info.value.code == 1
+    assert attempts == 1, "SystemExit must not be retried"
+    assert not status.mark_as_permanently_failed.called

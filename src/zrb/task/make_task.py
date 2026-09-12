@@ -27,7 +27,7 @@ def make_task(
     readiness_check_delay: float = 0.5,
     readiness_check_period: float = 5,
     readiness_failure_threshold: int = 1,
-    readiness_timeout: int = 60,
+    readiness_timeout: int | None = None,
     monitor_readiness: bool = False,
     upstream: Sequence[AnyTask] | AnyTask | None = None,
     fallback: Sequence[AnyTask] | AnyTask | None = None,
