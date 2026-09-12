@@ -79,23 +79,25 @@ async def _macos_osascript() -> bytes | None:
         "  end try\n"
         "end try"
     )
-    proc = await asyncio.create_subprocess_exec(
-        "osascript",
-        "-e",
-        script,
-        stdout=asyncio.subprocess.DEVNULL,
-        stderr=asyncio.subprocess.DEVNULL,
-    )
-    await proc.communicate()
     try:
+        proc = await asyncio.create_subprocess_exec(
+            "osascript",
+            "-e",
+            script,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        await proc.communicate()
         with open(tmp, "rb") as fh:
             data = fh.read()
     except OSError:
+        # Missing osascript, or it wrote nothing.
         data = b""
-    try:
-        os.unlink(tmp)
-    except OSError:
-        pass
+    finally:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
     return data or None
 
 

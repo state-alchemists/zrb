@@ -16,6 +16,15 @@ def _printed_text(mock_print) -> str:
     return _ANSI.sub("", raw)
 
 
+_WIDTH = 100
+
+
+@pytest.fixture(autouse=True)
+def fixed_terminal_width(monkeypatch):
+    """Rendering is terminal-width driven; pin it so assertions are stable."""
+    monkeypatch.setenv("COLUMNS", str(_WIDTH))
+
+
 @pytest.fixture
 def mock_print():
     return mock.MagicMock()
@@ -120,7 +129,7 @@ async def test_explain_config_list_view_keeps_values_on_one_line(session, mock_p
     printed = _printed_text(mock_print)
     for line in printed.splitlines():
         if line.startswith("ZRB_"):
-            assert len(line) < 200
+            assert len(line) <= _WIDTH
 
 
 @pytest.mark.asyncio
