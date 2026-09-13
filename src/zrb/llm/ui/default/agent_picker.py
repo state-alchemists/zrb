@@ -304,8 +304,13 @@ class UIAgentPicker:
         control = FormattedTextControl(
             self.get_agent_picker_text, focusable=True, key_bindings=kb
         )
+        # prompt_toolkit defaults to wrap_lines=False, which clips long
+        # agent names and activity lines to the float's width.
         return Window(
-            content=control, style="class:agent-picker", dont_extend_height=True
+            content=control,
+            style="class:agent-picker",
+            dont_extend_height=True,
+            wrap_lines=True,
         )
 
     # --- rendering -------------------------------------------------------

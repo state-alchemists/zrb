@@ -111,7 +111,7 @@ def test_collapse_thinking_block_consumes_the_mark_once():
 
     with patch.object(ui.output_part, "schedule_invalidate"):
         ui.mark_thinking_block_start()
-        ui.append_to_output("thinking", end="")
+        ui.append_to_output("thinking", end="", kind="thinking")
         ui.collapse_thinking_block("🧠 Thought\n", "thinking")
         after_first = ui.output_text
         result = ui.collapse_thinking_block("🧠 Thought\n", "thinking")
@@ -129,7 +129,9 @@ def test_mark_and_collapse_text_block_wraps_the_streamed_span():
     with patch.object(ui.output_part, "schedule_invalidate"):
         ui.append_to_output("before ")
         ui.mark_text_block_start()
-        ui.append_to_output("the assistant's streamed final response", end="")
+        ui.append_to_output(
+            "the assistant's streamed final response", end="", kind="streaming"
+        )
         collapsed = ui.collapse_text_block(
             "💬 Response\n", "the assistant's streamed final response"
         )
@@ -162,13 +164,13 @@ def test_thinking_and_text_blocks_share_the_slot_without_interference():
 
     with patch.object(ui.output_part, "schedule_invalidate"):
         ui.mark_thinking_block_start()
-        ui.append_to_output("reasoning about the answer", end="")
+        ui.append_to_output("reasoning about the answer", end="", kind="thinking")
         thinking_collapsed = ui.collapse_thinking_block(
             "🧠 Thought\n", "reasoning about the answer"
         )
 
         ui.mark_text_block_start()
-        ui.append_to_output("here is the final answer", end="")
+        ui.append_to_output("here is the final answer", end="", kind="streaming")
         text_collapsed = ui.collapse_text_block(
             "💬 Response\n", "here is the final answer"
         )
@@ -332,3 +334,45 @@ def test_shell_output_keeps_each_commands_own_line_independent_while_growing():
     fulls = {source.full for source in collapsed_sources}
     assert any("dog 1" in f and "dog 2" in f for f in fulls)
     assert any("cat 1" in f and "cat 2" in f for f in fulls)
+
+
+def test_collapse_survives_a_line_growing_below_an_open_block():
+    """A shell line growing below an open thinking block shifts the buffer.
+    The mark is an offset into that buffer, so it must be rebased with the
+    other trackers — otherwise the collapse splices over the line's tail."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.append_to_output("intro\n", end="")
+        ui.update_shell_output("cmd", "$ ls\n")
+        ui.mark_thinking_block_start()
+        ui.append_to_output("thinking hard...", end="", kind="thinking")
+        ui.update_shell_output("cmd", "$ ls\nAAAAAAAAAAAAAAAAAAAA\n")
+        collapsed = ui.collapse_thinking_block("[thinking]\n", "thinking hard...")
+
+    assert collapsed is True
+    assert "AAAAAAAAAAAAAAAAAAAA" in ui.output_text
+    assert "thinking hard..." not in ui.output_text
+    assert "[thinking]" in ui.output_text
+
+
+def test_concurrent_writer_survives_an_open_block():
+    """A trigger line appended while a thinking block streams must survive the
+    collapse. The block tracks its own end, so it never claims the buffer
+    tail — the same lesson `update_shell_output` already learned."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.mark_thinking_block_start()
+        ui.append_to_output("reasoning part one", end="", kind="thinking")
+        ui.append_to_output("\n[Trigger] deploy finished\n", end="")
+        ui.append_to_output(" and part two", end="", kind="thinking")
+        collapsed = ui.collapse_thinking_block(
+            "🧠 Thought\n", "reasoning part one and part two"
+        )
+
+    assert collapsed is True
+    assert "[Trigger] deploy finished" in ui.output_text
+    assert "reasoning part one" not in ui.output_text
+    assert "and part two" not in ui.output_text
+    assert "🧠 Thought" in ui.output_text

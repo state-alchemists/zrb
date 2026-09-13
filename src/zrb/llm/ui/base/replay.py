@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from zrb.llm.prompt.live_context import split_live_context
+from zrb.llm.ui.base.user_echo import echo_user_message
 from zrb.llm.util.history_formatter import format_args, format_timestamp, truncate
 
 if TYPE_CHECKING:
@@ -68,8 +69,11 @@ class BaseUIReplay:
                     content, live_context = split_live_context(raw_content)
                 else:
                     content, live_context = str(raw_content), None
-                self._base_ui.append_to_output(
-                    f"\n💬 {ts_display}>> {content.strip()}\n"
+                echo_user_message(
+                    self._base_ui.append_to_output,
+                    self._base_ui.append_markdown,
+                    header=f"\n💬 {ts_display}>> ",
+                    body=content.strip(),
                 )
                 if live_context:
                     self._base_ui.append_to_output(

@@ -183,7 +183,6 @@ def test_steer_into_live_run_false_when_enqueue_raises():
 
     assert steer_into_live_run(run_context, "hello", []) is False
 
-
 # ── submit_user_message_via_queue (shared BaseUI/MultiUI mechanics) ─────────
 
 
@@ -304,3 +303,77 @@ def test_submit_user_message_via_queue_ignores_targets_without_the_hooks():
 
     entry = queue.peek_latest()
     assert entry.attachments == []
+
+
+def test_submit_user_message_via_queue_renders_markdownish_echo():
+    """A markdownish paste renders via append_markdown and claims no echo span."""
+    outputs: list[tuple[tuple, dict]] = []
+    rendered: list[str] = []
+
+    class Target:
+        def take_pending_attachments(self):
+            return []
+
+        def _track_echo_span(self, entry, echo):
+            raise AssertionError("a rendered echo must not claim a span")
+
+    queue = MessageQueue()
+    body = "## Plan\n\n- a\n- b"
+
+    submit_user_message_via_queue(
+        append_to_output=lambda *v, **k: outputs.append((v, k)),
+        active_run_context=None,
+        stream_ai_response=_stub_stream_ai_response,
+        queue=queue,
+        attachment_sources=[Target()],
+        echo_targets=[Target()],
+        llm_task=object(),
+        user_message=body,
+        marker="💬",
+        append_markdown=rendered.append,
+    )
+
+    assert rendered == [body]
+    assert len(outputs) == 1
+    header_values, header_kwargs = outputs[0]
+    assert header_kwargs == {"end": ""}
+    assert header_values[0].startswith("\n💬 ")
+    assert header_values[0].endswith(">> ")
+    entry = queue.peek_latest()
+    assert entry.text == body
+    assert entry.echo_span is None
+
+
+def test_submit_user_message_via_queue_keeps_raw_echo_for_plain_single_line():
+    """A plain one-line message keeps the raw echo and its edit-redraw span."""
+    outputs: list[str] = []
+    rendered: list[str] = []
+    tracked: list[str] = []
+
+    class Target:
+        def take_pending_attachments(self):
+            return []
+
+        def _track_echo_span(self, entry, echo):
+            tracked.append(echo)
+
+    queue = MessageQueue()
+
+    submit_user_message_via_queue(
+        append_to_output=lambda *v, **k: outputs.append(
+            "".join(str(x) for x in v) + k.get("end", "")
+        ),
+        active_run_context=None,
+        stream_ai_response=_stub_stream_ai_response,
+        queue=queue,
+        attachment_sources=[Target()],
+        echo_targets=[Target()],
+        llm_task=object(),
+        user_message="hello",
+        marker="💬",
+        append_markdown=rendered.append,
+    )
+
+    assert rendered == []
+    assert len(outputs) == 1 and "hello" in outputs[0]
+    assert len(tracked) == 1
