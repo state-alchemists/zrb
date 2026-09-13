@@ -11,6 +11,7 @@ from zrb import (
     CmdTask,
     Env,
     Group,
+    LLMTask,
     StrInput,
     Task,
     TcpCheck,
@@ -19,6 +20,8 @@ from zrb import (
     make_task,
 )
 from zrb.builtin.git import git_commit
+from zrb.llm.tool import read_file as read_file_tool
+from zrb.llm.tool import run_shell_command as run_shell_command_tool
 from zrb.util.file import read_file
 
 _DIR = os.path.dirname(__file__)
@@ -102,10 +105,19 @@ format_code = code_group.add_task(
 )
 _ = format_code >> git_commit
 
-_REVIEW_REPORT = "code-review.md"
+git_diff = CmdTask(
+    name="git-diff",
+    input=StrInput(
+        name="range",
+        description="Git range to review (e.g. origin/main...HEAD)",
+        prompt="Git range",
+        default="origin/main...HEAD",
+    ),
+    cmd=Tpl('git diff --stat "{ctx.input.range}"'),
+)
 
 review_code = code_group.add_task(
-    CmdTask(
+    LLMTask(
         name="review-code",
         description="🔍 Review changed code with the LLM reviewer",
         input=[
@@ -115,47 +127,27 @@ review_code = code_group.add_task(
                 prompt="Git range",
                 default="origin/main...HEAD",
             ),
-            StrInput(
-                name="output",
-                description="File to write the report to",
-                prompt="Report file",
-                default=_REVIEW_REPORT,
-            ),
         ],
-        cwd=_DIR,
-        env=[
-            Env(
-                name="REVIEW_RANGE",
-                default=Tpl("{ctx.input.range}"),
-                link_to_os=False,
-            ),
-            Env(
-                name="REVIEW_OUTPUT",
-                default=Tpl("{ctx.input.output}"),
-                link_to_os=False,
-            ),
-        ],
-        cmd=[
-            # `set -e`: CmdTask does not add one, and without it a failing
-            # `git diff --stat` (a range that does not resolve) left
-            # REVIEW_STAT empty and sent the reviewer off to review
-            # "Changed files: ." -- a confident report of nothing.
-            "set -e",
-            'REVIEW_STAT="$(git diff --stat "$REVIEW_RANGE")"',
-            (
-                "zrb llm chat --interactive false --yolo true --message"
-                ' "/review the changes in git range $REVIEW_RANGE.'
-                " Changed files:"
-                " $REVIEW_STAT."
-                " Write the full report as markdown to $REVIEW_OUTPUT,"
-                " overwriting it. Give every finding its own section with"
-                " Problem, Location (file:line) and Suggestion, and end the"
-                " report with a verdict line reading either"
-                " 'Request changes' or 'LGTM'."
-                ' Then print that verdict as a single line."'
-            ),
-        ],
-        retries=0,
+        tools=[read_file_tool, run_shell_command_tool],
+        message=Tpl(
+            "Review the changes in git range {ctx.input.range}."
+            " Changed files: {ctx.xcom.git_diff.peek()}"
+            " Read the diff with git and read the files it touches."
+            " Report ALL defects you can point at in the diff:"
+            " a wrong result, a crash, a leak, a security hole."
+            " Skip style and speculation."
+            " Do NOT run the test suite, build, or any linter --"
+            " CI already ran them in a separate step and a second run"
+            " here only burns minutes."
+            " Work directly: no skill activation, no delegation,"
+            " no plan -- go straight to reading the diff."
+            " Your review should be in markdown format"
+            " Give every finding its own section with"
+            " Problem, Location (file:line) and Suggestion, and end the"
+            " report with a verdict line reading either"
+            " 'Request changes' or 'LGTM'."
+            ' Then print that verdict as a single line."'
+        ),
     ),
     alias="review",
 )
@@ -163,17 +155,8 @@ review_code = code_group.add_task(
 
 @make_task(
     name="submit-comment",
-    description="💬 Post a markdown file as a comment on the current pull request",
-    input=StrInput(
-        name="file",
-        description="Markdown file to post",
-        prompt="Comment file",
-        default=_REVIEW_REPORT,
-    ),
-    # No retries: the POST is not idempotent. A 502 raised *after* GitHub
-    # created the comment would post it again on every attempt, and the other
-    # failure here (missing GITHUB_* variables) cannot be fixed by repeating.
-    retries=0,
+    description="💬 Post code review comment",
+    retries=2,
     group=cli,
 )
 def submit_comment(ctx: AnyContext):
@@ -200,13 +183,7 @@ def submit_comment(ctx: AnyContext):
         raise ValueError(
             f"Not running inside GitHub Actions? Missing: {', '.join(missing)}"
         )
-    if not os.path.isfile(ctx.input.file):
-        ctx.print(f"No file at {ctx.input.file} - nothing to post.")
-        return
-    body = read_file(ctx.input.file)
-    if body.strip() == "":
-        ctx.print(f"{ctx.input.file} is empty - nothing to post.")
-        return
+    body: str = ctx.xcom.review_code.peek()
     pr_number = json.loads(read_file(event_path)).get("pull_request", {}).get("number")
     if pr_number is None:
         raise ValueError("The event payload carries no pull_request.number")
@@ -230,6 +207,8 @@ def submit_comment(ctx: AnyContext):
         )
     ctx.print(f"Posted {len(body)} bytes to PR #{pr_number}")
 
+
+_ = git_diff >> review_code >> submit_comment
 
 # DOCKER ======================================================================
 

@@ -23,28 +23,14 @@ jobs:
       pull-requests: write
     uses: ./.github/workflows/_zrb.yml
     with:
-      # The reviewer diffs against the merge base, so it needs full history --
-      # the default depth of 2 has no origin/<base> to compare against.
       fetch-depth: 0
-      # Written by the review task, posted by _zrb.yml once the command exits.
-      comment-file: code-review.md
-      # $GITHUB_BASE_REF is read at runtime instead of interpolated with
-      # ${{ }}: a branch name comes from the PR author, and interpolation
-      # would splice it into the shell command rather than pass it as a value.
-      # The second half of that guarantee is in zrb_init.py, where the review
-      # task passes --range on to the agent through an environment variable
-      # instead of rendering it into another command string.
-      #
-      # The key check is a step guard rather than a job-level `if:`, because
-      # the `secrets` context is not available in `jobs.<id>.if` -- so a repo
-      # without OPENAI_API_KEY configured would otherwise fail this job on
-      # every pull request, with nothing the author could do about it.
       command: |
         if [ -z "$OPENAI_API_KEY" ]; then
           echo "⏭️  OPENAI_API_KEY is not configured; skipping the LLM review."
           exit 0
         fi
-        zrb code review --range "origin/$GITHUB_BASE_REF...HEAD" --output code-review.md
+        zrb submit-comment --range "origin/$GITHUB_BASE_REF...HEAD"
     secrets:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ZRB_LLM_MODEL: ${{ secrets.ZRB_LLM_MODEL }}
