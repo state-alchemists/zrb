@@ -24,6 +24,8 @@ jobs:
     uses: ./.github/workflows/_zrb.yml
     with:
       fetch-depth: 0
+      # This caller posts the report back to the PR, so it needs the token.
+      needs-github-token: true
       command: |
         if [ -z "$OPENAI_API_KEY" ]; then
           echo "⏭️  OPENAI_API_KEY is not configured; skipping the LLM review."
