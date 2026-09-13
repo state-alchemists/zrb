@@ -66,8 +66,15 @@ def save_uploaded_attachment(session_id: str, filename: str, data: bytes) -> str
     if os.path.dirname(os.path.abspath(upload_dir)) != os.path.abspath(upload_root):
         raise ValueError(f"Invalid session id: {session_id!r}")
     _ensure_private_dir(upload_dir)
-    safe_name = os.path.basename(filename) or "attachment"
-    entry = f"{uuid.uuid4().hex}_{safe_name}"
+    # The stored name is generated outright. The client filename only ever
+    # contributes its extension, which `get_media_type` has already matched
+    # against the sniffed bytes -- a client name reaching the filesystem
+    # brings control characters, reserved device names, NULs and length
+    # limits with it, and none of that is needed to identify the file.
+    extension = os.path.splitext(os.path.basename(filename))[1][:16]
+    if not extension.isascii() or any(c in extension for c in '\\/:*?"<>|\0'):
+        extension = ""
+    entry = f"{uuid.uuid4().hex}{extension}"
     _write_into_dir(upload_dir, entry, data)
     return os.path.join(upload_dir, entry)
 
@@ -83,11 +90,18 @@ def _write_into_dir(directory: str, entry: str, data: bytes) -> None:
     the file is created relative to it, `O_EXCL` so an existing entry is never
     followed or truncated and `O_NOFOLLOW` so a planted symlink is refused.
 
-    `dir_fd` and both flags are POSIX; Windows has none of them, and falls
-    back to opening by path.
+    `dir_fd` and `O_NOFOLLOW` are POSIX. Windows has neither, so it cannot
+    close the directory-swap window; it still creates the file itself with
+    `O_EXCL`, so an entry planted at the destination is refused rather than
+    followed or truncated. Creating a symlink on Windows needs
+    SeCreateSymbolicLinkPrivilege, which is what keeps the residual window
+    narrow there.
     """
+    binary = getattr(os, "O_BINARY", 0)
     if os.open not in os.supports_dir_fd or not hasattr(os, "O_NOFOLLOW"):
-        with open(os.path.join(directory, entry), "wb") as f:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | binary
+        fd = os.open(os.path.join(directory, entry), flags, 0o600)
+        with os.fdopen(fd, "wb") as f:
             f.write(data)
         return
     dir_fd = os.open(directory, os.O_RDONLY | os.O_NOFOLLOW | os.O_DIRECTORY)
@@ -95,7 +109,7 @@ def _write_into_dir(directory: str, entry: str, data: bytes) -> None:
         info = os.fstat(dir_fd)
         if hasattr(os, "getuid") and info.st_uid != os.getuid():
             raise PermissionError(f"Upload dir must be owned by the current user: {directory}")
-        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | binary
         fd = os.open(entry, flags, 0o600, dir_fd=dir_fd)
         with os.fdopen(fd, "wb") as f:
             f.write(data)
@@ -289,8 +303,19 @@ def serve_chat_api(  # noqa: C901 -- registration/factory fn; mccabe sums nested
         rejection = check_attachment_bytes(data, media_type)
         if rejection:
             return JSONResponse(content={"error": f"File {rejection}"}, status_code=400)
-        path = save_uploaded_attachment(session_id, filename, data)
-        return JSONResponse(content={"path": path, "name": os.path.basename(filename)})
+        try:
+            path = save_uploaded_attachment(session_id, filename, data)
+        except ValueError as invalid:
+            return JSONResponse(content={"error": str(invalid)}, status_code=400)
+        except OSError as failure:
+            # ENOSPC, EACCES, ENAMETOOLONG and friends: the request was
+            # well-formed, the server could not store it.
+            CFG.LOGGER.warning(f"Attachment store failed: {failure}")
+            return JSONResponse(
+                content={"error": "Could not store attachment"}, status_code=507
+            )
+        display_name = os.path.basename(filename)[:255] or "attachment"
+        return JSONResponse(content={"path": path, "name": display_name})
 
     @app.post("/api/v1/chat/sessions/{session_id}/messages")
     async def post_chat_message(

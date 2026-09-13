@@ -16,7 +16,7 @@ internal pull-ups, so no external resistors are needed:
     GPIO 27 ── camera button       ── GND
 
 Usage:
-    pip install zrb[llm] gpiozero
+    pip install "zrb[voice]" gpiozero
     sudo apt install ffmpeg libportaudio2
 
     cd examples/chat-gpio-ptt

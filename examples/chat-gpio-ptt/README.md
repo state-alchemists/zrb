@@ -28,7 +28,7 @@ ffmpeg -f v4l2 -i /dev/video0 -frames:v 1 /tmp/test.jpg
 ## Setup
 
 ```bash
-pip install zrb[llm] gpiozero
+pip install "zrb[voice]" gpiozero
 sudo apt install ffmpeg libportaudio2
 ```
 

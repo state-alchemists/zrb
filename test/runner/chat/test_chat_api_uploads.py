@@ -26,7 +26,11 @@ def testsave_uploaded_attachment_writes_file_and_returns_path():
     path = save_uploaded_attachment("some-session", "photo.png", b"data")
     try:
         assert os.path.isfile(path)
-        assert os.path.basename(path).endswith("_photo.png")
+        # The stored name is generated; only the extension comes from the
+        # client, so its control characters and reserved names never reach
+        # the filesystem.
+        assert os.path.basename(path).endswith(".png")
+        assert "photo" not in os.path.basename(path)
         with open(path, "rb") as f:
             assert f.read() == b"data"
     finally:
@@ -91,7 +95,6 @@ def testsave_uploaded_attachment_keeps_traversal_inside_the_upload_root(
     from zrb.runner.chat.chat_api_route import save_uploaded_attachment
 
     monkeypatch.setattr(tempfile_module, "tempdir", str(tmp_path))
-    tmp_path.chmod(0o755)
     root = tmp_path / "zrb_web_chat_uploads"
 
     path = save_uploaded_attachment(session_id, "x.png", b"d")
@@ -99,6 +102,24 @@ def testsave_uploaded_attachment_keeps_traversal_inside_the_upload_root(
     assert os.path.commonpath([os.path.realpath(path), os.path.realpath(root)]) == str(
         os.path.realpath(root)
     )
+
+
+@needs_posix_modes
+def testsave_uploaded_attachment_leaves_the_temp_dir_mode_alone(tmp_path, monkeypatch):
+    """`..` used to resolve the upload dir to the temp dir and chmod it 0700.
+
+    On a shared machine that locks every other user out of it, which is worse
+    than the stray write.
+    """
+    import tempfile as tempfile_module
+
+    from zrb.runner.chat.chat_api_route import save_uploaded_attachment
+
+    monkeypatch.setattr(tempfile_module, "tempdir", str(tmp_path))
+    tmp_path.chmod(0o755)
+
+    save_uploaded_attachment("..", "x.png", b"d")
+
     assert stat.S_IMODE(tmp_path.stat().st_mode) == 0o755
 
 

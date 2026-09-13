@@ -21,7 +21,7 @@ Both Telegram and terminal receive all messages and can respond.
 ### 3. Install Dependencies
 
 ```bash
-pip install zrb[llm]
+pip install zrb
 pip install python-telegram-bot>=20.0
 ```
 

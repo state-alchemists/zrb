@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import logging
 from collections.abc import AsyncIterable, Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
 from zrb.util.cli.style import stylize_error
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import UserContent
@@ -30,6 +33,7 @@ class BaseUITriggers:
     ) -> None:
         """Submit a user turn for every item *trigger_factory* yields."""
         owner = self._owner
+        async_iter: Any = None
         try:
             iterator = trigger_factory()
             if inspect.isawaitable(iterator):
@@ -66,17 +70,27 @@ class BaseUITriggers:
                 # drain happens after the submission's echo, so a submission
                 # that raises before it would otherwise leave these staged for
                 # whatever turn comes next.
-                staged_from = len(owner.pending_attachments)
                 owner.pending_attachments.extend(attachments)
                 try:
                     owner.submit_user_message(owner.llm_task, text)
                 except BaseException:
-                    del owner.pending_attachments[staged_from:]
+                    _unstage(owner.pending_attachments, attachments)
                     raise
         except asyncio.CancelledError:
-            pass
+            # A trigger runs as a background task; swallowing this would make
+            # a cancelled loop look like one that finished.
+            raise
         except Exception as e:
             owner.append_to_output(stylize_error(f"\n[Trigger Error: {e}]\n"))
+        finally:
+            aclose: Any = getattr(async_iter, "aclose", None)
+            if callable(aclose):
+                try:
+                    result = aclose()
+                    if inspect.isawaitable(result):
+                        await result
+                except Exception as close_error:
+                    logger.debug(f"Trigger iterator close failed: {close_error}")
 
     def _split(self, item: Any) -> "tuple[str, list[UserContent]]":
         """Split a yielded item into its text and its attachments.
@@ -106,3 +120,19 @@ class BaseUITriggers:
                 "attachment in a list."
             )
         return str(text or ""), list(attachments)
+
+
+def _unstage(staged: "list[UserContent]", items: "list[UserContent]") -> None:
+    """Remove exactly *items* from *staged*, by identity, last occurrence first.
+
+    Deleting the tail slice instead would assume nothing else touched the list
+    between staging and the failure. Nothing does today — `submit_user_message`
+    is synchronous and there is no await in between — but the list is shared
+    with `/attach`, `/photo` and every other trigger loop, so the assumption is
+    not the loop's to make.
+    """
+    for item in reversed(items):
+        for index in range(len(staged) - 1, -1, -1):
+            if staged[index] is item:
+                del staged[index]
+                break
