@@ -129,9 +129,11 @@ review_code = code_group.add_task(
             ),
         ],
         tools=[read_file_tool, run_shell_command_tool],
+        yolo=True,
+        retries=0,
         message=Tpl(
             "Review the changes in git range {ctx.input.range}."
-            " Changed files: {ctx.xcom.git_diff.peek()}"
+            " Changed files: {ctx.xcom['git-diff'].peek()}"
             " Read the diff with git and read the files it touches."
             " Report ALL defects you can point at in the diff:"
             " a wrong result, a crash, a leak, a security hole."
@@ -146,7 +148,6 @@ review_code = code_group.add_task(
             " Problem, Location (file:line) and Suggestion, and end the"
             " report with a verdict line reading either"
             " 'Request changes' or 'LGTM'."
-            ' Then print that verdict as a single line."'
         ),
     ),
     alias="review",
@@ -160,12 +161,13 @@ review_code = code_group.add_task(
     group=cli,
 )
 def submit_comment(ctx: AnyContext):
-    """Post `--file` as a comment on the PR that triggered this run.
+    """Post the review report as a comment on the PR that triggered this run.
 
-    The PR number is read from GITHUB_EVENT_PATH -- the event payload GitHub
-    writes for every run -- rather than passed in from a workflow `${{ }}`
-    interpolation, so the task takes no argument but the file and works from
-    any workflow that sets the standard GitHub Actions variables.
+    The report is read from `review-code`'s xcom rather than a file, so the
+    reviewer never needs a file-writing tool. The PR number comes from
+    GITHUB_EVENT_PATH -- the event payload GitHub writes for every run --
+    rather than a workflow `${{ }}` interpolation, so this takes no argument
+    and works from any workflow setting the standard GitHub Actions variables.
     """
     token = os.environ.get("GITHUB_TOKEN", "")
     event_path = os.environ.get("GITHUB_EVENT_PATH", "")
@@ -183,7 +185,7 @@ def submit_comment(ctx: AnyContext):
         raise ValueError(
             f"Not running inside GitHub Actions? Missing: {', '.join(missing)}"
         )
-    body: str = ctx.xcom.review_code.peek()
+    body: str = ctx.xcom.get("review-code").peek()
     pr_number = json.loads(read_file(event_path)).get("pull_request", {}).get("number")
     if pr_number is None:
         raise ValueError("The event payload carries no pull_request.number")
