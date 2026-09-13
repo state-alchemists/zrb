@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-from collections.abc import AsyncIterable, Callable
+from collections.abc import AsyncIterable, Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
 from zrb.util.cli.style import stylize_error
@@ -48,7 +48,16 @@ class BaseUITriggers:
                     item = await async_iter.__anext__()
                 except StopAsyncIteration:
                     break
-                text, attachments = self._split(item)
+                try:
+                    text, attachments = self._split(item)
+                except ValueError as split_error:
+                    # Report and keep going: a trigger is a long-lived source
+                    # (a button, a queue), so one malformed item must not stop
+                    # every later one from being delivered.
+                    owner.append_to_output(
+                        stylize_error(f"\n[Trigger Error: {split_error}]\n")
+                    )
+                    continue
                 if not text and not attachments:
                     continue
                 # Drained by the `submit_user_message` below (a `MultiUI`
@@ -70,9 +79,30 @@ class BaseUITriggers:
             owner.append_to_output(stylize_error(f"\n[Trigger Error: {e}]\n"))
 
     def _split(self, item: Any) -> "tuple[str, list[UserContent]]":
-        """Split a yielded item into its text and its attachments."""
-        if isinstance(item, tuple):
-            # `TriggerMessage`, or any bare (text, attachments) tuple.
-            text, *rest = item
-            return str(text or ""), list(rest[0]) if rest else []
-        return str(item or ""), []
+        """Split a yielded item into its text and its attachments.
+
+        A tuple must be the `(text, attachments)` shape `TriggerMessage`
+        declares. Anything else raises `ValueError` rather than being
+        reinterpreted: a 3-tuple used to lose its third element silently, a
+        bare string in the attachments slot became a list of its characters,
+        and `None` there raised `TypeError` from inside `list()`.
+        """
+        if not isinstance(item, tuple):
+            return str(item or ""), []
+        if len(item) != 2:
+            raise ValueError(
+                "a trigger tuple must be (text, attachments); "
+                f"got {len(item)} element(s): {item!r}"
+            )
+        text, attachments = item
+        if attachments is None:
+            attachments = ()
+        if isinstance(attachments, (str, bytes)) or not isinstance(
+            attachments, Iterable
+        ):
+            raise ValueError(
+                "a trigger item's attachments must be a sequence, not "
+                f"{type(attachments).__name__}: {attachments!r}. Wrap a single "
+                "attachment in a list."
+            )
+        return str(text or ""), list(attachments)

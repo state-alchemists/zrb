@@ -67,10 +67,40 @@ def save_uploaded_attachment(session_id: str, filename: str, data: bytes) -> str
         raise ValueError(f"Invalid session id: {session_id!r}")
     _ensure_private_dir(upload_dir)
     safe_name = os.path.basename(filename) or "attachment"
-    dest = os.path.join(upload_dir, f"{uuid.uuid4().hex}_{safe_name}")
-    with open(dest, "wb") as f:
-        f.write(data)
-    return dest
+    entry = f"{uuid.uuid4().hex}_{safe_name}"
+    _write_into_dir(upload_dir, entry, data)
+    return os.path.join(upload_dir, entry)
+
+
+def _write_into_dir(directory: str, entry: str, data: bytes) -> None:
+    """Write *data* to *entry* inside *directory*, resolving the name once.
+
+    Validating a directory by path and then opening a file inside it by path
+    leaves a window: on a shared host the validated directory can be replaced
+    with a symlink in between, and the write follows it out. Holding a
+    descriptor to the directory closes that window — the descriptor keeps
+    pointing at the inode that was checked, whatever happens to the name — so
+    the file is created relative to it, `O_EXCL` so an existing entry is never
+    followed or truncated and `O_NOFOLLOW` so a planted symlink is refused.
+
+    `dir_fd` and both flags are POSIX; Windows has none of them, and falls
+    back to opening by path.
+    """
+    if os.open not in os.supports_dir_fd or not hasattr(os, "O_NOFOLLOW"):
+        with open(os.path.join(directory, entry), "wb") as f:
+            f.write(data)
+        return
+    dir_fd = os.open(directory, os.O_RDONLY | os.O_NOFOLLOW | os.O_DIRECTORY)
+    try:
+        info = os.fstat(dir_fd)
+        if hasattr(os, "getuid") and info.st_uid != os.getuid():
+            raise PermissionError(f"Upload dir must be owned by the current user: {directory}")
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+        fd = os.open(entry, flags, 0o600, dir_fd=dir_fd)
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+    finally:
+        os.close(dir_fd)
 
 
 async def get_llm_chat_task(root_group: AnyGroup) -> Any:
@@ -242,7 +272,20 @@ def serve_chat_api(  # noqa: C901 -- registration/factory fn; mccabe sums nested
                 content={"error": f"Unsupported file type: {filename}"},
                 status_code=400,
             )
-        data = await file.read()
+        # Read one byte past the cap rather than the whole upload: starlette
+        # spools the multipart body to disk, but `read()` with no argument
+        # materializes all of it as one `bytes`, so an oversized file is
+        # allocated in full before anything rejects it.
+        limit = CFG.LLM_MAX_ATTACHMENT_BYTES
+        if limit > 0:
+            data = await file.read(limit + 1)
+            if len(data) > limit:
+                return JSONResponse(
+                    content={"error": f"File too large (limit {limit} bytes)"},
+                    status_code=400,
+                )
+        else:
+            data = await file.read()
         rejection = check_attachment_bytes(data, media_type)
         if rejection:
             return JSONResponse(content={"error": f"File {rejection}"}, status_code=400)
@@ -259,6 +302,14 @@ def serve_chat_api(  # noqa: C901 -- registration/factory fn; mccabe sums nested
             return forbidden
         data = await _read_json_body(request)
         message = data.get("message", "")
+        # Only a string or a JSON object is a message. Anything else reaches
+        # `message[:100]` and `send_input` as-is and raises there, turning a
+        # malformed request into a 500.
+        if not isinstance(message, (str, dict)):
+            return JSONResponse(
+                content={"error": "Field 'message' must be a string or an object"},
+                status_code=400,
+            )
         attachments = data.get("attachments") or []
         is_approval_action = data.get("isApprovalAction", False)
         is_json = isinstance(message, dict)

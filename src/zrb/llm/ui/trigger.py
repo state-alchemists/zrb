@@ -2,9 +2,14 @@
 
 A trigger is a callable returning an async iterable; every item it yields
 becomes a user turn. Yielding a plain string sends text alone; yielding a
-`TriggerMessage` — or any `(text, attachments)` tuple — sends text together
+`TriggerMessage` — or any `(text, attachments)` two-tuple — sends text together
 with attachments, so an external source can hand the agent a photo, a PDF or a
 file path the way `/photo` and `/attach` do.
+
+`attachments` must be a sequence; `None` reads as none, matching the default
+below. A tuple of any other length, or a bare string where the sequence
+belongs, is reported against that item and the trigger carries on with the
+next one.
 """
 
 from __future__ import annotations

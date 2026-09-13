@@ -7,8 +7,10 @@ in, alongside the happy path.
 
 import os
 import stat
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from httpx import AsyncClient
 
 # `os.chmod` on Windows toggles only the read-only flag; a directory there
 # reports 0o777 whatever mode it was created with, so the private-mode
@@ -137,3 +139,137 @@ def testsave_uploaded_attachment_keeps_a_delegated_session_id_intact(
     session_id = format_delegated_session_name("brave-otter-4821", "researcher", "01")
     path = save_uploaded_attachment(session_id, "x.png", b"d")
     assert os.path.basename(os.path.dirname(path)) == session_id
+
+
+@needs_posix_modes
+def testsave_uploaded_attachment_refuses_a_dir_swapped_after_validation(
+    tmp_path, monkeypatch
+):
+    """Close the window between validating the directory and writing into it.
+
+    Validating by path and then opening by path lets a local attacker replace
+    the checked directory with a symlink in between. The write is done
+    relative to a descriptor taken on the validated directory, so the swap has
+    nothing left to redirect.
+
+    `uuid.uuid4` is the seam: it runs after validation and before the write,
+    so swapping the directory from inside it reproduces the race exactly.
+    """
+    import tempfile as tempfile_module
+    import uuid as uuid_module
+
+    from zrb.runner.chat.chat_api_route import save_uploaded_attachment
+
+    monkeypatch.setattr(tempfile_module, "tempdir", str(tmp_path))
+    victim = tmp_path / "victim"
+    victim.mkdir()
+    session_dir = tmp_path / "zrb_web_chat_uploads" / "sess"
+    real_uuid4 = uuid_module.uuid4
+
+    def swap_then_name():
+        if session_dir.is_dir() and not session_dir.is_symlink():
+            os.rmdir(session_dir)
+            os.symlink(victim, session_dir)
+        return real_uuid4()
+
+    monkeypatch.setattr(uuid_module, "uuid4", swap_then_name)
+
+    with pytest.raises(OSError):
+        save_uploaded_attachment("sess", "x.png", b"pwned")
+    assert list(victim.iterdir()) == []
+
+
+@pytest.mark.asyncio
+async def test_upload_attachment_rejects_a_file_over_the_cap(
+    client: AsyncClient, monkeypatch
+):
+    """An oversized upload is refused without being read whole into memory."""
+    from zrb.config.config import CFG
+
+    monkeypatch.setattr(type(CFG), "LLM_MAX_ATTACHMENT_BYTES", 32)
+    payload = b"\x89PNG\r\n\x1a\n" + b"x" * 4096
+
+    response = await client.post(
+        "/api/v1/chat/sessions/test/attachments",
+        files={"file": ("big.png", payload, "image/png")},
+    )
+
+    assert response.status_code == 400
+    assert "too large" in response.json()["error"]
+
+
+@pytest.mark.asyncio
+async def test_upload_attachment_success(client: AsyncClient, tmp_path):
+    dest = tmp_path / "saved.png"
+    with patch(
+        "zrb.runner.chat.chat_api_route.save_uploaded_attachment",
+        return_value=str(dest),
+    ) as mock_save:
+        response = await client.post(
+            "/api/v1/chat/sessions/test/attachments",
+            files={"file": ("photo.png", b"\x89PNG\r\n\x1a\n" + b"rest", "image/png")},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["path"] == str(dest)
+    assert data["name"] == "photo.png"
+    mock_save.assert_called_once()
+    assert mock_save.call_args[0][0] == "test"
+    assert mock_save.call_args[0][1] == "photo.png"
+
+
+@pytest.mark.asyncio
+async def test_upload_attachment_rejects_unsupported_type(client: AsyncClient):
+    response = await client.post(
+        "/api/v1/chat/sessions/test/attachments",
+        files={"file": ("evil.xyz", b"whatever", "application/octet-stream")},
+    )
+    assert response.status_code == 400
+    assert "Unsupported file type" in response.json()["error"]
+
+
+@pytest.mark.asyncio
+async def test_upload_attachment_rejects_spoofed_content(client: AsyncClient):
+    response = await client.post(
+        "/api/v1/chat/sessions/test/attachments",
+        files={"file": ("fake.png", b"not actually a png", "image/png")},
+    )
+    assert response.status_code == 400
+    assert "doesn't look like" in response.json()["error"]
+
+
+@pytest.mark.asyncio
+async def test_upload_attachment_rejects_oversized(client: AsyncClient, monkeypatch):
+    from zrb.config.config import CFG
+
+    monkeypatch.setattr(CFG, "LLM_MAX_ATTACHMENT_BYTES", 4)
+    response = await client.post(
+        "/api/v1/chat/sessions/test/attachments",
+        files={"file": ("photo.png", b"\x89PNG\r\n\x1a\n" + b"rest", "image/png")},
+    )
+    assert response.status_code == 400
+    assert "too large" in response.json()["error"]
+
+
+@pytest.mark.asyncio
+async def test_upload_attachment_forbidden_without_access(client: AsyncClient):
+    no_access_user = MagicMock()
+    no_access_user.can_access_task.return_value = False
+    mock_task = MagicMock()
+
+    with (
+        patch(
+            "zrb.runner.chat.chat_api_route.get_user_from_request",
+            new=AsyncMock(return_value=no_access_user),
+        ),
+        patch(
+            "zrb.runner.chat.chat_api_route.get_llm_chat_task",
+            new=AsyncMock(return_value=mock_task),
+        ),
+    ):
+        response = await client.post(
+            "/api/v1/chat/sessions/test/attachments",
+            files={"file": ("photo.png", b"\x89PNG\r\n\x1a\n" + b"rest", "image/png")},
+        )
+    assert response.status_code == 403

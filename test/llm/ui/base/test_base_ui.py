@@ -455,3 +455,40 @@ async def test_trigger_loop_unstages_attachments_when_submission_fails(
     await base_ui.trigger_loop(trigger_yielding(TriggerMessage("look", [photo])))
 
     assert base_ui.pending_attachments == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "item",
+    [("text", "one-path.png"), ("text", 3), ("a", ["x"], "extra"), ("only",)],
+)
+async def test_trigger_loop_reports_a_malformed_tuple_and_keeps_going(
+    base_ui, monkeypatch, item
+):
+    """One bad item must not end the loop.
+
+    A trigger is a long-lived source — a button, a queue — so aborting on the
+    first malformed item silently stops every later one. A bare string in the
+    attachments slot used to become a list of its characters, a 3-tuple lost
+    its third element, and a non-sequence raised out of `list()`.
+    """
+    submitted = collect_submitted(base_ui, monkeypatch)
+    reported: list[str] = []
+    monkeypatch.setattr(
+        base_ui, "append_to_output", lambda *v, **k: reported.append(" ".join(map(str, v)))
+    )
+
+    await base_ui.trigger_loop(trigger_yielding(item, "after"))
+
+    assert submitted == [("after", [])]
+    assert any("Trigger Error" in line for line in reported), reported
+
+
+@pytest.mark.asyncio
+async def test_trigger_loop_reads_none_attachments_as_none(base_ui, monkeypatch):
+    """`(text, None)` is text with no attachments, like `TriggerMessage`'s default."""
+    submitted = collect_submitted(base_ui, monkeypatch)
+
+    await base_ui.trigger_loop(trigger_yielding(("hello", None)))
+
+    assert submitted == [("hello", [])]
