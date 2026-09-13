@@ -90,6 +90,95 @@ def ui():
     return FakeUI()
 
 
+def _long_spec():
+    return {
+        "question": "What would you like the questions to be about?",
+        "options": [
+            {
+                "label": "Engineering and AI-assisted work",
+                "description": (
+                    "I will ask you challenging questions about software "
+                    "design, debugging, testing, architecture, code review, "
+                    "prompting, delegation and verification."
+                ),
+            },
+            {"label": "Business, leadership, and strategy", "description": "Short."},
+        ],
+    }
+
+
+def test_wrapped_lines_are_indented_under_the_label(ui):
+    """A wrapped line must never start in the marker gutter — at column 0 it
+    reads as a new option rather than a continuation of the previous one."""
+    ui.begin_choice(_long_spec())
+    lines = "".join(t for _, t in ui.get_choice_text()).split("\n")
+
+    body = [ln for ln in lines if ln.strip() and "↑/↓" not in ln and "?" not in ln]
+    assert len(body) > 4, "expected the description to wrap onto several lines"
+    # " ❯ ◉ " / "   ◯ " — a label line; anything else is a continuation and
+    # must be indented to the label's own column.
+    marker_width = len(" ❯ ◉ ")
+    for line in body:
+        is_label = any(glyph in line[:marker_width] for glyph in "❯◉◯✎")
+        if not is_label:
+            assert line[:marker_width].isspace(), f"{line!r} is not indented"
+        assert not line.startswith(line.lstrip()[:1]), f"{line!r} starts at column 0"
+
+
+def test_wrapping_breaks_at_word_boundaries(ui):
+    """Every word survives intact — the earlier Window-level wrap split words
+    mid-token (\"technolog/y\")."""
+    spec = _long_spec()
+    ui.begin_choice(spec)
+    rendered = "".join(t for _, t in ui.get_choice_text())
+
+    for word in spec["options"][0]["description"].split():
+        assert word in rendered
+
+
+def test_highlighted_row_pads_every_line_to_one_width(ui):
+    """The selection bar spans a solid block, so a multi-line highlighted
+    option does not have a ragged right edge."""
+    ui.begin_choice(_long_spec())
+    highlighted = [
+        text
+        for style, text in ui.get_choice_text()
+        if "choice.selected" in style and text.strip()
+    ]
+
+    assert len(highlighted) > 1, "expected the highlighted option to wrap"
+    assert len({len(text) for text in highlighted}) == 1
+
+
+def test_choice_window_wraps_long_question_and_bars(ui):
+    """Long questions and descriptions wrap at terminal width instead of clipping."""
+    window = ui.choice_window
+    assert window is not None
+    assert window.wrap_lines() is True
+    assert window.dont_extend_height() is True
+
+
+def test_render_keeps_entire_long_question_and_description(ui):
+    """The widget wraps the question and descriptions at word boundaries and
+    never drops a word — compared on normalized whitespace, since the wrap
+    now happens here rather than at paint time."""
+    long_q = (
+        "Which of these deployment providers best matches your compliance, "
+        "latency and budget requirements for this brand-new data pipeline? "
+        "Please read each option carefully before answering."
+    )
+    long_desc = (
+        "Highly available multi-region offering with SOC 2 Type II, HIPAA and "
+        "PCI DSS attestations, 99.99% uptime SLA and 24/7 first-party support."
+    )
+    spec = _spec([{"label": "Provider A", "description": long_desc}])
+    spec["question"] = long_q
+    ui.begin_choice(spec)
+    joined = " ".join("".join(t for _, t in ui.get_choice_text()).split())
+    assert long_q in joined
+    assert long_desc in joined
+
+
 def test_begin_choice_activates_without_echoing_question(ui):
     """The widget shows the question; it is not duplicated into scrollback yet."""
     ui.begin_choice(_spec([{"label": "A"}, {"label": "B"}]))

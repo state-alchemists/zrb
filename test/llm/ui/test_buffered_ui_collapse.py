@@ -78,7 +78,7 @@ def test_mark_and_collapse_thinking_block_wraps_the_streamed_span():
     ui = BufferedUI(MagicMock())
     ui.append_to_output("before ", end="")
     ui.mark_thinking_block_start()
-    ui.append_to_output("a long stream of live thinking text", end="")
+    ui.append_to_output("a long stream of live thinking text", end="", kind="thinking")
 
     collapsed = ui.collapse_thinking_block(
         "🧠 Thought\n", "a long stream of live thinking text"
@@ -100,7 +100,7 @@ def test_collapse_thinking_block_ignores_buffer_mangled_by_carriage_return():
     merge_output_chunk, the same function UIOutput.append_to_output uses)."""
     ui = BufferedUI(MagicMock())
     ui.mark_thinking_block_start()
-    ui.append_to_output("first part\rsecond part", end="")
+    ui.append_to_output("first part\rsecond part", end="", kind="thinking")
     assert "first part" not in ui.get_buffered_output()
 
     collapsed = ui.collapse_thinking_block("🧠 Thought\n", "first part second part")
@@ -163,7 +163,9 @@ def test_mark_and_collapse_text_block_wraps_the_streamed_span():
     ui = BufferedUI(MagicMock())
     ui.append_to_output("before ", end="")
     ui.mark_text_block_start()
-    ui.append_to_output("the assistant's streamed final response", end="")
+    ui.append_to_output(
+        "the assistant's streamed final response", end="", kind="streaming"
+    )
 
     collapsed = ui.collapse_text_block(
         "💬 Response\n", "the assistant's streamed final response"
@@ -315,3 +317,42 @@ def test_clear_buffer_resets_shell_output_spans():
     ui.clear_buffer()
 
     assert ui.finish_shell_output("cmd_1", "🖥️ Output", "text") is False
+
+
+def test_concurrent_writer_survives_an_open_block():
+    """Mirrors `UIOutput`'s counterpart: a foreign line appended during a live
+    thinking block stays outside the collapsed span."""
+    ui = BufferedUI(MagicMock())
+    ui.mark_thinking_block_start()
+    ui.append_to_output("reasoning part one", end="", kind="thinking")
+    ui.append_to_output("\n[Trigger] deploy finished\n", end="")
+    ui.append_to_output(" and part two", end="", kind="thinking")
+
+    collapsed = ui.collapse_thinking_block(
+        "🧠 Thought\n", "reasoning part one and part two"
+    )
+
+    assert collapsed is True
+    assert "[Trigger] deploy finished" in ui.get_buffered_output()
+    assert "reasoning part one" not in ui.get_buffered_output()
+    assert "🧠 Thought" in ui.get_buffered_output()
+
+
+def test_keyed_span_after_an_open_block_survives_later_block_chunks():
+    """Mirrors `UIOutput`'s counterpart: a keyed live line started after an
+    open block is rebased when the block absorbs a later chunk."""
+    ui = BufferedUI(MagicMock())
+    ui.mark_thinking_block_start()
+    ui.append_to_output("thinking one.", end="", kind="thinking")
+    ui.update_shell_output("cmd", "$ ls\n")
+    ui.append_to_output(" thinking two.", end="", kind="thinking")
+    ui.update_shell_output("cmd", "$ ls\nREADME\n")
+
+    collapsed = ui.collapse_thinking_block("[thought]", "thinking one. thinking two.")
+
+    assert collapsed is True
+    assert "thinking one." not in ui.get_buffered_output()
+    assert "thinking two." not in ui.get_buffered_output()
+    assert "[thought]" in ui.get_buffered_output()
+    assert ui.get_buffered_output().count("$ ls") == 1
+    assert "README" in ui.get_buffered_output()

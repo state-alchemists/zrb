@@ -36,7 +36,7 @@ async def test_run_shell_command_reports_nonzero_exit(ui, tmp_path):
 async def test_run_shell_command_reports_spawn_error(ui):
     with patch("asyncio.create_subprocess_shell", side_effect=OSError("no shell")):
         await ui.run_shell_command("echo hi")
-    assert "[Error: no shell]" in "".join(ui.outputs)
+    assert "[Error: OSError: no shell]" in "".join(ui.outputs)
 
 
 @pytest.mark.asyncio
@@ -91,7 +91,7 @@ async def test_stream_btw_response_survives_agent_failure(ui):
     ui.history_manager.load.return_value = []
     with patch("pydantic_ai.Agent", ExplodingAgent):
         await ui.stream_btw_response(ui.llm_task, "q")
-    assert "[Error: provider down]" in "".join(ui.outputs)
+    assert "[Error: RuntimeError: provider down]" in "".join(ui.outputs)
 
 
 def test_handle_custom_command_ignored_while_thinking_or_blank(ui):

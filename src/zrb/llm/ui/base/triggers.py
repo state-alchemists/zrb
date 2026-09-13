@@ -14,6 +14,7 @@ from collections.abc import AsyncIterable, Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
 from zrb.util.cli.style import stylize_error
+from zrb.util.exception import exception_summary
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +82,9 @@ class BaseUITriggers:
             # a cancelled loop look like one that finished.
             raise
         except Exception as e:
-            owner.append_to_output(stylize_error(f"\n[Trigger Error: {e}]\n"))
+            owner.append_to_output(
+                stylize_error(f"\n[Trigger Error: {exception_summary(e)}]\n")
+            )
         finally:
             aclose: Any = getattr(async_iter, "aclose", None)
             if callable(aclose):

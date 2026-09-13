@@ -460,3 +460,12 @@ def test_picker_no_indicator_when_nothing_pending():
     text = "".join(t for _s, t in ui.get_agent_picker_text())
 
     assert "needs approval" not in text
+
+
+def test_agent_picker_window_wraps_long_rows():
+    """Long agent names and activity lines wrap at width instead of clipping."""
+    ui = FakeUI()
+    window = ui.agent_picker_window
+    assert window is not None
+    assert window.wrap_lines() is True
+    assert window.dont_extend_height() is True

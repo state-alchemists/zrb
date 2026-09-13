@@ -24,6 +24,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Sequence
 
 from zrb.config.config import CFG
+from zrb.llm.ui.base.user_echo import AppendOutputFunc, echo_user_message
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import UserContent
@@ -149,7 +150,7 @@ class MessageQueue(asyncio.Queue):
 
 def submit_user_message_via_queue(
     *,
-    append_to_output: Callable[[str], Any],
+    append_to_output: AppendOutputFunc,
     active_run_context: Any,
     stream_ai_response: Callable[[Any, str, list], Any],
     queue: MessageQueue,
@@ -158,6 +159,7 @@ def submit_user_message_via_queue(
     llm_task: Any,
     user_message: str,
     marker: str,
+    append_markdown: Callable[[str], Any] | None = None,
 ) -> None:
     """Shared mechanics behind `BaseUI.submit_user_message` and
     `MultiUI.submit_user_message` — echo, collect attachments, steer into a
@@ -170,10 +172,18 @@ def submit_user_message_via_queue(
     `stream_ai_response` stay owner-called either way, since both classes
     already implement them polymorphically (`MultiUI`'s broadcasts to every
     child; a standalone UI's acts on itself alone).
+
+    A rendered echo is header + rendered body rather than one verbatim chunk,
+    so it claims no echo span: editing the queued message still works but
+    cannot rewrite the echoed line in place.
     """
     timestamp = datetime.now().strftime("%H:%M")
-    echo = f"\n{marker} {timestamp} >> {user_message.strip()}\n"
-    append_to_output(echo)
+    echo = echo_user_message(
+        append_to_output,
+        append_markdown,
+        header=f"\n{marker} {timestamp} >> ",
+        body=user_message.strip(),
+    )
 
     attachments: list[Any] = []
     for source in attachment_sources:
@@ -194,10 +204,11 @@ def submit_user_message_via_queue(
     )
     entry.echo_marker = marker
     entry.echo_timestamp = timestamp
-    for target in echo_targets:
-        track = getattr(target, "_track_echo_span", None)
-        if callable(track):
-            track(entry, echo)
+    if echo:
+        for target in echo_targets:
+            track = getattr(target, "_track_echo_span", None)
+            if callable(track):
+                track(entry, echo)
     queue.put_nowait(entry)
 
 

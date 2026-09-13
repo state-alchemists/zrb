@@ -16,6 +16,7 @@ Selection model:
 
 from __future__ import annotations
 
+import textwrap
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
@@ -137,7 +138,16 @@ class UISelection:
         control = FormattedTextControl(
             self.get_choice_text, focusable=True, key_bindings=kb
         )
-        return Window(content=control, style="class:choice", dont_extend_height=True)
+        # `get_choice_text` wraps at word boundaries itself, so this is only
+        # a backstop: it keeps a line the measured width got wrong (a wide
+        # glyph, a resize between render and paint) visible instead of
+        # clipped, which is prompt_toolkit's default.
+        return Window(
+            content=control,
+            style="class:choice",
+            dont_extend_height=True,
+            wrap_lines=True,
+        )
 
     # --- state transitions (public-testable seams) -----------------------
 
@@ -256,18 +266,29 @@ class UISelection:
         multi = bool(spec.get("multi_select"))
         idx, total = spec.get("index", 1), spec.get("total", 1)
         counter = f"  ({idx}/{total})" if total > 1 else ""
+        width = self._wrap_width()
+        question = f"{spec.get('question', '')}{counter}"
         frags: StyleAndTextTuples = [
-            ("class:choice.question bold", f" {spec.get('question', '')}{counter}\n"),
+            ("class:choice.question bold", f" {line}\n")
+            for line in _wrap(question, width - 1)
         ]
         for i, opt in enumerate(spec.get("options", [])):
+            frags.append(("class:choice.option", "\n"))
             frags += self._render_row(
                 i,
                 opt.get("label", f"Option {i + 1}"),
                 opt.get("description", ""),
                 multi,
+                width,
             )
+        frags.append(("class:choice.option", "\n"))
         frags += self._render_row(
-            self._free_text_row(), "✎ Type my own answer…", "", multi, is_free_text=True
+            self._free_text_row(),
+            "✎ Type my own answer…",
+            "",
+            multi,
+            width,
+            is_free_text=True,
         )
         hint = (
             " ↑/↓ move · space toggle · enter confirm · esc cancel"
@@ -278,8 +299,23 @@ class UISelection:
         return frags
 
     def _render_row(
-        self, i: int, label: str, desc: str, multi: bool, is_free_text: bool = False
+        self,
+        i: int,
+        label: str,
+        desc: str,
+        multi: bool,
+        width: int,
+        is_free_text: bool = False,
     ) -> "StyleAndTextTuples":
+        """One option: its label, then its description wrapped beneath it.
+
+        The description sits on its own lines under the label rather than
+        trailing it inline — an option whose description is a paragraph
+        (`AskUserQuestion` routinely sends those) otherwise buries the label
+        mid-sentence, and a wrapped inline row has no column the eye can
+        follow. Continuation lines are indented to the label's own column,
+        so a wrap never reads as a new option.
+        """
         cursor = "❯ " if i == self._choice_cursor else "  "
         if is_free_text:
             marker = "  "
@@ -292,11 +328,30 @@ class UISelection:
         # On the highlighted row the description shares the highlight style so the
         # selection bar reads as one continuous segment.
         desc_style = style if is_cursor else "class:choice.desc"
-        row: StyleAndTextTuples = [(style, f" {cursor}{marker}{label}")]
-        if desc:
-            row.append((desc_style, f"  — {desc}"))
-        row.append((style, "\n"))
+        gutter = f" {cursor}{marker}"
+        indent = " " * len(gutter)
+        row: StyleAndTextTuples = []
+        for line in _wrap(label, width - len(gutter)) or [""]:
+            row.append((style, self._fill(f"{gutter}{line}", width, is_cursor)))
+            gutter = indent
+        for line in _wrap(desc, width - len(indent)):
+            row.append((desc_style, self._fill(f"{indent}{line}", width, is_cursor)))
         return row
+
+    def _fill(self, line: str, width: int, is_cursor: bool) -> str:
+        """A highlighted row pads to the full width so its selection bar is one
+        solid block across every wrapped line, not a ragged right edge."""
+        return (line.ljust(width) if is_cursor else line) + "\n"
+
+    def _wrap_width(self) -> int:
+        """Usable text width inside the choice float.
+
+        The float spans the terminal (`left=0, right=0`) inside a `Frame`, so
+        four columns go to its border and padding. Falls back to a readable
+        default when the width is unknown (no running application).
+        """
+        columns = getattr(self._ui, "output_field_width", None)
+        return max(24, (columns or 84) - 4)
 
     # --- helpers ---------------------------------------------------------
 
@@ -321,3 +376,10 @@ class UISelection:
         except Exception as e:
             # No active app to repaint — safe to ignore.
             CFG.LOGGER.debug(f"Choice-widget invalidate failed: {e}")
+
+
+def _wrap(text: str, width: int) -> list[str]:
+    """Word-wrap `text` to `width`, or `[]` when there is nothing to wrap."""
+    if not text:
+        return []
+    return textwrap.wrap(text, max(10, width)) or [""]

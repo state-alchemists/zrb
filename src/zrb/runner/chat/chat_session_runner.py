@@ -22,6 +22,7 @@ from zrb.runner.chat.chat_session_manager import ChatSession, ChatSessionManager
 from zrb.runner.chat.http_ui import create_http_ui_factory
 from zrb.session.session import Session
 from zrb.util.contextvar_scope import scoped
+from zrb.util.exception import exception_summary
 
 
 async def run_chat_session(
@@ -154,7 +155,7 @@ async def run_chat_session(
                 # Keep the loop alive: one failed/timed-out request must not kill
                 # the session, or every queued message sits unprocessed until the
                 # browser happens to reopen the SSE stream.
-                CFG.LOGGER.error(f"LLM task error: {e}")
+                CFG.LOGGER.error(f"LLM task error: {exception_summary(e)}")
                 session_manager.set_processing(session.session_id, False)
                 continue
             session_manager.set_processing(session.session_id, False)

@@ -126,7 +126,7 @@ async def test_handle_application_run_error():
 
     # Verify error message and kind in output
     args = ui.append_to_output.call_args[0][0]
-    assert "[Error: run fail]" in args
+    assert "[Error: ValueError: run fail]" in args
 
 
 @pytest.mark.asyncio

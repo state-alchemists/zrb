@@ -15,6 +15,7 @@ from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext, current_ctx
 from zrb.session.any_session import AnySession
 from zrb.util.attr import get_bool_attr
+from zrb.util.exception import exception_summary
 from zrb.util.run import gather_fail_fast, gather_isolated, run_async
 from zrb.xcom.xcom import Xcom
 
@@ -317,7 +318,10 @@ class BaseTaskExecution:
                 # Do not trigger fallbacks/successors on cancellation
                 raise
             except BaseException as e:
-                ctx.log_error(f"Attempt {attempt + 1}/{max_attempt} failed: {e}")
+                ctx.log_error(
+                    f"Attempt {attempt + 1}/{max_attempt} failed: "
+                    f"{exception_summary(e)}"
+                )
                 session.get_task_status(task).mark_as_failed()
 
                 retry_if = task.retry_if

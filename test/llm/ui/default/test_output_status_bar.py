@@ -408,7 +408,9 @@ def test_mark_and_collapse_thinking_block_wraps_the_streamed_span():
     with patch.object(ui.output_part, "schedule_invalidate"):
         ui.append_to_output("before ")
         ui.mark_thinking_block_start()
-        ui.append_to_output("a long stream of live thinking text", end="")
+        ui.append_to_output(
+            "a long stream of live thinking text", end="", kind="thinking"
+        )
         collapsed = ui.collapse_thinking_block(
             "🧠 Thought\n", "a long stream of live thinking text"
         )
@@ -437,7 +439,7 @@ def test_collapse_thinking_block_ignores_buffer_mangled_by_carriage_return():
         ui.mark_thinking_block_start()
         # \r erases back to the start of the current line — simulates what
         # append_to_output's spinner handling does to any \r-bearing chunk.
-        ui.append_to_output("first part\rsecond part", end="")
+        ui.append_to_output("first part\rsecond part", end="", kind="thinking")
         # What's actually on screen right now is only "second part" — but a
         # caller that accumulated the untouched original still has it all.
         assert "first part" not in ui.output_text

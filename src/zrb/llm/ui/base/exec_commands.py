@@ -20,6 +20,7 @@ from zrb.llm.custom_command.resolver import resolve_custom_command
 from zrb.llm.task.shared_getters import apply_model_hooks
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.util.cli.style import stylize_error, stylize_muted
+from zrb.util.exception import exception_summary
 
 if TYPE_CHECKING:
     from zrb.llm.task.llm_task import LLMTask
@@ -127,7 +128,7 @@ class BaseUIExecCommands:
             self._base_ui.append_to_output("\n[Cancelled]\n")
             raise  # Re-raise to allow proper task cancellation
         except Exception as e:
-            self._base_ui.append_to_output(f"\n[Error: {e}]\n")
+            self._base_ui.append_to_output(f"\n[Error: {exception_summary(e)}]\n")
         finally:
             self._base_ui.is_thinking = False
             self._base_ui.running_llm_task = None
@@ -233,7 +234,7 @@ class BaseUIExecCommands:
             self._base_ui.append_to_output("\n[Cancelled]\n")
             raise
         except Exception as e:
-            self._base_ui.append_to_output(f"\n[Error: {e}]\n")
+            self._base_ui.append_to_output(f"\n[Error: {exception_summary(e)}]\n")
         finally:
             self._base_ui.invalidate_ui()
 
