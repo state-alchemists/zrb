@@ -6,6 +6,7 @@ in, alongside the happy path.
 """
 
 import os
+import stat
 
 import pytest
 
@@ -67,3 +68,72 @@ def testsave_uploaded_attachment_creates_a_private_upload_dir(tmp_path, monkeypa
     path = save_uploaded_attachment("some-session", "photo.png", b"data")
     mode = stat_module.S_IMODE(os.stat(os.path.dirname(path)).st_mode)
     assert mode == 0o700
+
+
+@pytest.mark.parametrize(
+    "session_id",
+    ["..", ".", "../../../../etc", "/etc", "a/../..", "....//", "..\\..\\x"],
+)
+def testsave_uploaded_attachment_keeps_traversal_inside_the_upload_root(
+    tmp_path, monkeypatch, session_id
+):
+    """`session_id` is a request path parameter, so it is untrusted input.
+
+    Unsanitised, `..` resolves the upload dir to the shared temp directory
+    itself — the write lands outside the root and the directory's mode is
+    restated to 0700, which on a shared machine locks every other user out of
+    it.
+    """
+    import tempfile as tempfile_module
+
+    from zrb.runner.chat.chat_api_route import save_uploaded_attachment
+
+    monkeypatch.setattr(tempfile_module, "tempdir", str(tmp_path))
+    tmp_path.chmod(0o755)
+    root = tmp_path / "zrb_web_chat_uploads"
+
+    path = save_uploaded_attachment(session_id, "x.png", b"d")
+
+    assert os.path.commonpath([os.path.realpath(path), os.path.realpath(root)]) == str(
+        os.path.realpath(root)
+    )
+    assert stat.S_IMODE(tmp_path.stat().st_mode) == 0o755
+
+
+def testsave_uploaded_attachment_rejects_an_empty_session_id(tmp_path, monkeypatch):
+    import tempfile as tempfile_module
+
+    from zrb.runner.chat.chat_api_route import save_uploaded_attachment
+
+    monkeypatch.setattr(tempfile_module, "tempdir", str(tmp_path))
+    with pytest.raises(ValueError):
+        save_uploaded_attachment("", "x.png", b"d")
+
+
+def testsave_uploaded_attachment_keeps_a_generated_session_id_intact(
+    tmp_path, monkeypatch
+):
+    """A real id must survive sanitising, or every session shares one dir."""
+    import tempfile as tempfile_module
+
+    from zrb.runner.chat.chat_api_route import save_uploaded_attachment
+    from zrb.util.string.name import get_random_name
+
+    monkeypatch.setattr(tempfile_module, "tempdir", str(tmp_path))
+    session_id = get_random_name()
+    path = save_uploaded_attachment(session_id, "x.png", b"d")
+    assert os.path.basename(os.path.dirname(path)) == session_id
+
+
+def testsave_uploaded_attachment_keeps_a_delegated_session_id_intact(
+    tmp_path, monkeypatch
+):
+    import tempfile as tempfile_module
+
+    from zrb.llm.util.subagent_session_naming import format_delegated_session_name
+    from zrb.runner.chat.chat_api_route import save_uploaded_attachment
+
+    monkeypatch.setattr(tempfile_module, "tempdir", str(tmp_path))
+    session_id = format_delegated_session_name("brave-otter-4821", "researcher", "01")
+    path = save_uploaded_attachment(session_id, "x.png", b"d")
+    assert os.path.basename(os.path.dirname(path)) == session_id

@@ -18,6 +18,7 @@ from zrb.runner.chat.chat_session_manager import (
 from zrb.runner.chat.chat_session_runner import run_chat_session
 from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 from zrb.runner.web_util.user import get_user_from_request
+from zrb.util.string.conversion import to_safe_filename
 
 from .sse_stream import SSEStreamResponse
 
@@ -50,7 +51,20 @@ def save_uploaded_attachment(session_id: str, filename: str, data: bytes) -> str
     """
     upload_root = os.path.join(tempfile.gettempdir(), "zrb_web_chat_uploads")
     _ensure_private_dir(upload_root)
-    upload_dir = os.path.join(upload_root, session_id)
+    # `session_id` arrives from the request path, so it is an untrusted path
+    # component: `..` resolves the upload dir to the shared temp directory
+    # itself, which `_ensure_private_dir` would then chmod to 0700. Reduced to
+    # alphanumerics, `-` and `_`, which every generated id already is
+    # (`get_random_name`, and the `<parent>-sub-<agent>-<id>` delegated form).
+    safe_session = to_safe_filename(session_id)
+    if not safe_session:
+        raise ValueError(f"Invalid session id: {session_id!r}")
+    upload_dir = os.path.join(upload_root, safe_session)
+    # Belt and braces: `to_safe_filename` is a general-purpose helper, not
+    # owned by this boundary, so the containment it currently guarantees is
+    # asserted rather than assumed.
+    if os.path.dirname(os.path.abspath(upload_dir)) != os.path.abspath(upload_root):
+        raise ValueError(f"Invalid session id: {session_id!r}")
     _ensure_private_dir(upload_dir)
     safe_name = os.path.basename(filename) or "attachment"
     dest = os.path.join(upload_dir, f"{uuid.uuid4().hex}_{safe_name}")

@@ -6,10 +6,53 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ## Table of Contents
 
+- [Upgrading to 3.3.0](#upgrading-to-330)
 - [Upgrading to 3.0.0](#upgrading-to-300)
 - [Upgrading to 2.58.0](#upgrading-to-2580)
 - [Upgrading to 2.54.0](#upgrading-to-2540)
 - [Upgrading from 1.x.x to 2.x.x](#upgrading-from-1xx-to-2xx)
+
+---
+
+## Upgrading to 3.3.0
+
+3.3.0 replaces thirteen flattened state accessors on `BaseUI` with the four
+objects that already held the state. Only a UI that subclasses `BaseUI` and
+reads or writes these names is affected: `AnyUI` is unchanged, and so are
+`SimpleUI` and `EventDrivenUI`, the two levels the [custom UI
+guide](../llm/llm-custom-ui.md) recommends. Every removal fails loudly with
+`AttributeError`, so a green run means you are done.
+
+### `BaseUI` state lives on its parts
+
+| Before | After |
+|---|---|
+| `ui.current_confirmation` | `ui.confirmation.current` |
+| `ui.confirmation_queue` | `ui.confirmation.queue` |
+| `ui.confirmation_output_buffer` | `ui.confirmation.output_buffer` |
+| `ui.voice_mode_active` | `ui.voice.mode_active` |
+| `ui.voice_recording_active` | `ui.voice.recording_active` |
+| `ui.voice_stop_event` | `ui.voice.stop_event` |
+| `ui.voice_task` | `ui.voice.task` |
+| `ui.active_subagent_persona` | `ui.persona.active_subagent` |
+| `ui.original_persona_snapshot` | `ui.persona.original_snapshot` |
+| `ui.session_token_usage` | `ui.usage.session_token_usage` |
+| `ui.session_cache_read_tokens` | `ui.usage.session_cache_read_tokens` |
+| `ui.context_tokens` | `ui.usage.context_tokens` |
+| `ui.reset_session_token_usage()` | `ui.usage.reset()` |
+
+Each was a getter (and often a setter) whose whole body reached one field on
+one part, so the part is the shorter name for the same state. Reads and writes
+both move — `ui.voice.mode_active = True` replaces `ui.voice_mode_active = True`.
+
+`accumulate_usage` is deliberately not in the table. It stays a method on
+`BaseUI` because the custom UI guide lists it as an enrichment hook and
+`MultiUI`/`BufferedUI` implement it too.
+
+A UI that tolerates hosts other than `BaseUI` should reach the part, not the
+field: `getattr(ui, "voice", None)` in place of
+`getattr(ui, "voice_mode_active", False)`. `StdUI` and `MultiUI` keep none of
+this state, exactly as before.
 
 ---
 
