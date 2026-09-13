@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from zrb.llm.ui.default.confirmation import UIConfirmation
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
+from zrb.llm.ui.default.confirmation import UIConfirmation
 
 
 class _ForwardsToConfirmation:

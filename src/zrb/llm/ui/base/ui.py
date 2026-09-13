@@ -57,8 +57,8 @@ from zrb.llm.ui.base.message_queue import (
 )
 from zrb.llm.ui.base.persona_state import BaseUIPersonaState
 from zrb.llm.ui.base.replay import BaseUIReplay
-from zrb.llm.ui.base.triggers import BaseUITriggers
 from zrb.llm.ui.base.system_info import BaseUISystemInfo
+from zrb.llm.ui.base.triggers import BaseUITriggers
 from zrb.llm.ui.base.usage import BaseUIUsage
 from zrb.llm.ui.base.voice_state import BaseUIVoiceState
 from zrb.llm.ui.multi_ui import MultiUI

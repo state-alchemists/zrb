@@ -12,9 +12,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.default.confirmation import UIConfirmation
 from zrb.llm.ui.default.selection import UISelection
-from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 
 
 class FakeUI:

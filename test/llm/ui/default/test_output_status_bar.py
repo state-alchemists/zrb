@@ -1,9 +1,9 @@
 from unittest.mock import MagicMock, patch
 
+from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.llm.ui.default.message_editing import UIMessageEditing
 from zrb.llm.ui.default.output import UIOutput
-from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 
 
 class MockOutputUI:

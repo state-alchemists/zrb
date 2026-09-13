@@ -9,6 +9,7 @@ import os
 
 import pytest
 
+
 def testsave_uploaded_attachment_writes_file_and_returns_path():
     from zrb.runner.chat.chat_api_route import save_uploaded_attachment
 

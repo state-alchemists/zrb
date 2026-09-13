@@ -1,10 +1,10 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from zrb.llm.ui.default.output import UIOutput
-from zrb.util.cli.help_panel import HelpPanel
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.base.persona_state import BaseUIPersonaState
+from zrb.llm.ui.default.output import UIOutput
+from zrb.util.cli.help_panel import HelpPanel
 
 
 class MockOutputUI:

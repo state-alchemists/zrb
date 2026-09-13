@@ -13,9 +13,9 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from zrb.llm.tool.ambient_state import current_chat_session_id
+from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.default.agent_picker import UIAgentPicker
 from zrb.util.contextvar_scope import scoped
-from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 
 
 class FakeUI:

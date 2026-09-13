@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch
 
-from zrb.llm.ui.default.output import UIOutput
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
+from zrb.llm.ui.default.output import UIOutput
 
 
 class MockOutputUI:
