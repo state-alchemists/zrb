@@ -31,6 +31,5 @@ jobs:
         fi
         zrb submit-comment --range "origin/$GITHUB_BASE_REF...HEAD"
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ZRB_LLM_MODEL: ${{ secrets.ZRB_LLM_MODEL }}

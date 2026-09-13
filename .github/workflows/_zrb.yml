@@ -15,8 +15,6 @@ on:
         type: number
         default: 2
     secrets:
-      GITHUB_TOKEN:
-        required: false
       OPENAI_API_KEY:
         required: false
       ZRB_LLM_MODEL:
@@ -31,7 +29,7 @@ jobs:
       image: stalchmst/zrb:3.3.0
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ github.token }}
       ZRB_LLM_MODEL: ${{ secrets.ZRB_LLM_MODEL || vars.ZRB_LLM_MODEL }}
       ZRB_LLM_JOURNAL_ENABLED: "false"
       ZRB_INIT_STRICT: "1"
