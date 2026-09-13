@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import stat
 import tempfile
 import uuid
 from typing import Any
@@ -21,6 +22,25 @@ from zrb.runner.web_util.user import get_user_from_request
 from .sse_stream import SSEStreamResponse
 
 
+def _ensure_private_dir(path: str) -> None:
+    """Create *path* 0700 and refuse it if someone else got there first.
+
+    The upload root sits at a fixed name under the shared temp directory, so a
+    local user can pre-create it as a symlink and take delivery of every
+    attachment written through it. `makedirs` alone follows that symlink. The
+    checks mirror `llm/agent/spill.py::_ensure_root`: reject anything that is
+    not a real directory owned by this user, then restate the mode, since an
+    existing directory keeps whatever permissions it was made with.
+    """
+    os.makedirs(path, mode=0o700, exist_ok=True)
+    info = os.lstat(path)
+    if not stat.S_ISDIR(info.st_mode) or os.path.islink(path):
+        raise PermissionError(f"Upload dir must be a directory, not a symlink: {path}")
+    if hasattr(os, "getuid") and info.st_uid != os.getuid():
+        raise PermissionError(f"Upload dir must be owned by the current user: {path}")
+    os.chmod(path, 0o700)
+
+
 def save_uploaded_attachment(session_id: str, filename: str, data: bytes) -> str:
     """Persist an uploaded attachment to a per-session temp dir, return its path.
 
@@ -28,8 +48,10 @@ def save_uploaded_attachment(session_id: str, filename: str, data: bytes) -> str
     which reads whatever the user already has on disk). Add a retention
     sweep if the temp dir's growth becomes a real problem.
     """
-    upload_dir = os.path.join(tempfile.gettempdir(), "zrb_web_chat_uploads", session_id)
-    os.makedirs(upload_dir, exist_ok=True)
+    upload_root = os.path.join(tempfile.gettempdir(), "zrb_web_chat_uploads")
+    _ensure_private_dir(upload_root)
+    upload_dir = os.path.join(upload_root, session_id)
+    _ensure_private_dir(upload_dir)
     safe_name = os.path.basename(filename) or "attachment"
     dest = os.path.join(upload_dir, f"{uuid.uuid4().hex}_{safe_name}")
     with open(dest, "wb") as f:

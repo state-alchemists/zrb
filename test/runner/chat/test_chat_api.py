@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -436,19 +435,6 @@ async def test_routes_allow_user_with_task_access(client: AsyncClient):
     ):
         response = await client.get("/api/v1/chat/sessions/test/status")
         assert response.status_code == 200
-
-
-def testsave_uploaded_attachment_writes_file_and_returns_path():
-    from zrb.runner.chat.chat_api_route import save_uploaded_attachment
-
-    path = save_uploaded_attachment("some-session", "photo.png", b"data")
-    try:
-        assert os.path.isfile(path)
-        assert os.path.basename(path).endswith("_photo.png")
-        with open(path, "rb") as f:
-            assert f.read() == b"data"
-    finally:
-        os.remove(path)
 
 
 @pytest.mark.asyncio

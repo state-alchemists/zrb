@@ -50,10 +50,15 @@ you release and the frame goes with them, so "what am I holding?" works.
 
 ## Notes
 
-**Attachments take file paths.** `capture_photo` writes the frame to a temp file
-and yields the path; zrb resolves it, size-checks it and scales the image when
-the turn is submitted — the same path `/attach` and `/photo` take. An
-already-built `BinaryContent` works too, if you have one.
+**Attachments take file paths.** `capture_photo` writes the frame to a fresh
+`tempfile.mkstemp` file and yields the path; zrb resolves it, size-checks it and
+scales the image — the same path `/attach` and `/photo` take. An already-built
+`BinaryContent` works too, but it is passed through as-is: no size check, no
+scaling, so a full-resolution frame counts against the attachment limit whole.
+
+A path is read when the turn reaches the model, not when it is submitted, which
+is why each capture gets its own file: a turn queued behind one still in flight
+would otherwise be handed whatever the next press captured.
 
 **gpiozero callbacks run on their own thread.** Every hop back into the event
 loop goes through `loop.call_soon_threadsafe`; the `asyncio.Event` objects are

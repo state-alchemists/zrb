@@ -46,7 +46,6 @@ except ImportError:
 
 PTT_PIN = 17
 CAMERA_PIN = 27
-PHOTO_PATH = os.path.join(tempfile.gettempdir(), "zrb-gpio-photo.jpg")
 
 
 # =============================================================================
@@ -57,18 +56,30 @@ PHOTO_PATH = os.path.join(tempfile.gettempdir(), "zrb-gpio-photo.jpg")
 async def capture_photo() -> list[str]:
     """Grab one frame and return it as a one-item attachment list.
 
-    Attachments take a file path as readily as a `BinaryContent` — zrb resolves
-    it, checks its size and scales the image when the turn is submitted — so
-    writing the frame to disk is both shorter and lighter than importing the
-    pydantic-ai content types here. An empty list means "no attachment".
+    Attachments take a file path as readily as a `BinaryContent`, and the path
+    is the better of the two here: zrb size-checks and scales an image it reads
+    from disk, while a `BinaryContent` is passed through as-is, so an unscaled
+    frame would count against the attachment limit at full size. An empty list
+    means "no attachment".
+
+    Each capture gets its own file. The path is read when the turn reaches the
+    model, not when it is submitted, so a turn waiting behind one still in
+    flight would otherwise be handed whatever the next press captured.
+    `mkstemp` also creates the file atomically with 0600 and an unguessable
+    name, which a fixed path under the shared temp directory cannot do.
+
+    ponytail: the frames are left for the OS temp reaper — the example has no
+    hook for "this turn consumed its attachment". Delete each one from a
+    post-turn callback if you adapt this into something long-running.
     """
     frame = await get_camera_photo()
     if frame is None:
         print("[gpio-ptt] camera capture failed; sending the turn without it.")
         return []
-    with open(PHOTO_PATH, "wb") as photo_file:
+    handle, path = tempfile.mkstemp(prefix="zrb-gpio-photo-", suffix=".jpg")
+    with os.fdopen(handle, "wb") as photo_file:
         photo_file.write(frame)
-    return [PHOTO_PATH]
+    return [path]
 
 
 # =============================================================================
