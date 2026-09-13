@@ -51,9 +51,9 @@ def _usage(
 
 def test_ui_session_token_usage(mock_ui_deps):
     ui = UI(**mock_ui_deps)
-    assert ui.session_token_usage == (0, 0)
-    assert ui.session_cache_read_tokens == 0
-    assert ui.context_tokens == 0
+    assert ui.usage.session_token_usage == (0, 0)
+    assert ui.usage.session_cache_read_tokens == 0
+    assert ui.usage.context_tokens == 0
     # No tokens yet -> status bar shows no usage fragment
     assert all(
         "in" not in text
@@ -65,9 +65,9 @@ def test_ui_session_token_usage(mock_ui_deps):
         _usage(input_tokens=1200, output_tokens=34, cache_read_tokens=800)
     )
     ui.accumulate_usage(_usage(input_tokens=300, output_tokens=None))
-    assert ui.session_token_usage == (1500, 34)
+    assert ui.usage.session_token_usage == (1500, 34)
     # Session cache-read accumulates like the in/out totals.
-    assert ui.session_cache_read_tokens == 800
+    assert ui.usage.session_cache_read_tokens == 800
 
     status = "".join(text for _, text in ui.output_part.get_status_bar_text())
     assert "1.5k in" in status
@@ -89,19 +89,19 @@ def test_ui_context_tokens_track_last_request(mock_ui_deps):
             cache_write_tokens=200,
         ),
     )
-    assert ui.context_tokens == 4500  # 4000 input + 500 output
+    assert ui.usage.context_tokens == 4500  # 4000 input + 500 output
     ui.accumulate_usage(
         _usage(input_tokens=1000, output_tokens=10),
         _usage(input_tokens=3000, output_tokens=200, cache_read_tokens=100),
     )
-    assert ui.context_tokens == 3200  # 3000 + 200; replaced, not accumulated
+    assert ui.usage.context_tokens == 3200  # 3000 + 200; replaced, not accumulated
     assert "3.2k ctx" in "".join(
         text for _, text in ui.output_part.get_status_bar_text()
     )
 
-    ui.reset_session_token_usage()
-    assert ui.context_tokens == 0
-    assert ui.session_cache_read_tokens == 0
+    ui.usage.reset()
+    assert ui.usage.context_tokens == 0
+    assert ui.usage.session_cache_read_tokens == 0
 
 
 @pytest.mark.asyncio
@@ -129,7 +129,7 @@ def test_ui_constructs_without_a_console(mock_ui_deps):
     boom = RuntimeError("NoConsoleScreenBufferError")
     with patch("prompt_toolkit.output.create_output", side_effect=boom):
         ui = UI(**mock_ui_deps)  # must not raise
-        assert ui.context_tokens == 0
+        assert ui.usage.context_tokens == 0
         with pytest.raises(RuntimeError, match="NoConsoleScreenBufferError"):
             ui.application
 

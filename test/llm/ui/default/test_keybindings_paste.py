@@ -27,10 +27,7 @@ class MockUI:
         self.conversation_session_name = "test_session"
         self.running_llm_task = None
         self.is_thinking = False
-        self.voice_mode_active = False
-        self.voice_recording_active = False
-        self.voice_task = None
-        self.voice_stop_event = None
+        self.voice = BaseUIVoiceState()
 
         self.input_field = MagicMock()
         self.output_field = MagicMock()
@@ -197,6 +194,7 @@ def trigger_binding(key_bindings, key, event):
 
 
 from zrb.llm.ui.base.commands import BaseUICommands  # noqa: E402
+from zrb.llm.ui.base.voice_state import BaseUIVoiceState
 
 
 class IntegrationUI:
@@ -223,10 +221,7 @@ class IntegrationUI:
         self.summarize_commands = ["/summarize"]
         self.copy_commands = []
         self.voice_commands = []
-        self.voice_mode_active = False
-        self.voice_recording_active = False
-        self.voice_task = None
-        self.voice_stop_event = None
+        self.voice = BaseUIVoiceState()
         self.custom_commands = []
         self.is_thinking = False
         self.background_tasks = set()

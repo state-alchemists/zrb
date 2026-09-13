@@ -71,6 +71,7 @@
     "TextInput",
     "ToolRegistry",
     "Tpl",
+    "TriggerMessage",
     "User",
     "Xcom",
     "builtin",
@@ -1954,6 +1955,10 @@
       "members": [
         "template"
       ]
+    },
+    "TriggerMessage": {
+      "init": [],
+      "members": []
     },
     "User": {
       "init": [],

@@ -2,10 +2,10 @@
 
 Self-contained: unlike `BaseUIReplay`/`BaseUISystemInfo`, this part reads and
 writes only its own counters — `accumulate`/`reset` take everything they need
-as arguments — so it holds no reference back to `BaseUI`. Composed into
-`BaseUI` as `self._base_usage`, reached through the owner's public delegators
-(`accumulate_usage`, `session_token_usage`, `session_cache_read_tokens`,
-`context_tokens`, `reset_session_token_usage`).
+as arguments — so it holds no reference back to `BaseUI`. Reached as
+`BaseUI.usage`; `BaseUI.accumulate_usage` stays a named method because
+`docs/llm/llm-custom-ui.md` lists it as an enrichment hook that `MultiUI` and
+`BufferedUI` implement too.
 """
 
 from __future__ import annotations

@@ -338,10 +338,10 @@ class BaseUICommands:
                 )
                 return True
             auto_vosk = True
-        if base_ui.voice_mode_active:
+        if base_ui.voice.mode_active:
             self._exit_voice_mode()
         else:
-            base_ui.voice_mode_active = True
+            base_ui.voice.mode_active = True
             ptt_key = CFG.LLM_VOICE_PUSH_TO_TALK_KEY.strip()
             backend_note = " (vosk detected)" if auto_vosk else ""
             base_ui.append_to_output(
@@ -356,12 +356,12 @@ class BaseUICommands:
     def _exit_voice_mode(self):
         """Exit voice mode and stop any in-flight recording."""
         base_ui = self._base_ui
-        base_ui.voice_mode_active = False
-        base_ui.voice_recording_active = False
-        if base_ui.voice_stop_event is not None:
-            base_ui.voice_stop_event.set()
-        base_ui.voice_stop_event = None
-        base_ui.voice_task = None
+        base_ui.voice.mode_active = False
+        base_ui.voice.recording_active = False
+        if base_ui.voice.stop_event is not None:
+            base_ui.voice.stop_event.set()
+        base_ui.voice.stop_event = None
+        base_ui.voice.task = None
         base_ui.append_to_output(stylize_muted("\n  🎤 Voice dictation: OFF\n"))
 
     # --- help text --------------------------------------------------------

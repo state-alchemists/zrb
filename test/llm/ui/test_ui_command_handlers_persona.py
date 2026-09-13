@@ -39,7 +39,7 @@ class TestBaseUIPersonaSwap:
             assert ui.handle_load_command("/load my-project-chat") is True
 
         mock_manager.get_agent_definition.assert_not_called()
-        assert ui.active_subagent_persona is None
+        assert ui.persona.active_subagent is None
 
     def test_load_delegated_session_swaps_persona(self, simple_ui_instance):
         """Loading a delegated sub-agent's transcript must swap the running
@@ -79,7 +79,7 @@ class TestBaseUIPersonaSwap:
         assert ui.llm_task.toolsets == ["reviewer-toolset"]
         assert ui.llm_task.prompt_manager is not original_prompt_manager
         assert ui.model == "reviewer-model"
-        assert ui.active_subagent_persona == "code-reviewer"
+        assert ui.persona.active_subagent == "code-reviewer"
 
     def test_load_delegated_session_unknown_agent_reports_error(
         self, simple_ui_instance
@@ -96,7 +96,7 @@ class TestBaseUIPersonaSwap:
             result = ui.handle_load_command("/load sess1-sub-ghost-agent-deadbeef")
 
         assert result is True
-        assert ui.active_subagent_persona is None
+        assert ui.persona.active_subagent is None
         assert any(
             "ghost-agent" in str(call) for call in ui.append_to_output.call_args_list
         )
@@ -141,7 +141,7 @@ class TestBaseUIPersonaSwap:
         assert ui.llm_task.toolsets == original_toolsets
         assert ui.llm_task.prompt_manager is original_prompt_manager
         assert ui.model == "main-model"
-        assert ui.active_subagent_persona is None
+        assert ui.persona.active_subagent is None
 
     def test_load_second_subagent_keeps_the_original_main_snapshot(
         self, simple_ui_instance
@@ -183,4 +183,4 @@ class TestBaseUIPersonaSwap:
 
         assert ui.llm_task.tools == original_tools
         assert ui.model == "main-model"
-        assert ui.active_subagent_persona is None
+        assert ui.persona.active_subagent is None

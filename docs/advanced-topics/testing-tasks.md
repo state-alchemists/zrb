@@ -226,7 +226,7 @@ def test_task_dependencies():
 
 ## Running Tests
 
-The recommended way to run tests in this repo is the project's `zrb-test.sh` script from the project root. It runs the full suite through `pytest`, additionally runs `flake8 src/zrb --select=F` (which fails on unused or duplicate imports), and enforces a minimum coverage gate of 90%:
+The recommended way to run tests in this repo is the project's `zrb-test.sh` script from the project root. It runs the full suite through `pytest`, additionally runs `flake8 src/zrb --select=F` (which fails on unused or duplicate imports), and enforces a minimum coverage gate of 94%:
 
 ```bash
 # Activate virtual environment first

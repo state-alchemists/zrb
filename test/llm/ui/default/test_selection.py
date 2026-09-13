@@ -12,6 +12,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.default.confirmation import UIConfirmation
 from zrb.llm.ui.default.selection import UISelection
 
@@ -29,8 +30,8 @@ class FakeUI:
 
     def __init__(self):
         self.input_field = object()
-        self.confirmation_queue = []
-        self.current_confirmation = "FUTURE"  # truthy sentinel
+        self.confirmation = BaseUIConfirmationState()
+        self.confirmation.current = "FUTURE"  # truthy sentinel
         self.resolved: str | None = None
         self.echoes: list[str] = []
         self._confirmation = UIConfirmation(self)
@@ -44,7 +45,7 @@ class FakeUI:
         self.resolved = text
         if echo:
             self.echoes.append(echo)
-        self.current_confirmation = None
+        self.confirmation = BaseUIConfirmationState()
         self.end_choice()
         return True
 

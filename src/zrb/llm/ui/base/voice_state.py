@@ -2,9 +2,8 @@
 
 Self-contained like `BaseUIUsage`: the push-to-talk recording logic lives in
 `llm/ui/default/keybindings.py` and the `/voice` toggle in `commands.py`,
-both of which reach this state only through `BaseUI`'s public properties
-(`voice_mode_active`, `voice_recording_active`, `voice_task`,
-`voice_stop_event`) — so this part needs no reference back to the owner.
+both of which reach this state through `BaseUI.voice` — so this part needs
+no reference back to the owner.
 """
 
 from __future__ import annotations

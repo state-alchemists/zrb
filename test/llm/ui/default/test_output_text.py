@@ -1,6 +1,8 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
+from zrb.llm.ui.base.persona_state import BaseUIPersonaState
 from zrb.llm.ui.default.output import UIOutput
 from zrb.util.cli.help_panel import HelpPanel
 
@@ -23,7 +25,8 @@ class MockOutputUI:
         self.model = "test-model"
         self.git_info = "main"
         self.assistant_name = "Zrb"
-        self.confirmation_output_buffer = []
+        self.confirmation = BaseUIConfirmationState()
+        self.persona = BaseUIPersonaState()
         self.rendered_blocks = []
         self.rendered_width = None
         self.pending_invalidate = False
@@ -33,7 +36,6 @@ class MockOutputUI:
         # real `UI`, which owns them directly — `UIOutput` just reads them
         # through the public properties below, one hop, no bounce back).
         self._is_thinking = False
-        self._current_confirmation = None
         self._output = UIOutput(self)
         # Public aliases so tests can reach these without a leading-underscore
         # dotted expression (the private-test-access ratchet counts those).
@@ -55,14 +57,6 @@ class MockOutputUI:
     def is_thinking(self, value):
         self._is_thinking = value
 
-    @property
-    def current_confirmation(self):
-        return self._current_confirmation
-
-    @current_confirmation.setter
-    def current_confirmation(self, value):
-        self._current_confirmation = value
-
     def invalidate_ui(self):
         pass
 
@@ -73,7 +67,7 @@ class MockOutputUI:
         self._is_thinking = value
 
     def set_current_confirmation(self, value):
-        self._current_confirmation = value
+        self.confirmation.current = value
 
     def __getattr__(self, name):
         output = self.__dict__.get("_output")
@@ -174,7 +168,7 @@ def test_get_info_bar_text_shows_active_subagent_persona():
     from prompt_toolkit.formatted_text import to_formatted_text
 
     ui = MockOutputUI()
-    ui.active_subagent_persona = "code-reviewer"
+    ui.persona.active_subagent = "code-reviewer"
     fragments = to_formatted_text(ui.get_info_bar_text())
     rendered = "".join(text for _style, text, *_ in fragments)
     assert "Sub-agent:" in rendered

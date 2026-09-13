@@ -7,6 +7,7 @@ from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
 from zrb.llm.ui.base.ui import BaseUI
+from zrb.llm.ui.trigger import TriggerMessage
 
 
 def make_entry(text):
@@ -343,3 +344,153 @@ async def test_edit_queued_message_refused_after_turn_started_in_multi_ui():
     assert entry.text == "original"
     assert child_a.redrawn == []
     assert child_b.redrawn == []
+
+
+# --- trigger_loop ------------------------------------------------------------
+
+
+def collect_submitted(ui, monkeypatch):
+    """Record `(text, drained_attachments)` per `submit_user_message` call."""
+    submitted = []
+
+    def fake_submit(llm_task, user_message):
+        submitted.append((user_message, ui.take_pending_attachments()))
+
+    monkeypatch.setattr(ui, "submit_user_message", fake_submit)
+    return submitted
+
+
+def trigger_yielding(*items):
+    async def factory():
+        for item in items:
+            yield item
+
+    return factory
+
+
+@pytest.mark.asyncio
+async def test_trigger_loop_submits_plain_strings(base_ui, monkeypatch):
+    submitted = collect_submitted(base_ui, monkeypatch)
+
+    await base_ui.trigger_loop(trigger_yielding("hello", "world"))
+
+    assert submitted == [("hello", []), ("world", [])]
+
+
+@pytest.mark.asyncio
+async def test_trigger_loop_attaches_trigger_message_attachments(base_ui, monkeypatch):
+    submitted = collect_submitted(base_ui, monkeypatch)
+    photo = object()
+
+    await base_ui.trigger_loop(
+        trigger_yielding(TriggerMessage(text="what is this?", attachments=[photo]))
+    )
+
+    assert submitted == [("what is this?", [photo])]
+
+
+@pytest.mark.asyncio
+async def test_trigger_loop_accepts_a_bare_tuple(base_ui, monkeypatch):
+    """A `(text, attachments)` tuple needs no `TriggerMessage` import."""
+    submitted = collect_submitted(base_ui, monkeypatch)
+
+    await base_ui.trigger_loop(trigger_yielding(("look", ["/tmp/shot.jpg"])))
+
+    assert submitted == [("look", ["/tmp/shot.jpg"])]
+
+
+@pytest.mark.asyncio
+async def test_trigger_loop_submits_attachments_without_text(base_ui, monkeypatch):
+    submitted = collect_submitted(base_ui, monkeypatch)
+    photo = object()
+
+    await base_ui.trigger_loop(trigger_yielding(TriggerMessage(attachments=[photo])))
+
+    assert submitted == [("", [photo])]
+
+
+@pytest.mark.asyncio
+async def test_trigger_loop_skips_empty_items(base_ui, monkeypatch):
+    """Silence from a voice trigger, and an explicit empty `TriggerMessage`."""
+    submitted = collect_submitted(base_ui, monkeypatch)
+
+    await base_ui.trigger_loop(
+        trigger_yielding("", None, TriggerMessage(), ("", []), "kept")
+    )
+
+    assert submitted == [("kept", [])]
+
+
+@pytest.mark.asyncio
+async def test_trigger_loop_does_not_leak_attachments_between_items(
+    base_ui, monkeypatch
+):
+    submitted = collect_submitted(base_ui, monkeypatch)
+    photo = object()
+
+    await base_ui.trigger_loop(
+        trigger_yielding(TriggerMessage("first", [photo]), "second")
+    )
+
+    assert submitted == [("first", [photo]), ("second", [])]
+
+
+@pytest.mark.asyncio
+async def test_trigger_loop_unstages_attachments_when_submission_fails(
+    base_ui, monkeypatch
+):
+    """A failed submission must not leave its attachments for the next turn.
+
+    `submit_user_message` drains `pending_attachments` only after echoing the
+    message, so a raise before that point leaves them staged — and the next
+    message, typed or triggered, would carry a photo nobody asked it to.
+    """
+    photo = object()
+
+    def failing_submit(llm_task, user_message):
+        raise RuntimeError("backend down")
+
+    monkeypatch.setattr(base_ui, "submit_user_message", failing_submit)
+
+    await base_ui.trigger_loop(trigger_yielding(TriggerMessage("look", [photo])))
+
+    assert base_ui.pending_attachments == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "item",
+    [("text", "one-path.png"), ("text", 3), ("a", ["x"], "extra"), ("only",)],
+)
+async def test_trigger_loop_reports_a_malformed_tuple_and_keeps_going(
+    base_ui, monkeypatch, item
+):
+    """One bad item must not end the loop.
+
+    A trigger is a long-lived source — a button, a queue — so aborting on the
+    first malformed item silently stops every later one. A bare string in the
+    attachments slot used to become a list of its characters, a 3-tuple lost
+    its third element, and a non-sequence raised out of `list()`.
+    """
+    submitted = collect_submitted(base_ui, monkeypatch)
+    reported: list[str] = []
+    monkeypatch.setattr(
+        base_ui,
+        "append_to_output",
+        lambda *v, **k: reported.append(" ".join(map(str, v))),
+    )
+
+    await base_ui.trigger_loop(trigger_yielding(item, "after"))
+
+    assert submitted == [("after", [])]
+    assert any("Trigger Error" in line for line in reported), reported
+
+
+@pytest.mark.asyncio
+async def test_trigger_loop_reads_none_attachments_as_none(base_ui, monkeypatch):
+    """`(text, None)` is text with no attachments, like `TriggerMessage`'s default."""
+    submitted = collect_submitted(base_ui, monkeypatch)
+
+    await base_ui.trigger_loop(trigger_yielding(("hello", None)))
+
+    assert submitted == [("hello", [])]

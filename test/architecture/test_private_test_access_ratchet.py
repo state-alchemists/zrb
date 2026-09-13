@@ -1,24 +1,16 @@
-"""Guards against test/ growing new cross-object private-attribute reaches
-(ADR-0034 / AGENTS.md: tests drive the public API only).
+"""Tests drive the public API (ADR-0034 / AGENTS.md), so private reaches don't grow.
 
-Counts test/ expressions that reach a private attribute through some other
-name than `self` (that exclusion matters: a class reading its own state
-isn't a coupling problem, and `test_boundaries.py` already covers that rule
-for production code). This regex is a coarser tool than `test_boundaries.py`'s
-AST visitor — it can't tell a foreign object from a same-test helper class —
-which is exactly why the baseline isn't zero.
+Counts `test/` expressions reaching a private attribute through a name other
+than `self` — a class reading its own state is not a coupling problem, and
+`test_boundaries.py` covers that rule for production code with an AST visitor.
+This regex is coarser: it cannot tell a foreign object from a helper class
+defined in the same test, which is why the baseline is 5 rather than 0.
 
-Baseline 5 = three legitimate exceptions kept on purpose, one of them a
-false-positive of the regex itself:
-  - test_openai_patch.py names pydantic-ai internals three times: that
-    module exists to monkey-patch exactly those attributes, and driving
-    them through getattr indirection would only hide the coupling.
-  - test_format.py touches `_value` on a Holder class it defines inside
-    the same test — no foreign object involved; the regex can't tell.
-  - test_boundaries.py's own docstring names the singleton `__new__`
-    exception pattern using a dotted example — text, not code; the regex
-    can't tell that either. Prose here must say "some other name than
-    self" rather than spell a dotted example, or it inflates its own count.
+Those 5 are `test_openai_patch.py` naming pydantic-ai internals three times
+(the module exists to monkey-patch exactly those), `test_format.py` touching
+`_value` on its own locally-defined Holder, and `test_boundaries.py`'s
+docstring spelling the pattern in prose. Prose here must say "a name other
+than self" rather than spell a dotted example, or it inflates its own count.
 """
 
 import re

@@ -13,6 +13,9 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.ui.base.commands import BaseUICommands
+from zrb.llm.ui.base.persona_state import BaseUIPersonaState
+from zrb.llm.ui.base.usage import BaseUIUsage
+from zrb.llm.ui.base.voice_state import BaseUIVoiceState
 
 
 class MockUI:
@@ -41,19 +44,15 @@ class MockUI:
         self.summarize_commands = ["/summarize"]
         self.copy_commands = []
         self.voice_commands = ["/voice"]
-        self.voice_mode_active = False
-        self.voice_recording_active = False
-        self.voice_task = None
-        self.voice_stop_event = None
+        self.voice = BaseUIVoiceState()
         self.custom_commands = []
 
         self.execute_hook = MagicMock()
         self.execute_hook_blocking = AsyncMock(return_value=[])
         self.history_manager = MagicMock()
         self.replay_history = MagicMock()
-        self.reset_session_token_usage = MagicMock()
-        self.original_persona_snapshot = None
-        self.active_subagent_persona = None
+        self.usage = BaseUIUsage()
+        self.persona = BaseUIPersonaState()
         self.snapshot_manager = MagicMock()
         self.message_queue = asyncio.Queue()
         self.pending_attachments = []

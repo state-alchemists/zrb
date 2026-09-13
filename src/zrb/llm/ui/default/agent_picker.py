@@ -367,7 +367,8 @@ class UIAgentPicker:
         no way to tell them apart and may confirm-answer the wrong one (its
         request just gets queued behind whichever is current).
         """
-        queue = getattr(self._ui, "confirmation_queue", [])
+        confirmation = getattr(self._ui, "confirmation", None)
+        queue = [] if confirmation is None else confirmation.queue
         return any(
             entry_agent_id == agent_id and not future.done()
             for future, _, _, entry_agent_id in queue

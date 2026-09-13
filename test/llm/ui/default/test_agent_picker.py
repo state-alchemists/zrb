@@ -13,6 +13,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from zrb.llm.tool.ambient_state import current_chat_session_id
+from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.default.agent_picker import UIAgentPicker
 from zrb.util.contextvar_scope import scoped
 
@@ -33,7 +34,7 @@ class FakeUI:
         self._output_field = MagicMock()
         self._output_field.text = ""
         self._output_field.buffer = MagicMock(cursor_position=0)
-        self.confirmation_queue: list = []
+        self.confirmation = BaseUIConfirmationState()
         self._picker = UIAgentPicker(self)
         self._picker.init_agent_picker_state()
 
@@ -404,7 +405,7 @@ def test_picker_flags_agent_with_pending_approval():
     ui = FakeUI()
     pending_future = MagicMock(done=lambda: False)
     resolved_future = MagicMock(done=lambda: True)
-    ui.confirmation_queue = [
+    ui.confirmation.queue = [
         (pending_future, "", None, "a"),
         (resolved_future, "", None, "b"),
     ]
@@ -453,7 +454,7 @@ def test_picker_left_arrow_closes_picker_without_touching_view():
 
 def test_picker_no_indicator_when_nothing_pending():
     ui = FakeUI()
-    ui.confirmation_queue = []
+    ui.confirmation.queue = []
     _open(ui, [_session("a")])
 
     text = "".join(t for _s, t in ui.get_agent_picker_text())

@@ -307,10 +307,10 @@ class UISelection:
         pending mid-thinking; the free-text future is still pending here, so we
         clear the active slot for the duration of the write.
         """
-        saved = self._ui.current_confirmation
-        self._ui.current_confirmation = None
+        saved = self._ui.confirmation.current
+        self._ui.confirmation.current = None
         self._ui.append_to_output(text, kind="text")
-        self._ui.current_confirmation = saved
+        self._ui.confirmation.current = saved
 
     def _invalidate(self) -> None:
         try:

@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import stat
 import tempfile
 import uuid
 from typing import Any
@@ -17,8 +18,28 @@ from zrb.runner.chat.chat_session_manager import (
 from zrb.runner.chat.chat_session_runner import run_chat_session
 from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 from zrb.runner.web_util.user import get_user_from_request
+from zrb.util.string.conversion import to_safe_filename
 
 from .sse_stream import SSEStreamResponse
+
+
+def _ensure_private_dir(path: str) -> None:
+    """Create *path* 0700 and refuse it if someone else got there first.
+
+    The upload root sits at a fixed name under the shared temp directory, so a
+    local user can pre-create it as a symlink and take delivery of every
+    attachment written through it. `makedirs` alone follows that symlink. The
+    checks mirror `llm/agent/spill.py::_ensure_root`: reject anything that is
+    not a real directory owned by this user, then restate the mode, since an
+    existing directory keeps whatever permissions it was made with.
+    """
+    os.makedirs(path, mode=0o700, exist_ok=True)
+    info = os.lstat(path)
+    if not stat.S_ISDIR(info.st_mode) or os.path.islink(path):
+        raise PermissionError(f"Upload dir must be a directory, not a symlink: {path}")
+    if hasattr(os, "getuid") and info.st_uid != os.getuid():
+        raise PermissionError(f"Upload dir must be owned by the current user: {path}")
+    os.chmod(path, 0o700)
 
 
 def save_uploaded_attachment(session_id: str, filename: str, data: bytes) -> str:
@@ -28,13 +49,74 @@ def save_uploaded_attachment(session_id: str, filename: str, data: bytes) -> str
     which reads whatever the user already has on disk). Add a retention
     sweep if the temp dir's growth becomes a real problem.
     """
-    upload_dir = os.path.join(tempfile.gettempdir(), "zrb_web_chat_uploads", session_id)
-    os.makedirs(upload_dir, exist_ok=True)
-    safe_name = os.path.basename(filename) or "attachment"
-    dest = os.path.join(upload_dir, f"{uuid.uuid4().hex}_{safe_name}")
-    with open(dest, "wb") as f:
-        f.write(data)
-    return dest
+    upload_root = os.path.join(tempfile.gettempdir(), "zrb_web_chat_uploads")
+    _ensure_private_dir(upload_root)
+    # `session_id` arrives from the request path, so it is an untrusted path
+    # component: `..` resolves the upload dir to the shared temp directory
+    # itself, which `_ensure_private_dir` would then chmod to 0700. Reduced to
+    # alphanumerics, `-` and `_`, which every generated id already is
+    # (`get_random_name`, and the `<parent>-sub-<agent>-<id>` delegated form).
+    safe_session = to_safe_filename(session_id)
+    if not safe_session:
+        raise ValueError(f"Invalid session id: {session_id!r}")
+    upload_dir = os.path.join(upload_root, safe_session)
+    # Belt and braces: `to_safe_filename` is a general-purpose helper, not
+    # owned by this boundary, so the containment it currently guarantees is
+    # asserted rather than assumed.
+    if os.path.dirname(os.path.abspath(upload_dir)) != os.path.abspath(upload_root):
+        raise ValueError(f"Invalid session id: {session_id!r}")
+    _ensure_private_dir(upload_dir)
+    # The stored name is generated outright. The client filename only ever
+    # contributes its extension, which `get_media_type` has already matched
+    # against the sniffed bytes -- a client name reaching the filesystem
+    # brings control characters, reserved device names, NULs and length
+    # limits with it, and none of that is needed to identify the file.
+    extension = os.path.splitext(os.path.basename(filename))[1][:16]
+    if not extension.isascii() or any(c in extension for c in '\\/:*?"<>|\0'):
+        extension = ""
+    entry = f"{uuid.uuid4().hex}{extension}"
+    _write_into_dir(upload_dir, entry, data)
+    return os.path.join(upload_dir, entry)
+
+
+def _write_into_dir(directory: str, entry: str, data: bytes) -> None:
+    """Write *data* to *entry* inside *directory*, resolving the name once.
+
+    Validating a directory by path and then opening a file inside it by path
+    leaves a window: on a shared host the validated directory can be replaced
+    with a symlink in between, and the write follows it out. Holding a
+    descriptor to the directory closes that window — the descriptor keeps
+    pointing at the inode that was checked, whatever happens to the name — so
+    the file is created relative to it, `O_EXCL` so an existing entry is never
+    followed or truncated and `O_NOFOLLOW` so a planted symlink is refused.
+
+    `dir_fd` and `O_NOFOLLOW` are POSIX. Windows has neither, so it cannot
+    close the directory-swap window; it still creates the file itself with
+    `O_EXCL`, so an entry planted at the destination is refused rather than
+    followed or truncated. Creating a symlink on Windows needs
+    SeCreateSymbolicLinkPrivilege, which is what keeps the residual window
+    narrow there.
+    """
+    binary = getattr(os, "O_BINARY", 0)
+    if os.open not in os.supports_dir_fd or not hasattr(os, "O_NOFOLLOW"):
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | binary
+        fd = os.open(os.path.join(directory, entry), flags, 0o600)
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        return
+    dir_fd = os.open(directory, os.O_RDONLY | os.O_NOFOLLOW | os.O_DIRECTORY)
+    try:
+        info = os.fstat(dir_fd)
+        if hasattr(os, "getuid") and info.st_uid != os.getuid():
+            raise PermissionError(
+                f"Upload dir must be owned by the current user: {directory}"
+            )
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | binary
+        fd = os.open(entry, flags, 0o600, dir_fd=dir_fd)
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+    finally:
+        os.close(dir_fd)
 
 
 async def get_llm_chat_task(root_group: AnyGroup) -> Any:
@@ -206,12 +288,36 @@ def serve_chat_api(  # noqa: C901 -- registration/factory fn; mccabe sums nested
                 content={"error": f"Unsupported file type: {filename}"},
                 status_code=400,
             )
-        data = await file.read()
+        # Read one byte past the cap rather than the whole upload: starlette
+        # spools the multipart body to disk, but `read()` with no argument
+        # materializes all of it as one `bytes`, so an oversized file is
+        # allocated in full before anything rejects it.
+        limit = CFG.LLM_MAX_ATTACHMENT_BYTES
+        if limit > 0:
+            data = await file.read(limit + 1)
+            if len(data) > limit:
+                return JSONResponse(
+                    content={"error": f"File too large (limit {limit} bytes)"},
+                    status_code=400,
+                )
+        else:
+            data = await file.read()
         rejection = check_attachment_bytes(data, media_type)
         if rejection:
             return JSONResponse(content={"error": f"File {rejection}"}, status_code=400)
-        path = save_uploaded_attachment(session_id, filename, data)
-        return JSONResponse(content={"path": path, "name": os.path.basename(filename)})
+        try:
+            path = save_uploaded_attachment(session_id, filename, data)
+        except ValueError as invalid:
+            return JSONResponse(content={"error": str(invalid)}, status_code=400)
+        except OSError as failure:
+            # ENOSPC, EACCES, ENAMETOOLONG and friends: the request was
+            # well-formed, the server could not store it.
+            CFG.LOGGER.warning(f"Attachment store failed: {failure}")
+            return JSONResponse(
+                content={"error": "Could not store attachment"}, status_code=507
+            )
+        display_name = os.path.basename(filename)[:255] or "attachment"
+        return JSONResponse(content={"path": path, "name": display_name})
 
     @app.post("/api/v1/chat/sessions/{session_id}/messages")
     async def post_chat_message(
@@ -223,6 +329,14 @@ def serve_chat_api(  # noqa: C901 -- registration/factory fn; mccabe sums nested
             return forbidden
         data = await _read_json_body(request)
         message = data.get("message", "")
+        # Only a string or a JSON object is a message. Anything else reaches
+        # `message[:100]` and `send_input` as-is and raises there, turning a
+        # malformed request into a 500.
+        if not isinstance(message, (str, dict)):
+            return JSONResponse(
+                content={"error": "Field 'message' must be a string or an object"},
+                status_code=400,
+            )
         attachments = data.get("attachments") or []
         is_approval_action = data.get("isApprovalAction", False)
         is_json = isinstance(message, dict)

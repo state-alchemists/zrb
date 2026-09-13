@@ -126,7 +126,8 @@ class UILifecycle:
                 # animation (every 0.25s). Otherwise, refresh every 3s to save CPU.
                 if (
                     getattr(ui, "is_thinking", False)
-                    or getattr(ui, "current_confirmation", None) is not None
+                    or getattr(getattr(ui, "confirmation", None), "current", None)
+                    is not None
                 ):
                     await asyncio.sleep(0.25)
                 else:

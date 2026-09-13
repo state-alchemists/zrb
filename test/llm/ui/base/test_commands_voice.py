@@ -14,7 +14,7 @@ def test_handle_toggle_voice_still_blocked_without_vosk(ui):
         with patch("zrb.llm.voice.engine.vosk_installed", return_value=False):
             result = ui.handle_toggle_voice("/voice")
     assert result is True
-    assert ui.voice_mode_active is False
+    assert ui.voice.mode_active is False
     assert any("not enabled" in o for o in ui.outputs)
 
 
@@ -24,7 +24,7 @@ def test_handle_toggle_voice_explicit_off_wins_over_vosk(ui):
         with patch("zrb.llm.voice.engine.vosk_installed", return_value=True):
             result = ui.handle_toggle_voice("/voice")
     assert result is True
-    assert ui.voice_mode_active is False
+    assert ui.voice.mode_active is False
     assert any("not enabled" in o for o in ui.outputs)
 
 

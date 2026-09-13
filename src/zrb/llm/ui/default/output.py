@@ -117,15 +117,6 @@ class UIOutput:
         self._ui.is_thinking = value
 
     @property
-    def current_confirmation(self) -> "asyncio.Future[str] | None":
-        """The pending tool-call confirmation future, if any."""
-        return self._ui.current_confirmation
-
-    @current_confirmation.setter
-    def current_confirmation(self, value: "asyncio.Future[str] | None") -> None:
-        self._ui.current_confirmation = value
-
-    @property
     def output_text(self) -> str:
         """Get the current text in the output field."""
         return self.output_field.text
@@ -183,8 +174,8 @@ class UIOutput:
 
         # Buffer main-agent output while a confirmation is pending during
         # streaming, so the confirmation prompt is not interleaved with tokens.
-        if self._ui.current_confirmation is not None and self._ui.is_thinking:
-            self._ui.confirmation_output_buffer.append(content)
+        if self._ui.confirmation.current is not None and self._ui.is_thinking:
+            self._ui.confirmation.output_buffer.append(content)
             self.schedule_invalidate()
             return
 
@@ -641,7 +632,8 @@ class UIOutput:
         # main agent, mirroring how the activity panel collapses when idle.
         # Extended (same wording) to announce the sub-agent whose live view
         # the output pane currently shows (UIAgentPicker).
-        active_persona = getattr(self._ui, "active_subagent_persona", None)
+        persona = getattr(self._ui, "persona", None)
+        active_persona = None if persona is None else persona.active_subagent
         viewing_agent_id = getattr(self._ui, "viewing_agent_id", None)
         viewing_name = None
         if viewing_agent_id:
@@ -746,7 +738,7 @@ class UIOutput:
         return frags[:-1]  # drop trailing newline so height == line count
 
     def get_status_bar_text(self) -> "AnyFormattedText":
-        if self.current_confirmation is not None:
+        if self._ui.confirmation.current is not None:
             dots = getattr(self, "_confirmation_dots", 0)
             next_dots = (dots + 1) % 4
             setattr(self, "_confirmation_dots", next_dots)
@@ -790,23 +782,25 @@ class UIOutput:
             (f"fg:{CFG.LLM_UI_STYLE_FAINT}", "shift+tab to cycle "),
         ]
         # Voice mode indicator (see ADR-0076)
-        if getattr(self._ui, "voice_mode_active", False):
+        voice = getattr(self._ui, "voice", None)
+        if voice is not None and voice.mode_active:
             result.append((CFG.LLM_UI_STYLE_STATUS, " 🎤 VOICE "))
         result.extend(self._get_token_usage_fragments())
         return result
 
     def _get_token_usage_fragments(self) -> list[tuple[str, str]]:
         """Session token totals as status-bar fragments; empty until first run."""
+        usage_part = getattr(self._ui, "usage", None)
         input_tokens, output_tokens = cast(
-            tuple[int, int], getattr(self._ui, "session_token_usage", (0, 0))
+            tuple[int, int], getattr(usage_part, "session_token_usage", (0, 0))
         )
         if not input_tokens and not output_tokens:
             return []
         text = f" 💸 {_fmt_tokens(input_tokens)} in · {_fmt_tokens(output_tokens)} out"
-        cached = cast(int, getattr(self._ui, "session_cache_read_tokens", 0))
+        cached = cast(int, getattr(usage_part, "session_cache_read_tokens", 0))
         if cached:
             text += f" · {_fmt_tokens(cached)} cached"
-        context = cast(int, getattr(self._ui, "context_tokens", 0))
+        context = cast(int, getattr(usage_part, "context_tokens", 0))
         if context:
             text += f" · 🧠 {_fmt_tokens(context)} ctx"
         return [
