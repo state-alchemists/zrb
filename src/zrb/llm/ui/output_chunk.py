@@ -80,20 +80,21 @@ def merge_into_block(
 ) -> tuple[str, int]:
     r"""`merge_output_chunk`, but keeping an open block's content contiguous.
 
-    A chunk belonging to `block` is merged at the block's own `end` rather
-    than the buffer tail, so anything a concurrent writer appended after the
-    block stays outside it and survives the collapse. **Advances `block.end`
-    in place** when it absorbs the chunk.
+        A chunk belonging to `block` is merged at the block's own `end` rather
+        than the buffer tail, so anything a concurrent writer appended after the
+        block stays outside it and survives the collapse. **Advances `block.end`
+        in place** when it absorbs the chunk.
 
-    Merging into `current_text[:block.end]` keeps ```` handling honest:
-    a status rewrite erases back to the block's own last line, never into a
-    foreign line that happens to sit below it.
+        Merging into `current_text[:block.end]` keeps ``
+    `` handling honest:
+        a status rewrite erases back to the block's own last line, never into a
+        foreign line that happens to sit below it.
 
-    Returns `(new_text, rebase_from)`. Absorbing a chunk rewrites the buffer
-    *before* whatever a concurrent writer already put after the block, so
-    every span tracked at or past `rebase_from` has moved and the caller must
-    shift it — the same bookkeeping `replace_output_span` does for its own
-    edits. `rebase_from` is `-1` for a plain tail append, which moves nothing.
+        Returns `(new_text, rebase_from)`. Absorbing a chunk rewrites the buffer
+        *before* whatever a concurrent writer already put after the block, so
+        every span tracked at or past `rebase_from` has moved and the caller must
+        shift it — the same bookkeeping `replace_output_span` does for its own
+        edits. `rebase_from` is `-1` for a plain tail append, which moves nothing.
     """
     if block is None or kind != block.kind or block.end > len(current_text):
         return merge_output_chunk(current_text, content), -1

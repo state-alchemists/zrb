@@ -183,6 +183,7 @@ def test_steer_into_live_run_false_when_enqueue_raises():
 
     assert steer_into_live_run(run_context, "hello", []) is False
 
+
 # ── submit_user_message_via_queue (shared BaseUI/MultiUI mechanics) ─────────
 
 

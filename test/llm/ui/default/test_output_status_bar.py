@@ -408,7 +408,9 @@ def test_mark_and_collapse_thinking_block_wraps_the_streamed_span():
     with patch.object(ui.output_part, "schedule_invalidate"):
         ui.append_to_output("before ")
         ui.mark_thinking_block_start()
-        ui.append_to_output("a long stream of live thinking text", end="", kind="thinking")
+        ui.append_to_output(
+            "a long stream of live thinking text", end="", kind="thinking"
+        )
         collapsed = ui.collapse_thinking_block(
             "🧠 Thought\n", "a long stream of live thinking text"
         )

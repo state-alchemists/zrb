@@ -27,7 +27,7 @@ def test_should_render_user_markdown_leaves_plain_multiline_pastes_alone():
     assert should_render_user_markdown("can you fix this\nit is broken") is False
     assert (
         should_render_user_markdown(
-            'Traceback (most recent call last):\n'
+            "Traceback (most recent call last):\n"
             '  File "app.py", line 12, in <module>\n'
             "    x = cfg[__main__]\n"
             "KeyError: '__main__'"
