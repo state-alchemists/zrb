@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Callable
 
 from zrb.config.config import CFG
 from zrb.util.cli.style import stylize_muted, stylize_warning
+from zrb.util.exception import exception_summary
 
 if TYPE_CHECKING:
     from zrb.llm.snapshot.manager import SnapshotProgress
@@ -48,7 +49,9 @@ class UILifecycle:
     def handle_application_run_error(self, exc: Exception):
         """Handle error during application.run_async (public API)."""
 
-        self._ui.append_to_output(f"[Error: {exc}]\n{tb_lib.format_exc()}")
+        self._ui.append_to_output(
+            f"[Error: {exception_summary(exc)}]\n{tb_lib.format_exc()}"
+        )
 
     async def run_async(self):
         """Run the application and manage triggers."""

@@ -136,7 +136,7 @@ When you use `append_ui_factory()`:
 
 ### Optional Enrichment Hooks
 
-`MultiUI` also forwards nine richer output events to any child that implements
+`MultiUI` also forwards twelve richer output events to any child that implements
 them. **None of these is required** — `MultiUI` checks each child and skips the
 ones that don't have the method, which is why a Telegram channel can ignore the
 terminal's block-collapsing entirely and still receive everything through
@@ -148,6 +148,7 @@ Implement one only when your channel can render it better than a plain line:
 | Hook | Fired when |
 | --- | --- |
 | `accumulate_usage(usage, context_usage)` | A run reports token totals — needed for a session token meter |
+| `append_markdown(markdown_text)` | Markdown reaches the pane (the assistant's answer, or a markdownish user paste) — a child without it gets the pre-rendered text |
 | `mark_text_block_start()` | The assistant begins a text block |
 | `collapse_text_block(collapsed, full)` | That text block ends, with a short and a full form |
 | `mark_thinking_block_start()` | The assistant begins a reasoning block |
@@ -155,7 +156,9 @@ Implement one only when your channel can render it better than a plain line:
 | `update_tool_prepare(key, text)` | A tool call is being prepared |
 | `update_shell_output(key, text)` | A running shell command emits output |
 | `finish_shell_output(key, collapsed, full)` | That shell command completes |
+| `record_tool_call_block(collapsed, full)` | A tool call and its result are printed — a child without it gets the collapsed line |
 | `replay_history(messages)` | A conversation is replayed on resume |
+| `update_system_info()` | A turn ended and the child should refresh its system/git status line |
 
 The canonical list lives in `test/architecture/test_multi_ui_fanout_surface.py`,
 which fails if `MultiUI` fans out a name that isn't on it.

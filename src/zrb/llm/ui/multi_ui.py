@@ -24,6 +24,7 @@ from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
 from zrb.session.session import Session
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
+from zrb.util.exception import exception_summary
 
 logger = logging.getLogger(__name__)
 
@@ -242,6 +243,25 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         """
         self._fanout("accumulate_usage", usage, context_usage)
 
+    def append_markdown(self, markdown_text: str) -> None:
+        """Render `markdown_text` on every child that supports it.
+
+        Children with their own `append_markdown` (the default TUI's themed,
+        re-wrappable markdown path) get the source text; children without one
+        (e.g. Telegram) get the pre-rendered output. Best-effort like
+        `append_to_output`: one dead child channel must not kill the fan-out.
+        """
+        rendered = render_markdown(markdown_text, width=None)
+        for ui in self._uis:
+            try:
+                child_append = getattr(ui, "append_markdown", None)
+                if callable(child_append):
+                    child_append(markdown_text)
+                else:
+                    ui.append_to_output(rendered, end="")
+            except Exception as e:
+                CFG.LOGGER.debug(f"Child UI append failed: {e}")
+
     def record_tool_call_block(self, collapsed: str, full: str) -> None:
         """Give every child its tool-call/result line.
 
@@ -373,7 +393,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
                 self.append_to_output("\n[Cancelled]\n")
                 raise
             except Exception as e:
-                self.append_to_output(f"\n[Error: {e}]\n")
+                self.append_to_output(f"\n[Error: {exception_summary(e)}]\n")
                 return
 
             self._running_llm_task = None
@@ -390,25 +410,13 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
                 if isinstance(result_data, str):
                     self._last_result_data = result_data
                     self.append_to_output("\n")
-                    # Render the final answer on the main UI with its themed,
-                    # re-wrappable markdown path; other children keep the
-                    # pre-rendered text they consumed before.
-                    rendered = render_markdown(result_data, width=None)
-                    for ui in self._uis:
-                        try:
-                            append_markdown = getattr(ui, "append_markdown", None)
-                            if callable(append_markdown):
-                                append_markdown(result_data)
-                            else:
-                                ui.append_to_output(rendered, end="")
-                        except Exception as e:
-                            CFG.LOGGER.debug(f"Child UI append failed: {e}")
+                    self.append_markdown(result_data)
 
         except asyncio.CancelledError:
             self.append_to_output("\n[Cancelled]\n")
             raise
         except Exception as e:
-            self.append_to_output(f"\n[Error: {e}]\n")
+            self.append_to_output(f"\n[Error: {exception_summary(e)}]\n")
         finally:
             # Stop the animation flag first, then refresh system/git info,
             # then repaint — mirrors BaseUI's finally order
@@ -525,6 +533,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             llm_task=llm_task,
             user_message=user_message,
             marker="💬",
+            append_markdown=self.append_markdown,
         )
 
     def submit_message(self, user_message: str) -> None:

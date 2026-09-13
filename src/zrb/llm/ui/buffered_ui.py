@@ -16,7 +16,11 @@ from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.llm.agent.activity import agent_activity_registry
 from zrb.llm.ui.any_ui import AnyUI
-from zrb.llm.ui.output_chunk import CollapsibleBlockSource, merge_output_chunk
+from zrb.llm.ui.output_chunk import (
+    CollapsibleBlockSource,
+    OpenCollapsibleBlock,
+    merge_into_block,
+)
 from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
 from zrb.util.cli.style import stylize_muted
 
@@ -46,7 +50,7 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         # Set by mark_thinking_block_start/mark_text_block_start; consumed by
         # collapse_thinking_block/collapse_text_block. One slot suffices —
         # see UIOutput's matching field for why.
-        self._collapsible_block_start: int | None = None
+        self._collapsible_block: OpenCollapsibleBlock | None = None
         # Per-tool-call span for update_tool_prepare — see UIOutput's
         # matching field for why this one is keyed instead of a single slot.
         self._tool_prepare_spans: dict[str, tuple[int, int]] = {}
@@ -145,7 +149,17 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         styled_text = (
             stylize_muted(text) if kind not in ("text", "todo_progress") else text
         )
-        self._merged_output = merge_output_chunk(self._merged_output, styled_text)
+        # A chunk of an open thinking/final-text block merges at that
+        # block's own end, not the buffer tail, so a concurrent writer's
+        # line stays outside it — see `merge_into_block`.
+        previous = self._merged_output
+        self._merged_output, rebase_from = merge_into_block(
+            previous, styled_text, self._collapsible_block, kind
+        )
+        if rebase_from >= 0:
+            self._rebase_tracked_spans(
+                rebase_from, len(self._merged_output) - len(previous)
+            )
         self._buffer.append(styled_text)
 
     def _replace_span(self, start: int, end: int, replacement: str) -> bool:
@@ -162,16 +176,31 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         self._merged_output = (
             self._merged_output[:start] + replacement + self._merged_output[end:]
         )
-        if delta:
-            for block in self._rendered_blocks:
-                if block[0] >= end:
-                    block[0] += delta
-                    block[1] += delta
-            for spans in (self._tool_prepare_spans, self._shell_output_spans):
-                for key, (span_start, span_end) in list(spans.items()):
-                    if span_start >= end:
-                        spans[key] = (span_start + delta, span_end + delta)
+        self._rebase_tracked_spans(end, delta)
+        block = self._collapsible_block
+        if delta and block is not None and block.start >= end:
+            block.start += delta
+            block.end += delta
         return True
+
+    def _rebase_tracked_spans(self, after: int, delta: int) -> None:
+        """Shift every tracked offset at or past `after` by `delta`.
+
+        Mirrors `UIOutput._rebase_tracked_spans` — shared by `_replace_span`
+        and the collapsible-block insert in `append_to_output`, the two paths
+        that rewrite the buffer somewhere other than the tail. The open block
+        is not shifted here; see that method for why.
+        """
+        if not delta:
+            return
+        for entry in self._rendered_blocks:
+            if entry[0] >= after:
+                entry[0] += delta
+                entry[1] += delta
+        for spans in (self._tool_prepare_spans, self._shell_output_spans):
+            for key, (span_start, span_end) in list(spans.items()):
+                if span_start >= after:
+                    spans[key] = (span_start + delta, span_end + delta)
 
     def append_toggle_block(self, collapsed: str, full: str) -> None:
         """Append a tool-call/result line that can later be expanded in
@@ -193,7 +222,7 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         self.append_toggle_block(collapsed, full)
 
     def mark_thinking_block_start(self) -> None:
-        self._collapsible_block_start = len(self._merged_output)
+        self._mark_collapsible_block_start("thinking")
 
     def collapse_thinking_block(self, collapsed: str, full: str) -> bool:
         """Collapse the thinking block opened by `mark_thinking_block_start`.
@@ -205,7 +234,7 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
     def mark_text_block_start(self) -> None:
         """Counterpart to `mark_thinking_block_start` for the assistant's
         final-text reply instead of its reasoning."""
-        self._collapsible_block_start = len(self._merged_output)
+        self._mark_collapsible_block_start("streaming")
 
     def collapse_text_block(self, collapsed: str, full: str) -> bool:
         """Collapse the final-text block opened by `mark_text_block_start`."""
@@ -217,11 +246,15 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         See `_splice_collapsed_span` for the mechanics. A no-op if no block
         was marked.
         """
-        start = self._collapsible_block_start
-        self._collapsible_block_start = None
-        if start is None:
+        block = self._collapsible_block
+        self._collapsible_block = None
+        if block is None:
             return False
-        return self._splice_collapsed_span(start, collapsed, full)
+        return self._splice_collapsed_span(block.start, block.end, collapsed, full)
+
+    def _mark_collapsible_block_start(self, kind: str) -> None:
+        start = len(self._merged_output)
+        self._collapsible_block = OpenCollapsibleBlock(start, start, kind)
 
     def update_shell_output(self, key: str, text: str) -> None:
         """Grow or replace `key`'s own live shell-output line with `text`.
@@ -249,7 +282,9 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         self._rendered_blocks.append([start, start + len(source.collapsed), source])
         return True
 
-    def _splice_collapsed_span(self, start: int, collapsed: str, full: str) -> bool:
+    def _splice_collapsed_span(
+        self, start: int, end: int, collapsed: str, full: str
+    ) -> bool:
         """Shared low-level mechanics for both the single-slot tracker
         (thinking/text) and the keyed one (shell output). `full` is the
         caller's own accumulated text — same "don't re-read the buffer"
@@ -257,10 +292,7 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         streamed delta can rewrite/erase part of the *rendered* text via
         `merge_output_chunk`, which this class also uses).
         """
-        if not full:
-            return False
-        end = len(self._merged_output)
-        if end <= start:
+        if not full or end <= start:
             return False
         source = CollapsibleBlockSource(stylize_muted(collapsed), stylize_muted(full))
         if not self._replace_span(start, end, source.collapsed):
@@ -390,7 +422,7 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         self._buffer.clear()
         self._merged_output = ""
         self._rendered_blocks = []
-        self._collapsible_block_start = None
+        self._collapsible_block = None
         self._tool_prepare_spans = {}
         self._shell_output_spans = {}
 

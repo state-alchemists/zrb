@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic_ai import AgentRunResultEvent
@@ -260,3 +260,58 @@ async def test_run_agent_empty_completion_raises_after_retries():
 
     # 1 original attempt + max_empty_completion_retries (2) = 3 stream calls.
     assert call_count == 3
+
+
+class _Unavailable(Exception):
+    status_code = 503
+
+
+@pytest.mark.asyncio
+async def test_transient_provider_error_is_retried_within_one_task_attempt():
+    """A 503 is retried inside `run_agent` — the task never sees it."""
+    calls = []
+    good = MagicMock()
+    good.output = "Real answer"
+    good.all_messages.return_value = []
+    agent = MagicMock()
+
+    async def fake_run(*args, **kwargs):
+        calls.append(1)
+        if len(calls) <= 2:
+            raise _Unavailable("Service Unavailable")
+        return good
+
+    agent.run = fake_run
+
+    with patch("asyncio.sleep"):
+        result, _ = await run_agent(
+            agent=agent, message="Hi", message_history=[], limiter=LLMLimiter()
+        )
+
+    assert result == "Real answer"
+    assert len(calls) == 3  # 1 original + 2 retries (LLM_API_MAX_RETRIES=3)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("max_retries,expected_calls", [(0, 1), (1, 1), (3, 3), (5, 5)])
+async def test_api_max_retries_caps_total_provider_calls(
+    monkeypatch, max_retries, expected_calls
+):
+    """`LLM_API_MAX_RETRIES` is the TOTAL attempt count, not the retry count —
+    0 and 1 both mean "try once"."""
+    monkeypatch.setenv("ZRB_LLM_API_MAX_RETRIES", str(max_retries))
+    calls = []
+    agent = MagicMock()
+
+    async def fake_run(*args, **kwargs):
+        calls.append(1)
+        raise _Unavailable("Service Unavailable")
+
+    agent.run = fake_run
+
+    with patch("asyncio.sleep"), pytest.raises(_Unavailable):
+        await run_agent(
+            agent=agent, message="Hi", message_history=[], limiter=LLMLimiter()
+        )
+
+    assert len(calls) == expected_calls

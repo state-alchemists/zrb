@@ -14,7 +14,12 @@ from typing import TYPE_CHECKING, TextIO, cast
 from zrb.config.config import CFG
 from zrb.llm.agent.activity import agent_activity_registry
 from zrb.llm.tool.ambient_state import get_session_ownership_key
-from zrb.llm.ui.output_chunk import CollapsibleBlockSource, merge_output_chunk
+from zrb.llm.ui.output_chunk import (
+    CollapsibleBlockSource,
+    OpenCollapsibleBlock,
+    merge_into_block,
+    merge_output_chunk,
+)
 from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
@@ -92,7 +97,7 @@ class UIOutput:
         # time (`StreamEventHandler` always closes one before opening the
         # other), so there is never more than one live collapsible block to
         # track.
-        self._collapsible_block_start: int | None = None
+        self._collapsible_block: OpenCollapsibleBlock | None = None
         # Per-tool-call span for `update_tool_prepare` — unlike the single
         # slot above, several tool calls can be preparing arguments at once
         # (parallel tool calls), each needing its own independently
@@ -195,8 +200,18 @@ class UIOutput:
 
             content = stylize_muted(content)
 
-        # Handle carriage returns (\r) for status updates
-        new_text = merge_output_chunk(current_text, content)
+        # Handle carriage returns (\r) for status updates. A chunk of an
+        # open thinking/final-text block merges at that block's own end,
+        # not the buffer tail, so a concurrent writer's line stays outside
+        # it — see `merge_into_block`.
+        new_text, rebase_from = merge_into_block(
+            current_text, content, self._collapsible_block, kind
+        )
+        if rebase_from >= 0:
+            # Absorbing the chunk rewrote the buffer before whatever a
+            # concurrent writer had already put after the block, so every span
+            # tracked past that point moved with it.
+            self._rebase_tracked_spans(rebase_from, len(new_text) - len(current_text))
 
         # NB: we deliberately do NOT fire a Notification hook per output chunk.
         # The Claude-Code `Notification` event means "the agent needs your
@@ -273,7 +288,7 @@ class UIOutput:
         streams live (unlike tool-call args/results, which are collapsed
         from the start) — this is a retroactive collapse, not a withhold.
         """
-        self._mark_collapsible_block_start()
+        self._mark_collapsible_block_start("thinking")
 
     def collapse_thinking_block(self, collapsed: str, full: str) -> bool:
         """Collapse the thinking block opened by `mark_thinking_block_start`.
@@ -290,7 +305,7 @@ class UIOutput:
         Counterpart to `mark_thinking_block_start` for the assistant's reply
         instead of its reasoning — same retroactive-collapse mechanics.
         """
-        self._mark_collapsible_block_start()
+        self._mark_collapsible_block_start("streaming")
 
     def collapse_text_block(self, collapsed: str, full: str) -> bool:
         """Collapse the final-text block opened by `mark_text_block_start`.
@@ -301,8 +316,9 @@ class UIOutput:
         """
         return self._collapse_collapsible_block(collapsed, full)
 
-    def _mark_collapsible_block_start(self) -> None:
-        self._collapsible_block_start = len(self.output_text)
+    def _mark_collapsible_block_start(self, kind: str) -> None:
+        start = len(self.output_text)
+        self._collapsible_block = OpenCollapsibleBlock(start, start, kind)
 
     def _collapse_collapsible_block(self, collapsed: str, full: str) -> bool:
         """Shared mechanics for `collapse_thinking_block`/`collapse_text_block`.
@@ -311,11 +327,11 @@ class UIOutput:
         be the caller's own accumulated text. A no-op if no block was
         marked (e.g. this UI missed the start signal).
         """
-        start = self._collapsible_block_start
-        self._collapsible_block_start = None
-        if start is None:
+        block = self._collapsible_block
+        self._collapsible_block = None
+        if block is None:
             return False
-        return self._splice_collapsed_span(start, collapsed, full)
+        return self._splice_collapsed_span(block.start, block.end, collapsed, full)
 
     def update_shell_output(self, key: str, text: str) -> None:
         """Grow or replace `key`'s own live shell-output line with `text`
@@ -362,9 +378,11 @@ class UIOutput:
         )
         return True
 
-    def _splice_collapsed_span(self, start: int, collapsed: str, full: str) -> bool:
+    def _splice_collapsed_span(
+        self, start: int, end: int, collapsed: str, full: str
+    ) -> bool:
         """Shared low-level mechanics: splice `collapsed` over `[start, end)`
-        (`end` is the current buffer length) and register the span as
+        and register the span as
         Ctrl+O-expandable. Shared by the single-slot tracker
         (`_collapse_collapsible_block`, thinking/text) and the keyed one
         (`collapse_shell_output_block`) — both just resolve `start`
@@ -378,10 +396,7 @@ class UIOutput:
         text" from what currently sits on screen would silently inherit
         that erasure. A no-op if nothing was actually accumulated.
         """
-        if not full:
-            return False
-        end = len(self.output_text)
-        if end <= start:
+        if not full or end <= start:
             return False
         source = CollapsibleBlockSource(stylize_muted(collapsed), stylize_muted(full))
         if not self.replace_output_span(start, end, source.collapsed):
@@ -512,7 +527,11 @@ class UIOutput:
         `update_tool_prepare`; `_shell_output_spans`, see
         `update_shell_output`) get the same shift — one key's own span
         growing/shrinking/resolving must not invalidate another's still-open
-        span. Returns ``False`` when the span no longer exists (the echo was
+        span. So does the single-slot collapsible-block mark, which is an
+        offset into the same buffer: a shell line growing below an open
+        thinking block would otherwise leave the mark pointing mid-line, and
+        the collapse would splice over the tail of that line. Returns
+        ``False`` when the span no longer exists (the echo was
         confirmation-buffered or the buffer was rewritten since).
         """
         text = self.output_text
@@ -520,17 +539,39 @@ class UIOutput:
             return False
         delta = len(replacement) - (end - start)
         new_text = text[:start] + replacement + text[end:]
-        if delta:
-            for block in self._ui.rendered_blocks:
-                if block[0] >= end:
-                    block[0] += delta
-                    block[1] += delta
-            for spans in (self._tool_prepare_spans, self._shell_output_spans):
-                for key, (span_start, span_end) in list(spans.items()):
-                    if span_start >= end:
-                        spans[key] = (span_start + delta, span_end + delta)
+        self._rebase_tracked_spans(end, delta)
+        block = self._collapsible_block
+        if delta and block is not None and block.start >= end:
+            # A foreign edit above an open block moves the whole block.
+            block.start += delta
+            block.end += delta
         self.set_output_text(new_text)
         return True
+
+    def _rebase_tracked_spans(self, after: int, delta: int) -> None:
+        """Shift every tracked offset at or past `after` by `delta`.
+
+        Shared by every path that rewrites the buffer somewhere other than the
+        tail — `replace_output_span` and the collapsible-block insert in
+        `append_to_output`. An offset map left behind by one of them points
+        into the wrong text, and the next write through it lands inside
+        somebody else's content.
+
+        The open collapsible block is deliberately NOT shifted here: the
+        insert path is that block growing, and `merge_into_block` has already
+        advanced its `end`. A foreign edit that does move it shifts it itself,
+        in `replace_output_span`.
+        """
+        if not delta:
+            return
+        for entry in self._ui.rendered_blocks:
+            if entry[0] >= after:
+                entry[0] += delta
+                entry[1] += delta
+        for spans in (self._tool_prepare_spans, self._shell_output_spans):
+            for key, (span_start, span_end) in list(spans.items()):
+                if span_start >= after:
+                    spans[key] = (span_start + delta, span_end + delta)
 
     def set_output_text(self, text: str) -> None:
         # lazy: heavy third-party

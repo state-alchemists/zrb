@@ -69,6 +69,7 @@ from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
+from zrb.util.exception import exception_summary
 from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
 
@@ -1079,6 +1080,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             llm_task=llm_task,
             user_message=user_message,
             marker=marker,
+            append_markdown=self.append_markdown,
         )
 
     def submit_message(self, user_message: str) -> None:
@@ -1147,7 +1149,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             self.append_to_output("\n[Cancelled]\n")
             raise  # Re-raise to allow proper task cancellation
         except Exception as e:
-            self.append_to_output(f"\n[Error: {e}]\n")
+            self.append_to_output(f"\n[Error: {exception_summary(e)}]\n")
         finally:
             self.is_thinking = False
             self._running_llm_task = None
