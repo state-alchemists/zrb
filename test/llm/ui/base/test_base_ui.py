@@ -475,7 +475,9 @@ async def test_trigger_loop_reports_a_malformed_tuple_and_keeps_going(
     submitted = collect_submitted(base_ui, monkeypatch)
     reported: list[str] = []
     monkeypatch.setattr(
-        base_ui, "append_to_output", lambda *v, **k: reported.append(" ".join(map(str, v)))
+        base_ui,
+        "append_to_output",
+        lambda *v, **k: reported.append(" ".join(map(str, v))),
     )
 
     await base_ui.trigger_loop(trigger_yielding(item, "after"))

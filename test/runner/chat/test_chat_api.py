@@ -5,9 +5,9 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from conftest import _mock_sm
 from httpx import AsyncClient
 
-from conftest import _mock_sm
 
 @pytest.mark.asyncio
 async def test_list_sessions(client: AsyncClient):
@@ -107,9 +107,7 @@ async def test_post_message_defaults_attachments_to_empty_list(client: AsyncClie
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("message", [None, 123, 1.5, ["a"], True])
-async def test_post_message_rejects_a_non_string_message(
-    client: AsyncClient, message
-):
+async def test_post_message_rejects_a_non_string_message(client: AsyncClient, message):
     """A malformed `message` is a 400, not a 500.
 
     The route slices it for logging and hands it to `send_input`; anything

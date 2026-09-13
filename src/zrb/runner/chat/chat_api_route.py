@@ -108,7 +108,9 @@ def _write_into_dir(directory: str, entry: str, data: bytes) -> None:
     try:
         info = os.fstat(dir_fd)
         if hasattr(os, "getuid") and info.st_uid != os.getuid():
-            raise PermissionError(f"Upload dir must be owned by the current user: {directory}")
+            raise PermissionError(
+                f"Upload dir must be owned by the current user: {directory}"
+            )
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | binary
         fd = os.open(entry, flags, 0o600, dir_fd=dir_fd)
         with os.fdopen(fd, "wb") as f:
