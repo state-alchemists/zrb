@@ -141,11 +141,9 @@ def walk_files(
 def matches_any_pattern(name: str, patterns: list[str]) -> bool:
     """Whether `name`, or any single segment of it, fnmatches a pattern.
 
-    Named for what it does rather than what a caller does with it: the same
-    predicate backs both exclude lists and include lists (`llm/tool/code.py`
-    uses it for both, two lines apart). It used to exist twice under two
-    opposite-meaning names — `is_path_excluded` here and `is_path_included`
-    in `llm/tool/code_constants.py` — with byte-identical bodies.
+    Named for the predicate, not for a caller's intent: the same test backs
+    both exclude lists and include lists (`llm/tool/code.py` uses it for both,
+    two lines apart).
     """
     for pattern in patterns:
         if fnmatch.fnmatch(name, pattern):

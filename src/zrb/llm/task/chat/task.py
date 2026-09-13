@@ -266,8 +266,8 @@ class LLMChatTask(BaseTask):
             custom_commands: Extra slash commands, as `AnyCustomCommand`s or
                 callables returning them.
             markdown_theme: Rich theme used to render the assistant's markdown.
-            triggers: Callables returning async iterables whose items are submitted
-                as user turns, letting an external source drive the session.
+            triggers: Callables returning async iterables whose items -- a string,
+                or a `TriggerMessage` carrying attachments -- become user turns.
 
         Every parameter `BaseTask` accepts is also accepted here and behaves
         identically; see `BaseTask` for those.

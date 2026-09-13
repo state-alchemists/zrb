@@ -97,6 +97,7 @@ from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.tool.registry import ToolRegistry, tool_registry
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
 from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.ui.trigger import TriggerMessage
 from zrb.llm.util.capabilities import model_capabilities
 
 # --- Runner (CLI + web schemas) ------------------------------------------
@@ -224,6 +225,7 @@ __all__ = [
     "ToolRegistry",
     "tool_registry",
     "AnyUI",
+    "TriggerMessage",
     "model_capabilities",
     "register_theme",
     "register_always_auto_approve",

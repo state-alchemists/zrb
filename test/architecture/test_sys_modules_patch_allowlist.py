@@ -1,45 +1,29 @@
 """Ratchet on `patch.dict("sys.modules", ...)` — it deletes real imports.
 
-`unittest.mock.patch.dict` restores by `in_dict.clear()` followed by
-`in_dict.update(saved_snapshot)`. Applied to `sys.modules` that is not a
-restore but a **truncation**: every module imported for the first time
-*inside* the with-block is absent from the snapshot, so exiting the block
-deletes it.
+`unittest.mock.patch.dict` restores by clearing the dict and re-applying a
+snapshot taken on entry. Against `sys.modules` that is a truncation, not a
+restore: any module imported for the first time *inside* the block is absent
+from the snapshot, so leaving the block deletes its entry.
 
 For a pure-Python module that costs a re-import. For a C extension built with
-single-phase init it is fatal and permanent: the shared object stays loaded in
-the process while its `sys.modules` entry is gone, so the next `import` of it
-raises `ImportError: cannot load module more than once per process` (a hard
-error since CPython 3.12) for the rest of that worker's life.
+single-phase init it is fatal and permanent — the shared object stays loaded
+while its `sys.modules` entry is gone, so the next `import` raises
+`ImportError: cannot load module more than once per process`, a hard error
+since CPython 3.12, for the rest of that worker's life. A lazy `import numpy`
+reached from inside such a block is enough to trigger it.
 
-That is not hypothetical. `VoiceEngine.record` lazily does `import numpy`
-inside `test/llm/voice/test_engine.py`'s
-`patch.dict("sys.modules", {"sounddevice": ...})`. Whichever `TestRecord` test
-ran first on a worker imported numpy, the block exit evicted it, and the next
-one died re-importing numpy's `_multiarray_umath` C extension. (Spelled
-without its dotted path on purpose — `test_private_test_access_ratchet.py`
-greps for `something` dot `_private` and cannot tell prose from code, so a
-literal dotted example here inflates that ratchet's count.) It failed
-roughly one full run in
-five, because `pytest-xdist --dist load` hands out tests individually — so
-whether the one `TestRecord` test that imports numpy *before* entering the
-patch (and therefore immunizes the worker) lands on the same worker as the
-other two is a coin flip. `test/conftest.py`'s
-`_warm_modules_shadowed_by_sys_modules_patches` fixes it by importing numpy
-once per worker, before any test runs, so the snapshot contains it.
+`test/conftest.py`'s `_warm_modules_shadowed_by_sys_modules_patches` is the
+fix: importing a module once per worker, before any test runs, puts it in
+every later snapshot.
 
-**What to do when this test fails.** You added a new
-`patch.dict("sys.modules", ...)`. Ask one question: *can the code inside the
-block trigger a real, first-time import?* That means the module the block
-shadows (if the code falls through to importing it for real) or — the case
-that actually bit us — any other module a lazy `import` underneath it pulls
-in. If yes, add that module to `_warm_modules_shadowed_by_sys_modules_patches`
-so it is resident before the snapshot is taken. Then add the shadowed name
-below with a one-line note.
+**When this test fails** you have added a new `patch.dict("sys.modules", ...)`.
+Ask whether the code inside can trigger a real first-time import — the
+shadowed module itself if the code falls through, or anything a lazy import
+underneath it pulls in. If it can, warm that module in the conftest fixture,
+then add the shadowed name below with a one-line note.
 
-This is an allowlist of *names*, not a count: what needs review is a new kind
-of shadow, not another instance of one already reasoned about. Mirrors
-`test_lazy_import_categories.py`'s reasoning for not ratcheting counts.
+This allowlist holds *names*, not a count: what needs review is a new kind of
+shadowing, not another instance of one already understood.
 """
 
 import re

@@ -1,46 +1,15 @@
-"""Guards against a `# lazy:` comment that doesn't justify itself.
+"""Every `# lazy:` comment must state a reason this test can classify.
 
-AGENTS.md (Imports) requires every in-function import to carry a `# lazy:
-<reason>` comment matching one of five categories: heavy third-party
-deferral, transitively-heavy-via-internal, circular import, a test-patch
-seam, or a platform-only module. `test_circular_import_allowlist.py` only checks the circular category
-(and only the canonical `# lazy: circular` tag). This test classifies every
-`# lazy:` comment in the tree into one of those categories (folding
-call-frequency/"hot path" avoidance of an internal import under the
-transitively-heavy-via-internal category — it's the same "avoid this
-import's cost" concern, just keyed to call frequency instead of raw weight)
-and fails if any comment doesn't match at least one.
+AGENTS.md (Imports) allows five: heavy third-party deferral,
+transitively-heavy-via-internal (which absorbs hot-path avoidance of an
+internal import — same concern, keyed to call frequency), circular import,
+test-patch seam, platform-only module. A comment matching none of them fails
+here, and the fix is to reword it to its real reason — or, if the reason is
+genuinely new, to extend the keyword lists below and AGENTS.md together.
 
-Before landing, every comment in the tree was read and reclassified rather
-than pattern-matched blindly: an audit found 291 `# lazy:` comments, of
-which 20 didn't fit any category as originally worded — 10 were a bare
-`# lazy: defer CFG load` with no stated reason (reworded to name the real
-one: CFG composes 15 mixins), 4 were hot-path rationale with no keyword this
-test recognizes (reworded to say "hot path" explicitly), 4 were vague/no
-reason (two were hoisted to module level entirely — they turned out to be
-unjustified: `stat` is a free stdlib import, and `render_live_context_async`
-was already sitting next to its module-level-imported sync twin), and 1 was
-a stdlib-heavy deferral (urllib/zipfile) that category 1 as written doesn't
-literally cover (reworded to "heavy (stdlib)"). See
-`test_circular_import_allowlist.py`'s docstring for the separate, larger
-finding this same audit made about mislabeled circular-import comments.
-
-This doesn't ban new categories from emerging — it just means a `# lazy:`
-comment this test can't classify is a signal to either reword it to state
-its real reason, or (if it's a genuinely new kind of reason) update the
-keyword lists below and AGENTS.md together, in the same diff.
-
-Deliberately NOT an exact-count ratchet (unlike
-`CIRCULAR_IMPORT_ALLOWLIST` in `test_circular_import_allowlist.py`, which
-this test originally copied that convention from). A first version asserted
-per-category counts too, and it needed a manual update in nearly every
-commit that touched a lazy import during the sweep that landed this file —
-9 updates in one sitting, none of them catching anything the validity check
-below didn't already catch. Ordinary reclassification (a comment moving
-from "heavy third-party" to "transitively heavy") is neither rare nor
-consequential the way a genuine new circular import is, so ratcheting it
-was pure churn, not a safety margin. The count-based version is preserved
-in git history if a future maintainer wants to revisit that trade-off.
+Validity only, deliberately not a per-category count ratchet: reclassifying a
+comment between categories is routine and catches nothing the validity check
+misses, unlike `CIRCULAR_IMPORT_ALLOWLIST`, where a new entry is the signal.
 """
 
 import re

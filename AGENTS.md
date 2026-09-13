@@ -57,7 +57,7 @@ Inside `llm/`:
 - A new task under `builtin/` must also be imported in `builtin/__init__.py` and added to its `__all__`, or it simply never appears in the CLI. Guarded by `test/builtin/test_registration_completeness.py` — including the tree scan for a module `__init__.py` never imports. A task that exists only as another task's `upstream=` dependency belongs in that file's `INTERNAL_TASKS` map, with its reason.
 - A new tool under `llm/tool/` must also be registered *and* `tag()`-ed with a `Capability` in `llm/common_tools.py::_seed_default_tools`, or it resolves to `Capability.UNKNOWN` (denied in plan mode). Guarded by `test_every_registered_tool_carries_a_known_capability` in `test/llm/test_common_tools.py`. Leaving a *third-party* or MCP tool untagged is still fine — `UNKNOWN` is deliberately safe-by-default there.
 
-`hook/manager.py` builds a `HookType.AGENT` hook through a registration seam (`hook/agent_hook_registry.py`) rather than importing `zrb.llm.agent` directly, since that subsystem itself depends on `hook.manager` — a genuine circular dependency, not just a circular import. `zrb.llm.agent`'s package `__init__` registers the real builder (`agent/hook_agent.py`) as an import side effect; if it's ever missing, `hook/manager.py` logs a warning and returns a failed `HookResult` instead of crashing.
+`hook/manager.py` builds a `HookType.AGENT` hook through a registration seam (`hook/agent_hook_registry.py`) rather than importing `zrb.llm.agent` directly, since that subsystem itself depends on `hook.manager` — a genuine circular dependency, not just a circular import. `zrb.llm.agent`'s package `__init__` registers the real builder (`agent/hook_agent.py`) on first use of any of its four re-exported names — the barrel resolves through PEP 562 `__getattr__`, so registration is tied to building an agent rather than to loading any module under the package (ADR-0096). If it's ever missing, `hook/manager.py` logs a warning and returns a failed `HookResult` instead of crashing.
 
 > For a top-down tour of `zrb llm chat "..."` (CLI → task → agent run → UI → history), see `docs/llm/llm-chat-lifecycle.md`.
 
@@ -133,7 +133,7 @@ Default to module-level imports. An in-function import must justify itself with 
 
 **Principles** (ADR-0034):
 
-- **Coverage:** ≥ 90%
+- **Coverage:** ≥ 94%
 - **Public API only.** NEVER access or test private members (anything `_prefix`). If internal behavior is hard to test publicly, refactor the class to expose a public hook or property.
   - The usual seam for a private helper is **the public entry point plus the boundary the helper's effect crosses** — drive the public function, then assert on what reached the mocked dependency. `test/llm/tool/test_code_analyze.py` does this: `analyze_code` is the entry point, `run_agent` is the boundary, and patching `CFG` steers the thresholds, so the private helpers' behavior is verified without naming either.
   - Mocking a *public* dependency the module imported (`run_agent`, `llm_limiter`) is not a private-member access; mocking `_private_helper` is.

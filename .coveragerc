@@ -5,8 +5,10 @@ omit =
     **/any_*.py
     **/__init__.py
     # Skill tool scripts are shipped agent-runtime content (run via the skill's
-    # Shell instructions), not unit-tested library code.
+    # Shell instructions), not unit-tested library code. Both rosters:
+    # `skills/` (optional) and `core_skills/` (always-on).
     **/llm_plugin/skills/**/tools/*.py
+    **/llm_plugin/core_skills/**/tools/*.py
 
 [report]
 show_missing = True

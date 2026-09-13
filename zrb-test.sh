@@ -24,12 +24,12 @@ if [ "$#" -eq 0 ]; then
     pyright src/zrb
 fi
 
-# Enforce the documented >=90% coverage bar, but only on a FULL run. A scoped run
+# Enforce the documented >=94% coverage bar, but only on a FULL run. A scoped run
 # (one or more paths passed in) exercises only part of the tree, so a global
 # threshold would fail spuriously there.
 cov_fail_under=""
 if [ "$#" -eq 0 ]; then
-    cov_fail_under="--cov-fail-under=90"
+    cov_fail_under="--cov-fail-under=94"
 fi
 
 # Coverage fragments (one per xdist worker) used to land in the repo root as
