@@ -61,7 +61,7 @@ A scoped run and a full run check different things — `zrb-test.sh` gates in th
 | `test/architecture/test_private_test_access_ratchet.py` | Counts `test/` references into another object's private (`_foo`) attributes | You accessed a private member in a test — expose a public accessor instead (see `AGENTS.md` → Test Guidelines), or this is a rare accepted exception (see the test file's own docstring) |
 | `test/architecture/test_sys_modules_patch_allowlist.py` | Every module name shadowed by a `patch.dict("sys.modules", ...)` is on a reviewed allowlist | You shadowed a new module. `patch.dict` restores `sys.modules` by clear-and-update, which *deletes* anything first imported inside the block — unrecoverably so for a C extension. Check whether the guarded code can trigger a real first-time import; if so, warm that module in `test/conftest.py`, then list the name (see the test file's own docstring) |
 | `pyright src/zrb` (full run only) | Static type check | Fix the reported type error |
-| `pytest ... --cov-fail-under=90` (full run only) | ≥90% coverage | Add a test for the uncovered branch |
+| `pytest ... --cov-fail-under=94` (full run only) | ≥94% coverage | Add a test for the uncovered branch |
 
 The four ratchet gates run as ordinary pytest tests under `test/architecture/` (part of the `pytest` invocation below), not as separate shell steps — each file's own docstring documents its exact numbers and rationale; read it if a failure message alone isn't enough. `zrb-test.sh` itself only runs the `flake8 --select=F` step directly.
 

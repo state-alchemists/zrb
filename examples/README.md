@@ -32,6 +32,7 @@ Each folder is a self-contained `zrb_init.py` you can copy into your own project
 | [`model-tiering`](model-tiering) | Automatic model downgrading via `model_getter`/`model_renderer` |
 | [`live-context`](live-context) | Injecting live, per-turn runtime state into the prompt |
 | [`lsp-config`](lsp-config) | Registering a custom Language Server for code intelligence |
+| [`chat-gpio-ptt`](chat-gpio-ptt) | Driving a chat session from hardware buttons with `append_trigger` |
 
 ## Custom Chat UIs
 

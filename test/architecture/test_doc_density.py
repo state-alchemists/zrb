@@ -1,18 +1,16 @@
-"""Guards the ADR log against wall-of-text drift: average
-paragraph length tripled from 226 chars (ADR-0001-0030) to 615
-(ADR-0061-0091) before anyone measured it, and 126 paragraphs across 42
-files had crossed 700 characters — a wall a reader has to stop and re-read.
-This holds the line at the reflowed maximum (692), rounded up.
+"""Density limits for the ADR log and the guides; changelogs are exempt.
 
-Also guards the two other density facts measured at the same time: the
-non-ADR, non-changelog docs already average 154-228 chars per paragraph
-(no rewrite needed there — this just stops it drifting), and 26 of 29 long
-pages already carry a table of contents (the other three gained one in
-the reflow).
+A paragraph past `MAX_ADR_PARAGRAPH_CHARS` (or `MAX_DOC_PARAGRAPH_CHARS`
+outside `adr/`) is a wall the reader has to stop and re-read, and a page past
+`MIN_LINES_REQUIRING_TOC` needs a table of contents to be navigable.
 
-Changelogs are excluded from both paragraph checks on purpose: they are
-append-only history, never re-read start to finish, so density there is
-not the same defect it is in a lookup-table log or a guide.
+Changelogs are excluded from the paragraph checks: they are append-only
+history, read by lookup rather than start to finish, so density there is not
+the defect it is in a lookup-table log or a guide.
+
+Only prose counts. Headings, tables, fenced code, blockquotes, breadcrumbs,
+the ADR status line and list items are structure — a long bullet is a
+list-formatting problem, not a wall.
 """
 
 import re

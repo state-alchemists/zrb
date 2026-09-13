@@ -19,7 +19,6 @@ docs/llm/llm-chat-lifecycle.md.
 from __future__ import annotations
 
 import asyncio
-import inspect
 import logging
 import os
 from collections.abc import AsyncIterable, Callable
@@ -58,6 +57,7 @@ from zrb.llm.ui.base.message_queue import (
 )
 from zrb.llm.ui.base.persona_state import BaseUIPersonaState
 from zrb.llm.ui.base.replay import BaseUIReplay
+from zrb.llm.ui.base.triggers import BaseUITriggers
 from zrb.llm.ui.base.system_info import BaseUISystemInfo
 from zrb.llm.ui.base.usage import BaseUIUsage
 from zrb.llm.ui.base.voice_state import BaseUIVoiceState
@@ -68,7 +68,7 @@ from zrb.session.any_session import AnySession
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.util.cli.markdown import render_markdown
-from zrb.util.cli.style import stylize_error, stylize_muted
+from zrb.util.cli.style import stylize_muted
 from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
 
@@ -220,6 +220,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._plan_mode_active = False
         self._base_voice = BaseUIVoiceState()
         self._trigger_tasks: list[asyncio.Task] = []
+        self._base_triggers = BaseUITriggers(self)
         self._base_usage = BaseUIUsage()
         self._message_queue: MessageQueue = MessageQueue()
         self._active_run_context: Any = None
@@ -1296,34 +1297,10 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     # get_git_info, update_system_info_loop are inherited.
 
     async def trigger_loop(
-        self,
-        trigger_factory: Callable[[], AsyncIterable[Any]],
-    ):
-        """Handle external triggers and submit user message when trigger activated"""
-        try:
-            iterator = trigger_factory()
-            if inspect.isawaitable(iterator):
-                iterator = await iterator
-            if hasattr(iterator, "__aiter__"):
-                # Async Iterator
-                async_iter = iterator.__aiter__()
-                while True:
-                    try:
-                        result = await async_iter.__anext__()
-                    except StopAsyncIteration:
-                        break
-                    if result:
-                        self.submit_user_message(self.llm_task, str(result))
-            else:
-                self.append_to_output(
-                    stylize_error(
-                        f"\n[Trigger Error: Trigger factory returned non-async iterator: {type(iterator)}]\n"
-                    )
-                )
-        except asyncio.CancelledError:
-            pass
-        except Exception as e:
-            self.append_to_output(stylize_error(f"\n[Trigger Error: {e}]\n"))
+        self, trigger_factory: Callable[[], AsyncIterable[Any]]
+    ) -> None:
+        """Submit a user turn for every item *trigger_factory* yields."""
+        await self._base_triggers.trigger_loop(trigger_factory)
 
     # --- COMMAND HANDLERS live in BaseUICommands (see commands.py) ---
     # The methods handle_*, run_shell_command, stream_btw_response,

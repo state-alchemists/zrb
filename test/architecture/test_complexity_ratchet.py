@@ -1,20 +1,18 @@
-"""Complexity ratchets
+"""Complexity ratchets, measured twice because the two tools disagree.
 
-Two independent measurements, because they disagree in one specific,
-recurring way: mccabe (flake8's C901) sums a nested function's branches into
-its *enclosing* function's score, so a registration/factory function — a
-keybinding table, a route registrar, a tool factory returning closures — can
-score as "complex" as genuinely tangled logic even though every nested
-handler, scored on its own, is trivial (AGENTS.md's modularity note calls
-this out by name: "keybinding tables, hook creators, constructors"). radon
-scores each function in its own scope, so it isn't fooled by that shape —
-it's the number worth actually holding down.
+mccabe (flake8 C901) sums a nested function's branches into its *enclosing*
+function's score, so a registration or factory function — a keybinding table,
+a route registrar, a tool factory returning closures — scores like genuinely
+tangled logic even when every nested handler is trivial on its own. radon
+scores each function in its own scope and is not fooled by that shape, so
+`RADON_LIMIT` is the number worth holding down.
 
-Confirmed cases of the mccabe/closure inflation (checked: each has ≥1 nested
-`def`/`async def` inside it, and radon scores it ≤4) are marked
-`# noqa: C901` at the `def` line with a one-line reason. `MCCABE_LIMIT` below
-is what remains after those — a real ratchet on real per-function
-complexity, not a number dominated by two outlier registration functions.
+A function inflated by that shape carries `# noqa: C901` at its `def` line
+with a one-line reason, verified: it has at least one nested `def` and radon
+scores it ≤ 4. `MCCABE_LIMIT` is what remains after those.
+
+Both limits sit at the current maximum, so the next function to get worse
+fails here. Raising either needs a one-line reason in the same diff.
 """
 
 import json

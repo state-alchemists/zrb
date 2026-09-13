@@ -78,7 +78,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0031** — [Batteries-included builtin tasks, behind one toggle](adr-0031.md)
 - **ADR-0032** — [`Scaffolder` for template-based generation](adr-0032.md)
 - **ADR-0033** — [One distribution with disciplined lazy imports](adr-0033.md)
-- **ADR-0034** — [Test discipline: ≥90%, public API only, F-only lint](adr-0034.md)
+- **ADR-0034** — [Test discipline: ≥94%, public API only, F-only lint](adr-0034.md)
 - **ADR-0035** — [Compose large classes from parts via explicit collaborators, not multiple inheritance](adr-0035.md)
 - **ADR-0088** — [A shared leaf module lives outside the package that happens to write it, not nested inside it](adr-0088.md)
 - **ADR-0087** — [Web server binds to loopback by default; non-loopback is an explicit, warned-about choice](adr-0087.md)
@@ -162,6 +162,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 
 - **ADR-0085** — [An edited tool call tells the model what actually ran](adr-0085.md)
 - **ADR-0086** — [The agent-type hook builder is installed through a registry, not imported directly](adr-0086.md)
+- **ADR-0096** — [The agent barrel resolves lazily, and import safety is asserted per module](adr-0096.md)
 
 ### Configuration and component model
 
