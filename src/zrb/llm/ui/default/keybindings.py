@@ -90,7 +90,8 @@ class UIKeybindings:
                 ui.append_to_output("\n<Esc> Canceled")
             # Abort an in-flight voice recording/model-download so Ctrl+C
             # exits promptly instead of waiting on the download thread.
-            voice_task = getattr(ui, "voice_task", None)
+            voice = getattr(ui, "voice", None)
+            voice_task = None if voice is None else voice.task
             if voice_task is not None and not voice_task.done():
                 voice_task.cancel()
             ui.execute_hook(
@@ -265,7 +266,9 @@ class UIKeybindings:
         # OS key-repeat is filtered via a 300ms debounce (macOS default repeat
         # interval is ~67ms). Ctrl+Space always inserts a literal newline.
         voice_ptt_key = CFG.LLM_VOICE_PUSH_TO_TALK_KEY.strip().lower()
-        voice_mode_active = Condition(lambda: getattr(ui, "voice_mode_active", False))
+        voice_mode_active = Condition(
+            lambda: getattr(getattr(ui, "voice", None), "mode_active", False)
+        )
         _last_press: float = 0.0
         _KEY_REPEAT_DEBOUNCE = 0.3
 
@@ -289,11 +292,11 @@ class UIKeybindings:
             _last_press = now
 
             # Second press while recording → signal stop, exit voice mode.
-            if ui.voice_recording_active:
-                ui.voice_recording_active = False
-                if ui.voice_stop_event is not None:
-                    ui.voice_stop_event.set()
-                ui.voice_mode_active = False
+            if ui.voice.recording_active:
+                ui.voice.recording_active = False
+                if ui.voice.stop_event is not None:
+                    ui.voice.stop_event.set()
+                ui.voice.mode_active = False
                 ui.append_to_output(stylize_muted("  🎤 Stopped\n"))
                 ui.invalidate_ui()
                 return
@@ -306,9 +309,9 @@ class UIKeybindings:
             engine = _voice_engine
 
             # Set synchronously BEFORE create_task so key-repeat can't race.
-            ui.voice_recording_active = True
-            ui.voice_stop_event = asyncio.Event()
-            ui.voice_task = None
+            ui.voice.recording_active = True
+            ui.voice.stop_event = asyncio.Event()
+            ui.voice.task = None
 
             async def record_and_insert():
                 # Download the Vosk model before recording (first use only).
@@ -326,10 +329,10 @@ class UIKeybindings:
                         try:
                             await engine.download_vosk_model()
                         except Exception as exc:
-                            ui.voice_mode_active = False
-                            ui.voice_recording_active = False
-                            ui.voice_task = None
-                            ui.voice_stop_event = None
+                            ui.voice.mode_active = False
+                            ui.voice.recording_active = False
+                            ui.voice.task = None
+                            ui.voice.stop_event = None
                             ui.append_to_output(
                                 stylize_muted(f"\n  ⚠️ Voice error: {exc}\n")
                             )
@@ -342,20 +345,20 @@ class UIKeybindings:
                 ui.invalidate_ui()
                 try:
                     text = await engine.start_listening(
-                        stop_event=ui.voice_stop_event,
+                        stop_event=ui.voice.stop_event,
                     )
                 except Exception as exc:
-                    ui.voice_mode_active = False
-                    ui.voice_recording_active = False
-                    ui.voice_task = None
-                    ui.voice_stop_event = None
+                    ui.voice.mode_active = False
+                    ui.voice.recording_active = False
+                    ui.voice.task = None
+                    ui.voice.stop_event = None
                     ui.append_to_output(stylize_muted(f"\n  ⚠️ Voice error: {exc}\n"))
                     ui.invalidate_ui()
                     return
-                ui.voice_mode_active = False
-                ui.voice_recording_active = False
-                ui.voice_task = None
-                ui.voice_stop_event = None
+                ui.voice.mode_active = False
+                ui.voice.recording_active = False
+                ui.voice.task = None
+                ui.voice.stop_event = None
                 if text:
                     ui.input_field.buffer.insert_text(text)
                     word_count = len(text.split())
@@ -367,7 +370,7 @@ class UIKeybindings:
                 ui.invalidate_ui()
 
             task = asyncio.create_task(record_and_insert())
-            ui.voice_task = task
+            ui.voice.task = task
             ui.background_tasks.add(task)
             task.add_done_callback(ui.background_tasks.discard)
 

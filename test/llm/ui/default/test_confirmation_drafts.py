@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from zrb.llm.ui.default.confirmation import UIConfirmation
+from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 
 
 class _ForwardsToConfirmation:
@@ -33,9 +34,7 @@ class _ForwardsToConfirmation:
 
 class MockConfirmationUI(_ForwardsToConfirmation):
     def __init__(self):
-        self.confirmation_queue = []
-        self.confirmation_output_buffer = []
-        self.current_confirmation = None
+        self.confirmation = BaseUIConfirmationState()
         self._confirmation = UIConfirmation(self)
 
     def append_to_output(self, text, end="\n"):
@@ -66,9 +65,7 @@ class DraftConfirmationUI(_ForwardsToConfirmation):
     """Wires a fake input field so the draft stash/restore paths run."""
 
     def __init__(self, draft=""):
-        self.confirmation_queue = []
-        self.confirmation_output_buffer = []
-        self.current_confirmation = None
+        self.confirmation = BaseUIConfirmationState()
         self.input_field = FakeInputField(draft)
         self._confirmation = UIConfirmation(self)
         # Public alias so tests can reach the composed part without a
@@ -89,9 +86,7 @@ class ViewAwareConfirmationUI(_ForwardsToConfirmation):
     `UIAgentPicker` in the composed default `UI`)."""
 
     def __init__(self, viewing_agent_id=None):
-        self.confirmation_queue = []
-        self.confirmation_output_buffer = []
-        self.current_confirmation = None
+        self.confirmation = BaseUIConfirmationState()
         self.viewing_agent_id = viewing_agent_id
         self.conversation_session_name = "sess"
         self._confirmation = UIConfirmation(self)
@@ -103,10 +98,10 @@ class ViewAwareConfirmationUI(_ForwardsToConfirmation):
         pass
 
     def has_current_confirmation(self):
-        return self.current_confirmation is not None
+        return self.confirmation.current is not None
 
     def confirmation_count(self):
-        return len(self.confirmation_queue)
+        return len(self.confirmation.queue)
 
     def handle_confirmation(self, event):
         return self._confirmation.handle_confirmation(event)
@@ -142,7 +137,7 @@ async def test_no_input_field_skips_draft_stash():
 
         ui.submit_user_answer("y")
         assert await task == "y"
-        assert ui.current_confirmation is None
+        assert ui.confirmation.current is None
 
 
 @pytest.mark.asyncio

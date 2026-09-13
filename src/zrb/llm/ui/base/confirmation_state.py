@@ -2,10 +2,8 @@
 
 Self-contained like `BaseUIUsage`: the actual queueing/resolution logic lives
 in `UIConfirmation` (`llm/ui/default/confirmation.py`), which reaches this
-state only through `BaseUI`'s public properties (`current_confirmation`,
-`confirmation_queue`, `confirmation_output_buffer`) — so this part, like that
-one, needs no reference back to the owner. It exists to give the three fields
-one name instead of three independent ones on `BaseUI` itself.
+state through `BaseUI.confirmation` — so this part, like that one, needs no
+reference back to the owner.
 """
 
 from __future__ import annotations

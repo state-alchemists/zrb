@@ -52,9 +52,18 @@ class BaseUITriggers:
                 if not text and not attachments:
                     continue
                 # Drained by the `submit_user_message` below (a `MultiUI`
-                # parent collects from its children) -- no await between.
+                # parent collects from its children) -- no await between, so
+                # this slice still holds exactly what this item staged. The
+                # drain happens after the submission's echo, so a submission
+                # that raises before it would otherwise leave these staged for
+                # whatever turn comes next.
+                staged_from = len(owner.pending_attachments)
                 owner.pending_attachments.extend(attachments)
-                owner.submit_user_message(owner.llm_task, text)
+                try:
+                    owner.submit_user_message(owner.llm_task, text)
+                except BaseException:
+                    del owner.pending_attachments[staged_from:]
+                    raise
         except asyncio.CancelledError:
             pass
         except Exception as e:

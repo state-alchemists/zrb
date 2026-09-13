@@ -117,7 +117,7 @@ class TestBaseUICommandHandlers:
         assert result is True
         assert ui.conversation_session_name == "my-session"
         # The usage meter tracks spend per loaded conversation
-        assert ui.session_token_usage == (0, 0)
+        assert ui.usage.session_token_usage == (0, 0)
 
     def test_handle_load_command_no_name(self, simple_ui_instance):
         """Bare `/load` warns instead of falling through to the LLM."""

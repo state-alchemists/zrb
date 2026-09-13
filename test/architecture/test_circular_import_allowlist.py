@@ -87,18 +87,26 @@ _ISOLATED_IMPORT = textwrap.dedent("""
 
 
 def _all_modules() -> list[str]:
-    """Every module an ordinary `import zrb...` statement can name.
+    """Every target an ordinary `import zrb...` statement can name.
+
+    Packages as well as plain modules: a package name imports its
+    `__init__.py`, which a plain-module target never does — the subprocess
+    stubs every parent, so importing `zrb.llm.agent.common` leaves
+    `zrb/llm/agent/__init__.py` unexecuted. A barrel whose `__getattr__` or
+    re-exports break is only caught by naming the package itself.
 
     The identifier-legal filter excludes the shipped skill tool scripts under
     `llm_plugin/*_skills/<skill>/tools/` — standalone CLI programs in
     hyphenated directories, which import nothing from `zrb`.
     """
-    return sorted(
-        ".".join(("zrb", *path.relative_to(SRC).with_suffix("").parts))
-        for path in SRC.rglob("*.py")
-        if path.name != "__init__.py"
-        and all(part.isidentifier() for part in path.relative_to(SRC).with_suffix("").parts)
-    )
+    targets = set()
+    for path in SRC.rglob("*.py"):
+        relative = path.parent if path.name == "__init__.py" else path.with_suffix("")
+        parts = relative.relative_to(SRC).parts
+        if all(part.isidentifier() for part in parts):
+            targets.add(".".join(("zrb", *parts)))
+    targets.discard("zrb")
+    return sorted(targets)
 
 
 @pytest.mark.parametrize("module", _all_modules())

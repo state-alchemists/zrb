@@ -7,6 +7,7 @@ from prompt_toolkit.clipboard import ClipboardData
 from prompt_toolkit.key_binding import KeyBindings
 
 from zrb.llm.ui.base.message_queue import MessageQueue
+from zrb.llm.ui.base.voice_state import BaseUIVoiceState
 from zrb.llm.ui.default.agent_picker import UIAgentPicker
 from zrb.llm.ui.default.keybindings import UIKeybindings
 from zrb.llm.ui.default.message_editing import UIMessageEditing
@@ -28,10 +29,7 @@ class MockUI:
         self.conversation_session_name = "test_session"
         self.running_llm_task = None
         self.is_thinking = False
-        self.voice_mode_active = False
-        self.voice_recording_active = False
-        self.voice_task = None
-        self.voice_stop_event = None
+        self.voice = BaseUIVoiceState()
 
         self.input_field = MagicMock()
         self.output_field = MagicMock()
@@ -212,7 +210,7 @@ def test_ctrl_c_cancels_in_flight_voice_task(mock_ui, setup_bindings):
     """Ctrl+C with an empty buffer cancels any in-flight voice task."""
     voice_task = MagicMock()
     voice_task.done.return_value = False
-    mock_ui.voice_task = voice_task
+    mock_ui.voice.task = voice_task
     event = create_mock_event("")
 
     trigger_binding(setup_bindings, "c-c", event)
@@ -222,7 +220,7 @@ def test_ctrl_c_cancels_in_flight_voice_task(mock_ui, setup_bindings):
 
 def test_voice_ptt_not_focused_inserts_space(mock_ui, setup_bindings):
     """When the input field isn't focused, the PTT key inserts a literal space."""
-    mock_ui.voice_mode_active = True
+    mock_ui.voice.mode_active = True
     event = create_mock_event()
     event.app.layout.has_focus.return_value = False
 
@@ -233,17 +231,17 @@ def test_voice_ptt_not_focused_inserts_space(mock_ui, setup_bindings):
 
 def test_voice_ptt_stop_then_debounced_second_press(mock_ui, setup_bindings):
     """First press while recording stops + exits; a too-fast 2nd press is ignored."""
-    mock_ui.voice_mode_active = True
-    mock_ui.voice_recording_active = True
-    mock_ui.voice_stop_event = asyncio.Event()
+    mock_ui.voice.mode_active = True
+    mock_ui.voice.recording_active = True
+    mock_ui.voice.stop_event = asyncio.Event()
     event = create_mock_event()
     event.app.layout.has_focus.return_value = True
 
     with patch("time.time", side_effect=[100.0, 100.05]):
         trigger_binding(setup_bindings, " ", event)  # stop branch
-        assert mock_ui.voice_recording_active is False
-        assert mock_ui.voice_mode_active is False
-        assert mock_ui.voice_stop_event.is_set()
+        assert mock_ui.voice.recording_active is False
+        assert mock_ui.voice.mode_active is False
+        assert mock_ui.voice.stop_event.is_set()
         outputs_after_stop = len(mock_ui.outputs)
         trigger_binding(setup_bindings, " ", event)  # debounced no-op
         assert len(mock_ui.outputs) == outputs_after_stop
@@ -254,7 +252,7 @@ def test_voice_ptt_stop_then_debounced_second_press(mock_ui, setup_bindings):
 @pytest.mark.asyncio
 async def test_voice_ptt_start_records_and_inserts(mock_ui, setup_bindings):
     """A press starts recording; transcribed text is inserted on completion."""
-    mock_ui.voice_mode_active = True
+    mock_ui.voice.mode_active = True
     fake_engine = MagicMock()
     fake_engine.start_listening = AsyncMock(return_value="hello world")
     event = create_mock_event()
@@ -265,19 +263,19 @@ async def test_voice_ptt_start_records_and_inserts(mock_ui, setup_bindings):
         patch.dict(os.environ, {"ZRB_LLM_VOICE_MODE": "openai"}),
     ):
         trigger_binding(setup_bindings, " ", event)
-        assert mock_ui.voice_recording_active is True
+        assert mock_ui.voice.recording_active is True
         await _drain(mock_ui)
 
     fake_engine.start_listening.assert_awaited_once()
     mock_ui.input_field.buffer.insert_text.assert_called_with("hello world")
     assert any("Transcribed (2 words)" in o for o in mock_ui.outputs)
-    assert mock_ui.voice_recording_active is False
+    assert mock_ui.voice.recording_active is False
 
 
 @pytest.mark.asyncio
 async def test_voice_ptt_no_speech_detected(mock_ui, setup_bindings):
     """An empty transcription reports 'No speech detected'."""
-    mock_ui.voice_mode_active = True
+    mock_ui.voice.mode_active = True
     fake_engine = MagicMock()
     fake_engine.start_listening = AsyncMock(return_value="")
     event = create_mock_event()
@@ -295,7 +293,7 @@ async def test_voice_ptt_no_speech_detected(mock_ui, setup_bindings):
 @pytest.mark.asyncio
 async def test_voice_ptt_start_listening_error(mock_ui, setup_bindings):
     """A recording error surfaces and resets voice state."""
-    mock_ui.voice_mode_active = True
+    mock_ui.voice.mode_active = True
     fake_engine = MagicMock()
     fake_engine.start_listening = AsyncMock(side_effect=RuntimeError("mic fail"))
     event = create_mock_event()
@@ -308,13 +306,13 @@ async def test_voice_ptt_start_listening_error(mock_ui, setup_bindings):
         await _drain(mock_ui)
 
     assert any("Voice error" in o and "mic fail" in o for o in mock_ui.outputs)
-    assert mock_ui.voice_mode_active is False
+    assert mock_ui.voice.mode_active is False
 
 
 @pytest.mark.asyncio
 async def test_voice_ptt_vosk_downloads_model_first(mock_ui, setup_bindings):
     """The vosk backend downloads the model on first use before recording."""
-    mock_ui.voice_mode_active = True
+    mock_ui.voice.mode_active = True
     fake_engine = MagicMock()
     fake_engine.is_ready = False
     fake_engine.is_vosk_model_ready = MagicMock(return_value=False)
@@ -337,7 +335,7 @@ async def test_voice_ptt_vosk_downloads_model_first(mock_ui, setup_bindings):
 @pytest.mark.asyncio
 async def test_voice_ptt_vosk_download_error_aborts(mock_ui, setup_bindings):
     """A model-download failure surfaces and skips recording."""
-    mock_ui.voice_mode_active = True
+    mock_ui.voice.mode_active = True
     fake_engine = MagicMock()
     fake_engine.is_ready = False
     fake_engine.is_vosk_model_ready = MagicMock(return_value=False)

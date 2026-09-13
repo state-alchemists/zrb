@@ -433,3 +433,25 @@ async def test_trigger_loop_does_not_leak_attachments_between_items(
     )
 
     assert submitted == [("first", [photo]), ("second", [])]
+
+
+@pytest.mark.asyncio
+async def test_trigger_loop_unstages_attachments_when_submission_fails(
+    base_ui, monkeypatch
+):
+    """A failed submission must not leave its attachments for the next turn.
+
+    `submit_user_message` drains `pending_attachments` only after echoing the
+    message, so a raise before that point leaves them staged — and the next
+    message, typed or triggered, would carry a photo nobody asked it to.
+    """
+    photo = object()
+
+    def failing_submit(llm_task, user_message):
+        raise RuntimeError("backend down")
+
+    monkeypatch.setattr(base_ui, "submit_user_message", failing_submit)
+
+    await base_ui.trigger_loop(trigger_yielding(TriggerMessage("look", [photo])))
+
+    assert base_ui.pending_attachments == []

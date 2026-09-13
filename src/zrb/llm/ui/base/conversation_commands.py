@@ -105,7 +105,7 @@ class BaseUIConversationCommands:
                     self._base_ui.replay_history(history)
                     # The usage meter tracks spend per loaded conversation;
                     # past sessions' spend is not persisted, so start fresh.
-                    self._base_ui.reset_session_token_usage()
+                    self._base_ui.usage.reset()
                     self.apply_persona_for_session(name)
                 except Exception as e:
                     # Roll back everything the failed load may have touched:
@@ -194,22 +194,22 @@ class BaseUIConversationCommands:
             include_sections=[],
         )
         self._base_ui.model = resolved.model
-        self._base_ui.active_subagent_persona = agent_name
+        self._base_ui.persona.active_subagent = agent_name
         self._base_ui.append_to_output(
             stylize_muted(f"\n  🤖 Now driving as sub-agent: {agent_name}\n")
         )
         self._base_ui.invalidate_ui()
 
     def _restore_main_persona(self) -> None:
-        snapshot = self._base_ui.original_persona_snapshot
+        snapshot = self._base_ui.persona.original_snapshot
         if snapshot is None:
             return  # never swapped away — nothing to restore
         self._base_ui.llm_task.tools = snapshot["tools"]
         self._base_ui.llm_task.toolsets = snapshot["toolsets"]
         self._base_ui.llm_task.prompt_manager = snapshot["prompt_manager"]
         self._base_ui.model = snapshot["model"]
-        self._base_ui.active_subagent_persona = None
-        self._base_ui.original_persona_snapshot = None
+        self._base_ui.persona.active_subagent = None
+        self._base_ui.persona.original_snapshot = None
         self._base_ui.append_to_output(
             stylize_muted("\n  🤖 Back to the main agent.\n")
         )
@@ -219,9 +219,9 @@ class BaseUIConversationCommands:
         """Capture the main agent's config the first time it's swapped away
         from, so `_restore_main_persona` always restores the *original*
         persona rather than whichever sub-agent was active most recently."""
-        if self._base_ui.original_persona_snapshot is not None:
+        if self._base_ui.persona.original_snapshot is not None:
             return
-        self._base_ui.original_persona_snapshot = {
+        self._base_ui.persona.original_snapshot = {
             "tools": list(self._base_ui.llm_task.tools),
             "toolsets": list(self._base_ui.llm_task.toolsets),
             "prompt_manager": self._base_ui.llm_task.prompt_manager,
@@ -235,8 +235,8 @@ class BaseUIConversationCommands:
             "toolsets": self._base_ui.llm_task.toolsets,
             "prompt_manager": self._base_ui.llm_task.prompt_manager,
             "model": self._base_ui.model,
-            "active_subagent_persona": self._base_ui.active_subagent_persona,
-            "original_persona_snapshot": self._base_ui.original_persona_snapshot,
+            "active_subagent_persona": self._base_ui.persona.active_subagent,
+            "original_persona_snapshot": self._base_ui.persona.original_snapshot,
         }
 
     def _apply_persona_state(self, state: dict[str, Any]) -> None:
@@ -244,8 +244,8 @@ class BaseUIConversationCommands:
         self._base_ui.llm_task.toolsets = state["toolsets"]
         self._base_ui.llm_task.prompt_manager = state["prompt_manager"]
         self._base_ui.model = state["model"]
-        self._base_ui.active_subagent_persona = state["active_subagent_persona"]
-        self._base_ui.original_persona_snapshot = state["original_persona_snapshot"]
+        self._base_ui.persona.active_subagent = state["active_subagent_persona"]
+        self._base_ui.persona.original_snapshot = state["original_persona_snapshot"]
 
     # --- rewind -----------------------------------------------------------
 

@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.llm.ui.default.message_editing import UIMessageEditing
 from zrb.llm.ui.default.output import UIOutput
+from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 
 
 class MockOutputUI:
@@ -23,7 +24,7 @@ class MockOutputUI:
         self.model = "test-model"
         self.git_info = "main"
         self.assistant_name = "Zrb"
-        self.confirmation_output_buffer = []
+        self.confirmation = BaseUIConfirmationState()
         self.rendered_blocks = []
         self.rendered_width = None
         self.pending_invalidate = False

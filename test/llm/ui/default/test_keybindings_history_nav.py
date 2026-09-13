@@ -8,6 +8,7 @@ from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
 from zrb.llm.ui.default.agent_picker import UIAgentPicker
 from zrb.llm.ui.default.keybindings import UIKeybindings
 from zrb.llm.ui.default.message_editing import UIMessageEditing
+from zrb.llm.ui.base.voice_state import BaseUIVoiceState
 
 
 class MockUI:
@@ -26,10 +27,7 @@ class MockUI:
         self.conversation_session_name = "test_session"
         self.running_llm_task = None
         self.is_thinking = False
-        self.voice_mode_active = False
-        self.voice_recording_active = False
-        self.voice_task = None
-        self.voice_stop_event = None
+        self.voice = BaseUIVoiceState()
 
         self.input_field = MagicMock()
         self.output_field = MagicMock()

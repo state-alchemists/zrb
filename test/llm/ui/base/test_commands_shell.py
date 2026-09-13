@@ -336,20 +336,20 @@ async def test_command_dispatch_exception_is_logged(ui):
 def test_handle_toggle_voice_enables(ui):
     """`/voice` toggles voice mode on when disabled."""
     with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "true"}):
-        assert ui.voice_mode_active is False
+        assert ui.voice.mode_active is False
         result = ui.handle_toggle_voice("/voice")
         assert result is True
-        assert ui.voice_mode_active is True
+        assert ui.voice.mode_active is True
         assert any("ON" in o for o in ui.outputs)
 
 
 def test_handle_toggle_voice_disables(ui):
     """`/voice` toggles voice mode off when enabled."""
-    ui.voice_mode_active = True
+    ui.voice.mode_active = True
     with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "true"}):
         result = ui.handle_toggle_voice("/voice")
         assert result is True
-        assert ui.voice_mode_active is False
+        assert ui.voice.mode_active is False
         assert any("OFF" in o for o in ui.outputs)
 
 
@@ -358,7 +358,7 @@ def test_handle_toggle_voice_blocked_when_disabled(ui):
     with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "false"}):
         result = ui.handle_toggle_voice("/voice")
         assert result is True
-        assert ui.voice_mode_active is False
+        assert ui.voice.mode_active is False
         assert any("not enabled" in o for o in ui.outputs)
 
 
@@ -369,5 +369,5 @@ def test_handle_toggle_voice_auto_enables_when_vosk_installed(ui):
         with patch("zrb.llm.voice.engine.vosk_installed", return_value=True):
             result = ui.handle_toggle_voice("/voice")
     assert result is True
-    assert ui.voice_mode_active is True
+    assert ui.voice.mode_active is True
     assert any("vosk detected" in o for o in ui.outputs)

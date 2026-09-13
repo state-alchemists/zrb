@@ -213,15 +213,15 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self.model = model
         self._small_model: Any = None
         self._multimodal_model: Any = None
-        self._base_persona = BaseUIPersonaState()
+        self.persona = BaseUIPersonaState()
         self._triggers = _default_list(triggers)
         self._markdown_theme = markdown_theme
         self._custom_commands = _default_list(custom_commands)
         self._plan_mode_active = False
-        self._base_voice = BaseUIVoiceState()
+        self.voice = BaseUIVoiceState()
         self._trigger_tasks: list[asyncio.Task] = []
         self._base_triggers = BaseUITriggers(self)
-        self._base_usage = BaseUIUsage()
+        self.usage = BaseUIUsage()
         self._message_queue: MessageQueue = MessageQueue()
         self._active_run_context: Any = None
         self._process_messages_task: asyncio.Task | None = None
@@ -254,7 +254,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             response_handlers=_default_list(response_handlers)
             + [default_response_handler],
         )
-        self._base_confirmation = BaseUIConfirmationState()
+        self.confirmation = BaseUIConfirmationState()
 
         # Track background tasks to prevent garbage collection
         self._background_tasks: set[asyncio.Task] = set()
@@ -383,11 +383,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         return self._background_tasks
 
     @property
-    def confirmation_output_buffer(self) -> list[str]:
-        """Public read accessor for the buffered output held during confirmation."""
-        return self._base_confirmation.output_buffer
-
-    @property
     def pending_attachments(self) -> list[Any]:
         """Public read accessor for attachments queued for the next turn."""
         return self._pending_attachments
@@ -402,24 +397,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._plan_mode_active = value
 
     @property
-    def voice_mode_active(self) -> bool:
-        """Whether voice dictation mode is currently active."""
-        return self._base_voice.mode_active
-
-    @voice_mode_active.setter
-    def voice_mode_active(self, value: bool):
-        self._base_voice.mode_active = value
-
-    @property
-    def current_confirmation(self) -> "asyncio.Future[str] | None":
-        """The pending tool-call confirmation future, if any."""
-        return self._base_confirmation.current
-
-    @current_confirmation.setter
-    def current_confirmation(self, value: "asyncio.Future[str] | None"):
-        self._base_confirmation.current = value
-
-    @property
     def message_queue(self) -> Any:
         """Public read accessor for the pending-message queue."""
         return self._message_queue
@@ -431,33 +408,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     copy_commands = _command_alias_property("copy", "copy-transcript")
 
     @property
-    def voice_recording_active(self) -> bool:
-        """Whether a voice recording is currently in progress."""
-        return self._base_voice.recording_active
-
-    @voice_recording_active.setter
-    def voice_recording_active(self, value: bool):
-        self._base_voice.recording_active = value
-
-    @property
-    def voice_stop_event(self) -> "asyncio.Event | None":
-        """The event that signals an in-progress voice recording to stop."""
-        return self._base_voice.stop_event
-
-    @voice_stop_event.setter
-    def voice_stop_event(self, value: "asyncio.Event | None"):
-        self._base_voice.stop_event = value
-
-    @property
-    def voice_task(self) -> "asyncio.Task | None":
-        """The task running the in-progress voice recording, if any."""
-        return self._base_voice.task
-
-    @voice_task.setter
-    def voice_task(self, value: "asyncio.Task | None"):
-        self._base_voice.task = value
-
-    @property
     def running_llm_task(self) -> "asyncio.Task | None":
         """The task currently executing a turn from the message queue, if any."""
         return self._running_llm_task
@@ -465,37 +415,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     @running_llm_task.setter
     def running_llm_task(self, value: "asyncio.Task | None"):
         self._running_llm_task = value
-
-    @property
-    def confirmation_queue(
-        self,
-    ) -> "list[tuple[asyncio.Future[str], str, Any, str | None]]":
-        """Pending confirmation requests, each (future, prompt, spec, agent_id)."""
-        return self._base_confirmation.queue
-
-    @confirmation_queue.setter
-    def confirmation_queue(
-        self, value: "list[tuple[asyncio.Future[str], str, Any, str | None]]"
-    ):
-        self._base_confirmation.queue = value
-
-    @property
-    def active_subagent_persona(self) -> str | None:
-        """The sub-agent id whose persona is currently loaded via `/load`, if any."""
-        return self._base_persona.active_subagent
-
-    @active_subagent_persona.setter
-    def active_subagent_persona(self, value: str | None):
-        self._base_persona.active_subagent = value
-
-    @property
-    def original_persona_snapshot(self) -> "dict[str, Any] | None":
-        """The main persona's saved state, while a sub-agent persona is loaded."""
-        return self._base_persona.original_snapshot
-
-    @original_persona_snapshot.setter
-    def original_persona_snapshot(self, value: "dict[str, Any] | None"):
-        self._base_persona.original_snapshot = value
 
     @property
     def cwd(self) -> str:
@@ -697,31 +616,11 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         """Get the context for this UI."""
         return self._ctx
 
-    @property
-    def session_token_usage(self) -> tuple[int, int]:
-        """Accumulated (input, output) tokens across all runs in this session."""
-        return self._base_usage.session_token_usage
-
-    @property
-    def session_cache_read_tokens(self) -> int:
-        """Accumulated cache-read (cache-hit) tokens across the session."""
-        return self._base_usage.session_cache_read_tokens
-
-    @property
-    def context_tokens(self) -> int:
-        """Tokens occupying the current context window (last request's input +
-        output — the assistant's reply is now in history and re-sent next turn)."""
-        return self._base_usage.context_tokens
-
     def accumulate_usage(
         self, usage: "RunUsage", context_usage: "RequestUsage | None" = None
     ) -> None:
         """Fold one run's usage into session totals and refresh context size."""
-        self._base_usage.accumulate(usage, context_usage)
-
-    def reset_session_token_usage(self) -> None:
-        """Zero the session token totals (e.g. when switching conversations)."""
-        self._base_usage.reset()
+        self.usage.accumulate(usage, context_usage)
 
     @property
     def tool_call_handler(self) -> Any:

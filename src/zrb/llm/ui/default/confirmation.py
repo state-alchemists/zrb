@@ -69,9 +69,9 @@ class UIConfirmation:
         from prompt_toolkit.application import get_app
 
         future: asyncio.Future[str] = asyncio.Future()
-        self._ui.confirmation_queue.append((future, prompt, spec, agent_id))
+        self._ui.confirmation.queue.append((future, prompt, spec, agent_id))
 
-        if self._ui.current_confirmation is None:
+        if self._ui.confirmation.current is None:
             # Render BEFORE marking a confirmation pending. Order is
             # load-bearing: `append_to_output` buffers anything appended while
             # `_current_confirmation` is set and the agent is still thinking, so
@@ -81,18 +81,18 @@ class UIConfirmation:
             # question (e.g. AskUserQuestion, whose whole prompt arrives here).
             self._save_and_clear_input_draft()
             self._render_request(prompt, spec)
-            self._ui.current_confirmation = future
+            self._ui.confirmation.current = future
             get_app().invalidate()
 
         try:
             return await future
         finally:
-            queue = self._ui.confirmation_queue
-            self._ui.confirmation_queue = [
+            queue = self._ui.confirmation.queue
+            self._ui.confirmation.queue = [
                 entry for entry in queue if entry[0] is not future
             ]
-            if self._ui.current_confirmation is future:
-                self._ui.current_confirmation = None
+            if self._ui.confirmation.current is future:
+                self._ui.confirmation.current = None
                 self._ui.end_choice()
                 self._activate_next_confirmation()
 
@@ -140,31 +140,31 @@ class UIConfirmation:
 
     def resolve_current(self, text: str, echo: str | None) -> bool:
         """Resolve the active request with `text`; optionally echo to output."""
-        if self._ui.current_confirmation is None:
+        if self._ui.confirmation.current is None:
             return False
         if echo:
             # end="": callers (submit_user_answer) already bake their own
             # trailing "\n" into `echo` — the default end="\n" doubled it
             # into a blank line after every single confirmation answer.
             self._ui.append_to_output(echo, end="")
-        if not self._ui.current_confirmation.done():
-            self._ui.current_confirmation.set_result(text)
-        self._ui.current_confirmation = None
+        if not self._ui.confirmation.current.done():
+            self._ui.confirmation.current.set_result(text)
+        self._ui.confirmation.current = None
         self._ui.end_choice()
         self._activate_next_confirmation()
         return True
 
     def _flush_confirmation_buffer(self):
         """Flush buffered main-agent output to the output window."""
-        if not self._ui.confirmation_output_buffer:
+        if not self._ui.confirmation.output_buffer:
             return
-        content = "".join(self._ui.confirmation_output_buffer)
-        self._ui.confirmation_output_buffer.clear()
+        content = "".join(self._ui.confirmation.output_buffer)
+        self._ui.confirmation.output_buffer.clear()
         # Bypass the buffer guard in append_to_output
-        saved = self._ui.current_confirmation
-        self._ui.current_confirmation = None
+        saved = self._ui.confirmation.current
+        self._ui.confirmation.current = None
         self._ui.append_to_output(content)
-        self._ui.current_confirmation = saved
+        self._ui.confirmation.current = saved
 
     def _activate_next_confirmation(self):
         """Activate the next confirmation in the queue after one completes."""
@@ -173,19 +173,19 @@ class UIConfirmation:
 
         self._flush_confirmation_buffer()
 
-        pending_queue = self._ui.confirmation_queue
-        self._ui.confirmation_queue = [
+        pending_queue = self._ui.confirmation.queue
+        self._ui.confirmation.queue = [
             entry for entry in pending_queue if not entry[0].done()
         ]
 
-        queue = self._ui.confirmation_queue
-        if queue and self._ui.current_confirmation is None:
+        queue = self._ui.confirmation.queue
+        if queue and self._ui.confirmation.current is None:
             future, prompt, spec, _agent_id = queue[0]
             # Same ordering contract as _enqueue_request(): render before marking
             # pending, else append_to_output's buffer guard swallows the prompt.
             self._render_request(prompt, spec)
-            self._ui.current_confirmation = future
-        elif not self._ui.confirmation_queue:
+            self._ui.confirmation.current = future
+        elif not self._ui.confirmation.queue:
             # The queue drained: hand the half-typed message back to the user.
             self._restore_input_draft()
 
@@ -204,11 +204,11 @@ class UIConfirmation:
         """
         if flush:
             self._flush_confirmation_buffer()
-        for future, _, _, _ in self._ui.confirmation_queue:
+        for future, _, _, _ in self._ui.confirmation.queue:
             if not future.done():
                 future.cancel()
-        self._ui.confirmation_queue.clear()
-        self._ui.current_confirmation = None
+        self._ui.confirmation.queue.clear()
+        self._ui.confirmation.current = None
         self._ui.end_choice()
         self._restore_input_draft()
 
@@ -221,9 +221,9 @@ class UIConfirmation:
             viewing_agent_id,
             [
                 (entry_agent_id, fut.done())
-                for fut, _, _, entry_agent_id in self._ui.confirmation_queue
+                for fut, _, _, entry_agent_id in self._ui.confirmation.queue
             ],
-            "current" if self._ui.current_confirmation is not None else None,
+            "current" if self._ui.confirmation.current is not None else None,
         )
         if viewing_agent_id is not None:
             # Looking at a sub-agent's live view: an answer targets that
@@ -237,7 +237,7 @@ class UIConfirmation:
                 buff.reset()
                 return True
             return False
-        if self._ui.current_confirmation is None:
+        if self._ui.confirmation.current is None:
             return False
         # Clear the answer text BEFORE resolving: resolving hands any stashed
         # draft back into this same buffer, and resetting after the fact would
@@ -253,10 +253,10 @@ class UIConfirmation:
         answering from that agent's own live view, so the answer is echoed
         there instead of the main transcript.
         """
-        for future, _, _, entry_agent_id in self._ui.confirmation_queue:
+        for future, _, _, entry_agent_id in self._ui.confirmation.queue:
             if entry_agent_id != agent_id or future.done():
                 continue
-            if future is self._ui.current_confirmation:
+            if future is self._ui.confirmation.current:
                 self._ui.resolve_current(text, echo=None)
             else:
                 future.set_result(text)
