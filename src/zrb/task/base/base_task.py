@@ -23,24 +23,17 @@ from zrb.util.string.conversion import to_snake_case
 
 
 class BaseTask(AnyTask):
-    """
-    Implements a concrete task class `BaseTask` derived from the abstract base class `AnyTask`.
+    """The concrete, directly-instantiable `AnyTask`: a plain action plus
+    dependency wiring (`upstream`/`fallback`/`successor`), retries, and an
+    optional readiness check. `CmdTask` and `LLMTask` subclass it and replace
+    `action` with their own execution.
 
-    This class serves as a robust and flexible task implementation that can be tailored for
-    various execution scenarios within the Zrb framework. It supports functionalities such as:
-
-    - **Task Definition and Initialization:** Setting up task attributes like `name`, `color`,
-    `icon`, `description`, `cli_only`, `inputs`, `envs`, `action`, among others.
-    - **Dependency Management:** Managing task dependencies using properties and methods to
-    append upstreams, fallbacks, readiness checks, and successors, ensuring tasks are executed
-    in the correct order and conditions.
-    - **Execution Control:** Contains methods for both synchronous (`run`) and asynchronous
-    execution (`async_run`), alongside internal task lifecycle methods (`exec_root_tasks`,
-    `exec_chain`, `exec`).
-    - **Readiness and Monitoring:** Supports readiness checks, retry mechanisms, and monitoring
-    before task execution to ensure the task is executed under proper conditions.
-    - **Operator Overloading:** Implements operators to handle task chaining and dependencies
-    conveniently.
+    Behavior lives in composed parts, one per concern:
+    `BaseTaskContext` (env/input aggregation), `BaseTaskExecution`
+    (run/retry/readiness state machine), `BaseTaskLifecycle` (`run`,
+    `async_run`, `exec_root_tasks`), `BaseTaskMonitoring` (readiness
+    monitoring after the task is ready), and `BaseTaskOperators` (`>>`/`<<`).
+    Each part's own module docstring covers its concern in detail.
     """
 
     def __init__(

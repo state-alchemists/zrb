@@ -469,8 +469,8 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
     # =========================================================================
     # BaseUICommands delegators (including its composed conversation/model/exec
-    # collaborators — flattened here since callers historically reached them
-    # directly on `BaseUI`)
+    # collaborators — flattened here because the `AnyUI` contract and existing
+    # callers reach these directly on `BaseUI`, not through `.commands`)
     # =========================================================================
 
     @property

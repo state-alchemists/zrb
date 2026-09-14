@@ -28,15 +28,15 @@ def read_process_group(process: subprocess.Popen) -> int | None:
     That matters because ``setsid()`` runs *in the child*, concurrently with
     the parent continuing past ``fork()`` — nothing orders it before the
     parent's next instruction. Querying ``os.getpgid(pid)`` right after spawn
-    used to race that: under CPU contention the child can go unscheduled long
+    would race that: under CPU contention the child can go unscheduled long
     enough for the parent to sample its *pre-setsid* pgid — still the
-    parent's own, inherited one. That stale value then tripped
+    parent's own, inherited one. A stale value like that trips
     ``_safe_tree_kill_group``'s self-kill guard (it looks like our own group),
     silently downgrading to the per-pid psutil fallback — which kills
     descendants one at a time rather than atomically, leaving a window where
     a killed ``sleep`` in ``sleep 5; touch x`` lets its parent shell run
     ``touch`` before its own kill lands. Deriving the value instead of
-    sampling it closes that window entirely.
+    querying it closes that window entirely.
     """
     pid = getattr(process, "pid", None)
     if not isinstance(pid, int) or not hasattr(os, "getpgid"):
