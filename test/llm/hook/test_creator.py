@@ -37,8 +37,15 @@ async def test_command_hook_killed_by_signal_is_quiet_non_failure(caplog):
     Regression: a normal Ctrl+C during `zrb chat` surfaced as a scary
     `ERROR: Command hook failed: Command failed with exit code -2`.
     """
-    # The shell kills itself with SIGINT, so Popen.returncode is -2.
-    hook = create_command_hook(CommandHookConfig(command="kill -INT $$"))
+    # `kill()` only guarantees the signal becomes pending before it returns,
+    # not that it is delivered before the shell's next instruction — a single
+    # attempt can race the shell falling off the end of the script (exit 0)
+    # under scheduler contention. Resending closes that window.
+    hook = create_command_hook(
+        CommandHookConfig(
+            command="for i in 1 2 3 4 5; do kill -INT $$; sleep 0.02; done"
+        )
+    )
     context = HookContext(event=HookEvent.SESSION_END, event_data={})
 
     with caplog.at_level(logging.DEBUG, logger="zrb.llm.hook.creator"):
