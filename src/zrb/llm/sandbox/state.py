@@ -27,9 +27,10 @@ def get_current_sandbox_policy() -> SandboxPolicy | None:
 def sandbox_policy(policy: "SandboxPolicy | None") -> Generator[None]:
     """Scope `policy` as the in-force sandbox policy for the `with` block.
 
-    Always resets on exit, including on exception. The safe replacement for
-    the old unscoped `set_current_sandbox_policy` (see `permission_policy`
-    in `zrb.llm.permission.state` for the identical rationale).
+    Always resets on exit, including on exception, so a policy set here can
+    never leak into a later run sharing the same context (see
+    `permission_policy` in `zrb.llm.permission.state` for the identical
+    rationale).
     """
     with scoped(current_sandbox_policy, policy):
         yield

@@ -6,6 +6,7 @@ the prompt and agent hooks in `test_creator_llm.py`.
 
 import logging
 import os
+import signal
 from unittest.mock import patch
 
 import pytest
@@ -37,19 +38,23 @@ async def test_command_hook_killed_by_signal_is_quiet_non_failure(caplog):
     Regression: a normal Ctrl+C during `zrb chat` surfaced as a scary
     `ERROR: Command hook failed: Command failed with exit code -2`.
     """
-    # `kill()` only guarantees the signal becomes pending before it returns,
-    # not that it is delivered before the shell's next instruction — a single
-    # attempt can race the shell falling off the end of the script (exit 0)
-    # under scheduler contention. Resending closes that window.
-    hook = create_command_hook(
-        CommandHookConfig(
-            command="for i in 1 2 3 4 5; do kill -INT $$; sleep 0.02; done"
-        )
-    )
-    context = HookContext(event=HookEvent.SESSION_END, event_data={})
+    # `subprocess.Popen(shell=True)` inherits *this* process's own SIGINT
+    # disposition. If this test process was itself launched as a background
+    # job by a non-interactive shell, SIGINT arrives as SIG_IGN (POSIX
+    # backgrounds a job with SIGINT/SIGQUIT ignored so a stray Ctrl+C can't
+    # kill it) — and no `trap` inside the child shell can undo that (POSIX:
+    # a signal already SIG_IGN on shell entry cannot be un-ignored). Forcing
+    # SIG_DFL here makes `kill -INT $$` below actually kill the child
+    # regardless of how the test process itself was launched.
+    previous_handler = signal.signal(signal.SIGINT, signal.SIG_DFL)
+    try:
+        hook = create_command_hook(CommandHookConfig(command="kill -INT $$"))
+        context = HookContext(event=HookEvent.SESSION_END, event_data={})
 
-    with caplog.at_level(logging.DEBUG, logger="zrb.llm.hook.creator"):
-        result = await hook(context)
+        with caplog.at_level(logging.DEBUG, logger="zrb.llm.hook.creator"):
+            result = await hook(context)
+    finally:
+        signal.signal(signal.SIGINT, previous_handler)
 
     assert result.success is False
     assert "SIGINT" in (result.output or "")

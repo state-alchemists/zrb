@@ -1,4 +1,4 @@
-from __future__ import annotations  # Enables forward references
+from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
@@ -17,75 +17,72 @@ if TYPE_CHECKING:
 
 
 class AnySession(PydanticInstanceSchemaMixin, ABC):
-    """Abstract base class for managing task execution and context in a session.
-
-    This class handles task lifecycle management, context retrieval,
-    deferred task execution, and data exchange between tasks using
-    XCom-like functionality.
-    """
+    """One execution run's task graph state: each task's `Context`, status,
+    and deferred coroutines, plus the shared context tasks read/write
+    through."""
 
     @property
     @abstractmethod
     def name(self) -> str:
-        """Name this session"""
+        """This session's name."""
         pass
 
     @property
     @abstractmethod
     def root_group(self) -> AnyGroup | None:
-        """Session root group"""
+        """The group the main task was resolved from, if any."""
         pass
 
     @property
     @abstractmethod
     def task_names(self) -> list[str]:
-        """Task names in this session"""
+        """Names of every task registered in this session so far."""
         pass
 
     @property
     @abstractmethod
     def shared_ctx(self) -> "AnySharedContext":
-        """Shared context for this session"""
+        """The context every task in this session reads inputs/envs/xcom from."""
         pass
 
     @abstractmethod
     def terminate(self):
-        """Terminating session"""
+        """Mark this session terminated, cancelling its deferred coroutines."""
         pass
 
     @property
     @abstractmethod
     def is_terminated(self) -> bool:
-        """Whether session is terminated or not"""
+        """Whether `terminate` has been called on this session."""
         pass
 
     @property
     @abstractmethod
     def parent(self) -> "AnySession | None":
-        """Parent session"""
+        """The session that spawned this one, for a callback or sub-task."""
         pass
 
     @property
     @abstractmethod
     def task_path(self) -> list[str]:
-        """Main task's path"""
+        """The main task's group path, as CLI words."""
         pass
 
     @property
     @abstractmethod
     def final_result(self) -> Any:
-        """Main task's result"""
+        """The main task's result, once it has finished."""
         pass
 
     @property
     @abstractmethod
     def state_logger(self) -> AnySessionStateLogger:
-        """State logger"""
+        """The sink this session's state is persisted through."""
         pass
 
     @abstractmethod
     def set_main_task(self, main_task: "AnyTask"):
-        """Set main task"""
+        """Set the task this session was started to run."""
         pass
 
     @abstractmethod
@@ -94,108 +91,60 @@ class AnySession(PydanticInstanceSchemaMixin, ABC):
 
     @abstractmethod
     def get_ctx(self, task: "AnyTask") -> AnyContext:
-        """Retrieves the context for a specific task.
-
-        Args:
-            task (AnyTask): The task for which to retrieve the context.
-
-        Returns:
-            AnyContext: The context object specific to the provided task.
-        """
+        """This session's `Context` for *task*, registering it first if new."""
         pass
 
     @abstractmethod
     def defer_monitoring(
         self, task: "AnyTask", coro: Coroutine[Any, Any, Any] | asyncio.Task[Any]
     ):
-        """Defers the execution of a task's monitoring coroutine for later processing.
-
-        Args:
-            task (AnyTask): The task associated with the coroutine.
-            coro (Coroutine): The monitoring coroutine to defer.
-        """
+        """Track *task*'s readiness-monitoring coroutine, so `wait_deferred`
+        and `terminate` can reach it."""
         pass
 
     @abstractmethod
     def defer_action(
         self, task: "AnyTask", coro: Coroutine[Any, Any, Any] | asyncio.Task[Any]
     ):
-        """Defers the execution of a task's coroutine for later processing.
-
-        Args:
-            task (AnyTask): The task associated with the coroutine.
-            coro (Coroutine): The coroutine to defer.
-        """
+        """Track *task*'s action coroutine; cancelled immediately if the
+        session is already terminated."""
         pass
 
     @abstractmethod
     def defer_coro(self, coro: Coroutine[Any, Any, Any] | asyncio.Task[Any]):
-        """Defers the execution of a coroutine for later processing.
-
-        Args:
-            coro (Coroutine): The coroutine to defer.
-        """
+        """Track a coroutine not tied to any one task; cancelled immediately
+        if the session is already terminated."""
         pass
 
     @abstractmethod
     async def wait_deferred(self):
-        """Asynchronously waits for all deffered coroutines to complete"""
+        """Await every deferred coroutine tracked so far."""
         pass
 
     @abstractmethod
     def register_task(self, task: "AnyTask"):
-        """Registers a new task in the session.
-
-        Args:
-            task (AnyTask): The task to register in the session.
-        """
+        """Give *task* a `Context` and an xcom queue in this session, if it
+        does not have one yet."""
         pass
 
     @abstractmethod
     def get_root_tasks(self, task: "AnyTask") -> list["AnyTask"]:
-        """Retrieves the list of root tasks that should be executed first
-        to run the given task.
-
-        Args:
-            task (AnyTask): The current task.
-
-        Returns:
-            list[AnyTask]: A list of root tasks.
-        """
+        """*task*'s transitive upstreams that have no upstream of their own —
+        where execution of its chain starts."""
         pass
 
     @abstractmethod
     def get_next_tasks(self, task: "AnyTask") -> list["AnyTask"]:
-        """Retrieves the list of tasks that should be executed after the given task.
-
-        Args:
-            task (AnyTask): The current task.
-
-        Returns:
-            list[AnyTask]: A list of tasks that should be executed next.
-        """
+        """Tasks registered as running directly after *task*."""
         pass
 
     @abstractmethod
     def get_task_status(self, task: "AnyTask") -> TaskStatus:
-        """Get tasks' status.
-
-        Args:
-            task (AnyTask): The task to mark as started.
-
-        Returns:
-            TaskStatus: Task status object
-        """
+        """*task*'s status in this session, registering it first if new."""
         pass
 
     @abstractmethod
     def is_allowed_to_run(self, task: "AnyTask") -> bool:
-        """Determines if the specified task is allowed to run based on its current state.
-
-        Args:
-            task (AnyTask): The task to check.
-
-        Returns:
-            bool: True if the task is allowed to run, False otherwise.
-        """
+        """Whether *task* can start now: the session isn't terminated, *task*
+        hasn't already started or completed, and every upstream is done."""
         pass

@@ -1,4 +1,4 @@
-from __future__ import annotations  # Enables forward references
+from __future__ import annotations
 
 import sys
 from abc import ABC, abstractmethod
@@ -12,12 +12,8 @@ if TYPE_CHECKING:
 
 
 class AnySharedContext(PydanticInstanceSchemaMixin, ABC):
-    """Abstract base class for shared context across tasks.
-
-    This class provides methods to manage shared settings and utilities,
-    such as logging level configuration, time display preferences, and
-    rendering templates with additional data.
-    """
+    """State one session shares across every task in it: resolved inputs,
+    envs, xcom queues, the session-wide log, and template rendering."""
 
     @property
     @abstractmethod
@@ -87,24 +83,12 @@ class AnySharedContext(PydanticInstanceSchemaMixin, ABC):
 
     @abstractmethod
     def get_logging_level(self) -> int:
-        """Retrieves the current logging level.
-
-        Returns:
-            int: The logging level to be used, typically corresponding to
-            standard logging levels such as logging.DEBUG, loggin.INFO, logging.WARNING, etc.
-        """
+        """The active logging level, e.g. `logging.DEBUG`/`INFO`/`WARNING`."""
         pass
 
     @abstractmethod
     def render(self, template: str) -> str:
-        """Renders a template string with optional additional data.
-
-        Args:
-            template (str): The template string to be rendered.
-
-        Returns:
-            str: The rendered template as a string.
-        """
+        """Render *template* as an f-string against this context."""
         pass
 
     @abstractmethod

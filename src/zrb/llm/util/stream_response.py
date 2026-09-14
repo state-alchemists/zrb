@@ -322,9 +322,9 @@ class StreamEventHandler:
         placeholder first opened, plus `text`) and hands it to the UI's
         offset-tracked replace, so a later call for the same `tool_call_id`
         updates exactly that tool's own span — never "whichever line happens
-        to be last," which is what the old `\\r`-based erase relied on and
-        what broke the instant two tool calls' argument streams interleaved
-        (each one's spinner tick could erase the *other's* line).
+        to be last," which a naive `\\r`-based erase would assume, and which
+        breaks the instant two tool calls' argument streams interleave (each
+        one's spinner tick would erase the *other's* line).
         """
         if self._on_tool_prepare_update is None:
             return

@@ -97,17 +97,8 @@ class ThreadPoolHookExecutor:
         context: HookContext,
         timeout: float | None = None,
     ) -> HookExecutionResult:
-        """
-        Execute a hook with timeout and proper error handling.
-
-        Args:
-            hook: The hook callable to execute
-            context: Hook context with event data
-            timeout: Timeout in seconds (defaults to self.default_timeout)
-
-        Returns:
-            HookExecutionResult with Claude Code compatible fields
-        """
+        """Run *hook* under *timeout* (falling back to `self.default_timeout`),
+        returning a Claude-Code-compatible result instead of raising."""
         if self._shutdown_event.is_set():
             return HookExecutionResult(
                 success=False, error="Hook executor is shutting down", exit_code=1

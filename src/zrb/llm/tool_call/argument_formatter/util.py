@@ -11,17 +11,11 @@ def format_diff(
     path: str,
     term_width: int | None = None,
 ) -> str:
-    """
-    Returns a markdown-formatted diff string with line numbers.
-    Structure: [Marker] [LineNo] [Content]
-    This preserves syntax highlighting for diffs (red/green) while showing line numbers.
-    Long lines are wrapped to fit within the terminal width.
+    """Markdown-formatted diff with line numbers: `[Marker] [LineNo] [Content]`.
 
-    Args:
-        old_content: Original file content
-        new_content: New file content
-        path: File path (for display purposes)
-        term_width: Optional terminal width (if known)
+    Preserves diff syntax highlighting (red/green) while showing line
+    numbers. Long lines wrap to fit `term_width` (the terminal width, when
+    known).
     """
     diff_lines = list(
         difflib.unified_diff(

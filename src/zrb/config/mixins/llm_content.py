@@ -114,8 +114,7 @@ class LLMContentMixin:
             "Maximum hud_line entries kept per root-index HUD section (User, "
             "Preferences, Active Constraints). Oldest entries are evicted first "
             "so a stale preference does not sit in the always-injected index "
-            "forever. `<= 0` disables the cap (uncapped, matching the old "
-            "behavior)."
+            "forever. `<= 0` disables the cap (uncapped)."
         ),
     )
 

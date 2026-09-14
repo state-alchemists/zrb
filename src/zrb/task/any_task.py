@@ -13,28 +13,11 @@ if TYPE_CHECKING:
 
 
 class AnyTask(ABC):
-    """Abstract base class defining the interface for all executable tasks within Zrb.
-
-    This interface specifies the essential properties and methods that any concrete
-    task implementation must provide. It covers:
-
-    - **Metadata:** Properties like `name`, `description`, `color`, and `icon` for
-      identification and UI representation.
-    - **Configuration:** Properties for defining `inputs` (user-provided parameters)
-      and `envs` (environment variables).
-    - **Execution Control:** Properties like `cli_only` to restrict execution context.
-    - **Dependency Management:** Properties for `upstreams` (prerequisites),
-      `fallbacks` (error handling), `successors` (post-completion tasks), and
-      `readiness_checks` (for long-running tasks). Methods like `append_*` allow
-      programmatic modification of these dependencies.
-    - **Context Management:** `get_ctx` method to retrieve the task's specific
-      execution context.
-    - **Execution Methods:** `run` (synchronous) and `async_run` (asynchronous)
-      entry points, along with internal execution helpers (`exec_root_tasks`,
-      `exec_chain`, `exec`) defining the execution lifecycle.
-
-    Concrete task classes (like `BaseTask`) inherit from `AnyTask` and provide
-    the actual implementation for these abstract members.
+    """The task contract every task type (`BaseTask`, `CmdTask`, `LLMTask`, ...)
+    implements: identity (`name`/`color`/`icon`/`description`), the DAG edges
+    that decide execution order (`upstreams`/`fallbacks`/`successors`/
+    `readiness_checks`), input/env aggregation, and the `run`/`async_run`
+    entry points down to the per-node `exec` primitives.
     """
 
     @overload
@@ -115,65 +98,45 @@ class AnyTask(ABC):
     @property
     @abstractmethod
     def upstreams(self) -> list["AnyTask"]:
-        """Task upstreams"""
+        """Tasks that must complete before this one starts."""
         pass
 
     @property
     @abstractmethod
     def fallbacks(self) -> list["AnyTask"]:
-        """Task fallbacks"""
+        """Tasks to run if this task ultimately fails."""
         pass
 
     @property
     @abstractmethod
     def successors(self) -> list["AnyTask"]:
-        """Task successors"""
+        """Tasks to run after this task succeeds."""
         pass
 
     @property
     @abstractmethod
     def readiness_checks(self) -> list["AnyTask"]:
-        """Task readiness checks"""
+        """Tasks that must succeed before this task is considered ready."""
         pass
 
     @abstractmethod
     def append_fallback(self, fallbacks: "AnyTask | Sequence[AnyTask]"):
-        """Add the fallback tasks.
-
-        Args:
-            fallbacks (AnyTask | Sequence[AnyTask]): A single fallback task or
-                a list of fallback tasks.
-        """
+        """Add one or more fallback tasks."""
         pass
 
     @abstractmethod
     def append_successor(self, successors: "AnyTask | Sequence[AnyTask]"):
-        """Add the successor tasks.
-
-        Args:
-            successors (AnyTask | Sequence[AnyTask]): A single successor task or
-                a list of successor tasks.
-        """
+        """Add one or more successor tasks."""
         pass
 
     @abstractmethod
     def append_readiness_check(self, readiness_checks: "AnyTask | Sequence[AnyTask]"):
-        """Add the readiness_check tasks.
-
-        Args:
-            readiness_checks (AnyTask | Sequence[AnyTask]): A single readiness_check task or
-                a list of readiness_check tasks.
-        """
+        """Add one or more readiness-check tasks."""
         pass
 
     @abstractmethod
     def append_upstream(self, upstreams: "AnyTask | Sequence[AnyTask]"):
-        """Add the upstream tasks that this task depends on.
-
-        Args:
-            upstreams (AnyTask | Sequence[AnyTask]): A single upstream task or
-                a list of upstream tasks.
-        """
+        """Add one or more upstream tasks that this task depends on."""
         pass
 
     @abstractmethod
@@ -191,15 +154,10 @@ class AnyTask(ABC):
         str_kwargs: dict[str, str] | None = None,
         kwargs: dict[str, Any] | None = None,
     ) -> Any:
-        """Runs the task synchronously.
+        """Run the task synchronously within *session*, returning its result.
 
-        Args:
-            session (AnySession): The shared session.
-            str_kwargs(dict[str, str]): The input string values.
-            kwargs(dict[str, Any]): The input values.
-
-        Returns:
-            Any: The result of the task execution.
+        `str_kwargs`/`kwargs` seed input values as strings or already-typed
+        values, respectively.
         """
         pass
 
@@ -210,44 +168,23 @@ class AnyTask(ABC):
         str_kwargs: dict[str, str] | None = None,
         kwargs: dict[str, Any] | None = None,
     ) -> Any:
-        """Runs the task asynchronously.
-
-        Args:
-            session (AnySession): The shared session.
-            str_kwargs(dict[str, str]): The input string values.
-            kwargs(dict[str, Any]): The input values.
-
-        Returns:
-            Any: The result of the task execution.
-        """
+        """`run`'s async counterpart, for callers already inside an event loop."""
         pass
 
     @abstractmethod
     async def exec_root_tasks(self, session: "AnySession"):
-        """Execute the root tasks along with the downstreams until the current task
-        is ready.
-
-        Args:
-            session (AnySession): The shared session.
-        """
+        """Run this task's root upstreams and everything downstream of them,
+        until this task itself is ready."""
         pass
 
     @abstractmethod
     async def exec_chain(self, session: "AnySession"):
-        """Execute the task along with the downstreams.
-
-        Args:
-            session (AnySession): The shared session.
-        """
+        """Run this task and everything downstream of it."""
         pass
 
     @abstractmethod
     async def exec(self, session: "AnySession"):
-        """Execute the task (without upstream or downstream).
-
-        Args:
-            session (AnySession): The shared session.
-        """
+        """Run this task alone, without its upstreams or downstreams."""
         pass
 
     @abstractmethod

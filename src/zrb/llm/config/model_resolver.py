@@ -15,9 +15,9 @@ only reaches that one task; this reaches every call site that resolves
 through `CFG.LLM_MODEL` et al., including sub-agent delegation
 (`SubAgentBuilding.resolve_agent_build`), which has no task of its own to
 hold a per-task hook. Set once in `zrb_init.py` for a process-wide default —
-see `docs/changelog/v3/3.0.0.md` for why the old `llm_config.model_getter`/
-`model_renderer` (process-wide by accident, on a config object) became this
-(process-wide on purpose, on the resolver whose job it actually extends).
+deliberately, on the resolver whose job it actually extends, not on a config
+object it would only reach by accident. `docs/changelog/v3/3.0.0.md` has the
+migration table for projects still passing an `LLMConfig`.
 """
 
 import inspect

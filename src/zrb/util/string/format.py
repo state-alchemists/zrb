@@ -49,13 +49,6 @@ def fstring_format(template: str, data: dict[str, Any]) -> str:
     builtins whitelist alone cannot stop it, because plain attribute access is
     not governed by the eval globals.
 
-    Args:
-        template (str): The string template to format.
-        data (dict[str, Any]): The dictionary containing data for expression evaluation.
-
-    Returns:
-        str: The formatted string.
-
     Raises:
         ValueError: If an expression in the template fails to evaluate, uses a
             dunder name, or the template is invalid.

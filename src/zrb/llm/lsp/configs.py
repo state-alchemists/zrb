@@ -103,14 +103,10 @@ class LSPServerConfigRegistry:
     def get_for_file(
         self, file_path: str, preferred_servers: list[str] | None = None
     ) -> LSPServerConfig | None:
-        """Get the LSP server config for a given file.
+        """The LSP server config matching *file_path*'s language, or `None`.
 
-        Args:
-            file_path: Path to the file
-            preferred_servers: Optional list of preferred server names to try first
-
-        Returns:
-            LSPServerConfig if a matching server is found, None otherwise
+        When given, *preferred_servers* is tried first, in order, before
+        falling back to whatever else matches.
         """
         available = self.detect()
 
@@ -306,17 +302,8 @@ def detect_available_lsp_servers() -> dict[str, str]:
 def get_lsp_config_for_file(
     file_path: str, preferred_servers: list[str] | None = None
 ) -> LSPServerConfig | None:
-    """Get the LSP server config for a given file.
-
-    Delegates to :data:`lsp_server_configs`.
-
-    Args:
-        file_path: Path to the file
-        preferred_servers: Optional list of preferred server names to try first
-
-    Returns:
-        LSPServerConfig if a matching server is found, None otherwise
-    """
+    """Module-level convenience for :meth:`LSPServerConfigRegistry.get_for_file`
+    on the shared :data:`lsp_server_configs`."""
     return lsp_server_configs.get_for_file(file_path, preferred_servers)
 
 

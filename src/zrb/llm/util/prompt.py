@@ -47,14 +47,7 @@ def expand_prompt(prompt: str) -> str:
 
 
 def get_path_references(prompt: str) -> list[re.Match]:
-    """Find all @path references in the prompt.
-
-    Args:
-        prompt: The input prompt string
-
-    Returns:
-        List of regex match objects for @path references
-    """
+    """Every `@path` reference in *prompt*, as regex match objects."""
     if not prompt:
         return []
     # Regex to capture @path.

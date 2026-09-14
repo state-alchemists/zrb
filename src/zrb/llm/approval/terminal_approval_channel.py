@@ -24,11 +24,6 @@ class TerminalApprovalChannel(AnyApprovalChannel):
     """
 
     def __init__(self, ui: "AnyUI"):
-        """Initialize with an AnyUI instance.
-
-        Args:
-            ui: The UI to use for terminal interaction.
-        """
         self._ui = ui
 
     async def request_approval(

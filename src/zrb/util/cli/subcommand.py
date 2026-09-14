@@ -7,20 +7,12 @@ class SubCommand:
         paths: list[str] | None = None,
         nexts: list[str] | None = None,
     ):
-        """
-        Initialize a SubCommand object.
-
-        Args:
-            paths (list[str]): The list of path components leading to this subcommand.
-            nexts (list[str]): The list of possible next subcommand or task names.
-        """
+        """`paths`: the group path leading here. `nexts`: the task/subgroup
+        names reachable directly from it."""
         self.paths = paths if paths is not None else []
         self.nexts = nexts if nexts is not None else []
 
     def __repr__(self):
-        """
-        Return a string representation of the SubCommand object.
-        """
         return f"<{self.__class__.__name__} paths={self.paths} nexts={self.nexts}>"
 
 
@@ -29,17 +21,10 @@ def get_group_subcommands(
     previous_path: list[str] | None = None,
     subcommands: list[SubCommand] | None = None,
 ) -> list[SubCommand]:
-    """
-    Recursively get all possible subcommands within a group hierarchy.
-
-    Args:
-        group (AnyGroup): The current group to process.
-        previous_path (list[str]): The path leading to the current group.
-        subcommands (list[SubCommand]): The list to accumulate subcommands.
-
-    Returns:
-        list[SubCommand]: A list of all discovered subcommands.
-    """
+    """One `SubCommand` per group/subgroup in the hierarchy rooted at
+    `group`, each paired with the task and subgroup names reachable directly
+    from it. `previous_path` and `subcommands` are recursion-internal
+    accumulators; call with just `group`."""
     if previous_path is None:
         previous_path = []
     if subcommands is None:

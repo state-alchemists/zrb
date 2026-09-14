@@ -7,39 +7,23 @@ from zrb.context.any_shared_context import AnySharedContext
 
 
 class AnyContext(AnySharedContext):
-    """Abstract base class for managing task contexts, logging, and rendering.
-
-    This class provides methods for managing context-specific data such as
-    attempt counts, logging, and rendering templates with additional data.
-    Subclasses must implement all abstract methods.
-    """
+    """`AnySharedContext` plus the per-task slice: retry attempt tracking,
+    prefixed print/log output, and single-value template rendering."""
 
     @property
     @abstractmethod
     def attempt(self) -> int:
-        """Returns the current attempt count.
-
-        Returns:
-            int: The current attempt count.
-        """
+        """The current attempt number, 1 on the first try."""
         pass
 
     @abstractmethod
     def set_attempt(self, attempt: int):
-        """Sets the current attempt count.
-
-        Args:
-            attempt (int): The current attempt count.
-        """
+        """Set the current attempt number."""
         pass
 
     @abstractmethod
     def set_max_attempt(self, max_attempt: int):
-        """Sets the maximum number of attempts.
-
-        Args:
-            max_attempt (int): The maximum number of attempts allowed.
-        """
+        """Set the number of attempts allowed before the task gives up."""
         pass
 
     @abstractmethod
@@ -60,18 +44,9 @@ class AnyContext(AnySharedContext):
         flush: bool = True,
         plain: bool = False,
     ):
-        """Prints values to the specified output stream.
-
-        See `Context.print` in `context/context.py` for the concrete implementation.
-
-        Args:
-            *values (object): The values to be printed.
-            sep (str, optional): Separator to use between values. Defaults to a space.
-            end (str, optional): String appended after the last value. Defaults to a newline.
-            file (TextIO, optional): The output stream to print to. Defaults to sys.stderr.
-            flush (bool, optional): Whether to flush the output stream. Defaults to True.
-            plain (bool, optional): Whether to use plain text. Defaults to False.
-        """
+        """Print *values*, prefixed with this task's name and icon unless
+        *plain*. Signature mirrors the builtin `print`; see `Context.print`
+        for the concrete implementation."""
         pass
 
     @abstractmethod
@@ -84,18 +59,8 @@ class AnyContext(AnySharedContext):
         flush: bool = True,
         plain: bool = False,
     ):
-        """Prints error values to the specified output stream.
-
-        See `Context.print_err` in `context/context.py` for the concrete implementation.
-
-        Args:
-            *values (object): The values to be printed.
-            sep (str, optional): Separator to use between values. Defaults to a space.
-            end (str, optional): String appended after the last value. Defaults to a newline.
-            file (TextIO, optional): The output stream to print to. Defaults to sys.stderr.
-            flush (bool, optional): Whether to flush the output stream. Defaults to True.
-            plain (bool, optional): Whether to use plain text. Defaults to False.
-        """
+        """Alias for `print`, for a caller that wants to name its output as
+        error/diagnostic without changing where it goes."""
         pass
 
     @abstractmethod
@@ -107,15 +72,7 @@ class AnyContext(AnySharedContext):
         file: TextIO | None = sys.stderr,
         flush: bool = True,
     ):
-        """Logs debug-level messages.
-
-        Args:
-            *values (object): The values to be logged.
-            sep (str, optional): Separator to use between values. Defaults to a space.
-            end (str, optional): String appended after the last value. Defaults to a newline.
-            file (TextIO, optional): The output stream to log to. Defaults to sys.stderr.
-            flush (bool, optional): Whether to flush the output stream. Defaults to True.
-        """
+        """Log *values* at `logging.DEBUG`, suppressed above that level."""
         pass
 
     @abstractmethod
@@ -127,15 +84,7 @@ class AnyContext(AnySharedContext):
         file: TextIO | None = sys.stderr,
         flush: bool = True,
     ):
-        """Logs info-level messages.
-
-        Args:
-            *values (object): The values to be logged.
-            sep (str, optional): Separator to use between values. Defaults to a space.
-            end (str, optional): String appended after the last value. Defaults to a newline.
-            file (TextIO, optional): The output stream to log to. Defaults to sys.stderr.
-            flush (bool, optional): Whether to flush the output stream. Defaults to True.
-        """
+        """`log_debug`'s counterpart at `logging.INFO`."""
         pass
 
     @abstractmethod
@@ -147,15 +96,7 @@ class AnyContext(AnySharedContext):
         file: TextIO | None = sys.stderr,
         flush: bool = True,
     ):
-        """Logs warning-level messages.
-
-        Args:
-            *values (object): The values to be logged.
-            sep (str, optional): Separator to use between values. Defaults to a space.
-            end (str, optional): String appended after the last value. Defaults to a newline.
-            file (TextIO, optional): The output stream to log to. Defaults to sys.stderr.
-            flush (bool, optional): Whether to flush the output stream. Defaults to True.
-        """
+        """`log_debug`'s counterpart at `logging.WARNING`."""
         pass
 
     @abstractmethod
@@ -167,15 +108,7 @@ class AnyContext(AnySharedContext):
         file: TextIO | None = sys.stderr,
         flush: bool = True,
     ):
-        """Logs error-level messages.
-
-        Args:
-            *values (object): The values to be logged.
-            sep (str, optional): Separator to use between values. Defaults to a space.
-            end (str, optional): String appended after the last value. Defaults to a newline.
-            file (TextIO, optional): The output stream to log to. Defaults to sys.stderr.
-            flush (bool, optional): Whether to flush the output stream. Defaults to True.
-        """
+        """`log_debug`'s counterpart at `logging.ERROR`."""
         pass
 
     @abstractmethod
@@ -187,51 +120,23 @@ class AnyContext(AnySharedContext):
         file: TextIO | None = sys.stderr,
         flush: bool = True,
     ):
-        """Logs critical-level messages.
-
-        Args:
-            *values (object): The values to be logged.
-            sep (str, optional): Separator to use between values. Defaults to a space.
-            end (str, optional): String appended after the last value. Defaults to a newline.
-            file (TextIO, optional): The output stream to log to. Defaults to sys.stderr.
-            flush (bool, optional): Whether to flush the output stream. Defaults to True.
-        """
+        """`log_debug`'s counterpart at `logging.CRITICAL`."""
         pass
 
     @abstractmethod
     def render_bool(self, template: str | bool) -> bool:
-        """Renders a template string into boolean.
-
-        Args:
-            template (str | bool): The template string to be rendered or the value.
-
-        Returns:
-            bool: The rendered template as a boolean.
-        """
+        """`render` a string template and parse it as a bool; a non-string
+        value passes through unchanged."""
         pass
 
     @abstractmethod
     def render_int(self, template: str | int) -> int:
-        """Renders a template string into integer.
-
-        Args:
-            template (str | int): The template string to be rendered or the value.
-
-        Returns:
-            int: The rendered template as a integer.
-        """
+        """`render_bool`'s counterpart, parsed as an int."""
         pass
 
     @abstractmethod
     def render_float(self, template: str | float) -> float:
-        """Renders a template string into float.
-
-        Args:
-            template (str | float): The template string to be rendered or the value.
-
-        Returns:
-            float: The rendered template as a float.
-        """
+        """`render_bool`'s counterpart, parsed as a float."""
         pass
 
 

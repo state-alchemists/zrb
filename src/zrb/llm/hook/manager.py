@@ -93,14 +93,13 @@ class HookManager(HookManagerLoading):
         # chat run's `Stop` event dispatches through a fresh, per-run
         # `HookManager()` (`_create_llm_task_core` builds one whenever the
         # task's own `hook_manager` is unset), never through the singleton.
-        # Discovered by running a real turn end-to-end: the factory-attached
-        # singleton logged the hook as "registered" (a *different* manager
-        # instance, used only for PreToolUse/PostToolUse via the ambient
-        # ContextVar lookup, picked it up), but the manager that actually
-        # fired Stop had `_hook_factories == []` and never ran it. File-backed
-        # hooks (settings.json/hooks.json) don't have this problem because
-        # every manager independently re-scans the filesystem; a Python-
-        # registered one needs to be seeded the same way on every instance.
+        # The singleton's own registration is invisible to that instance:
+        # PreToolUse/PostToolUse route through the singleton via the ambient
+        # ContextVar lookup, but Stop fires on the per-run manager, whose
+        # `_hook_factories` would otherwise be empty. File-backed hooks
+        # (settings.json/hooks.json) don't have this problem because every
+        # manager independently re-scans the filesystem; a Python-registered
+        # one needs to be seeded the same way on every instance.
         self._hook_factories: list[Callable[[HookManager], None]] = [
             register_journal_compliance_hook
         ]
@@ -578,14 +577,9 @@ class HookManager(HookManagerLoading):
         return results
 
     def add_hook_factory(self, factory: Callable[["HookManager"], None]):
-        """Register a hook factory function.
-
-        Factories are called during hook loading to dynamically register hooks.
-        This allows hooks to be conditionally registered based on config or other factors.
-
-        Args:
-            factory: A function that takes HookManager and registers hooks
-        """
+        """Register *factory*, called on every load/reload so it can register
+        hooks conditionally (e.g. on config) rather than unconditionally at
+        construction time."""
         self._hook_factories.append(factory)
 
     def scan(self, search_dirs: list[str | Path] | None = None):

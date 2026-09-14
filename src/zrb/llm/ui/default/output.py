@@ -429,13 +429,11 @@ class UIOutput:
         call replaces exactly that span (re-styled manually, since
         `replace_output_span` doesn't apply `kind`-based styling) — never
         anything else. This is what makes two keys' own lines safe to grow
-        concurrently: the old `\\r`-based "erase whatever is currently the
-        last line" trick (tool-prepare's original implementation) and the
-        "mark once, let anything get appended, collapse the whole span"
-        trick (shell-output's original implementation) both broke the
-        moment a second key's content landed inside the first key's own
-        span. Passing an empty `text` erases the line and stops tracking
-        `key`.
+        concurrently: an `\\r`-based "erase whatever is currently the last
+        line" trick, or a "mark once, let anything get appended, collapse
+        the whole span" trick, each break the moment a second key's content
+        lands inside the first key's own span. Passing an empty `text`
+        erases the line and stops tracking `key`.
         """
         span = spans.get(key)
         if span is None:

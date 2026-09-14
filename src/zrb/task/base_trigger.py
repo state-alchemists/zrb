@@ -20,12 +20,8 @@ from zrb.xcom.xcom import Xcom
 
 
 class BaseTrigger(BaseTask):
-    """
-    A base class for tasks that act as triggers or schedulers.
-
-    It extends BaseTask and adds functionality for handling callbacks
-    and managing a queue for data exchange.
-    """
+    """A `BaseTask` that fires callbacks when data lands on its XCom queue —
+    the base for `Scheduler` and other event-driven tasks."""
 
     def __init__(
         self,
@@ -55,40 +51,17 @@ class BaseTrigger(BaseTask):
         successor: Sequence[AnyTask] | AnyTask | None = None,
         print_fn: PrintFn | None = None,
     ):
-        """
-        Initializes a new instance of the BaseTrigger class.
+        """Define a trigger. Every parameter besides `queue_name` and
+        `callback` is `BaseTask`'s, with the same meaning; `color` and `icon`
+        default to a distinct cyan `✨` instead of `BaseTask`'s.
 
         Args:
-            name: The name of the trigger task.
-            color: The color to use for the task in the CLI output.
-            icon: The icon to display for the task.
-            description: A brief description of the task.
-            cli_only: If True, the task is only available in the CLI.
-            input: The input definition for the task.
-            env: The environment variable definition for the task.
-            action: What the trigger does. Either a callable taking the task
-                context, a literal string returned as the result, or a `Tpl`
-                rendered against the context.
-            execute_condition: A condition that must be met for the task to execute.
-            queue_name: The name of the XCom queue used for data
-                exchange with callbacks. Whenever any data is added
-                to xcom[queue_name], the callback will be triggered. Read
-                through the `queue_name` property, which has no context, so it
-                is a plain `str` — build it eagerly if it needs to vary.
-            callback: A single or list of callbacks to be executed after the trigger action.
-            retries: The number of times to retry the task on failure.
-            retry_period: The time to wait between retries.
-            readiness_check: A single or list of tasks to check for readiness before execution.
-            readiness_check_delay: The initial delay before starting
-                readiness checks.
-            readiness_check_period: The time to wait between readiness checks.
-            readiness_failure_threshold: The number of consecutive readiness
-                check failures before the task fails.
-            readiness_timeout: The maximum time to wait for readiness checks to pass.
-            monitor_readiness: If True, monitor readiness checks during execution.
-            upstream: A single or list of tasks that must complete before this task starts.
-            fallback: A single or list of tasks to run if this task fails.
-            successor: A single or list of tasks to run after this task completes successfully.
+            queue_name: Name of the XCom queue callbacks watch — adding data
+                to `xcom[queue_name]` fires them. Read through the
+                `queue_name` property, which has no context, so it is a plain
+                `str`; build it eagerly if it needs to vary.
+            callback: Callback(s) run after the trigger action, once data is
+                on the queue.
         """
         super().__init__(
             name=name,
