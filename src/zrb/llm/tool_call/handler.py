@@ -92,8 +92,7 @@ class ToolCallHandler:
                 index: int,
             ) -> Any:
                 if index >= len(self._response_handlers):
-                    # Default behavior: simple y/n check — a bare Enter
-                    # approves, matching the muscle-memory of "just run it".
+                    # Default behavior: simple y/n check
                     r = response.lower().strip()
                     if r in ("y", "yes", "ok", "accept", "✅", ""):
                         return ToolApproved()

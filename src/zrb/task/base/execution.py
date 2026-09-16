@@ -111,9 +111,6 @@ class BaseTaskExecution:
         task = self._task
         ctx = task.get_ctx(session)
         readiness_checks = task.readiness_checks
-        # Resolved in the `readiness_check_delay` property: an explicitly set
-        # value wins, otherwise CFG.TASK_READINESS_DELAY (ms) is divided to
-        # seconds. The property never returns None.
         readiness_check_delay = task.readiness_check_delay
         monitor_readiness = bool(task.monitor_readiness)
 
