@@ -71,14 +71,7 @@ class AnyApprovalChannel(ABC):
         self,
         context: ApprovalContext,
     ) -> ApprovalResult:
-        """Request approval for a tool call.
-
-        Args:
-            context: Context containing tool call details and metadata.
-
-        Returns:
-            ApprovalResult indicating approval or denial with optional message.
-        """
+        """Request approval for the tool call described by *context*."""
 
     @abstractmethod
     async def notify(
@@ -89,8 +82,4 @@ class AnyApprovalChannel(ABC):
         """Send a notification without requiring approval.
 
         Useful for showing intermediate status (tool started, completed, etc.).
-
-        Args:
-            message: The notification message.
-            context: Optional context for metadata.
         """

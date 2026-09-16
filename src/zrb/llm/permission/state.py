@@ -55,10 +55,8 @@ def get_current_permission_policy() -> "PermissionPolicy | None":
 def permission_policy(policy: "PermissionPolicy | None") -> Generator[None]:
     """Scope `policy` as the in-force permission policy for the `with` block.
 
-    Always resets on exit, including on exception. The safe replacement for
-    the old unscoped `set_current_permission_policy`, which leaked a policy
-    into every later run sharing the same context if the caller didn't reset
-    it manually (and never did on exception).
+    Always resets on exit, including on exception, so a policy set here can
+    never leak into a later run sharing the same context.
     """
     with scoped(current_permission_policy, policy):
         yield

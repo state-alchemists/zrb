@@ -75,8 +75,8 @@ def _upstream_closure(task: "AnyTask") -> list["AnyTask"]:
 
     Upstream-first ordering is what gives override precedence its meaning: a
     task's own envs are appended after every env it inherits, so a task always
-    wins over its upstreams. The old recursive form did not guarantee that —
-    in a diamond, one branch's copy of a shared ancestor landed *after* the
+    wins over its upstreams. A recursive walk cannot guarantee that — in a
+    diamond, one branch's copy of a shared ancestor could land *after* the
     other branch's own envs.
 
     Raises:

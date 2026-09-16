@@ -100,9 +100,10 @@ class BaseUITriggers:
 
         A tuple must be the `(text, attachments)` shape `TriggerMessage`
         declares. Anything else raises `ValueError` rather than being
-        reinterpreted: a 3-tuple used to lose its third element silently, a
-        bare string in the attachments slot became a list of its characters,
-        and `None` there raised `TypeError` from inside `list()`.
+        reinterpreted: a 3-tuple would lose its third element silently, a
+        bare string in the attachments slot would become a list of its
+        characters, and `None` there would raise `TypeError` from inside
+        `list()`.
         """
         if not isinstance(item, tuple):
             return str(item or ""), []

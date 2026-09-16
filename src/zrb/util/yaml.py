@@ -2,16 +2,7 @@ from typing import Any
 
 
 def yaml_dump(obj: Any, key: str = "") -> str:
-    """
-    Convert any Python object to a YAML string representation.
-
-    Args:
-        obj: Any Python object to convert to YAML
-
-    Returns:
-        str: YAML string representation of the object
-
-    Rules:
+    """Rules:
     - Any non-first level multiline string should be rendered as block (using `|`)
     - None values are rendered correctly (not omitted)
     - Non-primitive/list/dict/set objects are ignored
@@ -43,16 +34,7 @@ def yaml_dump(obj: Any, key: str = "") -> str:
 
 
 def edit_obj(obj: Any, key: str, val: str) -> Any:
-    """
-    Edit a property or subproperty of an object using YAML syntax.
-
-    Args:
-        obj: The object to edit
-        key: The key to edit, can be nested with '.' as separator
-        val: The string value to set, will be parsed as YAML
-
-    Returns:
-        Any: The modified object
+    """`key` nests with '.' as separator; `val` is parsed as YAML before being set.
 
     Example:
         edit({"a": {"b": 1}}, "a.b", "2") -> {"a": {"b": 2}}

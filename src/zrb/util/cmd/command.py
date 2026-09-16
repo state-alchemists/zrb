@@ -16,16 +16,8 @@ from zrb.config.helper import get_shell_name, get_windows_posix_shell
 
 
 def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
-    """
-    Check a command script for the use of unrecommended or non-POSIX compliant commands.
-
-    Args:
-        cmd_script (str): The command script string to check.
-
-    Returns:
-        dict[str, str]: A dictionary where keys are the violating commands/patterns
-            and values are the reasons they are unrecommended.
-    """
+    """Violating commands/patterns found in *cmd_script*, mapped to why each
+    is unrecommended (non-POSIX, platform-inconsistent, or unsafe)."""
     banned_commands = {
         "column": "Command isn't included in Ubuntu packages and is not POSIX compliant",
         "eval": "Avoid eval as it can accidentally execute arbitrary strings",

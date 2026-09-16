@@ -13,25 +13,10 @@ class AnyContentTransformer(ABC):
 
     @abstractmethod
     def match(self, ctx: AnyContext, file_path: str) -> bool:
-        """
-        Determine whether a file path should be processed or not
-
-        Args:
-            ctx (AnyContext): The context
-            file_path(str): The file path
-
-        Returns:
-            bool: Whether the file path should be processed or not
-        """
+        """Whether *file_path* is one this transformer rewrites."""
         pass
 
     @abstractmethod
     def transform_file(self, ctx: AnyContext, file_path: str):
-        """
-        Transform  the file path
-
-        Args:
-            ctx (AnyContext): The context
-            file_path(str): The file path
-        """
+        """Rewrite *file_path* in place. Called only when `match` is True."""
         pass

@@ -8,14 +8,8 @@ from zrb.llm.hook.executor import HookExecutionResult
 def extract_system_message(hook_results: list[HookExecutionResult]) -> str | None:
     """Extract the first systemMessage from hook results, if any.
 
-    Claude Code hooks can return systemMessage to inject context into the conversation.
-    This helper extracts it from hook results for processing.
-
-    Args:
-        hook_results: List of hook execution results
-
-    Returns:
-        The first systemMessage found, or None if no hooks returned a message.
+    Claude Code hooks can return systemMessage to inject context into the
+    conversation. Returns the first one found, or None if no hook set one.
     """
     for result in hook_results:
         if result.system_message:
@@ -26,14 +20,9 @@ def extract_system_message(hook_results: list[HookExecutionResult]) -> str | Non
 def extract_replace_response(hook_results: list[HookExecutionResult]) -> bool:
     """Extract the replaceResponse flag from hook results.
 
-    If any hook returns replaceResponse=True, the extended session's response
-    should replace the original response. Default is False (return original).
-
-    Args:
-        hook_results: List of hook execution results
-
-    Returns:
-        True if any hook wants to replace the response, False otherwise.
+    True if any hook returns replaceResponse=True — the extended session's
+    response should then replace the original one. False (the default) keeps
+    the original response.
     """
     for result in hook_results:
         if result.replace_response:
@@ -51,13 +40,8 @@ def extract_additional_context(hook_results: list[HookExecutionResult]) -> str |
 
     Claude Code hooks can return additionalContext to prepend context to the
     conversation, either at the top level or (the canonical Claude shape) nested
-    inside ``hookSpecificOutput``. Both are checked.
-
-    Args:
-        hook_results: List of hook execution results
-
-    Returns:
-        The first additionalContext found, or None if no hooks returned context.
+    inside ``hookSpecificOutput``. Both are checked. Returns the first one
+    found, or None if no hook set one.
     """
     for result in hook_results:
         context = result.additional_context or _hook_specific(result).get(

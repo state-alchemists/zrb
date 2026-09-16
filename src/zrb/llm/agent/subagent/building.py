@@ -187,8 +187,8 @@ class SubAgentBuilding:
 
         # YOLO: an explicit True/False wins; None (or anything else) returns a
         # checker that reads the live parent state on each invocation (so
-        # toggles propagate). The old truthiness-only check made an explicit
-        # False indistinguishable from unset.
+        # toggles propagate). Checked as `is True`/`is False`, not truthiness,
+        # so an explicit False stays distinguishable from unset.
         effective_yolo: bool | Callable[..., bool]
         if yolo is True:
             effective_yolo = True

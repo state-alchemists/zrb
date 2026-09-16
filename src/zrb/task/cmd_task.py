@@ -150,14 +150,8 @@ class CmdTask(BaseTask):
         self._is_interactive = is_interactive
 
     async def _exec_action(self, ctx: AnyContext) -> CmdResult:
-        """Run the configured command as a subprocess and return its result.
-
-        Args:
-            ctx (AnyContext): The task execution context.
-
-        Returns:
-            CmdResult: The captured stdout/stderr and exit code.
-        """
+        """Run the configured command as a subprocess, returning its captured
+        stdout/stderr and exit code."""
         cmd_script = self._get_cmd_script(ctx)
         ctx.log_debug(f"Script: {self.__get_multiline_repr(cmd_script)}")
         shell = self._get_shell(ctx)
