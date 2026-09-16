@@ -140,20 +140,27 @@ def classify_error_type(e: Exception) -> str:
         response = getattr(e, "response", None)
         status_code = getattr(response, "status_code", None)
     msg = str(e).lower()
-    if is_prompt_too_long_error(e):
-        return "context_length"
+    # Transient statuses win over keyword guesses. A provider error with a
+    # retryable status whose flavor text happens to mention "context length" /
+    # "max tokens" (Ollama's 500 "Maximum context length exceeded") is still a
+    # transient blip, classified as such here AND by `handle_stream_error`
+    # (which checks `is_retryable_error` before `is_prompt_too_long_error`).
+    # Only a non-transient (or unknown) status falls through to the keyword
+    # match, so 400/status-less context errors stay permanent `context_length`.
     if status_code == 429:
         return "rate_limit"
+    if status_code is not None and status_code >= 500:
+        if status_code == 529 or "overloaded" in msg:
+            return "overloaded"
+        return "server_error"
+    if is_prompt_too_long_error(e):
+        return "context_length"
     if status_code in (401, 403):
         return "authentication_failed"
     if status_code == 404:
         return "model_not_found"
     if status_code == 400:
         return "invalid_request"
-    if status_code is not None and status_code >= 500:
-        if status_code == 529 or "overloaded" in msg:
-            return "overloaded"
-        return "server_error"
     if "overloaded" in msg or "529" in msg:
         return "overloaded"
     if "rate limit" in msg or "rate_limit" in msg:

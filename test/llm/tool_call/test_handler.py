@@ -148,6 +148,22 @@ async def test_handler_explicit_denial():
 
 
 @pytest.mark.asyncio
+async def test_handler_empty_answer_approves():
+    ui = MagicMock()
+    # A bare Enter approves, and the handler returns immediately.
+    ui.ask_user = AsyncMock(side_effect=[""])
+    call = MagicMock()
+    call.tool_name = "test_tool"
+    call.args = {}
+
+    handler = ToolCallHandler()
+    result = await handler.handle(ui, call)
+
+    assert isinstance(result, ToolApproved)
+    assert ui.ask_user.await_count == 1
+
+
+@pytest.mark.asyncio
 async def test_handler_feedback_denial():
     ui = MagicMock()
     # Simulate user typing a reason

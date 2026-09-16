@@ -169,7 +169,12 @@ async def search_internet(
 ) -> dict:
     """
     Searches the internet. Returns {query, results: [{title, url, snippet, source}],
-    total, page, error}. Requires SERPAPI_KEY, BRAVE_API_KEY, or SearXNG configuration.
+    total, page, error}.
+
+    Works out of the box with the keyless `google_rss` backend (the default,
+    `CFG.SEARCH_INTERNET_METHOD`). Setting SERPAPI_KEY, BRAVE_API_KEY, or a
+    reachable SEARXNG_BASE_URL switches to the richer backend of the same name;
+    SERPAPI/Brave only activate when both the method and its key are set.
     """
     notify(f"🔎 Searching ({CFG.SEARCH_INTERNET_METHOD.strip().lower()}): {query!r}...")
     # lazy: tests patch `zrb.llm.tool.search.<backend>.search_internet` at

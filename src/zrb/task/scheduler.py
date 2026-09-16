@@ -35,7 +35,7 @@ class Scheduler(BaseTrigger):
         retry_if: Callable[[BaseException], bool] | None = None,
         retry_period: float = 0,
         readiness_check: Sequence[AnyTask] | AnyTask | None = None,
-        readiness_check_delay: float = 0.5,
+        readiness_check_delay: float | None = None,
         readiness_check_period: float | None = 5,
         readiness_failure_threshold: int | None = 1,
         readiness_timeout: int | None = None,
