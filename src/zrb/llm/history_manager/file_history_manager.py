@@ -136,8 +136,6 @@ class FileHistoryManager(AnyHistoryManager):
             return []
 
         except (json.JSONDecodeError, OSError) as e:
-            # Log error or warn? For now, return empty list or re-raise.
-            # Returning empty list is safer for UI not to crash.
             zrb_print(
                 f"Warning: Failed to load history for {conversation_name}: {e}",
                 plain=True,

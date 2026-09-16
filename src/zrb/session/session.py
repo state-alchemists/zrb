@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import TYPE_CHECKING, Any, Coroutine
+from typing import TYPE_CHECKING, Any, Coroutine, Iterator
 
 from zrb.config.config import CFG
 from zrb.context.any_shared_context import AnySharedContext
@@ -339,50 +339,88 @@ class Session(AnySession):
         await gather_fail_fast(*task_coros)
 
     def register_task(self, task: AnyTask):
-        self._register_task_graph(task, set())
+        self._register_task_graph(task)
 
-    def _register_task_graph(self, task: AnyTask, ancestors: set[int]) -> None:
-        # `ancestors` holds the ids of tasks on the current traversal path. A
-        # task that reappears in its own ancestor chain is a circular dependency
-        # (a task that waits on itself) — fail fast with a clear message instead
-        # of recursing forever (RecursionError / hang). The set is path-scoped,
-        # so legitimate diamonds (a shared upstream reached via two branches)
-        # still register and link correctly.
-        if id(task) in ancestors:
-            raise ValueError(
-                f"Circular task dependency detected involving '{task.name}'"
-            )
-        self._register_single_task(task)
-        next_ancestors = ancestors | {id(task)}
-        for readiness_check in task.readiness_checks:
-            self._register_task_graph(readiness_check, next_ancestors)
-        for successor in task.successors:
-            self._register_task_graph(successor, next_ancestors)
-        for fallback in task.fallbacks:
-            self._register_task_graph(fallback, next_ancestors)
-        for upstream in task.upstreams:
-            self._register_task_graph(upstream, next_ancestors)
-            if task not in self._downstreams[upstream]:
-                self._downstreams[upstream].append(task)
-            if upstream not in self._upstreams[task]:
-                self._upstreams[task].append(upstream)
+    def _register_task_graph(
+        self, task: AnyTask, ancestors: set[int] | None = None
+    ) -> None:
+        # Iterative, with two responsibilities kept apart:
+        # `done` marks a task whose whole subtree is fully registered, so a
+        # shared upstream reachable via several branches (a diamond) is walked
+        # exactly once instead of once per root->node path — the same
+        # exponential blow-up the `_upstream_closure` rewrite removed from
+        # `zrb.task.base.context` (see its docstring: O(2**depth) on a diamond,
+        # interpreter stack overflow past ~450 levels).
+        # The path-scoped set still spots cycles: a task that reappears in its
+        # own ancestor chain is a circular dependency, and failing fast beats
+        # recursing forever. Only a task currently ON the path may be in the
+        # cycle; a task already in `done` was completed via another route and
+        # is a legitimate diamond, not a loop.
+        done: set[int] = set()
+        path: list[int] = list(ancestors) if ancestors else []
+        path_set: set[int] = set(path)
+
+        def _children(t: AnyTask) -> Iterator[AnyTask]:
+            yield from t.readiness_checks
+            yield from t.successors
+            yield from t.fallbacks
+            yield from t.upstreams
+
+        def _enter(t: AnyTask) -> bool:
+            if id(t) in done:
+                return False
+            if id(t) in path_set:
+                raise ValueError(
+                    f"Circular task dependency detected involving '{t.name}'"
+                )
+            self._register_single_task(t)
+            path.append(id(t))
+            path_set.add(id(t))
+            return True
+
+        if not _enter(task):
+            return
+        stack = [(task, iter(_children(task)))]
+        while stack:
+            parent, children = stack[-1]
+            try:
+                child = next(children)
+            except StopIteration:
+                # Fully explored. Register the parent's upstream edges now —
+                # post-order, so a repeated diamond branch can never link a
+                # downstream twice, and a cycle that aborted the walk never
+                # left a dangling edge behind.
+                for upstream in parent.upstreams:
+                    if parent not in self._downstreams[upstream]:
+                        self._downstreams[upstream].append(parent)
+                    if upstream not in self._upstreams[parent]:
+                        self._upstreams[parent].append(upstream)
+                done.add(id(parent))
+                path.pop()
+                path_set.discard(id(parent))
+                stack.pop()
+                continue
+            if not _enter(child):
+                continue
+            stack.append((child, iter(_children(child))))
 
     def get_root_tasks(self, task: AnyTask) -> list[AnyTask]:
+        # Iterative pre-order walk, mirroring the recursive shape: upstreams are
+        # visited in declaration order and each shared upstream only once. A
+        # stack avoids the recursion-depth ceiling a >~950-task chain would hit.
         visited: set[int] = set()
         root_tasks: list[AnyTask] = []
-
-        def _traverse(t: AnyTask) -> None:
-            if id(t) in visited:
-                return
-            visited.add(id(t))
-            upstreams = self._upstreams.get(t, [])
+        stack = [task]
+        while stack:
+            current = stack.pop()
+            if id(current) in visited:
+                continue
+            visited.add(id(current))
+            upstreams = self._upstreams.get(current, [])
             if not upstreams:
-                root_tasks.append(t)
+                root_tasks.append(current)
             else:
-                for upstream in upstreams:
-                    _traverse(upstream)
-
-        _traverse(task)
+                stack.extend(reversed(upstreams))
         return root_tasks
 
     def get_next_tasks(self, task: AnyTask) -> list[AnyTask]:

@@ -1010,13 +1010,10 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
                 try:
                     await current_task
                 except asyncio.CancelledError:
-                    # Task was cancelled (e.g. via UI)
-                    # Wait for task to fully complete its cancellation
                     try:
                         await current_task
                     except asyncio.CancelledError:
-                        pass  # Task is now fully cancelled
-                    # Continue to next job
+                        pass
                 except Exception as e:
                     logger.error(f"Error executing job: {e}")
                 finally:
@@ -1121,11 +1118,8 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             self.append_to_output(f"\n🤖 {timestamp} >>\n")
             session = self._create_session_for_llm_task(user_message, attachments)
 
-            # Run the task with stdout/stderr redirected to UI
             self.append_to_output(stylize_muted("\n  🔢 Streaming response..."))
 
-            # Sync plan mode to the shared mutable state before the LLM run
-            # so the agent inherits the mode set by /plan.
             set_current_agent_mode(
                 AgentMode.PLAN if self._plan_mode_active else AgentMode.BUILD
             )
@@ -1138,7 +1132,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             # ContextVar which is visible here in the same Task context).
             self._plan_mode_active = get_current_agent_mode() == AgentMode.PLAN
 
-            # Check for final text output
             if result_data is not None:
                 if isinstance(result_data, str):
                     self._last_result_data = result_data

@@ -36,8 +36,6 @@ def _get_config_files(config_file_name: str) -> list[str]:
         # Traverse from home down to cwd
         rel_path = os.path.relpath(cwd, home)
         current = home
-
-        # Check home
         path = os.path.join(current, config_file_name)
         if os.path.isfile(path):
             config_files.append(path)

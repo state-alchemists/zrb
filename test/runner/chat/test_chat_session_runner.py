@@ -30,6 +30,17 @@ def mock_deps():
     return session, llm_chat_task, session_manager
 
 
+async def _wait_for(predicate, timeout=5):
+    """Poll for a runner-observable signal instead of sleeping a fixed amount,
+    so a slow first turn on a loaded CI can't race the assertion below it."""
+
+    async def _poll():
+        while not predicate():
+            await asyncio.sleep(0.001)
+
+    await asyncio.wait_for(_poll(), timeout=timeout)
+
+
 @pytest.mark.asyncio
 async def test_run_chat_session_success(mock_deps):
     session, llm_chat_task, session_manager = mock_deps
@@ -40,8 +51,8 @@ async def test_run_chat_session_success(mock_deps):
         run_chat_session(session, llm_chat_task, session_manager)
     )
 
-    # Give it a moment to process
-    await asyncio.sleep(0.01)
+    # Wait until the message has been handed to the LLM task
+    await _wait_for(lambda: llm_chat_task.async_run.called)
 
     # Verify the message was processed
     llm_chat_task.async_run.assert_called_once()
@@ -77,7 +88,7 @@ async def test_run_chat_session_forwards_attachments_as_attach_input(mock_deps):
     task = asyncio.create_task(
         run_chat_session(session, llm_chat_task, session_manager)
     )
-    await asyncio.sleep(0.01)
+    await _wait_for(lambda: llm_chat_task.async_run.called)
 
     run_session = llm_chat_task.async_run.call_args.kwargs["session"]
     assert run_session.shared_ctx.input["attach"] == "/tmp/a.png,/tmp/b.pdf"
@@ -109,8 +120,12 @@ async def test_run_chat_session_timeout(mock_deps):
             run_chat_session(session, llm_chat_task, session_manager)
         )
 
-        # Wait for timeout to occur
-        await asyncio.sleep(0.1)
+        # Wait for the timeout broadcast instead of sleeping past it
+        def _saw_timeout():
+            messages = [c.args[1] for c in session_manager.broadcast.call_args_list]
+            return any("[TIMEOUT]" in m for m in messages)
+
+        await _wait_for(_saw_timeout)
 
         session_manager.broadcast.assert_any_call(
             "test-id", "[TIMEOUT] LLM request timed out"
@@ -135,7 +150,7 @@ async def test_run_chat_session_error(mock_deps):
         run_chat_session(session, llm_chat_task, session_manager)
     )
 
-    await asyncio.sleep(0.01)
+    await _wait_for(lambda: llm_chat_task.async_run.await_count >= 1)
 
     # Verify error was broadcasted (exactly once — no double [ERROR] broadcast)
     error_msgs = [
@@ -149,7 +164,7 @@ async def test_run_chat_session_error(mock_deps):
     # The loop must survive the failure: the next queued message is processed
     # instead of sitting dead until the browser reopens the SSE stream.
     session.input_queue.put_nowait({"message": "still alive?", "attachments": []})
-    await asyncio.sleep(0.01)
+    await _wait_for(lambda: llm_chat_task.async_run.await_count >= 2)
     assert llm_chat_task.async_run.call_count == 2
 
     task.cancel()

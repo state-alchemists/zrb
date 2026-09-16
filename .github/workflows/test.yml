@@ -80,7 +80,7 @@ jobs:
         # Single source of truth: the same script developers run locally. Git
         # Bash ships on the Windows runner, so the POSIX script runs unchanged.
         #
-        # ubuntu gets the full gate (pyright + the >=90% coverage threshold).
+        # ubuntu gets the full gate (pyright + the >=94% coverage threshold).
         # windows/macOS pass an explicit target, which makes zrb-test.sh skip
         # both -- deliberately. pyright is platform-independent, so running it
         # three times only buys latency; and a global coverage floor is not

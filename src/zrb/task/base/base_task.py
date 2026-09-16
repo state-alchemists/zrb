@@ -52,7 +52,7 @@ class BaseTask(AnyTask):
         retry_period: float = 0,
         retry_if: Callable[[BaseException], bool] | None = None,
         readiness_check: Sequence[AnyTask] | AnyTask | None = None,
-        readiness_check_delay: float = 0.5,
+        readiness_check_delay: float | None = None,
         readiness_check_period: float | None = 5,
         readiness_failure_threshold: int | None = 1,
         readiness_timeout: int | None = None,
@@ -102,7 +102,9 @@ class BaseTask(AnyTask):
                 long-running task: `run` returns once the checks pass, while
                 the action keeps running in the background.
             readiness_check_delay: Seconds to wait after starting the action
-                before the first readiness check.
+                before the first readiness check. `None` (the default) uses
+                `CFG.TASK_READINESS_DELAY` (500ms), so the pause is tunable
+                without touching the task definition.
             readiness_check_period: Seconds between readiness checks once
                 monitoring, i.e. when `monitor_readiness` is True.
             readiness_failure_threshold: Consecutive readiness-check failures
@@ -261,8 +263,13 @@ class BaseTask(AnyTask):
 
     @property
     def readiness_check_delay(self) -> float:
-        """Seconds to wait after the action starts before checking readiness."""
-        return self._readiness_check_delay
+        """Seconds to wait after the action starts before checking readiness.
+
+        Unset falls back to `CFG.TASK_READINESS_DELAY` (500ms by default).
+        """
+        if self._readiness_check_delay is not None:
+            return self._readiness_check_delay
+        return CFG.TASK_READINESS_DELAY / 1000
 
     @property
     def readiness_check_period(self) -> float:

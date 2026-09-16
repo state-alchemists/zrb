@@ -5,19 +5,15 @@ class AnyCustomCommand(ABC):
 
     @property
     @abstractmethod
-    def command(self) -> str:
-        """Command"""
+    def command(self) -> str: ...
 
     @property
     @abstractmethod
-    def description(self) -> str:
-        """Description"""
+    def description(self) -> str: ...
 
     @property
     @abstractmethod
-    def args(self) -> list[str]:
-        """Command"""
+    def args(self) -> list[str]: ...
 
     @abstractmethod
-    def get_prompt(self, kwargs: dict[str, str]) -> str:
-        """Return the prompt"""
+    def get_prompt(self, kwargs: dict[str, str]) -> str: ...

@@ -1,113 +1,107 @@
-#!/usr/bin/env python3
-"""Test script to demonstrate tool policy integration in non-interactive mode."""
+"""End-to-end verdict tests through the real agent run loop.
+
+Drives `run_agent` with pydantic-ai's deterministic fake model (`TestModel`)
+and zrb's own `create_agent`, so a tool call travels the real wiring: model
+request → DeferredToolRequests → approval cascade → tool execution (or a
+denial that blocks it) → result fed back for the next turn. This is the round
+trip the rest of the suite mocks at the `agent.run` boundary.
+"""
 
 import asyncio
-from typing import Any
 
 import pytest
-from pydantic_ai import Agent, Tool, ToolApproved, ToolCallPart, ToolDenied
+from pydantic_ai import Tool, ToolApproved, ToolCallPart, ToolDenied
+from pydantic_ai.models.test import TestModel
 
+from zrb.llm.agent.common import create_agent
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.tool_call.handler import ToolCallHandler
 
 
-# Define a simple tool
-@Tool
-async def get_weather(city: str) -> str:
-    """Get weather for a city."""
-    return f"Weather in {city}: Sunny, 25°C"
+def _weather_tool(record: list[str]):
+    @Tool
+    async def get_weather(city: str) -> str:
+        record.append(city)
+        return f"Weather in {city}: Sunny, 25C"
+
+    return get_weather
 
 
-# Create a tool policy that blocks certain cities
-async def block_sensitive_cities_policy(
-    ui: Any, call: ToolCallPart, next_policy: Any
-) -> ToolApproved | ToolDenied | None:
-    """Policy that blocks weather requests for sensitive cities."""
-    if call.tool_name == "get_weather":
-        city = call.args.get("city", "").lower()
-        if city in ["moscow", "tehran", "pyongyang"]:
-            return ToolDenied(f"Weather for {city} is classified information")
+async def _run(confirmation, *, record: list[str] | None = None):
+    """Run one agent turn with the fake model and return (output, record)."""
+    record = record if record is not None else []
+    agent = create_agent(
+        model=TestModel(),
+        tools=[_weather_tool(record)],
+        system_prompt="You are a helpful assistant that can check weather.",
+        yolo=False,
+    )
 
-    # Pass to next policy
-    return await next_policy(ui, call)
+    def quiet(msg, **kwargs):
+        pass
 
-
-# Create a response handler that modifies user input
-async def auto_approve_handler(
-    ui: Any, call: ToolCallPart, response: str, next_handler: Any
-) -> ToolApproved | ToolDenied | None:
-    """Handler that auto-approves if user says 'auto'."""
-    if response.strip().lower() == "auto":
-        return ToolApproved()
-
-    # Pass to next handler
-    return await next_handler(ui, call, response, next_handler)
+    result, _ = await run_agent(
+        agent=agent,
+        message="Check the weather.",
+        message_history=[],
+        limiter=LLMLimiter(),
+        tool_confirmation=confirmation,
+        print_fn=quiet,
+    )
+    return result, record
 
 
 @pytest.mark.asyncio
-async def test_tool_policy():
-    """Test that tool policies work in non-interactive mode."""
+async def test_e2e_tool_executes_after_approval():
+    """An approved tool call runs, and its result reaches the model."""
 
-    # Create agent with the weather tool
-    agent = Agent(
-        model="test",
-        tools=[get_weather],
-        system_prompt="You are a helpful assistant that can check weather.",
-    )
-
-    # Create a ToolCallHandler with policies
-    handler = ToolCallHandler(
-        tool_policies=[block_sensitive_cities_policy],
-        response_handlers=[auto_approve_handler],
-    )
-
-    # Create a simple print function
-    def test_print(msg: str, **kwargs):
-        print(f"[TEST] {msg}", **kwargs)
-
-    # Test 1: Blocked city (should be denied by policy)
-    print("\n=== Test 1: Blocked city (Moscow) ===")
-    result1, _ = await run_agent(
-        agent=agent,
-        message="What's the weather in Moscow?",
-        message_history=[],
-        limiter=LLMLimiter(),
-        tool_confirmation=handler,
-        print_fn=test_print,
-    )
-    print(f"Result: {result1}")
-
-    # Test 2: Allowed city (should prompt for confirmation)
-    print("\n=== Test 2: Allowed city (London) ===")
-    print("When prompted, type 'auto' to test auto-approve handler")
-    result2, _ = await run_agent(
-        agent=agent,
-        message="What's the weather in London?",
-        message_history=[],
-        limiter=LLMLimiter(),
-        tool_confirmation=handler,
-        print_fn=test_print,
-    )
-    print(f"Result: {result2}")
-
-    # Test 3: Simple callback (backward compatibility)
-    print("\n=== Test 3: Simple callback function ===")
-
-    async def simple_callback(call: ToolCallPart) -> ToolApproved | ToolDenied:
-        print(f"[CALLBACK] Tool: {call.tool_name}, Args: {call.args}")
+    async def approver(call: ToolCallPart):
         return ToolApproved()
 
-    result3, _ = await run_agent(
-        agent=agent,
-        message="What's the weather in Paris?",
-        message_history=[],
-        limiter=LLMLimiter(),
-        tool_confirmation=simple_callback,
-        print_fn=test_print,
-    )
-    print(f"Result: {result3}")
+    output, record = await _run(approver)
+    assert record, "approved tool must have been executed"
+    assert "Sunny" in str(output)
+
+
+@pytest.mark.asyncio
+async def test_e2e_tool_denial_blocks_execution():
+    """A denied tool call is never executed, and the denial reaches the model."""
+
+    async def denier(call: ToolCallPart):
+        return ToolDenied("blocked by the user")
+
+    output, record = await _run(denier)
+    assert record == [], "denied tool must not have been executed"
+    assert "blocked" in str(output)
+
+
+@pytest.mark.asyncio
+async def test_e2e_tool_policy_denial():
+    """A pre-confirmation tool policy denies, blocking execution."""
+    record: list[str] = []
+
+    async def block_weather_policy(ui, call, next_policy):
+        if call.tool_name == "get_weather":
+            return ToolDenied("weather is classified")
+        return await next_policy(ui, call)
+
+    handler = ToolCallHandler(tool_policies=[block_weather_policy])
+    output, record = await _run(handler, record=record)
+    assert record == [], "policy-denied tool must not have been executed"
+    assert "classified" in str(output)
+
+
+@pytest.mark.asyncio
+async def test_e2e_simple_callback_backward_compat():
+    """The plain (call) -> ToolApproved callback still works as confirmation."""
+
+    async def simple_callback(call: ToolCallPart):
+        return ToolApproved()
+
+    output, record = await _run(simple_callback)
+    assert record, "approved tool must have been executed"
 
 
 if __name__ == "__main__":
-    asyncio.run(test_tool_policy())
+    asyncio.run(test_e2e_tool_executes_after_approval())

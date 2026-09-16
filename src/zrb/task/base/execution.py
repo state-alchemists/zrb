@@ -11,7 +11,6 @@ import asyncio
 import traceback
 from typing import TYPE_CHECKING, Any
 
-from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext, current_ctx
 from zrb.session.any_session import AnySession
 from zrb.util.attr import get_bool_attr
@@ -112,11 +111,7 @@ class BaseTaskExecution:
         task = self._task
         ctx = task.get_ctx(session)
         readiness_checks = task.readiness_checks
-        readiness_check_delay = (
-            task.readiness_check_delay
-            if task.readiness_check_delay is not None
-            else CFG.TASK_READINESS_DELAY / 1000
-        )
+        readiness_check_delay = task.readiness_check_delay
         monitor_readiness = bool(task.monitor_readiness)
 
         ctx.log_info("Starting action and readiness checks")

@@ -68,7 +68,6 @@ class BaseUISystemInfo:
     async def get_git_info(self) -> tuple[str, str]:
         """Returns (branch_name, status_symbol)"""
         try:
-            # Check branch
             proc = await asyncio.create_subprocess_exec(
                 "git",
                 "rev-parse",
@@ -82,7 +81,6 @@ class BaseUISystemInfo:
                 return "", ""
             branch = stdout.decode().strip()
 
-            # Check status (dirty or clean)
             proc = await asyncio.create_subprocess_exec(
                 "git",
                 "status",

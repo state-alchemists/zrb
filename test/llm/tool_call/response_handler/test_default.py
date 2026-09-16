@@ -62,7 +62,7 @@ class TestDefaultResponseHandler:
 
     @pytest.mark.asyncio
     async def test_response_empty_string(self):
-        """Test empty string response approves execution."""
+        """Test empty string response approves execution (Enter accepts)."""
         from pydantic_ai import ToolApproved
 
         from zrb.llm.tool_call.response_handler.default import default_response_handler
