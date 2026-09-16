@@ -77,7 +77,6 @@ async def process_tool_return_part(
     ):
         return part, False
 
-    # Create a safe copy to prevent mutation during processing
     safe_content = safe_copy_result(original_content)
 
     content_is_string = isinstance(safe_content, str)

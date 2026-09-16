@@ -147,20 +147,15 @@ def _classify_split(
             call_before_split = call_idx < split_idx
             return_before_split = return_idx < split_idx
             if call_before_split != return_before_split:
-                # This would separate a call from its return - NOT ALLOWED
                 would_break_complete_pair = True
                 break
         elif call_idx is not None and return_idx is None:
-            # Call without return - if call is before split, we lose it
             if call_idx < split_idx:
                 broken_incomplete_pairs += 1
         elif call_idx is None and return_idx is not None:
-            # Return without call (orphaned) - MUST NOT be kept
             if return_idx >= split_idx:
-                # If we keep an orphan, the history remains broken - reject this split
                 would_break_complete_pair = True
                 break
-            # Orphaned return is before split (will be summarized away)
             broken_incomplete_pairs += 1
 
     return would_break_complete_pair, broken_incomplete_pairs

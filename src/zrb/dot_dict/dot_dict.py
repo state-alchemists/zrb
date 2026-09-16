@@ -18,5 +18,4 @@ class DotDict(dict[str, Any]):
             raise AttributeError(f"'DotDict' object has no attribute '{key}'")
 
     def copy(self) -> "DotDict":
-        # Ensure the copied instance is also a DotDict
         return DotDict(super().copy())

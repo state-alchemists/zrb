@@ -89,27 +89,8 @@ class UIOutput:
 
     def __init__(self, ui: "UI") -> None:
         self._ui = ui
-        # Set by `mark_thinking_block_start`/`mark_text_block_start`; consumed
-        # (and cleared) by `collapse_thinking_block`/`collapse_text_block`.
-        # Purely local, transient per-turn state — not shared with anything
-        # else, so it lives here rather than on `ui`. One slot suffices: a
-        # thinking block and the final-text block are never open at the same
-        # time (`StreamEventHandler` always closes one before opening the
-        # other), so there is never more than one live collapsible block to
-        # track.
         self._collapsible_block: OpenCollapsibleBlock | None = None
-        # Per-tool-call span for `update_tool_prepare` — unlike the single
-        # slot above, several tool calls can be preparing arguments at once
-        # (parallel tool calls), each needing its own independently
-        # updatable span.
         self._tool_prepare_spans: dict[str, tuple[int, int]] = {}
-        # Keyed like `_tool_prepare_spans` (not the single slot above) for
-        # the same reason: if the tool-execution framework ever runs more
-        # than one Shell call concurrently, each command's live output must
-        # collapse independently. Only a start offset is tracked — unlike
-        # `update_tool_prepare`, a shell command's echo grows via ordinary
-        # appends (not a live replace), so no "current end" bookkeeping is
-        # needed until the one final collapse.
         self._shell_output_spans: dict[str, tuple[int, int]] = {}
 
     @property

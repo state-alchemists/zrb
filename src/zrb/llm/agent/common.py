@@ -209,7 +209,6 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
             if isinstance(result, ToolReturn):
                 return result
 
-            # Create a safe copy to prevent mutation by pydantic-ai
             safe_result = safe_copy_result(result)
 
             # Output reduction belongs to SafeToolsetWrapper, after PostToolUse

@@ -43,10 +43,8 @@ def fuzzy_match(text: str, pattern: str) -> tuple[bool, float]:
         idx = text_cmp.find(token, last_pos)
 
         if idx != -1:
-            # Check for boundary match
             is_boundary = (idx == 0) or (text_cmp[idx - 1] in SEPARATORS)
 
-            # Base score is index (penalize depth)
             token_score = float(idx)
 
             if is_boundary:
@@ -62,7 +60,6 @@ def fuzzy_match(text: str, pattern: str) -> tuple[bool, float]:
 
             pos, end_pos = res
 
-            # Base score + Penalty
             score += float(pos) + SUBSEQUENCE_PENALTY + (0.1 * len(token))
             last_pos = end_pos
 

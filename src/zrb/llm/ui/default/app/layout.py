@@ -29,10 +29,7 @@ def create_input_field(  # noqa: C901 -- registration/factory fn; mccabe sums ne
     recall_active: Callable[[], bool] | None = None,
 ) -> TextArea:
     class DynamicHeightTextArea(TextArea):
-        """TextArea with dynamic height based on content."""
-
         def __init__(self, *args, **kwargs):
-            # Remove fixed height, will be calculated dynamically
             if "height" in kwargs:
                 del kwargs["height"]
             super().__init__(*args, **kwargs)
@@ -44,15 +41,12 @@ def create_input_field(  # noqa: C901 -- registration/factory fn; mccabe sums ne
             wrap_lines: bool,
             get_line_prefix,
         ) -> int:
-            """Calculate preferred height based on content."""
             text = self.text
             line_count = text.count("\n") + 1
 
-            # Calculate how many lines would be needed with wrapping
             if wrap_lines and width > 0:
                 wrapped_lines = 0
                 for line in text.split("\n"):
-                    # Estimate wrapped lines (ceil division)
                     wrapped_lines += (
                         (len(line) + width - 1) // width if len(line) > 0 else 1
                     )
