@@ -76,14 +76,11 @@ PYTEST_FAILED = 1
 
 # A run of its own, so a timeout can reach descendants by group rather than by
 # walking down from a pid that may no longer be there.
-if hasattr(os, "killpg"):
-    OWN_PROCESS_GROUP = {"start_new_session": True}
-else:
-    OWN_PROCESS_GROUP = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+OWN_PROCESS_GROUP = {"start_new_session": True}
 
 
-class PytestRunError(RuntimeError):
-    """The run cannot be scored: pytest failed to run, or the baseline is red."""
+class RatchetError(RuntimeError):
+    """The run cannot produce a number anyone should act on."""
 
 
 @dataclass(frozen=True)
@@ -179,8 +176,12 @@ def select_mutations(package: str, sample_size: int) -> list[Mutation]:
     for path in sorted((SRC / package).rglob("*.py")):
         try:
             total = count_mutations(path.read_text(encoding="utf-8"))
-        except SyntaxError:
-            continue
+        except SyntaxError as error:
+            raise RatchetError(
+                f"{path.relative_to(REPO_ROOT)} does not parse ({error.msg}). "
+                "Skipping it would drop its sites from the denominator, and a "
+                "smaller denominator reads as a cleaner package."
+            ) from error
         pool.extend(Mutation(path, i, "") for i in range(total))
     rng = random.Random(f"{SEED}:{package}")
     return rng.sample(pool, min(sample_size, len(pool)))
@@ -228,30 +229,15 @@ def kill_process_tree(process: subprocess.Popen) -> None:
     is in it, which is exactly the case that has to be caught: a survivor keeps
     running pytest against source the next mutant is already rewriting.
 
-    Windows has no process group to signal, so there the descendants are walked
-    instead and a reparented one can be missed. Closing that needs a Job
-    Object; the ratchet is run by hand on a developer's machine, so it has not
-    been worth the ctypes.
+    Windows has no process group to signal; :func:`main` refuses to run there
+    rather than fall back to a walk that misses the reparented case.
     """
-    if hasattr(os, "killpg"):
-        members = _process_group_members(process.pid)
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except (ProcessLookupError, PermissionError):
-            pass
-        psutil.wait_procs(members, timeout=30)
-    else:
-        try:
-            doomed = psutil.Process(process.pid).children(recursive=True)
-            doomed.append(psutil.Process(process.pid))
-        except psutil.NoSuchProcess:
-            doomed = []
-        for victim in doomed:
-            try:
-                victim.kill()
-            except psutil.NoSuchProcess:
-                continue
-        psutil.wait_procs(doomed, timeout=30)
+    members = _process_group_members(process.pid)
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+    psutil.wait_procs(members, timeout=30)
     try:
         process.wait(timeout=30)
     except subprocess.TimeoutExpired:
@@ -297,7 +283,7 @@ def run_tests(target: Path) -> bool:
             kill_process_tree(process)
             raise
     if process.returncode not in (PYTEST_PASSED, PYTEST_FAILED):
-        raise PytestRunError(
+        raise RatchetError(
             f"pytest exited {process.returncode} on {target}\n"
             f"{stdout[-2000:]}{stderr[-2000:]}"
         )
@@ -330,12 +316,12 @@ def score_package(package: str, sample_size: int, verbose: bool) -> tuple[int, i
     try:
         baseline_passed = run_tests(target)
     except subprocess.TimeoutExpired as error:
-        raise PytestRunError(
+        raise RatchetError(
             f"{target} did not finish within {MUTANT_TIMEOUT_SECONDS}s before "
             "any mutation was applied."
         ) from error
     if not baseline_passed:
-        raise PytestRunError(
+        raise RatchetError(
             f"{target} already fails before any mutation is applied; every "
             "mutant would score as killed. Fix the suite first."
         )
@@ -421,6 +407,16 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    if not hasattr(os, "killpg"):
+        print(
+            "This needs POSIX process groups to guarantee a timed-out run leaves "
+            "nothing behind, and a survivor runs pytest against source the next "
+            "mutant rewrites. Run it under WSL; a Windows Job Object would be the "
+            "native fix.",
+            file=sys.stderr,
+        )
+        return 1
+
     packages = args.packages or list(FLOORS)
     unknown = [p for p in packages if p not in FLOORS]
     if unknown:
@@ -446,7 +442,7 @@ def main() -> int:
         print(f"\n{package} (floor {FLOORS[package]}%)")
         try:
             killed, scored = score_package(package, args.mutants, args.verbose)
-        except PytestRunError as error:
+        except RatchetError as error:
             print(f"  ! {error}")
             return 1
         if scored == 0:

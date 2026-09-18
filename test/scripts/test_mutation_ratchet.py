@@ -178,7 +178,7 @@ def test_a_pytest_run_that_never_ran_stops_the_ratchet(monkeypatch, tmp_path):
     """Exit code 5 is "no tests collected". Treating it as a test failure counts
     every mutant killed, so a mistargeted run reports a perfect rate."""
     _fake_pytest(monkeypatch, 5)
-    with pytest.raises(mutation_ratchet.PytestRunError):
+    with pytest.raises(mutation_ratchet.RatchetError):
         mutation_ratchet.run_tests(tmp_path)
 
 
@@ -199,7 +199,7 @@ def test_a_red_baseline_stops_the_package_before_anything_is_mutated(monkeypatch
         mutation_ratchet.Path, "write_text", lambda self, *a, **k: written.append(self)
     )
 
-    with pytest.raises(mutation_ratchet.PytestRunError):
+    with pytest.raises(mutation_ratchet.RatchetError):
         mutation_ratchet.score_package("llm/skill", 1, verbose=False)
     assert written == []
 
@@ -226,7 +226,7 @@ def test_a_baseline_that_hangs_is_reported_not_raised(monkeypatch):
         raise subprocess.TimeoutExpired(cmd="pytest", timeout=1)
 
     monkeypatch.setattr(mutation_ratchet, "run_tests", hang)
-    with pytest.raises(mutation_ratchet.PytestRunError):
+    with pytest.raises(mutation_ratchet.RatchetError):
         mutation_ratchet.score_package("llm/skill", 1, verbose=False)
 
 
@@ -301,8 +301,7 @@ def test_a_package_that_scores_no_mutants_fails(monkeypatch, capsys):
 
 
 @pytest.mark.skipif(
-    not hasattr(os, "killpg"),
-    reason="Windows has no process group to signal; the walk there is best-effort",
+    not hasattr(os, "killpg"), reason="the ratchet refuses to run without them"
 )
 def test_descendants_die_once_the_direct_child_is_already_gone():
     """A timeout does not mean pytest is still running.
@@ -340,3 +339,25 @@ def test_descendants_die_once_the_direct_child_is_already_gone():
             psutil.Process(grandchild).kill()
         if process.stdout is not None:
             process.stdout.close()
+
+
+def test_a_source_file_that_does_not_parse_stops_the_run(monkeypatch):
+    """Dropping its sites shrinks the denominator, and a smaller denominator
+    reads as a cleaner package."""
+
+    def unparsable(source):
+        raise SyntaxError("invalid syntax")
+
+    monkeypatch.setattr(mutation_ratchet, "count_mutations", unparsable)
+    with pytest.raises(mutation_ratchet.RatchetError):
+        mutation_ratchet.select_mutations("llm/skill", 10)
+
+
+def test_the_ratchet_refuses_to_run_without_process_groups(monkeypatch, capsys):
+    """Without them a timed-out run can leave pytest alive against source the
+    next mutant rewrites, so the number it produces means nothing."""
+    monkeypatch.delattr(os, "killpg", raising=False)
+    monkeypatch.setattr(sys, "argv", ["mutation_ratchet.py", "llm/skill"])
+
+    assert mutation_ratchet.main() == 1
+    assert "WSL" in capsys.readouterr().err
