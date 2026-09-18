@@ -15,9 +15,11 @@ makes every annotation a string: ``@dataclass`` then resolves them through
 """
 
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 
+import psutil
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -149,16 +151,32 @@ def test_a_non_positive_mutant_count_is_rejected(value):
         mutation_ratchet.positive_int(value)
 
 
+class _FakePytest:
+    """A pytest invocation that exits with *returncode* without running."""
+
+    def __init__(self, returncode: int) -> None:
+        self.returncode = returncode
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        return False
+
+    def communicate(self, timeout=None):
+        return "", ""
+
+
+def _fake_pytest(monkeypatch, returncode: int) -> None:
+    monkeypatch.setattr(
+        mutation_ratchet.subprocess, "Popen", lambda *a, **k: _FakePytest(returncode)
+    )
+
+
 def test_a_pytest_run_that_never_ran_stops_the_ratchet(monkeypatch, tmp_path):
     """Exit code 5 is "no tests collected". Treating it as a test failure counts
     every mutant killed, so a mistargeted run reports a perfect rate."""
-
-    class _Result:
-        returncode = 5
-        stdout = "no tests ran"
-        stderr = ""
-
-    monkeypatch.setattr(mutation_ratchet.subprocess, "run", lambda *a, **k: _Result())
+    _fake_pytest(monkeypatch, 5)
     with pytest.raises(mutation_ratchet.PytestRunError):
         mutation_ratchet.run_tests(tmp_path)
 
@@ -167,11 +185,7 @@ def test_a_pytest_run_that_never_ran_stops_the_ratchet(monkeypatch, tmp_path):
 def test_pass_is_a_survivor_and_failure_is_a_kill(
     monkeypatch, tmp_path, code, survived
 ):
-    class _Result:
-        returncode = code
-        stdout = stderr = ""
-
-    monkeypatch.setattr(mutation_ratchet.subprocess, "run", lambda *a, **k: _Result())
+    _fake_pytest(monkeypatch, code)
     assert mutation_ratchet.run_tests(tmp_path) is survived
 
 
@@ -198,3 +212,71 @@ def test_uncommitted_mirrored_tests_count_as_dirty():
         assert any("ratchet_dirty_probe" in p for p in mutation_ratchet.dirty_paths(["llm/skill"]))
     finally:
         probe.unlink()
+
+
+def test_a_baseline_that_hangs_is_reported_not_raised(monkeypatch):
+    """A timeout is a kill for a mutant but not for the baseline, where it means
+    the measurement never started."""
+
+    def hang(target):
+        raise subprocess.TimeoutExpired(cmd="pytest", timeout=1)
+
+    monkeypatch.setattr(mutation_ratchet, "run_tests", hang)
+    with pytest.raises(mutation_ratchet.PytestRunError):
+        mutation_ratchet.score_package("llm/skill", 1, verbose=False)
+
+
+# --- floors ------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "killed, scored, floor, cleared",
+    [
+        (16, 31, 52, False),  # 51.6%, which rounds up into its own floor
+        (52, 100, 52, True),
+        (51, 100, 52, False),
+    ],
+)
+def test_the_floor_is_compared_as_a_ratio_not_a_rounded_percentage(
+    killed, scored, floor, cleared
+):
+    assert mutation_ratchet.meets_floor(killed, scored, floor) is cleared
+
+
+# --- process cleanup ---------------------------------------------------------
+
+
+def _alive(pid: int) -> bool:
+    try:
+        return psutil.Process(pid).status() != psutil.STATUS_ZOMBIE
+    except psutil.NoSuchProcess:
+        return False
+
+
+def test_a_timed_out_run_takes_its_descendants_with_it():
+    """Killing only the direct child leaves a grandchild running pytest against
+    source the next mutant is rewriting."""
+    spawner = (
+        "import subprocess, sys, time;"
+        "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)']);"
+        "print(child.pid, flush=True);"
+        "time.sleep(60)"
+    )
+    process = subprocess.Popen(
+        [sys.executable, "-c", spawner], stdout=subprocess.PIPE, text=True
+    )
+    grandchild = None
+    try:
+        assert process.stdout is not None
+        grandchild = int(process.stdout.readline())
+
+        mutation_ratchet.kill_process_tree(process)
+
+        assert not _alive(process.pid)
+        assert not _alive(grandchild)
+    finally:
+        for pid in (process.pid, grandchild):
+            if pid is not None and _alive(pid):
+                psutil.Process(pid).kill()
+        if process.stdout is not None:
+            process.stdout.close()

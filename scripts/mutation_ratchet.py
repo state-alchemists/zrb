@@ -36,6 +36,8 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+import psutil
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SRC = REPO_ROOT / "src" / "zrb"
 TESTS = REPO_ROOT / "test"
@@ -186,6 +188,34 @@ def test_target_for(package: str) -> Path | None:
     return candidate if candidate.is_dir() else None
 
 
+def kill_process_tree(process: subprocess.Popen) -> None:
+    """SIGKILL *process* and everything it spawned, then reap them.
+
+    On timeout ``subprocess.run`` kills the direct child and nothing below it.
+    This suite starts real shells, so a survivor keeps running pytest against
+    source the next mutant is already rewriting -- the results it produces
+    belong to no measurement at all.
+
+    Descendants are collected before the parent dies, because reparenting makes
+    them unreachable from its pid afterwards.
+    """
+    try:
+        parent = psutil.Process(process.pid)
+        doomed = parent.children(recursive=True) + [parent]
+    except psutil.NoSuchProcess:
+        return
+    for victim in doomed:
+        try:
+            victim.kill()
+        except psutil.NoSuchProcess:
+            continue
+    psutil.wait_procs(doomed, timeout=30)
+    try:
+        process.wait(timeout=30)
+    except subprocess.TimeoutExpired:
+        pass  # unreapable child; the caller's timeout is already the story
+
+
 def run_tests(target: Path) -> bool:
     """True if the suite passed (mutant survived), False if it failed (killed).
 
@@ -193,8 +223,11 @@ def run_tests(target: Path) -> bool:
     a collection error, a usage error, an empty target. Counting those as kills
     is what would let a broken environment report a perfect rate, so they stop
     the run instead.
+
+    A timeout propagates as ``TimeoutExpired``, but only once the process tree
+    is down.
     """
-    result = subprocess.run(
+    with subprocess.Popen(
         [
             sys.executable,
             "-m",
@@ -209,16 +242,30 @@ def run_tests(target: Path) -> bool:
             "addopts=",
         ],
         cwd=REPO_ROOT,
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
-        timeout=MUTANT_TIMEOUT_SECONDS,
-    )
-    if result.returncode not in (PYTEST_PASSED, PYTEST_FAILED):
+    ) as process:
+        try:
+            stdout, stderr = process.communicate(timeout=MUTANT_TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired:
+            kill_process_tree(process)
+            raise
+    if process.returncode not in (PYTEST_PASSED, PYTEST_FAILED):
         raise PytestRunError(
-            f"pytest exited {result.returncode} on {target}\n"
-            f"{result.stdout[-2000:]}{result.stderr[-2000:]}"
+            f"pytest exited {process.returncode} on {target}\n"
+            f"{stdout[-2000:]}{stderr[-2000:]}"
         )
-    return result.returncode == PYTEST_PASSED
+    return process.returncode == PYTEST_PASSED
+
+
+def meets_floor(killed: int, scored: int, floor: int) -> bool:
+    """Whether *killed* of *scored* clears *floor*, as an exact ratio.
+
+    Rounding the percentage first passes a package that is under its floor:
+    16/31 is 51.6%, which rounds to the 52 it has to beat.
+    """
+    return 100 * killed >= floor * scored
 
 
 def score_package(package: str, sample_size: int, verbose: bool) -> tuple[int, int]:
@@ -235,7 +282,14 @@ def score_package(package: str, sample_size: int, verbose: bool) -> tuple[int, i
     if target is None:
         print(f"  ! no mirrored test dir for {package}, skipping")
         return 0, 0
-    if not run_tests(target):
+    try:
+        baseline_passed = run_tests(target)
+    except subprocess.TimeoutExpired as error:
+        raise PytestRunError(
+            f"{target} did not finish within {MUTANT_TIMEOUT_SECONDS}s before "
+            "any mutation was applied."
+        ) from error
+    if not baseline_passed:
         raise PytestRunError(
             f"{target} already fails before any mutation is applied; every "
             "mutant would score as killed. Fix the suite first."
@@ -354,10 +408,13 @@ def main() -> int:
             continue
         rate = round(100 * killed / scored)
         results[package] = {"killed": killed, "scored": scored, "rate": rate}
-        status = "OK" if rate >= FLOORS[package] else "BELOW FLOOR"
+        cleared = meets_floor(killed, scored, FLOORS[package])
+        status = "OK" if cleared else "BELOW FLOOR"
         print(f"  -> {killed}/{scored} killed = {rate}%  [{status}]")
-        if rate < FLOORS[package]:
-            failures.append(f"{package}: {rate}% < {FLOORS[package]}%")
+        if not cleared:
+            failures.append(
+                f"{package}: {killed}/{scored} (~{rate}%) < {FLOORS[package]}%"
+            )
 
     elapsed = time.monotonic() - started
     total_killed = sum(r["killed"] for r in results.values())
