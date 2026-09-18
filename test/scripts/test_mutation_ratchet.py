@@ -23,6 +23,12 @@ from pathlib import Path
 import psutil
 import pytest
 
+# The ratchet refuses to run without POSIX process groups, so the tests that
+# drive its cleanup or its entry point have nothing to assert elsewhere.
+posix_only = pytest.mark.skipif(
+    not hasattr(os, "killpg"), reason="the ratchet is POSIX-only by refusal"
+)
+
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _SPEC = importlib.util.spec_from_file_location(
     "mutation_ratchet", REPO_ROOT / "scripts" / "mutation_ratchet.py"
@@ -257,6 +263,7 @@ def _alive(pid: int) -> bool:
         return False
 
 
+@posix_only
 def test_a_timed_out_run_takes_its_descendants_with_it():
     """Killing only the direct child leaves a grandchild running pytest against
     source the next mutant is rewriting."""
@@ -289,6 +296,7 @@ def test_a_timed_out_run_takes_its_descendants_with_it():
             process.stdout.close()
 
 
+@posix_only
 def test_a_package_that_scores_no_mutants_fails(monkeypatch, capsys):
     """A floor over nothing is a floor nothing can breach: if discovery stops
     finding sites, the ratchet must not report a pass."""
@@ -300,9 +308,7 @@ def test_a_package_that_scores_no_mutants_fails(monkeypatch, capsys):
     assert "no mutants scored" in capsys.readouterr().out
 
 
-@pytest.mark.skipif(
-    not hasattr(os, "killpg"), reason="the ratchet refuses to run without them"
-)
+@posix_only
 def test_descendants_die_once_the_direct_child_is_already_gone():
     """A timeout does not mean pytest is still running.
 
