@@ -6,9 +6,42 @@ registry (``lsp_server_configs``), and stateless helpers for detecting
 which servers are installed and choosing one for a given file.
 """
 
+import os
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+
+
+def _names_on_path(wanted: set[str]) -> set[str]:
+    """Which of *wanted* plausibly exist on ``$PATH``, one listing per directory.
+
+    A prefilter, not a resolver: it answers "is this name worth a ``which``
+    call" in O($PATH) rather than O(names x $PATH). Matching is loose on
+    purpose -- ``gopls`` matches ``gopls``, ``gopls.exe`` and ``gopls.cmd``
+    alike -- because a false positive costs one ``which`` call while a false
+    negative hides an installed server.
+
+    ``$PATH`` routinely names directories that do not exist, so an unreadable
+    entry is skipped rather than raised.
+    """
+    found: set[str] = set()
+    seen: set[str] = set()
+    for directory in os.environ.get("PATH", "").split(os.pathsep):
+        if not directory or directory in seen:
+            continue
+        seen.add(directory)
+        try:
+            entries = os.listdir(directory)
+        except OSError:
+            continue
+        for entry in entries:
+            if entry in wanted:
+                found.add(entry)
+                continue
+            stem = entry.split(".", 1)[0]
+            if stem in wanted:
+                found.add(stem)
+    return found
 
 
 @dataclass
@@ -80,18 +113,26 @@ class LSPServerConfigRegistry:
         Returns:
             Dict mapping server name to executable path.
 
-        Cached: this is one ``shutil.which`` per configured server (~21), and a
-        miss walks every ``$PATH`` entry — ~18ms each where PATH includes slow
-        entries (WSL2's ``/mnt/c/...``). ``get_for_file`` runs on every agent
-        file edit via the post-write diagnostics, and the no-server path probes
-        again for its error message, so an uncached scan cost ~1s per edit.
-        ponytail: cached for the process lifetime; a server installed mid-session
-        needs invalidate_detection() (registering a config already invalidates).
+        ``shutil.which`` alone is O(servers x $PATH) because every *miss* walks
+        the whole of ``$PATH`` -- 21 servers against 53 entries is ~1100 stat
+        calls, and this sits on the ``zrb llm chat`` startup path. So each
+        directory is listed once to prefilter, and ``which`` is asked only about
+        the names that could match; it stays the authority on what counts as
+        executable (PATHEXT on Windows, the exec bit on POSIX).
+
+        ``get_for_file`` runs on every agent file edit via the post-write
+        diagnostics, so the result is cached for the process lifetime. A server
+        installed mid-session needs invalidate_detection(); registering a config
+        already invalidates.
         """
         if self._detected is None:
+            configs = self.all()
+            candidates = _names_on_path({c.command[0] for c in configs.values()})
             available = {}
-            for name, config in self.all().items():
+            for name, config in configs.items():
                 cmd = config.command[0]
+                if cmd not in candidates:
+                    continue
                 path = shutil.which(cmd)
                 if path:
                     available[name] = path

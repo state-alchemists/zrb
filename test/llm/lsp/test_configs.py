@@ -1,4 +1,4 @@
-from unittest.mock import patch
+import os
 
 import pytest
 
@@ -22,13 +22,61 @@ def _cleanup_global_registry():
 
     Cleared after as well, not just before: clearing only on the way in
     protects *these* tests from everyone else while leaking their own
-    registrations — and the ``_detected`` PATH scan these tests cache under a
-    mocked ``shutil.which`` — into whichever unrelated test pytest-xdist runs
-    next in this worker.
+    registrations -- and the ``_detected`` PATH scan they cache against a
+    temporary ``$PATH`` -- into whichever unrelated test pytest-xdist runs next
+    in this worker.
     """
     lsp_server_configs.clear()
     yield
     lsp_server_configs.clear()
+
+
+@pytest.fixture
+def lsp_on_path(tmp_path, monkeypatch):
+    """Install real executable stubs on a ``$PATH`` holding only them.
+
+    Detection probes the filesystem twice -- one listing per ``$PATH`` entry,
+    then ``shutil.which`` on the survivors -- and real files are what keep both
+    probes looking at the same world. Mocking only ``which`` would leave the
+    listing reading the developer's actual ``$PATH``.
+
+    Windows resolves a bare name only through ``PATHEXT``; ``.bat`` is in every
+    default ``PATHEXT``, so the stub carries it there and no suffix elsewhere.
+    """
+
+    def _install(*names: str) -> dict[str, str]:
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir(exist_ok=True)
+        suffix = ".bat" if os.name == "nt" else ""
+        installed = {}
+        for name in names:
+            executable = bin_dir / f"{name}{suffix}"
+            executable.write_text("")
+            executable.chmod(0o755)
+            installed[name] = str(executable)
+        monkeypatch.setenv("PATH", str(bin_dir))
+        return installed
+
+    return _install
+
+
+@pytest.fixture
+def probe_counter(monkeypatch):
+    """Count how many ``$PATH`` directory listings detection has performed.
+
+    The listing is the part that scales with ``$PATH``, so it is what the cache
+    tests count. Counting ``shutil.which`` instead would be vacuous: a name
+    absent from ``$PATH`` never reaches it.
+    """
+    calls = {"n": 0}
+    real_listdir = os.listdir
+
+    def counting_listdir(path):
+        calls["n"] += 1
+        return real_listdir(path)
+
+    monkeypatch.setattr("zrb.llm.lsp.configs.os.listdir", counting_listdir)
+    return lambda: calls["n"]
 
 
 def test_matches_file():
@@ -44,39 +92,21 @@ def test_matches_file():
     assert config.matches_file("no_extension") is False
 
 
-@patch("shutil.which")
-def test_detect_available_lsp_servers(mock_which):
-    def which_side_effect(cmd):
-        # pyright's LSP server binary is `pyright-langserver`, not `pyright`
-        # (the latter is the CLI type-checker). Detection keys off command[0].
-        if cmd == "pyright-langserver":
-            return "/usr/bin/pyright-langserver"
-        if cmd == "pylsp":
-            return "/usr/bin/pylsp"
-        return None
-
-    mock_which.side_effect = which_side_effect
+def test_detect_available_lsp_servers(lsp_on_path):
+    # pyright's LSP server binary is `pyright-langserver`, not `pyright`
+    # (the latter is the CLI type-checker). Detection keys off command[0].
+    installed = lsp_on_path("pyright-langserver", "pylsp")
 
     available = detect_available_lsp_servers()
 
-    assert "pyright" in available
-    assert available["pyright"] == "/usr/bin/pyright-langserver"
-    assert "pylsp" in available
-    assert available["pylsp"] == "/usr/bin/pylsp"
+    assert available["pyright"] == installed["pyright-langserver"]
+    assert available["pylsp"] == installed["pylsp"]
     assert "jedi" not in available
     assert "gopls" not in available
 
 
-@patch("shutil.which")
-def test_get_lsp_config_for_file(mock_which):
-    def which_side_effect(cmd):
-        if cmd == "pyright-langserver":
-            return "/usr/bin/pyright-langserver"
-        if cmd == "gopls":
-            return "/usr/bin/gopls"
-        return None
-
-    mock_which.side_effect = which_side_effect
+def test_get_lsp_config_for_file(lsp_on_path):
+    lsp_on_path("pyright-langserver", "gopls")
 
     # Test file matches pyright
     config = get_lsp_config_for_file("script.py")
@@ -93,16 +123,8 @@ def test_get_lsp_config_for_file(mock_which):
     assert config is None
 
 
-@patch("shutil.which")
-def test_get_lsp_config_for_file_with_preferred(mock_which):
-    def which_side_effect(cmd):
-        if cmd == "pyright-langserver":
-            return "/usr/bin/pyright-langserver"
-        if cmd == "pylsp":
-            return "/usr/bin/pylsp"
-        return None
-
-    mock_which.side_effect = which_side_effect
+def test_get_lsp_config_for_file_with_preferred(lsp_on_path):
+    lsp_on_path("pyright-langserver", "pylsp")
 
     # preferred server 'pylsp' should be chosen over 'pyright'
     config = get_lsp_config_for_file("script.py", preferred_servers=["pylsp"])
@@ -115,31 +137,31 @@ def test_get_lsp_config_for_file_with_preferred(mock_which):
     assert config.name == "pyright" or config.name == "pylsp"
 
 
-@patch("shutil.which", return_value=None)
-def test_detect_caches_the_path_scan(mock_which):
+def test_detect_caches_the_path_scan(lsp_on_path, probe_counter):
     """The ``$PATH`` probe runs once, not on every call.
 
-    Each miss walks every ``$PATH`` entry (~18ms where PATH includes WSL2's
-    ``/mnt/c/...``), and ``get_for_file`` runs on every agent file edit via the
-    post-write diagnostics — uncached that cost ~1s per edit.
+    ``get_for_file`` runs on every agent file edit via the post-write
+    diagnostics, so an uncached probe would re-read every ``$PATH`` entry per
+    edit.
     """
+    lsp_on_path("pyright-langserver")
     registry = LSPServerConfigRegistry()
 
     registry.detect()
-    after_first = mock_which.call_count
+    after_first = probe_counter()
     registry.detect()
     registry.get_for_file("x.py")
 
     assert after_first > 0
-    assert mock_which.call_count == after_first
+    assert probe_counter() == after_first
 
 
-@patch("shutil.which", return_value=None)
-def test_detect_cache_invalidated_by_register_and_clear(mock_which):
+def test_detect_cache_invalidated_by_register_and_clear(lsp_on_path, probe_counter):
     """A newly registered server must be visible immediately."""
+    installed = lsp_on_path("custom-lsp")
     registry = LSPServerConfigRegistry()
-    registry.detect()
-    baseline = mock_which.call_count
+    assert registry.detect() == {}
+    baseline = probe_counter()
 
     registry.register(
         "custom",
@@ -150,37 +172,39 @@ def test_detect_cache_invalidated_by_register_and_clear(mock_which):
             file_extensions=[".cst"],
         ),
     )
-    registry.detect()
-    assert mock_which.call_count > baseline
+    # Registering invalidates, so the new server resolves without a manual rescan.
+    assert registry.detect() == {"custom": installed["custom-lsp"]}
+    assert probe_counter() > baseline
 
-    after_register = mock_which.call_count
+    after_register = probe_counter()
     registry.clear()
-    registry.detect()
-    assert mock_which.call_count > after_register
+    assert registry.detect() == {}
+    assert probe_counter() > after_register
 
 
-@patch("shutil.which", return_value=None)
-def test_invalidate_detection_forces_a_rescan(mock_which):
+def test_invalidate_detection_forces_a_rescan(lsp_on_path, probe_counter):
     """The documented escape hatch for the cache's staleness ceiling.
 
     A server installed mid-session is invisible until the probe re-runs; this is
     the only way to get it without re-registering a config.
     """
+    lsp_on_path()  # empty $PATH: nothing installed yet
     registry = LSPServerConfigRegistry()
-    registry.detect()
-    baseline = mock_which.call_count
+    assert registry.detect() == {}
+    baseline = probe_counter()
 
-    registry.detect()
-    assert mock_which.call_count == baseline  # still cached
+    installed = lsp_on_path("pyright-langserver")  # installed mid-session
+    assert registry.detect() == {}  # still cached, so still invisible
+    assert probe_counter() == baseline
 
     registry.invalidate_detection()
-    registry.detect()
-    assert mock_which.call_count > baseline
+    assert registry.detect() == {"pyright": installed["pyright-langserver"]}
+    assert probe_counter() > baseline
 
 
-@patch("shutil.which", return_value=None)
-def test_detect_result_is_not_shared_mutable_state(mock_which):
+def test_detect_result_is_not_shared_mutable_state(lsp_on_path):
     """Callers get a copy — mutating the result must not poison the cache."""
+    lsp_on_path()
     registry = LSPServerConfigRegistry()
     registry.detect()["injected"] = "/nope"
     assert "injected" not in registry.detect()
@@ -279,14 +303,8 @@ class TestLSPServerConfigRegistry:
         result.clear()
         assert self.registry.get("pyright") is not None
 
-    @patch("shutil.which")
-    def test_detect_with_user_registered(self, mock_which):
-        def which_side_effect(cmd):
-            if cmd == "my-lsp-server":
-                return "/usr/bin/my-lsp-server"
-            return None
-
-        mock_which.side_effect = which_side_effect
+    def test_detect_with_user_registered(self, lsp_on_path):
+        installed = lsp_on_path("my-lsp-server")
 
         custom = LSPServerConfig(
             name="my-lang-lsp",
@@ -297,17 +315,10 @@ class TestLSPServerConfigRegistry:
         self.registry.register("my-lang-lsp", custom)
 
         available = self.registry.detect()
-        assert "my-lang-lsp" in available
-        assert available["my-lang-lsp"] == "/usr/bin/my-lsp-server"
+        assert available["my-lang-lsp"] == installed["my-lsp-server"]
 
-    @patch("shutil.which")
-    def test_get_for_file_with_user_registered(self, mock_which):
-        def which_side_effect(cmd):
-            if cmd == "my-lsp-server":
-                return "/usr/bin/my-lsp-server"
-            return None
-
-        mock_which.side_effect = which_side_effect
+    def test_get_for_file_with_user_registered(self, lsp_on_path):
+        lsp_on_path("my-lsp-server")
 
         custom = LSPServerConfig(
             name="my-lang-lsp",
@@ -324,16 +335,8 @@ class TestLSPServerConfigRegistry:
         config = self.registry.get_for_file("other.py")
         assert config is None
 
-    @patch("shutil.which")
-    def test_get_for_file_preferred_with_user_override(self, mock_which):
-        def which_side_effect(cmd):
-            if cmd == "my-lsp-server":
-                return "/usr/bin/my-lsp-server"
-            if cmd == "pyright-langserver":
-                return "/usr/bin/pyright-langserver"
-            return None
-
-        mock_which.side_effect = which_side_effect
+    def test_get_for_file_preferred_with_user_override(self, lsp_on_path):
+        lsp_on_path("my-lsp-server", "pyright-langserver")
 
         custom = LSPServerConfig(
             name="my-lang-lsp",
@@ -349,9 +352,8 @@ class TestLSPServerConfigRegistry:
         assert config is not None
         assert config.name == "my-lang-lsp"
 
-    @patch("shutil.which")
-    def test_detect_language_with_user_registered(self, mock_which):
-        mock_which.return_value = "/usr/bin/my-lsp-server"
+    def test_detect_language_with_user_registered(self, lsp_on_path):
+        lsp_on_path("my-lsp-server")
 
         custom = LSPServerConfig(
             name="my-lang-lsp",

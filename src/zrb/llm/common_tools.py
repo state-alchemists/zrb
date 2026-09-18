@@ -193,7 +193,9 @@ def _seed_default_tools() -> tuple[list, list, list]:
     # Register the 8 LSP tools only when a language server is actually installed
     # — their own guidance already says to fall back to Read + Grep when none is
     # available, so advertising them in a server-less repo is pure prompt weight.
-    # detect_available_lsp_servers() is a cheap shutil.which scan (no startup).
+    # detect_available_lsp_servers() starts no server, but it reads every $PATH
+    # directory, so the gate costs real startup time -- unavoidable here, since
+    # it has to resolve before the seed is built.
     lsp_tools = create_lsp_tools() if detect_available_lsp_servers() else []
     # Worktree tools only make sense inside a git repo — registering them in a
     # non-git directory is pure prompt weight (their docstrings + schemas would
