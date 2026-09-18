@@ -226,9 +226,6 @@ asyncio_default_fixture_loop_scope = "function"
 # A deadlock detector, not a performance budget: the slowest honest tests wait
 # on real process termination, so the ceiling is generous.
 timeout = 60
-# The "signal" method needs SIGALRM (POSIX main thread only), which neither
-# pytest-xdist workers nor Windows provide.
-timeout_method = "thread"
 norecursedirs = "playground examples"
 
 [build-system]
