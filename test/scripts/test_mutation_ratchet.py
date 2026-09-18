@@ -129,3 +129,45 @@ def test_every_floor_names_a_real_package_with_mirrored_tests():
     for package in mutation_ratchet.FLOORS:
         assert (mutation_ratchet.SRC / package).is_dir(), package
         assert mutation_ratchet.test_target_for(package) is not None, package
+
+
+def test_a_chained_comparison_keeps_the_rest_of_the_chain():
+    """Replacing the whole ``ops`` list drops the trailing comparators, turning
+    ``a < b < c`` into ``a <= b`` -- a mutant that no longer tests one site."""
+    mutated, _ = mutation_ratchet.apply_mutation(
+        "def f(a, b, c):\n    return a < b < c\n", 0
+    )
+    assert "a <= b < c" in mutated
+
+
+# --- run guards --------------------------------------------------------------
+
+
+@pytest.mark.parametrize("value", ["0", "-1"])
+def test_a_non_positive_mutant_count_is_rejected(value):
+    with pytest.raises(Exception):
+        mutation_ratchet.positive_int(value)
+
+
+def test_a_pytest_run_that_never_ran_stops_the_ratchet(monkeypatch, tmp_path):
+    """Exit code 5 is "no tests collected". Treating it as a test failure counts
+    every mutant killed, so a mistargeted run reports a perfect rate."""
+
+    class _Result:
+        returncode = 5
+        stdout = "no tests ran"
+        stderr = ""
+
+    monkeypatch.setattr(mutation_ratchet.subprocess, "run", lambda *a, **k: _Result())
+    with pytest.raises(mutation_ratchet.PytestRunError):
+        mutation_ratchet.run_tests(tmp_path)
+
+
+@pytest.mark.parametrize("code, survived", [(0, True), (1, False)])
+def test_pass_is_a_survivor_and_failure_is_a_kill(monkeypatch, tmp_path, code, survived):
+    class _Result:
+        returncode = code
+        stdout = stderr = ""
+
+    monkeypatch.setattr(mutation_ratchet.subprocess, "run", lambda *a, **k: _Result())
+    assert mutation_ratchet.run_tests(tmp_path) is survived

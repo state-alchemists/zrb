@@ -15,31 +15,41 @@ from pathlib import Path
 def _names_on_path(wanted: set[str]) -> set[str]:
     """Which of *wanted* plausibly exist on ``$PATH``, one listing per directory.
 
+    Returns ``os.path.normcase``-d names, which is what callers must match on:
+    Windows resolves executables case-insensitively, so a configured ``gopls``
+    is satisfied by ``GOPLS.EXE``.
+
     A prefilter, not a resolver: it answers "is this name worth a ``which``
     call" in O($PATH) rather than O(names x $PATH). Matching is loose on
     purpose -- ``gopls`` matches ``gopls``, ``gopls.exe`` and ``gopls.cmd``
     alike -- because a false positive costs one ``which`` call while a false
     negative hides an installed server.
 
-    ``$PATH`` routinely names directories that do not exist, so an unreadable
-    entry is skipped rather than raised.
+    An empty ``$PATH`` entry means the working directory, the convention
+    ``shutil.which`` follows; diverging from it here would filter out a server
+    that ``which`` would go on to resolve. ``$PATH`` also routinely names
+    directories that do not exist, so an unreadable entry is skipped rather
+    than raised.
     """
+    targets = {os.path.normcase(name) for name in wanted}
     found: set[str] = set()
     seen: set[str] = set()
-    for directory in os.environ.get("PATH", "").split(os.pathsep):
-        if not directory or directory in seen:
+    for entry in os.environ.get("PATH", "").split(os.pathsep):
+        directory = entry or os.curdir
+        if directory in seen:
             continue
         seen.add(directory)
         try:
-            entries = os.listdir(directory)
+            names = os.listdir(directory)
         except OSError:
             continue
-        for entry in entries:
-            if entry in wanted:
-                found.add(entry)
+        for name in names:
+            name = os.path.normcase(name)
+            if name in targets:
+                found.add(name)
                 continue
-            stem = entry.split(".", 1)[0]
-            if stem in wanted:
+            stem = name.split(".", 1)[0]
+            if stem in targets:
                 found.add(stem)
     return found
 
@@ -131,7 +141,7 @@ class LSPServerConfigRegistry:
             available = {}
             for name, config in configs.items():
                 cmd = config.command[0]
-                if cmd not in candidates:
+                if os.path.normcase(cmd) not in candidates:
                     continue
                 path = shutil.which(cmd)
                 if path:

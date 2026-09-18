@@ -42,6 +42,8 @@ def lsp_on_path(tmp_path, monkeypatch):
 
     Windows resolves a bare name only through ``PATHEXT``; ``.bat`` is in every
     default ``PATHEXT``, so the stub carries it there and no suffix elsewhere.
+    Returned paths are ``normcase``-d, because the extension ``shutil.which``
+    appends carries ``PATHEXT``'s casing rather than the file's.
     """
 
     def _install(*names: str) -> dict[str, str]:
@@ -53,7 +55,7 @@ def lsp_on_path(tmp_path, monkeypatch):
             executable = bin_dir / f"{name}{suffix}"
             executable.write_text("")
             executable.chmod(0o755)
-            installed[name] = str(executable)
+            installed[name] = os.path.normcase(str(executable))
         monkeypatch.setenv("PATH", str(bin_dir))
         return installed
 
@@ -79,6 +81,11 @@ def probe_counter(monkeypatch):
     return lambda: calls["n"]
 
 
+def normcased(detected: dict[str, str]) -> dict[str, str]:
+    """Detection results keyed as :func:`lsp_on_path` reports them."""
+    return {name: os.path.normcase(path) for name, path in detected.items()}
+
+
 def test_matches_file():
     config = LSPServerConfig(
         name="test_server",
@@ -99,8 +106,10 @@ def test_detect_available_lsp_servers(lsp_on_path):
 
     available = detect_available_lsp_servers()
 
-    assert available["pyright"] == installed["pyright-langserver"]
-    assert available["pylsp"] == installed["pylsp"]
+    assert normcased(available) == {
+        "pyright": installed["pyright-langserver"],
+        "pylsp": installed["pylsp"],
+    }
     assert "jedi" not in available
     assert "gopls" not in available
 
@@ -173,7 +182,7 @@ def test_detect_cache_invalidated_by_register_and_clear(lsp_on_path, probe_count
         ),
     )
     # Registering invalidates, so the new server resolves without a manual rescan.
-    assert registry.detect() == {"custom": installed["custom-lsp"]}
+    assert normcased(registry.detect()) == {"custom": installed["custom-lsp"]}
     assert probe_counter() > baseline
 
     after_register = probe_counter()
@@ -198,7 +207,9 @@ def test_invalidate_detection_forces_a_rescan(lsp_on_path, probe_counter):
     assert probe_counter() == baseline
 
     registry.invalidate_detection()
-    assert registry.detect() == {"pyright": installed["pyright-langserver"]}
+    assert normcased(registry.detect()) == {
+        "pyright": installed["pyright-langserver"]
+    }
     assert probe_counter() > baseline
 
 
@@ -208,6 +219,31 @@ def test_detect_result_is_not_shared_mutable_state(lsp_on_path):
     registry = LSPServerConfigRegistry()
     registry.detect()["injected"] = "/nope"
     assert "injected" not in registry.detect()
+
+
+def test_an_empty_path_entry_means_the_working_directory(lsp_on_path, monkeypatch, tmp_path):
+    """``shutil.which`` reads an empty ``$PATH`` entry as the working directory.
+
+    A prefilter that skipped it would drop a server ``which`` goes on to
+    resolve -- a false negative, which hides an installed server rather than
+    costing a probe. (A ``$PATH`` that is entirely empty is a different case:
+    ``which`` rejects it outright, so it is an empty *entry* here.)
+    """
+    lsp_on_path("custom-lsp")
+    monkeypatch.chdir(tmp_path / "bin")
+    monkeypatch.setenv("PATH", os.pathsep)
+    registry = LSPServerConfigRegistry()
+    registry.register(
+        "custom",
+        LSPServerConfig(
+            name="custom",
+            command=["custom-lsp"],
+            language_ids=["custom"],
+            file_extensions=[".cst"],
+        ),
+    )
+
+    assert "custom" in registry.detect()
 
 
 def test_detect_language_from_file():
@@ -315,7 +351,7 @@ class TestLSPServerConfigRegistry:
         self.registry.register("my-lang-lsp", custom)
 
         available = self.registry.detect()
-        assert available["my-lang-lsp"] == installed["my-lsp-server"]
+        assert normcased(available) == {"my-lang-lsp": installed["my-lsp-server"]}
 
     def test_get_for_file_with_user_registered(self, lsp_on_path):
         lsp_on_path("my-lsp-server")

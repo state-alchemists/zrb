@@ -67,6 +67,13 @@ SEED = 20260918
 # has to exceed a healthy run of one package's tests.
 MUTANT_TIMEOUT_SECONDS = 600
 
+PYTEST_PASSED = 0
+PYTEST_FAILED = 1
+
+
+class PytestRunError(RuntimeError):
+    """pytest never ran the tests -- a collection, usage or internal error."""
+
 
 @dataclass(frozen=True)
 class Mutation:
@@ -83,6 +90,11 @@ class _Mutator(ast.NodeTransformer):
     Comparison swap, boolean-operator flip, boolean-constant flip. Arithmetic and
     string operators are excluded: they yield far more equivalent mutants per
     real one here, inflating the denominator without adding signal.
+
+    A chained comparison (``a < b < c``) offers one site, its leading operator;
+    the rest of the chain is left intact. Per-operator sites would be the fuller
+    treatment, and are worth adding if a survivor ever turns out to hide behind
+    one.
     """
 
     def __init__(self, target: int) -> None:
@@ -111,7 +123,7 @@ class _Mutator(ast.NodeTransformer):
         op = type(node.ops[0])
         replacement = self._SWAP.get(op)
         if replacement and self._take(node, f"{op.__name__}->{replacement.__name__}"):
-            node.ops = [replacement()]
+            node.ops[0] = replacement()
         return node
 
     def visit_BoolOp(self, node: ast.BoolOp) -> ast.AST:
@@ -175,7 +187,13 @@ def test_target_for(package: str) -> Path | None:
 
 
 def run_tests(target: Path) -> bool:
-    """True if the suite passed (mutant survived), False if it failed (killed)."""
+    """True if the suite passed (mutant survived), False if it failed (killed).
+
+    Any other exit code means pytest never got as far as running the tests --
+    a collection error, a usage error, an empty target. Counting those as kills
+    is what would let a broken environment report a perfect rate, so they stop
+    the run instead.
+    """
     result = subprocess.run(
         [
             sys.executable,
@@ -195,7 +213,12 @@ def run_tests(target: Path) -> bool:
         text=True,
         timeout=MUTANT_TIMEOUT_SECONDS,
     )
-    return result.returncode == 0
+    if result.returncode not in (PYTEST_PASSED, PYTEST_FAILED):
+        raise PytestRunError(
+            f"pytest exited {result.returncode} on {target}\n"
+            f"{result.stdout[-2000:]}{result.stderr[-2000:]}"
+        )
+    return result.returncode == PYTEST_PASSED
 
 
 def score_package(package: str, sample_size: int, verbose: bool) -> tuple[int, int]:
@@ -252,6 +275,13 @@ def dirty_paths(packages: list[str]) -> list[str]:
     return [line[3:] for line in result.stdout.splitlines() if line.strip()]
 
 
+def positive_int(value: str) -> int:
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError(f"must be 1 or more, got {number}")
+    return number
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -261,7 +291,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--mutants",
-        type=int,
+        type=positive_int,
         default=DEFAULT_MUTANTS_PER_PACKAGE,
         help=f"mutants sampled per package (default: {DEFAULT_MUTANTS_PER_PACKAGE})",
     )
@@ -301,7 +331,11 @@ def main() -> int:
 
     for package in packages:
         print(f"\n{package} (floor {FLOORS[package]}%)")
-        killed, scored = score_package(package, args.mutants, args.verbose)
+        try:
+            killed, scored = score_package(package, args.mutants, args.verbose)
+        except PytestRunError as error:
+            print(f"  ! {error}")
+            return 1
         if scored == 0:
             continue
         rate = round(100 * killed / scored)
