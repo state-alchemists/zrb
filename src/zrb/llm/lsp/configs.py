@@ -32,7 +32,10 @@ def _names_on_path(wanted: set[str]) -> set[str]:
     Where to look has to cover everywhere ``shutil.which`` would look, since
     anything ruled out here never reaches ``which`` to be resolved: an unset
     ``$PATH`` falls back to the system default, an empty one means nowhere at
-    all, and an empty *entry* within one means the working directory.
+    all, and an empty *entry* within one means the working directory. The last
+    two read alike and are not: ``which`` returns ``None`` for ``PATH=""``
+    before it splits anything (bpo-35755), while ``PATH=":"`` is two empty
+    entries and does look in the working directory.
 
     Only a successful listing is a negative. A missing directory or a plain
     file is one -- ``which`` stats a name under it and fails too -- but every
