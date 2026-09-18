@@ -29,16 +29,25 @@ def _names_on_path(wanted: set[str]) -> set[str]:
     alike -- because a false positive costs one ``which`` call while a false
     negative hides an installed server.
 
-    An empty ``$PATH`` entry means the working directory, the convention
-    ``shutil.which`` follows; diverging from it here would filter out a server
-    that ``which`` would go on to resolve. ``$PATH`` also routinely names
-    directories that do not exist, so an unreadable entry is skipped rather
-    than raised.
+    Where to look is resolved exactly as ``shutil.which`` resolves it, since
+    anything this rules out never reaches ``which`` to be resolved: an unset
+    ``$PATH`` falls back to the system default, an empty one means nowhere at
+    all, and an empty *entry* within one means the working directory. ``$PATH``
+    also routinely names directories that do not exist, so an unreadable entry
+    is skipped rather than raised.
     """
+    search_path = os.environ.get("PATH")
+    if search_path is None:
+        try:
+            search_path = os.confstr("CS_PATH")
+        except (AttributeError, ValueError):
+            search_path = os.defpath
+    if not search_path:
+        return set()
     targets = {os.path.normcase(name) for name in wanted}
     found: set[str] = set()
     seen: set[str] = set()
-    for entry in os.environ.get("PATH", "").split(os.pathsep):
+    for entry in search_path.split(os.pathsep):
         directory = entry or os.curdir
         if directory in seen:
             continue
@@ -52,7 +61,7 @@ def _names_on_path(wanted: set[str]) -> set[str]:
             if name in targets:
                 found.add(name)
                 continue
-            stem = name.split(".", 1)[0]
+            stem = os.path.splitext(name)[0]
             if stem in targets:
                 found.add(stem)
     return found

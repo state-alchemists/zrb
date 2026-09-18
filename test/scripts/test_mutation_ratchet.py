@@ -187,3 +187,14 @@ def test_a_red_baseline_stops_the_package_before_anything_is_mutated(monkeypatch
     with pytest.raises(mutation_ratchet.PytestRunError):
         mutation_ratchet.score_package("llm/skill", 1, verbose=False)
     assert written == []
+
+
+def test_uncommitted_mirrored_tests_count_as_dirty():
+    """The tests are what the score is measured against, so an uncommitted
+    assertion raises the rate for work that is not in the tree yet."""
+    probe = REPO_ROOT / "test" / "llm" / "skill" / "ratchet_dirty_probe.txt"
+    probe.write_text("")
+    try:
+        assert any("ratchet_dirty_probe" in p for p in mutation_ratchet.dirty_paths(["llm/skill"]))
+    finally:
+        probe.unlink()

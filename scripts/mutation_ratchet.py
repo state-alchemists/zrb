@@ -265,16 +265,21 @@ def score_package(package: str, sample_size: int, verbose: bool) -> tuple[int, i
 
 
 def dirty_paths(packages: list[str]) -> list[str]:
-    """Tracked files under *packages* with uncommitted changes.
+    """Uncommitted changes under *packages*, source and mirrored tests alike.
 
     ``ast.unparse`` reproduces the code but drops every comment, and the restore
     in :func:`score_package` cannot cover a SIGKILL. Refusing to start on a dirty
     tree makes ``git checkout`` a complete recovery for that case -- cheaper than
     a backup directory, and it cannot go stale.
+
+    The mirrored tests are checked for a second reason: they are what the score
+    is measured against, so an uncommitted assertion raises the rate for work
+    that is not in the tree yet.
     """
+    targets = [str(SRC / package) for package in packages]
+    targets += [str(TESTS / package) for package in packages]
     result = subprocess.run(
-        ["git", "status", "--porcelain", "--"]
-        + [str(SRC / package) for package in packages],
+        ["git", "status", "--porcelain", "--"] + targets,
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,

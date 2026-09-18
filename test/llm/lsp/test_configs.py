@@ -272,6 +272,34 @@ def test_a_path_qualified_command_bypasses_the_path_prefilter(tmp_path, monkeypa
     assert normcased(registry.detect()) == {"custom": os.path.normcase(str(executable))}
 
 
+def test_an_unset_path_falls_back_the_way_which_does(lsp_on_path, monkeypatch):
+    """No ``$PATH`` is not "nowhere": ``shutil.which`` falls back to ``CS_PATH``
+    or ``os.defpath``, so a server in ``/usr/bin`` still resolves. A prefilter
+    that read a missing ``$PATH`` as the working directory would hide it.
+
+    Both fallbacks are steered, because ``which`` reads them from the same
+    ``os`` module this does.
+    """
+    installed = lsp_on_path("custom-lsp")
+    fallback = os.path.dirname(installed["custom-lsp"])
+    monkeypatch.delenv("PATH")
+    monkeypatch.setattr(os, "confstr", lambda name: fallback, raising=False)
+    monkeypatch.setattr(os, "defpath", fallback)
+
+    registry = LSPServerConfigRegistry()
+    registry.register(
+        "custom",
+        LSPServerConfig(
+            name="custom",
+            command=["custom-lsp"],
+            language_ids=["custom"],
+            file_extensions=[".cst"],
+        ),
+    )
+
+    assert normcased(registry.detect()) == {"custom": installed["custom-lsp"]}
+
+
 def test_detect_language_from_file():
     assert detect_language_from_file("script.py") == "python"
     assert detect_language_from_file("main.go") == "go"
