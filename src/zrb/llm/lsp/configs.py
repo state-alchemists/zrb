@@ -29,19 +29,28 @@ def _names_on_path(wanted: set[str]) -> set[str]:
     alike -- because a false positive costs one ``which`` call while a false
     negative hides an installed server.
 
-    Where to look is resolved exactly as ``shutil.which`` resolves it, since
-    anything this rules out never reaches ``which`` to be resolved: an unset
+    Where to look has to cover everywhere ``shutil.which`` would look, since
+    anything ruled out here never reaches ``which`` to be resolved: an unset
     ``$PATH`` falls back to the system default, an empty one means nowhere at
     all, and an empty *entry* within one means the working directory. ``$PATH``
     also routinely names directories that do not exist, so an unreadable entry
     is skipped rather than raised.
+
+    Both system defaults are searched because the two sources disagree:
+    CPython's ``shutil.which`` reads ``CS_PATH`` and falls back to
+    ``os.defpath``, while its documentation promises ``os.defpath`` alone. A
+    directory scanned that the resolver ignores costs nothing; one skipped that
+    the resolver would have used hides an installed server.
     """
     search_path = os.environ.get("PATH")
     if search_path is None:
         try:
-            search_path = os.confstr("CS_PATH")
+            configured_default = os.confstr("CS_PATH")
         except (AttributeError, ValueError):
-            search_path = os.defpath
+            configured_default = None
+        search_path = os.pathsep.join(
+            dict.fromkeys(filter(None, (configured_default, os.defpath)))
+        )
     if not search_path:
         return set()
     targets = {os.path.normcase(name) for name in wanted}

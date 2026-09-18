@@ -272,19 +272,32 @@ def test_a_path_qualified_command_bypasses_the_path_prefilter(tmp_path, monkeypa
     assert normcased(registry.detect()) == {"custom": os.path.normcase(str(executable))}
 
 
-def test_an_unset_path_falls_back_the_way_which_does(lsp_on_path, monkeypatch):
+@pytest.mark.parametrize("through", ["confstr", "defpath"])
+def test_an_unset_path_falls_back_the_way_which_does(lsp_on_path, monkeypatch, through):
     """No ``$PATH`` is not "nowhere": ``shutil.which`` falls back to ``CS_PATH``
     or ``os.defpath``, so a server in ``/usr/bin`` still resolves. A prefilter
     that read a missing ``$PATH`` as the working directory would hide it.
 
-    Both fallbacks are steered, because ``which`` reads them from the same
-    ``os`` module this does.
+    Either default alone has to be enough. ``shutil.which`` reads ``CS_PATH``
+    first and ``os.defpath`` only where that is unavailable, while its
+    documentation names ``os.defpath`` alone -- so honouring one of them is a
+    false negative on any system where they differ.
+
+    The fallbacks are steered rather than mocked out, because ``which`` reads
+    them from the same ``os`` module this does, which keeps prefilter and
+    resolver looking at one world.
     """
     installed = lsp_on_path("custom-lsp")
     fallback = os.path.dirname(installed["custom-lsp"])
+
+    def confstr(name):
+        if through == "confstr":
+            return fallback
+        raise ValueError("CS_PATH is not available here")
+
     monkeypatch.delenv("PATH")
-    monkeypatch.setattr(os, "confstr", lambda name: fallback, raising=False)
-    monkeypatch.setattr(os, "defpath", fallback)
+    monkeypatch.setattr(os, "confstr", confstr, raising=False)
+    monkeypatch.setattr(os, "defpath", fallback if through == "defpath" else "")
 
     registry = LSPServerConfigRegistry()
     registry.register(
@@ -298,6 +311,32 @@ def test_an_unset_path_falls_back_the_way_which_does(lsp_on_path, monkeypatch):
     )
 
     assert normcased(registry.detect()) == {"custom": installed["custom-lsp"]}
+
+
+def test_a_path_qualified_command_bypasses_the_path_prefilter(tmp_path, monkeypatch):
+    """A command naming its own directory resolves against that directory, so no
+    ``$PATH`` listing can vouch for it -- and the registry documents custom
+    servers, which is where an absolute path shows up."""
+    elsewhere = tmp_path / "opt"
+    elsewhere.mkdir()
+    suffix = ".bat" if os.name == "nt" else ""
+    executable = elsewhere / f"custom-lsp{suffix}"
+    executable.write_text("")
+    executable.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path / "empty"))
+
+    registry = LSPServerConfigRegistry()
+    registry.register(
+        "custom",
+        LSPServerConfig(
+            name="custom",
+            command=[str(executable)],
+            language_ids=["custom"],
+            file_extensions=[".cst"],
+        ),
+    )
+
+    assert normcased(registry.detect()) == {"custom": os.path.normcase(str(executable))}
 
 
 def test_detect_language_from_file():
