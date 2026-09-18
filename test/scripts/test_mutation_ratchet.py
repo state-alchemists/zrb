@@ -209,7 +209,10 @@ def test_uncommitted_mirrored_tests_count_as_dirty():
     probe = REPO_ROOT / "test" / "llm" / "skill" / "ratchet_dirty_probe.txt"
     probe.write_text("")
     try:
-        assert any("ratchet_dirty_probe" in p for p in mutation_ratchet.dirty_paths(["llm/skill"]))
+        assert any(
+            "ratchet_dirty_probe" in p
+            for p in mutation_ratchet.dirty_paths(["llm/skill"])
+        )
     finally:
         probe.unlink()
 
