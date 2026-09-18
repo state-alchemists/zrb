@@ -207,9 +207,7 @@ def test_invalidate_detection_forces_a_rescan(lsp_on_path, probe_counter):
     assert probe_counter() == baseline
 
     registry.invalidate_detection()
-    assert normcased(registry.detect()) == {
-        "pyright": installed["pyright-langserver"]
-    }
+    assert normcased(registry.detect()) == {"pyright": installed["pyright-langserver"]}
     assert probe_counter() > baseline
 
 
@@ -221,7 +219,9 @@ def test_detect_result_is_not_shared_mutable_state(lsp_on_path):
     assert "injected" not in registry.detect()
 
 
-def test_an_empty_path_entry_means_the_working_directory(lsp_on_path, monkeypatch, tmp_path):
+def test_an_empty_path_entry_means_the_working_directory(
+    lsp_on_path, monkeypatch, tmp_path
+):
     """``shutil.which`` reads an empty ``$PATH`` entry as the working directory.
 
     A prefilter that skipped it would drop a server ``which`` goes on to

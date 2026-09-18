@@ -164,7 +164,9 @@ def test_a_pytest_run_that_never_ran_stops_the_ratchet(monkeypatch, tmp_path):
 
 
 @pytest.mark.parametrize("code, survived", [(0, True), (1, False)])
-def test_pass_is_a_survivor_and_failure_is_a_kill(monkeypatch, tmp_path, code, survived):
+def test_pass_is_a_survivor_and_failure_is_a_kill(
+    monkeypatch, tmp_path, code, survived
+):
     class _Result:
         returncode = code
         stdout = stderr = ""
