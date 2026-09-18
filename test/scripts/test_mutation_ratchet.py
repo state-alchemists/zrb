@@ -173,3 +173,17 @@ def test_pass_is_a_survivor_and_failure_is_a_kill(
 
     monkeypatch.setattr(mutation_ratchet.subprocess, "run", lambda *a, **k: _Result())
     assert mutation_ratchet.run_tests(tmp_path) is survived
+
+
+def test_a_red_baseline_stops_the_package_before_anything_is_mutated(monkeypatch):
+    """Every mutant scores as killed against an already-failing suite, which is
+    the one way this ratchet reports a perfect rate over no signal."""
+    monkeypatch.setattr(mutation_ratchet, "run_tests", lambda target: False)
+    written = []
+    monkeypatch.setattr(
+        mutation_ratchet.Path, "write_text", lambda self, *a, **k: written.append(self)
+    )
+
+    with pytest.raises(mutation_ratchet.PytestRunError):
+        mutation_ratchet.score_package("llm/skill", 1, verbose=False)
+    assert written == []

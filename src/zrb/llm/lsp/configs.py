@@ -15,6 +15,10 @@ from pathlib import Path
 def _names_on_path(wanted: set[str]) -> set[str]:
     """Which of *wanted* plausibly exist on ``$PATH``, one listing per directory.
 
+    *wanted* holds bare executable names; a command carrying a directory
+    resolves against that directory rather than ``$PATH``, so it has no
+    business here.
+
     Returns ``os.path.normcase``-d names, which is what callers must match on:
     Windows resolves executables case-insensitively, so a configured ``gopls``
     is satisfied by ``GOPLS.EXE``.
@@ -137,11 +141,19 @@ class LSPServerConfigRegistry:
         """
         if self._detected is None:
             configs = self.all()
-            candidates = _names_on_path({c.command[0] for c in configs.values()})
+            candidates = _names_on_path(
+                {
+                    config.command[0]
+                    for config in configs.values()
+                    if not os.path.dirname(config.command[0])
+                }
+            )
             available = {}
             for name, config in configs.items():
                 cmd = config.command[0]
-                if os.path.normcase(cmd) not in candidates:
+                # A path-qualified command skips the prefilter: it names its own
+                # directory, which no $PATH listing covers.
+                if not os.path.dirname(cmd) and os.path.normcase(cmd) not in candidates:
                     continue
                 path = shutil.which(cmd)
                 if path:

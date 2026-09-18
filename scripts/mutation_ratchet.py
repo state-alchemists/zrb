@@ -72,7 +72,7 @@ PYTEST_FAILED = 1
 
 
 class PytestRunError(RuntimeError):
-    """pytest never ran the tests -- a collection, usage or internal error."""
+    """The run cannot be scored: pytest failed to run, or the baseline is red."""
 
 
 @dataclass(frozen=True)
@@ -224,6 +224,10 @@ def run_tests(target: Path) -> bool:
 def score_package(package: str, sample_size: int, verbose: bool) -> tuple[int, int]:
     """Run every sampled mutant for *package*; return ``(killed, scored)``.
 
+    A baseline run comes first, because a package whose tests already fail marks
+    every mutant killed -- the one way this ratchet can report a perfect rate
+    over no signal at all.
+
     The restore is in a ``finally`` so an exception or a timeout cannot leave a
     mutation in the working tree.
     """
@@ -231,6 +235,11 @@ def score_package(package: str, sample_size: int, verbose: bool) -> tuple[int, i
     if target is None:
         print(f"  ! no mirrored test dir for {package}, skipping")
         return 0, 0
+    if not run_tests(target):
+        raise PytestRunError(
+            f"{target} already fails before any mutation is applied; every "
+            "mutant would score as killed. Fix the suite first."
+        )
     killed = scored = 0
     for mutation in select_mutations(package, sample_size):
         original = mutation.path.read_text(encoding="utf-8")

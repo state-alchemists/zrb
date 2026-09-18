@@ -246,6 +246,32 @@ def test_an_empty_path_entry_means_the_working_directory(
     assert "custom" in registry.detect()
 
 
+def test_a_path_qualified_command_bypasses_the_path_prefilter(tmp_path, monkeypatch):
+    """A command naming its own directory resolves against that directory, so no
+    ``$PATH`` listing can vouch for it -- and the registry documents custom
+    servers, which is where an absolute path shows up."""
+    elsewhere = tmp_path / "opt"
+    elsewhere.mkdir()
+    suffix = ".bat" if os.name == "nt" else ""
+    executable = elsewhere / f"custom-lsp{suffix}"
+    executable.write_text("")
+    executable.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path / "empty"))
+
+    registry = LSPServerConfigRegistry()
+    registry.register(
+        "custom",
+        LSPServerConfig(
+            name="custom",
+            command=[str(executable)],
+            language_ids=["custom"],
+            file_extensions=[".cst"],
+        ),
+    )
+
+    assert normcased(registry.detect()) == {"custom": os.path.normcase(str(executable))}
+
+
 def test_detect_language_from_file():
     assert detect_language_from_file("script.py") == "python"
     assert detect_language_from_file("main.go") == "go"
