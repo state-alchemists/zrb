@@ -12,7 +12,7 @@ same rule: ``FLOORS`` **only ever goes up**. Raising one needs nothing but the
 diff that earns it; lowering one needs a reason in the same diff.
 
 A script rather than a pytest test because a pass is minutes, not seconds -- it
-belongs in a nightly job, not the per-commit gate. See ADR-0097 for the
+is run on demand, not from the per-commit gate. See ADR-0097 for the
 measurements and for why ``mutmut``/``cosmic-ray`` do not fit this layout.
 
 Usage::
