@@ -15,6 +15,7 @@ makes every annotation a string: ``@dataclass`` then resolves them through
 """
 
 import importlib.util
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -266,7 +267,10 @@ def test_a_timed_out_run_takes_its_descendants_with_it():
         "time.sleep(60)"
     )
     process = subprocess.Popen(
-        [sys.executable, "-c", spawner], stdout=subprocess.PIPE, text=True
+        [sys.executable, "-c", spawner],
+        stdout=subprocess.PIPE,
+        text=True,
+        **mutation_ratchet.OWN_PROCESS_GROUP,
     )
     grandchild = None
     try:
@@ -294,3 +298,45 @@ def test_a_package_that_scores_no_mutants_fails(monkeypatch, capsys):
 
     assert mutation_ratchet.main() == 1
     assert "no mutants scored" in capsys.readouterr().out
+
+
+@pytest.mark.skipif(
+    not hasattr(os, "killpg"),
+    reason="Windows has no process group to signal; the walk there is best-effort",
+)
+def test_descendants_die_once_the_direct_child_is_already_gone():
+    """A timeout does not mean pytest is still running.
+
+    A descendant holding the inherited pipe keeps ``communicate`` waiting long
+    after pytest exits, and by then its children are reparented -- so a walk
+    down from the pid finds nothing and the survivor keeps running against
+    source the next mutant rewrites.
+    """
+    spawner = (
+        "import subprocess, sys;"
+        "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)']);"
+        "print(child.pid, flush=True)"
+    )
+    process = subprocess.Popen(
+        [sys.executable, "-c", spawner],
+        stdout=subprocess.PIPE,
+        text=True,
+        **mutation_ratchet.OWN_PROCESS_GROUP,
+    )
+    grandchild = None
+    try:
+        assert process.stdout is not None
+        grandchild = int(process.stdout.readline())
+        process.wait()
+
+        assert process.poll() is not None, "the direct child must be gone already"
+        assert _alive(grandchild), "the descendant must outlive it"
+
+        mutation_ratchet.kill_process_tree(process)
+
+        assert not _alive(grandchild)
+    finally:
+        if grandchild is not None and _alive(grandchild):
+            psutil.Process(grandchild).kill()
+        if process.stdout is not None:
+            process.stdout.close()

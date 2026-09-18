@@ -29,7 +29,9 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import os
 import random
+import signal
 import subprocess
 import sys
 import time
@@ -71,6 +73,13 @@ MUTANT_TIMEOUT_SECONDS = 600
 
 PYTEST_PASSED = 0
 PYTEST_FAILED = 1
+
+# A run of its own, so a timeout can reach descendants by group rather than by
+# walking down from a pid that may no longer be there.
+if hasattr(os, "killpg"):
+    OWN_PROCESS_GROUP = {"start_new_session": True}
+else:
+    OWN_PROCESS_GROUP = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
 
 
 class PytestRunError(RuntimeError):
@@ -188,28 +197,61 @@ def test_target_for(package: str) -> Path | None:
     return candidate if candidate.is_dir() else None
 
 
-def kill_process_tree(process: subprocess.Popen) -> None:
-    """SIGKILL *process* and everything it spawned, then reap them.
+def _process_group_members(pgid: int) -> list[psutil.Process]:
+    """Every live process in group *pgid*, enumerated before it is signalled.
 
-    On timeout ``subprocess.run`` kills the direct child and nothing below it.
-    This suite starts real shells, so a survivor keeps running pytest against
-    source the next mutant is already rewriting -- the results it produces
-    belong to no measurement at all.
-
-    Descendants are collected before the parent dies, because reparenting makes
-    them unreachable from its pid afterwards.
+    ``killpg`` says the signal was delivered, not that the processes are gone,
+    and the group is only addressable while it has members -- so the list has to
+    be taken first if the caller is to wait for them afterwards.
     """
-    try:
-        parent = psutil.Process(process.pid)
-        doomed = parent.children(recursive=True) + [parent]
-    except psutil.NoSuchProcess:
-        return
-    for victim in doomed:
+    members = []
+    for process in psutil.process_iter():
         try:
-            victim.kill()
-        except psutil.NoSuchProcess:
+            if os.getpgid(process.pid) == pgid:
+                members.append(process)
+        except (OSError, psutil.Error):
             continue
-    psutil.wait_procs(doomed, timeout=30)
+    return members
+
+
+def kill_process_tree(process: subprocess.Popen) -> None:
+    """SIGKILL *process* and everything it spawned, then reap it.
+
+    *process* must have been started with :data:`OWN_PROCESS_GROUP`, which makes
+    its pid the group id as well.
+
+    The group is what gets signalled, not a walk down from the pid. A timeout
+    does not imply the direct child is still alive -- a descendant holding the
+    inherited pipe keeps ``communicate`` waiting long after pytest itself has
+    exited -- and once it dies its children are reparented, so nothing leads
+    from its pid to them. The group outlives the leader as long as any member
+    is in it, which is exactly the case that has to be caught: a survivor keeps
+    running pytest against source the next mutant is already rewriting.
+
+    Windows has no process group to signal, so there the descendants are walked
+    instead and a reparented one can be missed. Closing that needs a Job
+    Object; the ratchet is run by hand on a developer's machine, so it has not
+    been worth the ctypes.
+    """
+    if hasattr(os, "killpg"):
+        members = _process_group_members(process.pid)
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+        psutil.wait_procs(members, timeout=30)
+    else:
+        try:
+            doomed = psutil.Process(process.pid).children(recursive=True)
+            doomed.append(psutil.Process(process.pid))
+        except psutil.NoSuchProcess:
+            doomed = []
+        for victim in doomed:
+            try:
+                victim.kill()
+            except psutil.NoSuchProcess:
+                continue
+        psutil.wait_procs(doomed, timeout=30)
     try:
         process.wait(timeout=30)
     except subprocess.TimeoutExpired:
@@ -225,7 +267,9 @@ def run_tests(target: Path) -> bool:
     the run instead.
 
     A timeout propagates as ``TimeoutExpired``, but only once the process tree
-    is down.
+    is down. So does a ``KeyboardInterrupt``: the run has its own process group
+    precisely so that Ctrl-C no longer reaches it, which would otherwise leave
+    pytest running after the script quit.
     """
     with subprocess.Popen(
         [
@@ -245,10 +289,11 @@ def run_tests(target: Path) -> bool:
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        **OWN_PROCESS_GROUP,
     ) as process:
         try:
             stdout, stderr = process.communicate(timeout=MUTANT_TIMEOUT_SECONDS)
-        except subprocess.TimeoutExpired:
+        except BaseException:
             kill_process_tree(process)
             raise
     if process.returncode not in (PYTEST_PASSED, PYTEST_FAILED):
