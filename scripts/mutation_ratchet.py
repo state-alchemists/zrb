@@ -405,6 +405,9 @@ def main() -> int:
             print(f"  ! {error}")
             return 1
         if scored == 0:
+            # A floor over nothing is a floor nothing can breach.
+            print("  -> no mutants scored")
+            failures.append(f"{package}: no mutants scored")
             continue
         rate = round(100 * killed / scored)
         results[package] = {"killed": killed, "scored": scored, "rate": rate}

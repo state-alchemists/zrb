@@ -32,9 +32,15 @@ def _names_on_path(wanted: set[str]) -> set[str]:
     Where to look has to cover everywhere ``shutil.which`` would look, since
     anything ruled out here never reaches ``which`` to be resolved: an unset
     ``$PATH`` falls back to the system default, an empty one means nowhere at
-    all, and an empty *entry* within one means the working directory. ``$PATH``
-    also routinely names directories that do not exist, so an unreadable entry
-    is skipped rather than raised.
+    all, and an empty *entry* within one means the working directory.
+
+    Only a successful listing is a negative. A missing directory or a plain
+    file is one -- ``which`` stats a name under it and fails too -- but every
+    other refusal, a permission denial above all, says the directory could not
+    be read rather than that it holds nothing. A directory can be searchable
+    without being readable, and ``which`` stats the single name it wants, so it
+    resolves what no listing can see; where that happens the prefilter drops
+    out and every name goes through to ``which``.
 
     Both system defaults are searched because the two sources disagree:
     CPython's ``shutil.which`` reads ``CS_PATH`` and falls back to
@@ -63,8 +69,10 @@ def _names_on_path(wanted: set[str]) -> set[str]:
         seen.add(directory)
         try:
             names = os.listdir(directory)
-        except OSError:
+        except (FileNotFoundError, NotADirectoryError):
             continue
+        except OSError:
+            return targets
         for name in names:
             name = os.path.normcase(name)
             if name in targets:

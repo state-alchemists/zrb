@@ -280,3 +280,14 @@ def test_a_timed_out_run_takes_its_descendants_with_it():
                 psutil.Process(pid).kill()
         if process.stdout is not None:
             process.stdout.close()
+
+
+def test_a_package_that_scores_no_mutants_fails(monkeypatch, capsys):
+    """A floor over nothing is a floor nothing can breach: if discovery stops
+    finding sites, the ratchet must not report a pass."""
+    monkeypatch.setattr(mutation_ratchet, "dirty_paths", lambda packages: [])
+    monkeypatch.setattr(mutation_ratchet, "score_package", lambda *a, **k: (0, 0))
+    monkeypatch.setattr(sys, "argv", ["mutation_ratchet.py", "llm/skill"])
+
+    assert mutation_ratchet.main() == 1
+    assert "no mutants scored" in capsys.readouterr().out
