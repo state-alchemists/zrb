@@ -32,42 +32,23 @@ GAP_WIDTH = 2
 def get_visual_todo_list(todo_list: list["TodoTaskModel"], filter: str) -> str:
     """Render `todo_list` as a tabular string, filtering by a todo.txt-format query."""
     todo_filter = line_to_todo_task(filter)
-    filtered_todo_list = []
-    for todo_task in todo_list:
-        filter_description = todo_filter.description.lower().strip()
-        if (
-            filter_description != ""
-            and filter_description not in todo_task.description.lower()
-        ):
-            continue
-        if not all(context in todo_task.contexts for context in todo_filter.contexts):
-            continue
-        if not all(project in todo_task.projects for project in todo_filter.projects):
-            continue
-        if not all(
-            key in todo_task.keyval and todo_task.keyval[key] == val
-            for key, val in todo_filter.keyval.items()
-        ):
-            continue
-        filtered_todo_list.append(todo_task)
-
+    filtered_todo_list = [
+        todo_task for todo_task in todo_list if _matches_filter(todo_task, todo_filter)
+    ]
     if len(filtered_todo_list) == 0:
         return "\n".join(["", "  Empty todo list... 🌵🦖", ""])
 
-    max_desc_length = max(
-        len(todo_task.description) for todo_task in filtered_todo_list
+    max_desc_length = min(
+        max(
+            len("DESCRIPTION"),
+            max(len(todo_task.description) for todo_task in filtered_todo_list),
+        ),
+        MAX_DESCRIPTION_WIDTH,
     )
-    if max_desc_length < len("DESCRIPTION"):
-        max_desc_length = len("DESCRIPTION")
-    if max_desc_length > MAX_DESCRIPTION_WIDTH:
-        max_desc_length = MAX_DESCRIPTION_WIDTH
-
     max_additional_info_length = max(
-        todo_task.get_additional_info_length() for todo_task in filtered_todo_list
+        len("PROJECT/CONTEXT/OTHERS"),
+        max(todo_task.get_additional_info_length() for todo_task in filtered_todo_list),
     )
-    if max_additional_info_length < len("PROJECT/CONTEXT/OTHERS"):
-        max_additional_info_length = len("PROJECT/CONTEXT/OTHERS")
-
     terminal_width, _ = shutil.get_terminal_size()
     results = [
         stylize_muted(
@@ -76,16 +57,35 @@ def get_visual_todo_list(todo_list: list["TodoTaskModel"], filter: str) -> str:
             )
         )
     ]
-    for todo_task in filtered_todo_list:
-        results.append(
-            get_visual_todo_line(
-                terminal_width,
-                max_desc_length,
-                max_additional_info_length,
-                todo_task,
-            )
+    results.extend(
+        get_visual_todo_line(
+            terminal_width, max_desc_length, max_additional_info_length, todo_task
         )
+        for todo_task in filtered_todo_list
+    )
     return "\n".join(results)
+
+
+def _matches_filter(todo_task: "TodoTaskModel", todo_filter: "TodoTaskModel") -> bool:
+    """Whether `todo_task` satisfies every clause of a todo.txt-format query.
+
+    Description matches as a case-insensitive substring; contexts, projects
+    and key/value pairs must all be present.
+    """
+    filter_description = todo_filter.description.lower().strip()
+    if (
+        filter_description != ""
+        and filter_description not in todo_task.description.lower()
+    ):
+        return False
+    if not all(context in todo_task.contexts for context in todo_filter.contexts):
+        return False
+    if not all(project in todo_task.projects for project in todo_filter.projects):
+        return False
+    return all(
+        key in todo_task.keyval and todo_task.keyval[key] == val
+        for key, val in todo_filter.keyval.items()
+    )
 
 
 def get_visual_todo_header(

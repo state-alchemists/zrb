@@ -330,6 +330,31 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         """Replay loaded history on every child UI that supports it."""
         self._fanout("replay_history", messages)
 
+    async def _take_pre_turn_snapshot(self, user_message: str, timestamp: str) -> None:
+        """Snapshot the filesystem before an AI turn, best-effort.
+
+        Also records the message count so a rewind can restore conversation
+        history to a consistent state. Failures are non-fatal — the AI turn
+        must proceed regardless. Mirrors `BaseUI._stream_ai_response`.
+        """
+        snapshot_manager = getattr(self.main_ui, "snapshot_manager", None)
+        if snapshot_manager is None:
+            return
+        try:
+            label = user_message[:80].replace("\n", " ").strip()
+            history_manager = getattr(self.main_ui, "history_manager", None)
+            session_name = getattr(self.main_ui, "conversation_session_name", "")
+            messages = (
+                history_manager.load(session_name)
+                if history_manager is not None
+                else []
+            )
+            await snapshot_manager.take_snapshot(
+                f"{timestamp}: {label}", message_count=len(messages)
+            )
+        except Exception as snap_err:
+            logger.warning(f"Snapshot skipped: {snap_err}")
+
     async def stream_ai_response(
         self,
         llm_task: Any,
@@ -348,24 +373,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             # count so that a rewind can restore conversation history to a
             # consistent state). Failures are non-fatal — the AI turn must
             # proceed regardless. Mirrors BaseUI._stream_ai_response.
-            snapshot_manager = getattr(self.main_ui, "snapshot_manager", None)
-            if snapshot_manager is not None:
-                try:
-                    label = user_message[:80].replace("\n", " ").strip()
-                    current_msgs = getattr(self.main_ui, "history_manager", None)
-                    session_name = getattr(
-                        self.main_ui, "conversation_session_name", ""
-                    )
-                    msgs = (
-                        current_msgs.load(session_name)
-                        if current_msgs is not None
-                        else []
-                    )
-                    await snapshot_manager.take_snapshot(
-                        f"{timestamp}: {label}", message_count=len(msgs)
-                    )
-                except Exception as snap_err:
-                    logger.warning(f"Snapshot skipped: {snap_err}")
+            await self._take_pre_turn_snapshot(user_message, timestamp)
             self.append_to_output(f"\n🤖 {timestamp} >>\n")
             self.append_to_output(stylize_muted("\n  🔢 Streaming response..."))
 
@@ -381,10 +389,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             llm_task.set_ui(self)
             llm_task.tool_confirmation = self.confirm_tool_execution
 
-            async def run_task():
-                return await llm_task.async_run(session)
-
-            task = asyncio.create_task(run_task())
+            task = asyncio.create_task(llm_task.async_run(session))
             self._running_llm_task = task
 
             try:
@@ -406,11 +411,10 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
                     get_current_agent_mode() == AgentMode.PLAN
                 )
 
-            if result_data is not None:
-                if isinstance(result_data, str):
-                    self._last_result_data = result_data
-                    self.append_to_output("\n")
-                    self.append_markdown(result_data)
+            if isinstance(result_data, str):
+                self._last_result_data = result_data
+                self.append_to_output("\n")
+                self.append_markdown(result_data)
 
         except asyncio.CancelledError:
             self.append_to_output("\n[Cancelled]\n")

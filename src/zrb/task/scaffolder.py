@@ -1,17 +1,14 @@
 import os
 import shutil
-from collections.abc import Callable, Sequence
-from typing import Any, cast
+from collections.abc import Callable
+from typing import Any, Unpack, cast
 
-from zrb.attr.type import BoolAttr, StrAttr
+from zrb.attr.type import StrAttr
 from zrb.content_transformer.any_content_transformer import AnyContentTransformer
 from zrb.content_transformer.content_transformer import ContentTransformer
 from zrb.context.any_context import AnyContext
-from zrb.context.print_fn import PrintFn
-from zrb.env.any_env import AnyEnv
-from zrb.input.any_input import AnyInput
-from zrb.task.any_task import AnyTask
 from zrb.task.base.base_task import BaseTask
+from zrb.task.base.params import BaseTaskParams
 from zrb.util.attr import get_str_attr
 from zrb.util.cli.style import stylize_muted
 
@@ -25,32 +22,13 @@ class Scaffolder(BaseTask):
         self,
         name: str,
         *,
-        color: int | None = None,
-        icon: str | None = None,
-        description: str | None = None,
-        cli_only: bool = False,
-        input: Sequence[AnyInput | None] | AnyInput | None = None,
-        env: Sequence[AnyEnv | None] | AnyEnv | None = None,
         source_path: StrAttr | None = None,
         destination_path: StrAttr | None = None,
         transform_path: TransformConfig | None = None,
         transform_content: (
             list[AnyContentTransformer] | AnyContentTransformer | TransformConfig | None
         ) = None,
-        execute_condition: BoolAttr = True,
-        retries: int = 2,
-        retry_if: Callable[[BaseException], bool] | None = None,
-        retry_period: float = 0,
-        readiness_check: Sequence[AnyTask] | AnyTask | None = None,
-        readiness_check_delay: float | None = None,
-        readiness_check_period: float | None = 5,
-        readiness_failure_threshold: int | None = 1,
-        readiness_timeout: int | None = None,
-        monitor_readiness: bool = False,
-        upstream: Sequence[AnyTask] | AnyTask | None = None,
-        fallback: Sequence[AnyTask] | AnyTask | None = None,
-        successor: Sequence[AnyTask] | AnyTask | None = None,
-        print_fn: PrintFn | None = None,
+        **kwargs: Unpack[BaseTaskParams],
     ):
         """Define a task that copies a template tree, rewriting as it goes.
 
@@ -70,26 +48,7 @@ class Scaffolder(BaseTask):
         """
         super().__init__(
             name=name,
-            color=color,
-            icon=icon,
-            description=description,
-            cli_only=cli_only,
-            input=input,
-            env=env,
-            execute_condition=execute_condition,
-            retries=retries,
-            retry_if=retry_if,
-            retry_period=retry_period,
-            readiness_check=readiness_check,
-            readiness_check_delay=readiness_check_delay,
-            readiness_check_period=readiness_check_period,
-            readiness_failure_threshold=readiness_failure_threshold,
-            readiness_timeout=readiness_timeout,
-            monitor_readiness=monitor_readiness,
-            upstream=upstream,
-            fallback=fallback,
-            successor=successor,
-            print_fn=print_fn,
+            **kwargs,
         )
         self._source_path = source_path
         self._destination_path = destination_path

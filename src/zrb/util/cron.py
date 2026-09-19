@@ -1,4 +1,5 @@
 import datetime
+from typing import Callable
 
 
 def parse_cron_field(field: str, min_value: int, max_value: int):
@@ -40,24 +41,33 @@ def parse_cron_field(field: str, min_value: int, max_value: int):
     return values
 
 
+def _is_yearly(dt: datetime.datetime) -> bool:
+    return (dt.month, dt.day, dt.hour, dt.minute) == (1, 1, 0, 0)
+
+
+def _is_midnight(dt: datetime.datetime) -> bool:
+    return (dt.hour, dt.minute) == (0, 0)
+
+
+# The `@`-prefixed shorthands, each mapped to what it matches.
+_SPECIAL_CRON_MATCHERS: dict[str, Callable[[datetime.datetime], bool]] = {
+    "@yearly": _is_yearly,
+    "@annually": _is_yearly,
+    "@monthly": lambda dt: (dt.day, dt.hour, dt.minute) == (1, 0, 0),
+    # Monday at midnight
+    "@weekly": lambda dt: (dt.weekday(), dt.hour, dt.minute) == (0, 0, 0),
+    "@daily": _is_midnight,
+    "@midnight": _is_midnight,
+    "@hourly": lambda dt: dt.minute == 0,
+    "@minutely": lambda dt: True,
+}
+
+
 def handle_special_cron_patterns(pattern: str, dt: datetime.datetime):
     """Whether `dt` matches a special `@`-prefixed pattern (`@yearly`, `@monthly`,
     `@weekly`, `@daily`/`@midnight`, `@hourly`, `@minutely`)."""
-    if pattern == "@yearly" or pattern == "@annually":
-        return dt.month == 1 and dt.day == 1 and dt.hour == 0 and dt.minute == 0
-    elif pattern == "@monthly":
-        return dt.day == 1 and dt.hour == 0 and dt.minute == 0
-    elif pattern == "@weekly":
-        return (
-            dt.weekday() == 0 and dt.hour == 0 and dt.minute == 0
-        )  # Monday at midnight
-    elif pattern == "@daily" or pattern == "@midnight":
-        return dt.hour == 0 and dt.minute == 0
-    elif pattern == "@hourly":
-        return dt.minute == 0
-    elif pattern == "@minutely":
-        return True
-    return False
+    matcher = _SPECIAL_CRON_MATCHERS.get(pattern)
+    return matcher(dt) if matcher is not None else False
 
 
 def match_cron(cron_pattern: str, dt: datetime.datetime):

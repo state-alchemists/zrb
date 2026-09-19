@@ -460,41 +460,9 @@ class ChatExecution:
             for t in resolved_tools
         }
 
-        def _should_skip_approval(tool_def=None):
-            # Approval precedence chain:
-            #   perm_policy: allow→auto-approve, deny→auto-approve (gate blocks),
-            #                ask→defer to tool_policy cascade
-            #   tool_policy: handled in _resolve_approval (deferred_calls.py)
-            #   yolo:        handled in _resolve_approval (deferred_calls.py)
-            policy = get_effective_policy()
-            if policy is not None:
-                tool_name = (
-                    getattr(tool_def, "name", str(tool_def))
-                    if tool_def is not None
-                    else ""
-                )
-                cap = cap_by_name.get(tool_name, Capability.UNKNOWN)
-                result = policy.decide(tool_name, cap, {})
-                if result is not None:
-                    if result == ALLOW:
-                        return True  # unconditional auto-approve
-                    if result == DENY:
-                        return True  # auto-approved (gate blocks at execution)
-                    if result == ASK:
-                        return False  # explicit policy ASK is a 'hard ask'
-                # fallback to YOLO only if policy has no matching rule
-            yolo_xcom_key = llm_chat_task.ui_config.yolo_xcom_key
-            if yolo_xcom_key not in ctx.xcom:
-                return False
-            yolo_value = ctx.xcom[yolo_xcom_key].get(False)
-            if isinstance(yolo_value, bool):
-                return yolo_value
-            if isinstance(yolo_value, frozenset):
-                if tool_def is None:
-                    return False
-                tool_name = getattr(tool_def, "name", str(tool_def))
-                return tool_name in yolo_value
-            return False
+        _should_skip_approval = _make_should_skip_approval(
+            ctx, llm_chat_task, cap_by_name
+        )
 
         effective_approval_channel = resolve_approval_channel(
             llm_chat_task.approval_channels
@@ -567,3 +535,59 @@ class ChatExecution:
         result falls back to `CFG.LLM_MODEL`.
         """
         return resolve_model(ctx, self._llm_chat_task.model)
+
+
+def _make_should_skip_approval(ctx, llm_chat_task, cap_by_name):
+    """Build the predicate that decides whether a tool call skips approval.
+
+    Approval precedence chain:
+      perm_policy: allow→auto-approve, deny→auto-approve (gate blocks),
+                   ask→defer to tool_policy cascade
+      tool_policy: handled in _resolve_approval (deferred_calls.py)
+      yolo:        handled in _resolve_approval (deferred_calls.py)
+    """
+
+    def _should_skip_approval(tool_def=None):
+        decision = _policy_skip_decision(tool_def, cap_by_name)
+        if decision is not None:
+            return decision
+        # No matching policy rule: fall back to YOLO.
+        return _yolo_skip_decision(ctx, llm_chat_task, tool_def)
+
+    return _should_skip_approval
+
+
+def _policy_skip_decision(tool_def, cap_by_name) -> bool | None:
+    """The effective permission policy's verdict, or `None` if it has no rule."""
+    policy = get_effective_policy()
+    if policy is None:
+        return None
+    tool_name = getattr(tool_def, "name", str(tool_def)) if tool_def is not None else ""
+    cap = cap_by_name.get(tool_name, Capability.UNKNOWN)
+    result = policy.decide(tool_name, cap, {})
+    if result is None:
+        return None
+    if result == ALLOW:
+        return True  # unconditional auto-approve
+    if result == DENY:
+        return True  # auto-approved (gate blocks at execution)
+    if result == ASK:
+        return False  # explicit policy ASK is a 'hard ask'
+    return None
+
+
+def _yolo_skip_decision(ctx, llm_chat_task, tool_def) -> bool:
+    """Whether YOLO mode covers this tool call.
+
+    The xcom value is either a bool (all tools) or a frozenset of the tool
+    names YOLO was granted for.
+    """
+    yolo_xcom_key = llm_chat_task.ui_config.yolo_xcom_key
+    if yolo_xcom_key not in ctx.xcom:
+        return False
+    yolo_value = ctx.xcom[yolo_xcom_key].get(False)
+    if isinstance(yolo_value, bool):
+        return yolo_value
+    if isinstance(yolo_value, frozenset) and tool_def is not None:
+        return getattr(tool_def, "name", str(tool_def)) in yolo_value
+    return False

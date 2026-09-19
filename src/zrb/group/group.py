@@ -93,7 +93,21 @@ class Group(AnyGroup):
         Returns:
             The registered group — the newly built one when *group* was a
             string, otherwise *group* itself.
+
+        Raises:
+            TypeError: *group* is neither an `AnyGroup` nor a string.
         """
+        # The annotation says this cannot happen. A hand-written
+        # `zrb_init.py` is not type-checked, and this is where that
+        # mistake surfaces.
+        if not isinstance(
+            group, (AnyGroup, str)
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
+            raise TypeError(
+                f"add_group expects a Group or a str, got "
+                f"{type(group).__name__}. A string is shorthand for "
+                f"Group(that_string)."
+            )
         real_group = Group(group) if isinstance(group, str) else group
         alias = alias if alias is not None else real_group.name
         self._groups[alias] = real_group
@@ -117,7 +131,15 @@ class Group(AnyGroup):
 
         Returns:
             *task*, unchanged.
+
+        Raises:
+            TypeError: *task* is not an `AnyTask`.
         """
+        # See add_group — the check exists for untyped callers.
+        if not isinstance(
+            task, AnyTask
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
+            raise TypeError(_wrong_task_type_message(task))
         alias = alias if alias is not None else task.name
         self._tasks[alias] = task
         return task
@@ -282,3 +304,18 @@ class Group(AnyGroup):
                 residual_args = args[index + 1 :]
                 break
         return node, node_path, residual_args
+
+
+def _wrong_task_type_message(task: Any) -> str:
+    """Name what was passed, and the nearest thing that would have worked."""
+    got = type(task).__name__
+    if callable(task):
+        return (
+            f"add_task expects a Task, got a bare {got}. Wrap it with the "
+            "@make_task decorator (`from zrb import make_task`), or build a "
+            "Task explicitly: Task(name=..., action=your_function)."
+        )
+    return (
+        f"add_task expects a Task, got {got}. Build one first, e.g. "
+        "CmdTask(name=..., cmd=...) or Task(name=..., action=...)."
+    )

@@ -20,14 +20,10 @@ see docs/llm/llm-chat-lifecycle.md.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, AsyncIterable, Callable
+from typing import TYPE_CHECKING, Any, AsyncIterable, Callable, Unpack
 
 from zrb.attr.type import BoolAttr, StrAttr, StrListAttr
 from zrb.context.any_context import AnyContext
-from zrb.context.print_fn import PrintFn
-from zrb.env.any_env import AnyEnv
-from zrb.input.any_input import AnyInput
 from zrb.llm.agent import AnyToolConfirmation
 from zrb.llm.agent.run.error_classifier import retry_unless_permanent
 from zrb.llm.config.limiter import LLMLimiter
@@ -46,8 +42,8 @@ from zrb.llm.tool_call import (
     replace_in_file_formatter,
     write_file_formatter,
 )
-from zrb.task.any_task import AnyTask
 from zrb.task.base.base_task import BaseTask
+from zrb.task.base.params import BaseTaskParams
 
 if TYPE_CHECKING:
     from rich.theme import Theme
@@ -87,12 +83,6 @@ class LLMChatTask(BaseTask):
         self,
         name: str,
         *,
-        color: int | None = None,
-        icon: str | None = None,
-        description: str | None = None,
-        cli_only: bool = False,
-        input: Sequence[AnyInput | None] | AnyInput | None = None,
-        env: Sequence[AnyEnv | None] | AnyEnv | None = None,
         system_prompt: Callable[[AnyContext], str | None] | str | None = None,
         prompt_manager: PromptManager | None = None,
         hook_manager: HookManager | None = None,
@@ -173,20 +163,7 @@ class LLMChatTask(BaseTask):
         snapshot_dir: StrAttr | None = None,
         include_default_ui: bool = True,
         interactive: BoolAttr = True,
-        execute_condition: BoolAttr = True,
-        retries: int = 0,
-        retry_period: float = 0,
-        retry_if: Callable[[BaseException], bool] | None = None,
-        readiness_check: Sequence[AnyTask] | AnyTask | None = None,
-        readiness_check_delay: float | None = None,
-        readiness_check_period: float | None = 5,
-        readiness_failure_threshold: int | None = 1,
-        readiness_timeout: int | None = None,
-        monitor_readiness: bool = False,
-        upstream: Sequence[AnyTask] | AnyTask | None = None,
-        fallback: Sequence[AnyTask] | AnyTask | None = None,
-        successor: Sequence[AnyTask] | AnyTask | None = None,
-        print_fn: PrintFn | None = None,
+        **kwargs: Unpack[BaseTaskParams],
     ):
         """Define an interactive LLM chat session, as `zrb llm chat` does.
 
@@ -272,28 +249,14 @@ class LLMChatTask(BaseTask):
         Every parameter `BaseTask` accepts is also accepted here and behaves
         identically; see `BaseTask` for those.
         """
+        # A chat turn is interactive, so a silent retry replays the user's
+        # message. BaseTask defaults to 2.
+        kwargs.setdefault("retries", 0)
+        if kwargs.get("retry_if") is None:
+            kwargs["retry_if"] = retry_unless_permanent
         super().__init__(
             name=name,
-            color=color,
-            icon=icon,
-            description=description,
-            cli_only=cli_only,
-            input=input,
-            env=env,
-            execute_condition=execute_condition,
-            retries=retries,
-            retry_period=retry_period,
-            retry_if=retry_if if retry_if is not None else retry_unless_permanent,
-            readiness_check=readiness_check,
-            readiness_check_delay=readiness_check_delay,
-            readiness_check_period=readiness_check_period,
-            readiness_failure_threshold=readiness_failure_threshold,
-            readiness_timeout=readiness_timeout,
-            monitor_readiness=monitor_readiness,
-            upstream=upstream,
-            fallback=fallback,
-            successor=successor,
-            print_fn=print_fn,
+            **kwargs,
         )
         self._llm_limiter = llm_limiter
         if prompt_manager is None:
@@ -305,12 +268,7 @@ class LLMChatTask(BaseTask):
         self._prompt_manager = prompt_manager
         self._system_prompt = system_prompt
         self._active_skills = active_skills
-        self._tools = tools or []
-        self._toolsets = toolsets or []
-        # LLMChatTask-specific factories that resolve using parent context
-        self._tool_factories = tool_factories or []
-        self._toolset_factories = toolset_factories or []
-        self._hook_factories: list[Callable[[HookManager], None]] = []
+        self._init_tool_surface(tools, toolsets, tool_factories, toolset_factories)
         # None (the default) means "a fresh manager per run" — see
         # `hook_manager` in the docstring for why chat isolates by default.
         self._hook_manager = hook_manager
@@ -329,15 +287,7 @@ class LLMChatTask(BaseTask):
         self._conversation_name = conversation_name
         self._history_manager = history_manager
         self._tool_confirmation = tool_confirmation
-        self._uis: list["AnyUI"] = []
-        if ui is not None:
-            self._uis.append(ui)
-        self._ui_factories: list[Callable[..., "AnyUI"]] = []
-        if ui_factory is not None:
-            self._ui_factories.append(ui_factory)
-        self._approval_channels: list["AnyApprovalChannel"] = []
-        if approval_channel is not None:
-            self._approval_channels.append(approval_channel)
+        self._init_ui_surface(ui, ui_factory, approval_channel)
         self._permissions = permissions
         self._sandbox = sandbox
         self._yolo = yolo
@@ -348,6 +298,59 @@ class LLMChatTask(BaseTask):
         # put that whole cost on every `import zrb`, not just chat sessions
         # that actually build a UI.
         self._ui_config = ui_config
+        self._init_command_surface(
+            custom_commands,
+            triggers,
+            response_handlers,
+            tool_policies,
+            argument_formatters,
+        )
+        self._markdown_theme = markdown_theme
+        self._enable_rewind = enable_rewind
+        self._snapshot_dir = snapshot_dir
+        self._include_default_ui = include_default_ui
+        self._interactive = interactive
+        self._running = ChatRunning(self)
+        self._execution = ChatExecution(self)
+
+    def _init_tool_surface(
+        self, tools, toolsets, tool_factories, toolset_factories
+    ) -> None:
+        """Seed the per-run tool collections, each defaulting to empty."""
+        self._tools = tools or []
+        self._toolsets = toolsets or []
+        # LLMChatTask-specific factories that resolve using parent context
+        self._tool_factories = tool_factories or []
+        self._toolset_factories = toolset_factories or []
+        self._hook_factories: list[Callable[[HookManager], None]] = []
+
+    def _init_ui_surface(self, ui, ui_factory, approval_channel) -> None:
+        """Seed the UI, UI-factory and approval-channel lists.
+
+        Each is a list because more can be attached after construction; the
+        constructor's single-value parameters are just the first entry.
+        """
+        self._uis: list["AnyUI"] = [ui] if ui is not None else []
+        self._ui_factories: list[Callable[..., "AnyUI"]] = (
+            [ui_factory] if ui_factory is not None else []
+        )
+        self._approval_channels: list["AnyApprovalChannel"] = (
+            [approval_channel] if approval_channel is not None else []
+        )
+
+    def _init_command_surface(
+        self,
+        custom_commands,
+        triggers,
+        response_handlers,
+        tool_policies,
+        argument_formatters,
+    ) -> None:
+        """Seed the command, trigger and tool-call interception collections.
+
+        The two built-in argument formatters always run, after any the caller
+        supplied.
+        """
         self._custom_commands = custom_commands or []
         self._triggers = triggers or []
         self._response_handlers = response_handlers or []
@@ -356,13 +359,6 @@ class LLMChatTask(BaseTask):
             replace_in_file_formatter,
             write_file_formatter,
         ]
-        self._markdown_theme = markdown_theme
-        self._enable_rewind = enable_rewind
-        self._snapshot_dir = snapshot_dir
-        self._include_default_ui = include_default_ui
-        self._interactive = interactive
-        self._running = ChatRunning(self)
-        self._execution = ChatExecution(self)
 
     # --- Post-construction configuration (builder-style mutators) ------------
     # These mutate this task's own fields directly.

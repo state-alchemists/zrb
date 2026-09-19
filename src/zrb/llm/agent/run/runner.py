@@ -86,7 +86,7 @@ from zrb.llm.permission.state import (
 )
 from zrb.llm.prompt.live_context import append_live_context
 from zrb.llm.sandbox.state import current_sandbox_policy, get_effective_sandbox_policy
-from zrb.llm.tool.worktree import active_worktree
+from zrb.llm.tool.ambient_state import active_worktree
 from zrb.llm.util.prompt import expand_prompt
 
 if TYPE_CHECKING:
@@ -533,7 +533,7 @@ async def _execution_loop(
     sandbox_deps: Any = None,
 ) -> tuple[Any, list[Any]]:
     # lazy: heavy third-party
-    from pydantic_ai import AgentRunResultEvent, DeferredToolRequests
+    from pydantic_ai import DeferredToolRequests
 
     cursor = TurnCursor(
         history=current_history,
@@ -556,111 +556,36 @@ async def _execution_loop(
                     allow_orphaned_tool_calls=(cursor.results is not None),
                 )
             )
-            stream_error = None
-            handler = _build_event_stream_handler(
+            stream_error = await _stream_one_round(
+                agent,
+                cursor,
+                partial_run,
                 effective_ui,
                 effective_event_handler,
-                partial_run,
-                checkpoint_fn=checkpoint_fn,
-                pending_checkpoint_tasks=pending_checkpoint_tasks,
-                baseline_len=cursor.round_baseline,
+                checkpoint_fn,
+                pending_checkpoint_tasks,
+                sandbox_deps,
             )
-            try:
-                # Docs: https://ai.pydantic.dev/agents/#streaming-all-events
-                CFG.LOGGER.debug(f"Run started, current_results={cursor.results}")
-                result = await _do_agent_run(agent, cursor, handler, sandbox_deps)
-                cursor.output = result.output
-                CFG.LOGGER.debug(
-                    f"Got result, result_output type: {type(cursor.output)}"
-                )
-                cursor.run_history = sanitize_history(
-                    result.all_messages(),
-                    allow_orphaned_tool_calls=isinstance(
-                        cursor.output, DeferredToolRequests
-                    ),
-                )
-                # `agent.run(event_stream_handler=...)`'s handler never receives
-                # a trailing result event — that's `run_stream_events()`'s own
-                # addition for its consumers, synthesized after the fact from
-                # the same result. Re-fire it here so usage accounting and the
-                # "Requests/Tool Calls/Total" summary line keep working.
-                partial_run.record_event(AgentRunResultEvent(result=result))
-                if effective_event_handler:
-                    await effective_event_handler(AgentRunResultEvent(result=result))
-            except Exception as _stream_exc:
-                stream_error = _explain_usage_limit(_stream_exc)
-            finally:
-                _set_active_run_context(effective_ui, None)
 
             if stream_error is not None:
-                outcome = await handle_stream_error(
-                    retry_state,
-                    stream_error,
-                    cursor.history,
-                    cursor.message,
-                    cursor.run_history,
-                    print_fn,
-                    min_turns=cursor.prune_floor,
+                await _recover_from_stream_error(
+                    stream_error, retry_state, cursor, print_fn, effective_hook_manager
                 )
-                if not outcome.should_retry:
-                    # StopFailure: the turn is ending on an unrecoverable API
-                    # error. Observe-only; guarded so a hook can never mask the
-                    # original exception.
-                    try:
-                        await effective_hook_manager.execute_hooks(
-                            HookEvent.STOP_FAILURE,
-                            {"error": str(stream_error), "history": cursor.run_history},
-                            error=str(stream_error),
-                            error_type=classify_error_type(stream_error),
-                        )
-                    except Exception:
-                        CFG.LOGGER.debug("StopFailure hook raised", exc_info=True)
-                    raise stream_error
-                cursor.history = outcome.new_history or cursor.history
-                cursor.message = outcome.new_message
-                if outcome.clear_results:
-                    cursor.results = None
                 continue
 
             if isinstance(cursor.output, DeferredToolRequests):
-                # Commit now, before `carry_forward` below makes the next
-                # iteration treat this tool call as pre-existing history
-                # rather than something this turn did.
-                cursor.commit_round()
-                CFG.LOGGER.debug(
-                    "Got DeferredToolRequests, calling process_deferred_requests"
-                )
-                # effective_ui is typed as AnyUI | None but by this point in
-                # the loop we are past all the setup guards; the function it is
-                # passed to expects a concrete AnyUI.
-                assert effective_ui is not None
-                cursor.results = await process_deferred_requests(
-                    cursor.output,
+                if not await _resolve_deferred_requests(
+                    cursor,
                     effective_tool_confirmation,
                     effective_ui,
                     effective_hook_manager,
                     effective_approval_channel,
-                )
-                CFG.LOGGER.debug(
-                    f"process_deferred_requests returned: {cursor.results}"
-                )
-                if cursor.results is None:
+                ):
                     # Approval is pending out-of-band: the turn suspends and
                     # control returns to the user. This is neither a turn end nor
                     # a session end, so no STOP/SESSION_END fires here; the turn
                     # resumes when the approval arrives.
                     return cursor.output, cursor.run_history
-
-                cursor.results = rebuild_for_denials(cursor.results)
-                cursor.message = None
-                # process_deferred_requests() always populates
-                # current_results.approvals for every resolved call (approved,
-                # denied, or hook-blocked alike), so history processors are never
-                # reapplied here -- run_history feeds the next iteration as-is.
-                # Processor effects were already applied in _prepare_history
-                # before the first stream call.
-                cursor.carry_forward()
-                CFG.LOGGER.debug("Continuing to next iteration with current_results")
                 continue
 
             # Empty/placeholder completion guard: a weak or overloaded provider
@@ -668,84 +593,15 @@ async def _execution_loop(
             # "(tool call)" placeholder as the answer — regenerate the turn a
             # bounded number of times, then raise a clear error.
             if is_empty_completion(cursor.output):
-                if (
-                    retry_state.empty_completion_retry_count
-                    < retry_state.max_empty_completion_retries
-                ):
-                    retry_state.empty_completion_retry_count += 1
-                    print_fn(
-                        "\n[SYSTEM] Model returned an empty response — retrying "
-                        f"(attempt {retry_state.empty_completion_retry_count}/"
-                        f"{retry_state.max_empty_completion_retries})..."
-                    )
-                    CFG.LOGGER.debug(
-                        f"Empty completion (output={cursor.output!r}); "
-                        "dropping the empty turn and regenerating"
-                    )
-                    cursor.history = history_without_trailing_response(
-                        cursor.run_history
-                    )
-                    cursor.message = None
-                    cursor.results = None
-                    cursor.output = None
-                    continue
-                raise RuntimeError(
-                    "Model returned an empty response "
-                    f"{retry_state.empty_completion_retry_count + 1} times. The "
-                    "provider may be overloaded, or the conversation may exceed "
-                    "the model's context window."
-                )
-
-            # Natural end of the agent's turn. STOP is the per-turn "done" signal
-            # that Claude-Code-compatible consumers listen on (completion sounds,
-            # desktop notifications, e.g. peon-ping). It is ALSO the
-            # block-to-continue + systemMessage extension point: a blocking STOP
-            # hook re-runs the agent with its reason injected; a systemMessage
-            # hook (e.g. journaling) runs one more turn. SESSION_END is NOT fired
-            # here — it is terminal, fired once when the chat session ends.
-            # Manual interrupts raise CancelledError before reaching here, where
-            # the TUI fires its own Stop, so the two paths never double-fire.
-            cursor.commit_round()
-            wrote_files = turn_wrote_files(cursor.accumulated)
-            stop_results = await effective_hook_manager.execute_hooks(
-                HookEvent.STOP,
-                {
-                    "output": cursor.output,
-                    "history": cursor.run_history,
-                    # This turn's new messages alone, and a free (no-LLM)
-                    # gate on whether they touched a file — lets an
-                    # evidence-gated hook (e.g. a journal-compliance agent
-                    # hook) act only on turns where it's actually warranted.
-                    "turn": cursor.accumulated,
-                    "wrote_files": wrote_files,
-                    # Additive derived field: wrote_files OR looks like a
-                    # stated preference. wrote_files itself is left unchanged
-                    # for any other consumer; journal_compliance.py matches on
-                    # this combined field instead, since MatcherConfig has no
-                    # OR primitive (hook/matcher.py evaluates a matcher list
-                    # as AND-only).
-                    "journal_worthy": (
-                        wrote_files or turn_states_preference(cursor.accumulated)
-                    ),
-                },
-                stop_hook_active=extension_state.block_count > 0,
-            )
-            stop_outcome = apply_turn_end_extension(
-                stop_results,
-                extension_state,
-                cursor.output,
-                cursor.run_history,
-                print_fn,
-            )
-            if stop_outcome.should_continue:
-                cursor.message = stop_outcome.new_message
-                cursor.history = stop_outcome.new_history or cursor.history
-                cursor.output = None
-                cursor.results = None
+                _retry_empty_completion(retry_state, cursor, print_fn)
                 continue
-            return resolve_extended_return(
-                extension_state, cursor.output, cursor.run_history
+
+            cursor.commit_round()
+            finished = await _finish_turn(
+                cursor, extension_state, effective_hook_manager, print_fn
             )
+            if finished is not None:
+                return finished
     except asyncio.CancelledError as ce:
         partial_run.is_interrupted = True
         setattr(ce, "zrb_partial_run", partial_run)
@@ -762,6 +618,229 @@ async def _execution_loop(
         raise e
     finally:
         await _await_pending_checkpoints(pending_checkpoint_tasks)
+
+
+async def _stream_one_round(
+    agent: "Agent[None, Any]",
+    cursor: TurnCursor,
+    partial_run: PartialRunAccumulator,
+    effective_ui: AnyUI | None,
+    effective_event_handler: Callable[[Any], Any] | None,
+    checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None,
+    pending_checkpoint_tasks: "list[asyncio.Task]",
+    sandbox_deps: Any,
+) -> Exception | None:
+    """Run the agent once, recording its output on `cursor`.
+
+    Returns the exception the stream raised, for the caller's retry decision,
+    or `None` when the round produced a result.
+    """
+    # lazy: heavy third-party
+    from pydantic_ai import AgentRunResultEvent, DeferredToolRequests
+
+    handler = _build_event_stream_handler(
+        effective_ui,
+        effective_event_handler,
+        partial_run,
+        checkpoint_fn=checkpoint_fn,
+        pending_checkpoint_tasks=pending_checkpoint_tasks,
+        baseline_len=cursor.round_baseline,
+    )
+    try:
+        # Docs: https://ai.pydantic.dev/agents/#streaming-all-events
+        CFG.LOGGER.debug(f"Run started, current_results={cursor.results}")
+        result = await _do_agent_run(agent, cursor, handler, sandbox_deps)
+        cursor.output = result.output
+        CFG.LOGGER.debug(f"Got result, result_output type: {type(cursor.output)}")
+        cursor.run_history = sanitize_history(
+            result.all_messages(),
+            allow_orphaned_tool_calls=isinstance(cursor.output, DeferredToolRequests),
+        )
+        # `agent.run(event_stream_handler=...)`'s handler never receives
+        # a trailing result event — that's `run_stream_events()`'s own
+        # addition for its consumers, synthesized after the fact from
+        # the same result. Re-fire it here so usage accounting and the
+        # "Requests/Tool Calls/Total" summary line keep working.
+        partial_run.record_event(AgentRunResultEvent(result=result))
+        if effective_event_handler:
+            await effective_event_handler(AgentRunResultEvent(result=result))
+        return None
+    except Exception as stream_exc:
+        return _explain_usage_limit(stream_exc)
+    finally:
+        _set_active_run_context(effective_ui, None)
+
+
+async def _recover_from_stream_error(
+    stream_error: Exception,
+    retry_state: RetryState,
+    cursor: TurnCursor,
+    print_fn: Callable[[str], Any],
+    effective_hook_manager: HookManager,
+) -> None:
+    """Prepare `cursor` for a retry, or raise when the error is unrecoverable."""
+    outcome = await handle_stream_error(
+        retry_state,
+        stream_error,
+        cursor.history,
+        cursor.message,
+        cursor.run_history,
+        print_fn,
+        min_turns=cursor.prune_floor,
+    )
+    if not outcome.should_retry:
+        # StopFailure: the turn is ending on an unrecoverable API
+        # error. Observe-only; guarded so a hook can never mask the
+        # original exception.
+        try:
+            await effective_hook_manager.execute_hooks(
+                HookEvent.STOP_FAILURE,
+                {"error": str(stream_error), "history": cursor.run_history},
+                error=str(stream_error),
+                error_type=classify_error_type(stream_error),
+            )
+        except Exception:
+            CFG.LOGGER.debug("StopFailure hook raised", exc_info=True)
+        raise stream_error
+    cursor.history = outcome.new_history or cursor.history
+    cursor.message = outcome.new_message
+    if outcome.clear_results:
+        cursor.results = None
+
+
+async def _resolve_deferred_requests(
+    cursor: TurnCursor,
+    effective_tool_confirmation: AnyToolConfirmation,
+    effective_ui: AnyUI | None,
+    effective_hook_manager: HookManager,
+    effective_approval_channel: "AnyApprovalChannel | None",
+) -> bool:
+    """Run the turn's deferred tool calls and set up the next round.
+
+    Returns False when approval is pending out-of-band, which suspends the
+    turn rather than ending it.
+    """
+    # Commit now, before `carry_forward` below makes the next
+    # iteration treat this tool call as pre-existing history
+    # rather than something this turn did.
+    cursor.commit_round()
+    CFG.LOGGER.debug("Got DeferredToolRequests, calling process_deferred_requests")
+    # effective_ui is typed as AnyUI | None but by this point in
+    # the loop we are past all the setup guards; the function it is
+    # passed to expects a concrete AnyUI.
+    assert effective_ui is not None
+    cursor.results = await process_deferred_requests(
+        cursor.output,
+        effective_tool_confirmation,
+        effective_ui,
+        effective_hook_manager,
+        effective_approval_channel,
+    )
+    CFG.LOGGER.debug(f"process_deferred_requests returned: {cursor.results}")
+    if cursor.results is None:
+        return False
+
+    cursor.results = rebuild_for_denials(cursor.results)
+    cursor.message = None
+    # process_deferred_requests() always populates
+    # current_results.approvals for every resolved call (approved,
+    # denied, or hook-blocked alike), so history processors are never
+    # reapplied here -- run_history feeds the next iteration as-is.
+    # Processor effects were already applied in _prepare_history
+    # before the first stream call.
+    cursor.carry_forward()
+    CFG.LOGGER.debug("Continuing to next iteration with current_results")
+    return True
+
+
+def _retry_empty_completion(
+    retry_state: RetryState, cursor: TurnCursor, print_fn: Callable[[str], Any]
+) -> None:
+    """Drop the empty turn so the next round regenerates it, or give up."""
+    if (
+        retry_state.empty_completion_retry_count
+        >= retry_state.max_empty_completion_retries
+    ):
+        raise RuntimeError(
+            "Model returned an empty response "
+            f"{retry_state.empty_completion_retry_count + 1} times. The "
+            "provider may be overloaded, or the conversation may exceed "
+            "the model's context window."
+        )
+    retry_state.empty_completion_retry_count += 1
+    print_fn(
+        "\n[SYSTEM] Model returned an empty response — retrying "
+        f"(attempt {retry_state.empty_completion_retry_count}/"
+        f"{retry_state.max_empty_completion_retries})..."
+    )
+    CFG.LOGGER.debug(
+        f"Empty completion (output={cursor.output!r}); "
+        "dropping the empty turn and regenerating"
+    )
+    cursor.history = history_without_trailing_response(cursor.run_history)
+    cursor.message = None
+    cursor.results = None
+    cursor.output = None
+
+
+async def _finish_turn(
+    cursor: TurnCursor,
+    extension_state: ExtensionState,
+    effective_hook_manager: HookManager,
+    print_fn: Callable[[str], Any],
+) -> tuple[Any, list[Any]] | None:
+    """Fire STOP and settle the turn, or set up the round a hook asked for.
+
+    STOP is the per-turn "done" signal that Claude-Code-compatible consumers
+    listen on (completion sounds, desktop notifications, e.g. peon-ping). It is
+    ALSO the block-to-continue + systemMessage extension point: a blocking STOP
+    hook re-runs the agent with its reason injected; a systemMessage hook (e.g.
+    journaling) runs one more turn. SESSION_END is NOT fired here — it is
+    terminal, fired once when the chat session ends. Manual interrupts raise
+    CancelledError before reaching here, where the TUI fires its own Stop, so
+    the two paths never double-fire.
+
+    Returns the turn's `(output, history)`, or `None` when a hook asked for
+    another round.
+    """
+    wrote_files = turn_wrote_files(cursor.accumulated)
+    stop_results = await effective_hook_manager.execute_hooks(
+        HookEvent.STOP,
+        {
+            "output": cursor.output,
+            "history": cursor.run_history,
+            # This turn's new messages alone, and a free (no-LLM)
+            # gate on whether they touched a file — lets an
+            # evidence-gated hook (e.g. a journal-compliance agent
+            # hook) act only on turns where it's actually warranted.
+            "turn": cursor.accumulated,
+            "wrote_files": wrote_files,
+            # Additive derived field: wrote_files OR looks like a
+            # stated preference. wrote_files itself is left unchanged
+            # for any other consumer; journal_compliance.py matches on
+            # this combined field instead, since MatcherConfig has no
+            # OR primitive (hook/matcher.py evaluates a matcher list
+            # as AND-only).
+            "journal_worthy": (
+                wrote_files or turn_states_preference(cursor.accumulated)
+            ),
+        },
+        stop_hook_active=extension_state.block_count > 0,
+    )
+    stop_outcome = apply_turn_end_extension(
+        stop_results,
+        extension_state,
+        cursor.output,
+        cursor.run_history,
+        print_fn,
+    )
+    if stop_outcome.should_continue:
+        cursor.message = stop_outcome.new_message
+        cursor.history = stop_outcome.new_history or cursor.history
+        cursor.output = None
+        cursor.results = None
+        return None
+    return resolve_extended_return(extension_state, cursor.output, cursor.run_history)
 
 
 def _resolve_crash_history(

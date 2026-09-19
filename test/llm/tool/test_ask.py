@@ -6,12 +6,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from zrb.llm.tool.ask import (
-    ask_user_question,
-    build_choice_spec,
-    get_interactive_mode,
-    set_interactive_mode,
-)
+from zrb.llm.tool.ambient_state import get_interactive_mode, set_interactive_mode
+from zrb.llm.tool.ask import ask_user_question, build_choice_spec
 from zrb.llm.tool_call.choice_spec_format import format_choice_spec
 
 

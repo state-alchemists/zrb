@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from importlib import metadata as _metadata
 
 from zrb.config.env_field import (
@@ -46,6 +47,22 @@ Coding Agent + Task Engine
 """
 
 
+def _strict_init(raw: str) -> bool:
+    """Cast for `INIT_STRICT`, resolving `auto` against stderr.
+
+    The justification for continuing past a broken init source — "the user
+    can see the error and rerun" — holds only where someone is watching
+    stderr, so `auto` resolves against whether stderr is a terminal.
+    """
+    if raw.strip().lower() in ("", "auto"):
+        try:
+            return not sys.stderr.isatty()
+        except (AttributeError, ValueError):
+            # A closed or replaced stderr: assume nobody is watching.
+            return True
+    return to_boolean(raw)
+
+
 class FoundationMixin:
     def __init__(self):
         self.DEFAULT_ENV_PREFIX: str = "ZRB"
@@ -59,7 +76,7 @@ class FoundationMixin:
         )
         self.DEFAULT_INIT_SCRIPTS: str = ""
         self.DEFAULT_INIT_FILE_NAME: str = "zrb_init.py"
-        self.DEFAULT_INIT_STRICT: str = "off"
+        self.DEFAULT_INIT_STRICT: str = "auto"
         self.DEFAULT_LOGGING_LEVEL: str = "WARNING"
         self.DEFAULT_ENABLE_BUILTIN_TASKS: str = "on"
         self.DEFAULT_SHOW_UNRECOMMENDED_COMMAND_WARNING: str = "on"
@@ -171,14 +188,17 @@ class FoundationMixin:
     )
 
     INIT_STRICT = EnvField(
-        to_boolean,
+        _strict_init,
         serialize=on_off,
         doc=(
             "Exit non-zero when any init module or script fails to load, instead "
-            "of reporting it and starting anyway. Off by default: interactively, a "
-            "user who can still run zrb can fix the error and rerun. Turn it on in "
-            "CI, where a half-loaded init file otherwise yields a green run against "
-            "state that was never fully registered."
+            "of reporting it and starting anyway. Accepts 'auto' (the default), "
+            "or an explicit on/off.\n"
+            "'auto' resolves to off when stderr is a terminal and on when it is "
+            "not. The whole case for continuing is that the user can read the "
+            "error and rerun; where stderr is not a terminal nobody is reading "
+            "it, and a half-loaded init file otherwise yields a green CI run "
+            "against state that was never fully registered."
         ),
     )
 

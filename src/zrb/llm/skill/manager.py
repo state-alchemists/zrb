@@ -408,94 +408,102 @@ class SkillManager:
         try:
             with open(full_path, "r", encoding="utf-8") as f:
                 content = f.read()
-
-            default_name = os.path.basename(os.path.dirname(full_path))
-            name = default_name
-            description = "No description"
-            model_invocable = True
-            user_invocable = (
-                True  # Default: skills are user-invocable (visible in / menu)
+            fields = _parse_skill_frontmatter(content, full_path)
+            # Precedence: frontmatter `name`, then the first H1, then the
+            # containing directory's name.
+            name = (
+                fields.pop("name", None)
+                or _first_markdown_heading(content)
+                or os.path.basename(os.path.dirname(full_path))
             )
-            argument_hint = None
-            allowed_tools: list[str] = []
-            model = None
-            context = None
-            agent = None
-            is_name_resolved = False
-
-            # 1. Parse YAML Frontmatter
-            if content.startswith("---"):
-                try:
-                    frontmatter, _ = parse_frontmatter(content)
-                    if "name" in frontmatter:
-                        name = frontmatter["name"]
-                        is_name_resolved = True
-                    description = frontmatter.get("description", description)
-                    model_invocable = not frontmatter.get(
-                        "disable-model-invocation", False
-                    )
-                    user_invocable = frontmatter.get("user-invocable", True)
-
-                    # Claude Code spec fields
-                    argument_hint = frontmatter.get("argument-hint")
-
-                    # allowed-tools: comma-separated string or list
-                    allowed_tools_raw = frontmatter.get("allowed-tools")
-                    if allowed_tools_raw:
-                        if isinstance(allowed_tools_raw, str):
-                            allowed_tools = [
-                                t.strip() for t in allowed_tools_raw.split(",")
-                            ]
-                        elif isinstance(allowed_tools_raw, list):
-                            allowed_tools = allowed_tools_raw
-
-                    model = frontmatter.get("model")
-                    context = frontmatter.get("context")
-                    agent = frontmatter.get("agent")
-
-                    hooks_data = frontmatter.get("hooks")
-                    if hooks_data:
-                        if isinstance(hooks_data, dict):
-                            hook_manager.parse_claude_format(
-                                {"hooks": hooks_data}, full_path
-                            )
-                        elif isinstance(hooks_data, list):
-                            # Zrb flat format
-                            for hook_item in hooks_data:
-                                hook_manager.parse_and_register(hook_item, full_path)
-
-                except Exception:
-                    CFG.LOGGER.warning(
-                        f"Failed to parse YAML frontmatter in {full_path}",
-                        exc_info=True,
-                    )
-
-            # 2. Fallback: Parse Markdown for Header 1
-            if not is_name_resolved:
-                for line in content.splitlines():
-                    stripped = line.strip()
-                    if stripped.startswith("# "):
-                        name = stripped[2:].strip()
-                        is_name_resolved = True
-                        break
-
-            # Use name as key, handle duplicates by overriding (precedence handled by scan order)
+            # Use name as key, handle duplicates by overriding (precedence
+            # handled by scan order)
             self._scan_results[name] = Skill(
                 name=name,
                 path=full_path,
-                description=description,
-                model_invocable=model_invocable,
-                user_invocable=user_invocable,
-                argument_hint=argument_hint,
-                allowed_tools=allowed_tools,
-                model=model,
-                context=context,
-                agent=agent,
                 content=content,  # Persist content to avoid re-reading
                 companion_files=discover_companion_files(full_path),
+                **fields,
             )
         except Exception as e:
             CFG.LOGGER.warning(f"Failed to load Markdown skill from {full_path}: {e}")
 
 
 skill_manager = SkillManager(registry=skill_registry)
+
+
+def _parse_skill_frontmatter(content: str, full_path: str) -> dict:
+    """The `Skill` fields a markdown skill's YAML frontmatter declares.
+
+    Returns defaults for a file without frontmatter, or one whose frontmatter
+    does not parse — a malformed header downgrades the skill rather than
+    dropping it. `name` is present only when the frontmatter set it, so the
+    caller can fall back to the H1 or the directory name.
+    """
+    fields: dict = {
+        "description": "No description",
+        "model_invocable": True,
+        # Default: skills are user-invocable (visible in / menu)
+        "user_invocable": True,
+        "argument_hint": None,
+        "allowed_tools": [],
+        "model": None,
+        "context": None,
+        "agent": None,
+    }
+    if not content.startswith("---"):
+        return fields
+    try:
+        frontmatter, _ = parse_frontmatter(content)
+    except Exception:
+        CFG.LOGGER.warning(
+            f"Failed to parse YAML frontmatter in {full_path}", exc_info=True
+        )
+        return fields
+    try:
+        if "name" in frontmatter:
+            fields["name"] = frontmatter["name"]
+        fields["description"] = frontmatter.get("description", fields["description"])
+        fields["model_invocable"] = not frontmatter.get(
+            "disable-model-invocation", False
+        )
+        fields["user_invocable"] = frontmatter.get("user-invocable", True)
+        # Claude Code spec fields
+        fields["argument_hint"] = frontmatter.get("argument-hint")
+        fields["allowed_tools"] = _parse_allowed_tools(frontmatter.get("allowed-tools"))
+        for key in ("model", "context", "agent"):
+            fields[key] = frontmatter.get(key)
+        _register_frontmatter_hooks(frontmatter.get("hooks"), full_path)
+    except Exception:
+        CFG.LOGGER.warning(
+            f"Failed to parse YAML frontmatter in {full_path}", exc_info=True
+        )
+    return fields
+
+
+def _parse_allowed_tools(raw: "str | list[str] | None") -> list[str]:
+    """`allowed-tools` as a list, from either a comma-separated string or a list."""
+    if isinstance(raw, str):
+        return [tool.strip() for tool in raw.split(",")]
+    if isinstance(raw, list):
+        return raw
+    return []
+
+
+def _register_frontmatter_hooks(hooks_data: object, full_path: str) -> None:
+    """Register a skill's `hooks:` block, in either supported shape."""
+    if isinstance(hooks_data, dict):
+        hook_manager.parse_claude_format({"hooks": hooks_data}, full_path)
+    elif isinstance(hooks_data, list):
+        # Zrb flat format
+        for hook_item in hooks_data:
+            hook_manager.parse_and_register(hook_item, full_path)
+
+
+def _first_markdown_heading(content: str) -> str | None:
+    """The text of the first `# ` heading, or `None` when there is none."""
+    for line in content.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("# "):
+            return stripped[2:].strip()
+    return None

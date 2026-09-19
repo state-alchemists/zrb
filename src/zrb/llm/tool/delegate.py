@@ -136,19 +136,9 @@ async def run_agent_task(
     # hosting multiple sessions (the web runner) doesn't bleed one session's
     # running sub-agents into another's panel/listing.
     activity_session_id = get_session_ownership_key(get_current_tool_session())
-    _tracks_activity = isinstance(ui, HasActivityTracking)
-    if _tracks_activity:
-        ui.set_activity_id(agent_id)
-        ordinal = agent_activity_registry.start(
-            agent_id,
-            agent_name,
-            task=deliverable or task,
-            session_id=activity_session_id,
-        )
-        # Label the output stream with the panel ordinal, unless the caller
-        # already set a meaningful prefix (background delegation uses its handle).
-        if not ui.label:
-            ui.set_label(f"[{agent_name} #{ordinal}] ")
+    _tracks_activity = _start_activity_tracking(
+        ui, agent_id, agent_name, deliverable or task, activity_session_id
+    )
     # The "talk to a running sub-agent directly" feature (live_session.py)
     # needs the concrete BufferedUI (its buffer + active_run_context), not
     # just the HasActivityTracking protocol — registered unconditionally
@@ -156,18 +146,9 @@ async def run_agent_task(
     # fan-out, background) construct their BufferedUI and share this code.
     # active_task lets the TUI's Esc (while viewing this sub-agent) cancel
     # exactly this turn; see `LiveSubAgentSessionRegistry.cancel`.
-    session = None
-    if isinstance(ui, BufferedUI):
-        session = live_subagent_session_registry.add_session(
-            activity_session_id,
-            agent_id,
-            agent_name,
-            sub_agent_manager,
-            ui,
-            yolo_override=yolo,
-        )
-        session.cancelled_by_human = False  # a fresh run, not a stale flag
-        session.active_task = asyncio.current_task()
+    session = _register_live_session(
+        ui, activity_session_id, agent_id, agent_name, sub_agent_manager, yolo
+    )
     try:
         # Fired inside the try (not before it): a cancel landing exactly
         # during this await must go through the same handling as every other
@@ -200,31 +181,16 @@ async def run_agent_task(
             run_scope=session.run_scope if session is not None else "",
         )
 
-        if flush_ui:
-            ui.flush_to_parent()
-
-        live_subagent_session_registry.mark_turn_finished(
-            activity_session_id, agent_id, history
+        result = _finalize_successful_run(
+            ui,
+            session,
+            flush_ui,
+            activity_session_id,
+            agent_id,
+            agent_name,
+            history,
+            result,
         )
-        if session is not None:
-            # End-of-session marker for the sub-agent's live view, appended
-            # after the turn went idle so the transcript visibly ends. Cancel
-            # and error paths never reach here — those show "<Esc> Canceled"
-            # (written by the TUI's cancel_viewed_agent) or the error instead.
-            session.buffered_ui.append_to_output("<Done>")
-
-        # Every completed delegation persists its transcript under a derived
-        # conversation name, bounded by LLM_SUBAGENT_HISTORY_RETAIN. No knob
-        # gates it: unlike ordinary sessions (re-saved under one name) each
-        # delegation is written exactly once, so the bounded pruning is the
-        # only thing that keeps it from filling the disk.
-        conversation_name = format_delegated_session_name(
-            get_current_tool_session(), agent_name, agent_id
-        )
-        persist_subagent_history(conversation_name, history)
-        if result:
-            result = f"{result}\n\n(Transcript saved as '{conversation_name}')"
-
         return AgentTaskResult(agent_name, result, None)
 
     except asyncio.CancelledError:
@@ -257,6 +223,102 @@ async def run_agent_task(
         if _tracks_activity:
             agent_activity_registry.finish(agent_id, session_id=activity_session_id)
         await fire_subagent_hook(HookEvent.SUBAGENT_STOP, agent_name, agent_id)
+
+
+def _start_activity_tracking(
+    ui: AnyUI,
+    agent_id: str,
+    agent_name: str,
+    task_label: str,
+    activity_session_id: str,
+) -> bool:
+    """Register this run in the activity panel, if the UI has one.
+
+    Returns whether tracking was started, so the caller's `finally` knows
+    whether to finish the entry.
+    """
+    if not isinstance(ui, HasActivityTracking):
+        return False
+    ui.set_activity_id(agent_id)
+    ordinal = agent_activity_registry.start(
+        agent_id, agent_name, task=task_label, session_id=activity_session_id
+    )
+    # Label the output stream with the panel ordinal, unless the caller
+    # already set a meaningful prefix (background delegation uses its handle).
+    if not ui.label:
+        ui.set_label(f"[{agent_name} #{ordinal}] ")
+    return True
+
+
+def _register_live_session(
+    ui: AnyUI,
+    activity_session_id: str,
+    agent_id: str,
+    agent_name: str,
+    sub_agent_manager: SubAgentManager,
+    yolo: bool | None,
+):
+    """Register this run so a human can talk to it while it works.
+
+    The "talk to a running sub-agent directly" feature (live_session.py) needs
+    the concrete `BufferedUI` (its buffer + active_run_context), not just the
+    `HasActivityTracking` protocol — registered unconditionally here since this
+    is the one place all three delegate paths (single, fan-out, background)
+    construct their `BufferedUI` and share this code. `active_task` lets the
+    TUI's Esc (while viewing this sub-agent) cancel exactly this turn; see
+    `LiveSubAgentSessionRegistry.cancel`.
+    """
+    if not isinstance(ui, BufferedUI):
+        return None
+    session = live_subagent_session_registry.add_session(
+        activity_session_id,
+        agent_id,
+        agent_name,
+        sub_agent_manager,
+        ui,
+        yolo_override=yolo,
+    )
+    session.cancelled_by_human = False  # a fresh run, not a stale flag
+    session.active_task = asyncio.current_task()
+    return session
+
+
+def _finalize_successful_run(
+    ui: AnyUI,
+    session,
+    flush_ui: bool,
+    activity_session_id: str,
+    agent_id: str,
+    agent_name: str,
+    history: list,
+    result: Any,
+) -> Any:
+    """Close out a delegation that finished, and note where its transcript went.
+
+    Every completed delegation persists its transcript under a derived
+    conversation name, bounded by `LLM_SUBAGENT_HISTORY_RETAIN`. No knob gates
+    it: unlike ordinary sessions (re-saved under one name) each delegation is
+    written exactly once, so the bounded pruning is the only thing that keeps
+    it from filling the disk.
+    """
+    if flush_ui:
+        ui.flush_to_parent()
+    live_subagent_session_registry.mark_turn_finished(
+        activity_session_id, agent_id, history
+    )
+    if session is not None:
+        # End-of-session marker for the sub-agent's live view, appended
+        # after the turn went idle so the transcript visibly ends. Cancel
+        # and error paths never reach here — those show "<Esc> Canceled"
+        # (written by the TUI's cancel_viewed_agent) or the error instead.
+        session.buffered_ui.append_to_output("<Done>")
+    conversation_name = format_delegated_session_name(
+        get_current_tool_session(), agent_name, agent_id
+    )
+    persist_subagent_history(conversation_name, history)
+    if result:
+        return f"{result}\n\n(Transcript saved as '{conversation_name}')"
+    return result
 
 
 def persist_subagent_history(conversation_name: str, history: list) -> None:

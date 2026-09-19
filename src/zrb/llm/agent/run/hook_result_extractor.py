@@ -178,12 +178,7 @@ def extract_pre_tool_decision(
     for result in hook_results:
         hso = _hook_specific(result)
         permission = hso.get("permissionDecision") or result.permission_decision
-        reason = (
-            hso.get("permissionDecisionReason")
-            or result.permission_decision_reason
-            or result.reason
-            or hso.get("reason")
-        )
+        reason = _pre_tool_reason(result, hso)
         if result.blocked or result.decision == "block" or permission == "deny":
             return PreToolDecision(
                 deny=True,
@@ -197,24 +192,28 @@ def extract_pre_tool_decision(
             additional_context = result.additional_context or hso.get(
                 "additionalContext"
             )
-        if permission == "ask":
+        # "defer" (or any unrecognized value) is no opinion: keep scanning,
+        # then fall through to the normal approval flow.
+        if permission in ("ask", "allow"):
             return PreToolDecision(
-                force_prompt=True,
+                force_prompt=permission == "ask",
+                allow=permission == "allow",
                 reason=reason,
                 updated_input=updated_input,
                 additional_context=additional_context,
             )
-        if permission == "allow":
-            return PreToolDecision(
-                allow=True,
-                reason=reason,
-                updated_input=updated_input,
-                additional_context=additional_context,
-            )
-        # permission == "defer" (or any unrecognized value) is no opinion: keep
-        # scanning, then fall through to the normal approval flow.
     return PreToolDecision(
         updated_input=updated_input, additional_context=additional_context
+    )
+
+
+def _pre_tool_reason(result: HookExecutionResult, hso: dict) -> str | None:
+    """The most specific reason a PreToolUse hook gave, if any."""
+    return (
+        hso.get("permissionDecisionReason")
+        or result.permission_decision_reason
+        or result.reason
+        or hso.get("reason")
     )
 
 

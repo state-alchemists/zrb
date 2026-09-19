@@ -13,12 +13,25 @@ from __future__ import annotations
 
 from contextvars import ContextVar
 
-from zrb.llm.tool.ask import (
-    get_interactive_mode,
-    interactive_mode,
-    set_interactive_mode,
-)
-from zrb.llm.tool.worktree import active_worktree
+# `ask.py` and `worktree.py` set these, but neither owns them: both declare
+# tool signatures and so import `pydantic`, while `live_context.py` reads this
+# state on the eager `import zrb` path. Storing them in this module — which
+# imports nothing heavier than `contextvars` — keeps that read from pulling
+# pydantic's machinery (~55ms) into every CLI invocation.
+active_worktree: ContextVar[str] = ContextVar("zrb_active_worktree", default="")
+
+interactive_mode: ContextVar[bool] = ContextVar("zrb_interactive_mode", default=True)
+
+
+def get_interactive_mode() -> bool:
+    """Return whether the current chat session is interactive."""
+    return interactive_mode.get()
+
+
+def set_interactive_mode(value: bool) -> None:
+    """Set the interactive flag for the current chat session."""
+    interactive_mode.set(value)
+
 
 _current_session: ContextVar[str] = ContextVar("zrb_current_session", default="default")
 

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable, Coroutine
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -35,7 +35,9 @@ class QueuedMessage:
 
     `run` is the async job that processes this entry; it must read `text` and
     `attachments` at execution time rather than capturing them, so an edit made
-    while the entry is queued is picked up when the turn runs.
+    while the entry is queued is picked up when the turn runs. It is a
+    coroutine function rather than any awaitable, because the consumer hands
+    it to `asyncio.create_task`, which accepts nothing else.
     """
 
     def __init__(
@@ -44,7 +46,7 @@ class QueuedMessage:
         text: str,
         attachments: list["UserContent"],
         kind: str,
-        run: Callable[[], Awaitable[None]],
+        run: Callable[[], Coroutine[Any, Any, None]],
     ):
         self.text = text
         self.attachments = attachments

@@ -341,29 +341,9 @@
     "BaseTrigger": {
       "init": [
         "name:POSITIONAL_OR_KEYWORD:0",
-        "color:KEYWORD_ONLY:1",
-        "icon:KEYWORD_ONLY:1",
-        "description:KEYWORD_ONLY:1",
-        "cli_only:KEYWORD_ONLY:1",
-        "input:KEYWORD_ONLY:1",
-        "env:KEYWORD_ONLY:1",
-        "action:KEYWORD_ONLY:1",
-        "execute_condition:KEYWORD_ONLY:1",
         "queue_name:KEYWORD_ONLY:1",
         "callback:KEYWORD_ONLY:1",
-        "retries:KEYWORD_ONLY:1",
-        "retry_if:KEYWORD_ONLY:1",
-        "retry_period:KEYWORD_ONLY:1",
-        "readiness_check:KEYWORD_ONLY:1",
-        "readiness_check_delay:KEYWORD_ONLY:1",
-        "readiness_check_period:KEYWORD_ONLY:1",
-        "readiness_failure_threshold:KEYWORD_ONLY:1",
-        "readiness_timeout:KEYWORD_ONLY:1",
-        "monitor_readiness:KEYWORD_ONLY:1",
-        "upstream:KEYWORD_ONLY:1",
-        "fallback:KEYWORD_ONLY:1",
-        "successor:KEYWORD_ONLY:1",
-        "print_fn:KEYWORD_ONLY:1"
+        "kwargs:VAR_KEYWORD:0"
       ],
       "members": [
         "action",
@@ -494,12 +474,6 @@
     "CmdTask": {
       "init": [
         "name:POSITIONAL_OR_KEYWORD:0",
-        "color:KEYWORD_ONLY:1",
-        "icon:KEYWORD_ONLY:1",
-        "description:KEYWORD_ONLY:1",
-        "cli_only:KEYWORD_ONLY:1",
-        "input:KEYWORD_ONLY:1",
-        "env:KEYWORD_ONLY:1",
         "shell:KEYWORD_ONLY:1",
         "shell_flag:KEYWORD_ONLY:1",
         "remote_host:KEYWORD_ONLY:1",
@@ -515,20 +489,7 @@
         "max_error_line:KEYWORD_ONLY:1",
         "execution_timeout:KEYWORD_ONLY:1",
         "is_interactive:KEYWORD_ONLY:1",
-        "execute_condition:KEYWORD_ONLY:1",
-        "retries:KEYWORD_ONLY:1",
-        "retry_if:KEYWORD_ONLY:1",
-        "retry_period:KEYWORD_ONLY:1",
-        "readiness_check:KEYWORD_ONLY:1",
-        "readiness_check_delay:KEYWORD_ONLY:1",
-        "readiness_check_period:KEYWORD_ONLY:1",
-        "readiness_failure_threshold:KEYWORD_ONLY:1",
-        "readiness_timeout:KEYWORD_ONLY:1",
-        "monitor_readiness:KEYWORD_ONLY:1",
-        "upstream:KEYWORD_ONLY:1",
-        "fallback:KEYWORD_ONLY:1",
-        "successor:KEYWORD_ONLY:1",
-        "print_fn:KEYWORD_ONLY:1"
+        "kwargs:VAR_KEYWORD:0"
       ],
       "members": [
         "action",
@@ -813,20 +774,10 @@
     "HttpCheck": {
       "init": [
         "name:POSITIONAL_OR_KEYWORD:0",
-        "color:KEYWORD_ONLY:1",
-        "icon:KEYWORD_ONLY:1",
-        "description:KEYWORD_ONLY:1",
-        "cli_only:KEYWORD_ONLY:1",
-        "input:KEYWORD_ONLY:1",
-        "env:KEYWORD_ONLY:1",
         "url:KEYWORD_ONLY:1",
         "http_method:KEYWORD_ONLY:1",
         "interval:KEYWORD_ONLY:1",
-        "execute_condition:KEYWORD_ONLY:1",
-        "upstream:KEYWORD_ONLY:1",
-        "fallback:KEYWORD_ONLY:1",
-        "successor:KEYWORD_ONLY:1",
-        "print_fn:KEYWORD_ONLY:1"
+        "kwargs:VAR_KEYWORD:0"
       ],
       "members": [
         "action",
@@ -892,12 +843,6 @@
     "LLMChatTask": {
       "init": [
         "name:POSITIONAL_OR_KEYWORD:0",
-        "color:KEYWORD_ONLY:1",
-        "icon:KEYWORD_ONLY:1",
-        "description:KEYWORD_ONLY:1",
-        "cli_only:KEYWORD_ONLY:1",
-        "input:KEYWORD_ONLY:1",
-        "env:KEYWORD_ONLY:1",
         "system_prompt:KEYWORD_ONLY:1",
         "prompt_manager:KEYWORD_ONLY:1",
         "hook_manager:KEYWORD_ONLY:1",
@@ -936,20 +881,7 @@
         "snapshot_dir:KEYWORD_ONLY:1",
         "include_default_ui:KEYWORD_ONLY:1",
         "interactive:KEYWORD_ONLY:1",
-        "execute_condition:KEYWORD_ONLY:1",
-        "retries:KEYWORD_ONLY:1",
-        "retry_period:KEYWORD_ONLY:1",
-        "retry_if:KEYWORD_ONLY:1",
-        "readiness_check:KEYWORD_ONLY:1",
-        "readiness_check_delay:KEYWORD_ONLY:1",
-        "readiness_check_period:KEYWORD_ONLY:1",
-        "readiness_failure_threshold:KEYWORD_ONLY:1",
-        "readiness_timeout:KEYWORD_ONLY:1",
-        "monitor_readiness:KEYWORD_ONLY:1",
-        "upstream:KEYWORD_ONLY:1",
-        "fallback:KEYWORD_ONLY:1",
-        "successor:KEYWORD_ONLY:1",
-        "print_fn:KEYWORD_ONLY:1"
+        "kwargs:VAR_KEYWORD:0"
       ],
       "members": [
         "action",
@@ -1116,12 +1048,6 @@
     "LLMTask": {
       "init": [
         "name:POSITIONAL_OR_KEYWORD:0",
-        "color:KEYWORD_ONLY:1",
-        "icon:KEYWORD_ONLY:1",
-        "description:KEYWORD_ONLY:1",
-        "cli_only:KEYWORD_ONLY:1",
-        "input:KEYWORD_ONLY:1",
-        "env:KEYWORD_ONLY:1",
         "system_prompt:KEYWORD_ONLY:1",
         "prompt_manager:KEYWORD_ONLY:1",
         "hook_manager:KEYWORD_ONLY:1",
@@ -1150,20 +1076,7 @@
         "ui:KEYWORD_ONLY:1",
         "approval_channel:KEYWORD_ONLY:1",
         "summarize_commands:KEYWORD_ONLY:1",
-        "execute_condition:KEYWORD_ONLY:1",
-        "retries:KEYWORD_ONLY:1",
-        "retry_period:KEYWORD_ONLY:1",
-        "retry_if:KEYWORD_ONLY:1",
-        "readiness_check:KEYWORD_ONLY:1",
-        "readiness_check_delay:KEYWORD_ONLY:1",
-        "readiness_check_period:KEYWORD_ONLY:1",
-        "readiness_failure_threshold:KEYWORD_ONLY:1",
-        "readiness_timeout:KEYWORD_ONLY:1",
-        "monitor_readiness:KEYWORD_ONLY:1",
-        "upstream:KEYWORD_ONLY:1",
-        "fallback:KEYWORD_ONLY:1",
-        "successor:KEYWORD_ONLY:1",
-        "print_fn:KEYWORD_ONLY:1"
+        "kwargs:VAR_KEYWORD:0"
       ],
       "members": [
         "action",
@@ -1356,44 +1269,12 @@
     "RsyncTask": {
       "init": [
         "name:POSITIONAL_OR_KEYWORD:0",
-        "color:KEYWORD_ONLY:1",
-        "icon:KEYWORD_ONLY:1",
-        "description:KEYWORD_ONLY:1",
-        "cli_only:KEYWORD_ONLY:1",
-        "input:KEYWORD_ONLY:1",
-        "env:KEYWORD_ONLY:1",
-        "shell:KEYWORD_ONLY:1",
-        "shell_flag:KEYWORD_ONLY:1",
-        "is_interactive:KEYWORD_ONLY:1",
-        "remote_host:KEYWORD_ONLY:1",
-        "remote_port:KEYWORD_ONLY:1",
-        "remote_user:KEYWORD_ONLY:1",
-        "remote_password:KEYWORD_ONLY:1",
-        "remote_ssh_key:KEYWORD_ONLY:1",
         "remote_source_path:KEYWORD_ONLY:1",
         "remote_destination_path:KEYWORD_ONLY:1",
         "local_source_path:KEYWORD_ONLY:1",
         "local_destination_path:KEYWORD_ONLY:1",
         "exclude_from:KEYWORD_ONLY:1",
-        "cwd:KEYWORD_ONLY:1",
-        "plain_print:KEYWORD_ONLY:1",
-        "max_output_line:KEYWORD_ONLY:1",
-        "max_error_line:KEYWORD_ONLY:1",
-        "execution_timeout:KEYWORD_ONLY:1",
-        "execute_condition:KEYWORD_ONLY:1",
-        "retries:KEYWORD_ONLY:1",
-        "retry_if:KEYWORD_ONLY:1",
-        "retry_period:KEYWORD_ONLY:1",
-        "readiness_check:KEYWORD_ONLY:1",
-        "readiness_check_delay:KEYWORD_ONLY:1",
-        "readiness_check_period:KEYWORD_ONLY:1",
-        "readiness_failure_threshold:KEYWORD_ONLY:1",
-        "readiness_timeout:KEYWORD_ONLY:1",
-        "monitor_readiness:KEYWORD_ONLY:1",
-        "upstream:KEYWORD_ONLY:1",
-        "fallback:KEYWORD_ONLY:1",
-        "successor:KEYWORD_ONLY:1",
-        "print_fn:KEYWORD_ONLY:1"
+        "kwargs:VAR_KEYWORD:0"
       ],
       "members": [
         "action",
@@ -1444,30 +1325,11 @@
     "Scaffolder": {
       "init": [
         "name:POSITIONAL_OR_KEYWORD:0",
-        "color:KEYWORD_ONLY:1",
-        "icon:KEYWORD_ONLY:1",
-        "description:KEYWORD_ONLY:1",
-        "cli_only:KEYWORD_ONLY:1",
-        "input:KEYWORD_ONLY:1",
-        "env:KEYWORD_ONLY:1",
         "source_path:KEYWORD_ONLY:1",
         "destination_path:KEYWORD_ONLY:1",
         "transform_path:KEYWORD_ONLY:1",
         "transform_content:KEYWORD_ONLY:1",
-        "execute_condition:KEYWORD_ONLY:1",
-        "retries:KEYWORD_ONLY:1",
-        "retry_if:KEYWORD_ONLY:1",
-        "retry_period:KEYWORD_ONLY:1",
-        "readiness_check:KEYWORD_ONLY:1",
-        "readiness_check_delay:KEYWORD_ONLY:1",
-        "readiness_check_period:KEYWORD_ONLY:1",
-        "readiness_failure_threshold:KEYWORD_ONLY:1",
-        "readiness_timeout:KEYWORD_ONLY:1",
-        "monitor_readiness:KEYWORD_ONLY:1",
-        "upstream:KEYWORD_ONLY:1",
-        "fallback:KEYWORD_ONLY:1",
-        "successor:KEYWORD_ONLY:1",
-        "print_fn:KEYWORD_ONLY:1"
+        "kwargs:VAR_KEYWORD:0"
       ],
       "members": [
         "action",
@@ -1510,29 +1372,8 @@
     "Scheduler": {
       "init": [
         "name:POSITIONAL_OR_KEYWORD:0",
-        "color:KEYWORD_ONLY:1",
-        "icon:KEYWORD_ONLY:1",
-        "description:KEYWORD_ONLY:1",
-        "cli_only:KEYWORD_ONLY:1",
-        "input:KEYWORD_ONLY:1",
-        "env:KEYWORD_ONLY:1",
         "schedule:KEYWORD_ONLY:1",
-        "execute_condition:KEYWORD_ONLY:1",
-        "queue_name:KEYWORD_ONLY:1",
-        "callback:KEYWORD_ONLY:1",
-        "retries:KEYWORD_ONLY:1",
-        "retry_if:KEYWORD_ONLY:1",
-        "retry_period:KEYWORD_ONLY:1",
-        "readiness_check:KEYWORD_ONLY:1",
-        "readiness_check_delay:KEYWORD_ONLY:1",
-        "readiness_check_period:KEYWORD_ONLY:1",
-        "readiness_failure_threshold:KEYWORD_ONLY:1",
-        "readiness_timeout:KEYWORD_ONLY:1",
-        "monitor_readiness:KEYWORD_ONLY:1",
-        "upstream:KEYWORD_ONLY:1",
-        "fallback:KEYWORD_ONLY:1",
-        "successor:KEYWORD_ONLY:1",
-        "print_fn:KEYWORD_ONLY:1"
+        "kwargs:VAR_KEYWORD:0"
       ],
       "members": [
         "action",
@@ -1841,20 +1682,10 @@
     "TcpCheck": {
       "init": [
         "name:POSITIONAL_OR_KEYWORD:0",
-        "color:KEYWORD_ONLY:1",
-        "icon:KEYWORD_ONLY:1",
-        "description:KEYWORD_ONLY:1",
-        "cli_only:KEYWORD_ONLY:1",
-        "input:KEYWORD_ONLY:1",
-        "env:KEYWORD_ONLY:1",
         "host:KEYWORD_ONLY:1",
         "port:KEYWORD_ONLY:1",
         "interval:KEYWORD_ONLY:1",
-        "execute_condition:KEYWORD_ONLY:1",
-        "upstream:KEYWORD_ONLY:1",
-        "fallback:KEYWORD_ONLY:1",
-        "successor:KEYWORD_ONLY:1",
-        "print_fn:KEYWORD_ONLY:1"
+        "kwargs:VAR_KEYWORD:0"
       ],
       "members": [
         "action",

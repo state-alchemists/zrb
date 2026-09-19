@@ -1,15 +1,11 @@
 import asyncio
-from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Unpack
 
-from zrb.attr.type import BoolAttr, StrAttr
+from zrb.attr.type import StrAttr
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.context.print_fn import PrintFn
-from zrb.env.any_env import AnyEnv
-from zrb.input.any_input import AnyInput
-from zrb.task.any_task import AnyTask
 from zrb.task.base.base_task import BaseTask
+from zrb.task.base.params import CheckTaskParams, reject_non_check_params
 from zrb.util.attr import get_str_attr
 
 if TYPE_CHECKING:
@@ -21,20 +17,10 @@ class HttpCheck(BaseTask):
         self,
         name: str,
         *,
-        color: int | None = None,
-        icon: str | None = None,
-        description: str | None = None,
-        cli_only: bool = False,
-        input: Sequence[AnyInput | None] | AnyInput | None = None,
-        env: Sequence[AnyEnv | None] | AnyEnv | None = None,
         url: StrAttr = "http://localhost",
         http_method: StrAttr = "GET",
         interval: float | None = None,
-        execute_condition: BoolAttr = True,
-        upstream: Sequence[AnyTask] | AnyTask | None = None,
-        fallback: Sequence[AnyTask] | AnyTask | None = None,
-        successor: Sequence[AnyTask] | AnyTask | None = None,
-        print_fn: PrintFn | None = None,
+        **kwargs: Unpack[CheckTaskParams],
     ):
         """Define a task that passes once an HTTP endpoint responds.
 
@@ -46,21 +32,18 @@ class HttpCheck(BaseTask):
             http_method: HTTP method to send.
             interval: Seconds between polls. Defaults to the readiness check
                 period.
+
+        Every parameter `BaseTask` accepts is also accepted here **except the
+        retry and readiness settings** (`retries`, `retry_period`, `retry_if`,
+        `readiness_*`, `monitor_readiness`): a check polls on its own
+        `interval` and is itself what a task waits on, so those would nest a
+        check inside itself. Set them on the task being checked.
         """
+        reject_non_check_params("HttpCheck", dict(kwargs))
         super().__init__(
             name=name,
-            color=color,
-            icon=icon,
-            description=description,
-            cli_only=cli_only,
-            input=input,
-            env=env,
-            execute_condition=execute_condition,
+            **kwargs,
             retries=0,
-            upstream=upstream,
-            fallback=fallback,
-            successor=successor,
-            print_fn=print_fn,
         )
         self._url = url
         self._http_method = http_method

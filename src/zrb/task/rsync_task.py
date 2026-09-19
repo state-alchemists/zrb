@@ -1,11 +1,8 @@
-from collections.abc import Callable, Sequence
+from typing import Unpack
 
-from zrb.attr.type import BoolAttr, IntAttr, StrAttr
+from zrb.attr.type import StrAttr
 from zrb.context.any_context import AnyContext
-from zrb.context.print_fn import PrintFn
-from zrb.env.any_env import AnyEnv
-from zrb.input.any_input import AnyInput
-from zrb.task.any_task import AnyTask
+from zrb.task.base.params import CmdTaskParams, reject_non_rsync_params
 from zrb.task.cmd_task import CmdTask
 from zrb.util.attr import get_str_attr
 
@@ -15,44 +12,12 @@ class RsyncTask(CmdTask):
         self,
         name: str,
         *,
-        color: int | None = None,
-        icon: str | None = None,
-        description: str | None = None,
-        cli_only: bool = False,
-        input: Sequence[AnyInput | None] | AnyInput | None = None,
-        env: Sequence[AnyEnv | None] | AnyEnv | None = None,
-        shell: StrAttr | None = None,
-        shell_flag: StrAttr | None = None,
-        is_interactive: bool = False,
-        remote_host: StrAttr | None = None,
-        remote_port: IntAttr | None = None,
-        remote_user: StrAttr | None = None,
-        remote_password: StrAttr | None = None,
-        remote_ssh_key: StrAttr | None = None,
         remote_source_path: StrAttr | None = None,
         remote_destination_path: StrAttr | None = None,
         local_source_path: StrAttr | None = None,
         local_destination_path: StrAttr | None = None,
         exclude_from: StrAttr | None = None,
-        cwd: str | None = None,
-        plain_print: bool = False,
-        max_output_line: int = 1000,
-        max_error_line: int = 1000,
-        execution_timeout: int = 3600,
-        execute_condition: BoolAttr = True,
-        retries: int = 2,
-        retry_if: Callable[[BaseException], bool] | None = None,
-        retry_period: float = 0,
-        readiness_check: Sequence[AnyTask] | AnyTask | None = None,
-        readiness_check_delay: float | None = None,
-        readiness_check_period: float | None = 5,
-        readiness_failure_threshold: int | None = 1,
-        readiness_timeout: int | None = None,
-        monitor_readiness: bool = False,
-        upstream: Sequence[AnyTask] | AnyTask | None = None,
-        fallback: Sequence[AnyTask] | AnyTask | None = None,
-        successor: Sequence[AnyTask] | AnyTask | None = None,
-        print_fn: PrintFn | None = None,
+        **kwargs: Unpack[CmdTaskParams],
     ):
         """Define a task that copies files with `rsync`, locally or over SSH.
 
@@ -72,47 +37,18 @@ class RsyncTask(CmdTask):
             exclude_from: Path to a file listing rsync exclude patterns, passed
                 through as `--exclude-from`.
 
-        Every parameter `CmdTask` accepts is also accepted here and behaves
+        Every parameter `CmdTask` accepts is also accepted here **except
+        `cmd` and `warn_unrecommended_command`** — the command is generated
+        from the paths above, so neither is meaningful. The rest behaves
         identically, except for the two that only make sense for a
         user-supplied command: `cmd`, which is generated here from the paths
         above, and `warn_unrecommended_command`, which screens a command you
         wrote.
         """
+        reject_non_rsync_params("RsyncTask", dict(kwargs))
         super().__init__(
             name=name,
-            color=color,
-            icon=icon,
-            description=description,
-            cli_only=cli_only,
-            input=input,
-            env=env,
-            shell=shell,
-            shell_flag=shell_flag,
-            is_interactive=is_interactive,
-            remote_host=remote_host,
-            remote_port=remote_port,
-            remote_user=remote_user,
-            remote_password=remote_password,
-            remote_ssh_key=remote_ssh_key,
-            cwd=cwd,
-            plain_print=plain_print,
-            max_output_line=max_output_line,
-            max_error_line=max_error_line,
-            execution_timeout=execution_timeout,
-            execute_condition=execute_condition,
-            retries=retries,
-            retry_if=retry_if,
-            retry_period=retry_period,
-            readiness_check=readiness_check,
-            readiness_check_delay=readiness_check_delay,
-            readiness_check_period=readiness_check_period,
-            readiness_failure_threshold=readiness_failure_threshold,
-            readiness_timeout=readiness_timeout,
-            monitor_readiness=monitor_readiness,
-            upstream=upstream,
-            fallback=fallback,
-            successor=successor,
-            print_fn=print_fn,
+            **kwargs,
         )
         self._remote_source_path = remote_source_path
         self._remote_destination_path = remote_destination_path
