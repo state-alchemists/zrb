@@ -40,10 +40,17 @@ class AnyUI(ABC):
     zrb's own docs show implementing this class directly.
 
     The contract is in two halves: the six behavioral methods below, which
-    every UI performs, and the ten state members and side-effect hooks after
-    them, which describe what a *full* UI keeps. `BaseUI` implements all ten;
-    a UI that keeps none of it mixes in `UIStateDefaultsMixin`
+    every UI performs, and the seventeen state members and side-effect hooks
+    after them, which describe what a *full* UI keeps. `BaseUI` implements all
+    seventeen; a UI that keeps none of it mixes in `UIStateDefaultsMixin`
     (`llm/ui/state_defaults.py`).
+
+    The state half is declared here, rather than left to `getattr` probes at
+    the call site, because `MultiUI` reads seven of these members off its
+    *primary* child (`main_ui`) to drive snapshots, rewind, the `/plan` badge
+    and the model display. A custom UI placed in that slot without them used
+    to lose those features silently, with no error and nothing in the type
+    checker; declaring them makes the omission a `TypeError` at construction.
     """
 
     @abstractmethod
@@ -146,6 +153,63 @@ class AnyUI(ABC):
     @abstractmethod
     def tool_call_handler(self) -> Any:
         """This UI's tool-call confirmation handler, or None when it has none."""
+
+    @property
+    @abstractmethod
+    def small_model(self) -> Any:
+        """The `/model small ...` override this UI holds, or None."""
+
+    @small_model.setter
+    @abstractmethod
+    def small_model(self, value: Any) -> None: ...
+
+    @property
+    @abstractmethod
+    def multimodal_model(self) -> Any:
+        """The `/model multimodal ...` override this UI holds, or None."""
+
+    @multimodal_model.setter
+    @abstractmethod
+    def multimodal_model(self, value: Any) -> None: ...
+
+    @property
+    @abstractmethod
+    def conversation_session_name(self) -> str:
+        """The conversation this UI is attached to. Empty when it tracks none."""
+
+    @conversation_session_name.setter
+    @abstractmethod
+    def conversation_session_name(self, value: str) -> None: ...
+
+    @property
+    @abstractmethod
+    def plan_mode_active(self) -> bool:
+        """Whether `/plan` is on. `MultiUI` both reads and writes this on its
+        primary child to keep the badge in step with in-run mode changes."""
+
+    @plan_mode_active.setter
+    @abstractmethod
+    def plan_mode_active(self, value: bool) -> None: ...
+
+    @property
+    @abstractmethod
+    def last_output(self) -> str:
+        """The last answer this UI rendered, or "" when it has none.
+
+        Read-only in the contract: it reports what was rendered rather than
+        setting it. `UIStateDefaultsMixin` adds a setter for UIs that assign
+        it directly, which a caller typed against `AnyUI` cannot reach.
+        """
+
+    @property
+    @abstractmethod
+    def snapshot_manager(self) -> Any:
+        """This UI's filesystem-snapshot manager, or None when it keeps none."""
+
+    @property
+    @abstractmethod
+    def history_manager(self) -> Any:
+        """This UI's conversation history manager, or None when it keeps none."""
 
     @property
     @abstractmethod

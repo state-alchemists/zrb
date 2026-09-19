@@ -1,10 +1,11 @@
 """Inert implementations of `AnyUI`'s state members and side-effect hooks.
 
-`AnyUI` splits in two: six behavioral methods every UI performs, and ten
-members describing what a *full* UI keeps — the model it talks to, whether the
-assistant is mid-turn, which background tasks it owns. `BaseUI` implements all
-ten. `StdUI`, `BufferedUI` and `MultiUI` implement `AnyUI` directly and track
-almost none of it, so they mix this in instead of each writing ten stubs.
+`AnyUI` splits in two: six behavioral methods every UI performs, and
+seventeen members describing what a *full* UI keeps — the model it talks to,
+whether the assistant is mid-turn, which background tasks it owns, what the
+primary child exposes to `MultiUI`. `BaseUI` implements all seventeen;
+`StdUI`, `BufferedUI` and `MultiUI` track almost none of it, so they mix this
+in instead of each writing seventeen stubs.
 
 Bodies live here rather than on `AnyUI` because no `any_*.py` module in this
 codebase carries an implementation — `.coveragerc` excludes those paths on
@@ -52,6 +53,11 @@ class UIStateDefaultsMixin:
     # attribute is shared by every instance, so one UI's background tasks
     # would land in every other UI's set.
     _uidefaults_background_tasks: "set[asyncio.Task] | None" = None
+    _uidefaults_small_model: Any = None
+    _uidefaults_multimodal_model: Any = None
+    _uidefaults_conversation_session_name: str = ""
+    _uidefaults_plan_mode_active: bool = False
+    _uidefaults_last_output: str = ""
 
     @property
     def is_thinking(self) -> bool:
@@ -93,6 +99,54 @@ class UIStateDefaultsMixin:
     @property
     def tool_call_handler(self) -> Any:
         """No handler of its own; callers fall back to an approval channel."""
+        return None
+
+    @property
+    def small_model(self) -> Any:
+        return self._uidefaults_small_model
+
+    @small_model.setter
+    def small_model(self, value: Any) -> None:
+        self._uidefaults_small_model = value
+
+    @property
+    def multimodal_model(self) -> Any:
+        return self._uidefaults_multimodal_model
+
+    @multimodal_model.setter
+    def multimodal_model(self, value: Any) -> None:
+        self._uidefaults_multimodal_model = value
+
+    @property
+    def conversation_session_name(self) -> str:
+        return self._uidefaults_conversation_session_name
+
+    @conversation_session_name.setter
+    def conversation_session_name(self, value: str) -> None:
+        self._uidefaults_conversation_session_name = value
+
+    @property
+    def plan_mode_active(self) -> bool:
+        return self._uidefaults_plan_mode_active
+
+    @plan_mode_active.setter
+    def plan_mode_active(self, value: bool) -> None:
+        self._uidefaults_plan_mode_active = value
+
+    @property
+    def last_output(self) -> str:
+        """Nothing rendered, so nothing to report. Read-only, matching the
+        `AnyUI` contract; a UI that tracks it declares its own setter."""
+        return self._uidefaults_last_output
+
+    @property
+    def snapshot_manager(self) -> Any:
+        """No snapshots of its own, so nothing to rewind to."""
+        return None
+
+    @property
+    def history_manager(self) -> Any:
+        """No history of its own; the session's manager lives on the primary."""
         return None
 
     @property

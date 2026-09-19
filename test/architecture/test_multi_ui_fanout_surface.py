@@ -102,3 +102,46 @@ def test_every_fanout_name_exists_on_the_default_ui():
         f"MultiUI fans out to {missing}, which the default UI does not "
         "implement -- either a typo, or a hook that no longer exists."
     )
+
+
+def _primary_child_probes() -> set[str]:
+    """Every name MultiUI looks up by string on its *primary* child.
+
+    `self.main_ui` and `self._uis[0]` are not the optional-hook dispatch above:
+    they are state reads off the one child that drives snapshots, rewind, the
+    `/plan` badge and the model overrides. Those members are declared in
+    `AnyUI`, so they are reached by attribute access and this set is empty.
+    """
+    tree = ast.parse(MULTI_UI.read_text(encoding="utf-8"))
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if not (isinstance(func, ast.Name) and func.id in ("getattr", "hasattr")):
+            continue
+        if len(node.args) < 2 or not isinstance(node.args[1], ast.Constant):
+            continue
+        target = ast.unparse(node.args[0])
+        if target.startswith("self.main_ui") or target.startswith("self._uis["):
+            names.add(node.args[1].value)
+    return names
+
+
+def test_the_primary_child_is_read_through_the_declared_contract():
+    """A `getattr(self.main_ui, "x", default)` says "a UI might not have x".
+
+    Once `x` is in `AnyUI` that is no longer true, and the probe hides the
+    opposite failure: a primary child that genuinely lacks it used to fall back
+    to the default and disable the feature silently, with nothing for pyright
+    to catch. Reaching these members by attribute access is what makes the
+    omission a `TypeError` at construction instead.
+    """
+    probed = _primary_child_probes()
+    assert not probed, (
+        "MultiUI probes the primary child for "
+        f"{sorted(probed)} instead of reading it as declared state. Add the "
+        "member to AnyUI (with a default in UIStateDefaultsMixin) and use "
+        "attribute access, or -- if it really is optional -- fan it out to "
+        "every child through FANOUT_METHODS rather than the primary alone."
+    )

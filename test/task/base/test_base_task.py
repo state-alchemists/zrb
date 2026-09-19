@@ -20,7 +20,7 @@ def test_base_task_init():
     assert task.color is None
     assert task.icon is None
     assert task.description == "test_task"
-    assert task.cli_only is False
+    assert task.is_cli_only is False
 
 
 def test_base_task_explicit_zero_readiness_values_are_kept():
@@ -83,7 +83,7 @@ def test_base_task_properties():
     assert task.color == 1
     assert task.icon == "icon"
     assert task.description == "description"
-    assert task.cli_only is True
+    assert task.is_cli_only is True
 
 
 def test_base_task_envs_property():
