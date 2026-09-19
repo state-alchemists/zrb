@@ -16,6 +16,8 @@ base description is correct there.
 
 import dataclasses
 import inspect
+import sys
+from typing import Unpack, get_origin
 
 import pytest
 
@@ -158,6 +160,19 @@ def test_constructors_document_the_parameters_they_add(class_name):
     )
 
 
+def _is_unpack(annotation: object) -> bool:
+    """Whether `annotation` is `Unpack[...]`.
+
+    An annotation is source text in a module with
+    `from __future__ import annotations` and a typing object otherwise.
+    `repr` is not common ground between the two: CPython renders the object
+    as `*X` before 3.12 and as `typing.Unpack[X]` from 3.12 on.
+    """
+    if isinstance(annotation, str):
+        return annotation.lstrip().startswith("Unpack[")
+    return get_origin(annotation) is Unpack
+
+
 def _forwards_unpacked_kwargs(cls: type) -> bool:
     """Whether `cls` declares its own `**kwargs: Unpack[SomeParams]`.
 
@@ -169,7 +184,7 @@ def _forwards_unpacked_kwargs(cls: type) -> bool:
     annotations = getattr(cls.__init__, "__annotations__", {})
     return any(
         param.kind is inspect.Parameter.VAR_KEYWORD
-        and "Unpack[" in str(annotations.get(name, ""))
+        and _is_unpack(annotations.get(name))
         for name, param in inspect.signature(cls.__init__).parameters.items()
     )
 
@@ -179,6 +194,21 @@ FORWARDING_CLASSES = [
     for name in EXPORTED_NON_DATACLASSES
     if _forwards_unpacked_kwargs(getattr(zrb, name))
 ]
+
+
+def test_forwarding_classes_were_actually_detected():
+    """`FORWARDING_CLASSES` drives a parametrize set, and an empty one passes.
+
+    The list is derived from runtime annotations, so it comes out empty both
+    when no class forwards and when the detection stops working on an
+    interpreter.
+    """
+    assert FORWARDING_CLASSES, (
+        "No exported class was detected as forwarding `**kwargs: Unpack[...]`. "
+        "Either the forwarding was removed, or the detection stopped working "
+        f"on this interpreter (Python {sys.version_info.major}."
+        f"{sys.version_info.minor})."
+    )
 
 
 @pytest.mark.parametrize("class_name", FORWARDING_CLASSES)

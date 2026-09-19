@@ -24,6 +24,7 @@ through `UIConfig` rather than its own signature.
 import ast
 import inspect
 import textwrap
+from typing import Unpack, get_origin
 
 from zrb.llm.task.chat.task import LLMChatTask
 from zrb.llm.task.llm_task import LLMTask
@@ -249,6 +250,19 @@ def test_task_subclasses_forward_rather_than_re_declare():
     )
 
 
+def _is_unpack(annotation: object) -> bool:
+    """Whether `annotation` is `Unpack[...]`.
+
+    An annotation is source text in a module with
+    `from __future__ import annotations` and a typing object otherwise.
+    `repr` is not common ground between the two: CPython renders the object
+    as `*X` before 3.12 and as `typing.Unpack[X]` from 3.12 on.
+    """
+    if isinstance(annotation, str):
+        return annotation.lstrip().startswith("Unpack[")
+    return get_origin(annotation) is Unpack
+
+
 def test_every_forwarding_subclass_declares_unpacked_kwargs():
     """The other half of the rule above: forwarding must actually happen.
 
@@ -261,8 +275,7 @@ def test_every_forwarding_subclass_declares_unpacked_kwargs():
         params = inspect.signature(cls.__init__).parameters
         annotations = getattr(cls.__init__, "__annotations__", {})
         if not any(
-            p.kind is inspect.Parameter.VAR_KEYWORD
-            and "Unpack[" in str(annotations.get(n, ""))
+            p.kind is inspect.Parameter.VAR_KEYWORD and _is_unpack(annotations.get(n))
             for n, p in params.items()
         ):
             missing.append(cls.__name__)
