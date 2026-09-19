@@ -25,7 +25,7 @@ See [Maintainer Guide → Getting Started](docs/contributing/maintainer-guide.md
 | `llm/` | Everything LLM — see below |
 | `llm_plugin/` | The built-in skills and agents that ship with zrb |
 | `runner/` | `cli.py`, `web_app.py` + `web_route/`, and `chat/` (the chat session HTTP layer) |
-| `task/` | The task engine: `BaseTask`, `Task`, `CmdTask`, `HttpCheck`, `TcpCheck`, `Scheduler`, `Scaffolder`, `RsyncTask`, and the `make_task` decorator |
+| `task/` | The task engine: `BaseTask`, `Task`, `CmdTask`, `HttpCheck`, `TcpCheck`, `Scheduler`, `Scaffolder`, `RsyncTask`, and the `make_task` decorator. Shared constructor keywords live once in `base/params.py` |
 | `contextvars.py` | Canonical index of every ambient `ContextVar`, its owning module, and its typed wrapper |
 
 Inside `llm/`:
@@ -105,6 +105,28 @@ Lives under `docs/changelog/`: `README.md` (index), `v1.md` (1.x archive), `v2/`
 - **No path stutter.** `X/manager/manager.py` is `X/manager.py`; siblings become `X/manager_<aspect>.py`. **The 18 `X/X.py` paths are not this** — `task/task.py`, `group/group.py`, `config/config.py` and the rest are `<package>/<eponymous-type>.py`, a package named for its principal type. Every one of those names is a top-level `zrb` export with deep-import users, and `task/task.py` cannot become `task.py` without colliding with the `task/` package.
 - **One verb per collection operation.** Ordered pipelines take **`append_X`** and **`prepend_X`**; unordered registries take **`add_X`** (`skill_manager.add_skill`, `sub_agent_manager.add_agent`, `Group.add_task`). An ordered collection has no `add_X` alias: position is the whole semantics of those calls, so the name states it — `add_` on an ordered collection cannot say whether it inserts at the front or the back, and both readings are in use across such APIs.
 - **Error handling:** an LLM tool error the *model* has to recover from carries a `[SYSTEM SUGGESTION]` prefix with actionable guidance (ADR-0057). Ordinary programmer errors (bad argument, broken invariant) stay plain `ValueError`/`RuntimeError` — the prefix is for text the model reads, not for every raise.
+
+### Task Constructors
+
+A task subclass spells out only the keywords it adds and takes its parent's as
+`**kwargs: Unpack[BaseTaskParams]` (`task/base/params.py`). Call sites are
+unaffected — `CmdTask(name="build", cmd="make", retries=0)` binds as it reads,
+and pyright completes every forwarded keyword and rejects a misspelled one —
+so a keyword added to `BaseTask` reaches every subclass through one `TypedDict`.
+
+A subclass that accepts **fewer** keywords than its parent forwards a narrower
+`TypedDict` (`CheckTaskParams` for `HttpCheck`/`TcpCheck`) **and** calls a
+`reject_*_params` guard, because a hand-written `zrb_init.py` is not
+type-checked and `**kwargs` would otherwise pass an excluded keyword through
+to the parent, where it is accepted and then ignored. State the exclusion in
+the constructor docstring too; `test_a_forwarding_constructor_names_the_set_it_forwards`
+requires a forwarding docstring to name the class its keywords come from,
+since `help()` shows only `**kwargs`.
+
+Shadowing a parent's default (`LLMChatTask` drops `retries` to 0) is
+`kwargs.setdefault(...)` plus an entry in `test_constructor_surface.py`'s
+`deliberate_shadowing` — pyright rejects a keyword parameter that also appears
+in the unpacked `TypedDict`.
 
 ### Config Conventions
 

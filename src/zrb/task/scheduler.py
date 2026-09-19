@@ -1,16 +1,12 @@
 import asyncio
 import datetime
-from collections.abc import Callable, Sequence
+from typing import Unpack
 
-from zrb.attr.type import BoolAttr, StrAttr
-from zrb.callback.any_callback import AnyCallback
+from zrb.attr.type import StrAttr
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
-from zrb.context.print_fn import PrintFn
-from zrb.env.any_env import AnyEnv
-from zrb.input.any_input import AnyInput
-from zrb.task.any_task import AnyTask
+from zrb.task.base.params import BaseTriggerParams
 from zrb.task.base_trigger import BaseTrigger
 from zrb.util.attr import get_str_attr
 from zrb.util.cron import match_cron
@@ -21,29 +17,8 @@ class Scheduler(BaseTrigger):
         self,
         name: str,
         *,
-        color: int | None = None,
-        icon: str | None = None,
-        description: str | None = None,
-        cli_only: bool = False,
-        input: Sequence[AnyInput | None] | AnyInput | None = None,
-        env: Sequence[AnyEnv | None] | AnyEnv | None = None,
         schedule: StrAttr | None = None,
-        execute_condition: BoolAttr = True,
-        queue_name: str | None = None,
-        callback: list[AnyCallback] | AnyCallback | None = None,
-        retries: int = 2,
-        retry_if: Callable[[BaseException], bool] | None = None,
-        retry_period: float = 0,
-        readiness_check: Sequence[AnyTask] | AnyTask | None = None,
-        readiness_check_delay: float | None = None,
-        readiness_check_period: float | None = 5,
-        readiness_failure_threshold: int | None = 1,
-        readiness_timeout: int | None = None,
-        monitor_readiness: bool = False,
-        upstream: Sequence[AnyTask] | AnyTask | None = None,
-        fallback: Sequence[AnyTask] | AnyTask | None = None,
-        successor: Sequence[AnyTask] | AnyTask | None = None,
-        print_fn: PrintFn | None = None,
+        **kwargs: Unpack[BaseTriggerParams],
     ):
         """Define a task that emits an event on a cron schedule.
 
@@ -56,28 +31,7 @@ class Scheduler(BaseTrigger):
         """
         super().__init__(
             name=name,
-            color=color,
-            icon=icon,
-            description=description,
-            cli_only=cli_only,
-            input=input,
-            env=env,
-            execute_condition=execute_condition,
-            queue_name=queue_name,
-            callback=callback,
-            retries=retries,
-            retry_if=retry_if,
-            retry_period=retry_period,
-            readiness_check=readiness_check,
-            readiness_check_delay=readiness_check_delay,
-            readiness_check_period=readiness_check_period,
-            readiness_failure_threshold=readiness_failure_threshold,
-            readiness_timeout=readiness_timeout,
-            monitor_readiness=monitor_readiness,
-            upstream=upstream,
-            fallback=fallback,
-            successor=successor,
-            print_fn=print_fn,
+            **kwargs,
         )
         self._cron_pattern = schedule
 

@@ -462,6 +462,41 @@ async def _fire_post_tool_use_failure(
         CFG.LOGGER.debug("PostToolUseFailure hook raised", exc_info=True)
 
 
+def _assemble_toolsets(
+    tools: Any, toolsets: Any, yolo: "bool | Callable[[Any], bool]"
+) -> list:
+    """Every toolset the agent runs with, wrapped and approval-gated.
+
+    Free functions become one `FunctionToolset`, which is wrapped like any
+    other so `SafeToolsetWrapper.call_tool` is the single chokepoint every tool
+    call passes through — that is where PreToolUse/PostToolUse fire. Unless
+    `yolo` is exactly True, each toolset then requires approval: a callable
+    `yolo` decides per tool, anything else gates them all.
+    """
+    # lazy: heavy third-party
+    from pydantic_ai.toolsets import FunctionToolset
+
+    effective = [wrap_toolset(t) for t in toolsets or []]
+    safe_tools = [wrap_tool(t) for t in tools or []]
+    if safe_tools:
+        effective.append(
+            wrap_toolset(
+                FunctionToolset(tools=safe_tools, max_retries=CFG.LLM_TOOL_MAX_RETRIES)
+            )
+        )
+    if yolo is True:
+        return effective
+    if callable(yolo):
+        # Bound to its own name so the narrowing survives into the lambda,
+        # which is type-checked without the enclosing `callable()` guard.
+        decide = yolo
+        return [
+            ts.approval_required(lambda ctx, tool_def, args: not decide(tool_def))
+            for ts in effective
+        ]
+    return [ts.approval_required() for ts in effective]
+
+
 def create_agent(
     model: "Model | str | None" = None,
     system_prompt: str = "",
@@ -477,38 +512,14 @@ def create_agent(
 ) -> "Agent[None, Any]":
     # lazy: heavy third-party
     from pydantic_ai import Agent, DeferredToolRequests
-    from pydantic_ai.toolsets import FunctionToolset
 
     effective_system_prompt = expand_prompt(system_prompt)
-
-    safe_tools = [wrap_tool(t) for t in tools or []]
-    safe_toolsets = [wrap_toolset(t) for t in toolsets or []]
-
-    final_output_type = output_type
-    effective_toolsets = list(safe_toolsets)
-    if safe_tools:
-        # Wrap the function toolset too, so SafeToolsetWrapper.call_tool is the
-        # single chokepoint every tool call passes through (free functions and
-        # toolset tools alike). This is where PreToolUse/PostToolUse fire.
-        effective_toolsets.append(
-            wrap_toolset(
-                FunctionToolset(tools=safe_tools, max_retries=CFG.LLM_TOOL_MAX_RETRIES)
-            )
-        )
-
-    if yolo is not True:
-        final_output_type = output_type | DeferredToolRequests
-
-        if callable(yolo):
-
-            def check_approval(ctx: Any, tool_def: Any, args: dict[str, Any]) -> bool:
-                return not yolo(tool_def)
-
-            effective_toolsets = [
-                ts.approval_required(check_approval) for ts in effective_toolsets
-            ]
-        else:
-            effective_toolsets = [ts.approval_required() for ts in effective_toolsets]
+    effective_toolsets = _assemble_toolsets(tools, toolsets, yolo)
+    # Anything short of blanket yolo can defer a call for approval, which the
+    # agent reports by returning DeferredToolRequests instead of the output.
+    final_output_type = (
+        output_type if yolo is True else output_type | DeferredToolRequests
+    )
 
     if model is None:
         model = CFG.LLM_MODEL

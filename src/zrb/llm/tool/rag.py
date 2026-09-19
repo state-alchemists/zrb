@@ -209,50 +209,22 @@ def _load_or_reindex(
 
     Returns an error dict if `document_dir_path` doesn't exist, else `None`.
     """
+    if not os.path.exists(document_dir_path):
+        return {
+            "error": f"Document directory not found: {document_dir_path}. [SYSTEM SUGGESTION]: Ask the user to verify the document_dir_path. The directory may have been moved, deleted, or the path may be wrong."
+        }
     try:
         previous_hashes = load_hashes(hash_file_path)
     except Exception as e:
         zrb_print(stylize_error(f"Error loading file hashes: {e}"), plain=True)
         previous_hashes = {}
 
-    current_hashes = {}
-    updated_files = []
-
-    if not os.path.exists(document_dir_path):
-        return {
-            "error": f"Document directory not found: {document_dir_path}. [SYSTEM SUGGESTION]: Ask the user to verify the document_dir_path. The directory may have been moved, deleted, or the path may be wrong."
-        }
-
-    for root, _, files in os.walk(document_dir_path):
-        for file in files:
-            file_path = os.path.join(root, file)
-            try:
-                file_hash = compute_file_hash(file_path)
-                relative_path = os.path.relpath(file_path, document_dir_path)
-                current_hashes[relative_path] = file_hash
-                if previous_hashes.get(relative_path) != file_hash:
-                    updated_files.append(file_path)
-            except Exception as e:
-                zrb_print(
-                    stylize_error(f"Error hashing file {file_path}: {e}"),
-                    plain=True,
-                )
-
-    # A previously indexed file absent from disk is a deletion, not an
-    # unchanged file. Guarded by existence so a transient hash failure
-    # (file present but unreadable this round) never drops live index data.
-    removed_files = [
-        relative_path
-        for relative_path in sorted(set(previous_hashes) - set(current_hashes))
-        if not os.path.exists(os.path.join(document_dir_path, relative_path))
-    ]
-
-    for relative_path in removed_files:
-        zrb_print(stylize_muted(f"Removing deleted file {relative_path}"), plain=True)
-        try:
-            collection.delete(where={"file_path": relative_path})
-        except Exception as e:
-            zrb_print(stylize_error(f"Error removing {relative_path}: {e}"), plain=True)
+    current_hashes, updated_files = _scan_document_hashes(
+        document_dir_path, previous_hashes
+    )
+    removed_files = _remove_deleted_files(
+        collection, document_dir_path, previous_hashes, current_hashes
+    )
 
     if updated_files:
         zrb_print(
@@ -260,41 +232,16 @@ def _load_or_reindex(
             plain=True,
         )
         for file_path in updated_files:
-            try:
-                relative_path = os.path.relpath(file_path, document_dir_path)
-                collection.delete(where={"file_path": relative_path})
-                content = read_txt_content(file_path, readers)
-                file_id = ulid.new().str
-                # Guard against overlap >= chunk_size, which would make the
-                # range step zero or negative (infinite loop / ValueError).
-                step = max(1, chunk_size_val - overlap_val)
-                for i in range(0, len(content), step):
-                    chunk = content[i : i + chunk_size_val]
-                    if chunk:
-                        chunk_id = ulid.new().str
-                        zrb_print(
-                            stylize_muted(
-                                f"Vectorizing {relative_path} chunk {chunk_id}"
-                            ),
-                            plain=True,
-                        )
-                        embedding_response = openai_client.embeddings.create(
-                            input=chunk, model=embedding_model_val
-                        )
-                        vector = embedding_response.data[0].embedding
-                        collection.upsert(
-                            ids=[chunk_id],
-                            embeddings=[vector],
-                            documents=[chunk],
-                            metadatas={
-                                "file_path": relative_path,
-                                "file_id": file_id,
-                            },
-                        )
-            except Exception as e:
-                zrb_print(
-                    stylize_error(f"Error processing {file_path}: {e}"), plain=True
-                )
+            _index_one_file(
+                file_path,
+                document_dir_path,
+                collection,
+                openai_client,
+                embedding_model_val,
+                chunk_size_val,
+                overlap_val,
+                readers,
+            )
         save_hashes(hash_file_path, current_hashes)
     elif removed_files:
         # Deletions alone must still update the baseline; otherwise the removed
@@ -306,6 +253,96 @@ def _load_or_reindex(
             plain=True,
         )
     return None
+
+
+def _scan_document_hashes(
+    document_dir_path: str, previous_hashes: dict[str, Any]
+) -> tuple[dict[str, Any], list[str]]:
+    """Hash every file under the directory, and list the ones that changed."""
+    current_hashes: dict[str, Any] = {}
+    updated_files: list[str] = []
+    for root, _, files in os.walk(document_dir_path):
+        for file in files:
+            file_path = os.path.join(root, file)
+            try:
+                file_hash = compute_file_hash(file_path)
+            except Exception as e:
+                zrb_print(
+                    stylize_error(f"Error hashing file {file_path}: {e}"),
+                    plain=True,
+                )
+                continue
+            relative_path = os.path.relpath(file_path, document_dir_path)
+            current_hashes[relative_path] = file_hash
+            if previous_hashes.get(relative_path) != file_hash:
+                updated_files.append(file_path)
+    return current_hashes, updated_files
+
+
+def _remove_deleted_files(
+    collection: Any,
+    document_dir_path: str,
+    previous_hashes: dict[str, Any],
+    current_hashes: dict[str, Any],
+) -> list[str]:
+    """Drop chunks for files that were indexed before and are gone from disk.
+
+    Guarded by existence so a transient hash failure (file present but
+    unreadable this round) never drops live index data.
+    """
+    removed_files = [
+        relative_path
+        for relative_path in sorted(set(previous_hashes) - set(current_hashes))
+        if not os.path.exists(os.path.join(document_dir_path, relative_path))
+    ]
+    for relative_path in removed_files:
+        zrb_print(stylize_muted(f"Removing deleted file {relative_path}"), plain=True)
+        try:
+            collection.delete(where={"file_path": relative_path})
+        except Exception as e:
+            zrb_print(stylize_error(f"Error removing {relative_path}: {e}"), plain=True)
+    return removed_files
+
+
+def _index_one_file(
+    file_path: str,
+    document_dir_path: str,
+    collection: Any,
+    openai_client: Any,
+    embedding_model_val: str,
+    chunk_size_val: int,
+    overlap_val: int,
+    readers: list[RAGFileReader],
+) -> None:
+    """Replace one file's chunks in `collection` with freshly embedded ones."""
+    try:
+        relative_path = os.path.relpath(file_path, document_dir_path)
+        collection.delete(where={"file_path": relative_path})
+        content = read_txt_content(file_path, readers)
+        file_id = ulid.new().str
+        # Guard against overlap >= chunk_size, which would make the
+        # range step zero or negative (infinite loop / ValueError).
+        step = max(1, chunk_size_val - overlap_val)
+        for i in range(0, len(content), step):
+            chunk = content[i : i + chunk_size_val]
+            if not chunk:
+                continue
+            chunk_id = ulid.new().str
+            zrb_print(
+                stylize_muted(f"Vectorizing {relative_path} chunk {chunk_id}"),
+                plain=True,
+            )
+            embedding_response = openai_client.embeddings.create(
+                input=chunk, model=embedding_model_val
+            )
+            collection.upsert(
+                ids=[chunk_id],
+                embeddings=[embedding_response.data[0].embedding],
+                documents=[chunk],
+                metadatas={"file_path": relative_path, "file_id": file_id},
+            )
+    except Exception as e:
+        zrb_print(stylize_error(f"Error processing {file_path}: {e}"), plain=True)
 
 
 def _embed_query(

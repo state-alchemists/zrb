@@ -78,63 +78,84 @@ async def summarize_long_text(
     # Chunking logic for extremely large text
     if depth > 5:
         return limiter.truncate_text(text, threshold)
-
-    remaining_text = text
-    summaries = []
     # Use 70% of threshold for chunks to leave room for consolidation
     chunk_limit = max(1, int(threshold * 0.7))
+    summaries = await _summarize_chunks(text, agent, limiter, chunk_limit)
+    if not summaries:
+        return "[No summary generated]"
+    if len(summaries) == 1:
+        final_summary = summaries[0]
+    else:
+        final_summary = await _consolidate(
+            summaries, text, agent, limiter, threshold, depth
+        )
+    if limiter.count_tokens(final_summary) > threshold:
+        return limiter.truncate_text(final_summary, threshold)
+    return final_summary
+
+
+async def _summarize_chunks(
+    text: str, agent: Any, limiter: LLMLimiter, chunk_limit: int
+) -> list[str]:
+    """Summarize `text` one `chunk_limit`-sized piece at a time."""
+    remaining_text = text
+    summaries: list[str] = []
     while remaining_text:
         chunk = limiter.truncate_text(remaining_text, chunk_limit)
         try:
             result = await _run_agent_with_retry(
                 agent, f"Summarize this part of a document:\n\n{chunk}"
             )
-            chunk_summary = getattr(result, "output", "")
-            if not isinstance(chunk_summary, str):
-                chunk_summary = str(chunk_summary) if chunk_summary is not None else ""
-            chunk_summary_tokens = limiter.count_tokens(chunk_summary)
-            if chunk_summary_tokens > chunk_limit:
-                chunk_summary = limiter.truncate_text(chunk_summary, chunk_limit)
-            summaries.append(chunk_summary)
         except Exception as e:
             zrb_print(
                 stylize_error(f"  Error during chunk summarization: {e}"), plain=True
             )
             raise e
-        chunk_len = len(chunk)
-        remaining_text = remaining_text[chunk_len:]
+        summaries.append(
+            limiter.truncate_text(_as_text(getattr(result, "output", "")), chunk_limit)
+        )
+        remaining_text = remaining_text[len(chunk) :]
         if not remaining_text.strip():
             break
-    if not summaries:
-        return "[No summary generated]"
-    if len(summaries) == 1:
-        final_summary = summaries[0]
-    else:
-        try:
-            summaries_text = "\n".join(summaries)
-            # If the concatenated summaries still exceed the threshold,
-            # we need to recursively summarize them to avoid crashing the consolidation agent.
-            summaries_tokens = limiter.count_tokens(summaries_text)
-            text_tokens = limiter.count_tokens(text)
-            if summaries_tokens > threshold * 0.9 and summaries_tokens < text_tokens:
-                final_summary = await summarize_long_text(
-                    summaries_text, agent, limiter, threshold, depth + 1
-                )
-            else:
-                prompt = (
-                    "Consolidate these partial summaries into a single, cohesive summary:\n\n"
-                    f"{summaries_text}"
-                )
-                consolidated = await _run_agent_with_retry(agent, prompt)
-                final_summary = getattr(consolidated, "output", "")
-                if not isinstance(final_summary, str):
-                    final_summary = (
-                        str(final_summary) if final_summary is not None else ""
-                    )
-        except Exception as e:
-            zrb_print(stylize_error(f"  Error during consolidation: {e}"), plain=True)
-            raise e
-    final_tokens = limiter.count_tokens(final_summary)
-    if final_tokens > threshold:
-        final_summary = limiter.truncate_text(final_summary, threshold)
-    return final_summary
+    return summaries
+
+
+async def _consolidate(
+    summaries: list[str],
+    text: str,
+    agent: Any,
+    limiter: LLMLimiter,
+    threshold: int,
+    depth: int,
+) -> str:
+    """Fold the per-chunk summaries into one.
+
+    Recurses when the concatenated summaries would still overflow the
+    consolidation agent's own context — but only while they are shorter than
+    the original text, so the recursion always makes progress.
+    """
+    summaries_text = "\n".join(summaries)
+    summaries_tokens = limiter.count_tokens(summaries_text)
+    if summaries_tokens > threshold * 0.9 and summaries_tokens < limiter.count_tokens(
+        text
+    ):
+        return await summarize_long_text(
+            summaries_text, agent, limiter, threshold, depth + 1
+        )
+    try:
+        consolidated = await _run_agent_with_retry(
+            agent,
+            "Consolidate these partial summaries into a single, cohesive "
+            f"summary:\n\n{summaries_text}",
+        )
+    except Exception as e:
+        zrb_print(stylize_error(f"  Error during consolidation: {e}"), plain=True)
+        raise e
+    return _as_text(getattr(consolidated, "output", ""))
+
+
+def _as_text(output: Any) -> str:
+    """An agent's `output` as a string, with `None` flattened to empty."""
+    if isinstance(output, str):
+        return output
+    return str(output) if output is not None else ""

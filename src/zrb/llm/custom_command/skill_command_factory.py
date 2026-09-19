@@ -54,54 +54,30 @@ def _get_skill_custom_commands(skill_manager: SkillManager) -> list[AnyCustomCom
     return commands
 
 
+# Claude Code spec: $ARGUMENTS, $ARGUMENTS[N], $N.
+# The ${...} forms of each are accepted too.
+_INDEXED_ARG = re.compile(r"\$ARGUMENTS\[(\d+)\]|\$\{ARGUMENTS\[(\d+)\]\}")
+_SHORTHAND_ARG = re.compile(r"\$(\d+)(?![a-zA-Z0-9_])")  # $N
+_ALL_ARGS = re.compile(r"\$ARGUMENTS(?!\[)|\$\{ARGUMENTS\}")
+_DEFAULTED_VAR = re.compile(r"\${([a-zA-Z0-9_]+):-[^}]+}")  # ${name:-default}
+_BRACED_VAR = re.compile(r"\$\{([a-zA-Z0-9_]+)\}")  # ${name}
+_BARE_VAR = re.compile(r"\$([a-zA-Z][a-zA-Z0-9_]*)")  # $name, never $N
+
+
 def _extract_args(content: str) -> list[str]:
-    args = []
-    # Claude Code spec: $ARGUMENTS, $ARGUMENTS[N], $N
-    # Also support ${ARGUMENTS}, ${ARGUMENTS[N]}, ${N}
+    """Every placeholder name `content` references, in first-appearance order.
 
-    # 1. $ARGUMENTS[N] or ${ARGUMENTS[N]} (indexed arguments)
-    matches = re.findall(r"\$ARGUMENTS\[(\d+)\]|\$\{ARGUMENTS\[(\d+)\]\}", content)
-    for match in matches:
-        arg = match[0] or match[1]
-        if arg not in args:
-            args.append(f"arg{arg}")
-
-    # 2. $N (shorthand for $ARGUMENTS[N])
-    matches = re.findall(r"\$(\d+)(?![a-zA-Z0-9_])", content)
-    for match in matches:
-        arg_name = f"arg{match}"
-        if arg_name not in args:
-            args.append(arg_name)
-
-    # 3. $ARGUMENTS or ${ARGUMENTS} (all arguments)
-    if re.search(r"\$ARGUMENTS(?!\[)|\$\{ARGUMENTS\}", content):
-        if "arguments" not in args:
-            args.append("arguments")
-
-    # 4. Shell-style: ${name:-default}
-    matches = re.findall(r"\${([a-zA-Z0-9_]+):-[^}]+}", content)
-    for match in matches:
-        if match not in args:
-            args.append(match)
-
-    # 5. Shell-style: ${name}
-    # Avoid re-adding ARGUMENTS
-    matches = re.findall(r"\$\{([a-zA-Z0-9_]+)\}", content)
-    for match in matches:
-        if match not in args and match != "ARGUMENTS":
-            args.append(match)
-
-    # 6. Shell-style: $name (but not $N which is shorthand)
-    # Avoid re-adding ARGUMENTS, numbers, or special vars
-    matches = re.findall(r"\$([a-zA-Z][a-zA-Z0-9_]*)", content)
-    special_vars = {"ARGUMENTS"}
-    for match in matches:
-        if match not in args and match not in special_vars:
-            args.append(match)
-
-    unique_args = []
-    for arg in args:
-        if arg not in unique_args:
-            unique_args.append(arg)
-
-    return unique_args
+    `ARGUMENTS` is excluded from the shell-style passes: it is spelled
+    `arguments` by the `$ARGUMENTS` pass above them and would otherwise be
+    collected twice under two different names.
+    """
+    names = [
+        f"arg{indexed or braced}" for indexed, braced in _INDEXED_ARG.findall(content)
+    ]
+    names += [f"arg{n}" for n in _SHORTHAND_ARG.findall(content)]
+    if _ALL_ARGS.search(content):
+        names.append("arguments")
+    names += _DEFAULTED_VAR.findall(content)
+    names += [n for n in _BRACED_VAR.findall(content) if n != "ARGUMENTS"]
+    names += [n for n in _BARE_VAR.findall(content) if n != "ARGUMENTS"]
+    return list(dict.fromkeys(names))

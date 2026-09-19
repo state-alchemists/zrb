@@ -352,61 +352,64 @@ class LLMLimiter:
             return content
         if isinstance(content, (int, float, bool)) or content is None:
             return str(content)
-
-        # Handle collections to avoid json.dumps/str() overhead on large objects
+        # Collections are walked directly rather than via json.dumps/str(),
+        # which are slow on large message lists.
         if isinstance(content, list):
-            res = "".join(self.to_str(item, skip_instructions=True) for item in content)
-            # If counting a list of messages, only count the latest instructions.
-            # This aligns with Pydantic AI's behavior where only the current instructions
-            # are sent to the model, and historical instructions are not replayed.
-            if not skip_instructions:
-                for item in reversed(content):
-                    if hasattr(item, "instructions"):
-                        instr = getattr(item, "instructions", None)
-                        if instr:
-                            res += self.to_str(instr, skip_instructions=True)
-                            break
-            return res
-
+            return self._list_to_str(content, skip_instructions)
         if isinstance(content, dict):
-            # Join key-value pairs with spaces for better token counting
-            items = []
-            for k, v in content.items():
-                key_str = self.to_str(k, skip_instructions=skip_instructions)
-                val_str = self.to_str(v, skip_instructions=skip_instructions)
-                items.append(f"{key_str}: {val_str}")
-            return " ".join(items)
+            return self._dict_to_str(content, skip_instructions)
+        return self._object_to_str(content, skip_instructions)
 
+    def _list_to_str(self, content: list[Any], skip_instructions: bool) -> str:
+        """Flatten a list, appending only the newest `instructions` it carries.
+
+        Pydantic AI sends the current instructions and does not replay
+        historical ones, so counting every element's instructions would bill
+        the caller for text the model never sees.
+        """
+        res = "".join(self.to_str(item, skip_instructions=True) for item in content)
+        if skip_instructions:
+            return res
+        for item in reversed(content):
+            instructions = getattr(item, "instructions", None)
+            if instructions:
+                return res + self.to_str(instructions, skip_instructions=True)
+        return res
+
+    def _dict_to_str(self, content: dict[Any, Any], skip_instructions: bool) -> str:
+        """Flatten a mapping as space-separated `key: value` pairs."""
+        return " ".join(
+            f"{self.to_str(key, skip_instructions=skip_instructions)}: "
+            f"{self.to_str(value, skip_instructions=skip_instructions)}"
+            for key, value in content.items()
+        )
+
+    def _object_to_str(self, content: Any, skip_instructions: bool) -> str:
+        """Flatten a message object by the content-bearing fields it exposes.
+
+        Covers `ModelRequest`/`ModelResponse` (`parts`, `instructions`) and the
+        part types (`content` on `UserPromptPart`/`TextPart`/`ToolReturnPart`/
+        `SystemPromptPart`, `args` on `ToolCallPart`). `instructions` counts
+        only when this object is the latest context, and only when set;
+        the other three count whenever the attribute is present, so a field
+        explicitly set to `None` still contributes, as it always has.
+        """
+        fields = ["parts", "content", "args"]
+        if not skip_instructions and getattr(content, "instructions", None):
+            fields.insert(1, "instructions")
         res = ""
-        # 1. Handle parts (ModelRequest, ModelResponse)
-        if hasattr(content, "parts"):
+        for field in fields:
+            if not hasattr(content, field):
+                continue
             res += self.to_str(
-                getattr(content, "parts", []), skip_instructions=skip_instructions
+                getattr(content, field),
+                # `instructions` is already the newest by the time it is here.
+                skip_instructions=(
+                    True if field == "instructions" else skip_instructions
+                ),
             )
-
-        # 2. instructions field (ModelRequest)
-        # Only count if not skipping (i.e. it's considered the "latest" context)
-        if not skip_instructions and hasattr(content, "instructions"):
-            instr = getattr(content, "instructions", None)
-            if instr:
-                res += self.to_str(instr, skip_instructions=True)
-
-        # 3. content (UserPromptPart, TextPart, ToolReturnPart, SystemPromptPart, etc.)
-        if hasattr(content, "content"):
-            res += self.to_str(
-                getattr(content, "content", None), skip_instructions=skip_instructions
-            )
-
-        # 4. args (ToolCallPart)
-        if hasattr(content, "args"):
-            res += self.to_str(
-                getattr(content, "args", {}), skip_instructions=skip_instructions
-            )
-
         if res:
             return res
-
-        # Fallback for other objects
         try:
             return str(content)
         except Exception:

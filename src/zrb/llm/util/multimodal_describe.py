@@ -130,43 +130,62 @@ async def replace_unsupported_attachments(
     notify = print_fn or (lambda *a, **k: None)
     main_model_known = is_known_model(main_model)
     for item in prompt_content:
-        if not isinstance(item, BinaryContent):
-            out.append(item)
-            continue
-        media_type = getattr(item, "media_type", "") or ""
-        modality = media_type_modality(media_type)
-        if modality is None:
-            out.append(item)
-            continue
-        # If we can't identify the main model (e.g. MagicMock in tests, or a
-        # custom Model object without a recognisable name), don't second-guess —
-        # pass through and let the provider decide.
-        if not main_model_known:
-            out.append(item)
-            continue
-        if model_capabilities.supports_modality(main_model, modality):
-            out.append(item)
-            continue
-
-        described = await describe_binary_attachment(item, multimodal_model)
-        if described:
-            tag = modality.capitalize()
-            out.append(f"[{tag} attachment ({media_type}) description: {described}]")
-            notify(
-                f"\n  📝 {tag} attachment described via multimodal model "
-                f"({len(described)} chars).\n"
+        out.append(
+            await _replace_one_attachment(
+                item,
+                BinaryContent,
+                main_model,
+                main_model_known,
+                multimodal_model,
+                notify,
             )
-        else:
-            reason = _reason_for_drop(modality, multimodal_model)
-            notify(
-                f"\n  ⚠️  Dropped {modality} attachment ({media_type}): "
-                f"main model is text-only and {reason}.\n"
-            )
+        )
+    out = [entry for entry in out if entry is not None]
 
     # Collapse to plain string when only text remains.
     if all(isinstance(x, str) for x in out):
         return "\n".join(x for x in out if x)
     return out
+
+
+async def _replace_one_attachment(
+    item: Any,
+    binary_content_type: type,
+    main_model: "str | Any | None",
+    main_model_known: bool,
+    multimodal_model: "str | Any | None",
+    notify: Any,
+) -> Any:
+    """`item` itself, a text description of it, or `None` to drop it.
+
+    Anything that is not a `BinaryContent` of a recognized modality passes
+    through untouched — as does every attachment when the main model cannot be
+    identified (a MagicMock in tests, or a custom `Model` object without a
+    recognisable name), since second-guessing an unknown provider is worse
+    than letting it decide.
+    """
+    if not isinstance(item, binary_content_type):
+        return item
+    media_type = getattr(item, "media_type", "") or ""
+    modality = media_type_modality(media_type)
+    if modality is None or not main_model_known:
+        return item
+    if model_capabilities.supports_modality(main_model, modality):
+        return item
+    described = await describe_binary_attachment(item, multimodal_model)
+    if described:
+        tag = modality.capitalize()
+        notify(
+            f"\n  📝 {tag} attachment described via multimodal model "
+            f"({len(described)} chars).\n"
+        )
+        return f"[{tag} attachment ({media_type}) description: {described}]"
+    reason = _reason_for_drop(modality, multimodal_model)
+    notify(
+        f"\n  ⚠️  Dropped {modality} attachment ({media_type}): "
+        f"main model is text-only and {reason}.\n"
+    )
+    return None
 
 
 def _reason_for_drop(modality: str, multimodal_model: Any | None) -> str:

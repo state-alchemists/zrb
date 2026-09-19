@@ -378,7 +378,7 @@ class TestRenderLiveContext:
         # todo_manager is a real, module-level import in live_context.py
         # (not zrb.llm.tool.plan, where it's defined) — patch there, since
         # that's where render_live_context actually looks it up.
-        with patch("zrb.llm.prompt.live_context.todo_manager") as mock_tm:
+        with patch("zrb.llm.tool.plan.todo_manager") as mock_tm:
             mock_tm.get_todos.return_value = fake_todos
             rendered = render_live_context(ctx)
 
@@ -401,7 +401,7 @@ class TestRenderLiveContext:
             ],
         }
 
-        with patch("zrb.llm.prompt.live_context.todo_manager") as mock_tm:
+        with patch("zrb.llm.tool.plan.todo_manager") as mock_tm:
             mock_tm.get_todos.return_value = fake_todos
             rendered = render_live_context(ctx)
 
@@ -412,7 +412,7 @@ class TestRenderLiveContext:
         ctx = MagicMock()
         ctx.input.session = "no-todos-session"
 
-        with patch("zrb.llm.prompt.live_context.todo_manager") as mock_tm:
+        with patch("zrb.llm.tool.plan.todo_manager") as mock_tm:
             mock_tm.get_todos.return_value = None
             rendered = render_live_context(ctx)
 

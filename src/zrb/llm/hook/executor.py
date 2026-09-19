@@ -159,6 +159,21 @@ class ThreadPoolHookExecutor:
             logger.error(f"Error in hook execution setup: {e}", exc_info=True)
             return HookExecutionResult(success=False, error=str(e), exit_code=1)
 
+    # Claude-Code modification key -> the `HookExecutionResult` attribute it sets.
+    # `decision` is absent on purpose: it also flips `blocked`/`exit_code`.
+    _MODIFICATION_FIELDS = {
+        "reason": "reason",
+        "permissionDecision": "permission_decision",
+        "permissionDecisionReason": "permission_decision_reason",
+        "additionalContext": "additional_context",
+        "updatedInput": "updated_input",
+        "systemMessage": "system_message",
+        "replaceResponse": "replace_response",
+        "continue": "continue_execution",
+        "suppressOutput": "suppress_output",
+        "hookSpecificOutput": "hook_specific_output",
+    }
+
     def _parse_hook_result(self, result: HookResult) -> HookExecutionResult:
         """
         Parse Zrb HookResult into Claude Code compatible HookExecutionResult.
@@ -178,60 +193,27 @@ class ThreadPoolHookExecutor:
             exec_result.exit_code = 1
 
         if result.should_stop:
-            exec_result.blocked = True
-            exec_result.decision = "block"
-            exec_result.exit_code = 2
+            self._block(exec_result)
 
-        if result.modifications:
-            # HookManager reads modifications back out of `data` (manager.py).
-            exec_result.data.update(result.modifications)
+        if not result.modifications:
+            return exec_result
 
-            if "decision" in result.modifications:
-                exec_result.decision = result.modifications["decision"]
-                if exec_result.decision == "block":
-                    exec_result.blocked = True
-                    exec_result.exit_code = 2
-
-            if "reason" in result.modifications:
-                exec_result.reason = result.modifications["reason"]
-
-            if "permissionDecision" in result.modifications:
-                exec_result.permission_decision = result.modifications[
-                    "permissionDecision"
-                ]
-
-            if "permissionDecisionReason" in result.modifications:
-                exec_result.permission_decision_reason = result.modifications[
-                    "permissionDecisionReason"
-                ]
-
-            if "additionalContext" in result.modifications:
-                exec_result.additional_context = result.modifications[
-                    "additionalContext"
-                ]
-
-            if "updatedInput" in result.modifications:
-                exec_result.updated_input = result.modifications["updatedInput"]
-
-            if "systemMessage" in result.modifications:
-                exec_result.system_message = result.modifications["systemMessage"]
-
-            if "replaceResponse" in result.modifications:
-                exec_result.replace_response = result.modifications["replaceResponse"]
-
-            if "continue" in result.modifications:
-                exec_result.continue_execution = result.modifications["continue"]
-
-            if "suppressOutput" in result.modifications:
-                exec_result.suppress_output = result.modifications["suppressOutput"]
-
-            # Check for hookSpecificOutput (Claude Code format)
-            if "hookSpecificOutput" in result.modifications:
-                exec_result.hook_specific_output = result.modifications[
-                    "hookSpecificOutput"
-                ]
-
+        # HookManager reads modifications back out of `data` (manager.py).
+        exec_result.data.update(result.modifications)
+        if "decision" in result.modifications:
+            exec_result.decision = result.modifications["decision"]
+            if exec_result.decision == "block":
+                self._block(exec_result)
+        for key, attribute in self._MODIFICATION_FIELDS.items():
+            if key in result.modifications:
+                setattr(exec_result, attribute, result.modifications[key])
         return exec_result
+
+    def _block(self, exec_result: HookExecutionResult) -> None:
+        """Mark a result as blocking, in the form Claude Code expects."""
+        exec_result.blocked = True
+        exec_result.decision = "block"
+        exec_result.exit_code = 2
 
 
 # Singleton instance and lock for free-threaded Python (no-GIL) safety

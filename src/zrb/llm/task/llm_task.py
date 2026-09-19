@@ -17,16 +17,12 @@ patch at this module path (`zrb.llm.task.llm_task.*`), so they must stay here.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Sequence
 from contextlib import AsyncExitStack
-from typing import TYPE_CHECKING, Any, Callable, cast
+from typing import TYPE_CHECKING, Any, Callable, Unpack, cast
 
 from zrb.attr.type import BoolAttr, StrAttr, StrListAttr
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.context.print_fn import PrintFn
-from zrb.env.any_env import AnyEnv
-from zrb.input.any_input import AnyInput
 from zrb.llm.agent import AnyToolConfirmation, create_agent, run_agent
 from zrb.llm.agent.run.error_classifier import retry_unless_permanent
 from zrb.llm.config.limiter import LLMLimiter
@@ -51,8 +47,8 @@ from zrb.llm.task.history import LLMTaskHistory
 from zrb.llm.task.history_config import HistoryConfig
 from zrb.llm.task.shared_getters import apply_model_hooks
 from zrb.llm.util.attachment import get_attachments
-from zrb.task.any_task import AnyTask
 from zrb.task.base.base_task import BaseTask
+from zrb.task.base.params import BaseTaskParams
 from zrb.util.attr import get_attr, get_bool_attr
 
 if TYPE_CHECKING:
@@ -76,12 +72,6 @@ class LLMTask(BaseTask):
         self,
         name: str,
         *,
-        color: int | None = None,
-        icon: str | None = None,
-        description: str | None = None,
-        cli_only: bool = False,
-        input: Sequence[AnyInput | None] | AnyInput | None = None,
-        env: Sequence[AnyEnv | None] | AnyEnv | None = None,
         system_prompt: Callable[[AnyContext], str | None] | str | None = None,
         prompt_manager: PromptManager | None = None,
         hook_manager: HookManager | None = None,
@@ -131,20 +121,7 @@ class LLMTask(BaseTask):
         ui: AnyUI | None = None,
         approval_channel: AnyApprovalChannel | None = None,
         summarize_commands: list[str] | None = None,
-        execute_condition: BoolAttr = True,
-        retries: int = 2,
-        retry_period: float = 0,
-        retry_if: Callable[[BaseException], bool] | None = None,
-        readiness_check: Sequence[AnyTask] | AnyTask | None = None,
-        readiness_check_delay: float | None = None,
-        readiness_check_period: float | None = 5,
-        readiness_failure_threshold: int | None = 1,
-        readiness_timeout: int | None = None,
-        monitor_readiness: bool = False,
-        upstream: Sequence[AnyTask] | AnyTask | None = None,
-        fallback: Sequence[AnyTask] | AnyTask | None = None,
-        successor: Sequence[AnyTask] | AnyTask | None = None,
-        print_fn: PrintFn | None = None,
+        **kwargs: Unpack[BaseTaskParams],
     ):
         """Define a single-turn LLM task: one prompt in, one response out.
 
@@ -209,28 +186,11 @@ class LLMTask(BaseTask):
         Every parameter `BaseTask` accepts is also accepted here and behaves
         identically; see `BaseTask` for those.
         """
+        if kwargs.get("retry_if") is None:
+            kwargs["retry_if"] = retry_unless_permanent
         super().__init__(
             name=name,
-            color=color,
-            icon=icon,
-            description=description,
-            cli_only=cli_only,
-            input=input,
-            env=env,
-            execute_condition=execute_condition,
-            retries=retries,
-            retry_period=retry_period,
-            retry_if=retry_if if retry_if is not None else retry_unless_permanent,
-            readiness_check=readiness_check,
-            readiness_check_delay=readiness_check_delay,
-            readiness_check_period=readiness_check_period,
-            readiness_failure_threshold=readiness_failure_threshold,
-            readiness_timeout=readiness_timeout,
-            monitor_readiness=monitor_readiness,
-            upstream=upstream,
-            fallback=fallback,
-            successor=successor,
-            print_fn=print_fn,
+            **kwargs,
         )
         self._llm_limiter = default_llm_limiter if llm_limiter is None else llm_limiter
         if prompt_manager is None:

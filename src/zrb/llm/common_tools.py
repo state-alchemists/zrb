@@ -49,9 +49,7 @@ from typing import TYPE_CHECKING, Any, Callable, Protocol, runtime_checkable
 from zrb.config.config import CFG
 from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.registry import tool_name, tool_registry
-from zrb.llm.tool_call.tool_policy.bash_validation import (
-    bash_safe_command_policy,
-)
+from zrb.llm.tool_call.tool_policy.bash_validation import bash_safe_command_policy
 from zrb.llm.util.git import is_inside_git_dir
 from zrb.util.string.conversion import to_boolean
 
@@ -288,10 +286,7 @@ def _seed_tool_factories() -> tuple[list, list]:
     from zrb.llm.tool.mcp import load_mcp_config
     from zrb.llm.tool.plan_mode import enter_plan_mode, exit_plan_mode
     from zrb.llm.tool.shell_background import create_monitor_process_tool
-    from zrb.llm.tool.skill import (
-        create_activate_skill_tool,
-        create_search_skill_tool,
-    )
+    from zrb.llm.tool.skill import create_activate_skill_tool, create_search_skill_tool
     from zrb.llm.tool.zrb_task import (
         create_list_zrb_task_tool,
         create_run_zrb_task_tool,
@@ -387,9 +382,7 @@ def _resolve_interactive(ctx: "AnyContext") -> bool:
     by the time a sub-agent's tools resolve). Absent both, default True so no
     host silently loses tools it had before.
     """
-    # lazy: zrb.llm.tool.ask transitively loads pydantic_ai; deferring keeps
-    # the heavy import off this module's load path.
-    from zrb.llm.tool.ask import get_interactive_mode
+    from zrb.llm.tool.ambient_state import get_interactive_mode
 
     val = getattr(getattr(ctx, "input", None), "interactive", None)
     if isinstance(val, bool):

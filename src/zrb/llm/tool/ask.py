@@ -8,7 +8,9 @@ on stdin in a non-interactive run. That suggestion offers two terminal exits
 — decide-and-continue or stop-and-report — and forbids a retry, so an
 unanswerable question cannot become a re-ask loop.
 
-The interactive flag is propagated via the `interactive_mode` ContextVar, set
+The interactive flag is propagated via the `interactive_mode` ContextVar --
+owned by `ambient_state.py` rather than this module, so reading it does not
+drag this module's `pydantic` import into every `import zrb`. It is set
 per turn by `live_context._wire_ambient_state` from `ctx.input.interactive`.
 Sub-agents inherit the parent's value through ContextVar's asyncio-task
 semantics.
@@ -16,7 +18,6 @@ semantics.
 
 from __future__ import annotations
 
-from contextvars import ContextVar
 from typing import TYPE_CHECKING, Annotated, Any, cast
 
 from pydantic import Field
@@ -25,23 +26,12 @@ from zrb.config.config import CFG
 from zrb.llm.agent_state import get_current_ui
 from zrb.llm.hook.manager import hook_manager
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.tool.ambient_state import get_interactive_mode
 from zrb.llm.tool.wrapper import tool_safe_async
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
 
 if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import ChoiceSpec
-
-interactive_mode: ContextVar[bool] = ContextVar("zrb_interactive_mode", default=True)
-
-
-def get_interactive_mode() -> bool:
-    """Return whether the current chat session is interactive."""
-    return interactive_mode.get()
-
-
-def set_interactive_mode(value: bool) -> None:
-    """Set the interactive flag for the current chat session."""
-    interactive_mode.set(value)
 
 
 @tool_safe_async

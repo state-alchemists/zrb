@@ -389,7 +389,6 @@ class LSPManagerQuery:
                 self._lsp_manager.list_available_servers,
                 success_key="success",
             )
-
         try:
             if line == 0 and character == 0:
                 position = await self._lsp_manager.find_symbol_position(
@@ -397,58 +396,13 @@ class LSPManagerQuery:
                 )
                 if position:
                     line, character = position
-
             result = await server.rename(
                 file_path, line, character, new_name, dry_run=dry_run
             )
             if result:
-                changes = result.get("changes") or {}
-                total_edits = 0
-                files_affected = []
-
-                # Count edits from both `changes` (uri -> [TextEdit]) and the
-                # newer `documentChanges` (list of TextDocumentEdit) shapes.
-                for uri, edits in changes.items():
-                    if isinstance(edits, list):
-                        total_edits += len(edits)
-                        files_affected.append(uri_to_path(uri))
-                for doc_edit in result.get("documentChanges") or []:
-                    if not isinstance(doc_edit, dict):
-                        continue
-                    edits = doc_edit.get("edits")
-                    uri = (doc_edit.get("textDocument") or {}).get("uri")
-                    if uri and isinstance(edits, list):
-                        total_edits += len(edits)
-                        files_affected.append(uri_to_path(uri))
-
-                if dry_run:
-                    return {
-                        "success": True,
-                        "symbol": symbol_name,
-                        "new_name": new_name,
-                        "dry_run": True,
-                        "files_affected": len(files_affected),
-                        "total_edits": total_edits,
-                        "changes": changes or result.get("documentChanges"),
-                    }
-
-                # Non-dry-run: trust the server's `applied` flag rather than
-                # claiming success unconditionally. If edits were returned but
-                # not written, report that honestly so callers don't believe a
-                # write happened when nothing changed on disk.
-                applied = result.get("applied", False)
-                return {
-                    "success": bool(applied),
-                    "symbol": symbol_name,
-                    "new_name": new_name,
-                    "dry_run": False,
-                    "files_affected": len(files_affected),
-                    "total_edits": total_edits,
-                    "changes": "Applied" if applied else "not_applied",
-                }
+                return _rename_result(result, symbol_name, new_name, dry_run)
         except Exception as e:
             CFG.LOGGER.debug(f"LSP rename query failed: {e}")
-
         return {
             "success": False,
             "error": (
@@ -501,3 +455,59 @@ class LSPManagerQuery:
             CFG.LOGGER.debug(f"LSP symbol-position search failed: {e}")
 
         return None
+
+
+def _count_rename_edits(result: dict) -> tuple[int, list[str]]:
+    """Total edits and affected paths in a `rename` response.
+
+    Counts both the `changes` (uri -> [TextEdit]) and the newer
+    `documentChanges` (list of TextDocumentEdit) shapes.
+    """
+    total_edits = 0
+    files_affected: list[str] = []
+    for uri, edits in (result.get("changes") or {}).items():
+        if isinstance(edits, list):
+            total_edits += len(edits)
+            files_affected.append(uri_to_path(uri))
+    for doc_edit in result.get("documentChanges") or []:
+        if not isinstance(doc_edit, dict):
+            continue
+        edits = doc_edit.get("edits")
+        uri = (doc_edit.get("textDocument") or {}).get("uri")
+        if uri and isinstance(edits, list):
+            total_edits += len(edits)
+            files_affected.append(uri_to_path(uri))
+    return total_edits, files_affected
+
+
+def _rename_result(
+    result: dict, symbol_name: str, new_name: str, dry_run: bool
+) -> dict:
+    """Summarize a `rename` response for the tool's caller.
+
+    On a real write this trusts the server's `applied` flag rather than
+    claiming success unconditionally: if edits were returned but not written,
+    reporting that honestly keeps a caller from believing a write happened
+    when nothing changed on disk.
+    """
+    total_edits, files_affected = _count_rename_edits(result)
+    summary = {
+        "symbol": symbol_name,
+        "new_name": new_name,
+        "dry_run": dry_run,
+        "files_affected": len(files_affected),
+        "total_edits": total_edits,
+    }
+    if dry_run:
+        changes = result.get("changes") or {}
+        return {
+            "success": True,
+            **summary,
+            "changes": changes or result.get("documentChanges"),
+        }
+    applied = result.get("applied", False)
+    return {
+        "success": bool(applied),
+        **summary,
+        "changes": "Applied" if applied else "not_applied",
+    }

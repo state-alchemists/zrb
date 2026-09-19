@@ -9,6 +9,7 @@ from zrb.context.shared_context import SharedContext
 from zrb.session.session import Session
 from zrb.task.base.base_task import BaseTask
 from zrb.task.base_trigger import BaseTrigger
+from zrb.util.cli.style import CYAN
 from zrb.xcom.xcom import Xcom
 
 
@@ -223,3 +224,26 @@ async def test_callback_failure_surfaces_from_fanout():
     # failure surfaces from that call.
     with pytest.raises(RuntimeError, match="callback exploded"):
         await trigger.exec_root_tasks(session)
+
+
+def test_a_trigger_gets_its_own_color_and_icon_by_default():
+    """A trigger reads as distinct from an ordinary task in the log prefix.
+
+    `BaseTask` derives a color from the name and has no icon; `BaseTrigger`
+    substitutes cyan and ✨ when the caller supplies neither. The substitution
+    happens on the way into `BaseTask`, which is the one place a forwarded
+    keyword can be given a different default.
+    """
+    # Arrange / Act
+    trigger = BaseTrigger(name="watch")
+    # Assert
+    assert trigger.color == CYAN
+    assert trigger.icon == "✨"
+
+
+def test_an_explicit_color_or_icon_wins_over_the_trigger_default():
+    # Arrange / Act
+    trigger = BaseTrigger(name="watch", color=99, icon="🔔")
+    # Assert
+    assert trigger.color == 99
+    assert trigger.icon == "🔔"

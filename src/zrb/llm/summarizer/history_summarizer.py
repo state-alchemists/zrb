@@ -263,85 +263,109 @@ async def summarize_history(
             if not force:
                 return messages
             # Force mode: compress everything regardless of limits
-            to_summarize = messages
-            to_keep = []
-        summarizer_agent = agent or create_conversational_summarizer_agent()
-        summary_text = await chunk_and_summarize(
+            to_summarize, to_keep = messages, []
+        summary_text = await _build_summary_text(
             to_summarize,
-            summarizer_agent,
+            to_keep,
+            agent or create_conversational_summarizer_agent(),
             llm_limiter,
             conversational_token_threshold,
-            include_last_user_intent_instruction=(len(to_keep) == 0),
         )
-        final_summary_tokens = llm_limiter.count_tokens(summary_text)
-        has_multiple_snapshots = summary_text.count("<state_snapshot>") > 1
-        is_near_threshold = final_summary_tokens > (
-            conversational_token_threshold * 0.8
-        )
-        if is_near_threshold or has_multiple_snapshots:
-            summary_text = await consolidate_summaries(
-                summary_text,
-                summarizer_agent,
-                conversational_token_threshold,
-                has_multiple_snapshots,
-                limiter=llm_limiter,
-            )
-        # Re-seed the journal index into the summary so it
-        # survives compaction — summarization is one of exactly two moments the
-        # index can otherwise vanish (the other being a fresh session, handled by
-        # the first-turn live-context). Baking it into the summary message keeps
-        # the message structure intact (no extra turn to break role alternation
-        # or tool-call pairing) and means the index is present in the very same
-        # request the processor compacts for. See ADR-0042. render_journal_index
-        # honours LLM_JOURNAL_ENABLED, so a disabled journal adds nothing here.
-        journal_block = render_journal_index()
-        if journal_block:
-            summary_text = f"{summary_text}\n\n{journal_block}"
         summary_message = _create_summary_model_request(summary_text)
         if summary_message is None:
             return messages
-
-        # Preserve the opening user turn verbatim: it carries the task's original
-        # goal, which summarization would otherwise drop first. It is a pure user
-        # turn (no tool parts), so re-adding it cannot break tool-call pairing;
-        # ensure_alternating_roles folds it into the summary message when roles
-        # would otherwise collide. (Harness `preserve_first_user_message`.)
-        first_user_message = _find_first_user_message(messages)
-        keep_first_user = first_user_message is not None and all(
-            m is not first_user_message for m in to_keep
-        )
-
-        result: list[Any] = [summary_message]
-        if keep_first_user:
-            result.append(first_user_message)
-        if not to_keep:
-            return ensure_alternating_roles(result)
-        # Fix orphaned tool RETURNS before returning. split_history never
-        # separates a *complete* call/return pair, so the only orphan compression
-        # can introduce into `to_keep` is a ToolReturnPart whose matching call was
-        # summarised away. strip_orphaned_returns removes exactly those. Orphaned
-        # ToolCallParts (a call with no return) are left intact — they may be
-        # legitimately pending deferred results — and the run loop's
-        # sanitize_orphaned_tool_calls is the backstop for any that must not
-        # survive. Providers like Bedrock reject orphaned returns with
-        # ValidationException.
-        is_valid, problems = validate_tool_pair_integrity(to_keep)
-        if not is_valid and problems:
-            zrb_print(
-                stylize_warning(
-                    f"  Warning: Kept messages have tool pair issues: {', '.join(problems[:3])}"
-                    + ("..." if len(problems) > 3 else "")
-                    + " — sanitizing..."
-                ),
-                plain=True,
-            )
-            to_keep = strip_orphaned_returns(to_keep)
-
-        result.extend(to_keep)
-        return ensure_alternating_roles(result)
+        return _assemble_summarized_history(summary_message, messages, to_keep)
     except Exception as e:
         zrb_print(stylize_error(f"  Error in summarize_history: {e}"), plain=True)
         return messages
+
+
+async def _build_summary_text(
+    to_summarize: list[Any],
+    to_keep: list[Any],
+    summarizer_agent: Any,
+    llm_limiter: "LLMLimiter",
+    conversational_token_threshold: int,
+) -> str:
+    """Summarize `to_summarize`, consolidating and re-seeding the journal index."""
+    summary_text = await chunk_and_summarize(
+        to_summarize,
+        summarizer_agent,
+        llm_limiter,
+        conversational_token_threshold,
+        include_last_user_intent_instruction=(len(to_keep) == 0),
+    )
+    has_multiple_snapshots = summary_text.count("<state_snapshot>") > 1
+    is_near_threshold = llm_limiter.count_tokens(summary_text) > (
+        conversational_token_threshold * 0.8
+    )
+    if is_near_threshold or has_multiple_snapshots:
+        summary_text = await consolidate_summaries(
+            summary_text,
+            summarizer_agent,
+            conversational_token_threshold,
+            has_multiple_snapshots,
+            limiter=llm_limiter,
+        )
+    # Re-seed the journal index into the summary so it
+    # survives compaction — summarization is one of exactly two moments the
+    # index can otherwise vanish (the other being a fresh session, handled by
+    # the first-turn live-context). Baking it into the summary message keeps
+    # the message structure intact (no extra turn to break role alternation
+    # or tool-call pairing) and means the index is present in the very same
+    # request the processor compacts for. See ADR-0042. render_journal_index
+    # honours LLM_JOURNAL_ENABLED, so a disabled journal adds nothing here.
+    journal_block = render_journal_index()
+    if journal_block:
+        return f"{summary_text}\n\n{journal_block}"
+    return summary_text
+
+
+def _assemble_summarized_history(
+    summary_message: Any, messages: list[Any], to_keep: list[Any]
+) -> list[Any]:
+    """Join the summary, the preserved opening turn, and the kept tail.
+
+    The opening user turn is preserved verbatim: it carries the task's original
+    goal, which summarization would otherwise drop first. It is a pure user turn
+    (no tool parts), so re-adding it cannot break tool-call pairing;
+    `ensure_alternating_roles` folds it into the summary message when roles
+    would otherwise collide. (Harness `preserve_first_user_message`.)
+    """
+    first_user_message = _find_first_user_message(messages)
+    result: list[Any] = [summary_message]
+    if first_user_message is not None and all(
+        m is not first_user_message for m in to_keep
+    ):
+        result.append(first_user_message)
+    if not to_keep:
+        return ensure_alternating_roles(result)
+    result.extend(_without_orphaned_returns(to_keep))
+    return ensure_alternating_roles(result)
+
+
+def _without_orphaned_returns(to_keep: list[Any]) -> list[Any]:
+    """Drop tool RETURNS in `to_keep` whose matching call was summarised away.
+
+    `split_history` never separates a *complete* call/return pair, so that is
+    the only orphan compression can introduce. Orphaned `ToolCallPart`s (a call
+    with no return) are left intact — they may be legitimately pending deferred
+    results — and the run loop's `sanitize_orphaned_tool_calls` is the backstop
+    for any that must not survive. Providers like Bedrock reject orphaned
+    returns with `ValidationException`.
+    """
+    is_valid, problems = validate_tool_pair_integrity(to_keep)
+    if is_valid or not problems:
+        return to_keep
+    zrb_print(
+        stylize_warning(
+            f"  Warning: Kept messages have tool pair issues: {', '.join(problems[:3])}"
+            + ("..." if len(problems) > 3 else "")
+            + " — sanitizing..."
+        ),
+        plain=True,
+    )
+    return strip_orphaned_returns(to_keep)
 
 
 _SUMMARY_HEADER = "SYSTEM: Automated Context Restoration"

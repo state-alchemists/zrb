@@ -1,19 +1,16 @@
 import os
-from collections.abc import Callable, Sequence
 from functools import partial
+from typing import Unpack
 
-from zrb.attr.type import BoolAttr, IntAttr, StrAttr
+from zrb.attr.type import IntAttr, StrAttr
 from zrb.cmd.any_cmd_val import AnyCmdVal
 from zrb.cmd.cmd_result import CmdResult
 from zrb.cmd.cmd_val import CmdVal, SingleCmdVal
 from zrb.config.config import CFG
 from zrb.config.helper import get_shell_name
 from zrb.context.any_context import AnyContext
-from zrb.context.print_fn import PrintFn
-from zrb.env.any_env import AnyEnv
-from zrb.input.any_input import AnyInput
-from zrb.task.any_task import AnyTask
 from zrb.task.base.base_task import BaseTask
+from zrb.task.base.params import BaseTaskParams
 from zrb.util.attr import get_int_attr, get_str_attr
 from zrb.util.cmd.command import check_unrecommended_commands, run_command
 from zrb.util.cmd.remote import get_remote_cmd_script
@@ -39,12 +36,6 @@ class CmdTask(BaseTask):
         self,
         name: str,
         *,
-        color: int | None = None,
-        icon: str | None = None,
-        description: str | None = None,
-        cli_only: bool = False,
-        input: Sequence[AnyInput | None] | AnyInput | None = None,
-        env: Sequence[AnyEnv | None] | AnyEnv | None = None,
         shell: StrAttr | None = None,
         shell_flag: StrAttr | None = None,
         remote_host: StrAttr | None = None,
@@ -60,20 +51,7 @@ class CmdTask(BaseTask):
         max_error_line: int = 1000,
         execution_timeout: int = 3600,
         is_interactive: bool = False,
-        execute_condition: BoolAttr = True,
-        retries: int = 2,
-        retry_if: Callable[[BaseException], bool] | None = None,
-        retry_period: float = 0,
-        readiness_check: Sequence[AnyTask] | AnyTask | None = None,
-        readiness_check_delay: float | None = None,
-        readiness_check_period: float | None = 5,
-        readiness_failure_threshold: int | None = 1,
-        readiness_timeout: int | None = None,
-        monitor_readiness: bool = False,
-        upstream: Sequence[AnyTask] | AnyTask | None = None,
-        fallback: Sequence[AnyTask] | AnyTask | None = None,
-        successor: Sequence[AnyTask] | AnyTask | None = None,
-        print_fn: PrintFn | None = None,
+        **kwargs: Unpack[BaseTaskParams],
     ):
         """Define a task that runs a shell command, locally or over SSH.
 
@@ -112,26 +90,7 @@ class CmdTask(BaseTask):
         """
         super().__init__(
             name=name,
-            color=color,
-            icon=icon,
-            description=description,
-            cli_only=cli_only,
-            input=input,
-            env=env,
-            execute_condition=execute_condition,
-            retries=retries,
-            retry_if=retry_if,
-            retry_period=retry_period,
-            readiness_check=readiness_check,
-            readiness_check_delay=readiness_check_delay,
-            readiness_check_period=readiness_check_period,
-            readiness_failure_threshold=readiness_failure_threshold,
-            readiness_timeout=readiness_timeout,
-            monitor_readiness=monitor_readiness,
-            upstream=upstream,
-            fallback=fallback,
-            successor=successor,
-            print_fn=print_fn,
+            **kwargs,
         )
         self._shell = shell
         self._shell_flag = shell_flag

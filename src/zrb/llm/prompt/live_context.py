@@ -49,7 +49,6 @@ from zrb.llm.tool.ambient_state import (
     set_current_tool_session,
     set_interactive_mode,
 )
-from zrb.llm.tool.plan import todo_manager
 
 # Anchors the <live-context> contract in the cached system prompt. Stable text
 # — costs nothing per turn and never invalidates the cacheable prefix — while
@@ -218,6 +217,19 @@ def _format_todo_lines(todos_data: "dict[str, Any]") -> list[str]:
     return lines
 
 
+def _todo_manager():
+    """The `TodoManager` singleton, resolved at render time rather than import.
+
+    `tool/plan.py` declares tool signatures with pydantic's `Field`, and this
+    module sits on the eager `import zrb` path via `prompt/manager.py`.
+    """
+    # lazy: transitively heavy via internal — `tool/plan.py` imports pydantic
+    # for its tool signatures, worth ~50ms on every `import zrb`.
+    from zrb.llm.tool.plan import todo_manager
+
+    return todo_manager
+
+
 def _safe_get_todos(todo_manager, session_name: str):
     try:
         return todo_manager.get_todos(session_name)
@@ -379,7 +391,7 @@ def render_live_context(
     sync form blocks its caller for the duration of the git subprocesses.
     """
     session_name, interactive_bool = _wire_ambient_state(ctx)
-    git_lines, todos_data = _collect_git_info(todo_manager, session_name)
+    git_lines, todos_data = _collect_git_info(_todo_manager(), session_name)
     return _render_parts(
         git_lines,
         todos_data,
@@ -405,7 +417,7 @@ async def render_live_context_async(
     """
     session_name, interactive_bool = _wire_ambient_state(ctx)
     git_lines, todos_data = await asyncio.to_thread(
-        _collect_git_info, todo_manager, session_name
+        _collect_git_info, _todo_manager(), session_name
     )
     return _render_parts(
         git_lines,
