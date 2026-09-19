@@ -250,3 +250,86 @@ async def test_multi_ui_run_interactive_command(multi_ui, child_ui_1):
     res = await multi_ui.run_interactive_command("ls")
     assert res == 0
     child_ui_1.run_interactive_command.assert_called_with("ls", shell=False)
+
+
+def _child(session: str, yolo: bool, model: str) -> MagicMock:
+    """A child UI carrying distinguishable primary-child state."""
+    ui = MagicMock()
+    ui.conversation_session_name = session
+    ui.yolo = yolo
+    ui.model = model
+    ui.tool_call_handler = None
+    return ui
+
+
+def test_session_config_comes_from_the_primary_child_not_the_first():
+    """`main_ui_index` selects the primary, so a non-zero index must not leave
+    the run using the first child's session name, approval mode and model."""
+    first = _child("first-session", False, "openai:gpt-5.6-nano")
+    primary = _child("primary-session", True, "openai:gpt-5.6-luna")
+    ui = MultiUI([first, primary], main_ui_index=1)
+
+    session = ui.create_session_for_llm_task("hello", [])
+
+    assert session.shared_ctx.input["session"] == "primary-session"
+    assert session.shared_ctx.input["yolo"] is True
+    assert session.shared_ctx.input["model"] == "openai:gpt-5.6-luna"
+
+
+def test_session_config_still_comes_from_the_first_child_at_the_default_index():
+    first = _child("first-session", False, "openai:gpt-5.6-nano")
+    other = _child("other-session", True, "openai:gpt-5.6-luna")
+    ui = MultiUI([first, other])
+
+    session = ui.create_session_for_llm_task("hello", [])
+
+    assert session.shared_ctx.input["session"] == "first-session"
+    assert session.shared_ctx.input["yolo"] is False
+    assert session.shared_ctx.input["model"] == "openai:gpt-5.6-nano"
+
+
+def test_an_empty_session_name_falls_back_to_default():
+    ui = MultiUI([_child("", False, None)])
+    assert ui.create_session_for_llm_task("hello", []).shared_ctx.input["session"] == (
+        "default"
+    )
+
+
+def test_creating_a_session_without_any_child_says_so():
+    ui = MultiUI([])
+    with pytest.raises(RuntimeError, match="no attached UI"):
+        ui.create_session_for_llm_task("hello", [])
+
+
+@pytest.mark.asyncio
+async def test_tool_confirmation_falls_back_to_the_primary_childs_handler():
+    """Same selector bug, other site: the fallback handler is the primary
+    child's, not `_uis[0]`'s."""
+    first = _child("first", False, None)
+    first.tool_call_handler = MagicMock()
+    first.tool_call_handler.handle = AsyncMock(return_value="first-handled")
+    primary = _child("primary", False, None)
+    primary.tool_call_handler = MagicMock()
+    primary.tool_call_handler.handle = AsyncMock(return_value="primary-handled")
+
+    ui = MultiUI([first, primary], main_ui_index=1)
+
+    assert await ui.confirm_tool_execution(MagicMock()) == "primary-handled"
+    first.tool_call_handler.handle.assert_not_called()
+
+
+def test_model_overrides_read_and_write_through_to_the_primary_child():
+    first = _child("first", False, None)
+    primary = _child("primary", False, None)
+    primary.small_model = "small-primary"
+    primary.multimodal_model = "mm-primary"
+    ui = MultiUI([first, primary], main_ui_index=1)
+
+    assert ui.small_model == "small-primary"
+    assert ui.multimodal_model == "mm-primary"
+
+    ui.small_model = "small-new"
+    ui.multimodal_model = "mm-new"
+    assert primary.small_model == "small-new"
+    assert primary.multimodal_model == "mm-new"
+    assert first.small_model != "small-new"

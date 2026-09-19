@@ -62,7 +62,7 @@ class AnyTask(ABC):
 
     @property
     @abstractmethod
-    def cli_only(self) -> bool:
+    def is_cli_only(self) -> bool:
         """Whether the task is CLI only or not"""
         pass
 

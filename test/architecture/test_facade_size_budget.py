@@ -40,3 +40,27 @@ def test_facade_files_stay_within_their_size_budget():
         "delegator/property boilerplate that should have shrunk the facade "
         f"when its logic moved into a part: {over_budget}"
     )
+
+
+# How far below its budget a file may sit before the budget is stale. A ceiling
+# left high after a real shrink silently re-opens the space it was meant to
+# close -- 200 lines of regrowth become free. The band is wide enough that
+# ordinary edits don't trip it.
+BUDGET_SLACK_RATIO = 0.05
+
+
+def test_a_budget_is_lowered_when_its_file_shrinks():
+    """`FACADE_BUDGETS` says these ceilings only ever go DOWN. That only holds
+    if shrinking a file is followed by lowering its number, so this fails when
+    a budget drifts far above what its file actually needs.
+    """
+    stale = {}
+    for rel_path, budget in FACADE_BUDGETS.items():
+        actual = len((SRC / rel_path).read_text(encoding="utf-8").splitlines())
+        if actual < budget * (1 - BUDGET_SLACK_RATIO):
+            stale[rel_path] = (actual, budget)
+    assert not stale, (
+        "Facade file(s) shrank well below their budget, which leaves the "
+        "reclaimed lines free to grow back. Lower each budget to the new line "
+        f"count in this diff: {stale}"
+    )

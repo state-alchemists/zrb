@@ -233,7 +233,7 @@ class BaseTask(AnyTask):
         return self._description if self._description is not None else self.name
 
     @property
-    def cli_only(self) -> bool:
+    def is_cli_only(self) -> bool:
         """Whether this task is hidden from the web UI."""
         return self._cli_only
 

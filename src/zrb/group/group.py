@@ -235,7 +235,7 @@ class Group(AnyGroup):
         return {
             alias: subtask
             for alias, subtask in self.subtasks.items()
-            if not web_only or (web_only and not subtask.cli_only)
+            if not web_only or (web_only and not subtask.is_cli_only)
         }
 
     def get_all_subtasks(self, web_only: bool = False) -> list[AnyTask]:
@@ -243,7 +243,7 @@ class Group(AnyGroup):
         subtasks = [
             subtask
             for subtask in self.subtasks.values()
-            if not web_only or (web_only and not subtask.cli_only)
+            if not web_only or (web_only and not subtask.is_cli_only)
         ]
         for subgroup in self.subgroups.values():
             subtasks += subgroup.get_all_subtasks(web_only)
@@ -272,7 +272,7 @@ class Group(AnyGroup):
         residual_args: list[str] = []
         for index, name in enumerate(args):
             task = node.get_task_by_alias(name)
-            if web_only and task is not None and task.cli_only:
+            if web_only and task is not None and task.is_cli_only:
                 task = None
             group = node.get_group_by_alias(name)
             # Only ignore empty groups if web_only is True

@@ -134,6 +134,29 @@ When you use `append_ui_factory()`:
 - **Input**: Waits for FIRST response from ANY channel
 - **Approvals**: First approval response wins (CLI or external)
 
+### The Primary Child
+
+One child is the **primary** — `MultiUI(uis, main_ui_index=0)` picks it, and it
+defaults to the first. The primary runs the main event loop, and `MultiUI` reads
+seven state members off it to drive features the other children never see:
+
+| Member | What `MultiUI` uses it for |
+| --- | --- |
+| `snapshot_manager` | Taking a filesystem snapshot before each turn, so `/rewind` works |
+| `history_manager` | Loading the message count that a rewind restores to |
+| `conversation_session_name` | Naming the session a turn runs under |
+| `plan_mode_active` | Reading *and writing* the `/plan` badge as the agent switches mode mid-run |
+| `small_model` / `multimodal_model` | Binding the `/model small ...` and `/model multimodal ...` overrides for the run |
+| `last_output` | Reporting the session's final answer when a turn produced no result data |
+
+These are all part of `AnyUI`, so you get inert defaults from
+`UIStateDefaultsMixin` (or real ones from `BaseUI`) and a custom UI cannot
+silently lack them. But the defaults are honest `None`/`False`/`""` answers: a
+UI that keeps none of this state **works as a secondary child, and disables
+snapshots, rewind and plan mode when it is the primary**. If your UI is going in
+the `main_ui_index` slot, implement them for real — or leave the default
+terminal UI as the primary and add yours alongside.
+
 ### Optional Enrichment Hooks
 
 `MultiUI` also forwards twelve richer output events to any child that implements

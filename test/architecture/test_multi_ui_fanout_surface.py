@@ -102,3 +102,84 @@ def test_every_fanout_name_exists_on_the_default_ui():
         f"MultiUI fans out to {missing}, which the default UI does not "
         "implement -- either a typo, or a hook that no longer exists."
     )
+
+
+def _primary_child_probes() -> set[str]:
+    """Every name MultiUI looks up by string on its *primary* child.
+
+    `self.main_ui` and `self._uis[0]` are not the optional-hook dispatch above:
+    they are state reads off the one child that drives snapshots, rewind, the
+    `/plan` badge and the model overrides. Those members are declared in
+    `AnyUI`, so they are reached by attribute access and this set is empty.
+    """
+    tree = ast.parse(MULTI_UI.read_text(encoding="utf-8"))
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if not (isinstance(func, ast.Name) and func.id in ("getattr", "hasattr")):
+            continue
+        if len(node.args) < 2 or not isinstance(node.args[1], ast.Constant):
+            continue
+        target = ast.unparse(node.args[0])
+        if target.startswith("self.main_ui") or target.startswith("self._uis["):
+            names.add(node.args[1].value)
+    return names
+
+
+def _fixed_index_child_reads() -> set[str]:
+    """Attributes read off a *literally indexed* child, e.g. `self._uis[0].x`.
+
+    `main_ui_index` selects the primary child, so `self._uis[0]` is the primary
+    only at the default index. Every other read of primary state goes through
+    `self.main_ui`; one that indexes instead silently takes the wrong child's
+    session name, approval mode or model.
+    """
+    tree = ast.parse(MULTI_UI.read_text(encoding="utf-8"))
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Attribute):
+            continue
+        value = node.value
+        if not isinstance(value, ast.Subscript):
+            continue
+        if ast.unparse(value.value) != "self._uis":
+            continue
+        if isinstance(value.slice, ast.Constant):
+            names.add(node.attr)
+    return names
+
+
+def test_the_primary_child_is_read_through_the_declared_contract():
+    """A `getattr(self.main_ui, "x", default)` says "a UI might not have x".
+
+    Once `x` is in `AnyUI` that is no longer true, and the probe hides the
+    opposite failure: a primary child that genuinely lacks it used to fall back
+    to the default and disable the feature silently, with nothing for pyright
+    to catch. Reaching these members by attribute access is what makes the
+    omission a `TypeError` at construction instead.
+    """
+    probed = _primary_child_probes()
+    assert not probed, (
+        "MultiUI probes the primary child for "
+        f"{sorted(probed)} instead of reading it as declared state. Add the "
+        "member to AnyUI (with a default in UIStateDefaultsMixin) and use "
+        "attribute access, or -- if it really is optional -- fan it out to "
+        "every child through FANOUT_METHODS rather than the primary alone."
+    )
+
+
+def test_the_primary_child_is_not_reached_by_a_literal_index():
+    """`self._uis[0]` is the primary child only when `main_ui_index` is 0.
+
+    It is a constructor argument, so it is not always 0, and a read that
+    indexes past `main_ui` takes a different child's state than the one whose
+    event loop is driving the session.
+    """
+    indexed = _fixed_index_child_reads()
+    assert not indexed, (
+        f"MultiUI reads {sorted(indexed)} off a literally indexed child. Use "
+        "`self.main_ui`, which honors main_ui_index, and handle the None case "
+        "for a MultiUI with no children."
+    )

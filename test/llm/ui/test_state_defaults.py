@@ -48,6 +48,15 @@ def test_defaults_report_absence_rather_than_a_fake_value():
     assert ui.multi_ui_parent is None
     assert ui.tool_call_handler is None
     assert ui.yolo is False
+    # The primary-child half: a UI keeping none of this reports absence
+    # honestly rather than raising, so MultiUI can read it unconditionally.
+    assert ui.small_model is None
+    assert ui.multimodal_model is None
+    assert ui.conversation_session_name == ""
+    assert ui.plan_mode_active is False
+    assert ui.last_output == ""
+    assert ui.snapshot_manager is None
+    assert ui.history_manager is None
 
 
 def test_the_writable_members_round_trip():
@@ -56,12 +65,32 @@ def test_the_writable_members_round_trip():
     ui.llm_task = "task"
     ui.model = "openai:gpt-5.6-luna"
     ui.multi_ui_parent = "parent"
+    ui.small_model = "openai:gpt-5.6-nano"
+    ui.multimodal_model = "openai:gpt-5.6-vision"
+    ui.conversation_session_name = "session"
+    ui.plan_mode_active = True
     assert (ui.is_thinking, ui.llm_task, ui.model, ui.multi_ui_parent) == (
         True,
         "task",
         "openai:gpt-5.6-luna",
         "parent",
     )
+    assert (
+        ui.small_model,
+        ui.multimodal_model,
+        ui.conversation_session_name,
+        ui.plan_mode_active,
+    ) == ("openai:gpt-5.6-nano", "openai:gpt-5.6-vision", "session", True)
+
+
+def test_the_read_only_members_reject_assignment():
+    """`last_output`, `snapshot_manager` and `history_manager` report what a UI
+    has; they are not how a caller installs one. `AnyUI` declares them
+    read-only, so a UI that tracks them for real declares its own setter."""
+    ui = _MinimalUI()
+    for name in ("last_output", "snapshot_manager", "history_manager"):
+        with pytest.raises(AttributeError):
+            setattr(ui, name, "x")
 
 
 def test_writes_do_not_leak_between_instances():
