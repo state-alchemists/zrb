@@ -128,6 +128,29 @@ def _primary_child_probes() -> set[str]:
     return names
 
 
+def _fixed_index_child_reads() -> set[str]:
+    """Attributes read off a *literally indexed* child, e.g. `self._uis[0].x`.
+
+    `main_ui_index` selects the primary child, so `self._uis[0]` is the primary
+    only at the default index. Every other read of primary state goes through
+    `self.main_ui`; one that indexes instead silently takes the wrong child's
+    session name, approval mode or model.
+    """
+    tree = ast.parse(MULTI_UI.read_text(encoding="utf-8"))
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Attribute):
+            continue
+        value = node.value
+        if not isinstance(value, ast.Subscript):
+            continue
+        if ast.unparse(value.value) != "self._uis":
+            continue
+        if isinstance(value.slice, ast.Constant):
+            names.add(node.attr)
+    return names
+
+
 def test_the_primary_child_is_read_through_the_declared_contract():
     """A `getattr(self.main_ui, "x", default)` says "a UI might not have x".
 
@@ -144,4 +167,19 @@ def test_the_primary_child_is_read_through_the_declared_contract():
         "member to AnyUI (with a default in UIStateDefaultsMixin) and use "
         "attribute access, or -- if it really is optional -- fan it out to "
         "every child through FANOUT_METHODS rather than the primary alone."
+    )
+
+
+def test_the_primary_child_is_not_reached_by_a_literal_index():
+    """`self._uis[0]` is the primary child only when `main_ui_index` is 0.
+
+    It is a constructor argument, so it is not always 0, and a read that
+    indexes past `main_ui` takes a different child's state than the one whose
+    event loop is driving the session.
+    """
+    indexed = _fixed_index_child_reads()
+    assert not indexed, (
+        f"MultiUI reads {sorted(indexed)} off a literally indexed child. Use "
+        "`self.main_ui`, which honors main_ui_index, and handle the None case "
+        "for a MultiUI with no children."
     )

@@ -489,14 +489,25 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         user_message: str,
         attachments: list[Any],
     ) -> Any:
-        """Create session for LLM task."""
+        """Create session for LLM task.
 
+        The run's session name, approval mode and model come from the *primary*
+        child -- the one `main_ui_index` names and whose event loop drives the
+        session -- not from `_uis[0]`, which is only the same child at the
+        default index.
+        """
+        main_ui = self.main_ui
+        if main_ui is None:
+            raise RuntimeError(
+                "MultiUI has no attached UI to take the session name, approval "
+                "mode and model from — construct it with at least one UI."
+            )
         session_input = {
             "message": user_message,
-            "session": self._uis[0].conversation_session_name or "default",
-            "yolo": self._uis[0].yolo,
+            "session": main_ui.conversation_session_name or "default",
+            "yolo": main_ui.yolo,
             "attachments": attachments,
-            "model": self._uis[0].model,
+            "model": main_ui.model,
         }
         shared_ctx = SharedContext(
             input=session_input,
@@ -533,9 +544,10 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             result = await self._approval_channel.request_approval(context)
             return result.to_pydantic_result()
 
-        # Final fallback: use default handler from first UI
-        if self._uis and self._uis[0].tool_call_handler is not None:
-            return await self._uis[0].tool_call_handler.handle(self, call)
+        # Final fallback: the primary child's own handler.
+        main_ui = self.main_ui
+        if main_ui is not None and main_ui.tool_call_handler is not None:
+            return await main_ui.tool_call_handler.handle(self, call)
 
         raise RuntimeError(
             "MultiUI has no attached UI and no approval channel that can "
