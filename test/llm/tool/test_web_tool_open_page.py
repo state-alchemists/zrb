@@ -80,32 +80,56 @@ async def test_open_web_page_summarizer_input_is_bounded():
 
 @pytest.mark.asyncio
 async def test_search_internet_does_not_block_the_event_loop(mock_google_rss):
-    """A slow synchronous backend call must run off the event loop's thread.
+    """A slow synchronous backend must run off-loop *and* leave the loop free.
 
-    Called inline, a blocking backend freezes every concurrent coroutine — the
-    TUI's own redraw loop, other sub-agents — for the full call. Asserting the
-    backend executes on a *different* thread than the loop proves it ran
-    off-loop directly, instead of inferring it from a wall-clock duration that
-    under a busy test run is polluted by scheduler preemption (a free loop can
-    read as blocked once `time.monotonic()` counts the OS's descheduling).
+    Two properties, asserted separately:
+
+    * **off-loop**: the backend executes on a different thread than the loop
+      (inline dispatch would freeze the loop directly);
+    * **responsive**: a concurrent heartbeat coroutine gets a turn *while* the
+      backend is still running. Dispatching to a worker thread but then
+      synchronously joining it from the loop would satisfy the thread check yet
+      still block the loop, so the heartbeat is the guard against that.
+
+    The heartbeat check uses an explicit "still running" flag instead of a
+    wall-clock duration: the backend holds the flag open until the heartbeat
+    releases it, so the signal does not depend on how early the heartbeat
+    happens to be scheduled (under a busy test run, scheduler preemption makes
+    a wall-clock reading look blocked even when the loop is responsive).
     """
+    backend_running = threading.Event()
+    backend_release = threading.Event()
     backend_thread_ident = {}
+    heartbeat_saw_backend_running = {}
 
     def slow_backend(query, page=1):
         backend_thread_ident["value"] = threading.get_ident()
-        time.sleep(0.3)
+        backend_running.set()
+        try:
+            backend_release.wait(timeout=5.0)
+        finally:
+            backend_running.clear()
         return {"query": query, "results": [], "page": page}
 
     mock_google_rss.side_effect = slow_backend
     loop_thread_ident = threading.get_ident()
 
+    async def heartbeat():
+        await asyncio.sleep(0.05)
+        heartbeat_saw_backend_running["value"] = backend_running.is_set()
+        backend_release.set()
+
     with patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_SEARCH_INTERNET_METHOD": "other"}):
-        await search_internet("query")
+        await asyncio.gather(search_internet("query"), heartbeat())
 
     assert backend_thread_ident.get("value") is not None, "backend never ran"
     assert backend_thread_ident["value"] != loop_thread_ident, (
         "sync backend ran on the event loop's thread; it must be dispatched "
         "off-loop via run_blocking"
+    )
+    assert heartbeat_saw_backend_running.get("value") is True, (
+        "event loop was blocked while the backend ran; the heartbeat did not "
+        "fire until after the backend had already finished"
     )
 
 
