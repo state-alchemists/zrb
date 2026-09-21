@@ -46,18 +46,11 @@ async def replace_in_file(
     new_text. Text copied straight out of Read is matched anyway, but only
     after the exact match has already failed.
 
-    Two behaviors change the file beyond what you literally asked for, so check
-    both on every call:
-
-    - `count` defaults to -1, which replaces EVERY occurrence. A short old_text
-      (`return None`, `self.name`) becomes a file-wide replacement this way.
-      Pass count=1 unless you have confirmed old_text is unique. The result
-      reports how many replacements happened — if that number is not what you
-      expected, Read the file before doing anything else.
-    - If old_text does not match exactly, a whitespace-tolerant fallback runs.
-      It can match a block at a different indentation level, and new_text is
-      then written with the indentation you supplied. The result says so; Read
-      the region when it does.
+    Read the result, not just its status. It reports how many replacements
+    happened, and says so when old_text matched only after whitespace was
+    normalized — a fuzzy match can land on a block at a different indentation
+    level. If either is not what you expected, Read the file before doing
+    anything else.
 
     Keep the result structurally valid — if the change would break indentation,
     imports, or syntax, widen old_text or use Write to rewrite the file instead.

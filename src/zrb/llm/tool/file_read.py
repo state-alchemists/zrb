@@ -22,10 +22,9 @@ def read_file(
     ] = -1,
 ) -> str:
     """
-    Reads a UTF-8 text file or extracts text from a PDF. Returns lines
-    [start_line, end_line], 1-indexed and inclusive; end_line=-1 means the
-    last line. Output beyond the size cap is truncated with a
-    ``...[TRUNCATED]`` marker — narrow the range or Grep, then Read.
+    Reads a UTF-8 text file or extracts text from a PDF. Output beyond the
+    size cap is truncated with a ``...[TRUNCATED]`` marker — narrow the range
+    or Grep, then Read.
 
     Output: ``[File: ... ]`` header, then ``---CONTENT---``, then the body in
     ``cat -n`` form — line number right-aligned in six columns, then a tab,

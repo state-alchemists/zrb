@@ -34,15 +34,12 @@ async def write_file(
     ] = "w",
 ) -> str:
     """
-    Writes or appends to a file, creating it and any missing parent directories.
+    Writes a whole file. Use Edit to change part of one — rewriting a file you
+    have not just read drops everything you did not reproduce, and nothing
+    reports that loss.
 
-    For large content, write in chunks: first with mode="w", subsequent with mode="a".
     An existing file whose bytes aren't valid UTF-8 (a binary) is refused in
     every mode — this tool writes UTF-8 text only and would corrupt it.
-
-    mode="w" replaces the whole file, so use Edit for a change to part of one:
-    rewriting a file you have not just read drops everything you did not
-    reproduce, and nothing reports that loss.
 
     LSP/static checks run after the write: when they find errors the result
     opens with `FAILED` and a `[DIAGNOSTIC]` list, and the write is not done.

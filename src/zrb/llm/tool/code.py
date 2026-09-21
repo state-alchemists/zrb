@@ -112,8 +112,8 @@ async def analyze_code(
     can name the files, Read them; when the question is "where is X?", Grep.
     Either is faster and cheaper than this tool by a wide margin.
 
-    Scope it with `file_pattern` — an unscoped run over a large repository is
-    the most expensive call available to you.
+    An unscoped run over a large repository is the most expensive call
+    available to you.
 
     The answer is a summary written by another model from the files it read.
     Treat it as a lead, not as evidence: before you change code or report a
