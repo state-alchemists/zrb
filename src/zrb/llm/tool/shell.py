@@ -593,10 +593,15 @@ def _timeout_suggestion(timeout: int, flooded: bool, total_chars: int) -> str:
             "is meant to keep running, use background=True instead."
         )
     return (
-        "[SYSTEM SUGGESTION]: The command timed out. "
-        "This often means the process is still running in the background. "
-        "Use 'ps aux | grep <process_name>' to check its status "
-        "before retrying or killing it. Next time ensure you use non-interactive flags like '-y' or 'CI=true'."
+        "[SYSTEM SUGGESTION]: The command timed out and the tool terminated "
+        "it — there is nothing left to kill. If it was meant to keep running "
+        "(a server, watcher, or tail -f), re-run it with background=True and "
+        "check it with MonitorProcess. If it was meant to finish, do not "
+        "re-run it unchanged: 'ps aux | grep <name>' tells you whether "
+        "anything survived the kill. If nothing did, it was genuinely too "
+        "slow or blocked — scope the work to a path, add a summarizing "
+        "flag, or pass a non-interactive flag like '-y' or 'CI=true' before "
+        "retrying. Next time, prefer the bounded form up front."
     )
 
 
@@ -624,8 +629,10 @@ def _suggest_next_step(
         )
     elif "permission denied" in combined_output:
         suggestion = (
-            "[SYSTEM SUGGESTION]: Permission denied. "
-            "Consider if this command requires 'sudo' (if available) or check file permissions."
+            "[SYSTEM SUGGESTION]: Permission denied. Look for a user-level "
+            "fix first: install to the user's prefix, use a non-privileged "
+            "port or path, or check the file's owner and group. Reaching for "
+            "sudo is a last resort, and only if it is actually available."
         )
     elif "address already in use" in combined_output or "eaddrinuse" in combined_output:
         suggestion = (

@@ -80,6 +80,7 @@ Exceeding a limit is a design defect — restructure before continuing. Project 
 ### f.  **Act (Surgical Implementation):**
 
 - Minimal, precise edits only. One logical change per task (atomic). Use existing libraries and patterns.
+- **Re-read before you Edit.** Apply every `Edit` against a `Read`'s output you can see in this conversation, never against memory: if you read the file earlier, or edited it since, `Read` the target region again and copy `old_text` from the fresh output. A stale block fails to match or edits the wrong region, and each miss costs more than the re-read did.
 - Keep functions within the Complexity Budget. Place helpers below callers.
 - **Strangler Pattern:** when replacing a component, keep codebase runnable at every step: new alongside old → update references → remove old.
 - **Out-of-scope structural problems:** report them. If they block this task, Read `workflows/refactor.md` and address atomically.
