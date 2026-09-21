@@ -17,10 +17,18 @@ _PROCESS_STOP_POLL_SECONDS = 0.05
 
 
 def _background_sleep_command(pid_path: str) -> str:
-    """Start a long-lived child that records its own pid before sleeping."""
+    """Start a long-lived child that records its own pid before sleeping.
+
+    The pid is written atomically — temp file then ``os.replace`` — so a
+    shutdown that kills the tree mid-write can never leave a truncated or
+    empty pid file behind for the assertion helper to misread.
+    """
     script = (
-        "from pathlib import Path; import os, time; "
-        f"Path({pid_path!r}).write_text(str(os.getpid())); time.sleep(60)"
+        "import os, time, tempfile; "
+        f"_d = os.path.dirname({pid_path!r}); "
+        "_fd, _tmp = tempfile.mkstemp(dir=_d); "
+        "os.write(_fd, str(os.getpid()).encode()); os.close(_fd); "
+        f"os.replace(_tmp, {pid_path!r}); time.sleep(60)"
     )
     return f"{shlex.quote(sys.executable)} -c {shlex.quote(script)} & wait"
 
@@ -40,9 +48,14 @@ async def _assert_recorded_process_stops(pid_path: str) -> None:
     for _ in range(attempts):
         if os.path.exists(pid_path):
             with open(pid_path) as file:
-                pid = int(file.read())
-            if not _process_is_live(pid):
-                return
+                recorded = file.read().strip()
+            # The child writes its pid atomically (temp file + os.replace), so
+            # a present file holds the full pid; the empty-check is cheap
+            # defence-in-depth, not a substitute for that atomicity.
+            if recorded:
+                pid = int(recorded)
+                if not _process_is_live(pid):
+                    return
         await asyncio.sleep(_PROCESS_STOP_POLL_SECONDS)
     assert pid is None or not _process_is_live(
         pid
