@@ -40,9 +40,9 @@ cli.add_task(CmdTask(name="lint", cmd="flake8 ."))
 
 Swap `pytest` / `flake8 .` for whatever your project actually uses. Skip this file and `zrb test` falls through to Zrb's own built-in `test` group instead of your project's tests — it prints the group's help and exits 0, so a CI step built on it would silently never fail — and `zrb lint` fails outright, since there's no built-in `lint` command at all.
 
-### Then Set `ZRB_INIT_STRICT=1`
+### `ZRB_INIT_STRICT` Already Covers You Here
 
-By default, a `zrb_init.py` that raises while loading is reported to stderr and startup continues — the right call at a terminal, where you can read the error and rerun. In CI it is a trap, because the failure is only visible in the log:
+A `zrb_init.py` that raises while loading is reported to stderr. Whether startup continues depends on who is reading: at a terminal you can see the error and rerun, so zrb continues. In CI nobody is watching stderr in time, so zrb aborts — `ZRB_INIT_STRICT` defaults to `auto` and resolves that from whether stderr is a terminal. Without that, the failure is only visible in the log:
 
 ```python
 # zrb_init.py
@@ -55,12 +55,12 @@ cli.add_task(CmdTask(name="test", cmd=config["test_cmd"]))
 
 Set the variable once, at the job level, and both become hard failures:
 
+Zrb still attempts every init source and prints every failure, so one run tells you about all of them — then exits `1` before running your command. Pin it explicitly if you would rather not depend on the stderr reading:
+
 ```yaml
 env:
   ZRB_INIT_STRICT: "1"
 ```
-
-Zrb still attempts every init source and prints every failure, so one run tells you about all of them — then exits `1` before running your command.
 
 ---
 
@@ -233,7 +233,7 @@ Update the version tag deliberately when ready to adopt newer features or fixes.
 | GitLab CI/CD | `.gitlab-ci.yml` | `stalchmst/zrb:VERSION` |
 | Bitbucket | `bitbucket-pipelines.yml` | `stalchmst/zrb:VERSION` |
 
-Set `ZRB_INIT_STRICT=1` on every platform: it turns a partially-loaded `zrb_init.py` from a green run into exit `1`. See [Environment Variables](../configuration/env-vars.md#file-discovery--loading).
+`ZRB_INIT_STRICT` defaults to `auto` and turns itself on wherever stderr is not a terminal, so a partially-loaded `zrb_init.py` is exit `1` on every platform above without any configuration. Set it to `1` explicitly to pin that. See [Environment Variables](../configuration/env-vars.md#file-discovery--loading).
 
 ---
 

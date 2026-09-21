@@ -250,3 +250,52 @@ async def test_llm_task_detects_multimodal_content_in_history():
         assert (
             "[SYSTEM] This is retry attempt 2" in retry_message
         ), "Multimodal content not detected in history - Bug 2 NOT FIXED"
+
+
+@pytest.mark.asyncio
+async def test_a_permanent_error_is_not_retried_even_with_retries_allowed():
+    """`LLMTask` defaults `retry_if` to `retry_unless_permanent`.
+
+    A missing API key or an unknown model cannot succeed on attempt two, so
+    burning the retry budget on it only delays the error. `retry_if` is a
+    parameter forwarded to `BaseTask`, and this default is applied on the way
+    in — the one place a forwarded keyword can be given a different default.
+    """
+    # Arrange
+    from unittest.mock import AsyncMock
+
+    from pydantic_ai.exceptions import UserError
+
+    task = LLMTask(name="permanent", retries=2)
+    session = Session(shared_ctx=SharedContext(), state_logger=MagicMock())
+    # Act
+    with (
+        patch("zrb.llm.task.llm_task.create_agent"),
+        patch("zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock) as run_agent,
+    ):
+        run_agent.side_effect = UserError("Set the `OPENAI_API_KEY` env var")
+        with pytest.raises(UserError):
+            await task.async_run(session)
+    # Assert
+    assert run_agent.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_an_explicit_retry_if_wins_over_the_permanent_error_default():
+    # Arrange
+    from unittest.mock import AsyncMock
+
+    from pydantic_ai.exceptions import UserError
+
+    task = LLMTask(name="always-retry", retries=1, retry_if=lambda _: True)
+    session = Session(shared_ctx=SharedContext(), state_logger=MagicMock())
+    # Act
+    with (
+        patch("zrb.llm.task.llm_task.create_agent"),
+        patch("zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock) as run_agent,
+    ):
+        run_agent.side_effect = UserError("Set the `OPENAI_API_KEY` env var")
+        with pytest.raises(UserError):
+            await task.async_run(session)
+    # Assert
+    assert run_agent.call_count == 2

@@ -20,21 +20,7 @@ async def get_diff(
     )
     if exit_code != 0:
         raise RuntimeError(f"Non zero exit code: {exit_code}")
-    lines = cmd_result.output.strip().split("\n")
-    diff: dict[str, dict[str, bool]] = {}
-    for line in lines:
-        if not line.startswith("---") and not line.startswith("+++"):
-            continue
-        if line[4:6] != "a/" and line[4:6] != "b/":
-            continue
-        # line should contains something like `--- a/some-file.txt`
-        file = line[6:]
-        if file not in diff:
-            diff[file] = {"plus": False, "minus": False}
-        if line.startswith("---"):
-            diff[file]["minus"] = True
-        if line.startswith("+++"):
-            diff[file]["plus"] = True
+    diff = _parse_diff_file_markers(cmd_result.output.strip().split("\n"))
     return DiffResult(
         created=[
             file for file, state in diff.items() if state["plus"] and not state["minus"]
@@ -46,6 +32,24 @@ async def get_diff(
             file for file, state in diff.items() if state["plus"] and state["minus"]
         ],
     )
+
+
+def _parse_diff_file_markers(lines: list[str]) -> dict[str, dict[str, bool]]:
+    """Map each path in a unified diff to which of its `---`/`+++` sides appeared.
+
+    A path with only `+++` was created, only `---` removed, and both updated.
+    """
+    diff: dict[str, dict[str, bool]] = {}
+    for line in lines:
+        is_minus = line.startswith("---")
+        if not is_minus and not line.startswith("+++"):
+            continue
+        # line should contains something like `--- a/some-file.txt`
+        if line[4:6] not in ("a/", "b/"):
+            continue
+        state = diff.setdefault(line[6:], {"plus": False, "minus": False})
+        state["minus" if is_minus else "plus"] = True
+    return diff
 
 
 async def get_repo_dir(print_method: Callable[..., Any] = print) -> str:

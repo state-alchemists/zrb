@@ -200,27 +200,9 @@ async def run_command(
     require user input.
     """
     actual_print_method = print_method if print_method is not None else print
-    if cwd is None:
-        cwd = os.getcwd()
     if max_display_line is None:
         max_display_line = max(max_output_line, max_error_line)
-    # While environment variables alone weren't the fix, they are still
-    # good practice for encouraging simpler output from tools.
-    # NO_COLOR is deliberately NOT set here: per the NO_COLOR convention any
-    # non-empty value (even "0") disables color, so there is no value that
-    # "explicitly allows" it — absence simply inherits the user's choice.
-    child_env = (env_map or os.environ).copy()
-    child_env["TERM"] = "xterm-256color"  # A capable but standard terminal
-    cmd_process = await asyncio.create_subprocess_exec(
-        *cmd,
-        cwd=cwd,
-        env=child_env,
-        start_new_session=not is_interactive,
-        stdin=__get_cmd_stdin(is_interactive),
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        limit=CFG.CMD_BUFFER_LIMIT,
-    )
+    cmd_process = await __spawn(cmd, cwd, env_map, is_interactive)
     if register_pid_method is not None:
         register_pid_method(cmd_process.pid)
     # stdout/stderr are guaranteed non-None since the process is created with PIPE.
@@ -257,20 +239,53 @@ async def run_command(
         await __terminate_on_cancel(cmd_process, actual_print_method)
         raise
     finally:
-        # Cancel every helper task and close the subprocess transport while the
-        # event loop is still alive. Otherwise a dangling task (e.g. the timeout
-        # sleep on the success path) or the transport's own __del__ closes it
-        # later at GC time — and if that lands after the loop is gone (a
-        # subsequent test), it raises "Event loop is closed".
-        helper_tasks: list[asyncio.Task] = [
-            t for t in (timeout_task, wait_task, streams_task) if t
-        ]
-        for task in helper_tasks:
-            task.cancel()
-        await asyncio.gather(*helper_tasks, return_exceptions=True)
-        transport = getattr(cmd_process, "_transport", None)
-        if transport is not None:
-            transport.close()
+        await __release_process(
+            cmd_process, [t for t in (timeout_task, wait_task, streams_task) if t]
+        )
+
+
+async def __spawn(
+    cmd: list[str],
+    cwd: str | None,
+    env_map: dict[str, str] | None,
+    is_interactive: bool,
+) -> "asyncio.subprocess.Process":
+    """Start the child with piped output and a terminal-shaped environment.
+
+    NO_COLOR is deliberately NOT set: per the NO_COLOR convention any non-empty
+    value (even "0") disables color, so there is no value that "explicitly
+    allows" it — absence simply inherits the user's choice.
+    """
+    child_env = (env_map or os.environ).copy()
+    child_env["TERM"] = "xterm-256color"  # A capable but standard terminal
+    return await asyncio.create_subprocess_exec(
+        *cmd,
+        cwd=os.getcwd() if cwd is None else cwd,
+        env=child_env,
+        start_new_session=not is_interactive,
+        stdin=__get_cmd_stdin(is_interactive),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        limit=CFG.CMD_BUFFER_LIMIT,
+    )
+
+
+async def __release_process(
+    cmd_process: "asyncio.subprocess.Process", helper_tasks: "list[asyncio.Task]"
+) -> None:
+    """Cancel the helper tasks and close the transport, loop still alive.
+
+    Otherwise a dangling task (e.g. the timeout sleep on the success path) or
+    the transport's own `__del__` closes it later at GC time — and if that
+    lands after the loop is gone (a subsequent test), it raises "Event loop is
+    closed".
+    """
+    for task in helper_tasks:
+        task.cancel()
+    await asyncio.gather(*helper_tasks, return_exceptions=True)
+    transport = getattr(cmd_process, "_transport", None)
+    if transport is not None:
+        transport.close()
 
 
 async def __terminate_on_cancel(

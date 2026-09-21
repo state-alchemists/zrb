@@ -3,6 +3,7 @@ import sys
 import pytest
 
 from zrb.__main__ import serve_cli
+from zrb.config.config import CFG
 
 FAILING_INIT = """
 from zrb import cli, Group, Task
@@ -51,9 +52,12 @@ def test_the_traceback_hint_honors_a_white_labeled_env_prefix(
 def test_a_broken_init_script_reports_file_line_and_type_but_still_runs(
     tmp_path, capsys, monkeypatch
 ):
-    """A broken `zrb_init.py` is never hidden, but it is not fatal: the CLI
-    still starts with whatever partial state resulted, since a user who can
-    see the error and still run zrb can fix it and rerun."""
+    """A broken `zrb_init.py` is never hidden, and at an interactive terminal
+    it is not fatal: the CLI still starts with whatever partial state
+    resulted, since a user who can see the error and still run zrb can fix it
+    and rerun. Pinned with `INIT_STRICT` off explicitly — under pytest stderr
+    is captured, which `auto` reads as "nobody is watching"."""
+    monkeypatch.setenv("ZRB_INIT_STRICT", "off")
     broken = tmp_path / "zrb_init.py"
     broken.write_text("this_name_does_not_exist()\n")
     monkeypatch.chdir(tmp_path)
@@ -79,11 +83,12 @@ raise RuntimeError("init failed after registering the task")
 ABORT_MESSAGE = "_INIT_STRICT is on"
 
 
-def test_strict_init_is_off_by_default_so_a_partial_init_still_runs_the_task(
+def test_strict_init_off_lets_a_partial_init_still_run_the_task(
     tmp_path, capsys, monkeypatch
 ):
     """With INIT_STRICT off, a failed init source is reported and startup
     continues, so a task registered before the failure still runs."""
+    monkeypatch.setenv("ZRB_INIT_STRICT", "off")
     sentinel = tmp_path / "ran.txt"
     init = tmp_path / "zrb_init.py"
     init.write_text(PARTIAL_INIT.format(task="default-partial", sentinel=str(sentinel)))
@@ -149,3 +154,41 @@ def test_strict_init_abort_message_honors_a_white_labeled_env_prefix(
     with pytest.raises(SystemExit):
         serve_cli()
     assert f"ACME{ABORT_MESSAGE}" in capsys.readouterr().err
+
+
+class _FakeStderr:
+    """Minimal stderr stand-in — `CFG.INIT_STRICT` only asks it `isatty()`."""
+
+    def __init__(self, tty: bool):
+        self._tty = tty
+
+    def isatty(self) -> bool:
+        return self._tty
+
+
+@pytest.mark.parametrize(
+    "tty, expected",
+    [(True, False), (False, True)],
+    ids=["terminal-is-lenient", "pipe-is-strict"],
+)
+def test_strict_init_auto_follows_whether_stderr_is_a_terminal(
+    monkeypatch, tty, expected
+):
+    """`auto` is the default, and resolves against stderr on every read.
+
+    The case for continuing past a broken init source is that the user reads
+    the error and reruns. Where stderr is not a terminal — CI, a cron job, a
+    piped run — nobody reads it, and the run otherwise exits 0 against
+    configuration that was never finished.
+    """
+    monkeypatch.delenv("ZRB_INIT_STRICT", raising=False)
+    monkeypatch.setattr(sys, "stderr", _FakeStderr(tty))
+    assert CFG.INIT_STRICT is expected
+
+
+def test_strict_init_auto_can_be_requested_explicitly(monkeypatch):
+    """`ZRB_INIT_STRICT=auto` is the written form of the default, so a shell
+    profile can set it back after a CI job forced it on."""
+    monkeypatch.setenv("ZRB_INIT_STRICT", "auto")
+    monkeypatch.setattr(sys, "stderr", _FakeStderr(True))
+    assert CFG.INIT_STRICT is False

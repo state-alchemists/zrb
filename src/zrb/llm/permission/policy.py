@@ -109,29 +109,37 @@ def resolve_policy(raw: "PermissionPolicyInput") -> "PermissionPolicy | None":
     if isinstance(raw, PermissionPolicy):
         return raw
     if isinstance(raw, str):
-        s = raw.strip().lower()
-        if s in (ALLOW, ASK, DENY):
-            return PermissionPolicy((Rule("*", s),))
-        rules: list[Rule] = []
-        for part in re.split(r"[;,]", raw):
-            part = part.strip()
-            if not part or ":" not in part:
-                continue
-            key, action = part.split(":", 1)
-            rules.append(Rule(key.strip(), action.strip().lower()))
-        return PermissionPolicy(tuple(rules)) if rules else None
+        return _policy_from_str(raw)
     if isinstance(raw, (list, tuple)):
-        rules = []
-        for item in raw:
-            if isinstance(item, Rule):
-                rules.append(item)
-            elif isinstance(item, dict):
-                key = item.get("key") or item.get("capability_or_tool") or "*"
-                rules.append(
-                    Rule(key, item.get("action", ASK), item.get("arg_pattern"))
-                )
-        return PermissionPolicy(tuple(rules)) if rules else None
+        return _policy_from_items(raw)
     return None
+
+
+def _policy_from_str(raw: str) -> "PermissionPolicy | None":
+    """A bare `allow`/`ask`/`deny`, or a `key:action` list."""
+    shorthand = raw.strip().lower()
+    if shorthand in (ALLOW, ASK, DENY):
+        return PermissionPolicy((Rule("*", shorthand),))
+    rules: list[Rule] = []
+    for part in re.split(r"[;,]", raw):
+        part = part.strip()
+        if not part or ":" not in part:
+            continue
+        key, action = part.split(":", 1)
+        rules.append(Rule(key.strip(), action.strip().lower()))
+    return PermissionPolicy(tuple(rules)) if rules else None
+
+
+def _policy_from_items(raw: "list | tuple") -> "PermissionPolicy | None":
+    """A sequence of `Rule`s, dicts, or a mix. Anything else is skipped."""
+    rules: list[Rule] = []
+    for item in raw:
+        if isinstance(item, Rule):
+            rules.append(item)
+        elif isinstance(item, dict):
+            key = item.get("key") or item.get("capability_or_tool") or "*"
+            rules.append(Rule(key, item.get("action", ASK), item.get("arg_pattern")))
+    return PermissionPolicy(tuple(rules)) if rules else None
 
 
 # Read-only discovery preset used by plan mode (#1). Network is allowed because

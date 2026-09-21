@@ -976,51 +976,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         while True:
             try:
                 entry = await self._message_queue.get()
-
-                # Wait for any still-running task from a previous iteration to
-                # finish. Await it directly instead of polling — this removes the
-                # busy-wait and the check-then-act race between done() and the
-                # next assignment. Swallow its outcome (incl. cancellation); this
-                # loop only needs it to be settled before starting the next job.
-                if (
-                    self._running_llm_task is not None
-                    and not self._running_llm_task.done()
-                ):
-                    try:
-                        await self._running_llm_task
-                    except (KeyboardInterrupt, SystemExit):
-                        # Process-level interrupts are not a job outcome — the
-                        # previous `except (CancelledError, Exception)` let these
-                        # through and so must this.
-                        raise
-                    except BaseException:
-                        # Swallow the awaited task's outcome (incl. its own
-                        # cancellation) — this loop only needs it settled. But a
-                        # cancel aimed at THIS loop must still land, or the queue
-                        # becomes uncancellable while a previous job unwinds.
-                        # `cancelling()` tells the two apart (same guard as
-                        # monitoring._handle_threshold_reached).
-                        current = asyncio.current_task()
-                        if current is not None and current.cancelling() > 0:
-                            raise
-
-                current_task = asyncio.create_task(entry.run())
-                self._running_llm_task = current_task
-
-                try:
-                    await current_task
-                except asyncio.CancelledError:
-                    try:
-                        await current_task
-                    except asyncio.CancelledError:
-                        pass
-                except Exception as e:
-                    logger.error(f"Error executing job: {e}")
-                finally:
-                    self._running_llm_task = None
-
+                await self._settle_previous_job()
+                await self._run_queued_job(entry)
                 self._message_queue.task_done()
-
             except asyncio.CancelledError:
                 break
             except RuntimeError as e:
@@ -1035,6 +993,47 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
                 except RuntimeError:
                     # Event loop closed - exit
                     break
+
+    async def _settle_previous_job(self) -> None:
+        """Wait for a still-running job from a previous iteration to finish.
+
+        Awaited directly rather than polled — that removes the busy-wait and
+        the check-then-act race between `done()` and the next assignment. Its
+        outcome (including cancellation) is swallowed; this loop only needs it
+        settled before starting the next job.
+        """
+        if self._running_llm_task is None or self._running_llm_task.done():
+            return
+        try:
+            await self._running_llm_task
+        except (KeyboardInterrupt, SystemExit):
+            # Process-level interrupts are not a job outcome — the
+            # previous `except (CancelledError, Exception)` let these
+            # through and so must this.
+            raise
+        except BaseException:
+            # A cancel aimed at THIS loop must still land, or the queue becomes
+            # uncancellable while a previous job unwinds. `cancelling()` tells
+            # the two apart (same guard as monitoring._handle_threshold_reached).
+            current = asyncio.current_task()
+            if current is not None and current.cancelling() > 0:
+                raise
+
+    async def _run_queued_job(self, entry: "QueuedMessage") -> None:
+        """Run one queued job to completion, absorbing its failure."""
+        current_task = asyncio.create_task(entry.run())
+        self._running_llm_task = current_task
+        try:
+            await current_task
+        except asyncio.CancelledError:
+            try:
+                await current_task
+            except asyncio.CancelledError:
+                pass
+        except Exception as e:
+            logger.error(f"Error executing job: {e}")
+        finally:
+            self._running_llm_task = None
 
     # History-replay rendering lives in BaseUIReplay (replay.py):
     # _replay_history, _replay_request_parts, _replay_response_parts,

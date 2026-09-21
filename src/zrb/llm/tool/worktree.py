@@ -1,6 +1,5 @@
 import asyncio
 import os
-from contextvars import ContextVar
 from datetime import datetime
 from typing import Annotated
 
@@ -12,8 +11,7 @@ from zrb.llm.sandbox.os_sandbox import (
     SandboxUnavailableError,
     format_sandbox_denied_message,
 )
-
-active_worktree: ContextVar[str] = ContextVar("zrb_active_worktree", default="")
+from zrb.llm.tool.ambient_state import active_worktree
 
 
 async def enter_worktree(
@@ -134,28 +132,9 @@ async def exit_worktree(
     branch_name = branch_out.decode().strip() if branch_rc == 0 else None
 
     try:
-        # --git-common-dir: the main repo's .git dir, which is where `worktree
-        # remove` updates worktree-admin metadata and `branch -D` updates
-        # refs. Neither necessarily lives under `cwd` (this function's caller
-        # may be anywhere) or under `worktree_path` itself, so — mirroring
-        # `enter_worktree`'s sandbox_cwd=git_root for its `worktree add` —
-        # both the removal and the branch-delete below anchor to its parent
-        # rather than the bare process cwd.
-        common_rc, common_out, _, note = await _run_git(
-            ["git", "-C", worktree_path, "rev-parse", "--git-common-dir"], cwd
-        )
+        git_root = await _resolve_git_root(worktree_path, cwd, notes)
     except SandboxUnavailableError as e:
         return _prepend_notes(notes, format_sandbox_denied_message(e))
-    notes.append(note)
-    git_common_dir = common_out.decode().strip()
-    if common_rc == 0 and git_common_dir:
-        if not os.path.isabs(git_common_dir):
-            git_common_dir = os.path.normpath(
-                os.path.join(worktree_path, git_common_dir)
-            )
-        git_root = os.path.dirname(git_common_dir)
-    else:
-        git_root = cwd
 
     try:
         rm_rc, _, rm_err, note = await _run_git(
@@ -181,26 +160,65 @@ async def exit_worktree(
     active_worktree.set("")
     lines = [f"Worktree removed: {worktree_path}"]
 
-    if branch_name and not keep_branch:
-        try:
-            del_rc, _, del_err, note = await _run_git(
-                ["git", "branch", "-D", branch_name], cwd, sandbox_cwd=git_root
-            )
-        except SandboxUnavailableError as e:
-            refused = format_sandbox_denied_message(e)
-            lines.append(f"Branch kept: {branch_name} (could not delete — {refused})")
-            return _prepend_notes(notes, "\n".join(lines))
-        notes.append(note)
-        if del_rc == 0:
-            lines.append(f"Branch deleted: {branch_name}")
-        else:
-            lines.append(
-                f"Branch kept: {branch_name} (could not delete — {del_err.decode().strip()})"
-            )
-    elif branch_name:
-        lines.append(f"Branch kept: {branch_name}")
-
+    if branch_name:
+        lines.append(
+            await _delete_branch_line(branch_name, keep_branch, cwd, git_root, notes)
+        )
     return _prepend_notes(notes, "\n".join(lines))
+
+
+async def _resolve_git_root(
+    worktree_path: str, cwd: str, notes: "list[str | None]"
+) -> str:
+    """The main repo's root, which worktree-admin and branch commands anchor to.
+
+    `--git-common-dir` names the main repo's `.git` dir, where `worktree
+    remove` updates worktree-admin metadata and `branch -D` updates refs.
+    Neither necessarily lives under `cwd` (the caller may be anywhere) or under
+    `worktree_path` itself, so — mirroring `enter_worktree`'s
+    `sandbox_cwd=git_root` for its `worktree add` — both anchor to its parent
+    rather than the bare process cwd. Falls back to `cwd` when git cannot say.
+    """
+    common_rc, common_out, _, note = await _run_git(
+        ["git", "-C", worktree_path, "rev-parse", "--git-common-dir"], cwd
+    )
+    notes.append(note)
+    git_common_dir = common_out.decode().strip()
+    if common_rc != 0 or not git_common_dir:
+        return cwd
+    if not os.path.isabs(git_common_dir):
+        git_common_dir = os.path.normpath(os.path.join(worktree_path, git_common_dir))
+    return os.path.dirname(git_common_dir)
+
+
+async def _delete_branch_line(
+    branch_name: str,
+    keep_branch: bool,
+    cwd: str,
+    git_root: str,
+    notes: "list[str | None]",
+) -> str:
+    """Delete the worktree's branch if asked, and report what happened.
+
+    Never raises: the worktree removal has already succeeded by the time this
+    runs, and that result must survive a failure here.
+    """
+    if keep_branch:
+        return f"Branch kept: {branch_name}"
+    try:
+        del_rc, _, del_err, note = await _run_git(
+            ["git", "branch", "-D", branch_name], cwd, sandbox_cwd=git_root
+        )
+    except SandboxUnavailableError as e:
+        refused = format_sandbox_denied_message(e)
+        return f"Branch kept: {branch_name} (could not delete — {refused})"
+    notes.append(note)
+    if del_rc == 0:
+        return f"Branch deleted: {branch_name}"
+    return (
+        f"Branch kept: {branch_name} "
+        f"(could not delete — {del_err.decode().strip()})"
+    )
 
 
 async def list_worktrees() -> str:

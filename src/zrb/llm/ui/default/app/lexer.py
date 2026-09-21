@@ -93,6 +93,15 @@ class CLIStyleLexer(Lexer):
         return get_line
 
 
+# SGR codes that set one attribute, and those that clear a group of them.
+_ATTR_SET = {1: "bold", 2: "class:faint", 3: "italic", 4: "underline"}
+_ATTR_CLEAR = {
+    22: ("bold", "class:faint"),
+    23: ("italic",),
+    24: ("underline",),
+}
+
+
 def _dispatch_code(
     code: int,
     int_codes: list[int],
@@ -111,42 +120,22 @@ def _dispatch_code(
     if code == 0:
         attrs.clear()
         return (("", ""), 0)
-    if code == 1:
-        attrs.add("bold")
+    if code in _ATTR_SET:
+        attrs.add(_ATTR_SET[code])
         return (None, 0)
-    if code == 2:
-        attrs.add("class:faint")
-        return (None, 0)
-    if code == 3:
-        attrs.add("italic")
-        return (None, 0)
-    if code == 4:
-        attrs.add("underline")
-        return (None, 0)
-    if code == 22:
-        attrs.discard("bold")
-        attrs.discard("class:faint")
-        return (None, 0)
-    if code == 23:
-        attrs.discard("italic")
-        return (None, 0)
-    if code == 24:
-        attrs.discard("underline")
+    if code in _ATTR_CLEAR:
+        attrs.difference_update(_ATTR_CLEAR[code])
         return (None, 0)
 
-    # --- Foreground color reset ---
+    # --- Color resets: 39 foreground, 49 background ---
     if code == 39:
         return (("", bg), 0)
-
-    # --- Background color reset ---
     if code == 49:
         return ((fg, ""), 0)
 
-    # --- Standard foreground (30-37) ---
+    # --- Standard foreground (30-37) / background (40-47) ---
     if 30 <= code <= 37:
         return ((_STANDARD_FG[code - 30], bg), 0)
-
-    # --- Standard background (40-47) ---
     if 40 <= code <= 47:
         return ((fg, f"bg:{_STANDARD_FG[code - 40]}"), 0)
 
@@ -154,16 +143,10 @@ def _dispatch_code(
     if 90 <= code <= 97:
         return ((_BRIGHT_FG[code - 90], bg), 0)
 
-    # --- Extended foreground: 38;mode;params ---
-    if code == 38:
+    # --- Extended color: 38;mode;params foreground, 48;... background ---
+    if code in (38, 48):
         return _apply_extended_color(
-            int_codes, offset, is_background=False, fg=fg, bg=bg
-        )
-
-    # --- Extended background: 48;mode;params ---
-    if code == 48:
-        return _apply_extended_color(
-            int_codes, offset, is_background=True, fg=fg, bg=bg
+            int_codes, offset, is_background=code == 48, fg=fg, bg=bg
         )
 
     return (None, 0)

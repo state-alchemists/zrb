@@ -24,6 +24,7 @@ through `UIConfig` rather than its own signature.
 import ast
 import inspect
 import textwrap
+from typing import Unpack, get_origin
 
 from zrb.llm.task.chat.task import LLMChatTask
 from zrb.llm.task.llm_task import LLMTask
@@ -53,8 +54,8 @@ from zrb.task.tcp_check import TcpCheck
 #
 # ADR-0090/0091 (R12) records the `llm_config` split these numbers reflect.
 PARAM_BUDGETS = {
-    LLMChatTask: 59,
-    LLMTask: 49,
+    LLMChatTask: 40,
+    LLMTask: 30,
     BaseUI: 15,
 }
 
@@ -62,7 +63,20 @@ PARAM_BUDGETS = {
 # it copies from — the one its docstring names, which is not always the direct
 # base (`Scheduler` promises parity with `BaseTrigger`, `RsyncTask` with
 # `CmdTask`).
-PARENT_OF = {
+# Task classes that re-declare a parent's parameters by hand, mapped to that
+# parent. Empty: every task class forwards through `**kwargs: Unpack[...]`
+# instead, so the two fidelity tests below have nothing to compare. The rule
+# holds for whatever lands here next.
+PARENT_OF: dict[type, type] = {}
+
+# Task classes that forward through `**kwargs: Unpack[...]`, mapped to the
+# class whose parameters flow through. Their shared set is declared once in
+# `task/base/params.py`, so nothing here can drift out of sync with it; what a
+# subclass excludes is a narrower `TypedDict` plus a runtime guard in that
+# module, not an entry here.
+FORWARDS_TO = {
+    LLMTask: BaseTask,
+    LLMChatTask: BaseTask,
     CmdTask: BaseTask,
     RsyncTask: CmdTask,
     Scaffolder: BaseTask,
@@ -70,8 +84,6 @@ PARENT_OF = {
     BaseTrigger: BaseTask,
     HttpCheck: BaseTask,
     TcpCheck: BaseTask,
-    LLMTask: BaseTask,
-    LLMChatTask: BaseTask,
 }
 
 # (subclass, parameter) -> why this subclass deliberately does not forward it.
@@ -80,27 +92,7 @@ PARENT_OF = {
 # by the class's own docstring naming the same exclusion.
 INTENTIONAL_OMISSIONS = {
     "action": "subclasses supply their own action; BaseTask's docstring says so",
-    # RsyncTask generates its command from the path parameters.
-    (RsyncTask, "cmd"): "generated from the source/destination paths",
-    (RsyncTask, "warn_unrecommended_command"): "screens a command you wrote",
 }
-# A readiness check polls on its own `interval` and is itself what a task waits
-# on, so the retry/readiness cluster would nest a check inside itself.
-for _check in (HttpCheck, TcpCheck):
-    for _param in (
-        "retries",
-        "retry_period",
-        "retry_if",
-        "readiness_check",
-        "readiness_check_delay",
-        "readiness_check_period",
-        "readiness_failure_threshold",
-        "readiness_timeout",
-        "monitor_readiness",
-    ):
-        INTENTIONAL_OMISSIONS[(_check, _param)] = (
-            "a readiness check polls on `interval`; it does not nest one"
-        )
 
 
 def _params(cls) -> list[str]:
@@ -219,4 +211,76 @@ def test_subclasses_forward_every_parent_parameter_or_say_why():
         "to. Either forward it, or add an INTENTIONAL_OMISSIONS entry here "
         "with the reason and name the same exclusion in the class "
         "docstring:\n" + "\n".join(unexplained)
+    )
+
+
+def test_task_subclasses_forward_rather_than_re_declare():
+    """A task subclass must not re-declare a parameter it only forwards.
+
+    Each copied name, type and default is a place the parent and child can
+    disagree, and a parameter added to `BaseTask` has to be written into every
+    subclass that copies it. `**kwargs: Unpack[BaseTaskParams]` carries the
+    set instead, and pyright still completes and checks every name at the call
+    site — its language server offers all 35 keywords at `CmdTask(` and the 14
+    `HttpCheck` accepts at `HttpCheck(`.
+
+    Shadowing a parent parameter — a different default or a narrower type — is
+    a decision, so it needs an entry below with its reason; a copy that just
+    restates the parent is not.
+    """
+    deliberate_shadowing: dict[tuple[type, str], str] = {
+        (LLMChatTask, "retries"): (
+            "a chat turn is interactive; a silent retry would replay the "
+            "user's message, so the default drops from BaseTask's 2 to 0"
+        ),
+    }
+    copies = []
+    for cls, parent in FORWARDS_TO.items():
+        child_params = _declared_params(cls)
+        for name in _declared_params(parent):
+            if name == "name":
+                continue  # every task constructor takes its own `name`
+            if name in child_params and (cls, name) not in deliberate_shadowing:
+                copies.append(f"  {cls.__name__} re-declares {parent.__name__}.{name}")
+    assert not copies, (
+        "Constructor(s) re-declare a parameter they only forward. Drop it from "
+        "the signature — `**kwargs: Unpack[...]` already carries it — or, if "
+        "the subclass genuinely needs a different default or type, add a "
+        "`deliberate_shadowing` entry here with the reason:\n" + "\n".join(copies)
+    )
+
+
+def _is_unpack(annotation: object) -> bool:
+    """Whether `annotation` is `Unpack[...]`.
+
+    An annotation is source text in a module with
+    `from __future__ import annotations` and a typing object otherwise.
+    `repr` is not common ground between the two: CPython renders the object
+    as `*X` before 3.12 and as `typing.Unpack[X]` from 3.12 on.
+    """
+    if isinstance(annotation, str):
+        return annotation.lstrip().startswith("Unpack[")
+    return get_origin(annotation) is Unpack
+
+
+def test_every_forwarding_subclass_declares_unpacked_kwargs():
+    """The other half of the rule above: forwarding must actually happen.
+
+    Without this, deleting a parameter from a signature and forgetting the
+    `**kwargs` passes the re-declaration test while silently dropping the
+    parameter from the public API.
+    """
+    missing = []
+    for cls in FORWARDS_TO:
+        params = inspect.signature(cls.__init__).parameters
+        annotations = getattr(cls.__init__, "__annotations__", {})
+        if not any(
+            p.kind is inspect.Parameter.VAR_KEYWORD and _is_unpack(annotations.get(n))
+            for n, p in params.items()
+        ):
+            missing.append(cls.__name__)
+    assert not missing, (
+        "Class(es) listed in FORWARDS_TO no longer declare "
+        f"`**kwargs: Unpack[...]`, so their parent's parameters are gone from "
+        f"the public API rather than forwarded: {missing}"
     )

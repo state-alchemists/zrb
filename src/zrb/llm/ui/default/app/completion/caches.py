@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import subprocess
 import time
+from collections.abc import Iterator
 from typing import Any
 
 from zrb.config.config import CFG
@@ -82,6 +83,9 @@ def load_ollama_models(cache: dict[str, Any]) -> list[str]:
     return models
 
 
+_SKIP_DIRS = ("node_modules", "__pycache__", "venv", ".venv")
+
+
 def walk_recursive_files(
     root: str,
     limit: int,
@@ -94,42 +98,37 @@ def walk_recursive_files(
         and now - cache.get("time", 0) < _CACHE_TTL_SECONDS
     ):
         return cache["files"]
-
     paths: list[str] = []
-    cwd_is_hidden = os.path.basename(os.path.abspath(root)).startswith(".")
-
     try:
-        for dirpath, dirnames, filenames in os.walk(root):
-            if not cwd_is_hidden:
-                dirnames[:] = [d for d in dirnames if not d.startswith(".")]
-            dirnames[:] = [
-                d
-                for d in dirnames
-                if d not in ("node_modules", "__pycache__", "venv", ".venv")
-            ]
-
-            rel_dir = os.path.relpath(dirpath, root)
-            if rel_dir == ".":
-                rel_dir = ""
-
-            for d in dirnames:
-                paths.append(os.path.join(rel_dir, d) + os.sep)
-                if len(paths) >= limit:
-                    cache["files"] = paths
-                    cache["time"] = now
-                    return paths
-
-            for f in filenames:
-                if not cwd_is_hidden and f.startswith("."):
-                    continue
-                paths.append(os.path.join(rel_dir, f))
-                if len(paths) >= limit:
-                    cache["files"] = paths
-                    cache["time"] = now
-                    return paths
+        for path in _iter_completion_paths(root):
+            paths.append(path)
+            if len(paths) >= limit:
+                break
     except Exception as e:
+        # Whatever was collected before the failure is still worth caching.
         CFG.LOGGER.debug(f"Failed to walk directory for completion: {e}")
-
     cache["files"] = paths
     cache["time"] = now
     return paths
+
+
+def _iter_completion_paths(root: str) -> "Iterator[str]":
+    """Relative paths under `root`, directories first within each level.
+
+    Hidden entries are skipped unless `root` is itself hidden — inside a
+    dotted directory the user is plainly working on hidden files.
+    """
+    cwd_is_hidden = os.path.basename(os.path.abspath(root)).startswith(".")
+    for dirpath, dirnames, filenames in os.walk(root):
+        if not cwd_is_hidden:
+            dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+        dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
+        rel_dir = os.path.relpath(dirpath, root)
+        if rel_dir == ".":
+            rel_dir = ""
+        for dirname in dirnames:
+            yield os.path.join(rel_dir, dirname) + os.sep
+        for filename in filenames:
+            if not cwd_is_hidden and filename.startswith("."):
+                continue
+            yield os.path.join(rel_dir, filename)

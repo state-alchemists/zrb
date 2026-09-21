@@ -1,20 +1,14 @@
 import asyncio
-from collections.abc import Callable, Sequence
-from typing import Any
+from typing import Any, Unpack
 
-from zrb.attr.tpl import Tpl
-from zrb.attr.type import BoolAttr
 from zrb.callback.any_callback import AnyCallback
-from zrb.context.any_context import AnyContext
-from zrb.context.print_fn import PrintFn
 from zrb.context.shared_context import SharedContext
 from zrb.dot_dict.dot_dict import DotDict
-from zrb.env.any_env import AnyEnv
-from zrb.input.any_input import AnyInput
 from zrb.session.any_session import AnySession
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.task.base.base_task import BaseTask
+from zrb.task.base.params import ActionTaskParams
 from zrb.util.cli.style import CYAN
 from zrb.xcom.xcom import Xcom
 
@@ -27,29 +21,9 @@ class BaseTrigger(BaseTask):
         self,
         name: str,
         *,
-        color: int | None = None,
-        icon: str | None = None,
-        description: str | None = None,
-        cli_only: bool = False,
-        input: Sequence[AnyInput | None] | AnyInput | None = None,
-        env: Sequence[AnyEnv | None] | AnyEnv | None = None,
-        action: str | Tpl | Callable[[AnyContext], Any] | None = None,
-        execute_condition: BoolAttr = True,
         queue_name: str | None = None,
         callback: list[AnyCallback] | AnyCallback | None = None,
-        retries: int = 2,
-        retry_if: Callable[[BaseException], bool] | None = None,
-        retry_period: float = 0,
-        readiness_check: Sequence[AnyTask] | AnyTask | None = None,
-        readiness_check_delay: float | None = None,
-        readiness_check_period: float | None = 5,
-        readiness_failure_threshold: int | None = 1,
-        readiness_timeout: int | None = None,
-        monitor_readiness: bool = False,
-        upstream: Sequence[AnyTask] | AnyTask | None = None,
-        fallback: Sequence[AnyTask] | AnyTask | None = None,
-        successor: Sequence[AnyTask] | AnyTask | None = None,
-        print_fn: PrintFn | None = None,
+        **kwargs: Unpack[ActionTaskParams],
     ):
         """Define a trigger. Every parameter besides `queue_name` and
         `callback` is `BaseTask`'s, with the same meaning; `color` and `icon`
@@ -63,29 +37,13 @@ class BaseTrigger(BaseTask):
             callback: Callback(s) run after the trigger action, once data is
                 on the queue.
         """
+        if kwargs.get("color") is None:
+            kwargs["color"] = CYAN
+        if kwargs.get("icon") is None:
+            kwargs["icon"] = "✨"
         super().__init__(
             name=name,
-            color=color if color is not None else CYAN,
-            icon=icon if icon is not None else "✨",
-            description=description,
-            cli_only=cli_only,
-            input=input,
-            env=env,
-            action=action,
-            execute_condition=execute_condition,
-            retries=retries,
-            retry_if=retry_if,
-            retry_period=retry_period,
-            readiness_check=readiness_check,
-            readiness_check_delay=readiness_check_delay,
-            readiness_check_period=readiness_check_period,
-            readiness_failure_threshold=readiness_failure_threshold,
-            readiness_timeout=readiness_timeout,
-            monitor_readiness=monitor_readiness,
-            upstream=upstream,
-            fallback=fallback,
-            successor=successor,
-            print_fn=print_fn,
+            **kwargs,
         )
         self._callbacks = callback if callback is not None else []
         self._queue_name = queue_name

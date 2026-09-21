@@ -82,202 +82,284 @@ async def handle_stream_error(
     print_fn: Callable[[str], Awaitable[Any] | Any],
     min_turns: TurnPruneFloor = TurnPruneFloor.ANY_TURN_MAY_DROP,
 ) -> RetryOutcome:
-    """Decide whether/how to retry after a stream error. Sleeps for transient errors."""
-    # lazy: heavy third-party — pydantic_ai pulls in OpenAI/Anthropic SDKs.
-    from pydantic_ai.messages import ModelRequest, UserPromptPart
+    """Decide whether/how to retry after a stream error. Sleeps for transient errors.
 
-    if (
+    Each handler below owns one error class, consumes its own budget on
+    `state`, and returns `None` to pass the error to the next. Order matters:
+    a transient status wins over a keyword guess, and the opaque-400 collapse
+    is the last resort before giving up.
+    """
+    transient = await _retry_transient(
+        state, exc, current_history, current_message, print_fn
+    )
+    if transient is not None:
+        return transient
+    for handler in (
+        _retry_with_pruned_history,
+        _retry_without_thinking_parts,
+        _retry_with_tool_call_correction,
+        _retry_with_text_only_history,
+        _retry_without_stale_deferred_results,
+    ):
+        outcome = handler(
+            state,
+            exc,
+            current_history,
+            current_message,
+            run_history,
+            print_fn,
+            min_turns,
+        )
+        if outcome is not None:
+            return outcome
+    return RetryOutcome(should_retry=False)
+
+
+async def _retry_transient(
+    state: RetryState,
+    exc: Exception,
+    current_history: list[Any],
+    current_message: Any,
+    print_fn: Callable[[str], Awaitable[Any] | Any],
+) -> RetryOutcome | None:
+    """Back off and retry a 429/5xx, while the global transient budget lasts."""
+    if not (
         is_retryable_error(exc)
         and state.transient_retry_count < state.max_transient_retries
     ):
-        state.transient_retry_count += 1
-        wait_secs = get_retry_wait(
-            exc, state.transient_retry_count, CFG.LLM_API_MAX_WAIT
-        )
-        print_fn(
-            f"\n[SYSTEM] Transient provider error, retrying in {wait_secs:.0f}s"
-            f" (attempt {state.transient_retry_count}/{state.max_transient_retries})..."
-        )
-        CFG.LOGGER.debug(
-            f"Retryable error (attempt {state.transient_retry_count}): {exc}"
-        )
-        await asyncio.sleep(wait_secs)
-        return RetryOutcome(
-            should_retry=True,
-            new_history=current_history,
-            new_message=current_message,
-        )
+        return None
+    state.transient_retry_count += 1
+    wait_secs = get_retry_wait(exc, state.transient_retry_count, CFG.LLM_API_MAX_WAIT)
+    print_fn(
+        f"\n[SYSTEM] Transient provider error, retrying in {wait_secs:.0f}s"
+        f" (attempt {state.transient_retry_count}/{state.max_transient_retries})..."
+    )
+    CFG.LOGGER.debug(f"Retryable error (attempt {state.transient_retry_count}): {exc}")
+    await asyncio.sleep(wait_secs)
+    return RetryOutcome(
+        should_retry=True, new_history=current_history, new_message=current_message
+    )
 
-    if (
+
+def _retry_with_pruned_history(
+    state: RetryState,
+    exc: Exception,
+    current_history: list[Any],
+    current_message: Any,
+    run_history: list[Any],
+    print_fn: Callable[[str], Awaitable[Any] | Any],
+    min_turns: TurnPruneFloor,
+) -> RetryOutcome | None:
+    """Drop the oldest turn and retry a context-length error.
+
+    Only when pruning actually shrinks the request. `drop_oldest_turn` returns
+    the history unchanged when there is nothing left to drop (a single turn, or
+    `min_turns` already reached); retrying with an identical history reproduces
+    the same error and — when deferred tool results are pending (min_turns=1) —
+    re-executes the approved, side-effecting tool on every attempt. When
+    pruning can make no progress this returns `None`, so the text-only collapse
+    further down truncates oversized tool results instead of looping uselessly.
+    """
+    if not (
         is_prompt_too_long_error(exc)
         and state.context_retry_count < state.max_context_retries
     ):
-        new_history = drop_oldest_turn(current_history, min_turns=min_turns)
-        # Only take the prune-and-retry path when it actually shrinks the
-        # request. drop_oldest_turn returns the history unchanged when there is
-        # nothing left to drop (a single turn, or min_turns already reached).
-        # Retrying with an identical history reproduces the same error and —
-        # when deferred tool results are pending (min_turns=1) — re-executes the
-        # approved, side-effecting tool on every attempt. When pruning can make
-        # no progress, fall through to the text-only collapse below, which
-        # truncates oversized tool results instead of looping uselessly.
-        if len(new_history) < len(current_history):
-            state.context_retry_count += 1
-            # transient_retry_count is intentionally NOT reset here: the transient
-            # (429/5xx) budget derived from LLM_API_MAX_RETRIES is a global cap for
-            # the whole run. A context-length prune is a different failure class and
-            # must not refresh that budget, or a session alternating between the two
-            # error types could retry transiently far more than configured.
-            print_fn(
-                f"\n[SYSTEM] Context too long, retrying with reduced history"
-                f" (attempt {state.context_retry_count}/{state.max_context_retries})..."
-            )
-            CFG.LOGGER.debug(
-                f"Prompt too long: retrying with {len(new_history)} history messages"
-            )
-            return RetryOutcome(
-                should_retry=True,
-                new_history=new_history,
-                new_message=current_message,
-            )
+        return None
+    new_history = drop_oldest_turn(current_history, min_turns=min_turns)
+    if len(new_history) >= len(current_history):
+        return None
+    state.context_retry_count += 1
+    # transient_retry_count is intentionally NOT reset here: the transient
+    # (429/5xx) budget derived from LLM_API_MAX_RETRIES is a global cap for
+    # the whole run. A context-length prune is a different failure class and
+    # must not refresh that budget, or a session alternating between the two
+    # error types could retry transiently far more than configured.
+    print_fn(
+        f"\n[SYSTEM] Context too long, retrying with reduced history"
+        f" (attempt {state.context_retry_count}/{state.max_context_retries})..."
+    )
+    CFG.LOGGER.debug(
+        f"Prompt too long: retrying with {len(new_history)} history messages"
+    )
+    return RetryOutcome(
+        should_retry=True, new_history=new_history, new_message=current_message
+    )
 
-    if (
+
+def _retry_without_thinking_parts(
+    state: RetryState,
+    exc: Exception,
+    current_history: list[Any],
+    current_message: Any,
+    run_history: list[Any],
+    print_fn: Callable[[str], Awaitable[Any] | Any],
+    min_turns: TurnPruneFloor,
+) -> RetryOutcome | None:
+    """Strip thinking parts for a provider that demands `reasoning_content`."""
+    if not (
         is_missing_reasoning_content_error(exc)
         and not state.missing_reasoning_retry_done
     ):
-        state.missing_reasoning_retry_done = True
-        print_fn(
-            "\n[SYSTEM] Provider requires reasoning_content in history — "
-            "stripping thinking parts and retrying..."
+        return None
+    state.missing_reasoning_retry_done = True
+    print_fn(
+        "\n[SYSTEM] Provider requires reasoning_content in history — "
+        "stripping thinking parts and retrying..."
+    )
+    CFG.LOGGER.debug(
+        f"Missing reasoning_content error: {exc}. Stripping thinking parts from history."
+    )
+    return RetryOutcome(
+        should_retry=True,
+        new_history=strip_thinking_parts(current_history),
+        new_message=current_message,
+    )
+
+
+def _retry_with_tool_call_correction(
+    state: RetryState,
+    exc: Exception,
+    current_history: list[Any],
+    current_message: Any,
+    run_history: list[Any],
+    print_fn: Callable[[str], Awaitable[Any] | Any],
+    min_turns: TurnPruneFloor,
+) -> RetryOutcome | None:
+    """Tell the model its tool name does not exist, and how to call one properly."""
+    # lazy: heavy third-party — pydantic_ai pulls in OpenAI/Anthropic SDKs.
+    from pydantic_ai.messages import ModelRequest, UserPromptPart
+
+    if not (is_invalid_tool_call_error(exc) and not state.invalid_tool_retry_done):
+        return None
+    state.invalid_tool_retry_done = True
+    bad_name = _extract_invalid_tool_name(exc, current_history)
+    if bad_name:
+        lead = (
+            "[SYSTEM] ⛔ STOP. Your last response is BROKEN.\n\n"
+            f"You called: `{bad_name}` — this is NOT a real tool. "
+            "It does not exist in the tool registry.\n"
         )
-        CFG.LOGGER.debug(
-            f"Missing reasoning_content error: {exc}. Stripping thinking parts from history."
+    else:
+        lead = (
+            "[SYSTEM] ⛔ STOP. Your last response is BROKEN — "
+            "you called a tool name that does NOT exist.\n"
         )
-        sanitized = strip_thinking_parts(current_history)
+    corrective = lead + (
+        "\nYou likely glued multiple tool names together (e.g., "
+        "`ReadRead`, `ReadReadRead`, `ActivateSkillRead`, `EditEdit`) "
+        "or invented/abbreviated a name. BOTH are INVALID. Concatenated "
+        "names will ALWAYS be rejected. There is no `ReadRead` in any "
+        "tool registry, anywhere.\n\n"
+        "RULES — non-negotiable:\n"
+        "- ONE tool call per response. ONE name. ONE JSON arguments object.\n"
+        "- To do N actions, send N separate responses. Wait for each result.\n"
+        "- Example: reading 3 files = 3 separate responses, ONE `Read` "
+        "each, NEVER one response with `ReadReadRead`.\n"
+        "- Tool names come from the available list — verbatim, "
+        "case-sensitive. Do NOT invent, abbreviate, modify, or combine.\n\n"
+        "Now: emit exactly ONE valid tool call. Pick the single most "
+        "useful next action."
+    )
+    print_fn("\n[SYSTEM] Invalid tool call detected, asking model to retry...")
+    CFG.LOGGER.debug(f"Invalid tool call error: {exc}. Injecting corrective message.")
+    if current_message is not None and isinstance(current_message, str):
         return RetryOutcome(
             should_retry=True,
-            new_history=sanitized,
-            new_message=current_message,
+            new_history=current_history,
+            new_message=current_message + "\n\n" + corrective,
         )
+    return RetryOutcome(
+        should_retry=True,
+        new_history=list(run_history)
+        + [ModelRequest(parts=[UserPromptPart(content=corrective)])],
+        new_message=None,
+    )
 
-    if is_invalid_tool_call_error(exc) and not state.invalid_tool_retry_done:
-        state.invalid_tool_retry_done = True
-        bad_name = _extract_invalid_tool_name(exc, current_history)
-        if bad_name:
-            lead = (
-                "[SYSTEM] ⛔ STOP. Your last response is BROKEN.\n\n"
-                f"You called: `{bad_name}` — this is NOT a real tool. "
-                "It does not exist in the tool registry.\n"
-            )
-        else:
-            lead = (
-                "[SYSTEM] ⛔ STOP. Your last response is BROKEN — "
-                "you called a tool name that does NOT exist.\n"
-            )
-        corrective = lead + (
-            "\nYou likely glued multiple tool names together (e.g., "
-            "`ReadRead`, `ReadReadRead`, `ActivateSkillRead`, `EditEdit`) "
-            "or invented/abbreviated a name. BOTH are INVALID. Concatenated "
-            "names will ALWAYS be rejected. There is no `ReadRead` in any "
-            "tool registry, anywhere.\n\n"
-            "RULES — non-negotiable:\n"
-            "- ONE tool call per response. ONE name. ONE JSON arguments object.\n"
-            "- To do N actions, send N separate responses. Wait for each result.\n"
-            "- Example: reading 3 files = 3 separate responses, ONE `Read` "
-            "each, NEVER one response with `ReadReadRead`.\n"
-            "- Tool names come from the available list — verbatim, "
-            "case-sensitive. Do NOT invent, abbreviate, modify, or combine.\n\n"
-            "Now: emit exactly ONE valid tool call. Pick the single most "
-            "useful next action."
-        )
-        print_fn("\n[SYSTEM] Invalid tool call detected, asking model to retry...")
-        CFG.LOGGER.debug(
-            f"Invalid tool call error: {exc}. Injecting corrective message."
-        )
 
-        if current_message is not None and isinstance(current_message, str):
-            return RetryOutcome(
-                should_retry=True,
-                new_history=current_history,
-                new_message=current_message + "\n\n" + corrective,
-            )
-        return RetryOutcome(
-            should_retry=True,
-            new_history=list(run_history)
-            + [ModelRequest(parts=[UserPromptPart(content=corrective)])],
-            new_message=None,
-        )
+def _retry_with_text_only_history(
+    state: RetryState,
+    exc: Exception,
+    current_history: list[Any],
+    current_message: Any,
+    run_history: list[Any],
+    print_fn: Callable[[str], Awaitable[Any] | Any],
+    min_turns: TurnPruneFloor,
+) -> RetryOutcome | None:
+    """Collapse history to text and retry once, for an unclassified 400.
 
-    # Generic opaque-400 retry: collapse history to text-only and retry once.
-    # This catches any 400 that wasn't classified by the handlers above —
-    # most commonly a model response that can't round-trip through its own
-    # provider (GLM-5 on Bedrock, DeepSeek, local models, …).  Text is the
-    # lowest common denominator every provider accepts.
-    #
-    # An explainer ``UserPromptPart`` is always appended after the strip so
-    # the model knows the ``(sanitized-history)`` markers are a record, not
-    # a tool-calling format to imitate — and that tool use is still expected
-    # on the next turn.
-    if not state.opaque_retry_done:
-        status_code = getattr(exc, "status_code", None)
-        if status_code == 400:
-            state.opaque_retry_done = True
-            sanitized = strip_to_text_only(current_history)
-            explainer = (
-                "[SYSTEM] The conversation history above has been sanitized "
-                "because your previous response could not round-trip through "
-                "the current provider. Lines tagged `(sanitized-history)` are "
-                "a TEXTUAL RECORD of past tool calls and results — they are "
-                "NOT a tool-calling format and you must not imitate them. "
-                "Continue the task using the normal tool-calling protocol: "
-                "emit a real tool call when you need one, not a textual "
-                "imitation."
-            )
-            sanitized = list(sanitized) + [
-                ModelRequest(parts=[UserPromptPart(content=explainer)])
-            ]
-            print_fn(
-                "\n[SYSTEM] Model response rejected by provider — "
-                "collapsing history to text-only and retrying..."
-            )
-            CFG.LOGGER.debug(
-                f"Opaque 400 error: {exc}. Falling back to text-only history."
-            )
-            return RetryOutcome(
-                should_retry=True,
-                new_history=sanitized,
-                new_message=current_message,
-            )
+    Catches any 400 the handlers above did not classify — most commonly a model
+    response that cannot round-trip through its own provider (GLM-5 on Bedrock,
+    DeepSeek, local models). Text is the lowest common denominator every
+    provider accepts. An explainer `UserPromptPart` is always appended after
+    the strip so the model knows the `(sanitized-history)` markers are a
+    record, not a tool-calling format to imitate — and that tool use is still
+    expected on the next turn.
+    """
+    # lazy: heavy third-party — pydantic_ai pulls in OpenAI/Anthropic SDKs.
+    from pydantic_ai.messages import ModelRequest, UserPromptPart
 
-    # Deferred-tool-results mismatch after history compression.
-    # The history summarizer ran between deferred tool iterations and removed
-    # the ModelResponse whose tool_calls matched current_results.  pydantic-ai's
-    # _handle_deferred_tool_results raises UserError because the last ModelResponse
-    # no longer has any ToolCallParts.  Clearing current_results lets the model
-    # generate fresh tool calls on the next iteration.  We must hand back the
-    # intact ``run_history`` (not ``None``) — the runner assigns ``new_history``
-    # to ``current_history`` unconditionally, and the next loop iteration feeds
-    # it straight into ``sanitize_history``, which raises on ``None``.
-    if not state.deferred_mismatch_retry_done:
-        # lazy: heavy third-party — pydantic_ai pulls in OpenAI/Anthropic SDKs.
-        from pydantic_ai.exceptions import UserError as PydanticUserError
+    if state.opaque_retry_done or getattr(exc, "status_code", None) != 400:
+        return None
+    state.opaque_retry_done = True
+    explainer = (
+        "[SYSTEM] The conversation history above has been sanitized "
+        "because your previous response could not round-trip through "
+        "the current provider. Lines tagged `(sanitized-history)` are "
+        "a TEXTUAL RECORD of past tool calls and results — they are "
+        "NOT a tool-calling format and you must not imitate them. "
+        "Continue the task using the normal tool-calling protocol: "
+        "emit a real tool call when you need one, not a textual "
+        "imitation."
+    )
+    sanitized = list(strip_to_text_only(current_history)) + [
+        ModelRequest(parts=[UserPromptPart(content=explainer)])
+    ]
+    print_fn(
+        "\n[SYSTEM] Model response rejected by provider — "
+        "collapsing history to text-only and retrying..."
+    )
+    CFG.LOGGER.debug(f"Opaque 400 error: {exc}. Falling back to text-only history.")
+    return RetryOutcome(
+        should_retry=True, new_history=sanitized, new_message=current_message
+    )
 
-        if isinstance(exc, PydanticUserError) and (
-            "does not contain any unprocessed tool calls" in str(exc)
-            or "does not contain a `ModelResponse`" in str(exc)
-        ):
-            state.deferred_mismatch_retry_done = True
-            print_fn(
-                "\n[SYSTEM] Deferred tool results reference stale history — "
-                "clearing pending results and retrying..."
-            )
-            return RetryOutcome(
-                should_retry=True,
-                new_history=run_history,
-                clear_results=True,
-            )
 
-    return RetryOutcome(should_retry=False)
+def _retry_without_stale_deferred_results(
+    state: RetryState,
+    exc: Exception,
+    current_history: list[Any],
+    current_message: Any,
+    run_history: list[Any],
+    print_fn: Callable[[str], Awaitable[Any] | Any],
+    min_turns: TurnPruneFloor,
+) -> RetryOutcome | None:
+    """Clear pending tool results the summarizer orphaned, and retry.
+
+    The history summarizer ran between deferred tool iterations and removed the
+    `ModelResponse` whose tool_calls matched `current_results`, so pydantic-ai's
+    `_handle_deferred_tool_results` raises `UserError` because the last
+    `ModelResponse` no longer has any `ToolCallPart`s. Clearing the results lets
+    the model generate fresh tool calls on the next iteration. The intact
+    `run_history` is handed back (not `None`): the runner assigns `new_history`
+    to `current_history` unconditionally, and the next loop iteration feeds it
+    straight into `sanitize_history`, which raises on `None`.
+    """
+    # lazy: heavy third-party — pydantic_ai pulls in OpenAI/Anthropic SDKs.
+    from pydantic_ai.exceptions import UserError as PydanticUserError
+
+    if state.deferred_mismatch_retry_done or not isinstance(exc, PydanticUserError):
+        return None
+    if not (
+        "does not contain any unprocessed tool calls" in str(exc)
+        or "does not contain a `ModelResponse`" in str(exc)
+    ):
+        return None
+    state.deferred_mismatch_retry_done = True
+    print_fn(
+        "\n[SYSTEM] Deferred tool results reference stale history — "
+        "clearing pending results and retrying..."
+    )
+    return RetryOutcome(should_retry=True, new_history=run_history, clear_results=True)
 
 
 _INVALID_TOOL_NAME_PATTERNS = (

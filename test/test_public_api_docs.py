@@ -16,6 +16,8 @@ base description is correct there.
 
 import dataclasses
 import inspect
+import sys
+from typing import Unpack, get_origin
 
 import pytest
 
@@ -56,7 +58,15 @@ def _params(cls: type) -> list[str]:
         signature = inspect.signature(cls.__init__)
     except (TypeError, ValueError):  # pragma: no cover - unlikely for our classes
         return []
-    return [name for name in signature.parameters if name != "self"]
+    # `**kwargs: Unpack[SomeParams]` is not a parameter of its own: it names a
+    # set the *parent* documents, and the subclass docstring points at that
+    # parent (asserted separately by
+    # `test_a_forwarding_constructor_names_the_set_it_forwards`).
+    return [
+        name
+        for name, param in signature.parameters.items()
+        if name != "self" and param.kind is not inspect.Parameter.VAR_KEYWORD
+    ]
 
 
 def _inherited_params(cls: type) -> list[str]:
@@ -147,4 +157,80 @@ def test_constructors_document_the_parameters_they_add(class_name):
     assert not missing, (
         f"{class_name}.__init__ does not document {len(missing)} parameter(s) it "
         f"adds: {missing}"
+    )
+
+
+def _is_unpack(annotation: object) -> bool:
+    """Whether `annotation` is `Unpack[...]`.
+
+    An annotation is source text in a module with
+    `from __future__ import annotations` and a typing object otherwise.
+    `repr` is not common ground between the two: CPython renders the object
+    as `*X` before 3.12 and as `typing.Unpack[X]` from 3.12 on.
+    """
+    if isinstance(annotation, str):
+        return annotation.lstrip().startswith("Unpack[")
+    return get_origin(annotation) is Unpack
+
+
+def _forwards_unpacked_kwargs(cls: type) -> bool:
+    """Whether `cls` declares its own `**kwargs: Unpack[SomeParams]`.
+
+    A bare `**kwargs` inherited from `object` or a Protocol is not this — the
+    check is for a constructor that deliberately forwards a named set.
+    """
+    if not _defines_init(cls):
+        return False
+    annotations = getattr(cls.__init__, "__annotations__", {})
+    return any(
+        param.kind is inspect.Parameter.VAR_KEYWORD
+        and _is_unpack(annotations.get(name))
+        for name, param in inspect.signature(cls.__init__).parameters.items()
+    )
+
+
+FORWARDING_CLASSES = [
+    name
+    for name in EXPORTED_NON_DATACLASSES
+    if _forwards_unpacked_kwargs(getattr(zrb, name))
+]
+
+
+def test_forwarding_classes_were_actually_detected():
+    """`FORWARDING_CLASSES` drives a parametrize set, and an empty one passes.
+
+    The list is derived from runtime annotations, so it comes out empty both
+    when no class forwards and when the detection stops working on an
+    interpreter.
+    """
+    assert FORWARDING_CLASSES, (
+        "No exported class was detected as forwarding `**kwargs: Unpack[...]`. "
+        "Either the forwarding was removed, or the detection stopped working "
+        f"on this interpreter (Python {sys.version_info.major}."
+        f"{sys.version_info.minor})."
+    )
+
+
+@pytest.mark.parametrize("class_name", FORWARDING_CLASSES)
+def test_a_forwarding_constructor_names_the_set_it_forwards(class_name):
+    """`**kwargs: Unpack[X]` must still tell a reader what it accepts.
+
+    The parameters are in the type checker and the editor's completion list,
+    but `help(CmdTask)` shows only `**kwargs`. The docstring therefore has to
+    name the class whose parameters flow through — and, where the forwarded
+    set is narrower than that class's, say what it leaves out. Those omissions
+    are enforced at runtime too (`reject_excluded_params`).
+    """
+    # Arrange
+    cls = getattr(zrb, class_name)
+    docstring = cls.__init__.__doc__ or ""
+    # Act
+    names_a_parent = any(
+        f"`{ancestor.__name__}`" in docstring for ancestor in cls.__mro__[1:]
+    )
+    # Assert
+    assert names_a_parent, (
+        f"{class_name}.__init__ forwards **kwargs but its docstring never names "
+        f"the class those parameters come from, so `help({class_name})` shows "
+        "them as an opaque **kwargs. Name the parent, and state any exclusions."
     )

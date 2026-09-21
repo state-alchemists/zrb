@@ -55,7 +55,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         self._uis = uis
         self._main_ui_index = main_ui_index
         self._responses: dict[int, asyncio.Future[str]] = {}
-        self.last_output: str = ""
+        self._last_output: str = ""
         self._shutdown_event: asyncio.Event | None = None
         self._child_tasks: list[asyncio.Task] = []
         self._pending_input_tasks: list[asyncio.Task] = []
@@ -143,17 +143,39 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         return self._uis[self._main_ui_index] if self._uis else None
 
     @property
+    def last_output(self) -> str:
+        """The last answer rendered through this MultiUI."""
+        return self._last_output
+
+    @last_output.setter
+    def last_output(self, value: str) -> None:
+        self._last_output = value
+
+    @property
     def small_model(self):
         """The main child's `/model small ...` override (delegated so the agent
         runner's `run_agent` binds `current_small_model` from the MultiUI itself
         rather than seeing `None` and falling back to CFG)."""
-        return getattr(self.main_ui, "small_model", None)
+        return self.main_ui.small_model if self.main_ui is not None else None
+
+    @small_model.setter
+    def small_model(self, value: Any) -> None:
+        """Write through to the main child, so a `/model small ...` applied to
+        the MultiUI lands where `small_model` is read back from."""
+        if self.main_ui is not None:
+            self.main_ui.small_model = value
 
     @property
     def multimodal_model(self):
         """The main child's `/model multimodal ...` override — same delegation
         rationale as `small_model`."""
-        return getattr(self.main_ui, "multimodal_model", None)
+        return self.main_ui.multimodal_model if self.main_ui is not None else None
+
+    @multimodal_model.setter
+    def multimodal_model(self, value: Any) -> None:
+        """Write through to the main child — same rationale as `small_model`."""
+        if self.main_ui is not None:
+            self.main_ui.multimodal_model = value
 
     @property
     def message_queue(self) -> "MessageQueue":
@@ -330,6 +352,34 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         """Replay loaded history on every child UI that supports it."""
         self._fanout("replay_history", messages)
 
+    async def _take_pre_turn_snapshot(self, user_message: str, timestamp: str) -> None:
+        """Snapshot the filesystem before an AI turn, best-effort.
+
+        Also records the message count so a rewind can restore conversation
+        history to a consistent state. Failures are non-fatal — the AI turn
+        must proceed regardless. Mirrors `BaseUI._stream_ai_response`.
+        """
+        main_ui = self.main_ui
+        if main_ui is None:
+            return
+        snapshot_manager = main_ui.snapshot_manager
+        if snapshot_manager is None:
+            return
+        try:
+            label = user_message[:80].replace("\n", " ").strip()
+            history_manager = main_ui.history_manager
+            session_name = main_ui.conversation_session_name
+            messages = (
+                history_manager.load(session_name)
+                if history_manager is not None
+                else []
+            )
+            await snapshot_manager.take_snapshot(
+                f"{timestamp}: {label}", message_count=len(messages)
+            )
+        except Exception as snap_err:
+            logger.warning(f"Snapshot skipped: {snap_err}")
+
     async def stream_ai_response(
         self,
         llm_task: Any,
@@ -348,24 +398,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             # count so that a rewind can restore conversation history to a
             # consistent state). Failures are non-fatal — the AI turn must
             # proceed regardless. Mirrors BaseUI._stream_ai_response.
-            snapshot_manager = getattr(self.main_ui, "snapshot_manager", None)
-            if snapshot_manager is not None:
-                try:
-                    label = user_message[:80].replace("\n", " ").strip()
-                    current_msgs = getattr(self.main_ui, "history_manager", None)
-                    session_name = getattr(
-                        self.main_ui, "conversation_session_name", ""
-                    )
-                    msgs = (
-                        current_msgs.load(session_name)
-                        if current_msgs is not None
-                        else []
-                    )
-                    await snapshot_manager.take_snapshot(
-                        f"{timestamp}: {label}", message_count=len(msgs)
-                    )
-                except Exception as snap_err:
-                    logger.warning(f"Snapshot skipped: {snap_err}")
+            await self._take_pre_turn_snapshot(user_message, timestamp)
             self.append_to_output(f"\n🤖 {timestamp} >>\n")
             self.append_to_output(stylize_muted("\n  🔢 Streaming response..."))
 
@@ -373,7 +406,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             # so the agent inherits the mode set by /plan on the main UI.
             set_current_agent_mode(
                 AgentMode.PLAN
-                if getattr(self.main_ui, "plan_mode_active", False)
+                if self.main_ui is not None and self.main_ui.plan_mode_active
                 else AgentMode.BUILD
             )
 
@@ -381,10 +414,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             llm_task.set_ui(self)
             llm_task.tool_confirmation = self.confirm_tool_execution
 
-            async def run_task():
-                return await llm_task.async_run(session)
-
-            task = asyncio.create_task(run_task())
+            task = asyncio.create_task(llm_task.async_run(session))
             self._running_llm_task = task
 
             try:
@@ -401,16 +431,15 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             # Sync plan mode after LLM response (tools like EnterPlanMode set
             # the ContextVar which is visible here in the same Task context), so
             # the main UI's /plan badge follows in-run mode changes.
-            if hasattr(self.main_ui, "plan_mode_active"):
+            if self.main_ui is not None:
                 self.main_ui.plan_mode_active = (
                     get_current_agent_mode() == AgentMode.PLAN
                 )
 
-            if result_data is not None:
-                if isinstance(result_data, str):
-                    self._last_result_data = result_data
-                    self.append_to_output("\n")
-                    self.append_markdown(result_data)
+            if isinstance(result_data, str):
+                self._last_result_data = result_data
+                self.append_to_output("\n")
+                self.append_markdown(result_data)
 
         except asyncio.CancelledError:
             self.append_to_output("\n[Cancelled]\n")
@@ -460,14 +489,25 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         user_message: str,
         attachments: list[Any],
     ) -> Any:
-        """Create session for LLM task."""
+        """Create session for LLM task.
 
+        The run's session name, approval mode and model come from the *primary*
+        child -- the one `main_ui_index` names and whose event loop drives the
+        session -- not from `_uis[0]`, which is only the same child at the
+        default index.
+        """
+        main_ui = self.main_ui
+        if main_ui is None:
+            raise RuntimeError(
+                "MultiUI has no attached UI to take the session name, approval "
+                "mode and model from — construct it with at least one UI."
+            )
         session_input = {
             "message": user_message,
-            "session": getattr(self._uis[0], "conversation_session_name", "default"),
-            "yolo": getattr(self._uis[0], "yolo", False),
+            "session": main_ui.conversation_session_name or "default",
+            "yolo": main_ui.yolo,
             "attachments": attachments,
-            "model": getattr(self._uis[0], "model", None),
+            "model": main_ui.model,
         }
         shared_ctx = SharedContext(
             input=session_input,
@@ -504,9 +544,10 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             result = await self._approval_channel.request_approval(context)
             return result.to_pydantic_result()
 
-        # Final fallback: use default handler from first UI
-        if self._uis and self._uis[0].tool_call_handler is not None:
-            return await self._uis[0].tool_call_handler.handle(self, call)
+        # Final fallback: the primary child's own handler.
+        main_ui = self.main_ui
+        if main_ui is not None and main_ui.tool_call_handler is not None:
+            return await main_ui.tool_call_handler.handle(self, call)
 
         raise RuntimeError(
             "MultiUI has no attached UI and no approval channel that can "
@@ -769,7 +810,8 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
 
     async def run_async(self) -> str:
         """Run all child UIs and the shared message loop."""
-        if not self.main_ui:
+        main_ui = self.main_ui
+        if main_ui is None:
             return ""
 
         self._last_result_data = None
@@ -778,15 +820,14 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
 
         self._process_messages_task = asyncio.create_task(self.process_messages_loop())
 
-        if hasattr(self.main_ui, "llm_task"):
-            self.set_llm_task(self.main_ui.llm_task)
+        self.set_llm_task(main_ui.llm_task)
 
         for i, ui in enumerate(self._uis):
             if i != self._main_ui_index:
                 task = asyncio.create_task(self._start_child_ui(ui))
                 self._child_tasks.append(task)
 
-        main_task = asyncio.create_task(self.main_ui.run_async())
+        main_task = asyncio.create_task(main_ui.run_async())
 
         try:
             await main_task
@@ -828,7 +869,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         self.last_output = (
             self._last_result_data
             if self._last_result_data is not None
-            else getattr(self.main_ui, "last_output", "")
+            else (self.main_ui.last_output if self.main_ui is not None else "")
         )
         return self.last_output
 

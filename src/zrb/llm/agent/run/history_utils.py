@@ -325,44 +325,10 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
     ``_TOOL_RESULT_MAX_CHARS``.
     """
     from pydantic_ai.messages import (  # lazy: heavy third-party
-        BaseToolCallPart,
-        BaseToolReturnPart,
         ModelRequest,
         ModelResponse,
-        RetryPromptPart,
-        SystemPromptPart,
         TextPart,
-        ThinkingPart,
-        ToolReturnPart,
-        UserPromptPart,
     )
-
-    def _sanitize_content(part: Any) -> Any:
-        if hasattr(part, "content"):
-            content = part.content
-            if content is None or (isinstance(content, str) and not content.strip()):
-                return replace(part, content=EMPTY_CONTENT_PLACEHOLDER)
-        return part
-
-    def _normalize_for_response(part: Any) -> Any:
-        if isinstance(part, BaseToolCallPart):
-            return TextPart(content=_tool_call_to_text(part))
-        if isinstance(part, BaseToolReturnPart):
-            return TextPart(content=_tool_return_to_text(part))
-        if isinstance(part, ThinkingPart):
-            return TextPart(content=_thinking_part_content(part))
-        return _sanitize_content(part)
-
-    def _normalize_for_request(part: Any) -> Any:
-        if isinstance(part, ToolReturnPart):
-            return UserPromptPart(content=_tool_return_to_text(part))
-        if isinstance(part, RetryPromptPart) and getattr(part, "tool_name", None):
-            # tool-linked retry behaves like a tool-role message in the API —
-            # collapse it to a user-role text bucket so no tool_call_id survives.
-            return UserPromptPart(content=_retry_prompt_to_text(part))
-        if isinstance(part, (UserPromptPart, SystemPromptPart, RetryPromptPart)):
-            return _sanitize_content(part)
-        return part
 
     result = []
     for msg in history:
@@ -383,6 +349,53 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
     if not result:
         return history
     return result
+
+
+def _sanitize_content(part: Any) -> Any:
+    """Replace empty or whitespace-only content with the empty placeholder."""
+    if hasattr(part, "content"):
+        content = part.content
+        if content is None or (isinstance(content, str) and not content.strip()):
+            return replace(part, content=EMPTY_CONTENT_PLACEHOLDER)
+    return part
+
+
+def _normalize_for_response(part: Any) -> Any:
+    """Collapse one `ModelResponse` part to what the assistant role accepts."""
+    from pydantic_ai.messages import (  # lazy: heavy third-party
+        BaseToolCallPart,
+        BaseToolReturnPart,
+        TextPart,
+        ThinkingPart,
+    )
+
+    if isinstance(part, BaseToolCallPart):
+        return TextPart(content=_tool_call_to_text(part))
+    if isinstance(part, BaseToolReturnPart):
+        return TextPart(content=_tool_return_to_text(part))
+    if isinstance(part, ThinkingPart):
+        return TextPart(content=_thinking_part_content(part))
+    return _sanitize_content(part)
+
+
+def _normalize_for_request(part: Any) -> Any:
+    """Collapse one `ModelRequest` part to what the user role accepts."""
+    from pydantic_ai.messages import (  # lazy: heavy third-party
+        RetryPromptPart,
+        SystemPromptPart,
+        ToolReturnPart,
+        UserPromptPart,
+    )
+
+    if isinstance(part, ToolReturnPart):
+        return UserPromptPart(content=_tool_return_to_text(part))
+    if isinstance(part, RetryPromptPart) and getattr(part, "tool_name", None):
+        # tool-linked retry behaves like a tool-role message in the API —
+        # collapse it to a user-role text bucket so no tool_call_id survives.
+        return UserPromptPart(content=_retry_prompt_to_text(part))
+    if isinstance(part, (UserPromptPart, SystemPromptPart, RetryPromptPart)):
+        return _sanitize_content(part)
+    return part
 
 
 def _tool_call_to_text(part: Any) -> str:

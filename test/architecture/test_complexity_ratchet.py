@@ -28,13 +28,14 @@ SRC = str(REPO_ROOT / "src" / "zrb")
 # a long function is fine vs not); raising either needs a one-line reason in
 # the same diff, like the facade and constructor budgets.
 #
-# mccabe 19 is held by three functions: `strip_to_text_only`,
-# `_execution_loop`, `_load_or_reindex`. radon 20 is held by two:
-# `_execution_loop` and `LLMLimiter.to_str`. None of the five is
-# closure-inflated (each scores within a point or two on both tools), so the
-# next step down is real refactoring, not a `# noqa`.
-MCCABE_LIMIT = 19
-RADON_LIMIT = 20
+# mccabe 15 is held by three functions: `fit_context_window`,
+# `_prune_old_subagent_history`, and `BaseUIExecCommands.run_shell_command`.
+# radon 15 is held by eight, among them `process_deferred_requests`,
+# `classify_error_type` and `run_and_cleanup`. None is closure-inflated (each
+# scores within a point or two on both tools), so the next step down is real
+# refactoring, not a `# noqa`.
+MCCABE_LIMIT = 15
+RADON_LIMIT = 15
 
 
 def test_mccabe_complexity_ratchet():

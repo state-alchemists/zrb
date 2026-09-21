@@ -26,38 +26,13 @@ def split_history(
 
     tool_pairs = get_tool_pairs(messages)
     # Try to keep summary_window messages, but at least 1 and at most all messages
-    target_keep_count = min(summary_window, len(messages))
-    target_idx = len(messages) - target_keep_count
+    target_idx = len(messages) - min(summary_window, len(messages))
+    budget = conversational_token_threshold * 0.7
 
-    # 1. Search backwards from target_idx to find a safe turn start (keeping MORE messages)
-    start_idx = min(target_idx, len(messages) - 1)
-
-    for split_idx in range(start_idx, 0, -1):
-        to_keep = messages[split_idx:]
-        tokens_to_keep = limiter.count_tokens(to_keep)
-
-        if tokens_to_keep > conversational_token_threshold * 0.7:
-            break
-
-        if is_split_safe(messages, split_idx, tool_pairs):
-            if is_turn_start(messages[split_idx]):
-                return messages[:split_idx], messages[split_idx:]
-
-    # 2. Search forwards from target_idx (keeping FEWER messages)
-    best_safe_idx = -1
-    for split_idx in range(target_idx, len(messages)):
-        to_keep = messages[split_idx:]
-        tokens_to_keep = limiter.count_tokens(to_keep)
-
-        if tokens_to_keep <= conversational_token_threshold * 0.7:
-            if is_split_safe(messages, split_idx, tool_pairs):
-                if best_safe_idx == -1:
-                    best_safe_idx = split_idx
-                if is_turn_start(messages[split_idx]):
-                    return messages[:split_idx], messages[split_idx:]
-
-    if best_safe_idx != -1:
-        return messages[:best_safe_idx], messages[best_safe_idx:]
+    for search in (_search_back_from_target, _search_forward_from_target):
+        split_idx = search(messages, target_idx, limiter, budget, tool_pairs)
+        if split_idx is not None:
+            return messages[:split_idx], messages[split_idx:]
 
     # 3. Fallback to finding the largest safe split under 80% token threshold
     split_idx = find_safe_split_index(
@@ -70,16 +45,63 @@ def split_history(
     to_summarize, to_keep = find_best_effort_split(
         messages, limiter, conversational_token_threshold, tool_pairs
     )
-    if not to_summarize and not to_keep and messages:
-        # Absolute last resort: keep as few messages as possible while still
-        # respecting tool pairs. Walk backwards until we find a safe split.
-        for split_idx in range(len(messages) - 1, 0, -1):
-            if is_split_safe(messages, split_idx, tool_pairs):
-                return messages[:split_idx], messages[split_idx:]
-        # Cannot split without breaking a pair — summarize everything.
-        return messages, []
+    if to_summarize or to_keep:
+        return to_summarize, to_keep
 
-    return to_summarize, to_keep
+    # Absolute last resort: keep as few messages as possible while still
+    # respecting tool pairs. Walk backwards until we find a safe split.
+    for split_idx in range(len(messages) - 1, 0, -1):
+        if is_split_safe(messages, split_idx, tool_pairs):
+            return messages[:split_idx], messages[split_idx:]
+    # Cannot split without breaking a pair — summarize everything.
+    return messages, []
+
+
+def _search_back_from_target(
+    messages: list[Any],
+    target_idx: int,
+    limiter: LLMLimiter,
+    budget: float,
+    tool_pairs: dict,
+) -> int | None:
+    """Walk back from the target for a turn start, keeping MORE messages.
+
+    Stops as soon as the retained side outgrows `budget`, since walking
+    further back only makes it larger.
+    """
+    for split_idx in range(min(target_idx, len(messages) - 1), 0, -1):
+        if limiter.count_tokens(messages[split_idx:]) > budget:
+            return None
+        if is_split_safe(messages, split_idx, tool_pairs) and is_turn_start(
+            messages[split_idx]
+        ):
+            return split_idx
+    return None
+
+
+def _search_forward_from_target(
+    messages: list[Any],
+    target_idx: int,
+    limiter: LLMLimiter,
+    budget: float,
+    tool_pairs: dict,
+) -> int | None:
+    """Walk forward from the target, keeping FEWER messages.
+
+    Prefers the first turn start that fits the budget, and falls back to the
+    earliest merely-safe split when no turn start does.
+    """
+    best_safe_idx = None
+    for split_idx in range(target_idx, len(messages)):
+        if limiter.count_tokens(messages[split_idx:]) > budget:
+            continue
+        if not is_split_safe(messages, split_idx, tool_pairs):
+            continue
+        if best_safe_idx is None:
+            best_safe_idx = split_idx
+        if is_turn_start(messages[split_idx]):
+            return split_idx
+    return best_safe_idx
 
 
 def find_safe_split_index(

@@ -1,34 +1,9 @@
-from unittest.mock import patch
-
-import pytest
-
 from zrb.llm.lsp.configs import (
     LSPServerConfig,
     LSPServerConfigRegistry,
-    detect_available_lsp_servers,
     detect_language_from_file,
-    get_lsp_config_for_file,
     lsp_server_configs,
 )
-
-
-@pytest.fixture(autouse=True)
-def _cleanup_global_registry():
-    """Clear any user-registered entries from the global singleton.
-
-    Tests in other modules (e.g. ``test_lsp_manager.py``) may call
-    ``register_lsp_server`` on the shared singleton. Clearing before
-    each test here keeps delegation tests deterministic.
-
-    Cleared after as well, not just before: clearing only on the way in
-    protects *these* tests from everyone else while leaking their own
-    registrations — and the ``_detected`` PATH scan these tests cache under a
-    mocked ``shutil.which`` — into whichever unrelated test pytest-xdist runs
-    next in this worker.
-    """
-    lsp_server_configs.clear()
-    yield
-    lsp_server_configs.clear()
 
 
 def test_matches_file():
@@ -44,157 +19,12 @@ def test_matches_file():
     assert config.matches_file("no_extension") is False
 
 
-@patch("shutil.which")
-def test_detect_available_lsp_servers(mock_which):
-    def which_side_effect(cmd):
-        # pyright's LSP server binary is `pyright-langserver`, not `pyright`
-        # (the latter is the CLI type-checker). Detection keys off command[0].
-        if cmd == "pyright-langserver":
-            return "/usr/bin/pyright-langserver"
-        if cmd == "pylsp":
-            return "/usr/bin/pylsp"
-        return None
-
-    mock_which.side_effect = which_side_effect
-
-    available = detect_available_lsp_servers()
-
-    assert "pyright" in available
-    assert available["pyright"] == "/usr/bin/pyright-langserver"
-    assert "pylsp" in available
-    assert available["pylsp"] == "/usr/bin/pylsp"
-    assert "jedi" not in available
-    assert "gopls" not in available
-
-
-@patch("shutil.which")
-def test_get_lsp_config_for_file(mock_which):
-    def which_side_effect(cmd):
-        if cmd == "pyright-langserver":
-            return "/usr/bin/pyright-langserver"
-        if cmd == "gopls":
-            return "/usr/bin/gopls"
-        return None
-
-    mock_which.side_effect = which_side_effect
-
-    # Test file matches pyright
-    config = get_lsp_config_for_file("script.py")
-    assert config is not None
-    assert config.name == "pyright"
-
-    # Test file matches gopls
-    config = get_lsp_config_for_file("main.go")
-    assert config is not None
-    assert config.name == "gopls"
-
-    # Test file doesn't match any available server
-    config = get_lsp_config_for_file("style.css")
-    assert config is None
-
-
-@patch("shutil.which")
-def test_get_lsp_config_for_file_with_preferred(mock_which):
-    def which_side_effect(cmd):
-        if cmd == "pyright-langserver":
-            return "/usr/bin/pyright-langserver"
-        if cmd == "pylsp":
-            return "/usr/bin/pylsp"
-        return None
-
-    mock_which.side_effect = which_side_effect
-
-    # preferred server 'pylsp' should be chosen over 'pyright'
-    config = get_lsp_config_for_file("script.py", preferred_servers=["pylsp"])
-    assert config is not None
-    assert config.name == "pylsp"
-
-    # preferred server 'not_exist' is not available, should fallback to available ones
-    config = get_lsp_config_for_file("script.py", preferred_servers=["not_exist"])
-    assert config is not None
-    assert config.name == "pyright" or config.name == "pylsp"
-
-
-@patch("shutil.which", return_value=None)
-def test_detect_caches_the_path_scan(mock_which):
-    """The ``$PATH`` probe runs once, not on every call.
-
-    Each miss walks every ``$PATH`` entry (~18ms where PATH includes WSL2's
-    ``/mnt/c/...``), and ``get_for_file`` runs on every agent file edit via the
-    post-write diagnostics — uncached that cost ~1s per edit.
-    """
-    registry = LSPServerConfigRegistry()
-
-    registry.detect()
-    after_first = mock_which.call_count
-    registry.detect()
-    registry.get_for_file("x.py")
-
-    assert after_first > 0
-    assert mock_which.call_count == after_first
-
-
-@patch("shutil.which", return_value=None)
-def test_detect_cache_invalidated_by_register_and_clear(mock_which):
-    """A newly registered server must be visible immediately."""
-    registry = LSPServerConfigRegistry()
-    registry.detect()
-    baseline = mock_which.call_count
-
-    registry.register(
-        "custom",
-        LSPServerConfig(
-            name="custom",
-            command=["custom-lsp"],
-            language_ids=["custom"],
-            file_extensions=[".cst"],
-        ),
-    )
-    registry.detect()
-    assert mock_which.call_count > baseline
-
-    after_register = mock_which.call_count
-    registry.clear()
-    registry.detect()
-    assert mock_which.call_count > after_register
-
-
-@patch("shutil.which", return_value=None)
-def test_invalidate_detection_forces_a_rescan(mock_which):
-    """The documented escape hatch for the cache's staleness ceiling.
-
-    A server installed mid-session is invisible until the probe re-runs; this is
-    the only way to get it without re-registering a config.
-    """
-    registry = LSPServerConfigRegistry()
-    registry.detect()
-    baseline = mock_which.call_count
-
-    registry.detect()
-    assert mock_which.call_count == baseline  # still cached
-
-    registry.invalidate_detection()
-    registry.detect()
-    assert mock_which.call_count > baseline
-
-
-@patch("shutil.which", return_value=None)
-def test_detect_result_is_not_shared_mutable_state(mock_which):
-    """Callers get a copy — mutating the result must not poison the cache."""
-    registry = LSPServerConfigRegistry()
-    registry.detect()["injected"] = "/nope"
-    assert "injected" not in registry.detect()
-
-
 def test_detect_language_from_file():
     assert detect_language_from_file("script.py") == "python"
     assert detect_language_from_file("main.go") == "go"
     assert detect_language_from_file("index.ts") == "typescript"
     assert detect_language_from_file("unknown.ext") is None
     assert detect_language_from_file("no_extension") is None
-
-
-# ── LSPServerConfigRegistry tests -------------------------------------------
 
 
 class TestLSPServerConfigRegistry:
@@ -279,79 +109,8 @@ class TestLSPServerConfigRegistry:
         result.clear()
         assert self.registry.get("pyright") is not None
 
-    @patch("shutil.which")
-    def test_detect_with_user_registered(self, mock_which):
-        def which_side_effect(cmd):
-            if cmd == "my-lsp-server":
-                return "/usr/bin/my-lsp-server"
-            return None
-
-        mock_which.side_effect = which_side_effect
-
-        custom = LSPServerConfig(
-            name="my-lang-lsp",
-            command=["my-lsp-server", "--stdio"],
-            language_ids=["mylang"],
-            file_extensions=[".my"],
-        )
-        self.registry.register("my-lang-lsp", custom)
-
-        available = self.registry.detect()
-        assert "my-lang-lsp" in available
-        assert available["my-lang-lsp"] == "/usr/bin/my-lsp-server"
-
-    @patch("shutil.which")
-    def test_get_for_file_with_user_registered(self, mock_which):
-        def which_side_effect(cmd):
-            if cmd == "my-lsp-server":
-                return "/usr/bin/my-lsp-server"
-            return None
-
-        mock_which.side_effect = which_side_effect
-
-        custom = LSPServerConfig(
-            name="my-lang-lsp",
-            command=["my-lsp-server", "--stdio"],
-            language_ids=["mylang"],
-            file_extensions=[".my"],
-        )
-        self.registry.register("my-lang-lsp", custom)
-
-        config = self.registry.get_for_file("source.my")
-        assert config is not None
-        assert config.name == "my-lang-lsp"
-
-        config = self.registry.get_for_file("other.py")
-        assert config is None
-
-    @patch("shutil.which")
-    def test_get_for_file_preferred_with_user_override(self, mock_which):
-        def which_side_effect(cmd):
-            if cmd == "my-lsp-server":
-                return "/usr/bin/my-lsp-server"
-            if cmd == "pyright-langserver":
-                return "/usr/bin/pyright-langserver"
-            return None
-
-        mock_which.side_effect = which_side_effect
-
-        custom = LSPServerConfig(
-            name="my-lang-lsp",
-            command=["my-lsp-server", "--stdio"],
-            language_ids=["python"],
-            file_extensions=[".py"],
-        )
-        self.registry.register("my-lang-lsp", custom)
-
-        config = self.registry.get_for_file(
-            "script.py", preferred_servers=["my-lang-lsp"]
-        )
-        assert config is not None
-        assert config.name == "my-lang-lsp"
-
-    @patch("shutil.which")
-    def test_detect_language_with_user_registered(self, mock_which):
-        mock_which.return_value = "/usr/bin/my-lsp-server"
+    def test_detect_language_with_user_registered(self, lsp_on_path):
+        lsp_on_path("my-lsp-server")
 
         custom = LSPServerConfig(
             name="my-lang-lsp",

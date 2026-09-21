@@ -100,19 +100,8 @@ async def run_shell_command(
     timeout.
     """
     if background:
-        # lazy: zrb internal — keeps the background registry off the hot
-        # path most Shell calls take (foreground, non-backgrounded).
-        from zrb.llm.tool.shell_background import get_shell_background_registry
-
-        try:
-            handle = await get_shell_background_registry().start(
-                command, cwd, description, shell, dangerously_skip_sandbox
-            )
-        except SandboxUnavailableError as e:
-            return format_sandbox_denied_message(e)
-        return (
-            f"Started background process. Handle: {handle}. "
-            "Call MonitorProcess with this handle to check status."
+        return await _start_background_shell(
+            command, cwd, description, shell, dangerously_skip_sandbox
         )
     if max_chars < 0:
         max_chars = CFG.LLM_MAX_OUTPUT_CHARS
@@ -150,21 +139,10 @@ async def run_shell_command(
         # readers are always present here (the type is StreamReader | None).
         assert process.stdout is not None and process.stderr is not None
 
-        echo_cap = CFG.LLM_MAX_CONSOLE_OUTPUT_CHARS
         ui = get_current_ui()
-        supports_live_collapse = (
-            ui is not None
-            and callable(getattr(ui, "update_shell_output", None))
-            and callable(getattr(ui, "finish_shell_output", None))
-        )
-        # print_live=False when the UI has a better mechanism: StreamCapture
-        # would otherwise show the same output twice (its own zrb_print
-        # *and* the collapsible live line below).
-        stdout_cap = StreamCapture(
-            max_chars, echo_cap, print_live=not supports_live_collapse
-        )
-        stderr_cap = StreamCapture(
-            max_chars, echo_cap, print_live=not supports_live_collapse
+        supports_live_collapse = _supports_live_collapse(ui)
+        stdout_cap, stderr_cap = _build_stream_captures(
+            max_chars, supports_live_collapse
         )
         output_key = f"shell-{id(stdout_cap)}"
         on_chunk = (
@@ -240,6 +218,55 @@ async def run_shell_command(
             "[SYSTEM SUGGESTION]: Check the command syntax and that any "
             "referenced files or programs exist, then retry."
         )
+
+
+async def _start_background_shell(
+    command: str,
+    cwd: str,
+    description: str,
+    shell: str,
+    dangerously_skip_sandbox: bool,
+) -> str:
+    """Hand the command to the background registry and report its handle."""
+    # lazy: zrb internal — keeps the background registry off the hot
+    # path most Shell calls take (foreground, non-backgrounded).
+    from zrb.llm.tool.shell_background import get_shell_background_registry
+
+    try:
+        handle = await get_shell_background_registry().start(
+            command, cwd, description, shell, dangerously_skip_sandbox
+        )
+    except SandboxUnavailableError as e:
+        return format_sandbox_denied_message(e)
+    return (
+        f"Started background process. Handle: {handle}. "
+        "Call MonitorProcess with this handle to check status."
+    )
+
+
+def _supports_live_collapse(ui: Any) -> bool:
+    """Whether `ui` can render the command's output as one collapsible line."""
+    return (
+        ui is not None
+        and callable(getattr(ui, "update_shell_output", None))
+        and callable(getattr(ui, "finish_shell_output", None))
+    )
+
+
+def _build_stream_captures(
+    max_chars: int, supports_live_collapse: bool
+) -> tuple[StreamCapture, StreamCapture]:
+    """A stdout/stderr capture pair.
+
+    `print_live=False` when the UI has a better mechanism: `StreamCapture`
+    would otherwise show the same output twice (its own `zrb_print` *and* the
+    collapsible live line).
+    """
+    echo_cap = CFG.LLM_MAX_CONSOLE_OUTPUT_CHARS
+    return (
+        StreamCapture(max_chars, echo_cap, print_live=not supports_live_collapse),
+        StreamCapture(max_chars, echo_cap, print_live=not supports_live_collapse),
+    )
 
 
 async def _kill_if_still_running(process: "asyncio.subprocess.Process | None") -> None:
