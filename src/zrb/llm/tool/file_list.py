@@ -62,9 +62,11 @@ def list_files(
     ] = False,
 ) -> dict[str, Any]:
     """
-    Recursively lists files up to 3 levels deep. Auto-excludes .git, node_modules,
-    __pycache__, etc. Pass exclude_patterns=[] to include all. Dotfiles are hidden
-    by default; use include_hidden=True to surface them.
+    Lists a directory tree, for orienting in an unfamiliar area of a project.
+
+    When you already know the name or extension you want, Glob is narrower;
+    when you want what is *inside* the files, Grep. Listing a large tree to
+    locate one file you could have named is the expensive way to find it.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
@@ -118,9 +120,10 @@ def glob_files(
     ] = False,
 ) -> dict[str, Any]:
     """
-    Finds files matching glob patterns (e.g. **/*.py). Auto-excludes .git, node_modules,
-    __pycache__, etc. Pass exclude_patterns=[] to include all. Dotfiles are hidden
-    by default; use include_hidden=True to match them.
+    Finds files by name or extension, anywhere under a directory.
+
+    This searches paths, not contents — use Grep to search what is inside the
+    files, and LS when you do not yet know what you are looking for.
     """
     found_files = []
     abs_path = os.path.abspath(os.path.expanduser(path))

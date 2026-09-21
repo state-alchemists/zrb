@@ -25,7 +25,9 @@ def test_profile_section_uses_the_active_profile(monkeypatch):
     prompt = PromptManager(
         include_sections=["profile"], skill_manager=None
     ).compose_prompt()(_ctx())
-    assert "Take strong ownership" in prompt
+    # A phrase only profile.capable.md carries, so this fails if the section
+    # silently falls back to the default (standard) profile.
+    assert "batch independent investigation" in prompt
 
 
 def test_appended_prompts_and_middleware_remain_supported():

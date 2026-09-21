@@ -18,7 +18,7 @@ def search_journal(
     ] = False,
 ) -> dict[str, Any]:
     """
-    Searches for a regex pattern across all journal files in the configured journal directory.
+    Searches the journal for a regex pattern.
 
     Returns matching lines with file names and line numbers. A zero-hit search
     suggests nearby note titles under `did_you_mean`.

@@ -12,7 +12,10 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import AsyncMock, patch
 
-from zrb.llm.tool.post_write_check import format_post_write_diagnostics
+from zrb.llm.tool.post_write_check import (
+    compose_write_result,
+    format_post_write_diagnostics,
+)
 
 
 def _run(coro):
@@ -78,8 +81,10 @@ def test_diagnostic_carries_actionable_system_suggestion(tmp_path):
     # to rewrite from memory — the exact move that once shipped a regression.
     assert "whole file" not in result
     assert "`Write`" not in result
-    # Contradicts the caller's "Successfully updated ..." framing.
+    # The verdict lives in this block and nowhere else, and leads it — the
+    # caller composes it ahead of its own outcome line rather than repeating it.
     assert "treat this as a failed edit" in result
+    assert result.startswith("FAILED:")
 
 
 def test_clean_file_emits_no_suggestion(tmp_path):
@@ -147,3 +152,29 @@ def test_lsp_returning_non_dict_does_not_crash(tmp_path):
     ):
         result = _run(format_post_write_diagnostics(str(path)))
     assert result == ""
+
+
+def test_compose_write_result_passes_a_clean_outcome_through():
+    """No diagnostics means the tool result is exactly its outcome line."""
+    assert compose_write_result("Successfully wrote to a.py", "") == (
+        "Successfully wrote to a.py"
+    )
+
+
+def test_compose_write_result_leads_with_the_failure():
+    """A broken write must not open with "Successfully". The first words of a
+    tool result frame everything after them, so a result that opens with
+    success reads as a completed step however firmly the body contradicts it —
+    the shape that produced 81 consecutive blind edits. The outcome line is
+    kept (the replacement count and fuzzy note are real signal) but demoted."""
+    result = compose_write_result(
+        "Successfully updated a.py (1 replacement(s))",
+        "FAILED: the bytes reached disk, but a.py is now broken — treat this "
+        "as a failed edit, not a completed one.\n[DIAGNOSTIC]: 1 error(s):",
+    )
+
+    assert result.startswith("FAILED:")
+    assert not result.startswith("Successfully")
+    # Demoted, not dropped.
+    assert "1 replacement(s)" in result
+    assert result.index("[DIAGNOSTIC]") < result.index("Successfully updated")

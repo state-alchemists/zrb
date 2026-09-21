@@ -111,7 +111,7 @@ async def open_web_page(
         return {
             "error": (
                 f"Failed to fetch content from {url}: {str(e)}. "
-                "[SYSTEM SUGGESTION] The page may be temporarily unreachable, "
+                "[SYSTEM SUGGESTION]: The page may be temporarily unreachable, "
                 "blocked, or slow — retry once, try a different URL, or use "
                 "WebSearch instead."
             ),
@@ -144,6 +144,7 @@ async def open_web_page(
         summarized_content = await _summarize_web_content(markdown_content, url)
         return {
             "content": summarized_content,
+            "content_is": UNTRUSTED_DATA_NOTE,
             "links_on_page": links,
             "summarized": True,
             "truncated": truncated,
@@ -151,8 +152,11 @@ async def open_web_page(
         }
 
     # The summarize=True path is injection-hardened inside the sub-agent's
-    # own prompt (markdown/web_summarizer.md). Raw content reaches the main
-    # agent unfiltered, so it carries the same claim as a field.
+    # own prompt (markdown/web_summarizer.md), but the summary still carries
+    # untrusted bytes from an external page — the site's own text, echoed
+    # back through the quotes the summarizer is told to preserve. Both paths
+    # therefore carry the same untrusted-data claim, so neither can read as
+    # agent-authored.
     return {
         "content": markdown_content,
         "content_is": UNTRUSTED_DATA_NOTE,

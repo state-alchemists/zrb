@@ -106,6 +106,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0048** — [Untrusted-data framing travels with the tool result](adr-0048.md)
 - **ADR-0049** — [Three explicit profiles, one optional auto ladder](adr-0049.md)
 - **ADR-0050** — [The prompt states the risky runtime state, never its absence](adr-0050.md)
+- **ADR-0099** — [Factual-claim hardening against generative-engine-optimized content](adr-0099.md)
 
 ### Skills, agents and the journal
 

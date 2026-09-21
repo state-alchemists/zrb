@@ -26,13 +26,27 @@ module owns its lazy *seed* (the built-in tool content, wired via
 from the registry rather than staying a hardwired copy of it.
 
 There is no prompt-side tool catalogue. What a tool does, what its arguments
-mean, and which tool to reach for instead all live in the tool's own docstring,
-next to the schema the model fills in. pydantic-ai serializes every registered
+mean, and which tool to reach for instead all live with the tool itself, next
+to the schema the model fills in. pydantic-ai serializes every registered
 tool's docstring + parameter schema into every request either way, so the
 docstring is not deferred context — the only lever on tool-definition weight is
 the *number* of registered tools, which is why LSP, worktree, plan-mode, and
 journal tools are registered conditionally and rarely-used ones use
 ``defer_loading``.
+
+Because both halves ship in the same payload, they split the work rather than
+repeat it:
+
+- The **parameter's** ``Field(description=...)`` owns that argument — what it
+  means, which values are legal, how to choose one. ``Edit``'s ``count`` says
+  there that ``-1`` replaces every occurrence.
+- The **docstring** owns the tool — what it does, when to reach for it instead
+  of a sibling, what the result means and how to react to it. It does not
+  restate a parameter the schema already describes.
+
+Restating one in the other pays twice in every request and leaves the model
+deciding which phrasing is canonical when they drift. ``LS`` and ``Glob`` each
+carried three sentences that were their own ``Field`` descriptions reworded.
 
 Delegate tools (``DelegateToAgent`` — which also fans out via its ``tasks``
 arg — and ``DelegateToAgentBackground``) are intentionally NOT registered here

@@ -89,10 +89,10 @@ Exceeding a limit is a design defect — restructure before continuing. Project 
 
 ### g.  **Validate (Zero-Regression):**
 
-- Validation is the only path to finality.
-- Bug fixes: reproduce before fixing. If root cause is unclear, Read `workflows/debug.md`.
-- After any change: run tests, linters, and type-checkers.
-- **Removals get proved, not assumed.** When the task was to eliminate something — a hardcoded credential moved to config, a deprecated call migrated, a placeholder stripped, a debug print removed — `Grep` the changed files for the literal you removed (`password123`, `legacy_auth(`, `console.log`, the old import) and require zero hits. Tests pass on code that still carries the string you were asked to delete; this check is what catches it.
+- Validation is the only path to finality. A change is done when a focused test, lint, or type check has run and passed — not when the edit lands. If the project has no such check, name what you looked for.
+- Bug fixes: reproduce before fixing. A fix you cannot demonstrate reverses a symptom you never confirmed. If root cause is unclear, Read `workflows/debug.md`.
+- After any change: run tests, linters, and type-checkers. Run the focused test first; a full suite that takes minutes is not a reason to skip the one that takes seconds.
+- **Removals get proved, not assumed.** When the task was to eliminate something, `Grep` the changed files for the literal you removed and require zero hits — `password123` for a credential moved to config, `legacy_auth(` for a migrated call, `console.log` for a stripped debug print, the old module path for a dropped import. Tests pass on code that still carries the string you were asked to delete, which is why this is a separate step and not a consequence of a green suite.
 - **Touched credentials, auth, user input, or file I/O?** Read `workflows/review.md` and run its security checklist before declaring done — don't wait for a review request.
 - If validation fails, diagnose before retrying.
 

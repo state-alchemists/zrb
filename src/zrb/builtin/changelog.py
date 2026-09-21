@@ -183,7 +183,7 @@ def _make_git_tool(ctx, repo_dir):
         """
         if not args or args[0] not in _ALLOWED_GIT:
             return (
-                "[SYSTEM SUGGESTION] Refused. Only read-only git subcommands are "
+                "[SYSTEM SUGGESTION]: Refused. Only read-only git subcommands are "
                 f"allowed: {sorted(_ALLOWED_GIT)}. Put the subcommand first."
             )
         return await _git(ctx, repo_dir, args)

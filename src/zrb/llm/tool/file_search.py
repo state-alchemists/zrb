@@ -78,6 +78,10 @@ def search_files(
     """
     Searches file *contents* for a regular expression. Results include line
     numbers and context. Lines are truncated at 1000 chars in output.
+
+    No matches rules out the pattern, not the behavior. Before reporting that
+    something is absent — or that a removal is complete — say which pattern and
+    path you searched, so the claim carries its own evidence.
     """
     start_time = time.time()
     flags = 0 if case_sensitive else re.IGNORECASE

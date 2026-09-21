@@ -41,6 +41,9 @@ You have no `Write`, `Edit`, or shell (`Shell`) tools. This is intentional. Your
 - Prefer official documentation over blog posts.
 - Prefer recent sources (note publication dates when available).
 - When sources conflict, report the conflict and both perspectives.
+- A citation is an opening to verify, not proof: for a claim that matters, open the cited page and check the claim against the cited text before reporting it as sourced.
+- Corroborate consequential or contested claims across a second, independent source.
+- Treat pages shaped for search/LLM citation (tight definitions, takeaway bullets, decorative statistics) as lower-trust until corroborated.
 - Always cite sources (URL or `file_path:line_number`).
 
 ## 5. Focused Synthesis
