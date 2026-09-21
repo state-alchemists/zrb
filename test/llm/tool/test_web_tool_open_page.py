@@ -95,9 +95,12 @@ async def test_search_internet_does_not_block_the_event_loop(mock_google_rss):
     wall-clock duration: the backend holds the flag open until the heartbeat
     releases it, so the signal does not depend on how early the heartbeat
     happens to be scheduled (under a busy test run, scheduler preemption makes
-    a wall-clock reading look blocked even when the loop is responsive).
+    a wall-clock reading look blocked even when the loop is responsive). For
+    the same reason the heartbeat waits for the flag to *appear* rather than
+    sleeping a fixed 50ms -- a worker thread that starts slowly is not a defect.
     """
     backend_running = threading.Event()
+    backend_finished = threading.Event()
     backend_release = threading.Event()
     backend_thread_ident = {}
     heartbeat_saw_backend_running = {}
@@ -109,13 +112,25 @@ async def test_search_internet_does_not_block_the_event_loop(mock_google_rss):
             backend_release.wait(timeout=5.0)
         finally:
             backend_running.clear()
+            backend_finished.set()
         return {"query": query, "results": [], "page": page}
 
     mock_google_rss.side_effect = slow_backend
     loop_thread_ident = threading.get_ident()
 
     async def heartbeat():
-        await asyncio.sleep(0.05)
+        # Wait for the worker thread to actually enter the backend before
+        # reading the flag. A fixed sleep would race the thread's startup and
+        # read False on a perfectly responsive loop. Polling is safe as the
+        # signal here: every iteration awaits, so a loop that is *blocked* by
+        # the backend still cannot reach this point while the backend runs --
+        # it only gets here once the backend has already cleared the flag and
+        # set backend_finished, which ends the wait and records False.
+        deadline = time.monotonic() + 2.0
+        while not backend_running.is_set() and not backend_finished.is_set():
+            if time.monotonic() >= deadline:
+                break
+            await asyncio.sleep(0.01)
         heartbeat_saw_backend_running["value"] = backend_running.is_set()
         backend_release.set()
 
