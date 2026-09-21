@@ -40,9 +40,14 @@ async def _assert_recorded_process_stops(pid_path: str) -> None:
     for _ in range(attempts):
         if os.path.exists(pid_path):
             with open(pid_path) as file:
-                pid = int(file.read())
-            if not _process_is_live(pid):
-                return
+                recorded = file.read().strip()
+            # `Path.write_text` is not atomic: a kill landing between open()
+            # and write() leaves an empty file behind, and int('') would raise.
+            # Treat "present but empty" as not-yet-recorded and keep polling.
+            if recorded:
+                pid = int(recorded)
+                if not _process_is_live(pid):
+                    return
         await asyncio.sleep(_PROCESS_STOP_POLL_SECONDS)
     assert pid is None or not _process_is_live(
         pid
