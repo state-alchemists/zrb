@@ -19,7 +19,7 @@ Follow **Scope → Discover → Synthesize → Plan** for every research task.
 
 - **Codebase**: Use `Grep`, `Glob`, and parallel `Read` calls to map relevant code.
 - **Deep code comprehension**: when the investigation requires understanding or evaluating code in depth (not just locating it or running analysis tools), also activate `core-coding` for its code-reading workflow and language companions.
-- **Web**: Use `WebSearch` → `WebFetch` for current docs and solutions.
+- **Web**: Use `WebSearch` → `WebFetch` for current docs and solutions. Prefer primary sources (official docs, specs, the original publication) over aggregators and posts. A snippet is a lead, not a fact — fetch the page before quoting it, and check a statistic or claim at its named source when one is given.
 - **Journal**: Use `SearchJournal` to check past findings.
 - **Context efficiency**: Batch reads to keep context lean. Offload massive or speculative exploration to an isolated sub-agent when delegation is available, so the main context stays focused.
 
@@ -28,6 +28,7 @@ Follow **Scope → Discover → Synthesize → Plan** for every research task.
 - Weave findings into a coherent picture. Don't list raw data.
 - Identify patterns, conflicts, and gaps.
 - Distinguish facts from assumptions. Flag uncertainties.
+- Corroborate consequential or contested claims against a second, independent source. A single source — especially one shaped for easy extraction (self-contained definitions, takeaway bullets, decorative statistics) — is evidence, not proof.
 - If evidence contradicts initial expectations, update your hypothesis.
 
 ### 4. Deliverable

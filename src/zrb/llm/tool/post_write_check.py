@@ -30,22 +30,29 @@ _MAX_ERRORS_SHOWN = 5
 
 
 async def format_post_write_diagnostics(abs_path: str) -> str:
-    """Return a ``[DIAGNOSTIC]`` suffix when the edit introduced errors.
+    """Return a ``[DIAGNOSTIC]`` block when the edit introduced errors.
 
     Returns ``""`` when the file no longer exists, the language is not
-    supported by any available checker, or the file is error-free. The
-    caller appends the returned string directly to its success message — an
-    empty return means the tool result is unchanged.
+    supported by any available checker, or the file is error-free. Callers
+    pass the result to :func:`compose_write_result`, which decides where it
+    sits relative to the outcome line; an empty return leaves that outcome
+    line untouched.
 
-    The suffix carries a ``[SYSTEM SUGGESTION]`` naming the next action, per the
-    convention in AGENTS.md: an error the *model* has to recover from gets
-    actionable guidance, not just a report. Without it this block was the
-    highest-traffic recovery-needed result in the codebase with no instruction
-    attached — one benchmark trial received 81 consecutive
-    ``Successfully updated … [DIAGNOSTIC]`` results and answered every one with
-    another blind edit, because "fix these before continuing" is satisfied by
-    exactly that. The guidance therefore says what to do *differently*: re-read
-    before the next edit, and fix the named target rather than patching blind.
+    The block opens with the verdict and carries a ``[SYSTEM SUGGESTION]``
+    naming the next action, per the convention in AGENTS.md: an error the
+    *model* has to recover from gets actionable guidance, not just a report.
+    Without it this block was the highest-traffic recovery-needed result in
+    the codebase with no instruction attached — one benchmark trial received
+    81 consecutive ``Successfully updated … [DIAGNOSTIC]`` results and
+    answered every one with another blind edit, because "fix these before
+    continuing" is satisfied by exactly that. The guidance therefore says
+    what to do *differently*: re-read before the next edit, and fix the named
+    target rather than patching blind.
+
+    The verdict sentence lives here and nowhere else. It reads as the opening
+    of the whole tool result because ``compose_write_result`` puts this block
+    first — see that function for why the position matters as much as the
+    words.
     """
     if not os.path.isfile(abs_path):
         return ""
@@ -72,16 +79,41 @@ async def format_post_write_diagnostics(abs_path: str) -> str:
         else ""
     )
     return (
-        f"\n\n[DIAGNOSTIC]: {len(errors)} error(s) detected in {abs_path}:\n"
+        f"FAILED: the bytes reached disk, but {abs_path} is now broken — "
+        "treat this as a failed edit, not a completed one.\n"
+        f"[DIAGNOSTIC]: {len(errors)} error(s):\n"
         f"{preview}{overflow}\n"
-        "The write landed, but the file is now broken — treat this as a failed "
-        "edit, not a completed one.\n"
         "[SYSTEM SUGGESTION]: Do not issue another edit to this file from memory. "
         "`Read` the file (or the lines above) to see its current state first, then "
         "make one targeted fix. If the errors "
         "name something outside this file (a missing import, an undefined symbol "
         "defined elsewhere), fix that file rather than re-editing this one."
     )
+
+
+def compose_write_result(outcome: str, diagnostics: str) -> str:
+    """Join a write tool's *outcome* line to its post-write *diagnostics*.
+
+    A clean write returns *outcome* unchanged. A write that broke the file
+    returns a result that **opens** with the failure and demotes the outcome
+    line below it.
+
+    Position is the point. The first words of a tool result frame everything
+    after them, so ``Successfully updated foo.py … [DIAGNOSTIC] …`` reads as a
+    completed step no matter how firmly the body contradicts it — the result
+    asserts success and failure at once, and the model is free to believe the
+    half that lets it move on. That exact shape produced the 81 consecutive
+    blind edits recorded in :func:`format_post_write_diagnostics`; adding
+    guidance to the body fixed what the result *said* without fixing what it
+    *led with*.
+
+    The outcome line is kept rather than dropped: the replacement count and
+    any fuzzy-match note are real signal for choosing the next move. It is
+    demoted, not hidden.
+    """
+    if not diagnostics:
+        return outcome
+    return f"{diagnostics}\n\nWhat landed: {outcome}"
 
 
 async def _query_lsp_errors(abs_path: str) -> list[tuple[int, str]]:

@@ -103,7 +103,21 @@ async def analyze_code(
     ] = True,
 ) -> str:
     """
-    Semantic analysis of a directory via LLM sub-agent. Slow and resource-intensive.
+    Answers a question about a whole directory by reading it with an LLM
+    sub-agent. Slow and resource-intensive — a full pass over every matched
+    file, billed as its own model run.
+
+    Reach for this only when the answer genuinely spans many files and you
+    cannot name them: "how is auth implemented across this service?". When you
+    can name the files, Read them; when the question is "where is X?", Grep.
+    Either is faster and cheaper than this tool by a wide margin.
+
+    Scope it with `file_pattern` — an unscoped run over a large repository is
+    the most expensive call available to you.
+
+    The answer is a summary written by another model from the files it read.
+    Treat it as a lead, not as evidence: before you change code or report a
+    finding on the strength of it, open the file it points at and confirm.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):

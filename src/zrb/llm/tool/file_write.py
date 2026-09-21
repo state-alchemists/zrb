@@ -10,7 +10,10 @@ from zrb.llm.tool.file_observation import (
     path_write_lock,
     record_observed,
 )
-from zrb.llm.tool.post_write_check import format_post_write_diagnostics
+from zrb.llm.tool.post_write_check import (
+    compose_write_result,
+    format_post_write_diagnostics,
+)
 
 
 async def write_file(
@@ -36,7 +39,13 @@ async def write_file(
     For large content, write in chunks: first with mode="w", subsequent with mode="a".
     An existing file whose bytes aren't valid UTF-8 (a binary) is refused in
     every mode — this tool writes UTF-8 text only and would corrupt it.
-    On success, runs LSP/static checks — errors appear as `[DIAGNOSTIC]` in the return value.
+
+    mode="w" replaces the whole file, so use Edit for a change to part of one:
+    rewriting a file you have not just read drops everything you did not
+    reproduce, and nothing reports that loss.
+
+    LSP/static checks run after the write: when they find errors the result
+    opens with `FAILED` and a `[DIAGNOSTIC]` list, and the write is not done.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     async with path_write_lock(abs_path):
@@ -92,5 +101,7 @@ async def _write_file_locked(path: str, abs_path: str, content: str, mode: str) 
         CFG.LOGGER.debug(f"Failed to record observed content for {abs_path}: {e}")
 
     dir_note = f" (created new directory {parent})" if created_dir else ""
-    suffix = await format_post_write_diagnostics(abs_path)
-    return f"Successfully wrote to {path}{dir_note}{suffix}"
+    return compose_write_result(
+        f"Successfully wrote to {path}{dir_note}",
+        await format_post_write_diagnostics(abs_path),
+    )

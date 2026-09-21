@@ -5,7 +5,10 @@ from typing import Annotated
 from pydantic import Field
 
 from zrb.llm.tool.file_observation import path_write_lock, record_observed
-from zrb.llm.tool.post_write_check import format_post_write_diagnostics
+from zrb.llm.tool.post_write_check import (
+    compose_write_result,
+    format_post_write_diagnostics,
+)
 
 _READ_LINE_NUMBER = re.compile(r"^ *\d+\t")
 
@@ -26,7 +29,12 @@ async def replace_in_file(
     count: Annotated[
         int,
         Field(
-            description="-1 (default) replaces every occurrence; 1 replaces only the first."
+            description=(
+                "How many occurrences to replace. The default -1 replaces "
+                "EVERY occurrence in the file. Pass count=1 unless you have "
+                "read the file and confirmed old_text appears exactly once, "
+                "or you actually intend a file-wide replacement."
+            )
         ),
     ] = -1,
 ) -> str:
@@ -38,12 +46,23 @@ async def replace_in_file(
     new_text. Text copied straight out of Read is matched anyway, but only
     after the exact match has already failed.
 
-    Falls back to fuzzy matching (whitespace-tolerant) if exact match fails.
-    count=-1 replaces all occurrences; count=1 replaces only the first.
+    Two behaviors change the file beyond what you literally asked for, so check
+    both on every call:
 
-    The result must stay structurally valid — if the change would break indentation,
+    - `count` defaults to -1, which replaces EVERY occurrence. A short old_text
+      (`return None`, `self.name`) becomes a file-wide replacement this way.
+      Pass count=1 unless you have confirmed old_text is unique. The result
+      reports how many replacements happened — if that number is not what you
+      expected, Read the file before doing anything else.
+    - If old_text does not match exactly, a whitespace-tolerant fallback runs.
+      It can match a block at a different indentation level, and new_text is
+      then written with the indentation you supplied. The result says so; Read
+      the region when it does.
+
+    Keep the result structurally valid — if the change would break indentation,
     imports, or syntax, widen old_text or use Write to rewrite the file instead.
-    On success, runs LSP/static checks — errors appear as `[DIAGNOSTIC]` in the return value.
+    LSP/static checks run after the write: when they find errors the result
+    opens with `FAILED` and a `[DIAGNOSTIC]` list, and the edit is not done.
     """
     if old_text == "":
         # `"" in content` is always True, so an empty old_text would make
@@ -105,10 +124,9 @@ async def _replace_in_file_locked(
     record_observed(abs_path, new_content)
 
     replacements = match_count if count == -1 else min(match_count, count)
-    diag_suffix = await format_post_write_diagnostics(abs_path)
-    return (
-        f"Successfully updated {path} ({replacements} replacement(s)){fuzzy_note}"
-        f"{diag_suffix}"
+    return compose_write_result(
+        f"Successfully updated {path} ({replacements} replacement(s)){fuzzy_note}",
+        await format_post_write_diagnostics(abs_path),
     )
 
 
@@ -160,7 +178,10 @@ def _locate_match(
             matched,
             old_text,
             new_text,
-            " (fuzzy match: whitespace differences were normalized)",
+            " — fuzzy match: old_text matched only after whitespace was "
+            "normalized, so new_text was written with the indentation you "
+            "supplied, not the file's. Read the edited region and confirm the "
+            "indentation is correct before moving on.",
         )
 
     # Last resort: old_text copied verbatim out of Read's numbered output.
