@@ -34,15 +34,17 @@ async def write_file(
     ] = "w",
 ) -> str:
     """
-    Writes a whole file. Use Edit to change part of one — rewriting a file you
-    have not just read drops everything you did not reproduce, and nothing
-    reports that loss.
+    Creates a file, replaces one, or appends to one. Use Edit to change part
+    of an existing file — rewriting a file you have not just read drops
+    everything you did not reproduce, and nothing reports that loss.
 
     An existing file whose bytes aren't valid UTF-8 (a binary) is refused in
     every mode — this tool writes UTF-8 text only and would corrupt it.
 
-    LSP/static checks run after the write: when they find errors the result
-    opens with `FAILED` and a `[DIAGNOSTIC]` list, and the write is not done.
+    LSP/static checks run after the write. When they find errors, the result
+    opens with `FAILED` and a `[DIAGNOSTIC]` list: the bytes did reach disk,
+    so do not re-send them. Read the file and make a targeted fix — the
+    requested change is not complete until those errors are gone.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     async with path_write_lock(abs_path):

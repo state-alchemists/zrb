@@ -54,8 +54,10 @@ async def replace_in_file(
 
     Keep the result structurally valid — if the change would break indentation,
     imports, or syntax, widen old_text or use Write to rewrite the file instead.
-    LSP/static checks run after the write: when they find errors the result
-    opens with `FAILED` and a `[DIAGNOSTIC]` list, and the edit is not done.
+    LSP/static checks run after the write. When they find errors, the result
+    opens with `FAILED` and a `[DIAGNOSTIC]` list: the replacement did reach
+    disk, so do not re-issue it. Read the file and make a targeted fix — the
+    requested change is not complete until those errors are gone.
     """
     if old_text == "":
         # `"" in content` is always True, so an empty old_text would make
