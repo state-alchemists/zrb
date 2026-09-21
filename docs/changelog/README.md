@@ -2,6 +2,7 @@
 
 # Changelog
 
+- [3.6.1](v3/3.6.1.md) — September 22, 2026
 - [3.6.0](v3/3.6.0.md) — September 19, 2026
 - [3.5.0](v3/3.5.0.md) — September 19, 2026
 - [3.4.0-3.4.1](v3/3.4.0-3.4.1.md) — September 13, 2026–September 16, 2026
