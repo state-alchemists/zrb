@@ -41,6 +41,17 @@ def _history_manager():
     return MagicMock(spec=AnyHistoryManager)
 
 
+class _FakeSelection:
+    """Stand-in `UISelection`: exposes the methods `create_input_field` needs."""
+
+    def __init__(self, active=False):
+        self.active = active
+        self.move_choice_cursor = MagicMock()
+
+    def has_active_choice(self):
+        return self.active
+
+
 class TestCreateInputField:
     def test_returns_a_multiline_text_area_with_an_input_completer(self):
         field = create_input_field(
@@ -172,21 +183,18 @@ class TestCreateInputField:
         assert any(c.text == "/exit" for c in completions)
 
     def test_input_is_read_only_and_not_click_focusable_while_choice_is_active(self):
-        active = {"value": False}
-        field = _plain_field(choice_active=lambda: active["value"])
+        selection = _FakeSelection(active=False)
+        field = _plain_field(choice=selection)
 
         assert not field.buffer.read_only()
         assert field.control.focus_on_click()
-        active["value"] = True
+        selection.active = True
         assert field.buffer.read_only()
         assert not field.control.focus_on_click()
 
     def test_choice_navigation_binding_wins_while_choice_is_active(self):
-        cursor_handler = MagicMock()
-        field = _plain_field(
-            choice_active=lambda: True,
-            choice_cursor_handler=cursor_handler,
-        )
+        selection = _FakeSelection(active=True)
+        field = _plain_field(choice=selection)
         event = MagicMock()
 
         up_bindings = [
@@ -202,16 +210,13 @@ class TestCreateInputField:
         up_bindings[-1].handler(event)
         down_bindings[-1].handler(event)
 
-        assert cursor_handler.call_args_list[0].args == (-1,)
-        assert cursor_handler.call_args_list[1].args == (1,)
+        assert selection.move_choice_cursor.call_args_list[0].args == (-1,)
+        assert selection.move_choice_cursor.call_args_list[1].args == (1,)
         assert up_bindings[-1].filter()
 
     def test_up_binding_is_disabled_while_choice_is_active(self):
-        active = {"value": True}
-        field = _plain_field(choice_active=lambda: active["value"])
+        field = _plain_field(choice=_FakeSelection(active=True))
 
-        # The ordinary history binding is disabled; the active-choice binding
-        # above is the one that handles the key.
         bindings = [
             binding
             for binding in field.control.key_bindings.bindings

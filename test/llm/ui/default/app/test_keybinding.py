@@ -26,6 +26,17 @@ def _handler_for(kb, key):
     return _binding_for(kb, key).handler
 
 
+class _FakeSelection:
+    """Stand-in `UISelection`: exposes the two methods the keybindings need."""
+
+    def __init__(self, active=False):
+        self.active = active
+        self.move_choice_cursor = MagicMock()
+
+    def has_active_choice(self):
+        return self.active
+
+
 def _fake_event(selection_state=None, data=""):
     event = MagicMock()
     event.current_buffer = MagicMock()
@@ -73,13 +84,10 @@ def test_escape_focuses_the_input_field():
 
 
 def test_output_navigation_is_disabled_while_choice_is_active():
-    active = {"value": True}
-    kb = create_output_keybindings(TextArea(), choice_active=lambda: active["value"])
+    kb = create_output_keybindings(TextArea(), choice=_FakeSelection(active=True))
 
     up_bindings = [binding for binding in kb.bindings if binding.keys == (Keys.Up,)]
-    down_bindings = [
-        binding for binding in kb.bindings if binding.keys == (Keys.Down,)
-    ]
+    down_bindings = [binding for binding in kb.bindings if binding.keys == (Keys.Down,)]
     assert len(up_bindings) == 2
     assert len(down_bindings) == 2
     assert not up_bindings[0].filter()
@@ -91,23 +99,17 @@ def test_output_navigation_is_disabled_while_choice_is_active():
 
 
 def test_active_choice_navigation_handles_output_focus():
-    cursor_handler = MagicMock()
-    kb = create_output_keybindings(
-        TextArea(),
-        choice_active=lambda: True,
-        choice_cursor_handler=cursor_handler,
-    )
+    selection = _FakeSelection(active=True)
+    kb = create_output_keybindings(TextArea(), choice=selection)
     event = _fake_event()
 
     up_bindings = [binding for binding in kb.bindings if binding.keys == (Keys.Up,)]
-    down_bindings = [
-        binding for binding in kb.bindings if binding.keys == (Keys.Down,)
-    ]
+    down_bindings = [binding for binding in kb.bindings if binding.keys == (Keys.Down,)]
     up_bindings[-1].handler(event)
     down_bindings[-1].handler(event)
 
-    assert cursor_handler.call_args_list[0].args == (-1,)
-    assert cursor_handler.call_args_list[1].args == (1,)
+    assert selection.move_choice_cursor.call_args_list[0].args == (-1,)
+    assert selection.move_choice_cursor.call_args_list[1].args == (1,)
 
 
 def test_up_moves_cursor_up():

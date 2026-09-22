@@ -29,10 +29,6 @@ class MockUI:
         self.running_llm_task = None
         self.is_thinking = False
         self.voice = BaseUIVoiceState()
-        self.choice_active = False
-        self.move_choice_cursor = MagicMock()
-        self.confirm_choice = MagicMock()
-        self.toggle_choice_current = MagicMock()
 
         self.input_field = MagicMock()
         self.output_field = MagicMock()
@@ -78,9 +74,6 @@ class MockUI:
 
         # Mock for confirmation handling
         self.handle_confirmation = MagicMock(return_value=False)
-
-    def has_active_choice(self):
-        return self.choice_active
 
     @property
     def effective_message_queue(self):
@@ -233,50 +226,6 @@ def test_ctrl_k_binding_focus_input(mock_ui, setup_bindings):
     event.app.layout.has_focus.return_value = False
     trigger_binding(setup_bindings, "c-k", event)
     event.app.layout.focus.assert_called_with(mock_ui.input_field)
-
-
-def test_choice_navigation_wins_when_input_or_output_has_focus(
-    mock_ui, setup_bindings
-):
-    mock_ui.choice_active = True
-    event = create_mock_event()
-
-    assert trigger_binding(setup_bindings, "up", event)
-    assert trigger_binding(setup_bindings, "down", event)
-    assert trigger_binding(setup_bindings, " ", event)
-    assert trigger_binding(setup_bindings, "c-m", event)
-
-    mock_ui.move_choice_cursor.assert_any_call(-1)
-    mock_ui.move_choice_cursor.assert_any_call(1)
-    mock_ui.toggle_choice_current.assert_called_once_with()
-    mock_ui.confirm_choice.assert_called_once_with()
-    mock_ui.submit_user_message.assert_not_called()
-
-
-def test_active_choice_does_not_intercept_viewed_agent_confirmation(
-    mock_ui, setup_bindings
-):
-    mock_ui.choice_active = True
-    mock_ui.viewing_agent_id = "agent-1"
-    event = create_mock_event()
-
-    assert not trigger_binding(setup_bindings, "up", event)
-    assert not trigger_binding(setup_bindings, "down", event)
-    assert not trigger_binding(setup_bindings, " ", event)
-    assert trigger_binding(setup_bindings, "c-m", event)
-
-    mock_ui.move_choice_cursor.assert_not_called()
-    mock_ui.toggle_choice_current.assert_not_called()
-    mock_ui.confirm_choice.assert_not_called()
-    mock_ui.handle_confirmation.assert_called_once_with(event)
-
-
-def test_ctrl_k_cannot_leave_active_choice(mock_ui, setup_bindings):
-    mock_ui.choice_active = True
-    event = create_mock_event()
-
-    assert not trigger_binding(setup_bindings, "c-k", event)
-    event.app.layout.focus.assert_not_called()
 
 
 def test_tab_does_not_cycle_mode_off_termux(mock_ui, setup_bindings):

@@ -41,40 +41,33 @@ class UIKeybindings:
 
         ui = self._ui
 
-        # While the AskUserQuestion selection widget is active it owns Enter and
-        # newline keys when it has focus; the active-choice app binding below
-        # handles Enter if focus has moved to another pane. Normal app handlers
-        # stay disabled so they cannot submit stale input text.
+        # A choice widget owns Enter/space/Up/Down while active; the handlers
+        # below apply when focus has moved to another pane, and the pane-local
+        # bindings wire the same actions into the input/output controls.
         viewing_sub_agent = Condition(
             lambda: getattr(ui, "viewing_agent_id", None) is not None
         )
         active_choice = Condition(
-            lambda: getattr(ui, "has_active_choice", lambda: False)()
-            and not viewing_sub_agent()
+            lambda: getattr(ui, "selection_part", None) is not None
+            and ui.selection_part.has_active_choice()
         )
         no_active_choice = ~active_choice
 
-        # When focus has moved to another pane, the active choice still owns the
-        # navigation keys. The input/output-local bindings are gated separately
-        # in their factories, so these application bindings receive the keys.
         @app_keybindings.add("up", filter=active_choice)
         def _(event):
-            ui.move_choice_cursor(-1)
+            ui.selection_part.move_choice_cursor(-1)
 
         @app_keybindings.add("down", filter=active_choice)
         def _(event):
-            ui.move_choice_cursor(1)
+            ui.selection_part.move_choice_cursor(1)
 
         @app_keybindings.add("enter", filter=active_choice)
         def _(event):
-            ui.confirm_choice()
+            ui.selection_part.confirm_choice()
 
         @app_keybindings.add("space", filter=active_choice)
         def _(event):
-            ui.toggle_choice_current()
-
-        # While the output pane shows a sub-agent's live view, Left returns to
-        # the main session (navigation, never cancels the sub-agent's work).
+            ui.selection_part.toggle_choice_current()
 
         # Ctrl+K toggles focus between the input and output panes. The
         # input/output controls bind no Tab/Shift+Tab focus traversal of their

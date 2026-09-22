@@ -2,16 +2,15 @@ import string
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from prompt_toolkit.key_binding import KeyBindings
     from prompt_toolkit.widgets import TextArea
+
+    from zrb.llm.ui.default.selection import UISelection
 
 
 def create_output_keybindings(
     input_field: "TextArea",
-    choice_active: "Callable[[], bool] | None" = None,
-    choice_cursor_handler: "Callable[[int], None] | None" = None,
+    choice: "UISelection | None" = None,
 ) -> "KeyBindings":
     # lazy: heavy third-party
     from prompt_toolkit.application import get_app
@@ -19,7 +18,7 @@ def create_output_keybindings(
     from prompt_toolkit.key_binding import KeyBindings
 
     is_choice_active = Condition(
-        lambda: choice_active is not None and choice_active()
+        lambda: choice is not None and choice.has_active_choice()
     )
     not_choice_active = ~is_choice_active
     kb = KeyBindings()
@@ -61,16 +60,16 @@ def create_output_keybindings(
             continue
         kb.add(char, filter=not_choice_active)(redirect_focus)
 
-    # Choice navigation must be bound on the focused output control: focused
-    # control bindings take precedence over application-level bindings.
+    # While a choice is active, Up/Down drive it from this pane: control-local
+    # bindings beat the app-level navigation binding.
     @kb.add("up", filter=is_choice_active)
     def _(event):
-        if choice_cursor_handler is not None:
-            choice_cursor_handler(-1)
+        if choice is not None:
+            choice.move_choice_cursor(-1)
 
     @kb.add("down", filter=is_choice_active)
     def _(event):
-        if choice_cursor_handler is not None:
-            choice_cursor_handler(1)
+        if choice is not None:
+            choice.move_choice_cursor(1)
 
     return kb

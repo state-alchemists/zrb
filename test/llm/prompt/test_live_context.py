@@ -223,8 +223,14 @@ def test_the_non_interactive_line_forbids_no_tool_by_name():
     text = _live_context("anthropic:claude-opus-4-8", interactive=False)
 
     assert "Interactive: no" in text
+    # The invariant covers the guard line itself, not the whole blob: the git
+    # "Recent commits" block is free-form and legitimately mirrors commit
+    # subjects, which can carry any token.
+    guard = next(
+        line for line in text.splitlines() if line.startswith("- Interactive:")
+    )
     for tool in ("AskUserQuestion", "EnterPlanMode", "ExitPlanMode"):
-        assert tool not in text
+        assert tool not in guard
 
 
 def test_split_live_context_returns_none_when_absent():

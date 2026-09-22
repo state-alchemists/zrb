@@ -57,8 +57,15 @@ class UISelection:
         self._choice_window = self._create_choice_window()
 
     def has_active_choice(self) -> bool:
-        """Whether a choice widget is currently being shown (public API)."""
-        return self._active_choice is not None
+        """Whether a choice widget is currently being shown (public API).
+
+        Viewing a sub-agent supersedes the choice: its live view owns the
+        panes, and its Enter routes to the agent's confirmation first.
+        """
+        return (
+            getattr(self._ui, "viewing_agent_id", None) is None
+            and self._active_choice is not None
+        )
 
     @property
     def choice_cursor(self) -> int:

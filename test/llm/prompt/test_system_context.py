@@ -441,7 +441,12 @@ class TestRenderLiveContext:
         rendered = render_live_context(ctx)
         assert "Interactive: no" in rendered
         assert "do not wait on user input" in rendered
-        assert "AskUserQuestion" not in rendered
+        # The invariant covers the guard line, not the whole blob: the git
+        # "Recent commits" block echoes commit subjects, which are free-form.
+        guard = next(
+            line for line in rendered.splitlines() if line.startswith("- Interactive:")
+        )
+        assert "AskUserQuestion" not in guard
 
     def test_render_live_context_sets_interactive_mode_contextvar(self):
         """The ContextVar must be updated so the tool can read it later."""

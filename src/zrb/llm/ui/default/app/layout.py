@@ -1,4 +1,4 @@
-from typing import Any, Callable, cast
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 from prompt_toolkit.filters import Condition, has_completions, has_selection
 from prompt_toolkit.formatted_text import HTML, AnyFormattedText
@@ -15,7 +15,11 @@ from prompt_toolkit.widgets import Frame, TextArea
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.ui.default.app.completion import InputCompleter
+from zrb.llm.ui.default.app.keybinding import create_output_keybindings
 from zrb.llm.ui.ui_config import UIConfig
+
+if TYPE_CHECKING:
+    from zrb.llm.ui.default.selection import UISelection
 
 
 def create_input_field(  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
@@ -27,12 +31,11 @@ def create_input_field(  # noqa: C901 -- registration/factory fn; mccabe sums ne
     up_arrow_handler: Callable[[Any], bool] | None = None,
     down_arrow_handler: Callable[[Any], bool] | None = None,
     recall_active: Callable[[], bool] | None = None,
-    choice_active: Callable[[], bool] | None = None,
-    choice_cursor_handler: Callable[[int], None] | None = None,
+    choice: "UISelection | None" = None,
 ) -> TextArea:
     @Condition
     def is_choice_active() -> bool:
-        return choice_active is not None and choice_active()
+        return choice is not None and choice.has_active_choice()
 
     class DynamicHeightTextArea(TextArea):
         def __init__(self, *args, **kwargs):
@@ -127,18 +130,17 @@ def create_input_field(  # noqa: C901 -- registration/factory fn; mccabe sums ne
             return
         event.current_buffer.history_forward()
 
-    # These bindings are registered after the ordinary input bindings so the
-    # latter remain the default when no choice is active. When active, their
-    # filters turn false and these handlers supersede cursor/history movement.
+    # While a choice is active, Up/Down drive it: the history/cursor bindings
+    # above turn off and these handlers take over.
     @kb.add("up", filter=is_choice_active)
     def _(event):
-        if choice_cursor_handler is not None:
-            choice_cursor_handler(-1)
+        if choice is not None:
+            choice.move_choice_cursor(-1)
 
     @kb.add("down", filter=is_choice_active)
     def _(event):
-        if choice_cursor_handler is not None:
-            choice_cursor_handler(1)
+        if choice is not None:
+            choice.move_choice_cursor(1)
 
     # Focus traversal is handled by Tab at the app level; Tab still drives
     # completion-menu navigation when a menu is open (the app-level binding
@@ -149,7 +151,11 @@ def create_input_field(  # noqa: C901 -- registration/factory fn; mccabe sums ne
 
 
 def create_output_field(
-    greeting: str, lexer: Lexer, key_bindings: KeyBindings | None = None
+    greeting: str,
+    lexer: Lexer,
+    key_bindings: KeyBindings | None = None,
+    input_field: "TextArea | None" = None,
+    choice: "UISelection | None" = None,
 ) -> TextArea:
     def get_line_prefix(line_number: int, wrap_number: int) -> AnyFormattedText:
         return " "
@@ -170,6 +176,10 @@ def create_output_field(
         style="class:output_field",
         dont_extend_height=False,  # Can expand/contract as needed
     )
+    if key_bindings is None and input_field is not None:
+        # The output pane drives choice Up/Down and redirects typing to the
+        # input field when a choice is not active.
+        key_bindings = create_output_keybindings(input_field, choice)
     if key_bindings is not None:
         text_area.control.key_bindings = key_bindings
 
