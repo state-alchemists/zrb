@@ -11,8 +11,7 @@ if TYPE_CHECKING:
 def create_output_keybindings(
     input_field: "TextArea",
     choice_active: "Callable[[], bool] | None" = None,
-    choice_up_handler: "Callable[[object], None] | None" = None,
-    choice_down_handler: "Callable[[object], None] | None" = None,
+    choice_cursor_handler: "Callable[[int], None] | None" = None,
 ) -> "KeyBindings":
     # lazy: heavy third-party
     from prompt_toolkit.application import get_app
@@ -66,12 +65,12 @@ def create_output_keybindings(
     # control bindings take precedence over application-level bindings.
     @kb.add("up", filter=is_choice_active)
     def _(event):
-        if choice_up_handler is not None:
-            choice_up_handler(event)
+        if choice_cursor_handler is not None:
+            choice_cursor_handler(-1)
 
     @kb.add("down", filter=is_choice_active)
     def _(event):
-        if choice_down_handler is not None:
-            choice_down_handler(event)
+        if choice_cursor_handler is not None:
+            choice_cursor_handler(1)
 
     return kb

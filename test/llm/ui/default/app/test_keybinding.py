@@ -91,13 +91,11 @@ def test_output_navigation_is_disabled_while_choice_is_active():
 
 
 def test_active_choice_navigation_handles_output_focus():
-    up_handler = MagicMock()
-    down_handler = MagicMock()
+    cursor_handler = MagicMock()
     kb = create_output_keybindings(
         TextArea(),
         choice_active=lambda: True,
-        choice_up_handler=up_handler,
-        choice_down_handler=down_handler,
+        choice_cursor_handler=cursor_handler,
     )
     event = _fake_event()
 
@@ -108,8 +106,8 @@ def test_active_choice_navigation_handles_output_focus():
     up_bindings[-1].handler(event)
     down_bindings[-1].handler(event)
 
-    up_handler.assert_called_once_with(event)
-    down_handler.assert_called_once_with(event)
+    assert cursor_handler.call_args_list[0].args == (-1,)
+    assert cursor_handler.call_args_list[1].args == (1,)
 
 
 def test_up_moves_cursor_up():

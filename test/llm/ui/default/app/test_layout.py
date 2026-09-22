@@ -182,12 +182,10 @@ class TestCreateInputField:
         assert not field.control.focus_on_click()
 
     def test_choice_navigation_binding_wins_while_choice_is_active(self):
-        up_handler = MagicMock()
-        down_handler = MagicMock()
+        cursor_handler = MagicMock()
         field = _plain_field(
             choice_active=lambda: True,
-            choice_up_handler=up_handler,
-            choice_down_handler=down_handler,
+            choice_cursor_handler=cursor_handler,
         )
         event = MagicMock()
 
@@ -204,8 +202,8 @@ class TestCreateInputField:
         up_bindings[-1].handler(event)
         down_bindings[-1].handler(event)
 
-        up_handler.assert_called_once_with(event)
-        down_handler.assert_called_once_with(event)
+        assert cursor_handler.call_args_list[0].args == (-1,)
+        assert cursor_handler.call_args_list[1].args == (1,)
         assert up_bindings[-1].filter()
 
     def test_up_binding_is_disabled_while_choice_is_active(self):

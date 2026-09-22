@@ -153,15 +153,13 @@ class UI(BaseUI):
             down_arrow_handler=self._message_editing.handle_down_arrow,
             recall_active=self.recall_navigation_active,
             choice_active=self.has_active_choice,
-            choice_up_handler=lambda _: self.move_choice_cursor(-1),
-            choice_down_handler=lambda _: self.move_choice_cursor(1),
+            choice_cursor_handler=self.move_choice_cursor,
         )
 
         custom_output_kb = create_output_keybindings(
             self._input_field,
             choice_active=self.has_active_choice,
-            choice_up_handler=lambda _: self.move_choice_cursor(-1),
-            choice_down_handler=lambda _: self.move_choice_cursor(1),
+            choice_cursor_handler=self.move_choice_cursor,
         )
         self._output_field = create_output_field(
             "", output_lexer, key_bindings=custom_output_kb
