@@ -41,25 +41,40 @@ class UIKeybindings:
 
         ui = self._ui
 
-        # While the AskUserQuestion selection widget is active it owns Enter and
-        # newline keys (its own control bindings handle them); suppress the
-        # app-level handlers so they don't double-fire / resolve with stale text.
-        no_active_choice = Condition(
-            lambda: not getattr(ui, "has_active_choice", lambda: False)()
-        )
-
-        # While the output pane shows a sub-agent's live view, Left returns to
-        # the main session (navigation, never cancels the sub-agent's work).
+        # A choice widget owns Enter/space/Up/Down while active; the handlers
+        # below apply when focus has moved to another pane, and the pane-local
+        # bindings wire the same actions into the input/output controls.
         viewing_sub_agent = Condition(
             lambda: getattr(ui, "viewing_agent_id", None) is not None
         )
+        active_choice = Condition(
+            lambda: getattr(ui, "selection_part", None) is not None
+            and ui.selection_part.has_active_choice()
+        )
+        no_active_choice = ~active_choice
+
+        @app_keybindings.add("up", filter=active_choice)
+        def _(event):
+            ui.selection_part.move_choice_cursor(-1)
+
+        @app_keybindings.add("down", filter=active_choice)
+        def _(event):
+            ui.selection_part.move_choice_cursor(1)
+
+        @app_keybindings.add("enter", filter=active_choice)
+        def _(event):
+            ui.selection_part.confirm_choice()
+
+        @app_keybindings.add("space", filter=active_choice)
+        def _(event):
+            ui.selection_part.toggle_choice_current()
 
         # Ctrl+K toggles focus between the input and output panes. The
         # input/output controls bind no Tab/Shift+Tab focus traversal of their
         # own (see app/layout.py, app/keybinding.py), leaving Shift+Tab free to
         # cycle modes (below). Note: on Termux, Tab and Shift+Tab both produce byte
         # 0x09, so mode cycling via Shift+Tab is unavailable there.
-        @app_keybindings.add("c-k")
+        @app_keybindings.add("c-k", filter=no_active_choice)
         def _(event):
             if event.app.layout.has_focus(ui.input_field):
                 event.app.layout.focus(ui.output_field)

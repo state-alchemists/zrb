@@ -41,6 +41,17 @@ def _history_manager():
     return MagicMock(spec=AnyHistoryManager)
 
 
+class _FakeSelection:
+    """Stand-in `UISelection`: exposes the methods `create_input_field` needs."""
+
+    def __init__(self, active=False):
+        self.active = active
+        self.move_choice_cursor = MagicMock()
+
+    def has_active_choice(self):
+        return self.active
+
+
 class TestCreateInputField:
     def test_returns_a_multiline_text_area_with_an_input_completer(self):
         field = create_input_field(
@@ -170,6 +181,50 @@ class TestCreateInputField:
             )
         )
         assert any(c.text == "/exit" for c in completions)
+
+    def test_input_is_read_only_and_not_click_focusable_while_choice_is_active(self):
+        selection = _FakeSelection(active=False)
+        field = _plain_field(choice=selection)
+
+        assert not field.buffer.read_only()
+        assert field.control.focus_on_click()
+        selection.active = True
+        assert field.buffer.read_only()
+        assert not field.control.focus_on_click()
+
+    def test_choice_navigation_binding_wins_while_choice_is_active(self):
+        selection = _FakeSelection(active=True)
+        field = _plain_field(choice=selection)
+        event = MagicMock()
+
+        up_bindings = [
+            binding
+            for binding in field.control.key_bindings.bindings
+            if binding.keys == (Keys.Up,)
+        ]
+        down_bindings = [
+            binding
+            for binding in field.control.key_bindings.bindings
+            if binding.keys == (Keys.Down,)
+        ]
+        up_bindings[-1].handler(event)
+        down_bindings[-1].handler(event)
+
+        assert selection.move_choice_cursor.call_args_list[0].args == (-1,)
+        assert selection.move_choice_cursor.call_args_list[1].args == (1,)
+        assert up_bindings[-1].filter()
+
+    def test_up_binding_is_disabled_while_choice_is_active(self):
+        field = _plain_field(choice=_FakeSelection(active=True))
+
+        bindings = [
+            binding
+            for binding in field.control.key_bindings.bindings
+            if binding.keys == (Keys.Up,)
+        ]
+        assert len(bindings) == 2
+        assert not bindings[0].filter()
+        assert bindings[1].filter()
 
     def test_up_binding_is_active_at_first_line(self):
         field = _plain_field()

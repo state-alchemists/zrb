@@ -57,8 +57,15 @@ class UISelection:
         self._choice_window = self._create_choice_window()
 
     def has_active_choice(self) -> bool:
-        """Whether a choice widget is currently being shown (public API)."""
-        return self._active_choice is not None
+        """Whether a choice widget is currently being shown (public API).
+
+        Viewing a sub-agent supersedes the choice: its live view owns the
+        panes, and its Enter routes to the agent's confirmation first.
+        """
+        return (
+            getattr(self._ui, "viewing_agent_id", None) is None
+            and self._active_choice is not None
+        )
 
     @property
     def choice_cursor(self) -> int:
@@ -159,9 +166,9 @@ class UISelection:
         """Toggle the highlighted option in multi-select (public API)."""
         self._toggle_current()
 
-    def confirm_choice(self) -> bool:
+    def confirm_choice(self) -> None:
         """Confirm the current selection, resolving the future (public API)."""
-        return self._confirm_choice()
+        self._confirm_choice()
 
     def _row_count(self) -> int:
         # options + the synthetic free-text row
@@ -192,9 +199,9 @@ class UISelection:
             self._choice_selected.add(self._choice_cursor)
         self._invalidate()
 
-    def _confirm_choice(self) -> bool:
+    def _confirm_choice(self) -> None:
         if self._active_choice is None:
-            return False
+            return
         spec = self._active_choice
         options = spec.get("options", [])
         question = spec.get("question", "")
@@ -217,7 +224,7 @@ class UISelection:
             self._choice_freetext_question = question
             self._append_now("\n  ✎ Type your answer and press Enter:\n")
             self._invalidate()
-            return True
+            return
 
         if spec.get("multi_select"):
             indices = sorted(self._choice_selected) or [self._choice_cursor]
@@ -228,7 +235,6 @@ class UISelection:
         ]
         answer = ", ".join(labels)
         self._ui.resolve_current(answer, echo=self._answer_echo(question, answer))
-        return True
 
     def _answer_echo(self, question: str, answer: str) -> str:
         """Scrollback record left after the widget closes: question + answer."""

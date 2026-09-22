@@ -13,7 +13,6 @@ from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.tool_call import ArgumentFormatter, ResponseHandler, ToolPolicy
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.default.agent_picker import UIAgentPicker
-from zrb.llm.ui.default.app.keybinding import create_output_keybindings
 from zrb.llm.ui.default.app.layout import (
     create_input_field,
     create_layout,
@@ -152,11 +151,11 @@ class UI(BaseUI):
             up_arrow_handler=self._message_editing.handle_up_arrow,
             down_arrow_handler=self._message_editing.handle_down_arrow,
             recall_active=self.recall_navigation_active,
+            choice=self._selection,
         )
 
-        custom_output_kb = create_output_keybindings(self._input_field)
         self._output_field = create_output_field(
-            "", output_lexer, key_bindings=custom_output_kb
+            "", output_lexer, input_field=self._input_field, choice=self._selection
         )
         # Resolved once: an unknown art name falls back to a *random* file, so
         # re-resolving per render would reshuffle the image on every resize.

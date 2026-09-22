@@ -232,7 +232,7 @@ def test_move_cursor_clamps_within_rows(ui):
 def test_single_select_confirm_resolves_highlighted(ui):
     ui.begin_choice(_spec([{"label": "A"}, {"label": "B"}]))
     ui.move_choice_cursor(1)
-    assert ui.confirm_choice() is True
+    ui.confirm_choice()
     assert ui.resolved == "B"
     assert ui.has_active_choice() is False
 
@@ -269,7 +269,7 @@ def test_toggle_ignored_on_free_text_row(ui):
 def test_free_text_row_confirm_closes_widget_without_resolving(ui):
     ui.begin_choice(_spec([{"label": "A"}, {"label": "B"}]))
     ui.move_choice_cursor(99)  # free-text row
-    assert ui.confirm_choice() is True
+    ui.confirm_choice()
     # Future still pending: the next input-field Enter resolves it.
     assert ui.resolved is None
     assert ui.has_active_choice() is False
@@ -314,7 +314,8 @@ def test_handle_confirmation_falls_through_without_pending_free_text(ui):
 
 
 def test_confirm_noop_when_no_active_choice(ui):
-    assert ui.confirm_choice() is False
+    ui.confirm_choice()
+    assert ui.has_active_choice() is False
 
 
 def test_operations_noop_when_no_active_choice(ui):
