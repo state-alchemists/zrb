@@ -659,6 +659,9 @@ class UI(BaseUI):
     def confirm_choice(self) -> bool:
         return self._selection.confirm_choice()
 
+    def toggle_choice_current(self) -> None:
+        self._selection.toggle_choice_current()
+
     def handle_confirmation(self, event: Any) -> bool:
         # `UISelection` is the front: it handles the pending-free-text case
         # and falls through to `UIConfirmation`'s base case otherwise.

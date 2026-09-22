@@ -32,6 +32,7 @@ class MockUI:
         self.choice_active = False
         self.move_choice_cursor = MagicMock()
         self.confirm_choice = MagicMock()
+        self.toggle_choice_current = MagicMock()
 
         self.input_field = MagicMock()
         self.output_field = MagicMock()
@@ -242,10 +243,12 @@ def test_choice_navigation_wins_when_input_or_output_has_focus(
 
     assert trigger_binding(setup_bindings, "up", event)
     assert trigger_binding(setup_bindings, "down", event)
+    assert trigger_binding(setup_bindings, " ", event)
     assert trigger_binding(setup_bindings, "c-m", event)
 
     mock_ui.move_choice_cursor.assert_any_call(-1)
     mock_ui.move_choice_cursor.assert_any_call(1)
+    mock_ui.toggle_choice_current.assert_called_once_with()
     mock_ui.confirm_choice.assert_called_once_with()
     mock_ui.submit_user_message.assert_not_called()
 

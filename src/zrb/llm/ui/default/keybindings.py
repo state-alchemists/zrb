@@ -65,6 +65,10 @@ class UIKeybindings:
         def _(event):
             ui.confirm_choice()
 
+        @app_keybindings.add("space", filter=active_choice)
+        def _(event):
+            ui.toggle_choice_current()
+
         # While the output pane shows a sub-agent's live view, Left returns to
         # the main session (navigation, never cancels the sub-agent's work).
         viewing_sub_agent = Condition(
