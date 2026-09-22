@@ -171,6 +171,22 @@ class TestCreateInputField:
         )
         assert any(c.text == "/exit" for c in completions)
 
+    def test_input_is_read_only_and_not_click_focusable_while_choice_is_active(self):
+        active = {"value": False}
+        field = _plain_field(choice_active=lambda: active["value"])
+
+        assert not field.buffer.read_only()
+        assert field.control.focus_on_click()
+        active["value"] = True
+        assert field.buffer.read_only()
+        assert not field.control.focus_on_click()
+
+    def test_up_binding_is_disabled_while_choice_is_active(self):
+        active = {"value": True}
+        field = _plain_field(choice_active=lambda: active["value"])
+
+        assert not _filter_bound_to(Keys.Up, field)()
+
     def test_up_binding_is_active_at_first_line(self):
         field = _plain_field()
         field.text = "line1\nline2\nline3"

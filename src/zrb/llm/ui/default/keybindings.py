@@ -42,11 +42,28 @@ class UIKeybindings:
         ui = self._ui
 
         # While the AskUserQuestion selection widget is active it owns Enter and
-        # newline keys (its own control bindings handle them); suppress the
-        # app-level handlers so they don't double-fire / resolve with stale text.
+        # newline keys when it has focus; the active-choice app binding below
+        # handles Enter if focus has moved to another pane. Normal app handlers
+        # stay disabled so they cannot submit stale input text.
         no_active_choice = Condition(
             lambda: not getattr(ui, "has_active_choice", lambda: False)()
         )
+        active_choice = ~no_active_choice
+
+        # When focus has moved to another pane, the active choice still owns the
+        # navigation keys. The input/output-local bindings are gated separately
+        # in their factories, so these application bindings receive the keys.
+        @app_keybindings.add("up", filter=active_choice)
+        def _(event):
+            ui.move_choice_cursor(-1)
+
+        @app_keybindings.add("down", filter=active_choice)
+        def _(event):
+            ui.move_choice_cursor(1)
+
+        @app_keybindings.add("enter", filter=active_choice)
+        def _(event):
+            ui.confirm_choice()
 
         # While the output pane shows a sub-agent's live view, Left returns to
         # the main session (navigation, never cancels the sub-agent's work).
@@ -59,7 +76,7 @@ class UIKeybindings:
         # own (see app/layout.py, app/keybinding.py), leaving Shift+Tab free to
         # cycle modes (below). Note: on Termux, Tab and Shift+Tab both produce byte
         # 0x09, so mode cycling via Shift+Tab is unavailable there.
-        @app_keybindings.add("c-k")
+        @app_keybindings.add("c-k", filter=no_active_choice)
         def _(event):
             if event.app.layout.has_focus(ui.input_field):
                 event.app.layout.focus(ui.output_field)

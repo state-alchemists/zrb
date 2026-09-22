@@ -2,31 +2,40 @@ import string
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from prompt_toolkit.key_binding import KeyBindings
     from prompt_toolkit.widgets import TextArea
 
 
-def create_output_keybindings(input_field: "TextArea") -> "KeyBindings":
+def create_output_keybindings(
+    input_field: "TextArea", choice_active: "Callable[[], bool] | None" = None
+) -> "KeyBindings":
     # lazy: heavy third-party
     from prompt_toolkit.application import get_app
+    from prompt_toolkit.filters import Condition
     from prompt_toolkit.key_binding import KeyBindings
 
+    is_choice_active = Condition(
+        lambda: choice_active is not None and choice_active()
+    )
+    not_choice_active = ~is_choice_active
     kb = KeyBindings()
 
-    @kb.add("escape")
+    @kb.add("escape", filter=not_choice_active)
     def _(event):
         get_app().layout.focus(input_field)
 
     # Scrolling and navigation
-    @kb.add("up")
+    @kb.add("up", filter=not_choice_active)
     def _(event):
         event.current_buffer.cursor_up()
 
-    @kb.add("down")
+    @kb.add("down", filter=not_choice_active)
     def _(event):
         event.current_buffer.cursor_down()
 
-    @kb.add("pageup")
+    @kb.add("pageup", filter=not_choice_active)
     def _(event):
         event.current_buffer.cursor_up(count=event.app.output.get_size().rows - 4)
 
@@ -48,6 +57,6 @@ def create_output_keybindings(input_field: "TextArea") -> "KeyBindings":
         #  to preserve navigation/standard behavior
         if char in "\t\n\r\x0b\x0c":
             continue
-        kb.add(char)(redirect_focus)
+        kb.add(char, filter=not_choice_active)(redirect_focus)
 
     return kb

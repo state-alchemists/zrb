@@ -27,7 +27,12 @@ def create_input_field(  # noqa: C901 -- registration/factory fn; mccabe sums ne
     up_arrow_handler: Callable[[Any], bool] | None = None,
     down_arrow_handler: Callable[[Any], bool] | None = None,
     recall_active: Callable[[], bool] | None = None,
+    choice_active: Callable[[], bool] | None = None,
 ) -> TextArea:
+    @Condition
+    def is_choice_active() -> bool:
+        return choice_active is not None and choice_active()
+
     class DynamicHeightTextArea(TextArea):
         def __init__(self, *args, **kwargs):
             if "height" in kwargs:
@@ -65,7 +70,8 @@ def create_input_field(  # noqa: C901 -- registration/factory fn; mccabe sums ne
             custom_model_names=custom_model_names,
         ),
         complete_while_typing=True,
-        focus_on_click=True,
+        focus_on_click=~is_choice_active,
+        read_only=is_choice_active,
         style="class:input_field",
         dont_extend_height=True,  # Don't let it be compressed
     )
@@ -100,7 +106,10 @@ def create_input_field(  # noqa: C901 -- registration/factory fn; mccabe sums ne
     # wins over history recall when it consumes the keypress.
     @kb.add(
         "up",
-        filter=(is_first_line | is_recall_active) & ~has_selection & ~has_completions,
+        filter=(is_first_line | is_recall_active)
+        & ~has_selection
+        & ~has_completions
+        & ~is_choice_active,
     )
     def _(event):
         if up_arrow_handler is not None and up_arrow_handler(event):
@@ -108,7 +117,10 @@ def create_input_field(  # noqa: C901 -- registration/factory fn; mccabe sums ne
         event.current_buffer.history_backward()
 
     # Bind Down to history only if at last line and no completion menu is shown.
-    @kb.add("down", filter=is_last_line & ~has_selection & ~has_completions)
+    @kb.add(
+        "down",
+        filter=is_last_line & ~has_selection & ~has_completions & ~is_choice_active,
+    )
     def _(event):
         if down_arrow_handler is not None and down_arrow_handler(event):
             return

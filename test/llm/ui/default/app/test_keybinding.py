@@ -15,11 +15,15 @@ from prompt_toolkit.widgets import TextArea
 from zrb.llm.ui.default.app.keybinding import create_output_keybindings
 
 
-def _handler_for(kb, key):
+def _binding_for(kb, key):
     for binding in kb.bindings:
         if binding.keys == (key,):
-            return binding.handler
+            return binding
     raise AssertionError(f"no binding for {key!r}")
+
+
+def _handler_for(kb, key):
+    return _binding_for(kb, key).handler
 
 
 def _fake_event(selection_state=None, data=""):
@@ -66,6 +70,16 @@ def test_escape_focuses_the_input_field():
         handler = _handler_for(kb, Keys.Escape)
         handler(_fake_event())
         mock_get_app.return_value.layout.focus.assert_called_once_with(input_field)
+
+
+def test_output_navigation_is_disabled_while_choice_is_active():
+    active = {"value": True}
+    kb = create_output_keybindings(TextArea(), choice_active=lambda: active["value"])
+
+    assert not _binding_for(kb, Keys.Up).filter()
+    assert not _binding_for(kb, Keys.Down).filter()
+    assert not _binding_for(kb, Keys.PageUp).filter()
+    assert not _binding_for(kb, "a").filter()
 
 
 def test_up_moves_cursor_up():

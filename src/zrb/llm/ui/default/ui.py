@@ -152,9 +152,12 @@ class UI(BaseUI):
             up_arrow_handler=self._message_editing.handle_up_arrow,
             down_arrow_handler=self._message_editing.handle_down_arrow,
             recall_active=self.recall_navigation_active,
+            choice_active=self.has_active_choice,
         )
 
-        custom_output_kb = create_output_keybindings(self._input_field)
+        custom_output_kb = create_output_keybindings(
+            self._input_field, choice_active=self.has_active_choice
+        )
         self._output_field = create_output_field(
             "", output_lexer, key_bindings=custom_output_kb
         )
@@ -646,6 +649,15 @@ class UI(BaseUI):
 
     def end_choice(self) -> None:
         self._selection.end_choice()
+
+    def has_active_choice(self) -> bool:
+        return self._selection.has_active_choice()
+
+    def move_choice_cursor(self, delta: int) -> None:
+        self._selection.move_choice_cursor(delta)
+
+    def confirm_choice(self) -> bool:
+        return self._selection.confirm_choice()
 
     def handle_confirmation(self, event: Any) -> bool:
         # `UISelection` is the front: it handles the pending-free-text case
