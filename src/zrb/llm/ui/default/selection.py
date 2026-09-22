@@ -159,7 +159,7 @@ class UISelection:
         """Toggle the highlighted option in multi-select (public API)."""
         self._toggle_current()
 
-    def confirm_choice(self) -> bool:
+    def confirm_choice(self):
         """Confirm the current selection, resolving the future (public API)."""
         return self._confirm_choice()
 
@@ -192,7 +192,7 @@ class UISelection:
             self._choice_selected.add(self._choice_cursor)
         self._invalidate()
 
-    def _confirm_choice(self) -> bool:
+    def _confirm_choice(self):
         if self._active_choice is None:
             return False
         spec = self._active_choice
