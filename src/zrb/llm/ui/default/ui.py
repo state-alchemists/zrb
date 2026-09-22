@@ -661,8 +661,8 @@ class UI(BaseUI):
     def move_choice_cursor(self, delta: int) -> None:
         self._selection.move_choice_cursor(delta)
 
-    def confirm_choice(self):
-        return self._selection.confirm_choice()
+    def confirm_choice(self) -> None:
+        self._selection.confirm_choice()
 
     def toggle_choice_current(self) -> None:
         self._selection.toggle_choice_current()
