@@ -654,7 +654,9 @@ class UI(BaseUI):
         self._selection.end_choice()
 
     def has_active_choice(self) -> bool:
-        return self._selection.has_active_choice()
+        return (
+            self.viewing_agent_id is None and self._selection.has_active_choice()
+        )
 
     def move_choice_cursor(self, delta: int) -> None:
         self._selection.move_choice_cursor(delta)

@@ -21,9 +21,9 @@ SRC = REPO_ROOT / "src" / "zrb"
 # Ceilings that only ever go DOWN — see test_constructor_surface.py's note.
 FACADE_BUDGETS = {
     "llm/ui/base/ui.py": 1200,
-    # Choice navigation/confirmation is exposed through the UI facade so
-    # keybindings do not depend on the concrete selection component.
-    "llm/ui/default/ui.py": 671,
+    # Choice navigation/confirmation is exposed through the UI facade; its
+    # active state also suppresses main-choice routing while viewing an agent.
+    "llm/ui/default/ui.py": 673,
     "llm/task/chat/task.py": 1068,
     "llm/task/llm_task.py": 839,
     "llm/agent/subagent/manager.py": 299,

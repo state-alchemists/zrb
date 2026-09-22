@@ -45,10 +45,14 @@ class UIKeybindings:
         # newline keys when it has focus; the active-choice app binding below
         # handles Enter if focus has moved to another pane. Normal app handlers
         # stay disabled so they cannot submit stale input text.
-        no_active_choice = Condition(
-            lambda: not getattr(ui, "has_active_choice", lambda: False)()
+        viewing_sub_agent = Condition(
+            lambda: getattr(ui, "viewing_agent_id", None) is not None
         )
-        active_choice = ~no_active_choice
+        active_choice = Condition(
+            lambda: getattr(ui, "has_active_choice", lambda: False)()
+            and not viewing_sub_agent()
+        )
+        no_active_choice = ~active_choice
 
         # When focus has moved to another pane, the active choice still owns the
         # navigation keys. The input/output-local bindings are gated separately
@@ -71,9 +75,6 @@ class UIKeybindings:
 
         # While the output pane shows a sub-agent's live view, Left returns to
         # the main session (navigation, never cancels the sub-agent's work).
-        viewing_sub_agent = Condition(
-            lambda: getattr(ui, "viewing_agent_id", None) is not None
-        )
 
         # Ctrl+K toggles focus between the input and output panes. The
         # input/output controls bind no Tab/Shift+Tab focus traversal of their
