@@ -28,6 +28,8 @@ def create_input_field(  # noqa: C901 -- registration/factory fn; mccabe sums ne
     down_arrow_handler: Callable[[Any], bool] | None = None,
     recall_active: Callable[[], bool] | None = None,
     choice_active: Callable[[], bool] | None = None,
+    choice_up_handler: Callable[[Any], None] | None = None,
+    choice_down_handler: Callable[[Any], None] | None = None,
 ) -> TextArea:
     @Condition
     def is_choice_active() -> bool:
@@ -125,6 +127,19 @@ def create_input_field(  # noqa: C901 -- registration/factory fn; mccabe sums ne
         if down_arrow_handler is not None and down_arrow_handler(event):
             return
         event.current_buffer.history_forward()
+
+    # These bindings are registered after the ordinary input bindings so the
+    # latter remain the default when no choice is active. When active, their
+    # filters turn false and these handlers supersede cursor/history movement.
+    @kb.add("up", filter=is_choice_active)
+    def _(event):
+        if choice_up_handler is not None:
+            choice_up_handler(event)
+
+    @kb.add("down", filter=is_choice_active)
+    def _(event):
+        if choice_down_handler is not None:
+            choice_down_handler(event)
 
     # Focus traversal is handled by Tab at the app level; Tab still drives
     # completion-menu navigation when a menu is open (the app-level binding

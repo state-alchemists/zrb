@@ -22,8 +22,9 @@ SRC = REPO_ROOT / "src" / "zrb"
 FACADE_BUDGETS = {
     "llm/ui/base/ui.py": 1200,
     # AskUserQuestion choice controls are a genuine public facade surface:
-    # navigation, confirmation, and multi-select toggling are app-level actions.
-    "llm/ui/default/ui.py": 668,
+    # navigation, confirmation, and multi-select toggling are app-level actions;
+    # focused-pane fallback wiring adds the two control callback pairs.
+    "llm/ui/default/ui.py": 673,
     "llm/task/chat/task.py": 1068,
     "llm/task/llm_task.py": 839,
     "llm/agent/subagent/manager.py": 299,

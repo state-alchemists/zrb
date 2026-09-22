@@ -76,10 +76,40 @@ def test_output_navigation_is_disabled_while_choice_is_active():
     active = {"value": True}
     kb = create_output_keybindings(TextArea(), choice_active=lambda: active["value"])
 
-    assert not _binding_for(kb, Keys.Up).filter()
-    assert not _binding_for(kb, Keys.Down).filter()
+    up_bindings = [binding for binding in kb.bindings if binding.keys == (Keys.Up,)]
+    down_bindings = [
+        binding for binding in kb.bindings if binding.keys == (Keys.Down,)
+    ]
+    assert len(up_bindings) == 2
+    assert len(down_bindings) == 2
+    assert not up_bindings[0].filter()
+    assert up_bindings[1].filter()
+    assert not down_bindings[0].filter()
+    assert down_bindings[1].filter()
     assert not _binding_for(kb, Keys.PageUp).filter()
     assert not _binding_for(kb, "a").filter()
+
+
+def test_active_choice_navigation_handles_output_focus():
+    up_handler = MagicMock()
+    down_handler = MagicMock()
+    kb = create_output_keybindings(
+        TextArea(),
+        choice_active=lambda: True,
+        choice_up_handler=up_handler,
+        choice_down_handler=down_handler,
+    )
+    event = _fake_event()
+
+    up_bindings = [binding for binding in kb.bindings if binding.keys == (Keys.Up,)]
+    down_bindings = [
+        binding for binding in kb.bindings if binding.keys == (Keys.Down,)
+    ]
+    up_bindings[-1].handler(event)
+    down_bindings[-1].handler(event)
+
+    up_handler.assert_called_once_with(event)
+    down_handler.assert_called_once_with(event)
 
 
 def test_up_moves_cursor_up():

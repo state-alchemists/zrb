@@ -9,7 +9,10 @@ if TYPE_CHECKING:
 
 
 def create_output_keybindings(
-    input_field: "TextArea", choice_active: "Callable[[], bool] | None" = None
+    input_field: "TextArea",
+    choice_active: "Callable[[], bool] | None" = None,
+    choice_up_handler: "Callable[[object], None] | None" = None,
+    choice_down_handler: "Callable[[object], None] | None" = None,
 ) -> "KeyBindings":
     # lazy: heavy third-party
     from prompt_toolkit.application import get_app
@@ -58,5 +61,17 @@ def create_output_keybindings(
         if char in "\t\n\r\x0b\x0c":
             continue
         kb.add(char, filter=not_choice_active)(redirect_focus)
+
+    # Choice navigation must be bound on the focused output control: focused
+    # control bindings take precedence over application-level bindings.
+    @kb.add("up", filter=is_choice_active)
+    def _(event):
+        if choice_up_handler is not None:
+            choice_up_handler(event)
+
+    @kb.add("down", filter=is_choice_active)
+    def _(event):
+        if choice_down_handler is not None:
+            choice_down_handler(event)
 
     return kb

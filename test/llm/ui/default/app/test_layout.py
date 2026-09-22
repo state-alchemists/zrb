@@ -181,11 +181,47 @@ class TestCreateInputField:
         assert field.buffer.read_only()
         assert not field.control.focus_on_click()
 
+    def test_choice_navigation_binding_wins_while_choice_is_active(self):
+        up_handler = MagicMock()
+        down_handler = MagicMock()
+        field = _plain_field(
+            choice_active=lambda: True,
+            choice_up_handler=up_handler,
+            choice_down_handler=down_handler,
+        )
+        event = MagicMock()
+
+        up_bindings = [
+            binding
+            for binding in field.control.key_bindings.bindings
+            if binding.keys == (Keys.Up,)
+        ]
+        down_bindings = [
+            binding
+            for binding in field.control.key_bindings.bindings
+            if binding.keys == (Keys.Down,)
+        ]
+        up_bindings[-1].handler(event)
+        down_bindings[-1].handler(event)
+
+        up_handler.assert_called_once_with(event)
+        down_handler.assert_called_once_with(event)
+        assert up_bindings[-1].filter()
+
     def test_up_binding_is_disabled_while_choice_is_active(self):
         active = {"value": True}
         field = _plain_field(choice_active=lambda: active["value"])
 
-        assert not _filter_bound_to(Keys.Up, field)()
+        # The ordinary history binding is disabled; the active-choice binding
+        # above is the one that handles the key.
+        bindings = [
+            binding
+            for binding in field.control.key_bindings.bindings
+            if binding.keys == (Keys.Up,)
+        ]
+        assert len(bindings) == 2
+        assert not bindings[0].filter()
+        assert bindings[1].filter()
 
     def test_up_binding_is_active_at_first_line(self):
         field = _plain_field()
