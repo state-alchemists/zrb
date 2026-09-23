@@ -403,6 +403,7 @@ class BurstTarget:
 
     def _redraw_echo(self, entry):
         self.redrawn.append(entry)
+        return True
 
 
 def submit_burst(queue, target, text):
@@ -487,3 +488,66 @@ def test_submit_via_queue_zero_window_disables_merging(monkeypatch):
 
     assert queue.qsize() == 2
     assert len(target.outputs) == 2
+
+
+def test_submit_user_message_via_queue_echoes_a_steered_live_run_message():
+    """A message steered into a live run never reaches the queue, so the shared
+    echo below the steer would not run for it — it must be echoed explicitly or
+    the user's line disappears from the UI while the model still receives it."""
+    run_context = MagicMock()
+    outputs: list[str] = []
+
+    submit_user_message_via_queue(
+        append_to_output=outputs.append,
+        active_run_context=run_context,
+        stream_ai_response=_stub_stream_ai_response,
+        queue=MessageQueue(),
+        attachment_sources=[],
+        echo_targets=[],
+        llm_task=object(),
+        user_message="steer me",
+        marker="💬",
+    )
+
+    run_context.enqueue.assert_called_once_with("steer me", priority="asap")
+    assert len(outputs) == 1
+    assert "💬" in outputs[0] and "steer me" in outputs[0]
+
+
+def test_submit_via_queue_does_not_merge_across_a_queued_exec_job(monkeypatch):
+    """A queued `/exec` job is a merge barrier: a burst line after it must not
+    fold into the older editable message (which would move the line ahead of
+    the job and change execution order)."""
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
+    target = BurstTarget()
+    queue = MessageQueue()
+
+    submit_burst(queue, target, "first")
+    queue.put_nowait(make_entry("ls", kind="exec"))
+    submit_burst(queue, target, "second")
+
+    assert queue.qsize() == 3
+    second = queue.peek_latest()
+    assert second is not None
+    assert second.is_editable and second.text == "second"
+    first = queue.editable_before(second)
+    assert first is not None and first.text == "first"
+    assert len(target.outputs) == 2
+
+
+def test_submit_via_queue_falls_back_to_echo_when_merge_cannot_redraw(monkeypatch):
+    """A UI with no output buffer to splice (a no-op `_redraw_echo`) still shows
+    each merged paste line as an ordinary echo — it must not vanish."""
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
+    target = BurstTarget()
+    target._redraw_echo = lambda entry: None  # bufferless UI: nothing redrawn
+    queue = MessageQueue()
+
+    submit_burst(queue, target, "git status")
+    submit_burst(queue, target, "git add .")
+
+    assert queue.qsize() == 1
+    assert queue.peek_latest().text == "git status\ngit add ."
+    assert len(target.outputs) == 2
+    assert "git status" in target.outputs[0]
+    assert "git add ." in target.outputs[1]

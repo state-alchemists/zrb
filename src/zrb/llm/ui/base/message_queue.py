@@ -190,9 +190,24 @@ def submit_user_message_via_queue(
     still-editable message was submitted within `CFG.LLM_UI_PASTE_MERGE_MS`
     of this one, the new line is appended to it instead of becoming its own
     turn — the model receives the pasted block as one message.
+
+    The merge is bounded by a queued `/exec` job: only the newest queue entry
+    itself (never an older editable message reached past an `/exec` in
+    between) may absorb the new line. And a merged line is never silently
+    dropped from the UI — a target that can splice its echo redraws it in
+    place; one that cannot (a bufferless UI, or a rendered first echo with no
+    tracked span) gets an ordinary echo of the line instead.
     """
     now = datetime.now()
     timestamp = now.strftime("%H:%M")
+
+    def emit_echo() -> str:
+        return echo_user_message(
+            append_to_output,
+            append_markdown,
+            header=f"\n{marker} {timestamp} >> ",
+            body=user_message.strip(),
+        )
 
     attachments: list[Any] = []
     for source in attachment_sources:
@@ -203,27 +218,31 @@ def submit_user_message_via_queue(
             attachments.extend(take())
 
     if steer_into_live_run(active_run_context, user_message, attachments):
+        # A live-run submission never reaches the queue, so the shared echo
+        # below would not run for it — render it here or the user's line
+        # disappears from the UI while the model still receives it.
+        emit_echo()
         return
 
     previous = queue.latest_editable()
-    if previous is not None and _is_paste_burst(
-        previous, now, CFG.LLM_UI_PASTE_MERGE_MS
+    if (
+        previous is not None
+        and queue.peek_latest() is previous
+        and _is_paste_burst(previous, now, CFG.LLM_UI_PASTE_MERGE_MS)
     ):
         previous.text = f"{previous.text.strip()}\n{user_message.strip()}"
         previous.attachments += attachments
         previous.submitted_at = now
+        redrawn = False
         for target in echo_targets:
             redraw = getattr(target, "_redraw_echo", None)
-            if callable(redraw):
-                redraw(previous)
+            if callable(redraw) and redraw(previous):
+                redrawn = True
+        if not redrawn:
+            emit_echo()
         return
 
-    echo = echo_user_message(
-        append_to_output,
-        append_markdown,
-        header=f"\n{marker} {timestamp} >> ",
-        body=user_message.strip(),
-    )
+    echo = emit_echo()
 
     entry = QueuedMessage(
         text=user_message,
