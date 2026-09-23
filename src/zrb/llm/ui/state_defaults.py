@@ -1,11 +1,13 @@
 """Inert implementations of `AnyUI`'s state members and side-effect hooks.
 
-`AnyUI` splits in two: six behavioral methods every UI performs, and
+`AnyUI` splits in two: eight behavioral methods every UI performs, and
 seventeen members describing what a *full* UI keeps — the model it talks to,
 whether the assistant is mid-turn, which background tasks it owns, what the
 primary child exposes to `MultiUI`. `BaseUI` implements all seventeen;
 `StdUI`, `BufferedUI` and `MultiUI` track almost none of it, so they mix this
-in instead of each writing seventeen stubs.
+in instead of each writing seventeen stubs. The mixin also carries the two
+echo hooks (`track_echo_span`/`redraw_echo`) as inert defaults — those three
+wrappers have no output buffer to record a span against or splice into.
 
 Bodies live here rather than on `AnyUI` because no `any_*.py` module in this
 codebase carries an implementation — `.coveragerc` excludes those paths on
@@ -27,7 +29,10 @@ and the old name read like a second `UIConfig`.
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from zrb.llm.ui.base.message_queue import QueuedMessage
 
 
 class UIStateDefaultsMixin:
@@ -163,6 +168,13 @@ class UIStateDefaultsMixin:
 
     def invalidate_ui(self) -> None:
         """Repaint hook. A UI with no addressable surface has nothing to do."""
+
+    def track_echo_span(self, entry: "QueuedMessage", echo: str) -> None:
+        """No output buffer to record an echo span against (echo contract)."""
+
+    def redraw_echo(self, entry: "QueuedMessage") -> str | None:
+        """No output buffer to splice a rewritten echo into (echo contract)."""
+        return None
 
     def cancel_pending_confirmations(self, flush: bool = True) -> None:
         """No confirmations of its own to release."""

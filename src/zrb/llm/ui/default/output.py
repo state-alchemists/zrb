@@ -14,9 +14,12 @@ from typing import TYPE_CHECKING, TextIO, cast
 from zrb.config.config import CFG
 from zrb.llm.agent.activity import agent_activity_registry
 from zrb.llm.tool.ambient_state import get_session_ownership_key
-from zrb.llm.ui.output_chunk import (CollapsibleBlockSource,
-                                     OpenCollapsibleBlock, merge_into_block,
-                                     merge_output_chunk)
+from zrb.llm.ui.output_chunk import (
+    CollapsibleBlockSource,
+    OpenCollapsibleBlock,
+    merge_into_block,
+    merge_output_chunk,
+)
 from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
@@ -73,6 +76,22 @@ def _get_mode_status_style(mode: str) -> str:
         "yolo": CFG.LLM_UI_STYLE_MODE_YOLO,
         "custom": CFG.LLM_UI_STYLE_MODE_CUSTOM,
     }.get(mode, "")
+
+
+def _bold(style: str) -> str:
+    """A fragment style with ``bold`` appended, or ``bold`` alone when empty."""
+    return f"{style} bold" if style else "bold"
+
+
+def _center_line(fragments: list, total_cols: int) -> list:
+    """Horizontally center *fragments* over *total_cols* columns."""
+    # lazy: heavy third-party
+    from prompt_toolkit.formatted_text.utils import fragment_list_width
+
+    visible_width = fragment_list_width(fragments)
+    padding = max(0, (total_cols - visible_width) // 2)
+    trailing = max(0, total_cols - visible_width - padding)
+    return [("", " " * padding), *fragments, ("", " " * trailing)]
 
 
 def _render_collapsible_block(
@@ -650,38 +669,14 @@ class UIOutput:
         return width if width >= 10 else None
 
     def get_info_bar_text(self) -> "AnyFormattedText":
-        # lazy: heavy third-party
-        from prompt_toolkit.formatted_text.utils import fragment_list_width
+        """Build the bar as (style, text) fragments rather than HTML.
 
-        model_name = "Unknown"
-        if self._ui.model:
-            if isinstance(self._ui.model, str):
-                model_name = self._ui.model
-            elif hasattr(self._ui.model, "model_name"):
-                model_name = getattr(self._ui.model, "model_name")
-            else:
-                model_name = str(self._ui.model)
-
-        # Build the bar as (style, text) fragments rather than HTML. This lets the
-        # INFO_* knobs hold full prompt_toolkit style strings (e.g. "ansired bold"),
-        # consistent with every other LLM_UI_STYLE_* field, and avoids embedding
-        # runtime strings (model/cwd/git) into HTML where '<'/'&' would break markup.
-        def _bold(style: str) -> str:
-            return f"{style} bold" if style else "bold"
-
-        _yolo = self._ui.yolo
-        if _yolo is True:
-            yolo_frag = (_bold(CFG.LLM_UI_STYLE_INFO_YOLO_ON), "ON ")
-        elif isinstance(_yolo, frozenset) and _yolo:
-            tools_str = ",".join(sorted(_yolo))
-            yolo_frag = (_bold(CFG.LLM_UI_STYLE_INFO_YOLO_PARTIAL), f"[{tools_str}]")
-        else:
-            yolo_frag = (CFG.LLM_UI_STYLE_INFO_YOLO_OFF, "OFF")
-
-        if getattr(self._ui, "plan_mode_active", False):
-            plan_frag = (_bold(CFG.LLM_UI_STYLE_INFO_PLAN_ON), "On ")
-        else:
-            plan_frag = (CFG.LLM_UI_STYLE_INFO_PLAN_OFF, "Off")
+        This lets the INFO_* knobs hold full prompt_toolkit style strings
+        (e.g. "ansired bold"), consistent with every other LLM_UI_STYLE_*
+        field, and avoids embedding runtime strings (model/cwd/git) into
+        HTML where '<'/'&' would break markup.
+        """
+        model_name = self._model_name()
 
         line1 = [
             ("", " 🤖 "),
@@ -690,44 +685,19 @@ class UIOutput:
             ("bold", "Session:"),
             ("", f" {self._ui.conversation_session_name} "),
         ]
-        # The UI clue that /load swapped which persona is
-        # driving new messages — absent (bar unchanged) while driving the
-        # main agent, mirroring how the activity panel collapses when idle.
-        # Extended (same wording) to announce the sub-agent whose live view
-        # the output pane currently shows (UIAgentPicker).
-        persona = getattr(self._ui, "persona", None)
-        active_persona = None if persona is None else persona.active_subagent
-        viewing_agent_id = getattr(self._ui, "viewing_agent_id", None)
-        viewing_name = None
-        if viewing_agent_id:
-            # lazy: transitively heavy via internal — live_session.py imports
-            # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
-            from zrb.llm.agent.subagent.live_session import \
-                live_subagent_session_registry
+        sub_agent_frag = self._sub_agent_fragment()
+        if sub_agent_frag:
+            line1 += sub_agent_frag
 
-            session = live_subagent_session_registry.get(
-                get_session_ownership_key(self._ui.conversation_session_name),
-                viewing_agent_id,
-            )
-            if session is not None:
-                viewing_name = session.agent_name
-        if active_persona or viewing_name:
-            name = viewing_name if viewing_name is not None else active_persona
-            suffix = " (viewing · ← back)" if viewing_name else ""
-            line1 += [
-                ("", "| 🎭 "),
-                ("bold", "Sub-agent:"),
-                ("", f" {name}{suffix} "),
-            ]
         line2 = [
             ("", " 📋 "),
             ("bold", "Plan Mode:"),
             ("", " "),
-            plan_frag,
+            self._plan_fragment(),
             ("", " | 🤠 "),
             ("bold", "YOLO:"),
             ("", " "),
-            yolo_frag,
+            self._yolo_fragment(),
             ("", " "),
         ]
         line3 = [
@@ -739,19 +709,76 @@ class UIOutput:
         ]
 
         total_cols = get_terminal_size().columns
-
-        def center_line(fragments: list) -> list:
-            visible_width = fragment_list_width(fragments)
-            padding = max(0, (total_cols - visible_width) // 2)
-            trailing = max(0, total_cols - visible_width - padding)
-            return [("", " " * padding), *fragments, ("", " " * trailing)]
-
         return [
-            *center_line(line1),
+            *_center_line(line1, total_cols),
             ("", "\n"),
-            *center_line(line2),
+            *_center_line(line2, total_cols),
             ("", "\n"),
-            *center_line(line3),
+            *_center_line(line3, total_cols),
+        ]
+
+    def _model_name(self) -> str:
+        """The model label shown in the info bar."""
+        model_name = "Unknown"
+        if self._ui.model:
+            if isinstance(self._ui.model, str):
+                model_name = self._ui.model
+            elif hasattr(self._ui.model, "model_name"):
+                model_name = getattr(self._ui.model, "model_name")
+            else:
+                model_name = str(self._ui.model)
+        return model_name
+
+    def _plan_fragment(self) -> tuple:
+        """The Plan-Mode on/off fragment (bold while active)."""
+        if getattr(self._ui, "plan_mode_active", False):
+            return (_bold(CFG.LLM_UI_STYLE_INFO_PLAN_ON), "On ")
+        return (CFG.LLM_UI_STYLE_INFO_PLAN_OFF, "Off")
+
+    def _yolo_fragment(self) -> tuple:
+        """The YOLO mode fragment: on, partial (tool subset), or off."""
+        _yolo = self._ui.yolo
+        if _yolo is True:
+            return (_bold(CFG.LLM_UI_STYLE_INFO_YOLO_ON), "ON ")
+        if isinstance(_yolo, frozenset) and _yolo:
+            tools_str = ",".join(sorted(_yolo))
+            return (_bold(CFG.LLM_UI_STYLE_INFO_YOLO_PARTIAL), f"[{tools_str}]")
+        return (CFG.LLM_UI_STYLE_INFO_YOLO_OFF, "OFF")
+
+    def _sub_agent_fragment(self) -> "list | None":
+        """Fragments announcing an active persona or viewed sub-agent.
+
+        The UI clue that /load swapped which persona is
+        driving new messages — absent (bar unchanged) while driving the
+        main agent, mirroring how the activity panel collapses when idle.
+        Extended (same wording) to announce the sub-agent whose live view
+        the output pane currently shows (UIAgentPicker).
+        """
+        persona = getattr(self._ui, "persona", None)
+        active_persona = None if persona is None else persona.active_subagent
+        viewing_agent_id = getattr(self._ui, "viewing_agent_id", None)
+        viewing_name = None
+        if viewing_agent_id:
+            # lazy: transitively heavy via internal — live_session.py imports
+            # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
+            from zrb.llm.agent.subagent.live_session import (
+                live_subagent_session_registry,
+            )
+
+            session = live_subagent_session_registry.get(
+                get_session_ownership_key(self._ui.conversation_session_name),
+                viewing_agent_id,
+            )
+            if session is not None:
+                viewing_name = session.agent_name
+        if not (active_persona or viewing_name):
+            return None
+        name = viewing_name if viewing_name is not None else active_persona
+        suffix = " (viewing · ← back)" if viewing_name else ""
+        return [
+            ("", "| 🎭 "),
+            ("bold", "Sub-agent:"),
+            ("", f" {name}{suffix} "),
         ]
 
     def get_agent_activity_text(self) -> "AnyFormattedText":
@@ -776,8 +803,7 @@ class UIOutput:
         # tracked — not only while something is currently running.
         # lazy: transitively heavy via internal — live_session.py imports
         # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
-        from zrb.llm.agent.subagent.live_session import \
-            live_subagent_session_registry
+        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
 
         live = live_subagent_session_registry.active(
             session_id=get_session_ownership_key(self._ui.conversation_session_name)

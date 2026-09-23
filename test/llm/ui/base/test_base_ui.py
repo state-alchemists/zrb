@@ -3,9 +3,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
-from zrb.config.config import CFG
 from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.trigger import TriggerMessage
@@ -291,7 +291,7 @@ class RecordingUI(ConcreteUI):
         super().__init__(*args, **kwargs)
         self.redrawn = []
 
-    def _redraw_echo(self, entry):
+    def redraw_echo(self, entry):
         self.redrawn.append(entry)
 
 

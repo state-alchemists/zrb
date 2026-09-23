@@ -16,9 +16,9 @@ Where each piece lives:
   plain-submit path; it turns a queued message in the buffer into an edit.
 * `track_echo_span` records where a submitted echo landed in the output
   buffer; `redraw_echo` splices the edited line back in. Both are called
-  through `UI`'s own `_track_echo_span`/`_redraw_echo` override hooks, which
-  `BaseUI` invokes polymorphically and broadcasts across every child UI of a
-  MultiUI.
+  through `UI`'s own `track_echo_span`/`redraw_echo` override hooks (the
+  `AnyUI` echo contract), which `BaseUI` invokes polymorphically and
+  broadcasts across every child UI of a MultiUI.
 * `redraw_echo` is the one splice path behind both callers (an edit and a
   paste merge) and re-decides the body from the entry's current text, so the
   two can never draw the message differently.

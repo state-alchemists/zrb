@@ -477,11 +477,11 @@ class UI(BaseUI):
     def handle_enter_queued_edit(self, event: Any) -> bool:
         return self._message_editing.handle_enter_queued_edit(event)
 
-    def _track_echo_span(self, entry: Any, echo: str) -> None:
+    def track_echo_span(self, entry: Any, echo: str) -> None:
         """Override hook `BaseUI` invokes polymorphically (see its base no-op)."""
         self._message_editing.track_echo_span(entry, echo)
 
-    def _redraw_echo(self, entry: Any) -> str | None:
+    def redraw_echo(self, entry: Any) -> str | None:
         """Override hook `BaseUI` invokes polymorphically (see its base no-op).
 
         Renders the entry's current text — Markdown or plain, decided per

@@ -199,7 +199,7 @@ def test_submit_user_message_via_queue_single_target_echoes_and_queues():
         def take_pending_attachments(self):
             return ["img"]
 
-        def _track_echo_span(self, entry, echo):
+        def track_echo_span(self, entry, echo):
             tracked.append((entry, echo))
 
     target = Target()
@@ -241,7 +241,7 @@ def test_submit_user_message_via_queue_fans_out_to_multiple_targets():
         def take_pending_attachments(self):
             return self._attachments
 
-        def _track_echo_span(self, entry, echo):
+        def track_echo_span(self, entry, echo):
             tracked_by.append(self.name)
 
     children = [Child("a", ["x"]), Child("b", ["y"])]
@@ -284,9 +284,14 @@ def test_submit_user_message_via_queue_steers_into_live_run_instead_of_queuing()
     assert queue.qsize() == 0
 
 
-def test_submit_user_message_via_queue_ignores_targets_without_the_hooks():
-    """A target with neither `take_pending_attachments` nor `_track_echo_span`
-    (e.g. a Telegram child) must not break the loop."""
+def test_submit_user_message_via_queue_ignores_sources_without_attachments():
+    """A source with no `take_pending_attachments` must not break the loop.
+
+    Every echo target is required to be an `AnyUI` (every `BaseUI` is
+    one), so the tolerance that used to cover "a target with no hooks" is gone;
+    what stays tolerant is attachment collection, which skips a source without
+    the method.
+    """
     queue = MessageQueue()
 
     submit_user_message_via_queue(
@@ -295,7 +300,7 @@ def test_submit_user_message_via_queue_ignores_targets_without_the_hooks():
         stream_ai_response=_stub_stream_ai_response,
         queue=queue,
         attachment_sources=[object()],
-        echo_targets=[object()],
+        echo_targets=[_NoOpEchoTarget()],
         llm_task=object(),
         user_message="hi",
         marker="💬",
@@ -303,6 +308,16 @@ def test_submit_user_message_via_queue_ignores_targets_without_the_hooks():
 
     entry = queue.peek_latest()
     assert entry.attachments == []
+
+
+class _NoOpEchoTarget:
+    """Minimal `AnyUI` echo-target shape for callers that never touch the echo side."""
+
+    def track_echo_span(self, entry, echo):
+        pass
+
+    def redraw_echo(self, entry):
+        return None
 
 
 def test_submit_user_message_via_queue_renders_markdownish_echo():
@@ -314,7 +329,7 @@ def test_submit_user_message_via_queue_renders_markdownish_echo():
         def take_pending_attachments(self):
             return []
 
-        def _track_echo_span(self, entry, echo):
+        def track_echo_span(self, entry, echo):
             raise AssertionError("a rendered echo must not claim a span")
 
     queue = MessageQueue()
@@ -354,7 +369,7 @@ def test_submit_user_message_via_queue_keeps_raw_echo_for_plain_single_line():
         def take_pending_attachments(self):
             return []
 
-        def _track_echo_span(self, entry, echo):
+        def track_echo_span(self, entry, echo):
             tracked.append(echo)
 
     queue = MessageQueue()
