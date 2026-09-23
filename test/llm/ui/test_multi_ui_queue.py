@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.llm.ui.multi_ui import MultiUI
 
 
@@ -81,10 +82,13 @@ async def test_submit_user_message_broadcasts(mock_child_ui):
 
 
 @pytest.mark.asyncio
-async def test_multi_ui_process_messages_loop_no_busy_wait(multi_ui):
+async def test_multi_ui_process_messages_loop_no_busy_wait(multi_ui, monkeypatch):
     # Regression: this loop used to busy-wait via `while ...: await
     # asyncio.sleep(0.1)` between jobs instead of awaiting the previous task
     # directly — the exact pattern base/ui.py's twin loop was fixed to avoid.
+    # The paste-burst merge is disabled so the two rapid submits stay two jobs
+    # (this test covers queue mechanics, not paste coalescing).
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 0, raising=False)
     real_sleep = asyncio.sleep
     sleep_delays = []
 

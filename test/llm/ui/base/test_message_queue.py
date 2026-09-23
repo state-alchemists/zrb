@@ -1,9 +1,11 @@
 import asyncio
+from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 
 import pytest
 from pydantic_ai.messages import UserContent
 
+from zrb.config.config import CFG
 from zrb.llm.ui.base.message_queue import (
     MessageQueue,
     QueuedMessage,
@@ -378,3 +380,110 @@ def test_submit_user_message_via_queue_keeps_raw_echo_for_plain_single_line():
     assert rendered == []
     assert len(outputs) == 1 and "hello" in outputs[0]
     assert len(tracked) == 1
+
+
+# ── paste-burst merging (LLM_UI_PASTE_MERGE_MS) ──────────────────────────────
+
+
+class BurstTarget:
+    """Standalone-UI shape with attachments, an echo-span hook, and a spy on
+    the merge redraw."""
+
+    def __init__(self):
+        self.outputs: list[str] = []
+        self.redrawn: list[QueuedMessage] = []
+        self._attachment_index = 0
+
+    def take_pending_attachments(self):
+        self._attachment_index += 1
+        return [f"img-{self._attachment_index}"]
+
+    def _track_echo_span(self, entry, echo):
+        pass
+
+    def _redraw_echo(self, entry):
+        self.redrawn.append(entry)
+
+
+def submit_burst(queue, target, text):
+    submit_user_message_via_queue(
+        append_to_output=target.outputs.append,
+        active_run_context=None,
+        stream_ai_response=_stub_stream_ai_response,
+        queue=queue,
+        attachment_sources=[target],
+        echo_targets=[target],
+        llm_task=object(),
+        user_message=text,
+        marker="💬",
+    )
+
+
+def test_submit_via_queue_merges_paste_burst_into_one_queued_message(monkeypatch):
+    """Lines a terminal split into per-line Enter submits join a single turn."""
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
+    target = BurstTarget()
+    queue = MessageQueue()
+
+    submit_burst(queue, target, "git status")
+    submit_burst(queue, target, "git add .")
+    submit_burst(queue, target, "git commit")
+
+    assert queue.qsize() == 1
+    entry = queue.peek_latest()
+    assert entry.text == "git status\ngit add .\ngit commit"
+    assert entry.attachments == ["img-1", "img-2", "img-3"]
+    assert entry.submitted_at is not None
+    # Only the opening line is echoed; merged lines redraw that echo in place
+    # instead of each writing their own.
+    assert len(target.outputs) == 1
+    assert target.redrawn == [entry, entry]
+
+
+def test_submit_via_queue_does_not_merge_past_the_burst_window():
+    """A message older than the window starts its own turn — the queue keeps
+    both entries and the LLM sees two messages."""
+    target = BurstTarget()
+    queue = MessageQueue()
+
+    submit_burst(queue, target, "first")
+    # Expire the queued message beyond the (default 100ms) merge window.
+    queue.peek_latest().submitted_at = datetime.now() - timedelta(seconds=11)
+    submit_burst(queue, target, "second")
+
+    assert queue.qsize() == 2
+    assert queue.peek_latest().text == "second"
+    assert len(target.outputs) == 2
+
+
+def test_submit_via_queue_partial_burst_merges_only_while_fresh(monkeypatch):
+    """A burst merges; a pause long enough to leave the window then splits —
+    the rolling `submitted_at` keeps a long paste together but lets a pause
+    start a new message."""
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 10_000, raising=False)
+    target = BurstTarget()
+    queue = MessageQueue()
+
+    submit_burst(queue, target, "line one")
+    submit_burst(queue, target, "line two")
+    # A pause that outlives the window ends the burst.
+    queue.peek_latest().submitted_at = datetime.now() - timedelta(seconds=11)
+    submit_burst(queue, target, "later")
+
+    assert queue.qsize() == 2
+    newest = queue.latest_editable()
+    older = queue.editable_before(newest)
+    assert newest.text == "later"
+    assert older.text == "line one\nline two"
+
+
+def test_submit_via_queue_zero_window_disables_merging(monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 0, raising=False)
+    target = BurstTarget()
+    queue = MessageQueue()
+
+    submit_burst(queue, target, "one")
+    submit_burst(queue, target, "two")
+
+    assert queue.qsize() == 2
+    assert len(target.outputs) == 2

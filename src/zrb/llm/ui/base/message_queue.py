@@ -52,6 +52,11 @@ class QueuedMessage:
         self.attachments = attachments
         self.kind = kind  # "message" | "exec"
         self.run = run
+        # When submission reached the queue, so a paste whose lines arrived as
+        # separate Enter keystrokes can be coalesced back into one message.
+        # None for entries that never passed through `submit_user_message_via_queue`
+        # (e.g. `/exec` jobs) — they never merge.
+        self.submitted_at: datetime | None = None
         # Marker ("💬"/"⏳") and timestamp of the echoed line, kept so an edit
         # can rebuild the line in the same style instead of re-deriving state.
         self.echo_marker: str = ""
@@ -178,14 +183,16 @@ def submit_user_message_via_queue(
     A rendered echo is header + rendered body rather than one verbatim chunk,
     so it claims no echo span: editing the queued message still works but
     cannot rewrite the echoed line in place.
+
+    A paste whose lines arrived as separate Enter keystrokes (a terminal that
+    never wrapped them in a bracketed-paste marker) submits one line per
+    `put_nowait` within a few milliseconds. When the newest still-queued,
+    still-editable message was submitted within `CFG.LLM_UI_PASTE_MERGE_MS`
+    of this one, the new line is appended to it instead of becoming its own
+    turn — the model receives the pasted block as one message.
     """
-    timestamp = datetime.now().strftime("%H:%M")
-    echo = echo_user_message(
-        append_to_output,
-        append_markdown,
-        header=f"\n{marker} {timestamp} >> ",
-        body=user_message.strip(),
-    )
+    now = datetime.now()
+    timestamp = now.strftime("%H:%M")
 
     attachments: list[Any] = []
     for source in attachment_sources:
@@ -198,6 +205,26 @@ def submit_user_message_via_queue(
     if steer_into_live_run(active_run_context, user_message, attachments):
         return
 
+    previous = queue.latest_editable()
+    if previous is not None and _is_paste_burst(
+        previous, now, CFG.LLM_UI_PASTE_MERGE_MS
+    ):
+        previous.text = f"{previous.text.strip()}\n{user_message.strip()}"
+        previous.attachments += attachments
+        previous.submitted_at = now
+        for target in echo_targets:
+            redraw = getattr(target, "_redraw_echo", None)
+            if callable(redraw):
+                redraw(previous)
+        return
+
+    echo = echo_user_message(
+        append_to_output,
+        append_markdown,
+        header=f"\n{marker} {timestamp} >> ",
+        body=user_message.strip(),
+    )
+
     entry = QueuedMessage(
         text=user_message,
         attachments=attachments,
@@ -206,12 +233,35 @@ def submit_user_message_via_queue(
     )
     entry.echo_marker = marker
     entry.echo_timestamp = timestamp
+    entry.submitted_at = now
     if echo:
         for target in echo_targets:
             track = getattr(target, "_track_echo_span", None)
             if callable(track):
                 track(entry, echo)
     queue.put_nowait(entry)
+
+
+def _is_paste_burst(
+    previous: "QueuedMessage | None", now: datetime, window_ms: int
+) -> bool:
+    """Whether `previous` — the newest still-queued user message — arrived so
+    recently that it can only be a paste whose lines the terminal split into
+    Enter keystrokes, never a human re-submission (typing another message
+    takes orders of magnitude longer).
+
+    The window rolls forward: each merge refreshes `submitted_at`, so a long
+    paste's tail stays in the same burst while a pause between two deliberate
+    messages exceeds the window naturally. Only an entry that is still queued
+    and editable can merge; an `/exec` job and an already-started turn are
+    both absent from `latest_editable`. A non-positive `window_ms` disables
+    the merge.
+    """
+    if previous is None or previous.submitted_at is None:
+        return False
+    if window_ms <= 0:
+        return False
+    return (now - previous.submitted_at).total_seconds() * 1000 <= window_ms
 
 
 def steer_into_live_run(
