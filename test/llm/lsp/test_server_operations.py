@@ -255,7 +255,9 @@ async def test_rename_continues_when_prepare_unsupported(lsp_server):
             },
         )
     )
-    assert await lsp_server.rename("/never/here.py", 0, 0, "new_name") == {"changes": {}}
+    assert await lsp_server.rename("/never/here.py", 0, 0, "new_name") == {
+        "changes": {}
+    }
     await feeder
     await lsp_server.stop()
 

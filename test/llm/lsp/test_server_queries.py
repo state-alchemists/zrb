@@ -3,6 +3,7 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
 from zrb.llm.lsp.configs import LSPServerConfig
 from zrb.llm.lsp.server import LSPServer
 
@@ -186,6 +187,8 @@ def testpath_to_uri_encodes_special_characters(lsp_server):
         assert uri_to_path(uri).endswith(path.split("/")[-1])
         # Spaces and reserved chars are percent-encoded, not left raw.
         assert " " not in uri
+
+
 @pytest.mark.asyncio
 async def test_rename_applies_workspace_edit_to_disk(lsp_server, tmp_path):
     """B7 option (a): non-dry-run rename writes edits to disk and reports applied."""

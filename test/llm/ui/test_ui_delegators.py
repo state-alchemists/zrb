@@ -220,9 +220,12 @@ async def test_confirmation_async_delegators(mock_ui_deps):
 @pytest.mark.asyncio
 async def test_run_interactive_command_hands_terminal_to_subprocess(mock_ui_deps):
     ui = _ui(mock_ui_deps)
-    with patch(
-        "prompt_toolkit.application.run_in_terminal", new_callable=AsyncMock
-    ) as run_in_terminal, patch("subprocess.call") as subprocess_call:
+    with (
+        patch(
+            "prompt_toolkit.application.run_in_terminal", new_callable=AsyncMock
+        ) as run_in_terminal,
+        patch("subprocess.call") as subprocess_call,
+    ):
         run_in_terminal.side_effect = lambda handler: handler()
         await ui.run_interactive_command("echo hi", shell=False)
     run_in_terminal.assert_awaited_once()

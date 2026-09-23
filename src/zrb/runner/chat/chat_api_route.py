@@ -159,7 +159,6 @@ async def resolve_llm_chat_task_for_session(
     return llm_chat, not_found_msg
 
 
-
 async def _require_auth(
     web_auth_config: WebAuthConfig,
     root_group: AnyGroup,
@@ -479,9 +478,7 @@ async def _handle_get_session_status(
         content={
             "exists": True,
             "is_processing": session.is_processing,
-            "has_pending_approvals": session_manager.has_pending_approvals(
-                session_id
-            ),
+            "has_pending_approvals": session_manager.has_pending_approvals(session_id),
         }
     )
 

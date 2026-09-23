@@ -276,9 +276,12 @@ def test_copy_command_without_history(conv_ui):
 
 def test_copy_command_copies_full_transcript(conv_ui):
     conv_ui.history_manager.load.return_value = ["m1"]
-    with patch(
-        "zrb.llm.util.history_formatter.format_history_as_text", return_value="text"
-    ), patch("zrb.llm.util.clipboard.copy_text", return_value=True):
+    with (
+        patch(
+            "zrb.llm.util.history_formatter.format_history_as_text", return_value="text"
+        ),
+        patch("zrb.llm.util.clipboard.copy_text", return_value=True),
+    ):
         assert conv_ui.handle_copy_command("copy") is True
     assert any("copied to clipboard" in line for line in conv_ui.outputs)
 

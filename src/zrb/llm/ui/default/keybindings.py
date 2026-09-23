@@ -251,9 +251,7 @@ class UIKeybindings:
             from zrb.llm.agent.types import BinaryContent
 
             scaled = scale_image_bytes(img_bytes, media_type="image/png")
-            attachment = BinaryContent(
-                data=scaled.data, media_type=scaled.media_type
-            )
+            attachment = BinaryContent(data=scaled.data, media_type=scaled.media_type)
             ui.pending_attachments.append(attachment)
             size_kb = scaled.final_bytes / 1024
             if scaled.scaled:
@@ -388,9 +386,7 @@ class UIKeybindings:
         # model is cached for future recordings.
         if not engine.is_ready and CFG.LLM_VOICE_MODE.strip().lower() == "vosk":
             if not engine.is_vosk_model_ready():
-                ui.append_to_output(
-                    stylize_muted("\n  🎤 Downloading voice model...")
-                )
+                ui.append_to_output(stylize_muted("\n  🎤 Downloading voice model..."))
                 ui.invalidate_ui()
                 try:
                     await engine.download_vosk_model()
@@ -399,9 +395,7 @@ class UIKeybindings:
                     ui.voice.recording_active = False
                     ui.voice.task = None
                     ui.voice.stop_event = None
-                    ui.append_to_output(
-                        stylize_muted(f"\n  ⚠️ Voice error: {exc}\n")
-                    )
+                    ui.append_to_output(stylize_muted(f"\n  ⚠️ Voice error: {exc}\n"))
                     ui.invalidate_ui()
                     return
                 ui.append_to_output(stylize_muted("\n  🎤 Voice model ready"))

@@ -29,7 +29,9 @@ def lsp_server(mock_config):
 async def test_start_when_alive_is_noop(lsp_server):
     """A second start() while the process is alive short-circuits."""
     queue = asyncio.Queue()
-    queue.put_nowait(_frame({"jsonrpc": "2.0", "id": 1, "result": {"capabilities": {}}}))
+    queue.put_nowait(
+        _frame({"jsonrpc": "2.0", "id": 1, "result": {"capabilities": {}}})
+    )
     with patch("asyncio.create_subprocess_exec") as mock_exec:
         mock_exec.return_value = _queued_subprocess(queue)
         assert await lsp_server.start() is True
@@ -69,7 +71,9 @@ async def test_start_failure_with_stop_error_returns_false(lsp_server):
 @pytest.mark.asyncio
 async def test_stop_force_kills_when_terminate_times_out(lsp_server, monkeypatch):
     queue = asyncio.Queue()
-    queue.put_nowait(_frame({"jsonrpc": "2.0", "id": 1, "result": {"capabilities": {}}}))
+    queue.put_nowait(
+        _frame({"jsonrpc": "2.0", "id": 1, "result": {"capabilities": {}}})
+    )
     proc = _queued_subprocess(queue)
 
     async def hang(*args):
@@ -143,7 +147,9 @@ async def test_read_loop_breaks_on_eof(lsp_server):
 @pytest.mark.asyncio
 async def test_read_loop_survives_bad_messages_then_times_out(lsp_server):
     queue = asyncio.Queue()
-    queue.put_nowait(_frame({"jsonrpc": "2.0", "id": 1, "result": {"capabilities": {}}}))
+    queue.put_nowait(
+        _frame({"jsonrpc": "2.0", "id": 1, "result": {"capabilities": {}}})
+    )
     with patch("asyncio.create_subprocess_exec") as mock_exec:
         mock_exec.return_value = _queued_subprocess(queue)
         assert await lsp_server.start() is True
@@ -169,7 +175,9 @@ async def test_read_loop_survives_bad_messages_then_times_out(lsp_server):
 @pytest.mark.asyncio
 async def test_error_response_raises_server_error(lsp_server):
     queue = asyncio.Queue()
-    queue.put_nowait(_frame({"jsonrpc": "2.0", "id": 1, "result": {"capabilities": {}}}))
+    queue.put_nowait(
+        _frame({"jsonrpc": "2.0", "id": 1, "result": {"capabilities": {}}})
+    )
     with patch("asyncio.create_subprocess_exec") as mock_exec:
         mock_exec.return_value = _queued_subprocess(queue)
         assert await lsp_server.start() is True
@@ -178,12 +186,22 @@ async def test_error_response_raises_server_error(lsp_server):
         _feed_when_pending(
             lsp_server,
             queue,
-            {2: {"error": {"code": -32601, "message": "Method Not Found", "data": None}}},
+            {
+                2: {
+                    "error": {
+                        "code": -32601,
+                        "message": "Method Not Found",
+                        "data": None,
+                    }
+                }
+            },
         )
     )
     with pytest.raises(LSPServerError):
         await lsp_server.goto_definition("/never/here.py", 0, 0)
     await feeder
+
+
 def _frame(payload):
     body = json.dumps(payload)
     return f"Content-Length: {len(body)}\r\n\r\n{body}".encode()

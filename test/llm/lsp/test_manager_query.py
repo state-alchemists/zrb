@@ -66,7 +66,11 @@ async def test_find_definition_skips_nonmatching_workspace_symbols(manager):
     mock_server = AsyncMock()
     mock_server.workspace_symbols.return_value = [
         {"name": "Other", "kind": SymbolKind.CLASS.value, "location": {}},
-        {"name": "Foo", "kind": SymbolKind.CLASS.value, "location": {"uri": "file:///x.py"}},
+        {
+            "name": "Foo",
+            "kind": SymbolKind.CLASS.value,
+            "location": {"uri": "file:///x.py"},
+        },
     ]
     with (
         patch.object(manager, "get_server", return_value=mock_server),
