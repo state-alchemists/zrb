@@ -169,9 +169,24 @@ def test_track_echo_span_records_when_echo_lands():
     assert span.text == echo
 
 
+def test_track_echo_span_records_with_writers_trailing_newline():
+    # The writer's default separator appends a newline after the echo, so a
+    # bare `endswith` span would never record and pastes would fragment.
+    ui = MockEditingOutputUI()
+    echo = "\n💬 10:00 >> original\n"
+    ui.output_field.text = "head" + echo + "\n"
+    entry = make_entry()
+
+    ui.track_echo_span(entry, echo)
+
+    span = entry.echo_spans[ui]
+    assert (span.start, span.end) == (len("head"), len("head") + len(echo))
+    assert ui.output_text[span.start : span.end] == echo
+
+
 def test_track_echo_span_skips_when_echo_buffered():
-    # A pending confirmation diverted the echo away from the output buffer, so
-    # there is nothing to splice later — the span must not be recorded.
+    # A pending confirmation diverted the echo from the buffer — nothing to
+    # splice later, so the span must not be recorded.
     ui = MockEditingOutputUI()
     ui.output_field.text = "confirmation prompt"
     entry = make_entry()
@@ -200,10 +215,8 @@ def test_redraw_echo_splices_edited_line():
 
 
 def test_redraw_echo_drops_span_that_no_longer_holds_the_echo():
-    # A terminal resize re-wrapped a preceding markdown block and shifted the
-    # transcript without updating the entry's span. The span is in-bounds but
-    # stale, so splicing there would corrupt the output — the redraw must drop
-    # it instead (the edit stays effective, the echo is just not rewritten).
+    # A terminal resize shifted the transcript without updating the span;
+    # splicing at the stale span would corrupt the output, so it is dropped.
     ui = MockEditingOutputUI()
     echo = "\n💬 10:00 >> original\n"
     ui.output_field.text = "rewrapped long block now" + echo
@@ -256,9 +269,35 @@ def test_redraw_echo_is_a_noop_without_span():
     assert entry.echo_spans == {}
 
 
+def test_redraw_echo_markdown_replaces_echo_with_full_rendered_message():
+    # A merge whose combined text turned Markdown renders the WHOLE queued
+    # message into the echo, and re-tracks the span so a later edit can still
+    # rewrite the display.
+    ui = MockEditingOutputUI()
+    echo = "\n💬 10:00 >> hello\n"
+    ui.output_field.text = "head" + echo + "tail"
+    entry = make_entry(text="hello\n- item")
+    start = len("head")
+    entry.echo_spans[ui] = EchoSpan(start, start + len(echo), echo)
+
+    with patch(
+        "zrb.llm.ui.default.output.render_markdown",
+        return_value="HELLO\n- ITEM",
+    ) as mock_render:
+        rewritten = ui.redraw_echo_markdown(entry)
+
+    # The full combined message — not `- item` alone — is what got rendered.
+    assert mock_render.call_args.args[0] == "hello\n- item"
+    assert ui.output_text == "head" + "\n💬 10:00 >> HELLO\n- ITEM\n" + "tail"
+    span = entry.echo_spans[ui]
+    assert span.start == start
+    assert span.end == start + len("\n💬 10:00 >> HELLO\n- ITEM\n")
+    assert span.text == "\n💬 10:00 >> HELLO\n- ITEM\n"
+    assert rewritten == "\n💬 10:00 >> HELLO\n- ITEM\n"
+
+
 def test_replace_output_span_shifts_tracked_blocks_after_span():
-    """Splicing a shorter echo must shift rendered-block offsets so a later
-    re-wrap still splices at the right position."""
+    """Splicing a shorter echo shifts rendered-block offsets for later re-wrap."""
     ui = MockMarkdownUI()
     echo = "\n💬 10:00 >> original\n"
     ui.output_field.text = "head" + echo + "markdown"
@@ -336,9 +375,7 @@ def test_toggle_collapsible_block_at_cursor_returns_false_without_a_block():
 
 
 def test_toggle_collapsible_block_at_cursor_leaves_state_unchanged_on_stale_span():
-    """If the recorded span no longer matches the buffer (stale), the toggle
-    must not flip `expanded` or move the tracked offsets — otherwise a later
-    toggle would work from corrupted bookkeeping instead of retrying cleanly."""
+    """Stale span: neither `expanded` nor the tracked offsets may move."""
     ui = MockMarkdownUI()
 
     with patch.object(ui.output_part, "schedule_invalidate"):
@@ -357,9 +394,7 @@ def test_toggle_collapsible_block_at_cursor_leaves_state_unchanged_on_stale_span
 
 
 def test_toggle_collapsible_block_at_cursor_shifts_later_blocks():
-    """Toggling an earlier block must keep a later block's offsets correct —
-    the same shift bookkeeping `replace_output_span` already guarantees for
-    markdown/help-panel blocks."""
+    """Toggling an earlier block keeps a later block's offsets correct."""
     ui = MockMarkdownUI()
 
     with patch.object(ui.output_part, "schedule_invalidate"):
@@ -375,14 +410,12 @@ def test_toggle_collapsible_block_at_cursor_shifts_later_blocks():
         toggled = ui.toggle_collapsible_block_at_cursor()
 
     assert toggled is True
-    # The second block's recorded span must still slice out its own text
-    # after the first block grew.
+    # The second block's span must still slice its own text after the growth.
     assert ui.output_text[second_block[0] : second_block[1]] == expected_second_text
 
 
 def test_rewrap_output_preserves_toggle_block_expanded_state():
-    """A toggle block's renderer ignores width and reads `expanded`, so a
-    resize-triggered rewrap must not revert an expanded block to collapsed."""
+    """A toggle block's renderer reads `expanded`, so rewrap must not revert it."""
     ui = MockMarkdownUI()
 
     with patch.object(ui.output_part, "schedule_invalidate"):
@@ -400,10 +433,7 @@ def test_rewrap_output_preserves_toggle_block_expanded_state():
 
 
 def test_mark_and_collapse_thinking_block_wraps_the_streamed_span():
-    """Thinking streams live (unlike tool-call blocks, nothing is withheld);
-    `collapse_thinking_block` retroactively wraps that already-printed span,
-    using the caller-supplied `full` text (not re-read from the buffer —
-    see the carriage-return regression test below for why)."""
+    """Thinking streams live; collapse rewraps from the supplied `full` text."""
     ui = MockMarkdownUI()
 
     with patch.object(ui.output_part, "schedule_invalidate"):
@@ -430,10 +460,7 @@ def test_mark_and_collapse_thinking_block_wraps_the_streamed_span():
 
 
 def test_collapse_thinking_block_ignores_buffer_mangled_by_carriage_return():
-    """Regression: the passed-in `full` must win even when the *rendered*
-    span no longer matches it (e.g. a stray \\r rewrote part of the live
-    line) — this is the whole reason `full` is a parameter instead of being
-    re-derived from the buffer."""
+    """The passed-in `full` wins even when a stray \\r rewrote the live line."""
     ui = MockMarkdownUI()
 
     with patch.object(ui.output_part, "schedule_invalidate"):

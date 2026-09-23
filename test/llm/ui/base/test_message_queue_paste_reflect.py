@@ -3,9 +3,9 @@
 How a paste burst folds into one queued message is covered by
 `test_message_queue_paste_merge.py`; this file covers what each target sees:
 the line spliced in place where possible, echoed to a bufferless child alone,
-kept visible when a child's redraw fails, rendered through the markdown path
-when the combined text turns Markdown, and never duplicated across a
-MultiUI's shared `QueuedMessage` echo-span state.
+kept visible when a child's redraw fails, rendered whole when the combined
+text turns Markdown (with a verbatim fallback for targets that cannot splice),
+and never duplicated across a MultiUI's shared `QueuedMessage` echo-span state.
 """
 
 from unittest.mock import MagicMock
@@ -77,32 +77,44 @@ def submit_burst(queue, target, text):
 
 class SpliceableTarget:
     """Spliceable shape mirroring the default TUI's per-buffer echo bookkeeping:
-    an own output buffer and a own echo span keyed by `self`, spliced in place.
+    an own output buffer and an own echo span keyed by `self`, spliced in place.
 
     `_track_echo_span`/`_redraw_echo` reproduce how `UIMessageEditing` records
     and splices the echoed line in the real default UI, so this exercises the
     shared-`QueuedMessage` span state instead of a spy that never reads it.
+    `append_to_output` matches the real writer's trailing newline — the echoed
+    line already ends with one, and the writer appends a separator after it —
+    so a span is only usable if its recording survives that extra blank line.
+    `_redraw_echo_markdown` mirrors the full-render replacement of a merge
+    whose combined text turned Markdown (rendered as the message uppercased).
     """
 
     def __init__(self):
         self.buffer = ""
         self.splices = 0
+        self.rendered: list[str] = []
 
     def append_to_output(self, *values, **kwargs):
-        self.buffer += "".join(str(v) for v in values) + kwargs.get("end", "")
+        self.buffer += "".join(str(v) for v in values) + kwargs.get("end", "\n")
+
+    def append_markdown(self, markdown_text):
+        self.rendered.append(markdown_text)
 
     def take_pending_attachments(self):
         return []
 
     def _track_echo_span(self, entry, echo):
-        if self.buffer.endswith(echo):
+        if self.buffer.endswith(echo) or self.buffer.endswith(echo + "\n"):
+            index = self.buffer.rfind(echo)
+            if index < 0:
+                return
             entry.echo_spans[self] = EchoSpan(
-                start=len(self.buffer) - len(echo),
-                end=len(self.buffer),
+                start=index,
+                end=index + len(echo),
                 text=echo,
             )
 
-    def _redraw_echo(self, entry):
+    def _resolve_span(self, entry):
         span = entry.echo_spans.get(self)
         if span is None:
             return None
@@ -111,9 +123,15 @@ class SpliceableTarget:
         ):
             del entry.echo_spans[self]
             return None
+        return span
+
+    def _splice_echo(self, entry, body):
+        span = self._resolve_span(entry)
+        if span is None:
+            return None
         marker = entry.echo_marker or "💬"
         ts = entry.echo_timestamp or "10:00"
-        echo = f"\n{marker} {ts} >> {entry.text.strip()}\n"
+        echo = f"\n{marker} {ts} >> {body}\n"
         self.buffer = self.buffer[: span.start] + echo + self.buffer[span.end :]
         entry.echo_spans[self] = EchoSpan(
             start=span.start,
@@ -122,6 +140,12 @@ class SpliceableTarget:
         )
         self.splices += 1
         return echo
+
+    def _redraw_echo(self, entry):
+        return self._splice_echo(entry, entry.text.strip())
+
+    def _redraw_echo_markdown(self, entry):
+        return self._splice_echo(entry, entry.text.upper())
 
 
 def test_submit_user_message_via_queue_echoes_a_steered_live_run_message():
@@ -215,17 +239,60 @@ def test_submit_via_queue_reflects_merged_line_per_multiui_child(monkeypatch):
     assert "git add ." in telegram.outputs[1]
 
 
-def test_submit_via_queue_renders_merged_markdown_via_echo_path(monkeypatch):
-    """A burst whose combined text turns Markdown (e.g. `- item` after `hello`)
-    drops the plain echo's span and echoes the merged line through the render
-    path — no literal Markdown splice, no duplicate of the full combined
-    message, and nothing left behind for a later edit to re-splice."""
+def test_submit_via_queue_replaces_echo_with_full_rendered_merged_markdown(monkeypatch):
+    """A burst whose combined text turns Markdown is shown on a spliceable TUI
+    as the whole combined message rendered in place of the plain opening echo.
+    Rendering only the newest line would leave a multi-line construct half on
+    screen (e.g. a fenced code block's closing fence), so the target must
+    render the full message; the re-tracked span keeps a later edit able to
+    rewrite the display."""
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
+    target = SpliceableTarget()
+    queue = MessageQueue()
+
+    def submit(text):
+        submit_user_message_via_queue(
+            append_to_output=target.append_to_output,
+            active_run_context=None,
+            stream_ai_response=_stub_stream_ai_response,
+            queue=queue,
+            attachment_sources=[target],
+            echo_targets=[target],
+            llm_task=object(),
+            user_message=text,
+            marker="💬",
+            append_markdown=target.append_markdown,
+        )
+
+    submit("hello")
+    submit("- item")
+
+    entry = queue.peek_latest()
+    assert queue.qsize() == 1
+    assert entry.text == "hello\n- item"
+    assert target.splices == 1
+    # The plain opening echo is gone, replaced by a render of the full
+    # combined message (the double's stand-in renderer uppercases it) — the
+    # merged line alone is never what gets drawn.
+    assert "hello" not in target.buffer
+    assert ">> HELLO\n- ITEM\n" in target.buffer
+    # The echo span survives, re-tracked over the rendered replacement, so a
+    # later edit can still rewrite the displayed message.
+    span = entry.echo_spans[target]
+    assert span.text.startswith("\n💬 ")
+    assert span.text.endswith(">> HELLO\n- ITEM\n")
+
+
+def test_submit_via_queue_echoes_merged_markdown_line_verbatim_without_splice(monkeypatch):
+    """A target with no echo to splice must never render just the new line of
+    a combined message that turned Markdown — a bare `- item` or a lone fence
+    is meaningless without the rest of the message. The line lands verbatim,
+    so nothing is partial and nothing disappears."""
     monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
     outputs: list[str] = []
     rendered: list[str] = []
-    redrawn: list[QueuedMessage] = []
 
-    class MarkdownTarget:
+    class MarkdownBufferlessTarget:
         def append_to_output(self, *values, **kwargs):
             outputs.append("".join(str(v) for v in values) + kwargs.get("end", ""))
 
@@ -239,51 +306,37 @@ def test_submit_via_queue_renders_merged_markdown_via_echo_path(monkeypatch):
             pass
 
         def _redraw_echo(self, entry):
-            redrawn.append(entry)
             return None
 
-    target = MarkdownTarget()
+    target = MarkdownBufferlessTarget()
     queue = MessageQueue()
 
-    submit_user_message_via_queue(
-        append_to_output=target.append_to_output,
-        active_run_context=None,
-        stream_ai_response=_stub_stream_ai_response,
-        queue=queue,
-        attachment_sources=[target],
-        echo_targets=[target],
-        llm_task=object(),
-        user_message="hello",
-        marker="💬",
-        append_markdown=target.append_markdown,
-    )
-    submit_user_message_via_queue(
-        append_to_output=target.append_to_output,
-        active_run_context=None,
-        stream_ai_response=_stub_stream_ai_response,
-        queue=queue,
-        attachment_sources=[target],
-        echo_targets=[target],
-        llm_task=object(),
-        user_message="- item",
-        marker="💬",
-        append_markdown=target.append_markdown,
-    )
+    def submit(text):
+        submit_user_message_via_queue(
+            append_to_output=target.append_to_output,
+            active_run_context=None,
+            stream_ai_response=_stub_stream_ai_response,
+            queue=queue,
+            attachment_sources=[target],
+            echo_targets=[target],
+            llm_task=object(),
+            user_message=text,
+            marker="💬",
+            append_markdown=target.append_markdown,
+        )
+
+    submit("hello")
+    submit("- item")
 
     entry = queue.peek_latest()
     assert queue.qsize() == 1
     assert entry.text == "hello\n- item"
-    # The plain echo's span is dropped, so no literal splice is possible and a
-    # later edit has nothing stale to redraw.
-    assert entry.echo_spans == {}
-    # Only the merged line is rendered — the combined message is never echoed a
-    # second time, so `hello` appears once and there is no duplicate block.
-    assert rendered == ["- item"]
-    assert redrawn == [entry]
-    # The plain opening line was echoed raw; the merged line went through the
-    # target's own header + markdown path.
-    assert sum("hello" in o for o in outputs) == 1
-    assert any(o.endswith(">> ") for o in outputs)
+    # Nothing rendered — a view of just `- item` would be a fragment of a
+    # Markdown list with no context; the merged line echoed verbatim instead.
+    assert rendered == []
+    assert len(outputs) == 2
+    assert "hello" in outputs[0]
+    assert "- item" in outputs[1]
 
 
 def test_submit_via_queue_survives_a_child_redraw_failure(monkeypatch):

@@ -219,6 +219,14 @@ class UIOutput:
         """Append rendered markdown, remembering the source (public API)."""
         self.append_rendered(markdown_text, self._render_markdown_block)
 
+    def render_markdown(self, markdown_text: str) -> str:
+        """Render `markdown_text` at the current output width (public API).
+
+        Counterpart to `append_markdown` for a caller (the queued-message echo
+        splice) that needs the rendered text in hand rather than appended.
+        """
+        return self._render_markdown_block(markdown_text, self.output_field_width)
+
     def print_help(self) -> None:
         """Append the help panel as a re-renderable block (public API).
 

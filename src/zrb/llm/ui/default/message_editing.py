@@ -205,31 +205,34 @@ class UIMessageEditing:
         per child buffer — a child redraws against its own span, never the
         last child's.
 
-        Only recorded when the line actually reached the output buffer verbatim
-        — a pending confirmation buffers the content instead, which would make
-        the span a lie (the same guard `append_rendered` uses).
+        Only recorded when the line actually reached the output buffer
+        verbatim — a pending confirmation buffers the content instead, which
+        would make the span a lie (the same guard `append_rendered` uses). The
+        echo's own writer appends a separator newline after the line (the
+        default `end="\\n"`), so the span is located by the exact echo
+        substring at the tail rather than by a bare `endswith` — the buffer
+        ends with `echo`, or with one blank line after it.
         """
         text = self._ui.output_text
-        if text.endswith(echo):
-            entry.echo_spans[self._ui] = EchoSpan(
-                start=len(text) - len(echo),
-                end=len(text),
-                text=echo,
-            )
+        if not (text.endswith(echo) or text.endswith(echo + "\n")):
+            return
+        index = text.rfind(echo)
+        if index < 0:
+            return
+        entry.echo_spans[self._ui] = EchoSpan(
+            start=index,
+            end=index + len(echo),
+            text=echo,
+        )
 
-    def redraw_echo(self, entry: QueuedMessage) -> str | None:
-        """Splice `entry`'s echoed line back into the output buffer after an edit.
+    def _validated_echo_span(self, entry: QueuedMessage) -> EchoSpan | None:
+        """The echo span still safe to splice for this UI, or ``None``.
 
-        Returns the rewritten line, or ``None`` when nothing was redrawn —
-        there is no tracked span for this UI, the span is stale, or the buffer
-        no longer holds the echo. A caller that gets ``None`` (a bufferless UI,
-        or the default UI past a rendered echo that never claimed a span) can
-        fall back to emitting an ordinary echo so merged paste lines stay
-        visible.
-
-        The span lookup is keyed by this UI (`self._ui`), so one child's
-        redraw never touches — or invalidates — the span another child tracks
-        on the same shared entry.
+        A span is unusable — and pruned — when it lies past the buffer (the
+        transcript was rewound) or no longer holds the echoed line (a terminal
+        resize re-wrapped tracked markdown blocks and shifted everything
+        without updating this entry). Shared by `redraw_echo` and
+        `redraw_echo_markdown` so their stale-span rules cannot drift apart.
         """
         span = entry.echo_spans.get(self._ui)
         if span is None:
@@ -247,9 +250,52 @@ class UIMessageEditing:
             # corrupting the output buffer.
             del entry.echo_spans[self._ui]
             return None
+        return span
+
+    def redraw_echo(self, entry: QueuedMessage) -> str | None:
+        """Splice `entry`'s echoed line back into the output buffer after an edit.
+
+        Returns the rewritten line, or ``None`` when nothing was redrawn —
+        there is no tracked span for this UI, the span is stale, or the buffer
+        no longer holds the echo. A caller that gets ``None`` (a bufferless UI,
+        or the default UI past a rendered echo that never claimed a span) can
+        fall back to emitting an ordinary echo so merged paste lines stay
+        visible.
+
+        The span lookup is keyed by this UI (`self._ui`), so one child's
+        redraw never touches — or invalidates — the span another child tracks
+        on the same shared entry.
+        """
+        span = self._validated_echo_span(entry)
+        if span is None:
+            return None
         marker = entry.echo_marker or "💬"
         ts = entry.echo_timestamp or datetime.now().strftime("%H:%M")
         echo = f"\n{marker} {ts} >> {entry.text.strip()}\n"
+        self._ui.replace_output_span(span.start, span.end, echo)
+        entry.echo_spans[self._ui] = EchoSpan(
+            start=span.start,
+            end=span.start + len(echo),
+            text=echo,
+        )
+        return echo
+
+    def redraw_echo_markdown(self, entry: QueuedMessage) -> str | None:
+        """Replace `entry`'s echo with a full render of its merged Markdown.
+
+        A paste whose lines merged into a single Markdown message is shown as
+        the whole combined text rendered, spliced over the plain opening echo
+        in place — a multi-line construct (a fenced code block, a list) reads
+        as one block instead of a meaningless render of just the newest line.
+        Returns the rewritten echo, or ``None`` when nothing was redrawn, with
+        the same stale-span contract as `redraw_echo`.
+        """
+        span = self._validated_echo_span(entry)
+        if span is None:
+            return None
+        marker = entry.echo_marker or "💬"
+        ts = entry.echo_timestamp or datetime.now().strftime("%H:%M")
+        echo = f"\n{marker} {ts} >> {self._ui.render_markdown(entry.text)}\n"
         self._ui.replace_output_span(span.start, span.end, echo)
         entry.echo_spans[self._ui] = EchoSpan(
             start=span.start,

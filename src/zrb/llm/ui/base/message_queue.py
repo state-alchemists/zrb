@@ -223,11 +223,12 @@ def submit_user_message_via_queue(
     echo span on the shared entry, so one child's redraw never invalidates
     another's. A child whose redraw fails is treated like one that cannot
     redraw — the failure is logged and the other targets still get their path.
-    And when the merged text turns Markdown, splicing it would show literal
-    Markdown, so every target's span is dropped and the merged line is echoed
-    per target through the rendering path instead — the first line's plain
-    echo stays, but the combined message is never re-echoed, so there is no
-    duplicate and no stale span for a later edit to splice.
+    And when the combined text turns Markdown, a target that can replace its
+    echo renders the *whole* combined message in place of the plain opening
+    echo, so a multi-line construct (a fenced code block, a list) reads as one
+    block rather than a partial render of just the newest line; a target with
+    nothing to splice gets the merged line verbatim instead. The span survives
+    either way, so a later edit can still update the displayed message.
     """
     now = datetime.now()
     timestamp = now.strftime("%H:%M")
@@ -260,19 +261,19 @@ def submit_user_message_via_queue(
         previous.text = combined
         previous.attachments += attachments
         previous.submitted_at = now
+        header = f"\n{marker} {timestamp} >> "
         if append_markdown is not None and should_render_user_markdown(combined):
-            # The combined text cannot be spliced into the plain echo without
-            # showing literal Markdown, and re-rendering the whole message
-            # would leave the user with both the first line and a duplicate
-            # block. Drop every target's tracked span so a later edit has
-            # nothing stale to splice, then echo just the merged line per
-            # target through the rendering path — every line lands exactly
-            # once.
-            previous.echo_spans.clear()
+            # The combined message turned Markdown. Splicing it into the plain
+            # echo as raw text would be one option, but the whole merged
+            # message is what reads correctly — a spliceable target replaces
+            # its echo with a full render of `previous.text`; one with nothing
+            # to splice gets the merged line verbatim so no target ever shows
+            # a partial render of just the newest line.
+            for target in echo_targets:
+                _reflect_merged_markdown(target, previous, header, user_message)
+            return
         for target in echo_targets:
-            _reflect_merged_line(
-                target, previous, f"\n{marker} {timestamp} >> ", user_message
-            )
+            _reflect_merged_line(target, previous, header, user_message)
         return
 
     # A non-merge line is echoed before attachments are collected — exactly as
@@ -357,6 +358,48 @@ def _emit_echo_to(target: Any, header: str, body: str) -> None:
         header=header,
         body=body,
     )
+
+
+def _reflect_merged_markdown(
+    target: Any, entry: QueuedMessage, header: str, body: str
+) -> None:
+    """Draw a merged paste line whose combined text turned Markdown on one
+    target.
+
+    A target that can replace its echo (the default TUI) renders the *whole*
+    combined message and splices it over the plain opening echo, so a
+    multi-line construct (a fenced code block, a list) reads as one block.
+    Any other target gets the merged line verbatim — never a render of just
+    the new line, which would leave the construct half on screen. A redraw
+    that raises is logged and falls back like one that cannot redraw; the
+    entry's span survives both ways, so a later edit can still update the
+    display.
+    """
+    redraw = getattr(target, "_redraw_echo_markdown", None)
+    if callable(redraw):
+        try:
+            if redraw(entry) is not None:
+                return
+        except Exception as e:
+            CFG.LOGGER.debug(f"Child UI markdown echo redraw failed: {e}")
+    try:
+        _emit_echo_verbatim_to(target, header, body)
+    except Exception as e:
+        CFG.LOGGER.debug(f"Child UI merged-markdown echo fallback failed: {e}")
+
+
+def _emit_echo_verbatim_to(target: Any, header: str, body: str) -> None:
+    """Write one target's merged paste line verbatim — never rendered.
+
+    The combined message became Markdown; rendering just `body` would show a
+    partial construct with no meaning (a lone fence, a bare `- item`). A
+    target with no spliceable echo gets the raw line so it stays visible
+    without a half-rendered fragment.
+    """
+    append = getattr(target, "append_to_output", None)
+    if not callable(append):
+        return
+    append(f"{header}{body}\n")
 
 
 def _is_paste_burst(
