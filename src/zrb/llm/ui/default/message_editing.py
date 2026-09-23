@@ -209,23 +209,22 @@ class UIMessageEditing:
             entry.echo_span = (len(text) - len(echo), len(text))
             entry.echo_text = echo
 
-    def redraw_echo(self, entry: QueuedMessage) -> bool:
+    def redraw_echo(self, entry: QueuedMessage) -> str | None:
         """Splice `entry`'s echoed line back into the output buffer after an edit.
 
-        Returns whether the line was actually rewritten: ``False`` when there
-        is no tracked span, the span is stale, or the buffer no longer holds
-        the echo; ``True`` after the splice. A caller that gets ``False`` (a
-        bufferless UI, or the default UI past a rendered echo that never
-        claimed a span) can fall back to emitting an ordinary echo so merged
-        paste lines stay visible.
+        Returns the rewritten line, or ``None`` when nothing was redrawn —
+        there is no tracked span, the span is stale, or the buffer no longer
+        holds the echo. A caller that gets ``None`` (a bufferless UI, or the
+        default UI past a rendered echo that never claimed a span) can fall
+        back to emitting an ordinary echo so merged paste lines stay visible.
         """
         if entry.echo_span is None:
-            return False
+            return None
         start, end = entry.echo_span
         if end > len(self._ui.output_text):
             # The span is stale — the buffer was rewritten since (e.g. rewind).
             entry.echo_span = None
-            return False
+            return None
         if entry.echo_text and self._ui.output_text[start:end] != entry.echo_text:
             # The span no longer holds the echoed line — a terminal resize
             # re-wrapped tracked markdown blocks and shifted the transcript
@@ -234,11 +233,11 @@ class UIMessageEditing:
             # the echo, instead of splicing the line into the wrong offset and
             # corrupting the output buffer.
             entry.echo_span = None
-            return False
+            return None
         marker = entry.echo_marker or "💬"
         ts = entry.echo_timestamp or datetime.now().strftime("%H:%M")
         echo = f"\n{marker} {ts} >> {entry.text.strip()}\n"
         self._ui.replace_output_span(start, end, echo)
         entry.echo_span = (start, start + len(echo))
         entry.echo_text = echo
-        return True
+        return echo

@@ -481,7 +481,7 @@ class UI(BaseUI):
         """Override hook `BaseUI` invokes polymorphically (see its base no-op)."""
         self._message_editing.track_echo_span(entry, echo)
 
-    def _redraw_echo(self, entry: Any) -> bool:
+    def _redraw_echo(self, entry: Any) -> str | None:
         """Override hook `BaseUI` invokes polymorphically (see its base no-op)."""
         return self._message_editing.redraw_echo(entry)
 

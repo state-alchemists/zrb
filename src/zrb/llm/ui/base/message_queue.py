@@ -24,7 +24,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Sequence
 
 from zrb.config.config import CFG
-from zrb.llm.ui.base.user_echo import AppendOutputFunc, echo_user_message
+from zrb.llm.ui.base.user_echo import (
+    AppendOutputFunc,
+    echo_user_message,
+    should_render_user_markdown,
+)
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import UserContent
@@ -193,10 +197,14 @@ def submit_user_message_via_queue(
 
     The merge is bounded by a queued `/exec` job: only the newest queue entry
     itself (never an older editable message reached past an `/exec` in
-    between) may absorb the new line. And a merged line is never silently
-    dropped from the UI — a target that can splice its echo redraws it in
-    place; one that cannot (a bufferless UI, or a rendered first echo with no
-    tracked span) gets an ordinary echo of the line instead.
+    between) may absorb the new line. A merged line is reflected per target —
+    one that can splice its echo redraws it in place; one that cannot (a
+    bufferless UI, or a rendered first echo with no tracked span) gets an
+    ordinary echo of the line through its own output path, never a broadcast
+    that duplicates a child that already redrew. And when the merged text
+    turns Markdown, neither path applies: splicing would show literal
+    Markdown, so the combined message goes through the rendering echo path
+    exactly as a single submission of it would.
     """
     now = datetime.now()
     timestamp = now.strftime("%H:%M")
@@ -230,16 +238,23 @@ def submit_user_message_via_queue(
         and queue.peek_latest() is previous
         and _is_paste_burst(previous, now, CFG.LLM_UI_PASTE_MERGE_MS)
     ):
-        previous.text = f"{previous.text.strip()}\n{user_message.strip()}"
+        combined = f"{previous.text.strip()}\n{user_message.strip()}"
+        previous.text = combined
         previous.attachments += attachments
         previous.submitted_at = now
-        redrawn = False
-        for target in echo_targets:
-            redraw = getattr(target, "_redraw_echo", None)
-            if callable(redraw) and redraw(previous):
-                redrawn = True
-        if not redrawn:
-            emit_echo()
+        if append_markdown is not None and should_render_user_markdown(combined):
+            echo_user_message(
+                append_to_output,
+                append_markdown,
+                header=f"\n{marker} {timestamp} >> ",
+                body=combined,
+            )
+        else:
+            for target in echo_targets:
+                redraw = getattr(target, "_redraw_echo", None)
+                if callable(redraw) and redraw(previous):
+                    continue
+                _emit_echo_to(target, f"\n{marker} {timestamp} >> ", user_message)
         return
 
     echo = emit_echo()
@@ -259,6 +274,26 @@ def submit_user_message_via_queue(
             if callable(track):
                 track(entry, echo)
     queue.put_nowait(entry)
+
+
+def _emit_echo_to(target: Any, header: str, body: str) -> None:
+    """Write an ordinary user echo into one target's own output path.
+
+    Used for a merged paste line on a target whose `_redraw_echo` could not
+    splice the line into its existing echo, so the line reaches exactly that UI
+    rather than being broadcast to every target — a child that already redrew
+    in place must not get a duplicate.
+    """
+    append = getattr(target, "append_to_output", None)
+    if not callable(append):
+        return
+    markdown = getattr(target, "append_markdown", None)
+    echo_user_message(
+        append,
+        markdown if callable(markdown) else None,
+        header=header,
+        body=body,
+    )
 
 
 def _is_paste_burst(
