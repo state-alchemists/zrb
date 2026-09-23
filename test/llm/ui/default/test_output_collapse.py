@@ -62,6 +62,10 @@ class MockOutputUI:
     def current_confirmation(self, value):
         self._current_confirmation = value
 
+    @property
+    def is_application_built(self):
+        return self.__dict__.get("application") is not None
+
     def invalidate_ui(self):
         pass
 

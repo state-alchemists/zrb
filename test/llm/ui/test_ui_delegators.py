@@ -104,6 +104,10 @@ def test_output_part_accessors(mock_ui_deps):
 
 def test_output_text_and_fields(mock_ui_deps):
     ui = _ui(mock_ui_deps)
+    # Constructing a UI must not build the lazy `application`: on a console-less
+    # Windows run building it would raise NoConsoleScreenBufferError, and the
+    # deferred build is the whole point of the `application` property.
+    assert ui.is_application_built is False
     assert isinstance(ui.output_text, str)
     assert ui.input_field is not None
     assert isinstance(ui.capture, object)

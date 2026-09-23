@@ -55,6 +55,10 @@ class MockOutputUI:
         self._is_thinking = value
 
     @property
+    def is_application_built(self):
+        return self.__dict__.get("application") is not None
+
+    @property
     def current_confirmation(self):
         return self._current_confirmation
 

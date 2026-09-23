@@ -654,7 +654,7 @@ class UIOutput:
         `COLUMNS`, and can disagree with what the renderer is painting).
         """
         columns = None
-        app = getattr(self._ui, "application", None)
+        app = self._ui.application if self._ui.is_application_built else None
         if app is not None:
             try:
                 columns = app.output.get_size().columns
