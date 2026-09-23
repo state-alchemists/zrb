@@ -125,6 +125,24 @@ def test_footer_points_at_the_uncapped_category_catalog(tmp_path):
     assert "uncapped" in result
 
 
+def test_header_routes_journal_changes_through_the_writer_tools(tmp_path):
+    """The writer tools are deferred, so their docstrings are invisible until
+    searched; this header is the one always-present place that says hand
+    edits break the journal and where the writers are."""
+    journal_dir = _write_index(tmp_path, "# Journal\n\n- Name: Go\n")
+    with patch("zrb.llm.prompt.live_context.CFG") as cfg:
+        cfg.LLM_JOURNAL_DIR = journal_dir
+        cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+        cfg.LLM_JOURNAL_INDEX_MAX_CHARS = 2500
+
+        result = render_journal_index()
+
+    assert result is not None
+    for tool in ("LogActivity", "WriteJournalNote", "DeleteJournalNote"):
+        assert tool in result
+    assert "search for them" in result
+
+
 def test_auto_search_adds_a_separate_unverified_section(tmp_path):
     journal_dir = _write_index(tmp_path, "# Journal\n\n- Name: Go\n")
     with patch("zrb.llm.prompt.live_context.CFG") as cfg:

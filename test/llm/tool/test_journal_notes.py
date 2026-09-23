@@ -436,6 +436,44 @@ def test_hud_line_does_not_duplicate_on_a_repeat(writable_journal):
     assert _read(writable_journal, "index.md").count("Goes by Go.") == 1
 
 
+def test_revised_hud_line_replaces_the_notes_earlier_line(writable_journal):
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    for score in ("7.8", "8.2"):
+        write_journal_note(
+            category="technical",
+            slug="prompt-review",
+            title="Prompt review",
+            context="c",
+            finding="f",
+            source="s",
+            hud_line=f"Prompt scored {score}/10.",
+        )
+
+    index = _read(writable_journal, "index.md")
+    assert "Prompt scored 7.8/10." not in index
+    assert "Prompt scored 8.2/10. ([note](technical/prompt-review.md))" in index
+
+
+def test_retitled_note_is_relabelled_not_duplicated_in_indexes(writable_journal):
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    for title in ("Aug review", "Sep review"):
+        write_journal_note(
+            category="technical",
+            slug="prompt-review",
+            title=title,
+            context="c",
+            finding="f",
+            source="s",
+        )
+
+    for index_path in ("index.md", "technical/index.md"):
+        index = _read(writable_journal, index_path)
+        assert index.count("prompt-review.md)") == 1
+        assert "[Sep review]" in index
+
+
 def test_writers_refuse_when_the_journal_dir_is_unset():
     from zrb.llm.tool.journal_write import log_activity
 

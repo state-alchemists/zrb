@@ -75,7 +75,7 @@ def log_activity(
     wrong entry misleads every future session, and a number or an absence needs
     its source (`wc -l: 832`, `rg: 0 hits`) or stays out.
 
-    Writing is silent; do not announce it.
+    Unless the user asked for the write, do not announce it.
 
     Use WriteJournalNote instead when the finding needs to be findable by topic.
     """
@@ -117,7 +117,8 @@ def write_journal_note(
         Field(
             description=(
                 "Short heading for the note; also the link label used by "
-                "indexes and backlinks."
+                "indexes and backlinks. Retitling an existing slug relabels "
+                "its index entries."
             )
         ),
     ],
@@ -150,7 +151,8 @@ def write_journal_note(
             description=(
                 "One-line compression pinned to the always-injected index, "
                 "so the fact survives without a search — use it for anything "
-                "about the user themselves or how they want to be worked with."
+                "about the user themselves or how they want to be worked with. "
+                "Revising the note replaces its earlier line."
             )
         ),
     ] = None,
@@ -167,12 +169,16 @@ def write_journal_note(
     (highest value, usually said exactly once — record it the turn it is said),
     a root cause, a decision, or an API quirk.
 
-    Skip anything already recorded to your satisfaction — search first when
-    unsure, rather than writing a speculative or duplicate note. Verify before
-    recording: a wrong or spurious entry misleads every future session that
-    finds it.
+    Record only what this session verified. A diagnosis you have not checked
+    against the code or text it blames, or a comparison with something you
+    never saw, is a guess — and a wrong entry misleads every future session
+    that finds it. Skip anything already recorded; search first when unsure.
 
-    Writing is silent; do not announce it.
+    This tool maintains the indexes, backlinks, and git history. Never edit
+    journal files directly, including to tidy up after a write — revise
+    with this tool or remove with DeleteJournalNote.
+
+    Unless the user asked for the write, do not announce it.
     """
     root = ensure_journal_tree()
     with _journal_lock(root):
@@ -201,7 +207,12 @@ def write_journal_note(
             heading="## Recent Insights",
         )
         if hud_line:
-            _upsert_hud_line(root, _HUD_SECTION[category], hud_line.strip())
+            _upsert_hud_line(
+                root,
+                _HUD_SECTION[category],
+                hud_line.strip(),
+                _posix_relpath(note_path, root),
+            )
         _git_commit(root, f"write: {category}/{slug}")
         return f"Wrote {_posix_relpath(note_path, root)}"
 
@@ -234,8 +245,8 @@ def delete_journal_note(
     remembered or assumed slug, and wait for that result before this call —
     don't batch the two. If the journal is git-backed, a human may still
     recover the file from its git history outside this tool, but that is not
-    something you can do yourself. Silent otherwise: do not announce the
-    deletion in your reply.
+    something you can do yourself. Unless the user asked for the deletion,
+    do not announce it.
     """
     root = ensure_journal_tree()
     with _journal_lock(root):
@@ -607,11 +618,22 @@ def _register_in_index(
 def _register_link(
     index_path: str, rel_target: str, label: str, heading: str | None = None
 ) -> None:
-    """Append `- [label](rel_target)` to an index, under *heading* if given."""
+    """Append `- [label](rel_target)` to an index, under *heading* if given.
+
+    An existing line for the same target is relabelled in place, so retitling
+    a note never leaves two index entries pointing at one file.
+    """
     entry = f"- [{label}]({rel_target})"
     text = _read_text(index_path)
     if entry in text:
         return
+    same_target = re.compile(rf"- \[[^\]]*\]\({re.escape(rel_target)}\)")
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if same_target.fullmatch(line):
+            lines[i] = entry
+            _write_text(index_path, "\n".join(lines) + "\n")
+            return
     if heading is None:
         body = text.rstrip()
         gap = "\n" if body.rsplit("\n", 1)[-1].startswith("- ") else "\n\n"
@@ -633,13 +655,33 @@ def _append_under_heading(text: str, heading: str, entry: str) -> str:
     return "\n".join([*lines[:start], "", *body, "", *lines[end:]]).rstrip() + "\n"
 
 
-def _upsert_hud_line(root: str, section: str, line: str) -> None:
-    entry = line if line.startswith("- ") else f"- {line}"
+def _upsert_hud_line(root: str, section: str, line: str, note_rel: str) -> None:
+    """Pin *line* under *section*, replacing any earlier line from the same note.
+
+    The trailing note link is the key: a revised note's HUD line supersedes
+    its old one instead of sitting beside it as a contradicting fact.
+    """
+    link = f"]({note_rel})"
+    base = f"- {line.removeprefix('- ')}"
+    entry = f"{base} ([note]({note_rel}))"
     index_path = os.path.join(root, "index.md")
     text = _read_text(index_path)
     if entry in text:
         return
-    text = _append_under_heading(text, f"## {section}", entry)
+    heading = f"## {section}"
+    lines = text.splitlines()
+    if heading in lines:
+        start = lines.index(heading) + 1
+        end = start
+        while end < len(lines) and not lines[end].startswith("## "):
+            end += 1
+        kept = [
+            ln
+            for ln in lines[start:end]
+            if link not in ln and ln != base and not ln.startswith(f"{base} ([note](")
+        ]
+        text = "\n".join([*lines[:start], *kept, *lines[end:]]) + "\n"
+    text = _append_under_heading(text, heading, entry)
     text = _cap_section_entries(
         text, f"## {section}", CFG.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION
     )

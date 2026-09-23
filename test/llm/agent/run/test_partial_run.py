@@ -222,7 +222,7 @@ def test_truncation_of_long_results():
     assert result.endswith("...")
 
 
-def test_no_duplicate_tool_records():
+def test_interleaved_calls_are_paired_by_call_id():
     from pydantic_ai import FunctionToolCallEvent, FunctionToolResultEvent
     from pydantic_ai.messages import ToolCallPart, ToolReturnPart
 
@@ -248,7 +248,7 @@ def test_no_duplicate_tool_records():
             )
         )
     )
-    # Tool A finishes (but was orphaned by the interleaved B)
+    # Tool A finishes after B
     acc.record_event(
         FunctionToolResultEvent(
             part=ToolReturnPart(
@@ -257,9 +257,38 @@ def test_no_duplicate_tool_records():
         )
     )
 
-    # Only B should be recorded (A was orphaned by interleaving)
-    assert len(acc.completed_tools) == 1
-    assert acc.completed_tools[0][0] == "search"
+    assert [(name, result) for name, _, result in acc.completed_tools] == [
+        ("search", "results"),
+        ("read", "content"),
+    ]
+
+
+def test_parallel_same_name_calls_keep_their_own_args():
+    from pydantic_ai import FunctionToolCallEvent, FunctionToolResultEvent
+    from pydantic_ai.messages import ToolCallPart, ToolReturnPart
+
+    acc = PartialRunAccumulator()
+    for path in ("a.md", "b.md"):
+        acc.record_event(
+            FunctionToolCallEvent(
+                part=ToolCallPart(
+                    tool_name="Read", args={"path": path}, tool_call_id=path
+                )
+            )
+        )
+    for path in ("a.md", "b.md"):
+        acc.record_event(
+            FunctionToolResultEvent(
+                part=ToolReturnPart(
+                    tool_name="Read", content=f"body of {path}", tool_call_id=path
+                )
+            )
+        )
+
+    assert [(args, result) for _, args, result in acc.completed_tools] == [
+        ("{'path': 'a.md'}", "body of a.md"),
+        ("{'path': 'b.md'}", "body of b.md"),
+    ]
 
 
 def test_tool_orphaned_by_cancellation():
