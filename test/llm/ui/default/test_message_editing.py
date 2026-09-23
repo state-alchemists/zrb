@@ -10,6 +10,8 @@ what the echo path reaches: it composes the real `UIOutput` and the real
 bookkeeping is exercised rather than mocked.
 """
 
+import gc
+import weakref
 from unittest.mock import MagicMock, patch
 
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
@@ -368,6 +370,74 @@ def test_echo_span_follows_an_in_place_edit_above_the_echo():
 
     assert rewritten == "\n💬 10:00 >> edited\n"
     assert ui.output_text == "a much longer tool output line\n\n💬 10:00 >> edited\n"
+
+
+def test_redraw_echo_is_parked_while_a_sub_agent_transcript_is_displayed():
+    """`UIAgentPicker` swaps the pane to a sub-agent's buffer and parks the
+    main text. Every recorded offset addresses the parked text, so a redraw
+    must not splice into what is on screen — it would overwrite unrelated
+    transcript. The span survives for when the main text comes back."""
+    ui = MockEditingUI()
+    echo = "\n💬 10:00 >> hello\n"
+    ui.output_field.text = echo
+    entry = make_entry(text="hello")
+    entry.echo_spans[ui] = EchoSpan(0, len(echo), echo)
+    ui.redraw_echo(entry)
+
+    sub_agent_transcript = "sub-agent output, nothing to do with the echo\n"
+    ui.output_field.text = sub_agent_transcript
+    ui.viewing_agent_id = "agent-1"
+    entry.text = "edited"
+    rewritten = ui.redraw_echo(entry)
+
+    assert rewritten is None
+    assert ui.output_text == sub_agent_transcript  # untouched
+    # Kept, not pruned, and still addressing the parked transcript.
+    assert (entry.echo_spans[ui].start, entry.echo_spans[ui].end) == (0, len(echo))
+
+
+def test_redraw_echo_drops_a_block_whose_offsets_left_the_echo():
+    """A buffer replaced under the block (a rewind, a transcript swap that
+    never came back) leaves its offsets addressing unrelated text. The region
+    is checked for the message's own header, and a block that fails is
+    discarded instead of being spliced over."""
+    ui = MockEditingUI()
+    echo = "\n💬 10:00 >> hello\n"
+    ui.output_field.text = echo
+    entry = make_entry(text="hello")
+    entry.echo_spans[ui] = EchoSpan(0, len(echo), echo)
+    ui.redraw_echo(entry)
+
+    ui.output_field.text = "completely different transcript of the same length"
+    entry.text = "edited"
+    rewritten = ui.redraw_echo(entry)
+
+    assert rewritten is None
+    assert ui.output_text == "completely different transcript of the same length"
+    assert ui.rendered_blocks == []
+    assert entry.echo_spans == {}
+
+
+def test_echo_block_does_not_keep_its_queued_message_alive():
+    """The block outlives the queue entry — `rendered_blocks` is never pruned
+    — so it refers to the message weakly. A strong reference would pin the
+    entry's attachments and run coroutine for the life of the UI."""
+    ui = MockEditingUI()
+    entry = make_entry(text="hello")
+    entry.attachments.append("a-large-pasted-image")
+    echo = "\n💬 10:00 >> hello\n"
+    ui.output_field.text = echo
+
+    ui.track_echo_span(entry, echo)
+    assert len(ui.rendered_blocks) == 1
+    dead = weakref.ref(entry)
+    del entry
+    gc.collect()
+
+    assert dead() is None
+    # The block still re-renders the text it drew, from its own snapshot.
+    block = ui.rendered_blocks[0]
+    assert block[3](block[2], 40) == echo
 
 
 def test_track_echo_span_registers_the_first_echo_as_a_block():
