@@ -277,18 +277,19 @@ def test_redraw_echo_returns_to_raw_text_when_an_edit_drops_the_markdown():
     ui.redraw_echo(entry)
 
     assert ui.output_text == "\n💬 10:00 >> just words\n"
-    # One block, still covering only the body, and re-rendering to itself.
+    # One block, covering the whole echo, and re-rendering to itself.
     assert len(ui.rendered_blocks) == 1
     block = ui.rendered_blocks[0]
-    assert ui.output_text[block[0] : block[1]] == "just words"
-    assert block[3](block[2], 40) == "just words"
+    assert ui.output_text[block[0] : block[1]] == "\n💬 10:00 >> just words\n"
+    assert block[3](block[2], 40) == "\n💬 10:00 >> just words\n"
 
 
-def test_redraw_echo_tracks_the_rendered_body_for_rewrap():
+def test_redraw_echo_tracks_the_whole_echo_for_rewrap():
     """A redrawn Markdown echo is a tracked block, so a terminal resize
     re-renders it at the new width instead of leaving it wrapped for the old
-    one. It is tracked over the body alone — the header and the separator
-    newline are width-independent and must survive the re-render."""
+    one. The block covers the whole echo — `rewrap_output` splices the
+    renderer's output over the recorded span, so a block covering only the
+    body would splice the body over its own header."""
     ui = MockEditingUI()
     echo = "\n💬 10:00 >> hello\n"
     ui.output_field.text = "head" + echo
@@ -305,12 +306,101 @@ def test_redraw_echo_tracks_the_rendered_body_for_rewrap():
             ui.redraw_echo(entry)
             assert "head\n💬 10:00 >> [56]hello\n- item\n" == ui.output_text
             block = ui.rendered_blocks[0]
-            assert ui.output_text[block[0] : block[1]] == "[56]hello\n- item"
+            assert (
+                ui.output_text[block[0] : block[1]]
+                == "\n💬 10:00 >> [56]hello\n- item\n"
+            )
 
             mock_size.return_value.columns = 100
             ui.rewrap_output()
 
     assert ui.output_text == "head\n💬 10:00 >> [96]hello\n- item\n"
+
+
+def test_echo_span_follows_a_rewrap_that_changed_the_rendered_length():
+    """A resize re-renders the echo to a different length. The span is read
+    back off the tracked block, so the next edit still splices in place
+    instead of failing validation and leaving the edit invisible."""
+    ui = MockEditingUI()
+    echo = "\n💬 10:00 >> hello\n"
+    ui.output_field.text = echo
+    entry = make_entry(text="hello\n- item")
+    entry.echo_spans[ui] = EchoSpan(0, len(echo), echo)
+
+    with patch("zrb.llm.ui.default.output.get_terminal_size") as mock_size:
+        mock_size.return_value.columns = 60
+        with patch(
+            "zrb.llm.ui.default.output.render_markdown",
+            side_effect=lambda text, width=None, theme=None: f"[{width}]{text}",
+        ):
+            ui.redraw_echo(entry)
+            assert ui.output_text == "\n💬 10:00 >> [56]hello\n- item\n"
+
+            # Widening re-renders the echo one character longer ("[56]" ->
+            # "[116]"), so every offset recorded before the resize is now off.
+            mock_size.return_value.columns = 120
+            ui.rewrap_output()
+            assert ui.output_text == "\n💬 10:00 >> [116]hello\n- item\n"
+
+            entry.text = "hello\n- item\n- more"
+            rewritten = ui.redraw_echo(entry)
+
+    assert rewritten is not None
+    assert ui.output_text == "\n💬 10:00 >> [116]hello\n- item\n- more\n"
+
+
+def test_echo_span_follows_an_in_place_edit_above_the_echo():
+    """Text above a queued echo changes length in place all the time — a
+    streamed shell span, a collapsing thinking block. The echo's block is
+    rebased by that rewrite, and the span is read back off it, so the edit
+    still lands on the echo instead of at a stale offset."""
+    ui = MockEditingUI()
+    above = "tool output\n"
+    echo = "\n💬 10:00 >> hello\n"
+    ui.output_field.text = above + echo
+    entry = make_entry(text="hello")
+    entry.echo_spans[ui] = EchoSpan(len(above), len(above) + len(echo), echo)
+
+    ui.redraw_echo(entry)  # registers the echo's block
+    ui.replace_output_span(0, len(above), "a much longer tool output line\n")
+    entry.text = "edited"
+    rewritten = ui.redraw_echo(entry)
+
+    assert rewritten == "\n💬 10:00 >> edited\n"
+    assert ui.output_text == "a much longer tool output line\n\n💬 10:00 >> edited\n"
+
+
+def test_track_echo_span_registers_the_first_echo_as_a_block():
+    """The very first echo is tracked too — otherwise nothing keeps its
+    offsets current until the first redraw, which is exactly the window in
+    which a running turn is rewriting the text above it."""
+    ui = MockEditingUI()
+    entry = make_entry(text="hello")
+    echo = "\n💬 10:00 >> hello\n"
+    ui.output_field.text = "head" + echo
+
+    ui.track_echo_span(entry, echo)
+
+    assert len(ui.rendered_blocks) == 1
+    block = ui.rendered_blocks[0]
+    assert ui.output_text[block[0] : block[1]] == echo
+    assert block[3](block[2], 40) == echo
+
+
+def test_track_echo_span_skips_the_block_when_a_rerender_would_differ():
+    """The writer decides Markdown from the stripped body; the re-render
+    decides from `entry.text`. Where those disagree the echo is left
+    block-less rather than tracked against a render the user never saw."""
+    ui = MockEditingUI()
+    entry = make_entry(text="hello")
+    echo = "\n💬 10:00 >> something else entirely\n"
+    ui.output_field.text = echo
+
+    ui.track_echo_span(entry, echo)
+
+    assert ui.rendered_blocks == []
+    # The span itself is still recorded — only the block is declined.
+    assert entry.echo_spans[ui].text == echo
 
 
 def test_redraw_echo_replaces_its_own_block_instead_of_stacking_them():

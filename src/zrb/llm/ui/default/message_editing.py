@@ -25,10 +25,20 @@ Where each piece lives:
   carries a construct, the raw line otherwise. Splitting that into a separate
   Markdown redraw let the two callers disagree, and editing a merged Markdown
   message replaced its rendered block with raw text.
+* Every echo this UI tracks is registered as a re-renderable block
+  (`RenderedEcho` + `render_echo`), and the block record — not the
+  `EchoSpan` — is where the echo's offsets actually live. `UIOutput` already
+  keeps `rendered_blocks` current through *every* buffer rewrite: a re-wrap
+  re-renders each block and updates its offsets, and `_rebase_tracked_spans`
+  shifts the blocks below any in-place edit. Reading the span back off the
+  block (`refresh_echo_span`) inherits all of that, instead of duplicating
+  the same bookkeeping over a second set of offsets that would silently rot
+  whenever text above the echo changed.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -37,6 +47,21 @@ from zrb.llm.ui.base.user_echo import should_render_user_markdown
 
 if TYPE_CHECKING:
     from zrb.llm.ui.default.ui import UI
+
+
+@dataclass
+class RenderedEcho:
+    """The source of a queued message's echo block.
+
+    `header` is the fixed `\n💬 10:00 >> ` prefix; the body is always derived
+    from `entry.text`, so one record keeps re-rendering the *current* message
+    however often it is edited or merged into. Holding the entry (rather than
+    a snapshot of its text) is also what lets `refresh_echo_span` recognise
+    which block belongs to which queued message.
+    """
+
+    header: str
+    entry: QueuedMessage
 
 
 class UIMessageEditing:
@@ -231,19 +256,30 @@ class UIMessageEditing:
             end=index + len(echo),
             text=echo,
         )
+        # Register the echo as a re-renderable block so its offsets ride along
+        # with every later buffer rewrite (see the module docstring). Only when
+        # re-rendering reproduces the line that was actually written: the
+        # writer decided Markdown from the stripped body, this decides from
+        # `entry.text`, and on the rare input where those disagree a block
+        # would re-render the echo into something the user never saw.
+        source = RenderedEcho(header=self.echo_header(entry), entry=entry)
+        if self.render_echo(source, self._ui.output_field_width) == echo:
+            self._ui.set_rendered_block(
+                index, index + len(echo), source, self.render_echo
+            )
 
     def _validated_echo_span(self, entry: QueuedMessage) -> EchoSpan | None:
         """The echo span still safe to splice for this UI, or ``None``.
 
-        A span is unusable — and pruned — when it lies past the buffer (the
-        transcript was rewound) or no longer holds the echoed line (a terminal
-        resize re-wrapped tracked markdown blocks and shifted everything
-        without updating this entry). A resize also re-renders the echo's
-        own tracked block, so the recorded text stops matching and the span is
-        dropped here: the edit still reaches the model, it just no longer
-        rewrites the display.
+        The span is re-read off the echo's tracked block first, so a re-wrap
+        or an in-place edit above the echo leaves it correct rather than
+        stale. It is still unusable — and pruned — when it lies past the
+        buffer or no longer holds the echoed line: an echo with no block (one
+        whose registration the faithfulness check in `track_echo_span`
+        declined) has nothing keeping its offsets current, and a rewound
+        transcript invalidates both.
         """
-        span = entry.echo_spans.get(self._ui)
+        span = self.refresh_echo_span(entry)
         if span is None:
             return None
         if span.end > len(self._ui.output_text):
@@ -260,6 +296,52 @@ class UIMessageEditing:
             del entry.echo_spans[self._ui]
             return None
         return span
+
+    def refresh_echo_span(self, entry: QueuedMessage) -> EchoSpan | None:
+        """This UI's recorded span for `entry`, re-read off its tracked block.
+
+        The block record is the authoritative copy of where the echo is:
+        `rewrap_output` rewrites its offsets when a resize re-renders it, and
+        `_rebase_tracked_spans` shifts it whenever an in-place edit above it
+        (a streamed shell span, a collapsing thinking block, another echo
+        redraw) grows or shrinks the text between. Re-reading here is what
+        makes the documented promise — the span survives, and a later edit can
+        still rewrite the displayed message — hold across both.
+
+        Falls back to the stored span when the entry has no block, and returns
+        ``None`` when this UI never recorded a span at all.
+        """
+        span = entry.echo_spans.get(self._ui)
+        if span is None:
+            return None
+        block = self.echo_block(entry)
+        if block is None:
+            return span
+        start, end = block[0], block[1]
+        span = EchoSpan(start=start, end=end, text=self._ui.output_text[start:end])
+        entry.echo_spans[self._ui] = span
+        return span
+
+    def echo_block(self, entry: QueuedMessage) -> "list[Any] | None":
+        """The `rendered_blocks` record holding `entry`'s echo, or None.
+
+        Found by identity of the entry the block's `RenderedEcho` source
+        holds, rather than by a second index keyed on the entry — a registry
+        would keep every queued message alive for the life of the UI, and the
+        scan runs only when a message is edited or merged into, at human
+        speed, over a list this UI already walks on every resize.
+        """
+        for block in self._ui.rendered_blocks:
+            source = block[2]
+            if isinstance(source, RenderedEcho) and source.entry is entry:
+                return block
+        return None
+
+    def echo_header(self, entry: QueuedMessage) -> str:
+        """`entry`'s echo prefix — the marker and timestamp it was echoed with."""
+        marker = entry.echo_marker or "💬"
+        ts = entry.echo_timestamp or datetime.now().strftime("%H:%M")
+        return f"\n{marker} {ts} >> "
 
     def redraw_echo(self, entry: QueuedMessage) -> str | None:
         """Splice `entry`'s echo back into the output buffer at its current text.
@@ -287,20 +369,15 @@ class UIMessageEditing:
         span = self._validated_echo_span(entry)
         if span is None:
             return None
-        marker = entry.echo_marker or "💬"
-        ts = entry.echo_timestamp or datetime.now().strftime("%H:%M")
-        header = f"\n{marker} {ts} >> "
-        body = self.render_echo_body(entry.text, self._ui.output_field_width)
-        echo = f"{header}{body}\n"
+        source = RenderedEcho(header=self.echo_header(entry), entry=entry)
+        echo = self.render_echo(source, self._ui.output_field_width)
         if not self._ui.replace_output_span(span.start, span.end, echo):
             return None
-        # Track the body — not the header or the separator newline, which are
-        # width-independent — so a terminal resize re-renders this echo at the
-        # new width instead of leaving it wrapped for the old one. The same
-        # split `append_rendered` uses for a tail-appended block.
-        body_start = span.start + len(header)
+        # Re-register over the same start: the block is what keeps this echo's
+        # offsets current afterwards, and a resize re-renders it at the new
+        # width instead of leaving it wrapped for the old one.
         self._ui.set_rendered_block(
-            body_start, body_start + len(body), entry.text, self.render_echo_body
+            span.start, span.start + len(echo), source, self.render_echo
         )
         entry.echo_spans[self._ui] = EchoSpan(
             start=span.start,
@@ -308,6 +385,16 @@ class UIMessageEditing:
             text=echo,
         )
         return echo
+
+    def render_echo(self, source: RenderedEcho, width: int | None) -> str:
+        """Render a queued message's whole echo — header, body, separator.
+
+        The re-render hook of the echo's tracked block, so it has to reproduce
+        the entire spliced region: `rewrap_output` replaces the recorded span
+        with whatever this returns, and a hook covering only the body would
+        splice the body over its own header.
+        """
+        return f"{source.header}{self.render_echo_body(source.entry.text, width)}\n"
 
     def render_echo_body(self, text: str, width: int | None) -> str:
         """Render a queued message's echo body at `width`.
