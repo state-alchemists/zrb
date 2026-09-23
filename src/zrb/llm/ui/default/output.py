@@ -219,13 +219,18 @@ class UIOutput:
         """Append rendered markdown, remembering the source (public API)."""
         self.append_rendered(markdown_text, self._render_markdown_block)
 
-    def render_markdown(self, markdown_text: str) -> str:
-        """Render `markdown_text` at the current output width (public API).
+    def render_markdown(self, markdown_text: str, width: int | None = None) -> str:
+        """Render `markdown_text` at `width` (public API).
 
         Counterpart to `append_markdown` for a caller (the queued-message echo
         splice) that needs the rendered text in hand rather than appended.
+        `width` defaults to the current output width, which is also what
+        `rewrap_output` passes when it re-renders a tracked block, so the same
+        call serves the first render and every re-render after a resize.
         """
-        return self._render_markdown_block(markdown_text, self.output_field_width)
+        if width is None:
+            width = self.output_field_width
+        return self._render_markdown_block(markdown_text, width)
 
     def print_help(self) -> None:
         """Append the help panel as a re-renderable block (public API).
@@ -254,6 +259,37 @@ class UIOutput:
         # content instead of inserting it, which would make the span a lie.
         if end - start == len(rendered):
             self._ui.rendered_blocks.append([start, end, source, renderer])
+
+    def set_rendered_block(
+        self,
+        start: int,
+        end: int,
+        source: Any,
+        renderer: "Callable[[Any, int | None], str]",
+    ) -> None:
+        """Record ``text[start:end]`` as a re-renderable block (public API).
+
+        `append_rendered` is the tail-append form of this; this is the in-place
+        form, for a splice that rewrote a region already in the buffer (the
+        queued-message echo redraw). Without it a spliced render stays wrapped
+        for the width it was rendered at, because `rewrap_output` only revisits
+        tracked blocks.
+
+        `rendered_blocks` is position-ordered — `rewrap_output` walks it
+        accumulating a shift, and `toggle_collapsible_block_at_cursor` stops at
+        the first block past the cursor — so the record is inserted at its
+        offset rather than appended, and a record already held for `start`
+        (the previous render of this same echo) is replaced, not duplicated.
+        """
+        blocks = self._ui.rendered_blocks
+        for index, block in enumerate(blocks):
+            if block[0] == start:
+                blocks[index] = [start, end, source, renderer]
+                return
+            if block[0] > start:
+                blocks.insert(index, [start, end, source, renderer])
+                return
+        blocks.append([start, end, source, renderer])
 
     def append_toggle_block(self, collapsed: str, full: str) -> None:
         """Append a tool-call/result line that can later be expanded in place.

@@ -19,6 +19,12 @@ Where each piece lives:
   through `UI`'s own `_track_echo_span`/`_redraw_echo` override hooks, which
   `BaseUI` invokes polymorphically and broadcasts across every child UI of a
   MultiUI.
+* `redraw_echo` renders the body through `render_echo_body`, so *one* splice
+  path serves both callers — an edit and a paste merge — and the displayed
+  echo always matches what the entry's current text is: Markdown when it
+  carries a construct, the raw line otherwise. Splitting that into a separate
+  Markdown redraw let the two callers disagree, and editing a merged Markdown
+  message replaced its rendered block with raw text.
 """
 
 from __future__ import annotations
@@ -27,6 +33,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from zrb.llm.ui.base.message_queue import EchoSpan, QueuedMessage
+from zrb.llm.ui.base.user_echo import should_render_user_markdown
 
 if TYPE_CHECKING:
     from zrb.llm.ui.default.ui import UI
@@ -231,8 +238,10 @@ class UIMessageEditing:
         A span is unusable — and pruned — when it lies past the buffer (the
         transcript was rewound) or no longer holds the echoed line (a terminal
         resize re-wrapped tracked markdown blocks and shifted everything
-        without updating this entry). Shared by `redraw_echo` and
-        `redraw_echo_markdown` so their stale-span rules cannot drift apart.
+        without updating this entry). A resize also re-renders the echo's
+        own tracked block, so the recorded text stops matching and the span is
+        dropped here: the edit still reaches the model, it just no longer
+        rewrites the display.
         """
         span = entry.echo_spans.get(self._ui)
         if span is None:
@@ -253,9 +262,18 @@ class UIMessageEditing:
         return span
 
     def redraw_echo(self, entry: QueuedMessage) -> str | None:
-        """Splice `entry`'s echoed line back into the output buffer after an edit.
+        """Splice `entry`'s echo back into the output buffer at its current text.
 
-        Returns the rewritten line, or ``None`` when nothing was redrawn —
+        The single splice path behind both callers — an edit of a queued
+        message, and a paste line merging into one. The body is whatever
+        `entry.text` currently is, drawn by `render_echo_body`: Markdown when
+        the text carries a construct (so a merged fenced block or list reads
+        as one block rather than a render of just the newest line), the raw
+        line otherwise. Because the decision is re-made here from the entry
+        itself, editing a merged Markdown message keeps rendering, and editing
+        it back to plain text stops.
+
+        Returns the rewritten echo, or ``None`` when nothing was redrawn —
         there is no tracked span for this UI, the span is stale, or the buffer
         no longer holds the echo. A caller that gets ``None`` (a bufferless UI,
         or the default UI past a rendered echo that never claimed a span) can
@@ -271,35 +289,39 @@ class UIMessageEditing:
             return None
         marker = entry.echo_marker or "💬"
         ts = entry.echo_timestamp or datetime.now().strftime("%H:%M")
-        echo = f"\n{marker} {ts} >> {entry.text.strip()}\n"
-        self._ui.replace_output_span(span.start, span.end, echo)
-        entry.echo_spans[self._ui] = EchoSpan(
-            start=span.start,
-            end=span.start + len(echo),
-            text=echo,
-        )
-        return echo
-
-    def redraw_echo_markdown(self, entry: QueuedMessage) -> str | None:
-        """Replace `entry`'s echo with a full render of its merged Markdown.
-
-        A paste whose lines merged into a single Markdown message is shown as
-        the whole combined text rendered, spliced over the plain opening echo
-        in place — a multi-line construct (a fenced code block, a list) reads
-        as one block instead of a meaningless render of just the newest line.
-        Returns the rewritten echo, or ``None`` when nothing was redrawn, with
-        the same stale-span contract as `redraw_echo`.
-        """
-        span = self._validated_echo_span(entry)
-        if span is None:
+        header = f"\n{marker} {ts} >> "
+        body = self.render_echo_body(entry.text, self._ui.output_field_width)
+        echo = f"{header}{body}\n"
+        if not self._ui.replace_output_span(span.start, span.end, echo):
             return None
-        marker = entry.echo_marker or "💬"
-        ts = entry.echo_timestamp or datetime.now().strftime("%H:%M")
-        echo = f"\n{marker} {ts} >> {self._ui.render_markdown(entry.text)}\n"
-        self._ui.replace_output_span(span.start, span.end, echo)
+        # Track the body — not the header or the separator newline, which are
+        # width-independent — so a terminal resize re-renders this echo at the
+        # new width instead of leaving it wrapped for the old one. The same
+        # split `append_rendered` uses for a tail-appended block.
+        body_start = span.start + len(header)
+        self._ui.set_rendered_block(
+            body_start, body_start + len(body), entry.text, self.render_echo_body
+        )
         entry.echo_spans[self._ui] = EchoSpan(
             start=span.start,
             end=span.start + len(echo),
             text=echo,
         )
         return echo
+
+    def render_echo_body(self, text: str, width: int | None) -> str:
+        """Render a queued message's echo body at `width`.
+
+        Markdown when `text` carries a construct, the stripped line otherwise
+        — the same rule `echo_user_message` applies to the first echo, so a
+        redrawn echo and a freshly written one never disagree.
+
+        Doubles as the re-render hook of the echo's tracked block, which is
+        why it takes a width: `rewrap_output` calls it with the new width
+        after a resize. A plain body renders to itself, so the one hook covers
+        every echo and no block has to be untracked when an edit turns
+        Markdown back into plain text.
+        """
+        if should_render_user_markdown(text):
+            return self._ui.render_markdown(text, width)
+        return text.strip()

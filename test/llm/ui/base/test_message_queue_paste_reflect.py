@@ -19,6 +19,7 @@ from zrb.llm.ui.base.message_queue import (
     QueuedMessage,
     submit_user_message_via_queue,
 )
+from zrb.llm.ui.base.user_echo import should_render_user_markdown
 
 
 def _stub_stream_ai_response(llm_task, text, attachments):
@@ -85,8 +86,10 @@ class SpliceableTarget:
     `append_to_output` matches the real writer's trailing newline — the echoed
     line already ends with one, and the writer appends a separator after it —
     so a span is only usable if its recording survives that extra blank line.
-    `_redraw_echo_markdown` mirrors the full-render replacement of a merge
-    whose combined text turned Markdown (rendered as the message uppercased).
+    `_redraw_echo` picks its body the way the real one does — a render of the
+    whole entry text when it carries a Markdown construct (stood in for by
+    uppercasing), the raw line otherwise — so a merge and a later edit draw
+    the same thing.
     """
 
     def __init__(self):
@@ -142,10 +145,9 @@ class SpliceableTarget:
         return echo
 
     def _redraw_echo(self, entry):
+        if should_render_user_markdown(entry.text):
+            return self._splice_echo(entry, entry.text.upper())
         return self._splice_echo(entry, entry.text.strip())
-
-    def _redraw_echo_markdown(self, entry):
-        return self._splice_echo(entry, entry.text.upper())
 
 
 def test_submit_user_message_via_queue_echoes_a_steered_live_run_message():

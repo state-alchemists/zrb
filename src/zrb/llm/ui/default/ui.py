@@ -482,13 +482,12 @@ class UI(BaseUI):
         self._message_editing.track_echo_span(entry, echo)
 
     def _redraw_echo(self, entry: Any) -> str | None:
-        """Override hook `BaseUI` invokes polymorphically (see its base no-op)."""
-        return self._message_editing.redraw_echo(entry)
+        """Override hook `BaseUI` invokes polymorphically (see its base no-op).
 
-    def _redraw_echo_markdown(self, entry: Any) -> str | None:
-        """Override hook for a merged paste line whose combined text turned
-        Markdown — render the whole message in place of the plain echo."""
-        return self._message_editing.redraw_echo_markdown(entry)
+        Renders the entry's current text — Markdown or plain, decided per
+        redraw — so an edit and a paste merge draw the same thing.
+        """
+        return self._message_editing.redraw_echo(entry)
 
     # =========================================================================
     # UIOutput delegators
@@ -562,8 +561,13 @@ class UI(BaseUI):
     def append_markdown(self, markdown_text: str) -> None:
         self._output.append_markdown(markdown_text)
 
-    def render_markdown(self, markdown_text: str) -> str:
-        return self._output.render_markdown(markdown_text)
+    def render_markdown(self, markdown_text: str, width: int | None = None) -> str:
+        return self._output.render_markdown(markdown_text, width)
+
+    def set_rendered_block(
+        self, start: int, end: int, source: Any, renderer: Any
+    ) -> None:
+        return self._output.set_rendered_block(start, end, source, renderer)
 
     def print_help(self) -> None:
         self._output.print_help()

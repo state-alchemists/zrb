@@ -1,8 +1,6 @@
 from unittest.mock import MagicMock, patch
 
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
-from zrb.llm.ui.base.message_queue import EchoSpan, QueuedMessage
-from zrb.llm.ui.default.message_editing import UIMessageEditing
 from zrb.llm.ui.default.output import UIOutput
 
 
@@ -106,30 +104,6 @@ class _RecordingBuffer:
         self.cursor_position = document.cursor_position
 
 
-class MockEditingOutputUI(MockMarkdownUI):
-    """MockMarkdownUI plus the composed queued-edit echo tracking/redraw part."""
-
-    def __init__(self):
-        super().__init__()
-        self._message_editing = UIMessageEditing(self)
-
-    def __getattr__(self, name):
-        message_editing = self.__dict__.get("_message_editing")
-        if message_editing is not None and hasattr(message_editing, name):
-            return getattr(message_editing, name)
-        return super().__getattr__(name)
-
-
-def make_entry(text="original", marker="💬", ts="10:00"):
-    async def run():
-        pass
-
-    entry = QueuedMessage(text=text, attachments=[], kind="message", run=run)
-    entry.echo_marker = marker
-    entry.echo_timestamp = ts
-    return entry
-
-
 def test_get_status_bar_text_shows_queued_messages():
     ui = MockOutputUI()
     ui.set_thinking(True)
@@ -156,144 +130,17 @@ def test_output_field_width_prefers_the_running_application():
         assert ui.output_field_width == 76
 
 
-def test_track_echo_span_records_when_echo_lands():
-    ui = MockEditingOutputUI()
-    echo = "\n💬 10:00 >> original\n"
-    ui.output_field.text = "head" + echo
-    entry = make_entry()
+def test_set_rendered_block_keeps_the_list_in_position_order():
+    """`rewrap_output` accumulates a shift as it walks `rendered_blocks`, and
+    `toggle_collapsible_block_at_cursor` stops at the first block past the
+    cursor — both read the list as position-ordered, so an in-place record is
+    inserted at its offset rather than appended."""
+    ui = MockMarkdownUI()
+    ui.rendered_blocks.append([100, 110, "tail", lambda s, w: s])
 
-    ui.track_echo_span(entry, echo)
+    ui.set_rendered_block(10, 20, "head", lambda s, w: s)
 
-    span = entry.echo_spans[ui]
-    assert (span.start, span.end) == (len("head"), len("head") + len(echo))
-    assert span.text == echo
-
-
-def test_track_echo_span_records_with_writers_trailing_newline():
-    # The writer's default separator appends a newline after the echo, so a
-    # bare `endswith` span would never record and pastes would fragment.
-    ui = MockEditingOutputUI()
-    echo = "\n💬 10:00 >> original\n"
-    ui.output_field.text = "head" + echo + "\n"
-    entry = make_entry()
-
-    ui.track_echo_span(entry, echo)
-
-    span = entry.echo_spans[ui]
-    assert (span.start, span.end) == (len("head"), len("head") + len(echo))
-    assert ui.output_text[span.start : span.end] == echo
-
-
-def test_track_echo_span_skips_when_echo_buffered():
-    # A pending confirmation diverted the echo from the buffer — nothing to
-    # splice later, so the span must not be recorded.
-    ui = MockEditingOutputUI()
-    ui.output_field.text = "confirmation prompt"
-    entry = make_entry()
-
-    ui.track_echo_span(entry, "\n💬 10:00 >> original\n")
-
-    assert entry.echo_spans == {}
-
-
-def test_redraw_echo_splices_edited_line():
-    ui = MockEditingOutputUI()
-    echo = "\n💬 10:00 >> original\n"
-    ui.output_field.text = "head" + echo + "tail"
-    entry = make_entry()
-    start = len("head")
-    entry.echo_spans[ui] = EchoSpan(start, start + len(echo), echo)
-
-    entry.text = "edited text"
-    ui.redraw_echo(entry)
-
-    assert ui.output_text == "head" + "\n💬 10:00 >> edited text\n" + "tail"
-    span = entry.echo_spans[ui]
-    assert span.start == start
-    assert span.end == start + len("\n💬 10:00 >> edited text\n")
-    assert span.text == "\n💬 10:00 >> edited text\n"
-
-
-def test_redraw_echo_drops_span_that_no_longer_holds_the_echo():
-    # A terminal resize shifted the transcript without updating the span;
-    # splicing at the stale span would corrupt the output, so it is dropped.
-    ui = MockEditingOutputUI()
-    echo = "\n💬 10:00 >> original\n"
-    ui.output_field.text = "rewrapped long block now" + echo
-    entry = make_entry()
-    stale_start = len("old short block")  # span recorded when the block was short
-    entry.echo_spans[ui] = EchoSpan(stale_start, stale_start + len(echo), echo)
-
-    entry.text = "edited text"
-    ui.redraw_echo(entry)
-
-    assert ui.output_text == "rewrapped long block now" + echo  # untouched
-    assert entry.echo_spans == {}
-
-
-def test_redraw_echo_uses_entry_marker_and_timestamp():
-    ui = MockEditingOutputUI()
-    echo = "\n⏳ 10:00 >> original\n"
-    ui.output_field.text = echo
-    entry = make_entry()
-    entry.echo_marker = "⏳"
-    entry.echo_spans[ui] = EchoSpan(0, len(echo), echo)
-
-    entry.text = "edited"
-    ui.redraw_echo(entry)
-
-    assert ui.output_text == "\n⏳ 10:00 >> edited\n"
-
-
-def test_redraw_echo_drops_stale_span():
-    ui = MockEditingOutputUI()
-    entry = make_entry()
-    entry.echo_spans[ui] = EchoSpan(0, 100, "")  # buffer was rewritten since
-    ui.output_field.text = "short"
-
-    ui.redraw_echo(entry)
-
-    assert entry.echo_spans == {}
-
-
-def test_redraw_echo_is_a_noop_without_span():
-    # No span recorded (echo was confirmation-buffered) — nothing to splice.
-    ui = MockEditingOutputUI()
-    entry = make_entry()
-    entry.echo_spans = {}
-    ui.output_field.text = "head"
-
-    ui.redraw_echo(entry)
-
-    assert ui.output_text == "head"
-    assert entry.echo_spans == {}
-
-
-def test_redraw_echo_markdown_replaces_echo_with_full_rendered_message():
-    # A merge whose combined text turned Markdown renders the WHOLE queued
-    # message into the echo, and re-tracks the span so a later edit can still
-    # rewrite the display.
-    ui = MockEditingOutputUI()
-    echo = "\n💬 10:00 >> hello\n"
-    ui.output_field.text = "head" + echo + "tail"
-    entry = make_entry(text="hello\n- item")
-    start = len("head")
-    entry.echo_spans[ui] = EchoSpan(start, start + len(echo), echo)
-
-    with patch(
-        "zrb.llm.ui.default.output.render_markdown",
-        return_value="HELLO\n- ITEM",
-    ) as mock_render:
-        rewritten = ui.redraw_echo_markdown(entry)
-
-    # The full combined message — not `- item` alone — is what got rendered.
-    assert mock_render.call_args.args[0] == "hello\n- item"
-    assert ui.output_text == "head" + "\n💬 10:00 >> HELLO\n- ITEM\n" + "tail"
-    span = entry.echo_spans[ui]
-    assert span.start == start
-    assert span.end == start + len("\n💬 10:00 >> HELLO\n- ITEM\n")
-    assert span.text == "\n💬 10:00 >> HELLO\n- ITEM\n"
-    assert rewritten == "\n💬 10:00 >> HELLO\n- ITEM\n"
+    assert [block[0] for block in ui.rendered_blocks] == [10, 100]
 
 
 def test_replace_output_span_shifts_tracked_blocks_after_span():

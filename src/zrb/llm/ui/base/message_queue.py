@@ -347,18 +347,14 @@ def _merge_into(
     entry.text = combined
     entry.attachments += attachments
     entry.submitted_at = now
-    if append_markdown is not None and should_render_user_markdown(combined):
-        # The combined message turned Markdown. Splicing it into the plain
-        # echo as raw text would be one option, but the whole merged message
-        # is what reads correctly — a spliceable target replaces its echo with
-        # a full render of `entry.text`; one with nothing to splice gets the
-        # merged line verbatim so no target ever shows a partial render of
-        # just the newest line.
-        for target in echo_targets:
-            _reflect_merged_markdown(target, entry, header, text)
-        return
+    # The combined message may have turned Markdown. A spliceable target
+    # redraws its echo from `entry.text`, so it shows the whole merged message
+    # rendered rather than a partial render of just the newest line; only the
+    # fallback for a target with nothing to splice differs, which is what
+    # `rendered` selects.
+    rendered = append_markdown is not None and should_render_user_markdown(combined)
     for target in echo_targets:
-        _reflect_merged_line(target, entry, header, text)
+        _reflect_merged(target, entry, header, text, rendered=rendered)
 
 
 def _collect_attachments(attachment_sources: list[Any]) -> list[Any]:
@@ -373,16 +369,21 @@ def _collect_attachments(attachment_sources: list[Any]) -> list[Any]:
     return attachments
 
 
-def _reflect_merged_line(
-    target: Any, entry: QueuedMessage, header: str, body: str
+def _reflect_merged(
+    target: Any, entry: QueuedMessage, header: str, body: str, *, rendered: bool
 ) -> None:
     """Draw a merged paste line on one target.
 
-    Splices the line into the target's existing echo when possible; otherwise
-    echoes it through the target's own output path. A target whose `_redraw_echo`
-    raises is treated like one that cannot redraw — the failure is logged and
-    the line falls back to an ordinary echo, so one broken target never aborts
-    the submission or starves the remaining targets.
+    A target that can splice redraws its echo from `entry` — the whole merged
+    message, so a Markdown construct spanning several lines reads as one
+    block. A target with nothing to splice falls back to its own output path:
+    an ordinary echo of the line, or, when the combined message turned
+    Markdown (`rendered`), the line verbatim — rendering just the new line
+    would show a fragment (a lone fence, a bare `- item`) with no meaning.
+
+    A target whose `_redraw_echo` raises is treated like one that cannot
+    redraw — the failure is logged and the line falls back to its echo, so one
+    broken target never aborts the submission or starves the remaining ones.
     """
     redraw = getattr(target, "_redraw_echo", None)
     if callable(redraw):
@@ -392,7 +393,10 @@ def _reflect_merged_line(
         except Exception as e:
             CFG.LOGGER.debug(f"Child UI echo redraw failed: {e}")
     try:
-        _emit_echo_to(target, header, body)
+        if rendered:
+            _emit_echo_verbatim_to(target, header, body)
+        else:
+            _emit_echo_to(target, header, body)
     except Exception as e:
         CFG.LOGGER.debug(f"Child UI merged-echo fallback failed: {e}")
 
@@ -415,34 +419,6 @@ def _emit_echo_to(target: Any, header: str, body: str) -> None:
         header=header,
         body=body,
     )
-
-
-def _reflect_merged_markdown(
-    target: Any, entry: QueuedMessage, header: str, body: str
-) -> None:
-    """Draw a merged paste line whose combined text turned Markdown on one
-    target.
-
-    A target that can replace its echo (the default TUI) renders the *whole*
-    combined message and splices it over the plain opening echo, so a
-    multi-line construct (a fenced code block, a list) reads as one block.
-    Any other target gets the merged line verbatim — never a render of just
-    the new line, which would leave the construct half on screen. A redraw
-    that raises is logged and falls back like one that cannot redraw; the
-    entry's span survives both ways, so a later edit can still update the
-    display.
-    """
-    redraw = getattr(target, "_redraw_echo_markdown", None)
-    if callable(redraw):
-        try:
-            if redraw(entry) is not None:
-                return
-        except Exception as e:
-            CFG.LOGGER.debug(f"Child UI markdown echo redraw failed: {e}")
-    try:
-        _emit_echo_verbatim_to(target, header, body)
-    except Exception as e:
-        CFG.LOGGER.debug(f"Child UI merged-markdown echo fallback failed: {e}")
 
 
 def _emit_echo_verbatim_to(target: Any, header: str, body: str) -> None:

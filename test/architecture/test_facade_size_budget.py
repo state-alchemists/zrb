@@ -21,9 +21,10 @@ SRC = REPO_ROOT / "src" / "zrb"
 # Ceilings that only ever go DOWN — see test_constructor_surface.py's note.
 FACADE_BUDGETS = {
     "llm/ui/base/ui.py": 1200,
-    # +7 (653->660): Finding-3 markdown-merge redraw entry points
-    # `render_markdown` and `_redraw_echo_markdown`.
-    "llm/ui/default/ui.py": 660,
+    # +11 (653->664): markdown-merge echo entry points — `render_markdown`
+    # (now width-aware, for re-render on resize) and `set_rendered_block`,
+    # which registers a redrawn echo as a re-renderable block.
+    "llm/ui/default/ui.py": 664,
     "llm/task/chat/task.py": 1068,
     "llm/task/llm_task.py": 839,
     "llm/agent/subagent/manager.py": 299,
