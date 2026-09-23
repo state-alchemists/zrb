@@ -5,6 +5,7 @@ import pytest
 
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
+from zrb.config.config import CFG
 from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.trigger import TriggerMessage
@@ -185,8 +186,11 @@ def test_get_cwd_display_logic(base_ui):
         assert res == cwd
 
 
-def test_submit_user_message_marks_queued_while_thinking(base_ui):
+def test_submit_user_message_marks_queued_while_thinking(base_ui, monkeypatch):
     """A message typed while a turn is in flight is echoed as queued, not sent."""
+    # The paste-burst merge would coalesce the two rapid submits into one; the
+    # marker the echo carries is what this test covers, so disable it.
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 0, raising=False)
     outputs: list[str] = []
     with patch.object(base_ui, "append_to_output", side_effect=outputs.append):
         base_ui.submit_user_message(base_ui.llm_task, "later")

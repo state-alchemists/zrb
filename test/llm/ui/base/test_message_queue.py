@@ -28,8 +28,7 @@ def test_queued_message_echo_defaults():
     entry = make_entry("hello")
     assert entry.echo_marker == ""
     assert entry.echo_timestamp == ""
-    assert entry.echo_span is None
-    assert entry.echo_text == ""
+    assert entry.echo_spans == {}
 
 
 def test_peek_latest_returns_newest():
@@ -342,7 +341,7 @@ def test_submit_user_message_via_queue_renders_markdownish_echo():
     assert header_values[0].endswith(">> ")
     entry = queue.peek_latest()
     assert entry.text == body
-    assert entry.echo_span is None
+    assert entry.echo_spans == {}
 
 
 def test_submit_user_message_via_queue_keeps_raw_echo_for_plain_single_line():
@@ -378,3 +377,31 @@ def test_submit_user_message_via_queue_keeps_raw_echo_for_plain_single_line():
     assert rendered == []
     assert len(outputs) == 1 and "hello" in outputs[0]
     assert len(tracked) == 1
+
+
+def test_submit_user_message_via_queue_echoes_the_line_before_attachment_failure():
+    """A source whose `take_pending_attachments` raises must not swallow the
+    user's line: the echo precedes attachment collection, so the input stays
+    visible in the output pane while the submission aborts — matching the
+    pre-merge behavior the shared echo used to guarantee."""
+    outputs: list[str] = []
+
+    class BrokenSource:
+        def take_pending_attachments(self):
+            raise RuntimeError("camera unavailable")
+
+    with pytest.raises(RuntimeError, match="camera unavailable"):
+        submit_user_message_via_queue(
+            append_to_output=outputs.append,
+            active_run_context=None,
+            stream_ai_response=_stub_stream_ai_response,
+            queue=MessageQueue(),
+            attachment_sources=[BrokenSource()],
+            echo_targets=[],
+            llm_task=object(),
+            user_message="hello there",
+            marker="💬",
+        )
+
+    assert len(outputs) == 1
+    assert "💬" in outputs[0] and "hello there" in outputs[0]

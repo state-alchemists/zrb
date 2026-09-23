@@ -693,6 +693,7 @@ All interval and delay values are in **milliseconds**.
 | `ZRB_LLM_UI_LONG_STATUS_INTERVAL` | Interval for updating slow-changing info (CWD, git branch) in TUI (ms) | `60000` |
 | `ZRB_LLM_UI_REFRESH_INTERVAL` | Prompt-toolkit application refresh rate (ms) | `500` |
 | `ZRB_LLM_UI_FLUSH_INTERVAL` | How often buffered output is flushed to event-driven UIs (ms) | `500` |
+| `ZRB_LLM_UI_PASTE_MERGE_MS` | Merge user messages submitted within this many milliseconds of the previous one into a single queued message — heals multi-line pastes that a terminal without bracketed paste splits into one submit per line (each line otherwise becomes its own LLM turn). `0` disables. | `100` |
 | `ZRB_SCHEDULER_TICK_INTERVAL` | How often the Scheduler task checks its cron pattern (ms) | `60000` |
 | `ZRB_HTTP_CHECK_INTERVAL` | Default polling interval for `HttpCheck` tasks (ms) | `5000` |
 | `ZRB_TCP_CHECK_INTERVAL` | Default polling interval for `TcpCheck` tasks (ms) | `5000` |

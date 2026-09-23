@@ -928,13 +928,13 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
                     CFG.LOGGER.debug(f"Child UI echo redraw failed: {e}")
         return True
 
-    def _redraw_echo(self, entry: QueuedMessage) -> None:
-        """Rewrite `entry`'s echoed line after an edit.
-
-        The default TUI overrides this to splice the new line into its output
-        buffer; other UIs have no buffer to rewrite, so the default is a no-op
-        and their edits are invisible but effective.
+    def _redraw_echo(self, entry: QueuedMessage) -> str | None:
+        """Rewrite `entry`'s echoed line after an edit; the rewritten line, or
+        None when it could not be redrawn. The default TUI overrides this to
+        splice into its output buffer; other UIs have no buffer to rewrite, so
+        the base no-op returns None and their edits stay invisible but effective.
         """
+        return None
 
     def append_markdown(self, markdown_text: str) -> None:
         """Render `markdown_text` at the current output width and append it.

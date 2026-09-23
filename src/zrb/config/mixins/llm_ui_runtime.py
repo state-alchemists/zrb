@@ -1,4 +1,5 @@
-"""LLM UI runtime knobs: status / refresh / flush intervals and buffer size."""
+"""LLM UI runtime knobs: status / refresh / flush intervals, buffer size, and
+the paste-burst merge window."""
 
 from __future__ import annotations
 
@@ -14,6 +15,7 @@ class LLMUIRuntimeMixin:
         self.DEFAULT_LLM_UI_REFRESH_INTERVAL: str = "500"
         self.DEFAULT_LLM_UI_FLUSH_INTERVAL: str = "500"
         self.DEFAULT_LLM_UI_MAX_BUFFER_SIZE: str = "2000"
+        self.DEFAULT_LLM_UI_PASTE_MERGE_MS: str = "100"
         super().__init__()
 
     LLM_UI_STATUS_INTERVAL = EnvField(
@@ -33,3 +35,11 @@ class LLMUIRuntimeMixin:
     )
 
     LLM_UI_MAX_BUFFER_SIZE = EnvField(int, doc="Maximum buffer size for UI output.")
+
+    LLM_UI_PASTE_MERGE_MS = EnvField(
+        int,
+        doc="Merge user messages submitted within this many milliseconds of the "
+        "previous one into a single queued message — heals multi-line pastes that "
+        "a terminal without bracketed paste split into one submit per line. "
+        "Set to 0 to disable.",
+    )
