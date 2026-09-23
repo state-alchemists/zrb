@@ -59,11 +59,19 @@ class RenderedEcho:
     message. A strong reference would pin the `QueuedMessage` — with its
     attachments and its run coroutine — for as long as the buffer holds the
     block, which is never pruned. A dead referent matches nothing.
+
+    `rendered` is what `render_echo` last produced for this block, which is
+    exactly what the buffer holds at the block's offsets — `render_echo` is
+    the only renderer registered for it, and every call is followed by a
+    splice. `_refresh_echo_span` compares the region against it before
+    trusting the offsets, so a block whose offsets have drifted onto another
+    message is caught even when that message shares this one's header.
     """
 
     header: str
     text: str
     entry: "weakref.ReferenceType[QueuedMessage]"
+    rendered: str = ""
 
 
 class UIMessageEditing:
@@ -320,9 +328,10 @@ class UIMessageEditing:
         able to rewrite the displayed message across both.
 
         What the block cannot vouch for is that its offsets still address
-        *this* echo, so the region is checked for the message's own header
-        before being adopted. Falls back to the stored span when the entry has
-        no block, and returns ``None`` when this UI recorded no span at all.
+        *this* echo, so the region is checked against the text the block last
+        drew before being adopted. Falls back to the stored span when the
+        entry has no block, and returns ``None`` when this UI recorded no span
+        at all.
         """
         span = entry.echo_spans.get(self._ui)
         if span is None:
@@ -332,11 +341,14 @@ class UIMessageEditing:
             return span
         start, end = block[0], block[1]
         text = self._ui.output_text[start:end]
-        if not text.startswith(block[2].header):
-            # The buffer was replaced or rewound under the block. Adopting
-            # the region would splice the message over unrelated transcript,
-            # so drop the span *and* the block — one pointing at somebody
-            # else's text would corrupt the next re-wrap too.
+        if text != block[2].rendered:
+            # The buffer was replaced or rewound under the block. Adopting the
+            # region would splice the message over unrelated transcript, so
+            # drop the span *and* the block — one pointing at somebody else's
+            # text would corrupt the next re-wrap too. Checking the whole
+            # region rather than its header matters: two echoes a minute apart
+            # share a header, so a drifted block would otherwise be accepted
+            # onto another message's line.
             self._ui.rendered_blocks.remove(block)
             del entry.echo_spans[self._ui]
             return None
@@ -418,8 +430,15 @@ class UIMessageEditing:
         the entire spliced region: `rewrap_output` replaces the recorded span
         with whatever this returns, and a hook covering only the body would
         splice the body over its own header.
+
+        Records the result on `source`, so the block carries the text it put
+        on screen — a re-wrap goes through here too, which is why the record
+        cannot be written once at registration.
         """
-        return f"{source.header}{self._render_echo_body(source.text, width)}\n"
+        source.rendered = (
+            f"{source.header}{self._render_echo_body(source.text, width)}\n"
+        )
+        return source.rendered
 
     def _render_echo_body(self, text: str, width: int | None) -> str:
         """Render a queued message's echo body at `width`.

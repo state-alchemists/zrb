@@ -14,12 +14,9 @@ from typing import TYPE_CHECKING, TextIO, cast
 from zrb.config.config import CFG
 from zrb.llm.agent.activity import agent_activity_registry
 from zrb.llm.tool.ambient_state import get_session_ownership_key
-from zrb.llm.ui.output_chunk import (
-    CollapsibleBlockSource,
-    OpenCollapsibleBlock,
-    merge_into_block,
-    merge_output_chunk,
-)
+from zrb.llm.ui.output_chunk import (CollapsibleBlockSource,
+                                     OpenCollapsibleBlock, merge_into_block,
+                                     merge_output_chunk)
 from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
@@ -258,7 +255,7 @@ class UIOutput:
         # Only track what landed verbatim — a pending confirmation buffers the
         # content instead of inserting it, which would make the span a lie.
         if end - start == len(rendered):
-            self._ui.rendered_blocks.append([start, end, source, renderer])
+            self.set_rendered_block(start, end, source, renderer)
 
     def set_rendered_block(
         self,
@@ -269,24 +266,26 @@ class UIOutput:
     ) -> None:
         """Record ``text[start:end]`` as a re-renderable block (public API).
 
-        `append_rendered` is the tail-append form of this; this is the in-place
-        form, for a splice that rewrote a region already in the buffer (the
-        queued-message echo redraw). Without it a spliced render stays wrapped
-        for the width it was rendered at, because `rewrap_output` only revisits
-        tracked blocks.
+        The one way a block enters `rendered_blocks`, because two invariants
+        hold over that list and neither survives a plain `append`:
 
-        `rendered_blocks` is position-ordered — `rewrap_output` walks it
-        accumulating a shift, and `toggle_collapsible_block_at_cursor` stops at
-        the first block past the cursor — so the record is inserted at its
-        offset rather than appended, and a record already held for `start`
-        (the previous render of this same echo) is replaced, not duplicated.
+        * **Position order.** `rewrap_output` walks the list accumulating the
+          length delta of each re-render, and `toggle_collapsible_block_at_cursor`
+          stops at the first block past the cursor. A record appended out of
+          order makes every later offset in that walk address the wrong text.
+          Appending is only in order when the block is at the buffer tail,
+          which a collapsed span (`_splice_collapsed_span`, `finish_shell_output`)
+          and a re-registered echo are not — so the record is inserted at the
+          position its `start` puts it in.
+        * **No overlap.** Writing `text[start:end]` replaced whatever was
+          there, so any record still covering part of that region describes
+          text that no longer exists; re-rendering it would splice over this
+          one. Those records are dropped here rather than left to rot.
         """
         blocks = self._ui.rendered_blocks
+        blocks[:] = [block for block in blocks if block[0] >= end or block[1] <= start]
         for index, block in enumerate(blocks):
-            if block[0] == start:
-                blocks[index] = [start, end, source, renderer]
-                return
-            if block[0] > start:
+            if block[0] >= end:
                 blocks.insert(index, [start, end, source, renderer])
                 return
         blocks.append([start, end, source, renderer])
@@ -398,8 +397,8 @@ class UIOutput:
         source = CollapsibleBlockSource(stylize_muted(collapsed), stylize_muted(full))
         if not self.replace_output_span(start, end, source.collapsed):
             return False
-        self._ui.rendered_blocks.append(
-            [start, start + len(source.collapsed), source, _render_collapsible_block]
+        self.set_rendered_block(
+            start, start + len(source.collapsed), source, _render_collapsible_block
         )
         return True
 
@@ -426,8 +425,8 @@ class UIOutput:
         source = CollapsibleBlockSource(stylize_muted(collapsed), stylize_muted(full))
         if not self.replace_output_span(start, end, source.collapsed):
             return False
-        self._ui.rendered_blocks.append(
-            [start, start + len(source.collapsed), source, _render_collapsible_block]
+        self.set_rendered_block(
+            start, start + len(source.collapsed), source, _render_collapsible_block
         )
         return True
 
@@ -703,9 +702,8 @@ class UIOutput:
         if viewing_agent_id:
             # lazy: transitively heavy via internal — live_session.py imports
             # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
-            from zrb.llm.agent.subagent.live_session import (
-                live_subagent_session_registry,
-            )
+            from zrb.llm.agent.subagent.live_session import \
+                live_subagent_session_registry
 
             session = live_subagent_session_registry.get(
                 get_session_ownership_key(self._ui.conversation_session_name),
@@ -778,7 +776,8 @@ class UIOutput:
         # tracked — not only while something is currently running.
         # lazy: transitively heavy via internal — live_session.py imports
         # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
-        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+        from zrb.llm.agent.subagent.live_session import \
+            live_subagent_session_registry
 
         live = live_subagent_session_registry.active(
             session_id=get_session_ownership_key(self._ui.conversation_session_name)

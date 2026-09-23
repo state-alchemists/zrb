@@ -284,6 +284,42 @@ def test_finish_shell_output_collapses_and_registers_for_toggle():
     assert "line one" in ui.output_text and "line two" in ui.output_text
 
 
+def test_finish_shell_output_keeps_rendered_blocks_in_position_order():
+    """A shell line opened before a later block collapses after it, so its
+    record enters the list at an offset that is already behind the tail.
+    Appending it would leave `rendered_blocks` out of position order, and
+    `rewrap_output` walks that list accumulating each re-render's length
+    delta — one record out of order makes every offset after it address the
+    wrong text."""
+    ui = MockMarkdownUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.update_shell_output("cmd_1", "line one\nline two")
+        # A tool line lands at the tail while the shell line is still open.
+        ui.append_toggle_block("tool call", "tool call, expanded")
+        ui.finish_shell_output("cmd_1", "🖥️ Output", "line one\nline two")
+
+    starts = [block[0] for block in ui.rendered_blocks]
+    assert starts == sorted(starts)
+    assert len(ui.rendered_blocks) == 2
+    # And every record still covers the text it was registered for.
+    for start, end, source, _ in ui.rendered_blocks:
+        assert ui.output_text[start:end] == source.collapsed
+
+
+def test_set_rendered_block_drops_records_the_write_overlapped():
+    """The write replaced whatever was at those offsets, so a record still
+    covering part of the region describes text that no longer exists.
+    Re-rendering it would splice over the new block."""
+    ui = MockMarkdownUI()
+    ui.rendered_blocks.append([0, 10, "stale", lambda s, w: s])
+    ui.rendered_blocks.append([20, 30, "later", lambda s, w: s])
+
+    ui.set_rendered_block(5, 15, "fresh", lambda s, w: s)
+
+    assert [(block[0], block[1]) for block in ui.rendered_blocks] == [(5, 15), (20, 30)]
+
+
 def test_finish_shell_output_without_any_update_is_a_noop():
     ui = MockMarkdownUI()
     ui.output_field.text = "no shell output line here"
