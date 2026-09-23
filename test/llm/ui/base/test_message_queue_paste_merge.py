@@ -8,6 +8,7 @@ lives in `test_message_queue_paste_reflect.py`.
 """
 
 from datetime import datetime, timedelta
+from unittest.mock import MagicMock
 
 from zrb.config.config import CFG
 from zrb.llm.ui.base.message_queue import (
@@ -167,3 +168,51 @@ def test_submit_via_queue_does_not_merge_across_a_queued_exec_job(monkeypatch):
     first = queue.editable_before(second)
     assert first is not None and first.text == "first"
     assert len(target.outputs) == 2
+
+
+def test_submit_via_queue_steers_live_run_even_inside_the_merge_window(monkeypatch):
+    """A live run owns the submission even when an editable message is still
+    inside the paste window: the burst check must not run before the live-run
+    steers, or the new line (and its attachments) would fold into the older
+    queued message the run never reads. Steering wins, and the queued message
+    stays untouched."""
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
+    run_context = MagicMock()
+    target = BurstTarget()
+    queue = MessageQueue()
+
+    submit_burst(queue, target, "first")
+    submit_user_message_via_queue(
+        append_to_output=target.append_to_output,
+        active_run_context=run_context,
+        stream_ai_response=_stub_stream_ai_response,
+        queue=queue,
+        attachment_sources=[target],
+        echo_targets=[target],
+        llm_task=object(),
+        user_message="second",
+        marker="💬",
+    )
+
+    run_context.enqueue.assert_called_once_with("second", "img-2", priority="asap")
+    assert queue.qsize() == 1
+    assert queue.peek_latest().text == "first"
+
+
+def test_submit_via_queue_merge_preserves_pasted_whitespace(monkeypatch):
+    """The merged model-facing text keeps each line exactly as pasted: leading
+    indentation survives, because `strip()` on the line would erase Python /
+    Markdown / YAML indentation — the non-merged path never strips, and
+    stripping belongs to echo/display rendering, not `QueuedMessage.text`."""
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
+    target = BurstTarget()
+    queue = MessageQueue()
+
+    submit_burst(queue, target, "def foo():")
+    submit_burst(queue, target, "    print(1)")
+    submit_burst(queue, target, "        n += 1")
+    submit_burst(queue, target, "")
+
+    entry = queue.peek_latest()
+    assert queue.qsize() == 1
+    assert entry.text == "def foo():\n    print(1)\n        n += 1\n"

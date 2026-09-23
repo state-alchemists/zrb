@@ -206,7 +206,16 @@ def submit_user_message_via_queue(
     `put_nowait` within a few milliseconds. When the newest still-queued,
     still-editable message was submitted within `CFG.LLM_UI_PASTE_MERGE_MS`
     of this one, the new line is appended to it instead of becoming its own
-    turn — the model receives the pasted block as one message.
+    turn — the model receives the pasted block as one message. Merging only
+    applies on the queued-turn path: a submission while a live run is
+    connected is steered into that run (`priority="asap"`) even when an
+    editable message is still inside the merge window, so an older queued
+    message never swallows a line (or its attachments) the run should get.
+
+    The model-facing text is preserved exactly: `QueuedMessage.text` is the
+    raw submissions joined with a newline — leading indentation, trailing
+    spaces, and intentional blank lines survive, and stripping is left to the
+    echo/display paths where it is wanted.
 
     A line that does not merge is echoed before its attachments are collected,
     matching a plain pre-merge submit: if a `take_pending_attachments`
@@ -243,7 +252,8 @@ def submit_user_message_via_queue(
 
     previous = queue.latest_editable()
     if (
-        previous is not None
+        active_run_context is None
+        and previous is not None
         and queue.peek_latest() is previous
         and _is_paste_burst(previous, now, CFG.LLM_UI_PASTE_MERGE_MS)
     ):
@@ -257,7 +267,7 @@ def submit_user_message_via_queue(
         except Exception:
             emit_echo()
             raise
-        combined = f"{previous.text.strip()}\n{user_message.strip()}"
+        combined = f"{previous.text}\n{user_message}"
         previous.text = combined
         previous.attachments += attachments
         previous.submitted_at = now
