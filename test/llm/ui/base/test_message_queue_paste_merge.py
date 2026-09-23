@@ -1,4 +1,4 @@
-"""Paste-burst merging under `CFG.LLM_UI_PASTE_MERGE_MS`.
+"""Paste-burst merging under `CFG.LLM_UI_PASTE_MERGE_WINDOW`.
 
 Lines a terminal without bracketed paste splits into per-line Enter submits
 are coalesced back into one queued message. This file covers the merge
@@ -81,7 +81,7 @@ def submit_burst(queue, target, text):
 
 def test_submit_via_queue_merges_paste_burst_into_one_queued_message(monkeypatch):
     """Lines a terminal split into per-line Enter submits join a single turn."""
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_WINDOW", 60_000, raising=False)
     target = BurstTarget()
     queue = MessageQueue()
 
@@ -120,7 +120,7 @@ def test_submit_via_queue_partial_burst_merges_only_while_fresh(monkeypatch):
     """A burst merges; a pause long enough to leave the window then splits —
     the rolling `submitted_at` keeps a long paste together but lets a pause
     start a new message."""
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 10_000, raising=False)
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_WINDOW", 10_000, raising=False)
     target = BurstTarget()
     queue = MessageQueue()
 
@@ -138,7 +138,7 @@ def test_submit_via_queue_partial_burst_merges_only_while_fresh(monkeypatch):
 
 
 def test_submit_via_queue_zero_window_disables_merging(monkeypatch):
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 0, raising=False)
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_WINDOW", 0, raising=False)
     target = BurstTarget()
     queue = MessageQueue()
 
@@ -153,7 +153,7 @@ def test_submit_via_queue_does_not_merge_across_a_queued_exec_job(monkeypatch):
     """A queued `/exec` job is a merge barrier: a burst line after it must not
     fold into the older editable message (which would move the line ahead of
     the job and change execution order)."""
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_WINDOW", 60_000, raising=False)
     target = BurstTarget()
     queue = MessageQueue()
 
@@ -176,7 +176,7 @@ def test_submit_via_queue_steers_live_run_even_inside_the_merge_window(monkeypat
     steers, or the new line (and its attachments) would fold into the older
     queued message the run never reads. Steering wins, and the queued message
     stays untouched."""
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_WINDOW", 60_000, raising=False)
     run_context = MagicMock()
     target = BurstTarget()
     queue = MessageQueue()
@@ -205,7 +205,7 @@ def test_submit_via_queue_merges_when_steering_a_finished_run_fails(monkeypatch)
     the line is still part of the burst and merges. Gating the merge on
     `active_run_context is None` would instead split a paste into one queued
     turn per line the moment a run finished mid-burst."""
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_WINDOW", 60_000, raising=False)
     finished_run = MagicMock()
     finished_run.enqueue.side_effect = RuntimeError("run already finished")
     target = BurstTarget()
@@ -238,7 +238,7 @@ def test_submit_via_queue_merge_preserves_pasted_whitespace(monkeypatch):
     indentation survives, because `strip()` on the line would erase Python /
     Markdown / YAML indentation — the non-merged path never strips, and
     stripping belongs to echo/display rendering, not `QueuedMessage.text`."""
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_WINDOW", 60_000, raising=False)
     target = BurstTarget()
     queue = MessageQueue()
 

@@ -190,7 +190,7 @@ def test_submit_user_message_marks_queued_while_thinking(base_ui, monkeypatch):
     """A message typed while a turn is in flight is echoed as queued, not sent."""
     # The paste-burst merge would coalesce the two rapid submits into one; the
     # marker the echo carries is what this test covers, so disable it.
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 0, raising=False)
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_WINDOW", 0, raising=False)
     outputs: list[str] = []
     with patch.object(base_ui, "append_to_output", side_effect=outputs.append):
         base_ui.submit_user_message(base_ui.llm_task, "later")

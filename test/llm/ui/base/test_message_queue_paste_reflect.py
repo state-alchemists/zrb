@@ -177,7 +177,7 @@ def test_submit_user_message_via_queue_echoes_a_steered_live_run_message():
 def test_submit_via_queue_falls_back_to_echo_when_merge_cannot_redraw(monkeypatch):
     """A UI with no output buffer to splice (a no-op `redraw_echo`) still shows
     each merged paste line as an ordinary echo — it must not vanish."""
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_WINDOW", 60_000, raising=False)
     target = BurstTarget(can_redraw=False)
     queue = MessageQueue()
 
@@ -195,7 +195,7 @@ def test_submit_via_queue_reflects_merged_line_per_multiui_child(monkeypatch):
     """A MultiUI mixing spliceable (TUI) and bufferless (Telegram) children: the
     merged line is redrawn in place for the former and echoed to the latter
     alone — never broadcast a second copy to the child that redrew."""
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_WINDOW", 60_000, raising=False)
     tui = BurstTarget()
     telegram = BurstTarget(can_redraw=False)
     queue = MessageQueue()
@@ -248,7 +248,7 @@ def test_submit_via_queue_replaces_echo_with_full_rendered_merged_markdown(monke
     screen (e.g. a fenced code block's closing fence), so the target must
     render the full message; the re-tracked span keeps a later edit able to
     rewrite the display."""
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_WINDOW", 60_000, raising=False)
     target = SpliceableTarget()
     queue = MessageQueue()
 
@@ -292,7 +292,7 @@ def test_submit_via_queue_echoes_merged_markdown_line_verbatim_without_splice(
     a combined message that turned Markdown — a bare `- item` or a lone fence
     is meaningless without the rest of the message. The line lands verbatim,
     so nothing is partial and nothing disappears."""
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_WINDOW", 60_000, raising=False)
     outputs: list[str] = []
     rendered: list[str] = []
 
@@ -347,7 +347,7 @@ def test_submit_via_queue_survives_a_child_redraw_failure(monkeypatch):
     """A child whose `redraw_echo` raises mid-merge must not crash the
     submission or stop the other targets — the failure is logged, the broken
     child falls back to an ordinary echo, and a healthy child still redraws."""
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_WINDOW", 60_000, raising=False)
     broken = BurstTarget(redraw_error=RuntimeError("buffer closed"))
     healthy = BurstTarget()
     queue = MessageQueue()
@@ -398,7 +398,7 @@ def test_submit_via_queue_merge_keeps_each_childs_own_echo_span(monkeypatch):
     `QueuedMessage` would make the second child see the first child's
     just-rewritten span as stale, fall back to an echo, and duplicate the
     line."""
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_WINDOW", 60_000, raising=False)
     child_a = SpliceableTarget()
     child_b = SpliceableTarget()
     queue = MessageQueue()
@@ -442,7 +442,7 @@ def test_submit_via_queue_merge_echoes_line_when_attachment_collection_fails(
     """A burst line whose attachment source raises aborts both the merge and
     the per-target reflection — the line's only trace. The echo must still be
     emitted so the submitted input stays visible on the failure."""
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_WINDOW", 60_000, raising=False)
     outputs: list[str] = []
     tui = BurstTarget()
     queue = MessageQueue()

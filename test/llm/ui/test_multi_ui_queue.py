@@ -88,7 +88,7 @@ async def test_multi_ui_process_messages_loop_no_busy_wait(multi_ui, monkeypatch
     # directly — the exact pattern base/ui.py's twin loop was fixed to avoid.
     # The paste-burst merge is disabled so the two rapid submits stay two jobs
     # (this test covers queue mechanics, not paste coalescing).
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 0, raising=False)
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_WINDOW", 0, raising=False)
     real_sleep = asyncio.sleep
     sleep_delays = []
 

@@ -205,7 +205,7 @@ def submit_user_message_via_queue(
     A paste whose lines arrived as separate Enter keystrokes (a terminal that
     never wrapped them in a bracketed-paste marker) submits one line per
     `put_nowait` within a few milliseconds. When the newest still-queued,
-    still-editable message was submitted within `CFG.LLM_UI_PASTE_MERGE_MS`
+    still-editable message was submitted within `CFG.LLM_UI_PASTE_MERGE_WINDOW`
     of this one, the new line is appended to it instead of becoming its own
     turn — the model receives the pasted block as one message. Merging only
     applies on the queued-turn path: a submission while a live run is
@@ -322,7 +322,7 @@ def _merge_candidate(queue: MessageQueue, now: datetime) -> "QueuedMessage | Non
     previous = queue.latest_editable()
     if previous is None or queue.peek_latest() is not previous:
         return None
-    if not _is_paste_burst(previous, now, CFG.LLM_UI_PASTE_MERGE_MS):
+    if not _is_paste_burst(previous, now, CFG.LLM_UI_PASTE_MERGE_WINDOW):
         return None
     return previous
 
