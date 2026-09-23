@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
-from zrb.llm.ui.base.message_queue import QueuedMessage
+from zrb.llm.ui.base.message_queue import EchoSpan, QueuedMessage
 from zrb.llm.ui.default.message_editing import UIMessageEditing
 from zrb.llm.ui.default.output import UIOutput
 
@@ -164,8 +164,9 @@ def test_track_echo_span_records_when_echo_lands():
 
     ui.track_echo_span(entry, echo)
 
-    assert entry.echo_span == (len("head"), len("head") + len(echo))
-    assert entry.echo_text == echo
+    span = entry.echo_spans[ui]
+    assert (span.start, span.end) == (len("head"), len("head") + len(echo))
+    assert span.text == echo
 
 
 def test_track_echo_span_skips_when_echo_buffered():
@@ -177,7 +178,7 @@ def test_track_echo_span_skips_when_echo_buffered():
 
     ui.track_echo_span(entry, "\n💬 10:00 >> original\n")
 
-    assert entry.echo_span is None
+    assert entry.echo_spans == {}
 
 
 def test_redraw_echo_splices_edited_line():
@@ -186,15 +187,16 @@ def test_redraw_echo_splices_edited_line():
     ui.output_field.text = "head" + echo + "tail"
     entry = make_entry()
     start = len("head")
-    entry.echo_span = (start, start + len(echo))
-    entry.echo_text = echo
+    entry.echo_spans[ui] = EchoSpan(start, start + len(echo), echo)
 
     entry.text = "edited text"
     ui.redraw_echo(entry)
 
     assert ui.output_text == "head" + "\n💬 10:00 >> edited text\n" + "tail"
-    assert entry.echo_span == (start, start + len("\n💬 10:00 >> edited text\n"))
-    assert entry.echo_text == "\n💬 10:00 >> edited text\n"
+    span = entry.echo_spans[ui]
+    assert span.start == start
+    assert span.end == start + len("\n💬 10:00 >> edited text\n")
+    assert span.text == "\n💬 10:00 >> edited text\n"
 
 
 def test_redraw_echo_drops_span_that_no_longer_holds_the_echo():
@@ -207,14 +209,13 @@ def test_redraw_echo_drops_span_that_no_longer_holds_the_echo():
     ui.output_field.text = "rewrapped long block now" + echo
     entry = make_entry()
     stale_start = len("old short block")  # span recorded when the block was short
-    entry.echo_span = (stale_start, stale_start + len(echo))
-    entry.echo_text = echo
+    entry.echo_spans[ui] = EchoSpan(stale_start, stale_start + len(echo), echo)
 
     entry.text = "edited text"
     ui.redraw_echo(entry)
 
     assert ui.output_text == "rewrapped long block now" + echo  # untouched
-    assert entry.echo_span is None
+    assert entry.echo_spans == {}
 
 
 def test_redraw_echo_uses_entry_marker_and_timestamp():
@@ -223,7 +224,7 @@ def test_redraw_echo_uses_entry_marker_and_timestamp():
     ui.output_field.text = echo
     entry = make_entry()
     entry.echo_marker = "⏳"
-    entry.echo_span = (0, len(echo))
+    entry.echo_spans[ui] = EchoSpan(0, len(echo), echo)
 
     entry.text = "edited"
     ui.redraw_echo(entry)
@@ -234,25 +235,25 @@ def test_redraw_echo_uses_entry_marker_and_timestamp():
 def test_redraw_echo_drops_stale_span():
     ui = MockEditingOutputUI()
     entry = make_entry()
-    entry.echo_span = (0, 100)  # buffer was rewritten since (e.g. rewind)
+    entry.echo_spans[ui] = EchoSpan(0, 100, "")  # buffer was rewritten since
     ui.output_field.text = "short"
 
     ui.redraw_echo(entry)
 
-    assert entry.echo_span is None
+    assert entry.echo_spans == {}
 
 
 def test_redraw_echo_is_a_noop_without_span():
     # No span recorded (echo was confirmation-buffered) — nothing to splice.
     ui = MockEditingOutputUI()
     entry = make_entry()
-    entry.echo_span = None
+    entry.echo_spans = {}
     ui.output_field.text = "head"
 
     ui.redraw_echo(entry)
 
     assert ui.output_text == "head"
-    assert entry.echo_span is None
+    assert entry.echo_spans == {}
 
 
 def test_replace_output_span_shifts_tracked_blocks_after_span():

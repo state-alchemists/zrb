@@ -26,7 +26,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from zrb.llm.ui.base.message_queue import QueuedMessage
+from zrb.llm.ui.base.message_queue import EchoSpan, QueuedMessage
 
 if TYPE_CHECKING:
     from zrb.llm.ui.default.ui import UI
@@ -200,44 +200,60 @@ class UIMessageEditing:
     def track_echo_span(self, entry: QueuedMessage, echo: str) -> None:
         """Record where `echo` landed so an edit can rewrite it in place.
 
+        The span is stored on the shared entry keyed by this UI (`self._ui`),
+        so a `MultiUI` whose every child echoes the same line keeps one span
+        per child buffer — a child redraws against its own span, never the
+        last child's.
+
         Only recorded when the line actually reached the output buffer verbatim
         — a pending confirmation buffers the content instead, which would make
         the span a lie (the same guard `append_rendered` uses).
         """
         text = self._ui.output_text
         if text.endswith(echo):
-            entry.echo_span = (len(text) - len(echo), len(text))
-            entry.echo_text = echo
+            entry.echo_spans[self._ui] = EchoSpan(
+                start=len(text) - len(echo),
+                end=len(text),
+                text=echo,
+            )
 
     def redraw_echo(self, entry: QueuedMessage) -> str | None:
         """Splice `entry`'s echoed line back into the output buffer after an edit.
 
         Returns the rewritten line, or ``None`` when nothing was redrawn —
-        there is no tracked span, the span is stale, or the buffer no longer
-        holds the echo. A caller that gets ``None`` (a bufferless UI, or the
-        default UI past a rendered echo that never claimed a span) can fall
-        back to emitting an ordinary echo so merged paste lines stay visible.
+        there is no tracked span for this UI, the span is stale, or the buffer
+        no longer holds the echo. A caller that gets ``None`` (a bufferless UI,
+        or the default UI past a rendered echo that never claimed a span) can
+        fall back to emitting an ordinary echo so merged paste lines stay
+        visible.
+
+        The span lookup is keyed by this UI (`self._ui`), so one child's
+        redraw never touches — or invalidates — the span another child tracks
+        on the same shared entry.
         """
-        if entry.echo_span is None:
+        span = entry.echo_spans.get(self._ui)
+        if span is None:
             return None
-        start, end = entry.echo_span
-        if end > len(self._ui.output_text):
+        if span.end > len(self._ui.output_text):
             # The span is stale — the buffer was rewritten since (e.g. rewind).
-            entry.echo_span = None
+            del entry.echo_spans[self._ui]
             return None
-        if entry.echo_text and self._ui.output_text[start:end] != entry.echo_text:
+        if span.text and self._ui.output_text[span.start : span.end] != span.text:
             # The span no longer holds the echoed line — a terminal resize
             # re-wrapped tracked markdown blocks and shifted the transcript
             # without updating this entry. Drop the span: the edit is already
             # effective (the turn streams the new text), it just won't rewrite
             # the echo, instead of splicing the line into the wrong offset and
             # corrupting the output buffer.
-            entry.echo_span = None
+            del entry.echo_spans[self._ui]
             return None
         marker = entry.echo_marker or "💬"
         ts = entry.echo_timestamp or datetime.now().strftime("%H:%M")
         echo = f"\n{marker} {ts} >> {entry.text.strip()}\n"
-        self._ui.replace_output_span(start, end, echo)
-        entry.echo_span = (start, start + len(echo))
-        entry.echo_text = echo
+        self._ui.replace_output_span(span.start, span.end, echo)
+        entry.echo_spans[self._ui] = EchoSpan(
+            start=span.start,
+            end=span.start + len(echo),
+            text=echo,
+        )
         return echo

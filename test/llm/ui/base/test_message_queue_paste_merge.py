@@ -1,15 +1,13 @@
 """Paste-burst merging under `CFG.LLM_UI_PASTE_MERGE_MS`.
 
 Lines a terminal without bracketed paste splits into per-line Enter submits
-are coalesced back into one queued message. This file covers the burst window,
-its barriers (a queued `/exec` job), and how a merged line is reflected on the
-echo targets — spliced in place where possible, echoed to a bufferless child
-alone, kept visible when a child's redraw fails, and rendered through the
-markdown path when the combined text turns Markdown.
+are coalesced back into one queued message. This file covers the merge
+decision — the burst window, its rolling refresh, `0` disabling it, and the
+queued `/exec` barrier. How a merged line is reflected on the echo targets
+lives in `test_message_queue_paste_reflect.py`.
 """
 
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock
 
 from zrb.config.config import CFG
 from zrb.llm.ui.base.message_queue import (
@@ -150,30 +148,6 @@ def test_submit_via_queue_zero_window_disables_merging(monkeypatch):
     assert len(target.outputs) == 2
 
 
-def test_submit_user_message_via_queue_echoes_a_steered_live_run_message():
-    """A message steered into a live run never reaches the queue, so the shared
-    echo below the steer would not run for it — it must be echoed explicitly or
-    the user's line disappears from the UI while the model still receives it."""
-    run_context = MagicMock()
-    outputs: list[str] = []
-
-    submit_user_message_via_queue(
-        append_to_output=outputs.append,
-        active_run_context=run_context,
-        stream_ai_response=_stub_stream_ai_response,
-        queue=MessageQueue(),
-        attachment_sources=[],
-        echo_targets=[],
-        llm_task=object(),
-        user_message="steer me",
-        marker="💬",
-    )
-
-    run_context.enqueue.assert_called_once_with("steer me", priority="asap")
-    assert len(outputs) == 1
-    assert "💬" in outputs[0] and "steer me" in outputs[0]
-
-
 def test_submit_via_queue_does_not_merge_across_a_queued_exec_job(monkeypatch):
     """A queued `/exec` job is a merge barrier: a burst line after it must not
     fold into the older editable message (which would move the line ahead of
@@ -193,190 +167,3 @@ def test_submit_via_queue_does_not_merge_across_a_queued_exec_job(monkeypatch):
     first = queue.editable_before(second)
     assert first is not None and first.text == "first"
     assert len(target.outputs) == 2
-
-
-def test_submit_via_queue_falls_back_to_echo_when_merge_cannot_redraw(monkeypatch):
-    """A UI with no output buffer to splice (a no-op `_redraw_echo`) still shows
-    each merged paste line as an ordinary echo — it must not vanish."""
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
-    target = BurstTarget(can_redraw=False)
-    queue = MessageQueue()
-
-    submit_burst(queue, target, "git status")
-    submit_burst(queue, target, "git add .")
-
-    assert queue.qsize() == 1
-    assert queue.peek_latest().text == "git status\ngit add ."
-    assert len(target.outputs) == 2
-    assert "git status" in target.outputs[0]
-    assert "git add ." in target.outputs[1]
-
-
-def test_submit_via_queue_reflects_merged_line_per_multiui_child(monkeypatch):
-    """A MultiUI mixing spliceable (TUI) and bufferless (Telegram) children: the
-    merged line is redrawn in place for the former and echoed to the latter
-    alone — never broadcast a second copy to the child that redrew."""
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
-    tui = BurstTarget()
-    telegram = BurstTarget(can_redraw=False)
-    queue = MessageQueue()
-
-    def broadcast(*values, **kwargs):
-        text = "".join(str(v) for v in values) + kwargs.get("end", "")
-        tui.outputs.append(text)
-        telegram.outputs.append(text)
-
-    submit_user_message_via_queue(
-        append_to_output=broadcast,
-        active_run_context=None,
-        stream_ai_response=_stub_stream_ai_response,
-        queue=queue,
-        attachment_sources=[tui, telegram],
-        echo_targets=[tui, telegram],
-        llm_task=object(),
-        user_message="git status",
-        marker="💬",
-    )
-    submit_user_message_via_queue(
-        append_to_output=broadcast,
-        active_run_context=None,
-        stream_ai_response=_stub_stream_ai_response,
-        queue=queue,
-        attachment_sources=[tui, telegram],
-        echo_targets=[tui, telegram],
-        llm_task=object(),
-        user_message="git add .",
-        marker="💬",
-    )
-
-    entry = queue.peek_latest()
-    assert queue.qsize() == 1
-    assert entry.text == "git status\ngit add ."
-    assert tui.redrawn == [entry]
-    # The TUI got the opening line once and then a splice, never a copy.
-    assert len(tui.outputs) == 1
-    # The bufferless child got the opening line via the broadcast and the
-    # merged line through its own echo — nothing disappeared.
-    assert len(telegram.outputs) == 2
-    assert "git status" in telegram.outputs[0]
-    assert "git add ." in telegram.outputs[1]
-
-
-def test_submit_via_queue_renders_merged_markdown_via_echo_path(monkeypatch):
-    """A burst whose combined text turns Markdown (e.g. `- item` after `hello`)
-    drops the plain echo's span and echoes the merged line through the render
-    path — no literal Markdown splice, no duplicate of the full combined
-    message, and nothing left behind for a later edit to re-splice."""
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
-    outputs: list[str] = []
-    rendered: list[str] = []
-    redrawn: list[QueuedMessage] = []
-
-    class MarkdownTarget:
-        def append_to_output(self, *values, **kwargs):
-            outputs.append("".join(str(v) for v in values) + kwargs.get("end", ""))
-
-        def append_markdown(self, markdown_text):
-            rendered.append(markdown_text)
-
-        def take_pending_attachments(self):
-            return []
-
-        def _track_echo_span(self, entry, echo):
-            pass
-
-        def _redraw_echo(self, entry):
-            redrawn.append(entry)
-            return None
-
-    target = MarkdownTarget()
-    queue = MessageQueue()
-
-    submit_user_message_via_queue(
-        append_to_output=target.append_to_output,
-        active_run_context=None,
-        stream_ai_response=_stub_stream_ai_response,
-        queue=queue,
-        attachment_sources=[target],
-        echo_targets=[target],
-        llm_task=object(),
-        user_message="hello",
-        marker="💬",
-        append_markdown=target.append_markdown,
-    )
-    submit_user_message_via_queue(
-        append_to_output=target.append_to_output,
-        active_run_context=None,
-        stream_ai_response=_stub_stream_ai_response,
-        queue=queue,
-        attachment_sources=[target],
-        echo_targets=[target],
-        llm_task=object(),
-        user_message="- item",
-        marker="💬",
-        append_markdown=target.append_markdown,
-    )
-
-    entry = queue.peek_latest()
-    assert queue.qsize() == 1
-    assert entry.text == "hello\n- item"
-    # The plain echo's span is dropped, so no literal splice is possible and a
-    # later edit has nothing stale to redraw.
-    assert entry.echo_span is None
-    # Only the merged line is rendered — the combined message is never echoed a
-    # second time, so `hello` appears once and there is no duplicate block.
-    assert rendered == ["- item"]
-    assert redrawn == [entry]
-    # The plain opening line was echoed raw; the merged line went through the
-    # target's own header + markdown path.
-    assert sum("hello" in o for o in outputs) == 1
-    assert any(o.endswith(">> ") for o in outputs)
-
-
-def test_submit_via_queue_survives_a_child_redraw_failure(monkeypatch):
-    """A child whose `_redraw_echo` raises mid-merge must not crash the
-    submission or stop the other targets — the failure is logged, the broken
-    child falls back to an ordinary echo, and a healthy child still redraws."""
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
-    broken = BurstTarget(redraw_error=RuntimeError("buffer closed"))
-    healthy = BurstTarget()
-    queue = MessageQueue()
-
-    def broadcast(*values, **kwargs):
-        text = "".join(str(v) for v in values) + kwargs.get("end", "")
-        broken.outputs.append(text)
-        healthy.outputs.append(text)
-
-    submit_user_message_via_queue(
-        append_to_output=broadcast,
-        active_run_context=None,
-        stream_ai_response=_stub_stream_ai_response,
-        queue=queue,
-        attachment_sources=[broken, healthy],
-        echo_targets=[broken, healthy],
-        llm_task=object(),
-        user_message="git status",
-        marker="💬",
-    )
-    submit_user_message_via_queue(
-        append_to_output=broadcast,
-        active_run_context=None,
-        stream_ai_response=_stub_stream_ai_response,
-        queue=queue,
-        attachment_sources=[broken, healthy],
-        echo_targets=[broken, healthy],
-        llm_task=object(),
-        user_message="git add .",
-        marker="💬",
-    )
-
-    entry = queue.peek_latest()
-    assert queue.qsize() == 1
-    assert entry.text == "git status\ngit add ."
-    # The healthy target redrew the merged line in place...
-    assert healthy.redrawn == [entry]
-    assert len(healthy.outputs) == 1
-    # ...and the broken child still got the merged line as an echo, so nothing
-    # disappeared for it either.
-    assert len(broken.outputs) == 2
-    assert "git add ." in broken.outputs[1]

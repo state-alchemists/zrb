@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 from collections import deque
 from collections.abc import Callable, Coroutine
+from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -32,6 +33,20 @@ from zrb.llm.ui.base.user_echo import (
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import UserContent
+
+
+@dataclass
+class EchoSpan:
+    """Where one UI's echo of a message landed in that UI's output buffer.
+
+    `start`/`end` delimit the echoed line and `text` is the line itself, so a
+    redraw can verify the span still holds it before splicing in place — it
+    may have been shifted or re-wrapped since (e.g. a terminal resize).
+    """
+
+    start: int
+    end: int
+    text: str
 
 
 class QueuedMessage:
@@ -65,17 +80,15 @@ class QueuedMessage:
         # can rebuild the line in the same style instead of re-deriving state.
         self.echo_marker: str = ""
         self.echo_timestamp: str = ""
-        # [start, end) span of the echoed `💬 ...` line in the default UI's
-        # output buffer, recorded by `_track_echo_span`. None when the echo did
-        # not land verbatim (e.g. confirmation buffering) or on UIs that cannot
-        # redraw in place.
-        self.echo_span: tuple[int, int] | None = None
-        # The echoed line `echo_span` points at, so a redraw can verify the span
-        # is still where the line landed before splicing. A terminal resize
-        # re-wraps tracked markdown blocks and shifts the transcript without
-        # updating this entry — the mismatch then drops the span (edit stays
-        # effective, echo not rewritten) instead of corrupting the output.
-        self.echo_text: str = ""
+        # Where each target UI's echo of this message landed in that target's
+        # own output buffer, keyed by the UI instance that owns the buffer. A
+        # `MultiUI` writes one echo into every child's buffer, so each child
+        # records (and later redraws against) its own span — a shared scalar
+        # would let the last child's span clobber the others', leaving the
+        # rest to see a stale span and fall back to a duplicate echo. An entry
+        # with no echo (an `/exec` job, a rendered markdown echo, or a
+        # confirmation-buffered line) simply has no key.
+        self.echo_spans: dict[Any, EchoSpan] = {}
 
     @property
     def is_editable(self) -> bool:
@@ -195,20 +208,26 @@ def submit_user_message_via_queue(
     of this one, the new line is appended to it instead of becoming its own
     turn — the model receives the pasted block as one message.
 
+    A line that does not merge is echoed before its attachments are collected,
+    matching a plain pre-merge submit: if a `take_pending_attachments`
+    implementation raises, the submission aborts but the user's line is
+    already visible in the output pane rather than silently swallowed.
+
     The merge is bounded by a queued `/exec` job: only the newest queue entry
     itself (never an older editable message reached past an `/exec` in
     between) may absorb the new line. A merged line is reflected per target —
     one that can splice its echo redraws it in place; one that cannot (a
     bufferless UI, or a rendered first echo with no tracked span) gets an
     ordinary echo of the line through its own output path, never a broadcast
-    that duplicates a child that already redrew. A child whose redraw fails is
-    treated like one that cannot redraw — the failure is logged and the other
-    targets still get their path. And when the merged text turns Markdown,
-    splicing it would show literal Markdown, so the plain echo's span is
-    dropped and the merged line is echoed per target through the rendering
-    path instead — the first line's plain echo stays, but the combined message
-    is never re-echoed, so there is no duplicate and no stale span for a later
-    edit to splice.
+    that duplicates a child that already redrew. Each target tracks its own
+    echo span on the shared entry, so one child's redraw never invalidates
+    another's. A child whose redraw fails is treated like one that cannot
+    redraw — the failure is logged and the other targets still get their path.
+    And when the merged text turns Markdown, splicing it would show literal
+    Markdown, so every target's span is dropped and the merged line is echoed
+    per target through the rendering path instead — the first line's plain
+    echo stays, but the combined message is never re-echoed, so there is no
+    duplicate and no stale span for a later edit to splice.
     """
     now = datetime.now()
     timestamp = now.strftime("%H:%M")
@@ -221,27 +240,22 @@ def submit_user_message_via_queue(
             body=user_message.strip(),
         )
 
-    attachments: list[Any] = []
-    for source in attachment_sources:
-        take: Callable[[], list[Any]] | None = getattr(
-            source, "take_pending_attachments", None
-        )
-        if callable(take):
-            attachments.extend(take())
-
-    if steer_into_live_run(active_run_context, user_message, attachments):
-        # A live-run submission never reaches the queue, so the shared echo
-        # below would not run for it — render it here or the user's line
-        # disappears from the UI while the model still receives it.
-        emit_echo()
-        return
-
     previous = queue.latest_editable()
     if (
         previous is not None
         and queue.peek_latest() is previous
         and _is_paste_burst(previous, now, CFG.LLM_UI_PASTE_MERGE_MS)
     ):
+        # A paste line folds into the queued entry; its only visible trace is
+        # the per-target reflection below, never a line echo of its own. If
+        # collecting attachments fails the line would vanish entirely, so emit
+        # it here before the failure propagates — the same promise as the
+        # open-line path below.
+        try:
+            attachments = _collect_attachments(attachment_sources)
+        except Exception:
+            emit_echo()
+            raise
         combined = f"{previous.text.strip()}\n{user_message.strip()}"
         previous.text = combined
         previous.attachments += attachments
@@ -250,18 +264,27 @@ def submit_user_message_via_queue(
             # The combined text cannot be spliced into the plain echo without
             # showing literal Markdown, and re-rendering the whole message
             # would leave the user with both the first line and a duplicate
-            # block. Drop the tracked span so a later edit has nothing stale
-            # to splice, then echo just the merged line per target through the
-            # rendering path — every line lands exactly once.
-            previous.echo_span = None
-            previous.echo_text = ""
+            # block. Drop every target's tracked span so a later edit has
+            # nothing stale to splice, then echo just the merged line per
+            # target through the rendering path — every line lands exactly
+            # once.
+            previous.echo_spans.clear()
         for target in echo_targets:
             _reflect_merged_line(
                 target, previous, f"\n{marker} {timestamp} >> ", user_message
             )
         return
 
+    # A non-merge line is echoed before attachments are collected — exactly as
+    # a plain submit with no merge feature would — so a collection failure
+    # surfaces the failure with the user's line already in the output pane.
     echo = emit_echo()
+    attachments = _collect_attachments(attachment_sources)
+
+    if steer_into_live_run(active_run_context, user_message, attachments):
+        # A live-run submission never reaches the queue — the echo above is
+        # its only rendering.
+        return
 
     entry = QueuedMessage(
         text=user_message,
@@ -278,6 +301,18 @@ def submit_user_message_via_queue(
             if callable(track):
                 track(entry, echo)
     queue.put_nowait(entry)
+
+
+def _collect_attachments(attachment_sources: list[Any]) -> list[Any]:
+    """Drain every source's pending attachments into one list."""
+    attachments: list[Any] = []
+    for source in attachment_sources:
+        take: Callable[[], list[Any]] | None = getattr(
+            source, "take_pending_attachments", None
+        )
+        if callable(take):
+            attachments.extend(take())
+    return attachments
 
 
 def _reflect_merged_line(
