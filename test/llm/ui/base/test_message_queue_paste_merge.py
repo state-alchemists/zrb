@@ -199,6 +199,40 @@ def test_submit_via_queue_steers_live_run_even_inside_the_merge_window(monkeypat
     assert queue.peek_latest().text == "first"
 
 
+def test_submit_via_queue_merges_when_steering_a_finished_run_fails(monkeypatch):
+    """A run context that goes stale between the caller reading it and the
+    `enqueue` call falls back to the queue — the documented normal case — so
+    the line is still part of the burst and merges. Gating the merge on
+    `active_run_context is None` would instead split a paste into one queued
+    turn per line the moment a run finished mid-burst."""
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
+    finished_run = MagicMock()
+    finished_run.enqueue.side_effect = RuntimeError("run already finished")
+    target = BurstTarget()
+    queue = MessageQueue()
+
+    submit_burst(queue, target, "first")
+    submit_user_message_via_queue(
+        append_to_output=target.append_to_output,
+        active_run_context=finished_run,
+        stream_ai_response=_stub_stream_ai_response,
+        queue=queue,
+        attachment_sources=[target],
+        echo_targets=[target],
+        llm_task=object(),
+        user_message="second",
+        marker="💬",
+    )
+
+    assert queue.qsize() == 1
+    entry = queue.peek_latest()
+    assert entry.text == "first\nsecond"
+    assert entry.attachments == ["img-1", "img-2"]
+    # Merged like any queued line: the opening echo is redrawn, not doubled.
+    assert len(target.outputs) == 1
+    assert target.redrawn == [entry]
+
+
 def test_submit_via_queue_merge_preserves_pasted_whitespace(monkeypatch):
     """The merged model-facing text keeps each line exactly as pasted: leading
     indentation survives, because `strip()` on the line would erase Python /

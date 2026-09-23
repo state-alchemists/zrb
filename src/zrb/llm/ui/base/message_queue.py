@@ -211,6 +211,11 @@ def submit_user_message_via_queue(
     connected is steered into that run (`priority="asap"`) even when an
     editable message is still inside the merge window, so an older queued
     message never swallows a line (or its attachments) the run should get.
+    Steering is *attempted* rather than assumed from a non-None run context —
+    `steer_into_live_run` returns False when the run finished between the
+    caller reading the context and the `enqueue` call, and that submission
+    falls back to the queue, where it is still part of the same burst and
+    merges like any other queued line.
 
     The model-facing text is preserved exactly: `QueuedMessage.text` is the
     raw submissions joined with a newline — leading indentation, trailing
@@ -241,77 +246,119 @@ def submit_user_message_via_queue(
     """
     now = datetime.now()
     timestamp = now.strftime("%H:%M")
+    header = f"\n{marker} {timestamp} >> "
 
     def emit_echo() -> str:
         return echo_user_message(
             append_to_output,
             append_markdown,
-            header=f"\n{marker} {timestamp} >> ",
+            header=header,
             body=user_message.strip(),
         )
 
-    previous = queue.latest_editable()
-    if (
-        active_run_context is None
-        and previous is not None
-        and queue.peek_latest() is previous
-        and _is_paste_burst(previous, now, CFG.LLM_UI_PASTE_MERGE_MS)
-    ):
-        # A paste line folds into the queued entry; its only visible trace is
-        # the per-target reflection below, never a line echo of its own. If
-        # collecting attachments fails the line would vanish entirely, so emit
-        # it here before the failure propagates — the same promise as the
-        # open-line path below.
-        try:
-            attachments = _collect_attachments(attachment_sources)
-        except Exception:
-            emit_echo()
-            raise
-        combined = f"{previous.text}\n{user_message}"
-        previous.text = combined
-        previous.attachments += attachments
-        previous.submitted_at = now
-        header = f"\n{marker} {timestamp} >> "
-        if append_markdown is not None and should_render_user_markdown(combined):
-            # The combined message turned Markdown. Splicing it into the plain
-            # echo as raw text would be one option, but the whole merged
-            # message is what reads correctly — a spliceable target replaces
-            # its echo with a full render of `previous.text`; one with nothing
-            # to splice gets the merged line verbatim so no target ever shows
-            # a partial render of just the newest line.
-            for target in echo_targets:
-                _reflect_merged_markdown(target, previous, header, user_message)
+    previous = _merge_candidate(queue, now)
+    if previous is None:
+        # A non-merge line is echoed before attachments are collected — exactly
+        # as a plain submit with no merge feature would — so a collection
+        # failure surfaces with the user's line already in the output pane.
+        echo = emit_echo()
+        attachments = _collect_attachments(attachment_sources)
+        if steer_into_live_run(active_run_context, user_message, attachments):
+            # A live-run submission never reaches the queue — the echo above is
+            # its only rendering.
             return
-        for target in echo_targets:
-            _reflect_merged_line(target, previous, header, user_message)
+        entry = QueuedMessage(
+            text=user_message,
+            attachments=attachments,
+            kind="message",
+            run=lambda: stream_ai_response(llm_task, entry.text, entry.attachments),
+        )
+        entry.echo_marker = marker
+        entry.echo_timestamp = timestamp
+        entry.submitted_at = now
+        if echo:
+            for target in echo_targets:
+                track = getattr(target, "_track_echo_span", None)
+                if callable(track):
+                    track(entry, echo)
+        queue.put_nowait(entry)
         return
 
-    # A non-merge line is echoed before attachments are collected — exactly as
-    # a plain submit with no merge feature would — so a collection failure
-    # surfaces the failure with the user's line already in the output pane.
-    echo = emit_echo()
-    attachments = _collect_attachments(attachment_sources)
-
+    # A paste line folds into the queued entry; its only visible trace is the
+    # per-target reflection, never a line echo of its own. If collecting
+    # attachments fails the line would vanish entirely, so emit it here before
+    # the failure propagates — the same promise as the open-line path above.
+    try:
+        attachments = _collect_attachments(attachment_sources)
+    except Exception:
+        emit_echo()
+        raise
     if steer_into_live_run(active_run_context, user_message, attachments):
-        # A live-run submission never reaches the queue — the echo above is
-        # its only rendering.
+        # Steering outranks merging, so it is tried before the merge is
+        # committed rather than gated on `active_run_context` being None: a
+        # context whose run finished in the meantime fails its enqueue, and
+        # that submission belongs in the queue — as part of this burst, not as
+        # a turn of its own. A steered line renders like any other live-run
+        # submission, which is a plain echo.
+        emit_echo()
         return
-
-    entry = QueuedMessage(
+    _merge_into(
+        previous,
         text=user_message,
         attachments=attachments,
-        kind="message",
-        run=lambda: stream_ai_response(llm_task, entry.text, entry.attachments),
+        now=now,
+        header=header,
+        echo_targets=echo_targets,
+        append_markdown=append_markdown,
     )
-    entry.echo_marker = marker
-    entry.echo_timestamp = timestamp
+
+
+def _merge_candidate(queue: MessageQueue, now: datetime) -> "QueuedMessage | None":
+    """The queued entry a submission made at `now` may fold into, or None.
+
+    Only the newest queue entry qualifies, and only while it is an editable
+    user message still inside the paste-burst window — a queued `/exec` job
+    bounds the merge rather than being reached past to an older message.
+    """
+    previous = queue.latest_editable()
+    if previous is None or queue.peek_latest() is not previous:
+        return None
+    if not _is_paste_burst(previous, now, CFG.LLM_UI_PASTE_MERGE_MS):
+        return None
+    return previous
+
+
+def _merge_into(
+    entry: QueuedMessage,
+    *,
+    text: str,
+    attachments: list[Any],
+    now: datetime,
+    header: str,
+    echo_targets: list[Any],
+    append_markdown: Callable[[str], Any] | None,
+) -> None:
+    """Append one paste line to `entry` and reflect it on every echo target.
+
+    The merge window rolls forward from this line, so a long paste's tail stays
+    in the same burst.
+    """
+    combined = f"{entry.text}\n{text}"
+    entry.text = combined
+    entry.attachments += attachments
     entry.submitted_at = now
-    if echo:
+    if append_markdown is not None and should_render_user_markdown(combined):
+        # The combined message turned Markdown. Splicing it into the plain
+        # echo as raw text would be one option, but the whole merged message
+        # is what reads correctly — a spliceable target replaces its echo with
+        # a full render of `entry.text`; one with nothing to splice gets the
+        # merged line verbatim so no target ever shows a partial render of
+        # just the newest line.
         for target in echo_targets:
-            track = getattr(target, "_track_echo_span", None)
-            if callable(track):
-                track(entry, echo)
-    queue.put_nowait(entry)
+            _reflect_merged_markdown(target, entry, header, text)
+        return
+    for target in echo_targets:
+        _reflect_merged_line(target, entry, header, text)
 
 
 def _collect_attachments(attachment_sources: list[Any]) -> list[Any]:
