@@ -250,12 +250,14 @@
         "multi_ui_parent",
         "multimodal_model",
         "plan_mode_active",
+        "redraw_echo",
         "run_async",
         "run_interactive_command",
         "small_model",
         "snapshot_manager",
         "stream_to_parent",
         "tool_call_handler",
+        "track_echo_span",
         "yolo"
       ]
     },

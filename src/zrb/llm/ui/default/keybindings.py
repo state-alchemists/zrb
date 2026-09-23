@@ -1,9 +1,10 @@
 """Key bindings for the default `UI`.
 
-`setup_app_keybindings` wires the prompt-toolkit handlers; it stays one
-method because each handler is a closure capturing `self` and the event
-object. The dispatch logic for Enter — which routes through the slash
-command handlers on `BaseUICommands` — is the bulk of the file.
+`setup_app_keybindings` is a registration table: it wires each
+prompt-toolkit key to a thin closure that delegates to a named `_on_*`
+handler method. The involved handlers (Enter dispatch, clipboard paste,
+voice push-to-talk) live in those methods rather than as nested
+closures, so each is a reviewable, individually testable unit.
 """
 
 from __future__ import annotations
@@ -30,10 +31,14 @@ if TYPE_CHECKING:
 class UIKeybindings:
     """Application key bindings for the default UI."""
 
+    _KEY_REPEAT_DEBOUNCE = 0.3
+
     def __init__(self, ui: "UI") -> None:
         self._ui = ui
+        self._voice_last_press: float = 0.0
+        self._voice_engine: "Any | None" = None
 
-    def setup_app_keybindings(  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
+    def setup_app_keybindings(  # noqa: C901 -- registration/factory fn; mccabe counts each nested handler def, radon scores each separately (near-trivial on its own)
         self, app_keybindings: "KeyBindings", llm_task: "AnyTask"
     ):
         # lazy: heavy third-party
@@ -55,19 +60,19 @@ class UIKeybindings:
 
         @app_keybindings.add("up", filter=active_choice)
         def _(event):
-            ui.selection_part.move_choice_cursor(-1)
+            self._on_choice_cursor(event, -1)
 
         @app_keybindings.add("down", filter=active_choice)
         def _(event):
-            ui.selection_part.move_choice_cursor(1)
+            self._on_choice_cursor(event, 1)
 
         @app_keybindings.add("enter", filter=active_choice)
         def _(event):
-            ui.selection_part.confirm_choice()
+            self._on_choice_confirm(event)
 
         @app_keybindings.add("space", filter=active_choice)
         def _(event):
-            ui.selection_part.toggle_choice_current()
+            self._on_choice_toggle(event)
 
         # Ctrl+K toggles focus between the input and output panes. The
         # input/output controls bind no Tab/Shift+Tab focus traversal of their
@@ -76,52 +81,16 @@ class UIKeybindings:
         # 0x09, so mode cycling via Shift+Tab is unavailable there.
         @app_keybindings.add("c-k", filter=no_active_choice)
         def _(event):
-            if event.app.layout.has_focus(ui.input_field):
-                event.app.layout.focus(ui.output_field)
-            else:
-                event.app.layout.focus(ui.input_field)
+            self._on_toggle_focus(event)
 
         @app_keybindings.add("c-c")
         @app_keybindings.add("escape", "c")
         def _(event):
-            buffer = event.app.current_buffer
-            if buffer.selection_state:
-                data = buffer.copy_selection()
-                # The output buffer holds raw ANSI codes (e.g. muted tool-call
-                # detail); strip them so the clipboard gets plain text.
-                data.text = remove_style(data.text)
-                if event.app.clipboard:
-                    event.app.clipboard.set_data(data)
-                buffer.exit_selection()
-                return
-            if buffer.text.strip() != "":
-                buffer.reset()
-                return
-            # Don't flush the confirmation buffer: the app is exiting, so
-            # writing buffered tokens is wasted work and adds latency.
-            ui.cancel_pending_confirmations(flush=False)
-            if ui.running_llm_task and not ui.running_llm_task.done():
-                ui.running_llm_task.cancel()
-                ui.append_to_output("\n<Esc> Canceled")
-            # Abort an in-flight voice recording/model-download so Ctrl+C
-            # exits promptly instead of waiting on the download thread.
-            voice = getattr(ui, "voice", None)
-            voice_task = None if voice is None else voice.task
-            if voice_task is not None and not voice_task.done():
-                voice_task.cancel()
-            ui.execute_hook(
-                HookEvent.STOP,
-                {"reason": "ctrl_c", "session": ui.conversation_session_name},
-            )
-            event.app.exit()
+            self._on_copy_or_clear(event)
 
         @app_keybindings.add("c-d")
         def _(event):
-            if event.app.current_buffer.text == "":
-                ui.cancel_pending_confirmations(flush=False)
-                if ui.running_llm_task and not ui.running_llm_task.done():
-                    ui.running_llm_task.cancel()
-                event.app.exit()
+            self._on_exit_if_empty(event)
 
         @app_keybindings.add("c-v")
         @app_keybindings.add("escape", "v")
@@ -129,78 +98,13 @@ class UIKeybindings:
             # Capture clipboard synchronously: prompt_toolkit may recycle the
             # event object before the async handler runs.
             clipboard = event.app.clipboard
-
-            async def _handle_paste():
-                # lazy: tests patch `zrb.llm.util.clipboard.get_clipboard_image`
-                # at the source path; hoisting would bind the name at
-                # module-load and bypass the mock.
-                from zrb.llm.util.clipboard import (
-                    get_clipboard_image,
-                    missing_tool_hint,
-                )
-
-                img_bytes = await get_clipboard_image()
-                if img_bytes is not None:
-                    # lazy: zrb internal (heavy via transitive)
-                    from zrb.llm.agent.types import BinaryContent
-
-                    scaled = scale_image_bytes(img_bytes, media_type="image/png")
-                    attachment = BinaryContent(
-                        data=scaled.data, media_type=scaled.media_type
-                    )
-                    ui.pending_attachments.append(attachment)
-                    size_kb = scaled.final_bytes / 1024
-                    if scaled.scaled:
-                        saved_kb = scaled.saved_bytes / 1024
-                        msg = (
-                            f"\n  📸 Image pasted from clipboard ({size_kb:.1f} KB, "
-                            f"scaled — saved {saved_kb:.1f} KB)\n"
-                        )
-                    else:
-                        msg = f"\n  📸 Image pasted from clipboard ({size_kb:.1f} KB)\n"
-                    ui.append_to_output(stylize_muted(msg))
-                    ui.invalidate_ui()
-                else:
-                    hint = missing_tool_hint()
-                    if hint:
-                        ui.append_to_output(
-                            stylize_error(f"\n  ❌ No image in clipboard.\n{hint}")
-                        )
-                        ui.invalidate_ui()
-                    elif clipboard:
-                        # No image found — paste text into input field. Always
-                        # target input_field, not current_buffer, since focus
-                        # may be on the read-only output field.
-                        # lazy: heavy third-party
-                        from prompt_toolkit.application import get_app as _get_app
-
-                        _get_app().layout.focus(ui.input_field)
-                        ui.input_field.buffer.paste_clipboard_data(clipboard.get_data())
-
-            task = asyncio.create_task(_handle_paste())
+            task = asyncio.create_task(self._on_clipboard_paste(clipboard))
             ui.background_tasks.add(task)
             task.add_done_callback(ui.background_tasks.discard)
 
         @app_keybindings.add("escape")
         def _(event):
-            # While viewing a sub-agent, Esc cancels what the sub-agent is
-            # doing (mirroring the main agent's Esc) — it never leaves the
-            # view (Left does that) and never touches the main task.
-            if getattr(ui, "viewing_agent_id", None) is not None:
-                ui.cancel_pending_confirmations()
-                ui.cancel_viewed_agent()
-                return
-            ui.cancel_pending_confirmations()
-            if ui.running_llm_task and not ui.running_llm_task.done():
-                ui.running_llm_task.cancel()
-                ui.execute_hook(
-                    HookEvent.STOP,
-                    {
-                        "reason": "escape",
-                        "session": ui.conversation_session_name,
-                    },
-                )
-                ui.append_to_output("\n<Esc> Canceled")
+            self._on_escape(event)
 
         @app_keybindings.add("left", filter=viewing_sub_agent)
         def _(event):
@@ -212,27 +116,7 @@ class UIKeybindings:
 
         @app_keybindings.add("enter", filter=no_active_choice)
         def _(event):
-            # Enter only ever acts on the input field. With focus on the
-            # read-only output pane (Ctrl+K), event.current_buffer is the output
-            # buffer — resolving a confirmation or submitting from it would send
-            # the entire pane content (banner, help, transcript) as user input.
-            # Refocus the input field instead.
-            if not event.app.layout.has_focus(ui.input_field):
-                event.app.layout.focus(ui.input_field)
-                return
-
-            if self._handle_multiline(event):
-                return
-
-            if ui.handle_confirmation(event):
-                return
-
-            # A still-queued message recalled into the input field (Up arrow)
-            # is edited in place here instead of submitted as a new message.
-            if ui.handle_enter_queued_edit(event):
-                return
-
-            self._handle_enter_dispatch(event, llm_task)
+            self._on_enter(event, llm_task)
 
         @app_keybindings.add("c-y")
         def _(event):
@@ -256,7 +140,7 @@ class UIKeybindings:
             # so Shift+Tab never arrives — bind plain Tab to mode cycling there.
             @app_keybindings.add("tab", filter=no_active_choice & ~has_completions)
             def _(event):
-                ui.cycle_mode()
+                self._on_cycle_mode(event)
 
         else:
             # Shift+Tab — cycle normal → accept-edits → plan. Gated so a completion
@@ -264,7 +148,7 @@ class UIKeybindings:
             # its own back-tab navigation.
             @app_keybindings.add("s-tab", filter=no_active_choice & ~has_completions)
             def _(event):
-                ui.cycle_mode()
+                self._on_cycle_mode(event)
 
         @app_keybindings.add("c-j", filter=no_active_choice)  # Ctrl+J / Ctrl+Enter
         @app_keybindings.add("c-space", filter=no_active_choice)  # Ctrl+Space fallback
@@ -284,84 +168,228 @@ class UIKeybindings:
         voice_mode_active = Condition(
             lambda: getattr(getattr(ui, "voice", None), "mode_active", False)
         )
-        _last_press: float = 0.0
-        _KEY_REPEAT_DEBOUNCE = 0.3
-
-        # Cache the engine across presses so the transcriber backend is
-        # resolved only once (lazy import on first use).
-        _voice_engine: "Any | None" = None
 
         @app_keybindings.add(voice_ptt_key, filter=voice_mode_active & no_active_choice)
         def _(event):
-            nonlocal _voice_engine, _last_press
+            self._on_voice_ptt(event)
 
-            if not event.app.layout.has_focus(ui.input_field):
-                ui.input_field.buffer.insert_text(" ")
-                return
+    def _on_choice_cursor(self, event: Any, delta: int) -> None:
+        self._ui.selection_part.move_choice_cursor(delta)
 
-            # Debounce: filter OS key-repeat (events <300ms apart).
-            now = time.time()
-            if now - _last_press < _KEY_REPEAT_DEBOUNCE:
-                _last_press = now
-                return
-            _last_press = now
+    def _on_choice_confirm(self, event: Any) -> None:
+        self._ui.selection_part.confirm_choice()
 
-            # Second press while recording → signal stop, exit voice mode.
-            if ui.voice.recording_active:
-                ui.voice.recording_active = False
-                if ui.voice.stop_event is not None:
-                    ui.voice.stop_event.set()
-                ui.voice.mode_active = False
-                ui.append_to_output(stylize_muted("  🎤 Stopped\n"))
+    def _on_choice_toggle(self, event: Any) -> None:
+        self._ui.selection_part.toggle_choice_current()
+
+    def _on_toggle_focus(self, event: Any) -> None:
+        ui = self._ui
+        if event.app.layout.has_focus(ui.input_field):
+            event.app.layout.focus(ui.output_field)
+        else:
+            event.app.layout.focus(ui.input_field)
+
+    def _on_copy_or_clear(self, event: Any) -> None:
+        """Ctrl+C / Esc,C — copy selection, clear the input, or exit.
+
+        The output buffer holds raw ANSI codes (e.g. muted tool-call
+        detail); strip them so the clipboard gets plain text.
+        """
+        ui = self._ui
+        buffer = event.app.current_buffer
+        if buffer.selection_state:
+            data = buffer.copy_selection()
+            data.text = remove_style(data.text)
+            if event.app.clipboard:
+                event.app.clipboard.set_data(data)
+            buffer.exit_selection()
+            return
+        if buffer.text.strip() != "":
+            buffer.reset()
+            return
+        # Don't flush the confirmation buffer: the app is exiting, so
+        # writing buffered tokens is wasted work and adds latency.
+        ui.cancel_pending_confirmations(flush=False)
+        if ui.running_llm_task and not ui.running_llm_task.done():
+            ui.running_llm_task.cancel()
+            ui.append_to_output("\n<Esc> Canceled")
+        # Abort an in-flight voice recording/model-download so Ctrl+C
+        # exits promptly instead of waiting on the download thread.
+        voice = getattr(ui, "voice", None)
+        voice_task = None if voice is None else voice.task
+        if voice_task is not None and not voice_task.done():
+            voice_task.cancel()
+        ui.execute_hook(
+            HookEvent.STOP,
+            {"reason": "ctrl_c", "session": ui.conversation_session_name},
+        )
+        event.app.exit()
+
+    def _on_exit_if_empty(self, event: Any) -> None:
+        """Ctrl+D — exit when the input buffer is empty."""
+        ui = self._ui
+        if event.app.current_buffer.text == "":
+            ui.cancel_pending_confirmations(flush=False)
+            if ui.running_llm_task and not ui.running_llm_task.done():
+                ui.running_llm_task.cancel()
+            event.app.exit()
+
+    async def _on_clipboard_paste(self, clipboard: Any) -> None:
+        """Paste an image from the clipboard, or fall back to text."""
+        # lazy: tests patch `zrb.llm.util.clipboard.get_clipboard_image`
+        # at the source path; hoisting would bind the name at
+        # module-load and bypass the mock.
+        from zrb.llm.util.clipboard import (
+            get_clipboard_image,
+            missing_tool_hint,
+        )
+
+        ui = self._ui
+        img_bytes = await get_clipboard_image()
+        if img_bytes is not None:
+            # lazy: zrb internal (heavy via transitive)
+            from zrb.llm.agent.types import BinaryContent
+
+            scaled = scale_image_bytes(img_bytes, media_type="image/png")
+            attachment = BinaryContent(data=scaled.data, media_type=scaled.media_type)
+            ui.pending_attachments.append(attachment)
+            size_kb = scaled.final_bytes / 1024
+            if scaled.scaled:
+                saved_kb = scaled.saved_bytes / 1024
+                msg = (
+                    f"\n  📸 Image pasted from clipboard ({size_kb:.1f} KB, "
+                    f"scaled — saved {saved_kb:.1f} KB)\n"
+                )
+            else:
+                msg = f"\n  📸 Image pasted from clipboard ({size_kb:.1f} KB)\n"
+            ui.append_to_output(stylize_muted(msg))
+            ui.invalidate_ui()
+        else:
+            hint = missing_tool_hint()
+            if hint:
+                ui.append_to_output(
+                    stylize_error(f"\n  ❌ No image in clipboard.\n{hint}")
+                )
                 ui.invalidate_ui()
-                return
+            elif clipboard:
+                # No image found — paste text into input field. Always
+                # target input_field, not current_buffer, since focus
+                # may be on the read-only output field.
+                # lazy: heavy third-party
+                from prompt_toolkit.application import get_app as _get_app
 
-            # lazy: heavy third-party — voice engine imports sounddevice/numpy
-            from zrb.llm.voice import VoiceEngine  # noqa: F811
+                _get_app().layout.focus(ui.input_field)
+                ui.input_field.buffer.paste_clipboard_data(clipboard.get_data())
 
-            if _voice_engine is None:
-                _voice_engine = VoiceEngine()
-            engine = _voice_engine
+    def _on_escape(self, event: Any) -> None:
+        ui = self._ui
+        # While viewing a sub-agent, Esc cancels what the sub-agent is
+        # doing (mirroring the main agent's Esc) — it never leaves the
+        # view (Left does that) and never touches the main task.
+        if getattr(ui, "viewing_agent_id", None) is not None:
+            ui.cancel_pending_confirmations()
+            ui.cancel_viewed_agent()
+            return
+        ui.cancel_pending_confirmations()
+        if ui.running_llm_task and not ui.running_llm_task.done():
+            ui.running_llm_task.cancel()
+            ui.execute_hook(
+                HookEvent.STOP,
+                {
+                    "reason": "escape",
+                    "session": ui.conversation_session_name,
+                },
+            )
+            ui.append_to_output("\n<Esc> Canceled")
 
-            # Set synchronously BEFORE create_task so key-repeat can't race.
-            ui.voice.recording_active = True
-            ui.voice.stop_event = asyncio.Event()
-            ui.voice.task = None
+    def _on_enter(self, event: Any, llm_task: "AnyTask") -> None:
+        ui = self._ui
+        # Enter only ever acts on the input field. With focus on the
+        # read-only output pane (Ctrl+K), event.current_buffer is the output
+        # buffer — resolving a confirmation or submitting from it would send
+        # the entire pane content (banner, help, transcript) as user input.
+        # Refocus the input field instead.
+        if not event.app.layout.has_focus(ui.input_field):
+            event.app.layout.focus(ui.input_field)
+            return
 
-            async def record_and_insert():
-                # Download the Vosk model before recording (first use only).
-                # This keeps the "Downloading..." status visible. The download
-                # is chunked and cancellable, so /q or Ctrl+C aborts it (both
-                # cancel this task). A pre-downloaded model must be extracted
-                # (the bare .zip is not detected). After the first download the
-                # model is cached for future recordings.
-                if not engine.is_ready and CFG.LLM_VOICE_MODE.strip().lower() == "vosk":
-                    if not engine.is_vosk_model_ready():
-                        ui.append_to_output(
-                            stylize_muted("\n  🎤 Downloading voice model...")
-                        )
-                        ui.invalidate_ui()
-                        try:
-                            await engine.download_vosk_model()
-                        except Exception as exc:
-                            ui.voice.mode_active = False
-                            ui.voice.recording_active = False
-                            ui.voice.task = None
-                            ui.voice.stop_event = None
-                            ui.append_to_output(
-                                stylize_muted(f"\n  ⚠️ Voice error: {exc}\n")
-                            )
-                            ui.invalidate_ui()
-                            return
-                        ui.append_to_output(stylize_muted("\n  🎤 Voice model ready"))
-                        ui.invalidate_ui()
+        if self._handle_multiline(event):
+            return
 
-                ui.append_to_output(stylize_muted("\n  🎤 Recording... "))
+        if ui.handle_confirmation(event):
+            return
+
+        # A still-queued message recalled into the input field (Up arrow)
+        # is edited in place here instead of submitted as a new message.
+        if ui.handle_enter_queued_edit(event):
+            return
+
+        self._handle_enter_dispatch(event, llm_task)
+
+    def _on_cycle_mode(self, event: Any) -> None:
+        self._ui.cycle_mode()
+
+    def _on_voice_ptt(self, event: Any) -> None:
+        """Push-to-talk press: start/stop a voice recording.
+
+        Terminal key-repeat is filtered via a debounce on
+        `self._voice_last_press`, and the engine is cached on the part so the
+        transcriber backend is resolved only once (lazy import on first use).
+        """
+        ui = self._ui
+        if not event.app.layout.has_focus(ui.input_field):
+            ui.input_field.buffer.insert_text(" ")
+            return
+
+        # Debounce: filter OS key-repeat (events <300ms apart).
+        now = time.time()
+        if now - self._voice_last_press < self._KEY_REPEAT_DEBOUNCE:
+            self._voice_last_press = now
+            return
+        self._voice_last_press = now
+
+        # Second press while recording → signal stop, exit voice mode.
+        if ui.voice.recording_active:
+            ui.voice.recording_active = False
+            if ui.voice.stop_event is not None:
+                ui.voice.stop_event.set()
+            ui.voice.mode_active = False
+            ui.append_to_output(stylize_muted("  🎤 Stopped\n"))
+            ui.invalidate_ui()
+            return
+
+        # lazy: heavy third-party — voice engine imports sounddevice/numpy
+        from zrb.llm.voice import VoiceEngine  # noqa: F811
+
+        if self._voice_engine is None:
+            self._voice_engine = VoiceEngine()
+        engine = self._voice_engine
+
+        # Set synchronously BEFORE create_task so key-repeat can't race.
+        ui.voice.recording_active = True
+        ui.voice.stop_event = asyncio.Event()
+        ui.voice.task = None
+
+        task = asyncio.create_task(self._voice_record_and_insert(engine))
+        ui.voice.task = task
+        ui.background_tasks.add(task)
+        task.add_done_callback(ui.background_tasks.discard)
+
+    async def _voice_record_and_insert(self, engine: "Any") -> None:
+        """Record speech, then insert the transcription into the input field."""
+        ui = self._ui
+        # Download the Vosk model before recording (first use only).
+        # This keeps the "Downloading..." status visible. The download
+        # is chunked and cancellable, so /q or Ctrl+C aborts it (both
+        # cancel this task). A pre-downloaded model must be extracted
+        # (the bare .zip is not detected). After the first download the
+        # model is cached for future recordings.
+        if not engine.is_ready and CFG.LLM_VOICE_MODE.strip().lower() == "vosk":
+            if not engine.is_vosk_model_ready():
+                ui.append_to_output(stylize_muted("\n  🎤 Downloading voice model..."))
                 ui.invalidate_ui()
                 try:
-                    text = await engine.start_listening(
-                        stop_event=ui.voice.stop_event,
-                    )
+                    await engine.download_vosk_model()
                 except Exception as exc:
                     ui.voice.mode_active = False
                     ui.voice.recording_active = False
@@ -370,24 +398,36 @@ class UIKeybindings:
                     ui.append_to_output(stylize_muted(f"\n  ⚠️ Voice error: {exc}\n"))
                     ui.invalidate_ui()
                     return
-                ui.voice.mode_active = False
-                ui.voice.recording_active = False
-                ui.voice.task = None
-                ui.voice.stop_event = None
-                if text:
-                    ui.input_field.buffer.insert_text(text)
-                    word_count = len(text.split())
-                    ui.append_to_output(
-                        stylize_muted(f"\n  🎤 Transcribed ({word_count} words)\n")
-                    )
-                else:
-                    ui.append_to_output(stylize_muted("\n  🎤 No speech detected\n"))
+                ui.append_to_output(stylize_muted("\n  🎤 Voice model ready"))
                 ui.invalidate_ui()
 
-            task = asyncio.create_task(record_and_insert())
-            ui.voice.task = task
-            ui.background_tasks.add(task)
-            task.add_done_callback(ui.background_tasks.discard)
+        ui.append_to_output(stylize_muted("\n  🎤 Recording... "))
+        ui.invalidate_ui()
+        try:
+            text = await engine.start_listening(
+                stop_event=ui.voice.stop_event,
+            )
+        except Exception as exc:
+            ui.voice.mode_active = False
+            ui.voice.recording_active = False
+            ui.voice.task = None
+            ui.voice.stop_event = None
+            ui.append_to_output(stylize_muted(f"\n  ⚠️ Voice error: {exc}\n"))
+            ui.invalidate_ui()
+            return
+        ui.voice.mode_active = False
+        ui.voice.recording_active = False
+        ui.voice.task = None
+        ui.voice.stop_event = None
+        if text:
+            ui.input_field.buffer.insert_text(text)
+            word_count = len(text.split())
+            ui.append_to_output(
+                stylize_muted(f"\n  🎤 Transcribed ({word_count} words)\n")
+            )
+        else:
+            ui.append_to_output(stylize_muted("\n  🎤 No speech detected\n"))
+        ui.invalidate_ui()
 
     def _handle_multiline(self, event) -> bool:
         buff = event.current_buffer

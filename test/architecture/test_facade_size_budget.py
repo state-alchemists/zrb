@@ -23,8 +23,10 @@ FACADE_BUDGETS = {
     "llm/ui/base/ui.py": 1200,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
-    # which registers a redrawn echo as a re-renderable block.
-    "llm/ui/default/ui.py": 664,
+    # which registers a redrawn echo as a re-renderable block. +7 (664->671):
+    # `is_application_built` predicate and the hoisted `_application`
+    # init it reads during UIOutput construction.
+    "llm/ui/default/ui.py": 671,
     "llm/task/chat/task.py": 1068,
     "llm/task/llm_task.py": 839,
     "llm/agent/subagent/manager.py": 299,

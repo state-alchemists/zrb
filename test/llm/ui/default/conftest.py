@@ -53,6 +53,10 @@ class MockEditingUI:
     def current_confirmation(self):
         return self._current_confirmation
 
+    @property
+    def is_application_built(self):
+        return self.__dict__.get("application") is not None
+
     def invalidate_ui(self):
         pass
 

@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, TextIO, TypedDict
+from typing import TYPE_CHECKING, Any, TextIO, TypedDict
+
+if TYPE_CHECKING:
+    from zrb.llm.ui.base.message_queue import QueuedMessage
 
 
 class ChoiceOption(TypedDict, total=False):
@@ -39,11 +42,13 @@ class AnyUI(ABC):
     subclassing `SimpleUI`/`EventDrivenUI`/`BaseUI` — none of
     zrb's own docs show implementing this class directly.
 
-    The contract is in two halves: the six behavioral methods below, which
+    The contract is in two halves: the eight behavioral methods below, which
     every UI performs, and the seventeen state members and side-effect hooks
     after them, which describe what a *full* UI keeps. `BaseUI` implements all
     seventeen; a UI that keeps none of it mixes in `UIStateDefaultsMixin`
-    (`llm/ui/state_defaults.py`).
+    (`llm/ui/state_defaults.py`). `track_echo_span`/`redraw_echo` are declared
+    in the mixin too, with inert defaults, so a UI that never splices an echo
+    (any of the wrappers) constructs unchanged.
 
     The state half is declared here, rather than left to `getattr` probes at
     the call site, because `MultiUI` reads seven of these members off its
@@ -101,6 +106,27 @@ class AnyUI(ABC):
     @abstractmethod
     async def run_async(self) -> Any:
         """Drive this UI's own event loop until the session ends."""
+
+    @abstractmethod
+    def track_echo_span(self, entry: "QueuedMessage", echo: str) -> None:
+        """Record the output-buffer span of `echo` on `entry`.
+
+        Called right after a submitted message's echo lands, so a later
+        `redraw_echo` can rewrite that exact region. A UI with no output buffer
+        to splice leaves the entry untouched (`UIStateDefaultsMixin` provides
+        that inert default); the default TUI overrides both hooks through
+        `UIMessageEditing`.
+        """
+
+    @abstractmethod
+    def redraw_echo(self, entry: "QueuedMessage") -> str | None:
+        """Rewrite `entry`'s echoed line from its current text.
+
+        Returns the rewritten line, or None when this UI could not splice it in
+        place (no buffer, or the recorded span no longer holds the echo) — the
+        caller then falls back to a fresh echo through the UI's own output
+        path.
+        """
 
     @property
     @abstractmethod

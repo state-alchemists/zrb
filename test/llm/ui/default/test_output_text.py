@@ -57,6 +57,12 @@ class MockOutputUI:
     def is_thinking(self, value):
         self._is_thinking = value
 
+    @property
+    def is_application_built(self):
+        """Whether the host's lazy `application` has been built (the double
+        only gains one when a test assigns `ui.application = ...`)."""
+        return self.__dict__.get("application") is not None
+
     def invalidate_ui(self):
         pass
 

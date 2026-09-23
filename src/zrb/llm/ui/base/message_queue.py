@@ -25,6 +25,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Sequence
 
 from zrb.config.config import CFG
+from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.base.user_echo import (
     AppendOutputFunc,
     echo_user_message,
@@ -179,7 +180,7 @@ def submit_user_message_via_queue(
     stream_ai_response: Callable[[Any, str, list], Any],
     queue: MessageQueue,
     attachment_sources: list[Any],
-    echo_targets: list[Any],
+    echo_targets: Sequence[AnyUI],
     llm_task: Any,
     user_message: str,
     marker: str,
@@ -278,9 +279,7 @@ def submit_user_message_via_queue(
         entry.submitted_at = now
         if echo:
             for target in echo_targets:
-                track = getattr(target, "_track_echo_span", None)
-                if callable(track):
-                    track(entry, echo)
+                target.track_echo_span(entry, echo)
         queue.put_nowait(entry)
         return
 
@@ -335,7 +334,7 @@ def _merge_into(
     attachments: list[Any],
     now: datetime,
     header: str,
-    echo_targets: list[Any],
+    echo_targets: Sequence[AnyUI],
     append_markdown: Callable[[str], Any] | None,
 ) -> None:
     """Append one paste line to `entry` and reflect it on every echo target.
@@ -370,7 +369,7 @@ def _collect_attachments(attachment_sources: list[Any]) -> list[Any]:
 
 
 def _reflect_merged(
-    target: Any, entry: QueuedMessage, header: str, body: str, *, rendered: bool
+    target: AnyUI, entry: QueuedMessage, header: str, body: str, *, rendered: bool
 ) -> None:
     """Draw a merged paste line on one target.
 
@@ -381,17 +380,15 @@ def _reflect_merged(
     Markdown (`rendered`), the line verbatim — rendering just the new line
     would show a fragment (a lone fence, a bare `- item`) with no meaning.
 
-    A target whose `_redraw_echo` raises is treated like one that cannot
+    A target whose `redraw_echo` raises is treated like one that cannot
     redraw — the failure is logged and the line falls back to its echo, so one
     broken target never aborts the submission or starves the remaining ones.
     """
-    redraw = getattr(target, "_redraw_echo", None)
-    if callable(redraw):
-        try:
-            if redraw(entry) is not None:
-                return
-        except Exception as e:
-            CFG.LOGGER.debug(f"Child UI echo redraw failed: {e}")
+    try:
+        if target.redraw_echo(entry) is not None:
+            return
+    except Exception as e:
+        CFG.LOGGER.debug(f"Child UI echo redraw failed: {e}")
     try:
         if rendered:
             _emit_echo_verbatim_to(target, header, body)
@@ -404,7 +401,7 @@ def _reflect_merged(
 def _emit_echo_to(target: Any, header: str, body: str) -> None:
     """Write an ordinary user echo into one target's own output path.
 
-    Used for a merged paste line on a target whose `_redraw_echo` could not
+    Used for a merged paste line on a target whose `redraw_echo` could not
     splice the line into its existing echo, so the line reaches exactly that UI
     rather than being broadcast to every target — a child that already redrew
     in place must not get a duplicate.

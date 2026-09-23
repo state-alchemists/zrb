@@ -131,6 +131,10 @@ class UI(BaseUI):
         self._keybindings = UIKeybindings(self)
 
         self._refresh_task: asyncio.Task | None = None
+        # Built on first access, not here -- see the `application` property.
+        # Initialized before the parts construct (they read `is_application_built`
+        # during their setup) so it is always defined from the start.
+        self._application: "Application | None" = None
 
         self._capture = GlobalStreamCapture()
         self._style = create_style()
@@ -193,8 +197,6 @@ class UI(BaseUI):
         self._keybindings.setup_app_keybindings(
             app_keybindings=self._app_kb, llm_task=self.llm_task
         )
-        # Built on first access, not here -- see the `application` property.
-        self._application: "Application | None" = None
 
     def _on_render(self, app: "Application") -> None:
         try:
@@ -254,6 +256,11 @@ class UI(BaseUI):
             if self._initial_message:
                 self._application.after_render.add_handler(self.on_first_render)
         return self._application
+
+    @property
+    def is_application_built(self) -> bool:
+        """Whether the lazy `application` has been constructed on first access."""
+        return self._application is not None
 
     @property
     def capture(self) -> GlobalStreamCapture:
@@ -477,11 +484,11 @@ class UI(BaseUI):
     def handle_enter_queued_edit(self, event: Any) -> bool:
         return self._message_editing.handle_enter_queued_edit(event)
 
-    def _track_echo_span(self, entry: Any, echo: str) -> None:
+    def track_echo_span(self, entry: Any, echo: str) -> None:
         """Override hook `BaseUI` invokes polymorphically (see its base no-op)."""
         self._message_editing.track_echo_span(entry, echo)
 
-    def _redraw_echo(self, entry: Any) -> str | None:
+    def redraw_echo(self, entry: Any) -> str | None:
         """Override hook `BaseUI` invokes polymorphically (see its base no-op).
 
         Renders the entry's current text — Markdown or plain, decided per

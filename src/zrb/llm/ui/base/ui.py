@@ -21,7 +21,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from collections.abc import AsyncIterable, Callable
+from collections.abc import AsyncIterable, Callable, Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, TextIO, cast
 
@@ -918,22 +918,21 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         if not queue.contains(entry):
             return False
         entry.text = new_text.strip()
-        targets = self.multi_ui_parent.children if self.multi_ui_parent else [self]
+        targets: Sequence[AnyUI] = (
+            self.multi_ui_parent.children if self.multi_ui_parent else [self]
+        )
         for ui in targets:
-            redraw = getattr(ui, "_redraw_echo", None)
-            if callable(redraw):
-                try:
-                    redraw(entry)
-                except Exception as e:
-                    CFG.LOGGER.debug(f"Child UI echo redraw failed: {e}")
+            try:
+                ui.redraw_echo(entry)
+            except Exception as e:
+                CFG.LOGGER.debug(f"Child UI echo redraw failed: {e}")
         return True
 
-    def _redraw_echo(self, entry: QueuedMessage) -> str | None:
-        """Rewrite `entry`'s echoed line after an edit; the rewritten line, or
-        None when it could not be redrawn. The default TUI overrides this to
-        splice into its output buffer; other UIs have no buffer to rewrite, so
-        the base no-op returns None and their edits stay invisible but effective.
-        """
+    def redraw_echo(self, entry: QueuedMessage) -> str | None:
+        """Rewrite `entry`'s echoed line after an edit; the rewritten line or
+        None when it couldn't be redrawn — `AnyUI`'s echo contract. The default
+        TUI overrides this to splice into its output buffer; other UIs have no
+        buffer, so the base no-op returns None."""
         return None
 
     def append_markdown(self, markdown_text: str) -> None:
@@ -1039,8 +1038,8 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     # _replay_history, _replay_request_parts, _replay_response_parts,
     # _replay_tool_call, _replay_tool_return are inherited.
 
-    def _track_echo_span(self, entry: QueuedMessage, echo: str) -> None:
-        """Record the output-buffer span of `echo` on `entry`.
+    def track_echo_span(self, entry: QueuedMessage, echo: str) -> None:
+        """Record the output-buffer span of `echo` on `entry` (`AnyUI` hook).
 
         The default UI overrides this so an edit can rewrite the echoed line in
         place; other UIs have no buffer to splice into, so the default is a

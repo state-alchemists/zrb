@@ -30,9 +30,9 @@ class BurstTarget:
     """Standalone-UI shape with attachments, an echo-span hook, a spy on the
     merge redraw, and its own output sink.
 
-    `can_redraw=False` models a bufferless UI whose `_redraw_echo` is a no-op,
+    `can_redraw=False` models a bufferless UI whose `redraw_echo` is a no-op,
     so a merged line is echoed through the target's own `append_to_output`.
-    `redraw_error` makes `_redraw_echo` raise, modelling a child whose buffer
+    `redraw_error` makes `redraw_echo` raise, modelling a child whose buffer
     went away mid-merge.
     """
 
@@ -50,10 +50,10 @@ class BurstTarget:
         self._attachment_index += 1
         return [f"img-{self._attachment_index}"]
 
-    def _track_echo_span(self, entry, echo):
+    def track_echo_span(self, entry, echo):
         pass
 
-    def _redraw_echo(self, entry):
+    def redraw_echo(self, entry):
         if self.redraw_error is not None:
             raise self.redraw_error
         if not self.can_redraw:
@@ -80,13 +80,13 @@ class SpliceableTarget:
     """Spliceable shape mirroring the default TUI's per-buffer echo bookkeeping:
     an own output buffer and an own echo span keyed by `self`, spliced in place.
 
-    `_track_echo_span`/`_redraw_echo` reproduce how `UIMessageEditing` records
+    `track_echo_span`/`redraw_echo` reproduce how `UIMessageEditing` records
     and splices the echoed line in the real default UI, so this exercises the
     shared-`QueuedMessage` span state instead of a spy that never reads it.
     `append_to_output` matches the real writer's trailing newline — the echoed
     line already ends with one, and the writer appends a separator after it —
     so a span is only usable if its recording survives that extra blank line.
-    `_redraw_echo` picks its body the way the real one does — a render of the
+    `redraw_echo` picks its body the way the real one does — a render of the
     whole entry text when it carries a Markdown construct (stood in for by
     uppercasing), the raw line otherwise — so a merge and a later edit draw
     the same thing.
@@ -106,7 +106,7 @@ class SpliceableTarget:
     def take_pending_attachments(self):
         return []
 
-    def _track_echo_span(self, entry, echo):
+    def track_echo_span(self, entry, echo):
         if self.buffer.endswith(echo) or self.buffer.endswith(echo + "\n"):
             index = self.buffer.rfind(echo)
             if index < 0:
@@ -144,7 +144,7 @@ class SpliceableTarget:
         self.splices += 1
         return echo
 
-    def _redraw_echo(self, entry):
+    def redraw_echo(self, entry):
         if should_render_user_markdown(entry.text):
             return self._splice_echo(entry, entry.text.upper())
         return self._splice_echo(entry, entry.text.strip())
@@ -175,7 +175,7 @@ def test_submit_user_message_via_queue_echoes_a_steered_live_run_message():
 
 
 def test_submit_via_queue_falls_back_to_echo_when_merge_cannot_redraw(monkeypatch):
-    """A UI with no output buffer to splice (a no-op `_redraw_echo`) still shows
+    """A UI with no output buffer to splice (a no-op `redraw_echo`) still shows
     each merged paste line as an ordinary echo — it must not vanish."""
     monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
     target = BurstTarget(can_redraw=False)
@@ -285,7 +285,9 @@ def test_submit_via_queue_replaces_echo_with_full_rendered_merged_markdown(monke
     assert span.text.endswith(">> HELLO\n- ITEM\n")
 
 
-def test_submit_via_queue_echoes_merged_markdown_line_verbatim_without_splice(monkeypatch):
+def test_submit_via_queue_echoes_merged_markdown_line_verbatim_without_splice(
+    monkeypatch,
+):
     """A target with no echo to splice must never render just the new line of
     a combined message that turned Markdown — a bare `- item` or a lone fence
     is meaningless without the rest of the message. The line lands verbatim,
@@ -304,10 +306,10 @@ def test_submit_via_queue_echoes_merged_markdown_line_verbatim_without_splice(mo
         def take_pending_attachments(self):
             return []
 
-        def _track_echo_span(self, entry, echo):
+        def track_echo_span(self, entry, echo):
             pass
 
-        def _redraw_echo(self, entry):
+        def redraw_echo(self, entry):
             return None
 
     target = MarkdownBufferlessTarget()
@@ -342,7 +344,7 @@ def test_submit_via_queue_echoes_merged_markdown_line_verbatim_without_splice(mo
 
 
 def test_submit_via_queue_survives_a_child_redraw_failure(monkeypatch):
-    """A child whose `_redraw_echo` raises mid-merge must not crash the
+    """A child whose `redraw_echo` raises mid-merge must not crash the
     submission or stop the other targets — the failure is logged, the broken
     child falls back to an ordinary echo, and a healthy child still redraws."""
     monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
@@ -434,7 +436,9 @@ def test_submit_via_queue_merge_keeps_each_childs_own_echo_span(monkeypatch):
     assert child_b in entry.echo_spans
 
 
-def test_submit_via_queue_merge_echoes_line_when_attachment_collection_fails(monkeypatch):
+def test_submit_via_queue_merge_echoes_line_when_attachment_collection_fails(
+    monkeypatch,
+):
     """A burst line whose attachment source raises aborts both the merge and
     the per-target reflection — the line's only trace. The echo must still be
     emitted so the submitted input stays visible on the failure."""

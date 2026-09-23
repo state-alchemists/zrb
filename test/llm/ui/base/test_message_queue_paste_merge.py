@@ -33,9 +33,9 @@ class BurstTarget:
     """Standalone-UI shape with attachments, an echo-span hook, a spy on the
     merge redraw, and its own output sink.
 
-    `can_redraw=False` models a bufferless UI whose `_redraw_echo` is a no-op,
+    `can_redraw=False` models a bufferless UI whose `redraw_echo` is a no-op,
     so a merged line is echoed through the target's own `append_to_output`.
-    `redraw_error` makes `_redraw_echo` raise, modelling a child whose buffer
+    `redraw_error` makes `redraw_echo` raise, modelling a child whose buffer
     went away mid-merge.
     """
 
@@ -53,10 +53,10 @@ class BurstTarget:
         self._attachment_index += 1
         return [f"img-{self._attachment_index}"]
 
-    def _track_echo_span(self, entry, echo):
+    def track_echo_span(self, entry, echo):
         pass
 
-    def _redraw_echo(self, entry):
+    def redraw_echo(self, entry):
         if self.redraw_error is not None:
             raise self.redraw_error
         if not self.can_redraw:
