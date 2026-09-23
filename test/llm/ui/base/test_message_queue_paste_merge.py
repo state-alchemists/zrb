@@ -4,8 +4,8 @@ Lines a terminal without bracketed paste splits into per-line Enter submits
 are coalesced back into one queued message. This file covers the burst window,
 its barriers (a queued `/exec` job), and how a merged line is reflected on the
 echo targets — spliced in place where possible, echoed to a bufferless child
-alone, and rendered through the markdown path when the combined text turns
-Markdown.
+alone, kept visible when a child's redraw fails, and rendered through the
+markdown path when the combined text turns Markdown.
 """
 
 from datetime import datetime, timedelta
@@ -36,13 +36,16 @@ class BurstTarget:
 
     `can_redraw=False` models a bufferless UI whose `_redraw_echo` is a no-op,
     so a merged line is echoed through the target's own `append_to_output`.
+    `redraw_error` makes `_redraw_echo` raise, modelling a child whose buffer
+    went away mid-merge.
     """
 
-    def __init__(self, can_redraw=True):
+    def __init__(self, can_redraw=True, redraw_error=None):
         self.outputs: list[str] = []
         self.redrawn: list[QueuedMessage] = []
         self._attachment_index = 0
         self.can_redraw = can_redraw
+        self.redraw_error = redraw_error
 
     def append_to_output(self, *values, **kwargs):
         self.outputs.append("".join(str(v) for v in values) + kwargs.get("end", ""))
@@ -55,6 +58,8 @@ class BurstTarget:
         pass
 
     def _redraw_echo(self, entry):
+        if self.redraw_error is not None:
+            raise self.redraw_error
         if not self.can_redraw:
             return None
         self.redrawn.append(entry)
@@ -259,12 +264,13 @@ def test_submit_via_queue_reflects_merged_line_per_multiui_child(monkeypatch):
 
 def test_submit_via_queue_renders_merged_markdown_via_echo_path(monkeypatch):
     """A burst whose combined text turns Markdown (e.g. `- item` after `hello`)
-    renders through the echo path instead of splicing literal Markdown into the
-    existing echo line — matching what a single submission of the combined text
-    would have shown."""
+    drops the plain echo's span and echoes the merged line through the render
+    path — no literal Markdown splice, no duplicate of the full combined
+    message, and nothing left behind for a later edit to re-splice."""
     monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
     outputs: list[str] = []
     rendered: list[str] = []
+    redrawn: list[QueuedMessage] = []
 
     class MarkdownTarget:
         def append_to_output(self, *values, **kwargs):
@@ -280,7 +286,8 @@ def test_submit_via_queue_renders_merged_markdown_via_echo_path(monkeypatch):
             pass
 
         def _redraw_echo(self, entry):
-            raise AssertionError("Markdown echo must not splice raw text")
+            redrawn.append(entry)
+            return None
 
     target = MarkdownTarget()
     queue = MessageQueue()
@@ -310,10 +317,66 @@ def test_submit_via_queue_renders_merged_markdown_via_echo_path(monkeypatch):
         append_markdown=target.append_markdown,
     )
 
+    entry = queue.peek_latest()
     assert queue.qsize() == 1
-    assert queue.peek_latest().text == "hello\n- item"
-    assert rendered == ["hello\n- item"]
-    # The plain opening line was echoed raw; the merge rendered the combined
-    # text through the header + markdown path.
-    assert any("hello" in o for o in outputs)
+    assert entry.text == "hello\n- item"
+    # The plain echo's span is dropped, so no literal splice is possible and a
+    # later edit has nothing stale to redraw.
+    assert entry.echo_span is None
+    # Only the merged line is rendered — the combined message is never echoed a
+    # second time, so `hello` appears once and there is no duplicate block.
+    assert rendered == ["- item"]
+    assert redrawn == [entry]
+    # The plain opening line was echoed raw; the merged line went through the
+    # target's own header + markdown path.
+    assert sum("hello" in o for o in outputs) == 1
     assert any(o.endswith(">> ") for o in outputs)
+
+
+def test_submit_via_queue_survives_a_child_redraw_failure(monkeypatch):
+    """A child whose `_redraw_echo` raises mid-merge must not crash the
+    submission or stop the other targets — the failure is logged, the broken
+    child falls back to an ordinary echo, and a healthy child still redraws."""
+    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_MS", 60_000, raising=False)
+    broken = BurstTarget(redraw_error=RuntimeError("buffer closed"))
+    healthy = BurstTarget()
+    queue = MessageQueue()
+
+    def broadcast(*values, **kwargs):
+        text = "".join(str(v) for v in values) + kwargs.get("end", "")
+        broken.outputs.append(text)
+        healthy.outputs.append(text)
+
+    submit_user_message_via_queue(
+        append_to_output=broadcast,
+        active_run_context=None,
+        stream_ai_response=_stub_stream_ai_response,
+        queue=queue,
+        attachment_sources=[broken, healthy],
+        echo_targets=[broken, healthy],
+        llm_task=object(),
+        user_message="git status",
+        marker="💬",
+    )
+    submit_user_message_via_queue(
+        append_to_output=broadcast,
+        active_run_context=None,
+        stream_ai_response=_stub_stream_ai_response,
+        queue=queue,
+        attachment_sources=[broken, healthy],
+        echo_targets=[broken, healthy],
+        llm_task=object(),
+        user_message="git add .",
+        marker="💬",
+    )
+
+    entry = queue.peek_latest()
+    assert queue.qsize() == 1
+    assert entry.text == "git status\ngit add ."
+    # The healthy target redrew the merged line in place...
+    assert healthy.redrawn == [entry]
+    assert len(healthy.outputs) == 1
+    # ...and the broken child still got the merged line as an echo, so nothing
+    # disappeared for it either.
+    assert len(broken.outputs) == 2
+    assert "git add ." in broken.outputs[1]

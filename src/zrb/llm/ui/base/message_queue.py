@@ -201,10 +201,14 @@ def submit_user_message_via_queue(
     one that can splice its echo redraws it in place; one that cannot (a
     bufferless UI, or a rendered first echo with no tracked span) gets an
     ordinary echo of the line through its own output path, never a broadcast
-    that duplicates a child that already redrew. And when the merged text
-    turns Markdown, neither path applies: splicing would show literal
-    Markdown, so the combined message goes through the rendering echo path
-    exactly as a single submission of it would.
+    that duplicates a child that already redrew. A child whose redraw fails is
+    treated like one that cannot redraw — the failure is logged and the other
+    targets still get their path. And when the merged text turns Markdown,
+    splicing it would show literal Markdown, so the plain echo's span is
+    dropped and the merged line is echoed per target through the rendering
+    path instead — the first line's plain echo stays, but the combined message
+    is never re-echoed, so there is no duplicate and no stale span for a later
+    edit to splice.
     """
     now = datetime.now()
     timestamp = now.strftime("%H:%M")
@@ -243,18 +247,18 @@ def submit_user_message_via_queue(
         previous.attachments += attachments
         previous.submitted_at = now
         if append_markdown is not None and should_render_user_markdown(combined):
-            echo_user_message(
-                append_to_output,
-                append_markdown,
-                header=f"\n{marker} {timestamp} >> ",
-                body=combined,
+            # The combined text cannot be spliced into the plain echo without
+            # showing literal Markdown, and re-rendering the whole message
+            # would leave the user with both the first line and a duplicate
+            # block. Drop the tracked span so a later edit has nothing stale
+            # to splice, then echo just the merged line per target through the
+            # rendering path — every line lands exactly once.
+            previous.echo_span = None
+            previous.echo_text = ""
+        for target in echo_targets:
+            _reflect_merged_line(
+                target, previous, f"\n{marker} {timestamp} >> ", user_message
             )
-        else:
-            for target in echo_targets:
-                redraw = getattr(target, "_redraw_echo", None)
-                if callable(redraw) and redraw(previous):
-                    continue
-                _emit_echo_to(target, f"\n{marker} {timestamp} >> ", user_message)
         return
 
     echo = emit_echo()
@@ -274,6 +278,30 @@ def submit_user_message_via_queue(
             if callable(track):
                 track(entry, echo)
     queue.put_nowait(entry)
+
+
+def _reflect_merged_line(
+    target: Any, entry: QueuedMessage, header: str, body: str
+) -> None:
+    """Draw a merged paste line on one target.
+
+    Splices the line into the target's existing echo when possible; otherwise
+    echoes it through the target's own output path. A target whose `_redraw_echo`
+    raises is treated like one that cannot redraw — the failure is logged and
+    the line falls back to an ordinary echo, so one broken target never aborts
+    the submission or starves the remaining targets.
+    """
+    redraw = getattr(target, "_redraw_echo", None)
+    if callable(redraw):
+        try:
+            if redraw(entry) is not None:
+                return
+        except Exception as e:
+            CFG.LOGGER.debug(f"Child UI echo redraw failed: {e}")
+    try:
+        _emit_echo_to(target, header, body)
+    except Exception as e:
+        CFG.LOGGER.debug(f"Child UI merged-echo fallback failed: {e}")
 
 
 def _emit_echo_to(target: Any, header: str, body: str) -> None:
