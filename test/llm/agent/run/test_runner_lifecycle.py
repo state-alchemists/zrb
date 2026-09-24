@@ -273,8 +273,8 @@ async def test_stop_event_data_carries_turn_slice_and_wrote_files_flag(
 
     monkeypatch.setenv("ZRB_LLM_SELF_REVIEW_ENABLED", "on" if self_review else "off")
     monkeypatch.setattr(
-        "zrb.llm.agent.run.runner.snapshot_worktree",
-        lambda cwd, store: "tree-at-start",
+        "zrb.llm.agent.run.runner.SnapshotStore.snapshot",
+        lambda store, deadline=None: ("tree-at-start", 0),
     )
     # Only the payload is under test here, not the gate that reads it.
     monkeypatch.setattr(
@@ -349,18 +349,20 @@ async def test_cancelling_a_turn_mid_snapshot_leaves_no_snapshot_store(monkeypat
     finished = threading.Event()
     stores: list[str] = []
 
-    def slow_snapshot(cwd, store):
-        stores.append(store)
+    def slow_snapshot(store, deadline=None):
+        stores.append(store.git_dir)
         started.set()
         release.wait(5)
         # A `git add` still running after the turn deleted the store would
         # recreate it.
-        os.makedirs(os.path.join(store, "objects", "ab"), exist_ok=True)
+        os.makedirs(os.path.join(store.git_dir, "objects", "ab"), exist_ok=True)
         finished.set()
-        return "tree-at-start"
+        return "tree-at-start", 0
 
     monkeypatch.setenv("ZRB_LLM_SELF_REVIEW_ENABLED", "on")
-    monkeypatch.setattr("zrb.llm.agent.run.runner.snapshot_worktree", slow_snapshot)
+    monkeypatch.setattr(
+        "zrb.llm.agent.run.runner.SnapshotStore.snapshot", slow_snapshot
+    )
     monkeypatch.setattr(
         "zrb.llm.hook.manager.register_self_review_hook", lambda manager: None
     )

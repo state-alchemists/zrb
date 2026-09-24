@@ -95,11 +95,7 @@ from zrb.llm.prompt.live_context import append_live_context
 from zrb.llm.sandbox.state import current_sandbox_policy, get_effective_sandbox_policy
 from zrb.llm.tool.ambient_state import active_worktree
 from zrb.llm.util.prompt import expand_prompt
-from zrb.util.git.worktree import (
-    create_snapshot_store,
-    delete_snapshot_store,
-    snapshot_worktree,
-)
+from zrb.util.git.snapshot_store import SnapshotError, SnapshotStore
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -560,10 +556,12 @@ async def _execution_loop(
     )
     # Created before the snapshot is awaited, so the `finally` below can
     # delete it even when the turn is cancelled while the snapshot runs. A
-    # nested run takes none: the parent's own snapshot, taken before it
-    # delegated, already covers what the sub-agent changes.
+    # nested run takes none: what a sub-agent changes in the parent's working
+    # tree is in the parent's own diff, against a snapshot taken before it
+    # delegated; a sub-agent isolated in its own worktree changes a branch,
+    # which reaches that diff when the parent merges it.
     snapshot_store = (
-        create_snapshot_store()
+        SnapshotStore.create_temporary(os.getcwd())
         if CFG.LLM_SELF_REVIEW_ENABLED and not nested_run
         else None
     )
@@ -579,7 +577,7 @@ async def _execution_loop(
     try:
         if snapshot_store is not None:
             cursor.start_snapshot = await asyncio.to_thread(
-                _snapshot_turn_start, os.getcwd(), snapshot_store, turn_ended
+                _snapshot_turn_start, snapshot_store, turn_ended
             )
         while True:
             cursor.begin_round(
@@ -652,7 +650,7 @@ async def _execution_loop(
         await _await_pending_checkpoints(pending_checkpoint_tasks)
         if snapshot_store is not None:
             turn_ended.set()
-            delete_snapshot_store(snapshot_store)
+            snapshot_store.delete()
 
 
 async def _stream_one_round(
@@ -819,21 +817,25 @@ def _retry_empty_completion(
 
 
 def _snapshot_turn_start(
-    cwd: str, store: str, turn_ended: threading.Event
+    store: SnapshotStore, turn_ended: threading.Event
 ) -> dict[str, str] | None:
-    """Snapshot the working tree into *store*, or None when *cwd* is not in a
-    git repository or the snapshot failed.
+    """Snapshot the working directory into *store* as `{tree, store}` — the
+    store's path, which the gate reopens — or None when the snapshot failed.
 
     Runs in a worker thread that cancelling the turn cannot stop. If the turn
     has already ended — and deleted *store* — by the time the snapshot's git
     commands finish, they may have recreated it, so it is deleted again here.
     The turn sets *turn_ended* before its own delete, so one of the two
     always runs after the last write."""
-    tree = snapshot_worktree(cwd, store)
+    try:
+        tree, _ = store.snapshot()
+    except SnapshotError as e:
+        CFG.LOGGER.debug(f"Turn-start snapshot failed: {e}")
+        tree = None
     if turn_ended.is_set():
-        delete_snapshot_store(store)
+        store.delete()
         return None
-    return {"tree": tree, "store": store} if tree is not None else None
+    return {"tree": tree, "store": store.git_dir} if tree is not None else None
 
 
 async def _finish_turn(

@@ -23,7 +23,7 @@ from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.schema import AgentHookConfig, HookConfig
 from zrb.llm.hook.types import HookEvent, HookType
 from zrb.llm.prompt.prompt import get_prompt
-from zrb.util.git.worktree import diff_snapshots, get_repo_root, snapshot_worktree
+from zrb.util.git.snapshot_store import SnapshotError, SnapshotStore
 from zrb.util.truncate import truncate_text
 
 if TYPE_CHECKING:
@@ -135,41 +135,38 @@ class _Scope:
 
 
 def _resolve_scope(payload: dict[str, Any], deadline: float) -> _Scope:
-    """What the turn changed. Inside a git repository the turn-start tree is
-    diffed against the tree now, which covers edits made through `Shell` and
+    """What the turn changed: the working directory's tree at turn start
+    diffed against its tree now, which covers edits made through `Shell` and
     changes committed mid-turn, and leaves out the user's earlier uncommitted
-    work. Paths the file tools named that this diff does not cover — ignored
-    by git, or outside the repository — are listed too. Every git command
-    stops at *deadline*.
+    work. Paths the file tools named that this diff does not cover — ignored,
+    or outside the directory — are listed too. Every git command stops at
+    *deadline*.
 
-    Without both snapshots — outside git, or a snapshot that failed — only the
-    file tools' paths are listed, with no diff: diffing them against HEAD
-    would hand the reviewer the user's earlier uncommitted work too."""
+    Without both snapshots (one failed) only the file tools' paths are listed,
+    with no diff: diffing them against HEAD would hand the reviewer the user's
+    earlier uncommitted work too."""
     tool_paths = [p for p in payload.get("changed_paths") or [] if isinstance(p, str)]
-    cwd = os.getcwd()
     start = payload.get("turn_start_snapshot")
     before = start.get("tree") if isinstance(start, dict) else None
-    store = start.get("store") if isinstance(start, dict) else None
-    after = snapshot_worktree(cwd, store, deadline) if before and store else None
-    changed = (
-        diff_snapshots(cwd, store, before, after, deadline)
-        if store and before and after
-        else None
-    )
-    if changed is None:
+    git_dir = start.get("store") if isinstance(start, dict) else None
+    if not (isinstance(before, str) and isinstance(git_dir, str)):
         return _Scope(tool_paths, "")
-    tree_paths, diff = changed
-    root = get_repo_root(cwd, deadline)
-    uncovered = [p for p in tool_paths if _repo_relative(p, root) not in tree_paths]
+    store = SnapshotStore.open_temporary(git_dir, os.getcwd())
+    try:
+        after, _ = store.snapshot(deadline)
+        tree_paths, diff = store.diff(before, after, deadline)
+    except SnapshotError as e:
+        CFG.LOGGER.debug(f"Self-review could not diff the turn: {e}")
+        return _Scope(tool_paths, "")
+    root = store.work_tree
+    uncovered = [p for p in tool_paths if _tree_relative(p, root) not in tree_paths]
     return _Scope(tree_paths + uncovered, _truncate(diff))
 
 
-def _repo_relative(path: str, root: str | None) -> str:
-    """*path* as the tree diff names it. The file tools expand `~`, so a
-    tool path is expanded the same way before it is compared."""
-    if root is None:
-        return path
-    absolute = os.path.abspath(os.path.expanduser(path))
+def _tree_relative(path: str, root: str) -> str:
+    """*path* as the tree diff names it: relative to the store's work tree.
+    The file tools expand `~`, so a tool path is expanded the same way."""
+    absolute = os.path.realpath(os.path.expanduser(path))
     return os.path.relpath(absolute, root).replace(os.sep, "/")
 
 

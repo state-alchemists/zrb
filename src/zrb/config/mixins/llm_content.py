@@ -7,16 +7,17 @@ from typing import TYPE_CHECKING
 
 from zrb.config.env_field import EnvField, on_off
 from zrb.config.helper import get_max_token_threshold, limit_token_threshold
-from zrb.util.git.worktree import get_repo_root
+from zrb.util.git.snapshot_store import get_repo_root
 from zrb.util.string.conversion import to_boolean
 
 
-def _rewind_enabled(raw: str) -> bool:
-    """Cast for `LLM_ENABLE_REWIND`, resolving `auto` against the workdir.
+def _is_enabled_inside_git_repo(raw: str) -> bool:
+    """Cast for a snapshot-backed feature's switch, resolving `auto` against
+    the workdir: on inside a git repository, off outside one.
 
-    Inside a git repository a snapshot hashes only what `.gitignore` lets in,
-    once per project; outside one nothing bounds it, and a chat started in
-    `~` would hash the whole home directory.
+    Inside a repository a snapshot hashes only what `.gitignore` lets in;
+    outside one nothing bounds it, and a chat started in `~` would hash the
+    whole home directory. An explicit `on` still enables it anywhere.
     """
     if raw.strip().lower() in ("", "auto"):
         return get_repo_root(os.getcwd()) is not None
@@ -167,15 +168,18 @@ class LLMContentMixin:
     )
 
     LLM_SELF_REVIEW_ENABLED = EnvField(
-        to_boolean,
+        _is_enabled_inside_git_repo,
         serialize=on_off,
         doc=(
             "Master switch for the built-in self-review Stop hook. On a turn "
             "that changed files, a reviewer agent with a fresh context reads "
-            "the working tree's diff since the turn started and reports "
+            "the working directory's diff since the turn started and reports "
             "defects; findings extend the turn so the agent checks and fixes "
-            "them before answering. Costs a working-tree snapshot per turn "
-            "and one reviewer run per turn that changed files."
+            "them before answering. Costs a working-directory snapshot per "
+            "turn and one reviewer run per turn that changed files.\n"
+            "Accepts off (the default), 'auto' — on inside a git repository, "
+            "off outside one, where no .gitignore bounds a snapshot — or on, "
+            "anywhere."
         ),
     )
 
@@ -205,7 +209,7 @@ class LLMContentMixin:
     )
 
     LLM_ENABLE_REWIND = EnvField(
-        _rewind_enabled,
+        _is_enabled_inside_git_repo,
         serialize=on_off,
         doc=(
             "Snapshot the working directory before each turn so /rewind can "

@@ -225,7 +225,7 @@ async def test_take_snapshot_force_empty_commit_when_message_count_advances(
 async def test_every_git_subprocess_call_has_a_timeout(manager, workdir):
     _run_records_timeout.calls.clear()
     with patch(
-        "zrb.llm.snapshot.manager.subprocess.run",
+        "zrb.util.git.snapshot_store.subprocess.run",
         side_effect=_run_records_timeout,
     ):
         with open(os.path.join(workdir, "a.txt"), "w") as f:
@@ -269,7 +269,9 @@ async def test_a_cancelled_snapshot_never_moves_history_after_it_returns(
             release.wait(5)
         return _real_subprocess_run(cmd, *args, **kwargs)
 
-    with patch("zrb.llm.snapshot.manager.subprocess.run", side_effect=slow_commit_tree):
+    with patch(
+        "zrb.util.git.snapshot_store.subprocess.run", side_effect=slow_commit_tree
+    ):
         task = asyncio.create_task(manager.take_snapshot("late", message_count=2))
         await asyncio.to_thread(in_commit.wait, 5)
         task.cancel()

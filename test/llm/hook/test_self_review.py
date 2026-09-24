@@ -12,18 +12,24 @@ import pytest
 from zrb.llm.hook.interface import HookResult
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
-from zrb.util.git.worktree import (
-    create_snapshot_store,
-    delete_snapshot_store,
-    snapshot_worktree,
-)
+from zrb.util.git.snapshot_store import SnapshotStore
 
 
 @pytest.fixture
 def store():
-    path = create_snapshot_store()
-    yield path
-    delete_snapshot_store(path)
+    """The temporary stores a test snapshots into, deleted afterwards."""
+    stores: list[SnapshotStore] = []
+    yield stores
+    for snapshots in stores:
+        snapshots.delete()
+
+
+def _start_snapshot(workdir, stores: list) -> dict:
+    """A turn-start snapshot of *workdir*, as the runner puts it in the payload."""
+    snapshots = SnapshotStore.create_temporary(str(workdir))
+    stores.append(snapshots)
+    tree, _ = snapshots.snapshot()
+    return {"tree": tree, "store": snapshots.git_dir}
 
 
 _FINDINGS = "## Finding\n\n**Problem:** off by one.\n\nRequest changes"
@@ -238,7 +244,7 @@ async def test_turn_start_snapshot_scopes_the_review_to_this_turn(
     git("commit", "-qm", "init")
     (tmp_path / "a.py").write_text("x = 1\nuser_wip = True\n")
     monkeypatch.chdir(tmp_path)
-    before = {"tree": snapshot_worktree(str(tmp_path), store), "store": store}
+    before = _start_snapshot(tmp_path, store)
     # A shell command's edit: no file tool names it.
     (tmp_path / "gen.py").write_text("y = 2\n")
     # A file tool's edit git ignores.
@@ -262,7 +268,7 @@ async def test_a_turn_with_no_changes_since_its_start_is_not_reviewed(
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
     (tmp_path / "a.py").write_text("x = 1\n")
     monkeypatch.chdir(tmp_path)
-    before = {"tree": snapshot_worktree(str(tmp_path), store), "store": store}
+    before = _start_snapshot(tmp_path, store)
     manager = HookManager(search_dirs=[])
 
     with _gate(report=_FINDINGS) as (seen, _):
@@ -296,7 +302,7 @@ async def test_slow_git_cannot_stretch_a_review_past_its_timeout(
 ):
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
     (tmp_path / "a.py").write_text("x = 1\n")
-    before = {"tree": snapshot_worktree(str(tmp_path), store), "store": store}
+    before = _start_snapshot(tmp_path, store)
     real_run = subprocess.run
     timeouts: list[float] = []
 
@@ -359,7 +365,7 @@ async def test_a_tool_path_under_home_matches_its_tree_path(
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("USERPROFILE", str(tmp_path))
     monkeypatch.chdir(tmp_path)
-    before = {"tree": snapshot_worktree(str(tmp_path), store), "store": store}
+    before = _start_snapshot(tmp_path, store)
     (tmp_path / "a.py").write_text("x = 1\n")
     manager = HookManager(search_dirs=[])
 
@@ -369,3 +375,26 @@ async def test_a_tool_path_under_home_matches_its_tree_path(
     request = seen[0].event_data
     assert "- a.py" in request
     assert "- ~/a.py" not in request
+
+
+@pytest.mark.asyncio
+async def test_outside_git_the_review_still_gets_the_turns_diff(
+    tmp_path, monkeypatch, store
+):
+    """The store's work tree is the directory itself when there is no
+    repository, so a shell command's edit is still diffed."""
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+    workdir = tmp_path / "project"
+    workdir.mkdir()
+    (workdir / "a.py").write_text("x = 1\n")
+    monkeypatch.chdir(workdir)
+    before = _start_snapshot(workdir, store)
+    (workdir / "a.py").write_text("x = 2\n")  # through a shell command
+    manager = HookManager(search_dirs=[])
+
+    with _gate() as (seen, _):
+        await _stop(manager, changed_paths=(), turn_start_snapshot=before)
+
+    request = seen[0].event_data
+    assert "- a.py" in request and "+x = 2" in request
+    assert "Diff against the start of this turn" in request

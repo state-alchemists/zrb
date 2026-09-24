@@ -361,7 +361,9 @@ Duplicating this exact hook in `examples/llm-hooks/.zrb/hooks.json` would teach 
 
 ### Built-in: the self-review gate
 
-Off by default; turn it on with `ZRB_LLM_SELF_REVIEW_ENABLED=on` (ADR-0100). At the start of each turn it snapshots the working tree into a throwaway git index; at Stop it snapshots again and diffs the two. So the review covers exactly what the turn changed — edits made through `Shell` and changes committed mid-turn included, your own earlier uncommitted work excluded — and a reviewer agent with a fresh context reads that diff, using read-only `Read`/`Grep`/`Glob` to check the code around it. Paths the file tools named that git does not track (ignored, or outside the repository) are listed for it to read. Outside a git repository, or when a snapshot fails, it lists the file tools' paths with no diff — never `git diff HEAD`, which would include your earlier uncommitted work. It ends its report with `Request changes` or `LGTM`.
+Off by default; `ZRB_LLM_SELF_REVIEW_ENABLED=auto` turns it on inside git repositories, `on` everywhere (ADR-0100). At the start of each turn it snapshots the working directory into a private temporary git store; at Stop it snapshots again and diffs the two. So the review covers exactly what the turn changed — edits made through `Shell` and changes committed mid-turn included, your own earlier uncommitted work excluded — and a reviewer agent with a fresh context reads that diff, using read-only `Read`/`Grep`/`Glob` to check the code around it. Paths the file tools named that the diff does not cover (ignored, or outside the directory) are listed for it to read. When a snapshot fails, it lists those paths with no diff — never `git diff HEAD`, which would include your earlier uncommitted work. It ends its report with `Request changes` or `LGTM`.
+
+Changes outside the working directory are not in the diff: a `Shell` command given another `cwd`, or a worktree `EnterWorktree` created under the gitignored `.zrb/worktree/`.
 
 A delegated sub-agent's turn is not reviewed on its own: its changes land in your working tree, so they are part of the parent turn's diff, which is.
 
