@@ -140,7 +140,7 @@ def test_header_routes_journal_changes_through_the_writer_tools(tmp_path):
     assert result is not None
     for tool in ("LogActivity", "WriteJournalNote", "DeleteJournalNote"):
         assert tool in result
-    assert "search for them" in result
+    assert "Search for these tools" in result
 
 
 def test_auto_search_adds_a_separate_unverified_section(tmp_path):

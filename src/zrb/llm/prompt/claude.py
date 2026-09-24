@@ -138,7 +138,9 @@ def create_project_context_prompt():  # noqa: C901 -- registration/factory fn; m
         if listed_files:
             parts += [
                 "### Documentation Files Found",
-                "(See Project Documentation for when to read these.)",
+                "(Not loaded into this prompt. Before editing, read the ones "
+                "that bear on the work — they hold this project's conventions, "
+                "and they outrank user-level guidance.)",
                 *listed_files,
             ]
         if user_level_files:
@@ -147,8 +149,7 @@ def create_project_context_prompt():  # noqa: C901 -- registration/factory fn; m
             parts += [
                 "### User-Level Guidance",
                 "(Outside this project — the user's cross-project preferences, not "
-                "project rules. Not part of the mandatory read; consult only when "
-                "the turn's work depends on it.)",
+                "project rules. Read one only when the turn's work depends on it.)",
                 *user_level_files,
             ]
 
