@@ -611,20 +611,27 @@ def _register_link(
 ) -> None:
     """Append `- [label](rel_target)` to an index, under *heading* if given.
 
-    An existing line for the same target is relabelled in place, so retitling
-    a note never leaves two index entries pointing at one file.
+    Exactly one entry per target survives: the first existing line for the
+    target is relabelled in place (keeping its position and section) and any
+    later ones — left by retitles before this rule existed — are dropped.
     """
     entry = f"- [{label}]({rel_target})"
     text = _read_text(index_path)
-    if entry in text:
-        return
     same_target = re.compile(rf"- \[[^\]]*\]\({re.escape(rel_target)}\)")
-    lines = text.splitlines()
-    for i, line in enumerate(lines):
+    kept: list[str] = []
+    found = False
+    for line in text.splitlines():
         if same_target.fullmatch(line):
-            lines[i] = entry
-            _write_text(index_path, "\n".join(lines) + "\n")
-            return
+            if not found:
+                kept.append(entry)
+                found = True
+            continue
+        kept.append(line)
+    if found:
+        updated = "\n".join(kept) + "\n"
+        if updated != text:
+            _write_text(index_path, updated)
+        return
     if heading is None:
         body = text.rstrip()
         gap = "\n" if body.rsplit("\n", 1)[-1].startswith("- ") else "\n\n"

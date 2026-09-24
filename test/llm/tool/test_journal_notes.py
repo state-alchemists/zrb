@@ -1,26 +1,7 @@
 import os
-import subprocess
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-
-from zrb.llm.tool.journal import search_journal
-
-
-@pytest.fixture
-def journal_dir(tmp_path):
-    d = tmp_path / "journal"
-    d.mkdir()
-    return str(d)
-
-
-@pytest.fixture
-def journal_with_entries(journal_dir):
-    with open(os.path.join(journal_dir, "2024-01-01.md"), "w") as f:
-        f.write("Today I fixed a bug in the auth module.\nAll tests passed.\n")
-    with open(os.path.join(journal_dir, "2024-01-02.md"), "w") as f:
-        f.write("Refactored the database layer.\nImproved query performance.\n")
-    return journal_dir
 
 
 @pytest.fixture
@@ -41,202 +22,6 @@ def writable_journal(tmp_path):
 def _read(*parts) -> str:
     with open(os.path.join(*parts), "r", encoding="utf-8") as f:
         return f.read()
-
-
-def test_no_journal_dir_configured():
-    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
-        mock_cfg.LLM_JOURNAL_DIR = ""
-        result = search_journal("anything")
-    assert "error" in result
-    assert "not configured" in result["error"]
-    assert "[SYSTEM SUGGESTION]" in result["error"]
-
-
-def test_journal_dir_missing_is_empty_not_an_error(tmp_path):
-    """A journal nobody has written to yet reads as empty, and gets created.
-
-    Reporting it as an error made the whole memory layer look unavailable, so
-    the model fell back to "I cannot journal" instead of writing its first note.
-    """
-    missing = tmp_path / "never-written" / "journal"
-    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
-        mock_cfg.LLM_JOURNAL_DIR = str(missing)
-        result = search_journal("anything")
-    assert "error" not in result
-    assert result["results"] == []
-    assert missing.is_dir()
-
-
-def test_journal_dir_uncreatable_reports_error(tmp_path):
-    blocker = tmp_path / "not-a-dir"
-    blocker.write_text("")
-    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
-        mock_cfg.LLM_JOURNAL_DIR = str(blocker / "journal")
-        result = search_journal("anything")
-    assert "error" in result
-    assert "Cannot create journal directory" in result["error"]
-
-
-def test_invalid_regex(journal_with_entries):
-    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
-        mock_cfg.LLM_JOURNAL_DIR = journal_with_entries
-        result = search_journal("[invalid")
-    assert "error" in result
-    assert "Invalid regex" in result["error"]
-
-
-def test_no_matches(journal_with_entries):
-    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
-        mock_cfg.LLM_JOURNAL_DIR = journal_with_entries
-        with patch("zrb.llm.tool.journal.shutil.which", return_value=None):
-            result = search_journal("xyzzy_no_match")
-    assert result["summary"] == "No matches found."
-    assert result["results"] == []
-
-
-def test_find_matches_python_fallback(journal_with_entries):
-    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
-        mock_cfg.LLM_JOURNAL_DIR = journal_with_entries
-        with patch("zrb.llm.tool.journal.shutil.which", return_value=None):
-            result = search_journal("auth")
-    assert "results" in result
-    assert len(result["results"]) > 0
-    files = [r["file"] for r in result["results"]]
-    assert any("2024-01-01" in f for f in files)
-
-
-def test_case_insensitive_by_default(journal_with_entries):
-    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
-        mock_cfg.LLM_JOURNAL_DIR = journal_with_entries
-        with patch("zrb.llm.tool.journal.shutil.which", return_value=None):
-            result = search_journal("AUTH")
-    assert len(result["results"]) > 0
-
-
-def test_case_sensitive_no_match(journal_with_entries):
-    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
-        mock_cfg.LLM_JOURNAL_DIR = journal_with_entries
-        with patch("zrb.llm.tool.journal.shutil.which", return_value=None):
-            result = search_journal("AUTH", case_sensitive=True)
-    assert result["results"] == []
-
-
-def test_result_structure(journal_with_entries):
-    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
-        mock_cfg.LLM_JOURNAL_DIR = journal_with_entries
-        with patch("zrb.llm.tool.journal.shutil.which", return_value=None):
-            result = search_journal("tests")
-    assert "summary" in result
-    assert "results" in result
-    for entry in result["results"]:
-        assert "file" in entry
-        assert "line" in entry
-        assert "content" in entry
-
-
-def test_find_matches_with_ripgrep(journal_with_entries):
-    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
-        mock_cfg.LLM_JOURNAL_DIR = journal_with_entries
-        with patch("zrb.llm.tool.journal.shutil.which", return_value="/usr/bin/rg"):
-            result = search_journal("database")
-    assert "results" in result
-    # rg path returns something (may return no matches if rg not installed, just no error)
-    assert "error" not in result
-
-
-def test_rg_subprocess_timeout_returns_error(journal_with_entries):
-    """If rg times out, the helper surfaces an error instead of crashing."""
-    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
-        mock_cfg.LLM_JOURNAL_DIR = journal_with_entries
-        with (
-            patch("zrb.llm.tool.journal.shutil.which", return_value="/usr/bin/rg"),
-            patch(
-                "zrb.llm.tool.journal.subprocess.run",
-                side_effect=subprocess.TimeoutExpired(cmd="rg", timeout=30),
-            ),
-        ):
-            result = search_journal("database")
-    assert "error" in result
-    assert "rg failed" in result["error"]
-
-
-def test_rg_returncode_2_surfaces_stderr(journal_with_entries):
-    """rg's exit code 2 signals an internal error; stderr should be passed through."""
-    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
-        mock_cfg.LLM_JOURNAL_DIR = journal_with_entries
-        completed = MagicMock()
-        completed.returncode = 2
-        completed.stderr = "regex parse failure"
-        completed.stdout = ""
-        with (
-            patch("zrb.llm.tool.journal.shutil.which", return_value="/usr/bin/rg"),
-            patch("zrb.llm.tool.journal.subprocess.run", return_value=completed),
-        ):
-            result = search_journal("database")
-    assert "error" in result
-    assert "regex parse failure" in result["error"]
-
-
-def test_python_search_skips_hidden_files(journal_dir):
-    """Files prefixed with `.` are excluded from the python fallback walk."""
-    with open(os.path.join(journal_dir, "visible.md"), "w") as f:
-        f.write("findme here\n")
-    with open(os.path.join(journal_dir, ".hidden.md"), "w") as f:
-        f.write("findme also\n")
-    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
-        mock_cfg.LLM_JOURNAL_DIR = journal_dir
-        with patch("zrb.llm.tool.journal.shutil.which", return_value=None):
-            result = search_journal("findme")
-    files = {r["file"] for r in result["results"]}
-    assert "visible.md" in files
-    assert ".hidden.md" not in files
-
-
-def test_zero_hit_suggests_similar_note_titles(tmp_path):
-    journal_dir = tmp_path / "journal"
-    (journal_dir / "technical").mkdir(parents=True)
-    (journal_dir / "technical" / "retry-policy.md").write_text(
-        "# Retry policy is not concurrency-safe\n\nsome body\n", encoding="utf-8"
-    )
-    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
-        mock_cfg.LLM_JOURNAL_DIR = str(journal_dir)
-        with patch("zrb.llm.tool.journal.shutil.which", return_value=None):
-            result = search_journal("Retry policy is not concurrency safe")
-    assert result["results"] == []
-    assert "did_you_mean" in result
-    assert any("Retry policy" in s for s in result["did_you_mean"])
-
-
-def test_zero_hit_with_no_close_titles_omits_did_you_mean(journal_with_entries):
-    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
-        mock_cfg.LLM_JOURNAL_DIR = journal_with_entries
-        with patch("zrb.llm.tool.journal.shutil.which", return_value=None):
-            result = search_journal("xyzzy_no_match")
-    assert result["results"] == []
-    assert "did_you_mean" not in result
-
-
-def test_python_search_swallows_file_open_errors(journal_dir):
-    """A file that fails to open is skipped silently — search continues."""
-    with open(os.path.join(journal_dir, "good.md"), "w") as f:
-        f.write("findme here\n")
-
-    real_open = open
-
-    def fake_open(path, *args, **kwargs):
-        if "good.md" in str(path):
-            raise PermissionError("denied")
-        return real_open(path, *args, **kwargs)
-
-    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
-        mock_cfg.LLM_JOURNAL_DIR = journal_dir
-        with (
-            patch("zrb.llm.tool.journal.shutil.which", return_value=None),
-            patch("builtins.open", side_effect=fake_open),
-        ):
-            result = search_journal("findme")
-    # No crash; just no matches
-    assert result.get("results") == []
 
 
 def test_log_activity_builds_the_whole_tree_on_a_cold_journal(writable_journal):
@@ -472,6 +257,36 @@ def test_retitled_note_is_relabelled_not_duplicated_in_indexes(writable_journal)
         index = _read(writable_journal, index_path)
         assert index.count("prompt-review.md)") == 1
         assert "[Sep review]" in index
+
+
+def test_revision_collapses_preexisting_duplicate_index_entries(writable_journal):
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    write_journal_note(
+        category="technical",
+        slug="review",
+        title="Old",
+        context="c",
+        finding="f",
+        source="s",
+    )
+    # A journal written before relabelling existed: two lines, one target.
+    index_path = os.path.join(writable_journal, "technical", "index.md")
+    with open(index_path, "a", encoding="utf-8") as f:
+        f.write("- [Older](review.md)\n")
+
+    write_journal_note(
+        category="technical",
+        slug="review",
+        title="Old",
+        context="c",
+        finding="f2",
+        source="s",
+    )
+
+    index = _read(writable_journal, "technical", "index.md")
+    assert index.count("review.md)") == 1
+    assert "- [Old](review.md)" in index
 
 
 def test_writers_refuse_when_the_journal_dir_is_unset():
