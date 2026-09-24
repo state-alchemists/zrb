@@ -262,9 +262,14 @@ async def test_a_turn_with_no_changes_since_its_start_is_not_reviewed(
 
 
 @pytest.mark.asyncio
-async def test_a_review_past_its_timeout_is_cancelled_and_never_blocks():
+async def test_a_review_past_its_timeout_is_cancelled_and_never_blocks(
+    tmp_path, monkeypatch
+):
+    # Outside a repository the scope's one git command fails fast; the
+    # timeout leaves it ample room so the deadline lands on the reviewer.
+    monkeypatch.chdir(tmp_path)
     manager = HookManager(search_dirs=[])
-    with _gate(report=_FINDINGS, timeout=0.05, delay=30) as (seen, cancelled):
+    with _gate(report=_FINDINGS, timeout=2, delay=30) as (seen, cancelled):
         results = await _stop(manager)
 
     assert _blocked(results) == []
