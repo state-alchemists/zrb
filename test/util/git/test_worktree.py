@@ -158,3 +158,15 @@ def test_unreadable_file_is_left_out_instead_of_failing_the_snapshot(repo, store
     assert before and after
     changed = diff_snapshots(str(repo), store, before, after)
     assert changed is not None and changed[0] == ["tracked.txt"]
+
+
+def test_file_ignored_mid_turn_leaves_later_snapshots(repo, store):
+    (repo / " late.txt").write_text("v1\n")  # leading space: -z paths unstripped
+    before = snapshot_worktree(str(repo), store)
+    (repo / ".gitignore").write_text("ignored.txt\n late.txt\n")
+    first = snapshot_worktree(str(repo), store)
+    (repo / " late.txt").write_text("v2\n")
+    second = snapshot_worktree(str(repo), store)
+
+    assert before and first and second
+    assert diff_snapshots(str(repo), store, first, second) == ([], "")

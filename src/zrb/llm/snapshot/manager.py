@@ -2,34 +2,39 @@
 
 Snapshots are commits in a private git directory with the project as its
 work tree — nothing is copied. One git directory serves every session of a
-project, at ``<snapshot_dir>/<safe_work_tree_path>.git``, so unchanged files
-are stored once; each session has its own ref (``refs/zrb/<session>``) and its
-own index, so concurrent sessions never share a lock. A session is keyed by
-its name and the workdir's path inside the work tree.
+project, at ``<snapshot_dir>/<name>-<hash of its path>.git``, so unchanged
+files are stored once; each session has its own ref
+(``refs/zrb/<session>-<hash>``) and its own index, so concurrent sessions
+never share a lock. A session is keyed by its name and the workdir's path
+inside the work tree; the hashes keep two paths or names that sanitize alike
+from sharing a store or a history.
 
 Git's ignore rules apply: files the project's ``.gitignore`` excludes are
-neither snapshotted nor touched by a restore. When the workdir is inside a git
+neither snapshotted nor touched by a restore — including a file that became
+ignored after an earlier snapshot captured it. When the workdir is inside a git
 repository, the work tree is the repository root and every git command is
 limited to the workdir, so ``.gitignore`` files above the workdir apply too.
 
 Snapshot flow: ``git add -A`` into the session's index, ``write-tree``,
 ``commit-tree``, ``update-ref``.
 
-Restore flow: ``git add -A`` (so files created since are in the index), then
-``read-tree -u --reset <sha>`` — which rewrites changed files, recreates
-deleted ones and removes the rest — then move the session ref back.
+Restore flow: filter now-ignored paths out of ``<sha>``'s tree, ``git add -A``
+(so files created since are in the index), then ``read-tree -u --reset`` to
+the filtered tree — which rewrites changed files, recreates deleted ones and
+removes the rest — then move the session ref back to ``<sha>``.
 """
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import os
 import re
 import subprocess
 from typing import Callable, NamedTuple
 
-from zrb.util.git.worktree import get_repo_root
+from zrb.util.git.worktree import get_repo_root, untrack_ignored
 from zrb.util.string.conversion import to_safe_filename
 
 logger = logging.getLogger(__name__)
@@ -216,18 +221,18 @@ class SnapshotManager:
         if self._initialized:
             return
         repo_root = get_repo_root(self._workdir)
-        self._work_tree = repo_root or self._workdir
-        rel = os.path.relpath(self._workdir, self._work_tree)
+        self._work_tree = os.path.realpath(repo_root or self._workdir)
+        rel = os.path.relpath(os.path.realpath(self._workdir), self._work_tree)
         self._pathspec = "." if rel == "." else rel
         # A session resumed from another directory of the same repository
         # gets its own history and index: restoring a snapshot taken in one
         # directory must not delete files the other never snapshotted.
-        scope = "" if rel == "." else f"@{rel}"
-        self._session = to_safe_filename(f"{self._session_name}{scope}")
-        self._ref = f"refs/zrb/{self._session}"
-        self._git_dir = os.path.join(
-            self._snapshot_dir, f"{to_safe_filename(self._work_tree)}.git"
+        self._session = _readable_key(
+            self._session_name, f"{self._session_name}\0{rel}"
         )
+        self._ref = f"refs/zrb/{self._session}"
+        store = _readable_key(os.path.basename(self._work_tree), self._work_tree)
+        self._git_dir = os.path.join(self._snapshot_dir, f"{store}.git")
         if not os.path.isdir(os.path.join(self._git_dir, "objects")):
             os.makedirs(self._git_dir, exist_ok=True)
             result = _run(["git", "init", "-q", "--bare", self._git_dir])
@@ -268,15 +273,29 @@ class SnapshotManager:
     def _restore(self, sha: str) -> None:
         self._ensure_initialized()
         self._git(["cat-file", "-e", f"{sha}^{{commit}}"])
+        tree = self._tree_without_ignored(sha)
         self._add_all()
-        self._git(["read-tree", "-u", "--reset", sha])
+        self._git(["read-tree", "-u", "--reset", tree])
         self._git(["update-ref", self._ref, sha])
+
+    def _tree_without_ignored(self, sha: str) -> str:
+        """*sha*'s tree minus the paths git ignores now, so a restore neither
+        overwrites nor recreates a file that became ignored since."""
+        index = self._index + ".restore"
+        try:
+            self._git(["read-tree", sha], index)
+            untrack_ignored(self._runner(index))
+            return self._git(["write-tree"], index)
+        finally:
+            if os.path.exists(index):
+                os.remove(index)
 
     def _add_all(self) -> int:
         """Stage the workdir; return how many files git could not index."""
         result = self._run_git(["add", "-A", "--ignore-errors", "--", self._pathspec])
         if result.returncode not in (0, _ADD_PARTIAL_EXIT):
             raise RuntimeError(result.stderr.strip())
+        untrack_ignored(self._runner(self._index))
         skipped = [
             line
             for line in result.stderr.splitlines()
@@ -291,23 +310,39 @@ class SnapshotManager:
         result = self._run_git(["rev-parse", "--verify", "-q", self._ref])
         return result.stdout.strip() if result.returncode == 0 else None
 
-    def _git(self, args: list[str]) -> str:
-        result = self._run_git(args)
+    @property
+    def _index(self) -> str:
+        return os.path.join(self._git_dir, f"index-{self._session}")
+
+    def _git(self, args: list[str], index: str | None = None) -> str:
+        result = self._run_git(args, index)
         if result.returncode != 0:
             raise RuntimeError(f"git {args[0]} failed: {result.stderr.strip()}")
         return result.stdout.strip()
 
-    def _run_git(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+    def _runner(self, index: str) -> Callable[..., str | None]:
+        """A `untrack_ignored` runner: `git ...` against *index*."""
+
+        def run(args: list[str], stdin: str | None = None) -> str | None:
+            result = self._run_git(args[1:], index, stdin)
+            return result.stdout if result.returncode == 0 else None
+
+        return run
+
+    def _run_git(
+        self, args: list[str], index: str | None = None, stdin: str | None = None
+    ) -> subprocess.CompletedProcess[str]:
         env = {
             **os.environ,
             **_IDENTITY_ENV,
-            "GIT_INDEX_FILE": os.path.join(self._git_dir, f"index-{self._session}"),
+            "GIT_INDEX_FILE": index or self._index,
         }
         return _run(
             ["git", f"--git-dir={self._git_dir}", f"--work-tree={self._work_tree}"]
             + args,
             cwd=self._work_tree,
             env=env,
+            stdin=stdin,
         )
 
 
@@ -334,13 +369,24 @@ def _parse_commit_message(raw: str) -> tuple[str, int | None]:
     return raw, None
 
 
+def _readable_key(name: str, identity: str) -> str:
+    """*name* made filename- and ref-safe, plus a hash of *identity*: the
+    sanitized name alone collides (`a:b` and `a?b` both become `a_b`)."""
+    digest = hashlib.sha256(identity.encode("utf-8", "surrogateescape")).hexdigest()
+    return f"{to_safe_filename(name)[:40]}-{digest[:16]}"
+
+
 def _run(
-    args: list[str], cwd: str | None = None, env: dict[str, str] | None = None
+    args: list[str],
+    cwd: str | None = None,
+    env: dict[str, str] | None = None,
+    stdin: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         args,
         cwd=cwd,
         env=env,
+        input=stdin,
         capture_output=True,
         text=True,
         timeout=_GIT_TIMEOUT_SECONDS,

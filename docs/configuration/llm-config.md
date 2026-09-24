@@ -469,11 +469,11 @@ Zrb can snapshot your working directory before each AI turn, letting you restore
 
 **How it works:**
 
-1. Before each AI response, Zrb records your working directory as a commit in a private git repository (`<ZRB_LLM_SNAPSHOT_DIR>/<project-path>.git`) whose work tree is your project. Nothing is copied, and your project's own git history, index and objects are never touched.
-2. Every session of a project shares that repository, so unchanged files are stored once; each session keeps its own history (`refs/zrb/<session-name>`).
+1. Before each AI response, Zrb records your working directory as a commit in a private git repository (`<ZRB_LLM_SNAPSHOT_DIR>/<project-name>-<hash>.git`) whose work tree is your project. Nothing is copied, and your project's own git history, index and objects are never touched.
+2. Every session of a project shares that repository, so unchanged files are stored once; each session keeps its own history (`refs/zrb/<session-name>-<hash>`).
 3. `/rewind` lists all snapshots; `/rewind <n>` or `/rewind <sha>` restores both the filesystem and conversation history to the selected point.
 
-> **Note:** Rewind is on by default inside a git repository and off outside one, where no `.gitignore` bounds what a snapshot hashes — a chat started in `~` would hash your whole home directory. Set `ZRB_LLM_ENABLE_REWIND=on` to force it. Files your `.gitignore` excludes are neither snapshotted nor restored — an edit to a gitignored `.env` is not rewound. Outside a git repository, common cache directories (`node_modules/`, `.venv/`, `__pycache__/`, …) are excluded instead. The first snapshot of a session runs in the background.
+> **Note:** Rewind is on by default inside a git repository and off outside one, where no `.gitignore` bounds what a snapshot hashes — a chat started in `~` would hash your whole home directory. Set `ZRB_LLM_ENABLE_REWIND=on` to force it. Files your `.gitignore` excludes — including ones it starts excluding after a snapshot — are neither snapshotted nor restored — an edit to a gitignored `.env` is not rewound. Outside a git repository, common cache directories (`node_modules/`, `.venv/`, `__pycache__/`, …) are excluded instead. The first snapshot of a session runs in the background.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -506,9 +506,9 @@ Restore rewinds **both** the working directory files **and** the conversation hi
 
 ```mermaid
 flowchart LR
-    Root["~/.zrb/llm-snapshots/"] --> Store["&lt;project-path&gt;.git/ — bare repo, work tree = your project"]
-    Store --> Refs["refs/zrb/&lt;session-name&gt; — one history per session"]
-    Store --> Index["index-&lt;session-name&gt; — one index per session"]
+    Root["~/.zrb/llm-snapshots/"] --> Store["&lt;project-name&gt;-&lt;hash&gt;.git/ — bare repo, work tree = your project"]
+    Store --> Refs["refs/zrb/&lt;session-name&gt;-&lt;hash&gt; — one history per session and directory"]
+    Store --> Index["index-&lt;session-name&gt;-&lt;hash&gt; — one index per session and directory"]
 ```
 
 ---

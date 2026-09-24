@@ -423,3 +423,59 @@ async def test_session_resumed_in_another_subdir_leaves_the_first_alone(
     assert (tmp_path / "a" / "f.txt").read_text() == "a original"
     assert (tmp_path / "b" / "f.txt").read_text() == "b original"
     assert [s.label for s in in_b.list_snapshots()] == ["in b"]
+
+
+@pytest.mark.asyncio
+async def test_file_ignored_after_a_snapshot_is_left_alone(manager, workdir):
+    secret = os.path.join(workdir, "secrets.env")
+    with open(secret, "w") as f:
+        f.write("v1")
+    first = await manager.take_snapshot("secret tracked", message_count=1)
+    with open(os.path.join(workdir, ".gitignore"), "w") as f:
+        f.write("secrets.env\n")
+    with open(secret, "w") as f:
+        f.write("v2")
+    second = await manager.take_snapshot("secret ignored", message_count=2)
+    with open(secret, "w") as f:
+        f.write("v3")
+
+    assert first and second
+    assert await manager.restore_snapshot(second) is True
+    with open(secret) as f:
+        assert f.read() == "v3"  # not in the second snapshot, so not removed
+    assert await manager.restore_snapshot(first) is True
+    with open(secret) as f:
+        assert f.read() == "v3"  # ignored now, so the old copy is not restored
+
+
+@pytest.mark.skipif(os.name == "nt", reason="':' and '?' are invalid in Windows paths")
+@pytest.mark.asyncio
+async def test_paths_that_sanitize_alike_get_separate_stores(snapshot_dir, tmp_path):
+    managers = []
+    for name in ("a:b", "a?b"):
+        workdir = tmp_path / name
+        workdir.mkdir()
+        (workdir / "f.txt").write_text(name)
+        manager = SnapshotManager(snapshot_dir, "same-session", str(workdir))
+        await manager.take_snapshot(f"in {name}")
+        managers.append(manager)
+
+    assert len(os.listdir(snapshot_dir)) == 2
+    assert [s.label for s in managers[0].list_snapshots()] == ["in a:b"]
+    assert [s.label for s in managers[1].list_snapshots()] == ["in a?b"]
+
+
+@pytest.mark.asyncio
+async def test_session_names_that_sanitize_alike_keep_separate_histories(
+    snapshot_dir, workdir
+):
+    with open(os.path.join(workdir, "f.txt"), "w") as f:
+        f.write("data")
+    a = SnapshotManager(snapshot_dir, "a b", workdir)
+    b = SnapshotManager(snapshot_dir, "a_b", workdir)
+
+    await a.take_snapshot("from a b")
+    await b.take_snapshot("from a_b")
+
+    assert [s.label for s in a.list_snapshots()] == ["from a b"]
+    assert [s.label for s in b.list_snapshots()] == ["from a_b"]
