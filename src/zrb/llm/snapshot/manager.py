@@ -232,13 +232,26 @@ class SnapshotManager:
         )
         self._ref = f"refs/zrb/{self._session}"
         store = _readable_key(os.path.basename(self._work_tree), self._work_tree)
-        self._git_dir = os.path.join(self._snapshot_dir, f"{store}.git")
+        # Absolute: git runs with the work tree as its cwd, where a relative
+        # snapshot dir would name a different directory.
+        snapshot_dir = os.path.realpath(self._snapshot_dir)
+        self._git_dir = os.path.join(snapshot_dir, f"{store}.git")
         if not os.path.isdir(os.path.join(self._git_dir, "objects")):
             os.makedirs(self._git_dir, exist_ok=True)
             result = _run(["git", "init", "-q", "--bare", self._git_dir])
             if result.returncode != 0:
                 raise RuntimeError(f"git init failed: {result.stderr.strip()}")
         exclude = "".join(f"{d}/\n" for d in sorted(self._ignore_dirs))
+        # A store inside the work tree would snapshot itself — its objects,
+        # index and lock files — and a restore would rewrite it mid-restore.
+        # Written before the first `git add`, so no snapshot ever holds it;
+        # restore's ignored-path filter also keeps older snapshots off it.
+        exclude += "".join(
+            f"{_anchored_pattern(rel_path)}/\n"
+            for rel_path in _paths_inside(
+                self._work_tree, [snapshot_dir, self._git_dir]
+            )
+        )
         info_dir = os.path.join(self._git_dir, "info")
         os.makedirs(info_dir, exist_ok=True)
         with open(os.path.join(info_dir, "exclude"), "w", encoding="utf-8") as f:
@@ -367,6 +380,26 @@ def _parse_commit_message(raw: str) -> tuple[str, int | None]:
     if m:
         return raw[: m.start()].rstrip(), int(m.group(1))
     return raw, None
+
+
+def _paths_inside(root: str, paths: list[str]) -> list[str]:
+    """The *paths* strictly inside *root*, relative to it."""
+    inside: list[str] = []
+    for path in paths:
+        try:
+            rel = os.path.relpath(path, root)
+        except ValueError:  # another drive on Windows: never inside
+            continue
+        if rel != "." and rel != os.pardir and not rel.startswith(os.pardir + os.sep):
+            inside.append(rel)
+    return inside
+
+
+def _anchored_pattern(rel_path: str) -> str:
+    """A gitignore pattern matching exactly *rel_path* under the work tree."""
+    escaped = re.sub(r"([\\*?\[])", r"\\\1", rel_path.replace(os.sep, "/"))
+    stripped = escaped.rstrip(" ")
+    return "/" + stripped + "\\ " * (len(escaped) - len(stripped))
 
 
 def _readable_key(name: str, identity: str) -> str:
