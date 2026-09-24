@@ -17,7 +17,7 @@ from zrb.util.cli.style import stylize_muted, stylize_warning
 from zrb.util.exception import exception_summary
 
 if TYPE_CHECKING:
-    from zrb.llm.snapshot.manager import SnapshotProgress
+    from zrb.llm.snapshot.manager import SnapshotManager, SnapshotProgress
     from zrb.llm.ui.default.ui import UI
 
 
@@ -56,6 +56,14 @@ class UILifecycle:
     async def run_async(self):
         """Run the application and manage triggers."""
         ui = self._ui
+        if ui.snapshot_manager is not None:
+            # Started first so it takes the snapshot lock before the first
+            # turn's snapshot; the UI does not wait for it.
+            self._track_background(
+                ui.application.create_background_task(
+                    _take_init_snapshot(ui.snapshot_manager, ui)
+                )
+            )
         for trigger_fn in ui.triggers:
             trigger_task = ui.application.create_background_task(
                 ui.trigger_loop(trigger_fn)
@@ -78,10 +86,6 @@ class UILifecycle:
         try:
             ui.capture.start()
             await ui.update_system_info()
-            if ui.snapshot_manager is not None:
-                await ui.snapshot_manager.take_init_snapshot(
-                    on_progress=_make_snapshot_progress_handler(ui)
-                )
             return await ui.application.run_async()
         finally:
             ui.capture.stop()
@@ -188,27 +192,31 @@ class UILifecycle:
                 task.cancel()
 
 
+async def _take_init_snapshot(snapshot_manager: "SnapshotManager", ui: "UI") -> None:
+    await snapshot_manager.take_init_snapshot(
+        on_progress=_make_snapshot_progress_handler(ui)
+    )
+
+
 def _make_snapshot_progress_handler(
     ui: "UI",
 ) -> "Callable[[SnapshotProgress], None]":
     """Render init-snapshot progress as two muted lines (start + terminal).
 
     Every snapshot invocation ends with exactly one terminal line, so the
-    start line never dangles: done (with copied/skipped counts), up-to-date
+    start line never dangles: done (with the unreadable-file count), up-to-date
     (resumed session), or error (with the reason — no debug mode needed to
     see why). All events arrive on the event-loop thread (the manager
     reports from coroutine context), so a direct append is safe.
     """
 
     def handler(event: "SnapshotProgress") -> None:
-        stage, copied, skipped, reason = event
+        stage, skipped, reason = event
         if stage == "start":
             message = "\n  📸 Taking initial workspace snapshot...\n"
         elif stage == "done":
-            counts = f"{copied} files"
-            if skipped:
-                counts += f", {skipped} skipped (unreadable)"
-            message = f"\n  ✅ Initial workspace snapshot taken ({counts})\n"
+            note = f" ({skipped} unreadable files skipped)" if skipped else ""
+            message = f"\n  ✅ Initial workspace snapshot taken{note}\n"
         elif stage == "up-to-date":
             message = "\n  📸 Workspace snapshot up-to-date\n"
         elif stage == "error":

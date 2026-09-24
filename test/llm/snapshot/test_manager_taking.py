@@ -1,7 +1,6 @@
-"""Tests for SnapshotManager — the shadow-git snapshot system for LLM /rewind."""
+"""Tests for SnapshotManager — the git snapshot store for LLM /rewind."""
 
 import os
-import shutil
 import subprocess
 import tempfile
 from unittest.mock import patch
@@ -70,11 +69,9 @@ async def test_take_init_snapshot_returns_none_when_setup_fails(workdir):
 
 
 @pytest.mark.asyncio
-async def test_take_init_snapshot_reports_start_and_done_with_copied_count(
-    snapshot_dir, workdir
-):
-    """The progress callback sees "start" before the copy and the copied
-    file count once the init commit exists."""
+async def test_take_init_snapshot_reports_start_and_done(snapshot_dir, workdir):
+    """The progress callback sees "start" before hashing and "done" once the
+    init commit exists."""
     for name in ("a.txt", "b.txt"):
         with open(os.path.join(workdir, name), "w") as f:
             f.write(name)
@@ -84,10 +81,7 @@ async def test_take_init_snapshot_reports_start_and_done_with_copied_count(
     sha = await mgr.take_init_snapshot(on_progress=events.append)
 
     assert sha is not None
-    assert [(e.stage, e.copied, e.skipped) for e in events] == [
-        ("start", 0, 0),
-        ("done", 2, 0),
-    ]
+    assert [(e.stage, e.skipped) for e in events] == [("start", 0), ("done", 0)]
 
 
 @pytest.mark.asyncio
@@ -127,36 +121,6 @@ async def test_take_init_snapshot_swallows_progress_callback_errors(
 
 
 @pytest.mark.asyncio
-async def test_take_init_snapshot_reports_done_with_zero_copies_when_tree_matches(
-    snapshot_dir, workdir
-):
-    """A shadow tree that already matches the workdir (e.g. a prior run
-    copied files but the commit never landed) still reports a terminal
-    done event — with 0 copies, not a dangling start."""
-    from zrb.util.string.conversion import to_safe_filename
-
-    with open(os.path.join(workdir, "f.txt"), "w") as f:
-        f.write("data")
-
-    mgr = SnapshotManager(snapshot_dir, "zero-copy-session", workdir)
-    await mgr.take_init_snapshot()
-    # Roll HEAD back to nothing while keeping the copied tree in place. The
-    # shadow-repo layout (<snapshot_dir>/<safe_session_name>) is documented
-    # in the module docstring.
-    shadow_dir = os.path.join(snapshot_dir, to_safe_filename("zero-copy-session"))
-    subprocess.run(["git", "update-ref", "-d", "HEAD"], cwd=shadow_dir, check=True)
-
-    events: list[SnapshotProgress] = []
-    sha = await mgr.take_init_snapshot(on_progress=events.append)
-
-    assert sha is not None
-    assert [(e.stage, e.copied, e.skipped) for e in events] == [
-        ("start", 0, 0),
-        ("done", 0, 0),
-    ]
-
-
-@pytest.mark.asyncio
 async def test_take_init_snapshot_reports_error_when_commit_fails_after_start(
     snapshot_dir, workdir
 ):
@@ -164,7 +128,7 @@ async def test_take_init_snapshot_reports_error_when_commit_fails_after_start(
     real_run = subprocess.run
 
     def _fail_commit_run(cmd, *args, **kwargs):
-        if "commit" in cmd:
+        if "commit-tree" in cmd:
             raise RuntimeError("commit boom")
         return real_run(cmd, *args, **kwargs)
 
@@ -181,37 +145,54 @@ async def test_take_init_snapshot_reports_error_when_commit_fails_after_start(
     assert "commit boom" in events[-1].reason
 
 
+@pytest.mark.skipif(
+    os.name != "posix" or os.geteuid() == 0, reason="needs POSIX permissions, non-root"
+)
 @pytest.mark.asyncio
 async def test_take_init_snapshot_skips_unreadable_files_and_reports_them(
     snapshot_dir, workdir
 ):
     """One unreadable file (root-owned volume mount, protected key, ...) must
     not abort the snapshot: it's skipped, counted, and the rest is committed."""
-    real_copy2 = shutil.copy2
-
-    def _deny_secret(src, dst, **kwargs):
-        if os.path.basename(src) == "secret.key":
-            raise PermissionError(13, "Permission denied", src)
-        return real_copy2(src, dst, **kwargs)
-
     with open(os.path.join(workdir, "normal.txt"), "w") as f:
         f.write("fine")
-    with open(os.path.join(workdir, "secret.key"), "w") as f:
+    secret = os.path.join(workdir, "secret.key")
+    with open(secret, "w") as f:
         f.write("protected")
+    os.chmod(secret, 0)
 
     mgr = SnapshotManager(snapshot_dir, "skip-session", workdir)
     events: list[SnapshotProgress] = []
-    with patch("zrb.llm.snapshot.manager.shutil.copy2", side_effect=_deny_secret):
+    try:
         sha = await mgr.take_init_snapshot(on_progress=events.append)
+    finally:
+        os.chmod(secret, 0o600)
 
     assert sha is not None
-    assert [(e.stage, e.copied, e.skipped) for e in events] == [
-        ("start", 0, 0),
-        ("done", 1, 1),
-    ]
+    assert [(e.stage, e.skipped) for e in events] == [("start", 0), ("done", 1)]
+    assert len(mgr.list_snapshots()) == 1  # snapshot still usable for /rewind
 
-    snapshots = mgr.list_snapshots()
-    assert len(snapshots) == 1  # snapshot still usable for /rewind
+
+@pytest.mark.asyncio
+async def test_nested_repository_without_commits_does_not_break_snapshot(
+    snapshot_dir, workdir
+):
+    nested = os.path.join(workdir, "vendor")
+    os.makedirs(nested)
+    subprocess.run(["git", "init", "-q"], cwd=nested, check=True)
+    file_path = os.path.join(workdir, "f.txt")
+    with open(file_path, "w") as f:
+        f.write("original")
+
+    mgr = SnapshotManager(snapshot_dir, "nested-session", workdir)
+    sha = await mgr.take_snapshot("with nested repo")
+    with open(file_path, "w") as f:
+        f.write("modified")
+
+    assert sha is not None
+    assert await mgr.restore_snapshot(sha) is True
+    with open(file_path) as f:
+        assert f.read() == "original"
 
 
 @pytest.mark.asyncio

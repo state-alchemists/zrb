@@ -80,6 +80,6 @@ def test_rewind_names_the_session_requirement_when_the_knob_is_already_on(
 
 def test_rewind_is_listed_in_help_even_without_snapshots(ui):
     """Help lists every command with a resolved alias (ADR-0093), so rewind
-    is discoverable even though `LLM_ENABLE_REWIND` is off by default."""
+    is discoverable even where `LLM_ENABLE_REWIND` is off."""
     ui.snapshot_manager = None
     assert any("/rewind" in row for row in ui.get_help_text(80).splitlines())

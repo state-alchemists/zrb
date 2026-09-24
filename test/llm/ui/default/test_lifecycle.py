@@ -145,12 +145,26 @@ async def test_on_exit_logic():
 @pytest.mark.asyncio
 async def test_run_async():
     ui = MockLifecycleUI()
+    coros = []
+
+    def keep_coro(coro):
+        coros.append(coro)
+        return create_mock_task()
+
+    ui.application.create_background_task.side_effect = keep_coro
 
     with patch("builtins.print") as mock_print:
         result = await ui.run_async()
+        # The init snapshot is started first, in the background, not awaited.
+        ui.snapshot_manager.take_init_snapshot.assert_not_called()
+        await coros[0]
+        for coro in coros[1:]:
+            coro.close()
 
         assert result == "test_run_async_result"
-        assert ui.application.create_background_task.call_count == 4
+        assert (
+            len(coros) == 5
+        )  # init snapshot, process, 1 trigger, system_info, refresh
         ui.capture.start.assert_called_once()
         ui.update_system_info.assert_called_once()
         ui.snapshot_manager.take_init_snapshot.assert_called_once()

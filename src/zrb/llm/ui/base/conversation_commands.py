@@ -299,7 +299,8 @@ class BaseUIConversationCommands:
         prefix = CFG.ENV_PREFIX
         if not CFG.LLM_ENABLE_REWIND:
             return (
-                "\n  ⏳ Rewind is not enabled.\n"
+                "\n  ⏳ Rewind is not enabled. By default it is on only inside "
+                "a git repository.\n"
                 f"     Set {prefix}_LLM_ENABLE_REWIND=on and restart.\n"
             )
         return (

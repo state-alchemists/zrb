@@ -465,20 +465,20 @@ The names are the registered PascalCase tool names (the `Tool` column in [Built-
 
 ## 6. Rewind & Snapshots
 
-Zrb can take a full filesystem snapshot before each AI turn, letting you restore any previous state mid-session with `/rewind`.
+Zrb can snapshot your working directory before each AI turn, letting you restore any previous state mid-session with `/rewind`.
 
 **How it works:**
 
-1. Before each AI response, Zrb copies your working directory into an isolated shadow git repository (`<ZRB_LLM_SNAPSHOT_DIR>/<session-name>/`).
-2. Each snapshot is a git commit in that shadow repo — completely separate from your project's own git history.
+1. Before each AI response, Zrb records your working directory as a commit in a private git repository (`<ZRB_LLM_SNAPSHOT_DIR>/<project-path>.git`) whose work tree is your project. Nothing is copied, and your project's own git history, index and objects are never touched.
+2. Every session of a project shares that repository, so unchanged files are stored once; each session keeps its own history (`refs/zrb/<session-name>`).
 3. `/rewind` lists all snapshots; `/rewind <n>` or `/rewind <sha>` restores both the filesystem and conversation history to the selected point.
 
-> **Note:** Rewind is off by default. Enable it only for sessions where you want undo capability — snapshotting a large working directory (e.g., one containing `node_modules/`) will be slow.
+> **Note:** Rewind is on by default inside a git repository and off outside one, where no `.gitignore` bounds what a snapshot hashes — a chat started in `~` would hash your whole home directory. Set `ZRB_LLM_ENABLE_REWIND=on` to force it. Files your `.gitignore` excludes are neither snapshotted nor restored — an edit to a gitignored `.env` is not rewound. Outside a git repository, common cache directories (`node_modules/`, `.venv/`, `__pycache__/`, …) are excluded instead. The first snapshot of a session runs in the background.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_ENABLE_REWIND` | Enable filesystem snapshots and `/rewind` command | `off` |
-| `ZRB_LLM_SNAPSHOT_DIR` | Directory to store shadow git repos for each session | `~/.zrb/llm-snapshots/` |
+| `ZRB_LLM_ENABLE_REWIND` | Enable filesystem snapshots and `/rewind` command. `auto` is on inside a git repository, off outside one | `auto` |
+| `ZRB_LLM_SNAPSHOT_DIR` | Directory holding one snapshot git repository per project | `~/.zrb/llm-snapshots/` |
 
 ### Python API
 
@@ -502,13 +502,13 @@ task = LLMChatTask(
 
 Restore rewinds **both** the working directory files **and** the conversation history to the state captured at that snapshot, so the AI's context stays consistent with the restored files.
 
-### Shadow repo layout
+### Snapshot store layout
 
 ```mermaid
 flowchart LR
-    Root["~/.zrb/llm-snapshots/"] --> Session["&lt;session-name&gt;/"]
-    Session --> Git[".git/ — isolated repo, never touches your project git"]
-    Session --> Files["&lt;files …&gt; — mirror of your working directory at each turn"]
+    Root["~/.zrb/llm-snapshots/"] --> Store["&lt;project-path&gt;.git/ — bare repo, work tree = your project"]
+    Store --> Refs["refs/zrb/&lt;session-name&gt; — one history per session"]
+    Store --> Index["index-&lt;session-name&gt; — one index per session"]
 ```
 
 ---

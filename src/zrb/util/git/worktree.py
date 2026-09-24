@@ -63,10 +63,12 @@ def snapshot_worktree(
     env = _store_env(root, store, deadline)
     if env is None:
         return None
-    index = env["GIT_INDEX_FILE"]
-    if os.path.exists(index):
-        os.remove(index)
-    if _run(["git", "add", "-A"], root, env, deadline) is None:
+    # The store's index persists between its snapshots, so unchanged files
+    # are skipped by stat instead of re-hashed. A file git cannot index (no
+    # permission, a nested repository with no commit) is left out rather than
+    # failing the whole snapshot.
+    add = ["git", "add", "-A", "--ignore-errors"]
+    if _run(add, root, env, deadline, ok_codes=(0, 1)) is None:
         return None
     return _run(["git", "write-tree"], root, env, deadline)
 
@@ -109,6 +111,7 @@ def _run(
     cwd: str,
     env: dict[str, str] | None = None,
     deadline: float | None = None,
+    ok_codes: tuple[int, ...] = (0,),
 ) -> str | None:
     timeout = get_command_timeout(deadline)
     if timeout <= 0:
@@ -124,6 +127,6 @@ def _run(
         )
     except (OSError, subprocess.TimeoutExpired):
         return None
-    if completed.returncode != 0:
+    if completed.returncode not in ok_codes:
         return None
     return completed.stdout.strip()

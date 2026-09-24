@@ -1,16 +1,23 @@
-"""Shadow-git snapshot manager for LLM rewind functionality.
+"""Git-backed snapshot manager for LLM rewind functionality.
 
-Each snapshot is a git commit in an isolated shadow repository located at
-``<snapshot_dir>/<safe_session_name>/``.  The shadow repo is completely
-separate from the project's own git history.
+Snapshots are commits in a private git directory with the project as its
+work tree — nothing is copied. One git directory serves every session of a
+project, at ``<snapshot_dir>/<safe_work_tree_path>.git``, so unchanged files
+are stored once; each session has its own ref (``refs/zrb/<session>``) and its
+own index, so concurrent sessions never share a lock. A session is keyed by
+its name and the workdir's path inside the work tree.
 
-Snapshot flow:
-    1. Copy workdir → shadow dir (excluding .git trees)
-    2. ``git add -A && git commit`` in shadow dir
+Git's ignore rules apply: files the project's ``.gitignore`` excludes are
+neither snapshotted nor touched by a restore. When the workdir is inside a git
+repository, the work tree is the repository root and every git command is
+limited to the workdir, so ``.gitignore`` files above the workdir apply too.
 
-Restore flow:
-    1. ``git reset --hard <sha>`` in shadow dir
-    2. Copy shadow dir → workdir (with deletion of files absent from snapshot)
+Snapshot flow: ``git add -A`` into the session's index, ``write-tree``,
+``commit-tree``, ``update-ref``.
+
+Restore flow: ``git add -A`` (so files created since are in the index), then
+``read-tree -u --reset <sha>`` — which rewrites changed files, recreates
+deleted ones and removes the rest — then move the session ref back.
 """
 
 from __future__ import annotations
@@ -19,28 +26,35 @@ import asyncio
 import logging
 import os
 import re
-import shutil
-import stat
 import subprocess
 from typing import Callable, NamedTuple
 
+from zrb.util.git.worktree import get_repo_root
 from zrb.util.string.conversion import to_safe_filename
 
 logger = logging.getLogger(__name__)
 
-# A shadow-repo git command is normally milliseconds, but "normally fast" was
-# exactly the assumption behind a prior incident (an unbounded network call
-# that froze the whole TUI on a stall) — a local git process can still hang
-# on lock contention, a corrupted repo, or a slow disk. Every subprocess.run
-# in this module gets this bound so a stall here is a bounded wait, not a
-# silent, unrecoverable freeze.
+# A local git process can still hang on lock contention, a corrupted repo, or
+# a slow disk. Every subprocess.run in this module gets this bound so a stall
+# here is a bounded wait, not a silent, unrecoverable freeze.
 _GIT_TIMEOUT_SECONDS = 30
+
+# `git add --ignore-errors` exits 1 when it skipped a file it could not index
+# (permission denied, a nested repository with no commit) and added the rest.
+_ADD_PARTIAL_EXIT = 1
+
+_IDENTITY_ENV = {
+    "GIT_AUTHOR_NAME": "zrb-snapshot",
+    "GIT_AUTHOR_EMAIL": "zrb-snapshot@local",
+    "GIT_COMMITTER_NAME": "zrb-snapshot",
+    "GIT_COMMITTER_EMAIL": "zrb-snapshot@local",
+}
 
 
 # Progress callback contract for `take_init_snapshot`. Stages:
-#   "start"      right before the workdir copy begins
-#   "done"       init commit exists; copied/skipped carry the copy counts
-#   "up-to-date" shadow repo already has commits (resumed session)
+#   "start"      right before the working tree is hashed
+#   "done"       init commit exists; skipped counts files git could not index
+#   "up-to-date" session already has snapshots (resumed session)
 #   "error"      failed after "start"; reason carries the exception text
 # All events fire on the event-loop thread: each report happens in coroutine
 # context, before or after an `await asyncio.to_thread(...)` returns.
@@ -48,15 +62,8 @@ class SnapshotProgress(NamedTuple):
     """Progress event for `take_init_snapshot` (see `SnapshotProgressFn`)."""
 
     stage: str
-    copied: int = 0
     skipped: int = 0
     reason: str = ""
-
-
-def _progress(
-    stage: str, copied: int = 0, skipped: int = 0, reason: str = ""
-) -> SnapshotProgress:
-    return SnapshotProgress(stage, copied, skipped, reason)
 
 
 SnapshotProgressFn = Callable[[SnapshotProgress], None]
@@ -70,12 +77,11 @@ class Snapshot(NamedTuple):
 
 
 class SnapshotManager:
-    """Manages filesystem snapshots using a shadow git repository."""
+    """Manages filesystem snapshots in a private git directory."""
 
     # Directories that are large, regenerable, and almost never contain
-    # hand-edited content. Skipping them turns a multi-second copy on big
-    # projects into a sub-second one. Applied symmetrically to backup and
-    # restore — entries here are never copied, never deleted by restore.
+    # hand-edited content, excluded even where no `.gitignore` names them
+    # (a workdir outside git). Never snapshotted, never touched by restore.
     DEFAULT_IGNORE_DIRS: frozenset[str] = frozenset(
         {
             # Python
@@ -105,17 +111,25 @@ class SnapshotManager:
         workdir: str,
         ignore_dirs: "frozenset[str] | set[str] | None" = None,
     ):
+        self._snapshot_dir = snapshot_dir
         self._workdir = os.path.abspath(workdir)
-        self._shadow_dir = os.path.join(snapshot_dir, to_safe_filename(session_name))
-        self._initialized = False
+        self._session_name = session_name
+        self._session = ""
+        self._ref = ""
         self._ignore_dirs: frozenset[str] = (
             self.DEFAULT_IGNORE_DIRS if ignore_dirs is None else frozenset(ignore_dirs)
         )
+        self._git_dir = ""
+        self._work_tree = ""
+        self._pathspec = "."
+        self._initialized = False
+        # Serializes snapshots and restores: they share this session's index.
+        self._lock = asyncio.Lock()
 
     async def take_snapshot(
         self, label: str, message_count: int | None = None
     ) -> str | None:
-        """Sync workdir → shadow dir and commit.  Returns commit SHA or None on error.
+        """Snapshot the workdir and commit.  Returns commit SHA or None on error.
 
         Args:
             label: Human-readable label (typically the user message).
@@ -124,24 +138,9 @@ class SnapshotManager:
                 also rewind the conversation history to a consistent state.
         """
         try:
-            self._ensure_initialized()
-            await asyncio.to_thread(
-                _sync_dirs,
-                self._workdir,
-                self._shadow_dir,
-                True,
-                True,
-                self._ignore_dirs,
-                True,  # incremental: workdir → shadow, dst-newer means unchanged
-            )
-            commit_msg = _build_commit_message(label, message_count)
-            # Force an empty commit when message_count advanced but files didn't
-            # change (e.g. after a rewind followed by turns that don't touch the FS).
-            # Without this, the stale mc from the previous HEAD would be used on
-            # restore, truncating conversation history to the wrong point.
-            head_mc = await asyncio.to_thread(_head_mc, self._shadow_dir)
-            force_empty = message_count is not None and head_mc != message_count
-            return await asyncio.to_thread(self._commit, commit_msg, force_empty)
+            async with self._lock:
+                sha, _ = await asyncio.to_thread(self._commit, label, message_count)
+                return sha
         except Exception as e:
             logger.warning(f"Snapshot failed: {e}")
             return None
@@ -149,7 +148,7 @@ class SnapshotManager:
     async def take_init_snapshot(
         self, on_progress: SnapshotProgressFn | None = None
     ) -> str | None:
-        """Take an empty baseline snapshot at session start.
+        """Take a baseline snapshot at session start.
 
         Always creates a commit (even if workdir is empty) so that
         list_snapshots() always has at least one entry to rewind to.
@@ -161,57 +160,35 @@ class SnapshotManager:
         """
         started = False
         try:
-            await asyncio.to_thread(self._ensure_initialized)
-            # Only create init snapshot if the repo has no commits yet.
-            # (Two concurrent invocations could both observe HEAD == None and
-            # double-copy/commit; benign — the second commit is empty — and
-            # today there is exactly one caller at session start.)
-            existing_sha = await asyncio.to_thread(_head_sha, self._shadow_dir)
-            if existing_sha is not None:
-                _report_progress(on_progress, _progress("up-to-date"))
-                return existing_sha
-            started = True
-            _report_progress(on_progress, _progress("start"))
-            copied, skipped = await asyncio.to_thread(
-                _sync_dirs,
-                self._workdir,
-                self._shadow_dir,
-                True,
-                True,
-                self._ignore_dirs,
-                True,  # incremental: workdir → shadow
-            )
-            commit_msg = _build_commit_message("init", message_count=0)
-            sha = await asyncio.to_thread(self._commit, commit_msg, True)  # allow_empty
-            _report_progress(on_progress, _progress("done", copied, skipped))
+            async with self._lock:
+                await asyncio.to_thread(self._ensure_initialized)
+                existing_sha = await asyncio.to_thread(self._head_sha)
+                if existing_sha is not None:
+                    _report_progress(on_progress, SnapshotProgress("up-to-date"))
+                    return existing_sha
+                started = True
+                _report_progress(on_progress, SnapshotProgress("start"))
+                sha, skipped = await asyncio.to_thread(self._commit, "init", 0)
+            _report_progress(on_progress, SnapshotProgress("done", skipped))
             return sha
         except Exception as e:
             logger.warning(f"Init snapshot failed: {e}")
             if started:
-                _report_progress(on_progress, _progress("error", reason=str(e)))
+                _report_progress(on_progress, SnapshotProgress("error", reason=str(e)))
             return None
 
     def list_snapshots(self) -> list[Snapshot]:
         """Return snapshots in reverse chronological order (newest first)."""
         try:
             self._ensure_initialized()
-            result = subprocess.run(
-                ["git", "log", "--format=%H|%ai|%s", "--no-merges"],
-                cwd=self._shadow_dir,
-                capture_output=True,
-                text=True,
-                timeout=_GIT_TIMEOUT_SECONDS,
-            )
-            if result.returncode != 0:
+            if self._head_sha() is None:
                 return []
+            log = self._git(["log", "--format=%H|%ai|%s", self._ref])
             snapshots: list[Snapshot] = []
-            for line in result.stdout.strip().splitlines():
-                if not line.strip():
-                    continue
+            for line in log.splitlines():
                 parts = line.split("|", 2)
                 if len(parts) == 3:
-                    raw_label = parts[2]
-                    label, message_count = _parse_commit_message(raw_label)
+                    label, message_count = _parse_commit_message(parts[2])
                     snapshots.append(
                         Snapshot(
                             sha=parts[0],
@@ -228,16 +205,8 @@ class SnapshotManager:
     async def restore_snapshot(self, sha: str) -> bool:
         """Restore workdir to the state captured at the given snapshot SHA."""
         try:
-            self._ensure_initialized()
-            await asyncio.to_thread(_git, self._shadow_dir, ["reset", "--hard", sha])
-            await asyncio.to_thread(
-                _sync_dirs,
-                self._shadow_dir,
-                self._workdir,
-                True,
-                True,
-                self._ignore_dirs,
-            )
+            async with self._lock:
+                await asyncio.to_thread(self._restore, sha)
             return True
         except Exception as e:
             logger.warning(f"restore_snapshot failed: {e}")
@@ -246,32 +215,100 @@ class SnapshotManager:
     def _ensure_initialized(self):
         if self._initialized:
             return
-        os.makedirs(self._shadow_dir, exist_ok=True)
-        if not os.path.isdir(os.path.join(self._shadow_dir, ".git")):
-            _git(self._shadow_dir, ["init"])
-            _git(self._shadow_dir, ["config", "user.email", "zrb-snapshot@local"])
-            _git(self._shadow_dir, ["config", "user.name", "zrb-snapshot"])
+        repo_root = get_repo_root(self._workdir)
+        self._work_tree = repo_root or self._workdir
+        rel = os.path.relpath(self._workdir, self._work_tree)
+        self._pathspec = "." if rel == "." else rel
+        # A session resumed from another directory of the same repository
+        # gets its own history and index: restoring a snapshot taken in one
+        # directory must not delete files the other never snapshotted.
+        scope = "" if rel == "." else f"@{rel}"
+        self._session = to_safe_filename(f"{self._session_name}{scope}")
+        self._ref = f"refs/zrb/{self._session}"
+        self._git_dir = os.path.join(
+            self._snapshot_dir, f"{to_safe_filename(self._work_tree)}.git"
+        )
+        if not os.path.isdir(os.path.join(self._git_dir, "objects")):
+            os.makedirs(self._git_dir, exist_ok=True)
+            result = _run(["git", "init", "-q", "--bare", self._git_dir])
+            if result.returncode != 0:
+                raise RuntimeError(f"git init failed: {result.stderr.strip()}")
+        exclude = "".join(f"{d}/\n" for d in sorted(self._ignore_dirs))
+        info_dir = os.path.join(self._git_dir, "info")
+        os.makedirs(info_dir, exist_ok=True)
+        with open(os.path.join(info_dir, "exclude"), "w", encoding="utf-8") as f:
+            f.write(exclude)
         self._initialized = True
 
-    def _commit(self, commit_msg: str, allow_empty: bool = False) -> str | None:
-        _git(self._shadow_dir, ["add", "-A"])
-        result = subprocess.run(
-            ["git", "diff", "--cached", "--quiet"],
-            cwd=self._shadow_dir,
-            capture_output=True,
-            timeout=_GIT_TIMEOUT_SECONDS,
+    def _commit(self, label: str, message_count: int | None) -> tuple[str, int]:
+        """Commit the workdir unless it matches HEAD; return (sha, skipped)."""
+        self._ensure_initialized()
+        skipped = self._add_all()
+        tree = self._git(["write-tree"])
+        head = self._head_sha()
+        if head is not None:
+            head_tree, head_subject = self._git(
+                ["log", "-1", "--format=%T%n%s", head]
+            ).split("\n", 1)
+            # A new commit is still needed when only message_count advanced
+            # (e.g. after a rewind followed by turns that don't touch the FS):
+            # restore reads mc from the commit, so a stale one would truncate
+            # conversation history to the wrong point.
+            _, head_mc = _parse_commit_message(head_subject)
+            if head_tree == tree and (
+                message_count is None or head_mc == message_count
+            ):
+                return head, skipped
+        parent = ["-p", head] if head else []
+        message = _build_commit_message(label, message_count)
+        sha = self._git(["commit-tree", "--no-gpg-sign", tree, *parent, "-m", message])
+        self._git(["update-ref", self._ref, sha])
+        return sha, skipped
+
+    def _restore(self, sha: str) -> None:
+        self._ensure_initialized()
+        self._git(["cat-file", "-e", f"{sha}^{{commit}}"])
+        self._add_all()
+        self._git(["read-tree", "-u", "--reset", sha])
+        self._git(["update-ref", self._ref, sha])
+
+    def _add_all(self) -> int:
+        """Stage the workdir; return how many files git could not index."""
+        result = self._run_git(["add", "-A", "--ignore-errors", "--", self._pathspec])
+        if result.returncode not in (0, _ADD_PARTIAL_EXIT):
+            raise RuntimeError(result.stderr.strip())
+        skipped = [
+            line
+            for line in result.stderr.splitlines()
+            if line.startswith("error: unable to index file")
+            or line.endswith("does not have a commit checked out")
+        ]
+        for line in skipped:
+            logger.debug(f"Snapshot skipped: {line}")
+        return len(skipped)
+
+    def _head_sha(self) -> str | None:
+        result = self._run_git(["rev-parse", "--verify", "-q", self._ref])
+        return result.stdout.strip() if result.returncode == 0 else None
+
+    def _git(self, args: list[str]) -> str:
+        result = self._run_git(args)
+        if result.returncode != 0:
+            raise RuntimeError(f"git {args[0]} failed: {result.stderr.strip()}")
+        return result.stdout.strip()
+
+    def _run_git(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+        env = {
+            **os.environ,
+            **_IDENTITY_ENV,
+            "GIT_INDEX_FILE": os.path.join(self._git_dir, f"index-{self._session}"),
+        }
+        return _run(
+            ["git", f"--git-dir={self._git_dir}", f"--work-tree={self._work_tree}"]
+            + args,
+            cwd=self._work_tree,
+            env=env,
         )
-        if result.returncode == 0:
-            if allow_empty:
-                _git(
-                    self._shadow_dir,
-                    ["commit", "--allow-empty", "-m", commit_msg],
-                )
-                return _head_sha(self._shadow_dir)
-            # Nothing new to commit — return current HEAD sha if any
-            return _head_sha(self._shadow_dir)
-        _git(self._shadow_dir, ["commit", "-m", commit_msg])
-        return _head_sha(self._shadow_dir)
 
 
 # ---------------------------------------------------------------------------
@@ -297,219 +334,17 @@ def _parse_commit_message(raw: str) -> tuple[str, int | None]:
     return raw, None
 
 
-def _head_mc(git_dir: str) -> int | None:
-    """Return the message_count embedded in the HEAD commit message, or None."""
-    try:
-        result = subprocess.run(
-            ["git", "log", "-1", "--format=%s"],
-            cwd=git_dir,
-            capture_output=True,
-            text=True,
-            check=True,
-            timeout=_GIT_TIMEOUT_SECONDS,
-        )
-        _, mc = _parse_commit_message(result.stdout.strip())
-        return mc
-    except Exception:
-        return None
-
-
-def _head_sha(git_dir: str) -> str | None:
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=git_dir,
-            capture_output=True,
-            text=True,
-            check=True,
-            timeout=_GIT_TIMEOUT_SECONDS,
-        )
-        return result.stdout.strip()
-    except Exception:
-        return None
-
-
-def _git(cwd: str, args: list[str]):
-    subprocess.run(
-        ["git"] + args,
+def _run(
+    args: list[str], cwd: str | None = None, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        args,
         cwd=cwd,
-        check=True,
+        env=env,
         capture_output=True,
+        text=True,
         timeout=_GIT_TIMEOUT_SECONDS,
     )
-
-
-def _prune_walk(dirs: list[str], exclude_git: bool, ignored: frozenset[str]) -> None:
-    """Remove ``.git`` and ignored directories from an ``os.walk`` *dirs* list in-place."""
-    if exclude_git and ".git" in dirs:
-        dirs.remove(".git")
-    if ignored:
-        dirs[:] = [d for d in dirs if d not in ignored]
-
-
-def _copy_files(
-    src: str,
-    dst: str,
-    exclude_git: bool,
-    ignored: frozenset[str],
-    src_rel_paths: set[str],
-    incremental: bool = False,
-) -> tuple[int, int]:
-    """Copy all non-ignored files from *src* to *dst*, recording relative paths.
-
-    Returns (copied, skipped): files actually copied (incremental skips
-    excluded) and files that could not be read (e.g. permission-denied).
-    Unreadable files are recorded in *src_rel_paths* anyway — they exist in
-    the workdir, so a later restore's delete pass must still consider them
-    (its os.remove on an unreadable file fails and is ignored, leaving the
-    file in place).
-
-    When *incremental* is True and the destination file already matches the
-    source by size and mtime, ``shutil.copy2`` is skipped. ``copy2`` preserves
-    source mtime, so the comparison is stable across runs. This is only sound
-    when copying from a canonical source to a cache (snapshot direction). On
-    the restore path, *incremental* MUST be False — dst-newer there means the
-    user edited a file after the snapshot, and the restore is exactly the
-    operation that must undo those edits.
-    """
-    copied = 0
-    skipped = 0
-    for root, dirs, files in os.walk(src):
-        _prune_walk(dirs, exclude_git, ignored)
-        rel_root = os.path.relpath(root, src)
-        for fname in files:
-            src_path = os.path.join(root, fname)
-            try:
-                src_stat = os.stat(src_path)
-            except OSError:
-                continue
-            if not _stat_is_file(src_stat):
-                continue
-            rel_path = fname if rel_root == "." else os.path.join(rel_root, fname)
-            dst_path = os.path.join(dst, rel_path)
-            src_rel_paths.add(rel_path)
-            if incremental and _dst_is_up_to_date(dst_path, src_stat):
-                continue
-            try:
-                os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-                shutil.copy2(src_path, dst_path)
-            except OSError as e:
-                # One unreadable file (root-owned volume mount, protected
-                # key, ...) must not abort the whole snapshot.
-                logger.debug(f"Snapshot skipped {rel_path}: {e}")
-                skipped += 1
-                continue
-            copied += 1
-    return copied, skipped
-
-
-def _stat_is_file(st: os.stat_result) -> bool:
-    return stat.S_ISREG(st.st_mode)
-
-
-def _dst_is_up_to_date(dst_path: str, src_stat: os.stat_result) -> bool:
-    """Return True when *dst_path* exists and is at least as new as *src_stat*.
-
-    Same-size + mtime≥src guards against the common case (file unchanged) and
-    against editors that touch mtime without changing content. A pessimistic
-    miss just means we copy when we didn't have to — never the wrong content.
-    """
-    try:
-        dst_stat = os.stat(dst_path)
-    except OSError:
-        return False
-    if dst_stat.st_size != src_stat.st_size:
-        return False
-    return dst_stat.st_mtime >= src_stat.st_mtime
-
-
-def _collect_pruned_rel_paths(
-    root_dir: str, exclude_git: bool, ignored: frozenset[str]
-) -> set[str]:
-    """Walk *root_dir* (skipping .git and ignored dirs) and return relative file paths."""
-    paths: set[str] = set()
-    for root, dirs, files in os.walk(root_dir):
-        _prune_walk(dirs, exclude_git, ignored)
-        rel_root = os.path.relpath(root, root_dir)
-        for fname in files:
-            rel_path = fname if rel_root == "." else os.path.join(rel_root, fname)
-            paths.add(rel_path)
-    return paths
-
-
-def _remove_stale_files(dst: str, stale_paths: set[str]) -> None:
-    """Remove files in *stale_paths* from *dst* (silently ignoring OSError)."""
-    for rel_path in stale_paths:
-        try:
-            os.remove(os.path.join(dst, rel_path))
-        except OSError:
-            pass
-
-
-def _remove_empty_dirs(
-    root_dir: str, exclude_git: bool, ignored: frozenset[str]
-) -> None:
-    """Remove empty directories bottom-up, skipping .git and ignored trees."""
-    for root, dirs, files in os.walk(root_dir, topdown=False):
-        if root == root_dir:
-            continue
-        rel = os.path.relpath(root, root_dir)
-        rel_parts = rel.split(os.sep)
-        if exclude_git and ".git" in rel_parts:
-            continue
-        if ignored and any(part in ignored for part in rel_parts):
-            continue
-        try:
-            if not os.listdir(root):
-                os.rmdir(root)
-        except OSError:
-            pass
-
-
-def _sync_dirs(
-    src: str,
-    dst: str,
-    exclude_git: bool = True,
-    delete: bool = False,
-    ignore_dirs: "frozenset[str] | None" = None,
-    incremental: bool = False,
-) -> tuple[int, int]:
-    """Recursively copy *src* into *dst*, optionally deleting stale dst files.
-
-    Returns (copied, skipped) — see `_copy_files`.
-
-    Args:
-        src: Source directory path.
-        dst: Destination directory path.
-        exclude_git: When True, ``.git`` subtrees are skipped in both directions.
-        delete: When True, files present in *dst* but absent from *src* are removed.
-        ignore_dirs: Directory basenames to skip in both walks. Entries are
-            never copied from src and never deleted from dst — keeping
-            regenerable trees like ``node_modules`` out of the snapshot
-            without restore wiping them from the user's workdir.
-        incremental: When True, skip per-file copies whose dst already matches
-            the src by size and mtime. Only safe in the **workdir → shadow**
-            direction (take_snapshot): there, dst-newer-than-src means shadow
-            already has the current version. In the **shadow → workdir**
-            direction (restore_snapshot), dst-newer means the user modified
-            after the snapshot — that file *must* be overwritten — so this
-            flag must remain False on restore.
-    """
-    os.makedirs(dst, exist_ok=True)
-    ignored: frozenset[str] = ignore_dirs or frozenset()
-    src_rel_paths: set[str] = set()
-
-    copied, skipped = _copy_files(
-        src, dst, exclude_git, ignored, src_rel_paths, incremental
-    )
-
-    if not delete:
-        return copied, skipped
-
-    dst_rel_paths = _collect_pruned_rel_paths(dst, exclude_git, ignored)
-    _remove_stale_files(dst, dst_rel_paths - src_rel_paths)
-    _remove_empty_dirs(dst, exclude_git, ignored)
-    return copied, skipped
 
 
 def _report_progress(

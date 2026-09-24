@@ -1,4 +1,4 @@
-"""Tests for SnapshotManager — the shadow-git snapshot system for LLM /rewind."""
+"""Tests for SnapshotManager — the git snapshot store for LLM /rewind."""
 
 import os
 import subprocess
@@ -206,7 +206,7 @@ async def test_git_directory_in_workdir_is_preserved_after_restore(manager, work
 
 @pytest.mark.asyncio
 async def test_snapshot_does_not_include_workdir_git_contents(manager, workdir):
-    """The workdir's .git must never be copied into the shadow repo."""
+    """The workdir's .git must never be snapshotted."""
     git_dir = os.path.join(workdir, ".git")
     os.makedirs(git_dir, exist_ok=True)
     with open(os.path.join(git_dir, "secret"), "w") as f:
@@ -222,17 +222,22 @@ async def test_snapshot_does_not_include_workdir_git_contents(manager, workdir):
 
 
 @pytest.mark.asyncio
-async def test_take_snapshot_returns_none_when_nothing_to_commit(manager):
-    """Empty workdir → git has no HEAD after add → returns None gracefully."""
-    result = await manager.take_snapshot("empty workdir")
-    assert result is None
+async def test_snapshot_of_empty_workdir_is_restorable(manager, workdir):
+    sha = await manager.take_snapshot("empty workdir")
+    new_file = os.path.join(workdir, "later.txt")
+    with open(new_file, "w") as f:
+        f.write("later")
+
+    assert sha is not None
+    assert await manager.restore_snapshot(sha) is True
+    assert not os.path.exists(new_file)
 
 
 @pytest.mark.asyncio
 async def test_take_snapshot_returns_none_when_setup_fails(workdir):
     """If the snapshot dir cannot be created, take_snapshot returns None."""
     with tempfile.NamedTemporaryFile() as f:
-        # shadow dir parent is a file — os.makedirs will raise NotADirectoryError
+        # snapshot dir is a file — os.makedirs will raise NotADirectoryError
         mgr = SnapshotManager(f.name, "test-session", workdir)
         with open(os.path.join(workdir, "x.txt"), "w") as wf:
             wf.write("x")
@@ -303,3 +308,118 @@ async def test_take_init_snapshot_creates_commit_for_nonempty_workdir(
     assert len(snapshots) == 1
     assert snapshots[0].label == "init"
     assert snapshots[0].message_count == 0
+
+
+@pytest.mark.asyncio
+async def test_restore_drops_later_snapshots_from_the_list(manager, workdir):
+    file_path = os.path.join(workdir, "f.txt")
+    with open(file_path, "w") as f:
+        f.write("one")
+    first = await manager.take_snapshot("first", message_count=1)
+    with open(file_path, "w") as f:
+        f.write("two")
+    await manager.take_snapshot("second", message_count=2)
+
+    assert first is not None
+    assert await manager.restore_snapshot(first) is True
+    assert [s.label for s in manager.list_snapshots()] == ["first"]
+
+
+@pytest.mark.asyncio
+async def test_gitignored_files_are_neither_snapshotted_nor_restored(manager, workdir):
+    with open(os.path.join(workdir, ".gitignore"), "w") as f:
+        f.write("*.log\n")
+    log = os.path.join(workdir, "run.log")
+    with open(log, "w") as f:
+        f.write("before")
+    sha = await manager.take_snapshot("with ignored file")
+    with open(log, "w") as f:
+        f.write("after")
+
+    assert sha is not None
+    assert await manager.restore_snapshot(sha) is True
+    with open(log) as f:
+        assert f.read() == "after"
+
+
+@pytest.mark.asyncio
+async def test_default_ignore_dirs_apply_outside_git(manager, workdir):
+    cache = os.path.join(workdir, "node_modules", "pkg.js")
+    os.makedirs(os.path.dirname(cache))
+    sha = await manager.take_snapshot("before install")
+    with open(cache, "w") as f:
+        f.write("installed")
+
+    assert sha is not None
+    assert await manager.restore_snapshot(sha) is True
+    assert os.path.exists(cache)
+
+
+def _git(cwd, *args):
+    subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True)
+
+
+@pytest.mark.asyncio
+async def test_workdir_inside_repo_honours_parent_gitignore_and_stays_in_scope(
+    snapshot_dir, tmp_path
+):
+    _git(tmp_path, "init", "-q")
+    (tmp_path / ".gitignore").write_text("*.log\n")
+    (tmp_path / "outside.txt").write_text("outside before")
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    (sub / "f.txt").write_text("original")
+    (sub / "run.log").write_text("log before")
+    mgr = SnapshotManager(snapshot_dir, "sub-session", str(sub))
+    sha = await mgr.take_snapshot("in subdir")
+
+    (sub / "f.txt").write_text("modified")
+    (sub / "run.log").write_text("log after")
+    (tmp_path / "outside.txt").write_text("outside after")
+    assert sha is not None
+    assert await mgr.restore_snapshot(sha) is True
+
+    assert (sub / "f.txt").read_text() == "original"
+    assert (sub / "run.log").read_text() == "log after"
+    assert (tmp_path / "outside.txt").read_text() == "outside after"
+    status = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=tmp_path, capture_output=True, text=True
+    ).stdout.splitlines()
+    assert status == ["?? .gitignore", "?? outside.txt", "?? sub/"]
+
+
+@pytest.mark.asyncio
+async def test_sessions_of_one_project_keep_separate_histories(snapshot_dir, workdir):
+    with open(os.path.join(workdir, "f.txt"), "w") as f:
+        f.write("data")
+    a = SnapshotManager(snapshot_dir, "session-a", workdir)
+    b = SnapshotManager(snapshot_dir, "session-b", workdir)
+
+    await a.take_snapshot("from a")
+    await b.take_snapshot("from b")
+
+    assert [s.label for s in a.list_snapshots()] == ["from a"]
+    assert [s.label for s in b.list_snapshots()] == ["from b"]
+    assert len(os.listdir(snapshot_dir)) == 1  # one store for the project
+
+
+@pytest.mark.asyncio
+async def test_session_resumed_in_another_subdir_leaves_the_first_alone(
+    snapshot_dir, tmp_path
+):
+    _git(tmp_path, "init", "-q")
+    for name in ("a", "b"):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "f.txt").write_text(f"{name} original")
+    in_a = SnapshotManager(snapshot_dir, "resumed", str(tmp_path / "a"))
+    await in_a.take_snapshot("in a")
+    in_b = SnapshotManager(snapshot_dir, "resumed", str(tmp_path / "b"))
+    sha = await in_b.take_snapshot("in b")
+
+    (tmp_path / "b" / "f.txt").write_text("b modified")
+    assert sha is not None
+    assert await in_b.restore_snapshot(sha) is True
+
+    assert (tmp_path / "a" / "f.txt").read_text() == "a original"
+    assert (tmp_path / "b" / "f.txt").read_text() == "b original"
+    assert [s.label for s in in_b.list_snapshots()] == ["in b"]

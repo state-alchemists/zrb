@@ -7,7 +7,20 @@ from typing import TYPE_CHECKING
 
 from zrb.config.env_field import EnvField, on_off
 from zrb.config.helper import get_max_token_threshold, limit_token_threshold
+from zrb.util.git.worktree import get_repo_root
 from zrb.util.string.conversion import to_boolean
+
+
+def _rewind_enabled(raw: str) -> bool:
+    """Cast for `LLM_ENABLE_REWIND`, resolving `auto` against the workdir.
+
+    Inside a git repository a snapshot hashes only what `.gitignore` lets in,
+    once per project; outside one nothing bounds it, and a chat started in
+    `~` would hash the whole home directory.
+    """
+    if raw.strip().lower() in ("", "auto"):
+        return get_repo_root(os.getcwd()) is not None
+    return to_boolean(raw)
 
 
 class LLMContentMixin:
@@ -21,7 +34,7 @@ class LLMContentMixin:
     def __init__(self) -> None:
         self.DEFAULT_LLM_HISTORY_DIR: str = ""
         self.DEFAULT_LLM_HISTORY_BACKUP_RETAIN: str = "3"
-        self.DEFAULT_LLM_ENABLE_REWIND: str = "off"
+        self.DEFAULT_LLM_ENABLE_REWIND: str = "auto"
         self.DEFAULT_LLM_SNAPSHOT_DIR: str = ""
         self.DEFAULT_LLM_JOURNAL_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_DIR: str = ""
@@ -192,9 +205,14 @@ class LLMContentMixin:
     )
 
     LLM_ENABLE_REWIND = EnvField(
-        to_boolean,
+        _rewind_enabled,
         serialize=on_off,
-        doc="Enable/disable the rewind feature for LLM conversations.",
+        doc=(
+            "Snapshot the working directory before each turn so /rewind can "
+            "restore it. Accepts 'auto' (the default), or an explicit on/off.\n"
+            "'auto' resolves to on inside a git repository and off outside "
+            "one, where no .gitignore bounds what a snapshot hashes."
+        ),
     )
 
     LLM_SUBAGENT_HISTORY_RETAIN = EnvField(

@@ -129,7 +129,8 @@ def test_load_command_blank_argument_passes_through(conv_ui):
     assert conv_ui.handle_load_command("stray text") is False
 
 
-def test_rewind_unavailable_when_disabled(conv_ui):
+def test_rewind_unavailable_when_disabled(conv_ui, monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_ENABLE_REWIND", False)
     assert conv_ui.handle_rewind_command("rewind") is True
     assert any("not enabled" in line for line in conv_ui.outputs)
 

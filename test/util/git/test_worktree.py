@@ -139,3 +139,22 @@ def test_a_passed_deadline_runs_no_git_command(repo, store):
     assert get_repo_root(str(repo), past) is None
     assert snapshot_worktree(str(repo), store, past) is None
     assert diff_snapshots(str(repo), store, before, before, past) is None
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or os.geteuid() == 0, reason="needs POSIX permissions, non-root"
+)
+def test_unreadable_file_is_left_out_instead_of_failing_the_snapshot(repo, store):
+    secret = repo / "secret.key"
+    secret.write_text("protected\n")
+    secret.chmod(0)
+    try:
+        before = snapshot_worktree(str(repo), store)
+        (repo / "tracked.txt").write_text("changed\n")
+        after = snapshot_worktree(str(repo), store)
+    finally:
+        secret.chmod(0o600)
+
+    assert before and after
+    changed = diff_snapshots(str(repo), store, before, after)
+    assert changed is not None and changed[0] == ["tracked.txt"]
