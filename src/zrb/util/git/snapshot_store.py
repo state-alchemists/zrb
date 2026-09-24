@@ -32,7 +32,9 @@ import asyncio
 import os
 import re
 import shutil
+import stat
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -209,8 +211,18 @@ class SnapshotStore:
         return self._pathspec
 
     def delete(self) -> None:
-        """Remove the store and every object its snapshots wrote."""
-        shutil.rmtree(self._git_dir, ignore_errors=True)
+        """Remove the store and every object its snapshots wrote.
+
+        Git writes object files read-only, which Windows refuses to delete, so
+        each one refused is made writable and removed again — a store left
+        behind would keep copies of untracked files, secrets included."""
+        if sys.version_info >= (3, 12):
+            shutil.rmtree(self._git_dir, onexc=_remove_read_only)
+        else:
+            shutil.rmtree(
+                self._git_dir,
+                onerror=lambda fn, path, _info: _remove_read_only(fn, path, None),
+            )
 
     def ensure(self, deadline: float | None = None) -> None:
         """Create the store if needed and (re)write its ignore and attribute
@@ -375,6 +387,16 @@ def _anchored_pattern(rel_path: str) -> str:
     escaped = re.sub(r"([\\*?\[])", r"\\\1", rel_path.replace(os.sep, "/"))
     stripped = escaped.rstrip(" ")
     return "/" + stripped + "\\ " * (len(escaped) - len(stripped))
+
+
+def _remove_read_only(fn: Callable[[str], Any], path: str, _exc: Any) -> None:
+    """`rmtree` error handler: retry a refused removal once it is writable,
+    and ignore what still fails (a store is deleted best-effort)."""
+    try:
+        os.chmod(path, stat.S_IWRITE)
+        fn(path)
+    except OSError:
+        pass
 
 
 def _write(path: str, content: str) -> None:

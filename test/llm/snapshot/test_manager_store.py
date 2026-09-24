@@ -182,3 +182,30 @@ async def test_relative_snapshot_dir_resolves_against_the_process_cwd(
     await _rewind_twice_and_restore_first("snaps", str(sub))
     assert (sub / "snaps").is_dir()
     assert not (tmp_path / "snaps").exists()
+
+
+@pytest.mark.asyncio
+async def test_a_subdirectory_session_never_touches_files_outside_it(
+    snapshot_dir, tmp_path
+):
+    _git(tmp_path, "init", "-q")
+    (tmp_path / "README.md").write_text("readme")
+    for package in ("app", "lib"):
+        (tmp_path / "packages" / package).mkdir(parents=True)
+        (tmp_path / "packages" / package / "m.py").write_text(package)
+    app = SnapshotManager(snapshot_dir, "s", str(tmp_path / "packages" / "app"))
+    own = await app.take_snapshot("app", message_count=1)
+    root = SnapshotManager(snapshot_dir, "s", str(tmp_path))
+    foreign = await root.take_snapshot("root", message_count=1)
+    (tmp_path / "README.md").write_text("edited")
+    (tmp_path / "packages" / "app" / "m.py").write_text("changed")
+
+    assert own and foreign
+    # Its own snapshot restores its directory and leaves the rest alone...
+    assert await app.restore_snapshot(own) is True
+    assert (tmp_path / "packages" / "app" / "m.py").read_text() == "app"
+    assert (tmp_path / "packages" / "lib" / "m.py").read_text() == "lib"
+    assert (tmp_path / "README.md").read_text() == "edited"
+    # ...and another session's commit in the same store is refused.
+    assert await app.restore_snapshot(foreign) is False
+    assert (tmp_path / "README.md").read_text() == "edited"

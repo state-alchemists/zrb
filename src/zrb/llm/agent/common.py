@@ -16,6 +16,7 @@ from zrb.llm.agent.run.hook_result_extractor import (
 )
 from zrb.llm.agent.spill import maybe_spill
 from zrb.llm.agent.truncate import truncate_tool_content
+from zrb.llm.agent_state import get_current_turn_snapshots
 from zrb.llm.agent_tool_result import has_multimodal, tool_return
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.hook.manager import hook_manager
@@ -272,6 +273,16 @@ def wrap_toolset(
                 )
                 if blocked is not None:
                     return blocked
+                # Before a tool changes files in a repository this turn has
+                # not snapshotted — `Shell` in another `cwd`, a worktree — the
+                # self-review gate's baseline for it is taken here.
+                turn_snapshots = get_current_turn_snapshots()
+                if turn_snapshots is not None:
+                    await asyncio.to_thread(
+                        turn_snapshots.cover_tool_call,
+                        tool_capability(tool),
+                        tool_args or {},
+                    )
                 result = await super().call_tool(name, tool_args, ctx, tool)
                 tool_framed = isinstance(result, ToolReturn)
                 if not tool_framed:

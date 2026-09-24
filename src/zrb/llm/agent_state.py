@@ -35,6 +35,7 @@ from zrb.llm.approval.approval_channel import current_approval_channel
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
 
+    from zrb.llm.agent.run.turn_snapshots import TurnSnapshots
     from zrb.llm.agent.types import ToolApproved, ToolCallPart, ToolDenied
     from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
     from zrb.llm.hook.manager import HookManager
@@ -74,6 +75,15 @@ current_hook_manager: ContextVar["HookManager | None"] = ContextVar(
 # map this module never evicts, unlike the fresh full uuid4 below.
 current_agent_run_scope: ContextVar[str] = ContextVar(
     "current_agent_run_scope", default=""
+)
+# The repositories this turn has snapshotted for the self-review gate
+# (`agent/run/turn_snapshots.py`), or None when the gate is off. Bound by a
+# top-level run only; a delegated sub-agent inherits its parent's, so what it
+# changes is in the parent's review. The value is a mutable registry because
+# each tool call runs in a copy of the context: a snapshot one tool call adds
+# must be visible to the next.
+current_turn_snapshots: ContextVar["TurnSnapshots | None"] = ContextVar(
+    "current_turn_snapshots", default=None
 )
 # The per-session small/multimodal model override a UI's `/model small ...` /
 # `/model multimodal ...` set (`BaseUI.small_model`/`.multimodal_model`), or
@@ -132,6 +142,12 @@ def get_current_agent_run_scope() -> str:
     """Return the id identifying the current agent run (see
     `current_agent_run_scope`'s docstring above)."""
     return current_agent_run_scope.get()
+
+
+def get_current_turn_snapshots() -> "TurnSnapshots | None":
+    """Return the current turn's snapshot registry, or None when self-review
+    is off (see `current_turn_snapshots`'s docstring above)."""
+    return current_turn_snapshots.get()
 
 
 def get_current_small_model() -> "str | Model | None":

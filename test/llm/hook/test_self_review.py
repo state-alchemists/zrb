@@ -2,6 +2,7 @@
 Stop on a `Request changes` verdict, and never blocks on anything else."""
 
 import asyncio
+import os
 import subprocess
 import time
 from contextlib import contextmanager
@@ -29,7 +30,7 @@ def _start_snapshot(workdir, stores: list) -> dict:
     snapshots = SnapshotStore.create_temporary(str(workdir))
     stores.append(snapshots)
     tree, _ = snapshots.snapshot()
-    return {"tree": tree, "store": snapshots.git_dir}
+    return {"workdir": snapshots.work_tree, "tree": tree, "store": snapshots.git_dir}
 
 
 _FINDINGS = "## Finding\n\n**Problem:** off by one.\n\nRequest changes"
@@ -91,7 +92,9 @@ async def _stop(
         {
             "changed_paths": list(changed_paths),
             "wrote_files": bool(changed_paths),
-            "turn_start_snapshot": turn_start_snapshot,
+            "turn_start_snapshots": (
+                [turn_start_snapshot] if turn_start_snapshot else []
+            ),
             "run_scope": run_scope,
             "nested_run": nested_run,
         },
@@ -398,3 +401,32 @@ async def test_outside_git_the_review_still_gets_the_turns_diff(
     request = seen[0].event_data
     assert "- a.py" in request and "+x = 2" in request
     assert "Diff against the start of this turn" in request
+
+
+@pytest.mark.asyncio
+async def test_each_snapshotted_repository_gets_its_own_diff(
+    tmp_path, monkeypatch, store
+):
+    main, other = tmp_path / "main", tmp_path / "other"
+    for repo in (main, other):
+        repo.mkdir()
+        subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    monkeypatch.chdir(main)
+    starts = [_start_snapshot(main, store), _start_snapshot(other, store)]
+    (main / "a.py").write_text("x = 1\n")
+    (other / "b.py").write_text("y = 2\n")  # a shell command with cwd=other
+    manager = HookManager(search_dirs=[])
+
+    with _gate() as (seen, _):
+        await manager.execute_hooks(
+            HookEvent.STOP,
+            {"changed_paths": [], "turn_start_snapshots": starts},
+            stop_hook_active=False,
+        )
+
+    request = seen[0].event_data
+    other_root = os.path.realpath(other)
+    assert "- a.py" in request
+    assert f"- {os.path.join(other_root, 'b.py')}" in request
+    assert f"Diff against the start of this turn (in {other_root})" in request
+    assert "+y = 2" in request and "+x = 1" in request

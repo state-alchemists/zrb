@@ -211,19 +211,34 @@ def test_a_rename_lists_both_its_old_and_new_path(repo, store):
     assert sorted(changed[0]) == ["moved.txt", "tracked.txt"]
 
 
-@pytest.mark.skipif(os.name != "posix", reason="non-UTF-8 file names are POSIX-only")
-def test_non_utf8_names_and_content_do_not_break_a_snapshot(repo, store):
+def test_non_utf8_content_does_not_break_a_diff(repo, store):
     before = _snap(store)
-    raw_name = os.path.join(os.fsencode(str(repo)), b"latin\xe9.txt")
-    with open(raw_name, "wb") as f:
-        f.write(b"caf\xe9\n")
+    (repo / "latin.txt").write_bytes(b"caf\xe9\n")
     after = _snap(store)
 
-    assert before and after
-    changed = store.diff(before, after)
-    paths, diff = changed
+    paths, diff = store.diff(before, after)
+    assert paths == ["latin.txt"]
+    assert "caf\ufffd" in diff
+
+
+@pytest.mark.skipif(os.name != "posix", reason="non-UTF-8 file names are POSIX-only")
+def test_a_non_utf8_file_name_survives_a_snapshot(repo, store):
+    raw_name = os.path.join(os.fsencode(str(repo)), b"latin\xe9.txt")
+    try:
+        with open(raw_name, "wb") as f:
+            f.write(b"x\n")
+    except OSError:
+        # macOS (APFS) refuses a name that is not valid UTF-8 outright, so the
+        # case cannot arise there.
+        pytest.skip("this filesystem rejects non-UTF-8 file names")
+    os.remove(raw_name)
+    before = _snap(store)
+    with open(raw_name, "wb") as f:
+        f.write(b"x\n")
+    after = _snap(store)
+
+    paths, _ = store.diff(before, after)
     assert [os.fsencode(p) for p in paths] == [b"latin\xe9.txt"]
-    assert "caf�" in diff
 
 
 def test_the_diff_ignores_the_users_external_diff_and_colour(repo, store):
@@ -276,12 +291,45 @@ def test_inherited_git_variables_cannot_redirect_a_snapshot(repo, store, monkeyp
 
 
 def test_a_temporary_store_borrows_tracked_objects_instead_of_copying(repo, store):
-    tracked_blob = _git(repo, "hash-object", "tracked.txt").stdout.strip()
-    (repo / "untracked.txt").write_text("new\n")
-    untracked_blob = _git(repo, "hash-object", "untracked.txt").stdout.strip()
+    # Written as bytes, and hashed without filters: on Windows `write_text`
+    # would add CRLF, and the repository's `core.autocrlf` would hash that
+    # differently from the store, which stores bytes exactly.
+    (repo / "committed.txt").write_bytes(b"committed\n")
+    _git(repo, "add", "committed.txt")
+    _git(repo, "commit", "-qm", "add committed")
+    (repo / "untracked.txt").write_bytes(b"new\n")
+    tracked_blob = _git(
+        repo, "hash-object", "--no-filters", "committed.txt"
+    ).stdout.strip()
+    untracked_blob = _git(
+        repo, "hash-object", "--no-filters", "untracked.txt"
+    ).stdout.strip()
 
     _snap(store)
 
     own = os.path.join(store.git_dir, "objects")
     assert not os.path.exists(os.path.join(own, tracked_blob[:2], tracked_blob[2:]))
     assert os.path.exists(os.path.join(own, untracked_blob[:2], untracked_blob[2:]))
+
+
+def test_a_store_with_read_only_objects_is_still_deleted(repo):
+    store = SnapshotStore.create_temporary(str(repo))
+    (repo / "untracked.txt").write_bytes(b"new\n")
+    _snap(store)
+    for root, _dirs, files in os.walk(store.git_dir):
+        for name in files:
+            os.chmod(os.path.join(root, name), 0o444)  # as git leaves objects
+
+    store.delete()
+
+    assert not os.path.exists(store.git_dir)
+
+
+def test_deleting_a_store_twice_or_a_missing_one_never_raises(repo):
+    store = SnapshotStore.create_temporary(str(repo))
+    _snap(store)
+
+    store.delete()
+    store.delete()  # a cleanup racing an earlier one must not mask its error
+
+    assert not os.path.exists(store.git_dir)

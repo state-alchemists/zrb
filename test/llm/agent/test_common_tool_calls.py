@@ -247,3 +247,47 @@ async def test_call_tool_appends_override_note_when_args_were_edited():
     assert "ok" in res.return_value
     assert "[SYSTEM NOTE]" in res.return_value
     assert "b.txt" in res.return_value
+
+
+@pytest.mark.asyncio
+async def test_call_tool_snapshots_a_new_repository_before_the_tool_runs(tmp_path):
+    """The self-review baseline for a repository a tool is about to change is
+    taken at the chokepoint, before the tool itself runs."""
+    import subprocess
+
+    from pydantic_ai.toolsets import FunctionToolset
+
+    from zrb.contextvars import current_turn_snapshots
+    from zrb.llm.agent.common import wrap_toolset
+    from zrb.llm.agent.run.turn_snapshots import TurnSnapshots
+
+    other = tmp_path / "other"
+    other.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=other, check=True)
+    registry = TurnSnapshots()
+    roots_when_tool_ran: list = []
+
+    async def run_tool(*args, **kwargs):
+        roots_when_tool_ran.extend(s["workdir"] for s in registry.payload())
+        return "ok"
+
+    token = current_turn_snapshots.set(registry)
+    try:
+        with (
+            patch("zrb.llm.hook.manager.hook_manager.execute_hooks", _route_hooks({})),
+            patch(
+                "pydantic_ai.toolsets.WrapperToolset.call_tool",
+                new_callable=AsyncMock,
+                side_effect=run_tool,
+            ),
+        ):
+            await wrap_toolset(FunctionToolset(tools=[])).call_tool(
+                "Shell", {"command": "make", "cwd": str(other)}, None, None
+            )
+    finally:
+        current_turn_snapshots.reset(token)
+        registry.close()
+
+    import os
+
+    assert roots_when_tool_ran == [os.path.realpath(other)]

@@ -131,43 +131,84 @@ def _timed_out() -> HookResult:
 @dataclass
 class _Scope:
     paths: list[str]
-    diff: str
+    #: One `(root, diff)` per snapshotted root that changed.
+    diffs: list[tuple[str, str]]
 
 
 def _resolve_scope(payload: dict[str, Any], deadline: float) -> _Scope:
-    """What the turn changed: the working directory's tree at turn start
-    diffed against its tree now, which covers edits made through `Shell` and
-    changes committed mid-turn, and leaves out the user's earlier uncommitted
-    work. Paths the file tools named that this diff does not cover — ignored,
-    or outside the directory — are listed too. Every git command stops at
-    *deadline*.
+    """What the turn changed: each root the turn snapshotted — its working
+    directory's repository, and any other repository a tool changed files in
+    — diffed from its turn-start tree to its tree now. That covers edits made
+    through `Shell` and changes committed mid-turn, and leaves out the user's
+    earlier uncommitted work. Paths the file tools named that no diff covers —
+    ignored, or outside every snapshotted root — are listed too. Every git
+    command stops at *deadline*.
 
-    Without both snapshots (one failed) only the file tools' paths are listed,
-    with no diff: diffing them against HEAD would hand the reviewer the user's
-    earlier uncommitted work too."""
+    A root whose snapshot failed contributes no diff: diffing the file tools'
+    paths against HEAD instead would hand the reviewer the user's earlier
+    uncommitted work."""
     tool_paths = [p for p in payload.get("changed_paths") or [] if isinstance(p, str)]
-    start = payload.get("turn_start_snapshot")
-    before = start.get("tree") if isinstance(start, dict) else None
-    git_dir = start.get("store") if isinstance(start, dict) else None
-    if not (isinstance(before, str) and isinstance(git_dir, str)):
-        return _Scope(tool_paths, "")
-    store = SnapshotStore.open_temporary(git_dir, os.getcwd())
+    changed: list[str] = []
+    diffs: list[tuple[str, str]] = []
+    for start in payload.get("turn_start_snapshots") or []:
+        root_changes = _diff_root(start, deadline)
+        if root_changes is None:
+            continue
+        root, paths, diff = root_changes
+        changed.extend(os.path.join(root, path) for path in paths)
+        if diff:
+            diffs.append((root, diff))
+    covered = {os.path.normcase(path) for path in changed}
+    uncovered = [
+        _absolute(p)
+        for p in tool_paths
+        if os.path.normcase(_absolute(p)) not in covered
+    ]
+    return _Scope([_display(p) for p in changed + uncovered], diffs)
+
+
+def _diff_root(start: Any, deadline: float) -> tuple[str, list[str], str] | None:
+    """One snapshotted root's `(work tree, changed paths, diff)`, or None."""
+    if not isinstance(start, dict):
+        return None
+    workdir, before, git_dir = (
+        start.get("workdir"),
+        start.get("tree"),
+        start.get("store"),
+    )
+    if not (
+        isinstance(workdir, str)
+        and isinstance(before, str)
+        and isinstance(git_dir, str)
+    ):
+        return None
+    if not os.path.isdir(workdir):
+        return None  # e.g. a sub-agent's worktree, removed after it merged
+    store = SnapshotStore.open_temporary(git_dir, workdir)
     try:
         after, _ = store.snapshot(deadline)
-        tree_paths, diff = store.diff(before, after, deadline)
+        paths, diff = store.diff(before, after, deadline)
     except SnapshotError as e:
-        CFG.LOGGER.debug(f"Self-review could not diff the turn: {e}")
-        return _Scope(tool_paths, "")
-    root = store.work_tree
-    uncovered = [p for p in tool_paths if _tree_relative(p, root) not in tree_paths]
-    return _Scope(tree_paths + uncovered, _truncate(diff))
+        CFG.LOGGER.debug(f"Self-review could not diff {workdir}: {e}")
+        return None
+    return store.work_tree, paths, _truncate(diff)
 
 
-def _tree_relative(path: str, root: str) -> str:
-    """*path* as the tree diff names it: relative to the store's work tree.
-    The file tools expand `~`, so a tool path is expanded the same way."""
-    absolute = os.path.realpath(os.path.expanduser(path))
-    return os.path.relpath(absolute, root).replace(os.sep, "/")
+def _absolute(path: str) -> str:
+    """*path* resolved as the file tools resolve it: `~` expanded."""
+    return os.path.realpath(os.path.expanduser(path))
+
+
+def _display(path: str) -> str:
+    """*path* relative to the working directory when inside it, else absolute."""
+    cwd = os.path.realpath(os.getcwd())
+    try:
+        rel = os.path.relpath(path, cwd)
+    except ValueError:  # another drive on Windows
+        return path
+    if rel == os.pardir or rel.startswith(os.pardir + os.sep):
+        return path
+    return rel.replace(os.sep, "/")
 
 
 async def _run_reviewer(context: HookContext, scope: _Scope) -> str | None:
@@ -202,9 +243,16 @@ async def _run_reviewer(context: HookContext, scope: _Scope) -> str | None:
 
 def _create_review_request(scope: _Scope) -> str:
     listing = "\n".join(f"- {path}" for path in scope.paths)
+    cwd = os.path.realpath(os.getcwd())
+    blocks = [
+        "Diff against the start of this turn"
+        + ("" if os.path.normcase(root) == os.path.normcase(cwd) else f" (in {root})")
+        + f":\n\n```diff\n{diff}\n```"
+        for root, diff in scope.diffs
+    ]
     diff_block = (
-        f"Diff against the start of this turn:\n\n```diff\n{scope.diff}\n```"
-        if scope.diff
+        "\n\n".join(blocks)
+        if blocks
         else "No diff of this turn's changes is available."
     )
     return (

@@ -15,7 +15,8 @@ to a `git gc` there.
 Snapshot flow: snapshot into the session's index, ``commit-tree``,
 ``update-ref``.
 
-Restore flow: filter now-ignored paths out of ``<sha>``'s tree, snapshot (so
+Restore flow: refuse a commit outside this session's history, filter
+now-ignored paths out of ``<sha>``'s tree, snapshot (so
 files created since are in the index), then ``read-tree -u --reset`` to the
 filtered tree — which rewrites changed files, recreates deleted ones and
 removes the rest — then move the session ref back to ``<sha>``.
@@ -32,6 +33,7 @@ from typing import Callable, NamedTuple
 
 from zrb.util.git.snapshot_store import (
     DEFAULT_IGNORE_DIRS,
+    SnapshotError,
     SnapshotStore,
     get_repo_root,
     run_in_worker,
@@ -228,6 +230,12 @@ class SnapshotManager:
     def _restore(self, sha: str) -> None:
         store = self._get_store()
         store.git(["cat-file", "-e", f"{sha}^{{commit}}"])
+        # Only this session's own snapshots: each was built from its directory
+        # alone, so restoring one cannot touch a file outside it. Another
+        # session's commit in the same store — the repository root's, say —
+        # would rewrite whatever that session covered.
+        if store.run_git(["merge-base", "--is-ancestor", sha, self._ref]).returncode:
+            raise SnapshotError(f"{sha} is not one of this session's snapshots")
         tree = self._tree_without_ignored(store, sha)
         store.snapshot()
         store.git(["read-tree", "-u", "--reset", tree])

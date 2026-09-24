@@ -23,8 +23,8 @@ docs/contributing/maintainer-guide.md#llm-history-sanitization-layer.
 from __future__ import annotations
 
 import asyncio
+from contextvars import Token
 import os
-import threading
 import uuid
 from contextlib import ExitStack
 from dataclasses import replace
@@ -72,6 +72,7 @@ from zrb.llm.agent_state import (
     current_small_model,
     current_tool_confirmation,
     current_ui,
+    current_turn_snapshots,
     current_yolo,
     get_current_agent_run_scope,
 )
@@ -95,7 +96,7 @@ from zrb.llm.prompt.live_context import append_live_context
 from zrb.llm.sandbox.state import current_sandbox_policy, get_effective_sandbox_policy
 from zrb.llm.tool.ambient_state import active_worktree
 from zrb.llm.util.prompt import expand_prompt
-from zrb.util.git.snapshot_store import SnapshotError, SnapshotStore
+from zrb.llm.agent.run.turn_snapshots import TurnSnapshots
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -554,18 +555,7 @@ async def _execution_loop(
         message=current_message,
         run_history=current_history,
     )
-    # Created before the snapshot is awaited, so the `finally` below can
-    # delete it even when the turn is cancelled while the snapshot runs. A
-    # nested run takes none: what a sub-agent changes in the parent's working
-    # tree is in the parent's own diff, against a snapshot taken before it
-    # delegated; a sub-agent isolated in its own worktree changes a branch,
-    # which reaches that diff when the parent merges it.
-    snapshot_store = (
-        SnapshotStore.create_temporary(os.getcwd())
-        if CFG.LLM_SELF_REVIEW_ENABLED and not nested_run
-        else None
-    )
-    turn_ended = threading.Event()
+    cursor.snapshots, snapshots_token = _bind_turn_snapshots(nested_run)
     retry_state = RetryState()
     extension_state = ExtensionState()
     partial_run = PartialRunAccumulator()
@@ -575,10 +565,7 @@ async def _execution_loop(
     pending_checkpoint_tasks: list[asyncio.Task] = []
 
     try:
-        if snapshot_store is not None:
-            cursor.start_snapshot = await asyncio.to_thread(
-                _snapshot_turn_start, snapshot_store, turn_ended
-            )
+        await _cover_turn_workdir(cursor.snapshots)
         while True:
             cursor.begin_round(
                 sanitize_history(
@@ -648,9 +635,7 @@ async def _execution_loop(
         raise e
     finally:
         await _await_pending_checkpoints(pending_checkpoint_tasks)
-        if snapshot_store is not None:
-            turn_ended.set()
-            snapshot_store.delete()
+        _release_turn_snapshots(cursor.snapshots, snapshots_token)
 
 
 async def _stream_one_round(
@@ -816,26 +801,34 @@ def _retry_empty_completion(
     cursor.output = None
 
 
-def _snapshot_turn_start(
-    store: SnapshotStore, turn_ended: threading.Event
-) -> dict[str, str] | None:
-    """Snapshot the working directory into *store* as `{tree, store}` — the
-    store's path, which the gate reopens — or None when the snapshot failed.
+def _bind_turn_snapshots(
+    nested_run: bool,
+) -> "tuple[TurnSnapshots | None, Token[TurnSnapshots | None] | None]":
+    """A new snapshot registry for this turn, bound for its tool calls, while
+    the self-review gate is on. A nested run binds none: it inherits its
+    parent's, so what a sub-agent changes — in its own worktree too — is
+    snapshotted into the parent's turn and reviewed there."""
+    if not CFG.LLM_SELF_REVIEW_ENABLED or nested_run:
+        return None, None
+    snapshots = TurnSnapshots()
+    return snapshots, current_turn_snapshots.set(snapshots)
 
-    Runs in a worker thread that cancelling the turn cannot stop. If the turn
-    has already ended — and deleted *store* — by the time the snapshot's git
-    commands finish, they may have recreated it, so it is deleted again here.
-    The turn sets *turn_ended* before its own delete, so one of the two
-    always runs after the last write."""
-    try:
-        tree, _ = store.snapshot()
-    except SnapshotError as e:
-        CFG.LOGGER.debug(f"Turn-start snapshot failed: {e}")
-        tree = None
-    if turn_ended.is_set():
-        store.delete()
-        return None
-    return {"tree": tree, "store": store.git_dir} if tree is not None else None
+
+async def _cover_turn_workdir(snapshots: TurnSnapshots | None) -> None:
+    """Take the turn's baseline of its working directory's repository."""
+    if snapshots is not None:
+        await asyncio.to_thread(snapshots.cover_workdir, os.getcwd())
+
+
+def _release_turn_snapshots(
+    snapshots: TurnSnapshots | None,
+    token: "Token[TurnSnapshots | None] | None",
+) -> None:
+    """Unbind the turn's registry and delete its stores."""
+    if token is not None:
+        current_turn_snapshots.reset(token)
+    if snapshots is not None:
+        snapshots.close()
 
 
 async def _finish_turn(
@@ -874,7 +867,9 @@ async def _finish_turn(
             # Which files, and the working tree the turn started from, for a
             # hook that reviews them (self_review.py).
             "changed_paths": turn_changed_paths(cursor.accumulated),
-            "turn_start_snapshot": cursor.start_snapshot,
+            "turn_start_snapshots": (
+                cursor.snapshots.payload() if cursor.snapshots else []
+            ),
             # Which run this Stop belongs to, so a hook keeping per-turn
             # state (self_review.py's round counter) keeps it per run, and
             # whether that run is a delegated sub-agent's.

@@ -361,9 +361,11 @@ Duplicating this exact hook in `examples/llm-hooks/.zrb/hooks.json` would teach 
 
 ### Built-in: the self-review gate
 
-Off by default; `ZRB_LLM_SELF_REVIEW_ENABLED=auto` turns it on inside git repositories, `on` everywhere (ADR-0100). At the start of each turn it snapshots the working directory into a private temporary git store; at Stop it snapshots again and diffs the two. So the review covers exactly what the turn changed — edits made through `Shell` and changes committed mid-turn included, your own earlier uncommitted work excluded — and a reviewer agent with a fresh context reads that diff, using read-only `Read`/`Grep`/`Glob` to check the code around it. Paths the file tools named that the diff does not cover (ignored, or outside the directory) are listed for it to read. When a snapshot fails, it lists those paths with no diff — never `git diff HEAD`, which would include your earlier uncommitted work. It ends its report with `Request changes` or `LGTM`.
+Off by default; `ZRB_LLM_SELF_REVIEW_ENABLED=auto` turns it on inside git repositories, `on` everywhere (ADR-0100). At the start of each turn it snapshots the working directory's repository into a private temporary git store, and before a tool changes files in another repository — a `Shell` with another `cwd`, a worktree — it snapshots that one first; at Stop it snapshots each again and diffs them. So the review covers exactly what the turn changed — edits made through `Shell` and changes committed mid-turn included, your own earlier uncommitted work excluded — and a reviewer agent with a fresh context reads that diff, using read-only `Read`/`Grep`/`Glob` to check the code around it. It ends its report with `Request changes` or `LGTM`.
 
-Changes outside the working directory are not in the diff: a `Shell` command given another `cwd`, or a worktree `EnterWorktree` created under the gitignored `.zrb/worktree/`.
+Paths the file tools named that the diff does not cover (ignored, or outside every snapshotted repository) are listed for the reviewer to read. When a snapshot fails, it lists those paths with no diff — never `git diff HEAD`, which would include your earlier uncommitted work.
+
+Two kinds of change are not in the diff: a directory no tool argument names (a command that changes directory itself, `cd ../other && make`), and one outside every git repository and outside the working directory, which is never snapshotted because nothing bounds what it would hash.
 
 A delegated sub-agent's turn is not reviewed on its own: its changes land in your working tree, so they are part of the parent turn's diff, which is.
 
@@ -371,7 +373,7 @@ Snapshots write their index and objects into a private, owner-only temporary sto
 
 `Request changes` blocks the Stop: the findings become the agent's next prompt, with the instruction to check each against the code, fix the real ones, say why any is not a defect, and restate the final answer. Anything else — `LGTM`, an unclear verdict, a failed review — lets the turn end. `ZRB_LLM_SELF_REVIEW_MAX_ROUNDS` (default `2`) caps reviews per user turn, `ZRB_LLM_SELF_REVIEW_TIMEOUT` (default `240` seconds) bounds each review — the reviewer is cancelled, model request included, and the turn ends unreviewed — and `ZRB_LLM_SELF_REVIEW_MODEL` picks the reviewer's model (empty uses the run's own). The reviewer model receives the turn's diff.
 
-It is a Python hook (`llm/hook/self_review.py`), not a JSON one, because it needs things a JSON agent hook cannot express: a turn-start snapshot (the Stop payload's `turn_start_snapshot`, taken by the runner only while the gate is on, and never for a nested run — `nested_run` in the payload) and `changed_paths` as its scope, a round counter per run (`run_scope`), and the diff instead of the transcript as its input. The reviewer's instructions live in `llm/prompt/markdown/self_review.md`; override them through `LLM_PROMPT_DIR` like the other internal prompts.
+It is a Python hook (`llm/hook/self_review.py`), not a JSON one, because it needs things a JSON agent hook cannot express: turn-start snapshots (the Stop payload's `turn_start_snapshots`, one per repository the turn touched, taken only while the gate is on; a nested run — `nested_run` in the payload — adds to its parent's) and `changed_paths` as its scope, a round counter per run (`run_scope`), and the diff instead of the transcript as its input. The reviewer's instructions live in `llm/prompt/markdown/self_review.md`; override them through `LLM_PROMPT_DIR` like the other internal prompts.
 
 ---
 

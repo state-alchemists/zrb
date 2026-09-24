@@ -273,7 +273,7 @@ async def test_stop_event_data_carries_turn_slice_and_wrote_files_flag(
 
     monkeypatch.setenv("ZRB_LLM_SELF_REVIEW_ENABLED", "on" if self_review else "off")
     monkeypatch.setattr(
-        "zrb.llm.agent.run.runner.SnapshotStore.snapshot",
+        "zrb.llm.agent.run.turn_snapshots.SnapshotStore.snapshot",
         lambda store, deadline=None: ("tree-at-start", 0),
     )
     # Only the payload is under test here, not the gate that reads it.
@@ -330,13 +330,13 @@ async def test_stop_event_data_carries_turn_slice_and_wrote_files_flag(
     assert captured[0]["changed_paths"] == ["x"]
     # The turn-start snapshot is only taken while the self-review gate is on,
     # and its private store is gone once the turn ends.
-    # A nested run takes none: the parent's snapshot already covers it.
-    snapshot = captured[0]["turn_start_snapshot"]
+    # A nested run takes none of its own: it inherits its parent's registry.
+    snapshots = captured[0]["turn_start_snapshots"]
     if self_review and not nested:
-        assert snapshot["tree"] == "tree-at-start"
-        assert not os.path.exists(snapshot["store"])
+        assert [s["tree"] for s in snapshots] == ["tree-at-start"]
+        assert not os.path.exists(snapshots[0]["store"])
     else:
-        assert snapshot is None
+        assert snapshots == []
 
 
 @pytest.mark.asyncio
@@ -361,7 +361,7 @@ async def test_cancelling_a_turn_mid_snapshot_leaves_no_snapshot_store(monkeypat
 
     monkeypatch.setenv("ZRB_LLM_SELF_REVIEW_ENABLED", "on")
     monkeypatch.setattr(
-        "zrb.llm.agent.run.runner.SnapshotStore.snapshot", slow_snapshot
+        "zrb.llm.agent.run.turn_snapshots.SnapshotStore.snapshot", slow_snapshot
     )
     monkeypatch.setattr(
         "zrb.llm.hook.manager.register_self_review_hook", lambda manager: None
