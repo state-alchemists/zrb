@@ -64,39 +64,60 @@ def register_self_review_hook(manager: "HookManager") -> None:
 
 
 def create_self_review_hook() -> HookCallable:
-    """The gate itself. Its round counter restarts on each user turn's first
-    Stop, which is the one where `stop_hook_active` is still false."""
-    rounds = 0
+    """The gate itself. It counts blocking rounds per run — concurrent
+    sessions share one hook manager — and a run's count restarts on each user
+    turn's first Stop, the one where `stop_hook_active` is still false; a run
+    never blocked keeps no entry.
+
+    A delegated sub-agent's run is not reviewed: its changes land in the
+    parent's working tree, which the parent's own review diffs against a
+    snapshot taken before it delegated. Reviewing each sub-agent too would
+    multiply reviewer runs, and a sub-agent's diff would include whatever its
+    parallel siblings changed."""
+    rounds: dict[str, int] = {}
 
     async def self_review(context: HookContext) -> HookResult:
-        nonlocal rounds
-        if not context.stop_hook_active:
-            rounds = 0
-        if rounds >= CFG.LLM_SELF_REVIEW_MAX_ROUNDS:
-            return HookResult(output="Self-review skipped: round limit reached.")
-        deadline = time.monotonic() + CFG.LLM_SELF_REVIEW_TIMEOUT
         payload = context.event_data if isinstance(context.event_data, dict) else {}
-        # Not wrapped in `wait_for`: cancelling cannot stop a worker thread,
-        # and `asyncio.run` waits for it on exit anyway. The deadline stops
-        # its git commands instead.
-        scope = await asyncio.to_thread(_resolve_scope, payload, deadline)
-        if time.monotonic() >= deadline:
-            return _timed_out()
-        if not scope.paths:
-            return HookResult(output="Self-review skipped: no files changed.")
-        try:
-            report = await asyncio.wait_for(
-                _run_reviewer(context, scope),
-                timeout=max(deadline - time.monotonic(), 0),
+        if payload.get("nested_run"):
+            return HookResult(
+                output="Self-review skipped: a delegated sub-agent's run; the "
+                "parent's review covers its changes."
             )
-        except asyncio.TimeoutError:
-            return _timed_out()
-        if report is None or _verdict(report) != "request changes":
-            return HookResult(output=report or "Self-review produced no report.")
-        rounds += 1
-        return HookResult.block(f"{_BLOCK_PREFIX}\n\n{report.strip()}")
+        run = str(payload.get("run_scope") or "")
+        if not context.stop_hook_active:
+            rounds.pop(run, None)
+        if rounds.get(run, 0) >= CFG.LLM_SELF_REVIEW_MAX_ROUNDS:
+            return HookResult(output="Self-review skipped: round limit reached.")
+        result = await _review(context, payload)
+        if result.modifications.get("decision") == "block":
+            rounds[run] = rounds.get(run, 0) + 1
+        return result
 
     return self_review
+
+
+async def _review(context: HookContext, payload: dict[str, Any]) -> HookResult:
+    """One review of the turn in *payload*: a block carrying the findings, or
+    a pass-through result saying why the turn may end."""
+    deadline = time.monotonic() + CFG.LLM_SELF_REVIEW_TIMEOUT
+    # Not wrapped in `wait_for`: cancelling cannot stop a worker thread,
+    # and `asyncio.run` waits for it on exit anyway. The deadline stops
+    # its git commands instead.
+    scope = await asyncio.to_thread(_resolve_scope, payload, deadline)
+    if time.monotonic() >= deadline:
+        return _timed_out()
+    if not scope.paths:
+        return HookResult(output="Self-review skipped: no files changed.")
+    try:
+        report = await asyncio.wait_for(
+            _run_reviewer(context, scope),
+            timeout=max(deadline - time.monotonic(), 0),
+        )
+    except asyncio.TimeoutError:
+        return _timed_out()
+    if report is None or _verdict(report) != "request changes":
+        return HookResult(output=report or "Self-review produced no report.")
+    return HookResult.block(f"{_BLOCK_PREFIX}\n\n{report.strip()}")
 
 
 def _timed_out() -> HookResult:
@@ -144,9 +165,12 @@ def _resolve_scope(payload: dict[str, Any], deadline: float) -> _Scope:
 
 
 def _repo_relative(path: str, root: str | None) -> str:
+    """*path* as the tree diff names it. The file tools expand `~`, so a
+    tool path is expanded the same way before it is compared."""
     if root is None:
         return path
-    return os.path.relpath(os.path.abspath(path), root).replace(os.sep, "/")
+    absolute = os.path.abspath(os.path.expanduser(path))
+    return os.path.relpath(absolute, root).replace(os.sep, "/")
 
 
 async def _run_reviewer(context: HookContext, scope: _Scope) -> str | None:

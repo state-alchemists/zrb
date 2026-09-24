@@ -73,6 +73,7 @@ from zrb.llm.agent_state import (
     current_tool_confirmation,
     current_ui,
     current_yolo,
+    get_current_agent_run_scope,
 )
 from zrb.llm.approval.approval_channel import current_approval_channel
 from zrb.llm.config.limiter import LLMLimiter
@@ -187,6 +188,10 @@ async def run_agent(
         sandbox_policy if sandbox_policy is not None else current_sandbox_policy.get()
     )
 
+    # A run started while another is bound is nested — a delegated
+    # sub-agent. Read before this run binds its own scope below.
+    nested_run = bool(get_current_agent_run_scope())
+
     # Bind the run-scoped ContextVars through an ExitStack so set/reset stays
     # symmetric and exception-safe: if a later bind raises, the vars already
     # bound are still reset on close, and no token is reset that was never set.
@@ -288,6 +293,7 @@ async def run_agent(
             effective_approval_channel=effective_approval_channel,
             checkpoint_fn=checkpoint_fn,
             sandbox_deps=sandbox_deps,
+            nested_run=nested_run,
         )
     finally:
         stack.close()
@@ -542,6 +548,7 @@ async def _execution_loop(
     effective_approval_channel: "AnyApprovalChannel | None",
     checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None = None,
     sandbox_deps: Any = None,
+    nested_run: bool = False,
 ) -> tuple[Any, list[Any]]:
     # lazy: heavy third-party
     from pydantic_ai import DeferredToolRequests
@@ -552,8 +559,14 @@ async def _execution_loop(
         run_history=current_history,
     )
     # Created before the snapshot is awaited, so the `finally` below can
-    # delete it even when the turn is cancelled while the snapshot runs.
-    snapshot_store = create_snapshot_store() if CFG.LLM_SELF_REVIEW_ENABLED else None
+    # delete it even when the turn is cancelled while the snapshot runs. A
+    # nested run takes none: the parent's own snapshot, taken before it
+    # delegated, already covers what the sub-agent changes.
+    snapshot_store = (
+        create_snapshot_store()
+        if CFG.LLM_SELF_REVIEW_ENABLED and not nested_run
+        else None
+    )
     turn_ended = threading.Event()
     retry_state = RetryState()
     extension_state = ExtensionState()
@@ -617,7 +630,7 @@ async def _execution_loop(
 
             cursor.commit_round()
             finished = await _finish_turn(
-                cursor, extension_state, effective_hook_manager, print_fn
+                cursor, extension_state, effective_hook_manager, print_fn, nested_run
             )
             if finished is not None:
                 return finished
@@ -828,6 +841,7 @@ async def _finish_turn(
     extension_state: ExtensionState,
     effective_hook_manager: HookManager,
     print_fn: Callable[[str], Any],
+    nested_run: bool = False,
 ) -> tuple[Any, list[Any]] | None:
     """Fire STOP and settle the turn, or set up the round a hook asked for.
 
@@ -859,6 +873,11 @@ async def _finish_turn(
             # hook that reviews them (self_review.py).
             "changed_paths": turn_changed_paths(cursor.accumulated),
             "turn_start_snapshot": cursor.start_snapshot,
+            # Which run this Stop belongs to, so a hook keeping per-turn
+            # state (self_review.py's round counter) keeps it per run, and
+            # whether that run is a delegated sub-agent's.
+            "run_scope": get_current_agent_run_scope(),
+            "nested_run": nested_run,
             # Additive derived field: wrote_files OR looks like a
             # stated preference. wrote_files itself is left unchanged
             # for any other consumer; journal_compliance.py matches on

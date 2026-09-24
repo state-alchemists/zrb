@@ -170,3 +170,71 @@ def test_file_ignored_mid_turn_leaves_later_snapshots(repo, store):
 
     assert before and first and second
     assert diff_snapshots(str(repo), store, first, second) == ([], "")
+
+
+def test_changed_paths_are_exact_for_unusual_names(repo, store):
+    names = ["café.txt", " lead.txt", "tab\there.txt", 'quo"te.txt']
+    if os.name == "nt":
+        names = names[:2]
+    before = snapshot_worktree(str(repo), store)
+    for name in names:
+        (repo / name).write_text("x\n")
+    after = snapshot_worktree(str(repo), store)
+
+    assert before and after
+    changed = diff_snapshots(str(repo), store, before, after)
+    assert changed is not None
+    assert sorted(changed[0]) == sorted(names)
+
+
+def test_a_rename_lists_both_its_old_and_new_path(repo, store):
+    before = snapshot_worktree(str(repo), store)
+    (repo / "tracked.txt").rename(repo / "moved.txt")
+    after = snapshot_worktree(str(repo), store)
+
+    assert before and after
+    changed = diff_snapshots(str(repo), store, before, after)
+    assert changed is not None
+    assert sorted(changed[0]) == ["moved.txt", "tracked.txt"]
+
+
+@pytest.mark.skipif(os.name != "posix", reason="non-UTF-8 file names are POSIX-only")
+def test_non_utf8_names_and_content_do_not_break_a_snapshot(repo, store):
+    before = snapshot_worktree(str(repo), store)
+    raw_name = os.path.join(os.fsencode(str(repo)), b"latin\xe9.txt")
+    with open(raw_name, "wb") as f:
+        f.write(b"caf\xe9\n")
+    after = snapshot_worktree(str(repo), store)
+
+    assert before and after
+    changed = diff_snapshots(str(repo), store, before, after)
+    assert changed is not None
+    paths, diff = changed
+    assert [os.fsencode(p) for p in paths] == [b"latin\xe9.txt"]
+    assert "caf�" in diff
+
+
+def test_the_diff_ignores_the_users_external_diff_and_colour(repo, store):
+    _git(repo, "config", "diff.external", "false")
+    _git(repo, "config", "color.ui", "always")
+    before = snapshot_worktree(str(repo), store)
+    (repo / "tracked.txt").write_text("b\n")
+    after = snapshot_worktree(str(repo), store)
+
+    assert before and after
+    changed = diff_snapshots(str(repo), store, before, after)
+    assert changed is not None
+    assert "-a\n+b" in changed[1]
+    assert "\x1b[" not in changed[1]
+
+
+def test_a_store_inside_the_repository_is_not_snapshotted(repo):
+    store = str(repo / "tmp-store")
+    os.makedirs(os.path.join(store, "objects"))
+    before = snapshot_worktree(str(repo), store)
+    (repo / "tracked.txt").write_text("b\n")
+    after = snapshot_worktree(str(repo), store)
+
+    assert before and after
+    changed = diff_snapshots(str(repo), store, before, after)
+    assert changed is not None and changed[0] == ["tracked.txt"]

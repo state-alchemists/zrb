@@ -68,7 +68,12 @@ def snapshot_worktree(
     # are skipped by stat instead of re-hashed. A file git cannot index (no
     # permission, a nested repository with no commit) is left out rather than
     # failing the whole snapshot.
-    add = ["git", "add", "-A", "--ignore-errors"]
+    add = ["git", "add", "-A", "--ignore-errors", "--", "."]
+    # A store under the repository (a TMPDIR inside it) must not snapshot
+    # its own index and objects.
+    store_in_repo = _relpath_inside(store, root)
+    if store_in_repo is not None:
+        add.append(f":(exclude,literal){store_in_repo}")
     if _run(add, root, env, deadline, ok_codes=(0, 1)) is None:
         return None
 
@@ -113,17 +118,47 @@ def diff_snapshots(
     cwd: str, store: str, before: str, after: str, deadline: float | None = None
 ) -> tuple[list[str], str] | None:
     """The repo-relative paths that differ between two snapshots taken into
-    *store*, and their unified diff."""
+    *store*, and their unified diff.
+
+    The paths are exact: NUL-separated, so git neither quotes an unusual name
+    nor loses one to whitespace trimming, and without rename detection, so a
+    renamed file's old path is listed too. The diff ignores the user's
+    external diff tool and colour settings, which would garble it."""
     env = _store_env(cwd, store, deadline)
     if env is None:
         return None
-    names = _run(["git", "diff", "--name-only", before, after], cwd, env, deadline)
+    names = _run(
+        ["git", "diff", "--name-only", "-z", "--no-renames", before, after],
+        cwd,
+        env,
+        deadline,
+        strip=False,
+    )
     if names is None:
         return None
-    diff = _run(["git", "diff", before, after], cwd, env, deadline)
+    diff = _run(
+        ["git", "diff", "--no-ext-diff", "--no-color", before, after],
+        cwd,
+        env,
+        deadline,
+        # Diff text goes to a model: undecodable bytes become U+FFFD rather
+        # than lone surrogates a provider may reject.
+        errors="replace",
+    )
     if diff is None:
         return None
-    return [name for name in names.splitlines() if name], diff
+    return [name for name in names.split("\0") if name], diff
+
+
+def _relpath_inside(path: str, root: str) -> str | None:
+    """*path* relative to *root* when it lies strictly inside it, else None."""
+    try:
+        rel = os.path.relpath(os.path.realpath(path), os.path.realpath(root))
+    except ValueError:  # another drive on Windows
+        return None
+    if rel == "." or rel == os.pardir or rel.startswith(os.pardir + os.sep):
+        return None
+    return rel.replace(os.sep, "/")
 
 
 def _store_env(cwd: str, store: str, deadline: float | None) -> dict[str, str] | None:
@@ -150,7 +185,13 @@ def _run(
     ok_codes: tuple[int, ...] = (0,),
     stdin: str | None = None,
     strip: bool = True,
+    errors: str = "surrogateescape",
 ) -> str | None:
+    """Run one git command; its stdout, or None on failure or timeout.
+
+    Output is UTF-8 whatever the locale, decoded with *errors*: the default
+    keeps a non-UTF-8 file name's bytes intact (and re-encodes it the same way
+    on stdin), where strict decoding would raise mid-snapshot."""
     timeout = get_command_timeout(deadline)
     if timeout <= 0:
         return None
@@ -161,7 +202,8 @@ def _run(
             env=env,
             input=stdin,
             capture_output=True,
-            text=True,
+            encoding="utf-8",
+            errors=errors,
             timeout=timeout,
         )
     except (OSError, subprocess.TimeoutExpired):

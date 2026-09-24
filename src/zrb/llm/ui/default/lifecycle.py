@@ -26,6 +26,7 @@ class UILifecycle:
 
     def __init__(self, ui: "UI") -> None:
         self._ui = ui
+        self._init_snapshot_task: asyncio.Task | None = None
 
     async def cleanup_background_tasks(self):
         """Cancel and clean up all background tasks."""
@@ -45,6 +46,11 @@ class UILifecycle:
 
         await self._cancel_and_discard(ui.system_info_task)
         await self._cancel_and_discard(ui.refresh_task)
+        # Cancelling stops the coroutine, so no progress line reaches a
+        # torn-down UI; a git command already running in its worker thread
+        # still finishes, bounded by the snapshot's own git timeout.
+        await self._cancel_and_discard(self._init_snapshot_task)
+        self._init_snapshot_task = None
 
     def handle_application_run_error(self, exc: Exception):
         """Handle error during application.run_async (public API)."""
@@ -59,11 +65,10 @@ class UILifecycle:
         if ui.snapshot_manager is not None:
             # Started first so it takes the snapshot lock before the first
             # turn's snapshot; the UI does not wait for it.
-            self._track_background(
-                ui.application.create_background_task(
-                    _take_init_snapshot(ui.snapshot_manager, ui)
-                )
+            self._init_snapshot_task = ui.application.create_background_task(
+                _take_init_snapshot(ui.snapshot_manager, ui)
             )
+            self._track_background(self._init_snapshot_task)
         for trigger_fn in ui.triggers:
             trigger_task = ui.application.create_background_task(
                 ui.trigger_loop(trigger_fn)

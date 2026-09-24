@@ -91,15 +91,61 @@ class MockLifecycleUI:
 @pytest.mark.asyncio
 async def test_cleanup_background_tasks():
     ui = MockLifecycleUI()
-    setattr(ui.lifecycle_part, "_cancel_and_discard", AsyncMock())
+    tasks = [
+        ui.process_messages_task,
+        *ui.trigger_tasks,
+        ui.system_info_task,
+        ui.refresh_task,
+    ]
+    ui.background_tasks.update(tasks)
 
     await ui.cleanup_background_tasks()
 
-    assert (
-        getattr(ui.lifecycle_part, "_cancel_and_discard").call_count == 4
-    )  # process, 1 trigger, system_info, refresh
+    for task in tasks:
+        task.cancel.assert_called_once()
+    assert not ui.background_tasks
     assert ui.message_queue.empty()
     assert len(ui.trigger_tasks) == 0
+
+
+@pytest.mark.asyncio
+async def test_failed_run_cancels_a_still_running_init_snapshot():
+    """Teardown must not leave the init snapshot running against a UI that
+    is gone, nor let it report progress there afterwards."""
+    ui = MockLifecycleUI()
+    started = asyncio.Event()
+    progress = []
+
+    async def slow_init_snapshot(on_progress):
+        started.set()
+        await asyncio.Event().wait()  # still hashing when the UI goes away
+        progress.append(on_progress)
+
+    ui.snapshot_manager.take_init_snapshot = slow_init_snapshot
+    real_tasks = []
+
+    def create_bg_task(coro):
+        if not real_tasks:  # the init snapshot is started first
+            real_tasks.append(asyncio.ensure_future(coro))
+            return real_tasks[0]
+        coro.close()
+        return create_mock_task()
+
+    ui.application.create_background_task.side_effect = create_bg_task
+
+    async def run_fails():
+        await started.wait()
+        raise RuntimeError("app crashed")
+
+    ui.application.run_async = run_fails
+
+    with patch("builtins.print"), pytest.raises(RuntimeError, match="app crashed"):
+        await ui.run_async()
+
+    init_task = real_tasks[0]
+    assert init_task.cancelled()
+    assert init_task not in ui.background_tasks
+    assert progress == []
 
 
 @pytest.mark.asyncio

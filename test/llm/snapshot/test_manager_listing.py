@@ -376,3 +376,31 @@ async def test_file_ignored_after_a_snapshot_is_left_alone(manager, workdir):
     assert await manager.restore_snapshot(first) is True
     with open(secret) as f:
         assert f.read() == "v3"  # ignored now, so the old copy is not restored
+
+
+@pytest.mark.asyncio
+async def test_restore_is_byte_exact_whatever_gitattributes_say(
+    manager, workdir, monkeypatch
+):
+    # A smudge filter configured the way git-lfs is, and an eol rule: either
+    # would rewrite restored bytes if the project's attributes applied.
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "2")
+    monkeypatch.setenv("GIT_CONFIG_KEY_0", "filter.spy.smudge")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", "echo SMUDGED")
+    monkeypatch.setenv("GIT_CONFIG_KEY_1", "filter.spy.clean")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_1", "echo CLEANED")
+    with open(os.path.join(workdir, ".gitattributes"), "w") as f:
+        f.write("*.bin filter=spy\n*.txt text eol=crlf\n")
+    contents = {"data.bin": b"\x00raw\n", "lf.txt": b"one\ntwo\n"}
+    for name, data in contents.items():
+        with open(os.path.join(workdir, name), "wb") as f:
+            f.write(data)
+    sha = await manager.take_snapshot("attributes")
+    for name in contents:
+        os.remove(os.path.join(workdir, name))
+
+    assert sha is not None
+    assert await manager.restore_snapshot(sha) is True
+    for name, data in contents.items():
+        with open(os.path.join(workdir, name), "rb") as f:
+            assert f.read() == data

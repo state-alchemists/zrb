@@ -32,7 +32,8 @@ import logging
 import os
 import re
 import subprocess
-from typing import Callable, NamedTuple
+import threading
+from typing import Any, Callable, NamedTuple, TypeVar
 
 from zrb.util.git.worktree import get_repo_root, untrack_ignored
 from zrb.util.string.conversion import to_safe_filename
@@ -47,6 +48,18 @@ _GIT_TIMEOUT_SECONDS = 30
 # `git add --ignore-errors` exits 1 when it skipped a file it could not index
 # (permission denied, a nested repository with no commit) and added the rest.
 _ADD_PARTIAL_EXIT = 1
+
+# Restores must be byte-exact, so the project's `.gitattributes` must not
+# convert anything: no line-ending or working-tree-encoding conversion, and no
+# clean/smudge filter — an LFS smudge against this store would write pointer
+# files into the user's work tree. `info/attributes` outranks `.gitattributes`.
+_BYTE_EXACT_ATTRIBUTES = "* -text -filter -ident -working-tree-encoding\n"
+
+# Set in the worker thread running one snapshot or restore when the awaiting
+# coroutine is cancelled; `_run_git` stops at the next git command.
+_worker = threading.local()
+
+_T = TypeVar("_T")
 
 _IDENTITY_ENV = {
     "GIT_AUTHOR_NAME": "zrb-snapshot",
@@ -144,7 +157,7 @@ class SnapshotManager:
         """
         try:
             async with self._lock:
-                sha, _ = await asyncio.to_thread(self._commit, label, message_count)
+                sha, _ = await self._in_thread(self._commit, label, message_count)
                 return sha
         except Exception as e:
             logger.warning(f"Snapshot failed: {e}")
@@ -166,14 +179,14 @@ class SnapshotManager:
         started = False
         try:
             async with self._lock:
-                await asyncio.to_thread(self._ensure_initialized)
-                existing_sha = await asyncio.to_thread(self._head_sha)
+                await self._in_thread(self._ensure_initialized)
+                existing_sha = await self._in_thread(self._head_sha)
                 if existing_sha is not None:
                     _report_progress(on_progress, SnapshotProgress("up-to-date"))
                     return existing_sha
                 started = True
                 _report_progress(on_progress, SnapshotProgress("start"))
-                sha, skipped = await asyncio.to_thread(self._commit, "init", 0)
+                sha, skipped = await self._in_thread(self._commit, "init", 0)
             _report_progress(on_progress, SnapshotProgress("done", skipped))
             return sha
         except Exception as e:
@@ -211,11 +224,38 @@ class SnapshotManager:
         """Restore workdir to the state captured at the given snapshot SHA."""
         try:
             async with self._lock:
-                await asyncio.to_thread(self._restore, sha)
+                await self._in_thread(self._restore, sha)
             return True
         except Exception as e:
             logger.warning(f"restore_snapshot failed: {e}")
             return False
+
+    async def _in_thread(self, fn: Callable[..., _T], *args: Any) -> _T:
+        """Run *fn* in a worker thread, holding the caller's lock until the
+        thread is done even when the caller is cancelled.
+
+        Cancelling cannot stop a thread. Releasing the lock while one still
+        runs would let the next snapshot or restore race its git commands on
+        the same index — and a late `update-ref` from a cancelled snapshot
+        could move the session's history forward again after a rewind. So on
+        cancellation the thread is told to stop at its next git command, and
+        awaited, before the cancellation propagates."""
+        abort = threading.Event()
+
+        def work() -> _T:
+            _worker.abort = abort
+            try:
+                return fn(*args)
+            finally:
+                _worker.abort = None
+
+        future = asyncio.ensure_future(asyncio.to_thread(work))
+        try:
+            return await asyncio.shield(future)
+        except asyncio.CancelledError:
+            abort.set()
+            await asyncio.wait([future])
+            raise
 
     def _ensure_initialized(self):
         if self._initialized:
@@ -256,6 +296,8 @@ class SnapshotManager:
         os.makedirs(info_dir, exist_ok=True)
         with open(os.path.join(info_dir, "exclude"), "w", encoding="utf-8") as f:
             f.write(exclude)
+        with open(os.path.join(info_dir, "attributes"), "w", encoding="utf-8") as f:
+            f.write(_BYTE_EXACT_ATTRIBUTES)
         self._initialized = True
 
     def _commit(self, label: str, message_count: int | None) -> tuple[str, int]:
@@ -345,13 +387,25 @@ class SnapshotManager:
     def _run_git(
         self, args: list[str], index: str | None = None, stdin: str | None = None
     ) -> subprocess.CompletedProcess[str]:
+        if getattr(_worker, "abort", None) is not None and _worker.abort.is_set():
+            raise RuntimeError(
+                "Snapshot operation cancelled; stopped before running git " + args[0]
+            )
         env = {
             **os.environ,
             **_IDENTITY_ENV,
             "GIT_INDEX_FILE": index or self._index,
         }
         return _run(
-            ["git", f"--git-dir={self._git_dir}", f"--work-tree={self._work_tree}"]
+            [
+                "git",
+                # A global `core.fsmonitor` would start a watcher daemon for
+                # every snapshot store.
+                "-c",
+                "core.fsmonitor=false",
+                f"--git-dir={self._git_dir}",
+                f"--work-tree={self._work_tree}",
+            ]
             + args,
             cwd=self._work_tree,
             env=env,
@@ -415,13 +469,16 @@ def _run(
     env: dict[str, str] | None = None,
     stdin: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
+    # UTF-8 whatever the locale; surrogateescape keeps a non-UTF-8 file name's
+    # bytes intact through ls-files -z and back into update-index --stdin.
     return subprocess.run(
         args,
         cwd=cwd,
         env=env,
         input=stdin,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="surrogateescape",
         timeout=_GIT_TIMEOUT_SECONDS,
     )
 

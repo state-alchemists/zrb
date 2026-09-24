@@ -242,3 +242,40 @@ async def test_every_git_subprocess_call_has_a_timeout(manager, workdir):
     assert all(
         t is not None for t in _run_records_timeout.calls
     ), "every subprocess.run must pass timeout= -- found a call without one"
+
+
+@pytest.mark.asyncio
+async def test_a_cancelled_snapshot_never_moves_history_after_it_returns(
+    manager, workdir
+):
+    """The git commands run in a worker thread cancelling cannot stop. The
+    cancellation must wait for it, and stop it before it records the commit —
+    otherwise a late `update-ref` could land after a later rewind."""
+    import asyncio
+    import threading
+
+    with open(os.path.join(workdir, "f.txt"), "w") as f:
+        f.write("v1")
+    assert await manager.take_snapshot("kept", message_count=1) is not None
+    with open(os.path.join(workdir, "f.txt"), "w") as f:
+        f.write("v2")
+
+    in_commit = threading.Event()
+    release = threading.Event()
+
+    def slow_commit_tree(cmd, *args, **kwargs):
+        if "commit-tree" in cmd:
+            in_commit.set()
+            release.wait(5)
+        return _real_subprocess_run(cmd, *args, **kwargs)
+
+    with patch("zrb.llm.snapshot.manager.subprocess.run", side_effect=slow_commit_tree):
+        task = asyncio.create_task(manager.take_snapshot("late", message_count=2))
+        await asyncio.to_thread(in_commit.wait, 5)
+        task.cancel()
+        threading.Timer(0.2, release.set).start()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    assert release.is_set()  # the cancellation waited for the worker thread
+    assert [s.label for s in manager.list_snapshots()] == ["kept"]

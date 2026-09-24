@@ -73,7 +73,12 @@ def _gate(
 
 
 async def _stop(
-    manager, changed_paths=("a.py",), stop_hook_active=False, turn_start_snapshot=None
+    manager,
+    changed_paths=("a.py",),
+    stop_hook_active=False,
+    turn_start_snapshot=None,
+    run_scope="run-1",
+    nested_run=False,
 ):
     return await manager.execute_hooks(
         HookEvent.STOP,
@@ -81,6 +86,8 @@ async def _stop(
             "changed_paths": list(changed_paths),
             "wrote_files": bool(changed_paths),
             "turn_start_snapshot": turn_start_snapshot,
+            "run_scope": run_scope,
+            "nested_run": nested_run,
         },
         stop_hook_active=stop_hook_active,
     )
@@ -316,3 +323,49 @@ async def test_slow_git_cannot_stretch_a_review_past_its_timeout(
     assert timeouts and max(timeouts) <= 1
     assert seen == []
     assert _blocked(results) == []
+
+
+@pytest.mark.asyncio
+async def test_a_delegated_sub_agent_run_is_not_reviewed():
+    manager = HookManager(search_dirs=[])
+    with _gate(report=_FINDINGS) as (seen, _):
+        results = await _stop(manager, nested_run=True)
+
+    assert seen == []
+    assert _blocked(results) == []
+
+
+@pytest.mark.asyncio
+async def test_rounds_are_counted_per_run():
+    """Concurrent sessions share one hook manager: one run's new turn must
+    not reset another run's round count."""
+    manager = HookManager(search_dirs=[])
+    with _gate(report=_FINDINGS, max_rounds=2) as (seen, _):
+        await _stop(manager, run_scope="a")
+        await _stop(manager, run_scope="a", stop_hook_active=True)  # a at its cap
+        other = await _stop(manager, run_scope="b")  # b's first Stop
+        capped = await _stop(manager, run_scope="a", stop_hook_active=True)
+
+    assert len(_blocked(other)) == 1
+    assert _blocked(capped) == []
+    assert len(seen) == 3
+
+
+@pytest.mark.asyncio
+async def test_a_tool_path_under_home_matches_its_tree_path(
+    tmp_path, monkeypatch, store
+):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+    before = {"tree": snapshot_worktree(str(tmp_path), store), "store": store}
+    (tmp_path / "a.py").write_text("x = 1\n")
+    manager = HookManager(search_dirs=[])
+
+    with _gate() as (seen, _):
+        await _stop(manager, changed_paths=("~/a.py",), turn_start_snapshot=before)
+
+    request = seen[0].event_data
+    assert "- a.py" in request
+    assert "- ~/a.py" not in request
