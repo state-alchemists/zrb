@@ -2,6 +2,7 @@
 changed between two moments, without writing anything into the repository."""
 
 import os
+import shutil
 import subprocess
 import time
 
@@ -333,3 +334,31 @@ def test_deleting_a_store_twice_or_a_missing_one_never_raises(repo):
     store.delete()  # a cleanup racing an earlier one must not mask its error
 
     assert not os.path.exists(store.git_dir)
+
+
+def test_a_store_removed_by_a_racing_cleanup_mid_delete_never_raises(repo, monkeypatch):
+    store = SnapshotStore.create_temporary(str(repo))
+    _snap(store)
+    real_rmtree = shutil.rmtree
+
+    def racing_rmtree(path, *args, **kwargs):
+        real_rmtree(path)  # another cleanup wins, after `delete`'s own check
+        return real_rmtree(path, *args, **kwargs)
+
+    monkeypatch.setattr(shutil, "rmtree", racing_rmtree)
+
+    store.delete()
+
+    assert not os.path.exists(store.git_dir)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX permission bits")
+def test_a_persistent_store_is_owner_only_whatever_the_umask(repo, tmp_path):
+    old = os.umask(0o022)
+    try:
+        store = SnapshotStore(str(tmp_path / "snaps" / "project.git"), str(repo))
+        _snap(store)
+    finally:
+        os.umask(old)
+
+    assert os.stat(store.git_dir).st_mode & 0o077 == 0

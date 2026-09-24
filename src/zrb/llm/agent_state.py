@@ -178,6 +178,7 @@ __all__ = [
     "current_small_model",
     "current_multimodal_model",
     "current_model",
+    "current_turn_snapshots",
     "get_current_ui",
     "get_current_tool_confirmation",
     "get_current_yolo",
@@ -187,4 +188,5 @@ __all__ = [
     "get_current_small_model",
     "get_current_model",
     "get_current_multimodal_model",
+    "get_current_turn_snapshots",
 ]

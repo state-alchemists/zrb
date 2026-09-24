@@ -219,8 +219,9 @@ class SnapshotStore:
 
         Safe to call more than once, and on a store that was never created:
         cleanup paths race, and a second delete must not mask the error that
-        triggered the first. The error handler also absorbs the store
-        vanishing between the check below and `rmtree`."""
+        triggered the first. A store removed between the check below and
+        `rmtree` reaches the error handler as `FileNotFoundError`, which it
+        treats as done."""
         if not os.path.isdir(self._git_dir):
             return
         if sys.version_info >= (3, 12):
@@ -228,7 +229,7 @@ class SnapshotStore:
         else:
             shutil.rmtree(
                 self._git_dir,
-                onerror=lambda fn, path, _info: _remove_read_only(fn, path, None),
+                onerror=lambda fn, path, info: _remove_read_only(fn, path, info[1]),
             )
 
     def ensure(self, deadline: float | None = None) -> None:
@@ -241,8 +242,12 @@ class SnapshotStore:
         rel = os.path.relpath(self._workdir, self._work_tree)
         self._pathspec = "." if rel == "." else rel
         if not os.path.isdir(os.path.join(self._git_dir, "objects")):
-            os.makedirs(self._git_dir, exist_ok=True)
+            os.makedirs(self._git_dir, mode=0o700, exist_ok=True)
             _run(["git", "init", "-q", "--bare", self._git_dir], None, deadline)
+        # Owner-only, whatever the umask: the store holds copies of untracked
+        # files. A closed top directory keeps other users out of everything
+        # under it; re-applied each time, so a store made before this is fixed.
+        os.chmod(self._git_dir, 0o700)
         info = os.path.join(self._git_dir, "info")
         os.makedirs(info, exist_ok=True)
         _write(os.path.join(info, "exclude"), self._exclude_rules(repo_root, deadline))
@@ -396,9 +401,12 @@ def _anchored_pattern(rel_path: str) -> str:
     return "/" + stripped + "\\ " * (len(escaped) - len(stripped))
 
 
-def _remove_read_only(fn: Callable[[str], Any], path: str, _exc: Any) -> None:
-    """`rmtree` error handler: retry a refused removal once it is writable,
-    and ignore what still fails (a store is deleted best-effort)."""
+def _remove_read_only(fn: Callable[[str], Any], path: str, exc: Any) -> None:
+    """`rmtree` error handler: a path already gone — another cleanup won the
+    race — is done; a refused removal is retried once the path is writable;
+    what still fails is ignored (a store is deleted best-effort)."""
+    if isinstance(exc, FileNotFoundError):
+        return
     try:
         os.chmod(path, stat.S_IWRITE)
         fn(path)

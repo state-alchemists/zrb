@@ -124,3 +124,19 @@ def test_wrapper_matches_underlying_get(wrapper, var, value):
         assert wrapper() == var.get()
     finally:
         var.reset(token)
+
+
+def test_every_context_var_and_its_getter_is_exported():
+    """`from zrb.llm.agent_state import *` must see what `zrb.contextvars`
+    indexes; a new ContextVar left out of `__all__` silently goes missing."""
+    from contextvars import ContextVar
+
+    from zrb.llm import agent_state
+
+    names = {
+        name
+        for name, value in vars(agent_state).items()
+        if isinstance(value, ContextVar) and not name.startswith("_")
+    }
+    getters = {f"get_{name}" for name in names if hasattr(agent_state, f"get_{name}")}
+    assert names | getters <= set(agent_state.__all__)
