@@ -93,7 +93,11 @@ from zrb.llm.prompt.live_context import append_live_context
 from zrb.llm.sandbox.state import current_sandbox_policy, get_effective_sandbox_policy
 from zrb.llm.tool.ambient_state import active_worktree
 from zrb.llm.util.prompt import expand_prompt
-from zrb.util.git.worktree import snapshot_worktree
+from zrb.util.git.worktree import (
+    create_snapshot_store,
+    delete_snapshot_store,
+    snapshot_worktree,
+)
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -547,7 +551,9 @@ async def _execution_loop(
         run_history=current_history,
     )
     if CFG.LLM_SELF_REVIEW_ENABLED:
-        cursor.start_tree = await asyncio.to_thread(snapshot_worktree, os.getcwd())
+        cursor.start_snapshot = await asyncio.to_thread(
+            _snapshot_turn_start, os.getcwd()
+        )
     retry_state = RetryState()
     extension_state = ExtensionState()
     partial_run = PartialRunAccumulator()
@@ -626,6 +632,8 @@ async def _execution_loop(
         raise e
     finally:
         await _await_pending_checkpoints(pending_checkpoint_tasks)
+        if cursor.start_snapshot is not None:
+            delete_snapshot_store(cursor.start_snapshot["store"])
 
 
 async def _stream_one_round(
@@ -791,6 +799,17 @@ def _retry_empty_completion(
     cursor.output = None
 
 
+def _snapshot_turn_start(cwd: str) -> dict[str, str] | None:
+    """Snapshot the working tree into a new private store, or None (and no
+    store left behind) when *cwd* is not in a git repository."""
+    store = create_snapshot_store()
+    tree = snapshot_worktree(cwd, store)
+    if tree is None:
+        delete_snapshot_store(store)
+        return None
+    return {"tree": tree, "store": store}
+
+
 async def _finish_turn(
     cursor: TurnCursor,
     extension_state: ExtensionState,
@@ -826,7 +845,7 @@ async def _finish_turn(
             # Which files, and the working tree the turn started from, for a
             # hook that reviews them (self_review.py).
             "changed_paths": turn_changed_paths(cursor.accumulated),
-            "turn_start_tree": cursor.start_tree,
+            "turn_start_snapshot": cursor.start_snapshot,
             # Additive derived field: wrote_files OR looks like a
             # stated preference. wrote_files itself is left unchanged
             # for any other consumer; journal_compliance.py matches on

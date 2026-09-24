@@ -14,6 +14,7 @@ import asyncio
 import dataclasses
 import os
 import subprocess
+import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -23,17 +24,21 @@ from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.schema import AgentHookConfig, HookConfig
 from zrb.llm.hook.types import HookEvent, HookType
 from zrb.llm.prompt.prompt import get_prompt
-from zrb.util.git.worktree import diff_snapshots, get_repo_root, snapshot_worktree
+from zrb.util.git.worktree import (
+    GIT_COMMAND_TIMEOUT_SECONDS,
+    diff_snapshots,
+    get_repo_root,
+    snapshot_worktree,
+)
 from zrb.util.truncate import truncate_text
 
 if TYPE_CHECKING:
     from zrb.llm.hook.manager import HookManager
 
 _NAME = "self-review"
-#: A reviewer reads the diff, then greps and reads the code around it; a
-#: minute is too tight for that on a real change.
-_TIMEOUT_SECONDS = 300
-_GIT_TIMEOUT_SECONDS = 30
+#: Git commands the Stop side may run before the review: a snapshot (4), the
+#: tree diff (3), and the repository root (1), each bounded by its own timeout.
+_SCOPE_MAX_SECONDS = 8 * GIT_COMMAND_TIMEOUT_SECONDS
 _REVIEWER_TOOLS = ["Read", "Grep", "Glob"]
 _BLOCK_PREFIX = (
     "[SELF-REVIEW] An independent reviewer read this turn's changes and "
@@ -55,7 +60,11 @@ def register_self_review_hook(manager: "HookManager") -> None:
         config=AgentHookConfig(
             system_prompt=get_prompt("self_review"), tools=_REVIEWER_TOOLS
         ),
-        timeout=_TIMEOUT_SECONDS,
+        # The hook enforces `LLM_SELF_REVIEW_TIMEOUT` itself, inside its own
+        # event loop, where cancelling reaches the reviewer's model request.
+        # The executor's timeout only abandons the worker thread, so it is
+        # set past the hook's own worst case and never fires first.
+        timeout=CFG.LLM_SELF_REVIEW_TIMEOUT + _SCOPE_MAX_SECONDS + 30,
     )
     manager.add_hook(create_self_review_hook(), [HookEvent.STOP], config)
 
@@ -71,11 +80,22 @@ def create_self_review_hook() -> HookCallable:
             rounds = 0
         if rounds >= CFG.LLM_SELF_REVIEW_MAX_ROUNDS:
             return HookResult(output="Self-review skipped: round limit reached.")
+        deadline = time.monotonic() + CFG.LLM_SELF_REVIEW_TIMEOUT
         payload = context.event_data if isinstance(context.event_data, dict) else {}
         scope = await asyncio.to_thread(_resolve_scope, payload)
         if not scope.paths:
             return HookResult(output="Self-review skipped: no files changed.")
-        report = await _run_reviewer(context, scope)
+        try:
+            report = await asyncio.wait_for(
+                _run_reviewer(context, scope),
+                timeout=max(deadline - time.monotonic(), 0),
+            )
+        except asyncio.TimeoutError:
+            CFG.LOGGER.warning(
+                "Self-review timed out after %ss, not blocking.",
+                CFG.LLM_SELF_REVIEW_TIMEOUT,
+            )
+            return HookResult(output="Self-review skipped: timed out.")
         if report is None or _verdict(report) != "request changes":
             return HookResult(output=report or "Self-review produced no report.")
         rounds += 1
@@ -98,12 +118,18 @@ def _resolve_scope(payload: dict[str, Any]) -> _Scope:
     changes committed mid-turn, and leaves out the user's earlier uncommitted
     work. Paths the file tools named that this diff does not cover — ignored
     by git, or outside the repository — are listed too. Without a turn-start
-    tree, the file tools' paths are diffed against HEAD."""
+    snapshot, the file tools' paths are diffed against HEAD."""
     tool_paths = [p for p in payload.get("changed_paths") or [] if isinstance(p, str)]
     cwd = os.getcwd()
-    before = payload.get("turn_start_tree")
-    after = snapshot_worktree(cwd) if isinstance(before, str) and before else None
-    changed = diff_snapshots(cwd, before, after) if before and after else None
+    start = payload.get("turn_start_snapshot")
+    before = start.get("tree") if isinstance(start, dict) else None
+    store = start.get("store") if isinstance(start, dict) else None
+    after = snapshot_worktree(cwd, store) if before and store else None
+    changed = (
+        diff_snapshots(cwd, store, before, after)
+        if store and before and after
+        else None
+    )
     if changed is None:
         return _Scope(tool_paths, _read_head_diff(tool_paths), "HEAD")
     tree_paths, diff = changed
@@ -171,7 +197,7 @@ def _read_head_diff(paths: list[str]) -> str:
             cwd=os.getcwd(),
             capture_output=True,
             text=True,
-            timeout=_GIT_TIMEOUT_SECONDS,
+            timeout=GIT_COMMAND_TIMEOUT_SECONDS,
         )
     except (OSError, subprocess.TimeoutExpired) as e:
         CFG.LOGGER.debug(f"Self-review could not run git diff: {e}")

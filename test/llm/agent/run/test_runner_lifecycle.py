@@ -1,3 +1,4 @@
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -267,7 +268,8 @@ async def test_stop_event_data_carries_turn_slice_and_wrote_files_flag(
 
     monkeypatch.setenv("ZRB_LLM_SELF_REVIEW_ENABLED", "on" if self_review else "off")
     monkeypatch.setattr(
-        "zrb.llm.agent.run.runner.snapshot_worktree", lambda cwd: "tree-at-start"
+        "zrb.llm.agent.run.runner.snapshot_worktree",
+        lambda cwd, store: "tree-at-start",
     )
     # Only the payload is under test here, not the gate that reads it.
     monkeypatch.setattr(
@@ -313,8 +315,14 @@ async def test_stop_event_data_carries_turn_slice_and_wrote_files_flag(
     assert len(captured[0]["turn"]) == len(turn_messages)
     assert captured[0]["wrote_files"] is True
     assert captured[0]["changed_paths"] == ["x"]
-    # The turn-start tree is only taken while the self-review gate is on.
-    assert captured[0]["turn_start_tree"] == ("tree-at-start" if self_review else None)
+    # The turn-start snapshot is only taken while the self-review gate is on,
+    # and its private store is gone once the turn ends.
+    snapshot = captured[0]["turn_start_snapshot"]
+    if self_review:
+        assert snapshot["tree"] == "tree-at-start"
+        assert not os.path.exists(snapshot["store"])
+    else:
+        assert snapshot is None
 
 
 @pytest.mark.asyncio

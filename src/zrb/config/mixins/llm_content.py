@@ -32,6 +32,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_SELF_REVIEW_ENABLED: str = "off"
         self.DEFAULT_LLM_SELF_REVIEW_MAX_ROUNDS: str = "2"
         self.DEFAULT_LLM_SELF_REVIEW_MODEL: str = ""
+        self.DEFAULT_LLM_SELF_REVIEW_TIMEOUT: str = "240"
         self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW: str = "100"
         self.DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
@@ -178,6 +179,15 @@ class LLMContentMixin:
         doc=(
             "Model for the self-review reviewer. Empty uses the run's own "
             "model; a different model shares fewer of the author's blind spots."
+        ),
+    )
+
+    LLM_SELF_REVIEW_TIMEOUT = EnvField(
+        int,
+        doc=(
+            "Seconds one self-review may take. When it runs out the reviewer "
+            "is cancelled — its model request included — and the turn ends "
+            "unreviewed rather than waiting."
         ),
     )
 
