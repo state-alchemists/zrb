@@ -72,6 +72,22 @@ def test_diff_covers_only_what_changed_between_snapshots(repo, store):
     assert "user wip" not in changed_lines
 
 
+def test_diff_covers_a_file_deleted_from_the_working_tree(repo, store):
+    # Each snapshot starts from an empty index, but a file present at turn
+    # start is in the start tree, so its removal shows as a deletion.
+    before = snapshot_worktree(str(repo), store)
+
+    (repo / "tracked.txt").unlink()  # e.g. `rm` through a shell command
+    after = snapshot_worktree(str(repo), store)
+
+    assert before and after
+    changed = diff_snapshots(str(repo), store, before, after)
+    assert changed is not None
+    paths, diff = changed
+    assert paths == ["tracked.txt"]
+    assert "deleted file mode" in diff and "-a" in diff
+
+
 def test_snapshot_writes_nothing_into_the_repository(repo, store):
     (repo / ".env.local").write_text("AWS_SECRET=hunter2\n")  # untracked secret
     objects_before = _loose_objects(repo)
