@@ -342,7 +342,9 @@ def test_a_store_removed_by_a_racing_cleanup_mid_delete_never_raises(repo, monke
     real_rmtree = shutil.rmtree
 
     def racing_rmtree(path, *args, **kwargs):
-        real_rmtree(path)  # another cleanup wins, after `delete`'s own check
+        # Another cleanup — `delete`'s own, with its read-only handler, which
+        # Windows needs for git's object files — wins after `delete`'s check.
+        real_rmtree(path, *args, **kwargs)
         return real_rmtree(path, *args, **kwargs)
 
     monkeypatch.setattr(shutil, "rmtree", racing_rmtree)
@@ -362,3 +364,59 @@ def test_a_persistent_store_is_owner_only_whatever_the_umask(repo, tmp_path):
         os.umask(old)
 
     assert os.stat(store.git_dir).st_mode & 0o077 == 0
+
+
+def _kill_add_at_timeout(monkeypatch):
+    """Make the next `git add` behave like one killed at its timeout: it took
+    the index lock, and dies without removing it."""
+    real_run = subprocess.run
+
+    def run(argv, *args, **kwargs):
+        if "add" in argv:
+            open(kwargs["env"]["GIT_INDEX_FILE"] + ".lock", "w").close()
+            raise subprocess.TimeoutExpired(argv, GIT_COMMAND_TIMEOUT_SECONDS)
+        return real_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    return real_run
+
+
+def test_a_command_killed_at_its_timeout_does_not_lock_the_index(
+    repo, store, monkeypatch
+):
+    _snap(store)
+    real_run = _kill_add_at_timeout(monkeypatch)
+
+    with pytest.raises(SnapshotError, match=r"^git add timed out after 30s$"):
+        store.snapshot()
+    monkeypatch.setattr(subprocess, "run", real_run)
+
+    assert not os.path.exists(store.index + ".lock")
+    assert _snap(store)
+
+
+def test_a_timeout_leaves_a_lock_it_did_not_take(repo, store, monkeypatch):
+    _snap(store)
+    open(store.index + ".lock", "w").close()  # another git process holds it
+    _kill_add_at_timeout(monkeypatch)
+
+    with pytest.raises(SnapshotError):
+        store.snapshot()
+
+    assert os.path.exists(store.index + ".lock")
+
+
+def test_a_store_that_cannot_be_deleted_is_reported_with_its_path(
+    repo, monkeypatch, caplog
+):
+    store = SnapshotStore.create_temporary(str(repo))
+    _snap(store)
+    monkeypatch.setattr(shutil, "rmtree", lambda *args, **kwargs: None)
+
+    with caplog.at_level("WARNING", logger="zrb.util.git.snapshot_store"):
+        store.delete()
+
+    assert store.git_dir in caplog.text
+    monkeypatch.undo()
+    store.delete()
+    assert not os.path.exists(store.git_dir)

@@ -7,7 +7,7 @@ context (not the author's transcript) and read-only tools. A
 `Request changes` verdict blocks the Stop (`session_extension.py`'s
 block-to-continue), so the main agent checks the findings and fixes the real
 ones before answering; `LGTM`, a failed review, or an unclear verdict lets the
-turn end. `LLM_SELF_REVIEW_MAX_ROUNDS` caps the reviews per user turn.
+turn end. `LLM_SELF_REVIEW_MAX_ROUNDS` caps consecutive blocking reviews.
 """
 
 import asyncio
@@ -64,10 +64,12 @@ def register_self_review_hook(manager: "HookManager") -> None:
 
 
 def create_self_review_hook() -> HookCallable:
-    """The gate itself. It counts blocking rounds per run — concurrent
-    sessions share one hook manager — and a run's count restarts on each user
-    turn's first Stop, the one where `stop_hook_active` is still false; a run
-    never blocked keeps no entry.
+    """The gate itself. It counts a run's consecutive blocking reviews — per
+    run, since concurrent sessions share one hook manager. A run has an entry
+    only while the gate is holding its turn open: any review that lets the
+    turn end removes it, and a turn's first Stop (`stop_hook_active` still
+    false) restarts it, so a turn cancelled mid-continuation leaves at most
+    one entry for its run, cleared by that run's next turn.
 
     A delegated sub-agent's run is not reviewed: its changes land in the
     parent's working tree, which the parent's own review diffs against a
@@ -87,10 +89,13 @@ def create_self_review_hook() -> HookCallable:
         if not context.stop_hook_active:
             rounds.pop(run, None)
         if rounds.get(run, 0) >= CFG.LLM_SELF_REVIEW_MAX_ROUNDS:
+            rounds.pop(run, None)
             return HookResult(output="Self-review skipped: round limit reached.")
         result = await _review(context, payload)
         if result.modifications.get("decision") == "block":
             rounds[run] = rounds.get(run, 0) + 1
+        else:
+            rounds.pop(run, None)
         return result
 
     return self_review

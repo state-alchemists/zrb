@@ -23,6 +23,7 @@ from zrb.llm.hook.manager import hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.util.capabilities import model_capabilities
 from zrb.llm.util.prompt import expand_prompt
+from zrb.util.git.snapshot_store import run_in_worker
 from zrb.util.string.conversion import to_string
 
 if TYPE_CHECKING:
@@ -275,10 +276,12 @@ def wrap_toolset(
                     return blocked
                 # Before a tool changes files in a repository this turn has
                 # not snapshotted — `Shell` in another `cwd`, a worktree — the
-                # self-review gate's baseline for it is taken here.
+                # self-review gate's baseline for it is taken here. A
+                # cancelled call waits for the snapshot to stop, so the turn
+                # never deletes a store git is still writing.
                 turn_snapshots = get_current_turn_snapshots()
                 if turn_snapshots is not None:
-                    await asyncio.to_thread(
+                    await run_in_worker(
                         turn_snapshots.cover_tool_call,
                         tool_capability(tool),
                         tool_args or {},

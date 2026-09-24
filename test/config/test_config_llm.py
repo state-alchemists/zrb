@@ -233,9 +233,7 @@ def test_llm_self_review_is_off_by_default(monkeypatch, tmp_path):
     assert Config().LLM_SELF_REVIEW_ENABLED is False
 
 
-def test_llm_self_review_auto_is_on_only_inside_a_git_repository(
-    monkeypatch, tmp_path
-):
+def test_llm_self_review_auto_is_on_only_inside_a_git_repository(monkeypatch, tmp_path):
     import subprocess
 
     repo = tmp_path / "repo"

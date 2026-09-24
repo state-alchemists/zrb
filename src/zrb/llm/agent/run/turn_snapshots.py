@@ -94,10 +94,18 @@ class TurnSnapshots:
         self._add(root)
 
     def _add(self, work_tree: str) -> None:
-        store = SnapshotStore.create_temporary(work_tree)
+        """Snapshot *work_tree* into a new store and register it. Any failure
+        — a git error, or an `OSError` setting the store up — only leaves the
+        root uncovered: the turn runs on unreviewed there, and the store,
+        which may already hold copies of untracked files, is deleted."""
+        try:
+            store = SnapshotStore.create_temporary(work_tree)
+        except OSError as e:
+            logger.debug(f"Turn snapshot store for {work_tree} failed: {e}")
+            return
         try:
             tree, _ = store.snapshot()
-        except SnapshotError as e:
+        except (SnapshotError, OSError) as e:
             logger.debug(f"Turn snapshot of {work_tree} failed: {e}")
             store.delete()
             return

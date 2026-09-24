@@ -25,7 +25,6 @@ from zrb.llm.hook.executor import (
 from zrb.llm.hook.hook_loader import get_search_directories as _get_search_directories
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.journal_compliance import register_journal_compliance_hook
-from zrb.llm.hook.self_review import register_self_review_hook
 from zrb.llm.hook.manager_loading import HookManagerLoading
 from zrb.llm.hook.matcher import evaluate_matchers
 from zrb.llm.hook.registry import HookRegistry, hook_registry
@@ -35,6 +34,7 @@ from zrb.llm.hook.schema import (
     HookConfig,
     PromptHookConfig,
 )
+from zrb.llm.hook.self_review import register_self_review_hook
 from zrb.llm.hook.types import BLOCKING_EVENTS, HookEvent, HookType
 
 logger = logging.getLogger(__name__)

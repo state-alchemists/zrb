@@ -7,6 +7,7 @@ import pytest
 
 from zrb.llm.agent.run.turn_snapshots import TurnSnapshots
 from zrb.llm.permission import Capability
+from zrb.util.git.snapshot_store import SnapshotStore
 
 
 def _repo(path):
@@ -103,3 +104,27 @@ def test_closing_deletes_every_store_and_refuses_new_ones(tmp_path):
 
     assert registry.payload() == []
     assert not any(os.path.exists(store) for store in stores)
+
+
+def test_a_store_that_fails_to_set_up_is_deleted_and_the_turn_goes_on(
+    tmp_path, snapshots, monkeypatch
+):
+    main = _repo(tmp_path / "main")
+    created: list[str] = []
+    real_create = SnapshotStore.create_temporary
+
+    def create(workdir):
+        store = real_create(workdir)
+        created.append(store.git_dir)
+        return store
+
+    def fail(store, deadline=None):
+        raise PermissionError("chmod refused")
+
+    monkeypatch.setattr(SnapshotStore, "create_temporary", create)
+    monkeypatch.setattr(SnapshotStore, "snapshot", fail)
+
+    snapshots.cover_workdir(str(main))
+
+    assert snapshots.payload() == []
+    assert len(created) == 1 and not os.path.exists(created[0])

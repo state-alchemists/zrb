@@ -59,7 +59,8 @@ def _gate(
             except asyncio.CancelledError:
                 cancelled.append(context)
                 raise
-            return HookResult(success=success, output=report)
+            output = report.pop(0) if isinstance(report, list) else report
+            return HookResult(success=success, output=output)
 
         return reviewer
 
@@ -310,8 +311,8 @@ async def test_slow_git_cannot_stretch_a_review_past_its_timeout(
     timeouts: list[float] = []
 
     def hanging_git(args, *rest, timeout=None, **kwargs):
-        # Every git command from here on hangs until its own timeout — not a
-        # fake binary on PATH, which a noexec temp dir would skip.
+        # Every git command hangs until its own timeout. Patched in-process:
+        # a fake `git` script in a temp dir cannot run where it is noexec.
         if args[0] != "git":
             return real_run(args, *rest, timeout=timeout, **kwargs)
         timeouts.append(timeout)
@@ -342,6 +343,23 @@ async def test_a_delegated_sub_agent_run_is_not_reviewed():
 
     assert seen == []
     assert _blocked(results) == []
+
+
+@pytest.mark.asyncio
+async def test_a_review_that_lets_the_turn_end_clears_its_run_count():
+    """A run's count lives only while the gate holds its turn open, so a
+    passed review leaves nothing behind for a run that never returns."""
+    manager = HookManager(search_dirs=[])
+    reports = [_FINDINGS, "LGTM", _FINDINGS, _FINDINGS]
+    with _gate(report=reports, max_rounds=2):
+        await _stop(manager)
+        await _stop(manager, stop_hook_active=True)  # passes: the turn may end
+        # Another hook extends the turn: the next review starts a fresh count.
+        again = await _stop(manager, stop_hook_active=True)
+        still = await _stop(manager, stop_hook_active=True)
+
+    assert len(_blocked(again)) == 1
+    assert len(_blocked(still)) == 1
 
 
 @pytest.mark.asyncio

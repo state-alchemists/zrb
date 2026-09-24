@@ -341,9 +341,9 @@ async def test_stop_event_data_carries_turn_slice_and_wrote_files_flag(
 
 @pytest.mark.asyncio
 async def test_cancelling_a_turn_mid_snapshot_leaves_no_snapshot_store(monkeypatch):
-    """The snapshot runs in a worker thread that cancelling cannot stop; its
-    store is gone once that thread finishes, even though it finished after
-    the turn had already ended."""
+    """The snapshot runs in a worker thread that cancelling cannot stop, so
+    the cancellation waits for it: the store is deleted only once git has
+    stopped writing to it, and is gone when the cancellation surfaces."""
     started = threading.Event()
     release = threading.Event()
     finished = threading.Event()
@@ -378,12 +378,14 @@ async def test_cancelling_a_turn_mid_snapshot_leaves_no_snapshot_store(monkeypat
     await asyncio.to_thread(started.wait, 5)
 
     turn.cancel()
+    await asyncio.sleep(0.1)
+    waited_for_the_snapshot = not turn.done()
+    release.set()
     with pytest.raises(asyncio.CancelledError):
         await turn
-    release.set()
-    await asyncio.to_thread(finished.wait, 5)
-    await asyncio.sleep(0.1)
 
+    assert waited_for_the_snapshot
+    assert finished.is_set()
     assert len(stores) == 1
     assert not os.path.exists(stores[0])
 

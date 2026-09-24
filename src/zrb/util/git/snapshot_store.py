@@ -29,6 +29,8 @@ sequence of commands. Failures raise `SnapshotError`.
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import logging
 import os
 import re
 import shutil
@@ -96,6 +98,8 @@ _IDENTITY_ENV = {
 _worker = threading.local()
 
 _T = TypeVar("_T")
+
+logger = logging.getLogger(__name__)
 
 
 class SnapshotError(RuntimeError):
@@ -221,7 +225,12 @@ class SnapshotStore:
         cleanup paths race, and a second delete must not mask the error that
         triggered the first. A store removed between the check below and
         `rmtree` reaches the error handler as `FileNotFoundError`, which it
-        treats as done."""
+        treats as done.
+
+        Never raises, for the same reason: every caller is a cleanup path. A
+        store it could not fully remove is logged as a warning naming its
+        path instead, so its copies of untracked files can be removed by
+        hand."""
         if not os.path.isdir(self._git_dir):
             return
         if sys.version_info >= (3, 12):
@@ -230,6 +239,12 @@ class SnapshotStore:
             shutil.rmtree(
                 self._git_dir,
                 onerror=lambda fn, path, info: _remove_read_only(fn, path, info[1]),
+            )
+        if os.path.exists(self._git_dir):
+            logger.warning(
+                "Could not delete snapshot store %s; it may hold copies of "
+                "untracked files. Remove it by hand.",
+                self._git_dir,
             )
 
     def ensure(self, deadline: float | None = None) -> None:
@@ -246,7 +261,8 @@ class SnapshotStore:
             _run(["git", "init", "-q", "--bare", self._git_dir], None, deadline)
         # Owner-only, whatever the umask: the store holds copies of untracked
         # files. A closed top directory keeps other users out of everything
-        # under it; re-applied each time, so a store made before this is fixed.
+        # under it. Applied on every open, so a store created with looser
+        # permissions is tightened too.
         os.chmod(self._git_dir, 0o700)
         info = os.path.join(self._git_dir, "info")
         os.makedirs(info, exist_ok=True)
@@ -360,7 +376,9 @@ class SnapshotStore:
             f"--work-tree={self._work_tree}",
             *args,
         ]
-        return _complete(argv, self._work_tree, deadline, env, stdin, errors)
+        return _complete(
+            argv, self._work_tree, deadline, env, stdin, errors, f"git {args[0]}"
+        )
 
     def _exclude_rules(self, repo_root: str | None, deadline: float | None) -> str:
         rules = [f"{d}/" for d in sorted(self._ignore_dirs)]
@@ -404,7 +422,7 @@ def _anchored_pattern(rel_path: str) -> str:
 def _remove_read_only(fn: Callable[[str], Any], path: str, exc: Any) -> None:
     """`rmtree` error handler: a path already gone — another cleanup won the
     race — is done; a refused removal is retried once the path is writable;
-    what still fails is ignored (a store is deleted best-effort)."""
+    what still fails is left in place for `delete` to report."""
     if isinstance(exc, FileNotFoundError):
         return
     try:
@@ -415,7 +433,9 @@ def _remove_read_only(fn: Callable[[str], Any], path: str, exc: Any) -> None:
 
 
 def _write(path: str, content: str) -> None:
-    with open(path, "w", encoding="utf-8") as f:
+    # LF on Windows too: git reads an `alternates` line ending in `\r` as a
+    # path that does not exist.
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(content)
 
 
@@ -437,13 +457,22 @@ def _complete(
     env: dict[str, str],
     stdin: str | None = None,
     errors: str = "surrogateescape",
+    label: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Run *argv* within the deadline. Output is UTF-8 whatever the locale:
     `surrogateescape` keeps a non-UTF-8 file name's bytes intact, and
-    re-encodes them the same way on stdin."""
+    re-encodes them the same way on stdin.
+
+    A command killed at its timeout cannot remove the index lock it took, and
+    a lock left behind fails every later command on that index — for a
+    persistent store, across restarts. So the lock is removed for it, unless
+    it was already there before the command ran."""
+    label = label or " ".join(argv[:2])
     timeout = get_command_timeout(deadline)
     if timeout <= 0:
-        raise SnapshotError(f"No time left to run {' '.join(argv[:2])}")
+        raise SnapshotError(f"No time left to run {label}")
+    lock = env["GIT_INDEX_FILE"] + ".lock" if "GIT_INDEX_FILE" in env else None
+    locked_before = lock is not None and os.path.exists(lock)
     try:
         return subprocess.run(
             argv,
@@ -456,8 +485,9 @@ def _complete(
             timeout=timeout,
         )
     except subprocess.TimeoutExpired as e:
-        raise SnapshotError(
-            f"{' '.join(argv[:2])} timed out after {timeout:.0f}s"
-        ) from e
+        if lock is not None and not locked_before:
+            with contextlib.suppress(OSError):
+                os.remove(lock)
+        raise SnapshotError(f"{label} timed out after {timeout:.3g}s") from e
     except OSError as e:
         raise SnapshotError(f"Could not run git: {e}") from e

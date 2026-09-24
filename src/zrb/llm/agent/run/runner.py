@@ -23,10 +23,10 @@ docs/contributing/maintainer-guide.md#llm-history-sanitization-layer.
 from __future__ import annotations
 
 import asyncio
-from contextvars import Token
 import os
 import uuid
 from contextlib import ExitStack
+from contextvars import Token
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine, cast
 
@@ -63,6 +63,7 @@ from zrb.llm.agent.run.setup import (
     setup_print_and_events,
 )
 from zrb.llm.agent.run.turn_cursor import TurnCursor
+from zrb.llm.agent.run.turn_snapshots import TurnSnapshots
 from zrb.llm.agent_state import (
     AnyToolConfirmation,
     current_agent_run_scope,
@@ -71,8 +72,8 @@ from zrb.llm.agent_state import (
     current_multimodal_model,
     current_small_model,
     current_tool_confirmation,
-    current_ui,
     current_turn_snapshots,
+    current_ui,
     current_yolo,
     get_current_agent_run_scope,
 )
@@ -96,7 +97,7 @@ from zrb.llm.prompt.live_context import append_live_context
 from zrb.llm.sandbox.state import current_sandbox_policy, get_effective_sandbox_policy
 from zrb.llm.tool.ambient_state import active_worktree
 from zrb.llm.util.prompt import expand_prompt
-from zrb.llm.agent.run.turn_snapshots import TurnSnapshots
+from zrb.util.git.snapshot_store import run_in_worker
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -815,9 +816,11 @@ def _bind_turn_snapshots(
 
 
 async def _cover_turn_workdir(snapshots: TurnSnapshots | None) -> None:
-    """Take the turn's baseline of its working directory's repository."""
+    """Take the turn's baseline of its working directory's repository. A
+    cancelled turn waits for the snapshot to stop before it deletes the
+    stores (`run_in_worker`)."""
     if snapshots is not None:
-        await asyncio.to_thread(snapshots.cover_workdir, os.getcwd())
+        await run_in_worker(snapshots.cover_workdir, os.getcwd())
 
 
 def _release_turn_snapshots(

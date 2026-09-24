@@ -173,10 +173,11 @@ class LLMContentMixin:
         doc=(
             "Master switch for the built-in self-review Stop hook. On a turn "
             "that changed files, a reviewer agent with a fresh context reads "
-            "the working directory's diff since the turn started and reports "
-            "defects; findings extend the turn so the agent checks and fixes "
-            "them before answering. Costs a working-directory snapshot per "
-            "turn and one reviewer run per turn that changed files.\n"
+            "the diff since the turn started of every repository the turn "
+            "touched, and reports defects; findings extend the turn so the "
+            "agent checks and fixes them before answering. Costs two snapshots "
+            "per turn (at its start and at Stop) and one reviewer run per turn "
+            "that changed files.\n"
             "Accepts off (the default), 'auto' — on inside a git repository, "
             "off outside one, where no .gitignore bounds a snapshot — or on, "
             "anywhere."
@@ -186,8 +187,9 @@ class LLMContentMixin:
     LLM_SELF_REVIEW_MAX_ROUNDS = EnvField(
         int,
         doc=(
-            "Reviews allowed per user turn. Each round that finds defects "
-            "extends the turn once; after this many the turn ends regardless."
+            "Consecutive blocking reviews allowed. Each round that finds "
+            "defects extends the turn once; after this many the turn ends. A "
+            "review that lets the turn end resets the count."
         ),
     )
 
