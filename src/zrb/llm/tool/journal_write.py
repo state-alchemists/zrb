@@ -64,20 +64,16 @@ def log_activity(
 ) -> str:
     """Records one line of work in the journal's activity log.
 
-    Call this BEFORE composing your reply on any turn that changed files, or
-    that established a root cause, decision, or API quirk a later session would
-    otherwise rediscover. The write is recordkeeping, never the user-facing
-    result: after it, deliver the complete final answer — never end the turn
-    with only the "Logged to ..." return value.
+    Call this BEFORE your reply on a turn that changed files or established a
+    root cause, decision, or API quirk a later session would otherwise
+    rediscover; then deliver the complete answer — never end the turn on the
+    "Logged to ..." result. Skip greetings, clarifying questions, refusals,
+    single lookups, and anything already recorded.
 
-    Skip greetings, clarifying questions, refusals,
-    single lookups, and anything already recorded. Verify before recording — a
-    wrong entry misleads every future session, and a number or an absence needs
-    its source (`wc -l: 832`, `rg: 0 hits`) or stays out.
-
-    Writing is silent; do not announce it.
-
-    Use WriteJournalNote instead when the finding needs to be findable by topic.
+    Verify before recording: a wrong entry misleads every future session, and a
+    number or an absence needs its source (`wc -l: 832`, `rg: 0 hits`) or stays
+    out. Unless the user asked for the write, do not announce it. Use
+    WriteJournalNote when the finding must be findable by topic.
     """
     root = ensure_journal_tree()
     with _journal_lock(root):
@@ -117,7 +113,8 @@ def write_journal_note(
         Field(
             description=(
                 "Short heading for the note; also the link label used by "
-                "indexes and backlinks."
+                "indexes and backlinks. Retitling an existing slug relabels "
+                "its index entries."
             )
         ),
     ],
@@ -150,29 +147,33 @@ def write_journal_note(
             description=(
                 "One-line compression pinned to the always-injected index, "
                 "so the fact survives without a search — use it for anything "
-                "about the user themselves or how they want to be worked with."
+                "about the user themselves or how they want to be worked with. "
+                "Revising the note replaces the earlier line that ends in its "
+                "`([note](…))` link."
             )
         ),
     ] = None,
 ) -> str:
     """Records a durable finding as a topic note, findable by search later.
 
-    Call this BEFORE composing your reply, then deliver the complete final
-    answer — the write is recordkeeping, never the user-facing result. The note
-    must stand alone: a future session finds it by topic, so every field reads
-    as if the conversation is gone.
+    Call this BEFORE your reply, then deliver the complete answer — the write
+    is recordkeeping, never the result. Write every field to stand alone: a
+    future session finds the note by topic, with no memory of this
+    conversation.
 
-    Use this over LogActivity when a later session will need the finding by
-    topic rather than by date: who the user is or a preference they stated
-    (highest value, usually said exactly once — record it the turn it is said),
-    a root cause, a decision, or an API quirk.
+    Prefer it to LogActivity when a later session will need the finding by
+    topic: who the user is or a preference they stated (highest value, usually
+    said once — record it that turn), a root cause, a decision, or an API quirk.
 
-    Skip anything already recorded to your satisfaction — search first when
-    unsure, rather than writing a speculative or duplicate note. Verify before
-    recording: a wrong or spurious entry misleads every future session that
-    finds it.
+    Record only what this session verified: an unchecked diagnosis, or a
+    comparison with something you never saw, is a guess, and a wrong entry
+    misleads every session that finds it. Skip anything already recorded —
+    search first when unsure.
 
-    Writing is silent; do not announce it.
+    This tool maintains the indexes, backlinks, and git history, so never edit
+    journal files directly, even to tidy up after a write: revise here or
+    remove with DeleteJournalNote. Unless the user asked for the write, do not
+    announce it.
     """
     root = ensure_journal_tree()
     with _journal_lock(root):
@@ -201,7 +202,12 @@ def write_journal_note(
             heading="## Recent Insights",
         )
         if hud_line:
-            _upsert_hud_line(root, _HUD_SECTION[category], hud_line.strip())
+            _upsert_hud_line(
+                root,
+                _HUD_SECTION[category],
+                hud_line.strip(),
+                _posix_relpath(note_path, root),
+            )
         _git_commit(root, f"write: {category}/{slug}")
         return f"Wrote {_posix_relpath(note_path, root)}"
 
@@ -217,25 +223,15 @@ def delete_journal_note(
         str, Field(description="The note's existing filename, without `.md`.")
     ],
 ) -> str:
-    """Deletes a note and scrubs every reference to it across the journal.
+    """Deletes a note and every link to it: its category-index and Recent
+    Insights entries, its pinned HUD line, and any Related/Backlinks line in
+    other notes.
 
-    Removes the note file, then walks every other file in the journal and
-    drops any markdown link line resolving to it — its entry in the category
-    index, in the root index's Recent Insights, and any `## Related`/
-    `## Backlinks` line another note held pointing here. A textual scrub
-    rather than precise Related/Backlinks bookkeeping: every link in this
-    journal is a deterministic `- [title](relative/path.md)` line, so
-    removing any line whose link resolves to this file is as precise as
-    tracking the graph structurally.
-
-    Unlike WriteJournalNote, there is no History fallback here, and this tool
-    cannot undo the removal itself — confirm the target's actual content
-    first (Read it, or SearchJournal for it) rather than deleting on a
-    remembered or assumed slug, and wait for that result before this call —
-    don't batch the two. If the journal is git-backed, a human may still
-    recover the file from its git history outside this tool, but that is not
-    something you can do yourself. Silent otherwise: do not announce the
-    deletion in your reply.
+    There is no History fallback and you cannot undo it. Confirm the target
+    first (Read it, or SearchJournal for it) rather than deleting a remembered
+    or assumed slug, and wait for that result — don't batch the two. A human
+    can recover the file from the journal's git history; you cannot. Unless
+    the user asked for the deletion, do not announce it.
     """
     root = ensure_journal_tree()
     with _journal_lock(root):
@@ -263,13 +259,16 @@ delete_journal_note.__name__ = "DeleteJournalNote"
 
 def _scrub_links_to(root: str, target_path: str) -> None:
     """Drop every markdown link line elsewhere in *root* resolving to
-    *target_path*, rewriting each changed file once.
+    *target_path* — a bare `- [title](path)` line, or a HUD line ending in
+    `([note](path))` — rewriting each changed file once.
 
     ponytail: a full-tree scan per delete — the journal is personal notes,
     not a corpus, so O(files) here is cheap; upgrade to an index if this
     journal ever grows past a size where that stops being true.
     """
-    link_re = re.compile(r"^- \[[^\]]*\]\(([^)]+)\)\s*$")
+    link_re = re.compile(
+        r"^- (?:\[[^\]]*\]\(([^)]+)\)|.*\(\[note\]\(([^)]+)\)\))\s*$"
+    )
     target_abs = os.path.abspath(target_path)
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if not d.startswith(".")]
@@ -288,7 +287,10 @@ def _scrub_links_to(root: str, target_path: str) -> None:
                 match = link_re.match(line)
                 if match:
                     resolved = os.path.abspath(
-                        os.path.join(os.path.dirname(file_path), match.group(1))
+                        os.path.join(
+                            os.path.dirname(file_path),
+                            match.group(1) or match.group(2),
+                        )
                     )
                     if resolved == target_abs:
                         changed = True
@@ -607,10 +609,28 @@ def _register_in_index(
 def _register_link(
     index_path: str, rel_target: str, label: str, heading: str | None = None
 ) -> None:
-    """Append `- [label](rel_target)` to an index, under *heading* if given."""
+    """Append `- [label](rel_target)` to an index, under *heading* if given.
+
+    Exactly one entry per target survives: the first existing line for the
+    target is relabelled in place (keeping its position and section) and any
+    later ones — left by retitles before this rule existed — are dropped.
+    """
     entry = f"- [{label}]({rel_target})"
     text = _read_text(index_path)
-    if entry in text:
+    same_target = re.compile(rf"- \[[^\]]*\]\({re.escape(rel_target)}\)")
+    kept: list[str] = []
+    found = False
+    for line in text.splitlines():
+        if same_target.fullmatch(line):
+            if not found:
+                kept.append(entry)
+                found = True
+            continue
+        kept.append(line)
+    if found:
+        updated = "\n".join(kept) + "\n"
+        if updated != text:
+            _write_text(index_path, updated)
         return
     if heading is None:
         body = text.rstrip()
@@ -633,13 +653,35 @@ def _append_under_heading(text: str, heading: str, entry: str) -> str:
     return "\n".join([*lines[:start], "", *body, "", *lines[end:]]).rstrip() + "\n"
 
 
-def _upsert_hud_line(root: str, section: str, line: str) -> None:
-    entry = line if line.startswith("- ") else f"- {line}"
+def _upsert_hud_line(root: str, section: str, line: str, note_rel: str) -> None:
+    """Pin *line* under *section*, replacing any earlier line from the same note.
+
+    The trailing note link is the key: a revised note's HUD line supersedes
+    its old one instead of sitting beside it as a contradicting fact. A line
+    with no link to the note — one pinned before lines carried it — cannot be
+    attributed without guessing, so it stays until the section cap evicts it.
+    """
+    link = f"]({note_rel})"
+    base = f"- {line.removeprefix('- ')}"
+    entry = f"{base} ([note]({note_rel}))"
     index_path = os.path.join(root, "index.md")
     text = _read_text(index_path)
     if entry in text:
         return
-    text = _append_under_heading(text, f"## {section}", entry)
+    heading = f"## {section}"
+    lines = text.splitlines()
+    if heading in lines:
+        start = lines.index(heading) + 1
+        end = start
+        while end < len(lines) and not lines[end].startswith("## "):
+            end += 1
+        kept = [
+            ln
+            for ln in lines[start:end]
+            if link not in ln and ln != base and not ln.startswith(f"{base} ([note](")
+        ]
+        text = "\n".join([*lines[:start], *kept, *lines[end:]]) + "\n"
+    text = _append_under_heading(text, heading, entry)
     text = _cap_section_entries(
         text, f"## {section}", CFG.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION
     )

@@ -23,9 +23,9 @@ class PartialRunAccumulator:
     of tool calls and results accumulated before interruption.
     """
 
-    _current_tool_name: str | None = None
-    _current_tool_args: str | None = None
-    _current_tool_call_id: str | None = None
+    # Parallel calls stream all their ToolCallEvents before any result, so
+    # pending calls are keyed by tool_call_id rather than held in one slot.
+    _pending_calls: dict[str, tuple[str, str]] = field(default_factory=dict)
     # Public output: (tool_name, args_preview, result_preview) for each tool that
     # completed before the run was interrupted. Read by ``build_summary()`` and by
     # callers deciding whether a summary is worth appending.
@@ -56,24 +56,17 @@ class PartialRunAccumulator:
                 self.has_partial_text = True
 
         elif isinstance(event, ToolCallEvent):
-            self._current_tool_name = event.part.tool_name
-            self._current_tool_args = (
-                self._truncate(str(event.part.args))
-                if event.part.args is not None
-                else ""
+            args = event.part.args
+            self._pending_calls[event.part.tool_call_id] = (
+                event.part.tool_name,
+                self._truncate(str(args)) if args is not None else "",
             )
-            self._current_tool_call_id = event.part.tool_call_id
 
         elif isinstance(event, ToolResultEvent):
-            tool_name = event.part.tool_name
-            if tool_name is not None and tool_name == self._current_tool_name:
+            pending = self._pending_calls.pop(event.part.tool_call_id, None)
+            if pending is not None and pending[0] == event.part.tool_name:
                 result_preview = self._truncate(str(event.part.content))
-                self.completed_tools.append(
-                    (tool_name, self._current_tool_args or "", result_preview)
-                )
-            self._current_tool_name = None
-            self._current_tool_args = None
-            self._current_tool_call_id = None
+                self.completed_tools.append((*pending, result_preview))
 
     def build_summary(self) -> str:
         lines: list[str] = []
@@ -83,10 +76,18 @@ class PartialRunAccumulator:
             lines.append(f"Error: {self.error}")
 
         if self.is_interrupted:
-            lines.append("The previous attempt was interrupted before completing.")
+            lines.append(
+                "The previous attempt was interrupted before completing — "
+                "usually by the user, which can mean they disagreed with its "
+                "direction."
+            )
 
         if self.completed_tools:
-            lines.append("Before failing, the agent made these tool calls:")
+            lines.append(
+                "Before failing, the agent made these tool calls (results cut "
+                f"at {_TOOL_RESULT_PREVIEW_CHARS} characters — re-read anything "
+                "you need in full):"
+            )
             for name, args, result in self.completed_tools:
                 lines.append(f"  → {name}")
                 if args:
@@ -99,8 +100,9 @@ class PartialRunAccumulator:
             )
 
         lines.append(
-            "Review the work already done to avoid repeating it. "
-            "If the results above are useful, continue from them directly."
+            "Review the work already done to avoid repeating it. The results "
+            "above are real; the approach that produced them may not be right. "
+            "Follow the user's latest message over the earlier plan."
         )
         return "\n".join(lines)
 

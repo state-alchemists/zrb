@@ -21,7 +21,8 @@ def search_journal(
     Searches the journal for a regex pattern.
 
     Returns matching lines with file names and line numbers. A zero-hit search
-    suggests nearby note titles under `did_you_mean`.
+    suggests nearby note titles under `did_you_mean` — and is not proof the
+    topic was never recorded: try those titles or a synonym before concluding.
 
     Call this before WriteJournalNote or DeleteJournalNote whenever you are
     not certain a slug is free, or that it names the note you intend to touch.

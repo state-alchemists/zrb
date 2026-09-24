@@ -223,6 +223,26 @@ def test_delete_journal_note_removes_the_file_and_every_reference(writable_journ
     assert "[First]" not in _read(writable_journal, "projects", "second.md")
 
 
+def test_delete_journal_note_removes_its_pinned_hud_line(writable_journal):
+    from zrb.llm.tool.journal_write import delete_journal_note, write_journal_note
+
+    write_journal_note(
+        category="technical",
+        slug="stale",
+        title="Stale",
+        context="c",
+        finding="f",
+        source="s",
+        hud_line="A fact that is about to be retracted.",
+    )
+
+    delete_journal_note("technical", "stale")
+
+    index = _read(writable_journal, "index.md")
+    assert "about to be retracted" not in index
+    assert "technical/stale.md" not in index
+
+
 def test_delete_journal_note_rejects_a_missing_slug(writable_journal):
     from zrb.llm.tool.journal_write import delete_journal_note, write_journal_note
 
