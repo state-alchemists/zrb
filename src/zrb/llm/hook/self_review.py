@@ -13,7 +13,6 @@ turn end. `LLM_SELF_REVIEW_MAX_ROUNDS` caps the reviews per user turn.
 import asyncio
 import dataclasses
 import os
-import subprocess
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -24,8 +23,7 @@ from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.schema import AgentHookConfig, HookConfig
 from zrb.llm.hook.types import HookEvent, HookType
 from zrb.llm.prompt.prompt import get_prompt
-from zrb.util.git.worktree import (diff_snapshots, get_command_timeout,
-                                   get_repo_root, snapshot_worktree)
+from zrb.util.git.worktree import diff_snapshots, get_repo_root, snapshot_worktree
 from zrb.util.truncate import truncate_text
 
 if TYPE_CHECKING:
@@ -113,8 +111,6 @@ def _timed_out() -> HookResult:
 class _Scope:
     paths: list[str]
     diff: str
-    #: What the diff is taken against, as the reviewer reads it.
-    baseline: str
 
 
 def _resolve_scope(payload: dict[str, Any], deadline: float) -> _Scope:
@@ -122,9 +118,12 @@ def _resolve_scope(payload: dict[str, Any], deadline: float) -> _Scope:
     diffed against the tree now, which covers edits made through `Shell` and
     changes committed mid-turn, and leaves out the user's earlier uncommitted
     work. Paths the file tools named that this diff does not cover — ignored
-    by git, or outside the repository — are listed too. Without a turn-start
-    snapshot, the file tools' paths are diffed against HEAD. Every git command
-    stops at *deadline*."""
+    by git, or outside the repository — are listed too. Every git command
+    stops at *deadline*.
+
+    Without both snapshots — outside git, or a snapshot that failed — only the
+    file tools' paths are listed, with no diff: diffing them against HEAD
+    would hand the reviewer the user's earlier uncommitted work too."""
     tool_paths = [p for p in payload.get("changed_paths") or [] if isinstance(p, str)]
     cwd = os.getcwd()
     start = payload.get("turn_start_snapshot")
@@ -137,11 +136,11 @@ def _resolve_scope(payload: dict[str, Any], deadline: float) -> _Scope:
         else None
     )
     if changed is None:
-        return _Scope(tool_paths, _read_head_diff(tool_paths, deadline), "HEAD")
+        return _Scope(tool_paths, "")
     tree_paths, diff = changed
     root = get_repo_root(cwd, deadline)
     uncovered = [p for p in tool_paths if _repo_relative(p, root) not in tree_paths]
-    return _Scope(tree_paths + uncovered, _truncate(diff), "the start of this turn")
+    return _Scope(tree_paths + uncovered, _truncate(diff))
 
 
 def _repo_relative(path: str, root: str | None) -> str:
@@ -183,35 +182,15 @@ async def _run_reviewer(context: HookContext, scope: _Scope) -> str | None:
 def _create_review_request(scope: _Scope) -> str:
     listing = "\n".join(f"- {path}" for path in scope.paths)
     diff_block = (
-        f"Diff against {scope.baseline}:\n\n```diff\n{scope.diff}\n```"
+        f"Diff against the start of this turn:\n\n```diff\n{scope.diff}\n```"
         if scope.diff
-        else f"No diff against {scope.baseline} is available."
+        else "No diff of this turn's changes is available."
     )
     return (
         f"This turn changed these files:\n\n{listing}\n\n{diff_block}\n\n"
         "A listed file with no hunk above is untracked, ignored by git, outside "
         "the repository, or already committed: read it directly."
     )
-
-
-def _read_head_diff(paths: list[str], deadline: float) -> str:
-    timeout = get_command_timeout(deadline)
-    if not paths or timeout <= 0:
-        return ""
-    try:
-        completed = subprocess.run(
-            ["git", "diff", "HEAD", "--", *paths],
-            cwd=os.getcwd(),
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-    except (OSError, subprocess.TimeoutExpired) as e:
-        CFG.LOGGER.debug(f"Self-review could not run git diff: {e}")
-        return ""
-    if completed.returncode != 0:
-        return ""
-    return _truncate(completed.stdout.strip())
 
 
 def _truncate(diff: str) -> str:

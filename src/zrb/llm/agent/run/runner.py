@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import threading
 import uuid
 from contextlib import ExitStack
 from dataclasses import replace
@@ -550,10 +551,10 @@ async def _execution_loop(
         message=current_message,
         run_history=current_history,
     )
-    if CFG.LLM_SELF_REVIEW_ENABLED:
-        cursor.start_snapshot = await asyncio.to_thread(
-            _snapshot_turn_start, os.getcwd()
-        )
+    # Created before the snapshot is awaited, so the `finally` below can
+    # delete it even when the turn is cancelled while the snapshot runs.
+    snapshot_store = create_snapshot_store() if CFG.LLM_SELF_REVIEW_ENABLED else None
+    turn_ended = threading.Event()
     retry_state = RetryState()
     extension_state = ExtensionState()
     partial_run = PartialRunAccumulator()
@@ -563,6 +564,10 @@ async def _execution_loop(
     pending_checkpoint_tasks: list[asyncio.Task] = []
 
     try:
+        if snapshot_store is not None:
+            cursor.start_snapshot = await asyncio.to_thread(
+                _snapshot_turn_start, os.getcwd(), snapshot_store, turn_ended
+            )
         while True:
             cursor.begin_round(
                 sanitize_history(
@@ -632,8 +637,9 @@ async def _execution_loop(
         raise e
     finally:
         await _await_pending_checkpoints(pending_checkpoint_tasks)
-        if cursor.start_snapshot is not None:
-            delete_snapshot_store(cursor.start_snapshot["store"])
+        if snapshot_store is not None:
+            turn_ended.set()
+            delete_snapshot_store(snapshot_store)
 
 
 async def _stream_one_round(
@@ -799,15 +805,22 @@ def _retry_empty_completion(
     cursor.output = None
 
 
-def _snapshot_turn_start(cwd: str) -> dict[str, str] | None:
-    """Snapshot the working tree into a new private store, or None (and no
-    store left behind) when *cwd* is not in a git repository."""
-    store = create_snapshot_store()
+def _snapshot_turn_start(
+    cwd: str, store: str, turn_ended: threading.Event
+) -> dict[str, str] | None:
+    """Snapshot the working tree into *store*, or None when *cwd* is not in a
+    git repository or the snapshot failed.
+
+    Runs in a worker thread that cancelling the turn cannot stop. If the turn
+    has already ended — and deleted *store* — by the time the snapshot's git
+    commands finish, they may have recreated it, so it is deleted again here.
+    The turn sets *turn_ended* before its own delete, so one of the two
+    always runs after the last write."""
     tree = snapshot_worktree(cwd, store)
-    if tree is None:
+    if turn_ended.is_set():
         delete_snapshot_store(store)
         return None
-    return {"tree": tree, "store": store}
+    return {"tree": tree, "store": store} if tree is not None else None
 
 
 async def _finish_turn(

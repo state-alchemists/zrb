@@ -2,7 +2,6 @@
 Stop on a `Request changes` verdict, and never blocks on anything else."""
 
 import asyncio
-import os
 import subprocess
 import time
 from contextlib import contextmanager
@@ -187,7 +186,9 @@ async def test_disabled_gate_is_not_registered():
 
 
 @pytest.mark.asyncio
-async def test_reviewer_gets_the_diff_not_the_transcript(tmp_path, monkeypatch):
+async def test_without_a_turn_start_snapshot_only_the_paths_are_reviewed(
+    tmp_path, monkeypatch
+):
     def git(*args):
         subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
 
@@ -204,10 +205,13 @@ async def test_reviewer_gets_the_diff_not_the_transcript(tmp_path, monkeypatch):
     with _gate() as (seen, _):
         await _stop(manager, changed_paths=("a.py", "new.py"))
 
+    # The reviewer gets a request, not the transcript — and no diff against
+    # HEAD, which would carry the user's uncommitted work from before the turn.
     request = seen[0].event_data
     assert isinstance(request, str)
     assert "- a.py" in request and "- new.py" in request
-    assert "+x = 2" in request
+    assert "x = 2" not in request
+    assert "No diff of this turn's changes is available." in request
     assert "read it directly" in request
 
 
@@ -283,20 +287,23 @@ async def test_a_review_past_its_timeout_is_cancelled_and_never_blocks(
 async def test_slow_git_cannot_stretch_a_review_past_its_timeout(
     tmp_path, monkeypatch, store
 ):
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
-    (repo / "a.py").write_text("x = 1\n")
-    before = {"tree": snapshot_worktree(str(repo), store), "store": store}
-    # From here on every git command hangs; `exec` makes the timeout kill the
-    # sleep itself rather than a shell around it.
-    fake_bin = tmp_path / "bin"
-    fake_bin.mkdir()
-    fake_git = fake_bin / "git"
-    fake_git.write_text("#!/bin/sh\nexec sleep 30\n")
-    fake_git.chmod(0o755)
-    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
-    monkeypatch.chdir(repo)
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / "a.py").write_text("x = 1\n")
+    before = {"tree": snapshot_worktree(str(tmp_path), store), "store": store}
+    real_run = subprocess.run
+    timeouts: list[float] = []
+
+    def hanging_git(args, *rest, timeout=None, **kwargs):
+        # Every git command from here on hangs until its own timeout — not a
+        # fake binary on PATH, which a noexec temp dir would skip.
+        if args[0] != "git":
+            return real_run(args, *rest, timeout=timeout, **kwargs)
+        timeouts.append(timeout)
+        time.sleep(timeout)
+        raise subprocess.TimeoutExpired(args, timeout)
+
+    monkeypatch.setattr(subprocess, "run", hanging_git)
+    monkeypatch.chdir(tmp_path)
     manager = HookManager(search_dirs=[])
 
     with _gate(report=_FINDINGS, timeout=1) as (seen, _):
@@ -305,5 +312,7 @@ async def test_slow_git_cannot_stretch_a_review_past_its_timeout(
         elapsed = time.monotonic() - started
 
     assert elapsed < 5
+    # Each command got only the time left before the deadline, not 30s.
+    assert timeouts and max(timeouts) <= 1
     assert seen == []
     assert _blocked(results) == []
