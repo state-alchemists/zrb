@@ -24,21 +24,16 @@ from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.schema import AgentHookConfig, HookConfig
 from zrb.llm.hook.types import HookEvent, HookType
 from zrb.llm.prompt.prompt import get_prompt
-from zrb.util.git.worktree import (
-    GIT_COMMAND_TIMEOUT_SECONDS,
-    diff_snapshots,
-    get_repo_root,
-    snapshot_worktree,
-)
+from zrb.util.git.worktree import (diff_snapshots, get_command_timeout,
+                                   get_repo_root, snapshot_worktree)
 from zrb.util.truncate import truncate_text
 
 if TYPE_CHECKING:
     from zrb.llm.hook.manager import HookManager
 
 _NAME = "self-review"
-#: Git commands the Stop side may run before the review: a snapshot (4), the
-#: tree diff (3), and the repository root (1), each bounded by its own timeout.
-_SCOPE_MAX_SECONDS = 8 * GIT_COMMAND_TIMEOUT_SECONDS
+#: Slack for the executor's own timeout past the hook's deadline.
+_EXECUTOR_GRACE_SECONDS = 30
 _REVIEWER_TOOLS = ["Read", "Grep", "Glob"]
 _BLOCK_PREFIX = (
     "[SELF-REVIEW] An independent reviewer read this turn's changes and "
@@ -60,11 +55,12 @@ def register_self_review_hook(manager: "HookManager") -> None:
         config=AgentHookConfig(
             system_prompt=get_prompt("self_review"), tools=_REVIEWER_TOOLS
         ),
-        # The hook enforces `LLM_SELF_REVIEW_TIMEOUT` itself, inside its own
-        # event loop, where cancelling reaches the reviewer's model request.
-        # The executor's timeout only abandons the worker thread, so it is
-        # set past the hook's own worst case and never fires first.
-        timeout=CFG.LLM_SELF_REVIEW_TIMEOUT + _SCOPE_MAX_SECONDS + 30,
+        # The hook enforces `LLM_SELF_REVIEW_TIMEOUT` itself: its git
+        # commands are cut off at the deadline, and the reviewer is cancelled
+        # inside the hook's own event loop, where cancelling reaches its model
+        # request. The executor's timeout only abandons the worker thread, so
+        # it is set past that deadline and never fires first.
+        timeout=CFG.LLM_SELF_REVIEW_TIMEOUT + _EXECUTOR_GRACE_SECONDS,
     )
     manager.add_hook(create_self_review_hook(), [HookEvent.STOP], config)
 
@@ -82,7 +78,12 @@ def create_self_review_hook() -> HookCallable:
             return HookResult(output="Self-review skipped: round limit reached.")
         deadline = time.monotonic() + CFG.LLM_SELF_REVIEW_TIMEOUT
         payload = context.event_data if isinstance(context.event_data, dict) else {}
-        scope = await asyncio.to_thread(_resolve_scope, payload)
+        # Not wrapped in `wait_for`: cancelling cannot stop a worker thread,
+        # and `asyncio.run` waits for it on exit anyway. The deadline stops
+        # its git commands instead.
+        scope = await asyncio.to_thread(_resolve_scope, payload, deadline)
+        if time.monotonic() >= deadline:
+            return _timed_out()
         if not scope.paths:
             return HookResult(output="Self-review skipped: no files changed.")
         try:
@@ -91,17 +92,21 @@ def create_self_review_hook() -> HookCallable:
                 timeout=max(deadline - time.monotonic(), 0),
             )
         except asyncio.TimeoutError:
-            CFG.LOGGER.warning(
-                "Self-review timed out after %ss, not blocking.",
-                CFG.LLM_SELF_REVIEW_TIMEOUT,
-            )
-            return HookResult(output="Self-review skipped: timed out.")
+            return _timed_out()
         if report is None or _verdict(report) != "request changes":
             return HookResult(output=report or "Self-review produced no report.")
         rounds += 1
         return HookResult.block(f"{_BLOCK_PREFIX}\n\n{report.strip()}")
 
     return self_review
+
+
+def _timed_out() -> HookResult:
+    CFG.LOGGER.warning(
+        "Self-review timed out after %ss, not blocking.",
+        CFG.LLM_SELF_REVIEW_TIMEOUT,
+    )
+    return HookResult(output="Self-review skipped: timed out.")
 
 
 @dataclass
@@ -112,28 +117,29 @@ class _Scope:
     baseline: str
 
 
-def _resolve_scope(payload: dict[str, Any]) -> _Scope:
+def _resolve_scope(payload: dict[str, Any], deadline: float) -> _Scope:
     """What the turn changed. Inside a git repository the turn-start tree is
     diffed against the tree now, which covers edits made through `Shell` and
     changes committed mid-turn, and leaves out the user's earlier uncommitted
     work. Paths the file tools named that this diff does not cover — ignored
     by git, or outside the repository — are listed too. Without a turn-start
-    snapshot, the file tools' paths are diffed against HEAD."""
+    snapshot, the file tools' paths are diffed against HEAD. Every git command
+    stops at *deadline*."""
     tool_paths = [p for p in payload.get("changed_paths") or [] if isinstance(p, str)]
     cwd = os.getcwd()
     start = payload.get("turn_start_snapshot")
     before = start.get("tree") if isinstance(start, dict) else None
     store = start.get("store") if isinstance(start, dict) else None
-    after = snapshot_worktree(cwd, store) if before and store else None
+    after = snapshot_worktree(cwd, store, deadline) if before and store else None
     changed = (
-        diff_snapshots(cwd, store, before, after)
+        diff_snapshots(cwd, store, before, after, deadline)
         if store and before and after
         else None
     )
     if changed is None:
-        return _Scope(tool_paths, _read_head_diff(tool_paths), "HEAD")
+        return _Scope(tool_paths, _read_head_diff(tool_paths, deadline), "HEAD")
     tree_paths, diff = changed
-    root = get_repo_root(cwd)
+    root = get_repo_root(cwd, deadline)
     uncovered = [p for p in tool_paths if _repo_relative(p, root) not in tree_paths]
     return _Scope(tree_paths + uncovered, _truncate(diff), "the start of this turn")
 
@@ -188,8 +194,9 @@ def _create_review_request(scope: _Scope) -> str:
     )
 
 
-def _read_head_diff(paths: list[str]) -> str:
-    if not paths:
+def _read_head_diff(paths: list[str], deadline: float) -> str:
+    timeout = get_command_timeout(deadline)
+    if not paths or timeout <= 0:
         return ""
     try:
         completed = subprocess.run(
@@ -197,7 +204,7 @@ def _read_head_diff(paths: list[str]) -> str:
             cwd=os.getcwd(),
             capture_output=True,
             text=True,
-            timeout=GIT_COMMAND_TIMEOUT_SECONDS,
+            timeout=timeout,
         )
     except (OSError, subprocess.TimeoutExpired) as e:
         CFG.LOGGER.debug(f"Self-review could not run git diff: {e}")

@@ -2,7 +2,9 @@
 Stop on a `Request changes` verdict, and never blocks on anything else."""
 
 import asyncio
+import os
 import subprocess
+import time
 from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
@@ -270,3 +272,33 @@ async def test_a_review_past_its_timeout_is_cancelled_and_never_blocks():
     # Cancelled inside the hook's own event loop, so the model request stops
     # instead of running on in an abandoned worker thread.
     assert cancelled == seen
+
+
+@pytest.mark.asyncio
+async def test_slow_git_cannot_stretch_a_review_past_its_timeout(
+    tmp_path, monkeypatch, store
+):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    (repo / "a.py").write_text("x = 1\n")
+    before = {"tree": snapshot_worktree(str(repo), store), "store": store}
+    # From here on every git command hangs; `exec` makes the timeout kill the
+    # sleep itself rather than a shell around it.
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_git = fake_bin / "git"
+    fake_git.write_text("#!/bin/sh\nexec sleep 30\n")
+    fake_git.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.chdir(repo)
+    manager = HookManager(search_dirs=[])
+
+    with _gate(report=_FINDINGS, timeout=1) as (seen, _):
+        started = time.monotonic()
+        results = await _stop(manager, turn_start_snapshot=before)
+        elapsed = time.monotonic() - started
+
+    assert elapsed < 5
+    assert seen == []
+    assert _blocked(results) == []

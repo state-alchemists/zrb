@@ -3,13 +3,16 @@ without writing anything into the repository."""
 
 import os
 import subprocess
+import time
 
 import pytest
 
 from zrb.util.git.worktree import (
+    GIT_COMMAND_TIMEOUT_SECONDS,
     create_snapshot_store,
     delete_snapshot_store,
     diff_snapshots,
+    get_command_timeout,
     get_repo_root,
     snapshot_worktree,
 )
@@ -104,3 +107,19 @@ def test_outside_a_repository_everything_is_none(tmp_path, store):
     assert get_repo_root(str(tmp_path)) is None
     assert snapshot_worktree(str(tmp_path), store) is None
     assert diff_snapshots(str(tmp_path), store, "a", "b") is None
+
+
+def test_command_timeout_is_capped_and_shrinks_toward_the_deadline():
+    assert get_command_timeout(None) == GIT_COMMAND_TIMEOUT_SECONDS
+    assert get_command_timeout(time.monotonic() + 3600) == GIT_COMMAND_TIMEOUT_SECONDS
+    assert 0 < get_command_timeout(time.monotonic() + 5) <= 5
+    assert get_command_timeout(time.monotonic() - 1) <= 0
+
+
+def test_a_passed_deadline_runs_no_git_command(repo, store):
+    before = snapshot_worktree(str(repo), store)
+    past = time.monotonic() - 1
+
+    assert get_repo_root(str(repo), past) is None
+    assert snapshot_worktree(str(repo), store, past) is None
+    assert diff_snapshots(str(repo), store, before, before, past) is None
