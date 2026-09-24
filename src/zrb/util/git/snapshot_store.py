@@ -215,7 +215,14 @@ class SnapshotStore:
 
         Git writes object files read-only, which Windows refuses to delete, so
         each one refused is made writable and removed again — a store left
-        behind would keep copies of untracked files, secrets included."""
+        behind would keep copies of untracked files, secrets included.
+
+        Safe to call more than once, and on a store that was never created:
+        cleanup paths race, and a second delete must not mask the error that
+        triggered the first. The error handler also absorbs the store
+        vanishing between the check below and `rmtree`."""
+        if not os.path.isdir(self._git_dir):
+            return
         if sys.version_info >= (3, 12):
             shutil.rmtree(self._git_dir, onexc=_remove_read_only)
         else:
