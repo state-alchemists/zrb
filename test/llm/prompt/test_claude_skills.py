@@ -3,7 +3,6 @@
 from zrb.llm.prompt.claude import build_skill_replacements
 from zrb.llm.skill.manager import Skill, SkillManager
 
-
 # ---------------------------------------------------------------------------
 # build_skill_replacements tests
 # ---------------------------------------------------------------------------

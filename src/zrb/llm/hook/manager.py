@@ -25,6 +25,7 @@ from zrb.llm.hook.executor import (
 from zrb.llm.hook.hook_loader import get_search_directories as _get_search_directories
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.journal_compliance import register_journal_compliance_hook
+from zrb.llm.hook.self_review import register_self_review_hook
 from zrb.llm.hook.manager_loading import HookManagerLoading
 from zrb.llm.hook.matcher import evaluate_matchers
 from zrb.llm.hook.registry import HookRegistry, hook_registry
@@ -101,7 +102,8 @@ class HookManager(HookManagerLoading):
         # manager independently re-scans the filesystem; a Python-registered
         # one needs to be seeded the same way on every instance.
         self._hook_factories: list[Callable[[HookManager], None]] = [
-            register_journal_compliance_hook
+            register_journal_compliance_hook,
+            register_self_review_hook,
         ]
         self._max_depth = max_depth
         self._ignore_dirs = _IGNORE_DIRS if ignore_dirs is None else ignore_dirs

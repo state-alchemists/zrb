@@ -6,7 +6,32 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 
-from zrb.llm.hook.turn_evidence import turn_states_preference, turn_wrote_files
+from zrb.llm.hook.turn_evidence import (
+    turn_changed_paths,
+    turn_states_preference,
+    turn_wrote_files,
+)
+
+
+class TestTurnChangedPaths:
+    def test_collects_mutating_paths_in_order_without_duplicates(self):
+        turn = [
+            ModelResponse(
+                parts=[
+                    ToolCallPart(tool_name="Edit", args={"path": "a.py"}),
+                    ToolCallPart(tool_name="Read", args={"path": "ignored.py"}),
+                    ToolCallPart(tool_name="MV", args='{"src": "b.py", "dst": "c.py"}'),
+                    ToolCallPart(tool_name="Write", args={"path": "a.py"}),
+                ]
+            )
+        ]
+        assert turn_changed_paths(turn) == ["a.py", "b.py", "c.py"]
+
+    def test_skips_unparseable_arguments(self):
+        turn = [
+            ModelResponse(parts=[ToolCallPart(tool_name="Write", args="{not json")])
+        ]
+        assert turn_changed_paths(turn) == []
 
 
 class TestTurnWroteFiles:

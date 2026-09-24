@@ -34,6 +34,9 @@ class TurnCursor:
     # See `commit_round`'s docstring for why that distinction matters.
     accumulated: list[Any] = field(default_factory=list)
     round_baseline: int = field(default=0, repr=False)
+    # Tree SHA of the working tree when the turn started, taken only while the
+    # self-review gate is on (`hook/self_review.py` diffs the turn against it).
+    start_tree: str | None = None
 
     def begin_round(self, sanitized_history: list[Any]) -> None:
         """Start one `agent.run()` round: install the sanitized history and

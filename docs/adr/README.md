@@ -142,6 +142,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 
 - **ADR-0071** — [Lifecycle hooks, Claude-compatible, control protocol included](adr-0071.md)
 - **ADR-0072** — [`LLMTask` and `LLMChatTask` expose the same knobs](adr-0072.md)
+- **ADR-0100** — [An opt-in Stop hook reviews each file-changing turn before it ends](adr-0100.md)
 
 ### Interactive UI
 

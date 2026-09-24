@@ -1,4 +1,4 @@
-"""LLM content: history, snapshot, journal dirs, summarization thresholds, file read limits."""
+"""LLM content: history, snapshot, journal dirs, self-review, summarization thresholds, file read limits."""
 
 from __future__ import annotations
 
@@ -29,6 +29,9 @@ class LLMContentMixin:
         self.DEFAULT_LLM_JOURNAL_INDEX_MAX_CHARS: str = "2500"
         self.DEFAULT_LLM_JOURNAL_AUTO_SEARCH_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_GIT_ENABLED: str = "on"
+        self.DEFAULT_LLM_SELF_REVIEW_ENABLED: str = "off"
+        self.DEFAULT_LLM_SELF_REVIEW_MAX_ROUNDS: str = "2"
+        self.DEFAULT_LLM_SELF_REVIEW_MODEL: str = ""
         self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW: str = "100"
         self.DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
@@ -146,6 +149,35 @@ class LLMContentMixin:
             "tools (the in-file History block only keeps the last 3 "
             "revisions). Best-effort: a missing `git` binary or a failed "
             "commit never breaks journaling, it just forgoes the commit."
+        ),
+    )
+
+    LLM_SELF_REVIEW_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Master switch for the built-in self-review Stop hook. On a turn "
+            "that changed files, a reviewer agent with a fresh context reads "
+            "the working tree's diff since the turn started and reports "
+            "defects; findings extend the turn so the agent checks and fixes "
+            "them before answering. Costs a working-tree snapshot per turn "
+            "and one reviewer run per turn that changed files."
+        ),
+    )
+
+    LLM_SELF_REVIEW_MAX_ROUNDS = EnvField(
+        int,
+        doc=(
+            "Reviews allowed per user turn. Each round that finds defects "
+            "extends the turn once; after this many the turn ends regardless."
+        ),
+    )
+
+    LLM_SELF_REVIEW_MODEL = EnvField(
+        str,
+        doc=(
+            "Model for the self-review reviewer. Empty uses the run's own "
+            "model; a different model shares fewer of the author's blind spots."
         ),
     )
 

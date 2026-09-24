@@ -23,6 +23,7 @@ docs/contributing/maintainer-guide.md#llm-history-sanitization-layer.
 from __future__ import annotations
 
 import asyncio
+import os
 import uuid
 from contextlib import ExitStack
 from dataclasses import replace
@@ -76,7 +77,11 @@ from zrb.llm.approval.approval_channel import current_approval_channel
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.model_resolver import resolve_configured_multimodal_model
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.turn_evidence import turn_states_preference, turn_wrote_files
+from zrb.llm.hook.turn_evidence import (
+    turn_changed_paths,
+    turn_states_preference,
+    turn_wrote_files,
+)
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.message import ensure_alternating_roles
 from zrb.llm.permission.state import (
@@ -88,6 +93,7 @@ from zrb.llm.prompt.live_context import append_live_context
 from zrb.llm.sandbox.state import current_sandbox_policy, get_effective_sandbox_policy
 from zrb.llm.tool.ambient_state import active_worktree
 from zrb.llm.util.prompt import expand_prompt
+from zrb.util.git.worktree import snapshot_worktree
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -540,6 +546,8 @@ async def _execution_loop(
         message=current_message,
         run_history=current_history,
     )
+    if CFG.LLM_SELF_REVIEW_ENABLED:
+        cursor.start_tree = await asyncio.to_thread(snapshot_worktree, os.getcwd())
     retry_state = RetryState()
     extension_state = ExtensionState()
     partial_run = PartialRunAccumulator()
@@ -815,6 +823,10 @@ async def _finish_turn(
             # hook) act only on turns where it's actually warranted.
             "turn": cursor.accumulated,
             "wrote_files": wrote_files,
+            # Which files, and the working tree the turn started from, for a
+            # hook that reviews them (self_review.py).
+            "changed_paths": turn_changed_paths(cursor.accumulated),
+            "turn_start_tree": cursor.start_tree,
             # Additive derived field: wrote_files OR looks like a
             # stated preference. wrote_files itself is left unchanged
             # for any other consumer; journal_compliance.py matches on

@@ -38,7 +38,7 @@ Follow the **Scientific Method**: form a hypothesis → test it → analyze resu
 - Use `Glob` and `Grep` in parallel to map file structures, existing patterns, and utility functions.
 - Use `Grep` with specific `regex` and `file_pattern` to minimize noise.
 - Issue several `Read` calls in parallel when gathering context from related files.
-- **Before modifying any existing function, method, or class signature:** use `LspFindReferences` if LSP is available, otherwise `Grep`. Find all call sites and include updating them in your plan.
+- **Before modifying any existing signature, data format, or promised behavior:** use `LspFindReferences` if LSP is available, otherwise `Grep`. Find every caller, and every piece of code that reads or writes the format — a parser, a cleanup routine, a migration — and include updating them in your plan.
 - **Before moving or removing any file or directory:** use `Grep` to find all imports and path references first.
 
 ## PHASE 2: STRATEGY
@@ -93,6 +93,7 @@ Exceeding a limit is a design defect — restructure before continuing. Project 
 - Bug fixes: reproduce before fixing. A fix you cannot demonstrate reverses a symptom you never confirmed. If root cause is unclear, Read `workflows/debug.md`.
 - After any change: run tests, linters, and type-checkers. Run the focused test first; a full suite that takes minutes is not a reason to skip the one that takes seconds.
 - **Removals get proved, not assumed.** When the task was to eliminate something, `Grep` the changed files for the literal you removed and require zero hits — `password123` for a credential moved to config, `legacy_auth(` for a migrated call, `console.log` for a stripped debug print, the old module path for a dropped import. Tests pass on code that still carries the string you were asked to delete, which is why this is a separate step and not a consequence of a green suite.
+- **A guarantee covers existing data too.** When your change promises an invariant — no duplicates, always replaced, always cleaned up — test it against state written before the change (old files, rows, config), not only data the new code writes. A docstring or doc line you add is such a promise: make the code keep it or narrow the words.
 - **Touched credentials, auth, user input, or file I/O?** Read `workflows/review.md` and run its security checklist before declaring done — don't wait for a review request.
 - If validation fails, diagnose before retrying.
 

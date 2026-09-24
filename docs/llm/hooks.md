@@ -359,6 +359,16 @@ Duplicating this exact hook in `examples/llm-hooks/.zrb/hooks.json` would teach 
 
 ---
 
+### Built-in: the self-review gate
+
+Off by default; turn it on with `ZRB_LLM_SELF_REVIEW_ENABLED=on` (ADR-0100). At the start of each turn it snapshots the working tree into a throwaway git index; at Stop it snapshots again and diffs the two. So the review covers exactly what the turn changed — edits made through `Shell` and changes committed mid-turn included, your own earlier uncommitted work excluded — and a reviewer agent with a fresh context reads that diff, using read-only `Read`/`Grep`/`Glob` to check the code around it. Paths the file tools named that git does not track (ignored, or outside the repository) are listed for it to read. Outside a git repository it falls back to the file tools' paths and `git diff HEAD`. It ends its report with `Request changes` or `LGTM`.
+
+`Request changes` blocks the Stop: the findings become the agent's next prompt, with the instruction to check each against the code, fix the real ones, say why any is not a defect, and restate the final answer. Anything else — `LGTM`, an unclear verdict, a failed review — lets the turn end. `ZRB_LLM_SELF_REVIEW_MAX_ROUNDS` (default `2`) caps reviews per user turn, and `ZRB_LLM_SELF_REVIEW_MODEL` picks the reviewer's model (empty uses the run's own).
+
+It is a Python hook (`llm/hook/self_review.py`), not a JSON one, because it needs things a JSON agent hook cannot express: a turn-start snapshot (the Stop payload's `turn_start_tree`, taken by the runner only while the gate is on) and `changed_paths` as its scope, the diff instead of the transcript as its input, and its own round counter. The reviewer's instructions live in `llm/prompt/markdown/self_review.md`; override them through `LLM_PROMPT_DIR` like the other internal prompts.
+
+---
+
 ## Matchers
 
 Matchers allow hooks to run only when specific conditions are met. Use them to filter when a hook executes.
