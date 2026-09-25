@@ -1,5 +1,6 @@
 """Tests for SnapshotManager — the git snapshot store for LLM /rewind."""
 
+import asyncio
 import os
 import subprocess
 import tempfile
@@ -323,3 +324,29 @@ async def test_no_label_passes_for_snapshot_metadata(manager, workdir, label):
         assert f.read() == "original"
     assert not os.path.exists(made)  # no forged "unreadable" kept it
     assert manager.list_snapshots()[0].message_count is None
+
+
+@pytest.mark.asyncio
+async def test_a_turn_snapshot_that_beats_the_init_snapshot_still_rewinds_the_turn(
+    manager, workdir
+):
+    path = os.path.join(workdir, "f.txt")
+    with open(path, "w") as f:
+        f.write("before")
+
+    async def first_turn():
+        # As `stream_ai_response` does: the snapshot, then the model's edits.
+        await manager.take_snapshot("first turn", message_count=0)
+        with open(path, "w") as f:
+            f.write("changed by the turn")
+
+    events: list[SnapshotProgress] = []
+    turn = asyncio.ensure_future(first_turn())
+    init = asyncio.ensure_future(manager.take_init_snapshot(events.append))
+    await asyncio.gather(turn, init)
+
+    assert [event.stage for event in events] == ["up-to-date"]
+    oldest = manager.list_snapshots()[-1]
+    assert await manager.restore_snapshot(oldest.sha) == RestoreOutcome(restored=True)
+    with open(path) as f:
+        assert f.read() == "before"
