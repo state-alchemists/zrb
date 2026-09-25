@@ -25,7 +25,7 @@ from zrb.llm.hook.types import HookEvent, HookType
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.util.git.snapshot_command import SnapshotError
 from zrb.util.git.snapshot_listing import get_fork_point
-from zrb.util.git.snapshot_store import SnapshotStore
+from zrb.util.git.snapshot_store import Snapshot, SnapshotStore
 from zrb.util.truncate import truncate_text
 
 if TYPE_CHECKING:
@@ -185,7 +185,7 @@ def _diff_turn(start: Any, deadline: float) -> tuple[str, list[str], str] | None
     store = SnapshotStore.open_temporary(git_dir, workdir)
     try:
         after = store.snapshot(deadline)
-        before = _with_new_repositories(store, before, after.repositories, deadline)
+        before = _with_new_repositories(store, before, after, deadline)
         paths, diff = store.diff(before, after.tree, deadline)
     except (SnapshotError, OSError) as e:
         CFG.LOGGER.debug(f"Self-review could not diff {workdir}: {e}")
@@ -194,14 +194,14 @@ def _diff_turn(start: Any, deadline: float) -> tuple[str, list[str], str] | None
 
 
 def _with_new_repositories(
-    store: SnapshotStore, before: str, repositories: tuple[str, ...], deadline: float
+    store: SnapshotStore, before: str, after: Snapshot, deadline: float
 ) -> str:
     """*before*, with each nested repository that appeared during the turn —
-    a worktree `EnterWorktree` created, a clone — added at the commit it
-    started from, so the diff shows what the turn changed in it rather than
-    its whole checkout. One with no commit yet stays out of *before*: all of
-    it is new."""
-    for repository in repositories:
+    a worktree `EnterWorktree` created, a clone — as it stood at the commit
+    it started from, so the diff shows what the turn changed in it rather
+    than its whole checkout. One with no commit yet stays out of *before*:
+    all of it is new."""
+    for repository in after.repositories:
         if not repository:
             continue
         listed = store.git(
@@ -213,7 +213,9 @@ def _with_new_repositories(
             os.path.join(store.work_tree, *repository.split("/")), deadline
         )
         if fork is not None:
-            before = store.create_grafted_tree(before, repository, fork, deadline)
+            before = store.create_repository_baseline(
+                before, after.tree, repository, fork, deadline
+            )
     return before
 
 

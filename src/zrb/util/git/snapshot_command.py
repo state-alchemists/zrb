@@ -111,6 +111,39 @@ def run_git_command(
     whatever the locale: `surrogateescape` keeps a non-UTF-8 file name's bytes
     intact, and re-encodes them the same way on stdin. *env* defaults to
     `get_clean_env()`."""
+    return _run(
+        argv,
+        cwd,
+        deadline,
+        env,
+        label,
+        input=stdin,
+        encoding="utf-8",
+        errors=errors,
+    )
+
+
+def run_git_binary(
+    argv: list[str],
+    cwd: str | None,
+    deadline: float | None = None,
+    env: dict[str, str] | None = None,
+    stdin: bytes | None = None,
+    label: str | None = None,
+) -> subprocess.CompletedProcess[bytes]:
+    """`run_git_command` for file content: bytes in and out, so no newline or
+    encoding translation touches them."""
+    return _run(argv, cwd, deadline, env, label, input=stdin)
+
+
+def _run(
+    argv: list[str],
+    cwd: str | None,
+    deadline: float | None,
+    env: dict[str, str] | None,
+    label: str | None,
+    **io: Any,
+) -> Any:
     label = label or " ".join(argv[:2])
     abort = getattr(_worker, "abort", None)
     if abort is not None and abort.is_set():
@@ -118,17 +151,14 @@ def run_git_command(
     timeout = get_command_timeout(deadline)
     if timeout <= 0:
         raise SnapshotError(f"No time left to run {label}")
-    env = get_clean_env() if env is None else env
     try:
         return subprocess.run(
             argv,
             cwd=cwd,
-            env=env,
-            input=stdin,
+            env=get_clean_env() if env is None else env,
             capture_output=True,
-            encoding="utf-8",
-            errors=errors,
             timeout=timeout,
+            **io,
         )
     except subprocess.TimeoutExpired as e:
         raise SnapshotError(f"{label} timed out after {timeout:.3g}s") from e

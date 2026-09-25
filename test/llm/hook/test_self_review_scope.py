@@ -194,9 +194,12 @@ async def test_a_nested_repositorys_changes_are_reviewed(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("autocrlf", ["false", "true"])
 async def test_a_worktree_created_mid_turn_shows_only_what_the_turn_changed(
-    tmp_path, monkeypatch, start_snapshot, gate, stop
+    tmp_path, monkeypatch, start_snapshot, gate, stop, autocrlf
 ):
+    """With `core.autocrlf` on — the default on Windows — the checkout's bytes
+    differ from the commit's, and must still read as unchanged."""
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
 
     def git(cwd, *args):
@@ -210,16 +213,17 @@ async def test_a_worktree_created_mid_turn_shows_only_what_the_turn_changed(
     repo = tmp_path / "repo"
     repo.mkdir()
     git(repo, "init", "-q")
-    (repo / "app.py").write_text("x = 1\n")
-    (repo / ".gitignore").write_text(".zrb/worktree/\n")
+    git(repo, "config", "core.autocrlf", autocrlf)
+    (repo / "app.py").write_bytes(b"x = 1\n")
+    (repo / ".gitignore").write_bytes(b".zrb/worktree/\n")
     git(repo, "add", ".")
     git(repo, "commit", "-qm", "init")
     monkeypatch.chdir(repo)
     before = start_snapshot(repo)
     worktree = repo / ".zrb" / "worktree" / "wt"
     git(repo, "worktree", "add", "-q", "-b", "wt", str(worktree))  # EnterWorktree
-    (worktree / "app.py").write_text("x = 2\n")
-    (worktree / "new.py").write_text("n = 1\n")
+    (worktree / "app.py").write_bytes(b"x = 2\n")
+    (worktree / "new.py").write_bytes(b"n = 1\n")
     git(worktree, "add", ".")
     git(worktree, "commit", "-qm", "work")  # committed in the worktree
     manager = HookManager(search_dirs=[])

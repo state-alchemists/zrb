@@ -46,6 +46,7 @@ from zrb.util.git.snapshot_command import (
     SnapshotError,
     get_clean_env,
     get_git_output,
+    run_git_binary,
     run_git_command,
 )
 from zrb.util.git.snapshot_listing import (
@@ -63,6 +64,8 @@ _IDENTITY_ENV = {
     "GIT_COMMITTER_NAME": "zrb-snapshot",
     "GIT_COMMITTER_EMAIL": "zrb-snapshot@local",
 }
+
+_GITLINK_MODE = "160000"
 
 # How `git update-index` ends its output when it gives up on a file it could
 # not read; the path follows unquoted, then a newline.
@@ -232,18 +235,56 @@ class SnapshotStore:
         )
         return [name for name in names.split("\0") if name], diff.strip()
 
-    def create_grafted_tree(
-        self, tree: str, prefix: str, commit: str, deadline: float | None = None
+    def create_repository_baseline(
+        self,
+        before: str,
+        after: str,
+        repository: str,
+        fork: str,
+        deadline: float | None = None,
     ) -> str:
-        """*tree* with *commit*'s tree added under *prefix*, which *tree* must
-        not hold yet."""
-        with self._operation_index(from_cache=False) as index:
-            self.git(["read-tree", tree], index=index, deadline=deadline)
+        """*before* with the repository at *repository* — a path *before*
+        does not hold — as its own checkout of *fork* left it, judged by the
+        repository itself: each file it reports unchanged since *fork* as it
+        is in *after*, each file it reports changed as *fork*'s content in the
+        form its checkout writes (its end-of-line and smudge filters applied),
+        and no file *fork* lacks. The diff from it to *after* then shows what
+        changed since *fork*, whatever those filters make of the bytes on disk
+        — a checkout under `core.autocrlf` is CRLF where the commit is LF."""
+        where = os.path.join(self._workdir, *repository.split("/"))
+        changed = get_git_output(
+            ["diff", "--name-only", "-z", "--no-renames", fork], where, deadline
+        )
+        changed_paths = {path for path in changed.split("\0") if path}
+        forked = _tree_entries(
+            get_git_output(["ls-tree", "-r", "-z", fork], where, deadline)
+        )
+        current = _tree_entries(
             self.git(
-                ["read-tree", f"--prefix={prefix}/", commit],
-                index=index,
-                deadline=deadline,
+                ["ls-tree", "-r", "-z", after, "--", repository], deadline=deadline
             )
+        )
+        prefix = f"{repository}/"
+        entries = [
+            f"{mode} {sha}\t{path}"
+            for path, (mode, sha) in current.items()
+            if path[len(prefix) :] in forked
+            and path[len(prefix) :] not in changed_paths
+        ]
+        for rel in sorted(changed_paths):
+            mode, _ = forked.get(rel, (_GITLINK_MODE, ""))
+            if mode != _GITLINK_MODE:  # absent from *fork*, or a submodule
+                blob = self._hash_checkout(where, f"{fork}:{rel}", deadline)
+                entries.append(f"{mode} {blob}\t{prefix}{rel}")
+        with self._operation_index(from_cache=False) as index:
+            self.git(["read-tree", before], index=index, deadline=deadline)
+            if entries:
+                self.git(
+                    ["update-index", "-z", "--index-info"],
+                    index=index,
+                    stdin="".join(f"{entry}\0" for entry in entries),
+                    deadline=deadline,
+                )
             return self.git(["write-tree"], index=index, deadline=deadline).strip()
 
     def git(
@@ -270,6 +311,14 @@ class SnapshotStore:
         errors: str = "surrogateescape",
     ) -> subprocess.CompletedProcess[str]:
         """Run a git command against the store, whatever its exit code."""
+        argv, env = self._command(args, index, deadline)
+        return run_git_command(
+            argv, self._workdir, deadline, env, stdin, errors, f"git {args[0]}"
+        )
+
+    def _command(
+        self, args: list[str], index: str | None, deadline: float | None
+    ) -> tuple[list[str], dict[str, str]]:
         self.ensure(deadline)
         env = {
             **get_clean_env(),
@@ -285,9 +334,28 @@ class SnapshotStore:
             f"--work-tree={self._workdir}",
             *args,
         ]
-        return run_git_command(
-            argv, self._workdir, deadline, env, stdin, errors, f"git {args[0]}"
+        return argv, env
+
+    def _hash_checkout(self, repository: str, blob: str, deadline: float | None) -> str:
+        """Store *blob* of the repository at *repository* as its checkout
+        writes it — `cat-file --filters` applies the repository's own
+        filters — and return its SHA in the store."""
+        content = run_git_binary(
+            ["git", "cat-file", "--filters", blob], repository, deadline
         )
+        if content.returncode != 0:
+            error = content.stderr.decode("utf-8", "replace").strip()
+            raise SnapshotError(f"git cat-file failed: {error}")
+        argv, env = self._command(
+            ["hash-object", "-w", "--stdin", "--no-filters"], None, deadline
+        )
+        stored = run_git_binary(
+            argv, self._workdir, deadline, env, content.stdout, "git hash-object"
+        )
+        if stored.returncode != 0:
+            error = stored.stderr.decode("utf-8", "replace").strip()
+            raise SnapshotError(f"git hash-object failed: {error}")
+        return stored.stdout.decode("ascii").strip()
 
     @contextmanager
     def _operation_index(self, from_cache: bool) -> Iterator[str]:
@@ -298,7 +366,10 @@ class SnapshotStore:
         ends."""
         index = f"{self.index}.{uuid.uuid4().hex}"
         if from_cache and os.path.exists(self.index):
-            shutil.copyfile(self.index, index)
+            # With its timestamp: git re-hashes an entry as new as the index
+            # file, which catches a file rewritten within the same second at
+            # the same size. A fresh timestamp would vouch for its stat data.
+            shutil.copy2(self.index, index)
         try:
             yield index
             if from_cache:
@@ -422,6 +493,17 @@ class SnapshotStore:
                     deadline=deadline,
                 )
             return self.git(["write-tree"], index=index, deadline=deadline).strip()
+
+
+def _tree_entries(listing: str) -> dict[str, tuple[str, str]]:
+    """`ls-tree -r -z` output as `{path: (mode, sha)}`."""
+    entries: dict[str, tuple[str, str]] = {}
+    for line in listing.split("\0"):
+        meta, _, path = line.partition("\t")
+        if path:
+            mode, _, sha = meta.split(" ")
+            entries[path] = (mode, sha)
+    return entries
 
 
 def _remove_read_only(fn: Callable[[str], Any], path: str, exc: Any) -> None:

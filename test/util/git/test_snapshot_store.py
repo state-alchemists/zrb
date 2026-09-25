@@ -38,7 +38,9 @@ def _nested(path, files: dict[str, str]):
     _git(path, "config", "user.email", "t@example.com")
     _git(path, "config", "user.name", "t")
     for name, content in files.items():
-        (path / name).write_text(content)
+        # Bytes: `write_text` adds CRLF on Windows, where `core.autocrlf`
+        # then commits a different blob than the file's bytes.
+        (path / name).write_bytes(content.encode())
     _git(path, "add", ".")
     _git(path, "commit", "-qm", "init")
     return path
@@ -389,3 +391,47 @@ def test_an_unreadable_file_with_a_newline_in_its_name_is_left_out(repo, store):
         secret.chmod(0o600)
 
     assert snapshot.tree and snapshot.skipped == 1
+
+
+def test_a_file_rewritten_in_the_same_second_at_the_same_size_is_seen(repo, store):
+    # Git's stat cache trusts a file whose size and times match its index
+    # entry, unless the entry is as new as the index file itself. The rewrite
+    # below keeps size and (to the second) times; the next snapshot starts a
+    # new second, which must not make the index vouch for the stale entry.
+    time.sleep(1 - time.time() % 1 + 0.05)  # the start of a second
+    (repo / "tracked.txt").write_text("a\n")
+    first = _snap(store)
+    (repo / "tracked.txt").write_text("b\n")
+    time.sleep(1 - time.time() % 1 + 0.05)  # the next second
+    second = _snap(store)
+
+    assert store.diff(first, second)[0] == ["tracked.txt"]
+
+
+@pytest.mark.parametrize("autocrlf", ["false", "true"])
+def test_a_repository_baseline_holds_what_its_own_checkout_wrote(repo, store, autocrlf):
+    _git(repo, "config", "core.autocrlf", autocrlf)
+    (repo / ".gitignore").write_bytes(b"ignored.txt\n.zrb/worktree/\n")
+    (repo / "gone.txt").write_bytes(b"g\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "more")
+    fork = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    before = _snap(store)
+    worktree = repo / ".zrb" / "worktree" / "wt"
+    _git(repo, "worktree", "add", "-q", "-b", "wt", str(worktree))
+    (worktree / "tracked.txt").write_bytes(b"changed\n")
+    (worktree / "gone.txt").unlink()
+    (worktree / "new.txt").write_bytes(b"n\n")
+    after = store.snapshot()
+
+    baseline = store.create_repository_baseline(
+        before, after.tree, ".zrb/worktree/wt", fork
+    )
+
+    paths, diff = store.diff(baseline, after.tree)
+    assert sorted(paths) == [
+        ".zrb/worktree/wt/gone.txt",
+        ".zrb/worktree/wt/new.txt",
+        ".zrb/worktree/wt/tracked.txt",
+    ]
+    assert "-a" in diff and "+changed" in diff
