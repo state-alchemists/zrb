@@ -463,18 +463,12 @@ def test_a_temporary_store_borrows_a_nested_repositorys_objects(repo, store):
     assert not os.path.exists(os.path.join(own, blob[:2], blob[2:]))
 
 
-def test_a_snapshot_reports_the_worktrees_it_holds(repo, store):
+def test_a_snapshot_reports_the_repositories_it_holds(repo, store):
     (repo / ".gitignore").write_text("ignored.txt\n.zrb/worktree/\n")
-    _git(
-        repo,
-        "worktree",
-        "add",
-        "-q",
-        "-b",
-        "wt",
-        str(repo / ".zrb" / "worktree" / "wt"),
-    )
+    worktree = repo / ".zrb" / "worktree" / "wt"
+    _git(repo, "worktree", "add", "-q", "-b", "wt", str(worktree))
+    _nested(repo / "lib", {"v.py": "v\n"})
 
     snapshot = store.snapshot()
 
-    assert snapshot.worktrees == (".zrb/worktree/wt",)
+    assert sorted(snapshot.repositories) == ["", ".zrb/worktree/wt", "lib"]

@@ -8,20 +8,20 @@ repository. The listing is built here instead, repository by repository:
   `git ls-files --cached --others --exclude-standard` — so its `.gitignore`
   files, above the directory too, its `info/exclude` and the user's global
   excludes all apply.
-- Each nested repository that listing reports — an untracked one as `dir/`, a
-  submodule as a gitlink — is listed the same way, by itself, recursively.
+- Each nested repository is listed the same way, by itself, recursively:
+  one the listing reports — an untracked one as `dir/`, a submodule as a
+  gitlink — and one inside a directory the repository ignores, which is
+  searched for repositories and nothing else. A repository is often ignored
+  by its parent only so the parent stops reporting it — a folder of cloned
+  child repositories, or the worktrees `EnterWorktree` creates under
+  `.zrb/worktree/` — and its files are no less the user's.
 - A directory outside every repository is walked, and a repository found
   there is listed by itself. Outside a repository `DEFAULT_IGNORE_DIRS` is the
   only rule, so those loose files count toward `LOOSE_FILE_LIMIT` and
   `LOOSE_BYTE_LIMIT`; past either, the listing raises `SnapshotBudgetError`.
-- With *include_worktrees*, each listed repository's linked worktrees that lie
-  under the directory are listed too. The repository ignores them —
-  `EnterWorktree` adds `.zrb/worktree/` to its `.gitignore` — so nothing else
-  would.
 
 `DEFAULT_IGNORE_DIRS` and the excluded paths apply everywhere, tracked files
-included. A nested repository its parent ignores stays out, like any other
-ignored path.
+included, and are never searched for repositories.
 """
 
 from __future__ import annotations
@@ -81,21 +81,18 @@ class Listing:
     paths: list[str] = field(default_factory=list)
     #: Where each repository was listed from; `""` is the working directory.
     repositories: list[str] = field(default_factory=list)
-    #: The linked worktrees listed, each one of `repositories` too.
-    worktrees: list[str] = field(default_factory=list)
 
 
 def list_snapshot_paths(
     workdir: str,
     ignore_dirs: Iterable[str] = DEFAULT_IGNORE_DIRS,
     exclude_paths: Iterable[str] = (),
-    include_worktrees: bool = False,
     deadline: float | None = None,
 ) -> Listing:
     """The files a snapshot of *workdir* holds (see the module docstring).
     *exclude_paths* are absolute paths never listed."""
     scope = _Scope(workdir, ignore_dirs, exclude_paths)
-    return _Lister(scope, include_worktrees, deadline).list()
+    return _Lister(scope, deadline).list()
 
 
 def get_out_of_scope_paths(
@@ -132,16 +129,23 @@ def get_out_of_scope_paths(
     return out
 
 
-def get_worktree_fork_point(worktree: str, deadline: float | None = None) -> str:
-    """The commit *worktree* was created at — its oldest `HEAD` reflog entry —
-    or its current `HEAD` when that reflog is gone."""
+def get_fork_point(repository: str, deadline: float | None = None) -> str | None:
+    """The commit the repository at *repository* started from — its oldest
+    `HEAD` reflog entry, which a worktree's creation or a clone writes — or
+    its current `HEAD` when that reflog is gone, or None before its first
+    commit."""
     log = run_git_command(
-        ["git", "reflog", "show", "--format=%H", "HEAD"], worktree, deadline
+        ["git", "reflog", "show", "--format=%H", "HEAD"], repository, deadline
     )
     entries = log.stdout.split() if log.returncode == 0 else []
     if entries:
         return entries[-1]
-    return get_git_output(["rev-parse", "HEAD"], worktree, deadline).strip()
+    head = run_git_command(
+        ["git", "rev-parse", "--verify", "-q", "HEAD"], repository, deadline
+    )
+    if head.returncode != 0:
+        return None
+    return head.stdout.strip() or None
 
 
 class _Scope:
@@ -172,9 +176,8 @@ class _Scope:
 
 
 class _Lister:
-    def __init__(self, scope: _Scope, include_worktrees: bool, deadline: float | None):
+    def __init__(self, scope: _Scope, deadline: float | None):
         self._scope = scope
-        self._include_worktrees = include_worktrees
         self._deadline = deadline
         self._listing = Listing()
         self._seen: set[str] = set()
@@ -194,7 +197,7 @@ class _Lister:
 
     def _list_repository(self, base: str) -> None:
         """List the repository at *base* by its own rules, then the nested
-        repositories and worktrees it reports."""
+        repositories it reports and those in the directories it ignores."""
         where = self._scope.absolute(base)
         key = os.path.normcase(os.path.realpath(where))
         if key in self._seen:
@@ -207,6 +210,18 @@ class _Lister:
         # ordinary ones too, and their files would lose those rules.
         others = self._git(
             ["ls-files", "--others", "--exclude-standard", *excludes, "-z"], where
+        )
+        # Ignored directories, each reported once and not descended into.
+        ignored = self._git(
+            [
+                "ls-files",
+                "--others",
+                "--ignored",
+                "--exclude-standard",
+                "--directory",
+                "-z",
+            ],
+            where,
         )
         self._seen.add(key)
         self._listing.repositories.append(base)
@@ -224,13 +239,15 @@ class _Lister:
                 self._add(_join(base, path))
         for path in nested:
             self._list_nested(_join(base, path))
-        if self._include_worktrees:
-            self._list_worktrees(where)
+        for path in ignored.split("\0"):
+            if path.endswith("/"):
+                self._find_repositories(_join(base, path[:-1]))
 
-    def _list_nested(self, rel: str) -> None:
-        """A directory holding a repository of its own: listed by it, or
-        walked when git cannot list it — a worktree whose repository is gone,
-        say. An uninitialized submodule holds nothing to list."""
+    def _list_nested(self, rel: str, walk_if_broken: bool = True) -> None:
+        """A directory holding a repository of its own: listed by it. When git
+        cannot list it — a worktree whose repository is gone, say — it is
+        walked with *walk_if_broken*, else left out. An uninitialized
+        submodule holds nothing to list."""
         path = self._scope.absolute(rel)
         if self._scope.is_excluded(rel, is_dir=True) or not os.path.lexists(
             os.path.join(path, ".git")
@@ -241,25 +258,32 @@ class _Lister:
         except SnapshotBudgetError:
             raise
         except SnapshotError:
-            self._walk(rel)
+            if walk_if_broken:
+                self._walk(rel)
 
-    def _list_worktrees(self, where: str) -> None:
-        result = run_git_command(
-            ["git", "worktree", "list", "--porcelain"], where, self._deadline
-        )
-        if result.returncode != 0:
-            return
-        for line in result.stdout.splitlines():
-            if not line.startswith("worktree "):
+    def _find_repositories(self, top: str) -> None:
+        """List each repository inside *top*, a directory its repository
+        ignores; nothing else in it is listed."""
+        pending = [top]
+        while pending:
+            rel = pending.pop()
+            if self._scope.is_excluded(rel, is_dir=True):
                 continue
-            path = os.path.realpath(line[len("worktree ") :])
-            rel = _relpath_inside(path, self._scope.workdir)
-            if rel is None or os.path.normcase(path) in self._seen:
+            path = self._scope.absolute(rel)
+            if os.path.lexists(os.path.join(path, ".git")):
+                self._list_nested(rel, walk_if_broken=False)
                 continue
-            rel = rel.replace(os.sep, "/")
-            self._list_nested(rel)
-            if os.path.normcase(path) in self._seen:
-                self._listing.worktrees.append(rel)
+            try:
+                with os.scandir(path) as it:
+                    entries = list(it)
+            except OSError:
+                continue
+            for entry in entries:
+                try:
+                    if entry.is_dir(follow_symlinks=False):
+                        pending.append(_join(rel, entry.name))
+                except OSError:
+                    continue
 
     def _walk(self, top: str) -> None:
         """List a directory outside every repository, file by file."""

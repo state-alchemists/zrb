@@ -470,7 +470,7 @@ Zrb can snapshot your working directory before each AI turn, letting you restore
 **How it works:**
 
 1. Before each AI response, Zrb records your working directory as a commit in a private git repository (`<ZRB_LLM_SNAPSHOT_DIR>/<directory-name>-<hash>.git`) whose work tree is that directory. Nothing is copied, and no repository's own history, index or objects are touched.
-2. Each git repository under the directory lists its own files, by its own `.gitignore` — nested clones, submodules, and every repository in a folder of repositories included. Files outside any repository are taken as they are, except common cache directories (`node_modules/`, `.venv/`, `__pycache__/`, …).
+2. Each git repository under the directory lists its own files, by its own `.gitignore` — nested clones, submodules, every repository in a folder of repositories, and a repository its parent ignores included. Files outside any repository are taken as they are, except common cache directories (`node_modules/`, `.venv/`, `__pycache__/`, …).
 3. Every session started in a directory shares its repository, so unchanged files are stored once; each session keeps its own history (`refs/zrb/<session-name>-<hash>`).
 4. `/rewind` lists all snapshots; `/rewind <n>` or `/rewind <sha>` restores both the filesystem and conversation history to the selected point.
 

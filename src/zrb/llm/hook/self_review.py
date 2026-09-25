@@ -24,7 +24,7 @@ from zrb.llm.hook.schema import AgentHookConfig, HookConfig
 from zrb.llm.hook.types import HookEvent, HookType
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.util.git.snapshot_command import SnapshotError
-from zrb.util.git.snapshot_listing import get_worktree_fork_point
+from zrb.util.git.snapshot_listing import get_fork_point
 from zrb.util.git.snapshot_store import SnapshotStore
 from zrb.util.truncate import truncate_text
 
@@ -185,7 +185,7 @@ def _diff_turn(start: Any, deadline: float) -> tuple[str, list[str], str] | None
     store = SnapshotStore.open_temporary(git_dir, workdir)
     try:
         after = store.snapshot(deadline)
-        before = _with_new_worktrees(store, before, after.worktrees, deadline)
+        before = _with_new_repositories(store, before, after.repositories, deadline)
         paths, diff = store.diff(before, after.tree, deadline)
     except SnapshotError as e:
         CFG.LOGGER.debug(f"Self-review could not diff {workdir}: {e}")
@@ -193,22 +193,27 @@ def _diff_turn(start: Any, deadline: float) -> tuple[str, list[str], str] | None
     return store.work_tree, paths, _truncate(diff)
 
 
-def _with_new_worktrees(
-    store: SnapshotStore, before: str, worktrees: tuple[str, ...], deadline: float
+def _with_new_repositories(
+    store: SnapshotStore, before: str, repositories: tuple[str, ...], deadline: float
 ) -> str:
-    """*before*, with each worktree created during the turn added at the
-    commit it was created from — otherwise its whole checkout would show as
-    added, instead of what the turn changed in it."""
-    for worktree in worktrees:
+    """*before*, with each nested repository that appeared during the turn —
+    a worktree `EnterWorktree` created, a clone — added at the commit it
+    started from, so the diff shows what the turn changed in it rather than
+    its whole checkout. One with no commit yet stays out of *before*: all of
+    it is new."""
+    for repository in repositories:
+        if not repository:
+            continue
         listed = store.git(
-            ["ls-tree", "--name-only", before, "--", worktree], deadline=deadline
+            ["ls-tree", "--name-only", before, "--", repository], deadline=deadline
         )
         if listed.strip():
             continue
-        fork = get_worktree_fork_point(
-            os.path.join(store.work_tree, *worktree.split("/")), deadline
+        fork = get_fork_point(
+            os.path.join(store.work_tree, *repository.split("/")), deadline
         )
-        before = store.create_grafted_tree(before, worktree, fork, deadline)
+        if fork is not None:
+            before = store.create_grafted_tree(before, repository, fork, deadline)
     return before
 
 

@@ -9,8 +9,8 @@ import pytest
 from zrb.util.git import snapshot_listing
 from zrb.util.git.snapshot_listing import (
     SnapshotBudgetError,
+    get_fork_point,
     get_out_of_scope_paths,
-    get_worktree_fork_point,
     list_snapshot_paths,
 )
 
@@ -127,9 +127,41 @@ def test_a_directory_of_repositories_lists_each_and_its_loose_files(tmp_path):
     assert sorted(listing.repositories) == ["a", "b"]
 
 
-def test_a_repository_the_parent_ignores_stays_out(tmp_path):
-    repo = _repo(tmp_path / "r", {".gitignore": "vendor/\n"})
-    _repo(repo / "vendor" / "lib", {"v.py": "v\n"})
+def test_a_repository_inside_an_ignored_directory_is_listed_by_itself(tmp_path):
+    # The parent ignores `vendor/` so it stops reporting the clones in it;
+    # the clones' own rules decide their files, and nothing else in the
+    # ignored directory is listed.
+    repo = _repo(tmp_path / "r", {".gitignore": "vendor/\nbuild/\n"})
+    _repo(repo / "vendor" / "libs" / "a", {"a.py": "a\n", ".gitignore": "*.tmp\n"})
+    (repo / "vendor" / "libs" / "a" / "x.tmp").write_text("x\n")
+    (repo / "vendor" / "README").write_text("r\n")
+    (repo / "build" / "out").mkdir(parents=True)
+    (repo / "build" / "out" / "app.o").write_text("o\n")
+
+    listing = list_snapshot_paths(str(repo))
+
+    assert sorted(listing.paths) == [
+        ".gitignore",
+        "vendor/libs/a/.gitignore",
+        "vendor/libs/a/a.py",
+    ]
+    assert sorted(listing.repositories) == ["", "vendor/libs/a"]
+
+
+def test_no_repository_is_searched_for_under_a_default_ignored_directory(
+    tmp_path,
+):
+    repo = _repo(tmp_path / "r", {"a.py": "a\n"})
+    _repo(repo / "node_modules" / "pkg", {"p.js": "p\n"})
+
+    assert list_snapshot_paths(str(repo)).paths == ["a.py"]
+
+
+def test_a_broken_repository_inside_an_ignored_directory_is_left_out(tmp_path):
+    repo = _repo(tmp_path / "r", {".gitignore": "old/\n"})
+    (repo / "old" / "copy").mkdir(parents=True)
+    (repo / "old" / "copy" / ".git").write_text("gitdir: /nowhere\n")
+    (repo / "old" / "copy" / "c.py").write_text("c\n")
 
     assert list_snapshot_paths(str(repo)).paths == [".gitignore"]
 
@@ -181,18 +213,16 @@ def _worktree(repo, branch: str):
     return path
 
 
-def test_linked_worktrees_are_listed_only_when_asked(tmp_path):
+def test_a_linked_worktree_the_repository_ignores_is_listed(tmp_path):
     repo = _repo(tmp_path / "r", {"a.py": "a\n"})
     worktree = _worktree(repo, "wt")
     (worktree / "b.py").write_text("b\n")
 
-    plain = list_snapshot_paths(str(repo))
-    with_worktrees = list_snapshot_paths(str(repo), include_worktrees=True)
+    listing = list_snapshot_paths(str(repo))
 
-    assert ".zrb/worktree/wt/b.py" not in plain.paths
-    assert ".zrb/worktree/wt/a.py" in with_worktrees.paths
-    assert ".zrb/worktree/wt/b.py" in with_worktrees.paths
-    assert with_worktrees.worktrees == [".zrb/worktree/wt"]
+    assert ".zrb/worktree/wt/a.py" in listing.paths
+    assert ".zrb/worktree/wt/b.py" in listing.paths
+    assert ".zrb/worktree/wt" in listing.repositories
 
 
 def test_a_worktree_whose_repository_is_gone_is_walked(tmp_path):
@@ -205,15 +235,19 @@ def test_a_worktree_whose_repository_is_gone_is_walked(tmp_path):
     assert list_snapshot_paths(str(workspace)).paths == ["copy/c.py"]
 
 
-def test_a_worktree_fork_point_is_the_commit_it_was_created_at(tmp_path):
+def test_a_fork_point_is_the_commit_a_repository_started_from(tmp_path):
     repo = _repo(tmp_path / "r", {"a.py": "a\n"})
     base = _git(repo, "rev-parse", "HEAD").strip()
     worktree = _worktree(repo, "wt")
-    (worktree / "b.py").write_text("b\n")
-    _git(worktree, "add", "b.py")
-    _git(worktree, "commit", "-qm", "b")
+    _git(tmp_path, "clone", "-q", str(repo), str(tmp_path / "clone"))
+    for checkout in (worktree, tmp_path / "clone"):
+        (checkout / "b.py").write_text("b\n")
+        _git(checkout, "add", "b.py")
+        _git(checkout, "commit", "-qm", "b")
 
-    assert get_worktree_fork_point(str(worktree)) == base
+    assert get_fork_point(str(worktree)) == base
+    assert get_fork_point(str(tmp_path / "clone")) == base
+    assert get_fork_point(str(_repo(tmp_path / "new", {}, commit=False))) is None
 
 
 def test_out_of_scope_paths_follow_each_repositorys_rules_now(tmp_path):

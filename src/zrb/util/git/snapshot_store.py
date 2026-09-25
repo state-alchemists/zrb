@@ -67,8 +67,9 @@ class Snapshot(NamedTuple):
     tree: str
     #: Files left out because git could not read them.
     skipped: int = 0
-    #: The linked worktrees it holds, relative to the work tree.
-    worktrees: tuple[str, ...] = ()
+    #: The repositories it holds, relative to the work tree; `""` is the work
+    #: tree itself.
+    repositories: tuple[str, ...] = ()
 
 
 class SnapshotStore:
@@ -79,9 +80,7 @@ class SnapshotStore:
     absolute paths never to snapshot. With *borrow_objects*, the store reads
     the objects of every repository it lists as alternates instead of storing
     its own copy of every tracked file — only for a short-lived store, since a
-    repository's garbage collection may prune what an old snapshot needs.
-    With *include_worktrees*, snapshots hold the linked worktrees under
-    *workdir* too."""
+    repository's garbage collection may prune what an old snapshot needs."""
 
     def __init__(
         self,
@@ -91,7 +90,6 @@ class SnapshotStore:
         ignore_dirs: Iterable[str] = DEFAULT_IGNORE_DIRS,
         exclude_paths: Iterable[str] = (),
         borrow_objects: bool = False,
-        include_worktrees: bool = False,
     ):
         # Absolute: git runs with the work tree as its cwd.
         self._git_dir = os.path.realpath(git_dir)
@@ -102,20 +100,18 @@ class SnapshotStore:
             os.path.realpath(p) for p in exclude_paths
         ]
         self._borrow_objects = borrow_objects
-        self._include_worktrees = include_worktrees
         self._initialized = False
 
     @classmethod
     def create_temporary(cls, workdir: str) -> "SnapshotStore":
-        """A new review store in an owner-only temporary directory: it borrows
-        the listed repositories' objects and holds the linked worktrees under
-        *workdir*. `delete` it when done."""
+        """A new store in an owner-only temporary directory, borrowing the
+        listed repositories' objects. `delete` it when done."""
         return cls.open_temporary(tempfile.mkdtemp(prefix="zrb-snapshot-"), workdir)
 
     @classmethod
     def open_temporary(cls, git_dir: str, workdir: str) -> "SnapshotStore":
         """The store `create_temporary` made at *git_dir*, reopened."""
-        return cls(git_dir, workdir, borrow_objects=True, include_worktrees=True)
+        return cls(git_dir, workdir, borrow_objects=True)
 
     @property
     def git_dir(self) -> str:
@@ -190,7 +186,7 @@ class SnapshotStore:
         outside every repository."""
         listing, skipped = self._index_directory(deadline)
         tree = self.git(["write-tree"], deadline=deadline).strip()
-        return Snapshot(tree, skipped, tuple(listing.worktrees))
+        return Snapshot(tree, skipped, tuple(listing.repositories))
 
     def restore(self, treeish: str, deadline: float | None = None) -> None:
         """Make the directory match *treeish*: rewrite changed files, recreate
@@ -291,7 +287,6 @@ class SnapshotStore:
             self._workdir,
             self._ignore_dirs,
             self._exclude_paths,
-            self._include_worktrees,
             deadline,
         )
         if self._borrow_objects:
