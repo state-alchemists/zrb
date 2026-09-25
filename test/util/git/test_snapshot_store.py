@@ -19,12 +19,18 @@ def _git(repo, *args, check=True) -> subprocess.CompletedProcess:
 
 
 def _loose_objects(repo) -> set[str]:
+    """The repository's loose objects: `xx/<rest of the hash>` files. Other
+    files there — `maintenance.lock`, `info/` — are git's own bookkeeping."""
     objects = repo / ".git" / "objects"
     return {
-        str(path.relative_to(objects))
-        for path in objects.rglob("*")
-        if path.is_file() and path.parent.name not in ("pack", "info")
+        f"{path.parent.name}/{path.name}"
+        for path in objects.glob("??/*")
+        if path.is_file() and _is_hex(path.parent.name + path.name)
     }
+
+
+def _is_hex(text: str) -> bool:
+    return all(char in "0123456789abcdef" for char in text)
 
 
 @pytest.fixture(autouse=True)
@@ -410,16 +416,14 @@ def test_a_repository_baseline_leaves_out_what_the_listing_leaves_out(repo, stor
     assert store.diff(baseline, after.tree)[0] == []
 
 
-def test_a_diff_leaves_out_the_paths_it_is_told_to(repo, store):
-    before = _snap(store)
-    (repo / "tracked.txt").write_bytes(b"b\n")
+def test_a_tree_can_leave_out_paths_with_any_name(repo, store):
     (repo / "odd[name].txt").write_bytes(b"o\n")
-    after = _snap(store)
+    tree = _snap(store)
 
-    paths, diff = store.diff(before, after, exclude=["odd[name].txt"])
+    trimmed = store.create_tree_without(tree, ["odd[name].txt"])
 
-    assert paths == ["tracked.txt"]
-    assert "odd" not in diff
+    assert "odd[name].txt" not in store.git(["ls-tree", "--name-only", trimmed])
+    assert "tracked.txt" in store.git(["ls-tree", "--name-only", trimmed])
 
 
 @pytest.mark.skipif(
@@ -437,3 +441,50 @@ def test_a_file_that_becomes_unreadable_leaves_the_next_snapshot(repo, store):
     assert second.unreadable == ("tracked.txt",)
     assert store.git(["ls-tree", second.tree, "--", "tracked.txt"]) == ""  # not stale
     assert first
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or os.geteuid() == 0, reason="needs POSIX permissions, non-root"
+)
+def test_an_unreadable_file_is_skipped_whatever_gits_message_says(
+    repo, store, monkeypatch
+):
+    # Git's message naming the file differs by version and is translated
+    # into the user's language; the snapshot must not depend on it.
+    real_run = subprocess.run
+
+    def translated(argv, *args, **kwargs):
+        result = real_run(argv, *args, **kwargs)
+        if "update-index" in argv and result.returncode != 0:
+            result.stderr = "fatal: Pfad kann nicht verarbeitet werden\n"
+        return result
+
+    monkeypatch.setattr(subprocess, "run", translated)
+    (repo / "secret.key").write_bytes(b"s\n")
+    (repo / "secret.key").chmod(0)
+    try:
+        snapshot = store.snapshot()
+    finally:
+        (repo / "secret.key").chmod(0o600)
+
+    assert snapshot.unreadable == ("secret.key",)
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="needs FIFOs")
+def test_a_tracked_file_replaced_by_a_fifo_does_not_hang_a_snapshot(repo, store):
+    import threading
+
+    (repo / "tracked.txt").unlink()
+    try:
+        os.mkfifo(repo / "tracked.txt")  # still tracked: git lists it
+    except OSError:
+        pytest.skip("this filesystem cannot hold a FIFO")
+    result: list = []
+    worker = threading.Thread(
+        target=lambda: result.append(store.snapshot()), daemon=True
+    )
+    worker.start()
+    worker.join(20)
+
+    assert not worker.is_alive(), "opening the FIFO blocked the snapshot"
+    assert result[0].unreadable == ("tracked.txt",)

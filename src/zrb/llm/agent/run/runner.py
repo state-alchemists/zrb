@@ -812,9 +812,16 @@ def _create_turn_snapshot(nested_run: bool) -> TurnSnapshot | None:
 
 async def _take_turn_snapshot(snapshot: TurnSnapshot | None) -> None:
     """Snapshot the working directory. A cancelled turn waits for the
-    snapshot to stop before it deletes the store (`run_in_worker`)."""
-    if snapshot is not None:
-        await run_in_worker(snapshot.take, os.getcwd())
+    snapshot to stop before it deletes the store (`run_in_worker`). A
+    working directory that is gone leaves the turn without a snapshot: a
+    snapshot never fails a turn."""
+    if snapshot is None:
+        return
+    try:
+        workdir = os.getcwd()
+    except OSError:
+        return
+    await run_in_worker(snapshot.take, workdir)
 
 
 async def _finish_turn(

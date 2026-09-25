@@ -18,6 +18,9 @@ def repo(tmp_path):
     _git(tmp_path, "init", "-q")
     _git(tmp_path, "config", "user.email", "t@example.com")
     _git(tmp_path, "config", "user.name", "t")
+    # No background `git maintenance` or auto-gc touching it mid-test.
+    _git(tmp_path, "config", "maintenance.auto", "false")
+    _git(tmp_path, "config", "gc.auto", "0")
     (tmp_path / "tracked.txt").write_text("a\n")
     (tmp_path / ".gitignore").write_text("ignored.txt\n")
     _git(tmp_path, "add", ".")

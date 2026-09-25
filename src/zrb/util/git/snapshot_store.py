@@ -67,9 +67,6 @@ _IDENTITY_ENV = {
 
 _GITLINK_MODE = "160000"
 
-# How `git update-index` ends its output when it gives up on a file it could
-# not read; the path follows unquoted, then a newline.
-_UNREADABLE_PREFIX = "fatal: Unable to process path "
 
 logger = logging.getLogger(__name__)
 
@@ -390,11 +387,7 @@ class SnapshotStore:
             )
 
     def diff(
-        self,
-        before: str,
-        after: str,
-        deadline: float | None = None,
-        exclude: Iterable[str] = (),
+        self, before: str, after: str, deadline: float | None = None
     ) -> tuple[list[str], str]:
         """The paths (relative to `work_tree`) that differ between two trees,
         and their unified diff.
@@ -403,19 +396,23 @@ class SnapshotStore:
         name nor loses one to trimming — and without rename detection, so a
         renamed file's old path is listed too. The diff ignores the user's
         external diff tool and colour settings, and replaces undecodable bytes
-        with U+FFFD: it goes to a model, which may reject lone surrogates.
-        *exclude* are paths left out of both."""
-        pathspec = ["--", ".", *(f":(exclude,literal){path}" for path in exclude)]
+        with U+FFFD: it goes to a model, which may reject lone surrogates."""
         names = self.git(
-            ["diff", "--name-only", "-z", "--no-renames", before, after, *pathspec],
+            ["diff", "--name-only", "-z", "--no-renames", before, after],
             deadline=deadline,
         )
         diff = self.git(
-            ["diff", "--no-ext-diff", "--no-color", before, after, *pathspec],
+            ["diff", "--no-ext-diff", "--no-color", before, after],
             deadline=deadline,
             errors="replace",
         )
         return [name for name in names.split("\0") if name], diff.strip()
+
+    def create_tree_without(
+        self, treeish: str, paths: Iterable[str], deadline: float | None = None
+    ) -> str:
+        """*treeish*'s tree with *paths* taken out."""
+        return self._edit_tree(treeish, remove=sorted(paths), deadline=deadline)
 
     def create_repository_baseline(
         self,
@@ -604,41 +601,61 @@ class SnapshotStore:
         self, paths: list[str], index: str, deadline: float | None
     ) -> list[str]:
         """Add *paths* to the index — `--remove` drops one deleted from disk —
-        and return the ones left out because git could not read them.
+        and return the ones left out because they cannot be read.
 
-        `update-index` gives up at the first unreadable file and names it, so
-        that file is left out — its entry dropped, should the cached index
-        hold an earlier version — and the rest are fed again; each rerun re-stats
-        the others instead of hashing them. The file is found by matching each
-        path against the end of git's output, not by parsing a path out of
-        it: git prints the name raw, so a newline in it would split a parsed
-        line."""
-        remaining, unreadable = list(paths), []
-        while remaining:
+        `update-index` stops at the first file it cannot read. Its message
+        naming the file is not relied on — its wording differs between git
+        versions and is translated into the user's language — so when a run
+        fails, the unreadable files are found by opening each one, and the
+        rest are fed again (a rerun re-stats the others rather than hashing
+        them). A failure no unreadable file explains is raised. An
+        unreadable file's entry is dropped too, should the cached index hold
+        an earlier version: the snapshot must hold nothing for it, not stale
+        content."""
+        unreadable: list[str] = []
+        remaining = list(paths)
+        while True:
             result = self._update_index(
                 ["--add", "--remove"], remaining, index, deadline
             )
             if result.returncode == 0:
                 break
-            failed = next(
-                (
-                    path
-                    for path in remaining
-                    if result.stderr.endswith(f"{_UNREADABLE_PREFIX}{path}\n")
-                ),
-                None,
-            )
-            if failed is None:
+            newly_unreadable = [
+                path for path in remaining if not self._is_readable(path)
+            ]
+            if not newly_unreadable:
                 raise SnapshotError(f"git update-index failed: {result.stderr.strip()}")
-            remaining.remove(failed)
-            unreadable.append(failed)
+            unreadable.extend(newly_unreadable)
+            left_out = set(newly_unreadable)
+            remaining = [path for path in remaining if path not in left_out]
         if unreadable:
-            # The cached index may still hold an earlier version of each; the
-            # snapshot must hold nothing for them, not stale content.
             result = self._update_index(["--force-remove"], unreadable, index, deadline)
             if result.returncode != 0:
                 raise SnapshotError(f"git update-index failed: {result.stderr.strip()}")
         return unreadable
+
+    def _is_readable(self, path: str) -> bool:
+        """Whether git can read *path* to hash it: a regular file it can
+        open, a symlink (stored as its target's name), or a missing path
+        (removed, not read). A FIFO, socket or device is none of these — git
+        cannot store one — and is never opened: opening a FIFO blocks until
+        something writes to it."""
+        full = os.path.join(self._workdir, *path.split("/"))
+        try:
+            mode = os.lstat(full).st_mode
+        except FileNotFoundError:
+            return True
+        except OSError:
+            return False
+        if stat.S_ISLNK(mode):
+            return True
+        if not stat.S_ISREG(mode):
+            return False
+        try:
+            os.close(os.open(full, os.O_RDONLY | getattr(os, "O_NONBLOCK", 0)))
+        except OSError:
+            return False
+        return True
 
     def _update_index(
         self, flags: list[str], paths: list[str], index: str, deadline: float | None

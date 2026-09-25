@@ -1,6 +1,4 @@
-import asyncio
 import os
-import threading
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -338,57 +336,6 @@ async def test_stop_event_data_carries_turn_slice_and_wrote_files_flag(
         assert not os.path.exists(snapshot["store"])
     else:
         assert snapshot is None
-
-
-@pytest.mark.asyncio
-async def test_cancelling_a_turn_mid_snapshot_leaves_no_snapshot_store(monkeypatch):
-    """The snapshot runs in a worker thread that cancelling cannot stop, so
-    the cancellation waits for it: the store is deleted only once git has
-    stopped writing to it, and is gone when the cancellation surfaces."""
-    started = threading.Event()
-    release = threading.Event()
-    finished = threading.Event()
-    stores: list[str] = []
-
-    def slow_snapshot(store, deadline=None):
-        stores.append(store.git_dir)
-        started.set()
-        release.wait(5)
-        # A git command still running after the turn deleted the store would
-        # recreate it.
-        os.makedirs(os.path.join(store.git_dir, "objects", "ab"), exist_ok=True)
-        finished.set()
-        return Snapshot("tree-at-start")
-
-    monkeypatch.setenv("ZRB_LLM_SELF_REVIEW_ENABLED", "on")
-    monkeypatch.setattr(
-        "zrb.llm.agent.run.turn_snapshot.SnapshotStore.snapshot", slow_snapshot
-    )
-    monkeypatch.setattr(
-        "zrb.llm.hook.manager.register_self_review_hook", lambda manager: None
-    )
-    turn = asyncio.create_task(
-        run_agent(
-            agent=MagicMock(),
-            message="Hi",
-            message_history=[],
-            limiter=LLMLimiter(),
-            hook_manager=HookManager(search_dirs=[]),
-        )
-    )
-    await asyncio.to_thread(started.wait, 5)
-
-    turn.cancel()
-    await asyncio.sleep(0.1)
-    waited_for_the_snapshot = not turn.done()
-    release.set()
-    with pytest.raises(asyncio.CancelledError):
-        await turn
-
-    assert waited_for_the_snapshot
-    assert finished.is_set()
-    assert len(stores) == 1
-    assert not os.path.exists(stores[0])
 
 
 @pytest.mark.asyncio

@@ -281,3 +281,16 @@ async def test_a_cancelled_snapshot_never_moves_history_after_it_returns(
 
     assert release.is_set()  # the cancellation waited for the worker thread
     assert [s.label for s in manager.list_snapshots()] == ["kept"]
+
+
+@pytest.mark.asyncio
+async def test_a_snapshot_message_of_any_length_is_committed(manager, workdir):
+    # Past a command-line argument's limit (128 KB on Linux).
+    with open(os.path.join(workdir, "f.txt"), "w") as f:
+        f.write("x")
+    label = "x" * 200_000
+
+    sha = await manager.take_snapshot(label, message_count=1)
+
+    assert sha is not None
+    assert manager.list_snapshots()[0].label == label

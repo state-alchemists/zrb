@@ -196,7 +196,10 @@ def _diff_turn(
     try:
         after = store.snapshot(deadline)
         before = _with_new_repositories(store, before, after, deadline)
-        paths, diff = store.diff(before, after.tree, deadline, after.unreadable)
+        # A file unreadable at Stop is not in *after*; taken out of *before*
+        # too, it is listed as unreadable rather than read as deleted.
+        before = store.create_tree_without(before, after.unreadable, deadline)
+        paths, diff = store.diff(before, after.tree, deadline)
     except (SnapshotError, OSError) as e:
         CFG.LOGGER.debug(f"Self-review could not diff {workdir}: {e}")
         return None

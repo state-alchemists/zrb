@@ -248,8 +248,21 @@ def test_a_fork_point_is_the_commit_a_repository_started_from(tmp_path):
     assert get_fork_point(str(worktree)) == base
     assert get_fork_point(str(tmp_path / "clone")) == base
     assert get_fork_point(str(_repo(tmp_path / "new", {}, commit=False))) is None
-    # A repository born with its first commit started from nothing too.
+    # A repository born with its first commit started from nothing too —
+    # also when a tool committing for the user replaced the reflog subject.
     assert get_fork_point(str(_repo(tmp_path / "born", {"b.py": "b\n"}))) is None
+    tool = tmp_path / "tool"
+    tool.mkdir()
+    _git(tool, "init", "-q")
+    (tool / "t.py").write_text("t\n")
+    _git(tool, "add", ".")
+    subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "1"],
+        cwd=tool,
+        check=True,
+        env={**os.environ, "GIT_REFLOG_ACTION": "some-tool: import"},
+    )
+    assert get_fork_point(str(tool)) is None
 
 
 def test_out_of_scope_paths_follow_each_repositorys_rules_now(tmp_path):
@@ -302,3 +315,39 @@ def test_a_working_directory_its_repository_ignores_is_walked(tmp_path):
 
     assert sorted(listing.paths) == ["lib/v.py", "try.py"]
     assert listing.repositories == ["lib"]
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="needs FIFOs")
+def test_a_walk_lists_only_what_git_can_store(tmp_path):
+    import socket
+
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    (workspace / "a.txt").write_text("a\n")
+    try:
+        os.mkfifo(workspace / "pipe")
+    except OSError:
+        pytest.skip("this filesystem cannot hold a FIFO")
+    sock = socket.socket(socket.AF_UNIX)
+    try:
+        sock.bind(str(workspace / "sock"))
+        assert list_snapshot_paths(str(workspace)).paths == ["a.txt"]
+    finally:
+        sock.close()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="junctions are a Windows feature")
+def test_a_walk_does_not_follow_a_junction(tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "far.txt").write_text("f\n")
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    (workspace / "a.txt").write_text("a\n")
+    subprocess.run(
+        ["cmd", "/c", "mklink", "/J", str(workspace / "link"), str(outside)],
+        check=True,
+        capture_output=True,
+    )
+
+    assert list_snapshot_paths(str(workspace)).paths == ["a.txt"]

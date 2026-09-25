@@ -318,8 +318,10 @@ class SnapshotManager:
                 return head, skipped
         parent = ["-p", head] if head else []
         message = _build_commit_message(label, message_count, unreadable)
+        # The message on stdin: it names every unreadable file, which could
+        # exceed a command-line argument's limit.
         sha = store.git(
-            ["commit-tree", "--no-gpg-sign", tree, *parent, "-m", message]
+            ["commit-tree", "--no-gpg-sign", tree, *parent], stdin=message
         ).strip()
         store.git(["update-ref", _ref(session), sha])
         return sha, skipped

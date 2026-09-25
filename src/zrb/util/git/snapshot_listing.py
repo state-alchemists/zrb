@@ -67,6 +67,8 @@ LOOSE_FILE_LIMIT = 5000
 LOOSE_BYTE_LIMIT = 200 * 1024 * 1024
 
 _GITLINK_MODE = "160000"
+# `FILE_ATTRIBUTE_REPARSE_POINT`: set on a Windows junction or symlink.
+_REPARSE_POINT = 0x400
 
 
 class SnapshotBudgetError(SnapshotError):
@@ -134,24 +136,48 @@ def get_out_of_scope_paths(
 
 
 def get_fork_point(repository: str, deadline: float | None = None) -> str | None:
-    """The commit the repository at *repository* started from — its oldest
-    `HEAD` reflog entry, which a worktree's creation or a clone writes — or
-    its current `HEAD` when that reflog is gone. None when it started from
-    nothing: before its first commit, or when its oldest entry is that first
-    commit (`commit (initial)`), since then everything in it is new."""
+    """The commit a repository that appeared during a turn started from, or
+    None when it started here — `git init` — and everything in it is new.
+
+    Where its first commit came from is read from git's structure, not from
+    reflog text, which a tool can replace through `GIT_REFLOG_ACTION`: from
+    the main repository when it is a linked worktree, from a remote when a
+    remote-tracking ref holds it (a clone). That commit is its oldest `HEAD`
+    reflog entry, or its `HEAD` when that reflog is gone."""
     log = run_git_command(
-        ["git", "reflog", "show", "--format=%H %gs", "HEAD"], repository, deadline
+        ["git", "reflog", "show", "--format=%H", "HEAD"], repository, deadline
     )
-    entries = log.stdout.splitlines() if log.returncode == 0 else []
+    entries = log.stdout.split() if log.returncode == 0 else []
     if entries:
-        sha, _, subject = entries[-1].partition(" ")
-        return None if subject.startswith("commit (initial)") else sha
-    head = run_git_command(
-        ["git", "rev-parse", "--verify", "-q", "HEAD"], repository, deadline
+        start = entries[-1]
+    else:
+        head = run_git_command(
+            ["git", "rev-parse", "--verify", "-q", "HEAD"], repository, deadline
+        )
+        if head.returncode != 0:
+            return None  # no commit yet
+        start = head.stdout.strip()
+    if _is_linked_worktree(repository, deadline):
+        return start
+    cloned_from = get_git_output(
+        ["for-each-ref", "--contains", start, "--format=%(refname)", "refs/remotes"],
+        repository,
+        deadline,
     )
-    if head.returncode != 0:
-        return None
-    return head.stdout.strip() or None
+    return start if cloned_from.strip() else None
+
+
+def _is_linked_worktree(repository: str, deadline: float | None) -> bool:
+    """Whether *repository* is a linked worktree: its git directory is not
+    the repository's common one."""
+    output = get_git_output(
+        ["rev-parse", "--git-dir", "--git-common-dir"], repository, deadline
+    )
+    git_dir, common_dir = (
+        os.path.realpath(os.path.join(repository, path))
+        for path in output.splitlines()[:2]
+    )
+    return git_dir != common_dir
 
 
 class _Scope:
@@ -297,11 +323,8 @@ class _Lister:
             except OSError:
                 continue
             for entry in entries:
-                try:
-                    if entry.is_dir(follow_symlinks=False):
-                        pending.append(_join(rel, entry.name))
-                except OSError:
-                    continue
+                if self._is_real_directory(entry):
+                    pending.append(_join(rel, entry.name))
 
     def _walk(self, top: str) -> None:
         """List a directory outside every repository, file by file."""
@@ -317,12 +340,11 @@ class _Lister:
                 if entry.name == ".git":
                     continue
                 child = _join(rel, entry.name)
-                try:
-                    is_dir = entry.is_dir(follow_symlinks=False)
-                except OSError:
-                    continue
+                is_dir = self._is_real_directory(entry)
                 if not is_dir:
-                    if not self._scope.is_excluded(child):
+                    # Like git, only regular files and symlinks: a FIFO,
+                    # socket or device cannot be stored.
+                    if self._is_storable(entry) and not self._scope.is_excluded(child):
                         self._count_loose(entry)
                         self._listing.paths.append(child)
                 elif self._scope.is_excluded(child, is_dir=True):
@@ -331,6 +353,28 @@ class _Lister:
                     self._list_nested(child)
                 else:
                     pending.append(child)
+
+    @staticmethod
+    def _is_storable(entry: os.DirEntry[str]) -> bool:
+        try:
+            return entry.is_symlink() or entry.is_file(follow_symlinks=False)
+        except OSError:
+            return False
+
+    @staticmethod
+    def _is_real_directory(entry: os.DirEntry[str]) -> bool:
+        """Whether *entry* is a directory to descend into: not a symlink, and
+        not a Windows junction, which Python reports as a plain directory —
+        either may point anywhere, the whole profile or back up the tree."""
+        try:
+            if not entry.is_dir(follow_symlinks=False):
+                return False
+            attributes = getattr(
+                entry.stat(follow_symlinks=False), "st_file_attributes", 0
+            )
+        except OSError:
+            return False
+        return not attributes & _REPARSE_POINT
 
     def _count_loose(self, entry: os.DirEntry[str]) -> None:
         self._loose_files += 1
