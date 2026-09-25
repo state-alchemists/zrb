@@ -1,5 +1,6 @@
 import asyncio
 import threading
+import time
 
 import pytest
 
@@ -71,7 +72,7 @@ async def test_a_timed_out_hook_is_cancelled_not_left_running():
 
     assert result.success is False
     assert result.exit_code == 124
-    assert await asyncio.to_thread(stopped.wait, 5)
+    assert stopped.is_set()  # stopped before the caller got its result
     executor.shutdown()
 
 
@@ -89,7 +90,27 @@ async def test_cancelling_the_caller_cancels_the_hook():
 
     with pytest.raises(asyncio.CancelledError):
         await call
-    assert await asyncio.to_thread(stopped.wait, 5)
+    assert stopped.is_set()  # stopped before the cancellation reached the caller
+    executor.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_a_hook_cancellation_cannot_reach_holds_its_caller_only_briefly():
+    executor = ThreadPoolHookExecutor(default_timeout=60, cancel_grace_seconds=0.2)
+    executor.start()
+    release = threading.Event()
+
+    async def blocked(ctx):
+        release.wait(5)  # a synchronous call: its loop never sees the cancel
+        return HookResult(success=True)
+
+    started = time.monotonic()
+    result = await executor.execute_hook(blocked, _start_context(), timeout=0.1)
+    elapsed = time.monotonic() - started
+
+    assert result.exit_code == 124
+    assert elapsed < 2
+    release.set()
     executor.shutdown()
 
 

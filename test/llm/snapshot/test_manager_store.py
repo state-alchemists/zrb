@@ -1,13 +1,17 @@
 """Tests for SnapshotManager — where the git snapshot store lives and how
 projects, sessions and directories are kept apart inside it."""
 
+import asyncio
 import os
 import subprocess
 import tempfile
+import threading
 
 import pytest
 
 from zrb.llm.snapshot import RestoreOutcome, SnapshotManager
+from zrb.llm.snapshot.manager import OPERATION_LOCK_NAME
+from zrb.util.file_lock import hold_file_lock
 from zrb.util.git.snapshot_command import SnapshotError
 from zrb.util.git.snapshot_store import SnapshotStore
 
@@ -319,3 +323,29 @@ async def test_a_restore_that_cannot_move_the_history_back_still_counts(
     assert await mgr.restore_snapshot(sha) == RestoreOutcome(restored=True)
     with open(path) as f:
         assert f.read() == "then"
+
+
+@pytest.mark.asyncio
+async def test_a_snapshot_waits_while_another_holds_the_store(snapshot_dir, workdir):
+    """Another conversation's manager, or another process, restoring in the
+    same directory: a snapshot must not catch it half-written."""
+    mgr = SnapshotManager(snapshot_dir, "s", workdir)
+    await mgr.take_init_snapshot()
+    (store,) = [e.path for e in os.scandir(snapshot_dir) if e.name.endswith(".git")]
+    held, release = threading.Event(), threading.Event()
+
+    def other_operation():
+        with hold_file_lock(os.path.join(store, OPERATION_LOCK_NAME)):
+            held.set()
+            release.wait(5)
+
+    thread = threading.Thread(target=other_operation)
+    thread.start()
+    held.wait(5)
+    snapshot = asyncio.ensure_future(mgr.take_snapshot("second", message_count=1))
+
+    await asyncio.sleep(0.3)
+    assert not snapshot.done()
+    release.set()
+    assert await snapshot is not None
+    thread.join()

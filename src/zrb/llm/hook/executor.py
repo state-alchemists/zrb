@@ -7,7 +7,7 @@ import asyncio
 import atexit
 import logging
 import threading
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any
@@ -88,11 +88,18 @@ class ThreadPoolHookExecutor:
     - Exit code handling (0=success, 2=block)
     """
 
-    def __init__(self, max_workers: int = 10, default_timeout: float | None = None):
+    def __init__(
+        self,
+        max_workers: int = 10,
+        default_timeout: float | None = None,
+        cancel_grace_seconds: float = 5.0,
+    ):
         self.max_workers = max_workers
         self.default_timeout = (
             default_timeout if default_timeout is not None else CFG.HOOKS_TIMEOUT / 1000
         )
+        #: How long a cancelled or timed-out hook gets to finish once cancelled.
+        self.cancel_grace_seconds = cancel_grace_seconds
         self._executor: ThreadPoolExecutor | None = None
         self._lock = threading.RLock()
         self._shutdown_event = threading.Event()
@@ -143,22 +150,23 @@ class ThreadPoolHookExecutor:
         run = _HookRun()
 
         try:
-            # Use get_running_loop() for Python 3.14+ compatibility
-            # (get_event_loop() raises RuntimeError if no loop exists in 3.14+)
-            loop = asyncio.get_running_loop()
-            result = await asyncio.wait_for(
-                loop.run_in_executor(
-                    self._executor, self._run_hook_sync, hook, context, run
-                ),
-                timeout=timeout,
+            self.start()
+            assert self._executor is not None
+            job = self._executor.submit(self._run_hook_sync, hook, context, run)
+        except RuntimeError as e:  # shut down by another thread meanwhile
+            return HookExecutionResult(success=False, error=str(e), exit_code=1)
+        try:
+            # Shielded: a cancel or timeout here stops the hook through `run`
+            # and waits for it (`_stop`), rather than only ceasing to wait.
+            return await asyncio.wait_for(
+                asyncio.shield(asyncio.wrap_future(job)), timeout=timeout
             )
-            return result
 
         except asyncio.CancelledError:
-            run.cancel()
+            await self._stop(run, job)
             raise
         except asyncio.TimeoutError:
-            run.cancel()
+            await self._stop(run, job)
             logger.warning(f"Hook execution timed out after {timeout}s")
             return HookExecutionResult(
                 success=False,
@@ -168,6 +176,23 @@ class ThreadPoolHookExecutor:
         except Exception as e:
             logger.error(f"Error executing hook: {e}", exc_info=True)
             return HookExecutionResult(success=False, error=str(e), exit_code=1)
+
+    async def _stop(self, run: "_HookRun", job: Future[HookExecutionResult]) -> None:
+        """Cancel the hook and wait for it to finish, up to
+        `cancel_grace_seconds`. One not started yet never starts; one blocked
+        where cancellation cannot reach it — a synchronous call — is left to
+        finish, with a warning, rather than holding its caller."""
+        run.cancel()
+        if job.cancel():
+            return
+        done, _ = await asyncio.wait(
+            [asyncio.wrap_future(job)], timeout=self.cancel_grace_seconds
+        )
+        if not done:
+            logger.warning(
+                "A cancelled hook is still running after %ss; it is left to finish.",
+                self.cancel_grace_seconds,
+            )
 
     def _run_hook_sync(
         self, hook: HookCallable, context: HookContext, run: "_HookRun"

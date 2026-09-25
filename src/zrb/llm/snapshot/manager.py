@@ -46,8 +46,9 @@ import logging
 import os
 import re
 import threading
-from typing import Callable, NamedTuple
+from typing import Any, Callable, NamedTuple, TypeVar
 
+from zrb.util.file_lock import hold_file_lock
 from zrb.util.git.snapshot_command import (
     SnapshotError,
     SnapshotTimeoutError,
@@ -59,6 +60,11 @@ from zrb.util.git.snapshot_store import SnapshotStore
 from zrb.util.string.conversion import to_safe_filename
 
 logger = logging.getLogger(__name__)
+
+#: The file in a rewind store whose OS lock every operation on it holds.
+OPERATION_LOCK_NAME = "zrb-operation.lock"
+
+_T = TypeVar("_T")
 
 
 # Progress callback contract for `take_init_snapshot`. Stages:
@@ -134,7 +140,7 @@ class SnapshotManager:
         self._pending_copies: dict[str, str] = {}
         self._pending_lock = threading.Lock()
         self._unavailable = _check_location(self._snapshot_dir, self._workdir)
-        # Serializes this process's snapshots, restores and history copies.
+        # Orders this manager's snapshots, restores and history copies.
         self._lock = asyncio.Lock()
 
     @property
@@ -170,7 +176,7 @@ class SnapshotManager:
         try:
             async with self._lock:
                 sha, _ = await run_in_worker(
-                    self._commit, session, label, message_count
+                    self._run_locked, self._commit, session, label, message_count
                 )
                 return sha
         except Exception as e:
@@ -199,12 +205,16 @@ class SnapshotManager:
         session = self.session_name
         try:
             async with self._lock:
-                existing_sha = await run_in_worker(self._initial_head, session)
+                existing_sha = await run_in_worker(
+                    self._run_locked, self._head_sha, session
+                )
                 if existing_sha is not None:
                     _report_progress(on_progress, SnapshotProgress("up-to-date"))
                     return existing_sha
                 _report_progress(on_progress, SnapshotProgress("start"))
-                sha, skipped = await run_in_worker(self._commit, session, "init", 0)
+                sha, skipped = await run_in_worker(
+                    self._run_locked, self._commit, session, "init", 0
+                )
             _report_progress(on_progress, SnapshotProgress("done", skipped))
             return sha
         except Exception as e:
@@ -249,7 +259,9 @@ class SnapshotManager:
         session = self.session_name
         try:
             async with self._lock:
-                left_behind = await run_in_worker(self._restore, session, sha)
+                left_behind = await run_in_worker(
+                    self._run_locked, self._restore, session, sha
+                )
             return RestoreOutcome(restored=True, left_behind=tuple(left_behind))
         except Exception as e:
             self._note_unavailable(e)
@@ -316,8 +328,8 @@ class SnapshotManager:
 
     def _apply_pending_copies(self) -> None:
         """Apply the copies `copy_history` recorded, in the order it recorded
-        them. Called first by every operation that holds the manager's lock,
-        so each copy lands before anything that could build on either side."""
+        them. Called first by every locked operation (`_run_locked`), so each
+        copy lands before anything that could build on either side."""
         with self._pending_lock:
             for target, source in self._pending_copies.items():
                 self._copy_history(source, target)
@@ -329,16 +341,24 @@ class SnapshotManager:
         with self._pending_lock:
             return self._pending_copies.get(session, session)
 
-    def _initial_head(self, session: str) -> str | None:
-        self._apply_pending_copies()
-        return self._head_sha(session)
+    def _run_locked(self, operation: Callable[..., _T], *args: Any) -> _T:
+        """Run *operation* on the store holding its operation lock, after the
+        copies `copy_history` recorded. `self._lock` orders this manager's
+        operations; the lock on a file in the store keeps every other one off
+        it too — another conversation's manager in this process, another
+        process — so a restore never interleaves with another restore, and a
+        snapshot never catches one half-written. The OS releases it when its
+        holder dies."""
+        store = self._get_store()
+        with hold_file_lock(os.path.join(store.git_dir, OPERATION_LOCK_NAME)):
+            self._apply_pending_copies()
+            return operation(*args)
 
     def _commit(
         self, session: str, label: str, message_count: int | None
     ) -> tuple[str, int]:
         """Commit the workdir unless it matches HEAD; return the SHA and how
         many files git could not read."""
-        self._apply_pending_copies()
         store = self._get_store()
         snapshot = store.snapshot()
         skipped = len(snapshot.unreadable)
@@ -369,7 +389,6 @@ class SnapshotManager:
     def _restore(self, session: str, sha: str) -> list[str]:
         """Restore *sha*, move the conversation's ref back to it, and return
         the paths left behind."""
-        self._apply_pending_copies()
         store = self._get_store()
         store.git(["cat-file", "-e", f"{sha}^{{commit}}"])
         # Only this conversation's own snapshots: another conversation's
