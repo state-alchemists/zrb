@@ -10,6 +10,7 @@ import threading
 import pytest
 
 from zrb.llm.snapshot import RestoreOutcome, SnapshotManager
+from zrb.llm.snapshot import manager as snapshot_manager
 from zrb.llm.snapshot.manager import OPERATION_LOCK_NAME
 from zrb.util.file_lock import hold_file_lock
 from zrb.util.git.snapshot_command import SnapshotError
@@ -349,3 +350,31 @@ async def test_a_snapshot_waits_while_another_holds_the_store(snapshot_dir, work
     release.set()
     assert await snapshot is not None
     thread.join()
+
+
+@pytest.mark.asyncio
+async def test_a_store_busy_past_the_wait_fails_that_snapshot_not_rewind(
+    snapshot_dir, workdir, monkeypatch
+):
+    monkeypatch.setattr(snapshot_manager, "STORE_LOCK_TIMEOUT_SECONDS", 0.2)
+    mgr = SnapshotManager(snapshot_dir, "s", workdir)
+    await mgr.take_init_snapshot()
+    (store,) = [e.path for e in os.scandir(snapshot_dir) if e.name.endswith(".git")]
+    held, release = threading.Event(), threading.Event()
+
+    def stuck_operation():  # another process, stuck mid-restore
+        with hold_file_lock(os.path.join(store, OPERATION_LOCK_NAME)):
+            held.set()
+            release.wait(5)
+
+    thread = threading.Thread(target=stuck_operation)
+    thread.start()
+    held.wait(5)
+    try:
+        assert await mgr.take_snapshot("while stuck", message_count=1) is None
+    finally:
+        release.set()
+        thread.join()
+
+    assert mgr.unavailable_reason == ""
+    assert await mgr.take_snapshot("after", message_count=1) is not None

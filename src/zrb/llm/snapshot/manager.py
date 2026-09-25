@@ -46,9 +46,10 @@ import logging
 import os
 import re
 import threading
-from typing import Any, Callable, NamedTuple, TypeVar
+from contextlib import contextmanager
+from typing import Any, Callable, Iterator, NamedTuple, TypeVar
 
-from zrb.util.file_lock import hold_file_lock
+from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 from zrb.util.git.snapshot_command import (
     SnapshotError,
     SnapshotTimeoutError,
@@ -63,6 +64,10 @@ logger = logging.getLogger(__name__)
 
 #: The file in a rewind store whose OS lock every operation on it holds.
 OPERATION_LOCK_NAME = "zrb-operation.lock"
+#: The longest an operation waits for another to release the store. A store
+#: still busy past it — another process stuck mid-restore — fails that one
+#: operation, not the session's rewind.
+STORE_LOCK_TIMEOUT_SECONDS = 60
 
 _T = TypeVar("_T")
 
@@ -230,9 +235,13 @@ class SnapshotManager:
             return []
         session = self._visible_history(self.session_name)
         try:
-            if self._head_sha(session) is None:
+            # Unlocked: it would hold the UI up behind another operation, and
+            # needs no lock — the ref is read once, and the commits it names
+            # never change.
+            head = self._head_sha(session)
+            if head is None:
                 return []
-            log = self._get_store().git(["log", "--format=%H|%ai|%s", _ref(session)])
+            log = self._get_store().git(["log", "--format=%H|%ai|%s", head])
             snapshots: list[Snapshot] = []
             for line in log.splitlines():
                 parts = line.split("|", 2)
@@ -322,8 +331,10 @@ class SnapshotManager:
                     exclude_paths=[self._snapshot_dir],
                 )
                 os.makedirs(git_dir, mode=0o700, exist_ok=True)  # holds the lock
-                with hold_file_lock(_operation_lock(store)):
+                with _hold_operation_lock(store):
                     store.ensure()
+            except _StoreBusy:
+                raise
             except (OSError, ValueError, SnapshotError) as e:
                 self._unavailable = f"the snapshot store {git_dir} is unusable: {e}"
                 raise SnapshotError(self._unavailable) from e
@@ -353,7 +364,7 @@ class SnapshotManager:
         process — so a restore never interleaves with another restore, and a
         snapshot never catches one half-written. The OS releases it when its
         holder dies."""
-        with hold_file_lock(_operation_lock(self._get_store())):
+        with _hold_operation_lock(self._get_store()):
             self._apply_pending_copies()
             return operation(*args)
 
@@ -450,8 +461,18 @@ def _check_location(snapshot_dir: str, workdir: str) -> str:
     return ""
 
 
-def _operation_lock(store: SnapshotStore) -> str:
-    return os.path.join(store.git_dir, OPERATION_LOCK_NAME)
+class _StoreBusy(SnapshotError):
+    """Another operation held the store past `STORE_LOCK_TIMEOUT_SECONDS`."""
+
+
+@contextmanager
+def _hold_operation_lock(store: SnapshotStore) -> Iterator[None]:
+    path = os.path.join(store.git_dir, OPERATION_LOCK_NAME)
+    try:
+        with hold_file_lock(path, STORE_LOCK_TIMEOUT_SECONDS):
+            yield
+    except FileLockTimeout as e:
+        raise _StoreBusy(f"the snapshot store is busy: {e}") from e
 
 
 def _ref(session: str) -> str:

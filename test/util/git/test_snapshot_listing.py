@@ -420,3 +420,25 @@ def test_a_default_ignored_directory_is_not_walked_for_ignored_files(tmp_path):
     listing = list_snapshot_paths(str(repo))
 
     assert listing.left_out == ["node_modules/"]
+
+
+@pytest.mark.parametrize("walk", ["the directory walk", "the search for repositories"])
+def test_a_directory_walk_stops_at_the_deadline(tmp_path, monkeypatch, walk):
+    loose = tmp_path / "loose"
+    (loose / "a").mkdir(parents=True)
+    repo = _repo(tmp_path / "r", {".gitignore": "build/\n"})
+    (repo / "build" / "deep").mkdir(parents=True)
+    real = snapshot_listing.get_time_left
+
+    def out_of_time_for(label_to_stop):
+        def get_time_left(deadline, label):
+            if label == label_to_stop:
+                raise SnapshotError(f"No time left to run {label}")
+            return real(deadline, label)
+
+        return get_time_left
+
+    monkeypatch.setattr(snapshot_listing, "get_time_left", out_of_time_for(walk))
+
+    with pytest.raises(SnapshotError):
+        list_snapshot_paths(str(loose if walk == "the directory walk" else repo))

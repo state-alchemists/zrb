@@ -327,6 +327,7 @@ class _Lister:
         pending = [top]
         while pending:
             rel = pending.pop()
+            get_time_left(self._deadline, "the search for repositories")
             if self._scope.is_excluded(rel, is_dir=True):
                 continue
             path = self._scope.absolute(rel)
@@ -347,6 +348,7 @@ class _Lister:
         pending = [top]
         while pending:
             rel = pending.pop()
+            get_time_left(self._deadline, "the directory walk")
             try:
                 with os.scandir(self._scope.absolute(rel)) as it:
                     entries = list(it)

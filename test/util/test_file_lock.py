@@ -6,7 +6,9 @@ import sys
 import threading
 import time
 
-from zrb.util.file_lock import hold_file_lock
+import pytest
+
+from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 
 
 def test_a_second_holder_in_another_thread_waits_for_the_first(tmp_path):
@@ -61,3 +63,27 @@ def test_a_holder_in_another_process_is_waited_for_and_released_when_killed(
     holder.kill()  # dies holding it: nothing is left behind
     holder.wait()
     assert acquired.wait(15)
+
+
+def test_a_wait_past_its_timeout_gives_up(tmp_path):
+    path = str(tmp_path / "op.lock")
+    held, release = threading.Event(), threading.Event()
+
+    def holder():
+        with hold_file_lock(path):
+            held.set()
+            release.wait(5)
+
+    thread = threading.Thread(target=holder)
+    thread.start()
+    held.wait(5)
+    started = time.monotonic()
+    try:
+        with pytest.raises(FileLockTimeout):
+            with hold_file_lock(path, timeout=0.2):
+                pass
+    finally:
+        release.set()
+        thread.join()
+
+    assert time.monotonic() - started < 2
