@@ -1,5 +1,6 @@
-"""SnapshotStore: snapshot a directory as git trees and diff exactly what
-changed between two moments, without writing anything into the repository."""
+"""SnapshotStore: snapshot a directory as git trees, diff exactly what changed
+between two moments, and restore one — nested repositories included — without
+writing anything into any repository."""
 
 import os
 import shutil
@@ -8,13 +9,8 @@ import time
 
 import pytest
 
-from zrb.util.git.snapshot_store import (
-    GIT_COMMAND_TIMEOUT_SECONDS,
-    SnapshotError,
-    SnapshotStore,
-    get_command_timeout,
-    get_repo_root,
-)
+from zrb.util.git.snapshot_command import SnapshotError
+from zrb.util.git.snapshot_store import SnapshotStore
 
 
 def _git(repo, *args, check=True) -> subprocess.CompletedProcess:
@@ -30,6 +26,23 @@ def _loose_objects(repo) -> set[str]:
         for path in objects.rglob("*")
         if path.is_file() and path.parent.name not in ("pack", "info")
     }
+
+
+@pytest.fixture(autouse=True)
+def _no_enclosing_repository(tmp_path, monkeypatch):
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+
+
+def _nested(path, files: dict[str, str]):
+    path.mkdir(parents=True)
+    _git(path, "init", "-q")
+    _git(path, "config", "user.email", "t@example.com")
+    _git(path, "config", "user.name", "t")
+    for name, content in files.items():
+        (path / name).write_text(content)
+    _git(path, "add", ".")
+    _git(path, "commit", "-qm", "init")
+    return path
 
 
 @pytest.fixture
@@ -52,8 +65,7 @@ def store(repo):
 
 
 def _snap(store: SnapshotStore) -> str:
-    tree, _ = store.snapshot()
-    return tree
+    return store.snapshot().tree
 
 
 def test_diff_covers_only_what_changed_between_snapshots(repo, store):
@@ -132,25 +144,16 @@ def test_outside_a_repository_the_directory_itself_is_snapshotted(tmp_path):
         (workdir / "node_modules" / "dep.js").write_text("x\n")
         after = _snap(store)
 
-        assert get_repo_root(str(workdir)) is None
         assert store.work_tree == os.path.realpath(workdir)
         assert store.diff(before, after)[0] == ["a.txt"]
     finally:
         store.delete()
 
 
-def test_command_timeout_is_capped_and_shrinks_toward_the_deadline():
-    assert get_command_timeout(None) == GIT_COMMAND_TIMEOUT_SECONDS
-    assert get_command_timeout(time.monotonic() + 3600) == GIT_COMMAND_TIMEOUT_SECONDS
-    assert 0 < get_command_timeout(time.monotonic() + 5) <= 5
-    assert get_command_timeout(time.monotonic() - 1) <= 0
-
-
 def test_a_passed_deadline_runs_no_git_command(repo, store):
     before = _snap(store)
     past = time.monotonic() - 1
 
-    assert get_repo_root(str(repo), past) is None
     with pytest.raises(SnapshotError):
         store.snapshot(past)
     with pytest.raises(SnapshotError):
@@ -366,52 +369,19 @@ def test_a_persistent_store_is_owner_only_whatever_the_umask(repo, tmp_path):
     assert os.stat(store.git_dir).st_mode & 0o077 == 0
 
 
-def _kill_add_at_timeout(monkeypatch):
-    """Make the next `git add` behave like one killed at its timeout: it took
-    the index lock, and dies without removing it."""
-    real_run = subprocess.run
-
-    def run(argv, *args, **kwargs):
-        if "add" in argv:
-            open(kwargs["env"]["GIT_INDEX_FILE"] + ".lock", "w").close()
-            raise subprocess.TimeoutExpired(argv, GIT_COMMAND_TIMEOUT_SECONDS)
-        return real_run(argv, *args, **kwargs)
-
-    monkeypatch.setattr(subprocess, "run", run)
-    return real_run
+def _rmtree_refused(*args, **kwargs):
+    raise PermissionError("locked by another process")
 
 
-def test_a_command_killed_at_its_timeout_does_not_lock_the_index(
-    repo, store, monkeypatch
-):
-    _snap(store)
-    real_run = _kill_add_at_timeout(monkeypatch)
-
-    with pytest.raises(SnapshotError, match=r"^git add timed out after 30s$"):
-        store.snapshot()
-    monkeypatch.setattr(subprocess, "run", real_run)
-
-    assert not os.path.exists(store.index + ".lock")
-    assert _snap(store)
-
-
-def test_a_timeout_leaves_a_lock_it_did_not_take(repo, store, monkeypatch):
-    _snap(store)
-    open(store.index + ".lock", "w").close()  # another git process holds it
-    _kill_add_at_timeout(monkeypatch)
-
-    with pytest.raises(SnapshotError):
-        store.snapshot()
-
-    assert os.path.exists(store.index + ".lock")
-
-
+@pytest.mark.parametrize(
+    "rmtree", [lambda *args, **kwargs: None, _rmtree_refused], ids=["kept", "raised"]
+)
 def test_a_store_that_cannot_be_deleted_is_reported_with_its_path(
-    repo, monkeypatch, caplog
+    repo, monkeypatch, caplog, rmtree
 ):
     store = SnapshotStore.create_temporary(str(repo))
     _snap(store)
-    monkeypatch.setattr(shutil, "rmtree", lambda *args, **kwargs: None)
+    monkeypatch.setattr(shutil, "rmtree", rmtree)
 
     with caplog.at_level("WARNING", logger="zrb.util.git.snapshot_store"):
         store.delete()
@@ -420,3 +390,91 @@ def test_a_store_that_cannot_be_deleted_is_reported_with_its_path(
     monkeypatch.undo()
     store.delete()
     assert not os.path.exists(store.git_dir)
+
+
+def test_changes_inside_a_nested_repository_are_diffed(repo, store):
+    lib = _nested(repo / "vendor" / "lib", {"v.py": "v\n"})
+    before = _snap(store)
+
+    (lib / "v.py").write_text("changed\n")  # e.g. `sed -i` through a shell
+    after = _snap(store)
+
+    assert store.diff(before, after)[0] == ["vendor/lib/v.py"]
+    assert _git(lib, "status", "--porcelain").stdout == " M v.py\n"
+
+
+def test_a_directory_of_repositories_is_diffed_as_one(tmp_path):
+    workspace = tmp_path / "ws"
+    a = _nested(workspace / "a", {"x.py": "a\n"})
+    b = _nested(workspace / "b", {"y.py": "b\n"})
+    (workspace / "notes.txt").write_text("n\n")
+    store = SnapshotStore.create_temporary(str(workspace))
+    try:
+        before = _snap(store)
+        (a / "x.py").write_text("A\n")
+        (b / "y.py").unlink()
+        (workspace / "notes.txt").write_text("N\n")
+        after = _snap(store)
+
+        assert sorted(store.diff(before, after)[0]) == ["a/x.py", "b/y.py", "notes.txt"]
+    finally:
+        store.delete()
+
+
+def test_a_restore_rewrites_recreates_and_removes_inside_nested_repositories(
+    repo, tmp_path
+):
+    lib = _nested(repo / "lib", {"v.py": "v\n", "keep.py": "k\n"})
+    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
+    before = _snap(store)
+    (lib / "v.py").write_text("changed\n")
+    (lib / "keep.py").unlink()
+    (lib / "new.py").write_text("new\n")
+    (repo / "tracked.txt").write_text("changed\n")
+
+    store.restore(before)
+
+    assert (lib / "v.py").read_text() == "v\n"
+    assert (lib / "keep.py").read_text() == "k\n"
+    assert not (lib / "new.py").exists()
+    assert (repo / "tracked.txt").read_text() == "a\n"
+    assert _git(lib, "status", "--porcelain").stdout == ""
+
+
+def test_a_restore_leaves_a_path_ignored_since_alone(repo, tmp_path):
+    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
+    (repo / "config.local").write_text("v1\n")
+    before = _snap(store)
+    (repo / ".gitignore").write_text("ignored.txt\nconfig.local\n")
+    (repo / "config.local").write_text("v2\n")
+
+    store.restore(before)
+
+    assert (repo / "config.local").read_text() == "v2\n"
+
+
+def test_a_temporary_store_borrows_a_nested_repositorys_objects(repo, store):
+    lib = _nested(repo / "lib", {"v.py": "v\n"})
+    blob = _git(lib, "hash-object", "--no-filters", "v.py").stdout.strip()
+
+    _snap(store)
+
+    own = os.path.join(store.git_dir, "objects")
+    assert not os.path.exists(os.path.join(own, blob[:2], blob[2:]))
+
+
+def test_a_snapshot_reports_the_worktrees_it_holds(repo, store):
+    (repo / ".gitignore").write_text("ignored.txt\n.zrb/worktree/\n")
+    _git(
+        repo,
+        "worktree",
+        "add",
+        "-q",
+        "-b",
+        "wt",
+        str(repo / ".zrb" / "worktree" / "wt"),
+    )
+
+    snapshot = store.snapshot()
+
+    assert snapshot.worktrees == (".zrb/worktree/wt",)

@@ -58,7 +58,7 @@ async def test_workdir_inside_repo_honours_parent_gitignore_and_stays_in_scope(
 
 
 @pytest.mark.asyncio
-async def test_sessions_of_one_project_keep_separate_histories(snapshot_dir, workdir):
+async def test_sessions_of_one_directory_keep_separate_histories(snapshot_dir, workdir):
     with open(os.path.join(workdir, "f.txt"), "w") as f:
         f.write("data")
     a = SnapshotManager(snapshot_dir, "session-a", workdir)
@@ -69,7 +69,7 @@ async def test_sessions_of_one_project_keep_separate_histories(snapshot_dir, wor
 
     assert [s.label for s in a.list_snapshots()] == ["from a"]
     assert [s.label for s in b.list_snapshots()] == ["from b"]
-    assert len(os.listdir(snapshot_dir)) == 1  # one store for the project
+    assert len(os.listdir(snapshot_dir)) == 1  # one store for the directory
 
 
 @pytest.mark.asyncio
@@ -195,17 +195,32 @@ async def test_a_subdirectory_session_never_touches_files_outside_it(
         (tmp_path / "packages" / package / "m.py").write_text(package)
     app = SnapshotManager(snapshot_dir, "s", str(tmp_path / "packages" / "app"))
     own = await app.take_snapshot("app", message_count=1)
-    root = SnapshotManager(snapshot_dir, "s", str(tmp_path))
-    foreign = await root.take_snapshot("root", message_count=1)
     (tmp_path / "README.md").write_text("edited")
+    (tmp_path / "packages" / "lib" / "m.py").write_text("edited")
     (tmp_path / "packages" / "app" / "m.py").write_text("changed")
 
-    assert own and foreign
-    # Its own snapshot restores its directory and leaves the rest alone...
+    assert own
     assert await app.restore_snapshot(own) is True
     assert (tmp_path / "packages" / "app" / "m.py").read_text() == "app"
-    assert (tmp_path / "packages" / "lib" / "m.py").read_text() == "lib"
+    assert (tmp_path / "packages" / "lib" / "m.py").read_text() == "edited"
     assert (tmp_path / "README.md").read_text() == "edited"
-    # ...and another session's commit in the same store is refused.
-    assert await app.restore_snapshot(foreign) is False
-    assert (tmp_path / "README.md").read_text() == "edited"
+
+
+@pytest.mark.asyncio
+async def test_another_sessions_commit_in_the_same_store_is_refused(
+    snapshot_dir, workdir
+):
+    target = os.path.join(workdir, "f.txt")
+    with open(target, "w") as f:
+        f.write("original")
+    mine = SnapshotManager(snapshot_dir, "mine", workdir)
+    theirs = SnapshotManager(snapshot_dir, "theirs", workdir)
+    await mine.take_snapshot("mine")
+    foreign = await theirs.take_snapshot("theirs")
+    with open(target, "w") as f:
+        f.write("edited")
+
+    assert foreign is not None
+    assert await mine.restore_snapshot(foreign) is False
+    with open(target) as f:
+        assert f.read() == "edited"

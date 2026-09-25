@@ -1,35 +1,29 @@
-"""Snapshots of a directory as git trees, kept in a private bare repository.
+"""Snapshots of a working directory as git trees, kept in a private bare
+repository whose work tree is the directory.
 
-The directory is the repository's work tree: nothing is copied, and nothing is
-written into the directory or into a git repository it belongs to. `/rewind`
-(`llm/snapshot/manager.py`) commits these trees into a persistent store; the
-self-review gate diffs two of them from a per-turn temporary store.
+Nothing is copied, and nothing is written into the directory or into any git
+repository under it. `/rewind` (`llm/snapshot/manager.py`) commits these trees
+into a persistent store; the self-review gate diffs two of them from a
+per-turn temporary store.
 
-Inside a git repository the work tree is the repository's root and every
-command is limited to the directory, so the repository's `.gitignore` files —
-above the directory too — and its `info/exclude` apply. Outside one, the
-directory itself is the work tree and `DEFAULT_IGNORE_DIRS` keeps regenerable
-caches out. Either way a snapshot:
+A snapshot holds exactly what `snapshot_listing.py` lists — every repository
+under the directory by its own ignore rules, nested ones included, and the
+loose files outside them up to a budget — fed to `git update-index` in the
+store's own index, which keeps git's stat cache, so a file unchanged since the
+last snapshot is not hashed again. An entry the listing no longer returns,
+deleted or ignored since, is dropped from the index. A snapshot also:
 
-- honours the ignore rules as they are now, even for a path an earlier
-  snapshot captured (`git add -A` alone never untracks one);
 - stores bytes exactly: the store's `info/attributes`, which outranks the
   project's `.gitattributes`, disables line-ending and encoding conversion and
   clean/smudge filters, so a restore cannot rewrite a file or write git-lfs
   pointer files into the directory;
-- skips a file git cannot read, or a nested repository with no commit, rather
-  than failing, and reports how many it skipped;
-- never snapshots the store itself, wherever it lies.
-
-Every git command is bounded: by `GIT_COMMAND_TIMEOUT_SECONDS`, and by an
-optional *deadline* (a `time.monotonic()` value) that cuts off a whole
-sequence of commands. Failures raise `SnapshotError`.
+- leaves out a file git cannot read rather than failing, and reports how many
+  it left out;
+- never holds the store itself, wherever it lies.
 """
 
 from __future__ import annotations
 
-import asyncio
-import contextlib
 import logging
 import os
 import re
@@ -38,53 +32,22 @@ import stat
 import subprocess
 import sys
 import tempfile
-import threading
-import time
-from typing import Any, Callable, Iterable, TypeVar
+from typing import Any, Callable, Iterable, NamedTuple
 
-#: The most one git command may take, deadline or not.
-GIT_COMMAND_TIMEOUT_SECONDS = 30
-
-#: Directories that are large, regenerable, and almost never hand-edited,
-#: excluded even where no `.gitignore` names them.
-DEFAULT_IGNORE_DIRS: frozenset[str] = frozenset(
-    {
-        # Python
-        ".venv",
-        "venv",
-        "__pycache__",
-        ".pytest_cache",
-        ".mypy_cache",
-        ".ruff_cache",
-        ".tox",
-        ".eggs",
-        # Node / JS
-        "node_modules",
-        ".next",
-        ".nuxt",
-        ".turbo",
-        ".parcel-cache",
-        # Generic caches
-        ".cache",
-    }
+from zrb.util.git.snapshot_command import (
+    SnapshotError,
+    get_clean_env,
+    get_git_output,
+    run_git_command,
+)
+from zrb.util.git.snapshot_listing import (
+    DEFAULT_IGNORE_DIRS,
+    Listing,
+    get_out_of_scope_paths,
+    list_snapshot_paths,
 )
 
 _BYTE_EXACT_ATTRIBUTES = "* -text -filter -ident -working-tree-encoding\n"
-
-# `git add --ignore-errors` exits 1 when it skipped a file it could not index
-# and added the rest.
-_ADD_PARTIAL_EXIT = 1
-
-# Inherited variables that would point git at another repository, index or
-# object database than the one each command names.
-_REDIRECTING_ENV = (
-    "GIT_DIR",
-    "GIT_WORK_TREE",
-    "GIT_INDEX_FILE",
-    "GIT_OBJECT_DIRECTORY",
-    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-    "GIT_COMMON_DIR",
-)
 
 _IDENTITY_ENV = {
     "GIT_AUTHOR_NAME": "zrb-snapshot",
@@ -93,73 +56,32 @@ _IDENTITY_ENV = {
     "GIT_COMMITTER_EMAIL": "zrb-snapshot@local",
 }
 
-# Set in the worker thread running a snapshot operation when the coroutine
-# awaiting it is cancelled; `SnapshotStore.run_git` stops at the next command.
-_worker = threading.local()
-
-_T = TypeVar("_T")
+# How `git update-index` names the file it could not read before giving up.
+_UNREADABLE_PATH = re.compile(r"^fatal: Unable to process path (.*)$", re.MULTILINE)
 
 logger = logging.getLogger(__name__)
 
 
-class SnapshotError(RuntimeError):
-    """A snapshot git command failed, timed out, or was cancelled."""
-
-
-def get_repo_root(cwd: str, deadline: float | None = None) -> str | None:
-    """The top-level directory of the git repository containing *cwd*, or
-    None outside one (or when git is unavailable)."""
-    try:
-        return _run(["git", "rev-parse", "--show-toplevel"], cwd, deadline).strip()
-    except SnapshotError:
-        return None
-
-
-def get_command_timeout(deadline: float | None) -> float:
-    """Seconds the next git command may take: `GIT_COMMAND_TIMEOUT_SECONDS`,
-    or less when *deadline* is nearer. Zero or below means no time is left."""
-    if deadline is None:
-        return GIT_COMMAND_TIMEOUT_SECONDS
-    return min(GIT_COMMAND_TIMEOUT_SECONDS, deadline - time.monotonic())
-
-
-async def run_in_worker(fn: Callable[..., _T], *args: Any) -> _T:
-    """Run *fn* in a worker thread; when the caller is cancelled, stop it
-    before its next git command and wait for it before the cancellation
-    propagates.
-
-    Cancelling cannot stop a thread. A caller holding a lock around a snapshot
-    would otherwise release it while git still runs, letting the next
-    operation race the same index — or a cancelled commit move a history
-    forward after a later rewind."""
-    abort = threading.Event()
-
-    def work() -> _T:
-        _worker.abort = abort
-        try:
-            return fn(*args)
-        finally:
-            _worker.abort = None
-
-    future = asyncio.ensure_future(asyncio.to_thread(work))
-    try:
-        return await asyncio.shield(future)
-    except asyncio.CancelledError:
-        abort.set()
-        await asyncio.wait([future])
-        raise
+class Snapshot(NamedTuple):
+    #: The snapshot's tree SHA.
+    tree: str
+    #: Files left out because git could not read them.
+    skipped: int = 0
+    #: The linked worktrees it holds, relative to the work tree.
+    worktrees: tuple[str, ...] = ()
 
 
 class SnapshotStore:
-    """A private bare repository whose work tree is *workdir* (or the root of
-    the git repository containing it).
+    """A private bare repository whose work tree is *workdir*.
 
     *index_name* names this user's index inside the store, so several can
     share one store without sharing a lock. *exclude_paths* are further
     absolute paths never to snapshot. With *borrow_objects*, the store reads
-    the enclosing repository's objects as an alternate instead of storing its
-    own copy of every tracked file — only for a short-lived store, since the
-    repository's garbage collection may prune what an old snapshot needs."""
+    the objects of every repository it lists as alternates instead of storing
+    its own copy of every tracked file — only for a short-lived store, since a
+    repository's garbage collection may prune what an old snapshot needs.
+    With *include_worktrees*, snapshots hold the linked worktrees under
+    *workdir* too."""
 
     def __init__(
         self,
@@ -169,30 +91,31 @@ class SnapshotStore:
         ignore_dirs: Iterable[str] = DEFAULT_IGNORE_DIRS,
         exclude_paths: Iterable[str] = (),
         borrow_objects: bool = False,
+        include_worktrees: bool = False,
     ):
         # Absolute: git runs with the work tree as its cwd.
         self._git_dir = os.path.realpath(git_dir)
         self._workdir = os.path.realpath(workdir)
         self._index_name = index_name
         self._ignore_dirs = frozenset(ignore_dirs)
-        self._exclude_paths = [os.path.realpath(p) for p in exclude_paths]
+        self._exclude_paths = [self._git_dir] + [
+            os.path.realpath(p) for p in exclude_paths
+        ]
         self._borrow_objects = borrow_objects
-        self._work_tree = ""
-        self._pathspec = "."
+        self._include_worktrees = include_worktrees
         self._initialized = False
 
     @classmethod
     def create_temporary(cls, workdir: str) -> "SnapshotStore":
-        """A new store in an owner-only temporary directory, borrowing the
-        enclosing repository's objects. `delete` it when done."""
-        return cls(
-            tempfile.mkdtemp(prefix="zrb-snapshot-"), workdir, borrow_objects=True
-        )
+        """A new review store in an owner-only temporary directory: it borrows
+        the listed repositories' objects and holds the linked worktrees under
+        *workdir*. `delete` it when done."""
+        return cls.open_temporary(tempfile.mkdtemp(prefix="zrb-snapshot-"), workdir)
 
     @classmethod
     def open_temporary(cls, git_dir: str, workdir: str) -> "SnapshotStore":
         """The store `create_temporary` made at *git_dir*, reopened."""
-        return cls(git_dir, workdir, borrow_objects=True)
+        return cls(git_dir, workdir, borrow_objects=True, include_worktrees=True)
 
     @property
     def git_dir(self) -> str:
@@ -204,15 +127,8 @@ class SnapshotStore:
 
     @property
     def work_tree(self) -> str:
-        """The work tree's root; snapshot paths are relative to it."""
-        self.ensure()
-        return self._work_tree
-
-    @property
-    def pathspec(self) -> str:
-        """The snapshotted directory relative to `work_tree` (`.` for all)."""
-        self.ensure()
-        return self._pathspec
+        """The snapshotted directory; snapshot paths are relative to it."""
+        return self._workdir
 
     def delete(self) -> None:
         """Remove the store and every object its snapshots wrote.
@@ -233,13 +149,16 @@ class SnapshotStore:
         hand."""
         if not os.path.isdir(self._git_dir):
             return
-        if sys.version_info >= (3, 12):
-            shutil.rmtree(self._git_dir, onexc=_remove_read_only)
-        else:
-            shutil.rmtree(
-                self._git_dir,
-                onerror=lambda fn, path, info: _remove_read_only(fn, path, info[1]),
-            )
+        try:
+            if sys.version_info >= (3, 12):
+                shutil.rmtree(self._git_dir, onexc=_remove_read_only)
+            else:
+                shutil.rmtree(
+                    self._git_dir,
+                    onerror=lambda fn, path, info: _remove_read_only(fn, path, info[1]),
+                )
+        except OSError:
+            pass  # whatever is left is reported below
         if os.path.exists(self._git_dir):
             logger.warning(
                 "Could not delete snapshot store %s; it may hold copies of "
@@ -248,17 +167,13 @@ class SnapshotStore:
             )
 
     def ensure(self, deadline: float | None = None) -> None:
-        """Create the store if needed and (re)write its ignore and attribute
-        rules. Raises SnapshotError when git cannot set it up."""
+        """Create the store if needed and (re)write its attribute rules.
+        Raises SnapshotError when git cannot set it up."""
         if self._initialized:
             return
-        repo_root = get_repo_root(self._workdir, deadline)
-        self._work_tree = os.path.realpath(repo_root or self._workdir)
-        rel = os.path.relpath(self._workdir, self._work_tree)
-        self._pathspec = "." if rel == "." else rel
         if not os.path.isdir(os.path.join(self._git_dir, "objects")):
             os.makedirs(self._git_dir, mode=0o700, exist_ok=True)
-            _run(["git", "init", "-q", "--bare", self._git_dir], None, deadline)
+            get_git_output(["init", "-q", "--bare", self._git_dir], None, deadline)
         # Owner-only, whatever the umask: the store holds copies of untracked
         # files. A closed top directory keeps other users out of everything
         # under it. Applied on every open, so a store created with looser
@@ -266,35 +181,25 @@ class SnapshotStore:
         os.chmod(self._git_dir, 0o700)
         info = os.path.join(self._git_dir, "info")
         os.makedirs(info, exist_ok=True)
-        _write(os.path.join(info, "exclude"), self._exclude_rules(repo_root, deadline))
         _write(os.path.join(info, "attributes"), _BYTE_EXACT_ATTRIBUTES)
-        if self._borrow_objects and repo_root is not None:
-            objects = _run(
-                ["git", "rev-parse", "--git-path", "objects"], self._workdir, deadline
-            ).strip()
-            alternates = os.path.join(self._git_dir, "objects", "info", "alternates")
-            os.makedirs(os.path.dirname(alternates), exist_ok=True)
-            _write(alternates, os.path.join(self._workdir, objects) + "\n")
         self._initialized = True
 
-    def snapshot(self, deadline: float | None = None) -> tuple[str, int]:
-        """Snapshot the directory; return its tree SHA and how many files git
-        could not index. The index persists, so unchanged files are skipped
-        by stat on the next snapshot instead of being hashed again."""
-        self.ensure(deadline)
-        result = self.run_git(
-            ["add", "-A", "--ignore-errors", "--", self._pathspec], deadline=deadline
-        )
-        if result.returncode not in (0, _ADD_PARTIAL_EXIT):
-            raise SnapshotError(f"git add failed: {result.stderr.strip()}")
-        skipped = sum(
-            1
-            for line in result.stderr.splitlines()
-            if line.startswith("error: unable to index file")
-            or line.endswith("does not have a commit checked out")
-        )
-        self.untrack_ignored(deadline=deadline)
-        return self.git(["write-tree"], deadline=deadline).strip(), skipped
+    def snapshot(self, deadline: float | None = None) -> Snapshot:
+        """Snapshot the directory into the store's index and write its tree.
+        Raises `SnapshotBudgetError` when the directory holds too many files
+        outside every repository."""
+        listing, skipped = self._index_directory(deadline)
+        tree = self.git(["write-tree"], deadline=deadline).strip()
+        return Snapshot(tree, skipped, tuple(listing.worktrees))
+
+    def restore(self, treeish: str, deadline: float | None = None) -> None:
+        """Make the directory match *treeish*: rewrite changed files, recreate
+        deleted ones, and remove files created since. A path the listing
+        leaves out now — ignored or excluded since *treeish* was taken — is
+        neither overwritten nor recreated."""
+        listing, _ = self._index_directory(deadline)
+        target = self._create_tree_in_scope(treeish, listing, deadline)
+        self.git(["read-tree", "-u", "--reset", target], deadline=deadline)
 
     def diff(
         self, before: str, after: str, deadline: float | None = None
@@ -318,25 +223,22 @@ class SnapshotStore:
         )
         return [name for name in names.split("\0") if name], diff.strip()
 
-    def untrack_ignored(
-        self, index: str | None = None, deadline: float | None = None
-    ) -> None:
-        """Drop from *index* (the store's own by default) every path git now
-        ignores."""
-        ignored = self.git(
-            ["ls-files", "-z", "--cached", "--ignored", "--exclude-standard"],
-            index=index,
-            deadline=deadline,
-        )
-        if ignored:
-            # Literal paths, and no up-to-date check: `rm --cached` refuses an
-            # entry that differs from both the file and HEAD, as a restore's does.
+    def create_grafted_tree(
+        self, tree: str, prefix: str, commit: str, deadline: float | None = None
+    ) -> str:
+        """*tree* with *commit*'s tree added under *prefix*, which *tree* must
+        not hold yet."""
+        index = self.index + ".graft"
+        try:
+            self.git(["read-tree", tree], index=index, deadline=deadline)
             self.git(
-                ["update-index", "--force-remove", "-z", "--stdin"],
+                ["read-tree", f"--prefix={prefix}/", commit],
                 index=index,
-                stdin=ignored,
                 deadline=deadline,
             )
+            return self.git(["write-tree"], index=index, deadline=deadline).strip()
+        finally:
+            _remove_if_present(index)
 
     def git(
         self,
@@ -362,61 +264,124 @@ class SnapshotStore:
         errors: str = "surrogateescape",
     ) -> subprocess.CompletedProcess[str]:
         """Run a git command against the store, whatever its exit code."""
-        abort = getattr(_worker, "abort", None)
-        if abort is not None and abort.is_set():
-            raise SnapshotError(f"Snapshot cancelled before running git {args[0]}")
         self.ensure(deadline)
-        env = {**_clean_env(), **_IDENTITY_ENV, "GIT_INDEX_FILE": index or self.index}
+        env = {
+            **get_clean_env(),
+            **_IDENTITY_ENV,
+            "GIT_INDEX_FILE": index or self.index,
+        }
         argv = [
             "git",
             # A global `core.fsmonitor` would start a watcher daemon per store.
             "-c",
             "core.fsmonitor=false",
             f"--git-dir={self._git_dir}",
-            f"--work-tree={self._work_tree}",
+            f"--work-tree={self._workdir}",
             *args,
         ]
-        return _complete(
-            argv, self._work_tree, deadline, env, stdin, errors, f"git {args[0]}"
+        return run_git_command(
+            argv, self._workdir, deadline, env, stdin, errors, f"git {args[0]}"
         )
 
-    def _exclude_rules(self, repo_root: str | None, deadline: float | None) -> str:
-        rules = [f"{d}/" for d in sorted(self._ignore_dirs)]
-        if repo_root is not None:
-            # The repository's own `info/exclude`: this store's replaces it.
-            exclude = _run(
-                ["git", "rev-parse", "--git-path", "info/exclude"],
-                self._workdir,
-                deadline,
+    def _index_directory(self, deadline: float | None) -> tuple[Listing, int]:
+        """Bring the store's index to the directory's current listing; return
+        the listing and how many files git could not read."""
+        self.ensure(deadline)
+        listing = list_snapshot_paths(
+            self._workdir,
+            self._ignore_dirs,
+            self._exclude_paths,
+            self._include_worktrees,
+            deadline,
+        )
+        if self._borrow_objects:
+            self._borrow_from(listing.repositories, deadline)
+        listed = set(listing.paths)
+        indexed = self.git(["ls-files", "-z"], deadline=deadline).split("\0")
+        unlisted = [path for path in indexed if path and path not in listed]
+        if unlisted:
+            result = self._update_index(["--force-remove"], unlisted, deadline)
+            if result.returncode != 0:
+                raise SnapshotError(f"git update-index failed: {result.stderr.strip()}")
+        return listing, self._add_readable(listing.paths, deadline)
+
+    def _add_readable(self, paths: list[str], deadline: float | None) -> int:
+        """Add *paths* to the index — `--remove` drops one deleted from disk —
+        and return how many were left out because git could not read them.
+
+        `update-index` gives up at the first unreadable file and names it, so
+        that file is left out and the rest are fed again; each rerun re-stats
+        the others instead of hashing them."""
+        remaining, skipped = list(paths), 0
+        while remaining:
+            result = self._update_index(["--add", "--remove"], remaining, deadline)
+            if result.returncode == 0:
+                break
+            match = _UNREADABLE_PATH.search(result.stderr)
+            if match is None or match.group(1) not in remaining:
+                raise SnapshotError(f"git update-index failed: {result.stderr.strip()}")
+            remaining.remove(match.group(1))
+            skipped += 1
+        return skipped
+
+    def _update_index(
+        self, flags: list[str], paths: list[str], deadline: float | None
+    ) -> subprocess.CompletedProcess[str]:
+        return self.run_git(
+            ["update-index", *flags, "-z", "--stdin"],
+            stdin="".join(f"{path}\0" for path in paths),
+            deadline=deadline,
+        )
+
+    def _borrow_from(self, repositories: list[str], deadline: float | None) -> None:
+        """Add each listed repository's object database to the store's
+        alternates, keeping the ones already there: an earlier snapshot's
+        objects must stay readable."""
+        alternates = os.path.join(self._git_dir, "objects", "info", "alternates")
+        try:
+            with open(alternates, encoding="utf-8") as f:
+                known = [line for line in f.read().splitlines() if line]
+        except OSError:
+            known = []
+        for base in repositories:
+            where = (
+                os.path.join(self._workdir, *base.split("/")) if base else self._workdir
+            )
+            objects = get_git_output(
+                ["rev-parse", "--git-path", "objects"], where, deadline
             ).strip()
-            try:
-                with open(os.path.join(self._workdir, exclude), encoding="utf-8") as f:
-                    rules.append(f.read())
-            except OSError:
-                pass
-        for path in [self._git_dir, *self._exclude_paths]:
-            rel = _relpath_inside(path, self._work_tree)
-            if rel is not None:
-                rules.append(f"{_anchored_pattern(rel)}/")
-        return "".join(f"{rule.rstrip()}\n" for rule in rules if rule.strip())
+            path = os.path.normpath(os.path.join(where, objects))
+            if path not in known:
+                known.append(path)
+        os.makedirs(os.path.dirname(alternates), exist_ok=True)
+        _write(alternates, "".join(f"{path}\n" for path in known))
 
-
-def _relpath_inside(path: str, root: str) -> str | None:
-    """*path* relative to *root* when it lies strictly inside it, else None."""
-    try:
-        rel = os.path.relpath(path, root)
-    except ValueError:  # another drive on Windows: never inside
-        return None
-    if rel == "." or rel == os.pardir or rel.startswith(os.pardir + os.sep):
-        return None
-    return rel
-
-
-def _anchored_pattern(rel_path: str) -> str:
-    """A gitignore pattern matching exactly *rel_path* under the work tree."""
-    escaped = re.sub(r"([\\*?\[])", r"\\\1", rel_path.replace(os.sep, "/"))
-    stripped = escaped.rstrip(" ")
-    return "/" + stripped + "\\ " * (len(escaped) - len(stripped))
+    def _create_tree_in_scope(
+        self, treeish: str, listing: Listing, deadline: float | None
+    ) -> str:
+        """*treeish*'s tree minus the paths the listing would leave out now."""
+        index = self.index + ".restore"
+        try:
+            self.git(["read-tree", treeish], index=index, deadline=deadline)
+            paths = self.git(["ls-files", "-z"], index=index, deadline=deadline)
+            out = get_out_of_scope_paths(
+                self._workdir,
+                [path for path in paths.split("\0") if path],
+                listing.repositories,
+                self._ignore_dirs,
+                self._exclude_paths,
+                deadline,
+            )
+            if out:
+                self.git(
+                    ["update-index", "--force-remove", "-z", "--stdin"],
+                    index=index,
+                    stdin="".join(f"{path}\0" for path in out),
+                    deadline=deadline,
+                )
+            return self.git(["write-tree"], index=index, deadline=deadline).strip()
+        finally:
+            _remove_if_present(index)
 
 
 def _remove_read_only(fn: Callable[[str], Any], path: str, exc: Any) -> None:
@@ -432,62 +397,13 @@ def _remove_read_only(fn: Callable[[str], Any], path: str, exc: Any) -> None:
         pass
 
 
+def _remove_if_present(path: str) -> None:
+    if os.path.exists(path):
+        os.remove(path)
+
+
 def _write(path: str, content: str) -> None:
     # LF on Windows too: git reads an `alternates` line ending in `\r` as a
     # path that does not exist.
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(content)
-
-
-def _clean_env() -> dict[str, str]:
-    return {k: v for k, v in os.environ.items() if k not in _REDIRECTING_ENV}
-
-
-def _run(args: list[str], cwd: str | None, deadline: float | None) -> str:
-    result = _complete(args, cwd, deadline, _clean_env())
-    if result.returncode != 0:
-        raise SnapshotError(f"git {args[1]} failed: {result.stderr.strip()}")
-    return result.stdout
-
-
-def _complete(
-    argv: list[str],
-    cwd: str | None,
-    deadline: float | None,
-    env: dict[str, str],
-    stdin: str | None = None,
-    errors: str = "surrogateescape",
-    label: str | None = None,
-) -> subprocess.CompletedProcess[str]:
-    """Run *argv* within the deadline. Output is UTF-8 whatever the locale:
-    `surrogateescape` keeps a non-UTF-8 file name's bytes intact, and
-    re-encodes them the same way on stdin.
-
-    A command killed at its timeout cannot remove the index lock it took, and
-    a lock left behind fails every later command on that index — for a
-    persistent store, across restarts. So the lock is removed for it, unless
-    it was already there before the command ran."""
-    label = label or " ".join(argv[:2])
-    timeout = get_command_timeout(deadline)
-    if timeout <= 0:
-        raise SnapshotError(f"No time left to run {label}")
-    lock = env["GIT_INDEX_FILE"] + ".lock" if "GIT_INDEX_FILE" in env else None
-    locked_before = lock is not None and os.path.exists(lock)
-    try:
-        return subprocess.run(
-            argv,
-            cwd=cwd,
-            env=env,
-            input=stdin,
-            capture_output=True,
-            encoding="utf-8",
-            errors=errors,
-            timeout=timeout,
-        )
-    except subprocess.TimeoutExpired as e:
-        if lock is not None and not locked_before:
-            with contextlib.suppress(OSError):
-                os.remove(lock)
-        raise SnapshotError(f"{label} timed out after {timeout:.3g}s") from e
-    except OSError as e:
-        raise SnapshotError(f"Could not run git: {e}") from e

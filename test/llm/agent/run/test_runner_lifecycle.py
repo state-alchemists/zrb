@@ -12,6 +12,7 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
+from zrb.util.git.snapshot_store import Snapshot
 
 
 def _run_from(agen_func):
@@ -273,8 +274,8 @@ async def test_stop_event_data_carries_turn_slice_and_wrote_files_flag(
 
     monkeypatch.setenv("ZRB_LLM_SELF_REVIEW_ENABLED", "on" if self_review else "off")
     monkeypatch.setattr(
-        "zrb.llm.agent.run.turn_snapshots.SnapshotStore.snapshot",
-        lambda store, deadline=None: ("tree-at-start", 0),
+        "zrb.llm.agent.run.turn_snapshot.SnapshotStore.snapshot",
+        lambda store, deadline=None: Snapshot("tree-at-start"),
     )
     # Only the payload is under test here, not the gate that reads it.
     monkeypatch.setattr(
@@ -329,14 +330,14 @@ async def test_stop_event_data_carries_turn_slice_and_wrote_files_flag(
     assert captured[0]["wrote_files"] is True
     assert captured[0]["changed_paths"] == ["x"]
     # The turn-start snapshot is only taken while the self-review gate is on,
-    # and its private store is gone once the turn ends.
-    # A nested run takes none of its own: it inherits its parent's registry.
-    snapshots = captured[0]["turn_start_snapshots"]
+    # and its private store is gone once the turn ends. A nested run takes
+    # none: the parent's snapshot covers what it changes.
+    snapshot = captured[0]["turn_start_snapshot"]
     if self_review and not nested:
-        assert [s["tree"] for s in snapshots] == ["tree-at-start"]
-        assert not os.path.exists(snapshots[0]["store"])
+        assert snapshot["tree"] == "tree-at-start"
+        assert not os.path.exists(snapshot["store"])
     else:
-        assert snapshots == []
+        assert snapshot is None
 
 
 @pytest.mark.asyncio
@@ -353,15 +354,15 @@ async def test_cancelling_a_turn_mid_snapshot_leaves_no_snapshot_store(monkeypat
         stores.append(store.git_dir)
         started.set()
         release.wait(5)
-        # A `git add` still running after the turn deleted the store would
+        # A git command still running after the turn deleted the store would
         # recreate it.
         os.makedirs(os.path.join(store.git_dir, "objects", "ab"), exist_ok=True)
         finished.set()
-        return "tree-at-start", 0
+        return Snapshot("tree-at-start")
 
     monkeypatch.setenv("ZRB_LLM_SELF_REVIEW_ENABLED", "on")
     monkeypatch.setattr(
-        "zrb.llm.agent.run.turn_snapshots.SnapshotStore.snapshot", slow_snapshot
+        "zrb.llm.agent.run.turn_snapshot.SnapshotStore.snapshot", slow_snapshot
     )
     monkeypatch.setattr(
         "zrb.llm.hook.manager.register_self_review_hook", lambda manager: None

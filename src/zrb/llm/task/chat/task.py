@@ -230,7 +230,7 @@ class LLMChatTask(BaseTask):
             history_processors: Callables rewriting history before each request,
                 run in order.
             enable_rewind: Whether the session can roll back to an earlier turn.
-                Defaults to `LLM_ENABLE_REWIND` (on inside a git repository).
+                Defaults to `LLM_ENABLE_REWIND` (on).
             snapshot_dir: Directory holding rewind snapshots. Defaults to
                 `LLM_SNAPSHOT_DIR` (`~/.zrb/llm-snapshots`).
             ui: A ready-made UI to drive the session with.

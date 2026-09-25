@@ -29,7 +29,7 @@ def _start_snapshot(workdir, stores: list) -> dict:
     """A turn-start snapshot of *workdir*, as the runner puts it in the payload."""
     snapshots = SnapshotStore.create_temporary(str(workdir))
     stores.append(snapshots)
-    tree, _ = snapshots.snapshot()
+    tree = snapshots.snapshot().tree
     return {"workdir": snapshots.work_tree, "tree": tree, "store": snapshots.git_dir}
 
 
@@ -93,9 +93,7 @@ async def _stop(
         {
             "changed_paths": list(changed_paths),
             "wrote_files": bool(changed_paths),
-            "turn_start_snapshots": (
-                [turn_start_snapshot] if turn_start_snapshot else []
-            ),
+            "turn_start_snapshot": turn_start_snapshot,
             "run_scope": run_scope,
             "nested_run": nested_run,
         },
@@ -286,8 +284,8 @@ async def test_a_turn_with_no_changes_since_its_start_is_not_reviewed(
 async def test_a_review_past_its_timeout_is_cancelled_and_never_blocks(
     tmp_path, monkeypatch
 ):
-    # Outside a repository the scope's one git command fails fast; the
-    # timeout leaves it ample room so the deadline lands on the reviewer.
+    # No turn-start snapshot, so no git command runs and the deadline lands
+    # on the reviewer.
     monkeypatch.chdir(tmp_path)
     manager = HookManager(search_dirs=[])
     with _gate(report=_FINDINGS, timeout=2, delay=30) as (seen, cancelled):
@@ -422,29 +420,62 @@ async def test_outside_git_the_review_still_gets_the_turns_diff(
 
 
 @pytest.mark.asyncio
-async def test_each_snapshotted_repository_gets_its_own_diff(
-    tmp_path, monkeypatch, store
-):
-    main, other = tmp_path / "main", tmp_path / "other"
-    for repo in (main, other):
-        repo.mkdir()
-        subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
-    monkeypatch.chdir(main)
-    starts = [_start_snapshot(main, store), _start_snapshot(other, store)]
-    (main / "a.py").write_text("x = 1\n")
-    (other / "b.py").write_text("y = 2\n")  # a shell command with cwd=other
+async def test_a_nested_repositorys_changes_are_reviewed(tmp_path, monkeypatch, store):
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+    workspace = tmp_path / "ws"
+    for repo in ("a", "b"):
+        (workspace / repo).mkdir(parents=True)
+        subprocess.run(["git", "init", "-q"], cwd=workspace / repo, check=True)
+    monkeypatch.chdir(workspace)
+    before = _start_snapshot(workspace, store)
+    (workspace / "a" / "x.py").write_text("x = 1\n")  # e.g. `cd a && ...`
+    (workspace / "b" / "y.py").write_text("y = 2\n")
     manager = HookManager(search_dirs=[])
 
     with _gate() as (seen, _):
-        await manager.execute_hooks(
-            HookEvent.STOP,
-            {"changed_paths": [], "turn_start_snapshots": starts},
-            stop_hook_active=False,
-        )
+        await _stop(manager, changed_paths=(), turn_start_snapshot=before)
 
     request = seen[0].event_data
-    other_root = os.path.realpath(other)
-    assert "- a.py" in request
-    assert f"- {os.path.join(other_root, 'b.py')}" in request
-    assert f"Diff against the start of this turn (in {other_root})" in request
-    assert "+y = 2" in request and "+x = 1" in request
+    assert "- a/x.py" in request and "- b/y.py" in request
+    assert "+x = 1" in request and "+y = 2" in request
+
+
+@pytest.mark.asyncio
+async def test_a_worktree_created_mid_turn_shows_only_what_the_turn_changed(
+    tmp_path, monkeypatch, store
+):
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+
+    def git(cwd, *args):
+        subprocess.run(
+            ["git", "-c", "user.email=t@t", "-c", "user.name=t", *args],
+            cwd=cwd,
+            check=True,
+            capture_output=True,
+        )
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    git(repo, "init", "-q")
+    (repo / "app.py").write_text("x = 1\n")
+    (repo / ".gitignore").write_text(".zrb/worktree/\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "init")
+    monkeypatch.chdir(repo)
+    before = _start_snapshot(repo, store)
+    worktree = repo / ".zrb" / "worktree" / "wt"
+    git(repo, "worktree", "add", "-q", "-b", "wt", str(worktree))  # EnterWorktree
+    (worktree / "app.py").write_text("x = 2\n")
+    (worktree / "new.py").write_text("n = 1\n")
+    git(worktree, "add", ".")
+    git(worktree, "commit", "-qm", "work")  # committed in the worktree
+    manager = HookManager(search_dirs=[])
+
+    with _gate() as (seen, _):
+        await _stop(manager, changed_paths=(), turn_start_snapshot=before)
+
+    request = seen[0].event_data
+    assert "- .zrb/worktree/wt/app.py" in request
+    assert "- .zrb/worktree/wt/new.py" in request
+    assert "- .zrb/worktree/wt/.gitignore" not in request  # checked out, unchanged
+    assert "-x = 1" in request and "+x = 2" in request

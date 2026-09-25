@@ -304,7 +304,7 @@ To understand Zrb's core design decisions (such as the strict use of `asyncio`, 
 
 ## Context Propagation Internals
 
-Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are eighteen `ContextVar` instances across the codebase, split into five layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
+Zrb uses Python's `contextvars.ContextVar` to thread execution state through async coroutines without explicit parameter passing. There are seventeen `ContextVar` instances across the codebase, split into five layers. The single source of truth is `src/zrb/contextvars.py` (a re-export index); update this section whenever you add, remove, or rename a `ContextVar`.
 
 ### The Five Layers
 
@@ -329,9 +329,8 @@ Holds the active `Context` for the currently executing task. Set at the start of
 | `current_small_model` | `str \| Model \| None` | The UI's own `small_model` (set by `/model small ...`), so `journal_compliance.py`'s judge model and other small-tier consumers resolve per-session instead of leaking one process-wide value across concurrent chat sessions |
 | `current_multimodal_model` | `str \| Model \| None` | The UI's own `multimodal_model` (set by `/model multimodal ...`), read by the attachment-description pipeline and voice engine for the same per-session reason |
 | `current_model` | `str \| Model \| None` | The main model this run uses, so a helper needing a model of its own (the summarizer, the journal judge) falls back to it rather than to `CFG.LLM_MODEL` |
-| `current_turn_snapshots` | `TurnSnapshots \| None` | The repositories this turn has snapshotted for the self-review gate (`agent/run/turn_snapshots.py`); the tool chokepoint adds one before a tool changes files in it. A mutable registry, because each tool call runs in a copy of the context |
 
-The first nine are set at the start of `run_agent()` and reset in its `finally` block. `current_turn_snapshots` is bound per turn by `_execution_loop`, only for a top-level run with the gate on; a delegated sub-agent inherits its parent's.
+All nine are set at the start of `run_agent()` and reset in its `finally` block.
 
 **Layer 3 — Permission state** (`src/zrb/llm/permission/state.py`):
 

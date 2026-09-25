@@ -35,8 +35,6 @@ def test_index_exports_all_wrappers():
         "get_current_hook_manager",
         "current_agent_run_scope",
         "get_current_agent_run_scope",
-        "current_turn_snapshots",
-        "get_current_turn_snapshots",
         "current_small_model",
         "get_current_small_model",
         "current_model",

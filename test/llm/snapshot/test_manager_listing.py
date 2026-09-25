@@ -327,6 +327,7 @@ async def test_restore_drops_later_snapshots_from_the_list(manager, workdir):
 
 @pytest.mark.asyncio
 async def test_gitignored_files_are_neither_snapshotted_nor_restored(manager, workdir):
+    subprocess.run(["git", "init", "-q"], cwd=workdir, check=True)
     with open(os.path.join(workdir, ".gitignore"), "w") as f:
         f.write("*.log\n")
     log = os.path.join(workdir, "run.log")
@@ -357,6 +358,7 @@ async def test_default_ignore_dirs_apply_outside_git(manager, workdir):
 
 @pytest.mark.asyncio
 async def test_file_ignored_after_a_snapshot_is_left_alone(manager, workdir):
+    subprocess.run(["git", "init", "-q"], cwd=workdir, check=True)
     secret = os.path.join(workdir, "secrets.env")
     with open(secret, "w") as f:
         f.write("v1")
@@ -404,3 +406,59 @@ async def test_restore_is_byte_exact_whatever_gitattributes_say(
     for name, data in contents.items():
         with open(os.path.join(workdir, name), "rb") as f:
             assert f.read() == data
+
+
+@pytest.mark.asyncio
+async def test_a_gitignore_outside_any_repository_has_no_effect(manager, workdir):
+    """As in git itself: only a repository reads its `.gitignore`."""
+    with open(os.path.join(workdir, ".gitignore"), "w") as f:
+        f.write("*.log\n")
+    log = os.path.join(workdir, "run.log")
+    with open(log, "w") as f:
+        f.write("before")
+    sha = await manager.take_snapshot("loose")
+    with open(log, "w") as f:
+        f.write("after")
+
+    assert sha is not None
+    assert await manager.restore_snapshot(sha) is True
+    with open(log) as f:
+        assert f.read() == "before"
+
+
+@pytest.mark.asyncio
+async def test_rewind_restores_the_files_of_nested_repositories(manager, workdir):
+    lib = os.path.join(workdir, "lib")
+    os.makedirs(lib)
+    subprocess.run(["git", "init", "-q"], cwd=lib, check=True)
+    source = os.path.join(lib, "v.py")
+    with open(source, "w") as f:
+        f.write("before")
+    sha = await manager.take_snapshot("nested")
+    with open(source, "w") as f:
+        f.write("after")
+
+    assert sha is not None
+    assert await manager.restore_snapshot(sha) is True
+    with open(source) as f:
+        assert f.read() == "before"
+
+
+@pytest.mark.asyncio
+async def test_a_directory_over_the_budget_turns_rewind_off_for_the_session(
+    manager, workdir, monkeypatch
+):
+    from zrb.util.git import snapshot_listing
+
+    monkeypatch.setattr(snapshot_listing, "LOOSE_FILE_LIMIT", 1)
+    for name in ("a.txt", "b.txt"):
+        with open(os.path.join(workdir, name), "w") as f:
+            f.write("x")
+    events = []
+
+    assert await manager.take_init_snapshot(on_progress=events.append) is None
+    monkeypatch.setattr(snapshot_listing, "LOOSE_FILE_LIMIT", 100)
+
+    assert events[-1].stage == "error"
+    assert "more than 1 files outside any git repository" in events[-1].reason
+    assert await manager.take_snapshot("later") is None

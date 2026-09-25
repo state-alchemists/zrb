@@ -26,7 +26,6 @@ import asyncio
 import os
 import uuid
 from contextlib import ExitStack
-from contextvars import Token
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine, cast
 
@@ -63,7 +62,7 @@ from zrb.llm.agent.run.setup import (
     setup_print_and_events,
 )
 from zrb.llm.agent.run.turn_cursor import TurnCursor
-from zrb.llm.agent.run.turn_snapshots import TurnSnapshots
+from zrb.llm.agent.run.turn_snapshot import TurnSnapshot
 from zrb.llm.agent_state import (
     AnyToolConfirmation,
     current_agent_run_scope,
@@ -72,7 +71,6 @@ from zrb.llm.agent_state import (
     current_multimodal_model,
     current_small_model,
     current_tool_confirmation,
-    current_turn_snapshots,
     current_ui,
     current_yolo,
     get_current_agent_run_scope,
@@ -97,7 +95,7 @@ from zrb.llm.prompt.live_context import append_live_context
 from zrb.llm.sandbox.state import current_sandbox_policy, get_effective_sandbox_policy
 from zrb.llm.tool.ambient_state import active_worktree
 from zrb.llm.util.prompt import expand_prompt
-from zrb.util.git.snapshot_store import run_in_worker
+from zrb.util.git.snapshot_command import run_in_worker
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -556,7 +554,7 @@ async def _execution_loop(
         message=current_message,
         run_history=current_history,
     )
-    cursor.snapshots, snapshots_token = _bind_turn_snapshots(nested_run)
+    cursor.snapshot = _create_turn_snapshot(nested_run)
     retry_state = RetryState()
     extension_state = ExtensionState()
     partial_run = PartialRunAccumulator()
@@ -566,7 +564,7 @@ async def _execution_loop(
     pending_checkpoint_tasks: list[asyncio.Task] = []
 
     try:
-        await _cover_turn_workdir(cursor.snapshots)
+        await _take_turn_snapshot(cursor.snapshot)
         while True:
             cursor.begin_round(
                 sanitize_history(
@@ -636,7 +634,8 @@ async def _execution_loop(
         raise e
     finally:
         await _await_pending_checkpoints(pending_checkpoint_tasks)
-        _release_turn_snapshots(cursor.snapshots, snapshots_token)
+        if cursor.snapshot is not None:
+            cursor.snapshot.close()
 
 
 async def _stream_one_round(
@@ -802,36 +801,20 @@ def _retry_empty_completion(
     cursor.output = None
 
 
-def _bind_turn_snapshots(
-    nested_run: bool,
-) -> "tuple[TurnSnapshots | None, Token[TurnSnapshots | None] | None]":
-    """A new snapshot registry for this turn, bound for its tool calls, while
-    the self-review gate is on. A nested run binds none: it inherits its
-    parent's, so what a sub-agent changes — in its own worktree too — is
-    snapshotted into the parent's turn and reviewed there."""
+def _create_turn_snapshot(nested_run: bool) -> TurnSnapshot | None:
+    """A turn-start snapshot for the self-review gate, while it is on. A
+    nested run takes none: the parent's snapshot covers what a sub-agent
+    changes."""
     if not CFG.LLM_SELF_REVIEW_ENABLED or nested_run:
-        return None, None
-    snapshots = TurnSnapshots()
-    return snapshots, current_turn_snapshots.set(snapshots)
+        return None
+    return TurnSnapshot()
 
 
-async def _cover_turn_workdir(snapshots: TurnSnapshots | None) -> None:
-    """Take the turn's baseline of its working directory's repository. A
-    cancelled turn waits for the snapshot to stop before it deletes the
-    stores (`run_in_worker`)."""
-    if snapshots is not None:
-        await run_in_worker(snapshots.cover_workdir, os.getcwd())
-
-
-def _release_turn_snapshots(
-    snapshots: TurnSnapshots | None,
-    token: "Token[TurnSnapshots | None] | None",
-) -> None:
-    """Unbind the turn's registry and delete its stores."""
-    if token is not None:
-        current_turn_snapshots.reset(token)
-    if snapshots is not None:
-        snapshots.close()
+async def _take_turn_snapshot(snapshot: TurnSnapshot | None) -> None:
+    """Snapshot the working directory. A cancelled turn waits for the
+    snapshot to stop before it deletes the store (`run_in_worker`)."""
+    if snapshot is not None:
+        await run_in_worker(snapshot.take, os.getcwd())
 
 
 async def _finish_turn(
@@ -867,11 +850,11 @@ async def _finish_turn(
             # hook) act only on turns where it's actually warranted.
             "turn": cursor.accumulated,
             "wrote_files": wrote_files,
-            # Which files, and the working tree the turn started from, for a
-            # hook that reviews them (self_review.py).
+            # Which files, and the working directory the turn started from,
+            # for a hook that reviews them (self_review.py).
             "changed_paths": turn_changed_paths(cursor.accumulated),
-            "turn_start_snapshots": (
-                cursor.snapshots.payload() if cursor.snapshots else []
+            "turn_start_snapshot": (
+                cursor.snapshot.payload() if cursor.snapshot else None
             ),
             # Which run this Stop belongs to, so a hook keeping per-turn
             # state (self_review.py's round counter) keeps it per run, and

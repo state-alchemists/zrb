@@ -201,57 +201,9 @@ def test_llm_max_agents_in_roster_override(monkeypatch):
     assert config.LLM_MAX_AGENTS_IN_ROSTER == 3
 
 
-def test_llm_enable_rewind_auto_is_on_inside_a_git_repository(monkeypatch, tmp_path):
-    import subprocess
-
-    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+def test_llm_rewind_is_on_and_self_review_off_by_default(monkeypatch):
     monkeypatch.delenv("ZRB_LLM_ENABLE_REWIND", raising=False)
-    monkeypatch.chdir(tmp_path)
-    assert Config().LLM_ENABLE_REWIND is True
-
-
-def test_llm_enable_rewind_auto_is_off_outside_a_git_repository(monkeypatch, tmp_path):
-    monkeypatch.setenv("ZRB_LLM_ENABLE_REWIND", "auto")
-    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
-    monkeypatch.chdir(tmp_path)
-    assert Config().LLM_ENABLE_REWIND is False
-
-
-def test_llm_enable_rewind_explicit_value_wins(monkeypatch, tmp_path):
-    monkeypatch.setenv("ZRB_LLM_ENABLE_REWIND", "on")
-    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
-    monkeypatch.chdir(tmp_path)
-    assert Config().LLM_ENABLE_REWIND is True
-
-
-def test_llm_self_review_is_off_by_default(monkeypatch, tmp_path):
-    import subprocess
-
-    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
     monkeypatch.delenv("ZRB_LLM_SELF_REVIEW_ENABLED", raising=False)
-    monkeypatch.chdir(tmp_path)
-    assert Config().LLM_SELF_REVIEW_ENABLED is False
-
-
-def test_llm_self_review_auto_is_on_only_inside_a_git_repository(monkeypatch, tmp_path):
-    import subprocess
-
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
-    outside = tmp_path / "outside"
-    outside.mkdir()
-    monkeypatch.setenv("ZRB_LLM_SELF_REVIEW_ENABLED", "auto")
-    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
-
-    monkeypatch.chdir(repo)
-    assert Config().LLM_SELF_REVIEW_ENABLED is True
-    monkeypatch.chdir(outside)
-    assert Config().LLM_SELF_REVIEW_ENABLED is False
-
-
-def test_llm_self_review_on_works_outside_a_git_repository(monkeypatch, tmp_path):
-    monkeypatch.setenv("ZRB_LLM_SELF_REVIEW_ENABLED", "on")
-    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
-    monkeypatch.chdir(tmp_path)
-    assert Config().LLM_SELF_REVIEW_ENABLED is True
+    config = Config()
+    assert config.LLM_ENABLE_REWIND is True
+    assert config.LLM_SELF_REVIEW_ENABLED is False

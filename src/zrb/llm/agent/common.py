@@ -16,14 +16,12 @@ from zrb.llm.agent.run.hook_result_extractor import (
 )
 from zrb.llm.agent.spill import maybe_spill
 from zrb.llm.agent.truncate import truncate_tool_content
-from zrb.llm.agent_state import get_current_turn_snapshots
 from zrb.llm.agent_tool_result import has_multimodal, tool_return
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.hook.manager import hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.util.capabilities import model_capabilities
 from zrb.llm.util.prompt import expand_prompt
-from zrb.util.git.snapshot_store import run_in_worker
 from zrb.util.string.conversion import to_string
 
 if TYPE_CHECKING:
@@ -274,18 +272,6 @@ def wrap_toolset(
                 )
                 if blocked is not None:
                     return blocked
-                # Before a tool changes files in a repository this turn has
-                # not snapshotted — `Shell` in another `cwd`, a worktree — the
-                # self-review gate's baseline for it is taken here. A
-                # cancelled call waits for the snapshot to stop, so the turn
-                # never deletes a store git is still writing.
-                turn_snapshots = get_current_turn_snapshots()
-                if turn_snapshots is not None:
-                    await run_in_worker(
-                        turn_snapshots.cover_tool_call,
-                        tool_capability(tool),
-                        tool_args or {},
-                    )
                 result = await super().call_tool(name, tool_args, ctx, tool)
                 tool_framed = isinstance(result, ToolReturn)
                 if not tool_framed:

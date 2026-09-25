@@ -453,7 +453,7 @@ The names are the registered PascalCase tool names (the `Tool` column in [Built-
 | `ZRB_LLM_JOURNAL_AUTO_SEARCH_ENABLED` | Run one `SearchJournal` against the opening message on a session's first turn, folding any hits into the injected `<journal-index>` block under a separate, unverified "Possibly Related" section. Costs one extra search subprocess, once per session | `on` |
 | `ZRB_LLM_JOURNAL_AUTO_SEARCH_MAX_HITS` | Max `SearchJournal` hits folded into the first-turn auto-search | `3` |
 | `ZRB_LLM_JOURNAL_GIT_ENABLED` | Git-back the journal directory: `git init` on first use, and commit after every `LogActivity`/`WriteJournalNote`/`DeleteJournalNote` call. Gives the journal unbounded, diffable history and makes a delete or bad overwrite recoverable by a human outside the tools (the in-file History block only keeps the last 3 revisions). Best-effort — a missing `git` binary or a failed commit never breaks journaling, it just forgoes the commit | `on` |
-| `ZRB_LLM_SELF_REVIEW_ENABLED` | Built-in self-review Stop hook (ADR-0100). On a turn that changed files, a reviewer agent with a fresh context reads the diff since the turn started of every repository the turn touched — shell edits and mid-turn commits included, your earlier uncommitted work excluded — plus read-only code around it; a `Request changes` verdict extends the turn so the agent checks and fixes the findings before answering. Snapshots go to a private temporary git store, never your repository's `.git/objects`. Costs two snapshots per turn (at its start and at Stop) and one reviewer run per turn that changed files. `off`, `auto` (inside a git repository only), or `on` (anywhere) | `off` |
+| `ZRB_LLM_SELF_REVIEW_ENABLED` | Built-in self-review Stop hook (ADR-0100). On a turn that changed files, a reviewer agent with a fresh context reads your working directory's diff since the turn started — every repository under it, nested ones and worktrees included; shell edits and mid-turn commits included, your earlier uncommitted work excluded — plus read-only code around it; a `Request changes` verdict extends the turn so the agent checks and fixes the findings before answering. Snapshots go to a private temporary git store, never your repository's `.git/objects`. Costs two snapshots per turn (at its start and at Stop) and one reviewer run per turn that changed files | `off` |
 | `ZRB_LLM_SELF_REVIEW_MAX_ROUNDS` | Consecutive blocking reviews allowed; after this many the turn ends. A review that lets the turn end resets the count | `2` |
 | `ZRB_LLM_SELF_REVIEW_MODEL` | Reviewer model. Empty uses the run's own model; a different model shares fewer of the author's blind spots | (empty) |
 | `ZRB_LLM_SELF_REVIEW_TIMEOUT` | Seconds one review may take. When it runs out the reviewer is cancelled — its model request included — and the turn ends unreviewed | `240` |
@@ -469,16 +469,17 @@ Zrb can snapshot your working directory before each AI turn, letting you restore
 
 **How it works:**
 
-1. Before each AI response, Zrb records your working directory as a commit in a private git repository (`<ZRB_LLM_SNAPSHOT_DIR>/<project-name>-<hash>.git`) whose work tree is your project. Nothing is copied, and your project's own git history, index and objects are never touched.
-2. Every session of a project shares that repository, so unchanged files are stored once; each session keeps its own history (`refs/zrb/<session-name>-<hash>`).
-3. `/rewind` lists all snapshots; `/rewind <n>` or `/rewind <sha>` restores both the filesystem and conversation history to the selected point.
+1. Before each AI response, Zrb records your working directory as a commit in a private git repository (`<ZRB_LLM_SNAPSHOT_DIR>/<directory-name>-<hash>.git`) whose work tree is that directory. Nothing is copied, and no repository's own history, index or objects are touched.
+2. Each git repository under the directory lists its own files, by its own `.gitignore` — nested clones, submodules, and every repository in a folder of repositories included. Files outside any repository are taken as they are, except common cache directories (`node_modules/`, `.venv/`, `__pycache__/`, …).
+3. Every session started in a directory shares its repository, so unchanged files are stored once; each session keeps its own history (`refs/zrb/<session-name>-<hash>`).
+4. `/rewind` lists all snapshots; `/rewind <n>` or `/rewind <sha>` restores both the filesystem and conversation history to the selected point.
 
-> **Note:** Rewind is on by default inside a git repository and off outside one, where no `.gitignore` bounds what a snapshot hashes — a chat started in `~` would hash your whole home directory. Set `ZRB_LLM_ENABLE_REWIND=on` to force it. Files your `.gitignore` excludes — including ones it starts excluding after a snapshot — are neither snapshotted nor restored — an edit to a gitignored `.env` is not rewound. Outside a git repository, common cache directories (`node_modules/`, `.venv/`, `__pycache__/`, …) are excluded instead. The first snapshot of a session runs in the background.
+> **Note:** Files a repository's `.gitignore` excludes — including ones it starts excluding after a snapshot — are neither snapshotted nor restored, so an edit to a gitignored `.env` is not rewound. A `.gitignore` outside any repository has no effect, as in git. Outside every repository, a directory may hold at most 5,000 files or 200 MB: past that — a chat started in `~`, say — rewind turns itself off for the session and says why when it starts. Rewind restores files, nested repositories' files included; it never moves a repository's `HEAD` or branches. The first snapshot of a session runs in the background.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_ENABLE_REWIND` | Enable filesystem snapshots and `/rewind` command. `auto` is on inside a git repository, off outside one | `auto` |
-| `ZRB_LLM_SNAPSHOT_DIR` | Directory holding one snapshot git repository per project | `~/.zrb/llm-snapshots/` |
+| `ZRB_LLM_ENABLE_REWIND` | Enable filesystem snapshots and `/rewind` command | `on` |
+| `ZRB_LLM_SNAPSHOT_DIR` | Directory holding one snapshot git repository per working directory | `~/.zrb/llm-snapshots/` |
 
 ### Python API
 
@@ -506,9 +507,9 @@ Restore rewinds **both** the working directory files **and** the conversation hi
 
 ```mermaid
 flowchart LR
-    Root["~/.zrb/llm-snapshots/"] --> Store["&lt;project-name&gt;-&lt;hash&gt;.git/ — bare repo, work tree = your project"]
-    Store --> Refs["refs/zrb/&lt;session-name&gt;-&lt;hash&gt; — one history per session and directory"]
-    Store --> Index["index-&lt;session-name&gt;-&lt;hash&gt; — one index per session and directory"]
+    Root["~/.zrb/llm-snapshots/"] --> Store["&lt;directory-name&gt;-&lt;hash&gt;.git/ — bare repo, work tree = your working directory"]
+    Store --> Refs["refs/zrb/&lt;session-name&gt;-&lt;hash&gt; — one history per session"]
+    Store --> Index["index-&lt;session-name&gt;-&lt;hash&gt; — one index per session"]
 ```
 
 ---

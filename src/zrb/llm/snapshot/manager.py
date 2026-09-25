@@ -1,25 +1,29 @@
 """Git-backed snapshot manager for LLM rewind functionality.
 
 Snapshots are commits of `SnapshotStore` trees (`util/git/snapshot_store.py`)
-— the project is the store's work tree, so nothing is copied, and the store's
-ignore, byte-exactness and self-exclusion rules apply. One store serves every
-session of a project, at ``<snapshot_dir>/<name>-<hash of its path>.git``, so
-unchanged files are stored once; each session has its own ref
+— the working directory is the store's work tree, so nothing is copied, and
+the store's listing, byte-exactness and self-exclusion rules apply: every
+repository under the directory by its own ignore rules, nested ones included,
+and the loose files outside them up to a budget. One store serves every
+session started in a directory, at ``<snapshot_dir>/<name>-<hash of its
+path>.git``, so unchanged files are stored once; each session has its own ref
 (``refs/zrb/<session>-<hash>``) and its own index, so concurrent sessions
-never share a lock. A session is keyed by its name and the workdir's path
-inside the work tree; the hashes keep two paths or names that sanitize alike
+never share a lock. The hashes keep two paths or names that sanitize alike
 from sharing a store or a history. The store keeps its own objects — rewind
-history outlives the session, and borrowing the project's could lose a blob
+history outlives the session, and borrowing a repository's could lose a blob
 to a `git gc` there.
 
 Snapshot flow: snapshot into the session's index, ``commit-tree``,
 ``update-ref``.
 
-Restore flow: refuse a commit outside this session's history, filter
-now-ignored paths out of ``<sha>``'s tree, snapshot (so
-files created since are in the index), then ``read-tree -u --reset`` to the
-filtered tree — which rewrites changed files, recreates deleted ones and
-removes the rest — then move the session ref back to ``<sha>``.
+Restore flow: refuse a commit outside this session's history, then
+`SnapshotStore.restore` — which rewrites changed files, recreates deleted
+ones and removes the rest, leaving alone any path the listing leaves out now
+— then move the session ref back to ``<sha>``.
+
+A directory over the listing's budget of loose files turns rewind off for
+the session: the first snapshot reports why, and later ones do not walk the
+directory again.
 """
 
 from __future__ import annotations
@@ -31,13 +35,9 @@ import os
 import re
 from typing import Callable, NamedTuple
 
-from zrb.util.git.snapshot_store import (
-    DEFAULT_IGNORE_DIRS,
-    SnapshotError,
-    SnapshotStore,
-    get_repo_root,
-    run_in_worker,
-)
+from zrb.util.git.snapshot_command import SnapshotError, run_in_worker
+from zrb.util.git.snapshot_listing import DEFAULT_IGNORE_DIRS, SnapshotBudgetError
+from zrb.util.git.snapshot_store import SnapshotStore
 from zrb.util.string.conversion import to_safe_filename
 
 logger = logging.getLogger(__name__)
@@ -71,7 +71,7 @@ class Snapshot(NamedTuple):
 class SnapshotManager:
     """Manages filesystem snapshots in a private git directory."""
 
-    #: Never snapshotted, never touched by restore, even outside git.
+    #: Never snapshotted, never touched by restore, even inside a repository.
     DEFAULT_IGNORE_DIRS: frozenset[str] = DEFAULT_IGNORE_DIRS
 
     def __init__(
@@ -89,6 +89,8 @@ class SnapshotManager:
         )
         self._ref = ""
         self._store: SnapshotStore | None = None
+        # Why this directory cannot be snapshotted at all, once known.
+        self._unavailable = ""
         # Serializes snapshots and restores: they share this session's index.
         self._lock = asyncio.Lock()
 
@@ -103,11 +105,14 @@ class SnapshotManager:
                 provided it is embedded in the commit message so that restore can
                 also rewind the conversation history to a consistent state.
         """
+        if self._unavailable:
+            return None
         try:
             async with self._lock:
                 sha, _ = await run_in_worker(self._commit, label, message_count)
                 return sha
         except Exception as e:
+            self._note_unavailable(e)
             logger.warning(f"Snapshot failed: {e}")
             return None
 
@@ -137,6 +142,7 @@ class SnapshotManager:
             _report_progress(on_progress, SnapshotProgress("done", skipped))
             return sha
         except Exception as e:
+            self._note_unavailable(e)
             logger.warning(f"Init snapshot failed: {e}")
             if started:
                 _report_progress(on_progress, SnapshotProgress("error", reason=str(e)))
@@ -176,25 +182,25 @@ class SnapshotManager:
             logger.warning(f"restore_snapshot failed: {e}")
             return False
 
+    def _note_unavailable(self, error: Exception) -> None:
+        if isinstance(error, SnapshotBudgetError):
+            self._unavailable = str(error)
+
     def _get_store(self) -> SnapshotStore:
         if self._store is not None:
             return self._store
-        work_tree = os.path.realpath(get_repo_root(self._workdir) or self._workdir)
-        rel = os.path.relpath(os.path.realpath(self._workdir), work_tree)
-        # A session resumed from another directory of the same repository
-        # gets its own history and index: restoring a snapshot taken in one
-        # directory must not delete files the other never snapshotted.
-        session = _readable_key(self._session_name, f"{self._session_name}\0{rel}")
+        workdir = os.path.realpath(self._workdir)
+        session = _readable_key(self._session_name, self._session_name)
         self._ref = f"refs/zrb/{session}"
-        name = _readable_key(os.path.basename(work_tree), work_tree)
+        name = _readable_key(os.path.basename(workdir), workdir)
         snapshot_dir = os.path.realpath(self._snapshot_dir)
         store = SnapshotStore(
             os.path.join(snapshot_dir, f"{name}.git"),
-            self._workdir,
+            workdir,
             index_name=f"index-{session}",
             ignore_dirs=self._ignore_dirs,
-            # A snapshot dir inside the project holds other projects' stores
-            # too; none of it belongs in a snapshot.
+            # A snapshot dir inside the directory holds other directories'
+            # stores too; none of it belongs in a snapshot.
             exclude_paths=[snapshot_dir],
         )
         store.ensure()
@@ -204,7 +210,7 @@ class SnapshotManager:
     def _commit(self, label: str, message_count: int | None) -> tuple[str, int]:
         """Commit the workdir unless it matches HEAD; return (sha, skipped)."""
         store = self._get_store()
-        tree, skipped = store.snapshot()
+        tree, skipped, _ = store.snapshot()
         head = self._head_sha()
         if head is not None:
             head_tree, head_subject = (
@@ -230,28 +236,13 @@ class SnapshotManager:
     def _restore(self, sha: str) -> None:
         store = self._get_store()
         store.git(["cat-file", "-e", f"{sha}^{{commit}}"])
-        # Only this session's own snapshots: each was built from its directory
-        # alone, so restoring one cannot touch a file outside it. Another
-        # session's commit in the same store — the repository root's, say —
-        # would rewrite whatever that session covered.
+        # Only this session's own snapshots: another session's commit in the
+        # same store is not in this conversation's list, so restoring it would
+        # rewind the files without rewinding the conversation to match.
         if store.run_git(["merge-base", "--is-ancestor", sha, self._ref]).returncode:
             raise SnapshotError(f"{sha} is not one of this session's snapshots")
-        tree = self._tree_without_ignored(store, sha)
-        store.snapshot()
-        store.git(["read-tree", "-u", "--reset", tree])
+        store.restore(sha)
         store.git(["update-ref", self._ref, sha])
-
-    def _tree_without_ignored(self, store: SnapshotStore, sha: str) -> str:
-        """*sha*'s tree minus the paths git ignores now, so a restore neither
-        overwrites nor recreates a file that became ignored since."""
-        index = store.index + ".restore"
-        try:
-            store.git(["read-tree", sha], index=index)
-            store.untrack_ignored(index=index)
-            return store.git(["write-tree"], index=index).strip()
-        finally:
-            if os.path.exists(index):
-                os.remove(index)
 
     def _head_sha(self) -> str | None:
         store = self._get_store()

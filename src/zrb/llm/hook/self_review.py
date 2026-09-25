@@ -23,7 +23,9 @@ from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.schema import AgentHookConfig, HookConfig
 from zrb.llm.hook.types import HookEvent, HookType
 from zrb.llm.prompt.prompt import get_prompt
-from zrb.util.git.snapshot_store import SnapshotError, SnapshotStore
+from zrb.util.git.snapshot_command import SnapshotError
+from zrb.util.git.snapshot_listing import get_worktree_fork_point
+from zrb.util.git.snapshot_store import SnapshotStore
 from zrb.util.truncate import truncate_text
 
 if TYPE_CHECKING:
@@ -72,8 +74,8 @@ def create_self_review_hook() -> HookCallable:
     one entry for its run, cleared by that run's next turn.
 
     A delegated sub-agent's run is not reviewed: its changes land in the
-    parent's working tree, which the parent's own review diffs against a
-    snapshot taken before it delegated. Reviewing each sub-agent too would
+    parent's working directory, or in a worktree under it, which the parent's
+    own review diffs against a snapshot taken before it delegated. Reviewing each sub-agent too would
     multiply reviewer runs, and a sub-agent's diff would include whatever its
     parallel siblings changed."""
     rounds: dict[str, int] = {}
@@ -136,44 +138,37 @@ def _timed_out() -> HookResult:
 @dataclass
 class _Scope:
     paths: list[str]
-    #: One `(root, diff)` per snapshotted root that changed.
-    diffs: list[tuple[str, str]]
+    diff: str
 
 
 def _resolve_scope(payload: dict[str, Any], deadline: float) -> _Scope:
-    """What the turn changed: each root the turn snapshotted — its working
-    directory's repository, and any other repository a tool changed files in
-    — diffed from its turn-start tree to its tree now. That covers edits made
-    through `Shell` and changes committed mid-turn, and leaves out the user's
-    earlier uncommitted work. Paths the file tools named that no diff covers —
-    ignored, or outside every snapshotted root — are listed too. Every git
-    command stops at *deadline*.
+    """What the turn changed: the working directory diffed from its
+    turn-start snapshot to its state now — every repository under it, nested
+    ones and linked worktrees included (`util/git/snapshot_listing.py`). That
+    covers edits made through `Shell` and changes committed mid-turn, and
+    leaves out the user's earlier uncommitted work. Paths the file tools named
+    that the diff does not cover — ignored, or outside the working directory
+    — are listed too. Every git command stops at *deadline*.
 
-    A root whose snapshot failed contributes no diff: diffing the file tools'
-    paths against HEAD instead would hand the reviewer the user's earlier
-    uncommitted work."""
+    When the snapshot failed there is no diff, only the file tools' paths:
+    diffing those against HEAD instead would hand the reviewer the user's
+    earlier uncommitted work."""
     tool_paths = [p for p in payload.get("changed_paths") or [] if isinstance(p, str)]
-    changed: list[str] = []
-    diffs: list[tuple[str, str]] = []
-    for start in payload.get("turn_start_snapshots") or []:
-        root_changes = _diff_root(start, deadline)
-        if root_changes is None:
-            continue
-        root, paths, diff = root_changes
-        changed.extend(os.path.join(root, path) for path in paths)
-        if diff:
-            diffs.append((root, diff))
+    changes = _diff_turn(payload.get("turn_start_snapshot"), deadline)
+    root, paths, diff = changes or ("", [], "")
+    changed = [os.path.join(root, *path.split("/")) for path in paths]
     covered = {os.path.normcase(path) for path in changed}
     uncovered = [
         _absolute(p)
         for p in tool_paths
         if os.path.normcase(_absolute(p)) not in covered
     ]
-    return _Scope([_display(p) for p in changed + uncovered], diffs)
+    return _Scope([_display(p) for p in changed + uncovered], diff)
 
 
-def _diff_root(start: Any, deadline: float) -> tuple[str, list[str], str] | None:
-    """One snapshotted root's `(work tree, changed paths, diff)`, or None."""
+def _diff_turn(start: Any, deadline: float) -> tuple[str, list[str], str] | None:
+    """The working directory's `(root, changed paths, diff)` since the
+    turn-start snapshot *start*, or None when there is none to diff."""
     if not isinstance(start, dict):
         return None
     workdir, before, git_dir = (
@@ -187,16 +182,34 @@ def _diff_root(start: Any, deadline: float) -> tuple[str, list[str], str] | None
         and isinstance(git_dir, str)
     ):
         return None
-    if not os.path.isdir(workdir):
-        return None  # e.g. a sub-agent's worktree, removed after it merged
     store = SnapshotStore.open_temporary(git_dir, workdir)
     try:
-        after, _ = store.snapshot(deadline)
-        paths, diff = store.diff(before, after, deadline)
+        after = store.snapshot(deadline)
+        before = _with_new_worktrees(store, before, after.worktrees, deadline)
+        paths, diff = store.diff(before, after.tree, deadline)
     except SnapshotError as e:
         CFG.LOGGER.debug(f"Self-review could not diff {workdir}: {e}")
         return None
     return store.work_tree, paths, _truncate(diff)
+
+
+def _with_new_worktrees(
+    store: SnapshotStore, before: str, worktrees: tuple[str, ...], deadline: float
+) -> str:
+    """*before*, with each worktree created during the turn added at the
+    commit it was created from — otherwise its whole checkout would show as
+    added, instead of what the turn changed in it."""
+    for worktree in worktrees:
+        listed = store.git(
+            ["ls-tree", "--name-only", before, "--", worktree], deadline=deadline
+        )
+        if listed.strip():
+            continue
+        fork = get_worktree_fork_point(
+            os.path.join(store.work_tree, *worktree.split("/")), deadline
+        )
+        before = store.create_grafted_tree(before, worktree, fork, deadline)
+    return before
 
 
 def _absolute(path: str) -> str:
@@ -248,22 +261,15 @@ async def _run_reviewer(context: HookContext, scope: _Scope) -> str | None:
 
 def _create_review_request(scope: _Scope) -> str:
     listing = "\n".join(f"- {path}" for path in scope.paths)
-    cwd = os.path.realpath(os.getcwd())
-    blocks = [
-        "Diff against the start of this turn"
-        + ("" if os.path.normcase(root) == os.path.normcase(cwd) else f" (in {root})")
-        + f":\n\n```diff\n{diff}\n```"
-        for root, diff in scope.diffs
-    ]
     diff_block = (
-        "\n\n".join(blocks)
-        if blocks
+        f"Diff against the start of this turn:\n\n```diff\n{scope.diff}\n```"
+        if scope.diff
         else "No diff of this turn's changes is available."
     )
     return (
         f"This turn changed these files:\n\n{listing}\n\n{diff_block}\n\n"
-        "A listed file with no hunk above is untracked, ignored by git, outside "
-        "the repository, or already committed: read it directly."
+        "A listed file with no hunk above is ignored by git or outside the "
+        "working directory: read it directly."
     )
 
 
