@@ -142,6 +142,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 
 - **ADR-0071** — [Lifecycle hooks, Claude-compatible, control protocol included](adr-0071.md)
 - **ADR-0072** — [`LLMTask` and `LLMChatTask` expose the same knobs](adr-0072.md)
+- **ADR-0100** — [An opt-in Stop hook reviews each file-changing turn before it ends](adr-0100.md)
 
 ### Interactive UI
 
@@ -156,6 +157,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0081** — [Web chat renders markdown/math/diagrams client-side; the non-interactive loop now finalizes at all](adr-0081.md)
 - **ADR-0082** — [Photo capture is a one-shot command, not a toggled mode, and carries no enable gate](adr-0082.md)
 - **ADR-0093** — [A slash command is always offered; an unavailable one explains itself](adr-0093.md)
+- **ADR-0101** — [Working-directory snapshots are git trees in a private store, listed repository by repository](adr-0101.md)
 
 ### Sub-agent sessions
 

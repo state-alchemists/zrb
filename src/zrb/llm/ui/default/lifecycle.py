@@ -17,7 +17,7 @@ from zrb.util.cli.style import stylize_muted, stylize_warning
 from zrb.util.exception import exception_summary
 
 if TYPE_CHECKING:
-    from zrb.llm.snapshot.manager import SnapshotProgress
+    from zrb.llm.snapshot.manager import SnapshotManager, SnapshotProgress
     from zrb.llm.ui.default.ui import UI
 
 
@@ -26,6 +26,7 @@ class UILifecycle:
 
     def __init__(self, ui: "UI") -> None:
         self._ui = ui
+        self._init_snapshot_task: asyncio.Task | None = None
 
     async def cleanup_background_tasks(self):
         """Cancel and clean up all background tasks."""
@@ -45,6 +46,11 @@ class UILifecycle:
 
         await self._cancel_and_discard(ui.system_info_task)
         await self._cancel_and_discard(ui.refresh_task)
+        # Cancelling stops the coroutine, so no progress line reaches a
+        # torn-down UI; a git command already running in its worker thread
+        # still finishes, bounded by the snapshot's own git timeout.
+        await self._cancel_and_discard(self._init_snapshot_task)
+        self._init_snapshot_task = None
 
     def handle_application_run_error(self, exc: Exception):
         """Handle error during application.run_async (public API)."""
@@ -56,6 +62,13 @@ class UILifecycle:
     async def run_async(self):
         """Run the application and manage triggers."""
         ui = self._ui
+        if ui.snapshot_manager is not None:
+            # Started first so it takes the snapshot lock before the first
+            # turn's snapshot; the UI does not wait for it.
+            self._init_snapshot_task = ui.application.create_background_task(
+                _take_init_snapshot(ui.snapshot_manager, ui)
+            )
+            self._track_background(self._init_snapshot_task)
         for trigger_fn in ui.triggers:
             trigger_task = ui.application.create_background_task(
                 ui.trigger_loop(trigger_fn)
@@ -78,10 +91,6 @@ class UILifecycle:
         try:
             ui.capture.start()
             await ui.update_system_info()
-            if ui.snapshot_manager is not None:
-                await ui.snapshot_manager.take_init_snapshot(
-                    on_progress=_make_snapshot_progress_handler(ui)
-                )
             return await ui.application.run_async()
         finally:
             ui.capture.stop()
@@ -188,33 +197,40 @@ class UILifecycle:
                 task.cancel()
 
 
+async def _take_init_snapshot(snapshot_manager: "SnapshotManager", ui: "UI") -> None:
+    await snapshot_manager.take_init_snapshot(
+        on_progress=_make_snapshot_progress_handler(ui)
+    )
+
+
 def _make_snapshot_progress_handler(
     ui: "UI",
 ) -> "Callable[[SnapshotProgress], None]":
     """Render init-snapshot progress as two muted lines (start + terminal).
 
     Every snapshot invocation ends with exactly one terminal line, so the
-    start line never dangles: done (with copied/skipped counts), up-to-date
+    start line never dangles: done (with the unreadable-file count), up-to-date
     (resumed session), or error (with the reason — no debug mode needed to
-    see why). All events arrive on the event-loop thread (the manager
+    see why; when the directory cannot be snapshotted at all, the line says
+    rewind is off). All events arrive on the event-loop thread (the manager
     reports from coroutine context), so a direct append is safe.
     """
 
     def handler(event: "SnapshotProgress") -> None:
-        stage, copied, skipped, reason = event
+        stage, skipped, reason = event.stage, event.skipped, event.reason
         if stage == "start":
             message = "\n  📸 Taking initial workspace snapshot...\n"
         elif stage == "done":
-            counts = f"{copied} files"
-            if skipped:
-                counts += f", {skipped} skipped (unreadable)"
-            message = f"\n  ✅ Initial workspace snapshot taken ({counts})\n"
+            note = f" ({skipped} unreadable files skipped)" if skipped else ""
+            message = f"\n  ✅ Initial workspace snapshot taken{note}\n"
         elif stage == "up-to-date":
             message = "\n  📸 Workspace snapshot up-to-date\n"
+        elif stage == "error" and _is_rewind_off(ui):
+            message = f"\n  ⚠️  Rewind is off for this session: {reason}.\n"
         elif stage == "error":
             message = (
                 f"\n  ⚠️  Initial workspace snapshot failed: {reason}\n"
-                "     /rewind will be unavailable for this session.\n"
+                "     /rewind starts from the next turn's snapshot.\n"
             )
         else:
             return
@@ -224,3 +240,8 @@ def _make_snapshot_progress_handler(
         ui.append_to_output(styled)
 
     return handler
+
+
+def _is_rewind_off(ui: "UI") -> bool:
+    manager = ui.snapshot_manager
+    return manager is not None and bool(manager.unavailable_reason)

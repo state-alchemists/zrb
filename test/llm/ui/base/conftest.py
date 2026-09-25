@@ -54,6 +54,7 @@ class MockUI:
         self.usage = BaseUIUsage()
         self.persona = BaseUIPersonaState()
         self.snapshot_manager = MagicMock()
+        self.snapshot_manager.unavailable_reason = ""
         self.message_queue = asyncio.Queue()
         self.pending_attachments = []
         self.is_thinking = False

@@ -199,3 +199,11 @@ def test_llm_max_agents_in_roster_override(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_MAX_AGENTS_IN_ROSTER", "3")
     config = Config()
     assert config.LLM_MAX_AGENTS_IN_ROSTER == 3
+
+
+def test_llm_rewind_is_on_and_self_review_off_by_default(monkeypatch):
+    monkeypatch.delenv("ZRB_LLM_ENABLE_REWIND", raising=False)
+    monkeypatch.delenv("ZRB_LLM_SELF_REVIEW_ENABLED", raising=False)
+    config = Config()
+    assert config.LLM_ENABLE_REWIND is True
+    assert config.LLM_SELF_REVIEW_ENABLED is False

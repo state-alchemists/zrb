@@ -54,7 +54,7 @@ This launches a full-screen chat application where you can have a conversation w
 | `!` or `/exec <shell_cmd>` | Execute shell command |
 | `/btw <text>` | Inject a side note for the next turn without sending it as a message (runs while the assistant is thinking) |
 | `/plan` | Toggle [Plan Mode](./plan-mode.md) (read-only discovery) |
-| `/rewind [n\|sha]` | List or restore filesystem + history [snapshots](../configuration/llm-config.md#6-rewind--snapshots) (requires `ZRB_LLM_ENABLE_REWIND`) |
+| `/rewind [n\|sha]` | List or restore filesystem + history [snapshots](../configuration/llm-config.md#6-rewind--snapshots) (on by default; `ZRB_LLM_ENABLE_REWIND`) |
 | `/voice` | Toggle push-to-talk voice dictation on/off (enabled automatically when `vosk` is installed and `ZRB_LLM_VOICE_ENABLED` is unset; see [Voice Dictation](../configuration/llm-config.md#23-voice-dictation)) |
 
 > 💡 **Tip:** Any `/command` that matches a loaded skill will be executed as a skill.

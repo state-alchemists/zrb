@@ -17,9 +17,12 @@ mutated directly by `_execution_loop`.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from zrb.llm.agent.run.history_utils import TurnPruneFloor
+
+if TYPE_CHECKING:
+    from zrb.llm.agent.run.turn_snapshot import TurnSnapshot
 
 
 @dataclass
@@ -34,6 +37,11 @@ class TurnCursor:
     # See `commit_round`'s docstring for why that distinction matters.
     accumulated: list[Any] = field(default_factory=list)
     round_baseline: int = field(default=0, repr=False)
+    # The working directory's snapshot at turn start, while the self-review
+    # gate is on and the run is top-level (`turn_snapshot.py`); the Stop
+    # payload's `turn_start_snapshot` is read from it. `_execution_loop`
+    # closes it — deleting its store — when the turn ends.
+    snapshot: "TurnSnapshot | None" = None
 
     def begin_round(self, sanitized_history: list[Any]) -> None:
         """Start one `agent.run()` round: install the sanitized history and

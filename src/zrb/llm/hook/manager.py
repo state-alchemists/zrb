@@ -34,6 +34,7 @@ from zrb.llm.hook.schema import (
     HookConfig,
     PromptHookConfig,
 )
+from zrb.llm.hook.self_review import register_self_review_hook
 from zrb.llm.hook.types import BLOCKING_EVENTS, HookEvent, HookType
 
 logger = logging.getLogger(__name__)
@@ -101,7 +102,8 @@ class HookManager(HookManagerLoading):
         # manager independently re-scans the filesystem; a Python-registered
         # one needs to be seeded the same way on every instance.
         self._hook_factories: list[Callable[[HookManager], None]] = [
-            register_journal_compliance_hook
+            register_journal_compliance_hook,
+            register_self_review_hook,
         ]
         self._max_depth = max_depth
         self._ignore_dirs = _IGNORE_DIRS if ignore_dirs is None else ignore_dirs

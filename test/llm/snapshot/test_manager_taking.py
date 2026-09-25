@@ -1,14 +1,14 @@
-"""Tests for SnapshotManager — the shadow-git snapshot system for LLM /rewind."""
+"""Tests for SnapshotManager — the git snapshot store for LLM /rewind."""
 
+import asyncio
 import os
-import shutil
 import subprocess
 import tempfile
 from unittest.mock import patch
 
 import pytest
 
-from zrb.llm.snapshot import SnapshotManager
+from zrb.llm.snapshot import RestoreOutcome, SnapshotManager
 from zrb.llm.snapshot.manager import SnapshotProgress
 
 
@@ -70,11 +70,9 @@ async def test_take_init_snapshot_returns_none_when_setup_fails(workdir):
 
 
 @pytest.mark.asyncio
-async def test_take_init_snapshot_reports_start_and_done_with_copied_count(
-    snapshot_dir, workdir
-):
-    """The progress callback sees "start" before the copy and the copied
-    file count once the init commit exists."""
+async def test_take_init_snapshot_reports_start_and_done(snapshot_dir, workdir):
+    """The progress callback sees "start" before hashing and "done" once the
+    init commit exists."""
     for name in ("a.txt", "b.txt"):
         with open(os.path.join(workdir, name), "w") as f:
             f.write(name)
@@ -84,10 +82,7 @@ async def test_take_init_snapshot_reports_start_and_done_with_copied_count(
     sha = await mgr.take_init_snapshot(on_progress=events.append)
 
     assert sha is not None
-    assert [(e.stage, e.copied, e.skipped) for e in events] == [
-        ("start", 0, 0),
-        ("done", 2, 0),
-    ]
+    assert [(e.stage, e.skipped) for e in events] == [("start", 0), ("done", 0)]
 
 
 @pytest.mark.asyncio
@@ -127,36 +122,6 @@ async def test_take_init_snapshot_swallows_progress_callback_errors(
 
 
 @pytest.mark.asyncio
-async def test_take_init_snapshot_reports_done_with_zero_copies_when_tree_matches(
-    snapshot_dir, workdir
-):
-    """A shadow tree that already matches the workdir (e.g. a prior run
-    copied files but the commit never landed) still reports a terminal
-    done event — with 0 copies, not a dangling start."""
-    from zrb.util.string.conversion import to_safe_filename
-
-    with open(os.path.join(workdir, "f.txt"), "w") as f:
-        f.write("data")
-
-    mgr = SnapshotManager(snapshot_dir, "zero-copy-session", workdir)
-    await mgr.take_init_snapshot()
-    # Roll HEAD back to nothing while keeping the copied tree in place. The
-    # shadow-repo layout (<snapshot_dir>/<safe_session_name>) is documented
-    # in the module docstring.
-    shadow_dir = os.path.join(snapshot_dir, to_safe_filename("zero-copy-session"))
-    subprocess.run(["git", "update-ref", "-d", "HEAD"], cwd=shadow_dir, check=True)
-
-    events: list[SnapshotProgress] = []
-    sha = await mgr.take_init_snapshot(on_progress=events.append)
-
-    assert sha is not None
-    assert [(e.stage, e.copied, e.skipped) for e in events] == [
-        ("start", 0, 0),
-        ("done", 0, 0),
-    ]
-
-
-@pytest.mark.asyncio
 async def test_take_init_snapshot_reports_error_when_commit_fails_after_start(
     snapshot_dir, workdir
 ):
@@ -164,7 +129,7 @@ async def test_take_init_snapshot_reports_error_when_commit_fails_after_start(
     real_run = subprocess.run
 
     def _fail_commit_run(cmd, *args, **kwargs):
-        if "commit" in cmd:
+        if "commit-tree" in cmd:
             raise RuntimeError("commit boom")
         return real_run(cmd, *args, **kwargs)
 
@@ -181,37 +146,54 @@ async def test_take_init_snapshot_reports_error_when_commit_fails_after_start(
     assert "commit boom" in events[-1].reason
 
 
+@pytest.mark.skipif(
+    os.name != "posix" or os.geteuid() == 0, reason="needs POSIX permissions, non-root"
+)
 @pytest.mark.asyncio
 async def test_take_init_snapshot_skips_unreadable_files_and_reports_them(
     snapshot_dir, workdir
 ):
     """One unreadable file (root-owned volume mount, protected key, ...) must
     not abort the snapshot: it's skipped, counted, and the rest is committed."""
-    real_copy2 = shutil.copy2
-
-    def _deny_secret(src, dst, **kwargs):
-        if os.path.basename(src) == "secret.key":
-            raise PermissionError(13, "Permission denied", src)
-        return real_copy2(src, dst, **kwargs)
-
     with open(os.path.join(workdir, "normal.txt"), "w") as f:
         f.write("fine")
-    with open(os.path.join(workdir, "secret.key"), "w") as f:
+    secret = os.path.join(workdir, "secret.key")
+    with open(secret, "w") as f:
         f.write("protected")
+    os.chmod(secret, 0)
 
     mgr = SnapshotManager(snapshot_dir, "skip-session", workdir)
     events: list[SnapshotProgress] = []
-    with patch("zrb.llm.snapshot.manager.shutil.copy2", side_effect=_deny_secret):
+    try:
         sha = await mgr.take_init_snapshot(on_progress=events.append)
+    finally:
+        os.chmod(secret, 0o600)
 
     assert sha is not None
-    assert [(e.stage, e.copied, e.skipped) for e in events] == [
-        ("start", 0, 0),
-        ("done", 1, 1),
-    ]
+    assert [(e.stage, e.skipped) for e in events] == [("start", 0), ("done", 1)]
+    assert len(mgr.list_snapshots()) == 1  # snapshot still usable for /rewind
 
-    snapshots = mgr.list_snapshots()
-    assert len(snapshots) == 1  # snapshot still usable for /rewind
+
+@pytest.mark.asyncio
+async def test_nested_repository_without_commits_does_not_break_snapshot(
+    snapshot_dir, workdir
+):
+    nested = os.path.join(workdir, "vendor")
+    os.makedirs(nested)
+    subprocess.run(["git", "init", "-q"], cwd=nested, check=True)
+    file_path = os.path.join(workdir, "f.txt")
+    with open(file_path, "w") as f:
+        f.write("original")
+
+    mgr = SnapshotManager(snapshot_dir, "nested-session", workdir)
+    sha = await mgr.take_snapshot("with nested repo")
+    with open(file_path, "w") as f:
+        f.write("modified")
+
+    assert sha is not None
+    assert await mgr.restore_snapshot(sha) == RestoreOutcome(restored=True)
+    with open(file_path) as f:
+        assert f.read() == "original"
 
 
 @pytest.mark.asyncio
@@ -244,7 +226,7 @@ async def test_take_snapshot_force_empty_commit_when_message_count_advances(
 async def test_every_git_subprocess_call_has_a_timeout(manager, workdir):
     _run_records_timeout.calls.clear()
     with patch(
-        "zrb.llm.snapshot.manager.subprocess.run",
+        "zrb.util.git.snapshot_store.subprocess.run",
         side_effect=_run_records_timeout,
     ):
         with open(os.path.join(workdir, "a.txt"), "w") as f:
@@ -261,3 +243,163 @@ async def test_every_git_subprocess_call_has_a_timeout(manager, workdir):
     assert all(
         t is not None for t in _run_records_timeout.calls
     ), "every subprocess.run must pass timeout= -- found a call without one"
+
+
+@pytest.mark.asyncio
+async def test_a_cancelled_snapshot_never_moves_history_after_it_returns(
+    manager, workdir
+):
+    """The git commands run in a worker thread cancelling cannot stop. The
+    cancellation must wait for it, and stop it before it records the commit —
+    otherwise a late `update-ref` could land after a later rewind."""
+    import asyncio
+    import threading
+
+    with open(os.path.join(workdir, "f.txt"), "w") as f:
+        f.write("v1")
+    assert await manager.take_snapshot("kept", message_count=1) is not None
+    with open(os.path.join(workdir, "f.txt"), "w") as f:
+        f.write("v2")
+
+    in_commit = threading.Event()
+    release = threading.Event()
+
+    def slow_commit_tree(cmd, *args, **kwargs):
+        if "commit-tree" in cmd:
+            in_commit.set()
+            release.wait(5)
+        return _real_subprocess_run(cmd, *args, **kwargs)
+
+    with patch(
+        "zrb.util.git.snapshot_store.subprocess.run", side_effect=slow_commit_tree
+    ):
+        task = asyncio.create_task(manager.take_snapshot("late", message_count=2))
+        await asyncio.to_thread(in_commit.wait, 5)
+        task.cancel()
+        threading.Timer(0.2, release.set).start()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    assert release.is_set()  # the cancellation waited for the worker thread
+    assert [s.label for s in manager.list_snapshots()] == ["kept"]
+
+
+@pytest.mark.asyncio
+async def test_a_snapshot_message_of_any_length_is_committed(manager, workdir):
+    # Past a command-line argument's limit (128 KB on Linux).
+    with open(os.path.join(workdir, "f.txt"), "w") as f:
+        f.write("x")
+    label = "x" * 200_000
+
+    sha = await manager.take_snapshot(label, message_count=1)
+
+    assert sha is not None
+    assert manager.list_snapshots()[0].label == label
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "label",
+    [
+        "zrb-snapshot: not-json",  # the record's prefix, with bad JSON
+        # a second line forging a record that would keep made.txt
+        'first\nzrb-snapshot: {"unreadable": ["made.txt"], "left_out": [], '
+        '"repositories": []}',
+        "ends like a count [mc:5]",  # a count of its own
+    ],
+)
+async def test_no_label_passes_for_snapshot_metadata(manager, workdir, label):
+    target = os.path.join(workdir, "f.txt")
+    with open(target, "w") as f:
+        f.write("original")
+    sha = await manager.take_snapshot(label)
+    with open(target, "w") as f:
+        f.write("changed")
+    made = os.path.join(workdir, "made.txt")
+    with open(made, "w") as f:
+        f.write("created since")
+
+    outcome = await manager.restore_snapshot(sha)
+
+    assert outcome.restored and not outcome.left_behind
+    with open(target) as f:
+        assert f.read() == "original"
+    assert not os.path.exists(made)  # no forged record kept it
+    assert manager.list_snapshots()[0].message_count is None
+
+
+@pytest.mark.asyncio
+async def test_a_turn_snapshot_that_beats_the_init_snapshot_still_rewinds_the_turn(
+    manager, workdir
+):
+    path = os.path.join(workdir, "f.txt")
+    with open(path, "w") as f:
+        f.write("before")
+
+    async def first_turn():
+        # As `stream_ai_response` does: the snapshot, then the model's edits.
+        await manager.take_snapshot("first turn", message_count=0)
+        with open(path, "w") as f:
+            f.write("changed by the turn")
+
+    events: list[SnapshotProgress] = []
+    turn = asyncio.ensure_future(first_turn())
+    init = asyncio.ensure_future(manager.take_init_snapshot(events.append))
+    await asyncio.gather(turn, init)
+
+    assert [event.stage for event in events] == ["up-to-date"]
+    oldest = manager.list_snapshots()[-1]
+    assert await manager.restore_snapshot(oldest.sha) == RestoreOutcome(restored=True)
+    with open(path) as f:
+        assert f.read() == "before"
+
+
+def _git(cwd, *args) -> str:
+    return subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", *args],
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+
+@pytest.mark.asyncio
+async def test_a_file_ignored_since_the_last_snapshot_gets_a_rewind_point(
+    manager, workdir
+):
+    _git(workdir, "init", "-q")
+    with open(os.path.join(workdir, ".gitignore"), "w") as f:
+        f.write("*.log\n")
+    first = await manager.take_snapshot("first", message_count=1)
+    log = os.path.join(workdir, "debug.log")
+    with open(log, "w") as f:
+        f.write("existed at the second")
+
+    second = await manager.take_snapshot("second", message_count=1)
+    with open(os.path.join(workdir, ".gitignore"), "w") as f:
+        f.write("")  # logs un-ignored since
+
+    assert second != first  # the same tree, but not the same record
+    assert await manager.restore_snapshot(second) == RestoreOutcome(restored=True)
+    assert os.path.exists(log)
+
+
+@pytest.mark.asyncio
+async def test_a_commit_without_its_record_is_not_restored(
+    manager, snapshot_dir, workdir
+):
+    made = os.path.join(workdir, "made.txt")
+    await manager.take_snapshot("first", message_count=1)
+    (store,) = [e.path for e in os.scandir(snapshot_dir) if e.name.endswith(".git")]
+    (ref,) = _git(store, "for-each-ref", "--format=%(refname)", "refs/zrb").split()
+    tree = _git(store, "rev-parse", f"{ref}^{{tree}}").strip()
+    bare = _git(store, "commit-tree", tree, "-p", ref, "-m", "no record [mc:1]")
+    _git(store, "update-ref", ref, bare.strip())
+    with open(made, "w") as f:
+        f.write("never seen by that commit")
+
+    outcome = await manager.restore_snapshot(bare.strip())
+
+    assert outcome == RestoreOutcome(restored=False)
+    assert os.path.exists(made)

@@ -7,7 +7,7 @@ import asyncio
 import atexit
 import logging
 import threading
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any
@@ -41,6 +41,41 @@ class HookExecutionResult:
     hook_specific_output: dict[str, Any] | None = None
 
 
+class _HookRun:
+    """One synchronous hook's run, in an event loop of its own on a pool
+    thread. `cancel` reaches into that loop from the caller's: cancelling the
+    caller's future only abandons the thread, and a hook left running there —
+    a reviewer's model request, a command's process — would run on to the
+    end with nothing waiting for its result."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._task: asyncio.Task[Any] | None = None
+        self._cancelled = False
+
+    def can_start(self) -> bool:
+        """Called first inside the hook's loop, which it records so `cancel`
+        can reach it. False when the caller already cancelled."""
+        with self._lock:
+            if self._cancelled:
+                return False
+            self._loop = asyncio.get_running_loop()
+            self._task = asyncio.current_task()
+            return True
+
+    def cancel(self) -> None:
+        """Cancel the hook, whether it has started yet or not."""
+        with self._lock:
+            self._cancelled = True
+            if self._loop is None or self._task is None:
+                return
+            try:
+                self._loop.call_soon_threadsafe(self._task.cancel)
+            except RuntimeError:
+                pass  # its loop is closed: the hook already finished
+
+
 class ThreadPoolHookExecutor:
     """
     Thread-safe executor for hook execution with timeout controls.
@@ -53,11 +88,18 @@ class ThreadPoolHookExecutor:
     - Exit code handling (0=success, 2=block)
     """
 
-    def __init__(self, max_workers: int = 10, default_timeout: float | None = None):
+    def __init__(
+        self,
+        max_workers: int = 10,
+        default_timeout: float | None = None,
+        cancel_grace_seconds: float = 5.0,
+    ):
         self.max_workers = max_workers
         self.default_timeout = (
             default_timeout if default_timeout is not None else CFG.HOOKS_TIMEOUT / 1000
         )
+        #: How long a cancelled or timed-out hook gets to finish once cancelled.
+        self.cancel_grace_seconds = cancel_grace_seconds
         self._executor: ThreadPoolExecutor | None = None
         self._lock = threading.RLock()
         self._shutdown_event = threading.Event()
@@ -105,20 +147,26 @@ class ThreadPoolHookExecutor:
             )
 
         timeout = timeout or self.default_timeout
+        run = _HookRun()
 
         try:
-            # Use get_running_loop() for Python 3.14+ compatibility
-            # (get_event_loop() raises RuntimeError if no loop exists in 3.14+)
-            loop = asyncio.get_running_loop()
-            result = await asyncio.wait_for(
-                loop.run_in_executor(
-                    self._executor, self._run_hook_sync, hook, context
-                ),
-                timeout=timeout,
+            self.start()
+            assert self._executor is not None
+            job = self._executor.submit(self._run_hook_sync, hook, context, run)
+        except RuntimeError as e:  # shut down by another thread meanwhile
+            return HookExecutionResult(success=False, error=str(e), exit_code=1)
+        try:
+            # Shielded: a cancel or timeout here stops the hook through `run`
+            # and waits for it (`_stop`), rather than only ceasing to wait.
+            return await asyncio.wait_for(
+                asyncio.shield(asyncio.wrap_future(job)), timeout=timeout
             )
-            return result
 
+        except asyncio.CancelledError:
+            await self._stop(run, job)
+            raise
         except asyncio.TimeoutError:
+            await self._stop(run, job)
             logger.warning(f"Hook execution timed out after {timeout}s")
             return HookExecutionResult(
                 success=False,
@@ -129,8 +177,25 @@ class ThreadPoolHookExecutor:
             logger.error(f"Error executing hook: {e}", exc_info=True)
             return HookExecutionResult(success=False, error=str(e), exit_code=1)
 
+    async def _stop(self, run: "_HookRun", job: Future[HookExecutionResult]) -> None:
+        """Cancel the hook and wait for it to finish, up to
+        `cancel_grace_seconds`. One not started yet never starts; one blocked
+        where cancellation cannot reach it — a synchronous call — is left to
+        finish, with a warning, rather than holding its caller."""
+        run.cancel()
+        if job.cancel():
+            return
+        done, _ = await asyncio.wait(
+            [asyncio.wrap_future(job)], timeout=self.cancel_grace_seconds
+        )
+        if not done:
+            logger.warning(
+                "A cancelled hook is still running after %ss; it is left to finish.",
+                self.cancel_grace_seconds,
+            )
+
     def _run_hook_sync(
-        self, hook: HookCallable, context: HookContext
+        self, hook: HookCallable, context: HookContext, run: "_HookRun"
     ) -> HookExecutionResult:
         """
         Run hook synchronously in thread pool.
@@ -142,8 +207,12 @@ class ThreadPoolHookExecutor:
 
         async def run_hook_async():
             """Wrapper to run the hook and handle exceptions."""
+            if not run.can_start():
+                return HookResult(success=False, output="Hook cancelled")
             try:
                 return await hook(context)
+            except asyncio.CancelledError:
+                return HookResult(success=False, output="Hook cancelled")
             except Exception as e:
                 logger.error(f"Error in hook execution: {e}", exc_info=True)
                 return HookResult(success=False, output=str(e), should_stop=False)

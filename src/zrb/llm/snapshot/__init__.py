@@ -1,3 +1,8 @@
-from zrb.llm.snapshot.manager import Snapshot, SnapshotManager, SnapshotProgress
+from zrb.llm.snapshot.manager import (
+    RestoreOutcome,
+    Snapshot,
+    SnapshotManager,
+    SnapshotProgress,
+)
 
-__all__ = ["Snapshot", "SnapshotManager", "SnapshotProgress"]
+__all__ = ["RestoreOutcome", "Snapshot", "SnapshotManager", "SnapshotProgress"]

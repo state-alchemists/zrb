@@ -266,9 +266,7 @@ def _scrub_links_to(root: str, target_path: str) -> None:
     not a corpus, so O(files) here is cheap; upgrade to an index if this
     journal ever grows past a size where that stops being true.
     """
-    link_re = re.compile(
-        r"^- (?:\[[^\]]*\]\(([^)]+)\)|.*\(\[note\]\(([^)]+)\)\))\s*$"
-    )
+    link_re = re.compile(r"^- (?:\[[^\]]*\]\(([^)]+)\)|.*\(\[note\]\(([^)]+)\)\))\s*$")
     target_abs = os.path.abspath(target_path)
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if not d.startswith(".")]

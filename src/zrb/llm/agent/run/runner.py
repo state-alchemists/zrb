@@ -23,6 +23,7 @@ docs/contributing/maintainer-guide.md#llm-history-sanitization-layer.
 from __future__ import annotations
 
 import asyncio
+import os
 import uuid
 from contextlib import ExitStack
 from dataclasses import replace
@@ -61,6 +62,7 @@ from zrb.llm.agent.run.setup import (
     setup_print_and_events,
 )
 from zrb.llm.agent.run.turn_cursor import TurnCursor
+from zrb.llm.agent.run.turn_snapshot import TurnSnapshot
 from zrb.llm.agent_state import (
     AnyToolConfirmation,
     current_agent_run_scope,
@@ -71,12 +73,17 @@ from zrb.llm.agent_state import (
     current_tool_confirmation,
     current_ui,
     current_yolo,
+    get_current_agent_run_scope,
 )
 from zrb.llm.approval.approval_channel import current_approval_channel
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.model_resolver import resolve_configured_multimodal_model
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.turn_evidence import turn_states_preference, turn_wrote_files
+from zrb.llm.hook.turn_evidence import (
+    turn_changed_paths,
+    turn_states_preference,
+    turn_wrote_files,
+)
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.message import ensure_alternating_roles
 from zrb.llm.permission.state import (
@@ -88,6 +95,7 @@ from zrb.llm.prompt.live_context import append_live_context
 from zrb.llm.sandbox.state import current_sandbox_policy, get_effective_sandbox_policy
 from zrb.llm.tool.ambient_state import active_worktree
 from zrb.llm.util.prompt import expand_prompt
+from zrb.util.git.snapshot_command import run_in_worker
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -175,6 +183,10 @@ async def run_agent(
     effective_sandbox = (
         sandbox_policy if sandbox_policy is not None else current_sandbox_policy.get()
     )
+
+    # A run started while another is bound is nested — a delegated
+    # sub-agent. Read before this run binds its own scope below.
+    nested_run = bool(get_current_agent_run_scope())
 
     # Bind the run-scoped ContextVars through an ExitStack so set/reset stays
     # symmetric and exception-safe: if a later bind raises, the vars already
@@ -277,6 +289,7 @@ async def run_agent(
             effective_approval_channel=effective_approval_channel,
             checkpoint_fn=checkpoint_fn,
             sandbox_deps=sandbox_deps,
+            nested_run=nested_run,
         )
     finally:
         stack.close()
@@ -531,6 +544,7 @@ async def _execution_loop(
     effective_approval_channel: "AnyApprovalChannel | None",
     checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None = None,
     sandbox_deps: Any = None,
+    nested_run: bool = False,
 ) -> tuple[Any, list[Any]]:
     # lazy: heavy third-party
     from pydantic_ai import DeferredToolRequests
@@ -540,6 +554,7 @@ async def _execution_loop(
         message=current_message,
         run_history=current_history,
     )
+    cursor.snapshot = _create_turn_snapshot(nested_run)
     retry_state = RetryState()
     extension_state = ExtensionState()
     partial_run = PartialRunAccumulator()
@@ -549,6 +564,7 @@ async def _execution_loop(
     pending_checkpoint_tasks: list[asyncio.Task] = []
 
     try:
+        await _take_turn_snapshot(cursor.snapshot)
         while True:
             cursor.begin_round(
                 sanitize_history(
@@ -598,7 +614,7 @@ async def _execution_loop(
 
             cursor.commit_round()
             finished = await _finish_turn(
-                cursor, extension_state, effective_hook_manager, print_fn
+                cursor, extension_state, effective_hook_manager, print_fn, nested_run
             )
             if finished is not None:
                 return finished
@@ -618,6 +634,8 @@ async def _execution_loop(
         raise e
     finally:
         await _await_pending_checkpoints(pending_checkpoint_tasks)
+        if cursor.snapshot is not None:
+            cursor.snapshot.close()
 
 
 async def _stream_one_round(
@@ -783,11 +801,35 @@ def _retry_empty_completion(
     cursor.output = None
 
 
+def _create_turn_snapshot(nested_run: bool) -> TurnSnapshot | None:
+    """A turn-start snapshot for the self-review gate, while it is on. A
+    nested run takes none: the parent's snapshot covers what a sub-agent
+    changes."""
+    if not CFG.LLM_SELF_REVIEW_ENABLED or nested_run:
+        return None
+    return TurnSnapshot()
+
+
+async def _take_turn_snapshot(snapshot: TurnSnapshot | None) -> None:
+    """Snapshot the working directory. A cancelled turn waits for the
+    snapshot to stop before it deletes the store (`run_in_worker`). A
+    working directory that is gone leaves the turn without a snapshot: a
+    snapshot never fails a turn."""
+    if snapshot is None:
+        return
+    try:
+        workdir = os.getcwd()
+    except OSError:
+        return
+    await run_in_worker(snapshot.take, workdir)
+
+
 async def _finish_turn(
     cursor: TurnCursor,
     extension_state: ExtensionState,
     effective_hook_manager: HookManager,
     print_fn: Callable[[str], Any],
+    nested_run: bool = False,
 ) -> tuple[Any, list[Any]] | None:
     """Fire STOP and settle the turn, or set up the round a hook asked for.
 
@@ -815,6 +857,17 @@ async def _finish_turn(
             # hook) act only on turns where it's actually warranted.
             "turn": cursor.accumulated,
             "wrote_files": wrote_files,
+            # Which files, and the working directory the turn started from,
+            # for a hook that reviews them (self_review.py).
+            "changed_paths": turn_changed_paths(cursor.accumulated),
+            "turn_start_snapshot": (
+                cursor.snapshot.payload() if cursor.snapshot else None
+            ),
+            # Which run this Stop belongs to, so a hook keeping per-turn
+            # state (self_review.py's round counter) keeps it per run, and
+            # whether that run is a delegated sub-agent's.
+            "run_scope": get_current_agent_run_scope(),
+            "nested_run": nested_run,
             # Additive derived field: wrote_files OR looks like a
             # stated preference. wrote_files itself is left unchanged
             # for any other consumer; journal_compliance.py matches on

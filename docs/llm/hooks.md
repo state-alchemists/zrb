@@ -210,7 +210,7 @@ Hooks are defined in JSON or YAML format. Each hook has the following structure:
 | `matchers` | array | No | Conditions to filter when hook runs |
 | `async` | boolean | No | Run fire-and-forget in the background, without blocking the event (default: false). Only `command` hooks honor this — `prompt`/`agent` hooks always run synchronously, since their results (e.g. modifications) often need to feed back into the blocking flow. |
 | `enabled` | boolean | No | Hook is active (default: true) |
-| `timeout` | number | No | Timeout in seconds. Default is type-dependent: `command` hooks default to 600s, `prompt` hooks default to 30s, and `agent` hooks default to 60s |
+| `timeout` | number | No | Timeout in seconds; a synchronous hook past it is cancelled — a `command` hook's process killed — and waited for up to 5 seconds. Default is type-dependent: `command` hooks default to 600s, `prompt` hooks default to 30s, and `agent` hooks default to 60s |
 | `env` | object | No | Environment variables to inject |
 | `priority` | number | No | Execution priority (higher = earlier) |
 
@@ -356,6 +356,24 @@ The shape of its `HookConfig`, for reference (built in Python by `build_journal_
 ```
 
 Duplicating this exact hook in `examples/llm-hooks/.zrb/hooks.json` would teach nothing new, so the shipped example (`security-review-agent-example`, shipped `enabled: false`) demonstrates a different agent-hook use case instead — a `PreToolUse` review agent rather than a `Stop` one. See [llm-chat-lifecycle.md](./llm-chat-lifecycle.md#tracing-an-agent-type-hook-journal-compliance) for how this built-in one is actually wired end-to-end (the registration seam, the `HookType.AGENT` builder, and where the LLM call happens).
+
+---
+
+### Built-in: the self-review gate
+
+Off by default; `ZRB_LLM_SELF_REVIEW_ENABLED=on` turns it on (ADR-0100). At the start of each turn it snapshots your working directory into a private temporary git store, and at Stop it snapshots it again and diffs the two. A snapshot holds every git repository under the directory, each by its own `.gitignore` — nested clones, submodules, and repositories the parent ignores, such as the worktrees `EnterWorktree` creates, included — and the files outside any repository (ADR-0101). So the review covers exactly what the turn changed — edits made through `Shell` and changes committed mid-turn included, your own earlier uncommitted work excluded — and a reviewer agent with a fresh context reads that diff, using read-only `Read`/`Grep`/`Glob` to check the code around it. It ends its report with `Request changes` or `LGTM`.
+
+A repository that appears during the turn — a worktree, a clone — is diffed against the commit it started from, so the review shows what the turn changed in it rather than its whole checkout.
+
+Paths the file tools named that the diff does not cover — ignored, or outside the working directory — are listed for the reviewer to read. Without a snapshot — it failed, or the directory holds more than 5,000 files or 200 MB outside any repository, which is reported once per session — the reviewer gets those paths with no diff, never `git diff HEAD`, which would include your earlier uncommitted work. A file git cannot read at Stop is listed as unreadable instead of showing as deleted.
+
+A delegated sub-agent's turn is not reviewed on its own: its changes land in your working directory, or in a worktree under it, so they are part of the parent turn's diff, which is. A live sub-agent continuation you message after the parent turn has ended is the exception — no parent review covers it, so it is reviewed on its own.
+
+Snapshots write their index and objects into a private, owner-only temporary store deleted when the turn ends — never into any repository's `.git/objects`, so untracked secrets such as a `.env` are not copied there.
+
+`Request changes` blocks the Stop: the findings become the agent's next prompt, with the instruction to check each against the code, fix the real ones, say why any is not a defect, and restate the final answer. Anything else — `LGTM`, an unclear verdict, a failed review — lets the turn end. `ZRB_LLM_SELF_REVIEW_MAX_ROUNDS` (default `2`) caps consecutive blocking reviews — a review that lets the turn end resets the count — `ZRB_LLM_SELF_REVIEW_TIMEOUT` (default `240` seconds) bounds each review — the reviewer is cancelled, model request included, and the turn ends unreviewed — and `ZRB_LLM_SELF_REVIEW_MODEL` picks the reviewer's model (empty uses the run's own). The reviewer model receives the turn's diff.
+
+It is a Python hook (`llm/hook/self_review.py`), not a JSON one, because it needs things a JSON agent hook cannot express: a turn-start snapshot (the Stop payload's `turn_start_snapshot`, taken only while the gate is on and only for a top-level run — `nested_run` in the payload marks a sub-agent's) and `changed_paths` as its scope, a round counter per run (`run_scope`), and the diff instead of the transcript as its input. The reviewer's instructions live in `llm/prompt/markdown/self_review.md`; override them through `LLM_PROMPT_DIR` like the other internal prompts.
 
 ---
 

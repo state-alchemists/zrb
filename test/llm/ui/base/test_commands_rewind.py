@@ -3,9 +3,12 @@
 `MockUI` and the `ui` fixture come from `conftest.py`.
 """
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
+from zrb.llm.snapshot import RestoreOutcome
 
 
 @pytest.mark.asyncio
@@ -30,7 +33,9 @@ async def test_handle_rewind_command_restore(ui):
     snap.sha = "1234567890"
     snap.message_count = 5
     ui.snapshot_manager.list_snapshots.return_value = [snap]
-    ui.snapshot_manager.restore_snapshot = AsyncMock(return_value=True)
+    ui.snapshot_manager.restore_snapshot = AsyncMock(
+        return_value=RestoreOutcome(restored=True)
+    )
 
     assert ui.handle_rewind_command("/rewind 1") is True
     # Restoration happens in a background task
@@ -80,6 +85,17 @@ def test_rewind_names_the_session_requirement_when_the_knob_is_already_on(
 
 def test_rewind_is_listed_in_help_even_without_snapshots(ui):
     """Help lists every command with a resolved alias (ADR-0093), so rewind
-    is discoverable even though `LLM_ENABLE_REWIND` is off by default."""
+    is discoverable even where `LLM_ENABLE_REWIND` is off."""
     ui.snapshot_manager = None
     assert any("/rewind" in row for row in ui.get_help_text(80).splitlines())
+
+
+@pytest.mark.asyncio
+async def test_rewind_says_why_it_is_off_for_the_session(ui):
+    ui.snapshot_manager.unavailable_reason = "too many loose files"
+
+    assert ui.handle_rewind_command("/rewind") is True
+    await asyncio.gather(*ui.background_tasks)
+
+    assert "Rewind is off for this session: too many loose files" in "".join(ui.outputs)
+    ui.snapshot_manager.list_snapshots.assert_not_called()

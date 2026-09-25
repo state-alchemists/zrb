@@ -13,6 +13,7 @@ import pytest
 from zrb.config.config import CFG
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
+from zrb.llm.snapshot import RestoreOutcome
 from zrb.llm.snapshot.manager import Snapshot
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.ui_config import UIConfig
@@ -129,7 +130,8 @@ def test_load_command_blank_argument_passes_through(conv_ui):
     assert conv_ui.handle_load_command("stray text") is False
 
 
-def test_rewind_unavailable_when_disabled(conv_ui):
+def test_rewind_unavailable_when_disabled(conv_ui, monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_ENABLE_REWIND", False)
     assert conv_ui.handle_rewind_command("rewind") is True
     assert any("not enabled" in line for line in conv_ui.outputs)
 
@@ -161,7 +163,9 @@ async def test_rewind_restores_by_index_and_trims_history(rewind_ui):
         _snapshot("f" * 40, message_count=1)
     ]
     rewind_ui.history_manager.load.return_value = ["m1", "m2"]
-    rewind_ui.snapshot_manager.restore_snapshot = AsyncMock(return_value=True)
+    rewind_ui.snapshot_manager.restore_snapshot = AsyncMock(
+        return_value=RestoreOutcome(restored=True)
+    )
     assert rewind_ui.handle_rewind_command("rewind 1") is True
     await _wait_output(rewind_ui, "restored")
     rewind_ui.snapshot_manager.restore_snapshot.assert_awaited_once_with("f" * 40)
@@ -180,7 +184,9 @@ async def test_rewind_reports_out_of_range_index(rewind_ui):
 @pytest.mark.asyncio
 async def test_rewind_restores_by_sha_prefix(rewind_ui):
     rewind_ui.snapshot_manager.list_snapshots = lambda: [_snapshot("face" + "0" * 36)]
-    rewind_ui.snapshot_manager.restore_snapshot = AsyncMock(return_value=True)
+    rewind_ui.snapshot_manager.restore_snapshot = AsyncMock(
+        return_value=RestoreOutcome(restored=True)
+    )
     assert rewind_ui.handle_rewind_command("rewind face") is True
     await _wait_output(rewind_ui, "restored")
     rewind_ui.snapshot_manager.restore_snapshot.assert_awaited_once_with(
@@ -189,9 +195,31 @@ async def test_rewind_restores_by_sha_prefix(rewind_ui):
 
 
 @pytest.mark.asyncio
+async def test_a_partial_restore_rewinds_the_chat_and_names_what_is_left(
+    rewind_ui,
+):
+    rewind_ui.snapshot_manager.list_snapshots = lambda: [
+        _snapshot("f" * 40, message_count=1)
+    ]
+    rewind_ui.history_manager.load.return_value = ["m1", "m2"]
+    rewind_ui.snapshot_manager.restore_snapshot = AsyncMock(
+        return_value=RestoreOutcome(restored=True, left_behind=("locked/f.txt",))
+    )
+
+    assert rewind_ui.handle_rewind_command("rewind 1") is True
+    await _wait_output(rewind_ui, "except these files")
+
+    output = "".join(rewind_ui.outputs)
+    assert "- locked/f.txt" in output and "run the same /rewind again" in output
+    rewind_ui.history_manager.update.assert_called_once()  # the chat rewound too
+
+
+@pytest.mark.asyncio
 async def test_rewind_reports_failed_restore(rewind_ui):
     rewind_ui.snapshot_manager.list_snapshots = lambda: [_snapshot("f" * 40)]
-    rewind_ui.snapshot_manager.restore_snapshot = AsyncMock(return_value=False)
+    rewind_ui.snapshot_manager.restore_snapshot = AsyncMock(
+        return_value=RestoreOutcome(restored=False)
+    )
     assert rewind_ui.handle_rewind_command("rewind 1") is True
     await _wait_output(rewind_ui, "Failed to restore snapshot")
 
@@ -315,3 +343,9 @@ def test_copy_command_to_file_without_history(conv_ui, tmp_path):
 
 def test_copy_command_blank_argument_passes_through(conv_ui):
     assert conv_ui.handle_copy_command("copy   ") is True
+
+
+def test_rewind_follows_the_conversation_the_ui_switches_to(rewind_ui):
+    rewind_ui.conversation_session_name = "loaded-conversation"
+
+    assert rewind_ui.snapshot_manager.session_name == "loaded-conversation"

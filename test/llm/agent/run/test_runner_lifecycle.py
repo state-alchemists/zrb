@@ -1,13 +1,16 @@
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pydantic_ai import AgentRunResultEvent
 
+from zrb.contextvars import current_agent_run_scope
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
+from zrb.util.git.snapshot_store import Snapshot
 
 
 def _run_from(agen_func):
@@ -243,7 +246,12 @@ async def test_run_agent_fires_stop_on_natural_completion():
 
 
 @pytest.mark.asyncio
-async def test_stop_event_data_carries_turn_slice_and_wrote_files_flag():
+@pytest.mark.parametrize(
+    "self_review,nested", [(False, False), (True, False), (True, True)]
+)
+async def test_stop_event_data_carries_turn_slice_and_wrote_files_flag(
+    self_review, nested, monkeypatch
+):
     """The Stop hook's event_data exposes this turn's own messages, plus a
     free (no-LLM) `wrote_files` gate, so an evidence-gated hook (e.g. a
     journal-compliance agent hook) can act only on turns that actually
@@ -262,6 +270,15 @@ async def test_stop_event_data_carries_turn_slice_and_wrote_files_flag():
         captured.append(context.event_data)
         return HookResult(success=True)
 
+    monkeypatch.setenv("ZRB_LLM_SELF_REVIEW_ENABLED", "on" if self_review else "off")
+    monkeypatch.setattr(
+        "zrb.llm.agent.run.turn_snapshot.SnapshotStore.snapshot",
+        lambda store, deadline=None: Snapshot("tree-at-start"),
+    )
+    # Only the payload is under test here, not the gate that reads it.
+    monkeypatch.setattr(
+        "zrb.llm.hook.manager.register_self_review_hook", lambda manager: None
+    )
     manager = HookManager(search_dirs=[])
     manager.add_hook(record, events=[HookEvent.STOP])
 
@@ -290,17 +307,35 @@ async def test_stop_event_data_carries_turn_slice_and_wrote_files_flag():
 
     agent.run = _run_from(_gen)
 
-    await run_agent(
-        agent=agent,
-        message="Hi",
-        message_history=[],
-        limiter=LLMLimiter(),
-        hook_manager=manager,
-    )
+    # A run started inside another run's scope is a delegated sub-agent's.
+    token = current_agent_run_scope.set("parent-run") if nested else None
+    try:
+        await run_agent(
+            agent=agent,
+            message="Hi",
+            message_history=[],
+            limiter=LLMLimiter(),
+            hook_manager=manager,
+        )
+    finally:
+        if token is not None:
+            current_agent_run_scope.reset(token)
 
     assert len(captured) == 1
+    assert captured[0]["nested_run"] is nested
+    assert captured[0]["run_scope"] and captured[0]["run_scope"] != "parent-run"
     assert len(captured[0]["turn"]) == len(turn_messages)
     assert captured[0]["wrote_files"] is True
+    assert captured[0]["changed_paths"] == ["x"]
+    # The turn-start snapshot is only taken while the self-review gate is on,
+    # and its private store is gone once the turn ends. A nested run takes
+    # none: the parent's snapshot covers what it changes.
+    snapshot = captured[0]["turn_start_snapshot"]
+    if self_review and not nested:
+        assert snapshot["tree"] == "tree-at-start"
+        assert not os.path.exists(snapshot["store"])
+    else:
+        assert snapshot is None
 
 
 @pytest.mark.asyncio

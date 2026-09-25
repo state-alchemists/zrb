@@ -66,12 +66,14 @@ class BaseUIConversationCommands:
                 if not name:
                     continue
                 try:
-                    history = self._base_ui.history_manager.load(
-                        self._base_ui.conversation_session_name
-                    )
+                    previous_name = self._base_ui.conversation_session_name
+                    history = self._base_ui.history_manager.load(previous_name)
                     self._base_ui.history_manager.update(name, history)
                     self._base_ui.history_manager.save(name)
                     self._base_ui.history_manager.load(name)
+                    # The saved copy keeps the conversation's rewind history.
+                    if self._base_ui.snapshot_manager is not None:
+                        self._base_ui.snapshot_manager.copy_history(previous_name, name)
                     self._base_ui.conversation_session_name = name
                     self._base_ui.append_to_output(
                         stylize_muted(
@@ -273,6 +275,14 @@ class BaseUIConversationCommands:
                 snapshot_manager = self._base_ui.snapshot_manager
                 if snapshot_manager is None:
                     return
+                if snapshot_manager.unavailable_reason:
+                    self._base_ui.append_to_output(
+                        stylize_warning(
+                            "\n  ⏳ Rewind is off for this session: "
+                            f"{snapshot_manager.unavailable_reason}.\n"
+                        )
+                    )
+                    return
                 snapshots = await asyncio.to_thread(snapshot_manager.list_snapshots)
                 if arg:
                     sha, message_count = self._resolve_snapshot_arg(snapshots, arg)
@@ -360,8 +370,11 @@ class BaseUIConversationCommands:
             self._base_ui.append_to_output(
                 stylize_muted(f"\n  ⏪ Restoring snapshot {sha[:8]}...\n")
             )
-            ok = await snapshot_manager.restore_snapshot(sha)
-            if ok:
+            outcome = await snapshot_manager.restore_snapshot(sha)
+            if outcome.restored:
+                # The chat rewinds with the files, even when some were left
+                # behind: every other file is back, and a second /rewind to
+                # the same snapshot finishes them.
                 if message_count is not None:
                     try:
                         msgs = self._base_ui.history_manager.load(
@@ -378,7 +391,7 @@ class BaseUIConversationCommands:
                     except Exception as e:
                         logger.warning(f"Failed to rewind conversation history: {e}")
                 self._base_ui.append_to_output(
-                    stylize_muted(f"\n  ✅ Snapshot {sha[:8]} restored.\n")
+                    _describe_restore(sha, outcome.left_behind)
                 )
             else:
                 self._base_ui.append_to_output(
@@ -613,3 +626,15 @@ class BaseUIConversationCommands:
             stylize_muted(f"\n  📷 Photo captured ({scaled.final_bytes} bytes)\n")
         )
         self._base_ui.invalidate_ui()
+
+
+def _describe_restore(sha: str, left_behind: tuple[str, ...]) -> str:
+    if not left_behind:
+        return stylize_muted(f"\n  ✅ Snapshot {sha[:8]} restored.\n")
+    listing = "".join(f"\n     - {path}" for path in left_behind)
+    return stylize_warning(
+        f"\n  ⚠️  Snapshot {sha[:8]} restored, except these files, which may "
+        f"not have been written:{listing}\n"
+        "     Close programs holding them or fix their permissions, then run the "
+        "same /rewind again.\n"
+    )
