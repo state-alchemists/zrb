@@ -8,6 +8,8 @@ import tempfile
 import pytest
 
 from zrb.llm.snapshot import RestoreOutcome, SnapshotManager
+from zrb.util.git.snapshot_command import SnapshotError
+from zrb.util.git.snapshot_store import SnapshotStore
 
 
 @pytest.fixture
@@ -238,14 +240,82 @@ async def test_switching_conversation_switches_rewind_history(snapshot_dir, work
 async def test_a_saved_copy_keeps_the_conversations_rewind_history(
     snapshot_dir, workdir
 ):
-    manager = SnapshotManager(snapshot_dir, "draft", workdir)
+    manager = SnapshotManager(snapshot_dir, "stale", workdir)
+    await manager.take_snapshot("old", message_count=9)
+    manager.session_name = "draft"
     await manager.take_snapshot("turn", message_count=2)
-    stale = SnapshotManager(snapshot_dir, "stale", workdir)
-    await stale.take_snapshot("old", message_count=9)
 
-    await manager.copy_history("draft", "final")  # `/save final`
-    await manager.copy_history("empty", "stale")
+    manager.copy_history("draft", "final")  # `/save final`
+    manager.copy_history("empty", "stale")  # `/save stale` from a fresh chat
+    await manager.take_snapshot("applies both", message_count=2)
 
     manager.session_name = "final"
     assert [s.label for s in manager.list_snapshots()] == ["turn"]
-    assert stale.list_snapshots() == []  # its old counts matched no chat history
+    manager.session_name = "stale"
+    assert manager.list_snapshots() == []  # its old counts matched no chat history
+
+
+@pytest.mark.asyncio
+async def test_a_snapshot_right_after_a_save_builds_on_the_copied_history(
+    snapshot_dir, workdir
+):
+    """The next turn's snapshot can run before anything else once `/save`
+    returns: the copy must still land first, not overwrite it."""
+    manager = SnapshotManager(snapshot_dir, "draft", workdir)
+    with open(os.path.join(workdir, "f.txt"), "w") as f:
+        f.write("one")
+    await manager.take_snapshot("before save", message_count=1)
+
+    manager.copy_history("draft", "final")  # `/save final`, then at once:
+    manager.session_name = "final"
+    assert [s.label for s in manager.list_snapshots()] == ["before save"]
+    with open(os.path.join(workdir, "f.txt"), "w") as f:
+        f.write("two")
+    await manager.take_snapshot("first turn after save", message_count=2)
+
+    assert [s.label for s in manager.list_snapshots()] == [
+        "first turn after save",
+        "before save",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_a_copy_of_a_copy_takes_the_original_history(snapshot_dir, workdir):
+    manager = SnapshotManager(snapshot_dir, "a", workdir)
+    with open(os.path.join(workdir, "f.txt"), "w") as f:
+        f.write("x")
+    await manager.take_snapshot("in a", message_count=1)
+
+    manager.copy_history("a", "b")  # `/save b`
+    manager.copy_history("b", "c")  # `/save c`, before anything applied the first
+    manager.session_name = "a"
+    await manager.take_snapshot("a moves on", message_count=2)
+
+    manager.session_name = "c"
+    assert [s.label for s in manager.list_snapshots()] == ["in a"]
+
+
+@pytest.mark.asyncio
+async def test_a_restore_that_cannot_move_the_history_back_still_counts(
+    snapshot_dir, workdir, monkeypatch
+):
+    mgr = SnapshotManager(snapshot_dir, "s", workdir)
+    path = os.path.join(workdir, "f.txt")
+    with open(path, "w") as f:
+        f.write("then")
+    sha = await mgr.take_snapshot("first")
+    with open(path, "w") as f:
+        f.write("now")
+    await mgr.take_snapshot("second")
+    real_git = SnapshotStore.git
+
+    def refuse_update_ref(self, args, *rest, **kwargs):
+        if args[0] == "update-ref":
+            raise SnapshotError("cannot lock ref")
+        return real_git(self, args, *rest, **kwargs)
+
+    monkeypatch.setattr(SnapshotStore, "git", refuse_update_ref)
+
+    assert await mgr.restore_snapshot(sha) == RestoreOutcome(restored=True)
+    with open(path) as f:
+        assert f.read() == "then"

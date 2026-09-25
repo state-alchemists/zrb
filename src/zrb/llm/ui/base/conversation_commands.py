@@ -53,17 +53,6 @@ class BaseUIConversationCommands:
 
     # --- save / load ------------------------------------------------------
 
-    def _copy_rewind_history(self, source: str, target: str) -> None:
-        """The saved copy of a conversation keeps its rewind history. Runs in
-        the background; the snapshot manager's lock orders it before the next
-        turn's snapshot."""
-        snapshot_manager = self._base_ui.snapshot_manager
-        if snapshot_manager is None:
-            return
-        task = asyncio.create_task(snapshot_manager.copy_history(source, target))
-        self._base_ui.background_tasks.add(task)
-        task.add_done_callback(self._base_ui.background_tasks.discard)
-
     def handle_save_command(self, text: str) -> bool:
         text = text.strip()
         if self._missing_argument_warning(
@@ -82,8 +71,10 @@ class BaseUIConversationCommands:
                     self._base_ui.history_manager.update(name, history)
                     self._base_ui.history_manager.save(name)
                     self._base_ui.history_manager.load(name)
+                    # The saved copy keeps the conversation's rewind history.
+                    if self._base_ui.snapshot_manager is not None:
+                        self._base_ui.snapshot_manager.copy_history(previous_name, name)
                     self._base_ui.conversation_session_name = name
-                    self._copy_rewind_history(previous_name, name)
                     self._base_ui.append_to_output(
                         stylize_muted(
                             f"\n  💾 Conversation saved and switched to: {name}\n"
@@ -642,8 +633,8 @@ def _describe_restore(sha: str, left_behind: tuple[str, ...]) -> str:
         return stylize_muted(f"\n  ✅ Snapshot {sha[:8]} restored.\n")
     listing = "".join(f"\n     - {path}" for path in left_behind)
     return stylize_warning(
-        f"\n  ⚠️  Snapshot {sha[:8]} restored, except these files, which could "
-        f"not be written:{listing}\n"
+        f"\n  ⚠️  Snapshot {sha[:8]} restored, except these files, which may "
+        f"not have been written:{listing}\n"
         "     Close programs holding them or fix their permissions, then run the "
         "same /rewind again.\n"
     )

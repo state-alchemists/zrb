@@ -46,7 +46,11 @@ import re
 import threading
 from typing import Callable, NamedTuple
 
-from zrb.util.git.snapshot_command import SnapshotError, run_in_worker
+from zrb.util.git.snapshot_command import (
+    SnapshotError,
+    SnapshotTimeoutError,
+    run_in_worker,
+)
 from zrb.util.git.snapshot_listing import DEFAULT_IGNORE_DIRS, SnapshotBudgetError
 from zrb.util.git.snapshot_store import SnapshotStore
 from zrb.util.string.conversion import to_safe_filename
@@ -122,6 +126,10 @@ class SnapshotManager:
         )
         self._store: SnapshotStore | None = None
         self._store_lock = threading.Lock()
+        # target conversation -> source, recorded by `copy_history`, applied
+        # by the next locked operation before anything else it does.
+        self._pending_copies: dict[str, str] = {}
+        self._pending_lock = threading.Lock()
         self._unavailable = _check_location(self._snapshot_dir, self._workdir)
         # Serializes this process's snapshots, restores and history copies.
         self._lock = asyncio.Lock()
@@ -188,7 +196,7 @@ class SnapshotManager:
         session = self.session_name
         try:
             async with self._lock:
-                existing_sha = await run_in_worker(self._head_sha, session)
+                existing_sha = await run_in_worker(self._initial_head, session)
                 if existing_sha is not None:
                     _report_progress(on_progress, SnapshotProgress("up-to-date"))
                     return existing_sha
@@ -207,7 +215,7 @@ class SnapshotManager:
         """Return the current conversation's snapshots, newest first."""
         if self._unavailable:
             return []
-        session = self.session_name
+        session = self._visible_history(self.session_name)
         try:
             if self._head_sha(session) is None:
                 return []
@@ -245,27 +253,36 @@ class SnapshotManager:
             logger.warning(f"restore_snapshot failed: {e}")
             return RestoreOutcome(restored=False)
 
-    async def copy_history(self, source: str, target: str) -> None:
-        """Give conversation *target* the rewind history of *source* — what
-        saving a conversation under a new name does to its chat history —
-        replacing any it had. A *source* with no snapshots leaves *target*
-        with none: its old ones would carry message counts of a chat
-        history that no longer exists."""
+    def copy_history(self, source: str, target: str) -> None:
+        """Give conversation *target* the rewind history *source* has now —
+        what saving a conversation under a new name does to its chat history
+        — replacing any it had. A *source* with no snapshots leaves *target*
+        with none: its old ones would carry message counts of a chat history
+        that no longer exists.
+
+        The copy is recorded at once and applied by the next operation that
+        holds the manager's lock, before anything else that operation does,
+        so no snapshot of either conversation can come between the save and
+        the copy. Until then `list_snapshots` shows *target* the history it
+        is about to receive."""
         if self._unavailable or source == target:
             return
-        try:
-            async with self._lock:
-                await run_in_worker(self._copy_history, source, target)
-        except Exception as e:
-            self._note_unavailable(e)
-            logger.warning(f"Copying rewind history failed: {e}")
+        with self._pending_lock:
+            # A copy of a copy not applied yet takes the original source.
+            self._pending_copies[target] = self._pending_copies.get(source, source)
 
     def _note_unavailable(self, error: Exception) -> None:
         """Turn rewind off for the session when *error* will not pass by
-        itself: the directory is over the listing's budget. (A store that
-        cannot be set up turns it off in `_get_store`.)"""
+        itself: the directory is over the listing's budget, or too large for
+        a git command to hash within its time limit — retrying would hold
+        every turn up for that long again. (A store that cannot be set up
+        turns it off in `_get_store`.)"""
         if isinstance(error, SnapshotBudgetError):
             self._unavailable = str(error)
+        elif isinstance(error, SnapshotTimeoutError):
+            self._unavailable = (
+                f"{self._workdir} is too large to snapshot in time ({error})"
+            )
 
     def _get_store(self) -> SnapshotStore:
         """The working directory's store, set up on first use. A failure to
@@ -294,11 +311,31 @@ class SnapshotManager:
             self._store = store
             return store
 
+    def _apply_pending_copies(self) -> None:
+        """Apply the copies `copy_history` recorded, in the order it recorded
+        them. Called first by every operation that holds the manager's lock,
+        so each copy lands before anything that could build on either side."""
+        with self._pending_lock:
+            for target, source in self._pending_copies.items():
+                self._copy_history(source, target)
+            self._pending_copies.clear()
+
+    def _visible_history(self, session: str) -> str:
+        """The conversation whose history *session*'s list shows: the source
+        of a copy to *session* not applied yet, else *session*."""
+        with self._pending_lock:
+            return self._pending_copies.get(session, session)
+
+    def _initial_head(self, session: str) -> str | None:
+        self._apply_pending_copies()
+        return self._head_sha(session)
+
     def _commit(
         self, session: str, label: str, message_count: int | None
     ) -> tuple[str, int]:
         """Commit the workdir unless it matches HEAD; return the SHA and how
         many files git could not read."""
+        self._apply_pending_copies()
         store = self._get_store()
         tree, unreadable, _ = store.snapshot()
         skipped = len(unreadable)
@@ -329,6 +366,7 @@ class SnapshotManager:
     def _restore(self, session: str, sha: str) -> list[str]:
         """Restore *sha*, move the conversation's ref back to it, and return
         the paths left behind."""
+        self._apply_pending_copies()
         store = self._get_store()
         store.git(["cat-file", "-e", f"{sha}^{{commit}}"])
         # Only this conversation's own snapshots: another conversation's
@@ -339,7 +377,12 @@ class SnapshotManager:
             raise SnapshotError(f"{sha} is not one of this conversation's snapshots")
         body = store.git(["log", "-1", "--format=%B", sha])
         left_behind = store.restore(sha, keep=_parse_unreadable(body))
-        store.git(["update-ref", _ref(session), sha])
+        try:
+            store.git(["update-ref", _ref(session), sha])
+        except SnapshotError as e:
+            # The files are restored either way; the list just keeps the
+            # snapshots taken after *sha*.
+            logger.warning(f"Could not move {session}'s rewind history back: {e}")
         return left_behind
 
     def _copy_history(self, source: str, target: str) -> None:
@@ -380,35 +423,55 @@ def _ref(session: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-_MC_TAG = "[mc:"  # message-count tag embedded in commit messages
-# Trailer naming, as JSON, the files a snapshot could not read: a restore
-# must not remove them for being absent from it.
+# A snapshot's commit message. The label is the user's text, so the format
+# gives it no way to pass for metadata:
+#
+#     <label, on one line> [mc:<message count, or ->]
+#
+#     zrb-unreadable: <JSON list of the files the snapshot could not read>
+#
+# The subject is one line, so no label can start a body line; the count tag
+# is always written, so no label can end with one of its own; and the trailer
+# is read from the body alone.
 _UNREADABLE_TRAILER = "zrb-unreadable: "
+_COUNT_TAG = re.compile(r" \[mc:(\d+|-)\]$")
 
 
 def _build_commit_message(
     label: str, message_count: int | None, unreadable: tuple[str, ...] = ()
 ) -> str:
-    subject = label if message_count is None else f"{label} {_MC_TAG}{message_count}]"
+    one_line = " ".join(label.splitlines())
+    count = "-" if message_count is None else str(message_count)
+    subject = f"{one_line} [mc:{count}]"
     if not unreadable:
         return subject
     return f"{subject}\n\n{_UNREADABLE_TRAILER}{json.dumps(list(unreadable))}"
 
 
-def _parse_unreadable(body: str) -> list[str]:
+def _parse_commit_message(subject: str) -> tuple[str, int | None]:
+    """A commit subject's label and message count (None when it has none)."""
+    match = _COUNT_TAG.search(subject)
+    if match is None:
+        return subject, None
+    count = match.group(1)
+    return subject[: match.start()], None if count == "-" else int(count)
+
+
+def _parse_unreadable(message: str) -> list[str]:
+    """The files a snapshot's commit message names as unreadable — read from
+    its body, never its subject. Malformed metadata counts as none."""
+    _, _, body = message.partition("\n")
     for line in body.splitlines():
         if line.startswith(_UNREADABLE_TRAILER):
-            return json.loads(line[len(_UNREADABLE_TRAILER) :])
+            try:
+                paths = json.loads(line[len(_UNREADABLE_TRAILER) :])
+            except ValueError:
+                logger.warning(f"Ignoring a malformed snapshot trailer: {line!r}")
+                return []
+            if isinstance(paths, list) and all(isinstance(p, str) for p in paths):
+                return paths
+            return []
     return []
-
-
-def _parse_commit_message(raw: str) -> tuple[str, int | None]:
-    """Return (human_label, message_count).  message_count is None if not present."""
-
-    m = re.search(r"\[mc:(\d+)\]$", raw)
-    if m:
-        return raw[: m.start()].rstrip(), int(m.group(1))
-    return raw, None
 
 
 def _readable_key(name: str, identity: str) -> str:

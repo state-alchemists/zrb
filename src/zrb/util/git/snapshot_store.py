@@ -121,15 +121,29 @@ class SnapshotStore:
         self._initialized = False
 
     @classmethod
-    def create_temporary(cls, workdir: str) -> "SnapshotStore":
+    def create_temporary(
+        cls,
+        workdir: str,
+        reading_from: str | None = None,
+        deadline: float | None = None,
+    ) -> "SnapshotStore":
         """A new store in an owner-only temporary directory, borrowing the
-        listed repositories' objects. `delete` it when done."""
-        return cls.open_temporary(tempfile.mkdtemp(prefix="zrb-snapshot-"), workdir)
+        listed repositories' objects. `delete` it when done.
 
-    @classmethod
-    def open_temporary(cls, git_dir: str, workdir: str) -> "SnapshotStore":
-        """The store `create_temporary` made at *git_dir*, reopened."""
-        return cls(git_dir, workdir, borrow_objects=True)
+        With *reading_from*, another store's directory, it also reads that
+        store's objects and starts from a copy of its stat cache, so it can
+        diff against that store's trees — without ever writing to it."""
+        store = cls(
+            tempfile.mkdtemp(prefix="zrb-snapshot-"), workdir, borrow_objects=True
+        )
+        if reading_from is not None:
+            try:
+                store.ensure(deadline)
+                _read_from(store, reading_from)
+            except BaseException:
+                store.delete()
+                raise
+        return store
 
     @property
     def git_dir(self) -> str:
@@ -229,7 +243,11 @@ class SnapshotStore:
         A write the filesystem refuses — a file another program holds open,
         a directory without write permission — does not stop the others: git
         writes every file it can, and the paths left behind are returned, so
-        restoring again finishes once the cause is gone."""
+        restoring again finishes once the cause is gone. A failure before the
+        first write raises, with nothing changed; one after it — a timeout
+        mid-write — returns every path the restore meant to change, since
+        the directory is then partly restored and restoring again finishes
+        it."""
         with self._operation_index(from_cache=True) as index:
             listing, unreadable = self._index_directory(index, deadline)
             before = self.git(["write-tree"], index=index, deadline=deadline).strip()
@@ -250,16 +268,24 @@ class SnapshotStore:
                 ],
                 deadline=deadline,
             )
-            self._write_tree_to_disk(kept, index, deadline)
-            # Pass 2: with the target's own ignore rules back on disk, remove
-            # the files it lacks because they were created since.
-            created = self._find_created_since(
-                lacking, wanted, listing, set(keep), deadline
+            # Pass 2 only removes files from *lacking*.
+            might_change = sorted(
+                set(self._changed_paths(before, kept, deadline)) | set(lacking)
             )
-            final = self._edit_tree(kept, remove=created, deadline=deadline)
-            if created:
-                self._write_tree_to_disk(final, index, deadline)
-            return self._find_left_behind(before, final, index, deadline)
+            try:
+                self._write_tree_to_disk(kept, index, deadline)
+                # Pass 2: with the target's own ignore rules back on disk,
+                # remove the files it lacks because they were created since.
+                created = self._find_created_since(
+                    lacking, wanted, listing, set(keep), deadline
+                )
+                final = self._edit_tree(kept, remove=created, deadline=deadline)
+                if created:
+                    self._write_tree_to_disk(final, index, deadline)
+                return self._find_left_behind(before, final, index, deadline)
+            except (SnapshotError, OSError) as e:
+                logger.warning(f"Restore stopped partway: {e}")
+                return might_change
 
     def _create_restore_target(
         self,
@@ -355,10 +381,14 @@ class SnapshotStore:
     ) -> list[str]:
         """The paths a restore meant to change — where *final* differs from
         *before* — that the directory does not hold as *final* has them."""
-        meant = set(self.diff(before, final, deadline)[0])
+        meant = set(self._changed_paths(before, final, deadline))
         self._index_directory(index, deadline)
         actual = self.git(["write-tree"], index=index, deadline=deadline).strip()
-        return [path for path in self.diff(final, actual, deadline)[0] if path in meant]
+        return [
+            path
+            for path in self._changed_paths(final, actual, deadline)
+            if path in meant
+        ]
 
     def _is_under_unreadable_directory(self, path: str) -> bool:
         """Whether an existing directory on *path*'s way down from the work
@@ -397,16 +427,21 @@ class SnapshotStore:
         renamed file's old path is listed too. The diff ignores the user's
         external diff tool and colour settings, and replaces undecodable bytes
         with U+FFFD: it goes to a model, which may reject lone surrogates."""
-        names = self.git(
-            ["diff", "--name-only", "-z", "--no-renames", before, after],
-            deadline=deadline,
-        )
         diff = self.git(
             ["diff", "--no-ext-diff", "--no-color", before, after],
             deadline=deadline,
             errors="replace",
         )
-        return [name for name in names.split("\0") if name], diff.strip()
+        return self._changed_paths(before, after, deadline), diff.strip()
+
+    def _changed_paths(
+        self, before: str, after: str, deadline: float | None
+    ) -> list[str]:
+        names = self.git(
+            ["diff", "--name-only", "-z", "--no-renames", before, after],
+            deadline=deadline,
+        )
+        return [name for name in names.split("\0") if name]
 
     def create_tree_without(
         self, treeish: str, paths: Iterable[str], deadline: float | None = None
@@ -768,3 +803,14 @@ def _write(path: str, content: str) -> None:
     # path that does not exist.
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(content)
+
+
+def _read_from(store: SnapshotStore, other_git_dir: str) -> None:
+    """Make *store* read *other_git_dir*'s objects, and start from a copy of
+    its stat cache (with its timestamp: see `SnapshotStore._operation_index`)."""
+    alternates = os.path.join(store.git_dir, "objects", "info", "alternates")
+    os.makedirs(os.path.dirname(alternates), exist_ok=True)
+    _write(alternates, os.path.join(os.path.realpath(other_git_dir), "objects") + "\n")
+    other_index = os.path.join(other_git_dir, "index")
+    if os.path.exists(other_index):
+        shutil.copy2(other_index, store.index)

@@ -44,6 +44,10 @@ class SnapshotError(RuntimeError):
     """A snapshot git command failed, timed out, or was cancelled."""
 
 
+class SnapshotTimeoutError(SnapshotError):
+    """A git command ran past its time limit and was killed."""
+
+
 def get_command_timeout(deadline: float | None) -> float:
     """Seconds the next git command may take: `GIT_COMMAND_TIMEOUT_SECONDS`,
     or less when *deadline* is nearer. Zero or below means no time is left."""
@@ -161,6 +165,6 @@ def _run(
             **io,
         )
     except subprocess.TimeoutExpired as e:
-        raise SnapshotError(f"{label} timed out after {timeout:.3g}s") from e
+        raise SnapshotTimeoutError(f"{label} timed out after {timeout:.3g}s") from e
     except OSError as e:
         raise SnapshotError(f"Could not run git: {e}") from e

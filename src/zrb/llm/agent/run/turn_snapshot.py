@@ -9,22 +9,24 @@ sub-agent takes none: what it changes lands in the parent's working directory
 or in a worktree under it, so the parent's diff covers it.
 
 The snapshot lives in a temporary store that `close` deletes when the turn
-ends.
+ends. A working directory that cannot be snapshotted at all — over the
+listing's budget, or too large for git to hash within its time limit — is
+reported once and not tried again for the rest of the process: every attempt
+would fail the same way, the slow one after holding the turn up.
 """
 
 from __future__ import annotations
 
 import logging
 
-from zrb.util.git.snapshot_command import SnapshotError
+from zrb.util.git.snapshot_command import SnapshotError, SnapshotTimeoutError
 from zrb.util.git.snapshot_listing import SnapshotBudgetError
 from zrb.util.git.snapshot_store import SnapshotStore
 
 logger = logging.getLogger(__name__)
 
-# Working directories already reported as over the snapshot budget, so a
-# session is told once rather than on every turn.
-_over_budget: set[str] = set()
+# Working directories found impossible to snapshot, not tried again.
+_cannot_snapshot: set[str] = set()
 
 
 class TurnSnapshot:
@@ -38,6 +40,8 @@ class TurnSnapshot:
         """Snapshot *workdir*. Any failure leaves the turn without a snapshot
         — it is reviewed from the file tools' paths alone — and deletes the
         store, which may already hold copies of untracked files."""
+        if workdir in _cannot_snapshot:
+            return
         try:
             store = SnapshotStore.create_temporary(workdir)
         except OSError as e:
@@ -45,8 +49,8 @@ class TurnSnapshot:
             return
         try:
             self._tree = store.snapshot().tree
-        except SnapshotBudgetError as e:
-            _report_over_budget(workdir, e)
+        except (SnapshotBudgetError, SnapshotTimeoutError) as e:
+            _give_up_on(workdir, e)
             store.delete()
             return
         except (SnapshotError, OSError) as e:
@@ -73,8 +77,9 @@ class TurnSnapshot:
             self._store = None
 
 
-def _report_over_budget(workdir: str, error: SnapshotBudgetError) -> None:
-    if workdir in _over_budget:
-        return
-    _over_budget.add(workdir)
-    logger.warning(f"Self-review reviews file-tool paths only: {error}.")
+def _give_up_on(workdir: str, error: SnapshotError) -> None:
+    _cannot_snapshot.add(workdir)
+    logger.warning(
+        f"Self-review reviews file-tool paths only in {workdir}: it cannot be "
+        f"snapshotted ({error})."
+    )

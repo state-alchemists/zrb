@@ -192,7 +192,15 @@ def _diff_turn(
         and isinstance(git_dir, str)
     ):
         return None
-    store = SnapshotStore.open_temporary(git_dir, workdir)
+    # The turn-start store belongs to the runner, which deletes it when the
+    # turn ends — possibly while this review still runs, if the turn is
+    # cancelled. So the review only reads it, and writes into a store of its
+    # own that it deletes itself.
+    try:
+        store = SnapshotStore.create_temporary(workdir, git_dir, deadline)
+    except (SnapshotError, OSError) as e:
+        CFG.LOGGER.debug(f"Self-review could not set up a store for {workdir}: {e}")
+        return None
     try:
         after = store.snapshot(deadline)
         before = _with_new_repositories(store, before, after, deadline)
@@ -203,6 +211,8 @@ def _diff_turn(
     except (SnapshotError, OSError) as e:
         CFG.LOGGER.debug(f"Self-review could not diff {workdir}: {e}")
         return None
+    finally:
+        store.delete()
     return store.work_tree, paths, _truncate(diff), list(after.unreadable)
 
 

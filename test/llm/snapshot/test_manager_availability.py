@@ -99,3 +99,35 @@ async def test_a_snapshot_dir_equal_to_the_workdir_turns_rewind_off_with_a_reaso
     assert "working directory itself" in manager.unavailable_reason
     assert events == [SnapshotProgress("error", reason=manager.unavailable_reason)]
     assert os.listdir(workdir) == []  # no store written into it
+
+
+def _count_git_and_time_out(monkeypatch) -> list:
+    """Every git command runs past its time limit; returns the call log."""
+    import subprocess
+
+    calls: list = []
+    real_run = subprocess.run
+
+    def run(argv, *args, **kwargs):
+        calls.append(argv)
+        if "update-index" in argv:
+            raise subprocess.TimeoutExpired(argv, 30)
+        return real_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    return calls
+
+
+@pytest.mark.asyncio
+async def test_a_directory_too_large_to_snapshot_in_time_turns_rewind_off(
+    manager, workdir, monkeypatch
+):
+    with open(os.path.join(workdir, "f.txt"), "w") as f:
+        f.write("x")
+    calls = _count_git_and_time_out(monkeypatch)
+
+    assert await manager.take_init_snapshot() is None
+    assert "too large to snapshot in time" in manager.unavailable_reason
+    tried = len(calls)
+    assert await manager.take_snapshot("next turn") is None
+    assert len(calls) == tried  # not held up again

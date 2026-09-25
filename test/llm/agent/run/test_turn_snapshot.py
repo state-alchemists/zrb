@@ -78,3 +78,27 @@ def test_a_directory_over_the_budget_is_reported_once(tmp_path, monkeypatch, cap
             assert snapshot.payload() is None
 
     assert caplog.text.count("more than 1 files outside any git repository") == 1
+
+
+def test_a_directory_too_large_to_snapshot_in_time_is_not_tried_again(
+    tmp_path, monkeypatch
+):
+    workdir = _repo(tmp_path / "huge")
+    calls: list = []
+    real_run = subprocess.run
+
+    def run(argv, *args, **kwargs):
+        calls.append(argv)
+        if "update-index" in argv:
+            raise subprocess.TimeoutExpired(argv, 30)
+        return real_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    TurnSnapshot().take(str(workdir))
+    tried = len(calls)
+
+    snapshot = TurnSnapshot()
+    snapshot.take(str(workdir))
+
+    assert snapshot.payload() is None
+    assert len(calls) == tried

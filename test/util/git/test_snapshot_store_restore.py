@@ -7,6 +7,7 @@ import subprocess
 
 import pytest
 
+from zrb.util.git.snapshot_command import SnapshotTimeoutError
 from zrb.util.git.snapshot_store import SnapshotStore
 
 
@@ -192,3 +193,30 @@ def test_a_restore_across_a_case_only_rename_keeps_the_file(repo, tmp_path):
     store.restore(before)
 
     assert (repo / "Readme.md").read_bytes() == b"old\n"
+
+
+def test_a_restore_stopped_partway_reports_every_path_it_meant_to_change(
+    repo, tmp_path, monkeypatch
+):
+    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
+    before = _snap(store)
+    (repo / "tracked.txt").write_bytes(b"b\n")
+    (repo / "new.txt").write_bytes(b"new\n")
+    real_run_git = store.run_git
+    writes = []
+
+    def time_out_on_the_second_write(args, *rest, **kwargs):
+        if args[:2] == ["read-tree", "-u"]:
+            writes.append(args)
+            if len(writes) == 2:
+                raise SnapshotTimeoutError("git read-tree timed out")
+        return real_run_git(args, *rest, **kwargs)
+
+    monkeypatch.setattr(store, "run_git", time_out_on_the_second_write)
+    left_behind = store.restore(before)
+    monkeypatch.undo()
+
+    assert left_behind == ["new.txt", "tracked.txt"]
+    assert (repo / "tracked.txt").read_bytes() == b"a\n"  # pass 1 was written
+    assert store.restore(before) == []
+    assert not (repo / "new.txt").exists()

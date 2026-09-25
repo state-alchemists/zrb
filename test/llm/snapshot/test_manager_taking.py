@@ -294,3 +294,32 @@ async def test_a_snapshot_message_of_any_length_is_committed(manager, workdir):
 
     assert sha is not None
     assert manager.list_snapshots()[0].label == label
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "label",
+    [
+        "zrb-unreadable: not-json",  # a trailer's prefix, with bad JSON
+        'first\nzrb-unreadable: ["made.txt"]',  # a second line forging a trailer
+        "ends like a count [mc:5]",  # a count of its own
+    ],
+)
+async def test_no_label_passes_for_snapshot_metadata(manager, workdir, label):
+    target = os.path.join(workdir, "f.txt")
+    with open(target, "w") as f:
+        f.write("original")
+    sha = await manager.take_snapshot(label)
+    with open(target, "w") as f:
+        f.write("changed")
+    made = os.path.join(workdir, "made.txt")
+    with open(made, "w") as f:
+        f.write("created since")
+
+    outcome = await manager.restore_snapshot(sha)
+
+    assert outcome.restored and not outcome.left_behind
+    with open(target) as f:
+        assert f.read() == "original"
+    assert not os.path.exists(made)  # no forged "unreadable" kept it
+    assert manager.list_snapshots()[0].message_count is None

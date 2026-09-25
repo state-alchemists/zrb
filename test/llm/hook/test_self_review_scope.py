@@ -322,3 +322,45 @@ async def test_a_file_unreadable_at_stop_is_listed_not_shown_as_deleted(
     assert (
         "could not read these files, so they are not diffed:\n- locked.txt" in request
     )
+
+
+def _contents(directory: str) -> dict[str, bytes]:
+    found = {}
+    for root, _dirs, files in os.walk(directory):
+        for name in files:
+            path = os.path.join(root, name)
+            with open(path, "rb") as f:
+                found[os.path.relpath(path, directory)] = f.read()
+    return found
+
+
+def _temporary_stores() -> set[str]:
+    import tempfile
+
+    temp = tempfile.gettempdir()
+    return {name for name in os.listdir(temp) if name.startswith("zrb-snapshot-")}
+
+
+@pytest.mark.asyncio
+async def test_a_review_only_reads_the_turn_store_and_leaves_nothing_behind(
+    tmp_path, monkeypatch, start_snapshot, gate, stop
+):
+    """The runner deletes the turn-start store when the turn ends — also
+    while a cancelled review still runs — so the review must never write to
+    it, and must delete the store it does write to."""
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / "a.py").write_text("x = 1\n")
+    monkeypatch.chdir(tmp_path)
+    before = start_snapshot(tmp_path)
+    turn_store = _contents(before["store"])
+    stores = _temporary_stores()
+    (tmp_path / "a.py").write_text("x = 2\n")
+    (tmp_path / "new.txt").write_text("untracked\n")
+    manager = HookManager(search_dirs=[])
+
+    with gate() as (seen, _):
+        await stop(manager, changed_paths=(), turn_start_snapshot=before)
+
+    assert "+x = 2" in seen[0].event_data
+    assert _contents(before["store"]) == turn_store
+    assert _temporary_stores() == stores

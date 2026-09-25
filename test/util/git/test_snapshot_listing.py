@@ -2,6 +2,7 @@
 own rules, nested ones included, and loose files up to a budget."""
 
 import os
+import socket
 import subprocess
 
 import pytest
@@ -318,9 +319,7 @@ def test_a_working_directory_its_repository_ignores_is_walked(tmp_path):
 
 
 @pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="needs FIFOs")
-def test_a_walk_lists_only_what_git_can_store(tmp_path):
-    import socket
-
+def test_a_walk_lists_only_what_git_can_store(tmp_path, monkeypatch):
     workspace = tmp_path / "ws"
     workspace.mkdir()
     (workspace / "a.txt").write_text("a\n")
@@ -329,8 +328,11 @@ def test_a_walk_lists_only_what_git_can_store(tmp_path):
     except OSError:
         pytest.skip("this filesystem cannot hold a FIFO")
     sock = socket.socket(socket.AF_UNIX)
+    # Bound by a relative name: macOS caps a socket path at 104 bytes, and
+    # its temporary directory alone takes most of them.
+    monkeypatch.chdir(workspace)
     try:
-        sock.bind(str(workspace / "sock"))
+        sock.bind("sock")
         assert list_snapshot_paths(str(workspace)).paths == ["a.txt"]
     finally:
         sock.close()
