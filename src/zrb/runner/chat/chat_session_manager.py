@@ -12,11 +12,9 @@ from zrb.llm.history_manager.file_history_manager import (
 )
 from zrb.llm.prompt.live_context import split_live_context
 
-# Re-exported: existing callers (chat_api_route.py) and tests import
-# parse_delegated_session from this module; the definition itself lives in
-# subagent_session_naming.py, shared with delegate.py (which formats the
-# name) and the CLI TUI's persona-swap-on-/load, without dragging
-# delegate.py's heavy transitive imports into the web session lister.
+# Re-exported for chat_api_route.py and tests. Defined in
+# subagent_session_naming.py so the web session lister avoids delegate.py's
+# heavy imports.
 from zrb.llm.util.subagent_session_naming import (
     parse_delegated_session,
     subagent_history_directories,

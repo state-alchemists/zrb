@@ -250,14 +250,9 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         for why.
         """
         span = self._shell_output_spans.pop(key, None)
-        if span is None or not full:
+        if span is None:
             return False
-        start, end = span
-        source = CollapsibleBlockSource(stylize_muted(collapsed), stylize_muted(full))
-        if not self._replace_span(start, end, source.collapsed):
-            return False
-        self._rendered_blocks.append([start, start + len(source.collapsed), source])
-        return True
+        return self._splice_collapsed_span(*span, collapsed, full)
 
     def _splice_collapsed_span(
         self, start: int, end: int, collapsed: str, full: str

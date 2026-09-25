@@ -134,12 +134,7 @@ def show_todo(ctx: AnyContext) -> str | None:
         ctx.log_error("Task already completed")
         return
     todo_task = cascade_todo_task(todo_task)
-    task_id = todo_task.keyval.get("id", "")
-    log_work_path = os.path.join(CFG.TODO_DIR, "log-work", f"{task_id}.json")
-    log_work_list = []
-    if os.path.isfile(log_work_path):
-        log_work_list = json.loads(read_file(log_work_path))
-    return get_visual_todo_card(todo_task, log_work_list)
+    return get_visual_todo_card(todo_task, _load_log_work(_log_work_path(todo_task)))
 
 
 @make_task(
@@ -249,16 +244,9 @@ def log_todo(ctx: AnyContext) -> str:
         current_duration_str, ctx.input.duration
     )
     save_todo_list(todo_file_path, todo_list)
-    log_work_dir = os.path.join(CFG.TODO_DIR, "log-work")
-    os.makedirs(log_work_dir, exist_ok=True)
-    log_work_file_path = os.path.join(
-        log_work_dir, f"{todo_task.keyval.get('id')}.json"
-    )
-    if os.path.isfile(log_work_file_path):
-        log_work_json = read_file(log_work_file_path)
-    else:
-        log_work_json = "[]"
-    log_work: list[dict[str, Any]] = json.loads(log_work_json)
+    log_work_file_path = _log_work_path(todo_task)
+    os.makedirs(os.path.dirname(log_work_file_path), exist_ok=True)
+    log_work = _load_log_work(log_work_file_path)
     start_work_time_str = _get_start_work_time_str(ctx.input.stop, ctx.input.duration)
     log_work.append(
         {
@@ -268,18 +256,24 @@ def log_todo(ctx: AnyContext) -> str:
         }
     )
     write_file(log_work_file_path, json.dumps(log_work, indent=2))
-    task_id = todo_task.keyval.get("id", "")
-    log_work_path = os.path.join(CFG.TODO_DIR, "log-work", f"{task_id}.json")
-    log_work_list = []
-    if os.path.isfile(log_work_path):
-        log_work_list = json.loads(read_file(log_work_path))
     return "\n".join(
         [
             get_visual_todo_list(todo_list, filter=ctx.input.filter),
             "",
-            get_visual_todo_card(todo_task, log_work_list),
+            get_visual_todo_card(todo_task, log_work),
         ]
     )
+
+
+def _log_work_path(todo_task: TodoTaskModel) -> str:
+    """The work-log file of a cascaded task (its `id` is always set)."""
+    return os.path.join(CFG.TODO_DIR, "log-work", f"{todo_task.keyval['id']}.json")
+
+
+def _load_log_work(log_work_path: str) -> list[dict[str, Any]]:
+    if not os.path.isfile(log_work_path):
+        return []
+    return json.loads(read_file(log_work_path))
 
 
 def _get_start_work_time_str(stop_work_time_str: str, work_duration_str: str) -> str:

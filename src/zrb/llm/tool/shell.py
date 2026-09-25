@@ -410,13 +410,9 @@ def _build_sandboxed_shell_argv(
 
 async def start_process(argv: list[str], cwd: str) -> asyncio.subprocess.Process:
     """Start a (possibly sandbox-wrapped) command with piped output."""
-    # start_new_session=True puts the shell in its own session/process group
-    # (setsid on POSIX, ignored on Windows). This lets `pgrep -g` find spawned
-    # processes and lets terminate/kill target the whole tree. The sandbox
-    # wrappers (sandbox-exec/bwrap) exec the shell in place, so these
-    # semantics survive wrapping.
-    # stdin is DEVNULL so a command that reads stdin fails fast instead of
-    # hanging until the timeout.
+    # Its own session/process group (setsid; ignored on Windows) lets
+    # `pgrep -g` and kill reach the whole tree, and survives the sandbox
+    # wrappers, which exec in place. DEVNULL stdin fails a stdin read fast.
     return await asyncio.create_subprocess_exec(
         *argv,
         stdout=asyncio.subprocess.PIPE,

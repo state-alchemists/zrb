@@ -196,11 +196,8 @@ async def run_agent_task(
             "simplify the task or break it into smaller steps.",
         )
     except Exception as e:  # noqa: BLE001
-        # No [SYSTEM SUGGESTION] here, unlike RecursionError above: that's a
-        # specific, recognizable failure mode with a known fix (simplify the
-        # task); an arbitrary sub-agent exception isn't — guessing generic
-        # recovery advice for an unknown cause would be more likely to
-        # mislead the parent agent than to help it.
+        # No [SYSTEM SUGGESTION]: unlike RecursionError, an arbitrary failure
+        # has no known fix, and guessed advice would mislead the parent.
         return AgentTaskResult(agent_name, None, str(e))
     finally:
         if session is not None and session.active_task is asyncio.current_task():
@@ -673,11 +670,8 @@ async def _run_parallel(
         async with _fan_out_semaphore:
             return await _run_single_agent_inner(task_spec)
 
-    # return_exceptions=True is defense in depth, not the primary fix: cleanup
-    # failures are already caught above so they surface as a result note, not
-    # a raise. This guards against anything else genuinely unanticipated
-    # (e.g. `run_agent_task` itself raising) taking down every sibling task
-    # instead of just the one that failed.
+    # Defense in depth (cleanup failures are already caught above): an
+    # unanticipated raise fails one task, not every sibling.
     raw_results = await asyncio.gather(
         *[run_single_agent(t) for t in tasks], return_exceptions=True
     )
