@@ -71,14 +71,9 @@ def create_command_hook(
         stdin_payload = _encode_stdin_payload(context)
         hook_cwd = _resolve_hook_cwd(config, context)
         try:
-            # Use subprocess.Popen in a thread executor instead of
-            # asyncio.create_subprocess_shell.  The asyncio subprocess API
-            # creates transport/protocol pairs via _make_subprocess_transport
-            # / _connect_pipes, which can leave _pipes entries as None if
-            # cancelled mid-init.  _try_finish then skips _call_connection_lost
-            # and _wait() hangs forever (CPython bug).  A plain subprocess.Popen
-            # has no asyncio transport objects, so task cancellation cannot
-            # trigger that hang path.
+            # A plain Popen in a thread, not asyncio.create_subprocess_shell:
+            # cancelling the asyncio version mid-init can leave `_pipes`
+            # entries None, and `_wait()` then hangs forever (CPython bug).
             process = await run_detached(
                 lambda: subprocess.Popen(
                     config.command,
@@ -109,10 +104,7 @@ def create_command_hook(
                 )
             except asyncio.TimeoutError:
                 kill_process_tree(process, hook_pgid)
-                # process is a sync subprocess.Popen, so .wait() returns an
-                # int — awaiting it raises "'int' object can't be awaited",
-                # which would swallow this TimeoutError and leave the subprocess
-                # unreaped. Reap off-thread instead.
+                # A sync Popen's .wait() returns an int, so reap off-thread.
                 await run_detached(process.wait, name="zrb-hook-reap")
                 logger.warning(
                     f"Command hook timed out after {timeout}s and was killed: "
@@ -381,11 +373,8 @@ async def run_llm_hook(
     come from; *kind* names the one in play for log messages.
     """
     try:
-        # lazy: zrb internal (heavy via transitive) — not circular anymore
-        # (hook/manager.py and agent/hook_agent.py both defer their own
-        # imports of this module's functions), but constructing an agent
-        # still pulls in pydantic_ai, so this stays deferred to when a
-        # prompt/agent hook actually fires.
+        # lazy: zrb internal (heavy via transitive) — building an agent pulls
+        # in pydantic_ai; deferred until a prompt/agent hook fires.
         from zrb.llm.agent import create_agent
 
         # A hook agent is a nested agent inside a run, so an unconfigured one

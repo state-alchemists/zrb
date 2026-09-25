@@ -58,22 +58,15 @@ _observed: OrderedDict[str, dict[str, str]] = OrderedDict()
 # the wrong path, not destroying unseen content.
 _listed_paths: OrderedDict[str, set[str]] = OrderedDict()
 
-# run_scope -> {dir abs path: hash of a shallow os.listdir snapshot taken at
-# record time}, for RM(recursive=True)'s directory-level bar. Independent of
-# whatever LS/Glob actually displayed (which may be recursive, filtered, or
-# truncated) — this is a cheap, separate snapshot purely for detecting drift
-# between listing and removal, not a replay of LS's own walk.
+# run_scope -> {dir abs path: hash of a shallow os.listdir at record time},
+# for RM(recursive=True): detects drift between listing and removal,
+# independent of what LS/Glob displayed.
 _listed_dirs: OrderedDict[str, dict[str, str]] = OrderedDict()
 
-# One lock per path, held for a whole Write/Edit call. Closes the
-# check-then-write TOCTOU window between two concurrent writers to the same
-# path (e.g. two sub-agents sharing a non-isolated worktree) — without it,
-# both could pass the observed-content check before either has written, and
-# the second would silently clobber the first.
-# Never evicted — unlike `_observed`, eviction here would be unsafe (a lock
-# dropped between two concurrent acquirers voids the mutual exclusion it
-# exists for) and unnecessary (the map is bounded by the number of distinct
-# paths ever written in the process's lifetime, not by delegation count).
+# One lock per path, held for a whole Write/Edit call, closing the
+# check-then-write race between concurrent writers (e.g. two sub-agents in one
+# worktree). Never evicted: that would void the exclusion, and the map is
+# bounded by distinct paths written.
 _path_locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 

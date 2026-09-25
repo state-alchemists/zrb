@@ -125,7 +125,7 @@ class BaseTask(AnyTask):
             print_fn: Callable receiving this task's output lines. Defaults to
                 printing to stdout.
         """
-        # Optimized stack retrieval
+        # Declaration site, attached to raised exceptions by `exec_action`.
         frame = inspect.currentframe()
         if frame is not None:
             caller_frame = frame.f_back
@@ -172,20 +172,9 @@ class BaseTask(AnyTask):
     ) -> list[AnyTask]:
         """Normalize a single task or a collection of them into a list.
 
-        Tests sequence-ness rather than `isinstance(tasks, list)`, matching
-        what these parameters' annotations promise. Narrowing it to `list`
-        sends a tuple down the single-task branch, where it is stored *as* a
-        task and surfaces much later as
-        `'tuple' object has no attribute 'name'`.
-
-        The test is on the *collection* side, not `isinstance(tasks, AnyTask)`.
-        Anything task-like that is not an `AnyTask` subclass — a stub, a
-        `MagicMock`, a duck-typed adapter — must still land on the single-task
-        branch, and testing the task side would send it to `list()` instead.
-
-        `str`/`bytes` are rejected outright rather than falling through: both
-        satisfy `Sequence`, so a bare string would otherwise spread into a list
-        of its own characters and fail somewhere far away.
+        Tests for `Sequence` (so tuples work) rather than for `AnyTask` (so a
+        duck-typed task or `MagicMock` still counts as one task). `str`/`bytes`
+        are rejected: they satisfy `Sequence` and would spread into characters.
         """
         if tasks is None:
             return []
@@ -404,21 +393,19 @@ class BaseTask(AnyTask):
         str_kwargs: dict[str, str] | None = None,
         kwargs: dict[str, Any] | None = None,
     ) -> Any:
-        """
-        Synchronously runs the task and its dependencies, handling async setup and cleanup.
+        """Synchronously run the task and its dependencies.
 
-        Uses `asyncio.run()` internally, which creates a new event loop.
-        WARNING: Do not call this method from within an already running asyncio
-        event loop, as it will raise a RuntimeError. Use `async_run` instead
-        if you are in an async context.
+        Uses `asyncio.run()`, so calling it inside a running event loop raises
+        RuntimeError; use `async_run` there. A Ctrl+C / cancellation returns
+        None instead of raising.
 
         Args:
-            session (AnySession | None): The session to use. If None, a new one
-                might be created implicitly.
-            str_kwargs (dict[str, str]): String-based key-value arguments for inputs.
+            session: Session to run in. A new one is created when omitted.
+            str_kwargs: Input values as raw strings, parsed like CLI arguments.
+            kwargs: Input values as already-typed Python objects.
 
         Returns:
-            Any: The final result of the main task execution.
+            The result of the main task's action.
         """
         try:
             return asyncio.run(
@@ -430,12 +417,9 @@ class BaseTask(AnyTask):
                 )
             )
         except (asyncio.CancelledError, KeyboardInterrupt):
-            # Top-level interrupt (Ctrl+C / SIGINT), e.g. stopping
-            # `zrb server start`. The async layers deliberately re-raise
-            # cancellation so a cancelled session never looks successful to
-            # programmatic callers; at this synchronous process-entry boundary
-            # it just means the user asked to stop — exit quietly rather than
-            # dumping a CancelledError traceback.
+            # The async layers re-raise cancellation so programmatic callers
+            # never see a cancelled run as success; at this process-entry
+            # boundary it means the user asked to stop, so exit quietly.
             return None
 
     async def async_run(
@@ -486,14 +470,11 @@ class BaseTask(AnyTask):
         return await self._base_execution.execute_task_action(session)
 
     async def exec_action(self, ctx: AnyContext) -> Any:
-        """Public wrapper around _exec_action for cross-module callers.
+        """Public wrapper around `_exec_action` for cross-module callers.
 
-        Also the single choke point for enriching a raised exception with this
-        task's declaration site. Subclasses (`CmdTask`, `HttpCheck`,
-        `TcpCheck`, `Scaffolder`, `Scheduler`, ...) override `_exec_action`
-        wholesale rather than calling `super()`, so this enrichment lives here
-        instead of inside `_exec_action` — every subclass gets it regardless
-        of how it overrides the action itself.
+        Adds this task's declaration site as a note on any raised exception.
+        It lives here rather than in `_exec_action` because subclasses override
+        that wholesale without calling `super()`.
         """
         try:
             return await self._exec_action(ctx)
@@ -506,21 +487,13 @@ class BaseTask(AnyTask):
             if hasattr(e, "add_note"):
                 e.add_note(additional_error_note)
             elif hasattr(e, "__notes__"):
-                # fallback: use the __notes__ attribute directly
                 e.__notes__ = getattr(e, "__notes__", []) + [additional_error_note]
             raise e
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
-        """
-        Execute the main action of the task.
-        This is the primary method to override in subclasses for custom action logic.
-        The default implementation handles the '_action' attribute (string or callable).
+        """Run the task's action; the method subclasses override.
 
-        Args:
-            ctx (AnyContext): The execution context for this task.
-
-        Returns:
-            Any: The result of the action execution.
+        The default runs `action` (a literal string or a callable).
         """
         return await self._base_execution.run_default_action(ctx)
 
@@ -557,29 +530,22 @@ class BaseTask(AnyTask):
         return fn_kwargs
 
     def _create_fn_docstring(self) -> str:
-
         stub_shared_ctx = SharedContext(print_fn=self._print_fn)
-        str_input_default_values = {}
-        for inp in self.inputs:
-            str_input_default_values[inp.name] = inp.get_default_str(stub_shared_ctx)
         doc = f"{self.description}\n\n"
         if len(self.inputs) > 0:
             doc += "Args:\n"
             for inp in self.inputs:
-                str_input_default = str_input_default_values.get(inp.name, "")
-                doc += (
-                    f"    {inp.name}: {inp.description} (default: {str_input_default})"
-                )
-                doc += "\n"
+                default = inp.get_default_str(stub_shared_ctx)
+                doc += f"    {inp.name}: {inp.description} (default: {default})\n"
         return doc
 
     def _create_fn_signature(self) -> inspect.Signature:
-        params = []
-        for inp in self.inputs:
-            params.append(
+        return inspect.Signature(
+            [
                 inspect.Parameter(
                     name=to_snake_case(inp.name),
                     kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
                 )
-            )
-        return inspect.Signature(params)
+                for inp in self.inputs
+            ]
+        )

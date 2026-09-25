@@ -18,7 +18,7 @@ Built-in tools, how to write your own, sub-agent delegation, per-model capabilit
 
 ## Built-in LLM Tools
 
-The assistant comes with a rich set of built-in tools. These are automatically available in every `LLMTask` and `LLMChatTask` unless you override the tool list.
+Every `LLMTask` and `LLMChatTask` gets these unless you override the tool list.
 
 ### Shell & Execution
 
@@ -34,7 +34,7 @@ The assistant comes with a rich set of built-in tools. These are automatically a
 | `LS` | `list_files` | Recursively list files up to 3 levels deep, auto-excluding `.git`, `node_modules`, `__pycache__`, etc. |
 | `Glob` | `glob_files` | Find files matching a glob pattern (e.g., `**/*.py`). |
 | `Grep` | `search_files` | Search file contents by regex pattern. Supports `context_lines` (default 2), `files_only=True` to return only matching file paths, `case_sensitive=False` for case-insensitive search, and `file_pattern` to restrict to specific file types. |
-| `Read` | `read_file` | Read a UTF-8 text file between `start_line` and `end_line` (1-indexed, inclusive; defaults: 1 to end). Every line is numbered `cat -n`-style (number right-aligned in six columns, then a tab) so `file:line` citations are read, not counted; strip the prefix through the first tab before passing text to `Edit`, which also strips it itself if it slips through. PDF text is returned unnumbered — its line breaks come from the extractor, not the document. The char cap is measured on file content, before numbering. Output exceeding the char cap is truncated at the end — narrow the range or use `Grep` to locate the section you need. Issue parallel `Read` calls to load several files in one turn. |
+| `Read` | `read_file` | Read a UTF-8 text file from `start_line` to `end_line` (1-indexed, inclusive; default: whole file). Lines are numbered `cat -n`-style (six right-aligned columns, then a tab); strip through the first tab before passing text to `Edit`, which also strips it if one slips through. PDF text comes back unnumbered. Output past the char cap (measured before numbering) is truncated at the end — narrow the range or `Grep` first. Issue parallel `Read` calls to load several files in one turn. |
 | `Write` | `write_file` | Write a file. Overwriting an existing file with `mode="w"` requires that this session has already Read it (or Written/Edited it to its current content) — otherwise the call is refused with a pointer back to `Read` (ADR-0084). Appends (`mode="a"`) need no prior read. Binary (non-UTF-8) files are refused in every mode. |
 | `Edit` | `replace_in_file` | Make targeted string replacements in a single file. |
 
@@ -165,7 +165,7 @@ You can extend the assistant's capabilities with your own Python functions.
 
 ### Custom Python Tools
 
-Any Python function can be registered as a tool. The assistant automatically understands the function's purpose from its docstring and type annotations.
+Any Python function can be a tool; its docstring and type annotations describe it to the model.
 
 ```python
 def get_weather(location: str) -> str:
@@ -216,13 +216,13 @@ apply_common_tools(my_task)   # register shipped tools + guidance, lazily
 my_task.append_tool(get_weather) # then layer on your own
 ```
 
-**Why this stays import-cheap.** `apply_common_tools` is *storage-only*: it appends per-run tool/toolset providers through the host's own public append API, exactly like appending any other custom tool. None of the shipped tools are resolved at apply time — the host's build-time resolution (its `get_all_tools` / `get_all_toolsets`) runs those providers against a fresh per-run list each run, and only then does the registry's lazy seed materialize. The `pydantic_ai` import (~1.7s) that resolving ships tools triggers therefore lands on the first agent build / first run — not on the `import zrb` path, even though task-definition modules are imported on **every** CLI invocation. Constructing the task and adding your own plain-function tools stay import-cheap; call `apply_common_tools(host)` once, when you construct the host. Hosts with an approval channel also receive the shell-safety policy; programmatic hosts (no channel) get the tools without it.
+**It stays import-cheap.** `apply_common_tools` only appends per-run providers through the host's public append API; nothing resolves until the first agent build, so the `pydantic_ai` import (~1.7s) stays off the `import zrb` path that every CLI invocation takes. Call it once, when you construct the host. Hosts with an approval channel also get the shell-safety policy; programmatic hosts get the tools without it.
 
 `apply_common_tools` works on `LLMChatTask`, `LLMTask`, and `SubAgentManager`. A `SubAgentManager` resolves tools *by name* from agent definitions (read-only agents are name-gated), so its `get_tool_registry` includes the shipped static set lazily and manual registrations win name collisions. Its factory/toolset providers are resolved by the names requested in each agent definition. The built-in `chat` agent and `sub_agent_manager` already have it applied — you only need this for hosts you construct yourself.
 
 ### Sub-agents
 
-Zrb can automatically discover and manage sub-agents defined in Claude-compatible `AGENT.md` or `*.agent.md` files. The primary assistant can then delegate complex tasks to these specialized agents using the built-in `DelegateToAgent` tool.
+Zrb discovers sub-agents defined in Claude-compatible `AGENT.md` or `*.agent.md` files; the main assistant delegates to them with `DelegateToAgent`.
 
 Sub-agent files are discovered from (in priority order):
 1. `~/.zrb/agents/`, `~/.claude/agents/` — user-global agents
@@ -232,11 +232,9 @@ Sub-agent files are discovered from (in priority order):
 5. Paths in `ZRB_LLM_EXTRA_AGENT_DIRS`
 6. Zrb's built-in `core_agents/` — always included
 7. Zrb's optional built-in `agents/` — included when `LLM_ENABLE_BUILTIN_AGENTS` is enabled
-8. `self._scan_root` (recursive scan target, exposed as `scan_root`)
+8. The manager's `scan_root` (recursive scan target)
 
-Core agents are shown before optional agents in the `AVAILABLE AGENTS` roster and in `SearchAgent` results. `generalist` is currently the built-in core agent, so it remains available even when optional built-in agents are disabled.
-
-> 💡 **Benefit:** Sub-agents isolate context and keep the main conversation history clean.
+Core agents are listed before optional ones in the `AVAILABLE AGENTS` roster and `SearchAgent` results. `generalist` is the built-in core agent, so it stays available with optional built-in agents disabled. Sub-agents keep their work out of the main conversation's context.
 
 ---
 
@@ -244,9 +242,7 @@ Core agents are shown before optional agents in the `AVAILABLE AGENTS` roster an
 
 > Not to be confused with the `capabilities` constructor argument on `LLMTask`/`LLMChatTask` — that's pydantic-ai's own `AbstractCapability` list (`ProcessHistory`, `Thinking`, `WebSearch`, …), documented in [Model, Model Settings & Capabilities](../task-types/llmchat-task.md#model-model-settings--capabilities). This section is zrb's own registry, described below.
 
-Zrb maintains a per-model capability registry that tracks what each model can and can't do — image/audio/video/document input, whether parallel tool calls are supported, and so on. It's used internally to decide things like *"should I let pydantic-ai emit parallel tool calls for this model?"* and *"is the user attaching an image to a text-only model — describe it via the multimodal fallback?"*.
-
-The registry ships with a built-in name-pattern table (it knows about GPT-4o, Claude, Gemini, Llava, etc.) and exposes a module-level singleton you can extend from `zrb_init.py`:
+Zrb keeps a per-model capability registry (image/audio/video/document input, parallel tool calls, …). It decides, for example, whether to allow parallel tool calls, or whether an image sent to a text-only model goes through the multimodal fallback. It ships a name-pattern table (GPT-4o, Claude, Gemini, Llava, …); extend its singleton from `zrb_init.py`:
 
 ```python
 from zrb.llm.util.capabilities import model_capabilities
@@ -293,8 +289,6 @@ if model_capabilities.supports_modality("openai:gpt-4o", "image"):
 
 ## Context Management
 
-The AI Assistant is designed for long-running, complex tasks and has a sophisticated context management system.
-
 ### Two-Tier Summarization
 
 | Level | Trigger | Action |
@@ -317,7 +311,7 @@ The actual split point is adjusted by a backward/forward search that looks for a
 
 ### Journal System
 
-For persistent, long-term memory, Zrb uses a journal system—a directory of Markdown files (default: `~/.zrb/llm-notes/`) where the assistant can keep notes. The `index.md` file is automatically included in every context.
+Long-term memory is a directory of Markdown notes (default `~/.zrb/llm-notes/`); its `index.md` is included in every context.
 
 ---
 

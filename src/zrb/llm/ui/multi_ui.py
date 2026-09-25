@@ -3,6 +3,7 @@ import inspect
 import logging
 import sys
 from datetime import datetime
+from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any, TextIO
 
 if TYPE_CHECKING:
@@ -21,6 +22,7 @@ from zrb.llm.permission.state import (
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.base.message_queue import MessageQueue, submit_user_message_via_queue
 from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
+from zrb.llm.ui.turn_snapshot import take_pre_turn_snapshot
 from zrb.session.session import Session
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
@@ -59,7 +61,6 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         self._shutdown_event: asyncio.Event | None = None
         self._child_tasks: list[asyncio.Task] = []
         self._pending_input_tasks: list[asyncio.Task] = []
-        # Shared message queue for all UIs
         self._message_queue: MessageQueue = MessageQueue()
         self._active_run_context: Any = None
         self._process_messages_task: asyncio.Task | None = None
@@ -67,12 +68,9 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         self._is_thinking: bool = False
         self._last_result_data: str | None = None
         self._llm_task: Any = None
-        self._approval_channel: Any = None  # For tool approvals
-        self._last_winning_ui: Any = None  # Track winning UI for tool confirmations
-        self._tool_call_handler: Any = (
-            None  # Handler with formatters/policies from default UI
-        )
-        # Set parent reference on all child UIs so they route messages through MultiUI
+        self._approval_channel: Any = None
+        self._last_winning_ui: Any = None
+        self._tool_call_handler: Any = None
         for ui in self._uis:
             ui.multi_ui_parent = self
 
@@ -353,32 +351,16 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         self._fanout("replay_history", messages)
 
     async def _take_pre_turn_snapshot(self, user_message: str, timestamp: str) -> None:
-        """Snapshot the filesystem before an AI turn, best-effort.
-
-        Also records the message count so a rewind can restore conversation
-        history to a consistent state. Failures are non-fatal — the AI turn
-        must proceed regardless. Mirrors `BaseUI._stream_ai_response`.
-        """
         main_ui = self.main_ui
-        if main_ui is None:
+        if main_ui is None or main_ui.snapshot_manager is None:
             return
-        snapshot_manager = main_ui.snapshot_manager
-        if snapshot_manager is None:
-            return
-        try:
-            label = user_message[:80].replace("\n", " ").strip()
-            history_manager = main_ui.history_manager
-            session_name = main_ui.conversation_session_name
-            messages = (
-                history_manager.load(session_name)
-                if history_manager is not None
-                else []
-            )
-            await snapshot_manager.take_snapshot(
-                f"{timestamp}: {label}", message_count=len(messages)
-            )
-        except Exception as snap_err:
-            logger.warning(f"Snapshot skipped: {snap_err}")
+        await take_pre_turn_snapshot(
+            main_ui.snapshot_manager,
+            main_ui.history_manager,
+            main_ui.conversation_session_name,
+            user_message,
+            timestamp,
+        )
 
     async def stream_ai_response(
         self,
@@ -394,10 +376,6 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         self.set_thinking(True)
         try:
             timestamp = datetime.now().strftime("%H:%M")
-            # Take filesystem snapshot before this AI turn (also records message
-            # count so that a rewind can restore conversation history to a
-            # consistent state). Failures are non-fatal — the AI turn must
-            # proceed regardless. Mirrors BaseUI._stream_ai_response.
             await self._take_pre_turn_snapshot(user_message, timestamp)
             self.append_to_output(f"\n🤖 {timestamp} >>\n")
             self.append_to_output(stylize_muted("\n  🔢 Streaming response..."))
@@ -447,10 +425,8 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         except Exception as e:
             self.append_to_output(f"\n[Error: {exception_summary(e)}]\n")
         finally:
-            # Stop the animation flag first, then refresh system/git info,
-            # then repaint — mirrors BaseUI's finally order
-            # (flag → update_system_info → invalidate) so the status bar
-            # shows fresh values instead of a stale repaint.
+            # Flag, then system info, then repaint, so the status bar never
+            # repaints stale values.
             self.set_thinking(False, repaint=False)
             for ui in self._uis:
                 update_info = getattr(ui, "update_system_info", None)
@@ -481,7 +457,6 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             try:
                 ui.invalidate_ui()
             except Exception as e:
-                # Best-effort repaint of each child UI.
                 CFG.LOGGER.debug(f"Child UI invalidate_ui failed: {e}")
 
     def create_session_for_llm_task(
@@ -524,7 +499,6 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         2. Fall back to winning UI's handler if available
         3. Fall back to approval channel (Telegram buttons)
         """
-        # First, try MultiUI's handler (has formatters from default UI)
         if self._tool_call_handler is not None:
             return await self._tool_call_handler.handle(self, call)
 
@@ -533,9 +507,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         if winning_handler is not None:
             return await winning_handler.handle(self, call)
 
-        # Fall back to approval channel (e.g., Telegram buttons)
-        if hasattr(self, "_approval_channel") and self._approval_channel is not None:
-
+        if self._approval_channel is not None:
             context = ApprovalContext(
                 tool_name=call.tool_name,
                 tool_args=call.args if isinstance(call.args, dict) else {},
@@ -590,11 +562,8 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             try:
                 entry = await self._message_queue.get()
 
-                # Wait for any still-running task from a previous iteration to
-                # finish. Await it directly instead of polling — this removes
-                # the busy-wait and the check-then-act race between done() and
-                # the next assignment. Swallow its outcome (incl. cancellation);
-                # this loop only needs it settled before starting the next job.
+                # Settle a still-running previous job, swallowing its outcome
+                # unless the cancel is aimed at this loop.
                 if (
                     self._running_llm_task is not None
                     and not self._running_llm_task.done()
@@ -616,15 +585,9 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
                     try:
                         await task
                     except asyncio.CancelledError:
-                        # Two different cancellations arrive here and they need
-                        # opposite handling. A cancel aimed at THIS loop (the
-                        # shutdown path in run_async/on_exit) must land, or the
-                        # queue keeps running and `await self._process_messages_task`
-                        # never returns. A cancel aimed only at the job — one
-                        # response interrupted, session continuing — must not,
-                        # or the loop exits and no further user message is ever
-                        # processed. `cancelling()` tells them apart, the same
-                        # guard base/ui.py's twin uses.
+                        # A cancel aimed at this loop (shutdown) must land;
+                        # one aimed only at the job must not stop the loop.
+                        # `cancelling()` tells them apart.
                         current = asyncio.current_task()
                         if current is not None and current.cancelling() > 0:
                             raise
@@ -636,8 +599,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             except asyncio.CancelledError:
                 break
             except Exception as e:
-
-                logging.getLogger(__name__).error(f"Error in message queue: {e}")
+                logger.error(f"Error in message queue: {e}")
                 await asyncio.sleep(CFG.LLM_UI_STATUS_INTERVAL / 1000)
 
     async def ask_user(
@@ -651,111 +613,58 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         When one UI wins, cancel and clear pending confirmations in other UIs.
         This ensures Terminal's confirmation queue doesn't get out of sync.
         """
-        if is_shutdown_requested():
-            return ""
-
-        loop = asyncio.get_running_loop()
-        pending_tasks: dict[asyncio.Task, tuple[int, Any]] = {}
-
-        for i, ui in enumerate(self._uis):
-            try:
-                task = loop.create_task(
-                    ui.ask_user(
-                        prompt, output_to_parent=output_to_parent, agent_id=agent_id
-                    )
-                )
-                pending_tasks[task] = (i, ui)
-            except Exception as e:
-                CFG.LOGGER.debug(f"Child UI ask_user setup failed: {e}")
-
-        if not pending_tasks:
-            return ""
-
-        self._pending_input_tasks = list(pending_tasks.keys())
-        winning_ui_index = None
-
-        try:
-            done, pending = await asyncio.wait(
-                pending_tasks.keys(), return_when=asyncio.FIRST_COMPLETED
-            )
-
-            # Several UIs may finish in the same wait round; pick the one
-            # with the lowest UI index so the winner never depends on set
-            # iteration order.
-            completed_task = min(done, key=lambda t: pending_tasks[t][0])
-            winning_ui_index, winning_ui = pending_tasks[completed_task]
-
-            # Store winning UI for use in tool confirmations
-            self._last_winning_ui = winning_ui
-
-            for task in done:
-                if task is not completed_task:
-                    task.cancel()
-            for task in pending:
-                task.cancel()
-
-            try:
-                result = completed_task.result()
-            except Exception as e:
-                CFG.LOGGER.debug(f"Winning UI ask_user failed: {e}")
-                # Still sync sibling confirmation queues: no input race is in
-                # flight anymore, so stale confirmations must not linger.
-                self.clear_pending_confirmations_except(winning_ui_index)
-                return ""
-            self.clear_pending_confirmations_except(winning_ui_index)
-            return result
-        finally:
-            self._pending_input_tasks = []
+        return await self._race_children(
+            lambda ui: ui.ask_user(
+                prompt, output_to_parent=output_to_parent, agent_id=agent_id
+            ),
+            "ask_user",
+        )
 
     async def ask_user_choice(
         self, spec: "ChoiceSpec", agent_id: str | None = None
     ) -> str:
-        """Race all UIs for a multiple-choice answer and return the first.
+        """Race all UIs for a multiple-choice answer and return the first,
+        with the same cancel-and-clear rules as `ask_user`."""
+        return await self._race_children(
+            lambda ui: ui.ask_user_choice(spec, agent_id=agent_id), "ask_user_choice"
+        )
 
-        Mirrors `ask_user`: the first UI to answer wins, the others are
-        cancelled, and pending confirmations elsewhere are cleared to keep
-        each UI's confirmation queue in sync.
-        """
+    async def _race_children(
+        self, ask: Callable[[Any], Coroutine[Any, Any, str]], label: str
+    ) -> str:
         if is_shutdown_requested():
             return ""
-
         loop = asyncio.get_running_loop()
         pending_tasks: dict[asyncio.Task, tuple[int, Any]] = {}
-
         for i, ui in enumerate(self._uis):
             try:
-                task = loop.create_task(ui.ask_user_choice(spec, agent_id=agent_id))
-                pending_tasks[task] = (i, ui)
+                pending_tasks[loop.create_task(ask(ui))] = (i, ui)
             except Exception as e:
-                CFG.LOGGER.debug(f"Child UI ask_user_choice setup failed: {e}")
-
+                CFG.LOGGER.debug(f"Child UI {label} setup failed: {e}")
         if not pending_tasks:
             return ""
-
         self._pending_input_tasks = list(pending_tasks.keys())
-
         try:
             done, pending = await asyncio.wait(
                 pending_tasks.keys(), return_when=asyncio.FIRST_COMPLETED
             )
-
-            # Same deterministic winner rule as `ask_user`.
+            # Several UIs may finish in the same wait round; the lowest index
+            # wins so the result never depends on set iteration order.
             completed_task = min(done, key=lambda t: pending_tasks[t][0])
             winning_ui_index, winning_ui = pending_tasks[completed_task]
             self._last_winning_ui = winning_ui
-
             for task in done:
                 if task is not completed_task:
                     task.cancel()
             for task in pending:
                 task.cancel()
-
             try:
                 result = completed_task.result()
             except Exception as e:
-                CFG.LOGGER.debug(f"Winning UI ask_user_choice failed: {e}")
-                self.clear_pending_confirmations_except(winning_ui_index)
-                return ""
+                CFG.LOGGER.debug(f"Winning UI {label} failed: {e}")
+                result = ""
+            # Sync sibling confirmation queues even on failure: no input race
+            # is in flight anymore, so stale confirmations must not linger.
             self.clear_pending_confirmations_except(winning_ui_index)
             return result
         finally:
@@ -773,7 +682,6 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             try:
                 ui.cancel_pending_confirmations()
             except Exception as e:
-                # Best-effort cancel across child UIs during teardown.
                 CFG.LOGGER.debug(f"Child UI cancel_pending_confirmations failed: {e}")
 
     def stream_to_parent(
@@ -848,7 +756,6 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         except Exception as e:
             CFG.LOGGER.debug(f"Main UI task ended with error: {e}")
         finally:
-            # Cancel all tasks
             if self._process_messages_task:
                 self._process_messages_task.cancel()
                 try:
@@ -885,7 +792,6 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         try:
             self.main_ui.on_exit()
         except Exception as e:
-            # Best-effort teardown of the main UI.
             CFG.LOGGER.debug(f"Main UI on_exit failed: {e}")
 
 

@@ -37,8 +37,7 @@ def read_file(file_path: str, replace_map: dict[str, str] | None = None) -> str:
 
 def _read_text_file_content(file_path: str) -> str:
     with open(file_path, "r", encoding="utf-8") as f:
-        content = f.read()
-    return content
+        return f.read()
 
 
 def _read_pdf_file_content(file_path: str) -> str:
@@ -73,9 +72,8 @@ def write_file(
     abs_file_path = os.path.abspath(os.path.expanduser(file_path))
     dir_path = os.path.dirname(abs_file_path)
     os.makedirs(dir_path, exist_ok=True)
+    # Collapse trailing newlines to one, kept only if there was any.
     should_add_eol = content.endswith("\n")
-    # Remove trailing newlines, but keep one if the file originally ended up with newline
-    content = re.sub(r"\n{3,}$", "\n\n", content)
     content = content.rstrip("\n")
     if should_add_eol:
         content += "\n"

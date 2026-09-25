@@ -23,13 +23,10 @@ if TYPE_CHECKING:
 _NAME = "journal-compliance-judge"
 
 
-#: A real tool-calling round-trip (decide -> call LogActivity/WriteJournalNote
-#: -> confirm) measured ~15s end to end even on a small/fast model. `timeout`
-#: is what `HookManager.shutdown`'s drain phase actually waits for before
-#: cancelling a still-running async hook (see `_effective_grace_seconds`) — a
-#: one-shot `zrb llm chat` process exits and drains moments after dispatch, so
-#: without this the judge gets killed before it can ever act. Generous on
-#: purpose; being fire-and-forget, it costs nothing when it finishes sooner.
+#: A tool-calling round-trip measured ~15s even on a small model.
+#: `HookManager.shutdown` waits this long before cancelling the async hook, so
+#: a one-shot `zrb llm chat` doesn't kill the judge on exit. Fire-and-forget,
+#: so generous costs nothing.
 _TIMEOUT_SECONDS = 60
 
 
@@ -51,11 +48,8 @@ def build_journal_compliance_hook_config() -> HookConfig:
         config=AgentHookConfig(
             system_prompt=get_prompt("journal_compliance"),
             tools=["LogActivity", "WriteJournalNote", "SearchJournal"],
-            # The resolved object, not `str()` of it: when the small model
-            # falls back to the run's own model, that is already a pydantic-ai
-            # `Model` instance, and `str()` of one is its repr
-            # ("OpenAIResponsesModel()") -- which then went out as the model
-            # name and came back a 404.
+            # Not `str()`: the fallback may be a `Model` instance, whose repr
+            # is not a model name.
             model=resolve_configured_small_model(),
         ),
         matchers=[

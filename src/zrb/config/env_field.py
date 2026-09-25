@@ -209,12 +209,8 @@ class EnvField(Generic[T]):
         if self._nullable and not raw:
             return None
         if not raw:
-            # An explicitly empty env var (e.g. `export ZRB_WEB_HTTP_PORT=`) would
-            # otherwise reach a typed cast such as int("")/to_boolean("") and
-            # raise an opaque error. Treat empty the same as unset and fall back
-            # to the resolved default, which is known-castable. (Nullable fields
-            # already short-circuit above; a str-cast field with an empty default
-            # is unaffected since str("") == "".)
+            # An empty env var (`export ZRB_WEB_HTTP_PORT=`) counts as unset,
+            # rather than failing an int("")-style cast.
             raw = self._resolve_default(obj)
         try:
             value = self._cast(raw)

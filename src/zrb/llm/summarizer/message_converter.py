@@ -46,8 +46,7 @@ def model_request_to_text(msg: ModelRequest) -> str:
             tool_name = getattr(p, "tool_name", "unknown_tool")
             content = getattr(p, "content", None)
             if content is not None:
-                content_str = str(content) if not isinstance(content, str) else content
-                parts.append(f"Tool Result ({tool_name}): {content_str}")
+                parts.append(f"Tool Result ({tool_name}): {content}")
             else:
                 parts.append(f"Tool Result ({tool_name}): [No content]")
         elif isinstance(p, SystemPromptPart):
@@ -77,19 +76,16 @@ def model_response_to_text(msg: ModelResponse) -> str:
             tool_call_id = getattr(p, "tool_call_id", "unknown_id")
             parts.append(f"AI Tool Call [{tool_call_id}]: {tool_name}({args_str})")
         elif isinstance(p, FilePart):
-            # FilePart has 'content' which is likely BinaryContent
             content = getattr(p, "content", None)
             media_type = "unknown"
             if content:
                 media_type = getattr(content, "media_type", "unknown")
             parts.append(f"[AI Generated File: {media_type}]")
         elif isinstance(p, ToolReturnPart):
-            # Tool returns can also appear in ModelResponse in some cases
             tool_name = getattr(p, "tool_name", "unknown_tool")
             content = getattr(p, "content", None)
             if content is not None:
-                content_str = str(content) if not isinstance(content, str) else content
-                parts.append(f"AI Tool Result ({tool_name}): {content_str}")
+                parts.append(f"AI Tool Result ({tool_name}): {content}")
         else:
             parts.append(f"[Unknown response part: {type(p).__name__}]")
     return "\n".join(parts) if parts else "[Empty ModelResponse]"

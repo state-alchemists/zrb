@@ -55,17 +55,10 @@ class LSPServer(LSPServerOperations):
         self._read_task: asyncio.Task | None = None
         self._stderr_task: asyncio.Task | None = None
         self._message_buffer = ""
-        # Push-diagnostics state: most servers don't implement pull-diagnostics,
-        # so we receive textDocument/publishDiagnostics notifications and cache
-        # them per URI. _open_files tracks which files we've sent didOpen for,
-        # so subsequent edits go through didChange. Versions are incremented
-        # on every didChange as required by the LSP spec.
-        #
-        # Cache entries are (version_or_None, diagnostics_list). The version
-        # lets get_diagnostics reject late publishes from a previous didChange:
-        # a server may publish for version N after we already sent didChange
-        # for N+1, and we'd otherwise return stale results. Servers that don't
-        # send a version (older/non-conforming) fall through as best-effort.
+        # Push diagnostics (most servers lack pull), cached per URI as
+        # (version_or_None, diagnostics). The version lets get_diagnostics
+        # reject a late publish for an older didChange; unversioned publishes
+        # are best-effort. _open_files marks files already sent didOpen.
         self._diagnostics: dict[str, tuple[int | None, list[dict]]] = {}
         self._open_files: set[str] = set()
         self._versions: dict[str, int] = {}
@@ -356,10 +349,8 @@ class LSPServer(LSPServerOperations):
                 if method == "textDocument/publishDiagnostics":
                     uri = params.get("uri")
                     if uri:
-                        # Overwrite with the latest set — pylsp/pyright/etc.
-                        # always publish the complete set per analysis pass.
-                        # Capture the document version (optional per spec) so
-                        # get_diagnostics can reject stale publishes.
+                        # Servers publish the complete set per pass, so
+                        # overwrite; the optional version rejects stale ones.
                         version = params.get("version")
                         self._diagnostics[uri] = (
                             version,

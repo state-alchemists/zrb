@@ -1,20 +1,13 @@
 """Confirmation-queue handling for the default `UI`.
 
-Multiple parallel callers (e.g. delegate sub-agents) can each request user
-input through `ask_user`/`ask_user_choice`; this mixin queues them so each
-waits its turn, shows the prompt only when the request becomes current, and
-cleans up on cancel.
+Concurrent callers (e.g. delegate sub-agents) of `ask_user`/`ask_user_choice`
+are queued; each prompt is shown only when its request becomes current.
 
-Each queue entry is `(future, prompt, spec, agent_id)`. `spec` is `None` for
-a plain text confirmation (rendered by printing `prompt`); when set it is a
-`ChoiceSpec` rendered by `UISelection` as an arrow-key-selectable widget.
-`agent_id` is the originating sub-agent's id (`None` for the main agent),
-propagated from `BufferedUI.ask_user`/`ask_user_choice` — it lets a keypress
-made while viewing a sub-agent's live view resolve that agent's own request
-instead of whichever one the main FIFO happens to have made current (see
-`_resolve_for_agent`). Both kinds share a single active slot
-(`_current_confirmation`) so text confirmations and choices never contend
-for input at the same time.
+Each entry is `(future, prompt, spec, agent_id)`. `spec` is `None` for plain
+text, else a `ChoiceSpec` rendered by `UISelection`. `agent_id` (`None` for the
+main agent) lets an answer typed in a sub-agent's live view resolve that
+agent's own request rather than the FIFO head (`_resolve_for_agent`). Text
+and choice requests share one active slot so they never contend for input.
 """
 
 from __future__ import annotations
@@ -32,11 +25,8 @@ if TYPE_CHECKING:
 class UIConfirmation:
     """Per-request confirmation queue used by `ask_user`/`ask_user_choice`.
 
-    The choice-widget hooks (`begin_choice`/`end_choice`) and `resolve_current`
-    are called through `self._ui` rather than same-part `self`: the composed
-    `UI` delegates them to `UISelection` (which renders the actual widget), and a
-    test double that wants different behavior overrides them directly on its own
-    stand-in UI. A standalone UI that composes only `UIConfirmation` must
+    `begin_choice`/`end_choice`/`resolve_current` go through `self._ui`,
+    which routes them to `UISelection`; a UI composing only this part must
     supply its own no-op `begin_choice`/`end_choice`.
     """
 
@@ -60,11 +50,7 @@ class UIConfirmation:
     async def _enqueue_request(
         self, prompt: str, spec: Any, agent_id: str | None = None
     ) -> str:
-        """Queue a request and await its answer.
-
-        Queues so multiple concurrent callers each wait their turn. The request
-        is rendered only when the caller becomes current.
-        """
+        """Queue a request, rendered once it becomes current, and await it."""
         # lazy: heavy third-party
         from prompt_toolkit.application import get_app
 
@@ -72,13 +58,8 @@ class UIConfirmation:
         self._ui.confirmation.queue.append((future, prompt, spec, agent_id))
 
         if self._ui.confirmation.current is None:
-            # Render BEFORE marking a confirmation pending. Order is
-            # load-bearing: `append_to_output` buffers anything appended while
-            # `_current_confirmation` is set and the agent is still thinking, so
-            # main-agent tokens don't interleave with a prompt. Setting it first
-            # would route this very prompt into that buffer — it would never
-            # show, leaving the user at "waiting for confirmation" with no
-            # question (e.g. AskUserQuestion, whose whole prompt arrives here).
+            # Render before marking pending: `append_to_output` buffers output
+            # while a confirmation is current, which would swallow this prompt.
             self._save_and_clear_input_draft()
             self._render_request(prompt, spec)
             self._ui.confirmation.current = future
@@ -106,12 +87,10 @@ class UIConfirmation:
     def _save_and_clear_input_draft(self) -> None:
         """Stash the half-typed message and clear the field for the answer.
 
-        The confirmation answer is read from the input field's buffer, so any
-        text the user had already typed would otherwise be swallowed as a
-        free-text denial. Stash it (text + cursor) on the first activation and
-        restore it once the queue drains (`_restore_input_draft`).
+        The answer is read from the input buffer, so a draft would otherwise
+        be taken as a free-text denial. Restored once the queue drains.
         """
-        if getattr(self, "_saved_draft", None) is not None:
+        if self._saved_draft is not None:
             return
         input_field = getattr(self._ui, "input_field", None)
         if input_field is None:
@@ -122,7 +101,7 @@ class UIConfirmation:
 
     def _restore_input_draft(self) -> None:
         """Put the stashed draft back into the input field, if any."""
-        saved = getattr(self, "_saved_draft", None)
+        saved = self._saved_draft
         if saved is None:
             return
         self._saved_draft = None
@@ -143,9 +122,7 @@ class UIConfirmation:
         if self._ui.confirmation.current is None:
             return False
         if echo:
-            # end="": callers (submit_user_answer) already bake their own
-            # trailing "\n" into `echo` — the default end="\n" doubled it
-            # into a blank line after every single confirmation answer.
+            # Callers bake the trailing newline into `echo`.
             self._ui.append_to_output(echo, end="")
         if not self._ui.confirmation.current.done():
             self._ui.confirmation.current.set_result(text)
@@ -160,7 +137,7 @@ class UIConfirmation:
             return
         content = "".join(self._ui.confirmation.output_buffer)
         self._ui.confirmation.output_buffer.clear()
-        # Bypass the buffer guard in append_to_output
+        # Clear the slot so append_to_output's buffer guard lets this through.
         saved = self._ui.confirmation.current
         self._ui.confirmation.current = None
         self._ui.append_to_output(content)
@@ -181,26 +158,22 @@ class UIConfirmation:
         queue = self._ui.confirmation.queue
         if queue and self._ui.confirmation.current is None:
             future, prompt, spec, _agent_id = queue[0]
-            # Same ordering contract as _enqueue_request(): render before marking
-            # pending, else append_to_output's buffer guard swallows the prompt.
+            # Render before marking pending, as in `_enqueue_request`.
             self._render_request(prompt, spec)
             self._ui.confirmation.current = future
         elif not self._ui.confirmation.queue:
-            # The queue drained: hand the half-typed message back to the user.
+            # The queue drained: restore the half-typed draft.
             self._restore_input_draft()
 
-        # Always refresh so the status bar reflects the new confirmation state
-        # (including the transition back to "working" or "ready" when queue empties).
+        # Refresh so the status bar reflects the new confirmation state.
         get_app().invalidate()
 
     def cancel_pending_confirmations(self, flush: bool = True):
         """Cancel pending confirmations so blocked `ask_user` calls release (public API).
 
         Args:
-            flush: Whether to flush the confirmation output buffer first.
-                Pass ``False`` from the Ctrl+C / exit path (the app is about
-                to exit, so writing buffered tokens is wasted work and adds
-                latency to the abort).
+            flush: Whether to flush the confirmation output buffer first;
+                ``False`` on exit, where the write is wasted latency.
         """
         if flush:
             self._flush_confirmation_buffer()
@@ -226,32 +199,23 @@ class UIConfirmation:
             "current" if self._ui.confirmation.current is not None else None,
         )
         if viewing_agent_id is not None:
-            # Looking at a sub-agent's live view: an answer targets that
-            # specific agent's own pending request, never whichever request
-            # the main FIFO happens to have made current (which may belong to
-            # a different sub-agent, or the main agent). If this agent has
-            # nothing pending, fall through to plain dispatch (the text
-            # becomes a chat message to it) rather than resolving someone
-            # else's confirmation.
+            # In a sub-agent's view, answer only that agent's own request;
+            # with none pending, the text falls through as a chat message.
             if self._resolve_for_agent(viewing_agent_id, text):
                 buff.reset()
                 return True
             return False
         if self._ui.confirmation.current is None:
             return False
-        # Clear the answer text BEFORE resolving: resolving hands any stashed
-        # draft back into this same buffer, and resetting after the fact would
-        # wipe it.
+        # Reset before resolving, which restores the stashed draft here.
         buff.reset()
         return self._ui.resolve_current(text, echo=text + "\n")
 
     def _resolve_for_agent(self, agent_id: str, text: str) -> bool:
         """Resolve `agent_id`'s own pending confirmation, if any.
 
-        Unlike `resolve_current`, this may resolve a request that is still
-        queued (not yet the FIFO head) — finding it here means we're
-        answering from that agent's own live view, so the answer is echoed
-        there instead of the main transcript.
+        Unlike `resolve_current`, may resolve a request that is not yet the
+        FIFO head; the answer is echoed into that agent's live view.
         """
         for future, _, _, entry_agent_id in self._ui.confirmation.queue:
             if entry_agent_id != agent_id or future.done():

@@ -401,16 +401,16 @@ class SnapshotStore:
     ) -> list[str]:
         """The current paths the target lacks. On a filesystem that ignores
         letter case or Unicode normalization (macOS, Windows), a current path
-        the target holds in another case or form is the same file: the target's version is written to
-        it, and it is not lacking, so it is never removed as created since —
-        which would delete that file."""
+        the target holds in another case or form is the same file: the
+        target's version is written to it, and it is not lacking, so it is
+        never removed as created since — which would delete that file."""
         missing = {_fold(path): path for path in wanted if path not in current}
         twins = {
             path
             for path in current
             if (twin := missing.get(_fold(path))) is not None
             and twin != path
-            and os.path.lexists(os.path.join(self._workdir, *twin.split("/")))
+            and os.path.lexists(self._absolute(twin))
         }
         return sorted(path for path in current if path not in wanted | twins)
 
@@ -511,7 +511,7 @@ class SnapshotStore:
         changed file *after* lacks counts as deleted only while the listing
         would still take it; one it leaves out now — ignored since, or under
         an ignored directory — stays out of both."""
-        where = os.path.join(self._workdir, *repository.split("/"))
+        where = self._absolute(repository)
         changed = get_git_output(
             ["diff", "--name-only", "-z", "--no-renames", fork], where, deadline
         )
@@ -721,7 +721,7 @@ class SnapshotStore:
         (removed, not read). A FIFO, socket or device is none of these — git
         cannot store one — and is never opened: opening a FIFO blocks until
         something writes to it."""
-        full = os.path.join(self._workdir, *path.split("/"))
+        full = self._absolute(path)
         try:
             mode = os.lstat(full).st_mode
         except FileNotFoundError:

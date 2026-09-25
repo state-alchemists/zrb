@@ -127,10 +127,8 @@ class SkillRegistry:
         return skill
 
     def get_skills(self) -> list["Skill"]:
-        """Every visible skill in the effective collection, manual wins on
-        collisions. The ``CFG.LLM_SKILLS`` allowlist twin filters only the
-        discovered layer; skills registered manually (`add_skill`,
-        `set_skills`) are always visible."""
+        """Every visible skill in the effective collection; manual wins on
+        collisions. See `_is_visible` for the ``CFG.LLM_SKILLS`` filter."""
         manual, effective = self._resolved_view()
         return [
             skill
@@ -141,14 +139,10 @@ class SkillRegistry:
     def _is_visible(self, name: str, manual: dict[str, Skill]) -> bool:
         """Whether *name* survives the ``LLM_SKILLS`` allowlist twin.
 
-        The twin (ADR-0091) is a coarse filter over the *discovered* layer:
-        env names the default skills that stay visible. Anything registered
-        manually layers on top and is always visible, matching the mental
-        model "env sets the baseline; `zrb_init.py` builds on it". The
-        registry reads ``CFG`` lazily at query time, so env changes take
-        effect on the next catalogue lookup without any startup copy.
-        *manual* is the already-resolved manual layer from the caller's
-        single per-query resolution.
+        The twin (ADR-0091) filters only the *discovered* layer; manual
+        registrations are always visible ("env sets the baseline; `zrb_init.py`
+        builds on it"). ``CFG`` is read at query time, so env changes apply on
+        the next lookup. *manual* is the caller's already-resolved manual layer.
         """
         if name in manual:
             return True

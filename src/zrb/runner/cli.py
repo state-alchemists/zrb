@@ -185,31 +185,26 @@ class Cli(Group):
     def _extract_kwargs_from_args(
         self, args: list[str]
     ) -> tuple[dict[str, Any], list[str]]:
-        residual_args = []  # To store positional arguments
-        kwargs = {}  # To store options as a dictionary
+        residual_args = []
+        kwargs = {}
         i = 0
         while i < len(args):
             arg = args[i]
             if arg.startswith("--"):
-                # Handle key-value pairs like --keyword=value
                 if "=" in arg:
                     key, value = arg[2:].split("=", 1)
                     kwargs[key] = value
                 else:
-                    # Handle flags like --this followed by a value or set to True
+                    # `--key value`, or a bare `--flag` when no value follows.
                     key = arg[2:]
-                    # Check if the next item is a value or another flag
                     if i + 1 < len(args) and not args[i + 1].startswith("-"):
                         kwargs[key] = args[i + 1]
-                        i += 1  # Skip the next argument as it's a value
+                        i += 1
                     else:
                         kwargs[key] = "true"
             elif arg.startswith("-"):
-                # Handle short flags like -t or -n
-                key = arg[1:]
-                kwargs[key] = "true"
+                kwargs[arg[1:]] = "true"
             else:
-                # Anything else is considered a positional argument
                 residual_args.append(arg)
             i += 1
         return kwargs, residual_args

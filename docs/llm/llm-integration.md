@@ -202,12 +202,7 @@ custom_chat = cli.add_task(
 
 ### Comparison
 
-| Feature | `LLMTask` | `LLMChatTask` |
-|---------|-----------|---------------|
-| **Use case** | Single-shot processing | Interactive chat |
-| **History** | None | Persistent session |
-| **TUI** | No | Yes |
-| **Custom tools** | Yes | Yes |
+`LLMTask` is single-shot with no history and no TUI; `LLMChatTask` is an interactive chat with a persistent session. Both take custom tools. Full feature matrix: [LLMChatTask API Reference → Comparison with LLMTask](../task-types/llmchat-task.md#comparison-with-llmtask).
 
 ---
 

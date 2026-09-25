@@ -204,26 +204,7 @@ chat.append_toolset_factory(lambda ctx: create_toolset())
 
 ### Telling the LLM how to use a tool
 
-A tool describes itself through its docstring — pydantic-ai serializes it with the schema on every request (ADR-0045).
-
-```python
-def my_tool(item_id: str) -> dict:
-    """Look up one item by id.
-
-    Call ListItems first if you do not have an id; this fails on an unknown one.
-    """
-    ...
-
-chat.append_tool(my_tool)
-```
-
-For cross-cutting policy, append it to the system prompt (emitted after the built-in sections):
-
-```python
-chat.prompt_manager.append_prompt(
-    "## My rules\n- Always validate before writing."
-)
-```
+Put per-tool guidance in the tool's docstring; put cross-cutting policy in `chat.prompt_manager.append_prompt(...)`. The full pattern, and why a docstring relocates token cost rather than removing it, is in [Extending the LLM → Telling the LLM how to use a tool](../llm/extending-the-llm.md#telling-the-llm-how-to-use-a-tool).
 
 ### History Processors
 

@@ -1,9 +1,4 @@
-"""Helper for the repeated 'no LSP server available' error shape.
-
-Eight `LSPManager` query methods all return the same dict when no server
-is available; this helper centralizes the shape so changes to the message
-or installation hint stay in one place.
-"""
+"""The shared 'no LSP server available' result every LSP query returns."""
 
 from __future__ import annotations
 

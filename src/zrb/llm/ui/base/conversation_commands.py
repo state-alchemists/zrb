@@ -1,11 +1,9 @@
 """Conversation slash-commands for `BaseUI`.
 
 Exit, help, save/load, rewind (snapshot restore), redirect-output, copy,
-and attach. Split out of `commands.py` to keep that file focused on
-dispatch. Composed into `BaseUICommands` as `self._conversation`, keeping
-`BaseUI` in `self._base_ui` for state and method calls.
+and attach. Composed into `BaseUICommands` as `self._conversation`.
 
-Each `_handle_*` returns ``True`` if the input was consumed, ``False``
+Each `handle_*` returns ``True`` if the input was consumed, ``False``
 otherwise.
 """
 
@@ -110,13 +108,9 @@ class BaseUIConversationCommands:
                     self._base_ui.usage.reset()
                     self.apply_persona_for_session(name)
                 except Exception as e:
-                    # Roll back everything the failed load may have touched:
-                    # the session-name switch (leaving it pointing at `name`
-                    # while the old transcript is still displayed would
-                    # persist subsequent turns under the wrong conversation)
-                    # and the persona swap (a mid-swap failure could
-                    # otherwise leave sub-agent tools/prompt in place while
-                    # the session name reverted).
+                    # Roll back both the session-name switch (or later turns
+                    # persist under the wrong conversation) and any partial
+                    # persona swap.
                     self._base_ui.conversation_session_name = previous_name
                     self._apply_persona_state(persona_before)
                     self._base_ui.append_to_output(
@@ -153,13 +147,9 @@ class BaseUIConversationCommands:
 
     # --- persona-swap-on-/load ---------------------------------------------
     #
-    # /load already switches which history is replayed; loading a delegated
-    # sub-agent's transcript (see `subagent_session_naming.py`) additionally swaps which
-    # persona drives new messages, so continuing the conversation actually
-    # talks to that sub-agent rather than the main agent. Loading back to an
-    # ordinary session name restores the main agent — /load is the single,
-    # symmetric verb for both directions, mirroring how opencode's "up"/"down"
-    # navigation is really just "which session am I bound to right now".
+    # Loading a delegated sub-agent's transcript (`subagent_session_naming.py`)
+    # also swaps the persona, so new messages go to that sub-agent; loading an
+    # ordinary session restores the main agent.
 
     def apply_persona_for_session(self, name: str) -> None:
         delegated = parse_delegated_session(name)
@@ -205,7 +195,7 @@ class BaseUIConversationCommands:
     def _restore_main_persona(self) -> None:
         snapshot = self._base_ui.persona.original_snapshot
         if snapshot is None:
-            return  # never swapped away — nothing to restore
+            return
         self._base_ui.llm_task.tools = snapshot["tools"]
         self._base_ui.llm_task.toolsets = snapshot["toolsets"]
         self._base_ui.llm_task.prompt_manager = snapshot["prompt_manager"]
@@ -269,9 +259,6 @@ class BaseUIConversationCommands:
             arg = text[len(cmd) :].strip()
 
             async def do_rewind(cmd=cmd, arg=arg):
-                # list_snapshots shells out to git (bounded, but still up to
-                # the git timeout under contention) — keep it off the UI
-                # thread like restore_snapshot below.
                 snapshot_manager = self._base_ui.snapshot_manager
                 if snapshot_manager is None:
                     return
@@ -283,6 +270,7 @@ class BaseUIConversationCommands:
                         )
                     )
                     return
+                # list_snapshots shells out to git; keep it off the UI thread.
                 snapshots = await asyncio.to_thread(snapshot_manager.list_snapshots)
                 if arg:
                     sha, message_count = self._resolve_snapshot_arg(snapshots, arg)
@@ -335,11 +323,10 @@ class BaseUIConversationCommands:
             )
             return None, None
         except ValueError:
-            sha = arg  # treat as SHA prefix/full
             for snap in snapshots:
-                if snap.sha.startswith(sha):
+                if snap.sha.startswith(arg):
                     return snap.sha, snap.message_count
-            return sha, None
+            return arg, None
 
     def _show_snapshot_list(self, cmd: str, snapshots: list) -> None:
         if not snapshots:
@@ -427,10 +414,8 @@ class BaseUIConversationCommands:
     def write_text_to_file(self, path: str, content: str) -> None:
         """Expand/absolutize `path`, create parent dirs, and write `content`.
 
-        Shared by the redirect/copy commands' "write to file" branches — kept
-        separate from `zrb.util.file.write_file`, which additionally
-        normalizes trailing newlines (not wanted here: this must write
-        exactly what the user is redirecting/saving).
+        Not `zrb.util.file.write_file`: that normalizes trailing newlines, and
+        this must write exactly what the user is saving.
         """
         expanded_path = os.path.abspath(os.path.expanduser(path))
         os.makedirs(os.path.dirname(expanded_path), exist_ok=True)
@@ -465,7 +450,7 @@ class BaseUIConversationCommands:
                 )
                 return True
 
-            # Command with arg → redirect to file (existing behaviour).
+            # Command with arg → redirect to file.
             prefix = f"{cmd} "
             if text.lower().startswith(prefix):
                 path = text[len(prefix) :].strip()
@@ -500,21 +485,11 @@ class BaseUIConversationCommands:
             # Bare command → copy full transcript to clipboard.
             if text.lower() == cmd.lower():
                 try:
-                    messages = self._base_ui.history_manager.load(
-                        self._base_ui.conversation_session_name
-                    )
-                    if not messages:
-                        self._base_ui.append_to_output(
-                            stylize_error("\n  ❌ No conversation history to copy.\n")
+                    transcript = self._load_transcript("copy")
+                    if transcript is not None:
+                        self.copy_to_clipboard_and_report(
+                            transcript, "\n  📋 Full transcript copied to clipboard.\n"
                         )
-                        return True
-                    # lazy: tests patch format_history_as_text; hoisting bypasses the mock
-                    from zrb.llm.util.history_formatter import format_history_as_text
-
-                    transcript = format_history_as_text(messages, full=True)
-                    self.copy_to_clipboard_and_report(
-                        transcript, "\n  📋 Full transcript copied to clipboard.\n"
-                    )
                 except Exception as e:
                     self._base_ui.append_to_output(
                         stylize_error(f"\n  ❌ Failed to copy transcript: {e}\n")
@@ -528,28 +503,34 @@ class BaseUIConversationCommands:
                 if not path:
                     continue
                 try:
-                    messages = self._base_ui.history_manager.load(
-                        self._base_ui.conversation_session_name
-                    )
-                    if not messages:
+                    transcript = self._load_transcript("save")
+                    if transcript is not None:
+                        self.write_text_to_file(path, transcript)
                         self._base_ui.append_to_output(
-                            stylize_error("\n  ❌ No conversation history to save.\n")
+                            stylize_muted(f"\n  📝 Transcript saved to: {path}\n")
                         )
-                        return True
-                    # lazy: tests patch format_history_as_text; hoisting bypasses the mock
-                    from zrb.llm.util.history_formatter import format_history_as_text
-
-                    transcript = format_history_as_text(messages, full=True)
-                    self.write_text_to_file(path, transcript)
-                    self._base_ui.append_to_output(
-                        stylize_muted(f"\n  📝 Transcript saved to: {path}\n")
-                    )
                 except Exception as e:
                     self._base_ui.append_to_output(
                         stylize_error(f"\n  ❌ Failed to save transcript: {e}\n")
                     )
                 return True
         return False
+
+    def _load_transcript(self, verb: str) -> str | None:
+        """The full conversation transcript, or None after reporting that
+        there is no history to `verb`."""
+        messages = self._base_ui.history_manager.load(
+            self._base_ui.conversation_session_name
+        )
+        if not messages:
+            self._base_ui.append_to_output(
+                stylize_error(f"\n  ❌ No conversation history to {verb}.\n")
+            )
+            return None
+        # lazy: tests patch format_history_as_text; hoisting bypasses the mock
+        from zrb.llm.util.history_formatter import format_history_as_text
+
+        return format_history_as_text(messages, full=True)
 
     def handle_attach_command(self, text: str) -> bool:
         text = text.strip()
@@ -584,13 +565,13 @@ class BaseUIConversationCommands:
                 )
             )
             return
-        if expanded_path not in self._base_ui.pending_attachments:
-            self._base_ui.pending_attachments.append(expanded_path)
-            self._base_ui.append_to_output(stylize_muted(f"\n  📎 Attached: {path}\n"))
-        else:
+        if expanded_path in self._base_ui.pending_attachments:
             self._base_ui.append_to_output(
                 stylize_error(f"\n  📎 Already attached: {path}\n")
             )
+            return
+        self._base_ui.pending_attachments.append(expanded_path)
+        self._base_ui.append_to_output(stylize_muted(f"\n  📎 Attached: {path}\n"))
 
     def handle_photo_command(self, text: str) -> bool:
         text = text.strip()
@@ -616,7 +597,7 @@ class BaseUIConversationCommands:
                 stylize_error(f"\n  ❌ Camera capture failed.\n{missing_tool_hint()}")
             )
             return
-        # lazy: zrb internal (heavy via transitive)
+        # lazy: heavy transitive (pydantic_ai) via zrb.llm.agent.types
         from zrb.llm.agent.types import BinaryContent
 
         scaled = scale_image_bytes(photo_bytes, media_type="image/jpeg")

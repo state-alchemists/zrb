@@ -35,14 +35,10 @@ def set_interactive_mode(value: bool) -> None:
 
 _current_session: ContextVar[str] = ContextVar("zrb_current_session", default="default")
 
-# The *display* session name (see `get_current_tool_session` below) is a
-# client-supplied label — `ChatSessionManager.create_session` never enforces
-# it is unique, so it must never be used as a resource-ownership key (two
-# concurrent chat sessions can share one). `current_chat_session_id` instead
-# carries `ChatSessionManager`'s own dict key, which *is* unique by
-# construction — bound once per message drive in `chat_session_runner.py`,
-# read by `shell_background.py` to tag which chat session owns a background
-# process, so removing one session can never reach into another's.
+# The display session name is a client label and not unique, so it is never
+# an ownership key. This carries `ChatSessionManager`'s unique dict key, bound
+# per message in `chat_session_runner.py`; `shell_background.py` tags
+# background processes with it so removing one session can't touch another's.
 current_chat_session_id: ContextVar[str] = ContextVar(
     "zrb_current_chat_session_id", default=""
 )

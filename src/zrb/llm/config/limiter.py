@@ -145,13 +145,8 @@ class LLMLimiter:
             return history
 
         context_limit = int(self._effective_context_window(model) * 0.90)
-        # Always subtract reserved_tokens: it is recomputed fresh from the
-        # *current* system prompt on every call (see runner._prepare_history),
-        # while a usage anchor reflects an earlier turn's prompt size. Skipping
-        # the subtraction when an anchor is present would silently shrink the
-        # safety margin if the prompt (journal index, live context) grew since
-        # then — the opposite of this function's "intentionally overestimate"
-        # design goal.
+        # Always subtract reserved_tokens: it reflects the current system
+        # prompt, while a usage anchor reflects an earlier, possibly smaller one.
         available = max(0, context_limit - reserved_tokens)
 
         new_msg_tokens = self._count_tokens(new_message)
@@ -214,11 +209,8 @@ class LLMLimiter:
                 usage_anchor = None
                 total_tokens = sum(msg_body_tokens[next_turn:]) + _instr_cost(next_turn)
             else:
-                # Subtract body tokens for the dropped messages. Applies whether
-                # or not a usage anchor is still active: the turns being dropped
-                # here are strictly before the anchor, so their local per-message
-                # estimate is the only handle on how much the drop is worth —
-                # the same approximation already used once the anchor is gone.
+                # Dropped turns precede any usage anchor, so their per-message
+                # estimate is the only measure of the saving.
                 for i in range(start, next_turn):
                     total_tokens -= msg_body_tokens[i]
 
@@ -330,10 +322,8 @@ class LLMLimiter:
                 enc = tiktoken.get_encoding(self.tiktoken_encoding)
                 return len(enc.encode(text))
             except Exception as e:
-                # Fallback to the char/4 approximation if tiktoken fails for
-                # any reason (missing package, unknown encoding name, corrupt
-                # or unfetchable BPE cache). Counting must never crash the
-                # history pipeline — it runs before every model call.
+                # Fall back to char/4: counting runs before every model call
+                # and must never crash.
                 CFG.LOGGER.debug(f"tiktoken count fallback: {e}")
         return len(text) // 4
 

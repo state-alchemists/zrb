@@ -15,7 +15,10 @@ from prompt_toolkit.widgets import Frame, TextArea
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.ui.default.app.completion import InputCompleter
-from zrb.llm.ui.default.app.keybinding import create_output_keybindings
+from zrb.llm.ui.default.app.keybinding import (
+    bind_choice_navigation,
+    create_output_keybindings,
+)
 from zrb.llm.ui.ui_config import UIConfig
 
 if TYPE_CHECKING:
@@ -77,10 +80,10 @@ def create_input_field(  # noqa: C901 -- registration/factory fn; mccabe sums ne
         focus_on_click=~is_choice_active,
         read_only=is_choice_active,
         style="class:input_field",
-        dont_extend_height=True,  # Don't let it be compressed
+        dont_extend_height=True,
     )
 
-    # TextArea doesn't accept key_bindings in __init__, we must add them to its control
+    # TextArea takes no key_bindings argument; attach them to its control.
     kb = text_area.control.key_bindings
     if kb is None:
         kb = KeyBindings()
@@ -99,15 +102,11 @@ def create_input_field(  # noqa: C901 -- registration/factory fn; mccabe sums ne
 
     @Condition
     def is_recall_active() -> bool:
-        # A recalled message the user has not touched still reads as recall
-        # navigation: Up walks older queued messages even when that message
-        # spans multiple lines (so the cursor is not on the first line). Once
-        # the user edits, the callback reports False and Up moves the cursor.
+        # An untouched multi-line recall still lets Up walk the queue.
         return recall_active is not None and recall_active()
 
-    # Bind Up to history only if at first line and no completion menu is shown.
-    # The UI can hand us a queued-message recall handler (UIMessageEditing); it
-    # wins over history recall when it consumes the keypress.
+    # Up/Down recall history at the first/last line; the queued-message
+    # handlers (UIMessageEditing) win when they consume the keypress.
     @kb.add(
         "up",
         filter=(is_first_line | is_recall_active)
@@ -120,7 +119,6 @@ def create_input_field(  # noqa: C901 -- registration/factory fn; mccabe sums ne
             return
         event.current_buffer.history_backward()
 
-    # Bind Down to history only if at last line and no completion menu is shown.
     @kb.add(
         "down",
         filter=is_last_line & ~has_selection & ~has_completions & ~is_choice_active,
@@ -130,23 +128,10 @@ def create_input_field(  # noqa: C901 -- registration/factory fn; mccabe sums ne
             return
         event.current_buffer.history_forward()
 
-    # While a choice is active, Up/Down drive it: the history/cursor bindings
-    # above turn off and these handlers take over.
-    @kb.add("up", filter=is_choice_active)
-    def _(event):
-        if choice is not None:
-            choice.move_choice_cursor(-1)
+    bind_choice_navigation(kb, choice, is_choice_active)
 
-    @kb.add("down", filter=is_choice_active)
-    def _(event):
-        if choice is not None:
-            choice.move_choice_cursor(1)
-
-    # Focus traversal is handled by Tab at the app level; Tab still drives
-    # completion-menu navigation when a menu is open (the app-level binding
-    # is gated by ~has_completions). Shift+Tab is deliberately unbound here
-    # so the app-level binding can cycle modes. See ADR-0075.
-
+    # Shift+Tab is deliberately unbound so the app level can cycle modes
+    # (ADR-0075).
     return text_area
 
 
@@ -160,9 +145,8 @@ def create_output_field(
     def get_line_prefix(line_number: int, wrap_number: int) -> AnyFormattedText:
         return " "
 
-    # An empty greeting starts the buffer empty: the default UI appends its
-    # greeting panel afterwards (so a resize can re-render it), and padding
-    # here would push it down by two blank lines.
+    # An empty greeting adds no padding: the default UI appends its own
+    # re-renderable greeting panel afterwards.
     initial_text = greeting.rstrip() + "\n\n" if greeting.strip() != "" else ""
     text_area = TextArea(
         text=initial_text,
@@ -174,18 +158,15 @@ def create_output_field(
         focusable=True,
         get_line_prefix=get_line_prefix,
         style="class:output_field",
-        dont_extend_height=False,  # Can expand/contract as needed
+        dont_extend_height=False,
     )
     if key_bindings is None and input_field is not None:
-        # The output pane drives choice Up/Down and redirects typing to the
-        # input field when a choice is not active.
         key_bindings = create_output_keybindings(input_field, choice)
     if key_bindings is not None:
         text_area.control.key_bindings = key_bindings
 
     _bind_scroll_to_cursor(text_area)
 
-    # Set cursor to the end - TextArea will keep cursor visible when focusable
     text_area.buffer.cursor_position = len(text_area.text)
     return text_area
 
@@ -193,12 +174,10 @@ def create_output_field(
 def _bind_scroll_to_cursor(text_area: TextArea, lines: int = 3) -> None:
     """Make the mouse wheel move the output cursor instead of the viewport.
 
-    The output window pins itself to the cursor, so prompt_toolkit's default
-    wheel handling (nudging vertical_scroll) gets snapped straight back to the
-    bottom by the next streamed chunk. Moving the cursor itself scrolls the
-    window for real and — because the cursor leaves the last line — pauses the
-    auto-follow in append_to_output. Intercepting on the control handles scroll
-    regardless of which pane is focused, so no Ctrl+K is needed first.
+    The window pins itself to the cursor, so nudging `vertical_scroll` would
+    snap back on the next streamed chunk. Moving the cursor scrolls for real
+    and, leaving the last line, pauses auto-follow. Works whichever pane has
+    focus.
     """
     control = text_area.control
     inner_handler = control.mouse_handler
@@ -230,16 +209,11 @@ def create_layout(
         " <title-text><b> {} </b></title-text> <faint>| {}</faint>"
     ).format(title, jargon)
 
-    # Sub-agent activity panel: one line per running delegate, just above the
-    # status bar. ConditionalContainer collapses it to nothing when idle.
+    # Sub-agent activity panel above the status bar, collapsed when idle. The
+    # filter reuses the session-scoped callable; an unscoped registry read
+    # would react to every session's activity.
     extra_children = []
     if agent_activity_text is not None:
-        # Reuse the same (session-scoped) callable the panel renders with,
-        # rather than a separate unscoped agent_activity_registry.active()
-        # call — this filter has no session_id of its own to pass, and the
-        # registry is keyed by session, so an unscoped read
-        # would show/hide the panel based on every session's activity, not
-        # just this one's.
         extra_children.append(
             ConditionalContainer(
                 Window(
@@ -255,32 +229,26 @@ def create_layout(
         FloatContainer(
             content=HSplit(
                 [
-                    # Title Bar (fixed height)
                     Window(
                         height=2,
                         content=FormattedTextControl(title_bar_text),
                         style="class:title-bar",
                         align=WindowAlign.CENTER,
                     ),
-                    # Info Bar (fixed height)
                     Window(
                         height=3,
                         content=FormattedTextControl(info_bar_text),
                         style="class:info-bar",
                     ),
-                    Window(height=1),  # Top margin for chat history
-                    # Chat History
+                    Window(height=1),
                     output_field,
-                    # Input Area with frame (centered title) - with padding
-                    Window(height=1),  # Top margin
+                    Window(height=1),
                     Frame(
                         input_field,
                         title="Ctrl+J newline · Ctrl+V/Alt+V paste · ESC cancel",
                         style="class:input-frame",
                     ),
-                    # Second hint line. It needs its own Window because
-                    # prompt_toolkit's Frame title is a fixed single line,
-                    # too narrow to carry every binding.
+                    # A Frame title is one line, too narrow for every hint.
                     Window(
                         height=1,
                         content=FormattedTextControl(
@@ -288,9 +256,7 @@ def create_layout(
                         ),
                         align=WindowAlign.CENTER,
                     ),
-                    # Sub-agent activity panel (collapses when idle)
                     *extra_children,
-                    # Status Bar (fixed height)
                     Window(
                         height=2,
                         content=FormattedTextControl(status_bar_text),

@@ -51,26 +51,18 @@ class ModelCapabilities:
     supports_image_input: bool = False
     supports_audio_input: bool = False
     supports_video_input: bool = False
-    # Document (PDF/docx/xlsx/doc/xls) support tracks the image pattern list:
-    # every provider that accepts inline images as multimodal content blocks
-    # (Anthropic, Gemini, OpenAI) accepts inline documents through the same
-    # mechanism. Kept as a separate field/pattern list in case a provider
-    # diverges — see `_DOCUMENT_PATTERNS`.
+    # Tracks image support (same inline-block mechanism at Anthropic, Gemini,
+    # OpenAI), kept separate in case a provider diverges.
     supports_document_input: bool = False
     supports_parallel_tool_calls: bool | None = None
     # Maximum combined input/output tokens, when zrb knows the model's context
     # window. ``None`` preserves the configured budget for unknown models.
     context_window: int | None = None
-    # True for a model that reasons by default but only returns a *readable*
-    # thinking summary when a request explicitly asks for one — e.g. Gemini
-    # 2.5/3 bill `thoughts_tokens` unconditionally but stay silent unless the
-    # request sets `thinking_config.include_thoughts`. Gates the one-time
-    # `thinking=True` default in `create_agent` (see
-    # `zrb.llm.agent.common._apply_reasoning_defaults`) so it only fires for
-    # models that actually need the nudge, not every model with a
-    # `supports_thinking` profile flag (forcing `thinking=True` globally would
-    # turn on Anthropic's opt-in extended thinking too, which is a cost/latency
-    # change this flag is not meant to make).
+    # A model that always reasons but returns a readable summary only when
+    # asked (Gemini 2.5/3 need `thinking_config.include_thoughts`). Gates the
+    # `thinking=True` default in `_apply_reasoning_defaults`, which must not
+    # fire for every `supports_thinking` model (it would turn on Anthropic's
+    # paid extended thinking).
     supports_thinking_summary: bool = False
 
 

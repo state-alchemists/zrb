@@ -109,11 +109,8 @@ It runs on the small model, answers in a couple of seconds, and puts the result 
 Same shape as section 2, with a real payoff: an `LLMTask` reads your source and writes a Mermaid diagram, then a `CmdTask` renders it to PNG. The agent does the part that needs judgment; the shell does the part that needs to be exact.
 
 ### Prerequisites
--   **An LLM API Key:** Zrb needs an API key to talk to an AI model (OpenAI is default, but others are supported).
-    ```bash
-    export OPENAI_API_KEY="your-key-here"
-    ```
--   **Mermaid CLI:** This tool converts Mermaid diagram scripts into images. Install it via npm:
+-   **An LLM API key**, set as in [section 1](#1-start-where-youd-start-with-any-coding-agent) (`export OPENAI_API_KEY="your-key-here"`; OpenAI is the default provider).
+-   **Mermaid CLI**, which renders Mermaid scripts to images:
     ```bash
     npm install -g @mermaid-js/mermaid-cli
     ```
@@ -171,20 +168,15 @@ make_mermaid_script >> make_mermaid_image
 
 ### Run it
 
-Navigate to any project with source code (e.g., a Python project). For instance, if you've cloned a repository:
+From any project with source code:
 
 ```bash
 git clone https://github.com/someuser/my-python-project.git
 cd my-python-project
-```
-
-Now, run your new task:
-
-```bash
 zrb mermaid make-image
 ```
 
-Zrb will interactively ask for the directory and diagram name. Just press **Enter** to accept the defaults (`./` and `state-diagram`). The AI will analyze your code, generate the Mermaid script, and `mmdc` will convert it to a PNG. In moments, you'll have a beautiful diagram of your code!
+Zrb asks for the directory and diagram name; press **Enter** to accept the defaults (`./` and `state-diagram`). The agent analyzes your code and writes the Mermaid script, then `mmdc` renders it to a PNG.
 
 ![State Diagram](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/state-diagram.png)
 
@@ -201,13 +193,11 @@ Zrb will interactively ask for the directory and diagram name. Just press **Ente
 
 ## 🖥️ Try the Web UI
 
-Prefer a graphical interface? Zrb has you covered. Explore the full details in the [Web UI Guide](docs/advanced-topics/web-ui.md).
-
 ```bash
 zrb server start
 ```
 
-By default, the server binds to `127.0.0.1`, so the UI is reachable only from the local machine. Then open your browser to `http://localhost:21213` to see your tasks in a clean, user-friendly interface.
+Open `http://localhost:21213`. The server binds to `127.0.0.1` by default, so the UI is reachable only from the local machine. Full details: [Web UI Guide](docs/advanced-topics/web-ui.md).
 
 > **Safety boundary:** Zrb's web UI can start and control automation tasks, so it is not intended to be exposed publicly without deliberate hardening. If you set `ZRB_WEB_HTTP_HOST` to a non-loopback address, enable authentication and replace the documented default admin password and secret key with unique values. Startup warnings call out unsafe network-exposed configurations; see the [Web UI Guide](docs/advanced-topics/web-ui.md) before using a shared or public bind.
 
@@ -258,17 +248,15 @@ fetch_ticket >> triage_with_llm >> route_to_team
 
 ## ⚙️ Installation & Configuration
 
-Ready to dive deeper into getting Zrb set up and customized? Our comprehensive guides cover everything you need:
-
--   **[Installation Guide](docs/installation/installation.md)**: Details on `pip` install, the automated `install.sh` script, Docker images, and even running Zrb on Android (Termux/Proot).
--   **[Environment Variables & Overrides](docs/configuration/env-vars.md)**: An exhaustive list of all general environment variables to customize Zrb's behavior.
--   **[LLM & Rate Limiter Configuration](docs/configuration/llm-config.md)**: Everything you need to configure your LLM provider, manage token budgets, and fine-tune AI behavior.
+-   **[Installation Guide](docs/installation/installation.md)**: `pip`, the `install.sh` script, Docker images, and Android (Termux/Proot).
+-   **[Environment Variables & Overrides](docs/configuration/env-vars.md)**: every general environment variable.
+-   **[LLM & Rate Limiter Configuration](docs/configuration/llm-config.md)**: LLM provider, token budgets, and agent behavior.
 
 ---
 
 ## 🤝 CI/CD Integration
 
-Integrate Zrb into your Continuous Integration/Continuous Deployment pipelines for robust, automated workflows. See the [CI/CD Integration Guide](docs/advanced-topics/ci-cd.md) for examples with GitHub Actions, GitLab CI, and Bitbucket Pipelines.
+See the [CI/CD Integration Guide](docs/advanced-topics/ci-cd.md) for examples with GitHub Actions, GitLab CI, and Bitbucket Pipelines.
 
 ---
 

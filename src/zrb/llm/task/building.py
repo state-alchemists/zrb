@@ -1,19 +1,10 @@
 """Builder API for `LLMTask`.
 
-All `set_*`, `add_*`, `append_*` methods that configure the task
-post-construction live here, plus the related public properties and the
-agent/prompt assembly helpers (resolving tools/toolsets, composing the system
-prompt, and selecting the model). This keeps `llm_task.py` focused on the
-`__init__` constructor and the execution orchestration (`_exec_action`,
-`_exec_action_inner`, `_create_agent`, `_handle_summarization`) — the methods
-that own the `run_agent` / `create_agent` / `summarize_history` call sites.
+The post-construction `set_*`/`append_*` methods, their properties, and the
+agent/prompt assembly helpers (tools/toolsets, system prompt, model).
 
-Composed into `LLMTask` as `self._building` rather than inherited: keeps
-`LLMTask` in `self._llm_task` and reads/writes its state through that
-reference (not a value cached here at construction time), since almost every
-attribute here has a public setter (`task.tools = ...`,
-`task.history_manager = ...`, ...) that must be visible immediately from
-this collaborator and from `LLMTask` itself alike.
+Composed into `LLMTask` as `self._building`. State is read through the owner on
+every access, never cached, because most of it has a public setter.
 """
 
 from __future__ import annotations
@@ -72,11 +63,8 @@ class LLMTaskBuilding:
     def prompt_manager(self, value: PromptManager) -> None:
         """Replace the `PromptManager` composing this task's system prompt.
 
-        Used to swap a running task's persona wholesale — e.g. the CLI TUI's
-        `/load` on a delegated sub-agent session rebuilding a fresh, isolated
-        `PromptManager` from that sub-agent's own resolved system prompt
-        mirroring the fresh `LLMChatTask` the web resume
-        path builds via `SubAgentManager.create_llm_chat_task`.
+        Swaps a running task's persona wholesale, e.g. the TUI's `/load` of a
+        delegated sub-agent session.
         """
         self._llm_task.prompt_manager_attr = value
 
@@ -87,12 +75,7 @@ class LLMTaskBuilding:
 
     @tools.setter
     def tools(self, value: list["Tool | ToolFuncEither"]) -> None:
-        """Replace the tool list wholesale.
-
-        `append_tool` only grows the list — this is the reset a persona swap
-        needs, so the previous persona's tools don't linger alongside the new
-        one's.
-        """
+        """Replace the tool list wholesale, e.g. on a persona swap."""
         self._llm_task.tools = value
 
     @property
@@ -199,9 +182,6 @@ class LLMTaskBuilding:
             f(self._llm_task.hook_manager)
 
     def _ensure_task_local_hook_manager(self) -> None:
-        # Swap the shared global default for a fresh per-task manager on first
-        # registration, so task-level hooks stay isolated. A manager passed
-        # explicitly at construction is left untouched.
         if self._llm_task.hook_manager is default_hook_manager:
             self._llm_task.hook_manager = HookManager()
 
@@ -321,8 +301,7 @@ class LLMTaskBuilding:
 
     def get_model_settings(self, ctx: AnyContext) -> ModelSettings | None:
         """The task's model settings, or None (pydantic-ai's own defaults apply)."""
-        model_settings = self._llm_task.model_settings_attr
-        return get_attr(ctx, model_settings, None)
+        return get_attr(ctx, self._llm_task.model_settings_attr, None)
 
     def get_model(self, ctx: AnyContext) -> str | Model:
         """The task's model, rendered against *ctx*, falling back to `CFG.LLM_MODEL`.

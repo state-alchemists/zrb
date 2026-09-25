@@ -160,14 +160,9 @@ async def _ffmpeg_capture(device: str | None) -> bytes | None:
         input_fmt, input_arg = "dshow", f"video={name}"
     else:
         input_fmt, input_arg = "v4l2", device or "/dev/video0"
-        # v4l2 otherwise negotiates raw YUYV at the camera's max resolution
-        # -- over a USB/IP tunnel (WSL2 + usbipd-win) that bandwidth hangs
-        # the capture indefinitely with no frame ever written. MJPEG is
-        # compressed on-camera and lands well under that ceiling; fall back
-        # to the raw default for cameras that don't support it.
-        # 720p MJPEG still hangs over usbipd-win's USB/IP tunnel (isochronous
-        # transfer reliability, not raw bandwidth -- 720p times out even
-        # compressed) -- 640x480 is the largest size that lands consistently.
+        # Raw YUYV at max resolution hangs over WSL2's usbipd-win tunnel, and
+        # so does 720p MJPEG; 640x480 MJPEG is the largest that lands. Cameras
+        # without MJPEG fall back to the raw default.
         mjpeg_args = ["-input_format", "mjpeg", "-video_size", "640x480"]
         data = await _run(_ffmpeg_cmd(input_fmt, mjpeg_args, input_arg))
         if data is not None:

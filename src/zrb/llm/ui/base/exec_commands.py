@@ -1,11 +1,9 @@
 """Execution slash-commands for `BaseUI`.
 
 Shell exec (`/exec`), side questions (`/btw`), and user-defined custom
-commands. Split out of `commands.py`. Composed into `BaseUICommands` as
-`self._exec`, keeping `BaseUI` in `self._base_ui` for state and method
-calls.
+commands. Composed into `BaseUICommands` as `self._exec`.
 
-Each `_handle_*` returns ``True`` if the input was consumed, ``False``
+Each `handle_*` returns ``True`` if the input was consumed, ``False``
 otherwise.
 """
 
@@ -75,7 +73,7 @@ class BaseUIExecCommands:
                 stderr=asyncio.subprocess.PIPE,
             )
 
-            async def read_stream(stream, is_stderr=False):
+            async def read_stream(stream):
                 while True:
                     line = await stream.readline()
                     if not line:
@@ -87,7 +85,7 @@ class BaseUIExecCommands:
             # be masked by return_exceptions.
             await asyncio.gather(
                 read_stream(process.stdout),
-                read_stream(process.stderr, is_stderr=True),
+                read_stream(process.stderr),
             )
 
             return_code = await process.wait()
@@ -104,29 +102,25 @@ class BaseUIExecCommands:
                 )
 
         except asyncio.CancelledError:
-            # Reap the child BEFORE touching the UI: an append_to_output failure
-            # during teardown must not skip the cleanup and orphan the process.
-            # An un-reaped child at loop close logs
-            # "Loop <...> that handles pid N is closed" when it eventually exits.
+            # Reap the child before touching the UI, so an output failure
+            # during teardown cannot orphan the process.
             if process is not None and process.returncode is None:
                 try:
                     process.terminate()
                     await asyncio.wait_for(process.wait(), timeout=1.0)
                 except BaseException:
-                    # BaseException, not Exception: a second cancel (Ctrl+C
-                    # again, or shutdown) landing on the await above would
-                    # otherwise skip the kill and leave the process running.
+                    # BaseException: a second cancel on the await above must
+                    # still reach the kill.
                     try:
                         process.kill()
                     except Exception:
-                        # Best-effort kill during teardown; re-raise below regardless.
                         pass
                     try:
                         await asyncio.wait_for(process.wait(), timeout=1.0)
                     except BaseException:
                         pass
             self._base_ui.append_to_output("\n[Cancelled]\n")
-            raise  # Re-raise to allow proper task cancellation
+            raise
         except Exception as e:
             self._base_ui.append_to_output(f"\n[Error: {exception_summary(e)}]\n")
         finally:
@@ -140,9 +134,8 @@ class BaseUIExecCommands:
     def handle_btw_command(self, text: str) -> bool:
         """Handle /btw <question> — ask a side question without saving to history.
 
-        Intentionally works while the LLM is thinking (no _is_thinking guard).
-        Runs as an independent background task to avoid interfering with the
-        main conversation.
+        Works while the LLM is thinking: it runs as an independent background
+        task, bypassing the serializing message queue.
         """
         text = text.strip()
         for cmd in self._base_ui.btw_commands:
@@ -153,14 +146,9 @@ class BaseUIExecCommands:
                     continue
 
                 async def job(q=question):
-                    # Through `self._base_ui` (not bare `self`):
-                    # `stream_btw_response` is also a `BaseUI` delegator, and
-                    # subclasses (or test
-                    # doubles) override it there to stub the network call.
+                    # Via `_base_ui` so a subclass/test override is honored.
                     await self._base_ui.stream_btw_response(self._base_ui.llm_task, q)
 
-                # Bypass the serializing message queue — run as an independent
-                # background task so it executes in parallel with the main LLM.
                 task = asyncio.create_task(job())
                 self._base_ui.background_tasks.add(task)
                 task.add_done_callback(self._base_ui.background_tasks.discard)
@@ -181,14 +169,12 @@ class BaseUIExecCommands:
                 stylize_muted("  (side question — not saved to history)\n")
             )
 
-            # Load current history for context (read-only snapshot).
-            # Strip SystemPromptPart entries so the main agent's system prompt
-            # doesn't conflict with the btw agent's own system prompt.
-            # lazy: zrb internal (heavy via transitive)
-            # lazy: zrb internal (heavy via transitive)
+            # lazy: heavy transitive (pydantic_ai) via zrb.llm.agent
             from zrb.llm.agent import create_agent
             from zrb.llm.agent.types import ModelRequest, SystemPromptPart
 
+            # Strip SystemPromptParts so the main agent's system prompt doesn't
+            # conflict with the btw agent's own.
             raw_history = self._base_ui.history_manager.load(
                 self._base_ui.conversation_session_name
             )
@@ -207,9 +193,8 @@ class BaseUIExecCommands:
                 llm_task.get_system_prompt(self._base_ui.ctx)
                 + "\n\nAnswer the user's question concisely using this information when relevant."
             )
-            # The UI's selected model if set (from /model), else CFG's — either
-            # way resolved against the configured credentials, since `/model`
-            # stores the name the user typed.
+            # `/model` stores the typed name, so resolve it against the
+            # configured credentials (falling back to CFG's model).
             model = resolve_configured_model(self._base_ui.model or None)
             final_model = apply_model_hooks(
                 model, llm_task.model_getter, llm_task.model_renderer
@@ -220,7 +205,7 @@ class BaseUIExecCommands:
                 # No tools on this path; yolo=True keeps the output type
                 # plain `str` instead of widening to `str | DeferredToolRequests`.
                 yolo=True,
-                resolve_model=False,  # already resolved above
+                resolve_model=False,
             )
 
             self._base_ui.append_to_output(f"\n🤖 {timestamp} >>\n")
@@ -249,7 +234,7 @@ class BaseUIExecCommands:
             return False
 
         prompt = resolve_custom_command(text, self._base_ui.custom_commands)
-        if prompt is not None:
-            self._base_ui.submit_message(prompt)
-            return True
-        return False
+        if prompt is None:
+            return False
+        self._base_ui.submit_message(prompt)
+        return True

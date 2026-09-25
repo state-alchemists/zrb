@@ -8,6 +8,7 @@ from typing import Annotated, Any
 from pydantic import Field
 
 from zrb.config.config import CFG
+from zrb.llm.tool.journal_write import NOTE_CATEGORIES
 from zrb.util.truncate import truncate_text
 
 
@@ -42,10 +43,8 @@ def search_journal(
 
     abs_dir = os.path.abspath(os.path.expanduser(journal_dir))
     if not os.path.isdir(abs_dir):
-        # A journal that has never been written to is empty, not broken. Report
-        # it the same way an empty search does and create the directory, so the
-        # model's first Write lands somewhere instead of the whole memory layer
-        # reading as unavailable.
+        # A never-written journal is empty, not broken: create it and report
+        # an empty search.
         try:
             os.makedirs(abs_dir, exist_ok=True)
         except OSError as e:
@@ -59,16 +58,14 @@ def search_journal(
         return {"error": f"Invalid regex pattern: {e}"}
 
     if shutil.which("rg"):
-        return _search_with_rg(query, abs_dir, case_sensitive, pattern)
+        return _search_with_rg(query, abs_dir, case_sensitive)
     return _search_with_python(query, abs_dir, pattern)
 
 
 search_journal.__name__ = "SearchJournal"
 
 
-def _search_with_rg(
-    query: str, abs_dir: str, case_sensitive: bool, pattern: re.Pattern
-) -> dict[str, Any]:
+def _search_with_rg(query: str, abs_dir: str, case_sensitive: bool) -> dict[str, Any]:
     cmd = ["rg", "--with-filename", "--line-number", "--no-heading", "--no-messages"]
     if not case_sensitive:
         cmd.append("--ignore-case")
@@ -102,7 +99,6 @@ def _search_with_python(
                             rel = os.path.relpath(file_path, abs_dir)
                             raw_lines.append(f"{rel}:{line_num}:{line.rstrip()}")
             except OSError:
-                # Unreadable file (permissions, race) — skip it, keep scanning.
                 pass
     return _format_results(raw_lines, abs_dir, query)
 
@@ -138,7 +134,7 @@ def _suggest_similar(query: str, abs_dir: str) -> list[str]:
     documented", which just encourages an undiscoverable duplicate note.
     Skips `activity-log` (dated filenames, not topics)."""
     candidates: list[str] = []
-    for name in ("user", "preferences", "projects", "technical"):
+    for name in NOTE_CATEGORIES:
         category_dir = os.path.join(abs_dir, name)
         if not os.path.isdir(category_dir):
             continue

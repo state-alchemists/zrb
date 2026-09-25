@@ -18,12 +18,8 @@ from zrb.llm.tool.stream_capture import StreamCapture
 from zrb.util.cli.ansi import strip_ansi
 from zrb.util.cmd.command import resolve_shell, terminate_process
 
-# Minimum seconds between live shell-output UI updates — mirrors
-# stream_response.py's _PROGRESS_REPAINT_INTERVAL: a chatty command (e.g.
-# `find /`) can emit thousands of lines/sec, and each update is an
-# O(buffer size) string splice. The *final* collapse always uses the
-# complete, unthrottled accumulator (StreamCapture.echoed_text), so no
-# output is ever lost — only how often the live view repaints.
+# Minimum seconds between live shell-output repaints; see
+# `_make_live_shell_output_pusher`.
 _LIVE_UPDATE_INTERVAL = 0.1
 
 
@@ -134,8 +130,8 @@ async def run_shell_command(
 
     process = None
     try:
-        process = await _start_process(argv, cwd)
-        # _start_process creates the subprocess with stdout/stderr=PIPE, so both
+        process = await start_process(argv, cwd)
+        # start_process creates the subprocess with stdout/stderr=PIPE, so both
         # readers are always present here (the type is StreamReader | None).
         assert process.stdout is not None and process.stderr is not None
 
@@ -172,10 +168,6 @@ async def run_shell_command(
                     print_method=CFG.LOGGER.warning,
                 )
         finally:
-            # Always attempt the collapse once echoing may have started —
-            # including on cancellation or a stream error below — so a
-            # failed/aborted command never leaves its raw echo stuck open
-            # on screen. A no-op if nothing was ever echoed.
             if supports_live_collapse:
                 _finish_shell_output(ui, output_key, stdout_cap, stderr_cap)
 
@@ -210,8 +202,6 @@ async def run_shell_command(
         raise
     except Exception as e:
         _cleanup_temp_file(temp_pid_file)
-        # A failure after the process started (e.g. a stream error) must not
-        # leave the command running detached with no handle to it.
         await _kill_if_still_running(process)
         return (
             f"Error executing command: {e}. "
@@ -384,10 +374,8 @@ def _prepare_command(command: str, use_pid_tracking: bool) -> tuple[str, str | N
     fd, temp_pid_file = tempfile.mkstemp(prefix="zrb_pids_")
     os.close(fd)
 
-    # Logic to capture background PIDs
-    # We use `pgrep -g` to find processes in the current process group.
-    # `$(ps -o pgid= -p $$)` gets the PGID of the shell executing the command;
-    # `|| echo $$` covers macOS Seatbelt, where /bin/ps is setuid root and a
+    # `pgrep -g` lists the shell's process group. `$(ps -o pgid= -p $$)` is
+    # that group's PGID; `|| echo $$` covers macOS Seatbelt, where /bin/ps is setuid root and a
     # sandboxed shell cannot exec it — there the shell IS the group leader
     # (start_new_session=True + the sandbox wrappers exec in place), so $$ is
     # the PGID. The shell's own PID ($$) is written first so
@@ -420,8 +408,8 @@ def _build_sandboxed_shell_argv(
     return build_sandboxed_argv([shell, shell_flag, command], cwd, policy, skip=skip)
 
 
-async def _start_process(argv: list[str], cwd: str) -> asyncio.subprocess.Process:
-    """Starts the subprocess with appropriate settings."""
+async def start_process(argv: list[str], cwd: str) -> asyncio.subprocess.Process:
+    """Start a (possibly sandbox-wrapped) command with piped output."""
     # start_new_session=True puts the shell in its own session/process group
     # (setsid on POSIX, ignored on Windows). This lets `pgrep -g` find spawned
     # processes and lets terminate/kill target the whole tree. The sandbox

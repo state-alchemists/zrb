@@ -81,14 +81,10 @@ class QueuedMessage:
         # can rebuild the line in the same style instead of re-deriving state.
         self.echo_marker: str = ""
         self.echo_timestamp: str = ""
-        # Where each target UI's echo of this message landed in that target's
-        # own output buffer, keyed by the UI instance that owns the buffer. A
-        # `MultiUI` writes one echo into every child's buffer, so each child
-        # records (and later redraws against) its own span — a shared scalar
-        # would let the last child's span clobber the others', leaving the
-        # rest to see a stale span and fall back to a duplicate echo. An entry
-        # with no echo (an `/exec` job, a rendered markdown echo, or a
-        # confirmation-buffered line) simply has no key.
+        # Each target UI's echo span in its own output buffer, keyed by that
+        # UI: a `MultiUI` echoes into every child, and each redraws against
+        # its own span. An entry with no echo (an `/exec` job, a rendered
+        # echo, a confirmation-buffered line) has no key.
         self.echo_spans: dict[Any, EchoSpan] = {}
 
     @property
@@ -107,12 +103,9 @@ class MessageQueue(asyncio.Queue):
 
     def __init__(self, maxsize: int = 0):
         super().__init__(maxsize)
-        # Re-declare the private storage deque so the peek/remove operations
-        # below type-check against the entry type (asyncio.Queue's own stubs do
-        # not expose `_queue`).
+        # asyncio.Queue's stubs expose neither `_queue` nor `_finished`;
+        # declare them so the operations below type-check.
         self._queue: deque[QueuedMessage] = deque()
-        # `_finished` is likewise absent from the stubs; declare the attribute
-        # `super().__init__` already created so `remove()` can signal `join()`.
         self._finished: asyncio.Event
 
     def peek_latest(self) -> "QueuedMessage | None":
@@ -187,63 +180,24 @@ def submit_user_message_via_queue(
     append_markdown: Callable[[str], Any] | None = None,
 ) -> None:
     """Shared mechanics behind `BaseUI.submit_user_message` and
-    `MultiUI.submit_user_message` — echo, collect attachments, steer into a
-    live run or queue a `QueuedMessage`, mirror the echo span to whichever
-    targets can redraw it.
+    `MultiUI.submit_user_message`: echo, collect attachments, then steer into a
+    live run or queue a `QueuedMessage`.
 
-    A standalone UI passes itself as both `attachment_sources` and
-    `echo_targets` (`[self]`); a `MultiUI` passes its children (it holds no
-    attachments or echo buffer of its own) — `append_to_output` and
-    `stream_ai_response` stay owner-called either way, since both classes
-    already implement them polymorphically (`MultiUI`'s broadcasts to every
-    child; a standalone UI's acts on itself alone).
+    A standalone UI passes `[self]` as `attachment_sources` and `echo_targets`;
+    a `MultiUI` passes its children. A rendered (Markdown) echo claims no echo
+    span, so editing it cannot rewrite the line in place.
 
-    A rendered echo is header + rendered body rather than one verbatim chunk,
-    so it claims no echo span: editing the queued message still works but
-    cannot rewrite the echoed line in place.
+    Paste merging: a terminal without bracketed paste submits a paste one line
+    per Enter within milliseconds. A line arriving within
+    `CFG.LLM_UI_PASTE_MERGE_WINDOW` of the newest queued entry (see
+    `_merge_candidate`) is appended to it, so the model gets one message. The
+    joined text is preserved exactly; stripping is left to display paths.
+    Steering into a live run outranks merging, and is attempted rather than
+    assumed: a run that finished meanwhile fails its enqueue, and the line
+    falls back to the queue and merges like any other.
 
-    A paste whose lines arrived as separate Enter keystrokes (a terminal that
-    never wrapped them in a bracketed-paste marker) submits one line per
-    `put_nowait` within a few milliseconds. When the newest still-queued,
-    still-editable message was submitted within `CFG.LLM_UI_PASTE_MERGE_WINDOW`
-    of this one, the new line is appended to it instead of becoming its own
-    turn — the model receives the pasted block as one message. Merging only
-    applies on the queued-turn path: a submission while a live run is
-    connected is steered into that run (`priority="asap"`) even when an
-    editable message is still inside the merge window, so an older queued
-    message never swallows a line (or its attachments) the run should get.
-    Steering is *attempted* rather than assumed from a non-None run context —
-    `steer_into_live_run` returns False when the run finished between the
-    caller reading the context and the `enqueue` call, and that submission
-    falls back to the queue, where it is still part of the same burst and
-    merges like any other queued line.
-
-    The model-facing text is preserved exactly: `QueuedMessage.text` is the
-    raw submissions joined with a newline — leading indentation, trailing
-    spaces, and intentional blank lines survive, and stripping is left to the
-    echo/display paths where it is wanted.
-
-    A line that does not merge is echoed before its attachments are collected,
-    matching a plain pre-merge submit: if a `take_pending_attachments`
-    implementation raises, the submission aborts but the user's line is
-    already visible in the output pane rather than silently swallowed.
-
-    The merge is bounded by a queued `/exec` job: only the newest queue entry
-    itself (never an older editable message reached past an `/exec` in
-    between) may absorb the new line. A merged line is reflected per target —
-    one that can splice its echo redraws it in place; one that cannot (a
-    bufferless UI, or a rendered first echo with no tracked span) gets an
-    ordinary echo of the line through its own output path, never a broadcast
-    that duplicates a child that already redrew. Each target tracks its own
-    echo span on the shared entry, so one child's redraw never invalidates
-    another's. A child whose redraw fails is treated like one that cannot
-    redraw — the failure is logged and the other targets still get their path.
-    And when the combined text turns Markdown, a target that can replace its
-    echo renders the *whole* combined message in place of the plain opening
-    echo, so a multi-line construct (a fenced code block, a list) reads as one
-    block rather than a partial render of just the newest line; a target with
-    nothing to splice gets the merged line verbatim instead. The span survives
-    either way, so a later edit can still update the displayed message.
+    A line is always made visible before an attachment-collection failure
+    propagates, so it is never silently swallowed.
     """
     now = datetime.now()
     timestamp = now.strftime("%H:%M")
@@ -259,14 +213,9 @@ def submit_user_message_via_queue(
 
     previous = _merge_candidate(queue, now)
     if previous is None:
-        # A non-merge line is echoed before attachments are collected — exactly
-        # as a plain submit with no merge feature would — so a collection
-        # failure surfaces with the user's line already in the output pane.
         echo = emit_echo()
         attachments = _collect_attachments(attachment_sources)
         if steer_into_live_run(active_run_context, user_message, attachments):
-            # A live-run submission never reaches the queue — the echo above is
-            # its only rendering.
             return
         entry = QueuedMessage(
             text=user_message,
@@ -283,22 +232,14 @@ def submit_user_message_via_queue(
         queue.put_nowait(entry)
         return
 
-    # A paste line folds into the queued entry; its only visible trace is the
-    # per-target reflection, never a line echo of its own. If collecting
-    # attachments fails the line would vanish entirely, so emit it here before
-    # the failure propagates — the same promise as the open-line path above.
+    # A merged line's only visible trace is the per-target reflection, so
+    # echo it here if collecting attachments fails.
     try:
         attachments = _collect_attachments(attachment_sources)
     except Exception:
         emit_echo()
         raise
     if steer_into_live_run(active_run_context, user_message, attachments):
-        # Steering outranks merging, so it is tried before the merge is
-        # committed rather than gated on `active_run_context` being None: a
-        # context whose run finished in the meantime fails its enqueue, and
-        # that submission belongs in the queue — as part of this burst, not as
-        # a turn of its own. A steered line renders like any other live-run
-        # submission, which is a plain echo.
         emit_echo()
         return
     _merge_into(
@@ -346,11 +287,7 @@ def _merge_into(
     entry.text = combined
     entry.attachments += attachments
     entry.submitted_at = now
-    # The combined message may have turned Markdown. A spliceable target
-    # redraws its echo from `entry.text`, so it shows the whole merged message
-    # rendered rather than a partial render of just the newest line; only the
-    # fallback for a target with nothing to splice differs, which is what
-    # `rendered` selects.
+    # Selects the fallback for a target that cannot splice its echo.
     rendered = append_markdown is not None and should_render_user_markdown(combined)
     for target in echo_targets:
         _reflect_merged(target, entry, header, text, rendered=rendered)
@@ -373,16 +310,11 @@ def _reflect_merged(
 ) -> None:
     """Draw a merged paste line on one target.
 
-    A target that can splice redraws its echo from `entry` — the whole merged
-    message, so a Markdown construct spanning several lines reads as one
-    block. A target with nothing to splice falls back to its own output path:
-    an ordinary echo of the line, or, when the combined message turned
-    Markdown (`rendered`), the line verbatim — rendering just the new line
-    would show a fragment (a lone fence, a bare `- item`) with no meaning.
-
-    A target whose `redraw_echo` raises is treated like one that cannot
-    redraw — the failure is logged and the line falls back to its echo, so one
-    broken target never aborts the submission or starves the remaining ones.
+    A target that can splice redraws its echo from the whole merged `entry`.
+    Otherwise (including when `redraw_echo` raises) the line goes to that
+    target's own output path: an ordinary echo, or verbatim when the combined
+    message turned Markdown (`rendered`), since rendering one line of it
+    would show a meaningless fragment.
     """
     try:
         if target.redraw_echo(entry) is not None:
@@ -399,13 +331,8 @@ def _reflect_merged(
 
 
 def _emit_echo_to(target: Any, header: str, body: str) -> None:
-    """Write an ordinary user echo into one target's own output path.
-
-    Used for a merged paste line on a target whose `redraw_echo` could not
-    splice the line into its existing echo, so the line reaches exactly that UI
-    rather than being broadcast to every target — a child that already redrew
-    in place must not get a duplicate.
-    """
+    """Write an ordinary user echo to this target only, never a broadcast,
+    so a child that already redrew in place gets no duplicate."""
     append = getattr(target, "append_to_output", None)
     if not callable(append):
         return
@@ -419,13 +346,7 @@ def _emit_echo_to(target: Any, header: str, body: str) -> None:
 
 
 def _emit_echo_verbatim_to(target: Any, header: str, body: str) -> None:
-    """Write one target's merged paste line verbatim — never rendered.
-
-    The combined message became Markdown; rendering just `body` would show a
-    partial construct with no meaning (a lone fence, a bare `- item`). A
-    target with no spliceable echo gets the raw line so it stays visible
-    without a half-rendered fragment.
-    """
+    """Write one target's merged paste line verbatim, never rendered."""
     append = getattr(target, "append_to_output", None)
     if not callable(append):
         return
@@ -435,17 +356,11 @@ def _emit_echo_verbatim_to(target: Any, header: str, body: str) -> None:
 def _is_paste_burst(
     previous: "QueuedMessage | None", now: datetime, window_ms: int
 ) -> bool:
-    """Whether `previous` — the newest still-queued user message — arrived so
-    recently that it can only be a paste whose lines the terminal split into
-    Enter keystrokes, never a human re-submission (typing another message
-    takes orders of magnitude longer).
+    """Whether `previous` arrived so recently it can only be part of a paste
+    split into Enter keystrokes, not a human re-submission.
 
-    The window rolls forward: each merge refreshes `submitted_at`, so a long
-    paste's tail stays in the same burst while a pause between two deliberate
-    messages exceeds the window naturally. Only an entry that is still queued
-    and editable can merge; an `/exec` job and an already-started turn are
-    both absent from `latest_editable`. A non-positive `window_ms` disables
-    the merge.
+    Each merge refreshes `submitted_at`, so the window rolls forward over a
+    long paste. A non-positive `window_ms` disables merging.
     """
     if previous is None or previous.submitted_at is None:
         return False
@@ -459,14 +374,11 @@ def steer_into_live_run(
 ) -> bool:
     """Try to inject `text`/`attachments` into the turn `run_context` belongs to.
 
-    Returns True when delivered — the caller skips queuing entirely, since
-    pydantic-ai's own drain (`RunContext.enqueue`, priority="asap") delivers it
-    at the next model request, batching with any other message enqueued the
-    same way in the meantime. Returns False when there is no live
-    run (`run_context` is None — no turn in flight, or one is suspended on a
-    pending tool approval) or the enqueue attempt itself failed (the run
-    finished between the caller's check and this call); either way the
-    caller's normal queue path is the correct fallback.
+    Returns True when delivered: pydantic-ai's `RunContext.enqueue`
+    (priority="asap") hands it to the next model request, so the caller skips
+    queuing. Returns False when there is no live run (none in flight, or one
+    suspended on a tool approval) or the enqueue failed because the run just
+    finished; the caller then queues normally.
     """
     if run_context is None:
         return False

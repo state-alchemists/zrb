@@ -21,10 +21,8 @@ PrintKind = Literal[
     "text", "streaming", "progress", "tool_call", "usage", "thinking", "todo_progress"
 ]
 
-# Minimum seconds between "Prepare tool parameters" spinner repaints. The
-# spinner is cosmetic; a slow model streaming thousands of tool-arg deltas would
-# otherwise flood stdout (observed: 9k+ frames / 500KB) and the per-frame write
-# syscalls add real latency to high-tool-call turns. Repaint at most ~10x/sec.
+# Minimum seconds between "Prepare tool parameters" spinner repaints: thousands
+# of tool-arg deltas would otherwise flood stdout and add write latency.
 _PROGRESS_REPAINT_INTERVAL = 0.1
 
 
@@ -62,15 +60,9 @@ class StreamEventHandler:
         self._last_progress_time = 0.0
         self._was_tool_call_delta = False
         self._was_tool_call_start = False
-        # Same value `__call__` resets this to after every event — a fresh
-        # handler always starts mid-turn (the tool-execution loop in
-        # runner.py builds a new one on every `while True:` iteration, e.g.
-        # once per tool-approval round-trip), never at a true blank buffer,
-        # so there is no first-print case that should skip the separator.
-        # Starting at the bare `self._indentation` (no leading "\n") made a
-        # fresh handler's first line land with no blank line before it while
-        # every later line in the same handler got one — the exact
-        # inconsistency this line fixes.
+        # Same value `__call__` resets this to: a handler is rebuilt on every
+        # tool-approval round-trip, so it always starts mid-turn and its first
+        # line needs the separator too.
         self._event_prefix = f"\n{self._indentation}"
         self._printed_tool_ids = set()
         self._thinking_open = False
@@ -79,13 +71,9 @@ class StreamEventHandler:
         self._text_open = False
         self._text_open_prefix = ""
         self._text_full_chunks: list[str] = []
-        # Maps a streamed part's `.index` to the `tool_call_id` it belongs
-        # to (known from the part itself at `PartStartEvent` time; later
-        # `PartDeltaEvent`s only carry `.index`) and each tool call's own
-        # `_event_prefix` at the moment its placeholder opened — both scoped
-        # to `on_tool_prepare_update`'s offset-based path (see
-        # `_update_tool_prepare`). Never populated when that hook is unset,
-        # so the fallback `\r`-based path below never touches them.
+        # Part `.index` -> `tool_call_id` (deltas carry only `.index`), and
+        # each tool call's `_event_prefix` when its placeholder opened. Used
+        # only by the `on_tool_prepare_update` offset path.
         self._tool_prepare_index_map: dict[int, str] = {}
         self._tool_prepare_prefix: dict[str, str] = {}
 
@@ -250,16 +238,10 @@ class StreamEventHandler:
         if self._on_thinking_collapse is None:
             return
         full = "".join(chunks)
-        # Visible char count on the collapsed line itself: some providers
-        # (e.g. OpenAI reasoning models without `openai_reasoning_summary`
-        # set) return no human-readable reasoning text at all — only an
-        # opaque signature — so there's nothing to expand into. The count
-        # makes that visible at a glance instead of looking like a bug.
+        # Some providers return only an opaque reasoning signature; the
+        # count shows an empty thought as such rather than as a bug.
         char_count = len(full.strip())
-        # No trailing "\n" here — whatever prints next already opens with its
-        # own "\n{indentation}" (see `_event_prefix`'s reset in `__call__`),
-        # so baking one into the label too would print a blank line after
-        # every single collapse.
+        # No trailing "\n": whatever prints next supplies its own leading one.
         label = (
             f"🧠 Thought ({char_count} chars)" if char_count else "🧠 Thought (empty)"
         )
@@ -338,36 +320,21 @@ class StreamEventHandler:
         # lazy: zrb internal (heavy via transitive)
         from zrb.llm.agent.types import TextPart, ToolCallPart
 
-        # A part boundary means "the previous part is done" — EXCEPT when the
-        # new part is itself another thinking part. Some providers (OpenAI's
-        # reasoning models, via multiple summary_index chunks) stream one
-        # logical thought as several separate ThinkingPart/PartStartEvents
-        # rather than deltas of one part; closing on every one of those would
-        # collapse each fragment into its own near-empty "🧠 Thought" line
-        # instead of one block holding the whole thought.
+        # A part boundary closes the previous part, except thinking-after-
+        # thinking: some providers stream one thought as several ThinkingParts,
+        # which should collapse into one block.
         if isinstance(event.part, (ToolCallPart, TextPart)):
             self._close_thinking_block()
-        # Same rationale, the other direction: a tool call or a new thinking
-        # part means the streamed final-text response (if one was open) is
-        # done. A new TextPart itself does not close it — see the merge note
-        # on the thinking side, which applies here too if a provider ever
-        # splits one text response across several PartStartEvents.
+        # Likewise a non-text part closes an open text response; a new
+        # TextPart merges into it.
         if not isinstance(event.part, TextPart):
             self._close_text_block()
 
         if isinstance(event.part, ToolCallPart):
-            # Show a static indicator so the user sees something while parameters
-            # are being prepared.  Providers that stream deltas (OpenAI, Anthropic)
-            # will overwrite this line with the animated spinner on the first
-            # ToolCallPartDelta.  Providers that don't stream (e.g. Ollama) will
-            # leave this line as-is, and the 🧰 line will appear below it.
-
+            # Static placeholder; streaming providers overwrite it with the
+            # spinner on the first ToolCallPartDelta, others leave it as-is.
             if not self._show_tool_call_detail:
                 if self._on_tool_prepare_update is not None:
-                    # Offset-tracked path: remember which tool call `.index`
-                    # belongs to (deltas only carry `.index`) and the prefix
-                    # in effect right now, then print the placeholder into
-                    # this tool call's own span.
                     tool_call_id = event.part.tool_call_id
                     self._tool_prepare_index_map[event.index] = tool_call_id
                     self._tool_prepare_prefix[tool_call_id] = self._event_prefix
@@ -496,10 +463,7 @@ class StreamEventHandler:
     def handle_tool_call(self, event: "ToolCallEvent"):
         tool_call_id = event.part.tool_call_id
         if self._on_tool_prepare_update is not None:
-            # Erase exactly this tool call's own placeholder/spinner span —
-            # offset-based, so whatever else printed in between (another
-            # tool call's own placeholder, its own spinner ticks) is
-            # untouched.
+            # Offset-based: erases only this tool call's span.
             self._update_tool_prepare(tool_call_id, "")
             self._tool_prepare_prefix.pop(tool_call_id, None)
         elif self._was_tool_call_delta and not self._show_tool_call_detail:
@@ -508,14 +472,9 @@ class StreamEventHandler:
         tool_name = event.part.tool_name
         if tool_call_id not in self._printed_tool_ids:
             self._printed_tool_ids.add(tool_call_id)
-            # AskUserQuestion renders its (large) question/options payload in the
-            # interactive selection widget; echoing the raw args here is just noise.
-            # No trailing "\n" on any of these — every direct writer outside this
-            # handler (web.py's `_notify`, the approval-response handlers, ...)
-            # now supplies its own leading "\n{indentation}", matching what
-            # `_event_prefix` gives every event-driven print here. That makes
-            # the separator uniformly "whoever prints next supplies exactly one
-            # leading newline" — see the note on `_close_thinking_block`'s label.
+            # AskUserQuestion's payload is rendered by the selection widget, so
+            # its args are not echoed. No trailing "\n": whoever prints next
+            # supplies exactly one leading newline.
             if tool_name == "AskUserQuestion":
                 line = f"{self._event_prefix}🧰 {tool_call_id} | {tool_name}"
                 self.fprint(line, preserve_leading_newline=True, kind="tool_call")
@@ -571,11 +530,7 @@ class StreamEventHandler:
                 f"Details: {usage.details}",
             ]
         )
-        # No trailing "\n" — see the note in `handle_tool_call`. This is the
-        # last thing `StreamEventHandler` prints for the turn; what follows
-        # (`BaseUI.stream_ai_response`'s own explicit blank line before the
-        # rendered final answer) supplies its own separation already —
-        # keeping this one too doubled that gap to two blank lines.
+        # No trailing "\n": the final answer that follows adds its own gap.
         self.fprint(
             f"{self._event_prefix}{usage_msg}",
             preserve_leading_newline=True,

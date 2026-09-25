@@ -9,33 +9,22 @@ def get_task_str_kwargs(
     if cli_mode:
         _reject_unknown_kwargs(task, str_kwargs)
     arg_index = 0
-    dummmy_shared_ctx = SharedContext()
+    # Each resolved value feeds later inputs' defaults.
+    dummy_shared_ctx = SharedContext()
     task_str_kwargs = {}
     for task_input in task.inputs:
-        task_name = task_input.name
-        if task_input.name in str_kwargs:
-            task_str_kwargs[task_input.name] = str_kwargs[task_name]
-            # Update dummy shared context for next input default value
-            task_input.update_shared_context(
-                dummmy_shared_ctx, str_value=str_kwargs[task_name]
-            )
+        input_name = task_input.name
+        if input_name in str_kwargs:
+            str_value = str_kwargs[input_name]
         elif arg_index < len(str_args) and task_input.allow_positional_parsing:
-            task_str_kwargs[task_name] = str_args[arg_index]
-            # Update dummy shared context for next input default value
-            task_input.update_shared_context(
-                dummmy_shared_ctx, str_value=task_str_kwargs[task_name]
-            )
+            str_value = str_args[arg_index]
             arg_index += 1
+        elif cli_mode and task_input.always_prompt:
+            str_value = task_input.prompt_cli_str(dummy_shared_ctx)
         else:
-            if cli_mode and task_input.always_prompt:
-                str_value = task_input.prompt_cli_str(dummmy_shared_ctx)
-            else:
-                str_value = task_input.get_default_str(dummmy_shared_ctx)
-            task_str_kwargs[task_name] = str_value
-            # Update dummy shared context for next input default value
-            task_input.update_shared_context(
-                dummmy_shared_ctx, str_value=task_str_kwargs[task_name]
-            )
+            str_value = task_input.get_default_str(dummy_shared_ctx)
+        task_str_kwargs[input_name] = str_value
+        task_input.update_shared_context(dummy_shared_ctx, str_value=str_value)
     return task_str_kwargs
 
 

@@ -47,16 +47,10 @@ def create_rag_from_directory(  # noqa: C901 -- registration/factory fn; mccabe 
     model_base_url: str | None = None,
     model_name: str | None = None,
 ):
-    """
-    Create a powerful RAG (Retrieval-Augmented Generation) tool for querying a local
-    knowledge base.
+    """Create a RAG tool that semantically searches a directory of documents.
 
-    This factory function generates a tool that performs semantic search over a directory of
-    documents. It automatically indexes the documents into a vector database (ChromaDB) and
-    keeps it updated as files change.
-
-    The generated tool is ideal for answering questions based on a specific set of documents,
-    such as project documentation or internal wikis.
+    The documents are indexed into a ChromaDB vector database, re-indexed as
+    files change.
     """
     readers = file_reader if file_reader is not None else []
 
@@ -147,10 +141,8 @@ def create_rag_from_directory(  # noqa: C901 -- registration/factory fn; mccabe 
 
         hash_file_path = os.path.join(vector_db_path, "file_hashes.json")
 
-        # Off-loaded to a thread: ChromaDB and the OpenAI embedding client are
-        # synchronous, and running them inline here would freeze the whole
-        # session's event loop for as long as re-indexing/embedding takes
-        # (web.py's tools already avoid this same hazard for blocking calls).
+        # ChromaDB and the OpenAI client are synchronous; inline they would
+        # freeze the event loop for the whole re-index/embed.
         reindex_error = await asyncio.to_thread(
             _load_or_reindex,
             document_dir_path=document_dir_path,
@@ -226,6 +218,12 @@ def _load_or_reindex(
         collection, document_dir_path, previous_hashes, current_hashes
     )
 
+    if not updated_files and not removed_files:
+        zrb_print(
+            stylize_muted("No changes detected. Skipping database update."),
+            plain=True,
+        )
+        return None
     if updated_files:
         zrb_print(
             stylize_muted(f"Updating {len(updated_files)} changed files"),
@@ -242,16 +240,9 @@ def _load_or_reindex(
                 overlap_val,
                 readers,
             )
-        save_hashes(hash_file_path, current_hashes)
-    elif removed_files:
-        # Deletions alone must still update the baseline; otherwise the removed
-        # entries linger in file_hashes.json and get "deleted" again next time.
-        save_hashes(hash_file_path, current_hashes)
-    else:
-        zrb_print(
-            stylize_muted("No changes detected. Skipping database update."),
-            plain=True,
-        )
+    # Deletions alone still update the baseline, or removed entries linger in
+    # file_hashes.json and get "deleted" again next time.
+    save_hashes(hash_file_path, current_hashes)
     return None
 
 
@@ -320,8 +311,7 @@ def _index_one_file(
         collection.delete(where={"file_path": relative_path})
         content = read_txt_content(file_path, readers)
         file_id = ulid.new().str
-        # Guard against overlap >= chunk_size, which would make the
-        # range step zero or negative (infinite loop / ValueError).
+        # overlap >= chunk_size would make the step zero or negative.
         step = max(1, chunk_size_val - overlap_val)
         for i in range(0, len(content), step):
             chunk = content[i : i + chunk_size_val]

@@ -32,6 +32,22 @@ DEFAULT_EXCLUDED_PATTERNS = [
 ]
 
 
+
+def _listing_result(abs_path: str, sorted_files: list[str]) -> dict[str, Any]:
+    """Cap the listing, record what was shown for RM's listed-path check,
+    and add a truncation notice when files were omitted."""
+    truncated, omitted = _truncate_file_list(sorted_files)
+    record_listed(abs_path, [os.path.join(abs_path, p) for p in truncated])
+    if omitted is None:
+        return {"files": sorted_files}
+    return {
+        "files": truncated,
+        "truncation_notice": (
+            f"[TRUNCATED {omitted} files. Showing first {len(truncated)} "
+            f"of {len(sorted_files)}.]"
+        ),
+    }
+
 def _truncate_file_list(
     sorted_files: list[str],
 ) -> tuple[list[str], int | None]:
@@ -89,18 +105,7 @@ def list_files(
         excluded_patterns=patterns_to_exclude,
     )
 
-    truncated, omitted = _truncate_file_list(sorted_files)
-    record_listed(abs_path, [os.path.join(abs_path, p) for p in truncated])
-    if omitted is not None:
-        return {
-            "files": truncated,
-            "truncation_notice": (
-                f"[TRUNCATED {omitted} files. Showing first {len(truncated)} "
-                f"of {len(sorted_files)}.]"
-            ),
-        }
-
-    return {"files": sorted_files}
+    return _listing_result(abs_path, sorted_files)
 
 
 def glob_files(
@@ -163,15 +168,4 @@ def glob_files(
 
     sorted_files = sorted(found_files)
 
-    truncated, omitted = _truncate_file_list(sorted_files)
-    record_listed(abs_path, [os.path.join(abs_path, p) for p in truncated])
-    if omitted is not None:
-        return {
-            "files": truncated,
-            "truncation_notice": (
-                f"[TRUNCATED {omitted} files. Showing first {len(truncated)} "
-                f"of {len(sorted_files)}.]"
-            ),
-        }
-
-    return {"files": sorted_files}
+    return _listing_result(abs_path, sorted_files)

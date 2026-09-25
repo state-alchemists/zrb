@@ -1,21 +1,12 @@
 """Execution + resource methods for `LLMChatTask`.
 
 Holds the runtime entrypoint (`exec_action`), system-prompt composition, the
-inner `LLMTask` construction (`_create_llm_task_core`), tool/toolset/UI-command
-resolution, conversation-name helpers, model resolution, and the interactive
-teardown that releases process-global resources at session end.
+inner `LLMTask` construction, tool/toolset/UI-command resolution,
+conversation-name and model helpers, and the session-end teardown.
 
-Kept separate from `task.py` (config-time `__init__`) and from
-`building.py` / `running.py` because this part owns the
-execution-time machinery that `BaseTask` invokes on the composed task.
-
-Composed into `LLMChatTask` as `self._execution`: keeps `LLMChatTask` in
-`self._llm_chat_task` and reads/writes its state through that reference. The
-two session runners it calls (`run_interactive_session`,
-`run_non_interactive_session`) are implemented by the sibling `ChatRunning`
-collaborator and reached through `self._llm_chat_task`'s delegators — the same
-way `self.name`, `self.envs` (`BaseTask` properties), and
-`apply_common_tools` use the task object as a full `CommonToolHost`.
+Composed into `LLMChatTask` as `self._execution`; reads and writes the owner's
+state through `self._llm_chat_task`. The session runners live in the sibling
+`ChatRunning` part and are reached through the owner's delegators.
 """
 
 from __future__ import annotations
@@ -34,18 +25,12 @@ from zrb.llm.history_manager.file_history_manager import default_history_manager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.lsp.manager import lsp_manager
-from zrb.llm.permission import (
-    ALLOW,
-    ASK,
-    DENY,
-    Capability,
-    get_effective_policy,
-    tool_capability,
-)
+from zrb.llm.permission import tool_capability
 from zrb.llm.sandbox import coerce_sandbox
 from zrb.llm.summarizer import create_summarizer_history_processor
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.task.shared_getters import (
+    get_policy_skip_decision,
     resolve_all_tools,
     resolve_all_toolsets,
     resolve_conversation_name,
@@ -102,13 +87,10 @@ def parse_yolo_value(value: Any) -> "bool | frozenset[str]":
 
 @dataclass(frozen=True)
 class _InnerTaskResolution:
-    """Everything `_create_llm_task_core` needs to assemble the inner `LLMTask`
-    call, computed once by `_resolve_inner_task_config`.
+    """Values `_create_llm_task_core` needs, computed by `_resolve_inner_task_config`.
 
-    Keeps resolution (reading `llm_chat_task` state, coercing sandbox/approval/
-    hook-manager values, building the yolo/permission approval closure) separate
-    from construction (the `LLMTask(...)` call itself), so each half can be read
-    — and, if it ever needs one, tested — on its own.
+    Separates resolution (reading owner state, coercing sandbox/approval/hook
+    values, building the approval predicate) from the `LLMTask(...)` call.
     """
 
     tool_confirmation: "AnyToolConfirmation"
@@ -164,10 +146,8 @@ class ChatExecution:
         resolved_tools = self.get_all_tools(ctx)
         resolved_toolsets = self.get_all_toolsets(ctx)
 
-        # Wire the resolved model so the system_context section can surface
-        # model-specific capability notes (e.g. lack of parallel tool-call
-        # support). Re-set on every exec — `/model` switches update
-        # ctx.input.model, which flows through get_model(ctx).
+        # Lets the system_context section surface model-specific notes. Re-set
+        # on every exec because `/model` updates ctx.input.model.
         self._llm_chat_task.prompt_manager.model = self.get_model(ctx)
 
         llm_task_core = self._create_llm_task_core(
@@ -180,7 +160,6 @@ class ChatExecution:
             self._llm_chat_task.capabilities,
         )
 
-        # AsyncExitStack for toolsets is handled by LLMTask._exec_action.
         if not interactive:
             try:
                 return await self._llm_chat_task.run_non_interactive_session(
@@ -225,17 +204,9 @@ class ChatExecution:
         would restart them on every message. Each step is guarded so teardown
         never raises; a second ``KeyboardInterrupt`` still propagates.
         """
-        # Terminal SESSION_END: the interactive chat session is ending (normal
-        # exit, /exit, EOF, or Ctrl+C). Claude Code fires SessionEnd once per
-        # session, not per turn — run_agent fires only STOP per turn. Guarded so
-        # a misbehaving hook never blocks resource teardown.
-        #
-        # `source` is the Claude-compatible matcher field for SessionEnd. This
-        # single teardown point cannot distinguish the exit cause (normal /
-        # /exit / EOF / Ctrl+C all funnel through the same `finally`) without
-        # threading the reason through the chat loop, so we report the Claude
-        # catch-all "other"; finer values (logout / prompt_input_exit) are a
-        # follow-up. `reason` stays in event_data for the CLAUDE_* env vars.
+        # SESSION_END fires once per session, like Claude Code's SessionEnd
+        # (run_agent fires only STOP per turn). Every exit cause funnels through
+        # one `finally`, so `source` is Claude's catch-all "other".
         if self._llm_chat_task.active_hook_manager is not None:
             try:
                 await self._llm_chat_task.active_hook_manager.execute_hooks(
@@ -250,16 +221,13 @@ class ChatExecution:
             await lsp_manager.shutdown_all()
         except Exception as e:
             CFG.LOGGER.debug(f"LSP shutdown at session end failed: {e}")
-        # Order matters: settle the detached async hooks first so their
-        # cancellation handlers can kill their process trees, then release the
-        # worker pool. Their subprocesses are in their own process group and so
-        # never receive the terminal's Ctrl+C — this is what stops them
-        # outliving the session.
+        # Settle detached hooks before releasing the worker pool, so their
+        # cancellation handlers can kill process trees that sit in their own
+        # process group and never see the terminal's Ctrl+C.
         await self.teardown_background_hooks()
-        # Kill background shell / delegation work and reap their subprocesses
-        # while the loop is still alive. Anything left running when the loop
-        # closes logs "Loop <...> that handles pid N is closed" the moment it
-        # exits, because its exit event can no longer be delivered.
+        # Reap background shell / delegation subprocesses while the loop is
+        # alive; otherwise their exit logs "Loop <...> that handles pid N is
+        # closed".
         try:
             from zrb.llm.tool.shell_background import get_shell_background_registry
 
@@ -286,25 +254,17 @@ class ChatExecution:
     async def teardown_background_hooks(self) -> None:
         """Settle this run's detached (``async: true``) hooks.
 
-        Runs on *both* paths. The interactive session calls it as part of the
-        full teardown; the non-interactive one calls it on its own, because the
-        rest of that teardown (LSP servers, the worker pool) is deliberately
-        skipped there — the web/SSE runner reuses that path per message. Without
-        this, a one-shot ``zrb llm chat -m "..."`` left its detached hooks
-        running after the process exited: they sit in their own process group,
-        so nothing else reaps them.
+        Runs on both paths; the non-interactive path skips the rest of the
+        teardown because the web/SSE runner reuses it per message. Detached
+        hooks sit in their own process group, so nothing else reaps them.
 
-        ``drain=True``: the pending hooks were very likely dispatched moments
-        ago (a Stop-event notifier on the last turn), so give them their grace
-        period to finish before cancelling the stragglers. Cancel-first is right
-        at *session* end and wrong at *run* end — it would effectively disable
-        async hooks for every non-interactive caller.
+        ``drain=True`` gives just-dispatched hooks (e.g. a Stop notifier) their
+        grace period before cancelling stragglers; cancel-first would
+        effectively disable async hooks for non-interactive callers.
 
-        Shuts down *this run's* manager: ``_create_llm_task_core`` builds a fresh
-        ``HookManager`` per execution and that is the instance every hook ran on,
-        so the module-level singleton holds none of this run's tasks. Falls back
-        to the singleton only when no per-run manager was created, matching
-        ``run_agent``'s own ``hook_manager or default`` resolution.
+        Shuts down this run's ``HookManager`` (built fresh per execution),
+        falling back to the module singleton only when none was created —
+        matching ``run_agent``'s ``hook_manager or default`` resolution.
         """
         try:
             if self._llm_chat_task.active_hook_manager is not None:
@@ -331,11 +291,8 @@ class ChatExecution:
         )
 
     def _get_ui_commands(self) -> dict[str, list[str]]:
-        """The task's UI slash-command aliases, as a dict — the shape
-        `create_ui_factory`-built UIs expect (`UIConfig.merge_commands`).
-        Each field already resolved the task's own override, else CFG, when
-        `ui_config` was built/materialized, so there is nothing left to merge
-        here."""
+        """The task's UI slash-command aliases keyed by command name, the shape
+        `UIConfig.merge_commands` expects. Each field is already resolved."""
         ui_config = self._llm_chat_task.ui_config
         return {
             field.name.removesuffix("_commands"): list(getattr(ui_config, field.name))
@@ -359,17 +316,12 @@ class ChatExecution:
             ctx, history_manager, interactive, resolved_tools
         )
 
-        # Pass resolved tools/toolsets to LLMTask (no factories needed since already resolved)
         return LLMTask(
             name=f"{llm_chat_task.name}-process",
-            # No turn-level retry. `async_run` on this task is ONE conversation
-            # turn, and a turn is not safely repeatable: by the time an error
-            # surfaces, tools have already executed and `_checkpoint` has
-            # already written their results to history, so a second attempt
-            # re-runs those side effects against a history that now contains
-            # them. Transient provider errors are retried where it *is* safe --
-            # at the model-request boundary inside a single run, by the agent's
-            # retry_loop (CFG.LLM_API_MAX_RETRIES, honouring Retry-After).
+            # One `async_run` is one conversation turn, which is not safely
+            # repeatable: tools have already run and been checkpointed to
+            # history. Transient provider errors are retried per request by the
+            # agent's retry_loop (CFG.LLM_API_MAX_RETRIES) instead.
             retries=0,
             input=[
                 StrInput("message", "Message"),
@@ -384,7 +336,6 @@ class ChatExecution:
             active_skills=llm_chat_task.active_skills,
             tools=resolved_tools,
             toolsets=resolved_toolsets,
-            # No factories passed - tools/toolsets already resolved with parent context
             history_processors=llm_chat_task.history_processors
             + [create_summarizer_history_processor()],
             capabilities=capabilities,
@@ -402,9 +353,6 @@ class ChatExecution:
             dynamic_yolo=resolved.should_skip_approval,
             attachment=lambda ctx: ctx.input.attachments,
             model=lambda ctx: ctx.input.get("model"),
-            # Without this, LLMChatTask(model_settings=...) is accepted but
-            # silently ignored: the inner LLMTask would otherwise use its own
-            # (unset) default.
             model_settings=llm_chat_task.model_settings,
             model_getter=llm_chat_task.model_getter,
             model_renderer=llm_chat_task.model_renderer,
@@ -427,7 +375,7 @@ class ChatExecution:
         ui = llm_chat_task.uis if llm_chat_task.uis else None
 
         if interactive:
-            # Interactive mode: Let the UI handle everything
+            # The interactive UI handles confirmation itself.
             tool_confirmation = None
             ui = None
         elif (
@@ -435,7 +383,6 @@ class ChatExecution:
             or llm_chat_task.response_handlers
             or llm_chat_task.argument_formatters
         ):
-            # Non-interactive with policies/handlers/formatters: Use ToolCallHandler
             if not ui and not llm_chat_task.ui_factories:
                 ui = StdUI()
             tool_confirmation = ToolCallHandler(
@@ -443,18 +390,12 @@ class ChatExecution:
                 argument_formatters=llm_chat_task.argument_formatters,
                 response_handlers=llm_chat_task.response_handlers,
             )
-        else:
-            # Non-interactive without policies: Use UI for approval
-            # Skip the StdUI fallback when ui_factories are present: the
-            # non-interactive session resolves them and attaches the resulting
-            # UI(s) (e.g. the web/SSE HTTPUI) so run_agent streams through those
-            # instead of stdout.
-            if not ui and not llm_chat_task.ui_factories:
-                ui = StdUI()
-            # tool_confirmation = None (let UI handle it via approval_channel)
+        elif not ui and not llm_chat_task.ui_factories:
+            # With ui_factories, the non-interactive session attaches their UIs
+            # (e.g. the web/SSE HTTPUI) instead of falling back to stdout.
+            ui = StdUI()
 
-        # Capability lookup for the resolved tool surface, used only when a
-        # permission policy is in force (keyed by the LLM-visible tool name).
+        # Keyed by the LLM-visible tool name; consulted only under a policy.
         cap_by_name = {
             (getattr(t, "name", None) or getattr(t, "__name__", "")): tool_capability(t)
             for t in resolved_tools
@@ -480,20 +421,14 @@ class ChatExecution:
         )
         for factory in llm_chat_task.hook_factories:
             factory(hook_manager)
-        # Hold a reference so the interactive teardown can fire the terminal
-        # SESSION_END on this exact manager (run_agent fires per-turn STOP, not
-        # SESSION_END — SESSION_END is once-per-session, like Claude Code).
+        # Teardown fires SESSION_END and drains hooks on this exact manager.
         llm_chat_task.active_hook_manager = hook_manager
 
-        # Resolve sandbox against the outer (LLMChatTask) context before passing
-        # to the inner LLMTask, whose own context does not carry a "sandbox" input
-        # (see run_non_interactive_session / run_interactive_session).
+        # Resolved against the outer context: the inner task's context has no
+        # "sandbox" input.
         resolved_sandbox = coerce_sandbox(ctx, llm_chat_task.sandbox)
 
-        # The inner task's conversation identity is always the active chat
-        # session, never llm_chat_task's own conversation_name — every field
-        # here is an explicit override, not a passthrough of
-        # llm_chat_task.history_config.
+        # The inner task's conversation is always the active chat session.
         resolved_history = replace(
             llm_chat_task.history_config,
             history_manager=history_manager,
@@ -548,32 +483,12 @@ def _make_should_skip_approval(ctx, llm_chat_task, cap_by_name):
     """
 
     def _should_skip_approval(tool_def=None):
-        decision = _policy_skip_decision(tool_def, cap_by_name)
+        decision = get_policy_skip_decision(tool_def, cap_by_name)
         if decision is not None:
             return decision
-        # No matching policy rule: fall back to YOLO.
         return _yolo_skip_decision(ctx, llm_chat_task, tool_def)
 
     return _should_skip_approval
-
-
-def _policy_skip_decision(tool_def, cap_by_name) -> bool | None:
-    """The effective permission policy's verdict, or `None` if it has no rule."""
-    policy = get_effective_policy()
-    if policy is None:
-        return None
-    tool_name = getattr(tool_def, "name", str(tool_def)) if tool_def is not None else ""
-    cap = cap_by_name.get(tool_name, Capability.UNKNOWN)
-    result = policy.decide(tool_name, cap, {})
-    if result is None:
-        return None
-    if result == ALLOW:
-        return True  # unconditional auto-approve
-    if result == DENY:
-        return True  # auto-approved (gate blocks at execution)
-    if result == ASK:
-        return False  # explicit policy ASK is a 'hard ask'
-    return None
 
 
 def _yolo_skip_decision(ctx, llm_chat_task, tool_def) -> bool:

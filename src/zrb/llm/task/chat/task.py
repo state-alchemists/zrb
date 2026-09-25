@@ -1,13 +1,11 @@
 """`LLMChatTask` — the conversational task type that powers `zrb llm chat`.
 
-Wires together: tools/skills/hooks resolution, UI factory selection (default
-TUI, std-out, http, multi-UI), approval-channel orchestration, history
-manager + snapshot lifecycle, and the inner `LLMTask` execution. Heavy.
+Wires together tools/skills/hooks resolution, UI selection (default TUI,
+stdout, HTTP, multi-UI), approval channels, history and snapshots, and the
+inner `LLMTask` execution.
 
-`__init__` and the post-construction configuration API (the `set_*`/`append_*`/
-`prepend_*` mutators and their matching read accessors) stay here — that state
-is this task's own construction-time data, not a separate object's. The two
-files below hold genuinely separate behavior:
+`__init__` and the configuration API (`set_*`/`append_*`/`prepend_*`/`remove_*`
+plus read accessors) live here; runtime behavior lives in two parts:
 
   execution.py - build the inner LLMTask per turn, run `exec_action`, teardown
   running.py   - resolve UIs/triggers/custom commands, run the loop
@@ -269,8 +267,7 @@ class LLMChatTask(BaseTask):
         self._system_prompt = system_prompt
         self._active_skills = active_skills
         self._init_tool_surface(tools, toolsets, tool_factories, toolset_factories)
-        # None (the default) means "a fresh manager per run" — see
-        # `hook_manager` in the docstring for why chat isolates by default.
+        # None means a fresh manager per run (see the docstring).
         self._hook_manager = hook_manager
         # Set per execution in _create_llm_task_core; the interactive teardown
         # fires the terminal SESSION_END on it.
@@ -291,12 +288,9 @@ class LLMChatTask(BaseTask):
         self._permissions = permissions
         self._sandbox = sandbox
         self._yolo = yolo
-        # Materialized lazily (see the `ui_config` property) — constructing a
-        # UIConfig imports zrb.llm.ui, which transitively loads pydantic_ai,
-        # prompt_toolkit, pdfplumber and playwright; the built-in `llm_chat`
-        # task is built at `import zrb` time, so doing this eagerly here would
-        # put that whole cost on every `import zrb`, not just chat sessions
-        # that actually build a UI.
+        # Materialized lazily by the `ui_config` property: UIConfig pulls in
+        # zrb.llm.ui (pydantic_ai, prompt_toolkit, ...), and the built-in
+        # `llm_chat` task is constructed on every `import zrb`.
         self._ui_config = ui_config
         self._init_command_surface(
             custom_commands,
@@ -319,7 +313,6 @@ class LLMChatTask(BaseTask):
         """Seed the per-run tool collections, each defaulting to empty."""
         self._tools = tools or []
         self._toolsets = toolsets or []
-        # LLMChatTask-specific factories that resolve using parent context
         self._tool_factories = tool_factories or []
         self._toolset_factories = toolset_factories or []
         self._hook_factories: list[Callable[[HookManager], None]] = []
@@ -361,9 +354,6 @@ class LLMChatTask(BaseTask):
         ]
 
     # --- Post-construction configuration (builder-style mutators) ------------
-    # These mutate this task's own fields directly.
-    # the state below is this task's own construction-time
-    # data, and a class method mutating its own field needs no collaborator.
 
     @property
     def prompt_manager(self) -> PromptManager:
@@ -740,10 +730,8 @@ class LLMChatTask(BaseTask):
     def permissions(self, value: "PermissionPolicyInput") -> None:
         """Replace the permission policy.
 
-        No `isinstance` guard: `PermissionPolicyInput` is deliberately a
-        union of convenient shapes (`PermissionPolicy | str |
-        Sequence[Rule | dict] | None`), not one concrete class — that
-        flexibility is the design, not a gap.
+        Unguarded: `PermissionPolicyInput` is a union of shapes
+        (`PermissionPolicy | str | Sequence[Rule | dict] | None`).
         """
         self._permissions = value
 
@@ -756,9 +744,7 @@ class LLMChatTask(BaseTask):
     def sandbox(self, value: "SandboxInput | BoolAttr") -> None:
         """Replace the sandbox configuration.
 
-        No `isinstance` guard: `SandboxInput` is deliberately a union
-        (`SandboxPolicy | bool | None`), not one concrete class — that
-        flexibility is the design, not a gap.
+        Unguarded: `SandboxInput` is a union (`SandboxPolicy | bool | None`).
         """
         self._sandbox = value
 
@@ -780,10 +766,9 @@ class LLMChatTask(BaseTask):
 
     @property
     def history_config(self) -> HistoryConfig:
-        """The history-manager/conversation-name knobs as one group — see
-        `HistoryConfig`. Recomputed on each read (not cached at construction)
-        so `history_manager`'s public setter stays immediately visible here,
-        matching that property's own contract."""
+        """The history-manager/conversation-name knobs as one `HistoryConfig`.
+
+        Recomputed on each read so the `history_manager` setter is visible."""
         return HistoryConfig(
             history_manager=self._history_manager,
             conversation_name=self._conversation_name,
@@ -911,9 +896,8 @@ class LLMChatTask(BaseTask):
 
     @property
     def ui_config(self) -> "UIConfig":
-        """Slash-command aliases and other UI-backend settings this task
-        builds its UI with. Materialized lazily on first read — see the
-        `__init__` comment on `self._ui_config` for why."""
+        """Slash-command aliases and other UI-backend settings for this task's
+        UI, materialized on first read to keep `import zrb` light."""
         if self._ui_config is None:
             # lazy: zrb.llm.ui.ui_config transitively loads pydantic_ai,
             # prompt_toolkit, pdfplumber and playwright, via its package
@@ -927,9 +911,7 @@ class LLMChatTask(BaseTask):
     def ui_config(self, value: "UIConfig") -> None:
         """Replace the UI config wholesale."""
         # lazy: zrb.llm.ui.ui_config transitively loads pydantic_ai,
-        # prompt_toolkit, pdfplumber and playwright, via its package __init__
-        # — but a caller assigning a UIConfig instance has necessarily
-        # already imported it themselves, so this costs nothing extra here.
+        # prompt_toolkit, pdfplumber and playwright, via its package __init__.
         from zrb.llm.ui.ui_config import UIConfig
 
         if not isinstance(value, UIConfig):
@@ -948,11 +930,8 @@ class LLMChatTask(BaseTask):
     def markdown_theme(self, value: "Theme | None") -> None:
         """Replace the markdown theme, or None for the default.
 
-        No `isinstance` guard here (unlike the other slots): `rich.theme.Theme`
-        is only imported under `TYPE_CHECKING` — every module that touches it
-        does the same — so validating against the real class would force an
-        eager `rich` import (~12ms) on every `import zrb`. The type hint is
-        the only guard.
+        Unguarded: checking against `rich.theme.Theme` would force an eager
+        `rich` import (~12ms) on every `import zrb`.
         """
         self._markdown_theme = value
 

@@ -45,17 +45,7 @@ def load_file(path: str, raise_on_error: bool = False) -> ModuleType | None:
             os.environ["PYTHONPATH"] = new_python_path
 
         module_name = os.path.splitext(os.path.basename(path))[0]
-
-        # Use load_module_from_path logic but we also wanted sys.path side effects above
-        spec = importlib.util.spec_from_file_location(module_name, abs_path)
-        if spec is None or spec.loader is None:
-            return None
-
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[module_name] = module
-        spec.loader.exec_module(module)
-        return module
-
+        return _exec_module_file(module_name, abs_path)
     except Exception as e:
         if raise_on_error:
             raise
@@ -64,22 +54,23 @@ def load_file(path: str, raise_on_error: bool = False) -> ModuleType | None:
 
 
 def load_module_from_path(name: str, path: str) -> ModuleType | None:
-    """
-    Dynamically load a Python module from a file path without necessarily modifying sys.path permanently,
-    though imports within the module might require it.
-    """
+    """Load a Python module from a file path without touching `sys.path`
+    (imports inside the module may still need it)."""
     if not os.path.exists(path):
         return None
-
     try:
-        spec = importlib.util.spec_from_file_location(name, path)
-        if spec is None or spec.loader is None:
-            return None
-
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[name] = module
-        spec.loader.exec_module(module)
-        return module
+        return _exec_module_file(name, path)
     except Exception as e:
         zrb_print(f"Error loading module {name} from {path}: {e}", plain=True)
         return None
+
+
+def _exec_module_file(name: str, path: str) -> ModuleType | None:
+    """Exec *path* as module *name*, registered in `sys.modules`."""
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module

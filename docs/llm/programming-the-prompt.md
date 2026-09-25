@@ -4,7 +4,7 @@
 
 Both `LLMTask` and `LLMChatTask` are "just" tasks, and everything the model reads is a value you supply — a string, a template, a Python callable, or a fully composed `PromptManager`. This page walks the **ladder**, from the one-liner you reach for 90% of the time up to a model-adaptive, multi-section prompt assembled at runtime.
 
-You climb the ladder only as far as your problem requires. Every rung is a superset of the one below it, so nothing you learn early is wasted.
+Climb only as far as your problem requires; each rung builds on the one below.
 
 ---
 
@@ -12,14 +12,13 @@ You climb the ladder only as far as your problem requires. Every rung is a super
 
 - [The one mental model: message vs. system prompt](#the-one-mental-model-message-vs-system-prompt)
 - [The ladder at a glance](#the-ladder-at-a-glance)
-- [Rung 1 — a plain string](#rung-1-a-plain-string)
-- [Rung 2 — a template (inject data with `{ }`)](#rung-2-a-template-inject-data-with)
-- [Rung 3 — a callable](#rung-3-a-callable)
-- [Rung 4 — the system prompt](#rung-4-the-system-prompt)
-- [Rung 5 — composing sections with `PromptManager`](#rung-5-composing-sections-with-promptmanager)
-- [Rung 6 — sections that reflect live state](#rung-6-sections-that-reflect-live-state)
-- [Rung 7 — file-backed sections and profiles](#rung-7-file-backed-sections-and-profiles)
-- [Which rung should I use?](#which-rung-should-i-use)
+- [Rung 1 — a plain string](#rung-1--a-plain-string)
+- [Rung 2 — a template (inject data with `Tpl`)](#rung-2--a-template-inject-data-with-tpl)
+- [Rung 3 — a callable](#rung-3--a-callable)
+- [Rung 4 — the system prompt](#rung-4--the-system-prompt)
+- [Rung 5 — composing sections with `PromptManager`](#rung-5--composing-sections-with-promptmanager)
+- [Rung 6 — sections that reflect live state](#rung-6--sections-that-reflect-live-state)
+- [Rung 7 — file-backed sections and profiles](#rung-7--file-backed-sections-and-profiles)
 - [See also](#see-also)
 
 ---
@@ -51,7 +50,7 @@ The rest of this page is how to get data into either one.
 | 1 | `message="plain string"` | The instruction is fixed. |
 | 2 | `message=Tpl("… {ctx.xcom['x'].pop()} …")` | Inject an upstream task's output, an input, or an env var. |
 | 3 | `message=lambda ctx: …` | You need real Python to build the prompt. |
-| 4 | `system_prompt=…` (string or callable) | Set persona / standing rules, separate from the per-turn message. |
+| 4 | `system_prompt=…` (string or callable) | Set persona / standing rules, or seed a chat with context and leave `message` empty. |
 | 5 | `prompt_manager=PromptManager(include_sections=[…])` | Reorder or drop the built-in prompt sections. |
 | 6 | `pm.append_prompt(...)` / `pm.add_live_context(...)` | Content must reflect live runtime state, or land after the built-ins. |
 | 7 | Override `markdown/` files + `ZRB_LLM_PROFILE` | Author prompts as files, with per-model-class profile phrasing. |
@@ -246,16 +245,6 @@ Independently, `ZRB_LLM_PROFILE` selects one of three **profiles** — `minimal`
 A profile changes **only** the `profile` section and the `minimal` delegate restriction — not the other sections, their wording, or the rest of the tool surface (ADR-0049). Override a profile's wording by dropping a `profile.{name}.md` into `ZRB_LLM_PROMPT_DIR`; run `ZRB_LLM_PROFILE=minimal` for a session on a small local model. See `AGENTS.md` → *LLM Prompt System*, ADR-0049.
 
 ---
-
-## Which rung should I use?
-
-- **Inject one command's / task's output → the model decides.** Rung 2 (`message` template). No tool needed.
-- **Build the prompt with branching or your own code.** Rung 3 (callable).
-- **Give the agent a lasting persona / standing rules.** Rung 4 (`system_prompt`).
-- **Seed an interactive chat with context, then let the user drive.** Rung 4, output in `system_prompt`, `message` left empty.
-- **Reorder or trim the built-in prompt.** Rung 5 (`PromptManager` + `include_sections`).
-- **A section must reflect live runtime state.** Rung 6 (`add_live_context`).
-- **Author prompts as files, adapt phrasing per model.** Rung 7 (files + profiles).
 
 ## See also
 

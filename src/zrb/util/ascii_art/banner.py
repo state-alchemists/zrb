@@ -37,41 +37,27 @@ def get_ascii_art(art: str | None = None) -> str:
     matches nothing falls back to a random available art, so callers that need a
     stable image across re-renders must resolve once and keep the result.
     """
+    art_dirs = [
+        os.path.join(search_path, CFG.ASCII_ART_DIR)
+        for search_path in get_default_banner_search_path()
+    ] + [os.path.join(os.path.dirname(__file__), "art")]
     if art is not None:
-        if os.path.isfile(art):
-            with open(art, "r", encoding="utf-8") as f:
-                return f.read()
-        # Check in search paths
-        for search_path in get_default_banner_search_path():
-            art_path = os.path.join(search_path, CFG.ASCII_ART_DIR, f"{art}.txt")
+        candidates = [art] + [os.path.join(d, f"{art}.txt") for d in art_dirs]
+        for art_path in candidates:
             if os.path.isfile(art_path):
-                with open(art_path, "r", encoding="utf-8") as f:
-                    return f.read()
-        # Check in builtin art folder
-        cwd = os.path.dirname(__file__)
-        builtin_art_path = os.path.join(cwd, "art", f"{art}.txt")
-        if os.path.isfile(builtin_art_path):
-            with open(builtin_art_path, "r", encoding="utf-8") as f:
-                return f.read()
-
-    # If no specific art requested, or if requested art not found, find a random one.
-    all_art_files = []
-    # Collect from search paths
-    for search_path in get_default_banner_search_path():
-        art_dir = os.path.join(search_path, CFG.ASCII_ART_DIR)
-        if os.path.isdir(art_dir):
-            for filename in os.listdir(art_dir):
-                if filename.endswith(".txt"):
-                    all_art_files.append(os.path.join(art_dir, filename))
-    # Collect from builtin art folder
-    cwd = os.path.dirname(__file__)
-    builtin_art_dir = os.path.join(cwd, "art")
-    if os.path.isdir(builtin_art_dir):
-        for filename in os.listdir(builtin_art_dir):
-            if filename.endswith(".txt"):
-                all_art_files.append(os.path.join(builtin_art_dir, filename))
+                return _read(art_path)
+    all_art_files = [
+        os.path.join(art_dir, filename)
+        for art_dir in art_dirs
+        if os.path.isdir(art_dir)
+        for filename in os.listdir(art_dir)
+        if filename.endswith(".txt")
+    ]
     if all_art_files:
-        random_file_path = random.choice(all_art_files)
-        with open(random_file_path, "r", encoding="utf-8") as f:
-            return f.read()
+        return _read(random.choice(all_art_files))
     return ""
+
+
+def _read(path: str) -> str:
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()

@@ -63,6 +63,7 @@ from zrb.llm.ui.base.usage import BaseUIUsage
 from zrb.llm.ui.base.voice_state import BaseUIVoiceState
 from zrb.llm.ui.multi_ui import MultiUI
 from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
+from zrb.llm.ui.turn_snapshot import take_pre_turn_snapshot
 from zrb.llm.ui.ui_config import UIConfig
 from zrb.session.any_session import AnySession
 from zrb.session.session import Session
@@ -228,15 +229,12 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._process_messages_task: asyncio.Task | None = None
         self._last_result_data: str | None = None
 
-        # System Info
         self._cwd = os.getcwd()
         self._git_info = "Checking..."
         self._system_info_task: asyncio.Task | None = None
 
-        # Snapshot / rewind
         self._snapshot_manager = None
         if enable_rewind and snapshot_dir and self._conversation_session_name:
-
             self._snapshot_manager = SnapshotManager(
                 snapshot_dir=snapshot_dir,
                 # Read at each operation, so rewind follows `/load` and `/save`.
@@ -244,12 +242,10 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
                 workdir=self._cwd,
             )
 
-        # Attachments
         self._pending_attachments: list["UserContent"] = _default_list(
             initial_attachments
         )
 
-        # Confirmation Handler
         self._tool_call_handler = ToolCallHandler(
             tool_policies=_default_list(tool_policies),
             argument_formatters=_default_list(argument_formatters),
@@ -258,12 +254,10 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         )
         self.confirmation = BaseUIConfirmationState()
 
-        # Track background tasks to prevent garbage collection
+        # Strong references so fire-and-forget hook tasks aren't GC'd mid-run.
         self._background_tasks: set[asyncio.Task] = set()
 
         self._base_commands = BaseUICommands(self)
-        # The dispatcher constructs the three handler parts; the facade
-        # methods below forward straight to them.
         self._conversation = self._base_commands.conversation
         self.models = self._base_commands.models
         self._exec = self._base_commands.exec
@@ -655,20 +649,15 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         """
         try:
             loop = asyncio.get_running_loop()
-            # We're in an async context with a running loop
             task = loop.create_task(
                 hook_manager.execute_hooks(event, event_data, **kwargs)
             )
-
-            # Keep a strong reference to prevent GC from destroying it mid-execution
             self._background_tasks.add(task)
             task.add_done_callback(self._background_tasks.discard)
 
         except RuntimeError:
-            # No running event loop - we're in a sync context. Runner
-            # installs a fresh loop for the duration and restores the
-            # thread's previous loop state on close, so no closed loop is
-            # left installed as the default.
+            # Sync context: Runner restores the thread's previous loop state on
+            # close, so no closed loop is left installed as the default.
             with asyncio.Runner() as runner:
                 runner.run(hook_manager.execute_hooks(event, event_data, **kwargs))
 
@@ -982,34 +971,28 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             except asyncio.CancelledError:
                 break
             except RuntimeError as e:
-                # Event loop closed during shutdown - exit immediately
+                # Event loop closed during shutdown.
                 logger.error(f"RuntimeError in message queue loop: {e}")
                 break
             except Exception as e:
                 logger.error(f"Error in message queue loop: {e}")
-                # Don't break loop on error, but handle event loop closure
                 try:
                     await asyncio.sleep(CFG.LLM_UI_STATUS_INTERVAL / 1000)
                 except RuntimeError:
-                    # Event loop closed - exit
                     break
 
     async def _settle_previous_job(self) -> None:
-        """Wait for a still-running job from a previous iteration to finish.
+        """Await a still-running previous job, swallowing its outcome.
 
-        Awaited directly rather than polled — that removes the busy-wait and
-        the check-then-act race between `done()` and the next assignment. Its
-        outcome (including cancellation) is swallowed; this loop only needs it
-        settled before starting the next job.
+        Awaited rather than polled, so there is no check-then-act race between
+        `done()` and the next assignment.
         """
         if self._running_llm_task is None or self._running_llm_task.done():
             return
         try:
             await self._running_llm_task
         except (KeyboardInterrupt, SystemExit):
-            # Process-level interrupts are not a job outcome — the
-            # previous `except (CancelledError, Exception)` let these
-            # through and so must this.
+            # Process-level interrupts are not a job outcome.
             raise
         except BaseException:
             # A cancel aimed at THIS loop must still land, or the queue becomes
@@ -1035,10 +1018,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         finally:
             self._running_llm_task = None
 
-    # History-replay rendering lives in BaseUIReplay (replay.py):
-    # _replay_history, _replay_request_parts, _replay_response_parts,
-    # _replay_tool_call, _replay_tool_return are inherited.
-
     def track_echo_span(self, entry: QueuedMessage, echo: str) -> None:
         """Record the output-buffer span of `echo` on `entry` (`AnyUI` hook).
 
@@ -1053,16 +1032,12 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         message is for this UI's own current task; this explicit form exists
         for callers (e.g. keybindings set up before a persona swap) holding a
         specific task reference that may differ from `self.llm_task` by then."""
-        # Check if we have a parent MultiUI to route through
         parent_multi_ui = self.multi_ui_parent
         if parent_multi_ui is not None:
-            # Route through parent MultiUI - this broadcasts to ALL UIs
+            # The parent broadcasts to every child UI.
             parent_multi_ui.submit_user_message(llm_task, user_message)
             return
-
-        # No parent - process locally (original behavior). While a turn is in
-        # flight the message only joins the queue, so the marker says so
-        # rather than implying it was sent.
+        # Mid-turn the message only joins the queue; the marker says so.
         marker = "⏳" if self.is_thinking else "💬"
         submit_user_message_via_queue(
             append_to_output=self.append_to_output,
@@ -1098,22 +1073,13 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self.invalidate_ui()
         try:
             timestamp = datetime.now().strftime("%H:%M")
-            # Take filesystem snapshot before this AI turn (also records message count
-            # so that a rewind can restore conversation history to a consistent state).
-            # Failures are non-fatal — the AI turn must proceed regardless.
-            if self._snapshot_manager is not None:
-                try:
-                    label = user_message[:80].replace("\n", " ").strip()
-                    current_msgs = self._history_manager.load(
-                        self._conversation_session_name
-                    )
-                    await self._snapshot_manager.take_snapshot(
-                        f"{timestamp}: {label}",
-                        message_count=len(current_msgs),
-                    )
-                except Exception as snap_err:
-                    logger.warning(f"Snapshot skipped: {snap_err}")
-            # Header first
+            await take_pre_turn_snapshot(
+                self._snapshot_manager,
+                self._history_manager,
+                self._conversation_session_name,
+                user_message,
+                timestamp,
+            )
             self.append_to_output(f"\n🤖 {timestamp} >>\n")
             session = self._create_session_for_llm_task(user_message, attachments)
 
@@ -1127,19 +1093,18 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             llm_task.tool_confirmation = cast(Any, self.confirm_tool_execution)
             result_data = await llm_task.async_run(session)
 
-            # Sync plan mode after LLM response (tools like EnterPlanMode set the
-            # ContextVar which is visible here in the same Task context).
+            # Tools like EnterPlanMode set the ContextVar, visible here in the
+            # same Task context.
             self._plan_mode_active = get_current_agent_mode() == AgentMode.PLAN
 
-            if result_data is not None:
-                if isinstance(result_data, str):
-                    self._last_result_data = result_data
-                    self.append_to_output("\n")
-                    self.append_markdown(result_data)
+            if isinstance(result_data, str):
+                self._last_result_data = result_data
+                self.append_to_output("\n")
+                self.append_markdown(result_data)
 
         except asyncio.CancelledError:
             self.append_to_output("\n[Cancelled]\n")
-            raise  # Re-raise to allow proper task cancellation
+            raise
         except Exception as e:
             self.append_to_output(f"\n[Error: {exception_summary(e)}]\n")
         finally:
@@ -1153,7 +1118,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         user_message: str,
         attachments: list["UserContent"],
     ) -> AnySession:
-        """Create session to run LLMTask"""
         session_input = {
             "message": user_message,
             "session": self._conversation_session_name,
@@ -1172,9 +1136,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self,
         call: "ToolCallPart",
     ) -> "ToolApproved | ToolDenied | None":
-        # Use current_ui context variable to get the correct UI (e.g., BufferedUI for parallel agents)
-        # instead of self, which is the captured main UI
-
+        # The ambient UI (e.g. a sub-agent's BufferedUI), not the captured main UI.
         ui = get_current_ui() or self
         if isinstance(ui, list):
             if len(ui) == 0:
@@ -1185,16 +1147,8 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
                 ui = MultiUI(ui)
         return await self._tool_call_handler.handle(ui, call)
 
-    # System-info status (cwd/git) lives in BaseUISystemInfo
-    # (system_info.py): update_system_info, get_cwd_display,
-    # get_git_info, update_system_info_loop are inherited.
-
     async def trigger_loop(
         self, trigger_factory: Callable[[], AsyncIterable[Any]]
     ) -> None:
         """Submit a user turn for every item *trigger_factory* yields."""
         await self._base_triggers.trigger_loop(trigger_factory)
-
-    # --- COMMAND HANDLERS live in BaseUICommands (see commands.py) ---
-    # The methods handle_*, run_shell_command, stream_btw_response,
-    # submit_attachment, toggle_yolo, and get_help_text are inherited.

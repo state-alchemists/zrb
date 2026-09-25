@@ -41,17 +41,15 @@ logger = logging.getLogger(__name__)
 
 _IGNORE_DIRS: list[str] = []
 
-# Bound fire-and-forget command hooks. A high-frequency event must not spawn an
-# unbounded pile of subprocesses: that exhausted file descriptors ([Errno 24])
-# and, when a serialized external tool (e.g. peon-ping) backed up, produced a
-# timeout storm. The semaphore caps concurrent subprocesses; the pending ceiling
-# sheds load by dropping new hooks once the backlog is full.
+# Bound fire-and-forget hooks: an unbounded pile of subprocesses from a
+# high-frequency event exhausts file descriptors and, behind a serialized
+# external tool, causes a timeout storm. The semaphore caps concurrency; the
+# pending ceiling drops new hooks once the backlog is full.
 _MAX_CONCURRENT_BG_HOOKS = 4
 _MAX_PENDING_BG_HOOKS = 64
 
-# Stand-in priority (0) for hooks with no config (e.g. manually registered),
-# so they sort predictably alongside configured hooks instead of erroring.
-# Read-only — never mutated — so one shared instance is safe across calls.
+# Stand-in (priority 0) for hooks with no config, e.g. manually registered.
+# Never mutated, so one shared instance is safe.
 _DEFAULT_HOOK_CONFIG = HookConfig(
     name="default",
     events=[],
@@ -69,13 +67,10 @@ class HookManager(HookManagerLoading):
         ignore_dirs: list[str] | None = None,
         registry: HookRegistry | None = None,
     ):
-        # Lightweight: just assign properties, no heavy operations
         """Discover, register, and run lifecycle hooks.
 
-        Decomposed: the manager owns discovery, hydration,
-        execution, and factory seeding, and composes a `HookRegistry` for the
-        canonical hook collection. Registration and every query delegate to the
-        registry.
+        The manager owns discovery, hydration, execution, and factory seeding;
+        registration and every query delegate to the composed `HookRegistry`.
 
         Args:
             search_dirs: Directories to scan for hook definitions. Defaults to
@@ -89,18 +84,10 @@ class HookManager(HookManagerLoading):
         """
         self._registry = registry if registry is not None else HookRegistry()
         self._executor: ThreadPoolHookExecutor = get_hook_executor()
-        # `register_journal_compliance_hook` ships as a *default* factory on
-        # every instance, not just the module-level singleton below — a real
-        # chat run's `Stop` event dispatches through a fresh, per-run
-        # `HookManager()` (`_create_llm_task_core` builds one whenever the
-        # task's own `hook_manager` is unset), never through the singleton.
-        # The singleton's own registration is invisible to that instance:
-        # PreToolUse/PostToolUse route through the singleton via the ambient
-        # ContextVar lookup, but Stop fires on the per-run manager, whose
-        # `_hook_factories` would otherwise be empty. File-backed hooks
-        # (settings.json/hooks.json) don't have this problem because every
-        # manager independently re-scans the filesystem; a Python-registered
-        # one needs to be seeded the same way on every instance.
+        # Seeded on every instance, not just the singleton: a chat run's Stop
+        # event fires on a fresh per-run `HookManager()`, which never sees the
+        # singleton's registrations. File-backed hooks need no seeding because
+        # every manager re-scans the filesystem.
         self._hook_factories: list[Callable[[HookManager], None]] = [
             register_journal_compliance_hook,
             register_self_review_hook,
@@ -109,15 +96,11 @@ class HookManager(HookManagerLoading):
         self._ignore_dirs = _IGNORE_DIRS if ignore_dirs is None else ignore_dirs
         self._search_dirs: list[str | Path] | None = search_dirs
         self._loaded: bool = False
-        # Strong refs to fire-and-forget async hook tasks so the event loop
-        # doesn't GC them mid-run (asyncio only keeps weak references).
+        # Strong refs: asyncio keeps only weak references to tasks.
         self._background_tasks: set[asyncio.Task] = set()
-        # Which hook each pending background task came from, so shutdown()
-        # can look up that hook's own configured timeout (see
-        # _effective_grace_seconds) instead of always using the flat default.
+        # Lets shutdown() find each pending task's configured timeout.
         self._background_task_hook: dict[asyncio.Task, HookCallable] = {}
-        # Bounds concurrent fire-and-forget subprocesses. Created lazily inside
-        # the running loop (see _run_background_hook).
+        # Created lazily inside the running loop (see _run_background_hook).
         self._bg_semaphore: asyncio.Semaphore | None = None
 
     @property
@@ -154,23 +137,18 @@ class HookManager(HookManagerLoading):
         """Force re-scan hooks. Use after CFG changes or hook file updates."""
         self._loaded = False
         self._registry.clear()
-        # _ensure_loaded -> _scan_and_load already runs _hook_factories; no
-        # separate loop here, or every factory would run twice.
         self._ensure_loaded()
 
-    def _scan_and_load(self):
-        """Internal: scan filesystem and load hooks without resetting existing ones.
+    def _scan_and_load(self, search_dirs: list[str | Path] | None = None):
+        """Run the hook factories, then load hooks from *search_dirs*.
 
-        Runs `_hook_factories` too. It has to: the lazy path
-        (`_ensure_loaded`, taken on the first `execute_hooks()` call) is the
-        only one a normal chat session goes through — nothing there calls the
-        public `scan()` or `reload()`. Drop the factory loop from here and
-        `add_hook_factory` becomes dead code for the default singleton.
+        Existing registrations are kept. The factories run here because the
+        lazy path (`_ensure_loaded`) is the only one a normal chat session
+        takes.
         """
         for factory in self._hook_factories:
             factory(self)
-
-        for search_dir in self.search_dirs:
+        for search_dir in self.search_dirs if search_dirs is None else search_dirs:
             self._load_from_path(search_dir)
 
     def add_hook(
@@ -222,9 +200,7 @@ class HookManager(HookManagerLoading):
         Execute all hooks registered for the given event with thread safety.
         Returns a list of HookExecutionResult objects with Claude Code compatibility.
         """
-        # Global kill-switch (ZRB_HOOKS_ENABLED). When off, no hook fires and the
-        # filesystem is never scanned — execute_hooks_simple delegates here, so
-        # this one guard disables every firing path.
+        # Global kill-switch: no hook fires and the filesystem is never scanned.
         if not CFG.HOOKS_ENABLED:
             return []
 
@@ -296,34 +272,19 @@ class HookManager(HookManagerLoading):
         config = self._registry.get_hook_config(hook)
         timeout = config.timeout if config else None
 
-        # Async command AND agent hooks are fire-and-forget: spawn them on the
-        # current (persistent) event loop and DON'T await. Awaiting them
-        # through the thread executor would block here until the hook's
-        # subprocess (or, for an agent hook, its LLM call) — and any child a
-        # command hook forks, e.g. peon-ping's audio player — exits or the
-        # timeout fires, defeating the whole point of `async` and stalling
-        # the agent on every event (a per-output-chunk Notification hook
-        # alone would add a multi-second wait per chunk; an agent-type Stop
-        # hook would add a full extra model round-trip to every matching
-        # turn). They cannot block or contribute additionalContext, so
-        # omitting their result is correct.
+        # Async command and agent hooks are fire-and-forget on the persistent
+        # loop: awaiting them would stall the agent until the subprocess (and
+        # its children) or LLM call finishes. They cannot block or contribute
+        # additionalContext, so they record no result.
         is_background_eligible = (
             config is not None
             and config.is_async
             and config.type in (HookType.COMMAND, HookType.AGENT)
         )
         if is_background_eligible:
-            # Check matchers before spawning, not after: `hook` (matcher-
-            # wrapped by `_wrap_with_matchers`) would otherwise still get
-            # spawned as a background task on every firing of its event even
-            # when it's about to reject itself and return instantly. Wasted
-            # background-task churn for any hook, and actively wrong for an
-            # agent-type one: its (correctly generous) `timeout` would count
-            # toward `_effective_grace_seconds`'s shared batch wait even on
-            # turns where it was never going to run, silently extending the
-            # drain for every *other* pending hook too. A rejected background
-            # hook still contributes no result, same as one that ran —
-            # unlike a rejected *synchronous* hook below, which does.
+            # Match before spawning: a spawned-then-rejected agent hook would
+            # still extend `_effective_grace_seconds`'s drain for every other
+            # pending hook.
             assert config is not None
             if not evaluate_matchers(config.matchers, context):
                 return None, False
@@ -341,11 +302,8 @@ class HookManager(HookManagerLoading):
             )
             return HookExecutionResult(success=False, error=str(e), exit_code=1), False
 
-        # Check for blocking decisions (exit code 2). A block only halts the
-        # chain for events that can actually be blocked; for any other event
-        # the block is a no-op signal, so we keep running the remaining hooks
-        # (Claude-compatible — exit 2 is meaningful only where the lifecycle
-        # can be stopped).
+        # A block (exit code 2) halts the chain only for blockable events,
+        # matching Claude Code.
         if result.blocked or result.exit_code == 2:
             if event in BLOCKING_EVENTS:
                 logger.info(
@@ -357,8 +315,7 @@ class HookManager(HookManagerLoading):
                 "ignoring block and continuing remaining hooks."
             )
 
-        # Check for continue=false (an explicit "stop all processing" request,
-        # honored for every event regardless of whether it can be blocked).
+        # continue=false stops processing for every event.
         if not result.continue_execution:
             logger.info(f"Hook requested stop of all processing for event {event}.")
             return result, True
@@ -396,19 +353,10 @@ class HookManager(HookManagerLoading):
         largest `timeout` configured among currently-pending **agent-type**
         hooks specifically, or *fallback* if there are none.
 
-        `grace_seconds`'s default suits a cheap async hook — a subprocess
-        playing a sound, an `echo`. An `agent`-type hook makes a real LLM
-        round-trip, seconds rather than milliseconds even on a small model, so
-        draining every hook under one flat short window cancels it before it
-        gets to act.
-
-        Scoped to `HookType.AGENT` on purpose, not every hook: `config.timeout`
-        is shared with the synchronous executor's own per-hook timeout, and a
-        command hook's default there is 600s (a long-running shell script is
-        normal) — extending the *drain* wait to match would turn "cancel a
-        runaway background hook at teardown" into "wait up to ten minutes for
-        it," which defeats the bound this method exists to keep. Only agent
-        hooks get a real reason to need longer than the flat default here.
+        An agent hook makes an LLM round-trip, too slow for the flat default
+        that suits a cheap command hook. Command hooks are excluded because
+        their `timeout` (default 600s) is the synchronous executor's limit,
+        and waiting that long at teardown would defeat the bound.
         """
         configured = [
             cfg.timeout
@@ -436,22 +384,14 @@ class HookManager(HookManagerLoading):
     ) -> None:
         """Cancel in-flight fire-and-forget hooks and wait for them to settle.
 
-        Async ("fire-and-forget") hooks run detached, and their subprocesses run
-        in their own session/process group — so the terminal's Ctrl+C SIGINT does
-        not reach them. Without this, a slow async hook (an audio notifier, say)
-        outlives the session that spawned it. Cancelling the task makes the
-        command hook's own cancellation handler kill its process tree.
+        Async hook subprocesses run in their own process group, so Ctrl+C does
+        not reach them; cancelling the task makes the command hook's
+        cancellation handler kill its process tree. Cancelling up front keeps
+        exit snappy.
 
-        Cancel up front rather than granting a grace period first: exit must stay
-        snappy, and a detached hook still running at teardown is exactly what
-        this exists to stop. Async hooks are fire-and-forget by construction, so
-        one dispatched at SESSION_END has no completion guarantee to break.
-
-        ``drain=True`` inverts that first step only: pending hooks get
-        ``grace_seconds`` to finish on their own before the stragglers are
-        cancelled. That is the right shape for a *per-run* teardown, where the
-        manager may be shut down moments after a hook was dispatched and
-        cancel-first would effectively disable async hooks for that caller.
+        ``drain=True`` first gives pending hooks ``grace_seconds`` to finish on
+        their own — for a per-run teardown, where cancel-first would disable
+        async hooks dispatched moments earlier.
 
         Waits at most ``grace_seconds`` per phase, so shutdown can never block on
         a hook that refuses to unwind. Safe to call when nothing is pending, and
@@ -466,14 +406,9 @@ class HookManager(HookManagerLoading):
             task.cancel()
         if tasks:
             await self._settle_background_hooks(grace_seconds)
-        # No unconditional clear() here: the done-callback already discards
-        # finished tasks, so anything still in the set genuinely never settled and
-        # has_pending_background_hooks must keep reporting it. Clearing made the
-        # property claim "nothing pending" while hooks were still running.
-        #
-        # The semaphore is bound to the loop that created it; dropping it lets a
-        # later session on a fresh loop build its own instead of awaiting a
-        # semaphore attached to a closed one.
+        # No clear(): the done-callback discards finished tasks, so anything
+        # left never settled and has_pending_background_hooks must report it.
+        # The semaphore is bound to its loop; a later session builds its own.
         self._bg_semaphore = None
 
     async def _settle_background_hooks(self, timeout: float) -> None:
@@ -590,16 +525,7 @@ class HookManager(HookManagerLoading):
         This method can be called manually to add filesystem hooks.
         Does NOT clear manually registered hooks.
         """
-        target_search_dirs = (
-            search_dirs if search_dirs is not None else self.search_dirs
-        )
-
-        for factory in self._hook_factories:
-            factory(self)
-
-        for search_dir in target_search_dirs:
-            self._load_from_path(search_dir)
-
+        self._scan_and_load(search_dirs)
         self._loaded = True
 
     def _default_search_dirs(self) -> list[str | Path]:
@@ -616,19 +542,15 @@ class HookManager(HookManagerLoading):
         Wraps the actual hook with matcher evaluation.
         """
         inner_hook = self._select_inner_hook(config)
-        # Store config for debugging and timeout lookup
         self._registry.record_config(config.name, config)
         return self._wrap_with_matchers(inner_hook, config)
 
     def _select_inner_hook(self, config: HookConfig) -> HookCallable:
         """Build the callable for `config.type` (command/prompt/agent), or a
         logging placeholder for anything else."""
-        # lazy: zrb internal (heavy via transitive). This edge is not itself
-        # circular — zrb.llm.agent's package __init__ reaches this module at
-        # module level — but deferring it, together with agent/hook_agent.py's
-        # matching one, is what keeps hook.creator out of zrb.llm.agent's
-        # eager import closure. Hoisting either puts it back. Verify by
-        # walking the whole closure, not by inspecting this call site alone.
+        # lazy: zrb internal (heavy via transitive). Deferring this and
+        # agent/hook_agent.py's matching import keeps hook.creator out of
+        # zrb.llm.agent's eager import closure; hoisting either puts it back.
         from zrb.llm.hook.creator import create_command_hook, create_prompt_hook
 
         if config.type == HookType.COMMAND:
@@ -676,7 +598,6 @@ class HookManager(HookManagerLoading):
                 logger.debug(
                     f"Hook '{config.name}' skipped due to matcher evaluation failure"
                 )
-                # Return a neutral result (not an error, just didn't run)
                 return HookResult(success=True, output="Skipped due to matchers")
 
             return await inner_hook(context)

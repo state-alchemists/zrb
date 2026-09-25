@@ -30,8 +30,8 @@ class HttpCheck(BaseTask):
             url: URL to poll. A literal, a `Tpl` rendered against the context,
                 or a callable taking it.
             http_method: HTTP method to send.
-            interval: Seconds between polls. Defaults to the readiness check
-                period.
+            interval: Seconds between polls. Defaults to
+                `CFG.HTTP_CHECK_INTERVAL`.
 
         Every parameter `BaseTask` accepts is also accepted here **except the
         retry and readiness settings** (`retries`, `retry_period`, `retry_if`,
@@ -47,8 +47,7 @@ class HttpCheck(BaseTask):
         )
         self._url = url
         self._http_method = http_method
-        # Read lazily at run time (like every other CFG read) so an env change
-        # after task definition still takes effect.
+        # None resolves CFG at run time, so a later env change takes effect.
         self._interval = interval
 
     def _get_interval(self) -> float:
@@ -70,10 +69,8 @@ class HttpCheck(BaseTask):
         interval = self._get_interval()
         while True:
             try:
-                # Bound each probe so a half-open endpoint can't hang the worker
-                # thread forever (to_thread can't cancel a blocking request). The
-                # request should never outlive the polling interval; a timeout is
-                # just another transient error and is retried below.
+                # to_thread cannot cancel a blocking request, so bound each probe
+                # by the interval; a timeout is retried like any other error.
                 response = await asyncio.to_thread(
                     requests.request, http_method, url, timeout=interval
                 )
@@ -81,7 +78,5 @@ class HttpCheck(BaseTask):
                     return response
                 ctx.log_info(f"HTTP Status code: {response.status_code}")
             except Exception as e:
-                # Readiness probes retry on any error (DNS, refused, timeout, …)
-                # until the endpoint comes up or the surrounding monitor stops us.
                 ctx.log_info(f"Error: {e}")
             await asyncio.sleep(interval)

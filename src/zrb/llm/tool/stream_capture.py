@@ -43,21 +43,15 @@ class StreamCapture:
     def __init__(self, retain: int, echo: int, print_live: bool = True) -> None:
         self._retain = max(retain, 0)
         self._echo_budget = max(echo, 0)
-        # When False, `echo()` still tracks the budget and accumulates
-        # `echoed_text` but skips its own `zrb_print` — used when the caller
-        # (`run_shell_command`) has a better live display available (see
-        # `update_shell_output`) and would otherwise show the same output
-        # twice, through two different mechanisms.
+        # False: `echo()` tracks the budget and `echoed_text` but doesn't
+        # print, for a caller with its own live display (`update_shell_output`).
         self._print_live = print_live
         self._chunks: "deque[str]" = deque()
         self._held = 0
         self._echoed = 0
-        # Plain (unstyled) copy of exactly what `echo()` sent to the console —
-        # naturally bounded by `_echo_budget`, so no unbounded growth. Lets a
-        # caller retroactively collapse the live echo (see
-        # `run_shell_command`) without re-reading the *rendered* buffer,
-        # which a stray `\r` in a chunk could have mangled — same principle
-        # as `StreamEventHandler`'s thinking/text accumulation.
+        # Plain copy of what `echo()` printed (bounded by `_echo_budget`), so
+        # a caller can collapse the echo without re-reading a rendered buffer
+        # a stray `\r` may have mangled.
         self._echoed_chunks: list[str] = []
         self._spill: TextIO | None = None
         self._spill_failed = False

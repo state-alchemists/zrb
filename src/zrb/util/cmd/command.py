@@ -35,9 +35,7 @@ def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
         r"sort.*-V": "sort -V is not supported everywhere",
         r"sort.*--sort-versions": "sort --sort-version is not supported everywhere",
         r"(?:^|[|;&]\s*)ls\s": "Avoid using ls; use shell globs or find instead",
-        # `echo` itself is portable: bash, dash and zsh print a plain literal
-        # identically. Only these two forms differ between them, so a blanket
-        # ban on the command would flag `echo 'done'` for nothing.
+        # Plain `echo` is portable; only these two forms differ across shells.
         r"(?<![\w-])echo\s+-[neE]": (
             "echo -n/-e is not portable (dash and zsh differ); use printf instead"
         ),
@@ -82,22 +80,28 @@ def resolve_shell(shell: str = "") -> tuple[str, str]:
         tuple[str, str]: The resolved shell and its command flag.
     """
     shell = shell or CFG.SHELL
-    flags = {
-        "node": "-e",
-        "ruby": "-e",
-        "php": "-r",
-        "pwsh": "-Command",
-        "powershell": "-Command",
-        "cmd": "/c",
-    }
-    # The flag is looked up by shell *name*, so an absolute setting such as
-    # `C:\...\pwsh.exe` still resolves to `-Command` instead of falling
-    # through to the POSIX `-c`. The substitution below stays keyed on the raw
-    # string: only a bare name needs resolving to a path.
-    flag = flags.get(get_shell_name(shell), "-c")
+    flag = get_shell_flag(shell)
+    # Only a bare name needs resolving to a path.
     if shell.lower() in ("bash", "sh"):
         shell = get_windows_posix_shell() or shell
     return shell, flag
+
+
+_SHELL_FLAGS = {
+    "node": "-e",
+    "ruby": "-e",
+    "php": "-r",
+    "pwsh": "-Command",
+    "powershell": "-Command",
+    "cmd": "/c",
+}
+
+
+def get_shell_flag(shell: str) -> str:
+    """The "run this string" flag for *shell*, looked up by shell name so an
+    absolute path such as `C:\\...\\pwsh.exe` still gets `-Command`; `-c`
+    for anything unlisted."""
+    return _SHELL_FLAGS.get(get_shell_name(shell), "-c")
 
 
 def _process_tree_pids(pid: int) -> list[int]:
@@ -137,13 +141,8 @@ async def terminate_process(
     for pid in pids:
         if psutil.pid_exists(pid):
             kill_pid(pid, print_method=print_method)
-    # Reap whatever survived the grace period. The force-kill sends SIGKILL to
-    # the OS process, but an asyncio subprocess is not reaped until wait() is
-    # called. If that lands after the event loop closes (top-level
-    # ``asyncio.run`` teardown), the child watcher logs
-    # "Loop <...> that handles pid N is closed" — the exit event could not be
-    # delivered. SIGKILLed processes exit immediately, so the bounded wait is a
-    # pure safety net.
+    # Reap the child while the loop is alive; otherwise the child watcher logs
+    # "Loop <...> that handles pid N is closed" at asyncio.run teardown.
     if process.returncode is None:
         try:
             await asyncio.wait_for(process.wait(), timeout=grace_seconds)
@@ -188,16 +187,12 @@ async def run_command(
     timeout: float = 3600,
     is_interactive: bool = False,
 ) -> tuple[CmdResult, int]:
-    """
-    Executes a command, streaming raw stdout/stderr bytes as they arrive so the
-    combined output looks like running the command manually in a terminal
-    (`\\r`-driven progress output is shown live instead of buffering until a
-    newline). Please note that `interactive` execution is generally not
-    recommended and thus disabled by default.
-    When using `interactive execution, the command will not be started in new session
-    and will share the same stdin as the main process, which might trigger race condition.
-    You can use interactive execution for a limited usecase when the command
-    require user input.
+    """Execute a command, streaming stdout/stderr live as it arrives.
+
+    Output reads like running the command in a terminal (`\\r`-driven progress
+    is shown live). `is_interactive` (off by default) skips the new session and
+    shares the parent's stdin, which can race; use it only for commands that
+    need user input.
     """
     actual_print_method = print_method if print_method is not None else print
     if max_display_line is None:
@@ -205,10 +200,7 @@ async def run_command(
     cmd_process = await __spawn(cmd, cwd, env_map, is_interactive)
     if register_pid_method is not None:
         register_pid_method(cmd_process.pid)
-    # stdout/stderr are guaranteed non-None since the process is created with PIPE.
     assert cmd_process.stdout is not None and cmd_process.stderr is not None
-    # Read stdout/stderr from one multiplexed loop so interleaved lines land in
-    # something much closer to real write order (see __read_streams).
     display_lines = deque(maxlen=max_display_line if max_display_line > 0 else 0)
     streams_task = asyncio.create_task(
         __read_streams(
@@ -273,12 +265,10 @@ async def __spawn(
 async def __release_process(
     cmd_process: "asyncio.subprocess.Process", helper_tasks: "list[asyncio.Task]"
 ) -> None:
-    """Cancel the helper tasks and close the transport, loop still alive.
+    """Cancel the helper tasks and close the transport while the loop is alive.
 
-    Otherwise a dangling task (e.g. the timeout sleep on the success path) or
-    the transport's own `__del__` closes it later at GC time — and if that
-    lands after the loop is gone (a subsequent test), it raises "Event loop is
-    closed".
+    Left to GC, a dangling task or the transport's `__del__` can run after the
+    loop is gone and raise "Event loop is closed".
     """
     for task in helper_tasks:
         task.cancel()
@@ -301,22 +291,17 @@ async def __terminate_on_cancel(
         if hasattr(os, "killpg"):
             os.killpg(cmd_process.pid, signal.SIGINT)
         else:
-            # Windows has no POSIX process groups; terminate the tree via
-            # psutil (a hard kill there) instead of leaving the child
-            # orphaned by a swallowed AttributeError.
+            # No POSIX process groups on Windows; psutil hard-kills the tree.
             terminate_pid(cmd_process.pid, print_method=print_method)
         await asyncio.wait_for(
             cmd_process.wait(), timeout=CFG.CMD_CLEANUP_TIMEOUT / 1000
         )
     except asyncio.TimeoutError:
-        # If it doesn't terminate, kill it forcefully
         print_method(
             f"Process {cmd_process.pid} did not terminate gracefully, killing."
         )
         kill_pid(cmd_process.pid, print_method=print_method)
     except Exception:
-        # Cleanup path during unwind; swallow secondary errors and re-raise
-        # the original exception below.
         pass
 
 
@@ -334,24 +319,15 @@ async def __read_streams(
     max_error_line: int,
     display_queue: deque[Any],
 ) -> tuple[str, str]:
-    """
-    Reads stdout and stderr from a single multiplexed loop -- reacting to
-    whichever stream has data first -- instead of two independently scheduled
-    reader tasks. Two decoupled tasks can each drain a burst of already
-    buffered lines from their own stream before ever yielding to the other,
-    which reorders interleaved output relative to when it was actually
-    written. Reacting from one shared loop removes that extra source of skew.
-    Reads raw bytes rather than `readline()`, so `\r`-driven progress output
-    (no trailing `\n`, e.g. docker/apt progress bars) is shown live instead of
-    buffering until a newline finally arrives, and a chunk larger than the
-    stream's internal buffer limit can never make `readline()` raise and
-    silently abandon the rest of the stream. A line with no `\r`/`\n` at all
-    is still force-flushed once it grows past `CFG.CMD_BUFFER_LIMIT`, so an
-    unterminated line can no longer grow the in-memory buffer without bound.
+    """Read stdout and stderr from one multiplexed loop.
 
-    Note: two lines written to stdout and stderr at truly the same instant
-    have no OS-level ordering to reconstruct -- each is its own pipe with its
-    own kernel buffer, unlike a real terminal where both share one fd.
+    One loop reacting to whichever stream has data keeps interleaved output
+    close to write order; two reader tasks could each drain a buffered burst
+    before yielding. Raw `read()` rather than `readline()` shows `\r`-driven
+    progress live and cannot raise on a chunk over the stream's buffer limit.
+    A line with no `\r`/`\n` is force-flushed past `CFG.CMD_BUFFER_LIMIT`.
+
+    Writes to both pipes at the same instant have no recoverable order.
     """
     streams = {"stdout": stdout_stream, "stderr": stderr_stream}
     states = {
@@ -450,8 +426,7 @@ def __finalize_stream(
 
 
 def kill_pid(pid: int, print_method: Callable[..., None] | None = None):
-    """
-    Kill a process and its children given the parent process ID.
+    """Kill a process and its children given the parent process ID.
 
     Args:
         pid (int): The process ID of the parent process.

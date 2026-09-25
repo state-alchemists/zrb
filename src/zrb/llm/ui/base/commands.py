@@ -45,8 +45,6 @@ class BaseUICommands:
         self._conversation = BaseUIConversationCommands(base_ui)
         self._models = BaseUIModelCommands(base_ui)
         self._exec = BaseUIExecCommands(base_ui)
-        # Dispatcher-private (not `BaseUI` state): nothing outside
-        # schedule_command / dispatch_command reads or writes this.
         self._command_in_flight = False
 
     @property
@@ -87,74 +85,24 @@ class BaseUICommands:
             (base_ui.handle_btw_command, base_ui.btw_commands, True, True),
             (base_ui.handle_toggle_plan, base_ui.plan_commands, True, True),
             # prefix=True: `/yolo` toggles, `/yolo Write,Edit` sets selective yolo.
-            (
-                base_ui.handle_toggle_yolo,
-                base_ui.yolo_toggle_commands,
-                True,
-                True,
-            ),
+            (base_ui.handle_toggle_yolo, base_ui.yolo_toggle_commands, True, True),
             (base_ui.handle_toggle_voice, base_ui.voice_commands, False, True),
-            (
-                base_ui.handle_exit_command,
-                base_ui.exit_commands,
-                False,
-                False,
-            ),
-            (
-                base_ui.handle_info_command,
-                base_ui.info_commands,
-                False,
-                False,
-            ),
-            (
-                base_ui.handle_save_command,
-                base_ui.save_commands,
-                True,
-                False,
-            ),
-            (
-                base_ui.handle_load_command,
-                base_ui.load_commands,
-                True,
-                False,
-            ),
-            (
-                base_ui.handle_rewind_command,
-                base_ui.rewind_commands,
-                True,
-                False,
-            ),
+            (base_ui.handle_exit_command, base_ui.exit_commands, False, False),
+            (base_ui.handle_info_command, base_ui.info_commands, False, False),
+            (base_ui.handle_save_command, base_ui.save_commands, True, False),
+            (base_ui.handle_load_command, base_ui.load_commands, True, False),
+            (base_ui.handle_rewind_command, base_ui.rewind_commands, True, False),
             (
                 base_ui.handle_redirect_command,
                 base_ui.redirect_output_commands,
                 True,
                 False,
             ),
-            (
-                base_ui.handle_attach_command,
-                base_ui.attach_commands,
-                True,
-                False,
-            ),
-            (
-                base_ui.handle_photo_command,
-                base_ui.photo_commands,
-                True,
-                False,
-            ),
-            (
-                base_ui.handle_set_model_command,
-                base_ui.set_model_commands,
-                True,
-                False,
-            ),
+            (base_ui.handle_attach_command, base_ui.attach_commands, True, False),
+            (base_ui.handle_photo_command, base_ui.photo_commands, True, False),
+            (base_ui.handle_set_model_command, base_ui.set_model_commands, True, False),
             (base_ui.handle_exec_command, base_ui.exec_commands, True, False),
-            (
-                base_ui.handle_copy_command,
-                base_ui.copy_commands,
-                True,
-                False,
-            ),
+            (base_ui.handle_copy_command, base_ui.copy_commands, True, False),
         ]
 
     def classify_input(self, text: str) -> str:
@@ -187,16 +135,13 @@ class BaseUICommands:
         command. Scheduling is required because the PreCommand hook is async and
         may block the command.
 
-        Guarded dispatch is serialized: ``main`` ran commands synchronously, so
-        each finished before the next began. A single in-flight guarded command
-        is allowed; a second is rejected (rather than racing a prior `/save`,
-        `/load`, or `/exit`). The flag is set synchronously — before the task is
-        created — so the single-threaded event loop cannot slip a second command
-        through the gap.
+        Guarded dispatch is serialized: a second guarded command is rejected
+        while one is in flight, rather than racing a prior `/save`, `/load`, or
+        `/exit`. The flag is set before the task is created, so the event loop
+        cannot slip a second command through the gap.
 
-        ``guarded=False`` is used for run-while-thinking commands (`/btw`, YOLO
-        toggle): like ``main``, they run independently and are neither blocked
-        by an in-flight command nor block one.
+        ``guarded=False`` is for run-while-thinking commands (`/btw`, YOLO
+        toggle), which neither wait for nor block an in-flight command.
         """
         base_ui = self._base_ui
         if guarded:
@@ -209,9 +154,7 @@ class BaseUICommands:
                 )
                 return
             self._command_in_flight = True
-        # Through `self._base_ui` (not bare `self`): `dispatch_command` is also a
-        # `BaseUI` delegator, and patching `ui.dispatch_command` directly (as
-        # tests do) must be honored here too.
+        # Via `base_ui` so a patched `ui.dispatch_command` is honored.
         task = asyncio.create_task(base_ui.dispatch_command(text, guarded=guarded))
         base_ui.background_tasks.add(task)
         task.add_done_callback(self._on_command_done)
@@ -302,14 +245,10 @@ class BaseUICommands:
                 return True
         return self._base_ui.handle_custom_command(text)
 
-    # --- conversation commands (delegate to `self._conversation`) --------
+    # --- delegators to the handler parts ---------------------------------
 
     async def submit_photo(self, device: str | None) -> None:
         await self._conversation.submit_photo(device)
-
-    # --- model commands (delegate to `self._models`) ----------------------
-
-    # --- exec commands (delegate to `self._exec`) --------------------------
 
     async def run_shell_command(self, cmd: str) -> None:
         await self._exec.run_shell_command(cmd)
@@ -399,7 +338,7 @@ class BaseUICommands:
         raw_lines: list[tuple[str, str]] = []
 
         def add_cmd_help(commands: list[str], description: str):
-            if commands and len(commands) > 0:
+            if commands:
                 cmd = commands[0]
                 raw_lines.append((cmd, description.replace("{cmd}", cmd)))
 
@@ -481,8 +420,7 @@ def _voice_auto_enabled_by_vosk() -> bool:
         return False
     if CFG.is_env_set("LLM_VOICE_MODE"):
         return False
-    # lazy: tests patch zrb.llm.voice.engine.vosk_installed; hoisting would
-    # bind the name at this module's load time and bypass the mock.
+    # lazy: tests patch zrb.llm.voice.engine.vosk_installed; hoisting bypasses the mock
     from zrb.llm.voice.engine import vosk_installed
 
     return vosk_installed()

@@ -84,12 +84,9 @@ llm_chat = LLMChatTask(
     ),
 )
 
-# Give the singleton the zrb-shipped default tools, factories, and guidance.
-# `apply_common_tools` is storage-only — it appends per-run providers the
-# host's build-time resolution runs against a fresh list, so nothing resolves
-# (and the transitively-imported `pydantic_ai` does not load) until the first
-# exec / agent build. `sub_agent_manager` opts in the same way at the bottom
-# of `zrb/llm/agent/subagent/manager.py`, so both share the tool surface.
+# The zrb-shipped default tools. Storage-only: nothing resolves (and
+# `pydantic_ai` does not load) until the first agent build.
+# `sub_agent_manager` opts in the same way, so both share the tool surface.
 apply_common_tools(llm_chat)
 
 
@@ -108,12 +105,8 @@ def _tool_factory(tool, defer_loading: bool = True):
     return Tool(tool, defer_loading=defer_loading)
 
 
-# Delegate tools — main agent only. Sub-agents filter these out via
-# `zrb_is_delegate_tool` (see SubAgentManager.create_agent). The when-to-
-# delegate judgment lives in the workflow's `Delegating to sub-agents`
-# section; the how (roster, envelope) lives in these docstrings. The `minimal`
-# profile drops delegation entirely (ADR-0049), so the roster schema and the
-# fan-out machinery never reach a ~3B model.
+# Delegate tools, main agent only (sub-agents filter on
+# `zrb_is_delegate_tool`). The `minimal` profile drops delegation (ADR-0049).
 def _delegate_tool_factory(ctx):
     # Resolve from this run's model rather than CFG.LLM_MODEL: ``/model`` and
     # the task's ``model=`` override can select a small model while the global
@@ -142,10 +135,8 @@ llm_chat.prepend_argument_formatter(replace_in_file_formatter, write_file_format
 # Add response handler (update tool)
 llm_chat.prepend_response_handler(replace_in_file_response_handler)
 
-# Add tool policies (automatically approve/disprove tool calling).
-# These also propagate to sub-agent tool calls via the
-# `current_tool_confirmation` ContextVar set by `run_agent` — see the
-# `_confirm_tool_execution` chain in `zrb.llm.ui.base.ui`.
+# Tool approval policies; sub-agents inherit them via the
+# `current_tool_confirmation` ContextVar.
 llm_chat.prepend_tool_policy(
     # bash_safe_command_policy is registered by apply_common_tools, alongside the
     # shell tools it guards.
@@ -170,20 +161,15 @@ llm_chat.prepend_tool_policy(
     auto_approve("RM", approve_if_path_inside_journal_dir),
     auto_approve("MV", approve_if_mv_inside_journal_dir),
     auto_approve("SearchJournal"),
-    # The journal writers cannot address anything outside CFG.LLM_JOURNAL_DIR —
-    # they derive every path themselves — so there is nothing for the user to
-    # adjudicate, and prompting would make recording memory expensive enough to
-    # skip.
+    # Journal writers derive every path inside CFG.LLM_JOURNAL_DIR, so there
+    # is nothing to adjudicate, and prompting would discourage recording.
     auto_approve("LogActivity"),
     auto_approve("WriteJournalNote"),
     auto_approve("WebSearch"),
     auto_approve("WebFetch"),
     auto_approve("ActivateSkill"),
     auto_approve("SearchSkill"),
-    # AskUserQuestion is auto-approved intrinsically (it registers itself via
-    # register_always_auto_approve in zrb.llm.tool.ask), so the cascade approves
-    # it in every path — main agent, sub-agents, web — not just here. See
-    # ADR-0062. No entry needed in this list.
+    # AskUserQuestion auto-approves itself everywhere (ADR-0062).
     auto_approve("DelegateToAgent"),
     # Roster search is metadata — it finds delegation targets, it does not
     # delegate — so it prompts nothing; the sub-agent's own tool calls still
@@ -195,12 +181,9 @@ llm_chat.prepend_tool_policy(
     auto_approve("GetDelegationResult"),
     # EnterPlanMode only restricts the model further, safe to auto-approve.
     auto_approve("EnterPlanMode"),
-    # ExitPlanMode switches from PLAN to BUILD — requires user confirmation
-    # via the permission policy (PLAN_MODE_POLICY sets it to ASK) so the user
-    # must approve the plan before execution resumes.
-    # MonitorProcess is read-only (poll/wait); kill still routes through the user.
-    # Starting a background command goes through Shell (background=True), which
-    # is gated by bash_safe_command_policy like any other shell call.
+    # ExitPlanMode is absent: PLAN_MODE_POLICY asks, so the user approves the
+    # plan. MonitorProcess only polls/waits; kill still asks, and starting a
+    # background command goes through Shell's policy.
     auto_approve("MonitorProcess"),
     # LSP tools - read-only, safe to auto-approve
     auto_approve("LspFindDefinition"),

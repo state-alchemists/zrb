@@ -2,9 +2,9 @@
 
 # LLM & Rate Limiter Configuration
 
-Zrb uses `pydantic-ai` to interface with a wide array of Large Language Models, granting out-of-the-box compatibility with OpenAI, Anthropic, Google Vertex, Ollama, DeepSeek, and more. This document provides an exhaustive list of environment variables to configure Zrb's AI features.
+Zrb talks to LLMs through `pydantic-ai`, so OpenAI, Anthropic, Google Vertex, Ollama, DeepSeek and more work out of the box. This page lists every environment variable for Zrb's AI features.
 
-`Model`, `ModelSettings`, and the pydantic-ai `capabilities` list accepted by `LLMTask`/`LLMChatTask` (see [Model, Model Settings & Capabilities](../task-types/llmchat-task.md#model-model-settings--capabilities)) are pydantic-ai's own types, passed through unchanged — for what each provider's `Model`/`ModelSettings` actually accept, [pydantic-ai's documentation](https://ai.pydantic.dev) is the source of truth. This page covers the zrb-side knobs layered on top: routing, credentials, rate limits, and the defaults zrb applies before handing settings to pydantic-ai.
+`Model`, `ModelSettings`, and the `capabilities` list accepted by `LLMTask`/`LLMChatTask` (see [Model, Model Settings & Capabilities](../task-types/llmchat-task.md#model-model-settings--capabilities)) are pydantic-ai's own types, passed through unchanged; [pydantic-ai's documentation](https://ai.pydantic.dev) is the source of truth for what each provider accepts. This page covers the zrb-side knobs on top: routing, credentials, rate limits, and the defaults zrb applies first.
 
 ---
 
@@ -38,8 +38,6 @@ Zrb uses `pydantic-ai` to interface with a wide array of Large Language Models, 
 
 ## 1. Core LLM Routing
 
-These variables define which LLM Zrb uses for its primary reasoning and how it connects to the provider.
-
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_LLM_MODEL` | Primary LLM model (`provider:model-name`) | `openai:gpt-5.6-luna` (if unset) |
@@ -49,17 +47,15 @@ These variables define which LLM Zrb uses for its primary reasoning and how it c
 | `ZRB_LLM_BASE_URL` | Custom endpoint URL | None |
 | `ZRB_LLM_PROVIDER` | Explicit pydantic-ai provider name or object override — normally inferred from `ZRB_LLM_MODEL`'s `provider:` prefix, or from `ZRB_LLM_API_KEY`/`ZRB_LLM_BASE_URL` being set | None (inferred) |
 | `ZRB_LLM_PERMISSIONS` | Tool permission ruleset. Empty keeps legacy yolo behavior. Accepts a shorthand (`allow`/`ask`/`deny`) or a comma-separated `key:action` list (e.g. `edit:deny,Shell:ask,*:allow`). First match wins. | (empty) |
-| `ZRB_LLM_THINKING` | Cross-provider reasoning/thinking level — `minimal`/`low`/`medium`/`high`/`xhigh` for a specific effort, or `true`/`false` to enable/disable at the provider's default effort. Maps to pydantic-ai's unified `ModelSettings.thinking`, so it applies across OpenAI/Anthropic/Google/etc. without a per-provider setting. A provider-specific setting passed via a task's own `model_settings` (e.g. `openai_reasoning_effort`) still wins over this. | (unset — provider default) |
+| `ZRB_LLM_THINKING` | Cross-provider reasoning level: `minimal`/`low`/`medium`/`high`/`xhigh`, or `true`/`false` to toggle at the provider's default effort. Maps to pydantic-ai's unified `ModelSettings.thinking`. A provider-specific key in a task's `model_settings` (e.g. `openai_reasoning_effort`) wins over it. | (unset — provider default) |
 
-Every agent also gets `openai_reasoning_summary="auto"` and `openai_prompt_cache_retention="24h"` by default (silently ignored by non-OpenAI providers) — without a requested summary, OpenAI's reasoning models return only an opaque encrypted signature, no readable reasoning text at all. Override either, or add other OpenAI-specific settings (`openai_prompt_cache_key`, `openai_reasoning_effort`, …), via a task's own `model_settings=` — caller-supplied keys always win over these defaults.
+Every agent also defaults to `openai_reasoning_summary="auto"` and `openai_prompt_cache_retention="24h"` (ignored by non-OpenAI providers); without a requested summary, OpenAI reasoning models return only an encrypted signature, no readable reasoning. Override these or add other keys (`openai_prompt_cache_key`, `openai_reasoning_effort`, …) via a task's `model_settings=` — caller keys always win.
 
 ### Which API Key Gets Used
 
-`ZRB_LLM_API_KEY` is a key **for one provider**: the one `ZRB_LLM_PROVIDER` names, or failing that the `provider:` prefix on `ZRB_LLM_MODEL`. It reaches a model whose prefix matches and is withheld from one that does not, so `ZRB_LLM_SMALL_MODEL=anthropic:…` beside `ZRB_LLM_MODEL=openai:…` falls back to `ANTHROPIC_API_KEY` instead of 401-ing on an OpenAI key.
-
-`ZRB_LLM_BASE_URL` overrides that scoping. Pointing zrb at one endpoint says that endpoint serves every tier — the LiteLLM / OpenRouter gateway case — so the key travels with the URL regardless of prefix.
-
-A **bare model name takes its vendor from `ZRB_LLM_PROVIDER`**, and is then treated exactly like the prefixed form. `ZRB_LLM_PROVIDER=anthropic` with `ZRB_LLM_MODEL=claude-sonnet-4-5` resolves to Anthropic and receives your `ZRB_LLM_API_KEY` and `ZRB_LLM_BASE_URL`, just as `anthropic:claude-sonnet-4-5` would. The tables below leave `ZRB_LLM_PROVIDER` unset, so the vendor comes from the prefix in every row.
+- `ZRB_LLM_API_KEY` is a key **for one provider**: the one `ZRB_LLM_PROVIDER` names, else the `provider:` prefix on `ZRB_LLM_MODEL`. A model with a different prefix does not get it, so `ZRB_LLM_SMALL_MODEL=anthropic:…` beside `ZRB_LLM_MODEL=openai:…` falls back to `ANTHROPIC_API_KEY` instead of 401-ing on an OpenAI key.
+- `ZRB_LLM_BASE_URL` overrides that scoping: one endpoint serves every tier (the LiteLLM / OpenRouter gateway case), so the key travels with the URL regardless of prefix.
+- A **bare model name takes its vendor from `ZRB_LLM_PROVIDER`** and is then treated exactly like the prefixed form: `ZRB_LLM_PROVIDER=anthropic` + `ZRB_LLM_MODEL=claude-sonnet-4-5` behaves like `anthropic:claude-sonnet-4-5`. The tables below leave `ZRB_LLM_PROVIDER` unset, so the vendor comes from the prefix.
 
 ```mermaid
 flowchart TD
@@ -111,15 +107,15 @@ In the tables below, ✅ means set, — means unset, and *any* means the variabl
 | ✅ | — | ✅ | `api.deepseek.com` | `DEEPSEEK_API_KEY` | key withheld, vendor variable fills in |
 | ✅ | ✅ | *any* | your URL | `ZRB_LLM_API_KEY` | base URL disables withholding |
 
-> ⚠️ **A base URL with no key configured anywhere sends an unauthenticated request.** The client carries the literal placeholder `api-key-not-set` and no error is raised until the endpoint rejects it. That is deliberate — a local Ollama or LiteLLM instance often needs no key — but against an endpoint that does check, the failure arrives as a 401 rather than a configuration error.
+> ⚠️ **A base URL with no key anywhere sends an unauthenticated request** carrying the placeholder `api-key-not-set`. That is deliberate (local Ollama or LiteLLM often needs no key), but an endpoint that checks answers with a 401, not a configuration error.
 
-> ⚠️ **A withheld key is not mentioned in the error.** Rows 4 and 5 above report "set `DEEPSEEK_API_KEY`" without saying that `ZRB_LLM_API_KEY` was deliberately skipped because it belongs to a different provider. Set the vendor's own variable for the second vendor, or set `ZRB_LLM_BASE_URL` if one endpoint really does serve both.
+> ⚠️ **A withheld key is not mentioned in the error.** Rows 4 and 5 above say "set `DEEPSEEK_API_KEY`" without noting `ZRB_LLM_API_KEY` was skipped as another provider's key. Set the second vendor's own variable, or set `ZRB_LLM_BASE_URL` if one endpoint serves both.
 
 See [ADR-0094](../adr/adr-0094.md) for why credentials are scoped this way rather than injected everywhere.
 
 ### Supported Providers
 
-Anything `ZRB_LLM_MODEL` names as `provider:model` is resolved by pydantic-ai, so every provider it ships works in zrb without registration. Providers that speak the OpenAI wire protocol need no extra at all — `openai` is a core zrb dependency. The rest bring their own vendor SDK.
+pydantic-ai resolves any `provider:model` in `ZRB_LLM_MODEL`, so every provider it ships works without registration. OpenAI-protocol providers need no extra (`openai` is a core dependency); the rest need their vendor SDK.
 
 **No extra needed** (OpenAI-compatible, or SDK-free):
 
@@ -159,22 +155,22 @@ Anything `ZRB_LLM_MODEL` names as `provider:model` is resolved by pydantic-ai, s
 | Cohere | `cohere:command-r-plus` | `zrb[cohere]` | `CO_API_KEY` |
 | Hugging Face | `huggingface:…` | `zrb[huggingface]` | `HF_TOKEN` |
 
-> 💡 **Google Vertex auth extra:** Vertex AI (as opposed to the plain Gemini API) additionally needs the `vertexai` extra (`google-auth`, `pyasn1`) for its authentication flow — `pipx install "zrb[google,vertexai]"`.
-
-> 💡 **Any OpenAI-compatible endpoint** that is not in the list works through `ZRB_LLM_BASE_URL` + `ZRB_LLM_API_KEY` with a bare model name (no `provider:` prefix) — that is the path a self-hosted vLLM, LM Studio, or company gateway takes.
-
-> 💡 **Add extras after install:** If zrb is already installed via pipx, use `pipx inject zrb "zrb[anthropic]"` (or whichever extra you need) instead of reinstalling.
+> 💡 **Google Vertex** (unlike the plain Gemini API) also needs the `vertexai` extra (`google-auth`, `pyasn1`) for auth: `pipx install "zrb[google,vertexai]"`.
+>
+> 💡 **Any other OpenAI-compatible endpoint** (self-hosted vLLM, LM Studio, a company gateway) works via `ZRB_LLM_BASE_URL` + `ZRB_LLM_API_KEY` and a bare model name (no `provider:` prefix).
+>
+> 💡 **Adding an extra to a pipx install:** `pipx inject zrb "zrb[anthropic]"` instead of reinstalling.
 
 ### Python API: Model Getter & Renderer
 
-For advanced scenarios — model tiering, A/B routing, or custom provider wrapping — `LLMTask`/`LLMChatTask` expose two settable callable hooks, applied in sequence to the task's own model right before it is handed to the agent:
+For model tiering, A/B routing, or custom provider wrapping, `LLMTask`/`LLMChatTask` expose two callable hooks, applied in order to the task's model just before it reaches the agent:
 
 | Property | Receives | Returns | Purpose |
 |----------|----------|---------|---------|
 | `model_getter` | Base model (`str \| Model`) | Active model | Decide which model to actually use per request (e.g., tier switching, A/B testing) |
 | `model_renderer` | Active model | Final pydantic-ai model | Wrap the model into a pydantic-ai `Model` object or translate tier names to real model strings |
 
-These are task-scoped — they only affect the one task they're set on. Set them per task:
+They affect only the task they are set on:
 
 ```python
 from zrb import LLMChatTask
@@ -196,7 +192,7 @@ task = LLMChatTask(
 
 #### Global fallback: `model_resolver.model_getter` / `model_renderer`
 
-A task-level hook only reaches that task's own agent. Sub-agent delegation (`DelegateToAgent`), the summarizer, and any other internal agent zrb builds have no task of their own to set a hook on — they resolve `CFG.LLM_*` directly via `zrb.llm.config.model_resolver.resolve_configured_model()` (and its `_small`/`_multimodal` siblings). For a hook that reaches those too, set the same pair on the `model_resolver` singleton instead — once, for the whole process:
+Sub-agent delegation (`DelegateToAgent`), the summarizer, and other internal agents have no task to hook — they resolve `CFG.LLM_*` via `zrb.llm.config.model_resolver.resolve_configured_model()` (and its `_small`/`_multimodal` siblings). To reach them too, set the pair once on the `model_resolver` singleton:
 
 ```python
 from zrb.llm.config.model_resolver import model_resolver
@@ -205,13 +201,13 @@ model_resolver.model_getter = my_model_getter
 model_resolver.model_renderer = my_renderer
 ```
 
-This is applied inside `resolve_configured_model()`/`resolve_configured_small_model()`/`resolve_configured_multimodal_model()`, so it covers the main chat task, every `LLMTask`/`LLMChatTask` that doesn't set its own model, *and* sub-agent delegation. A task's own `model_getter`/`model_renderer`, when set, still applies on top of (after) this global default for that task specifically — set only the global pair unless a particular task genuinely needs to override it.
+It applies inside `resolve_configured_model()`/`resolve_configured_small_model()`/`resolve_configured_multimodal_model()`, covering the main chat task, every `LLMTask`/`LLMChatTask` without its own model, and sub-agent delegation. A task's own `model_getter`/`model_renderer` still runs after the global pair for that task; set only the global pair unless a task needs to override it.
 
 ---
 
 ## 2. Rate Limiting & Token Budgets
 
-To prevent runaway AI loops, manage API costs, and stay within provider limits, Zrb enforces strict, configurable rate limits and token budgets.
+Rate limits and token budgets guard against runaway loops, cost, and provider limits.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -227,7 +223,7 @@ To prevent runaway AI loops, manage API costs, and stay within provider limits, 
 
 ## 3. Summarization Thresholds
 
-Zrb automatically triggers background summarization agents when conversation history or individual message sizes grow too large.
+Zrb summarizes in the background when history or a single message grows too large.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -235,7 +231,7 @@ Zrb automatically triggers background summarization agents when conversation his
 | `ZRB_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD` | Token count triggering individual message summarization | 50% of conversational threshold |
 | `ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW` | Recent messages to keep verbatim | `100` |
 
-The same mechanism guards repository- and file-analysis tools so a single large read can't blow the context window. Each is clamped to a fraction of `MAX_TOKEN_PER_REQUEST`:
+The same mechanism keeps one large repo or file read from blowing the context window; each threshold is clamped to a fraction of `MAX_TOKEN_PER_REQUEST`:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -246,8 +242,6 @@ The same mechanism guards repository- and file-analysis tools so a single large 
 ---
 
 ## 4. System Prompts & Identity
-
-You can heavily customize the LLM's behavior and identity by overriding its system prompts.
 
 ### Identity Variables
 
@@ -260,7 +254,7 @@ You can heavily customize the LLM's behavior and identity by overriding its syst
 
 ### Prompt Customization Hierarchy
 
-Zrb loads prompts with a multi-level override system (first found wins):
+First found wins:
 
 | Priority | Location | Description |
 |----------|----------|-------------|
@@ -285,7 +279,7 @@ Zrb loads prompts with a multi-level override system (first found wins):
 
 ### Prompt Component Configuration
 
-The system prompt is assembled from an **ordered list of sections**. The list is read from `ZRB_LLM_INCLUDE_SECTIONS` (comma-separated). Order in the list controls the order each section appears in the prompt — drop a section by removing its name; reorder by rewriting the list.
+The system prompt is an **ordered list of sections** read from `ZRB_LLM_INCLUDE_SECTIONS` (comma-separated). Remove a name to drop a section; rewrite the list to reorder.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -304,11 +298,11 @@ Recognised section names:
 | `system_context` | Stable runtime facts (OS / CWD / model / detected tools) |
 | `project_context` | Project docs (`AGENTS.md`, `CLAUDE.md`, `README.md`, …) |
 
-> The skill catalogue (core skills, other available skills, and active-skill contents) is part of the `workflow` section, injected via `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders — it is not a separate section. Each list is capped by `LLM_MAX_SKILLS_IN_CATALOG`; an overflow is truncated with a pointer to the `SearchSkill` tool, which finds any skill on demand.
->
-> Per-tool rules are not a section either: they live in each tool's docstring, which ships with the tool schema on every request (ADR-0045).
+Three things are **not** sections:
 
-> Volatile per-turn state (time, git status, todos, worktree, interactivity) is **not** a section — it is injected into the latest user turn as a `<live-context>` block so the cached system prompt stays byte-stable.
+- **The skill catalogue** (core skills, available skills, active-skill contents) is part of `workflow`, via the `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders. Each list is capped by `LLM_MAX_SKILLS_IN_CATALOG`, with overflow pointing to the `SearchSkill` tool.
+- **Per-tool rules** live in each tool's docstring, shipped with its schema on every request (ADR-0045).
+- **Volatile per-turn state** (time, git status, todos, worktree, interactivity) is injected into the latest user turn as a `<live-context>` block, so the cached system prompt stays byte-stable.
 
 Examples:
 
@@ -320,13 +314,13 @@ export ZRB_LLM_INCLUDE_SECTIONS="persona,workflow,system_context"
 export ZRB_LLM_INCLUDE_SECTIONS="persona"
 ```
 
-To toggle a single section programmatically, mutate `CFG.LLM_INCLUDE_SECTIONS` directly (it is a `list[str]`).
+To toggle a section programmatically, mutate `CFG.LLM_INCLUDE_SECTIONS` (a `list[str]`).
 
-These are the **built-in** sections. A name that is not one of them resolves to nothing: a warning is logged at compose time, and the section is skipped — so a misspelled name is diagnosable rather than silently dropped. There are no user-defined system-prompt sections; for extra content see [Programmatic Prompt Customization](#programmatic-prompt-customization) below.
+The section set is fixed: an unknown (e.g. misspelled) name logs a warning at compose time and is skipped. For extra content, see [Programmatic Prompt Customization](#programmatic-prompt-customization).
 
 ### Prompt Profile (matching the prompt to the model)
 
-`ZRB_LLM_INCLUDE_SECTIONS` controls *which* sections appear. `ZRB_LLM_PROFILE` selects one of three profiles — `minimal`, `standard`, or `capable` — that adjust the final `profile` section, and for `minimal` only, drop the delegate (sub-agent) tools (ADR-0049).
+`ZRB_LLM_PROFILE` picks `minimal`, `standard`, or `capable`, which sets the `profile` section and, for `minimal` only, drops the delegate (sub-agent) tools (ADR-0049).
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -338,9 +332,9 @@ These are the **built-in** sections. A name that is not one of them resolves to 
 | `standard` | `profile.standard.md` — balance autonomy with clear communication | registered |
 | `capable` | `profile.capable.md` — strong ownership of substantial work | registered |
 
-A profile selects exactly one file, `profile.{name}.md`, composed as the `profile` section. It does **not** change the `persona` / `principle` / `workflow` / `example` sections (they ship the same wording for every profile) or any other tool. `minimal` is for very small models (~3B): delegating to a sub-agent is a second-order capability such a model cannot use well and is pure token cost otherwise (ADR-0058), so the built-in chat task registers the delegate tools only outside `minimal`.
+A profile changes only the `profile` section — not `persona` / `principle` / `workflow` / `example` or any other tool. `minimal` targets very small models (~3B), which cannot use delegation well, so the delegate tools would be pure token cost (ADR-0058).
 
-`auto` — the value that delegates the choice to the model id — never guesses from a family name (`deepseek`, `qwen`, `llama` each span tiny→frontier). It reads a **stated size**:
+`auto` derives the profile from the model id. It never guesses from a family name (`deepseek`, `qwen`, `llama` each span tiny→frontier); it reads a **stated size**:
 
 | Profile | `auto` selects it when |
 |---------|------------------------|
@@ -348,9 +342,10 @@ A profile selects exactly one file, `profile.{name}.md`, composed as the `profil
 | `standard` | a stated count above 4B and up to 14B — `qwen3-12b`, `llama-3-8b`; or an id that declares nothing |
 | `capable` | a stated count above 14B — `llama-3-70b`, `llama-3.1-405b` |
 
-The count is read as a **number**, so a fractional size means what it says: `1.5b` is 1.5B, not 5B. Where an id states two counts the first wins, which is how an MoE id reads as its total rather than its active parameters (`qwen3-30b-a3b` → 30B → `capable`). A stated count also outranks a label, so `some-mini-32b` stays `capable`.
-
-A label **alone** never selects `minimal`, because `nano`/`tiny` sit on models (`gpt-5-nano`) far more capable than a 3B local one. A label plus a **local provider prefix** does: `ollama:`, `lmstudio:`, `llamacpp:` and `localai:` say who is serving the model, and `ollama:phi4-mini` is 3.8B of weights on a laptop where `openai:gpt-5-nano` is the entry tier of a hosted family. Ollama's own hosted tier is excluded by its `:cloud` suffix, so `ollama:kimi-k2.6:cloud` stays `standard`.
+- The count is a **number**: `1.5b` is 1.5B, not 5B.
+- With two counts the first wins, so an MoE id reads as its total parameters (`qwen3-30b-a3b` → 30B → `capable`).
+- A count outranks a label: `some-mini-32b` stays `capable`.
+- A label **alone** never selects `minimal` — `nano`/`tiny` also name hosted models (`gpt-5-nano`) far stronger than a local 3B. It does with a **local provider prefix** (`ollama:`, `lmstudio:`, `llamacpp:`, `localai:`), e.g. `ollama:phi4-mini` (3.8B on a laptop). Ollama's hosted `:cloud` suffix is excluded, so `ollama:kimi-k2.6:cloud` stays `standard`.
 
 Force a profile globally:
 
@@ -358,13 +353,13 @@ Force a profile globally:
 export ZRB_LLM_PROFILE=minimal
 ```
 
-An explicit name is **stable**: it never changes with the model. Only `auto` follows the model, so a model swap cannot silently change behavior in a configuration that names a profile. An unrecognized `ZRB_LLM_PROFILE` value falls through to the default (`standard`), keeping a stale environment value from breaking prompt construction.
+An explicit name never changes with the model; only `auto` does. An unrecognized value falls back to `standard` rather than breaking prompt construction.
 
 ### Programmatic Prompt Customization
 
-Beyond editing prompt files and env vars, each task exposes its `PromptManager` via the public `task.prompt_manager` property. It offers three programmatic ways to shape the system prompt, in increasing power. The same API exists at registry scope: `prompt_registry.set_prompts` / `append_prompt` from `zrb_init.py` changes the **default every** task starts from (`PromptManager(prompts=None)` defers there), and a task-level `prompts=` argument or mutation overrides just that host. Every layer's append/remove ops layer over the one below without freezing it — see [LLM Component Collections](./llm-collections.md) for the layering model.
+Each task exposes its `PromptManager` as `task.prompt_manager`. The same API exists at registry scope: `prompt_registry.set_prompts` / `append_prompt` in `zrb_init.py` changes the default **every** task starts from (`PromptManager(prompts=None)` defers there); a task's `prompts=` argument or mutation overrides just that task. Each layer's append/remove ops stack on the one below — see [LLM Component Collections](./llm-collections.md). For a guided tour, see [Programming the Prompt](../llm/programming-the-prompt.md).
 
-**1. Append custom instructions** — `append_prompt()` adds content that is emitted **after** all built-in sections. Accepts a static string, a `Callable[[AnyContext], str]` for runtime-dynamic text, or a *full middleware* `Callable[[ctx, current_prompt, next], str]` that can rewrite the entire assembled prompt before passing it on (middleware is detected by arity — 3+ parameters):
+**1. Append custom instructions** — `append_prompt()` emits content **after** all built-in sections. It takes a static string, a `Callable[[AnyContext], str]`, or a *full middleware* `Callable[[ctx, current_prompt, next], str]` that can rewrite the whole assembled prompt (detected by arity — 3+ parameters):
 
 ```python
 from zrb import LLMChatTask
@@ -387,7 +382,7 @@ def strip_blank_lines(ctx, current_prompt, nxt):
 task.prompt_manager.append_prompt(strip_blank_lines)
 ```
 
-**2. Live per-turn context** — `add_live_context(name, provider)` registers a `Callable[[AnyContext], str]` whose non-empty output is appended to the `<live-context>` block injected into the latest user turn. Use it for always-on content that must reflect live state (time, git status, deploy target). Return `""` to emit nothing:
+**2. Live per-turn context** — `add_live_context(name, provider)` registers a `Callable[[AnyContext], str]` whose non-empty output joins the `<live-context>` block in the latest user turn — for content that must reflect live state (time, git status, deploy target). Return `""` to emit nothing:
 
 ```python
 task.prompt_manager.add_live_context(
@@ -396,48 +391,23 @@ task.prompt_manager.add_live_context(
 )
 ```
 
-A live-context provider is an extension point, so it must never take the prompt down with it: a provider that throws is logged and skipped. Re-registering the same *name* replaces the previous provider; `remove_live_context(name)` drops one, `get_live_contexts()` returns the `(name, provider)` pairs in registration order, and `set_live_contexts(pairs)` replaces the whole list wholesale.
+A provider that throws is logged and skipped. Re-registering a *name* replaces its provider; `remove_live_context(name)` drops one, `get_live_contexts()` returns `(name, provider)` pairs in registration order, and `set_live_contexts(pairs)` replaces the list.
 
-**3. Override a built-in prompt file** — wording ships as files, so the no-Python way to change it is to place a same-named file higher on the lookup path (project dir → `ZRB_LLM_PROMPT_<NAME>` → base dir → package; the overridable names are listed under [Overridable Prompts](#overridable-prompts)). For example, put `persona.md` in the directory `ZRB_LLM_PROMPT_DIR` points to and it replaces the packaged persona wording. A *new* name in `include_sections` does not resolve to a file — the built-in section set is fixed, and an unknown name is warned and skipped (ADR-0044).
+**3. Override a built-in prompt file** — place a same-named file higher on the [lookup path](#prompt-customization-hierarchy); e.g. `persona.md` in `ZRB_LLM_PROMPT_DIR` replaces the packaged persona. The names are under [Overridable Prompts](#overridable-prompts). A *new* name in `include_sections` resolves to nothing (ADR-0044).
 
 ### Telling the LLM about a custom tool
 
-What a tool does, what its arguments mean, and which tool to reach for instead all live in the tool's own **docstring** — pydantic-ai serializes it with the JSON schema on every request, so the model reads it next to the arguments it is filling in (ADR-0045):
-
-```python
-from zrb import LLMChatTask
-
-def check_stock(warehouse_id: str, sku: str) -> dict:
-    """Look up on-hand stock for one SKU in one warehouse.
-
-    Always pass warehouse_id — a lookup without it scans every site and times
-    out. An empty result means no stock on hand, not an error.
-    """
-    ...
-
-task = LLMChatTask(name="chat")
-task.append_tool(check_stock)
-```
-
-Note this relocates token cost rather than removing it: a docstring ships every turn, exactly as the guidance section did. The lever on prompt weight is the **number** of registered tools — use `Tool(fn, defer_loading=True)` for tools that are rarely needed, so their schema only materializes once the model searches for them.
-
-For cross-cutting policy that is not about any one tool, append it to the prompt instead (it lands after the built-in sections, before the user's first message):
-
-```python
-task.prompt_manager.append_prompt(
-    "## Inventory rules\n- Never quote stock without a warehouse."
-)
-```
+A tool's usage guidance belongs in its **docstring**, which pydantic-ai ships with its schema on every request (ADR-0045). Cross-cutting policy goes through `append_prompt()`. Rarely-needed tools can use `Tool(fn, defer_loading=True)` so their schema loads only once the model searches for them. Worked example: [Telling the LLM how to use a tool](../llm/extending-the-llm.md#telling-the-llm-how-to-use-a-tool).
 
 ### Restricting the toolbox (`ZRB_LLM_TOOLS`)
 
-`ZRB_LLM_TOOLS` is the env twin of `tool_registry` (ADR-0091): a **name allowlist** of static tools the agents may call. Empty (the default) means all built-in + registered tools; non-empty keeps only the named **static** ones.
+`ZRB_LLM_TOOLS` is the env twin of `tool_registry` (ADR-0091): a **name allowlist** of static tools. Empty (default) means all built-in + registered tools.
 
 ```bash
 export ZRB_LLM_TOOLS="Shell,Read,Write,Grep,Glob,TodoWrite"
 ```
 
-The names are the registered PascalCase tool names (the `Tool` column in [Built-in LLM Tools](../llm/extending-the-llm.md#built-in-llm-tools)). Per-run factory and toolset tools are not name-known statically, so the allowlist governs the static set only. Finer edits — add a custom tool, drop a shipped one — belong in `zrb_init.py` via `tool_registry`; see [LLM Component Collections](./llm-collections.md).
+Names are the PascalCase tool names (the `Tool` column in [Built-in LLM Tools](../llm/extending-the-llm.md#built-in-llm-tools)). Per-run factory and toolset tools have no static name, so they are not filtered. To add or drop individual tools, use `tool_registry` in `zrb_init.py`; see [LLM Component Collections](./llm-collections.md).
 
 ---
 
@@ -445,36 +415,42 @@ The names are the registered PascalCase tool names (the `Tool` column in [Built-
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_JOURNAL_ENABLED` | Master switch for the journal. `false` unregisters the three journal tools (`SearchJournal`, `LogActivity`, `WriteJournalNote`) and suppresses the `<journal-index>` injection. Those tools are the whole interface — there is no journal prompt section — so the model is never told a journal exists (ADR-0055). Note `ZRB_LLM_JOURNAL_DIR` has no "off" value: clearing it falls back to the default path rather than disabling anything | `on` |
+| `ZRB_LLM_JOURNAL_ENABLED` | Master switch. `false` unregisters the journal tools (`SearchJournal`, `LogActivity`, `WriteJournalNote`) and the `<journal-index>` injection; with no journal prompt section, the model never learns a journal exists (ADR-0055). Clearing `ZRB_LLM_JOURNAL_DIR` does not disable it — that falls back to the default path | `on` |
 | `ZRB_LLM_JOURNAL_DIR` | Long-term notes directory | `~/.zrb/llm-notes/` |
 | `ZRB_LLM_JOURNAL_INDEX_FILE` | Main index file name | `index.md` |
 | `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` | Max characters of the index injected into context. Overflow is dropped from the **end** on a line boundary, so write the index most-durable-first. `0` suppresses the injection; a negative value injects it uncapped | `2500` |
-| `ZRB_LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION` | Max `hud_line` entries kept per root-index HUD section (User, Preferences, Active Constraints); oldest evicted first so a stale preference doesn't sit in the always-injected index forever. `<= 0` disables the cap | `20` |
-| `ZRB_LLM_JOURNAL_AUTO_SEARCH_ENABLED` | Run one `SearchJournal` against the opening message on a session's first turn, folding any hits into the injected `<journal-index>` block under a separate, unverified "Possibly Related" section. Costs one extra search subprocess, once per session | `on` |
+| `ZRB_LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION` | Max `hud_line` entries per root-index HUD section (User, Preferences, Active Constraints); oldest evicted first. `<= 0` disables the cap | `20` |
+| `ZRB_LLM_JOURNAL_AUTO_SEARCH_ENABLED` | On a session's first turn, run one `SearchJournal` against the opening message and fold hits into `<journal-index>` under an unverified "Possibly Related" section. Costs one search subprocess per session | `on` |
 | `ZRB_LLM_JOURNAL_AUTO_SEARCH_MAX_HITS` | Max `SearchJournal` hits folded into the first-turn auto-search | `3` |
-| `ZRB_LLM_JOURNAL_GIT_ENABLED` | Git-back the journal directory: `git init` on first use, and commit after every `LogActivity`/`WriteJournalNote`/`DeleteJournalNote` call. Gives the journal unbounded, diffable history and makes a delete or bad overwrite recoverable by a human outside the tools (the in-file History block only keeps the last 3 revisions). Best-effort — a missing `git` binary or a failed commit never breaks journaling, it just forgoes the commit | `on` |
-| `ZRB_LLM_SELF_REVIEW_ENABLED` | Built-in self-review Stop hook (ADR-0100). On a turn that changed files, a reviewer agent with a fresh context reads your working directory's diff since the turn started — every repository under it, nested ones and worktrees included; shell edits and mid-turn commits included, your earlier uncommitted work excluded — plus read-only code around it; a `Request changes` verdict extends the turn so the agent checks and fixes the findings before answering. Snapshots go to a private temporary git store, never your repository's `.git/objects`. Costs two snapshots per turn (at its start and at Stop) and one reviewer run per turn that changed files | `off` |
-| `ZRB_LLM_SELF_REVIEW_MAX_ROUNDS` | Consecutive blocking reviews allowed; after this many the turn ends. A review that lets the turn end resets the count | `2` |
-| `ZRB_LLM_SELF_REVIEW_MODEL` | Reviewer model. Empty uses the run's own model; a different model shares fewer of the author's blind spots | (empty) |
-| `ZRB_LLM_SELF_REVIEW_TIMEOUT` | Seconds one review may take. When it runs out the reviewer is cancelled — its model request included — and the turn ends unreviewed | `240` |
+| `ZRB_LLM_JOURNAL_GIT_ENABLED` | Git-back the journal directory: `git init` on first use, commit after every `LogActivity`/`WriteJournalNote`/`DeleteJournalNote`. Gives unbounded, diffable history, so a human can recover a delete or bad overwrite (the in-file History block keeps only 3 revisions). Best-effort: a missing `git` or failed commit only skips the commit | `on` |
+| `ZRB_LLM_SELF_REVIEW_ENABLED` | Built-in self-review Stop hook (ADR-0100). On a turn that changed files, a fresh-context reviewer reads the working directory's diff since the turn started (every repository under it, nested ones and worktrees included; shell edits and mid-turn commits included; earlier uncommitted work excluded) plus read-only surrounding code. A `Request changes` verdict extends the turn so the agent fixes the findings. Snapshots go to a private temporary git store, never your `.git/objects`. Costs two snapshots per turn (start and Stop) and one reviewer run per turn that changed files | `off` |
+| `ZRB_LLM_SELF_REVIEW_MAX_ROUNDS` | Consecutive blocking reviews before the turn ends anyway; a non-blocking review resets the count | `2` |
+| `ZRB_LLM_SELF_REVIEW_MODEL` | Reviewer model. Empty uses the run's model; a different model shares fewer blind spots | (empty) |
+| `ZRB_LLM_SELF_REVIEW_TIMEOUT` | Seconds per review. On timeout the reviewer (and its model request) is cancelled and the turn ends unreviewed | `240` |
 | `ZRB_LLM_HISTORY_DIR` | Conversation history directory | `~/.zrb/llm-history/` |
 | `ZRB_LLM_HISTORY_BACKUP_RETAIN` | Number of timestamped history backups to keep per conversation (`-1` = keep all, `0` = disable) | `3` |
-| `ZRB_LLM_SUBAGENT_HISTORY_RETAIN` | Max persisted delegated sub-agent sessions kept on disk across all agent types (`-1` = keep every one); the oldest are pruned on each new delegation. Every delegation writes a transcript under `ZRB_LLM_HISTORY_DIR/subagent/<agent-type>/` | `50` |
+| `ZRB_LLM_SUBAGENT_HISTORY_RETAIN` | Max sub-agent transcripts kept across all agent types (`-1` = keep all); oldest pruned on each new delegation. Transcripts live under `ZRB_LLM_HISTORY_DIR/subagent/<agent-type>/` | `50` |
 
 ---
 
 ## 6. Rewind & Snapshots
 
-Zrb can snapshot your working directory before each AI turn, letting you restore any previous state mid-session with `/rewind`.
+Before each AI turn, Zrb snapshots your working directory so `/rewind` can restore any earlier state mid-session.
 
 **How it works:**
 
-1. Before each AI response, Zrb records your working directory as a commit in a private git repository (`<ZRB_LLM_SNAPSHOT_DIR>/<directory-name>-<hash>.git`) whose work tree is that directory. Nothing is copied, and no repository's own history, index or objects are touched.
-2. Each git repository under the directory lists its own files, by its own `.gitignore` — nested clones, submodules, every repository in a folder of repositories, and a repository its parent ignores included. Files outside any repository are taken as they are, except common cache directories (`node_modules/`, `.venv/`, `__pycache__/`, …); so is a working directory its repository ignores, such as a scratch folder.
-3. Every conversation in a directory shares its repository, so unchanged files are stored once; each conversation keeps its own history (`refs/zrb/<conversation-name>-<hash>`). `/load` switches rewind to the loaded conversation's history, and `/save` copies the current history to the new name along with the chat.
-4. `/rewind` lists the current conversation's snapshots; `/rewind <n>` or `/rewind <sha>` restores both the filesystem and conversation history to the selected point.
+1. Each snapshot is a commit in a private git repository (`<ZRB_LLM_SNAPSHOT_DIR>/<directory-name>-<hash>.git`) whose work tree is your directory. Nothing is copied; no repository's own history, index or objects are touched. The first snapshot of a session runs in the background.
+2. Each git repository under the directory lists its files by its own `.gitignore` — nested clones, submodules, every repository in a folder of repositories, and a repository its parent ignores included. Files outside any repository (and a working directory its repository ignores, such as a scratch folder) are taken as they are, except common cache directories (`node_modules/`, `.venv/`, `__pycache__/`, …).
+3. Conversations in a directory share its repository, so unchanged files are stored once; each keeps its own history (`refs/zrb/<conversation-name>-<hash>`). `/load` switches rewind to the loaded conversation's history; `/save` copies the current history to the new name along with the chat.
+4. `/rewind` lists the current conversation's snapshots; `/rewind <n>` or `/rewind <sha>` restores both the filesystem and conversation history.
 
-> **Note:** Files a repository's `.gitignore` excludes — including ones it starts excluding after a snapshot — are neither snapshotted nor restored, so an edit to a gitignored `.env` is not rewound. A `.gitignore` outside any repository has no effect, as in git. Outside every repository, a directory may hold at most 5,000 files or 200 MB: past that — a chat started in `~`, say — rewind turns itself off for the session and says why when it starts and on `/rewind`; so does a `ZRB_LLM_SNAPSHOT_DIR` that is the working directory itself. Rewind restores files, nested repositories' files included; it never moves a repository's `HEAD` or branches. It removes a file only when the snapshot would have held it — never one that existed then but was ignored, or could not be read — never writes over a file it cannot read now, and leaves a repository created since the snapshot, such as a worktree or clone, as it is. When a file cannot be written — another program holds it open, or its folder is read-only — the rest are still restored, `/rewind` names what was left behind, and running the same `/rewind` again finishes the job. The first snapshot of a session runs in the background.
+**Limits and guarantees:**
+
+- Files a repository's `.gitignore` excludes (even ones excluded only after a snapshot) are neither snapshotted nor restored — an edit to a gitignored `.env` is not rewound. A `.gitignore` outside any repository has no effect, as in git.
+- Outside every repository, a directory may hold at most 5,000 files or 200 MB. Past that (e.g. a chat started in `~`), or when `ZRB_LLM_SNAPSHOT_DIR` is the working directory itself, rewind turns off for the session and says why at startup and on `/rewind`.
+- Rewind restores files, nested repositories' included, but never moves a repository's `HEAD` or branches, and leaves a repository created since the snapshot (a worktree or clone) alone.
+- It removes a file only if the snapshot would have held it (never one that was ignored or unreadable then), and never overwrites a file it cannot read now.
+- If a file cannot be written (held open, or read-only folder), the rest are still restored, `/rewind` names what was left behind, and re-running the same `/rewind` finishes the job.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -501,7 +477,7 @@ task = LLMChatTask(
 | `/rewind <n>` | Restore snapshot number `n` from the list (1-based) |
 | `/rewind <sha>` | Restore by full or partial SHA |
 
-Restore rewinds **both** the working directory files **and** the conversation history to the state captured at that snapshot, so the AI's context stays consistent with the restored files.
+Restoring rewinds **both** files and conversation history, so the AI's context matches the restored files.
 
 ### Snapshot store layout
 
@@ -525,7 +501,7 @@ flowchart LR
 
 ## 8. Model Autocomplete
 
-When using the `/model` command in LLM chat, Zrb provides autocomplete suggestions from different model sources. These variables control which sources appear in the suggestions.
+Which sources feed `/model` autocomplete in LLM chat:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -554,7 +530,7 @@ task = LLMChatTask(
 
 ## 9. RAG (Retrieval-Augmented Generation) Configuration
 
-For advanced RAG capabilities with vector databases like ChromaDB.
+For RAG with vector databases such as ChromaDB.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -569,7 +545,7 @@ For advanced RAG capabilities with vector databases like ChromaDB.
 
 ## 10. Search Engine Configuration
 
-These variables control which internet search engine Zrb's LLM tools use.
+Which internet search engine the LLM tools use.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -577,7 +553,7 @@ These variables control which internet search engine Zrb's LLM tools use.
 
 ### Google News RSS (Default)
 
-Free, no API key, no Docker required. Fetches results from Google News RSS feed. No additional configuration needed.
+Free; reads the Google News RSS feed. No API key, Docker, or configuration needed.
 
 ### SerpAPI (Google)
 
@@ -619,7 +595,7 @@ Free, no API key, no Docker required. Fetches results from Google News RSS feed.
 
 ## 12. Skill & Agent Search Configuration
 
-These variables control where Zrb searches for skills and agents, and whether the built-in ones are loaded.
+Where Zrb looks for skills and agents, and whether built-in ones load.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -670,13 +646,13 @@ flowchart LR
 
 ## 13. Timeout Configuration
 
-All timeout values are in **milliseconds** unless the row says otherwise. Divide by 1000 to convert to seconds.
+Values are in **milliseconds** unless the row says otherwise.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_LLM_SSE_KEEPALIVE_TIMEOUT` | How long to wait before sending an SSE keepalive ping (ms) | `60000` |
 | `ZRB_WEB_SHUTDOWN_TIMEOUT` | Graceful web server shutdown timeout (ms) | `10000` |
-| `ZRB_LLM_REQUEST_TIMEOUT` | Deadline for a single model request, applied to every agent (main, sub-agent, programmatic). Guards against a provider that accepts the connection and then stops sending, which no retry can detect. `0` disables. (ms) | `300000` |
+| `ZRB_LLM_REQUEST_TIMEOUT` | Deadline for one model request, for every agent (main, sub-agent, programmatic). Catches a provider that accepts the connection then stops sending, which no retry detects. `0` disables. (ms) | `300000` |
 | `ZRB_LLM_INPUT_QUEUE_TIMEOUT` | Polling interval for the chat input queue (ms) | `500` |
 | `ZRB_LLM_SHELL_KILL_WAIT_TIMEOUT` | Time to wait for a shell process to exit after SIGTERM before SIGKILL (ms) | `5000` |
 | `ZRB_LLM_BACKGROUND_WAIT_MAX` | Max time a single `GetDelegationResult`/`MonitorProcess` `wait=` call may block before returning "still running" (**seconds**, not ms) | `300` |
@@ -698,7 +674,7 @@ All interval and delay values are in **milliseconds**.
 | `ZRB_LLM_UI_LONG_STATUS_INTERVAL` | Interval for updating slow-changing info (CWD, git branch) in TUI (ms) | `60000` |
 | `ZRB_LLM_UI_REFRESH_INTERVAL` | Prompt-toolkit application refresh rate (ms) | `500` |
 | `ZRB_LLM_UI_FLUSH_INTERVAL` | How often buffered output is flushed to event-driven UIs (ms) | `500` |
-| `ZRB_LLM_UI_PASTE_MERGE_WINDOW` | Merge user messages submitted within this many milliseconds of the previous one into a single queued message — heals multi-line pastes that a terminal without bracketed paste splits into one submit per line (each line otherwise becomes its own LLM turn). `0` disables. | `100` |
+| `ZRB_LLM_UI_PASTE_MERGE_WINDOW` | Merge messages submitted within this many ms of the previous one into one — so a multi-line paste in a terminal without bracketed paste does not become one LLM turn per line. `0` disables. | `100` |
 | `ZRB_SCHEDULER_TICK_INTERVAL` | How often the Scheduler task checks its cron pattern (ms) | `60000` |
 | `ZRB_HTTP_CHECK_INTERVAL` | Default polling interval for `HttpCheck` tasks (ms) | `5000` |
 | `ZRB_TCP_CHECK_INTERVAL` | Default polling interval for `TcpCheck` tasks (ms) | `5000` |
@@ -712,9 +688,9 @@ All interval and delay values are in **milliseconds**.
 |----------|-------------|---------|
 | `ZRB_LLM_MAX_COMPLETION_FILES` | Maximum files scanned for path autocompletion | `5000` |
 | `ZRB_LLM_MAX_OUTPUT_CHARS` | Maximum characters returned by shell command and file read tools | `100000` |
-| `ZRB_LLM_MAX_CONSOLE_OUTPUT_CHARS` | Cap (characters) on how much of a shell command's output is mirrored to the console. Separate from `ZRB_LLM_MAX_OUTPUT_CHARS`, which caps what the model sees: a human watching a build wants far more scrollback than the model needs, but neither wants a runaway command echoed line by line. Beyond the cap the output is still captured and still reaches the model. | `1000000` |
-| `ZRB_LLM_MAX_TOOL_RESULT_CHARS` | Global model-facing tool-result threshold in characters. With `ZRB_LLM_ENABLE_TOOL_SPILL=on`, results above it are losslessly spilled to a private local store and replaced by a preview and `ReadToolResult` handle; otherwise they are flagged `oversized` in app-only metadata and passed through. `0` disables both behaviors. | `100000` |
-| `ZRB_LLM_ENABLE_TOOL_SPILL` | Enables lossless spill for tool results above `ZRB_LLM_MAX_TOOL_RESULT_CHARS`. The full payload is stored under the system temp directory and can be paged or literal-substring-filtered through `ReadToolResult`; off by default. | `off` |
+| `ZRB_LLM_MAX_CONSOLE_OUTPUT_CHARS` | Max characters of a shell command's output mirrored to the console (separate from `ZRB_LLM_MAX_OUTPUT_CHARS`, which caps what the model sees). Output past the cap is still captured and reaches the model. | `1000000` |
+| `ZRB_LLM_MAX_TOOL_RESULT_CHARS` | Model-facing tool-result threshold (characters). With `ZRB_LLM_ENABLE_TOOL_SPILL=on`, larger results are spilled losslessly to a private local store and replaced by a preview and a `ReadToolResult` handle; otherwise they are flagged `oversized` in app-only metadata and passed through. `0` disables both. | `100000` |
+| `ZRB_LLM_ENABLE_TOOL_SPILL` | Enables lossless spill above `ZRB_LLM_MAX_TOOL_RESULT_CHARS`. The payload is stored under the system temp directory; `ReadToolResult` pages it or filters by literal substring. | `off` |
 | `ZRB_LLM_HISTORY_MAX_DISPLAY_CHARS` | Maximum characters shown by the `/history` command | `5000` |
 | `ZRB_LLM_HISTORY_TRUNCATE_LENGTH` | Maximum chars per field when formatting history entries | `100` |
 | `ZRB_LLM_MAX_IMAGE_DIMENSION` | Longest-edge cap (pixels) for attached images before sending to LLM | `1568` |
@@ -722,11 +698,11 @@ All interval and delay values are in **milliseconds**.
 | `ZRB_LLM_MAX_ATTACHMENT_BYTES` | Maximum file size (bytes) accepted by `/attach` and the other attachment paths (web chat upload, chat-telegram example) — checked before the file is read. `0` or negative disables the cap. | `20000000` |
 | `ZRB_CMD_BUFFER_LIMIT` | Asyncio subprocess read-buffer limit in bytes | `102400` |
 | `ZRB_LLM_UI_MAX_BUFFER_SIZE` | Maximum buffered output chars before a forced flush (event-driven UIs) | `2000` |
-| `ZRB_LLM_MAX_SKILLS_IN_CATALOG` | How many model-invocable skills the prompt's skill catalogue lists before truncating with a pointer to `SearchSkill`. The full catalogue is always reachable on demand via `SearchSkill`, so this is a token-economy cap, not a hard limit. `0` or a negative value disables the cap, listing the whole catalogue. | `10` |
-| `ZRB_LLM_MAX_AGENTS_IN_ROSTER` | How many sub-agents the delegation tools' AVAILABLE AGENTS roster lists before truncating with a pointer to `SearchAgent`. The full roster is always reachable on demand via `SearchAgent`, so this is a token-economy cap, not a hard limit. `0` or a negative value disables the cap, listing the whole roster. | `10` |
-| `ZRB_LLM_MAX_PARALLEL_DELEGATIONS` | Maximum sub-agent tasks `DelegateToAgent`'s fan-out (`tasks=[...]`) runs concurrently in one call. Each concurrent task is its own LLM run against the shared rate limiter and, if `isolate_worktree` is set, its own git worktree — unbounded fan-out lets one call multiply both unboundedly. This paces *concurrency*, not the total count: a 50-task call still runs all 50, throttled to at most N in flight. `0` or a negative value disables the cap. | `10` |
+| `ZRB_LLM_MAX_SKILLS_IN_CATALOG` | Skills listed in the prompt's skill catalogue before truncating with a pointer to `SearchSkill` (which always reaches the rest) — a token-economy cap. `0` or negative lists all. | `10` |
+| `ZRB_LLM_MAX_AGENTS_IN_ROSTER` | Sub-agents listed in the delegation tools' AVAILABLE AGENTS roster before truncating with a pointer to `SearchAgent` (which always reaches the rest) — a token-economy cap. `0` or negative lists all. | `10` |
+| `ZRB_LLM_MAX_PARALLEL_DELEGATIONS` | Max sub-agent tasks one `DelegateToAgent` fan-out (`tasks=[...]`) runs at once. Each is its own LLM run on the shared rate limiter (and, with `isolate_worktree`, its own git worktree). Paces concurrency, not total: a 50-task call still runs all 50, at most N in flight. `0` or negative disables. | `10` |
 
-> 💡 `ZRB_LLM_MAX_IMAGE_DIMENSION` and `ZRB_LLM_IMAGE_JPEG_QUALITY` also govern photos captured with `/photo` (see § 17) — a camera photo goes through the same downscale-and-re-encode step as a pasted or attached image before it reaches the model.
+> 💡 `ZRB_LLM_MAX_IMAGE_DIMENSION` and `ZRB_LLM_IMAGE_JPEG_QUALITY` also apply to `/photo` captures (see § 17), which are downscaled and re-encoded like pasted or attached images.
 
 ---
 
@@ -744,9 +720,7 @@ All interval and delay values are in **milliseconds**.
 
 ## 17. Slash Command Aliases
 
-These variables let you customize the slash tokens that trigger built-in UI commands.
-
-Each value is a **comma-separated list of alias tokens**, and setting one *replaces* the defaults rather than adding to them — list every alias you want to keep. Tokens need not start with `/`: `!` and `>` are the defaults for two of them.
+Customize the tokens that trigger built-in UI commands. Each value is a **comma-separated alias list** that *replaces* the defaults — list every alias you want to keep. Tokens need not start with `/` (`!` and `>` are defaults).
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -767,7 +741,7 @@ Each value is a **comma-separated list of alias tokens**, and setting one *repla
 | `ZRB_LLM_UI_COMMAND_VOICE` | Toggle voice input | `/voice, /v` |
 | `ZRB_LLM_UI_COMMAND_YOLO_TOGGLE` | Toggle auto-approval of tool calls | `/yolo` |
 
-> ⚠️ **The variable name is not derivable from the command.** Several differ from the token they bind: `/yolo` → `YOLO_TOGGLE`, `/plan` → `PLAN_TOGGLE`, `/model` → `SET_MODEL`, `/compress` → `SUMMARIZE`, `>` → `REDIRECT_OUTPUT`. Use the names in the table rather than uppercasing the slash token — a guessed name is simply an unread environment variable, with no error to tell you.
+> ⚠️ **Don't guess the variable from the command.** Several differ: `/yolo` → `YOLO_TOGGLE`, `/plan` → `PLAN_TOGGLE`, `/model` → `SET_MODEL`, `/compress` → `SUMMARIZE`, `>` → `REDIRECT_OUTPUT`. A wrong name is silently ignored.
 
 ---
 
@@ -783,7 +757,7 @@ Each value is a **comma-separated list of alias tokens**, and setting one *repla
 
 ## 19. LSP Server Selection
 
-The LSP-backed code tools (`AnalyzeCode`, the `Lsp*` tools) auto-pick a language server for each file: your configured preference first, then the first *installed* server (command on `PATH`) whose config matches the file's extension.
+LSP-backed tools (`AnalyzeCode`, the `Lsp*` tools) pick a server per file: your preference first, then the first *installed* server (command on `PATH`) matching the file's extension.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -798,13 +772,13 @@ from zrb import CFG
 CFG.LLM_LSP_PREFERRED_SERVERS = ["pyright", "gopls"]
 ```
 
-Empty (default) keeps the previous installation/registry-order behavior. See [LSP Support](../llm/lsp-support.md) for the full selection rules and a per-call programmatic override.
+Empty (default) uses installation/registry order. See [LSP Support](../llm/lsp-support.md) for the full rules and a per-call override.
 
 ---
 
 ## 20. TUI Color Styles
 
-These variables override the colors used by the interactive `zrb llm chat` terminal UI. Each value is a [prompt_toolkit style string](https://python-prompt-toolkit.readthedocs.io/en/master/pages/advanced_topics/styling.html) — a hex color (`#ffcc00`), an ANSI name (`ansigreen`, `ansiyellow`), and/or attributes like `bold`. The special value `noinherit` resets to terminal defaults.
+Colors for the `zrb llm chat` terminal UI. Each value is a [prompt_toolkit style string](https://python-prompt-toolkit.readthedocs.io/en/master/pages/advanced_topics/styling.html) — a hex color (`#ffcc00`), an ANSI name (`ansigreen`, `ansiyellow`), and/or attributes like `bold`. The special value `noinherit` resets to terminal defaults.
 
 | Variable | Styles | Default |
 |----------|--------|---------|
@@ -825,7 +799,7 @@ These variables override the colors used by the interactive `zrb llm chat` termi
 
 ### Markdown Rendering
 
-Unlike the knobs above, these are [Rich](https://rich.readthedocs.io/en/stable/style.html) style strings (`bold magenta`, `italic bright_cyan underline`) — they style the markdown renderer, not the prompt_toolkit widgets.
+These are [Rich](https://rich.readthedocs.io/en/stable/style.html) style strings (`bold magenta`, `italic bright_cyan underline`) for the markdown renderer, not prompt_toolkit styles.
 
 | Variable | Styles | Default |
 |----------|--------|---------|
@@ -872,15 +846,15 @@ These two toggle content conversion rather than color:
 
 ### Themes (`ZRB_THEME`)
 
-Rather than exporting the knobs above one by one, `ZRB_THEME` selects a whole palette at once. Every style knob in this section resolves its **default** from the active theme, so a theme sets all of them and any individual `ZRB_*` export still wins over it.
+`ZRB_THEME` selects a whole palette at once: every style knob here takes its **default** from the active theme, and an individual `ZRB_*` export still wins.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_THEME` | Named palette supplying the defaults for every `LLM_UI_STYLE_*` / `CLI_COLOR_*` / `CLI_STYLE_*` knob | `dark` |
 
-Built-in values are `dark` (reproduces the historical hardcoded defaults, so a default install is visually unchanged) and `light` (dark-on-light, avoiding pale foregrounds on white). An unknown name logs a warning and falls back to `dark`.
+Built-ins: `dark` (the historical defaults) and `light` (dark-on-light). An unknown name logs a warning and falls back to `dark`.
 
-Register your own from `zrb_init.py` — a theme is layered on top of `dark`, so a partial palette only needs the knobs it changes:
+Register your own in `zrb_init.py`; it layers over `dark`, so list only the knobs you change:
 
 ```python
 from zrb.config.theme import register_theme
@@ -896,7 +870,7 @@ See `examples/themes/monokai/` for a complete worked example.
 
 ### Theme Examples
 
-Example shell scripts are provided in `examples/themes/` to quickly switch between curated color palettes. Source one in your shell rc to apply it:
+`examples/themes/` also ships shell scripts that export curated palettes. Source one in your shell rc:
 
 ```bash
 # ~/.zshrc or ~/.bashrc
@@ -911,14 +885,14 @@ Available themes:
 | `zrb-theme-light.sh` | Light background (dark text on light panels) |
 | `zrb-theme-high-contrast.sh` | Maximum contrast (pure black/white, bold throughout) |
 
-Each file defines a shell function (`zrb_theme_dark`, `zrb_theme_light`, `zrb_theme_high_contrast`) so you can switch themes mid-session:
+Each also defines a function (`zrb_theme_dark`, `zrb_theme_light`, `zrb_theme_high_contrast`) for switching mid-session:
 
 ```bash
 zrb_theme_light    # switch to light theme
 zrb llm chat       # start a new session with the light theme
 ```
 
-To create your own theme, copy one of the example files and adjust the `ZRB_LLM_UI_STYLE_*` values. The variables take effect on the next `zrb llm chat` session — no restart needed.
+To make your own, copy one and adjust the `ZRB_LLM_UI_STYLE_*` values; they apply from the next `zrb llm chat` session.
 
 ---
 
@@ -939,7 +913,7 @@ Opt-in filesystem containment for LLM tool calls — see [Sandbox](../llm/sandbo
 
 ## 22. CLI Semantic Colors
 
-These variables override the ANSI colors used for plain terminal output (outside the TUI). Each `_COLOR_*` value is a color name (`black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, or their `bright_*` variants). Each `_STYLE_*` value is a style name (`bold`, `faint`, `italic`, `underline`, `blink_slow`, `blink_fast`, `reversed`, `hide`, `crossed_out`). Leave a variable unset (or set to `""`) to suppress that attribute.
+ANSI colors for plain terminal output (outside the TUI). Each `_COLOR_*` value is a color name (`black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, or their `bright_*` variants). Each `_STYLE_*` value is a style name (`bold`, `faint`, `italic`, `underline`, `blink_slow`, `blink_fast`, `reversed`, `hide`, `crossed_out`). Leave a variable unset (or set to `""`) to suppress that attribute.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -965,11 +939,11 @@ These variables override the ANSI colors used for plain terminal output (outside
 
 ## 23. Voice Dictation
 
-Push-to-talk voice input in the chat TUI, toggled by the `/voice` command. Voice is enabled automatically when `vosk` is installed and `ZRB_LLM_VOICE_ENABLED` is left unset; an explicit `ZRB_LLM_VOICE_ENABLED` value always wins (`on` enables any backend, `off` disables even with vosk installed). Audio dependencies (sounddevice, numpy) are lazy-loaded — no cost at startup.
+Push-to-talk voice input in the chat TUI, toggled by `/voice`. It auto-enables when `vosk` is installed and `ZRB_LLM_VOICE_ENABLED` is unset; an explicit value always wins (`on` enables any backend, `off` disables even with vosk). Audio dependencies (sounddevice, numpy) load lazily, costing nothing at startup.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_VOICE_ENABLED` | Master switch for voice dictation in `zrb llm chat`. Requires sounddevice + an STT backend. When unset and `vosk` is installed, voice is enabled automatically. | `off` |
+| `ZRB_LLM_VOICE_ENABLED` | Master switch for voice dictation. Requires sounddevice + an STT backend. Unset + `vosk` installed = on. | `off` |
 | `ZRB_LLM_VOICE_MODE` | Speech-to-text backend: `vosk` (offline, cross-platform), `openai` (Whisper API), `google` (Gemini STT), or `multimodal` (uses `ZRB_LLM_MULTIMODAL_MODEL` — slower/more expensive) | `vosk` |
 | `ZRB_LLM_VOICE_PUSH_TO_TALK_KEY` | prompt_toolkit key name for push-to-talk (e.g. `space`, `c-t` for Ctrl+T) | `space` |
 

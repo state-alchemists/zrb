@@ -20,10 +20,8 @@ builds its own set on first access — so any class can mix it in. A host that
 implements a member for real declares it and wins on MRO (`MultiUI` does this
 for `is_thinking` and `tool_call_handler`).
 
-`UIStateDefaults`, not `UIDefaults`: `UIConfig` lives in this same package and
-holds the *user-facing* defaults — assistant name, greeting, slash-command
-aliases. This class defaults the other thing entirely, `AnyUI`'s state half,
-and the old name read like a second `UIConfig`.
+Not to be confused with `UIConfig`, which holds the *user-facing* defaults
+(assistant name, greeting, slash-command aliases).
 """
 
 from __future__ import annotations

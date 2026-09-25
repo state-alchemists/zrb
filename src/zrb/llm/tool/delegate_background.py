@@ -1,9 +1,8 @@
 """Background (fire-and-forget) subagent delegation.
 
-Separate from the synchronous ``DelegateToAgent`` path (which is left untouched)
-so there is zero regression risk to existing behavior. ``DelegateToAgentBackground``
-starts a subagent and returns a handle immediately; ``GetDelegationResult`` polls
-that handle.
+``DelegateToAgentBackground`` starts a subagent and returns a handle
+immediately; ``GetDelegationResult`` polls that handle. The synchronous
+``DelegateToAgent`` path lives in ``delegate.py``.
 
 Permissions and yolo are inherited: ``asyncio.ensure_future`` copies the current
 ``contextvars`` context when the task is created (while the parent run's
@@ -109,12 +108,15 @@ class _BackgroundRegistry:
             await asyncio.wait({task}, timeout=capped)
         return self.poll(handle)
 
-    async def cancel(self, handle: str) -> str:
-        """Cancel an outstanding background agent and consume its handle."""
-        task = self._tasks.pop(handle, None)
-        self._buffers.pop(handle, None)
+    def _consume(self, handle: str) -> tuple[asyncio.Task | None, BufferedUI | None]:
+        """Drop every record of *handle*; return its task and buffer."""
         self._agent_names.pop(handle, None)
         self._notified.discard(handle)
+        return self._tasks.pop(handle, None), self._buffers.pop(handle, None)
+
+    async def cancel(self, handle: str) -> str:
+        """Cancel an outstanding background agent and consume its handle."""
+        task, _ = self._consume(handle)
         if task is None:
             return (
                 f"Unknown handle '{handle}'. [SYSTEM SUGGESTION]: it may have "
@@ -139,15 +141,9 @@ class _BackgroundRegistry:
                 "or kill=True to stop it."
             )
 
-        # Consume the handle once collected.
-        self._tasks.pop(handle, None)
-        self._agent_names.pop(handle, None)
-        self._notified.discard(handle)
-        buffered = self._buffers.pop(handle, None)
-        # strip_ansi: get_buffered_output() carries the muted styling BufferedUI
-        # applies for its own live-viewer pane (agent_picker's Left/Right view) —
-        # fine on a terminal, but this string is about to become tool-result text
-        # in the parent model's context, which doesn't render escape codes.
+        _, buffered = self._consume(handle)
+        # The buffer carries BufferedUI's terminal styling; this text becomes a
+        # tool result for the parent model, which does not render escape codes.
         output = (
             strip_ansi(buffered.get_buffered_output()) if buffered is not None else ""
         )
@@ -182,14 +178,11 @@ def get_background_registry() -> _BackgroundRegistry:
     return _registry
 
 
-# Handles this session's own DelegateToAgentBackground calls minted, scoped by
-# ContextVar rather than kept on the (process-global) registry: each chat
-# session runs its own asyncio task (`ChatSession.task_coroutine`), so the
-# ContextVar naturally isolates one session's handles from another's, without
-# a session-id dimension anywhere. `asyncio.ensure_future` in `_registry.start`
-# copies this context into the detached background task too, but that task
-# never calls `register_background_handle` itself (sub-agents can't delegate),
-# so no cross-task mutation risk.
+# Handles this session's own DelegateToAgentBackground calls minted. A
+# ContextVar rather than registry state: each chat session runs its own asyncio
+# task, so this isolates sessions without a session-id key. The detached
+# background task inherits a copy but never registers handles (sub-agents
+# cannot delegate).
 _own_background_handles: contextvars.ContextVar[set[str] | None] = (
     contextvars.ContextVar("own_background_handles", default=None)
 )
@@ -291,18 +284,10 @@ def create_background_delegate_tool(
         and prompts the user through the same UI (queued behind any current
         prompt), just like a synchronous delegate.
         """
-        # Resolve the name before detaching. run_agent_task would also catch an
-        # unknown agent, but only inside the background coroutine — the model
-        # would get "Started background agent 'reseacher'" and not learn the name
-        # was wrong until it polled GetDelegationResult, if it ever did.
-        #
-        # get_agent_definition, not create_agent: create_agent runs every tool
-        # factory, resolves the model, and composes the whole system prompt, and
-        # run_agent_task calls it again inside the coroutine. Validating with it
-        # would build the agent twice and put the first build on the caller's
-        # turn — the wait this tool exists to avoid. It is also the same lookup
-        # create_agent itself uses to decide the None return, so the check is
-        # exactly as strict.
+        # Validate the name before detaching; inside the coroutine an unknown
+        # agent would surface only when polled. get_agent_definition, not
+        # create_agent: it is the same lookup create_agent uses, without
+        # building the agent twice on the caller's turn.
         if not sub_agent_manager.get_agent_definition(agent_name):
             return agent_not_found_message(agent_name, sub_agent_manager)
         parent_ui = get_current_ui() or StdUI()
@@ -314,12 +299,8 @@ def create_background_delegate_tool(
             session_id=get_session_ownership_key(get_current_tool_session()),
         )
 
-        # The detached task copies the current context (yolo, permission policy,
-        # approval channel, UI), so the sub-agent inherits the main agent's
-        # permissions and yolo setting (None → inherit). Its BufferedUI.ask_user
-        # forwards approval prompts to the parent UI's confirmation queue, which
-        # surfaces them to the user — the same path foreground delegate sub-agents
-        # use.
+        # Context inheritance (yolo, permissions, approval) is described in
+        # the module docstring.
         coro = run_agent_task(
             agent_name=agent_name,
             deliverable=deliverable,
@@ -340,12 +321,9 @@ def create_background_delegate_tool(
 
     setattr(delegate_to_agent_background, "zrb_is_delegate_tool", True)
     delegate_to_agent_background.__name__ = "DelegateToAgentBackground"
-    # Carry the roster in this tool's own schema. "mirrors DelegateToAgent" told
-    # the model where the argument *shapes* come from, but the valid names were
-    # never here — leaving it to recall them from a sibling tool's description.
-    # cleandoc computes the common indent from the non-first lines, so an
-    # unindented roster appended under an 8-space docstring pins that indent on
-    # the whole description. Normalize before joining.
+    # Carry the agent roster in this tool's own description. cleandoc first:
+    # an unindented roster appended under an 8-space docstring would pin that
+    # indent on the whole description.
     delegate_to_agent_background.__doc__ = (
         f"{inspect.cleandoc(delegate_to_agent_background.__doc__ or '')}\n\n"
         f"AVAILABLE AGENTS:\n{agent_roster_doc(sub_agent_manager)}\n"

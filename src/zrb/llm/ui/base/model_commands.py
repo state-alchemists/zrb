@@ -1,11 +1,10 @@
 """Model / mode slash-commands for `BaseUI`.
 
 YOLO toggle, PLAN-mode toggle, and model switching (`/model`, including the
-`small`/`multimodal` variants). Split out of `commands.py`. Composed into
-`BaseUICommands` as `self._models`, keeping `BaseUI` in `self._base_ui`
-for state and method calls.
+`small`/`multimodal` variants). Composed into `BaseUICommands` as
+`self._models`.
 
-Each `_handle_*` returns ``True`` if the input was consumed, ``False``
+Each `handle_*` returns ``True`` if the input was consumed, ``False``
 otherwise.
 """
 
@@ -53,7 +52,6 @@ class BaseUIModelCommands:
         stripped = text.strip()
         for cmd in self._base_ui.yolo_toggle_commands:
             if stripped.lower() == cmd.lower():
-                # Plain /yolo — toggle full yolo on/off
                 self.toggle_yolo()
                 return True
             if stripped.lower().startswith(cmd.lower() + " "):
@@ -141,9 +139,7 @@ class BaseUIModelCommands:
                     model_name = arg[6:].strip()
                     if not model_name:
                         continue
-                    # Read by run_agent (current_small_model, agent_state.py)
-                    # for the rest of this session — see journal_compliance.py
-                    # / voice/engine.py, the two consumers.
+                    # Bound by run_agent as `current_small_model`.
                     self._base_ui.small_model = model_name
                     self._base_ui.append_to_output(
                         stylize_muted(f"\n  🤖 Small model switched to: {model_name}\n")
@@ -152,8 +148,7 @@ class BaseUIModelCommands:
                     model_name = arg[11:].strip()
                     if not model_name:
                         continue
-                    # Read by run_agent (current_multimodal_model,
-                    # agent_state.py) for the rest of this session.
+                    # Bound by run_agent as `current_multimodal_model`.
                     self._base_ui.multimodal_model = model_name
                     self._base_ui.append_to_output(
                         stylize_muted(
@@ -161,7 +156,6 @@ class BaseUIModelCommands:
                         )
                     )
                 else:
-                    # Main model — existing behavior unchanged
                     model_name = arg
                     self._base_ui.model = model_name
                     try:

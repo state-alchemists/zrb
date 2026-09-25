@@ -115,13 +115,10 @@ class BaseTaskExecution:
         monitor_readiness = bool(task.monitor_readiness)
 
         ctx.log_info("Starting action and readiness checks")
-        # Mark started BEFORE the first suspension point. `is_allowed_to_run` gates
-        # on `is_started`, which is otherwise only set inside the created task —
-        # after this coroutine yields at the sleep below. Two upstreams completing
-        # in the same event-loop tick would then both pass the gate and run the
-        # action twice (the second defer_action also overwrites the first, leaving
-        # an orphaned task). The retry loop calls mark_as_started per attempt
-        # anyway, so the early call is idempotent.
+        # Mark started before the first suspension point: `is_allowed_to_run`
+        # gates on `is_started`, so two upstreams completing in the same tick
+        # would otherwise both pass the gate and run the action twice. The retry
+        # loop's own per-attempt mark_as_started makes this idempotent.
         session.get_task_status(task).mark_as_started()
         action_coro = asyncio.create_task(
             run_async(self.execute_action_with_retry(session))
@@ -139,17 +136,13 @@ class BaseTaskExecution:
             readiness_error: BaseException | None = None
             readiness_timeout = task.readiness_timeout
             try:
-                # gather_fail_fast, not gather_isolated: readiness checks are the one
-                # place where waiting for the siblings hangs, because a check polls
-                # until it succeeds (HttpCheck/TcpCheck never return on their own) so
-                # a sibling would outlive the failure. Everywhere else (successors,
-                # fallbacks, deferred actions) peers must be allowed to finish.
+                # Fail fast here only: a check polls until it succeeds
+                # (HttpCheck/TcpCheck never return on their own), so waiting for
+                # siblings after one fails would hang. Successors, fallbacks and
+                # deferred actions use gather_isolated.
                 gather_coro = gather_fail_fast(*readiness_check_coros)
-                # Aggregate cap, from `task.readiness_timeout` (CFG.TASK_READINESS_TIMEOUT
-                # when the task leaves it unset; 60s by default). The same knob bounds
-                # each monitoring re-check round, so one number covers both. A
-                # non-positive value switches the cap off, and checks that never return
-                # then hang the whole run here -- which is why the default is finite.
+                # Aggregate cap (defaults to CFG.TASK_READINESS_TIMEOUT); the same
+                # knob bounds each monitoring round. Non-positive disables it.
                 if readiness_timeout > 0:
                     await asyncio.wait_for(gather_coro, timeout=readiness_timeout)
                 else:
@@ -161,12 +154,9 @@ class BaseTaskExecution:
                 if all_readiness_completed:
                     ctx.log_info("Readiness checks completed successfully")
                     readiness_passed = True
-                    # Gate on PERMANENT failure only. `is_failed` is transient — set
-                    # on every failed attempt and cleared by the next attempt's
-                    # mark_as_started — so checking it here races with the retry
-                    # loop: readiness completing between a failed attempt and its
-                    # retry would skip mark_as_ready forever (nothing re-evaluates
-                    # readiness), silently dropping all downstream tasks.
+                    # Gate on permanent failure only: `is_failed` is transient
+                    # between retry attempts, and readiness is never re-evaluated,
+                    # so gating on it could skip mark_as_ready forever.
                     if not session.get_task_status(task).is_permanently_failed:
                         ctx.log_info("Marked as ready")
                         session.get_task_status(task).mark_as_ready()
@@ -176,9 +166,8 @@ class BaseTaskExecution:
                     )
 
             except asyncio.TimeoutError as e:
-                # A check can raise TimeoutError itself, so this branch is not proof
-                # the aggregate cap fired — only claim the cap when one is set, or
-                # the log points at a knob that is switched off.
+                # A check can raise TimeoutError itself; only blame the cap
+                # when one is set.
                 if readiness_timeout > 0:
                     ctx.log_error(
                         f"Readiness checks exceeded the {readiness_timeout}s aggregate "
@@ -210,8 +199,7 @@ class BaseTaskExecution:
                 )
                 session.defer_monitoring(task, monitor_coro)
 
-            # The result here is primarily about readiness check completion.
-            # The actual task result is handled by the deferred action_coro.
+            # The action's result is delivered through the deferred action_coro.
             return None
         except (asyncio.CancelledError, KeyboardInterrupt, GeneratorExit):
             action_coro.cancel()
@@ -232,9 +220,7 @@ class BaseTaskExecution:
         """
         task = self._task
         ctx = task.get_ctx(session)
-        # Fail fast. A readiness check that exhausted its own retries means the
-        # task's service is broken; deferring the (possibly never-ending) action
-        # would leave the whole run hanging in wait_deferred with no error exit.
+        # Deferring a possibly never-ending action would hang wait_deferred.
         ctx.log_error("Readiness failed; cancelling action and failing task")
         action_coro.cancel()
         action_error: BaseException | None = None
@@ -246,19 +232,13 @@ class BaseTaskExecution:
             action_error = e
         task_status = session.get_task_status(task)
         if not task_status.is_permanently_failed and not task_status.is_completed:
-            # Same terminal bookkeeping as the retry loop's final attempt.
-            # Skipped when the action already reached a terminal state:
-            # permanently failed → the retry loop already ran the fallbacks;
-            # completed → the action succeeded and its successors already ran,
-            # so stacking permanent failure and firing fallbacks after them would
-            # be contradictory. The readiness error still propagates below, so
-            # the run fails visibly either way.
+            # Same terminal bookkeeping as the retry loop's final attempt, unless
+            # the action already reached a terminal state (fallbacks or
+            # successors already ran). The error still propagates below.
             task_status.mark_as_permanently_failed()
             self.skip_successors(session)
             await run_async(self.execute_fallbacks(session))
         if action_error is not None:
-            # The action's own crash is usually why readiness failed — surface it
-            # as the root cause, not the readiness symptom.
             raise action_error
         if readiness_error is not None:
             raise readiness_error
@@ -328,20 +308,15 @@ class BaseTaskExecution:
                         attempt = max_attempt - 1
                 if attempt < max_attempt - 1:
                     continue
-                else:
-                    ctx.log_error("Marked as permanently failed")
-                    ctx.log_debug(traceback.format_exc())
-                    session.get_task_status(task).mark_as_permanently_failed()
-                    self.skip_successors(session)
-                    await run_async(self.execute_fallbacks(session))
-                    raise e
+                ctx.log_error("Marked as permanently failed")
+                ctx.log_debug(traceback.format_exc())
+                session.get_task_status(task).mark_as_permanently_failed()
+                self.skip_successors(session)
+                await run_async(self.execute_fallbacks(session))
+                raise e
 
     async def run_default_action(self, ctx: AnyContext) -> Any:
-        """
-        Executes the specific action defined by the '_action' attribute for BaseTask.
-        This is the default implementation called by BaseTask._exec_action.
-        Subclasses like LLMTask override _exec_action with their own logic.
-        """
+        """Run `task.action`: the default `BaseTask.exec_action` body."""
         action = self._task.action
         if action is None:
             ctx.log_debug("No action defined for this task.")
@@ -349,14 +324,13 @@ class BaseTaskExecution:
         if isinstance(action, str):
             ctx.log_debug(f"Literal action string: {action}")
             return action
-        elif callable(action):
+        if callable(action):
             # A `Tpl` (or any other callable object) has no `__name__`.
             action_name = getattr(action, "__name__", repr(action))
             ctx.log_debug(f"Executing callable action: {action_name}")
             return await run_async(action(ctx))
-        else:
-            ctx.log_warning(f"Unsupported action type: {type(action)}")
-            return None
+        ctx.log_warning(f"Unsupported action type: {type(action)}")
+        return None
 
     async def _execute_task_group(
         self,

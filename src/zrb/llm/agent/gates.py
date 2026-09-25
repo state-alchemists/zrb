@@ -100,11 +100,8 @@ def sandbox_gate(
         "worktree_path",
     )
 
-    # isinstance-checked, not just "is not None": a test double's `ctx` is
-    # often a bare `MagicMock()`, whose `.deps` auto-vivifies into another
-    # MagicMock rather than raising or returning None — falling back to the
-    # ambient read for anything that isn't actually a SandboxPolicy avoids
-    # silently gating on a mock's default (truthy) attribute behavior.
+    # isinstance, not "is not None": anything that isn't a SandboxPolicy
+    # (e.g. a MagicMock's auto-created `.deps`) falls back to the ambient read.
     deps = getattr(ctx, "deps", None)
     policy = deps if isinstance(deps, SandboxPolicy) else get_effective_sandbox_policy()
     if not policy.enabled:

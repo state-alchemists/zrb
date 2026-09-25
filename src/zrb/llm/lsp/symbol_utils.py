@@ -30,10 +30,6 @@ def format_document_symbols(symbols: list, depth: int = 0) -> list[dict]:
       ``range``/``selectionRange``, with nested ``children``.
     * **SymbolInformation** (flat; pylsp, …) — position in ``location.range``,
       no children.
-
-    Reading positions from the wrong field yielded ``line=1, character=0`` for
-    every SymbolInformation symbol, which corrupted symbol-position lookups
-    (``find_definition`` / ``find_references`` resolved nothing on pylsp).
     """
     results: list[dict] = []
     for sym in symbols:

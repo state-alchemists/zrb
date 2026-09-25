@@ -131,16 +131,38 @@ def search_files(
     )
 
 
-def _build_file_match_entry(
-    rel_file_path: str, matches: list[dict[str, Any]], files_only: bool
-) -> str | dict[str, Any]:
-    """Build a single result entry: file path string or {file, matches} dict."""
-    return rel_file_path if files_only else {"file": rel_file_path, "matches": matches}
+class _SearchTally:
+    """Per-file results accumulated by both the ripgrep and os.walk paths."""
 
+    def __init__(self, pattern: re.Pattern, context_lines: int, files_only: bool):
+        self._pattern = pattern
+        self._context_lines = context_lines
+        self._files_only = files_only
+        self.entries: list[Any] = []
+        self.match_count = 0
+        self.file_match_count = 0
+        self.skipped_count = 0
 
-def _count_actual_matches(matches: list[dict[str, Any]]) -> int:
-    """Count matches that have a non-zero line number."""
-    return sum(1 for m in matches if m.get("line_number", 0) > 0)
+    def scan(self, file_path: str, rel_file_path: str) -> None:
+        """Record *file_path*'s matches; an unreadable file counts as skipped."""
+        try:
+            matches = get_file_matches(
+                file_path, self._pattern, context_lines=self._context_lines
+            )
+        except Exception as e:
+            self.skipped_count += 1
+            CFG.LOGGER.debug(f"file_search: skipped unreadable file {file_path}: {e}")
+            return
+        if not matches:
+            return
+        self.file_match_count += 1
+        # The per-file truncation marker has line_number 0.
+        self.match_count += sum(1 for m in matches if m.get("line_number", 0) > 0)
+        self.entries.append(
+            rel_file_path
+            if self._files_only
+            else {"file": rel_file_path, "matches": matches}
+        )
 
 
 def _truncate_file_results(results: list[Any]) -> tuple[list[Any], str | None]:
@@ -159,52 +181,37 @@ def _truncate_file_results(results: list[Any]) -> tuple[list[Any], str | None]:
 
 
 def _build_search_output(
-    result_entries: list[Any],
-    match_count: int,
-    file_match_count: int,
+    tally: _SearchTally,
     searched_file_count: int | None,
     regex: str,
     path: str,
     files_only: bool,
     warning: str | None = None,
 ) -> dict[str, Any]:
-    """Build the final search result dict from accumulated match data.
-
-    Shared by both the ripgrep and the fallback os.walk code paths.
-    """
-    results, truncation_notice = _truncate_file_results(result_entries)
-
-    if match_count == 0:
-        searched = (
-            f" (searched {searched_file_count} files)" if searched_file_count else ""
-        )
+    """Build the final search result dict from the accumulated tally."""
+    results, truncation_notice = _truncate_file_results(tally.entries)
+    searched = f" (searched {searched_file_count} files)" if searched_file_count else ""
+    if tally.match_count == 0:
         summary = (
             f"No matches found for regex '{regex}' in path '{path}'{searched}. "
             f"[SYSTEM SUGGESTION]: Try broadening your regex, removing the "
             f"file_pattern filter, or checking if you're searching in the correct directory."
         )
     else:
-        searched = (
-            f" (searched {searched_file_count} files)" if searched_file_count else ""
+        summary = (
+            f"Found {tally.match_count} matches in {tally.file_match_count} "
+            f"files.{searched}"
         )
-        summary = f"Found {match_count} matches in {file_match_count} files.{searched}"
-
-    if files_only:
-        result: dict[str, Any] = {"files": results, "summary": summary}
-        if truncation_notice:
-            result["truncation_notice"] = truncation_notice
-        if warning:
-            result["warning"] = warning
-        return result
-
-    return {
-        "results": results,
+    result: dict[str, Any] = {
+        "files" if files_only else "results": results,
         "summary": summary,
-        **(  # only include non-None optional fields
-            {"truncation_notice": truncation_notice} if truncation_notice else {}
-        ),
-        **({"warning": warning} if warning else {}),
     }
+    if truncation_notice:
+        result["truncation_notice"] = truncation_notice
+    warning = _merge_skipped_warning(warning, tally.skipped_count)
+    if warning:
+        result["warning"] = warning
+    return result
 
 
 def _merge_skipped_warning(warning: str | None, skipped_count: int) -> str | None:
@@ -256,38 +263,14 @@ def _search_with_ripgrep(
         return None
 
     matching_files = [f.strip() for f in proc.stdout.splitlines() if f.strip()]
-
-    result_entries: list[Any] = []
-    match_count = 0
-    file_match_count = 0
-    skipped_count = 0
-
+    tally = _SearchTally(pattern, context_lines, files_only)
     for file_path in matching_files:
-        rel_file_path = _relpath_or_abs(file_path, os.getcwd())
-        try:
-            matches = get_file_matches(
-                file_path,
-                pattern,
-                context_lines=context_lines,
-            )
-            if matches:
-                file_match_count += 1
-                match_count += _count_actual_matches(matches)
-                result_entries.append(
-                    _build_file_match_entry(rel_file_path, matches, files_only)
-                )
-        except Exception as e:
-            skipped_count += 1
-            CFG.LOGGER.debug(f"file_search: skipped unreadable file {file_path}: {e}")
-
+        tally.scan(file_path, _relpath_or_abs(file_path, os.getcwd()))
     return _build_search_output(
-        result_entries=result_entries,
-        match_count=match_count,
-        file_match_count=file_match_count,
+        tally,
         searched_file_count=None,
         regex=regex,
         path=abs_path,
-        warning=_merge_skipped_warning(None, skipped_count),
         files_only=files_only,
     )
 
@@ -303,11 +286,8 @@ def _search_with_os_walk(
     files_only: bool,
 ) -> dict[str, Any]:
     """Fallback search via os.walk (used when ripgrep is unavailable)."""
-    result_entries: list[Any] = []
-    match_count = 0
+    tally = _SearchTally(pattern, context_lines, files_only)
     searched_file_count = 0
-    file_match_count = 0
-    skipped_count = 0
     warning: str | None = None
 
     for root, dirs, files in os.walk(abs_path):
@@ -335,34 +315,15 @@ def _search_with_os_walk(
             if matches_any_pattern(rel_file_path, patterns_to_exclude):
                 continue
             searched_file_count += 1
-
-            try:
-                matches = get_file_matches(
-                    file_path,
-                    pattern,
-                    context_lines=context_lines,
-                )
-                if matches:
-                    file_match_count += 1
-                    match_count += _count_actual_matches(matches)
-                    result_entries.append(
-                        _build_file_match_entry(rel_file_path, matches, files_only)
-                    )
-            except Exception as e:
-                skipped_count += 1
-                CFG.LOGGER.debug(
-                    f"file_search: skipped unreadable file {file_path}: {e}"
-                )
+            tally.scan(file_path, rel_file_path)
 
     return _build_search_output(
-        result_entries=result_entries,
-        match_count=match_count,
-        file_match_count=file_match_count,
+        tally,
         searched_file_count=searched_file_count,
         regex=pattern.pattern,
         path=abs_path,
         files_only=files_only,
-        warning=_merge_skipped_warning(warning, skipped_count),
+        warning=warning,
     )
 
 

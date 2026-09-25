@@ -62,42 +62,27 @@ current_yolo: ContextVar[bool] = ContextVar("current_yolo", default=False)
 current_hook_manager: ContextVar["HookManager | None"] = ContextVar(
     "current_hook_manager", default=None
 )
-# Identifies "this specific agent run" to nested tools that need to track
-# state per-conversation without bleeding across independent conversations —
-# e.g. file_observation.py's read-before-overwrite tracking. Stable across
-# turns of the same top-level conversation (the caller passes its session
-# name). A delegated sub-agent run (delegate.py) deliberately passes nothing,
-# taking the fresh-per-call default below instead: a sub-agent has its own
-# empty message_history and hasn't seen what its parent or siblings
-# observed, so it must not share their bucket — and delegate.py's own
-# display-only agent_id is a 32-bit-truncated id, too collision-prone for a
-# map this module never evicts, unlike the fresh full uuid4 below.
+# Identifies "this agent run" to tools that keep per-conversation state
+# (file_observation.py's read-before-overwrite tracking). Stable across turns
+# of a top-level conversation (its session name). A delegated sub-agent takes
+# the fresh uuid4 default: it has not seen what its parent observed, and the
+# display-only agent_id is too short for a never-evicted map.
 current_agent_run_scope: ContextVar[str] = ContextVar(
     "current_agent_run_scope", default=""
 )
-# The per-session small/multimodal model override a UI's `/model small ...` /
-# `/model multimodal ...` set (`BaseUI.small_model`/`.multimodal_model`), or
-# None when unset. `run_agent` binds these from the UI it was given; a nested
-# helper reads the getter below and falls back to
-# `resolve_configured_small_model()`/`resolve_configured_multimodal_model()`
-# (`zrb.llm.config.model_resolver`) when unset — the same "task override,
-# else CFG" shape `model` itself already uses. Existing per-run isolation for
-# free: a ContextVar is only visible within the `asyncio.Task` that set it (and
-# its children), so two concurrent chat sessions in the same process never see
-# each other's `/model small ...` choice.
+# The session's `/model small ...` / `/model multimodal ...` override, or
+# None. `run_agent` binds these from its UI; helpers fall back to
+# `resolve_configured_small_model()`/`resolve_configured_multimodal_model()`.
+# Being ContextVars, concurrent chat sessions never see each other's choice.
 current_small_model: ContextVar["str | Model | None"] = ContextVar(
     "current_small_model", default=None
 )
 current_multimodal_model: ContextVar["str | Model | None"] = ContextVar(
     "current_multimodal_model", default=None
 )
-# The main model the current run is actually using — `run_agent` binds it from
-# the agent it was handed, so it reflects a `/model <name>` switch or a
-# `--model` argument, not just `CFG.LLM_MODEL`. Read by
-# `resolve_configured_small_model` as the fallback *before* `CFG.LLM_MODEL`:
-# when no small model is configured, "the model this run uses" is the right
-# stand-in, and the configured default may well be a different provider whose
-# credentials the user never set.
+# The main model this run uses (reflecting `/model` or `--model`).
+# `resolve_configured_small_model` falls back to it before `CFG.LLM_MODEL`,
+# whose provider may lack credentials.
 current_model: ContextVar["str | Model | None"] = ContextVar(
     "current_model", default=None
 )

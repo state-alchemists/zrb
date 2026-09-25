@@ -1,4 +1,3 @@
-import asyncio
 import os
 from datetime import datetime
 from typing import Annotated
@@ -12,6 +11,7 @@ from zrb.llm.sandbox.os_sandbox import (
     format_sandbox_denied_message,
 )
 from zrb.llm.tool.ambient_state import active_worktree
+from zrb.llm.tool.shell import start_process
 
 
 async def enter_worktree(
@@ -257,21 +257,7 @@ async def _run_git(
     sandboxed_argv, note = build_sandboxed_argv(
         argv, sandbox_cwd or cwd, get_effective_sandbox_policy()
     )
-    # Mirrors shell.py's _start_process: start_new_session so the process
-    # doesn't inherit our session (matters for the sandbox wrappers, which
-    # exec in place), stdin=DEVNULL so a git command that unexpectedly
-    # prompts (e.g. a credential helper) fails fast instead of hanging, and
-    # the enlarged StreamReader limit so one very long stdout/stderr line
-    # can't make the read raise.
-    proc = await asyncio.create_subprocess_exec(
-        *sandboxed_argv,
-        cwd=cwd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        stdin=asyncio.subprocess.DEVNULL,
-        start_new_session=True,
-        limit=8 * 1024 * 1024,
-    )
+    proc = await start_process(sandboxed_argv, cwd)
     stdout, stderr = await proc.communicate()
     return proc.returncode, stdout, stderr, note
 

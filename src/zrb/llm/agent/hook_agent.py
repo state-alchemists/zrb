@@ -24,23 +24,16 @@ from zrb.llm.hook.schema import AgentHookConfig
 def create_agent_hook(config: AgentHookConfig) -> HookCallable:
     async def agent_hook(context: HookContext) -> HookResult:
         """Run an agent with the configured system prompt over the event payload."""
-        # lazy: zrb internal (heavy via transitive). This edge is not itself
-        # circular — zrb.llm.agent's package __init__ imports this module at
-        # module level — but deferring it, together with hook/manager.py's
-        # matching one, is what keeps hook.creator out of zrb.llm.agent's
-        # eager import closure. Hoisting either puts it back. Verify by
-        # walking the whole closure, not by inspecting this call site alone.
+        # lazy: zrb internal (heavy via transitive). Not itself circular, but
+        # with hook/manager.py's matching deferral it keeps hook.creator out
+        # of zrb.llm.agent's eager import closure.
         from zrb.llm.hook.creator import run_llm_hook
 
         resolved_tools = resolve_agent_hook_tools(config.tools)
         if config.tools and not resolved_tools:
-            # Every named tool failed to resolve — most commonly because it's
-            # config-gated and currently off (e.g. the journal tools while
-            # LLM_JOURNAL_ENABLED is false). An agent whose whole job is
-            # calling tools it doesn't have can only produce empty prose, so
-            # skip the LLM call entirely rather than pay for one that cannot
-            # do anything. A hook that genuinely wants zero tools leaves
-            # `tools` empty from the start and is unaffected by this check.
+            # Every named tool is unavailable (usually config-gated off), so
+            # the LLM call could do nothing; skip it. A hook that wants zero
+            # tools leaves `tools` empty and never reaches here.
             return HookResult(
                 success=True,
                 output=(
@@ -66,15 +59,10 @@ def resolve_agent_hook_tools(names: list[str]) -> list:
     registry."""
     if not names:
         return []
-    # lazy: zrb internal (heavy via transitive). Same shape as run_llm_hook
-    # above — `zrb.llm.agent`'s package __init__ imports this module for its
-    # registration side effect, so anything imported here at module level joins
-    # that __init__'s closure. Hoisting these two puts `subagent/building.py`
-    # in it, and through it `zrb.llm.summarizer`, which imports `zrb.llm.agent`
-    # right back and so cannot be imported on its own. Neither edge is circular
-    # by itself; only the closure is, so verify by walking the whole closure
-    # (test_circular_import_allowlist.py imports each package in isolation)
-    # rather than by inspecting this call site.
+    # lazy: zrb internal (heavy via transitive). Hoisting pulls
+    # subagent/building.py and zrb.llm.summarizer into zrb.llm.agent's
+    # closure; the summarizer imports zrb.llm.agent back, so only the closure
+    # is circular (test_circular_import_allowlist.py).
     from zrb.llm.agent.subagent.manager import sub_agent_manager
     from zrb.llm.agent.subagent.tool_resolver import resolve_tools_by_name
 
@@ -89,10 +77,8 @@ def resolve_agent_hook_tools(names: list[str]) -> list:
         sub_agent_manager.get_tool_factories(),
         ctx,
     )
-    # Same error containment every other agent gets (agent/common.py::create_agent):
-    # a tool's `[SYSTEM SUGGESTION]` ValueError (e.g. journal_write's link check)
-    # must come back as a tool result the model can act on, not an uncaught
-    # exception that aborts the whole hook run.
+    # Same error containment as create_agent: a `[SYSTEM SUGGESTION]` error
+    # returns as a tool result instead of aborting the hook run.
     return [wrap_tool(_undeferred(tool)) for tool in resolved]
 
 

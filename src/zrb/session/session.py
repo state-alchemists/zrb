@@ -344,18 +344,11 @@ class Session(AnySession):
     def _register_task_graph(
         self, task: AnyTask, ancestors: set[int] | None = None
     ) -> None:
-        # Iterative, with two responsibilities kept apart:
-        # `done` marks a task whose whole subtree is fully registered, so a
-        # shared upstream reachable via several branches (a diamond) is walked
-        # exactly once instead of once per root->node path — the same
-        # exponential blow-up the `_upstream_closure` rewrite removed from
-        # `zrb.task.base.context` (see its docstring: O(2**depth) on a diamond,
-        # interpreter stack overflow past ~450 levels).
-        # The path-scoped set still spots cycles: a task that reappears in its
-        # own ancestor chain is a circular dependency, and failing fast beats
-        # recursing forever. Only a task currently ON the path may be in the
-        # cycle; a task already in `done` was completed via another route and
-        # is a legitimate diamond, not a loop.
+        # Iterative to avoid stack overflow on deep graphs. `done` marks a
+        # fully registered subtree, so a shared upstream (a diamond) is walked
+        # once rather than once per path (O(2**depth)). `path` holds the
+        # current ancestor chain: a task reappearing on it is a cycle, while a
+        # task already in `done` is a legitimate diamond.
         done: set[int] = set()
         path: list[int] = list(ancestors) if ancestors else []
         path_set: set[int] = set(path)
@@ -386,7 +379,7 @@ class Session(AnySession):
             try:
                 child = next(children)
             except StopIteration:
-                # Fully explored. Register the parent's upstream edges now —
+                # Fully explored. Register the parent's upstream edges
                 # post-order, so a repeated diamond branch can never link a
                 # downstream twice, and a cycle that aborted the walk never
                 # left a dangling edge behind.
