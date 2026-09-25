@@ -5,6 +5,7 @@ paths the diff does not cover."""
 import asyncio
 import os
 import subprocess
+import tempfile
 import threading
 import time
 
@@ -337,15 +338,21 @@ def _contents(directory: str) -> dict[str, bytes]:
 
 
 def _temporary_stores() -> set[str]:
-    import tempfile
-
     temp = tempfile.gettempdir()
     return {name for name in os.listdir(temp) if name.startswith("zrb-snapshot-")}
 
 
+@pytest.fixture
+def own_temp_dir(tmp_path_factory, monkeypatch):
+    """A temp directory only this test's stores land in — other tests running
+    in parallel create and delete stores of their own — outside the
+    directory the test snapshots."""
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path_factory.mktemp("temp")))
+
+
 @pytest.mark.asyncio
 async def test_a_review_only_reads_the_turn_store_and_leaves_nothing_behind(
-    tmp_path, monkeypatch, start_snapshot, gate, stop
+    tmp_path, monkeypatch, own_temp_dir, start_snapshot, gate, stop
 ):
     """The runner deletes the turn-start store when the turn ends — also
     while a cancelled review still runs — so the review must never write to
@@ -370,7 +377,7 @@ async def test_a_review_only_reads_the_turn_store_and_leaves_nothing_behind(
 
 @pytest.mark.asyncio
 async def test_a_cancelled_review_stops_its_git_work_and_cleans_up(
-    tmp_path, monkeypatch, start_snapshot, gate, stop
+    tmp_path, monkeypatch, own_temp_dir, start_snapshot, gate, stop
 ):
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
     (tmp_path / "a.py").write_text("x = 1\n")
@@ -407,3 +414,54 @@ async def test_a_cancelled_review_stops_its_git_work_and_cleans_up(
 
     assert after_cancel == []  # no git command started once cancelled
     assert _temporary_stores() == stores
+
+
+def _git(cwd, *args) -> str:
+    return subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", *args],
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+
+@pytest.mark.asyncio
+async def test_a_submodule_moved_to_another_commit_is_reviewed_by_its_files(
+    tmp_path, monkeypatch, start_snapshot, gate, stop
+):
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+    upstream = tmp_path / "upstream"
+    upstream.mkdir()
+    _git(upstream, "init", "-q")
+    for version in ("v1", "v2"):
+        (upstream / "lib.py").write_text(f"version = '{version}'\n")
+        _git(upstream, "add", ".")
+        _git(upstream, "commit", "-qm", version)
+    app = tmp_path / "app"
+    app.mkdir()
+    _git(app, "init", "-q")
+    _git(
+        app,
+        "-c",
+        "protocol.file.allow=always",
+        "submodule",
+        "add",
+        "-q",
+        str(upstream),
+        "lib",
+    )
+    _git(app / "lib", "checkout", "-q", "HEAD~1")
+    monkeypatch.chdir(app)
+    before = start_snapshot(app)
+    # The turn moves the submodule to v2 and commits the new pointer.
+    _git(app / "lib", "checkout", "-q", "-")
+    _git(app, "commit", "-qam", "bump lib")
+    manager = HookManager(search_dirs=[])
+
+    with gate() as (seen, _):
+        await stop(manager, changed_paths=(), turn_start_snapshot=before)
+
+    request = seen[0].event_data
+    assert "- lib/lib.py" in request
+    assert "+version = 'v2'" in request
