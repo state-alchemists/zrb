@@ -5,11 +5,12 @@ Snapshots are commits of `SnapshotStore` trees (`util/git/snapshot_store.py`)
 the store's listing, byte-exactness and self-exclusion rules apply: every
 repository under the directory by its own ignore rules, nested ones included,
 and the loose files outside them up to a budget. One store serves every
-session started in a directory, at ``<snapshot_dir>/<name>-<hash of its
-path>.git``, so unchanged files are stored once; each session has its own ref
-(``refs/zrb/<session>-<hash>``) and its own index, so concurrent sessions
-never share a lock. The hashes keep two paths or names that sanitize alike
-from sharing a store or a history. The store keeps its own objects — rewind
+conversation in a directory, at ``<snapshot_dir>/<name>-<hash of its
+path>.git``, so unchanged files are stored once; each conversation has its
+own ref (``refs/zrb/<session>-<hash>``) and index cache, keyed by its name —
+the identity its chat history is saved and resumed under — since a snapshot
+records that conversation's message count. The hashes keep two paths or
+names that sanitize alike from sharing a store or a history. The store keeps its own objects — rewind
 history outlives the session, and borrowing a repository's could lose a blob
 to a `git gc` there.
 
