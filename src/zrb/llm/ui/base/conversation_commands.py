@@ -53,6 +53,17 @@ class BaseUIConversationCommands:
 
     # --- save / load ------------------------------------------------------
 
+    def _copy_rewind_history(self, source: str, target: str) -> None:
+        """The saved copy of a conversation keeps its rewind history. Runs in
+        the background; the snapshot manager's lock orders it before the next
+        turn's snapshot."""
+        snapshot_manager = self._base_ui.snapshot_manager
+        if snapshot_manager is None:
+            return
+        task = asyncio.create_task(snapshot_manager.copy_history(source, target))
+        self._base_ui.background_tasks.add(task)
+        task.add_done_callback(self._base_ui.background_tasks.discard)
+
     def handle_save_command(self, text: str) -> bool:
         text = text.strip()
         if self._missing_argument_warning(
@@ -66,13 +77,13 @@ class BaseUIConversationCommands:
                 if not name:
                     continue
                 try:
-                    history = self._base_ui.history_manager.load(
-                        self._base_ui.conversation_session_name
-                    )
+                    previous_name = self._base_ui.conversation_session_name
+                    history = self._base_ui.history_manager.load(previous_name)
                     self._base_ui.history_manager.update(name, history)
                     self._base_ui.history_manager.save(name)
                     self._base_ui.history_manager.load(name)
                     self._base_ui.conversation_session_name = name
+                    self._copy_rewind_history(previous_name, name)
                     self._base_ui.append_to_output(
                         stylize_muted(
                             f"\n  💾 Conversation saved and switched to: {name}\n"
@@ -272,6 +283,14 @@ class BaseUIConversationCommands:
                 # thread like restore_snapshot below.
                 snapshot_manager = self._base_ui.snapshot_manager
                 if snapshot_manager is None:
+                    return
+                if snapshot_manager.unavailable_reason:
+                    self._base_ui.append_to_output(
+                        stylize_warning(
+                            "\n  ⏳ Rewind is off for this session: "
+                            f"{snapshot_manager.unavailable_reason}.\n"
+                        )
+                    )
                     return
                 snapshots = await asyncio.to_thread(snapshot_manager.list_snapshots)
                 if arg:

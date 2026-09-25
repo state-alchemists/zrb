@@ -139,6 +139,9 @@ def _timed_out() -> HookResult:
 class _Scope:
     paths: list[str]
     diff: str
+    #: Files git could not read at Stop: listed, but not diffed, since an
+    #: unread file would otherwise read as deleted.
+    unreadable: list[str] = dataclasses.field(default_factory=list)
 
 
 def _resolve_scope(payload: dict[str, Any], deadline: float) -> _Scope:
@@ -155,7 +158,7 @@ def _resolve_scope(payload: dict[str, Any], deadline: float) -> _Scope:
     earlier uncommitted work."""
     tool_paths = [p for p in payload.get("changed_paths") or [] if isinstance(p, str)]
     changes = _diff_turn(payload.get("turn_start_snapshot"), deadline)
-    root, paths, diff = changes or ("", [], "")
+    root, paths, diff, unreadable = changes or ("", [], "", [])
     changed = [os.path.join(root, *path.split("/")) for path in paths]
     covered = {os.path.normcase(path) for path in changed}
     uncovered = [
@@ -163,12 +166,19 @@ def _resolve_scope(payload: dict[str, Any], deadline: float) -> _Scope:
         for p in tool_paths
         if os.path.normcase(_absolute(p)) not in covered
     ]
-    return _Scope([_display(p) for p in changed + uncovered], diff)
+    return _Scope(
+        [_display(p) for p in changed + uncovered],
+        diff,
+        [_display(os.path.join(root, *p.split("/"))) for p in unreadable],
+    )
 
 
-def _diff_turn(start: Any, deadline: float) -> tuple[str, list[str], str] | None:
-    """The working directory's `(root, changed paths, diff)` since the
-    turn-start snapshot *start*, or None when there is none to diff."""
+def _diff_turn(
+    start: Any, deadline: float
+) -> tuple[str, list[str], str, list[str]] | None:
+    """The working directory's `(root, changed paths, diff, unreadable
+    paths)` since the turn-start snapshot *start*, or None when there is none
+    to diff."""
     if not isinstance(start, dict):
         return None
     workdir, before, git_dir = (
@@ -186,11 +196,11 @@ def _diff_turn(start: Any, deadline: float) -> tuple[str, list[str], str] | None
     try:
         after = store.snapshot(deadline)
         before = _with_new_repositories(store, before, after, deadline)
-        paths, diff = store.diff(before, after.tree, deadline)
+        paths, diff = store.diff(before, after.tree, deadline, after.unreadable)
     except (SnapshotError, OSError) as e:
         CFG.LOGGER.debug(f"Self-review could not diff {workdir}: {e}")
         return None
-    return store.work_tree, paths, _truncate(diff)
+    return store.work_tree, paths, _truncate(diff), list(after.unreadable)
 
 
 def _with_new_repositories(
@@ -273,10 +283,16 @@ def _create_review_request(scope: _Scope) -> str:
         if scope.diff
         else "No diff of this turn's changes is available."
     )
+    unreadable = "".join(f"\n- {path}" for path in scope.unreadable)
+    unreadable_block = (
+        f"\n\nGit could not read these files, so they are not diffed:{unreadable}"
+        if unreadable
+        else ""
+    )
     return (
         f"This turn changed these files:\n\n{listing}\n\n{diff_block}\n\n"
         "A listed file with no hunk above is ignored by git or outside the "
-        "working directory: read it directly."
+        f"working directory: read it directly.{unreadable_block}"
     )
 
 

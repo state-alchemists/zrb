@@ -316,3 +316,9 @@ def test_copy_command_to_file_without_history(conv_ui, tmp_path):
 
 def test_copy_command_blank_argument_passes_through(conv_ui):
     assert conv_ui.handle_copy_command("copy   ") is True
+
+
+def test_rewind_follows_the_conversation_the_ui_switches_to(rewind_ui):
+    rewind_ui.conversation_session_name = "loaded-conversation"
+
+    assert rewind_ui.snapshot_manager.session_name == "loaded-conversation"

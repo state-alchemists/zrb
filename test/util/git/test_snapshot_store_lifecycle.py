@@ -173,3 +173,12 @@ def test_a_lock_taken_while_a_command_runs_survives_its_timeout(
         store.snapshot()
 
     assert os.path.exists(lock)
+
+
+@pytest.mark.parametrize("inside", [False, True])
+def test_a_store_that_would_hold_its_own_work_tree_is_refused(tmp_path, inside):
+    workdir = tmp_path / "project" if inside else tmp_path
+    workdir.mkdir(exist_ok=True)
+
+    with pytest.raises(ValueError, match="cannot hold its own work tree"):
+        SnapshotStore(str(tmp_path), str(workdir))

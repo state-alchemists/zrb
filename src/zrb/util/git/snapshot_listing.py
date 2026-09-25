@@ -16,7 +16,8 @@ repository. The listing is built here instead, repository by repository:
   child repositories, or the worktrees `EnterWorktree` creates under
   `.zrb/worktree/` — and its files are no less the user's.
 - A directory outside every repository is walked, and a repository found
-  there is listed by itself. Outside a repository `DEFAULT_IGNORE_DIRS` is the
+  there is listed by itself. So is a working directory its own repository
+  ignores, such as a scratch folder: it is still what the user works on. Outside a repository `DEFAULT_IGNORE_DIRS` is the
   only rule, so those loose files count toward `LOOSE_FILE_LIMIT` and
   `LOOSE_BYTE_LIMIT`; past either, the listing raises `SnapshotBudgetError`.
 
@@ -190,15 +191,27 @@ class _Lister:
         self._loose_bytes = 0
 
     def list(self) -> Listing:
-        workdir = self._scope.workdir
-        inside = run_git_command(
-            ["git", "rev-parse", "--is-inside-work-tree"], workdir, self._deadline
-        )
-        if inside.returncode == 0 and inside.stdout.strip() == "true":
+        if self._is_listed_by_a_repository():
             self._list_repository("")
         else:
             self._walk("")
         return self._listing
+
+    def _is_listed_by_a_repository(self) -> bool:
+        """Whether the working directory is in a repository that does not
+        ignore it. One its repository ignores — a scratch folder — is still
+        what the user works on, so it is walked like a directory outside
+        every repository, rather than listed as empty."""
+        workdir = self._scope.workdir
+        inside = run_git_command(
+            ["git", "rev-parse", "--is-inside-work-tree"], workdir, self._deadline
+        )
+        if inside.returncode != 0 or inside.stdout.strip() != "true":
+            return False
+        ignored = run_git_command(
+            ["git", "check-ignore", "-q", "."], workdir, self._deadline
+        )
+        return ignored.returncode != 0
 
     def _list_repository(self, base: str) -> None:
         """List the repository at *base* by its own rules, then the nested

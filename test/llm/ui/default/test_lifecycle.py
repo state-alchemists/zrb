@@ -239,3 +239,52 @@ async def test_on_exit_exception():
     ui = MockLifecycleUI()
     with patch("prompt_toolkit.application.get_app", side_effect=Exception("error")):
         ui.on_exit()  # should not raise exception
+
+
+async def _init_snapshot_lines(unavailable_reason: str, event) -> str:
+    """What the TUI prints for one init-snapshot *event*."""
+    ui = MockLifecycleUI()
+    ui.snapshot_manager.unavailable_reason = unavailable_reason
+
+    async def init_snapshot(on_progress):
+        on_progress(event)
+
+    ui.snapshot_manager.take_init_snapshot = init_snapshot
+    started: list = []
+
+    def create_bg_task(coro):
+        if not started:  # the init snapshot is started first
+            started.append(asyncio.ensure_future(coro))
+            return started[0]
+        coro.close()
+        return create_mock_task()
+
+    ui.application.create_background_task.side_effect = create_bg_task
+
+    async def run_briefly():
+        await asyncio.sleep(0.05)  # long enough for the init snapshot to report
+
+    ui.application.run_async = run_briefly
+    with patch("builtins.print"):
+        await ui.run_async()
+    return "".join(str(call.args[0]) for call in ui.append_to_output.call_args_list)
+
+
+@pytest.mark.asyncio
+async def test_an_init_snapshot_failure_says_rewind_resumes_next_turn():
+    from zrb.llm.snapshot import SnapshotProgress
+
+    lines = await _init_snapshot_lines("", SnapshotProgress("error", reason="boom"))
+
+    assert "Initial workspace snapshot failed: boom" in lines
+    assert "next turn" in lines
+
+
+@pytest.mark.asyncio
+async def test_a_directory_that_cannot_be_snapshotted_says_rewind_is_off():
+    from zrb.llm.snapshot import SnapshotProgress
+
+    reason = "too many loose files"
+    lines = await _init_snapshot_lines(reason, SnapshotProgress("error", reason=reason))
+
+    assert f"Rewind is off for this session: {reason}." in lines

@@ -2,6 +2,7 @@
 turn-start snapshot, every repository under it included, plus the file tools'
 paths the diff does not cover."""
 
+import os
 import subprocess
 import time
 
@@ -294,3 +295,30 @@ async def test_a_diff_that_fails_on_the_filesystem_falls_back_to_the_paths(
     request = seen[0].event_data
     assert "- a.py" in request
     assert "No diff of this turn's changes is available." in request
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(
+    os.name != "posix" or os.geteuid() == 0, reason="needs POSIX permissions, non-root"
+)
+async def test_a_file_unreadable_at_stop_is_listed_not_shown_as_deleted(
+    tmp_path, monkeypatch, start_snapshot, gate, stop
+):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / "locked.txt").write_text("l\n")
+    monkeypatch.chdir(tmp_path)
+    before = start_snapshot(tmp_path)
+    (tmp_path / "a.py").write_text("x = 1\n")
+    (tmp_path / "locked.txt").chmod(0)
+    manager = HookManager(search_dirs=[])
+    try:
+        with gate() as (seen, _):
+            await stop(manager, changed_paths=(), turn_start_snapshot=before)
+    finally:
+        (tmp_path / "locked.txt").chmod(0o600)
+
+    request = seen[0].event_data
+    assert "deleted file" not in request
+    assert (
+        "could not read these files, so they are not diffed:\n- locked.txt" in request
+    )

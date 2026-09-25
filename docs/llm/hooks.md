@@ -365,7 +365,7 @@ Off by default; `ZRB_LLM_SELF_REVIEW_ENABLED=on` turns it on (ADR-0100). At the 
 
 A repository that appears during the turn — a worktree, a clone — is diffed against the commit it started from, so the review shows what the turn changed in it rather than its whole checkout.
 
-Paths the file tools named that the diff does not cover — ignored, or outside the working directory — are listed for the reviewer to read. Without a snapshot — it failed, or the directory holds more than 5,000 files or 200 MB outside any repository, which is reported once per session — the reviewer gets those paths with no diff, never `git diff HEAD`, which would include your earlier uncommitted work.
+Paths the file tools named that the diff does not cover — ignored, or outside the working directory — are listed for the reviewer to read. Without a snapshot — it failed, or the directory holds more than 5,000 files or 200 MB outside any repository, which is reported once per session — the reviewer gets those paths with no diff, never `git diff HEAD`, which would include your earlier uncommitted work. A file git cannot read at Stop is listed as unreadable instead of showing as deleted.
 
 A delegated sub-agent's turn is not reviewed on its own: its changes land in your working directory, or in a worktree under it, so they are part of the parent turn's diff, which is. A live sub-agent continuation you message after the parent turn has ended is the exception — no parent review covers it, so it is reviewed on its own.
 

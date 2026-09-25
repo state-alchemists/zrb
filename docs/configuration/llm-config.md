@@ -470,16 +470,16 @@ Zrb can snapshot your working directory before each AI turn, letting you restore
 **How it works:**
 
 1. Before each AI response, Zrb records your working directory as a commit in a private git repository (`<ZRB_LLM_SNAPSHOT_DIR>/<directory-name>-<hash>.git`) whose work tree is that directory. Nothing is copied, and no repository's own history, index or objects are touched.
-2. Each git repository under the directory lists its own files, by its own `.gitignore` — nested clones, submodules, every repository in a folder of repositories, and a repository its parent ignores included. Files outside any repository are taken as they are, except common cache directories (`node_modules/`, `.venv/`, `__pycache__/`, …).
-3. Every session started in a directory shares its repository, so unchanged files are stored once; each session keeps its own history (`refs/zrb/<session-name>-<hash>`).
-4. `/rewind` lists all snapshots; `/rewind <n>` or `/rewind <sha>` restores both the filesystem and conversation history to the selected point.
+2. Each git repository under the directory lists its own files, by its own `.gitignore` — nested clones, submodules, every repository in a folder of repositories, and a repository its parent ignores included. Files outside any repository are taken as they are, except common cache directories (`node_modules/`, `.venv/`, `__pycache__/`, …); so is a working directory its repository ignores, such as a scratch folder.
+3. Every conversation in a directory shares its repository, so unchanged files are stored once; each conversation keeps its own history (`refs/zrb/<conversation-name>-<hash>`). `/load` switches rewind to the loaded conversation's history, and `/save` copies the current history to the new name along with the chat.
+4. `/rewind` lists the current conversation's snapshots; `/rewind <n>` or `/rewind <sha>` restores both the filesystem and conversation history to the selected point.
 
-> **Note:** Files a repository's `.gitignore` excludes — including ones it starts excluding after a snapshot — are neither snapshotted nor restored, so an edit to a gitignored `.env` is not rewound. A `.gitignore` outside any repository has no effect, as in git. Outside every repository, a directory may hold at most 5,000 files or 200 MB: past that — a chat started in `~`, say — rewind turns itself off for the session and says why when it starts. Rewind restores files, nested repositories' files included; it never moves a repository's `HEAD` or branches. The first snapshot of a session runs in the background.
+> **Note:** Files a repository's `.gitignore` excludes — including ones it starts excluding after a snapshot — are neither snapshotted nor restored, so an edit to a gitignored `.env` is not rewound. A `.gitignore` outside any repository has no effect, as in git. Outside every repository, a directory may hold at most 5,000 files or 200 MB: past that — a chat started in `~`, say — rewind turns itself off for the session and says why when it starts and on `/rewind`; so does a `ZRB_LLM_SNAPSHOT_DIR` that is the working directory itself. Rewind restores files, nested repositories' files included; it never moves a repository's `HEAD` or branches. It removes a file only when the snapshot would have held it — never one that existed then but was ignored, or could not be read — and leaves a repository created since the snapshot, such as a worktree or clone, as it is. The first snapshot of a session runs in the background.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_LLM_ENABLE_REWIND` | Enable filesystem snapshots and `/rewind` command | `on` |
-| `ZRB_LLM_SNAPSHOT_DIR` | Directory holding one snapshot git repository per working directory | `~/.zrb/llm-snapshots/` |
+| `ZRB_LLM_SNAPSHOT_DIR` | Directory holding one snapshot git repository per working directory. Must not be the working directory itself | `~/.zrb/llm-snapshots/` |
 
 ### Python API
 
@@ -497,7 +497,7 @@ task = LLMChatTask(
 
 | Input | Effect |
 |-------|--------|
-| `/rewind` | List all snapshots (newest first) with index, short SHA, timestamp, and user message |
+| `/rewind` | List the current conversation's snapshots (newest first) with index, short SHA, timestamp, and user message |
 | `/rewind <n>` | Restore snapshot number `n` from the list (1-based) |
 | `/rewind <sha>` | Restore by full or partial SHA |
 

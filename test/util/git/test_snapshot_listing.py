@@ -290,3 +290,15 @@ def test_a_tracked_file_matching_an_ignore_pattern_stays_in_scope(tmp_path):
 
     assert ".env.example" in list_snapshot_paths(str(repo)).paths
     assert out == {".env"}
+
+
+def test_a_working_directory_its_repository_ignores_is_walked(tmp_path):
+    repo = _repo(tmp_path / "r", {".gitignore": "scratch/\n"})
+    (repo / "scratch").mkdir()
+    (repo / "scratch" / "try.py").write_text("t\n")
+    _repo(repo / "scratch" / "lib", {"v.py": "v\n"})
+
+    listing = list_snapshot_paths(str(repo / "scratch"))
+
+    assert sorted(listing.paths) == ["lib/v.py", "try.py"]
+    assert listing.repositories == ["lib"]

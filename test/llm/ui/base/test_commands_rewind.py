@@ -3,6 +3,7 @@
 `MockUI` and the `ui` fixture come from `conftest.py`.
 """
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -83,3 +84,14 @@ def test_rewind_is_listed_in_help_even_without_snapshots(ui):
     is discoverable even where `LLM_ENABLE_REWIND` is off."""
     ui.snapshot_manager = None
     assert any("/rewind" in row for row in ui.get_help_text(80).splitlines())
+
+
+@pytest.mark.asyncio
+async def test_rewind_says_why_it_is_off_for_the_session(ui):
+    ui.snapshot_manager.unavailable_reason = "too many loose files"
+
+    assert ui.handle_rewind_command("/rewind") is True
+    await asyncio.gather(*ui.background_tasks)
+
+    assert "Rewind is off for this session: too many loose files" in "".join(ui.outputs)
+    ui.snapshot_manager.list_snapshots.assert_not_called()

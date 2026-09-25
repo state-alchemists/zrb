@@ -155,7 +155,11 @@ silently lack them. But the defaults are honest `None`/`False`/`""` answers: a
 UI that keeps none of this state **works as a secondary child, and disables
 snapshots, rewind and plan mode when it is the primary**. If your UI is going in
 the `main_ui_index` slot, implement them for real — or leave the default
-terminal UI as the primary and add yours alongside.
+terminal UI as the primary and add yours alongside. A primary that keeps its
+own `snapshot_manager` should build it with a callable returning the current
+`conversation_session_name`, as `BaseUI` does, or set the manager's
+`session_name` on every change; otherwise rewind stays on the conversation the
+session started with.
 
 ### Optional Enrichment Hooks
 

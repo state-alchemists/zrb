@@ -211,7 +211,8 @@ def _make_snapshot_progress_handler(
     Every snapshot invocation ends with exactly one terminal line, so the
     start line never dangles: done (with the unreadable-file count), up-to-date
     (resumed session), or error (with the reason — no debug mode needed to
-    see why). All events arrive on the event-loop thread (the manager
+    see why; when the directory cannot be snapshotted at all, the line says
+    rewind is off). All events arrive on the event-loop thread (the manager
     reports from coroutine context), so a direct append is safe.
     """
 
@@ -224,10 +225,12 @@ def _make_snapshot_progress_handler(
             message = f"\n  ✅ Initial workspace snapshot taken{note}\n"
         elif stage == "up-to-date":
             message = "\n  📸 Workspace snapshot up-to-date\n"
+        elif stage == "error" and _is_rewind_off(ui):
+            message = f"\n  ⚠️  Rewind is off for this session: {reason}.\n"
         elif stage == "error":
             message = (
                 f"\n  ⚠️  Initial workspace snapshot failed: {reason}\n"
-                "     /rewind will be unavailable for this session.\n"
+                "     /rewind starts from the next turn's snapshot.\n"
             )
         else:
             return
@@ -237,3 +240,8 @@ def _make_snapshot_progress_handler(
         ui.append_to_output(styled)
 
     return handler
+
+
+def _is_rewind_off(ui: "UI") -> bool:
+    manager = ui.snapshot_manager
+    return manager is not None and bool(manager.unavailable_reason)

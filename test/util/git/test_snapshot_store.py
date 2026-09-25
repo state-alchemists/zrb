@@ -362,22 +362,6 @@ def test_a_snapshot_reports_the_repositories_it_holds(repo, store):
     assert sorted(snapshot.repositories) == ["", ".zrb/worktree/wt", "lib"]
 
 
-def test_a_restore_removes_the_files_of_a_repository_created_since(repo, tmp_path):
-    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
-    before = _snap(store)
-    child = repo / "child"
-    child.mkdir()
-    _git(child, "init", "-q")
-    (child / "made.py").write_text("m\n")
-    (repo / "new.txt").write_text("n\n")
-
-    store.restore(before)
-
-    assert not (child / "made.py").exists()
-    assert not (repo / "new.txt").exists()
-    assert (child / ".git").is_dir()  # rewind restores files, never git metadata
-
-
 @pytest.mark.skipif(
     os.name != "posix" or os.geteuid() == 0, reason="needs POSIX permissions, non-root"
 )
@@ -390,7 +374,7 @@ def test_an_unreadable_file_with_a_newline_in_its_name_is_left_out(repo, store):
     finally:
         secret.chmod(0o600)
 
-    assert snapshot.tree and snapshot.skipped == 1
+    assert snapshot.tree and snapshot.unreadable == ("two\nlines.key",)
 
 
 def test_a_file_rewritten_in_the_same_second_at_the_same_size_is_seen(repo, store):
@@ -422,17 +406,22 @@ def test_a_repository_baseline_holds_what_its_own_checkout_wrote(repo, store, au
     (worktree / "tracked.txt").write_bytes(b"changed\n")
     (worktree / "gone.txt").unlink()
     (worktree / "new.txt").write_bytes(b"n\n")
+    (worktree / "committed.txt").write_bytes(b"c\n")
+    _git(worktree, "add", "committed.txt")
+    _git(worktree, "commit", "-qm", "added since the fork")
     after = store.snapshot()
 
     baseline = store.create_repository_baseline(before, after, ".zrb/worktree/wt", fork)
 
     paths, diff = store.diff(baseline, after.tree)
     assert sorted(paths) == [
+        ".zrb/worktree/wt/committed.txt",
         ".zrb/worktree/wt/gone.txt",
         ".zrb/worktree/wt/new.txt",
         ".zrb/worktree/wt/tracked.txt",
     ]
     assert "-a" in diff and "+changed" in diff
+    assert "+c" in diff  # added and committed since the fork: shown as added
 
 
 def test_a_restore_keeps_a_tracked_file_matching_an_ignore_pattern(repo, tmp_path):
@@ -465,3 +454,43 @@ def test_a_repository_baseline_leaves_out_what_the_listing_leaves_out(repo, stor
     baseline = store.create_repository_baseline(before, after, ".zrb/worktree/wt", fork)
 
     assert store.diff(baseline, after.tree)[0] == []
+
+
+def test_a_restore_keeps_a_file_its_snapshot_ignored_then(repo, tmp_path):
+    (repo / ".gitignore").write_bytes(b"*.log\n")
+    (repo / "debug.log").write_bytes(b"precious\n")
+    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
+    before = _snap(store)  # debug.log is ignored: not captured
+    (repo / ".gitignore").write_bytes(b"")  # logs un-ignored since
+    (repo / "made.py").write_bytes(b"m\n")
+
+    store.restore(before)  # the `.gitignore` edit is rewound
+
+    assert (repo / ".gitignore").read_bytes() == b"*.log\n"
+    assert (repo / "debug.log").read_bytes() == b"precious\n"
+    assert not (repo / "made.py").exists()  # created since: removed
+
+
+def test_a_restore_leaves_a_repository_made_since_as_it_is(repo, tmp_path):
+    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
+    before = _snap(store)
+    clone = _nested(repo / "vendor" / "lib", {"v.py": "v\n"})  # cloned since
+    (clone / "wip.py").write_bytes(b"uncommitted\n")
+    (repo / "made.txt").write_bytes(b"m\n")
+
+    store.restore(before)
+
+    assert (clone / "v.py").exists() and (clone / "wip.py").exists()
+    assert not (repo / "made.txt").exists()
+
+
+def test_a_diff_leaves_out_the_paths_it_is_told_to(repo, store):
+    before = _snap(store)
+    (repo / "tracked.txt").write_bytes(b"b\n")
+    (repo / "odd[name].txt").write_bytes(b"o\n")
+    after = _snap(store)
+
+    paths, diff = store.diff(before, after, exclude=["odd[name].txt"])
+
+    assert paths == ["tracked.txt"]
+    assert "odd" not in diff

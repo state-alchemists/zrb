@@ -78,7 +78,7 @@ class Snapshot(NamedTuple):
     #: The snapshot's tree SHA.
     tree: str
     #: Files left out because git could not read them.
-    skipped: int = 0
+    unreadable: tuple[str, ...] = ()
     #: The repositories it holds, relative to the work tree; `""` is the work
     #: tree itself.
     repositories: tuple[str, ...] = ()
@@ -106,6 +106,15 @@ class SnapshotStore:
         # Absolute: git runs with the work tree as its cwd.
         self._git_dir = os.path.realpath(git_dir)
         self._workdir = os.path.realpath(workdir)
+        try:
+            holds = os.path.commonpath([self._git_dir, self._workdir]) == self._git_dir
+        except ValueError:  # another drive on Windows
+            holds = False
+        if holds:
+            # Deleting the store would delete the work tree with it.
+            raise ValueError(
+                f"A snapshot store cannot hold its own work tree: {self._git_dir}"
+            )
         self._index_name = index_name
         self._ignore_dirs = frozenset(ignore_dirs)
         self._exclude_paths = [self._git_dir] + [
@@ -197,24 +206,88 @@ class SnapshotStore:
         `SnapshotBudgetError` when the directory holds too many files outside
         every repository."""
         with self._operation_index(from_cache=True) as index:
-            listing, skipped = self._index_directory(index, deadline)
+            listing, unreadable = self._index_directory(index, deadline)
             tree = self.git(["write-tree"], index=index, deadline=deadline).strip()
-        return Snapshot(tree, skipped, tuple(listing.repositories))
+        return Snapshot(tree, tuple(unreadable), tuple(listing.repositories))
 
-    def restore(self, treeish: str, deadline: float | None = None) -> None:
+    def restore(
+        self,
+        treeish: str,
+        keep: Iterable[str] = (),
+        deadline: float | None = None,
+    ) -> None:
         """Make the directory match *treeish*: rewrite changed files, recreate
         deleted ones, and remove files created since. A path the listing
         leaves out now — ignored or excluded since *treeish* was taken — is
-        neither overwritten nor recreated."""
+        neither overwritten nor recreated.
+
+        A current file *treeish* lacks is removed only when that snapshot
+        would have held it. It would not when its own ignore rules left it
+        out — rules *treeish* may restore, as when a `.gitignore` edit is
+        rewound — or when it is one of *keep*, the files that snapshot could
+        not read. Either way the file existed then without being captured,
+        so the restore first writes *treeish* keeping every file it lacks,
+        then removes the ones its restored rules would have captured. A
+        repository *treeish* holds nothing of — a worktree or clone made since
+        — is left as it is: removing its files would leave it hollow, and its
+        own history holds its work."""
+        keep = set(keep)
         with self._operation_index(from_cache=True) as index:
             listing, _ = self._index_directory(index, deadline)
             target = self._create_tree_in_scope(treeish, listing, deadline)
-            self.git(
-                ["read-tree", "-u", "--reset", target], index=index, deadline=deadline
+            current = _index_entries(
+                self.git(["ls-files", "--stage", "-z"], index=index, deadline=deadline)
             )
+            wanted = set(
+                self.git(
+                    ["ls-tree", "-r", "-z", "--name-only", target], deadline=deadline
+                ).split("\0")
+            )
+            lacking = sorted(path for path in current if path not in wanted)
+            kept = self._edit_tree(
+                target,
+                add=[
+                    f"{current[path][0]} {current[path][1]}\t{path}" for path in lacking
+                ],
+                deadline=deadline,
+            )
+            self.git(
+                ["read-tree", "-u", "--reset", kept], index=index, deadline=deadline
+            )
+            still_left_out = get_out_of_scope_paths(
+                self._workdir,
+                lacking,
+                listing.repositories,
+                self._ignore_dirs,
+                self._exclude_paths,
+                deadline,
+            )
+            made_since = [
+                base
+                for base in listing.repositories
+                if base and not any(path.startswith(f"{base}/") for path in wanted)
+            ]
+            created = [
+                path
+                for path in lacking
+                if path not in keep
+                and path not in still_left_out
+                and not any(path.startswith(f"{base}/") for base in made_since)
+            ]
+            if created:
+                final = self._edit_tree(kept, remove=created, deadline=deadline)
+                self.git(
+                    ["read-tree", "-u", "--reset", final],
+                    index=index,
+                    deadline=deadline,
+                )
 
     def diff(
-        self, before: str, after: str, deadline: float | None = None
+        self,
+        before: str,
+        after: str,
+        deadline: float | None = None,
+        exclude: Iterable[str] = (),
     ) -> tuple[list[str], str]:
         """The paths (relative to `work_tree`) that differ between two trees,
         and their unified diff.
@@ -223,13 +296,15 @@ class SnapshotStore:
         name nor loses one to trimming — and without rename detection, so a
         renamed file's old path is listed too. The diff ignores the user's
         external diff tool and colour settings, and replaces undecodable bytes
-        with U+FFFD: it goes to a model, which may reject lone surrogates."""
+        with U+FFFD: it goes to a model, which may reject lone surrogates.
+        *exclude* are paths left out of both."""
+        pathspec = ["--", ".", *(f":(exclude,literal){path}" for path in exclude)]
         names = self.git(
-            ["diff", "--name-only", "-z", "--no-renames", before, after],
+            ["diff", "--name-only", "-z", "--no-renames", before, after, *pathspec],
             deadline=deadline,
         )
         diff = self.git(
-            ["diff", "--no-ext-diff", "--no-color", before, after],
+            ["diff", "--no-ext-diff", "--no-color", before, after, *pathspec],
             deadline=deadline,
             errors="replace",
         )
@@ -269,41 +344,37 @@ class SnapshotStore:
             )
         )
         prefix = f"{repository}/"
-        out_of_scope = get_out_of_scope_paths(
-            self._workdir,
-            [
-                f"{prefix}{rel}"
-                for rel in changed_paths
-                if f"{prefix}{rel}" not in current
-            ],
-            list(after.repositories),
-            self._ignore_dirs,
-            self._exclude_paths,
-            deadline,
-        )
+        # Unchanged since *fork*: exactly as it is now, so it cannot read as
+        # changed whatever the filters did to its bytes.
         entries = [
             f"{mode} {sha}\t{path}"
             for path, (mode, sha) in current.items()
             if path[len(prefix) :] in forked
             and path[len(prefix) :] not in changed_paths
         ]
-        for rel in sorted(changed_paths):
-            mode, _ = forked.get(rel, (_GITLINK_MODE, ""))
-            if f"{prefix}{rel}" in out_of_scope:
-                continue
-            if mode != _GITLINK_MODE:  # absent from *fork*, or a submodule
+        # Changed since *fork*. One *fork* lacks was added since: absent from
+        # the baseline, it reads as added. A submodule is a repository of its
+        # own, with its own baseline.
+        existing = [
+            rel
+            for rel in sorted(changed_paths)
+            if rel in forked and forked[rel][0] != _GITLINK_MODE
+        ]
+        # One *after* lacks was deleted — unless the listing leaves it out
+        # now, which would make it read as deleted while it is still there.
+        out_of_scope = get_out_of_scope_paths(
+            self._workdir,
+            [f"{prefix}{rel}" for rel in existing if f"{prefix}{rel}" not in current],
+            list(after.repositories),
+            self._ignore_dirs,
+            self._exclude_paths,
+            deadline,
+        )
+        for rel in existing:
+            if f"{prefix}{rel}" not in out_of_scope:
                 blob = self._hash_checkout(where, f"{fork}:{rel}", deadline)
-                entries.append(f"{mode} {blob}\t{prefix}{rel}")
-        with self._operation_index(from_cache=False) as index:
-            self.git(["read-tree", before], index=index, deadline=deadline)
-            if entries:
-                self.git(
-                    ["update-index", "-z", "--index-info"],
-                    index=index,
-                    stdin="".join(f"{entry}\0" for entry in entries),
-                    deadline=deadline,
-                )
-            return self.git(["write-tree"], index=index, deadline=deadline).strip()
+                entries.append(f"{forked[rel][0]} {blob}\t{prefix}{rel}")
+        return self._edit_tree(before, add=entries, deadline=deadline)
 
     def git(
         self,
@@ -401,9 +472,9 @@ class SnapshotStore:
 
     def _index_directory(
         self, index: str, deadline: float | None
-    ) -> tuple[Listing, int]:
+    ) -> tuple[Listing, list[str]]:
         """Bring *index* to the directory's current listing; return the
-        listing and how many files git could not read."""
+        listing and the files git could not read."""
         self.ensure(deadline)
         listing = list_snapshot_paths(
             self._workdir,
@@ -424,9 +495,9 @@ class SnapshotStore:
 
     def _add_readable(
         self, paths: list[str], index: str, deadline: float | None
-    ) -> int:
+    ) -> list[str]:
         """Add *paths* to the index — `--remove` drops one deleted from disk —
-        and return how many were left out because git could not read them.
+        and return the ones left out because git could not read them.
 
         `update-index` gives up at the first unreadable file and names it, so
         that file is left out and the rest are fed again; each rerun re-stats
@@ -434,14 +505,14 @@ class SnapshotStore:
         path against the end of git's output, not by parsing a path out of
         it: git prints the name raw, so a newline in it would split a parsed
         line."""
-        remaining, skipped = list(paths), 0
+        remaining, unreadable = list(paths), []
         while remaining:
             result = self._update_index(
                 ["--add", "--remove"], remaining, index, deadline
             )
             if result.returncode == 0:
                 break
-            unreadable = next(
+            failed = next(
                 (
                     path
                     for path in remaining
@@ -449,11 +520,11 @@ class SnapshotStore:
                 ),
                 None,
             )
-            if unreadable is None:
+            if failed is None:
                 raise SnapshotError(f"git update-index failed: {result.stderr.strip()}")
-            remaining.remove(unreadable)
-            skipped += 1
-        return skipped
+            remaining.remove(failed)
+            unreadable.append(failed)
+        return unreadable
 
     def _update_index(
         self, flags: list[str], paths: list[str], index: str, deadline: float | None
@@ -492,22 +563,42 @@ class SnapshotStore:
         self, treeish: str, listing: Listing, deadline: float | None
     ) -> str:
         """*treeish*'s tree minus the paths the listing would leave out now."""
+        paths = self.git(
+            ["ls-tree", "-r", "-z", "--name-only", treeish], deadline=deadline
+        )
+        out = get_out_of_scope_paths(
+            self._workdir,
+            [path for path in paths.split("\0") if path],
+            listing.repositories,
+            self._ignore_dirs,
+            self._exclude_paths,
+            deadline,
+        )
+        return self._edit_tree(treeish, remove=sorted(out), deadline=deadline)
+
+    def _edit_tree(
+        self,
+        treeish: str,
+        add: list[str] | None = None,
+        remove: list[str] | None = None,
+        deadline: float | None = None,
+    ) -> str:
+        """*treeish*'s tree with *add* — `update-index --index-info` entries,
+        `<mode> <sha>\\t<path>` — put in and *remove*'s paths taken out."""
         with self._operation_index(from_cache=False) as index:
             self.git(["read-tree", treeish], index=index, deadline=deadline)
-            paths = self.git(["ls-files", "-z"], index=index, deadline=deadline)
-            out = get_out_of_scope_paths(
-                self._workdir,
-                [path for path in paths.split("\0") if path],
-                listing.repositories,
-                self._ignore_dirs,
-                self._exclude_paths,
-                deadline,
-            )
-            if out:
+            if add:
+                self.git(
+                    ["update-index", "-z", "--index-info"],
+                    index=index,
+                    stdin="".join(f"{entry}\0" for entry in add),
+                    deadline=deadline,
+                )
+            if remove:
                 self.git(
                     ["update-index", "--force-remove", "-z", "--stdin"],
                     index=index,
-                    stdin="".join(f"{path}\0" for path in out),
+                    stdin="".join(f"{path}\0" for path in remove),
                     deadline=deadline,
                 )
             return self.git(["write-tree"], index=index, deadline=deadline).strip()
@@ -520,6 +611,17 @@ def _tree_entries(listing: str) -> dict[str, tuple[str, str]]:
         meta, _, path = line.partition("\t")
         if path:
             mode, _, sha = meta.split(" ")
+            entries[path] = (mode, sha)
+    return entries
+
+
+def _index_entries(listing: str) -> dict[str, tuple[str, str]]:
+    """`ls-files --stage -z` output as `{path: (mode, sha)}`."""
+    entries: dict[str, tuple[str, str]] = {}
+    for line in listing.split("\0"):
+        meta, _, path = line.partition("\t")
+        if path:
+            mode, sha, _ = meta.split(" ")
             entries[path] = (mode, sha)
     return entries
 

@@ -462,3 +462,23 @@ async def test_a_directory_over_the_budget_turns_rewind_off_for_the_session(
     assert events[-1].stage == "error"
     assert "more than 1 files outside any git repository" in events[-1].reason
     assert await manager.take_snapshot("later") is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(
+    os.name != "posix" or os.geteuid() == 0, reason="needs POSIX permissions, non-root"
+)
+async def test_rewind_keeps_a_file_its_snapshot_could_not_read(manager, workdir):
+    locked = os.path.join(workdir, "locked.txt")
+    with open(locked, "w") as f:
+        f.write("mine")
+    os.chmod(locked, 0)
+    try:
+        sha = await manager.take_snapshot("while locked")
+    finally:
+        os.chmod(locked, 0o600)
+
+    assert sha is not None
+    assert await manager.restore_snapshot(sha) is True
+    with open(locked) as f:
+        assert f.read() == "mine"

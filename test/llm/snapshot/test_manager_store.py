@@ -7,7 +7,7 @@ import tempfile
 
 import pytest
 
-from zrb.llm.snapshot import SnapshotManager
+from zrb.llm.snapshot import SnapshotManager, SnapshotProgress
 
 
 @pytest.fixture
@@ -155,8 +155,18 @@ async def test_snapshot_dir_inside_the_workdir_is_never_snapshotted(workdir):
 
 
 @pytest.mark.asyncio
-async def test_snapshot_dir_equal_to_the_workdir_is_never_snapshotted(workdir):
-    await _rewind_twice_and_restore_first(workdir, workdir)
+async def test_a_snapshot_dir_equal_to_the_workdir_turns_rewind_off_with_a_reason(
+    workdir,
+):
+    manager = SnapshotManager(workdir, "s", workdir)
+    events: list = []
+
+    assert await manager.take_init_snapshot(on_progress=events.append) is None
+    assert await manager.take_snapshot("turn") is None
+
+    assert "working directory itself" in manager.unavailable_reason
+    assert events == [SnapshotProgress("error", reason=manager.unavailable_reason)]
+    assert os.listdir(workdir) == []  # no store written into it
 
 
 @pytest.mark.asyncio
@@ -224,3 +234,33 @@ async def test_another_sessions_commit_in_the_same_store_is_refused(
     assert await mine.restore_snapshot(foreign) is False
     with open(target) as f:
         assert f.read() == "edited"
+
+
+@pytest.mark.asyncio
+async def test_switching_conversation_switches_rewind_history(snapshot_dir, workdir):
+    manager = SnapshotManager(snapshot_dir, "first", workdir)
+    await manager.take_snapshot("in first", message_count=1)
+
+    manager.session_name = "loaded"  # `/load loaded`
+    await manager.take_snapshot("in loaded", message_count=7)
+
+    assert [s.label for s in manager.list_snapshots()] == ["in loaded"]
+    manager.session_name = "first"
+    assert [s.label for s in manager.list_snapshots()] == ["in first"]
+
+
+@pytest.mark.asyncio
+async def test_a_saved_copy_keeps_the_conversations_rewind_history(
+    snapshot_dir, workdir
+):
+    manager = SnapshotManager(snapshot_dir, "draft", workdir)
+    await manager.take_snapshot("turn", message_count=2)
+    stale = SnapshotManager(snapshot_dir, "stale", workdir)
+    await stale.take_snapshot("old", message_count=9)
+
+    await manager.copy_history("draft", "final")  # `/save final`
+    await manager.copy_history("empty", "stale")
+
+    manager.session_name = "final"
+    assert [s.label for s in manager.list_snapshots()] == ["turn"]
+    assert stale.list_snapshots() == []  # its old counts matched no chat history

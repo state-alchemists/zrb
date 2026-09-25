@@ -239,7 +239,8 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
             self._snapshot_manager = SnapshotManager(
                 snapshot_dir=snapshot_dir,
-                session_name=self._conversation_session_name,
+                # Read at each operation, so rewind follows `/load` and `/save`.
+                session_name=lambda: self._conversation_session_name,
                 workdir=self._cwd,
             )
 
