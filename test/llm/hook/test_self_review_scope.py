@@ -256,3 +256,25 @@ async def test_a_repository_started_mid_turn_shows_all_its_files(
 
     request = seen[0].event_data
     assert "- repos/new/main.py" in request and "+m = 1" in request
+
+
+@pytest.mark.asyncio
+async def test_a_diff_that_fails_on_the_filesystem_falls_back_to_the_paths(
+    tmp_path, monkeypatch, start_snapshot, gate, stop
+):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    monkeypatch.chdir(tmp_path)
+    before = start_snapshot(tmp_path)
+
+    def refuse(store, deadline=None):
+        raise PermissionError("index copy refused")
+
+    monkeypatch.setattr("zrb.llm.hook.self_review.SnapshotStore.snapshot", refuse)
+    manager = HookManager(search_dirs=[])
+
+    with gate() as (seen, _):
+        await stop(manager, changed_paths=("a.py",), turn_start_snapshot=before)
+
+    request = seen[0].event_data
+    assert "- a.py" in request
+    assert "No diff of this turn's changes is available." in request

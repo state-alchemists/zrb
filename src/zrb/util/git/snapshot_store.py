@@ -33,7 +33,6 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 import shutil
 import stat
 import subprocess
@@ -65,8 +64,9 @@ _IDENTITY_ENV = {
     "GIT_COMMITTER_EMAIL": "zrb-snapshot@local",
 }
 
-# How `git update-index` names the file it could not read before giving up.
-_UNREADABLE_PATH = re.compile(r"^fatal: Unable to process path (.*)$", re.MULTILINE)
+# How `git update-index` ends its output when it gives up on a file it could
+# not read; the path follows unquoted, then a newline.
+_UNREADABLE_PREFIX = "fatal: Unable to process path "
 
 logger = logging.getLogger(__name__)
 
@@ -341,7 +341,10 @@ class SnapshotStore:
 
         `update-index` gives up at the first unreadable file and names it, so
         that file is left out and the rest are fed again; each rerun re-stats
-        the others instead of hashing them."""
+        the others instead of hashing them. The file is found by matching each
+        path against the end of git's output, not by parsing a path out of
+        it: git prints the name raw, so a newline in it would split a parsed
+        line."""
         remaining, skipped = list(paths), 0
         while remaining:
             result = self._update_index(
@@ -349,10 +352,17 @@ class SnapshotStore:
             )
             if result.returncode == 0:
                 break
-            match = _UNREADABLE_PATH.search(result.stderr)
-            if match is None or match.group(1) not in remaining:
+            unreadable = next(
+                (
+                    path
+                    for path in remaining
+                    if result.stderr.endswith(f"{_UNREADABLE_PREFIX}{path}\n")
+                ),
+                None,
+            )
+            if unreadable is None:
                 raise SnapshotError(f"git update-index failed: {result.stderr.strip()}")
-            remaining.remove(match.group(1))
+            remaining.remove(unreadable)
             skipped += 1
         return skipped
 

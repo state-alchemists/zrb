@@ -187,7 +187,7 @@ def _diff_turn(start: Any, deadline: float) -> tuple[str, list[str], str] | None
         after = store.snapshot(deadline)
         before = _with_new_repositories(store, before, after.repositories, deadline)
         paths, diff = store.diff(before, after.tree, deadline)
-    except SnapshotError as e:
+    except (SnapshotError, OSError) as e:
         CFG.LOGGER.debug(f"Self-review could not diff {workdir}: {e}")
         return None
     return store.work_tree, paths, _truncate(diff)

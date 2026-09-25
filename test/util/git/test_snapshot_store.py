@@ -358,3 +358,34 @@ def test_a_snapshot_reports_the_repositories_it_holds(repo, store):
     snapshot = store.snapshot()
 
     assert sorted(snapshot.repositories) == ["", ".zrb/worktree/wt", "lib"]
+
+
+def test_a_restore_removes_the_files_of_a_repository_created_since(repo, tmp_path):
+    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
+    before = _snap(store)
+    child = repo / "child"
+    child.mkdir()
+    _git(child, "init", "-q")
+    (child / "made.py").write_text("m\n")
+    (repo / "new.txt").write_text("n\n")
+
+    store.restore(before)
+
+    assert not (child / "made.py").exists()
+    assert not (repo / "new.txt").exists()
+    assert (child / ".git").is_dir()  # rewind restores files, never git metadata
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or os.geteuid() == 0, reason="needs POSIX permissions, non-root"
+)
+def test_an_unreadable_file_with_a_newline_in_its_name_is_left_out(repo, store):
+    secret = repo / "two\nlines.key"
+    secret.write_text("protected\n")
+    secret.chmod(0)
+    try:
+        snapshot = store.snapshot()
+    finally:
+        secret.chmod(0o600)
+
+    assert snapshot.tree and snapshot.skipped == 1
