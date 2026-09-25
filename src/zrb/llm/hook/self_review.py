@@ -114,7 +114,7 @@ async def _review(context: HookContext, payload: dict[str, Any]) -> HookResult:
     scope = await run_in_worker(_resolve_scope, payload, deadline)
     if time.monotonic() >= deadline:
         return _timed_out()
-    if not scope.paths:
+    if not scope.paths and not scope.unreadable:
         return HookResult(output="Self-review skipped: no files changed.")
     try:
         report = await asyncio.wait_for(
@@ -140,8 +140,8 @@ def _timed_out() -> HookResult:
 class _Scope:
     paths: list[str]
     diff: str
-    #: Files git could not read at Stop: listed, but not diffed, since an
-    #: unread file would otherwise read as deleted.
+    #: Files the turn changed that git could not read at Stop: listed, but
+    #: not diffed, since an unread file would otherwise read as deleted.
     unreadable: list[str] = dataclasses.field(default_factory=list)
 
 
@@ -179,7 +179,10 @@ def _diff_turn(
 ) -> tuple[str, list[str], str, list[str]] | None:
     """The working directory's `(root, changed paths, diff, unreadable
     paths)` since the turn-start snapshot *start*, or None when there is none
-    to diff."""
+    to diff. The unreadable paths are the files git cannot read now that it
+    could at the start, or that did not exist then: one unreadable at both
+    shows no sign of the turn — a root-owned volume, say — and counting it
+    would review every turn."""
     if not isinstance(start, dict):
         return None
     workdir, before, git_dir = (
@@ -214,7 +217,11 @@ def _diff_turn(
         return None
     finally:
         store.delete()
-    return store.work_tree, paths, _truncate(diff), list(after.unreadable)
+    unreadable_then = start.get("unreadable")
+    if not isinstance(unreadable_then, list):
+        unreadable_then = []
+    unreadable = [path for path in after.unreadable if path not in unreadable_then]
+    return store.work_tree, paths, _truncate(diff), unreadable
 
 
 def _with_new_repositories(

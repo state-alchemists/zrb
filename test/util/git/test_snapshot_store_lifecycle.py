@@ -3,6 +3,7 @@ they wrote whatever races them, and index locks that never outlive — or take
 another process's with — an operation."""
 
 import os
+import re
 import shutil
 import subprocess
 
@@ -182,3 +183,18 @@ def test_a_store_that_would_hold_its_own_work_tree_is_refused(tmp_path, inside):
 
     with pytest.raises(ValueError, match="cannot hold its own work tree"):
         SnapshotStore(str(tmp_path), str(workdir))
+
+
+def test_an_operation_index_removed_by_a_racing_cleanup_never_fails_it(
+    repo, store, monkeypatch
+):
+    real_exists = os.path.exists
+
+    def seen_before_another_cleanup_removed_it(path):
+        # An operation's own index or its lock: there when looked for, gone
+        # by the time it is removed.
+        return bool(re.search(r"index\.[0-9a-f]{32}", str(path))) or real_exists(path)
+
+    monkeypatch.setattr(os.path, "exists", seen_before_another_cleanup_removed_it)
+
+    assert store.snapshot().tree

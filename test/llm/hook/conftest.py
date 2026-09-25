@@ -7,26 +7,28 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from zrb.llm.agent.run.turn_snapshot import TurnSnapshot
 from zrb.llm.hook.interface import HookResult
 from zrb.llm.hook.types import HookEvent
-from zrb.util.git.snapshot_store import SnapshotStore
 
 
 @pytest.fixture
 def start_snapshot():
     """Take a turn-start snapshot of a directory, as the runner puts it in the
     payload; every store it made is deleted after the test."""
-    stores: list[SnapshotStore] = []
+    snapshots: list[TurnSnapshot] = []
 
     def take(workdir) -> dict:
-        store = SnapshotStore.create_temporary(str(workdir))
-        stores.append(store)
-        tree = store.snapshot().tree
-        return {"workdir": store.work_tree, "tree": tree, "store": store.git_dir}
+        snapshot = TurnSnapshot()
+        snapshot.take(str(workdir))
+        snapshots.append(snapshot)
+        payload = snapshot.payload()
+        assert payload is not None
+        return payload
 
     yield take
-    for store in stores:
-        store.delete()
+    for snapshot in snapshots:
+        snapshot.close()
 
 
 @pytest.fixture

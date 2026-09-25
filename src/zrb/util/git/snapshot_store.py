@@ -766,8 +766,10 @@ def _remove_read_only(fn: Callable[[str], Any], path: str, exc: Any) -> None:
 
 
 def _remove_if_present(path: str) -> None:
-    if os.path.exists(path):
+    try:
         os.remove(path)
+    except FileNotFoundError:
+        pass  # never made, or removed already: gone either way
 
 
 def _write(path: str, content: str) -> None:
