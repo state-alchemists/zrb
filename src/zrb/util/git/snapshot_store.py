@@ -8,10 +8,17 @@ per-turn temporary store.
 
 A snapshot holds exactly what `snapshot_listing.py` lists — every repository
 under the directory by its own ignore rules, nested ones included, and the
-loose files outside them up to a budget — fed to `git update-index` in the
-store's own index, which keeps git's stat cache, so a file unchanged since the
-last snapshot is not hashed again. An entry the listing no longer returns,
-deleted or ignored since, is dropped from the index. A snapshot also:
+loose files outside them up to a budget — fed to `git update-index`. An entry
+the listing no longer returns, deleted or ignored since, is dropped from the
+index first.
+
+Each snapshot, restore and graft works on an index file of its own, named for
+that one operation. A lock a killed git command leaves behind is on that file,
+so deleting it can never take another process's lock. The store's named index
+is only a stat cache — an operation starts from a copy of it, so a file
+unchanged since the last snapshot is not hashed again, and replaces it when
+done — and any state of it is a valid start, since every operation first
+brings its copy to the current listing. A snapshot also:
 
 - stores bytes exactly: the store's `info/attributes`, which outranks the
   project's `.gitattributes`, disables line-ending and encoding conversion and
@@ -32,7 +39,9 @@ import stat
 import subprocess
 import sys
 import tempfile
-from typing import Any, Callable, Iterable, NamedTuple
+import uuid
+from contextlib import contextmanager
+from typing import Any, Callable, Iterable, Iterator, NamedTuple
 
 from zrb.util.git.snapshot_command import (
     SnapshotError,
@@ -181,11 +190,12 @@ class SnapshotStore:
         self._initialized = True
 
     def snapshot(self, deadline: float | None = None) -> Snapshot:
-        """Snapshot the directory into the store's index and write its tree.
-        Raises `SnapshotBudgetError` when the directory holds too many files
-        outside every repository."""
-        listing, skipped = self._index_directory(deadline)
-        tree = self.git(["write-tree"], deadline=deadline).strip()
+        """Snapshot the directory and write its tree. Raises
+        `SnapshotBudgetError` when the directory holds too many files outside
+        every repository."""
+        with self._operation_index(from_cache=True) as index:
+            listing, skipped = self._index_directory(index, deadline)
+            tree = self.git(["write-tree"], index=index, deadline=deadline).strip()
         return Snapshot(tree, skipped, tuple(listing.repositories))
 
     def restore(self, treeish: str, deadline: float | None = None) -> None:
@@ -193,9 +203,12 @@ class SnapshotStore:
         deleted ones, and remove files created since. A path the listing
         leaves out now — ignored or excluded since *treeish* was taken — is
         neither overwritten nor recreated."""
-        listing, _ = self._index_directory(deadline)
-        target = self._create_tree_in_scope(treeish, listing, deadline)
-        self.git(["read-tree", "-u", "--reset", target], deadline=deadline)
+        with self._operation_index(from_cache=True) as index:
+            listing, _ = self._index_directory(index, deadline)
+            target = self._create_tree_in_scope(treeish, listing, deadline)
+            self.git(
+                ["read-tree", "-u", "--reset", target], index=index, deadline=deadline
+            )
 
     def diff(
         self, before: str, after: str, deadline: float | None = None
@@ -224,8 +237,7 @@ class SnapshotStore:
     ) -> str:
         """*tree* with *commit*'s tree added under *prefix*, which *tree* must
         not hold yet."""
-        index = self.index + ".graft"
-        try:
+        with self._operation_index(from_cache=False) as index:
             self.git(["read-tree", tree], index=index, deadline=deadline)
             self.git(
                 ["read-tree", f"--prefix={prefix}/", commit],
@@ -233,8 +245,6 @@ class SnapshotStore:
                 deadline=deadline,
             )
             return self.git(["write-tree"], index=index, deadline=deadline).strip()
-        finally:
-            _remove_if_present(index)
 
     def git(
         self,
@@ -279,9 +289,32 @@ class SnapshotStore:
             argv, self._workdir, deadline, env, stdin, errors, f"git {args[0]}"
         )
 
-    def _index_directory(self, deadline: float | None) -> tuple[Listing, int]:
-        """Bring the store's index to the directory's current listing; return
-        the listing and how many files git could not read."""
+    @contextmanager
+    def _operation_index(self, from_cache: bool) -> Iterator[str]:
+        """An index file for one operation. With *from_cache* it starts as a
+        copy of the store's named index and replaces it when the operation
+        succeeds; without, it starts empty and is discarded. It is deleted,
+        with any lock a killed command left on it, however the operation
+        ends."""
+        index = f"{self.index}.{uuid.uuid4().hex}"
+        if from_cache and os.path.exists(self.index):
+            shutil.copyfile(self.index, index)
+        try:
+            yield index
+            if from_cache:
+                try:
+                    os.replace(index, self.index)
+                except OSError as e:  # e.g. held open on Windows: a stale cache
+                    logger.debug(f"Could not update the snapshot index cache: {e}")
+        finally:
+            for leftover in (index, f"{index}.lock"):
+                _remove_if_present(leftover)
+
+    def _index_directory(
+        self, index: str, deadline: float | None
+    ) -> tuple[Listing, int]:
+        """Bring *index* to the directory's current listing; return the
+        listing and how many files git could not read."""
         self.ensure(deadline)
         listing = list_snapshot_paths(
             self._workdir,
@@ -292,15 +325,17 @@ class SnapshotStore:
         if self._borrow_objects:
             self._borrow_from(listing.repositories, deadline)
         listed = set(listing.paths)
-        indexed = self.git(["ls-files", "-z"], deadline=deadline).split("\0")
-        unlisted = [path for path in indexed if path and path not in listed]
+        indexed = self.git(["ls-files", "-z"], index=index, deadline=deadline)
+        unlisted = [path for path in indexed.split("\0") if path and path not in listed]
         if unlisted:
-            result = self._update_index(["--force-remove"], unlisted, deadline)
+            result = self._update_index(["--force-remove"], unlisted, index, deadline)
             if result.returncode != 0:
                 raise SnapshotError(f"git update-index failed: {result.stderr.strip()}")
-        return listing, self._add_readable(listing.paths, deadline)
+        return listing, self._add_readable(listing.paths, index, deadline)
 
-    def _add_readable(self, paths: list[str], deadline: float | None) -> int:
+    def _add_readable(
+        self, paths: list[str], index: str, deadline: float | None
+    ) -> int:
         """Add *paths* to the index — `--remove` drops one deleted from disk —
         and return how many were left out because git could not read them.
 
@@ -309,7 +344,9 @@ class SnapshotStore:
         the others instead of hashing them."""
         remaining, skipped = list(paths), 0
         while remaining:
-            result = self._update_index(["--add", "--remove"], remaining, deadline)
+            result = self._update_index(
+                ["--add", "--remove"], remaining, index, deadline
+            )
             if result.returncode == 0:
                 break
             match = _UNREADABLE_PATH.search(result.stderr)
@@ -320,10 +357,11 @@ class SnapshotStore:
         return skipped
 
     def _update_index(
-        self, flags: list[str], paths: list[str], deadline: float | None
+        self, flags: list[str], paths: list[str], index: str, deadline: float | None
     ) -> subprocess.CompletedProcess[str]:
         return self.run_git(
             ["update-index", *flags, "-z", "--stdin"],
+            index=index,
             stdin="".join(f"{path}\0" for path in paths),
             deadline=deadline,
         )
@@ -355,8 +393,7 @@ class SnapshotStore:
         self, treeish: str, listing: Listing, deadline: float | None
     ) -> str:
         """*treeish*'s tree minus the paths the listing would leave out now."""
-        index = self.index + ".restore"
-        try:
+        with self._operation_index(from_cache=False) as index:
             self.git(["read-tree", treeish], index=index, deadline=deadline)
             paths = self.git(["ls-files", "-z"], index=index, deadline=deadline)
             out = get_out_of_scope_paths(
@@ -375,8 +412,6 @@ class SnapshotStore:
                     deadline=deadline,
                 )
             return self.git(["write-tree"], index=index, deadline=deadline).strip()
-        finally:
-            _remove_if_present(index)
 
 
 def _remove_read_only(fn: Callable[[str], Any], path: str, exc: Any) -> None:

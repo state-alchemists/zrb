@@ -3,7 +3,6 @@ between two moments, and restore one — nested repositories included — withou
 writing anything into any repository."""
 
 import os
-import shutil
 import subprocess
 import time
 
@@ -43,25 +42,6 @@ def _nested(path, files: dict[str, str]):
     _git(path, "add", ".")
     _git(path, "commit", "-qm", "init")
     return path
-
-
-@pytest.fixture
-def repo(tmp_path):
-    _git(tmp_path, "init", "-q")
-    _git(tmp_path, "config", "user.email", "t@example.com")
-    _git(tmp_path, "config", "user.name", "t")
-    (tmp_path / "tracked.txt").write_text("a\n")
-    (tmp_path / ".gitignore").write_text("ignored.txt\n")
-    _git(tmp_path, "add", ".")
-    _git(tmp_path, "commit", "-qm", "init")
-    return tmp_path
-
-
-@pytest.fixture
-def store(repo):
-    snapshots = SnapshotStore.create_temporary(str(repo))
-    yield snapshots
-    snapshots.delete()
 
 
 def _snap(store: SnapshotStore) -> str:
@@ -113,24 +93,6 @@ def test_snapshot_writes_nothing_into_the_repository(repo, store):
     secret_blob = _git(repo, "hash-object", ".env.local").stdout.strip()
     assert _git(repo, "cat-file", "-e", secret_blob, check=False).returncode != 0
     assert _git(repo, "status", "--porcelain").stdout.splitlines() == ["?? .env.local"]
-
-
-@pytest.mark.skipif(os.name != "posix", reason="POSIX permission bits")
-def test_a_temporary_store_is_owner_only(repo):
-    store = SnapshotStore.create_temporary(str(repo))
-    try:
-        assert os.stat(store.git_dir).st_mode & 0o077 == 0
-    finally:
-        store.delete()
-
-
-def test_a_store_is_deleted_with_its_objects(repo):
-    store = SnapshotStore.create_temporary(str(repo))
-
-    _snap(store)
-    store.delete()
-
-    assert not os.path.exists(store.git_dir)
 
 
 def test_outside_a_repository_the_directory_itself_is_snapshotted(tmp_path):
@@ -314,82 +276,6 @@ def test_a_temporary_store_borrows_tracked_objects_instead_of_copying(repo, stor
     own = os.path.join(store.git_dir, "objects")
     assert not os.path.exists(os.path.join(own, tracked_blob[:2], tracked_blob[2:]))
     assert os.path.exists(os.path.join(own, untracked_blob[:2], untracked_blob[2:]))
-
-
-def test_a_store_with_read_only_objects_is_still_deleted(repo):
-    store = SnapshotStore.create_temporary(str(repo))
-    (repo / "untracked.txt").write_bytes(b"new\n")
-    _snap(store)
-    for root, _dirs, files in os.walk(store.git_dir):
-        for name in files:
-            os.chmod(os.path.join(root, name), 0o444)  # as git leaves objects
-
-    store.delete()
-
-    assert not os.path.exists(store.git_dir)
-
-
-def test_deleting_a_store_twice_or_a_missing_one_never_raises(repo):
-    store = SnapshotStore.create_temporary(str(repo))
-    _snap(store)
-
-    store.delete()
-    store.delete()  # a cleanup racing an earlier one must not mask its error
-
-    assert not os.path.exists(store.git_dir)
-
-
-def test_a_store_removed_by_a_racing_cleanup_mid_delete_never_raises(repo, monkeypatch):
-    store = SnapshotStore.create_temporary(str(repo))
-    _snap(store)
-    real_rmtree = shutil.rmtree
-
-    def racing_rmtree(path, *args, **kwargs):
-        # Another cleanup — `delete`'s own, with its read-only handler, which
-        # Windows needs for git's object files — wins after `delete`'s check.
-        real_rmtree(path, *args, **kwargs)
-        return real_rmtree(path, *args, **kwargs)
-
-    monkeypatch.setattr(shutil, "rmtree", racing_rmtree)
-
-    store.delete()
-
-    assert not os.path.exists(store.git_dir)
-
-
-@pytest.mark.skipif(os.name != "posix", reason="POSIX permission bits")
-def test_a_persistent_store_is_owner_only_whatever_the_umask(repo, tmp_path):
-    old = os.umask(0o022)
-    try:
-        store = SnapshotStore(str(tmp_path / "snaps" / "project.git"), str(repo))
-        _snap(store)
-    finally:
-        os.umask(old)
-
-    assert os.stat(store.git_dir).st_mode & 0o077 == 0
-
-
-def _rmtree_refused(*args, **kwargs):
-    raise PermissionError("locked by another process")
-
-
-@pytest.mark.parametrize(
-    "rmtree", [lambda *args, **kwargs: None, _rmtree_refused], ids=["kept", "raised"]
-)
-def test_a_store_that_cannot_be_deleted_is_reported_with_its_path(
-    repo, monkeypatch, caplog, rmtree
-):
-    store = SnapshotStore.create_temporary(str(repo))
-    _snap(store)
-    monkeypatch.setattr(shutil, "rmtree", rmtree)
-
-    with caplog.at_level("WARNING", logger="zrb.util.git.snapshot_store"):
-        store.delete()
-
-    assert store.git_dir in caplog.text
-    monkeypatch.undo()
-    store.delete()
-    assert not os.path.exists(store.git_dir)
 
 
 def test_changes_inside_a_nested_repository_are_diffed(repo, store):

@@ -5,13 +5,14 @@ Every command is bounded: by `GIT_COMMAND_TIMEOUT_SECONDS`, and by an optional
 commands. Every command runs without the inherited variables that would point
 git at another repository, index or object database. A command run inside
 `run_in_worker` stops before it starts once its caller is cancelled. Failures
-raise `SnapshotError`.
+raise `SnapshotError`. A command killed at its timeout may leave an index lock
+behind; `SnapshotStore` runs each operation on an index file of its own, and
+deletes it with its lock.
 """
 
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import os
 import subprocess
 import threading
@@ -109,12 +110,7 @@ def run_git_command(
     """Run *argv* within the deadline, whatever its exit code. Output is UTF-8
     whatever the locale: `surrogateescape` keeps a non-UTF-8 file name's bytes
     intact, and re-encodes them the same way on stdin. *env* defaults to
-    `get_clean_env()`.
-
-    A command killed at its timeout cannot remove the index lock it took, and
-    a lock left behind fails every later command on that index — for a
-    persistent store, across restarts. So the lock is removed for it, unless
-    it was already there before the command ran."""
+    `get_clean_env()`."""
     label = label or " ".join(argv[:2])
     abort = getattr(_worker, "abort", None)
     if abort is not None and abort.is_set():
@@ -123,8 +119,6 @@ def run_git_command(
     if timeout <= 0:
         raise SnapshotError(f"No time left to run {label}")
     env = get_clean_env() if env is None else env
-    lock = env["GIT_INDEX_FILE"] + ".lock" if "GIT_INDEX_FILE" in env else None
-    locked_before = lock is not None and os.path.exists(lock)
     try:
         return subprocess.run(
             argv,
@@ -137,9 +131,6 @@ def run_git_command(
             timeout=timeout,
         )
     except subprocess.TimeoutExpired as e:
-        if lock is not None and not locked_before:
-            with contextlib.suppress(OSError):
-                os.remove(lock)
         raise SnapshotError(f"{label} timed out after {timeout:.3g}s") from e
     except OSError as e:
         raise SnapshotError(f"Could not run git: {e}") from e

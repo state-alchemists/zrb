@@ -1,8 +1,7 @@
 """Snapshot git commands: bounded by a deadline, isolated from the caller's
-git environment, cancellable, and never leaving an index lock behind."""
+git environment, and cancellable."""
 
 import asyncio
-import os
 import subprocess
 import threading
 import time
@@ -26,6 +25,16 @@ def test_command_timeout_is_capped_and_shrinks_toward_the_deadline():
     assert get_command_timeout(time.monotonic() - 1) <= 0
 
 
+def test_a_command_past_its_timeout_is_reported_by_its_label(monkeypatch):
+    def run(argv, *args, **kwargs):
+        raise subprocess.TimeoutExpired(argv, GIT_COMMAND_TIMEOUT_SECONDS)
+
+    monkeypatch.setattr(subprocess, "run", run)
+
+    with pytest.raises(SnapshotError, match=r"^git update-index timed out after 30s$"):
+        run_git_command(["git", "-c", "x=y"], None, label="git update-index")
+
+
 def test_a_passed_deadline_runs_no_command(tmp_path):
     with pytest.raises(SnapshotError, match="^No time left to run git status$"):
         run_git_command(["git", "status"], str(tmp_path), time.monotonic() - 1)
@@ -40,43 +49,6 @@ def test_redirecting_git_variables_are_not_inherited(monkeypatch):
 
     assert "GIT_DIR" not in env and "GIT_INDEX_FILE" not in env
     assert env["HOME"] == "/home/kept"
-
-
-def _killed_at_timeout(monkeypatch, env):
-    """Make the next command behave like one killed at its timeout: it took
-    the index lock, and dies without removing it."""
-
-    def run(argv, *args, **kwargs):
-        open(env["GIT_INDEX_FILE"] + ".lock", "w").close()
-        raise subprocess.TimeoutExpired(argv, GIT_COMMAND_TIMEOUT_SECONDS)
-
-    monkeypatch.setattr(subprocess, "run", run)
-
-
-def test_a_command_killed_at_its_timeout_does_not_lock_the_index(tmp_path, monkeypatch):
-    env = {**get_clean_env(), "GIT_INDEX_FILE": str(tmp_path / "index")}
-    _killed_at_timeout(monkeypatch, env)
-
-    with pytest.raises(SnapshotError, match=r"^git update-index timed out after 30s$"):
-        run_git_command(
-            ["git", "-c", "x=y", "update-index"],
-            None,
-            env=env,
-            label="git update-index",
-        )
-
-    assert not os.path.exists(tmp_path / "index.lock")
-
-
-def test_a_timeout_leaves_a_lock_it_did_not_take(tmp_path, monkeypatch):
-    env = {**get_clean_env(), "GIT_INDEX_FILE": str(tmp_path / "index")}
-    open(tmp_path / "index.lock", "w").close()  # another git process holds it
-    _killed_at_timeout(monkeypatch, env)
-
-    with pytest.raises(SnapshotError):
-        run_git_command(["git", "update-index"], None, env=env)
-
-    assert os.path.exists(tmp_path / "index.lock")
 
 
 @pytest.mark.asyncio
