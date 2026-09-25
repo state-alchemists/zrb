@@ -217,7 +217,7 @@ def _make_snapshot_progress_handler(
     """
 
     def handler(event: "SnapshotProgress") -> None:
-        stage, skipped, reason = event
+        stage, skipped, reason = event.stage, event.skipped, event.reason
         if stage == "start":
             message = "\n  📸 Taking initial workspace snapshot...\n"
         elif stage == "done":

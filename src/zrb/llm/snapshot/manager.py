@@ -83,7 +83,8 @@ _T = TypeVar("_T")
 # the event-loop thread: each report happens in coroutine context, before or
 # after an awaited worker returns.
 class SnapshotProgress(NamedTuple):
-    """Progress event for `take_init_snapshot` (see `SnapshotProgressFn`)."""
+    """Progress event for `take_init_snapshot` (see `SnapshotProgressFn`).
+    Read its fields by name: which ones it has is not fixed."""
 
     stage: str
     skipped: int = 0
@@ -101,7 +102,9 @@ class Snapshot(NamedTuple):
 
 
 class RestoreOutcome(NamedTuple):
-    """What `restore_snapshot` did."""
+    """What `restore_snapshot` did. True when the restore ran, as the bool
+    `restore_snapshot` once returned was — a tuple is otherwise always true,
+    and `if await manager.restore_snapshot(sha):` would pass on a failure."""
 
     #: Whether the restore ran. False: nothing was touched — an unknown
     #: commit, one outside this conversation's history, or rewind is off.
@@ -111,6 +114,9 @@ class RestoreOutcome(NamedTuple):
     #: Every other file is restored; restoring again finishes the job once
     #: the cause is gone.
     left_behind: tuple[str, ...] = ()
+
+    def __bool__(self) -> bool:
+        return self.restored
 
 
 class SnapshotManager:

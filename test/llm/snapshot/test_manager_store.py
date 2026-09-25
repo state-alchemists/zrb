@@ -378,3 +378,14 @@ async def test_a_store_busy_past_the_wait_fails_that_snapshot_not_rewind(
 
     assert mgr.unavailable_reason == ""
     assert await mgr.take_snapshot("after", message_count=1) is not None
+
+
+@pytest.mark.asyncio
+async def test_a_restore_reads_as_true_exactly_when_it_ran(snapshot_dir, workdir):
+    """`restore_snapshot` returned a bool; its outcome keeps that meaning."""
+    mgr = SnapshotManager(snapshot_dir, "s", workdir)
+    sha = await mgr.take_init_snapshot()
+
+    assert not await mgr.restore_snapshot("0" * 40)  # unknown: nothing touched
+    assert await mgr.restore_snapshot(sha)
+    assert RestoreOutcome(restored=True, left_behind=("locked.txt",))
