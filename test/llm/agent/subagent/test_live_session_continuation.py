@@ -329,3 +329,33 @@ async def test_report_back_skipped_when_parent_cannot_deliver(
         for _ in range(10):
             await asyncio.sleep(0)
         assert entry.state == "idle"
+
+
+@pytest.mark.asyncio
+async def test_a_continuation_runs_as_a_nested_sub_agent_turn(
+    registry, buffered_ui, sub_agent_manager
+):
+    """Continued from a key handler, where no run is bound, the turn is still
+    a sub-agent's: marked nested, so the parent's self-review covers it."""
+    entry = registry.add_session(
+        "sess1", "a", "researcher", sub_agent_manager, buffered_ui
+    )
+    seen: list = []
+
+    async def fake_run_agent(**kwargs):
+        seen.append(kwargs)
+        return "ok", []
+
+    with (
+        patch(
+            "zrb.llm.agent.subagent.live_session.steer_into_live_run",
+            return_value=False,
+        ),
+        patch(
+            "zrb.llm.agent.subagent.live_session.run_agent", side_effect=fake_run_agent
+        ),
+    ):
+        await registry.send_message("sess1", "a", "hello")
+        await entry.active_task
+
+    assert seen[0]["nested"] is True

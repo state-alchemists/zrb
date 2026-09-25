@@ -125,6 +125,7 @@ These `CFG`/env knobs control the subsystem as a whole, independent of each hook
 | `HOOKS_ENABLED` | `ZRB_HOOKS_ENABLED` | `on` | Master on/off switch for the entire hooks subsystem |
 | `HOOKS_DIRS` | `ZRB_HOOKS_DIRS` | `""` | Colon-separated (semicolon on Windows) additional directories to scan for hook scripts |
 | `HOOKS_TIMEOUT` | `ZRB_HOOKS_TIMEOUT` | `30000` | Timeout in milliseconds for hook execution |
+| `HOOKS_EXIT_TIMEOUT` | `ZRB_HOOKS_EXIT_TIMEOUT` | `10000` | Milliseconds the chat TUI waits, as it exits, for hooks still running before cancelling them |
 | `LLM_HOOKS` | `ZRB_LLM_HOOKS` | `""` | Name allowlist for the hooks zrb dispatches (ADR-0091). Empty = run every registered hook; non-empty restricts dispatch to the named hooks (e.g. `journal-compliance-judge`). Programmatic registration is unchanged — see [LLM Component Collections](../configuration/llm-collections.md) |
 
 `HOOKS_ENABLED=off` disables the subsystem regardless of any `hooks.json`. `LLM_HOOKS` filters on top of it: with `HOOKS_ENABLED` off, nothing fires even if a hook's name is allowed.
@@ -210,7 +211,7 @@ Hooks are defined in JSON or YAML:
 | `matchers` | array | No | Conditions to filter when hook runs |
 | `async` | boolean | No | Fire-and-forget in the background without blocking the event (default: false). Only `command` hooks honor it; `prompt`/`agent` hooks always run synchronously, since their modifications often feed back into the blocking flow |
 | `enabled` | boolean | No | Hook is active (default: true) |
-| `timeout` | number | No | Seconds; a synchronous hook past it is cancelled (a `command` hook's process killed) and waited for up to 5 seconds. Default: `command` 600s, `prompt` 30s, `agent` 60s |
+| `timeout` | number | No | Seconds; a synchronous hook past it is cancelled (a `command` hook's process killed) and waited for up to 5 seconds. A hook still running when the chat exits — a Stop fired by Ctrl+C — gets up to `ZRB_HOOKS_EXIT_TIMEOUT` (10000 ms) more before it is cancelled. Default: `command` 600s, `prompt` 30s, `agent` 60s |
 | `env` | object | No | Environment variables to inject |
 | `priority` | number | No | Execution priority (higher = earlier; default 0) — see [Priority System](#priority-system) |
 
@@ -377,9 +378,10 @@ Snapshots write their index and objects into a private, owner-only temporary sto
 |---------|---------|--------|
 | `ZRB_LLM_SELF_REVIEW_MAX_ROUNDS` | `2` | Caps consecutive blocking reviews; a review that lets the turn end resets the count |
 | `ZRB_LLM_SELF_REVIEW_TIMEOUT` | `240` (seconds) | Bounds each review; on expiry the reviewer is cancelled, model request included, and the turn ends unreviewed |
+| `ZRB_LLM_SELF_REVIEW_MAX_TRACKED_TURNS` | `64` | Turns whose round count is kept at once; the oldest past it are dropped |
 | `ZRB_LLM_SELF_REVIEW_MODEL` | empty | The reviewer's model (empty uses the run's own). This model receives the turn's diff |
 
-It is a Python hook (`llm/hook/self_review.py`), not a JSON one, because it needs things a JSON agent hook cannot express: a turn-start snapshot (the Stop payload's `turn_start_snapshot`, taken only while the gate is on and only for a top-level run — `nested_run` in the payload marks a sub-agent's) and `changed_paths` as its scope, a round counter per run (`run_scope`), and the diff instead of the transcript as its input. The reviewer's instructions live in `llm/prompt/markdown/self_review.md`; override them through `LLM_PROMPT_DIR` like the other internal prompts.
+It is a Python hook (`llm/hook/self_review.py`), not a JSON one, because it needs things a JSON agent hook cannot express: a turn-start snapshot (the Stop payload's `turn_start_snapshot`, taken only while the gate is on and only for a top-level run — `nested_run` in the payload marks a sub-agent's) and `changed_paths` as its scope, a round counter per turn (`turn_id` — unique, unlike `run_scope`, which is the conversation's name), and the diff instead of the transcript as its input. The reviewer's instructions live in `llm/prompt/markdown/self_review.md`; override them through `LLM_PROMPT_DIR` like the other internal prompts.
 
 ---
 

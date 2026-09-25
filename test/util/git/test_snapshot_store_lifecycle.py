@@ -215,3 +215,34 @@ def test_a_cache_copy_that_fails_partway_leaves_no_operation_index(
         store.snapshot()
 
     assert not [n for n in os.listdir(store.git_dir) if n.startswith("index.")]
+
+
+def test_opening_a_store_leaves_its_attribute_rules_in_place(repo, tmp_path):
+    """Rewritten only when they differ: another process may be hashing under
+    them, and a file seen empty mid-rewrite would let the project's filters
+    in."""
+    git_dir = str(tmp_path / "snaps.git")
+    SnapshotStore(git_dir, str(repo)).ensure()
+    attributes = os.path.join(git_dir, "info", "attributes")
+    inode = os.stat(attributes).st_ino
+    os.utime(attributes, (1, 1))
+
+    SnapshotStore(git_dir, str(repo)).ensure()
+
+    assert os.stat(attributes).st_mtime == 1
+    assert os.stat(attributes).st_ino == inode
+
+
+def test_a_store_whose_attribute_rules_were_changed_gets_them_back(repo, tmp_path):
+    git_dir = str(tmp_path / "snaps.git")
+    SnapshotStore(git_dir, str(repo)).ensure()
+    attributes = os.path.join(git_dir, "info", "attributes")
+    with open(attributes, "w") as f:
+        f.write("* filter=lfs\n")
+
+    SnapshotStore(git_dir, str(repo)).ensure()
+
+    with open(attributes) as f:
+        assert "-filter" in f.read()
+    # No temporary file is left beside it.
+    assert not [n for n in os.listdir(os.path.dirname(attributes)) if "attributes." in n]

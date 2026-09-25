@@ -18,8 +18,9 @@ repository. The listing is built here instead, repository by repository:
 - A directory outside every repository is walked, and a repository found
   there is listed by itself. So is a working directory its own repository
   ignores, such as a scratch folder: it is still what the user works on. Outside a repository `DEFAULT_IGNORE_DIRS` is the
-  only rule, so those loose files count toward `LOOSE_FILE_LIMIT` and
-  `LOOSE_BYTE_LIMIT`; past either, the listing raises `SnapshotBudgetError`.
+  only rule, so those loose files count toward `CFG.LLM_SNAPSHOT_LOOSE_MAX_FILES`
+  and `CFG.LLM_SNAPSHOT_LOOSE_MAX_MB`, read when the listing starts; past
+  either, the listing raises `SnapshotBudgetError`.
 
 `DEFAULT_IGNORE_DIRS` and the excluded paths apply everywhere, tracked files
 included, and are never searched for repositories.
@@ -36,6 +37,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Iterable
 
+from zrb.config.config import CFG
 from zrb.util.git.snapshot_command import (
     SnapshotError,
     get_git_output,
@@ -66,11 +68,6 @@ DEFAULT_IGNORE_DIRS: frozenset[str] = frozenset(
         ".cache",
     }
 )
-
-#: The most files a listing takes from outside every repository.
-LOOSE_FILE_LIMIT = 5000
-#: The most bytes a listing takes from outside every repository.
-LOOSE_BYTE_LIMIT = 200 * 1024 * 1024
 
 _GITLINK_MODE = "160000"
 # `FILE_ATTRIBUTE_REPARSE_POINT`: set on a Windows junction or symlink.
@@ -225,6 +222,9 @@ class _Lister:
         self._seen: set[str] = set()
         self._loose_files = 0
         self._loose_bytes = 0
+        # Read per listing, not at import, so `zrb_init.py` can change them.
+        self._max_loose_files = CFG.LLM_SNAPSHOT_LOOSE_MAX_FILES
+        self._max_loose_bytes = CFG.LLM_SNAPSHOT_LOOSE_MAX_MB * 2**20
 
     def list(self) -> Listing:
         if self._is_listed_by_a_repository():
@@ -438,15 +438,15 @@ class _Lister:
         except OSError:
             pass
         workdir = self._scope.workdir
-        if self._loose_files > LOOSE_FILE_LIMIT:
+        if self._loose_files > self._max_loose_files:
             raise SnapshotBudgetError(
-                f"{workdir} has more than {LOOSE_FILE_LIMIT} files outside any "
-                "git repository"
+                f"{workdir} has more than {self._max_loose_files} files outside "
+                "any git repository"
             )
-        if self._loose_bytes > LOOSE_BYTE_LIMIT:
+        if self._loose_bytes > self._max_loose_bytes:
             raise SnapshotBudgetError(
-                f"{workdir} has more than {LOOSE_BYTE_LIMIT // 2**20} MB of files "
-                "outside any git repository"
+                f"{workdir} has more than {self._max_loose_bytes / 2**20:g} MB of "
+                "files outside any git repository"
             )
 
     def _add(self, path: str) -> None:

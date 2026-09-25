@@ -26,6 +26,9 @@ brings its copy to the current listing. A snapshot also:
   pointer files into the directory;
 - leaves out a file git cannot read rather than failing, and reports how many
   it left out;
+- leaves out a file larger than `CFG.LLM_SNAPSHOT_FILE_MAX_MB` as if it were ignored — a
+  dataset or build artifact nobody ignored would otherwise be copied into the
+  store in full, and hashed again for as long as it keeps changing;
 - never holds the store itself, wherever it lies.
 """
 
@@ -43,6 +46,7 @@ import uuid
 from contextlib import contextmanager
 from typing import Any, Callable, Iterable, Iterator, NamedTuple
 
+from zrb.config.config import CFG
 from zrb.util.git.snapshot_command import (
     SnapshotError,
     get_clean_env,
@@ -221,7 +225,10 @@ class SnapshotStore:
         os.chmod(self._git_dir, 0o700)
         info = os.path.join(self._git_dir, "info")
         os.makedirs(info, exist_ok=True)
-        _write(os.path.join(info, "attributes"), _BYTE_EXACT_ATTRIBUTES)
+        # Only when it differs, and by rename: another process's snapshot may be
+        # hashing under these rules right now, and an attributes file seen
+        # empty mid-rewrite would let the project's filters (git-lfs) in.
+        _write_if_changed(os.path.join(info, "attributes"), _BYTE_EXACT_ATTRIBUTES)
         self._initialized = True
 
     def snapshot(self, deadline: float | None = None) -> Snapshot:
@@ -319,7 +326,9 @@ class SnapshotStore:
             for path in paths
             if path not in current and self._is_under_unreadable_directory(path)
         ]
-        left_alone = out | set(unreadable) | set(unseen)
+        # `left_out` adds the files too large to snapshot: ignored ones are in
+        # `out` already.
+        left_alone = out | set(unreadable) | set(unseen) | set(listing.left_out)
         in_the_way = self._find_in_the_way(
             [path for path in paths if path not in left_alone], current
         )
@@ -661,11 +670,13 @@ class SnapshotStore:
         """Bring *index* to the directory's current listing; return the
         listing and the files git could not read."""
         self.ensure(deadline)
-        listing = list_snapshot_paths(
-            self._workdir,
-            self._ignore_dirs,
-            self._exclude_paths,
-            deadline,
+        listing = self._leave_out_large_files(
+            list_snapshot_paths(
+                self._workdir,
+                self._ignore_dirs,
+                self._exclude_paths,
+                deadline,
+            )
         )
         if self._borrow_objects:
             self._borrow_from(listing.repositories, deadline)
@@ -677,6 +688,24 @@ class SnapshotStore:
             if result.returncode != 0:
                 raise SnapshotError(f"git update-index failed: {result.stderr.strip()}")
         return listing, self._add_readable(listing.paths, index, deadline)
+
+    def _leave_out_large_files(self, listing: Listing) -> Listing:
+        """Move each listed file larger than `CFG.LLM_SNAPSHOT_FILE_MAX_MB` from
+        *listing*'s paths to what it left out, where a restore treats it as it
+        does an ignored file: never written over, never removed."""
+        max_bytes = CFG.LLM_SNAPSHOT_FILE_MAX_MB * 2**20
+        large: set[str] = set()
+        for path in listing.paths:
+            try:
+                info = os.lstat(self._absolute(path))
+            except OSError:
+                continue  # gone or unreadable: the index step decides
+            if stat.S_ISREG(info.st_mode) and info.st_size > max_bytes:
+                large.add(path)
+        if large:
+            listing.paths = [path for path in listing.paths if path not in large]
+            listing.left_out.extend(sorted(large))
+        return listing
 
     def _add_readable(
         self, paths: list[str], index: str, deadline: float | None
@@ -851,6 +880,19 @@ def _write(path: str, content: str) -> None:
     # path that does not exist.
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(content)
+
+
+def _write_if_changed(path: str, content: str) -> None:
+    """Give *path* *content*, atomically, unless it already has it."""
+    try:
+        with open(path, encoding="utf-8", newline="") as f:
+            if f.read() == content:
+                return
+    except OSError:
+        pass  # missing or unreadable: written below
+    temporary = f"{path}.{uuid.uuid4().hex}"
+    _write(temporary, content)
+    os.replace(temporary, path)
 
 
 def _read_from(store: SnapshotStore, other_git_dir: str) -> None:

@@ -12,6 +12,7 @@ import traceback as tb_lib
 from typing import TYPE_CHECKING, Callable
 
 from zrb.config.config import CFG
+from zrb.llm.snapshot.manager import GIT_MISSING_REASON
 from zrb.llm.ui.default.app.focus import invalidate_app
 from zrb.util.cli.style import stylize_muted, stylize_warning
 from zrb.util.exception import exception_summary
@@ -29,8 +30,10 @@ class UILifecycle:
         self._init_snapshot_task: asyncio.Task | None = None
 
     async def cleanup_background_tasks(self):
-        """Cancel and clean up all background tasks."""
+        """Cancel and clean up all background tasks, after the hooks still
+        running get `CFG.HOOKS_EXIT_TIMEOUT` to finish."""
         ui = self._ui
+        await ui.drain_hook_tasks(CFG.HOOKS_EXIT_TIMEOUT / 1000)
         await self._cancel_and_discard(ui.process_messages_task)
 
         while not ui.message_queue.empty():
@@ -178,7 +181,9 @@ class UILifecycle:
             # Already torn down.
             pass
 
-        for task in self._ui.background_tasks:
+        # Hook tasks are left to `cleanup_background_tasks`, which lets them
+        # finish first.
+        for task in self._ui.background_tasks - self._ui.hook_tasks:
             if not task.done():
                 task.cancel()
 
@@ -196,17 +201,28 @@ def _make_snapshot_progress_handler(
 
     Every run ends in exactly one terminal line: done (with the unreadable
     file count), up-to-date, or error (with the reason; "rewind is off" when
-    the directory cannot be snapshotted at all). Events arrive on the event
-    loop thread, so a direct append is safe.
+    the directory cannot be snapshotted at all). A run may carry one notice
+    before that — a snapshot that reaches less far than a repository's would —
+    which is folded into the done line rather than printed on its own. A
+    missing git prints nothing: it is not news every session, and `/rewind`
+    says why rewind is off. Events arrive on the event loop thread, so a
+    direct append is safe.
     """
+    notices: list[str] = []
 
     def handler(event: "SnapshotProgress") -> None:
         stage, skipped, reason = event.stage, event.skipped, event.reason
         if stage == "start":
             message = "\n  📸 Taking initial workspace snapshot...\n"
+        elif stage == "notice":
+            notices.append(reason)
+            return
         elif stage == "done":
-            note = f" ({skipped} unreadable files skipped)" if skipped else ""
+            notes = [*notices, *([f"{skipped} unreadable files skipped"] if skipped else [])]
+            note = f" ({'; '.join(notes)})" if notes else ""
             message = f"\n  ✅ Initial workspace snapshot taken{note}\n"
+        elif stage == "error" and reason == GIT_MISSING_REASON:
+            return
         elif stage == "up-to-date":
             message = "\n  📸 Workspace snapshot up-to-date\n"
         elif stage == "error" and _is_rewind_off(ui):

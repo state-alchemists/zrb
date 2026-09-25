@@ -22,6 +22,19 @@ commit's message records what the snapshot knows that its tree cannot hold —
 the files it could not read, the paths it left out, the repositories it
 listed — and a restore rebuilds the snapshot from it.
 
+Every operation waits at most ``CFG.LLM_SNAPSHOT_LOCK_TIMEOUT`` for the store,
+then runs within one budget, ``CFG.LLM_SNAPSHOT_OPERATION_TIMEOUT``, across
+every command in it; it stops at once when its caller is cancelled. A history
+copy `/save` records (``<store>.copies.json`` beside the store) is applied by
+the next operation of this or any later manager, so a session that ends
+before it lands does not lose it; a copy git refuses is dropped rather than
+retried, so it cannot fail every later operation.
+
+Housekeeping, once per session with the first snapshot: conversations whose
+newest snapshot is older than *retention_seconds* lose their rewind history, and
+``git gc --auto`` packs the store and, in the background, prunes what no
+history holds any more.
+
 Restore flow: refuse a commit outside this conversation's history, then
 `SnapshotStore.restore` — which rewrites changed files, recreates deleted
 ones and removes only the files the snapshot shows did not exist then, never
@@ -32,7 +45,8 @@ path a refused write left behind.
 Rewind turns itself off for the session, with a reason the first snapshot
 and `/rewind` show, when the directory cannot be snapshotted at all: a
 snapshot directory that is the working directory itself, a store that cannot
-be set up — its directory not writable, git not installed — or more loose
+be set up — its directory not writable, git not installed (said only by
+`/rewind`: a missing git is not news every session) — or more loose
 files outside any repository than the listing's budget. Later operations do
 not retry.
 """
@@ -45,14 +59,19 @@ import json
 import logging
 import os
 import re
+import shutil
 import threading
+import time
 from contextlib import contextmanager
-from typing import Any, Callable, Iterator, NamedTuple, TypeVar
+from typing import Any, Callable, Coroutine, Iterator, NamedTuple, TypeVar
 
-from zrb.util.file_lock import FileLockTimeout, hold_file_lock
+from zrb.config.config import CFG
+from zrb.util.file_lock import FileLockCancelled, FileLockTimeout, hold_file_lock
 from zrb.util.git.snapshot_command import (
+    SnapshotCancelledError,
     SnapshotError,
     SnapshotTimeoutError,
+    get_worker_cancel,
     run_in_worker,
 )
 from zrb.util.git.snapshot_listing import DEFAULT_IGNORE_DIRS, SnapshotBudgetError
@@ -64,24 +83,25 @@ logger = logging.getLogger(__name__)
 
 #: The file in a rewind store whose OS lock every operation on it holds.
 OPERATION_LOCK_NAME = "zrb-operation.lock"
-#: The longest an operation waits for another to release the store. A store
-#: still busy past it — another process stuck mid-restore — fails that one
-#: operation, not the session's rewind.
-STORE_LOCK_TIMEOUT_SECONDS = 60
+#: Why rewind is off when git is not on PATH. The init snapshot reports it
+#: like any other reason; a UI may choose to stay quiet about this one.
+GIT_MISSING_REASON = "git is not installed"
 
 _T = TypeVar("_T")
 
 
 # Progress callback contract for `take_init_snapshot`. Stages:
 #   "start"      right before the working tree is hashed
+#   "notice"     optional, before "done": the snapshot is shallower than a full
+#                tree, with the reason — see `LOOSE_SNAPSHOT_REASON`
 #   "done"       init commit exists; skipped counts files git could not read
 #   "up-to-date" session already has snapshots (resumed session)
 #   "error"      the snapshot failed, with or without a "start" before it;
 #                reason is `unavailable_reason` when rewind is off for the
 #                session, else the failure's text
-# Every invocation ends with exactly one of the last three. All events fire on
-# the event-loop thread: each report happens in coroutine context, before or
-# after an awaited worker returns.
+# Every invocation ends with exactly one of the last three, and fires at most
+# one "notice" before it. All events fire on the event-loop thread: each report
+# happens in coroutine context, before or after an awaited worker returns.
 class SnapshotProgress(NamedTuple):
     """Progress event for `take_init_snapshot` (see `SnapshotProgressFn`).
     Read its fields by name: which ones it has is not fixed."""
@@ -92,6 +112,35 @@ class SnapshotProgress(NamedTuple):
 
 
 SnapshotProgressFn = Callable[[SnapshotProgress], None]
+
+#: Said once, when the directory is not in a git repository: the store lists
+#: the loose files then, up to its own budget, and a `.gitignore` has nothing
+#: to say — a rewind that reaches less far than a repository's would.
+LOOSE_SNAPSHOT_REASON = (
+    "no git repository here, so rewind covers the files in this directory and "
+    "ignores .gitignore"
+)
+
+
+class _Commit(NamedTuple):
+    """What one commit of the workdir came to."""
+
+    sha: str
+    #: Files the store could not read, and so the commit does not hold.
+    skipped: int
+    #: The repositories the store listed for this directory; `""` is the
+    #: directory itself. Without it, the store listed loose files.
+    repositories: tuple[str, ...]
+
+
+class _PendingCopy(NamedTuple):
+    """A `copy_history` not applied yet."""
+
+    source: str
+    #: *target*'s head when the copy was recorded beside the store, `""` when
+    #: it had none; a replay applies only while it still does. None for the
+    #: copy this manager holds in memory, which it applies unconditionally.
+    target_before: str | None = None
 
 
 class Snapshot(NamedTuple):
@@ -137,6 +186,7 @@ class SnapshotManager:
         session_name: "str | Callable[[], str]",
         workdir: str,
         ignore_dirs: "frozenset[str] | set[str] | None" = None,
+        retention_seconds: int = 0,
     ):
         self._snapshot_dir = os.path.realpath(snapshot_dir)
         self._workdir = os.path.realpath(workdir)
@@ -146,11 +196,20 @@ class SnapshotManager:
         )
         self._store: SnapshotStore | None = None
         self._store_lock = threading.Lock()
-        # target conversation -> source, recorded by `copy_history`, applied
-        # by the next locked operation before anything else it does.
-        self._pending_copies: dict[str, str] = {}
-        self._pending_lock = threading.Lock()
-        self._unavailable = _check_location(self._snapshot_dir, self._workdir)
+        # target conversation -> source, recorded by `copy_history` and applied
+        # by the first locked operation after that. Mirrors the record beside
+        # the store (`_pending_copies_path`), which is what a later session
+        # reads: a copy recorded but never applied must survive this manager.
+        self._pending_copies: dict[str, _PendingCopy] = {}
+        # Re-entrant: recording a copy and applying the recorded ones both
+        # reach `_recorded_copies`, which takes it too.
+        self._pending_lock = threading.RLock()
+        # Conversations untouched this long lose their rewind history; 0 keeps
+        # every one.
+        self._retention_seconds = retention_seconds
+        self._unavailable = _check_location(
+            self._snapshot_dir, self._workdir
+        ) or _check_git()
         # Orders this manager's snapshots, restores and history copies.
         self._lock = asyncio.Lock()
 
@@ -186,10 +245,10 @@ class SnapshotManager:
         session = self.session_name
         try:
             async with self._lock:
-                sha, _ = await run_in_worker(
+                commit = await run_in_worker(
                     self._run_locked, self._commit, session, label, message_count
                 )
-                return sha
+                return commit.sha
         except Exception as e:
             self._note_unavailable(e)
             logger.warning(f"Snapshot failed: {e}")
@@ -219,15 +278,23 @@ class SnapshotManager:
                 existing_sha = await run_in_worker(
                     self._run_locked, self._head_sha, session
                 )
+                await run_in_worker(self._run_locked, self._tidy, session)
                 if existing_sha is not None:
                     _report_progress(on_progress, SnapshotProgress("up-to-date"))
                     return existing_sha
                 _report_progress(on_progress, SnapshotProgress("start"))
-                sha, skipped = await run_in_worker(
+                commit = await run_in_worker(
                     self._run_locked, self._commit, session, "init", 0
                 )
-            _report_progress(on_progress, SnapshotProgress("done", skipped))
-            return sha
+            if "" not in commit.repositories:
+                # Said once per conversation: a resumed session never gets
+                # here, and the shallow listing is worth knowing about.
+                _report_progress(
+                    on_progress,
+                    SnapshotProgress("notice", reason=LOOSE_SNAPSHOT_REASON),
+                )
+            _report_progress(on_progress, SnapshotProgress("done", commit.skipped))
+            return commit.sha
         except Exception as e:
             self._note_unavailable(e)
             logger.warning(f"Init snapshot failed: {e}")
@@ -239,16 +306,17 @@ class SnapshotManager:
         """Return the current conversation's snapshots, newest first."""
         if self._unavailable:
             return []
-        session = self._visible_history(self.session_name)
+        deadline = _create_deadline()
         try:
             # Unlocked, and never setting a store up: either would hold the UI
             # up behind another operation. It needs no lock — the ref is read
             # once, and the commits it names never change.
             store = self._find_store_to_read()
-            head = None if store is None else _read_head(store, session)
+            session = self._resolve_live_source(store, self.session_name, deadline)
+            head = None if store is None else _read_head(store, session, deadline)
             if store is None or head is None:
                 return []
-            log = store.git(["log", "--format=%H|%ai|%s", head])
+            log = store.git(["log", "--format=%H|%ai|%s", head], deadline=deadline)
             snapshots: list[Snapshot] = []
             for line in log.splitlines():
                 parts = line.split("|", 2)
@@ -284,23 +352,53 @@ class SnapshotManager:
             logger.warning(f"restore_snapshot failed: {e}")
             return RestoreOutcome(restored=False)
 
-    def copy_history(self, source: str, target: str) -> None:
+    def copy_history(self, source: str, target: str) -> Coroutine[Any, Any, None]:
         """Give conversation *target* the rewind history *source* has now —
         what saving a conversation under a new name does to its chat history
         — replacing any it had. A *source* with no snapshots leaves *target*
         with none: its old ones would carry message counts of a chat history
         that no longer exists.
 
-        The copy is recorded at once and applied by the next operation that
-        holds the manager's lock, before anything else that operation does,
-        so no snapshot of either conversation can come between the save and
-        the copy. Until then `list_snapshots` shows *target* the history it
-        is about to receive."""
+        The copy is registered when this is called, before it returns: every
+        later operation of this manager applies it before anything of its
+        own, so no snapshot of *target* can land first and be overwritten —
+        not even one the caller starts in the same task without yielding.
+        Awaiting the returned coroutine records the copy beside the store, so
+        a session that ends before it is applied does not lose it, and then
+        applies it; left unawaited, the next operation applies it. A copy of
+        a copy takes the original history: one of a copy this manager has not
+        applied yet takes that copy's source when registered, and one of a
+        copy only recorded beside the store lands after it. Until it lands, `list_snapshots` shows *target* the history
+        it is about to receive.
+
+        The record beside the store carries *target*'s head as it was before
+        the copy landed, and a replay applies only while *target* still has
+        it: a record left behind after its copy landed — its removal failed —
+        must never overwrite the snapshots *target* took since."""
         if self._unavailable or source == target:
-            return
+            return _do_nothing()
         with self._pending_lock:
-            # A copy of a copy not applied yet takes the original source.
-            self._pending_copies[target] = self._pending_copies.get(source, source)
+            # A copy of a copy this manager has not applied yet takes that
+            # copy's source now, so it no longer depends on its source's
+            # pending state — which a later copy to the source would replace.
+            waiting = self._pending_copies.get(source)
+            pending = _PendingCopy(waiting.source if waiting else source)
+            if pending.source == target:
+                return _do_nothing()
+            self._pending_copies.pop(target, None)  # re-registered: now last
+            self._pending_copies[target] = pending
+        return self._land_copy(target, pending)
+
+    async def _land_copy(self, target: str, pending: _PendingCopy) -> None:
+        try:
+            # Recorded before waiting for the lock, so a session that ends
+            # while a long operation holds it still leaves the copy on disk.
+            await run_in_worker(self._record_copy, target, pending)
+            async with self._lock:
+                await run_in_worker(self._run_locked, self._apply_pending_copies)
+        except Exception as e:
+            self._note_unavailable(e)
+            logger.warning(f"copy_history({pending.source} -> {target}) failed: {e}")
 
     def _note_unavailable(self, error: Exception) -> None:
         """Turn rewind off for the session when *error* will not pass by
@@ -315,13 +413,15 @@ class SnapshotManager:
                 f"{self._workdir} is too large to snapshot in time ({error})"
             )
 
-    def _get_store(self) -> SnapshotStore:
+    def _get_store(self, deadline: float) -> SnapshotStore:
         """The working directory's store, set up on first use. A failure to
         set it up — its directory not writable, git not installed, a location
         the store refuses — will not pass by itself, so it turns rewind off
-        for the session with its reason. It is set up holding the operation
-        lock: two processes running `git init` on one directory at once fail
-        on each other's config lock."""
+        for the session with its reason — but a busy store or a cancelled
+        caller says nothing about the store, and the next operation tries the
+        setup again. It is set up holding the operation lock: two processes
+        running `git init` on one directory at once fail on each other's
+        config lock."""
         with self._store_lock:
             if self._store is not None:
                 return self._store
@@ -330,8 +430,8 @@ class SnapshotManager:
                 store = self._create_store_object(git_dir)
                 os.makedirs(git_dir, mode=0o700, exist_ok=True)  # holds the lock
                 with _hold_operation_lock(store):
-                    store.ensure()
-            except _StoreBusy:
+                    store.ensure(deadline)
+            except (_StoreBusy, SnapshotCancelledError):
                 raise
             except (OSError, ValueError, SnapshotError) as e:
                 self._unavailable = f"the snapshot store {git_dir} is unusable: {e}"
@@ -340,8 +440,133 @@ class SnapshotManager:
             return store
 
     def _store_git_dir(self) -> str:
-        name = _readable_key(os.path.basename(self._workdir), self._workdir)
-        return os.path.join(self._snapshot_dir, f"{name}.git")
+        return os.path.join(self._snapshot_dir, f"{self._store_key()}.git")
+
+    def _store_key(self) -> str:
+        """*workdir*'s store name. One store per directory, so the files it
+        did not change are stored once and one stat cache serves every
+        conversation there."""
+        return _readable_key(os.path.basename(self._workdir), self._workdir)
+
+    def _pending_copies_path(self) -> str:
+        """Where an unapplied `copy_history` is recorded, beside the store it
+        belongs to and named for the same key — so a session that ends before
+        one is applied, and a manager that never saw it, both find it."""
+        return os.path.join(self._snapshot_dir, f"{self._store_key()}.copies.json")
+
+    def _recorded_copies(self) -> dict[str, _PendingCopy]:
+        """The copies recorded for this store, in the order they apply: what
+        only the record beside the store holds — an earlier session's, or
+        another process's — then this manager's own, over any record of the
+        same target, in the order they were registered, so a copy of a copy
+        lands after the copy it copies."""
+        with self._pending_lock:
+            recorded = {
+                target: pending
+                for target, pending in self._read_recorded_copies().items()
+                if target not in self._pending_copies
+            }
+            recorded.update(self._pending_copies)
+            return recorded
+
+    def _read_recorded_copies(self) -> dict[str, _PendingCopy]:
+        """What the record beside the store holds, or `{}` — unreadable,
+        malformed or absent, all of which mean the same thing here: whatever
+        it recorded is not known to be pending. An entry without the target's
+        head it was recorded against is skipped too: it could not be replayed
+        safely."""
+        try:
+            with open(self._pending_copies_path(), "r", encoding="utf-8") as f:
+                recorded = json.load(f)
+        except (OSError, ValueError):
+            return {}
+        if not isinstance(recorded, dict):
+            return {}
+        copies: dict[str, _PendingCopy] = {}
+        for target, entry in recorded.items():
+            if not isinstance(target, str) or not isinstance(entry, dict):
+                continue
+            source, target_before = entry.get("source"), entry.get("target_before")
+            if isinstance(source, str) and isinstance(target_before, str):
+                copies[target] = _PendingCopy(source, target_before)
+        return copies
+
+    def _record_copy(self, target: str, pending: _PendingCopy) -> None:
+        """Record *pending*, the copy to *target* registered in memory, beside
+        the store with *target*'s head as it was before the copy landed —
+        which a later replay must still find.
+
+        The head is read first, then the copy checked to be still pending: if
+        an operation applied it already, the head may be the copy's own or a
+        newer snapshot's, and a record carrying it could replay over that
+        snapshot, so none is written. Applied between the check and the
+        write, the record carries the head from before the copy and is
+        refused on replay. The read takes no lock: a store another process
+        holds must not keep the copy from being recorded. A head that cannot
+        be read leaves the copy unrecorded, applied this session only — which
+        is safe, since no operation of this manager can reach *target* before
+        it."""
+        deadline = _create_deadline()
+        store = self._find_store_to_read()
+        try:
+            head = None if store is None else _read_head(store, target, deadline)
+        except SnapshotError as e:
+            if _is_cancelled():
+                raise
+            logger.warning(f"Rewind history copy to {target} not recorded: {e}")
+            return
+        with self._pending_lock:
+            if self._pending_copies.get(target) is not pending:
+                return
+        record = _PendingCopy(pending.source, head or "")
+        self._update_recorded_copies(lambda copies: {**copies, target: record})
+
+    def _resolve_live_source(
+        self, store: SnapshotStore | None, session: str, deadline: float
+    ) -> str:
+        """The conversation whose history *session* has, or is about to
+        receive: the source of a copy to it not applied yet, else *session*.
+        A recorded copy counts only while *session* still has the head it was
+        recorded against — once it has moved on, the copy landed."""
+        pending = self._recorded_copies().get(session)
+        if pending is None:
+            return session
+        if pending.target_before is None:
+            return pending.source
+        try:
+            head = None if store is None else _read_head(store, session, deadline)
+        except SnapshotError:
+            if _is_cancelled():
+                raise
+            return session
+        return pending.source if (head or "") == pending.target_before else session
+
+    def _update_recorded_copies(
+        self, change: Callable[[dict[str, _PendingCopy]], dict[str, _PendingCopy]]
+    ) -> None:
+        """Rewrite the record beside the store as *change* of what it holds,
+        under a lock of its own: two processes saving at once must not each
+        write back a record missing the other's copy. Never raises: the
+        in-memory record still applies them this session, and a record left
+        behind is refused on replay (`_copy_history`)."""
+        path = self._pending_copies_path()
+        try:
+            os.makedirs(self._snapshot_dir, exist_ok=True)
+            with hold_file_lock(f"{path}.lock", CFG.LLM_SNAPSHOT_COPY_LOCK_TIMEOUT):
+                copies = change(self._read_recorded_copies())
+                _write_json_atomically(
+                    path,
+                    {
+                        target: {
+                            "source": pending.source,
+                            "target_before": pending.target_before,
+                        }
+                        for target, pending in copies.items()
+                        if pending.target_before is not None
+                    },
+                )
+        except (OSError, FileLockTimeout) as e:
+            logger.warning(f"Could not record pending history copies in {path}: {e}")
 
     def _create_store_object(self, git_dir: str) -> SnapshotStore:
         """The store at *git_dir*, not yet set up."""
@@ -364,20 +589,54 @@ class SnapshotManager:
             return None
         return self._create_store_object(git_dir)
 
-    def _apply_pending_copies(self) -> None:
+    def _apply_pending_copies(self, deadline: float) -> None:
         """Apply the copies `copy_history` recorded, in the order it recorded
         them. Called first by every locked operation (`_run_locked`), so each
-        copy lands before anything that could build on either side."""
-        with self._pending_lock:
-            for target, source in self._pending_copies.items():
-                self._copy_history(source, target)
-            self._pending_copies.clear()
+        copy lands before anything that could build on either side.
 
-    def _visible_history(self, session: str) -> str:
-        """The conversation whose history *session*'s list shows: the source
-        of a copy to *session* not applied yet, else *session*."""
+        Each copy is forgotten as it lands, in memory and in the record beside
+        the store, rather than at the end: a later one that fails must not
+        replay an earlier one, whose delete branch would then wipe a snapshot
+        *target* took in between. A copy git refuses is forgotten too, with a
+        warning: kept, it would fail every later operation of every session
+        in this directory, for the sake of one saved conversation's rewind
+        history. A timeout or a cancelled caller stops the operation instead
+        — neither says anything about the copy."""
         with self._pending_lock:
-            return self._pending_copies.get(session, session)
+            recorded = self._recorded_copies()
+        for target, pending in recorded.items():
+            try:
+                self._copy_history(deadline, pending, target)
+            except _StaleCopy as e:
+                logger.debug(f"Skipping a rewind history copy that landed: {e}")
+            except SnapshotTimeoutError:
+                raise
+            except SnapshotError as e:
+                if _is_cancelled():
+                    raise
+                logger.warning(
+                    f"Dropping the rewind history copy {pending.source} -> "
+                    f"{target}: {e}"
+                )
+            self._forget_recorded_copy(target, pending.source)
+
+    def _forget_recorded_copy(self, target: str, source: str) -> None:
+        """Drop the one copy that has landed, wherever it was recorded: the
+        same entry still in the record would otherwise be applied again. Its
+        removal from the record can fail; the entry left behind is then
+        refused on replay, since *target* has moved on from the head it
+        carries."""
+        with self._pending_lock:
+            mine = self._pending_copies.get(target)
+            if mine is not None and mine.source == source:
+                del self._pending_copies[target]
+        self._update_recorded_copies(
+            lambda copies: {
+                t: pending
+                for t, pending in copies.items()
+                if (t, pending.source) != (target, source)
+            }
+        )
 
     def _run_locked(self, operation: Callable[..., _T], *args: Any) -> _T:
         """Run *operation* on the store holding its operation lock, after the
@@ -386,22 +645,35 @@ class SnapshotManager:
         it too — another conversation's manager in this process, another
         process — so a restore never interleaves with another restore, and a
         snapshot never catches one half-written. The OS releases it when its
-        holder dies."""
-        with _hold_operation_lock(self._get_store()):
-            self._apply_pending_copies()
-            return operation(*args)
+        holder dies.
+
+        The lock is waited for at most `CFG.LLM_SNAPSHOT_LOCK_TIMEOUT`, and a
+        caller cancelled meanwhile stops waiting at once — see
+        `_hold_operation_lock`. Then the sequence runs within
+        `CFG.LLM_SNAPSHOT_OPERATION_TIMEOUT`, however many commands it runs.
+        Each command has its own shorter cap, so this is what bounds a
+        sequence of them.
+        The budget starts after the wait, so a wait for a busy store never
+        spends it: running out means this directory is too slow to snapshot,
+        which turns rewind off (`_note_unavailable`), and contention is not
+        that.
+        """
+        store = self._get_store(_create_deadline())
+        with _hold_operation_lock(store):
+            deadline = _create_deadline()
+            self._apply_pending_copies(deadline)
+            return operation(deadline, *args)
 
     def _commit(
-        self, session: str, label: str, message_count: int | None
-    ) -> tuple[str, int]:
-        """Commit the workdir unless it matches HEAD; return the SHA and how
-        many files git could not read."""
-        store = self._get_store()
-        snapshot = store.snapshot()
-        skipped = len(snapshot.unreadable)
-        head = self._head_sha(session)
+        self, deadline: float, session: str, label: str, message_count: int | None
+    ) -> _Commit:
+        """Commit the workdir unless it matches HEAD; return what the commit
+        came to."""
+        store = self._get_store(deadline)
+        snapshot = store.snapshot(deadline)
+        head = self._head_sha(deadline, session)
         if head is not None:
-            head_snapshot, head_subject = self._read_commit(head)
+            head_snapshot, head_subject = self._read_commit(deadline, head)
             # A new commit is still needed when only message_count advanced
             # (e.g. after a rewind followed by turns that don't touch the FS):
             # restore reads mc from the commit, so a stale one would truncate
@@ -412,60 +684,104 @@ class SnapshotManager:
             if head_snapshot == snapshot and (
                 message_count is None or head_mc == message_count
             ):
-                return head, skipped
+                return _Commit(head, len(snapshot.unreadable), snapshot.repositories)
         parent = ["-p", head] if head else []
         message = _build_commit_message(label, message_count, snapshot)
         # The message on stdin: it names every path the snapshot left out,
         # which could exceed a command-line argument's limit.
         sha = store.git(
-            ["commit-tree", "--no-gpg-sign", snapshot.tree, *parent], stdin=message
+            ["commit-tree", "--no-gpg-sign", snapshot.tree, *parent],
+            stdin=message,
+            deadline=deadline,
         ).strip()
-        store.git(["update-ref", _ref(session), sha])
-        return sha, skipped
+        store.git(["update-ref", _ref(session), sha], deadline=deadline)
+        return _Commit(sha, len(snapshot.unreadable), snapshot.repositories)
 
-    def _restore(self, session: str, sha: str) -> list[str]:
+    def _restore(self, deadline: float, session: str, sha: str) -> list[str]:
         """Restore *sha*, move the conversation's ref back to it, and return
         the paths left behind."""
-        store = self._get_store()
-        store.git(["cat-file", "-e", f"{sha}^{{commit}}"])
+        store = self._get_store(deadline)
+        store.git(["cat-file", "-e", f"{sha}^{{commit}}"], deadline=deadline)
         # Only this conversation's own snapshots: another conversation's
         # commit in the same store is not in this one's list, so restoring it
         # would rewind the files without rewinding the conversation to match.
-        ancestry = store.run_git(["merge-base", "--is-ancestor", sha, _ref(session)])
+        ancestry = store.run_git(
+            ["merge-base", "--is-ancestor", sha, _ref(session)], deadline=deadline
+        )
         if ancestry.returncode:
             raise SnapshotError(f"{sha} is not one of this conversation's snapshots")
-        snapshot, _ = self._read_commit(sha)
+        snapshot, _ = self._read_commit(deadline, sha)
         if snapshot is None:
             # Without it a restore cannot tell a file that did not exist then
             # from one the snapshot never saw.
             raise SnapshotError(f"{sha} has no readable record of what it left out")
-        left_behind = store.restore(snapshot)
+        left_behind = store.restore(snapshot, deadline)
         try:
-            store.git(["update-ref", _ref(session), sha])
+            store.git(["update-ref", _ref(session), sha], deadline=deadline)
         except SnapshotError as e:
             # The files are restored either way; the list just keeps the
             # snapshots taken after *sha*.
             logger.warning(f"Could not move {session}'s rewind history back: {e}")
         return left_behind
 
-    def _read_commit(self, sha: str) -> tuple[StoreSnapshot | None, str]:
+    def _read_commit(
+        self, deadline: float, sha: str
+    ) -> tuple[StoreSnapshot | None, str]:
         """The snapshot a commit records (None when its record is missing or
         malformed) and the commit's subject."""
         tree, _, message = (
-            self._get_store().git(["log", "-1", "--format=%T%n%B", sha]).partition("\n")
+            self._get_store(deadline)
+            .git(["log", "-1", "--format=%T%n%B", sha], deadline=deadline)
+            .partition("\n")
         )
         return _parse_record(tree, message), message.partition("\n")[0]
 
-    def _copy_history(self, source: str, target: str) -> None:
-        store = self._get_store()
-        head = self._head_sha(source)
+    def _copy_history(
+        self, deadline: float, pending: _PendingCopy, target: str
+    ) -> None:
+        """Apply one copy under the operation lock. One recorded beside the
+        store applies only while *target* still has the head it was recorded
+        against, or it is a `_StaleCopy`: every ref write holds this lock, so
+        the check and the write cannot be split by another operation."""
+        store = self._get_store(deadline)
+        current = self._head_sha(deadline, target)
+        if pending.target_before is not None and (current or "") != (
+            pending.target_before
+        ):
+            raise _StaleCopy(
+                f"{target}'s rewind history moved on after the copy from "
+                f"{pending.source} was recorded"
+            )
+        head = self._head_sha(deadline, pending.source)
         if head is not None:
-            store.git(["update-ref", _ref(target), head])
-        elif self._head_sha(target) is not None:
-            store.git(["update-ref", "-d", _ref(target)])
+            store.git(["update-ref", _ref(target), head], deadline=deadline)
+        elif current is not None:
+            store.git(["update-ref", "-d", _ref(target)], deadline=deadline)
 
-    def _head_sha(self, session: str) -> str | None:
-        return _read_head(self._get_store(), session)
+    def _head_sha(self, deadline: float, session: str) -> str | None:
+        return _read_head(self._get_store(deadline), session, deadline)
+
+    def _tidy(self, deadline: float, session: str) -> None:
+        """Keep the store from growing without end: drop the rewind history of
+        conversations older than *retention_seconds* — never *session*'s — then let
+        `git gc --auto` pack it and, detached, prune what no history holds any
+        more, a timed-out snapshot's objects included. Best effort: nothing
+        here fails the snapshot it follows."""
+        store = self._get_store(deadline)
+        try:
+            if self._retention_seconds > 0:
+                cutoff = time.time() - self._retention_seconds
+                for ref in _find_stale_refs(store, cutoff, deadline):
+                    if ref != _ref(session):
+                        store.git(["update-ref", "-d", ref], deadline=deadline)
+            store.git(
+                ["-c", "gc.autoDetach=true", "gc", "--auto", "--quiet"],
+                deadline=deadline,
+            )
+        except SnapshotError as e:
+            if _is_cancelled():
+                raise
+            logger.debug(f"Snapshot store housekeeping failed: {e}")
 
 
 def _check_location(snapshot_dir: str, workdir: str) -> str:
@@ -481,23 +797,88 @@ def _check_location(snapshot_dir: str, workdir: str) -> str:
     return ""
 
 
+def _create_deadline() -> float:
+    """When an operation starting now must be done: `CFG` is read here, at
+    each operation, so `zrb_init.py` can change the budget."""
+    return time.monotonic() + CFG.LLM_SNAPSHOT_OPERATION_TIMEOUT
+
+
+async def _do_nothing() -> None:
+    """What `copy_history` returns when there is nothing to copy."""
+
+
+def _check_git() -> str:
+    """Why git cannot run here, or empty."""
+    return "" if shutil.which("git") else GIT_MISSING_REASON
+
+
+def _is_cancelled() -> bool:
+    """Whether the caller awaiting this worker was cancelled."""
+    cancel = get_worker_cancel()
+    return cancel is not None and cancel.is_set()
+
+
+def _find_stale_refs(store: SnapshotStore, cutoff: float, deadline: float) -> list[str]:
+    """The conversation refs whose newest snapshot is older than *cutoff*."""
+    listing = store.git(
+        ["for-each-ref", "--format=%(committerdate:unix) %(refname)", "refs/zrb/"],
+        deadline=deadline,
+    )
+    stale: list[str] = []
+    for line in listing.splitlines():
+        stamp, _, ref = line.partition(" ")
+        if stamp.isdigit() and int(stamp) < cutoff:
+            stale.append(ref)
+    return stale
+
+
+def _write_json_atomically(path: str, data: dict[str, dict[str, str]]) -> None:
+    """Write *data* to *path* — or remove it when empty — so a reader never
+    sees half a file: `list_snapshots` reads the record without the lock."""
+    if not data:
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            pass
+        return
+    temporary = f"{path}.{os.getpid()}.tmp"
+    with open(temporary, "w", encoding="utf-8") as f:
+        json.dump(data, f)
+    os.replace(temporary, path)
+
+
+class _StaleCopy(SnapshotError):
+    """A recorded copy whose target has moved on since: it already landed."""
+
+
 class _StoreBusy(SnapshotError):
-    """Another operation held the store past `STORE_LOCK_TIMEOUT_SECONDS`."""
+    """Another operation held the store past `CFG.LLM_SNAPSHOT_LOCK_TIMEOUT`."""
 
 
 @contextmanager
 def _hold_operation_lock(store: SnapshotStore) -> Iterator[None]:
+    """Hold the store's operation lock, waiting at most
+    `CFG.LLM_SNAPSHOT_LOCK_TIMEOUT`, and giving up at once when the operation's
+    caller was cancelled."""
     path = os.path.join(store.git_dir, OPERATION_LOCK_NAME)
     try:
-        with hold_file_lock(path, STORE_LOCK_TIMEOUT_SECONDS):
+        with hold_file_lock(
+            path, CFG.LLM_SNAPSHOT_LOCK_TIMEOUT, cancel=get_worker_cancel()
+        ):
             yield
     except FileLockTimeout as e:
         raise _StoreBusy(f"the snapshot store is busy: {e}") from e
+    except FileLockCancelled as e:
+        raise SnapshotCancelledError(
+            f"cancelled while waiting for the snapshot store: {e}"
+        ) from e
 
 
-def _read_head(store: SnapshotStore, session: str) -> str | None:
+def _read_head(store: SnapshotStore, session: str, deadline: float) -> str | None:
     """The newest snapshot of *session*'s history in *store*, if any."""
-    result = store.run_git(["rev-parse", "--verify", "-q", _ref(session)])
+    result = store.run_git(
+        ["rev-parse", "--verify", "-q", _ref(session)], deadline=deadline
+    )
     return result.stdout.strip() if result.returncode == 0 else None
 
 

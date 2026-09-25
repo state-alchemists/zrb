@@ -14,6 +14,7 @@ import asyncio
 import dataclasses
 import os
 import time
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -67,19 +68,22 @@ def register_self_review_hook(manager: "HookManager") -> None:
 
 
 def create_self_review_hook() -> HookCallable:
-    """The gate itself. It counts a run's consecutive blocking reviews — per
-    run, since concurrent sessions share one hook manager. A run has an entry
-    only while the gate is holding its turn open: any review that lets the
-    turn end removes it, and a turn's first Stop (`stop_hook_active` still
-    false) restarts it, so a turn cancelled mid-continuation leaves at most
-    one entry for its run, cleared by that run's next turn.
+    """The gate itself. It counts a turn's consecutive blocking reviews,
+    keyed by the Stop payload's `turn_id` — unique per turn, so concurrent
+    sessions sharing one hook manager, even under one conversation name,
+    never share a count. A turn has an entry only while the gate is holding
+    it open: any review that lets it end removes it. A turn that ends some
+    other way mid-continuation — cancelled, capped, failed — never comes
+    back to clear its entry, so at most `CFG.LLM_SELF_REVIEW_MAX_TRACKED_TURNS`
+    are kept, the
+    oldest dropped first.
 
     A delegated sub-agent's run is not reviewed: its changes land in the
     parent's working directory, or in a worktree under it, which the parent's
     own review diffs against a snapshot taken before it delegated. Reviewing each sub-agent too would
     multiply reviewer runs, and a sub-agent's diff would include whatever its
     parallel siblings changed."""
-    rounds: dict[str, int] = {}
+    rounds: OrderedDict[str, int] = OrderedDict()
 
     async def self_review(context: HookContext) -> HookResult:
         payload = context.event_data if isinstance(context.event_data, dict) else {}
@@ -88,17 +92,19 @@ def create_self_review_hook() -> HookCallable:
                 output="Self-review skipped: a delegated sub-agent's run; the "
                 "parent's review covers its changes."
             )
-        run = str(payload.get("run_scope") or "")
+        turn = str(payload.get("turn_id") or payload.get("run_scope") or "")
         if not context.stop_hook_active:
-            rounds.pop(run, None)
-        if rounds.get(run, 0) >= CFG.LLM_SELF_REVIEW_MAX_ROUNDS:
-            rounds.pop(run, None)
+            rounds.pop(turn, None)
+        if rounds.get(turn, 0) >= CFG.LLM_SELF_REVIEW_MAX_ROUNDS:
+            rounds.pop(turn, None)
             return HookResult(output="Self-review skipped: round limit reached.")
         result = await _review(context, payload)
         if result.modifications.get("decision") == "block":
-            rounds[run] = rounds.get(run, 0) + 1
+            rounds[turn] = rounds.pop(turn, 0) + 1
+            while len(rounds) > max(CFG.LLM_SELF_REVIEW_MAX_TRACKED_TURNS, 1):
+                rounds.popitem(last=False)
         else:
-            rounds.pop(run, None)
+            rounds.pop(turn, None)
         return result
 
     return self_review

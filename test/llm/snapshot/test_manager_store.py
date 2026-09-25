@@ -1,17 +1,14 @@
 """Tests for SnapshotManager — where the git snapshot store lives and how
 projects, sessions and directories are kept apart inside it."""
 
-import asyncio
 import os
 import subprocess
 import tempfile
 import threading
-import time
 
 import pytest
 
 from zrb.llm.snapshot import RestoreOutcome, SnapshotManager
-from zrb.llm.snapshot import manager as snapshot_manager
 from zrb.llm.snapshot.manager import OPERATION_LOCK_NAME
 from zrb.util.file_lock import hold_file_lock
 from zrb.util.git.snapshot_command import SnapshotError
@@ -210,26 +207,6 @@ async def test_a_subdirectory_session_never_touches_files_outside_it(
 
 
 @pytest.mark.asyncio
-async def test_another_sessions_commit_in_the_same_store_is_refused(
-    snapshot_dir, workdir
-):
-    target = os.path.join(workdir, "f.txt")
-    with open(target, "w") as f:
-        f.write("original")
-    mine = SnapshotManager(snapshot_dir, "mine", workdir)
-    theirs = SnapshotManager(snapshot_dir, "theirs", workdir)
-    await mine.take_snapshot("mine")
-    foreign = await theirs.take_snapshot("theirs")
-    with open(target, "w") as f:
-        f.write("edited")
-
-    assert foreign is not None
-    assert await mine.restore_snapshot(foreign) == RestoreOutcome(restored=False)
-    with open(target) as f:
-        assert f.read() == "edited"
-
-
-@pytest.mark.asyncio
 async def test_switching_conversation_switches_rewind_history(snapshot_dir, workdir):
     manager = SnapshotManager(snapshot_dir, "first", workdir)
     await manager.take_snapshot("in first", message_count=1)
@@ -251,9 +228,9 @@ async def test_a_saved_copy_keeps_the_conversations_rewind_history(
     manager.session_name = "draft"
     await manager.take_snapshot("turn", message_count=2)
 
-    manager.copy_history("draft", "final")  # `/save final`
-    manager.copy_history("empty", "stale")  # `/save stale` from a fresh chat
-    await manager.take_snapshot("applies both", message_count=2)
+    await manager.copy_history("draft", "final")  # `/save final`
+    await manager.copy_history("empty", "stale")  # `/save stale` from a fresh chat
+    await manager.take_snapshot("next turn", message_count=2)
 
     manager.session_name = "final"
     assert [s.label for s in manager.list_snapshots()] == ["turn"]
@@ -272,7 +249,7 @@ async def test_a_snapshot_right_after_a_save_builds_on_the_copied_history(
         f.write("one")
     await manager.take_snapshot("before save", message_count=1)
 
-    manager.copy_history("draft", "final")  # `/save final`, then at once:
+    await manager.copy_history("draft", "final")  # `/save final`, then at once:
     manager.session_name = "final"
     assert [s.label for s in manager.list_snapshots()] == ["before save"]
     with open(os.path.join(workdir, "f.txt"), "w") as f:
@@ -292,13 +269,55 @@ async def test_a_copy_of_a_copy_takes_the_original_history(snapshot_dir, workdir
         f.write("x")
     await manager.take_snapshot("in a", message_count=1)
 
-    manager.copy_history("a", "b")  # `/save b`
-    manager.copy_history("b", "c")  # `/save c`, before anything applied the first
+    await manager.copy_history("a", "b")  # `/save b`
+    await manager.copy_history("b", "c")  # `/save c`, onto the copy just made
     manager.session_name = "a"
     await manager.take_snapshot("a moves on", message_count=2)
 
     manager.session_name = "c"
     assert [s.label for s in manager.list_snapshots()] == ["in a"]
+
+
+@pytest.mark.asyncio
+async def test_a_copy_a_later_session_never_applied_is_still_its_target_s(
+    snapshot_dir, workdir, monkeypatch
+):
+    """A `/save` whose copy could not be applied — the store was busy — must
+    not be lost when the session that recorded it ends. A manager with no
+    memory of the save shows the history the target is about to receive, and
+    its first operation applies it."""
+    saved = SnapshotManager(snapshot_dir, "draft", workdir)
+    await saved.take_snapshot("in draft", message_count=1)
+    (store,) = [e.path for e in os.scandir(snapshot_dir) if e.name.endswith(".git")]
+    held, release = threading.Event(), threading.Event()
+
+    def other_operation():
+        with hold_file_lock(os.path.join(store, OPERATION_LOCK_NAME)):
+            held.set()
+            release.wait(5)
+
+    monkeypatch.setenv("ZRB_LLM_SNAPSHOT_LOCK_TIMEOUT", "0.2")
+    thread = threading.Thread(target=other_operation)
+    thread.start()
+    try:
+        held.wait(5)
+        await saved.copy_history("draft", "final")  # recorded, not applied
+    finally:
+        release.set()
+        thread.join(5)
+
+    monkeypatch.undo()
+    later = SnapshotManager(snapshot_dir, "final", workdir)
+    assert [s.label for s in later.list_snapshots()] == ["in draft"]
+    await later.take_snapshot("after resume", message_count=2)
+
+    later.session_name = "final"
+    assert [s.label for s in later.list_snapshots()] == [
+        "after resume",
+        "in draft",
+    ]
+    later.session_name = "draft"
+    assert [s.label for s in later.list_snapshots()] == ["in draft"]
 
 
 @pytest.mark.asyncio
@@ -328,60 +347,6 @@ async def test_a_restore_that_cannot_move_the_history_back_still_counts(
 
 
 @pytest.mark.asyncio
-async def test_a_snapshot_waits_while_another_holds_the_store(snapshot_dir, workdir):
-    """Another conversation's manager, or another process, restoring in the
-    same directory: a snapshot must not catch it half-written."""
-    mgr = SnapshotManager(snapshot_dir, "s", workdir)
-    await mgr.take_init_snapshot()
-    (store,) = [e.path for e in os.scandir(snapshot_dir) if e.name.endswith(".git")]
-    held, release = threading.Event(), threading.Event()
-
-    def other_operation():
-        with hold_file_lock(os.path.join(store, OPERATION_LOCK_NAME)):
-            held.set()
-            release.wait(5)
-
-    thread = threading.Thread(target=other_operation)
-    thread.start()
-    held.wait(5)
-    snapshot = asyncio.ensure_future(mgr.take_snapshot("second", message_count=1))
-
-    await asyncio.sleep(0.3)
-    assert not snapshot.done()
-    release.set()
-    assert await snapshot is not None
-    thread.join()
-
-
-@pytest.mark.asyncio
-async def test_a_store_busy_past_the_wait_fails_that_snapshot_not_rewind(
-    snapshot_dir, workdir, monkeypatch
-):
-    monkeypatch.setattr(snapshot_manager, "STORE_LOCK_TIMEOUT_SECONDS", 0.2)
-    mgr = SnapshotManager(snapshot_dir, "s", workdir)
-    await mgr.take_init_snapshot()
-    (store,) = [e.path for e in os.scandir(snapshot_dir) if e.name.endswith(".git")]
-    held, release = threading.Event(), threading.Event()
-
-    def stuck_operation():  # another process, stuck mid-restore
-        with hold_file_lock(os.path.join(store, OPERATION_LOCK_NAME)):
-            held.set()
-            release.wait(5)
-
-    thread = threading.Thread(target=stuck_operation)
-    thread.start()
-    held.wait(5)
-    try:
-        assert await mgr.take_snapshot("while stuck", message_count=1) is None
-    finally:
-        release.set()
-        thread.join()
-
-    assert mgr.unavailable_reason == ""
-    assert await mgr.take_snapshot("after", message_count=1) is not None
-
-
-@pytest.mark.asyncio
 async def test_a_restore_reads_as_true_exactly_when_it_ran(snapshot_dir, workdir):
     """`restore_snapshot` returned a bool; its outcome keeps that meaning."""
     mgr = SnapshotManager(snapshot_dir, "s", workdir)
@@ -393,29 +358,59 @@ async def test_a_restore_reads_as_true_exactly_when_it_ran(snapshot_dir, workdir
 
 
 @pytest.mark.asyncio
-async def test_listing_never_waits_for_the_store(snapshot_dir, workdir):
-    """It runs on the UI's thread: another process restoring, or setting the
-    store up, must not freeze the UI."""
-    await SnapshotManager(snapshot_dir, "s", workdir).take_init_snapshot()
-    (store,) = [e.path for e in os.scandir(snapshot_dir) if e.name.endswith(".git")]
-    fresh = SnapshotManager(snapshot_dir, "s", workdir)  # a new process's
+async def test_a_copy_git_refuses_is_dropped_rather_than_failing_every_operation(
+    snapshot_dir, workdir, monkeypatch
+):
+    """Kept, a copy that keeps failing would fail every later snapshot of
+    every session in the directory; it is dropped with a warning instead."""
+    mgr = SnapshotManager(snapshot_dir, "draft", workdir)
+    await mgr.take_snapshot("in draft", message_count=1)
+    real_git = SnapshotStore.git
+
+    def refuse_update_ref(self, args, *rest, **kwargs):
+        if args[0] == "update-ref":
+            raise SnapshotError("cannot lock ref")
+        return real_git(self, args, *rest, **kwargs)
+
+    monkeypatch.setattr(SnapshotStore, "git", refuse_update_ref)
+    await mgr.copy_history("draft", "final")
+    monkeypatch.undo()
+
+    assert await mgr.take_snapshot("later", message_count=2) is not None
+    assert not [e for e in os.scandir(snapshot_dir) if e.name.endswith(".copies.json")]
+    later = SnapshotManager(snapshot_dir, "final", workdir)
+    assert later.list_snapshots() == []
+
+
+@pytest.mark.asyncio
+async def test_a_copy_record_held_past_its_lock_timeout_still_lands_this_session(
+    snapshot_dir, workdir, monkeypatch
+):
+    """`LLM_SNAPSHOT_COPY_LOCK_TIMEOUT` bounds only the wait to record the
+    copy for a later session; the copy itself is still applied."""
+    monkeypatch.setenv("ZRB_LLM_SNAPSHOT_COPY_LOCK_TIMEOUT", "0.1")
+    mgr = SnapshotManager(snapshot_dir, "draft", workdir)
+    await mgr.take_snapshot("in draft", message_count=1)
+    (record_lock,) = [
+        e.path[: -len(".git")] + ".copies.json.lock"
+        for e in os.scandir(snapshot_dir)
+        if e.name.endswith(".git")
+    ]
     held, release = threading.Event(), threading.Event()
 
-    def other_operation():
-        with hold_file_lock(os.path.join(store, OPERATION_LOCK_NAME)):
+    def other_process():
+        with hold_file_lock(record_lock):
             held.set()
             release.wait(5)
 
-    thread = threading.Thread(target=other_operation)
+    thread = threading.Thread(target=other_process)
     thread.start()
     held.wait(5)
     try:
-        started = time.monotonic()
-        listed = fresh.list_snapshots()
-        elapsed = time.monotonic() - started
+        await mgr.copy_history("draft", "final")
     finally:
         release.set()
-        thread.join()
+        thread.join(5)
 
-    assert [snapshot.label for snapshot in listed] == ["init"]
-    assert elapsed < 2
+    later = SnapshotManager(snapshot_dir, "final", workdir)
+    assert [s.label for s in later.list_snapshots()] == ["in draft"]

@@ -20,6 +20,7 @@ class HooksMixin:
         self.DEFAULT_HOOKS_ENABLED: str = "on"
         self.DEFAULT_HOOKS_DIRS: str = ""
         self.DEFAULT_HOOKS_TIMEOUT: str = "30000"
+        self.DEFAULT_HOOKS_EXIT_TIMEOUT: str = "10000"
         self.DEFAULT_LLM_HOOKS: str = ""
         super().__init__()
 
@@ -34,6 +35,14 @@ class HooksMixin:
     )
 
     HOOKS_TIMEOUT = EnvField(int, doc="Timeout in milliseconds for hook execution.")
+
+    HOOKS_EXIT_TIMEOUT = EnvField(
+        int,
+        doc=(
+            "Milliseconds the chat TUI waits, as it exits, for hooks still "
+            "running — a Stop hook Ctrl+C fired — before cancelling them."
+        ),
+    )
 
     LLM_HOOKS = EnvField(
         comma_list,

@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 
 from zrb.config.env_field import EnvField, on_off
 from zrb.config.helper import get_max_token_threshold, limit_token_threshold
-from zrb.util.git.snapshot_listing import LOOSE_BYTE_LIMIT, LOOSE_FILE_LIMIT
 from zrb.util.string.conversion import to_boolean
 
 
@@ -24,6 +23,15 @@ class LLMContentMixin:
         self.DEFAULT_LLM_HISTORY_BACKUP_RETAIN: str = "3"
         self.DEFAULT_LLM_ENABLE_REWIND: str = "on"
         self.DEFAULT_LLM_SNAPSHOT_DIR: str = ""
+        self.DEFAULT_LLM_SNAPSHOT_RETENTION: str = "30d"
+        self.DEFAULT_LLM_SNAPSHOT_FILE_MAX_MB: str = "50"
+        self.DEFAULT_LLM_SNAPSHOT_LOOSE_MAX_FILES: str = "5000"
+        self.DEFAULT_LLM_SNAPSHOT_LOOSE_MAX_MB: str = "200"
+        self.DEFAULT_LLM_SNAPSHOT_COMMAND_TIMEOUT: str = "30"
+        self.DEFAULT_LLM_SNAPSHOT_OPERATION_TIMEOUT: str = "120"
+        self.DEFAULT_LLM_SNAPSHOT_LOCK_TIMEOUT: str = "60"
+        self.DEFAULT_LLM_SNAPSHOT_COPY_LOCK_TIMEOUT: str = "5"
+        self.DEFAULT_LLM_HISTORY_RETENTION: str = "30d"
         self.DEFAULT_LLM_JOURNAL_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_DIR: str = ""
         self.DEFAULT_LLM_JOURNAL_INDEX_FILE: str = "index.md"
@@ -34,6 +42,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_SELF_REVIEW_MAX_ROUNDS: str = "2"
         self.DEFAULT_LLM_SELF_REVIEW_MODEL: str = ""
         self.DEFAULT_LLM_SELF_REVIEW_TIMEOUT: str = "240"
+        self.DEFAULT_LLM_SELF_REVIEW_MAX_TRACKED_TURNS: str = "64"
         self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW: str = "100"
         self.DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
@@ -66,6 +75,16 @@ class LLMContentMixin:
             )
         ),
         doc="Directory for LLM conversation snapshots.",
+    )
+
+    LLM_SNAPSHOT_RETENTION = EnvField(
+        str,
+        doc=(
+            "How long a conversation's rewind history is kept after its newest "
+            "snapshot (e.g. 30d, 2w); older histories are dropped, and their "
+            "files pruned from the snapshot store, when a later session starts "
+            "in the same directory. 0 keeps every history."
+        ),
     )
 
     LLM_JOURNAL_ENABLED = EnvField(
@@ -195,15 +214,26 @@ class LLMContentMixin:
         ),
     )
 
+    LLM_SELF_REVIEW_MAX_TRACKED_TURNS = EnvField(
+        int,
+        doc=(
+            "Turns whose blocking-review count the self-review gate keeps at "
+            "once. A turn that ends mid-continuation (cancelled, capped) never "
+            "clears its count, so the oldest past this many are dropped; a "
+            "dropped turn that does come back starts its count again."
+        ),
+    )
+
     LLM_ENABLE_REWIND = EnvField(
         to_boolean,
         serialize=on_off,
         doc=(
             "Snapshot the working directory before each turn so /rewind can "
             "restore it: every repository under it by its own .gitignore, and "
-            f"up to {LOOSE_FILE_LIMIT:,} files / {LOOSE_BYTE_LIMIT // 2**20} MB "
-            "outside any repository — past that, rewind is off for the session "
-            "and says why."
+            "the files outside any repository up to LLM_SNAPSHOT_LOOSE_MAX_FILES "
+            "/ LLM_SNAPSHOT_LOOSE_MAX_MB — past that, rewind is off for the "
+            "session and says why. A file larger than LLM_SNAPSHOT_FILE_MAX_MB "
+            "is left out, as if ignored: rewind neither restores nor removes it."
         ),
     )
 
@@ -218,6 +248,79 @@ class LLMContentMixin:
             "bounds this — leaving it uncapped fills the disk over a "
             "long-running or heavily-delegating session. -1 keeps every one "
             "(only if you are certain you want that)."
+        ),
+    )
+
+    LLM_SNAPSHOT_FILE_MAX_MB = EnvField(
+        float,
+        doc=(
+            "A file larger than this many MB is left out of every snapshot — "
+            "rewind's and the self-review gate's — as if ignored: rewind "
+            "neither restores nor removes it, and self-review does not diff it."
+        ),
+    )
+
+    LLM_SNAPSHOT_LOOSE_MAX_FILES = EnvField(
+        int,
+        doc=(
+            "Most files a snapshot takes outside every git repository, where no "
+            "ignore rule bounds it. Past it, rewind is off for the session and "
+            "self-review falls back to the file tools' paths."
+        ),
+    )
+
+    LLM_SNAPSHOT_LOOSE_MAX_MB = EnvField(
+        float,
+        doc=(
+            "Most MB a snapshot takes outside every git repository; past it, the "
+            "same as LLM_SNAPSHOT_LOOSE_MAX_FILES."
+        ),
+    )
+
+    LLM_SNAPSHOT_COMMAND_TIMEOUT = EnvField(
+        float,
+        doc=(
+            "Seconds one git command of a snapshot may take before it is killed. "
+            "A rewind snapshot that runs out turns rewind off for the session."
+        ),
+    )
+
+    LLM_SNAPSHOT_OPERATION_TIMEOUT = EnvField(
+        float,
+        doc=(
+            "Seconds one rewind snapshot or restore may take as a whole, every "
+            "git command in it included, once it holds the store; running out "
+            "turns rewind off for the session."
+        ),
+    )
+
+    LLM_SNAPSHOT_LOCK_TIMEOUT = EnvField(
+        float,
+        doc=(
+            "Seconds a rewind snapshot or restore waits for another session's "
+            "operation on the same directory before that one operation fails. "
+            "Not counted against LLM_SNAPSHOT_OPERATION_TIMEOUT."
+        ),
+    )
+
+    LLM_SNAPSHOT_COPY_LOCK_TIMEOUT = EnvField(
+        float,
+        doc=(
+            "Seconds /save waits for another process writing the pending "
+            "rewind-history copy record beside the store. Past it, the copy is "
+            "still applied this session but not recorded for a later one."
+        ),
+    )
+
+    LLM_HISTORY_RETENTION = EnvField(
+        str,
+        doc=(
+            "How long an auto-named conversation's history is kept after its "
+            "last save (e.g. 30d, 2w), with its backups. A conversation you "
+            "named — with /save, or a session name of your own — is kept "
+            "forever; an auto-generated name (like bold-arch-1234) is what "
+            "marks one as disposable. Pruned on the first save of each "
+            "session. 0 keeps every history."
         ),
     )
 

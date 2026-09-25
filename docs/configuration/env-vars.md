@@ -78,6 +78,8 @@ Zrb can be heavily customized using environment variables. These control everyth
 | Variable | Description | Default |
 |----------|-------------|---------|
 | [`ZRB_SESSION_LOG_DIR`](../advanced-topics/logging.md#session-log-directory) | Directory for session-specific logs and history | `~/.zrb/session` |
+| [`ZRB_SESSION_LOG_RETENTION`](../advanced-topics/logging.md#session-log-directory) | How long a session's log is kept (`0` = keep all) | `30d` |
+| [`ZRB_SESSION_LOG_PRUNE_INTERVAL`](../advanced-topics/logging.md#session-log-directory) | How often session-log retention is enforced per directory (`0` = every process) | `1d` |
 | `ZRB_TODO_DIR` | Directory for `todo.txt` file | `~/todo` |
 
 ### Todo List Settings

@@ -309,9 +309,9 @@ def _seed_tool_factories() -> tuple[list, list]:
         # ReadToolResult only with spill enabled. A factory, re-evaluated per
         # run, so toggling LLM_ENABLE_TOOL_SPILL via /config applies next run.
         lambda ctx: [read_tool_result] if CFG.LLM_ENABLE_TOOL_SPILL else [],
-        # The journal tools are the whole journal interface: their docstrings
-        # carry the protocol, so LLM_JOURNAL_ENABLED=false is enforced by their
-        # absence. Deferred, since few turns use them; the journal-compliance
+        # The journal tools are the journal's only writers: their docstrings
+        # carry the protocol (the `<journal-index>` header just names them), so
+        # LLM_JOURNAL_ENABLED=false is enforced by their absence. Deferred, since few turns use them; the journal-compliance
         # hook names them explicitly, so `resolve_agent_hook_tools` strips
         # defer_loading there.
         lambda ctx: (

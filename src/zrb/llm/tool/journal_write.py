@@ -245,11 +245,16 @@ def _scrub_links_to(root: str, target_path: str) -> None:
     *target_path* — a bare `- [title](path)` line, or a HUD line ending in
     `([note](path))` — rewriting each changed file once.
 
+    ponytail: the label is matched greedily because a title is free-form model
+    text and may itself contain `]`; the target is anchored at the end of the
+    line, so backtracking from the right always finds the *last* link — the one
+    a bullet points at.
+
     ponytail: a full-tree scan per delete — the journal is personal notes,
     not a corpus, so O(files) here is cheap; upgrade to an index if this
     journal ever grows past a size where that stops being true.
     """
-    link_re = re.compile(r"^- (?:\[[^\]]*\]\(([^)]+)\)|.*\(\[note\]\(([^)]+)\)\))\s*$")
+    link_re = re.compile(r"^- (?:\[.*\]\(([^)]+)\)|.*\(\[note\]\(([^)]+)\)\))\s*$")
     target_abs = os.path.abspath(target_path)
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if not d.startswith(".")]
@@ -605,7 +610,7 @@ def _register_link(
     """
     entry = f"- [{label}]({rel_target})"
     text = _read_text(index_path)
-    same_target = re.compile(rf"- \[[^\]]*\]\({re.escape(rel_target)}\)")
+    same_target = re.compile(rf"- \[.*\]\({re.escape(rel_target)}\)")
     kept: list[str] = []
     found = False
     for line in text.splitlines():
@@ -652,12 +657,14 @@ def _upsert_hud_line(root: str, section: str, line: str, note_rel: str) -> None:
 
     The trailing note link is the key: a revised note's HUD line supersedes
     its old one instead of sitting beside it as a contradicting fact. A line
-    with no link to the note cannot be attributed without guessing, so it
-    stays until the section cap evicts it.
+    with no link — pinned before HUD lines carried one — cannot be attributed
+    without guessing, so it stays until the section cap evicts it; the one
+    exception is a line reading exactly as the new one does, which is the
+    same fact and would otherwise appear twice.
     """
-    link = f"]({note_rel})"
+    own = f" ([note]({note_rel}))"
     base = f"- {line.removeprefix('- ')}"
-    entry = f"{base} ([note]({note_rel}))"
+    entry = f"{base}{own}"
     index_path = os.path.join(root, "index.md")
     text = _read_text(index_path)
     if entry in text:
@@ -666,11 +673,7 @@ def _upsert_hud_line(root: str, section: str, line: str, note_rel: str) -> None:
     lines = text.splitlines()
     if heading in lines:
         start, end = _section_bounds(lines, heading)
-        kept = [
-            ln
-            for ln in lines[start:end]
-            if link not in ln and ln != base and not ln.startswith(f"{base} ([note](")
-        ]
+        kept = [ln for ln in lines[start:end] if not ln.endswith(own) and ln != base]
         text = "\n".join([*lines[:start], *kept, *lines[end:]]) + "\n"
     text = _append_under_heading(text, heading, entry)
     text = _cap_section_entries(

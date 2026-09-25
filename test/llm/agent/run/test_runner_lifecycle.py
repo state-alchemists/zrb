@@ -323,6 +323,7 @@ async def test_stop_event_data_carries_turn_slice_and_wrote_files_flag(
 
     assert len(captured) == 1
     assert captured[0]["nested_run"] is nested
+    assert captured[0]["turn_id"]
     assert captured[0]["run_scope"] and captured[0]["run_scope"] != "parent-run"
     assert len(captured[0]["turn"]) == len(turn_messages)
     assert captured[0]["wrote_files"] is True
@@ -427,3 +428,43 @@ async def test_run_agent_multi_ui_resolution():
             ui=[ui1, ui2],
         )
         mock_multi.assert_called_once_with([ui1, ui2])
+
+
+@pytest.mark.asyncio
+async def test_an_explicit_nested_flag_wins_over_the_bound_scope(monkeypatch):
+    """A caller outside every run can still say its run is a sub-agent's."""
+    from pydantic_ai.messages import ModelResponse, TextPart
+
+    captured: list = []
+
+    async def record(context: HookContext) -> HookResult:
+        captured.append(context.event_data)
+        return HookResult(success=True)
+
+    monkeypatch.setattr(
+        "zrb.llm.hook.manager.register_self_review_hook", lambda manager: None
+    )
+    manager = HookManager(search_dirs=[])
+    manager.add_hook(record, events=[HookEvent.STOP])
+    agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.output = "done"
+    mock_result.all_messages.return_value = [ModelResponse(parts=[TextPart("done")])]
+
+    async def _gen(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run = _run_from(_gen)
+    for _ in range(2):
+        await run_agent(
+            agent=agent,
+            message="Hi",
+            message_history=[],
+            limiter=LLMLimiter(),
+            hook_manager=manager,
+            nested=True,
+        )
+
+    assert [data["nested_run"] for data in captured] == [True, True]
+    # Each turn has an id of its own.
+    assert captured[0]["turn_id"] != captured[1]["turn_id"]

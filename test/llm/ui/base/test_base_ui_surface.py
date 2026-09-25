@@ -158,3 +158,44 @@ def test_edit_queued_message_logs_child_redraw_failure(surface_ui):
     surface_ui.effective_message_queue.add(entry)
     assert surface_ui.edit_queued_message(entry, "  new text  ") is True
     assert entry.text == "new text"
+
+
+@pytest.mark.asyncio
+async def test_drain_hook_tasks_lets_a_hook_finish(surface_ui):
+    """A Stop hook fired as the chat exits gets to finish before teardown."""
+    from zrb.llm.hook.types import HookEvent
+
+    finished = asyncio.Event()
+
+    async def slow_hook(*args, **kwargs):
+        await asyncio.sleep(0.05)
+        finished.set()
+
+    with patch("zrb.llm.ui.base.ui.hook_manager.execute_hooks", new=slow_hook):
+        surface_ui.execute_hook(HookEvent.STOP, {})
+        assert len(surface_ui.hook_tasks) == 1
+        await surface_ui.drain_hook_tasks(timeout=5)
+
+    assert finished.is_set()
+    assert surface_ui.hook_tasks == set()
+
+
+@pytest.mark.asyncio
+async def test_drain_hook_tasks_cancels_a_hook_past_its_timeout(surface_ui):
+    from zrb.llm.hook.types import HookEvent
+
+    cancelled = asyncio.Event()
+
+    async def stuck_hook(*args, **kwargs):
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    with patch("zrb.llm.ui.base.ui.hook_manager.execute_hooks", new=stuck_hook):
+        surface_ui.execute_hook(HookEvent.STOP, {})
+        await surface_ui.drain_hook_tasks(timeout=0.05)
+        await asyncio.sleep(0)
+
+    assert cancelled.is_set()

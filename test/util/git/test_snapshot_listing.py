@@ -181,7 +181,7 @@ def test_excluded_paths_are_left_out_everywhere(tmp_path):
 
 
 def test_loose_files_past_the_budget_fail_the_listing(tmp_path, monkeypatch):
-    monkeypatch.setattr(snapshot_listing, "LOOSE_FILE_LIMIT", 3)
+    monkeypatch.setenv("ZRB_LLM_SNAPSHOT_LOOSE_MAX_FILES", "3")
     workspace = tmp_path / "ws"
     for i in range(4):
         (workspace / f"d{i}").mkdir(parents=True)
@@ -194,7 +194,7 @@ def test_loose_files_past_the_budget_fail_the_listing(tmp_path, monkeypatch):
 def test_files_inside_repositories_do_not_count_toward_the_budget(
     tmp_path, monkeypatch
 ):
-    monkeypatch.setattr(snapshot_listing, "LOOSE_FILE_LIMIT", 1)
+    monkeypatch.setenv("ZRB_LLM_SNAPSHOT_LOOSE_MAX_FILES", "1")
     workspace = tmp_path / "ws"
     _repo(workspace / "a", {f"f{i}.py": "x\n" for i in range(5)})
 
@@ -202,7 +202,7 @@ def test_files_inside_repositories_do_not_count_toward_the_budget(
 
 
 def test_loose_bytes_past_the_budget_fail_the_listing(tmp_path, monkeypatch):
-    monkeypatch.setattr(snapshot_listing, "LOOSE_BYTE_LIMIT", 10)
+    monkeypatch.setenv("ZRB_LLM_SNAPSHOT_LOOSE_MAX_MB", str(10 / 2**20))
     (tmp_path / "ws").mkdir()
     (tmp_path / "ws" / "big.bin").write_bytes(b"x" * 11)
 

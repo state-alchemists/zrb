@@ -253,6 +253,9 @@ async def _continue_live_session(entry: LiveSubAgentSession) -> None:
                     limiter=llm_limiter,
                     ui=entry.buffered_ui,
                     run_scope=entry.run_scope,
+                    # Started from a key handler, where no run is bound, but
+                    # still a sub-agent's turn: the parent's review covers it.
+                    nested=True,
                     permission_policy=(
                         authority.permission_policy if authority else None
                     ),

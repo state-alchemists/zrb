@@ -72,7 +72,8 @@ async def test_take_init_snapshot_returns_none_when_setup_fails(workdir):
 @pytest.mark.asyncio
 async def test_take_init_snapshot_reports_start_and_done(snapshot_dir, workdir):
     """The progress callback sees "start" before hashing and "done" once the
-    init commit exists."""
+    init commit exists. This directory is not a repository, so the snapshot
+    lists loose files — the notice says so."""
     for name in ("a.txt", "b.txt"):
         with open(os.path.join(workdir, name), "w") as f:
             f.write(name)
@@ -82,7 +83,29 @@ async def test_take_init_snapshot_reports_start_and_done(snapshot_dir, workdir):
     sha = await mgr.take_init_snapshot(on_progress=events.append)
 
     assert sha is not None
-    assert [(e.stage, e.skipped) for e in events] == [("start", 0), ("done", 0)]
+    assert [(e.stage, e.skipped) for e in events] == [
+        ("start", 0),
+        ("notice", 0),
+        ("done", 0),
+    ]
+    assert "no git repository" in events[1].reason
+
+
+@pytest.mark.asyncio
+async def test_take_init_snapshot_says_nothing_extra_in_a_repository(
+    snapshot_dir, workdir
+):
+    """In a repository the snapshot reaches as far as the user expects, so
+    there is nothing to warn about."""
+    subprocess.run(["git", "init", "-q"], cwd=workdir, check=True)
+    with open(os.path.join(workdir, "f.txt"), "w") as f:
+        f.write("data")
+
+    mgr = SnapshotManager(snapshot_dir, "repo-session", workdir)
+    events: list[SnapshotProgress] = []
+    assert await mgr.take_init_snapshot(on_progress=events.append) is not None
+
+    assert [e.stage for e in events] == ["start", "done"]
 
 
 @pytest.mark.asyncio
@@ -170,7 +193,11 @@ async def test_take_init_snapshot_skips_unreadable_files_and_reports_them(
         os.chmod(secret, 0o600)
 
     assert sha is not None
-    assert [(e.stage, e.skipped) for e in events] == [("start", 0), ("done", 1)]
+    assert [(e.stage, e.skipped) for e in events] == [
+        ("start", 0),
+        ("notice", 0),
+        ("done", 1),
+    ]
     assert len(mgr.list_snapshots()) == 1  # snapshot still usable for /rewind
 
 

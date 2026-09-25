@@ -5,6 +5,7 @@ Implements Claude Code compatible execution patterns.
 
 import asyncio
 import atexit
+import contextvars
 import logging
 import threading
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -13,6 +14,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from zrb.config.config import CFG
+from zrb.llm.agent_state import current_tool_confirmation, current_ui
+from zrb.llm.approval.approval_channel import current_approval_channel
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 
 logger = logging.getLogger(__name__)
@@ -152,7 +155,9 @@ class ThreadPoolHookExecutor:
         try:
             self.start()
             assert self._executor is not None
-            job = self._executor.submit(self._run_hook_sync, hook, context, run)
+            job = self._executor.submit(
+                _copy_context_for_hook().run, self._run_hook_sync, hook, context, run
+            )
         except RuntimeError as e:  # shut down by another thread meanwhile
             return HookExecutionResult(success=False, error=str(e), exit_code=1)
         try:
@@ -315,3 +320,18 @@ def shutdown_hook_executor(wait: bool = True):
 # threads can't keep the process alive. ``wait=False`` — never block exit
 # waiting on an in-flight hook. No-op when the executor was never started.
 atexit.register(shutdown_hook_executor, False)
+
+
+def _copy_context_for_hook() -> contextvars.Context:
+    """The caller's context for a hook run on a pool thread, which otherwise
+    starts with none of it: the run's model, its scope, its policies.
+
+    Less what is bound to the caller's event loop — the UI, the tool
+    confirmation and the approval channel. The hook runs in a loop of its
+    own, where driving the chat's UI would cross threads; a hook tool that
+    wants one falls back as it did when the context was not copied."""
+    context = contextvars.copy_context()
+    context.run(current_ui.set, None)
+    context.run(current_tool_confirmation.set, None)
+    context.run(current_approval_channel.set, None)
+    return context
