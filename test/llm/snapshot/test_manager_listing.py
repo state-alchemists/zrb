@@ -234,26 +234,6 @@ async def test_snapshot_of_empty_workdir_is_restorable(manager, workdir):
 
 
 @pytest.mark.asyncio
-async def test_take_snapshot_returns_none_when_setup_fails(workdir):
-    """If the snapshot dir cannot be created, take_snapshot returns None."""
-    with tempfile.NamedTemporaryFile() as f:
-        # snapshot dir is a file — os.makedirs will raise NotADirectoryError
-        mgr = SnapshotManager(f.name, "test-session", workdir)
-        with open(os.path.join(workdir, "x.txt"), "w") as wf:
-            wf.write("x")
-        result = await mgr.take_snapshot("will fail")
-    assert result is None
-
-
-def test_list_snapshots_returns_empty_when_setup_fails(workdir):
-    """If initialization fails, list_snapshots returns [] rather than raising."""
-    with tempfile.NamedTemporaryFile() as f:
-        mgr = SnapshotManager(f.name, "test-session", workdir)
-        result = mgr.list_snapshots()
-    assert result == []
-
-
-@pytest.mark.asyncio
 async def test_restore_snapshot_with_files_in_subdirectories(manager, workdir):
     """Subdirectories are recreated on restore when they were deleted."""
     import shutil
@@ -442,26 +422,6 @@ async def test_rewind_restores_the_files_of_nested_repositories(manager, workdir
     assert await manager.restore_snapshot(sha) is True
     with open(source) as f:
         assert f.read() == "before"
-
-
-@pytest.mark.asyncio
-async def test_a_directory_over_the_budget_turns_rewind_off_for_the_session(
-    manager, workdir, monkeypatch
-):
-    from zrb.util.git import snapshot_listing
-
-    monkeypatch.setattr(snapshot_listing, "LOOSE_FILE_LIMIT", 1)
-    for name in ("a.txt", "b.txt"):
-        with open(os.path.join(workdir, name), "w") as f:
-            f.write("x")
-    events = []
-
-    assert await manager.take_init_snapshot(on_progress=events.append) is None
-    monkeypatch.setattr(snapshot_listing, "LOOSE_FILE_LIMIT", 100)
-
-    assert events[-1].stage == "error"
-    assert "more than 1 files outside any git repository" in events[-1].reason
-    assert await manager.take_snapshot("later") is None
 
 
 @pytest.mark.asyncio

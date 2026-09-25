@@ -509,7 +509,7 @@ Restore rewinds **both** the working directory files **and** the conversation hi
 flowchart LR
     Root["~/.zrb/llm-snapshots/"] --> Store["&lt;directory-name&gt;-&lt;hash&gt;.git/ — bare repo, work tree = your working directory"]
     Store --> Refs["refs/zrb/&lt;session-name&gt;-&lt;hash&gt; — one history per conversation"]
-    Store --> Index["index-&lt;session-name&gt;-&lt;hash&gt; — one index per conversation"]
+    Store --> Index["index — the directory's stat cache, shared by its conversations"]
 ```
 
 ---

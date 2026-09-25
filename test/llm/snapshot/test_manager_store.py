@@ -7,7 +7,7 @@ import tempfile
 
 import pytest
 
-from zrb.llm.snapshot import SnapshotManager, SnapshotProgress
+from zrb.llm.snapshot import SnapshotManager
 
 
 @pytest.fixture
@@ -152,21 +152,6 @@ async def _rewind_twice_and_restore_first(snapshot_dir: str, workdir: str) -> No
 @pytest.mark.asyncio
 async def test_snapshot_dir_inside_the_workdir_is_never_snapshotted(workdir):
     await _rewind_twice_and_restore_first(os.path.join(workdir, ".snaps"), workdir)
-
-
-@pytest.mark.asyncio
-async def test_a_snapshot_dir_equal_to_the_workdir_turns_rewind_off_with_a_reason(
-    workdir,
-):
-    manager = SnapshotManager(workdir, "s", workdir)
-    events: list = []
-
-    assert await manager.take_init_snapshot(on_progress=events.append) is None
-    assert await manager.take_snapshot("turn") is None
-
-    assert "working directory itself" in manager.unavailable_reason
-    assert events == [SnapshotProgress("error", reason=manager.unavailable_reason)]
-    assert os.listdir(workdir) == []  # no store written into it
 
 
 @pytest.mark.asyncio

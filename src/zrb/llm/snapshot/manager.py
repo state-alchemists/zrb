@@ -4,20 +4,21 @@ Snapshots are commits of `SnapshotStore` trees (`util/git/snapshot_store.py`)
 — the working directory is the store's work tree, so nothing is copied, and
 the store's listing, byte-exactness and self-exclusion rules apply: every
 repository under the directory by its own ignore rules, nested ones included,
-and the loose files outside them up to a budget. One store serves every
-conversation in a directory, at ``<snapshot_dir>/<name>-<hash of its
-path>.git``, so unchanged files are stored once; each conversation has its
-own ref (``refs/zrb/<session>-<hash>``) and index cache, keyed by its name —
-the identity its chat history is saved and resumed under — since a snapshot
-records that conversation's message count. The manager follows the
-conversation the UI is on: `/load` switches to that conversation's history,
-and `/save` copies the current one to the new name. The hashes keep two
-paths or names that sanitize alike from sharing a store or a history. The
-store keeps its own objects — rewind history outlives the session, and
-borrowing a repository's could lose a blob to a `git gc` there.
+and the loose files outside them up to a budget.
 
-Snapshot flow: snapshot into the conversation's index cache, ``commit-tree``,
-``update-ref``. A commit names the files git could not read, as a trailer.
+Layout: one store per working directory, at ``<snapshot_dir>/<name>-<hash of
+its path>.git``, so unchanged files are stored once and one stat cache serves
+every conversation there; one ref per conversation, ``refs/zrb/<name>-<hash>``,
+keyed by the conversation's name — the identity its chat history is saved and
+resumed under — since a snapshot records that conversation's message count.
+The manager follows the conversation the UI is on: `/load` switches to that
+conversation's history, and `/save` copies the current one to the new name.
+The hashes keep two paths or names that sanitize alike from sharing a store
+or a history. The store keeps its own objects — rewind history outlives the
+session, and borrowing a repository's could lose a blob to a `git gc` there.
+
+Snapshot flow: snapshot the directory, ``commit-tree``, ``update-ref``. A
+commit names the files git could not read, as a trailer.
 
 Restore flow: refuse a commit outside this conversation's history, then
 `SnapshotStore.restore` — which rewrites changed files, recreates deleted
@@ -25,10 +26,12 @@ ones and removes files created since, never one the snapshot left out for
 being ignored or unreadable, nor a repository made since — then move the
 conversation's ref back to ``<sha>``.
 
-A directory the store cannot snapshot — more loose files than the listing's
-budget, or a snapshot directory that is the working directory itself — turns
-rewind off for the session: the first snapshot and `/rewind` say why, and
-later snapshots do not walk the directory again.
+Rewind turns itself off for the session, with a reason the first snapshot
+and `/rewind` show, when the directory cannot be snapshotted at all: a
+snapshot directory that is the working directory itself, a store that cannot
+be set up — its directory not writable, git not installed — or more loose
+files outside any repository than the listing's budget. Later operations do
+not retry.
 """
 
 from __future__ import annotations
@@ -39,6 +42,7 @@ import json
 import logging
 import os
 import re
+import threading
 from typing import Callable, NamedTuple
 
 from zrb.util.git.snapshot_command import SnapshotError, run_in_worker
@@ -53,11 +57,12 @@ logger = logging.getLogger(__name__)
 #   "start"      right before the working tree is hashed
 #   "done"       init commit exists; skipped counts files git could not read
 #   "up-to-date" session already has snapshots (resumed session)
-#   "error"      failed after "start", reason carrying the exception text; or,
-#                with no "start", rewind is off for the session and reason says
-#                why (`unavailable_reason`)
-# All events fire on the event-loop thread: each report happens in coroutine
-# context, before or after an `await asyncio.to_thread(...)` returns.
+#   "error"      the snapshot failed, with or without a "start" before it;
+#                reason is `unavailable_reason` when rewind is off for the
+#                session, else the failure's text
+# Every invocation ends with exactly one of the last three. All events fire on
+# the event-loop thread: each report happens in coroutine context, before or
+# after an awaited worker returns.
 class SnapshotProgress(NamedTuple):
     """Progress event for `take_init_snapshot` (see `SnapshotProgressFn`)."""
 
@@ -81,9 +86,9 @@ class SnapshotManager:
 
     Rewind history belongs to a conversation. *session_name* names the one
     the manager is on, or is a callable returning the current name — a UI
-    passes one, so rewind follows `/load` and `/save`. Each operation resolves
-    that conversation's history when it starts, so a switch never lands half
-    an operation in the wrong one."""
+    passes one, so rewind follows `/load` and `/save`. Each operation reads
+    the name once, when it starts, so a switch never lands half an operation
+    in the wrong conversation."""
 
     #: Never snapshotted, never touched by restore, even inside a repository.
     DEFAULT_IGNORE_DIRS: frozenset[str] = DEFAULT_IGNORE_DIRS
@@ -101,15 +106,9 @@ class SnapshotManager:
         self._ignore_dirs: frozenset[str] = (
             self.DEFAULT_IGNORE_DIRS if ignore_dirs is None else frozenset(ignore_dirs)
         )
-        self._histories: dict[str, _History] = {}
-        self._unavailable = ""
-        if self._snapshot_dir == self._workdir:
-            # Other directories' stores would land in this one and be
-            # snapshotted with it.
-            self._unavailable = (
-                f"the snapshot directory is the working directory itself "
-                f"({self._workdir}); set LLM_SNAPSHOT_DIR elsewhere"
-            )
+        self._store: SnapshotStore | None = None
+        self._store_lock = threading.Lock()
+        self._unavailable = _check_location(self._snapshot_dir, self._workdir)
         # Serializes this process's snapshots, restores and history copies.
         self._lock = asyncio.Lock()
 
@@ -125,9 +124,8 @@ class SnapshotManager:
 
     @property
     def unavailable_reason(self) -> str:
-        """Why this directory cannot be snapshotted at all, or empty: a
-        snapshot directory that is the working directory itself, or more
-        loose files outside any repository than the listing's budget."""
+        """Why rewind is off for this session, or empty (see the module
+        docstring for when)."""
         return self._unavailable
 
     async def take_snapshot(
@@ -174,14 +172,12 @@ class SnapshotManager:
             )
             return None
         session = self.session_name
-        started = False
         try:
             async with self._lock:
                 existing_sha = await run_in_worker(self._head_sha, session)
                 if existing_sha is not None:
                     _report_progress(on_progress, SnapshotProgress("up-to-date"))
                     return existing_sha
-                started = True
                 _report_progress(on_progress, SnapshotProgress("start"))
                 sha, skipped = await run_in_worker(self._commit, session, "init", 0)
             _report_progress(on_progress, SnapshotProgress("done", skipped))
@@ -189,8 +185,8 @@ class SnapshotManager:
         except Exception as e:
             self._note_unavailable(e)
             logger.warning(f"Init snapshot failed: {e}")
-            if started:
-                _report_progress(on_progress, SnapshotProgress("error", reason=str(e)))
+            reason = self._unavailable or str(e)
+            _report_progress(on_progress, SnapshotProgress("error", reason=reason))
             return None
 
     def list_snapshots(self) -> list[Snapshot]:
@@ -201,8 +197,7 @@ class SnapshotManager:
         try:
             if self._head_sha(session) is None:
                 return []
-            history = self._history(session)
-            log = history.store.git(["log", "--format=%H|%ai|%s", history.ref])
+            log = self._get_store().git(["log", "--format=%H|%ai|%s", _ref(session)])
             snapshots: list[Snapshot] = []
             for line in log.splitlines():
                 parts = line.split("|", 2)
@@ -218,6 +213,7 @@ class SnapshotManager:
                     )
             return snapshots
         except Exception as e:
+            self._note_unavailable(e)
             logger.warning(f"list_snapshots failed: {e}")
             return []
 
@@ -231,6 +227,7 @@ class SnapshotManager:
                 await run_in_worker(self._restore, session, sha)
             return True
         except Exception as e:
+            self._note_unavailable(e)
             logger.warning(f"restore_snapshot failed: {e}")
             return False
 
@@ -246,40 +243,49 @@ class SnapshotManager:
             async with self._lock:
                 await run_in_worker(self._copy_history, source, target)
         except Exception as e:
+            self._note_unavailable(e)
             logger.warning(f"Copying rewind history failed: {e}")
 
     def _note_unavailable(self, error: Exception) -> None:
+        """Turn rewind off for the session when *error* will not pass by
+        itself: the directory is over the listing's budget. (A store that
+        cannot be set up turns it off in `_get_store`.)"""
         if isinstance(error, SnapshotBudgetError):
             self._unavailable = str(error)
 
-    def _history(self, session: str) -> "_History":
-        """Conversation *session*'s history: its ref, and a store handle with
-        its own index cache, all in the directory's one store."""
-        history = self._histories.get(session)
-        if history is not None:
-            return history
-        key = _readable_key(session, session)
-        name = _readable_key(os.path.basename(self._workdir), self._workdir)
-        store = SnapshotStore(
-            os.path.join(self._snapshot_dir, f"{name}.git"),
-            self._workdir,
-            index_name=f"index-{key}",
-            ignore_dirs=self._ignore_dirs,
-            # A snapshot dir inside the directory holds other directories'
-            # stores too; none of it belongs in a snapshot.
-            exclude_paths=[self._snapshot_dir],
-        )
-        store.ensure()
-        history = _History(store, f"refs/zrb/{key}")
-        self._histories[session] = history
-        return history
+    def _get_store(self) -> SnapshotStore:
+        """The working directory's store, set up on first use. A failure to
+        set it up — its directory not writable, git not installed, a location
+        the store refuses — will not pass by itself, so it turns rewind off
+        for the session with its reason."""
+        with self._store_lock:
+            if self._store is not None:
+                return self._store
+            name = _readable_key(os.path.basename(self._workdir), self._workdir)
+            git_dir = os.path.join(self._snapshot_dir, f"{name}.git")
+            try:
+                store = SnapshotStore(
+                    git_dir,
+                    self._workdir,
+                    ignore_dirs=self._ignore_dirs,
+                    # A snapshot dir inside the directory holds other
+                    # directories' stores too; none of it belongs in a
+                    # snapshot.
+                    exclude_paths=[self._snapshot_dir],
+                )
+                store.ensure()
+            except (OSError, ValueError, SnapshotError) as e:
+                self._unavailable = f"the snapshot store {git_dir} is unusable: {e}"
+                raise SnapshotError(self._unavailable) from e
+            self._store = store
+            return store
 
     def _commit(
         self, session: str, label: str, message_count: int | None
     ) -> tuple[str, int]:
         """Commit the workdir unless it matches HEAD; return the SHA and how
         many files git could not read."""
-        store, ref = self._history(session)
+        store = self._get_store()
         tree, unreadable, _ = store.snapshot()
         skipped = len(unreadable)
         head = self._head_sha(session)
@@ -301,38 +307,53 @@ class SnapshotManager:
         sha = store.git(
             ["commit-tree", "--no-gpg-sign", tree, *parent, "-m", message]
         ).strip()
-        store.git(["update-ref", ref, sha])
+        store.git(["update-ref", _ref(session), sha])
         return sha, skipped
 
     def _restore(self, session: str, sha: str) -> None:
-        store, ref = self._history(session)
+        store = self._get_store()
         store.git(["cat-file", "-e", f"{sha}^{{commit}}"])
         # Only this conversation's own snapshots: another conversation's
         # commit in the same store is not in this one's list, so restoring it
         # would rewind the files without rewinding the conversation to match.
-        if store.run_git(["merge-base", "--is-ancestor", sha, ref]).returncode:
+        ancestry = store.run_git(["merge-base", "--is-ancestor", sha, _ref(session)])
+        if ancestry.returncode:
             raise SnapshotError(f"{sha} is not one of this conversation's snapshots")
         body = store.git(["log", "-1", "--format=%B", sha])
         store.restore(sha, keep=_parse_unreadable(body))
-        store.git(["update-ref", ref, sha])
+        store.git(["update-ref", _ref(session), sha])
 
     def _copy_history(self, source: str, target: str) -> None:
+        store = self._get_store()
         head = self._head_sha(source)
-        store, ref = self._history(target)
         if head is not None:
-            store.git(["update-ref", ref, head])
+            store.git(["update-ref", _ref(target), head])
         elif self._head_sha(target) is not None:
-            store.git(["update-ref", "-d", ref])
+            store.git(["update-ref", "-d", _ref(target)])
 
     def _head_sha(self, session: str) -> str | None:
-        store, ref = self._history(session)
-        result = store.run_git(["rev-parse", "--verify", "-q", ref])
+        result = self._get_store().run_git(
+            ["rev-parse", "--verify", "-q", _ref(session)]
+        )
         return result.stdout.strip() if result.returncode == 0 else None
 
 
-class _History(NamedTuple):
-    store: SnapshotStore
-    ref: str
+def _check_location(snapshot_dir: str, workdir: str) -> str:
+    """Why *snapshot_dir* cannot serve *workdir*, or empty. Stores are
+    direct children of *snapshot_dir*, so they lie inside *workdir* only when
+    *snapshot_dir* does. Inside it, the whole snapshot directory is left out
+    of every snapshot; equal to it, that would leave out everything."""
+    if snapshot_dir == workdir:
+        return (
+            f"the snapshot directory is the working directory itself "
+            f"({workdir}); set LLM_SNAPSHOT_DIR elsewhere"
+        )
+    return ""
+
+
+def _ref(session: str) -> str:
+    """Conversation *session*'s history."""
+    return f"refs/zrb/{_readable_key(session, session)}"
 
 
 # ---------------------------------------------------------------------------
