@@ -201,6 +201,10 @@ class _Lister:
             return
         tracked = self._git(["ls-files", "--cached", "--stage", "-z"], where)
         excludes = [f"--exclude={d}/" for d in sorted(self._scope.ignore_dirs)]
+        # Git reports an untracked nested repository as `dir/` and does not
+        # descend into it; an ordinary untracked directory it lists file by
+        # file under this repository's rules. `--directory` would collapse the
+        # ordinary ones too, and their files would lose those rules.
         others = self._git(
             ["ls-files", "--others", "--exclude-standard", *excludes, "-z"], where
         )

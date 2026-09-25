@@ -68,18 +68,26 @@ def test_a_subdirectory_honours_the_ignore_rules_above_it(tmp_path):
 
 
 def test_a_nested_repository_is_listed_by_itself(tmp_path):
-    repo = _repo(tmp_path / "r", {"app.py": "x\n"})
+    # The parent ignores `*.log`, the nested repositories do not: their own
+    # rules decide, so their logs are listed and the parent's is not.
+    repo = _repo(tmp_path / "r", {"app.py": "x\n", ".gitignore": "*.log\n"})
+    (repo / "debug.log").write_text("x\n")
     _repo(repo / "vendor" / "lib", {"v.py": "v\n", ".gitignore": "junk/\n"})
     (repo / "vendor" / "lib" / "junk").mkdir()
     (repo / "vendor" / "lib" / "junk" / "big").write_text("x\n")
+    (repo / "vendor" / "lib" / "run.log").write_text("x\n")
     _repo(repo / "fresh", {"f.py": "f\n"}, commit=False)
+    (repo / "fresh" / "fresh.log").write_text("x\n")
 
     listing = list_snapshot_paths(str(repo))
 
     assert sorted(listing.paths) == [
+        ".gitignore",
         "app.py",
         "fresh/f.py",
+        "fresh/fresh.log",
         "vendor/lib/.gitignore",
+        "vendor/lib/run.log",
         "vendor/lib/v.py",
     ]
     assert sorted(listing.repositories) == ["", "fresh", "vendor/lib"]
