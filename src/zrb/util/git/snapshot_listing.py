@@ -307,11 +307,15 @@ class _Lister:
         """A directory holding a repository of its own: listed by it. When git
         cannot list it — a worktree whose repository is gone, say — it is
         walked with *walk_if_broken*, else left out. An uninitialized
-        submodule holds nothing to list."""
+        submodule is left out whole."""
         path = self._scope.absolute(rel)
-        if self._scope.is_excluded(rel, is_dir=True) or not os.path.lexists(
-            os.path.join(path, ".git")
-        ):
+        if self._scope.is_excluded(rel, is_dir=True):
+            return
+        if not os.path.lexists(os.path.join(path, ".git")):
+            # An uninitialized submodule: git lists nothing in it, so what
+            # it holds is left out, not absent.
+            if os.path.isdir(path):
+                self._listing.left_out.append(f"{rel}/")
             return
         try:
             self._list_repository(rel)

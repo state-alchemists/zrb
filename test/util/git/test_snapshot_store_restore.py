@@ -3,6 +3,7 @@ removed only when the snapshot would have held it, or left alone — and every
 path it could not write reported."""
 
 import os
+import shutil
 import subprocess
 
 import pytest
@@ -282,3 +283,30 @@ def test_a_restore_stopped_partway_reports_every_path_it_meant_to_change(
     assert left_behind == ["new.txt", "tracked.txt"]
     assert store.restore(before) == []
     assert not (repo / "new.txt").exists()
+
+
+def test_a_restore_keeps_what_an_uninitialized_submodules_directory_held(
+    repo, tmp_path
+):
+    upstream = _nested(tmp_path / "upstream", {"s.py": "s\n"})
+    _git(
+        repo,
+        "-c",
+        "protocol.file.allow=always",
+        "submodule",
+        "add",
+        "-q",
+        str(upstream),
+        "sm",
+    )
+    _git(repo, "commit", "-qm", "sm")
+    shutil.rmtree(repo / "sm" / ".git", ignore_errors=True)
+    (repo / "sm" / ".git").unlink(missing_ok=True)  # a gitlink, no checkout
+    (repo / "sm" / "notes.txt").write_bytes(b"existed then\n")
+    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
+    before = _snap(store)
+    _git(repo, "rm", "-q", "--cached", "sm")  # its files are listed since
+
+    store.restore(before)
+
+    assert (repo / "sm" / "notes.txt").read_bytes() == b"existed then\n"
