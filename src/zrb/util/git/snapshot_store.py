@@ -297,7 +297,12 @@ class SnapshotStore:
     ) -> str:
         """*treeish*'s tree minus every path a restore must leave alone:
         those out of scope now, the files git cannot read now, and — when
-        not listed — the ones under a directory that cannot be read."""
+        not listed — the ones under a directory that cannot be read.
+
+        Leaving a path out of the target is what leaves it alone: the
+        operation index lacks it too (`_index_directory` drops what it cannot
+        read or no longer lists), and `read-tree -u` removes only what the
+        index holds and the tree lacks."""
         paths = self._list_tree(treeish, deadline)
         out = get_out_of_scope_paths(
             self._workdir,
@@ -532,7 +537,9 @@ class SnapshotStore:
     def _hash_checkout(self, repository: str, blob: str, deadline: float | None) -> str:
         """Store *blob* of the repository at *repository* as its checkout
         writes it — `cat-file --filters` applies the repository's own
-        filters — and return its SHA in the store."""
+        filters — and return its SHA in the store. *blob* is
+        `<commit>:<path>`, the form `--filters` requires: it names the path
+        whose `.gitattributes` choose the filters as well as the blob."""
         content = run_git_binary(
             ["git", "cat-file", "--filters", blob], repository, deadline
         )

@@ -57,7 +57,8 @@ def test_a_repository_is_listed_by_its_own_ignore_rules(tmp_path):
 
     assert sorted(listing.paths) == [".gitignore", "a.py", "new.py"]
     assert listing.repositories == [""]
-    assert listing.left_out == ["build/"]  # what it ignores, as git reports it
+    # What it leaves out, as git reports it: `DEFAULT_IGNORE_DIRS` too.
+    assert sorted(listing.left_out) == ["build/", "node_modules/"]
 
 
 def test_a_subdirectory_honours_the_ignore_rules_above_it(tmp_path):
@@ -409,3 +410,13 @@ def test_an_unreadable_directory_in_a_repository_under_an_ignored_one_is_found(
         (feature / "volume").chmod(0o755)
 
     assert "worktrees/feature/volume/" in listing.left_out
+
+
+def test_a_default_ignored_directory_is_not_walked_for_ignored_files(tmp_path):
+    repo = _repo(tmp_path / "r", {".gitignore": "*.log\n"})
+    (repo / "node_modules" / "pkg").mkdir(parents=True)  # not in .gitignore
+    (repo / "node_modules" / "pkg" / "debug.log").write_text("d\n")
+
+    listing = list_snapshot_paths(str(repo))
+
+    assert listing.left_out == ["node_modules/"]

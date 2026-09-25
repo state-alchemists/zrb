@@ -266,13 +266,16 @@ class _Lister:
         others = self._git(
             ["ls-files", "--others", "--exclude-standard", *excludes, "-z"], where
         )
-        # Ignored directories, each reported once and not descended into.
+        # Ignored directories, each reported once and not descended into —
+        # `DEFAULT_IGNORE_DIRS` too, or git would walk a `node_modules` the
+        # project does not ignore, file by file, for ignored files in it.
         ignored = self._git(
             [
                 "ls-files",
                 "--others",
                 "--ignored",
                 "--exclude-standard",
+                *excludes,
                 "--directory",
                 "-z",
             ],

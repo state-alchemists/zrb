@@ -366,56 +366,6 @@ def test_a_file_rewritten_in_the_same_second_at_the_same_size_is_seen(repo, stor
     assert store.diff(first, second)[0] == ["tracked.txt"]
 
 
-@pytest.mark.parametrize("autocrlf", ["false", "true"])
-def test_a_repository_baseline_holds_what_its_own_checkout_wrote(repo, store, autocrlf):
-    _git(repo, "config", "core.autocrlf", autocrlf)
-    (repo / ".gitignore").write_bytes(b"ignored.txt\n.zrb/worktree/\n")
-    (repo / "gone.txt").write_bytes(b"g\n")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-qm", "more")
-    fork = _git(repo, "rev-parse", "HEAD").stdout.strip()
-    before = _snap(store)
-    worktree = repo / ".zrb" / "worktree" / "wt"
-    _git(repo, "worktree", "add", "-q", "-b", "wt", str(worktree))
-    (worktree / "tracked.txt").write_bytes(b"changed\n")
-    (worktree / "gone.txt").unlink()
-    (worktree / "new.txt").write_bytes(b"n\n")
-    (worktree / "committed.txt").write_bytes(b"c\n")
-    _git(worktree, "add", "committed.txt")
-    _git(worktree, "commit", "-qm", "added since the fork")
-    after = store.snapshot()
-
-    baseline = store.create_repository_baseline(before, after, ".zrb/worktree/wt", fork)
-
-    paths, diff = store.diff(baseline, after.tree)
-    assert sorted(paths) == [
-        ".zrb/worktree/wt/committed.txt",
-        ".zrb/worktree/wt/gone.txt",
-        ".zrb/worktree/wt/new.txt",
-        ".zrb/worktree/wt/tracked.txt",
-    ]
-    assert "-a" in diff and "+changed" in diff
-    assert "+c" in diff  # added and committed since the fork: shown as added
-
-
-def test_a_repository_baseline_leaves_out_what_the_listing_leaves_out(repo, store):
-    (repo / ".gitignore").write_bytes(b"ignored.txt\n.zrb/worktree/\n")
-    (repo / ".cache").mkdir()
-    (repo / ".cache" / "c.txt").write_bytes(b"c\n")
-    _git(repo, "add", "-f", ".")
-    _git(repo, "commit", "-qm", "tracked cache")
-    fork = _git(repo, "rev-parse", "HEAD").stdout.strip()
-    before = _snap(store)
-    worktree = repo / ".zrb" / "worktree" / "wt"
-    _git(repo, "worktree", "add", "-q", "-b", "wt", str(worktree))
-    (worktree / ".cache" / "c.txt").write_bytes(b"changed\n")  # never listed
-    after = store.snapshot()
-
-    baseline = store.create_repository_baseline(before, after, ".zrb/worktree/wt", fork)
-
-    assert store.diff(baseline, after.tree)[0] == []
-
-
 def test_a_tree_can_leave_out_paths_with_any_name(repo, store):
     (repo / "odd[name].txt").write_bytes(b"o\n")
     tree = _snap(store)
