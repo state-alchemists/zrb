@@ -379,8 +379,11 @@ class BaseUIConversationCommands:
             self._base_ui.append_to_output(
                 stylize_muted(f"\n  ⏪ Restoring snapshot {sha[:8]}...\n")
             )
-            ok = await snapshot_manager.restore_snapshot(sha)
-            if ok:
+            outcome = await snapshot_manager.restore_snapshot(sha)
+            if outcome.restored:
+                # The chat rewinds with the files, even when some were left
+                # behind: every other file is back, and a second /rewind to
+                # the same snapshot finishes them.
                 if message_count is not None:
                     try:
                         msgs = self._base_ui.history_manager.load(
@@ -397,7 +400,7 @@ class BaseUIConversationCommands:
                     except Exception as e:
                         logger.warning(f"Failed to rewind conversation history: {e}")
                 self._base_ui.append_to_output(
-                    stylize_muted(f"\n  ✅ Snapshot {sha[:8]} restored.\n")
+                    _describe_restore(sha, outcome.left_behind)
                 )
             else:
                 self._base_ui.append_to_output(
@@ -632,3 +635,15 @@ class BaseUIConversationCommands:
             stylize_muted(f"\n  📷 Photo captured ({scaled.final_bytes} bytes)\n")
         )
         self._base_ui.invalidate_ui()
+
+
+def _describe_restore(sha: str, left_behind: tuple[str, ...]) -> str:
+    if not left_behind:
+        return stylize_muted(f"\n  ✅ Snapshot {sha[:8]} restored.\n")
+    listing = "".join(f"\n     - {path}" for path in left_behind)
+    return stylize_warning(
+        f"\n  ⚠️  Snapshot {sha[:8]} restored, except these files, which could "
+        f"not be written:{listing}\n"
+        "     Close programs holding them or fix their permissions, then run the "
+        "same /rewind again.\n"
+    )

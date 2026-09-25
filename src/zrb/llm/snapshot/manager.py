@@ -23,8 +23,9 @@ commit names the files git could not read, as a trailer.
 Restore flow: refuse a commit outside this conversation's history, then
 `SnapshotStore.restore` — which rewrites changed files, recreates deleted
 ones and removes files created since, never one the snapshot left out for
-being ignored or unreadable, nor a repository made since — then move the
-conversation's ref back to ``<sha>``.
+being ignored or unreadable, nor a repository made since, and never writing
+over a file it cannot read now — then move the conversation's ref back to
+``<sha>``. The outcome names every path a refused write left behind.
 
 Rewind turns itself off for the session, with a reason the first snapshot
 and `/rewind` show, when the directory cannot be snapshotted at all: a
@@ -79,6 +80,19 @@ class Snapshot(NamedTuple):
     timestamp: str
     label: str
     message_count: int | None = None
+
+
+class RestoreOutcome(NamedTuple):
+    """What `restore_snapshot` did."""
+
+    #: Whether the restore ran. False: nothing was touched — an unknown
+    #: commit, one outside this conversation's history, or rewind is off.
+    restored: bool
+    #: Paths the restore could not bring back although it ran — a file
+    #: another program holds open, a directory without write permission.
+    #: Every other file is restored; restoring again finishes the job once
+    #: the cause is gone.
+    left_behind: tuple[str, ...] = ()
 
 
 class SnapshotManager:
@@ -217,19 +231,19 @@ class SnapshotManager:
             logger.warning(f"list_snapshots failed: {e}")
             return []
 
-    async def restore_snapshot(self, sha: str) -> bool:
+    async def restore_snapshot(self, sha: str) -> RestoreOutcome:
         """Restore workdir to the state captured at the given snapshot SHA."""
         if self._unavailable:
-            return False
+            return RestoreOutcome(restored=False)
         session = self.session_name
         try:
             async with self._lock:
-                await run_in_worker(self._restore, session, sha)
-            return True
+                left_behind = await run_in_worker(self._restore, session, sha)
+            return RestoreOutcome(restored=True, left_behind=tuple(left_behind))
         except Exception as e:
             self._note_unavailable(e)
             logger.warning(f"restore_snapshot failed: {e}")
-            return False
+            return RestoreOutcome(restored=False)
 
     async def copy_history(self, source: str, target: str) -> None:
         """Give conversation *target* the rewind history of *source* — what
@@ -310,7 +324,9 @@ class SnapshotManager:
         store.git(["update-ref", _ref(session), sha])
         return sha, skipped
 
-    def _restore(self, session: str, sha: str) -> None:
+    def _restore(self, session: str, sha: str) -> list[str]:
+        """Restore *sha*, move the conversation's ref back to it, and return
+        the paths left behind."""
         store = self._get_store()
         store.git(["cat-file", "-e", f"{sha}^{{commit}}"])
         # Only this conversation's own snapshots: another conversation's
@@ -320,8 +336,9 @@ class SnapshotManager:
         if ancestry.returncode:
             raise SnapshotError(f"{sha} is not one of this conversation's snapshots")
         body = store.git(["log", "-1", "--format=%B", sha])
-        store.restore(sha, keep=_parse_unreadable(body))
+        left_behind = store.restore(sha, keep=_parse_unreadable(body))
         store.git(["update-ref", _ref(session), sha])
+        return left_behind
 
     def _copy_history(self, source: str, target: str) -> None:
         store = self._get_store()

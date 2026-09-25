@@ -6,7 +6,7 @@ import tempfile
 
 import pytest
 
-from zrb.llm.snapshot import Snapshot, SnapshotManager
+from zrb.llm.snapshot import RestoreOutcome, Snapshot, SnapshotManager
 
 
 @pytest.fixture
@@ -128,8 +128,8 @@ async def test_restore_snapshot_reverts_modified_file(manager, workdir):
     with open(file_path, "w") as f:
         f.write("modified")
 
-    ok = await manager.restore_snapshot(sha)
-    assert ok is True
+    outcome = await manager.restore_snapshot(sha)
+    assert outcome == RestoreOutcome(restored=True)
     with open(file_path) as f:
         assert f.read() == "original"
 
@@ -144,8 +144,8 @@ async def test_restore_snapshot_removes_file_added_after_snapshot(manager, workd
     with open(new_file, "w") as f:
         f.write("extra")
 
-    ok = await manager.restore_snapshot(sha)
-    assert ok is True
+    outcome = await manager.restore_snapshot(sha)
+    assert outcome == RestoreOutcome(restored=True)
     assert not os.path.exists(new_file)
 
 
@@ -158,8 +158,8 @@ async def test_restore_snapshot_restores_deleted_file(manager, workdir):
 
     os.remove(file_path)
 
-    ok = await manager.restore_snapshot(sha)
-    assert ok is True
+    outcome = await manager.restore_snapshot(sha)
+    assert outcome == RestoreOutcome(restored=True)
     assert os.path.exists(file_path)
     with open(file_path) as f:
         assert f.read() == "important"
@@ -171,14 +171,14 @@ async def test_restore_snapshot_returns_false_for_invalid_sha(manager, workdir):
         f.write("data")
     await manager.take_snapshot("some snapshot")
 
-    ok = await manager.restore_snapshot("deadbeef" * 5)
-    assert ok is False
+    outcome = await manager.restore_snapshot("deadbeef" * 5)
+    assert outcome == RestoreOutcome(restored=False)
 
 
 @pytest.mark.asyncio
 async def test_restore_snapshot_returns_false_when_no_snapshots_exist(manager):
-    ok = await manager.restore_snapshot("abc123")
-    assert ok is False
+    outcome = await manager.restore_snapshot("abc123")
+    assert outcome == RestoreOutcome(restored=False)
 
 
 @pytest.mark.asyncio
@@ -196,8 +196,8 @@ async def test_git_directory_in_workdir_is_preserved_after_restore(manager, work
         f.write("data")
     sha = await manager.take_snapshot("with git dir")
 
-    ok = await manager.restore_snapshot(sha)
-    assert ok is True
+    outcome = await manager.restore_snapshot(sha)
+    assert outcome == RestoreOutcome(restored=True)
     assert os.path.isdir(git_dir)
     assert os.path.isfile(os.path.join(git_dir, "HEAD"))
     assert os.path.isdir(heads_dir)
@@ -229,7 +229,7 @@ async def test_snapshot_of_empty_workdir_is_restorable(manager, workdir):
         f.write("later")
 
     assert sha is not None
-    assert await manager.restore_snapshot(sha) is True
+    assert await manager.restore_snapshot(sha) == RestoreOutcome(restored=True)
     assert not os.path.exists(new_file)
 
 
@@ -247,8 +247,8 @@ async def test_restore_snapshot_with_files_in_subdirectories(manager, workdir):
 
     shutil.rmtree(subdir)
 
-    ok = await manager.restore_snapshot(sha)
-    assert ok is True
+    outcome = await manager.restore_snapshot(sha)
+    assert outcome == RestoreOutcome(restored=True)
     with open(file_path) as f:
         assert f.read() == "nested content"
 
@@ -265,8 +265,8 @@ async def test_restore_removes_stale_subdirectory(manager, workdir):
     with open(os.path.join(stale_dir, "stale.txt"), "w") as wf:
         wf.write("stale")
 
-    ok = await manager.restore_snapshot(sha)
-    assert ok is True
+    outcome = await manager.restore_snapshot(sha)
+    assert outcome == RestoreOutcome(restored=True)
     assert not os.path.exists(stale_dir)
 
 
@@ -301,7 +301,7 @@ async def test_restore_drops_later_snapshots_from_the_list(manager, workdir):
     await manager.take_snapshot("second", message_count=2)
 
     assert first is not None
-    assert await manager.restore_snapshot(first) is True
+    assert await manager.restore_snapshot(first) == RestoreOutcome(restored=True)
     assert [s.label for s in manager.list_snapshots()] == ["first"]
 
 
@@ -318,7 +318,7 @@ async def test_gitignored_files_are_neither_snapshotted_nor_restored(manager, wo
         f.write("after")
 
     assert sha is not None
-    assert await manager.restore_snapshot(sha) is True
+    assert await manager.restore_snapshot(sha) == RestoreOutcome(restored=True)
     with open(log) as f:
         assert f.read() == "after"
 
@@ -332,7 +332,7 @@ async def test_default_ignore_dirs_apply_outside_git(manager, workdir):
         f.write("installed")
 
     assert sha is not None
-    assert await manager.restore_snapshot(sha) is True
+    assert await manager.restore_snapshot(sha) == RestoreOutcome(restored=True)
     assert os.path.exists(cache)
 
 
@@ -352,10 +352,10 @@ async def test_file_ignored_after_a_snapshot_is_left_alone(manager, workdir):
         f.write("v3")
 
     assert first and second
-    assert await manager.restore_snapshot(second) is True
+    assert await manager.restore_snapshot(second) == RestoreOutcome(restored=True)
     with open(secret) as f:
         assert f.read() == "v3"  # not in the second snapshot, so not removed
-    assert await manager.restore_snapshot(first) is True
+    assert await manager.restore_snapshot(first) == RestoreOutcome(restored=True)
     with open(secret) as f:
         assert f.read() == "v3"  # ignored now, so the old copy is not restored
 
@@ -382,7 +382,7 @@ async def test_restore_is_byte_exact_whatever_gitattributes_say(
         os.remove(os.path.join(workdir, name))
 
     assert sha is not None
-    assert await manager.restore_snapshot(sha) is True
+    assert await manager.restore_snapshot(sha) == RestoreOutcome(restored=True)
     for name, data in contents.items():
         with open(os.path.join(workdir, name), "rb") as f:
             assert f.read() == data
@@ -401,7 +401,7 @@ async def test_a_gitignore_outside_any_repository_has_no_effect(manager, workdir
         f.write("after")
 
     assert sha is not None
-    assert await manager.restore_snapshot(sha) is True
+    assert await manager.restore_snapshot(sha) == RestoreOutcome(restored=True)
     with open(log) as f:
         assert f.read() == "before"
 
@@ -419,7 +419,7 @@ async def test_rewind_restores_the_files_of_nested_repositories(manager, workdir
         f.write("after")
 
     assert sha is not None
-    assert await manager.restore_snapshot(sha) is True
+    assert await manager.restore_snapshot(sha) == RestoreOutcome(restored=True)
     with open(source) as f:
         assert f.read() == "before"
 
@@ -439,6 +439,6 @@ async def test_rewind_keeps_a_file_its_snapshot_could_not_read(manager, workdir)
         os.chmod(locked, 0o600)
 
     assert sha is not None
-    assert await manager.restore_snapshot(sha) is True
+    assert await manager.restore_snapshot(sha) == RestoreOutcome(restored=True)
     with open(locked) as f:
         assert f.read() == "mine"

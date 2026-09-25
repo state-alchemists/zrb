@@ -215,35 +215,37 @@ class SnapshotStore:
         treeish: str,
         keep: Iterable[str] = (),
         deadline: float | None = None,
-    ) -> None:
-        """Make the directory match *treeish*: rewrite changed files, recreate
-        deleted ones, and remove files created since. A path the listing
-        leaves out now — ignored or excluded since *treeish* was taken — is
-        neither overwritten nor recreated.
+    ) -> list[str]:
+        """Make the directory match *treeish*, and return the paths it could
+        not — empty when the directory now matches. *keep* are the files that
+        snapshot could not read.
 
-        A current file *treeish* lacks is removed only when that snapshot
-        would have held it. It would not when its own ignore rules left it
-        out — rules *treeish* may restore, as when a `.gitignore` edit is
-        rewound — or when it is one of *keep*, the files that snapshot could
-        not read. Either way the file existed then without being captured,
-        so the restore first writes *treeish* keeping every file it lacks,
-        then removes the ones its restored rules would have captured. A
-        repository *treeish* holds nothing of — a worktree or clone made since
-        — is left as it is: removing its files would leave it hollow, and its
-        own history holds its work."""
-        keep = set(keep)
+        Each path is decided by its state now (ADR-0101 has the table):
+
+        - listed and readable: rewritten to *treeish*'s version, or, when
+          *treeish* lacks it, removed only if it was created since;
+        - unreadable, or under a directory that cannot be read: left alone —
+          its content is in no snapshot, so writing over it is irreversible;
+        - ignored or excluded: left alone;
+        - absent: recreated from *treeish*.
+
+        A write the filesystem refuses — a file another program holds open,
+        a directory without write permission — does not stop the others: git
+        writes every file it can, and the paths left behind are returned, so
+        restoring again finishes once the cause is gone."""
         with self._operation_index(from_cache=True) as index:
-            listing, _ = self._index_directory(index, deadline)
-            target = self._create_tree_in_scope(treeish, listing, deadline)
+            listing, unreadable = self._index_directory(index, deadline)
+            before = self.git(["write-tree"], index=index, deadline=deadline).strip()
             current = _index_entries(
                 self.git(["ls-files", "--stage", "-z"], index=index, deadline=deadline)
             )
-            wanted = set(
-                self.git(
-                    ["ls-tree", "-r", "-z", "--name-only", target], deadline=deadline
-                ).split("\0")
+            target = self._create_restore_target(
+                treeish, listing, unreadable, current, deadline
             )
-            lacking = sorted(path for path in current if path not in wanted)
+            wanted = set(self._list_tree(target, deadline))
+            lacking = self._find_lacking(current, wanted)
+            # Pass 1: write the target, keeping every current file it lacks —
+            # such a file may have existed then without being captured.
             kept = self._edit_tree(
                 target,
                 add=[
@@ -251,36 +253,141 @@ class SnapshotStore:
                 ],
                 deadline=deadline,
             )
-            self.git(
-                ["read-tree", "-u", "--reset", kept], index=index, deadline=deadline
+            self._write_tree_to_disk(kept, index, deadline)
+            # Pass 2: with the target's own ignore rules back on disk, remove
+            # the files it lacks because they were created since.
+            created = self._find_created_since(
+                lacking, wanted, listing, set(keep), deadline
             )
-            still_left_out = get_out_of_scope_paths(
-                self._workdir,
-                lacking,
-                listing.repositories,
-                self._ignore_dirs,
-                self._exclude_paths,
-                deadline,
-            )
-            made_since = [
-                base
-                for base in listing.repositories
-                if base and not any(path.startswith(f"{base}/") for path in wanted)
-            ]
-            created = [
-                path
-                for path in lacking
-                if path not in keep
-                and path not in still_left_out
-                and not any(path.startswith(f"{base}/") for base in made_since)
-            ]
+            final = self._edit_tree(kept, remove=created, deadline=deadline)
             if created:
-                final = self._edit_tree(kept, remove=created, deadline=deadline)
-                self.git(
-                    ["read-tree", "-u", "--reset", final],
-                    index=index,
-                    deadline=deadline,
-                )
+                self._write_tree_to_disk(final, index, deadline)
+            return self._find_left_behind(before, final, index, deadline)
+
+    def _create_restore_target(
+        self,
+        treeish: str,
+        listing: Listing,
+        unreadable: list[str],
+        current: dict[str, tuple[str, str]],
+        deadline: float | None,
+    ) -> str:
+        """*treeish*'s tree minus every path a restore must leave alone:
+        those out of scope now, the files git cannot read now, and — when
+        not listed — the ones under a directory that cannot be read."""
+        paths = self._list_tree(treeish, deadline)
+        out = get_out_of_scope_paths(
+            self._workdir,
+            paths,
+            listing.repositories,
+            self._ignore_dirs,
+            self._exclude_paths,
+            deadline,
+        )
+        unseen = [
+            path
+            for path in paths
+            if path not in current and self._is_under_unreadable_directory(path)
+        ]
+        return self._edit_tree(
+            treeish,
+            remove=sorted(out | set(unreadable) | set(unseen)),
+            deadline=deadline,
+        )
+
+    def _find_lacking(
+        self, current: dict[str, tuple[str, str]], wanted: set[str]
+    ) -> list[str]:
+        """The current paths the target lacks. On a filesystem that ignores
+        letter case (macOS, Windows), a current path the target holds in
+        another case is the same file: the target's version is written to
+        it, and it is not lacking, so it is never removed as created since —
+        which would delete that file."""
+        missing = {path.casefold(): path for path in wanted if path not in current}
+        twins = {
+            path
+            for path in current
+            if (twin := missing.get(path.casefold())) is not None
+            and twin != path
+            and os.path.lexists(os.path.join(self._workdir, *twin.split("/")))
+        }
+        return sorted(path for path in current if path not in wanted | twins)
+
+    def _find_created_since(
+        self,
+        lacking: list[str],
+        wanted: set[str],
+        listing: Listing,
+        keep: set[str],
+        deadline: float | None,
+    ) -> list[str]:
+        """The *lacking* files that did not exist when the target was taken.
+        Run once the target's ignore rules are back on disk. A file is kept
+        when those rules leave it out (it existed then, ignored), when the
+        target could not read it (*keep*), or when its repository is one the
+        target holds nothing of — a worktree or clone made since, whose own
+        history holds its work."""
+        left_out = get_out_of_scope_paths(
+            self._workdir,
+            lacking,
+            listing.repositories,
+            self._ignore_dirs,
+            self._exclude_paths,
+            deadline,
+        )
+        made_since = [
+            base
+            for base in listing.repositories
+            if base and not any(path.startswith(f"{base}/") for path in wanted)
+        ]
+        return [
+            path
+            for path in lacking
+            if path not in keep
+            and path not in left_out
+            and not any(path.startswith(f"{base}/") for base in made_since)
+        ]
+
+    def _list_tree(self, treeish: str, deadline: float | None) -> list[str]:
+        return _tree_paths(
+            self.git(["ls-tree", "-r", "-z", "--name-only", treeish], deadline=deadline)
+        )
+
+    def _find_left_behind(
+        self, before: str, final: str, index: str, deadline: float | None
+    ) -> list[str]:
+        """The paths a restore meant to change — where *final* differs from
+        *before* — that the directory does not hold as *final* has them."""
+        meant = set(self.diff(before, final, deadline)[0])
+        self._index_directory(index, deadline)
+        actual = self.git(["write-tree"], index=index, deadline=deadline).strip()
+        return [path for path in self.diff(final, actual, deadline)[0] if path in meant]
+
+    def _is_under_unreadable_directory(self, path: str) -> bool:
+        """Whether an existing directory on *path*'s way down from the work
+        tree cannot be read — the listing could not see what it holds."""
+        parts = path.split("/")[:-1]
+        for depth in range(1, len(parts) + 1):
+            directory = os.path.join(self._workdir, *parts[:depth])
+            if not os.path.isdir(directory):
+                return False
+            if not os.access(directory, os.R_OK | os.X_OK):
+                return True
+        return False
+
+    def _write_tree_to_disk(
+        self, tree: str, index: str, deadline: float | None
+    ) -> None:
+        """`read-tree -u --reset` *tree* into the directory. A write it cannot
+        make is not raised: git makes every other one, and the caller finds
+        what is left behind by comparing the directory with *tree*."""
+        result = self.run_git(
+            ["read-tree", "-u", "--reset", tree], index=index, deadline=deadline
+        )
+        if result.returncode != 0:
+            logger.warning(
+                f"Restore could not write every file: {result.stderr.strip()}"
+            )
 
     def diff(
         self,
@@ -500,7 +607,8 @@ class SnapshotStore:
         and return the ones left out because git could not read them.
 
         `update-index` gives up at the first unreadable file and names it, so
-        that file is left out and the rest are fed again; each rerun re-stats
+        that file is left out — its entry dropped, should the cached index
+        hold an earlier version — and the rest are fed again; each rerun re-stats
         the others instead of hashing them. The file is found by matching each
         path against the end of git's output, not by parsing a path out of
         it: git prints the name raw, so a newline in it would split a parsed
@@ -524,6 +632,12 @@ class SnapshotStore:
                 raise SnapshotError(f"git update-index failed: {result.stderr.strip()}")
             remaining.remove(failed)
             unreadable.append(failed)
+        if unreadable:
+            # The cached index may still hold an earlier version of each; the
+            # snapshot must hold nothing for them, not stale content.
+            result = self._update_index(["--force-remove"], unreadable, index, deadline)
+            if result.returncode != 0:
+                raise SnapshotError(f"git update-index failed: {result.stderr.strip()}")
         return unreadable
 
     def _update_index(
@@ -558,23 +672,6 @@ class SnapshotStore:
                 known.append(path)
         os.makedirs(os.path.dirname(alternates), exist_ok=True)
         _write(alternates, "".join(f"{path}\n" for path in known))
-
-    def _create_tree_in_scope(
-        self, treeish: str, listing: Listing, deadline: float | None
-    ) -> str:
-        """*treeish*'s tree minus the paths the listing would leave out now."""
-        paths = self.git(
-            ["ls-tree", "-r", "-z", "--name-only", treeish], deadline=deadline
-        )
-        out = get_out_of_scope_paths(
-            self._workdir,
-            [path for path in paths.split("\0") if path],
-            listing.repositories,
-            self._ignore_dirs,
-            self._exclude_paths,
-            deadline,
-        )
-        return self._edit_tree(treeish, remove=sorted(out), deadline=deadline)
 
     def _edit_tree(
         self,
@@ -613,6 +710,11 @@ def _tree_entries(listing: str) -> dict[str, tuple[str, str]]:
             mode, _, sha = meta.split(" ")
             entries[path] = (mode, sha)
     return entries
+
+
+def _tree_paths(listing: str) -> list[str]:
+    """`ls-tree -r -z --name-only` output as a list of paths."""
+    return [path for path in listing.split("\0") if path]
 
 
 def _index_entries(listing: str) -> dict[str, tuple[str, str]]:

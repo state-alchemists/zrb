@@ -8,6 +8,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from zrb.llm.snapshot import RestoreOutcome
+
 
 @pytest.mark.asyncio
 async def test_handle_rewind_command_list(ui):
@@ -31,7 +33,9 @@ async def test_handle_rewind_command_restore(ui):
     snap.sha = "1234567890"
     snap.message_count = 5
     ui.snapshot_manager.list_snapshots.return_value = [snap]
-    ui.snapshot_manager.restore_snapshot = AsyncMock(return_value=True)
+    ui.snapshot_manager.restore_snapshot = AsyncMock(
+        return_value=RestoreOutcome(restored=True)
+    )
 
     assert ui.handle_rewind_command("/rewind 1") is True
     # Restoration happens in a background task

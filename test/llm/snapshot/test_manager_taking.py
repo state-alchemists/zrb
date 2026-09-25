@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from zrb.llm.snapshot import SnapshotManager
+from zrb.llm.snapshot import RestoreOutcome, SnapshotManager
 from zrb.llm.snapshot.manager import SnapshotProgress
 
 
@@ -190,7 +190,7 @@ async def test_nested_repository_without_commits_does_not_break_snapshot(
         f.write("modified")
 
     assert sha is not None
-    assert await mgr.restore_snapshot(sha) is True
+    assert await mgr.restore_snapshot(sha) == RestoreOutcome(restored=True)
     with open(file_path) as f:
         assert f.read() == "original"
 

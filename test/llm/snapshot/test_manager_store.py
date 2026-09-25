@@ -7,7 +7,7 @@ import tempfile
 
 import pytest
 
-from zrb.llm.snapshot import SnapshotManager
+from zrb.llm.snapshot import RestoreOutcome, SnapshotManager
 
 
 @pytest.fixture
@@ -46,7 +46,7 @@ async def test_workdir_inside_repo_honours_parent_gitignore_and_stays_in_scope(
     (sub / "run.log").write_text("log after")
     (tmp_path / "outside.txt").write_text("outside after")
     assert sha is not None
-    assert await mgr.restore_snapshot(sha) is True
+    assert await mgr.restore_snapshot(sha) == RestoreOutcome(restored=True)
 
     assert (sub / "f.txt").read_text() == "original"
     assert (sub / "run.log").read_text() == "log after"
@@ -87,7 +87,7 @@ async def test_session_resumed_in_another_subdir_leaves_the_first_alone(
 
     (tmp_path / "b" / "f.txt").write_text("b modified")
     assert sha is not None
-    assert await in_b.restore_snapshot(sha) is True
+    assert await in_b.restore_snapshot(sha) == RestoreOutcome(restored=True)
 
     assert (tmp_path / "a" / "f.txt").read_text() == "a original"
     assert (tmp_path / "b" / "f.txt").read_text() == "b original"
@@ -139,7 +139,7 @@ async def _rewind_twice_and_restore_first(snapshot_dir: str, workdir: str) -> No
     await mgr.take_snapshot("two", message_count=2)
 
     assert first is not None
-    assert await mgr.restore_snapshot(first) is True
+    assert await mgr.restore_snapshot(first) == RestoreOutcome(restored=True)
     with open(file_path) as f:
         assert f.read() == "v1"
     assert [s.label for s in mgr.list_snapshots()] == ["one"]
@@ -195,7 +195,7 @@ async def test_a_subdirectory_session_never_touches_files_outside_it(
     (tmp_path / "packages" / "app" / "m.py").write_text("changed")
 
     assert own
-    assert await app.restore_snapshot(own) is True
+    assert await app.restore_snapshot(own) == RestoreOutcome(restored=True)
     assert (tmp_path / "packages" / "app" / "m.py").read_text() == "app"
     assert (tmp_path / "packages" / "lib" / "m.py").read_text() == "edited"
     assert (tmp_path / "README.md").read_text() == "edited"
@@ -216,7 +216,7 @@ async def test_another_sessions_commit_in_the_same_store_is_refused(
         f.write("edited")
 
     assert foreign is not None
-    assert await mine.restore_snapshot(foreign) is False
+    assert await mine.restore_snapshot(foreign) == RestoreOutcome(restored=False)
     with open(target) as f:
         assert f.read() == "edited"
 

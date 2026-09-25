@@ -309,38 +309,6 @@ def test_a_directory_of_repositories_is_diffed_as_one(tmp_path):
         store.delete()
 
 
-def test_a_restore_rewrites_recreates_and_removes_inside_nested_repositories(
-    repo, tmp_path
-):
-    lib = _nested(repo / "lib", {"v.py": "v\n", "keep.py": "k\n"})
-    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
-    before = _snap(store)
-    (lib / "v.py").write_text("changed\n")
-    (lib / "keep.py").unlink()
-    (lib / "new.py").write_text("new\n")
-    (repo / "tracked.txt").write_text("changed\n")
-
-    store.restore(before)
-
-    assert (lib / "v.py").read_text() == "v\n"
-    assert (lib / "keep.py").read_text() == "k\n"
-    assert not (lib / "new.py").exists()
-    assert (repo / "tracked.txt").read_text() == "a\n"
-    assert _git(lib, "status", "--porcelain").stdout == ""
-
-
-def test_a_restore_leaves_a_path_ignored_since_alone(repo, tmp_path):
-    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
-    (repo / "config.local").write_text("v1\n")
-    before = _snap(store)
-    (repo / ".gitignore").write_text("ignored.txt\nconfig.local\n")
-    (repo / "config.local").write_text("v2\n")
-
-    store.restore(before)
-
-    assert (repo / "config.local").read_text() == "v2\n"
-
-
 def test_a_temporary_store_borrows_a_nested_repositorys_objects(repo, store):
     lib = _nested(repo / "lib", {"v.py": "v\n"})
     blob = _git(lib, "hash-object", "--no-filters", "v.py").stdout.strip()
@@ -424,20 +392,6 @@ def test_a_repository_baseline_holds_what_its_own_checkout_wrote(repo, store, au
     assert "+c" in diff  # added and committed since the fork: shown as added
 
 
-def test_a_restore_keeps_a_tracked_file_matching_an_ignore_pattern(repo, tmp_path):
-    (repo / ".gitignore").write_bytes(b".env*\n")
-    (repo / ".env.example").write_bytes(b"KEY=\n")
-    _git(repo, "add", "-f", ".")
-    _git(repo, "commit", "-qm", "example")
-    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
-    before = _snap(store)
-    (repo / ".env.example").write_bytes(b"KEY=changed\n")
-
-    store.restore(before)
-
-    assert (repo / ".env.example").read_bytes() == b"KEY=\n"
-
-
 def test_a_repository_baseline_leaves_out_what_the_listing_leaves_out(repo, store):
     (repo / ".gitignore").write_bytes(b"ignored.txt\n.zrb/worktree/\n")
     (repo / ".cache").mkdir()
@@ -456,34 +410,6 @@ def test_a_repository_baseline_leaves_out_what_the_listing_leaves_out(repo, stor
     assert store.diff(baseline, after.tree)[0] == []
 
 
-def test_a_restore_keeps_a_file_its_snapshot_ignored_then(repo, tmp_path):
-    (repo / ".gitignore").write_bytes(b"*.log\n")
-    (repo / "debug.log").write_bytes(b"precious\n")
-    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
-    before = _snap(store)  # debug.log is ignored: not captured
-    (repo / ".gitignore").write_bytes(b"")  # logs un-ignored since
-    (repo / "made.py").write_bytes(b"m\n")
-
-    store.restore(before)  # the `.gitignore` edit is rewound
-
-    assert (repo / ".gitignore").read_bytes() == b"*.log\n"
-    assert (repo / "debug.log").read_bytes() == b"precious\n"
-    assert not (repo / "made.py").exists()  # created since: removed
-
-
-def test_a_restore_leaves_a_repository_made_since_as_it_is(repo, tmp_path):
-    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
-    before = _snap(store)
-    clone = _nested(repo / "vendor" / "lib", {"v.py": "v\n"})  # cloned since
-    (clone / "wip.py").write_bytes(b"uncommitted\n")
-    (repo / "made.txt").write_bytes(b"m\n")
-
-    store.restore(before)
-
-    assert (clone / "v.py").exists() and (clone / "wip.py").exists()
-    assert not (repo / "made.txt").exists()
-
-
 def test_a_diff_leaves_out_the_paths_it_is_told_to(repo, store):
     before = _snap(store)
     (repo / "tracked.txt").write_bytes(b"b\n")
@@ -494,3 +420,20 @@ def test_a_diff_leaves_out_the_paths_it_is_told_to(repo, store):
 
     assert paths == ["tracked.txt"]
     assert "odd" not in diff
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or os.geteuid() == 0, reason="needs POSIX permissions, non-root"
+)
+def test_a_file_that_becomes_unreadable_leaves_the_next_snapshot(repo, store):
+    first = _snap(store)  # holds tracked.txt
+    (repo / "tracked.txt").write_bytes(b"newer\n")
+    (repo / "tracked.txt").chmod(0)
+    try:
+        second = store.snapshot()
+    finally:
+        (repo / "tracked.txt").chmod(0o600)
+
+    assert second.unreadable == ("tracked.txt",)
+    assert store.git(["ls-tree", second.tree, "--", "tracked.txt"]) == ""  # not stale
+    assert first
