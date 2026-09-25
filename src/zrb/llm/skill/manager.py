@@ -95,7 +95,7 @@ class Skill:
 class SkillManager:
     """Discover and resolve skills against a `SkillRegistry`.
 
-    Decomposed: the manager owns discovery (`scan`, `reload`, `search_dirs`)
+    The manager owns discovery (`scan`, `reload`, `search_dirs`)
     and content resolution, and composes a `SkillRegistry` for the canonical
     collection. All query and mutation methods delegate to the registry, so a
     manual `add_skill`/`set_skills` survives a later scan.
@@ -175,8 +175,7 @@ class SkillManager:
         target_search_dirs = (
             search_dirs if search_dirs is not None else self.search_dirs
         )
-        # Scan in order of precedence: global -> project
-        # We iterate in normal order to allow later skills (project) to override earlier ones (global)
+        # Later directories override earlier ones on a name collision.
         for search_dir in target_search_dirs:
             self._scan_dir(Path(search_dir), max_depth=self._max_depth)
         self._registry.set_discovered(list(self._scan_results.values()))
@@ -276,12 +275,18 @@ class SkillManager:
         skill_path = root / self._SKILL_ASSET
         if skill_path.exists() and skill_path.is_dir():
             dirs.append(skill_path)
-        plugins_dir = root / self._PLUGIN_ASSET
-        if plugins_dir.exists() and plugins_dir.is_dir():
-            for plugin_dir in scan_plugin_dirs(plugins_dir):
-                skill_path = plugin_dir / self._SKILL_ASSET
-                if skill_path.exists() and skill_path.is_dir():
-                    dirs.append(skill_path)
+        dirs.extend(self._collect_plugin_skill_dirs(root / self._PLUGIN_ASSET))
+        return dirs
+
+    def _collect_plugin_skill_dirs(self, plugins_dir: Path) -> list[Path]:
+        """Each plugin's ``skills/`` directory under *plugins_dir*."""
+        if not (plugins_dir.exists() and plugins_dir.is_dir()):
+            return []
+        dirs: list[Path] = []
+        for plugin_dir in scan_plugin_dirs(plugins_dir):
+            skill_path = plugin_dir / self._SKILL_ASSET
+            if skill_path.exists() and skill_path.is_dir():
+                dirs.append(skill_path)
         return dirs
 
     def _get_home_search_dirs(self) -> list[Path]:
@@ -312,12 +317,7 @@ class SkillManager:
         """Plugins from configured ``LLM_PLUGIN_DIRS``."""
         dirs: list[Path] = []
         for plugin_path_str in CFG.LLM_PLUGIN_DIRS:
-            plugin_path = Path(plugin_path_str)
-            if plugin_path.exists() and plugin_path.is_dir():
-                for plugin_dir in scan_plugin_dirs(plugin_path):
-                    skill_path = plugin_dir / self._SKILL_ASSET
-                    if skill_path.exists() and skill_path.is_dir():
-                        dirs.append(skill_path)
+            dirs.extend(self._collect_plugin_skill_dirs(Path(plugin_path_str)))
         return dirs
 
     def _get_base_search_dirs(self) -> list[Path]:
@@ -354,9 +354,7 @@ class SkillManager:
         return [d for d in dirs if d.exists() and d.is_dir()]
 
     def _get_upward_dirs(self) -> list[Path]:
-        """Get directories from root to cwd for upward traversal.
-        Returns paths in root → cwd order.
-        """
+        """Directories from filesystem root down to ``root_dir``, in that order."""
         return get_upward_dirs(self._root_dir)
 
     def _scan_dir(self, directory: Path, max_depth: int):
@@ -385,22 +383,17 @@ class SkillManager:
                 return
 
             skill_obj = None
-            # Look for 'skill' or 'SKILL' variable
             if hasattr(module, "skill"):
                 skill_obj = getattr(module, "skill")
             elif hasattr(module, "SKILL"):
                 skill_obj = getattr(module, "SKILL")
-
+            if not isinstance(skill_obj, Skill) and callable(
+                getattr(module, "get_skill", None)
+            ):
+                skill_obj = module.get_skill()
             if isinstance(skill_obj, Skill):
                 skill_obj.companion_files = discover_companion_files(full_path)
                 self._scan_results[skill_obj.name] = skill_obj
-            elif hasattr(module, "get_skill") and callable(module.get_skill):
-                # Factory function that returns a Skill
-                skill_obj = module.get_skill()
-                if isinstance(skill_obj, Skill):
-                    skill_obj.companion_files = discover_companion_files(full_path)
-                    self._scan_results[skill_obj.name] = skill_obj
-
         except Exception as e:
             CFG.LOGGER.warning(f"Failed to load Python skill from {full_path}: {e}")
 
@@ -416,8 +409,7 @@ class SkillManager:
                 or _first_markdown_heading(content)
                 or os.path.basename(os.path.dirname(full_path))
             )
-            # Use name as key, handle duplicates by overriding (precedence
-            # handled by scan order)
+            # A later scan directory overrides an earlier one with this name.
             self._scan_results[name] = Skill(
                 name=name,
                 path=full_path,
@@ -443,7 +435,6 @@ def _parse_skill_frontmatter(content: str, full_path: str) -> dict:
     fields: dict = {
         "description": "No description",
         "model_invocable": True,
-        # Default: skills are user-invocable (visible in / menu)
         "user_invocable": True,
         "argument_hint": None,
         "allowed_tools": [],
@@ -468,7 +459,6 @@ def _parse_skill_frontmatter(content: str, full_path: str) -> dict:
             "disable-model-invocation", False
         )
         fields["user_invocable"] = frontmatter.get("user-invocable", True)
-        # Claude Code spec fields
         fields["argument_hint"] = frontmatter.get("argument-hint")
         fields["allowed_tools"] = _parse_allowed_tools(frontmatter.get("allowed-tools"))
         for key in ("model", "context", "agent"):

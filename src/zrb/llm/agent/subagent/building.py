@@ -135,11 +135,8 @@ class SubAgentBuilding:
             # Already final: resolve_configured_model ran above.
             model=resolved.model,
             history_processors=[create_summarizer_history_processor()],
-            # These four mirror builtin/llm/chat.py's bindings exactly: the web
-            # chat runner (chat_session_runner.py) drives any llm_chat_task via
-            # a per-message SharedContext(input={...}), so the task must read
-            # its message/session/attachments/interactivity from ctx.input
-            # rather than from constructor defaults.
+            # Mirrors builtin/llm/chat.py: the web chat runner passes these
+            # per message via ctx.input.
             message=Tpl("{ctx.input.message}"),
             conversation_name=Tpl("{ctx.input.session}"),
             attachment=lambda ctx: [
@@ -200,11 +197,8 @@ class SubAgentBuilding:
         # Resolve model so section factories can use it
         final_model = resolve_configured_model(definition.model)
 
-        # Inherited sections (persona, workflow, system_context, ...) come from
-        # the main-agent PromptManager composition. Sub-agents that need the
-        # parent's identity / operating rules / project context declare
-        # ``inherit_sections`` in their frontmatter; an agent that omits it
-        # (``inherit_sections = None``) keeps only its own prompt.
+        # Sections named in the agent's ``inherit_sections`` frontmatter come
+        # from the main agent's PromptManager; without it, only its own prompt.
         inherited_prompt = self._build_inherited_prompt(
             ctx, definition.inherit_sections, final_model
         )
@@ -249,16 +243,10 @@ class SubAgentBuilding:
         pm.model = model
         try:
             composed = pm.compose_prompt()(ctx).strip()
-            # Sub-agents are single-turn (one run_agent, empty history), so the
-            # cross-turn caching reason for keeping volatile state out of the
-            # system prompt does not apply. Fold the <live-context> block back
-            # into the inherited prompt so an agent that inherits system_context
-            # still sees the per-turn state (time, git, …) it saw before the
-            # main-chat split — the main chat injects it into the user turn
-            # instead, via run_agent's live_context. Being single-turn, a
-            # sub-agent is always "the first turn": inject the journal index
-            # unconditionally (render_journal_index itself honours
-            # LLM_JOURNAL_ENABLED). See ADR-0042.
+            # Sub-agents are single-turn, so prompt caching gives no reason to
+            # keep volatile state out of the system prompt: fold <live-context>
+            # and the journal index in here (the main chat puts them in the
+            # user turn). See ADR-0042.
             if "system_context" in sections:
                 live = pm.create_live_context(ctx, inject_journal_index=True)
                 if live:

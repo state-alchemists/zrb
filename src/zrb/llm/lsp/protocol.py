@@ -14,13 +14,9 @@ from typing import Any
 class LSPError(Exception):
     """Base exception for LSP operations."""
 
-    pass
-
 
 class LSPTimeoutError(LSPError):
     """Error when LSP request times out."""
-
-    pass
 
 
 class LSPServerError(LSPError):
@@ -140,12 +136,8 @@ class LSPProtocol:
     @classmethod
     def create_text_document_identifier(cls, file_path: str) -> dict:
         """Create TextDocumentIdentifier for a file."""
-
         abs_path = Path(file_path).absolute()
-        # `Path.as_uri()` rather than quoting the string form: on Windows the
-        # string form is `D:\\dir\\file.py`, and quoting it escapes the drive
-        # colon and every separator ("file://D%3A%5Cdir%5Cfile.py") -- a URI no
-        # language server can resolve and that no longer round-trips back to a
-        # path. as_uri() produces the "file:///D:/dir/file.py" the protocol
-        # asks for, and escapes #/?/%/non-ASCII exactly as before on POSIX.
+        # `as_uri()` yields "file:///D:/dir/file.py" on Windows; percent-quoting
+        # the string form would escape the drive colon and backslashes into a
+        # URI no language server can resolve.
         return {"uri": abs_path.as_uri()}

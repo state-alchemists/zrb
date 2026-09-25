@@ -17,6 +17,7 @@ facade, which delegates to both collaborators uniformly.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
@@ -37,6 +38,7 @@ if TYPE_CHECKING:
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.ui.multi_ui import MultiUI
 
 
 class ChatRunning:
@@ -61,26 +63,13 @@ class ChatRunning:
         initial_yolo: "bool | frozenset[str]",
         initial_attachments: "list[UserContent]",
     ) -> Any:
-        # Resolve custom commands and intercept if the message is a slash command
-        resolved_custom_commands = self._resolve_custom_commands()
-        effective_message = initial_message
-        if isinstance(initial_message, str):
-            resolved = resolve_custom_command(initial_message, resolved_custom_commands)
-            if resolved is not None:
-                effective_message = resolved
-            else:
-                # Only nudge on @mention when the message wasn't already a
-                # slash command — the two are mutually exclusive syntaxes.
-                mentioned = resolve_agent_mention(initial_message)
-                if mentioned is not None:
-                    effective_message = mentioned
+        effective_message = _expand_message(
+            initial_message, self._resolve_custom_commands()
+        )
 
-        # Attach factory-produced UIs (e.g. the web/SSE HTTPUI) as output sinks
-        # so run_agent streams through them. This is what makes browser chat
-        # work without the interactive session's per-turn history replay and
-        # LSP/SESSION_END teardown. Programmatic self._llm_chat_task.uis are
-        # already wired into the core task by _create_llm_task_core; only factories
-        # need resolving here, now that the core task instance exists.
+        # Factory-produced UIs (e.g. the web/SSE HTTPUI) become output sinks so
+        # run_agent streams through them. Programmatic `uis` are already wired
+        # in by `_create_llm_task_core`; factories need the core task instance.
         self._attach_ui_factories(
             ctx=ctx,
             llm_task_core=llm_task_core,
@@ -92,7 +81,6 @@ class ChatRunning:
             initial_attachments=initial_attachments,
         )
 
-        # AsyncExitStack is handled by LLMTask._exec_action
         session_input = {
             "message": effective_message,
             "session": initial_conversation_name,
@@ -103,18 +91,17 @@ class ChatRunning:
         }
         shared_ctx = SharedContext(
             input=session_input,
-            print_fn=ctx.shared_print,  # Use current task's print function
+            print_fn=ctx.shared_print,
         )
         session = Session(shared_ctx)
         result = await llm_task_core.async_run(session)
-        # Unlike stream_ai_response, this loop never finalizes with a
-        # rendered pass -- do it here for every UI that supports it.
+        # Unlike stream_ai_response, this path never finalizes with a rendered
+        # pass, so do it here for every UI that supports it.
         if isinstance(result, str):
             for ui in llm_task_core.get_uis():
                 append_markdown = getattr(ui, "append_markdown", None)
                 if callable(append_markdown):
                     append_markdown(result)
-        # Store conversation name in xcom for CLI to print at the end
         ctx.xcom["__conversation_name__"] = initial_conversation_name
         return result
 
@@ -161,21 +148,9 @@ class ChatRunning:
         enable_rewind: bool = False,
         snapshot_dir: str = "",
     ) -> Any:
-        # Mirror run_non_interactive_session's slash-command resolution.
-        # Resolved once here and reused by _build_default_ui_kwargs below,
-        # instead of re-resolving self._llm_chat_task.custom_commands a second
-        # time.
         resolved_custom_commands = self._resolve_custom_commands()
-        if isinstance(initial_message, str):
-            resolved = resolve_custom_command(initial_message, resolved_custom_commands)
-            if resolved is not None:
-                initial_message = resolved
-            else:
-                mentioned = resolve_agent_mention(initial_message)
-                if mentioned is not None:
-                    initial_message = mentioned
+        initial_message = _expand_message(initial_message, resolved_custom_commands)
 
-        # Note: AsyncExitStack is handled by LLMTask._exec_action
         resolved_uis: list["AnyUI"] = list(self._llm_chat_task.uis)
         for factory in self._llm_chat_task.ui_factories:
             factory_ui = factory(
@@ -234,10 +209,6 @@ class ChatRunning:
         resolved_custom_commands: "list[AnyCustomCommand] | None" = None,
     ) -> dict[str, Any]:
         """Build keyword arguments shared by all default UI constructor calls."""
-        # lazy: zrb.llm.ui.ui_config transitively loads pydantic_ai,
-        # prompt_toolkit, pdfplumber and playwright, via its package __init__.
-        from dataclasses import replace
-
         resolved_custom_model_names = (
             get_attr(ctx, self._llm_chat_task.custom_model_names, []) or []
         )
@@ -283,26 +254,15 @@ class ChatRunning:
         default_kwargs: dict[str, Any],
     ) -> "AnyUI":
         """Determine the UI to use: factory-only, combined, or default-only."""
-        # lazy: zrb.llm.ui.default.ui and zrb.llm.ui.multi_ui transitively
-        # load prompt_toolkit, pydantic_ai, pdfplumber and vosk.
+        # lazy: zrb.llm.ui.default.ui transitively loads prompt_toolkit,
+        # pydantic_ai, pdfplumber and vosk.
         from zrb.llm.ui.default.ui import UI
-        from zrb.llm.ui.multi_ui import MultiUI
 
         if resolved_uis and not self._llm_chat_task.include_default_ui:
             if len(resolved_uis) == 1:
                 return resolved_uis[0]
-            ui = MultiUI(resolved_uis)
-            # lazy: zrb.llm.approval transitively loads pydantic_ai.
-            from zrb.llm.approval import resolve_approval_channel
+            return self._create_multi_ui(resolved_uis)
 
-            approval_channel = resolve_approval_channel(
-                self._llm_chat_task.approval_channels
-            )
-            if approval_channel is not None:
-                ui.set_approval_channel(approval_channel)
-            return ui
-
-        # Create default UI with lazy import of output_lexer
         # lazy: zrb.llm.ui.default.app.lexer transitively loads prompt_toolkit.
         from zrb.llm.ui.default.app.lexer import CLIStyleLexer
 
@@ -312,17 +272,23 @@ class ChatRunning:
         if not resolved_uis:
             return default_ui
 
-        all_uis = [default_ui] + resolved_uis
-        ui = MultiUI(all_uis)
-        # lazy: zrb.llm.approval transitively loads pydantic_ai.
-        from zrb.llm.approval import resolve_approval_channel
+        ui = self._create_multi_ui([default_ui] + resolved_uis)
+        ui.set_tool_call_handler(default_ui.tool_call_handler)
+        return ui
 
+    def _create_multi_ui(self, uis: "list[AnyUI]") -> "MultiUI":
+        """Combine `uis` into a `MultiUI` wired to the task's approval channel."""
+        # lazy: zrb.llm.ui.multi_ui transitively loads prompt_toolkit and
+        # pydantic_ai; zrb.llm.approval transitively loads pydantic_ai.
+        from zrb.llm.approval import resolve_approval_channel
+        from zrb.llm.ui.multi_ui import MultiUI
+
+        ui = MultiUI(uis)
         approval_channel = resolve_approval_channel(
             self._llm_chat_task.approval_channels
         )
         if approval_channel is not None:
             ui.set_approval_channel(approval_channel)
-        ui.set_tool_call_handler(default_ui.tool_call_handler)
         return ui
 
     def load_session_history(
@@ -358,3 +324,18 @@ class ChatRunning:
             CFG.LOGGER.warning(
                 f"Failed to load history for session {conversation_name}: {e}"
             )
+
+
+def _expand_message(message: Any, custom_commands: "list[AnyCustomCommand]") -> Any:
+    """Expand a slash command, else an @agent mention, in a string message.
+
+    The two syntaxes are mutually exclusive, so a mention is only considered
+    when the message is not a slash command.
+    """
+    if not isinstance(message, str):
+        return message
+    resolved = resolve_custom_command(message, custom_commands)
+    if resolved is not None:
+        return resolved
+    mentioned = resolve_agent_mention(message)
+    return message if mentioned is None else mentioned

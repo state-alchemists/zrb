@@ -101,7 +101,7 @@ AI assistant integration.
 ### 🔑 MD5 (`util md5`)
 
 Hashing utilities. `hash`/`sum` below cover the same ground for MD5 (plus five other algorithms); this
-group is kept for `validate`, which `hash` has no equivalent for. See the [`hash`](#-hash-hash) group.
+group is kept for `validate`, which `hash` has no equivalent for. See the [`hash`](#-hash-util-hash) group.
 
 | Command | Description |
 |---------|-------------|

@@ -1,8 +1,6 @@
 """Server lifecycle for `LSPManager`: start, shut down, project-root detection.
 
-Tracks one server instance per `(language, root_path)` pair. The lock and
-the per-key cache live on `LSPManager` itself; this mixin contributes the
-methods that read/mutate them.
+Tracks one server instance per `(language, root_path)` pair.
 """
 
 from __future__ import annotations
@@ -52,7 +50,7 @@ class LSPManagerLifecycle:
 
     def __init__(self) -> None:
         self._servers: dict[str, LSPServer] = {}  # key: "language:root_path"
-        self._lock: asyncio.Lock | None = None  # Initialize lazily
+        self._lock: asyncio.Lock | None = None
         self._project_roots: dict[str, str] = {}  # file_path -> detected root
 
     @property
@@ -82,11 +80,11 @@ class LSPManagerLifecycle:
         while current != current.parent:
             for marker in PROJECT_MARKERS:
                 if marker.startswith("*"):
-                    if list(current.glob(marker)):
-                        return self._cache_project_root(file_path, str(current))
+                    found = any(current.glob(marker))
                 else:
-                    if (current / marker).exists():
-                        return self._cache_project_root(file_path, str(current))
+                    found = (current / marker).exists()
+                if found:
+                    return self._cache_project_root(file_path, str(current))
             current = current.parent
 
         return self._cache_project_root(file_path, str(path))
@@ -138,7 +136,7 @@ class LSPManagerLifecycle:
     async def shutdown_all(self):
         """Shutdown all LSP servers and forget cached project roots."""
         async with self.lock:
-            for _key, server in list(self._servers.items()):
+            for server in list(self._servers.values()):
                 try:
                     await server.stop()
                 except Exception as e:

@@ -2,37 +2,30 @@
 
 # LLM Custom UI and Approval Channels
 
-Zrb's LLM tasks support custom UI and approval channels for non-terminal interfaces like Telegram, Slack, Discord, or web applications.
+Zrb's LLM tasks accept custom UIs and approval channels, so the agent can run over Telegram, Slack, Discord, a web app, or any other non-terminal interface.
 
 ---
 
 ## Table of Contents
 
-- [Mental Model: How the UI Works](#mental-model-how-the-ui-works)
+- [Choosing a Level](#choosing-a-level)
 - [Quick Start](#quick-start)
-- [UI Extension Levels](#ui-extension-levels)
-- [Dual Mode: CLI + External Channel](#dual-mode-cli-external-channel)
-- [Level 1: SimpleUI (Request-Response Pattern)](#level-1-simpleui-request-response-pattern)
-- [Level 2: EventDrivenUI (Callback Pattern)](#level-2-eventdrivenui-callback-pattern)
+- [Level 1: SimpleUI (Request-Response)](#level-1-simpleui-request-response)
+- [Level 2: EventDrivenUI (Callbacks)](#level-2-eventdrivenui-callbacks)
 - [Level 3: BaseUI (Full Control)](#level-3-baseui-full-control)
 - [BufferedOutputMixin (Rate-Limited Backends)](#bufferedoutputmixin-rate-limited-backends)
-- [UIConfig: Cleaner Configuration](#uiconfig-cleaner-configuration)
-- [create_ui_factory(): One-Line Registration](#create_ui_factory-one-line-registration)
-- [Migration Guide: BaseUI → SimpleUI](#migration-guide-baseui-simpleui)
-- [Multi-Channel Support (Multiple UIs)](#multi-channel-support-multiple-uis)
+- [UIConfig](#uiconfig)
+- [create_ui_factory()](#create_ui_factory)
+- [Multiple Channels (CLI + External)](#multiple-channels-cli--external)
 - [Approval Channels](#approval-channels)
+- [Implementation Tips](#implementation-tips)
 - [Working Examples](#working-examples)
-- [Pattern Selection Guide](#pattern-selection-guide)
-- [Important Notes](#important-notes)
-- [Summary](#summary)
 
 ---
 
-## Mental Model: How the UI Works
+## Choosing a Level
 
-### The Core Message Loop
-
-Every UI implementation shares the same underlying architecture:
+Every UI shares one message loop inside `BaseUI`; the levels differ only in how much of it you write yourself.
 
 ```mermaid
 flowchart TB
@@ -54,32 +47,30 @@ flowchart TB
     end
 ```
 
-### Method Mapping: BaseUI → SimpleUI
+| Level | Base class | You implement | You get for free | Best for |
+|-------|------------|---------------|------------------|----------|
+| **1** | `SimpleUI` | `print()`, `get_input()` | All of BaseUI, plus a default `run_async()` and `__init__` | CLI, file logging, synchronous I/O |
+| **2** | `EventDrivenUI` | `print()`, `start_event_loop()` | All of SimpleUI, plus an input queue and message routing | Telegram, Discord, WhatsApp (callbacks); HTTP API, WebSocket |
+| **3** | `BaseUI` | `__init__`, `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Message loop, command handling, LLM interaction, `UIConfig`-based settings | Custom event loops, multiplexers |
 
-`SimpleUI` provides default implementations that map to simpler methods:
+**Start with `SimpleUI`**; move up only when your backend requires it. Add [`BufferedOutputMixin`](#bufferedoutputmixin-rate-limited-backends) for rate-limited backends (Telegram, Discord).
 
-| BaseUI Method | SimpleUI Method | What SimpleUI Does |
-|---------------|-----------------|---------------------|
+`test/llm/ui/test_extension_levels.py` builds a minimal subclass at each level implementing exactly the "You implement" column and registering it via `create_ui_factory`, so this table cannot silently go stale.
+
+### How SimpleUI maps onto BaseUI
+
+| BaseUI method | SimpleUI method | What SimpleUI does |
+|---------------|-----------------|--------------------|
 | `append_to_output(*values, sep, end)` | `print(text: str)` | Joins values with sep/end, calls async `print()` |
 | `ask_user(prompt: str)` | `get_input(prompt: str)` | Direct pass-through |
-| `run_interactive_command(cmd, shell)` | *(default)* | Shows "not supported" message |
+| `run_interactive_command(cmd, shell)` | *(default)* | Shows a "not supported" message |
 | `run_async()` | *(default)* | Starts `process_messages_loop()`, handles lifecycle |
 
-### What Each Level Abstracts Away
-
-| Level | What You Implement | What You Get For Free |
-|-------|-------------------|----------------------|
-| **BaseUI** | `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Message loop, command handling, LLM interaction, `UIConfig`-based settings |
-| **SimpleUI** | `print()`, `get_input()` | All of BaseUI, plus a default `run_async()` and `__init__` |
-| **EventDrivenUI** | `print()`, `start_event_loop()` | All of SimpleUI + input queue + message routing |
-
-**Key insight:** Each level builds on the previous, reducing what you must implement. `BaseUI` requires understanding the full architecture. `SimpleUI` lets you focus on just input/output.
+So moving from `BaseUI` to `SimpleUI` drops the event loop, the lifecycle and the ~15-parameter `__init__` (one `super().__init__()` call with a `UIConfig` replaces it).
 
 ---
 
 ## Quick Start
-
-The simplest way to create a custom UI:
 
 ```python
 from zrb.builtin.llm.chat import llm_chat
@@ -98,175 +89,18 @@ class MyUI(SimpleUI):
 llm_chat.ui_factories = [create_ui_factory(MyUI)]
 ```
 
-**That's it.** `print()` is the output path (AI responses, system messages);
-`get_input()` is the input path (user chat, approvals, prompts).
-
-Every "Required Methods" column below is executable rather than aspirational:
-`test/llm/ui/test_extension_levels.py` builds a minimal subclass at each level,
-implementing exactly what its row lists and registering it the one-line way. If
-a level starts demanding another method, or `create_ui_factory` stops accepting
-a class, that file fails before this page goes stale.
+`print()` is the output path (AI responses, system messages); `get_input()` is the input path (user chat, approvals, prompts).
 
 ---
 
-## UI Extension Levels
+## Level 1: SimpleUI (Request-Response)
 
-Choose your starting point based on your backend type:
+For backends where you **control the event loop** and can **block on input**.
 
-| Level | Base Class | Required Methods | Best For |
-|-------|-------------|------------------|----------|
-| **1** | `SimpleUI` | `print()`, `get_input()` | CLI, file-based, synchronous I/O |
-| **2** | `EventDrivenUI` | `print()`, `start_event_loop()` | Telegram, Discord, WhatsApp (callbacks); HTTP API, WebSocket (`handle_incoming_message()` also drives an externally-driven backend, see `zrb.runner.chat.http_ui.create_http_ui_factory` for the built-in example) |
-| **3** | `BaseUI` | `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Full control, custom architecture |
+- **`async print(text: str)`** — called for AI responses, system messages and errors. Receives pre-formatted text (emojis, formatting included).
+- **`async get_input(prompt: str)`** — called when waiting for chat input or approvals. Blocks until input arrives; `prompt` may be empty for approvals.
 
-**Recommendation:** Start with `SimpleUI`. Upgrade to `EventDrivenUI` if your backend requires it. Use `BaseUI` only for advanced custom architectures.
-
----
-
-## Dual Mode: CLI + External Channel
-
-For chat applications that work with **both CLI and an external channel** (Telegram, SSE, WebSocket), use `append_ui_factory()` to add multiple channels.
-
-### What You Get
-
-When you use `append_ui_factory()`:
-- **Output**: Broadcasts to ALL configured channels (CLI + Telegram, etc.)
-- **Input**: Waits for FIRST response from ANY channel
-- **Approvals**: First approval response wins (CLI or external)
-
-### The Primary Child
-
-One child is the **primary** — `MultiUI(uis, main_ui_index=0)` picks it, and it
-defaults to the first. The primary runs the main event loop, and `MultiUI` reads
-seven state members off it to drive features the other children never see:
-
-| Member | What `MultiUI` uses it for |
-| --- | --- |
-| `snapshot_manager` | Taking a filesystem snapshot before each turn, so `/rewind` works |
-| `history_manager` | Loading the message count that a rewind restores to |
-| `conversation_session_name` | Naming the session a turn runs under |
-| `plan_mode_active` | Reading *and writing* the `/plan` badge as the agent switches mode mid-run |
-| `small_model` / `multimodal_model` | Binding the `/model small ...` and `/model multimodal ...` overrides for the run |
-| `last_output` | Reporting the session's final answer when a turn produced no result data |
-
-These are all part of `AnyUI`, so you get inert defaults from
-`UIStateDefaultsMixin` (or real ones from `BaseUI`) and a custom UI cannot
-silently lack them. But the defaults are honest `None`/`False`/`""` answers: a
-UI that keeps none of this state **works as a secondary child, and disables
-snapshots, rewind and plan mode when it is the primary**. If your UI is going in
-the `main_ui_index` slot, implement them for real — or leave the default
-terminal UI as the primary and add yours alongside. A primary that keeps its
-own `snapshot_manager` should build it with a callable returning the current
-`conversation_session_name`, as `BaseUI` does, or set the manager's
-`session_name` on every change; otherwise rewind stays on the conversation the
-session started with.
-
-### Optional Enrichment Hooks
-
-`MultiUI` also forwards twelve richer output events to any child that implements
-them. **None of these is required** — `MultiUI` checks each child and skips the
-ones that don't have the method, which is why a Telegram channel can ignore the
-terminal's block-collapsing entirely and still receive everything through
-`append_to_output`. They are not part of `AnyUI` for the same reason: a chat
-channel has no thinking block to collapse.
-
-Implement one only when your channel can render it better than a plain line:
-
-| Hook | Fired when |
-| --- | --- |
-| `accumulate_usage(usage, context_usage)` | A run reports token totals — needed for a session token meter |
-| `append_markdown(markdown_text)` | Markdown reaches the pane (the assistant's answer, or a markdownish user paste) — a child without it gets the pre-rendered text |
-| `mark_text_block_start()` | The assistant begins a text block |
-| `collapse_text_block(collapsed, full)` | That text block ends, with a short and a full form |
-| `mark_thinking_block_start()` | The assistant begins a reasoning block |
-| `collapse_thinking_block(collapsed, full)` | That reasoning block ends |
-| `update_tool_prepare(key, text)` | A tool call is being prepared |
-| `update_shell_output(key, text)` | A running shell command emits output |
-| `finish_shell_output(key, collapsed, full)` | That shell command completes |
-| `record_tool_call_block(collapsed, full)` | A tool call and its result are printed — a child without it gets the collapsed line |
-| `replay_history(messages)` | A conversation is replayed on resume |
-| `update_system_info()` | A turn ended and the child should refresh its system/git status line |
-
-The canonical list lives in `test/architecture/test_multi_ui_fanout_surface.py`,
-which fails if `MultiUI` fans out a name that isn't on it.
-
-### Quick Start
-
-```python
-from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui import EventDrivenUI, create_ui_factory
-
-class TelegramUI(EventDrivenUI):
-    def __init__(self, bot_token, chat_id, **kwargs):
-        super().__init__(**kwargs)
-        self.bot_token = bot_token
-        self.chat_id = chat_id
-
-    async def print(self, text: str, kind: str = "text") -> None:
-        await self.bot.send_message(self.chat_id, text)
-
-    async def start_event_loop(self) -> None:
-        # Initialize bot
-        ...
-
-# Use append_ui_factory() for dual mode!
-llm_chat.append_ui_factory(
-    create_ui_factory(
-        TelegramUI,
-        bot_token="TOKEN",
-        chat_id=12345
-    )
-)
-
-# Add approval channel (optional but recommended)
-llm_chat.append_approval_channel(TelegramApprovalChannel(bot, chat_id))
-```
-
-For an HTTP/SSE backend, see `zrb.runner.chat.http_ui.create_http_ui_factory`
-— the built-in factory the FastAPI chat session runner uses to wire an
-`EventDrivenUI` up to server-sent events.
-
-### Complete Examples
-
-| Example | Description |
-|---------|-------------|
-| `examples/chat-telegram/` | CLI + Telegram dual mode |
-| `examples/chat-sse/` | CLI + SSE (HTTP streaming) dual mode |
-
----
-
-## Level 1: SimpleUI (Request-Response Pattern)
-
-`SimpleUI` is for backends where you **control the event loop** and can **block on input**. You implement:
-
-### Method: `print(text: str)` (async)
-- Called when the AI responds, system messages, or errors
-- Receives pre-formatted text (already includes emojis, formatting)
-- **Must be async** (scheduling handled by base class)
-
-### Method: `get_input(prompt: str)` (async)
-- Called when waiting for user input (chat messages, approvals)
-- Should block until input is received
-- Receive `prompt` (may be empty for approvals)
-
-### Example: Basic CLI
-
-```python
-import asyncio
-from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui import SimpleUI, create_ui_factory
-
-class CLI(SimpleUI):
-    """Minimal CLI implementation."""
-
-    async def print(self, text: str, kind: str = "text") -> None:
-        print(text, end="", flush=True)
-
-    async def get_input(self, prompt: str) -> str:
-        return await asyncio.to_thread(input, prompt or "You> ")
-
-llm_chat.ui_factories = [create_ui_factory(CLI)]
-```
+Both must be `async` — see [Implementation Tips](#1-async-methods). The [Quick Start](#quick-start) is the minimal CLI.
 
 ### Example: File Logger
 
@@ -332,11 +166,14 @@ llm_chat.ui_factories = [create_ui_factory(StructuredLogUI)]
 
 ---
 
-## Level 2: EventDrivenUI (Callback Pattern)
+## Level 2: EventDrivenUI (Callbacks)
 
-For backends where **messages arrive via callbacks/handlers** (Telegram, Discord, WhatsApp), use `EventDrivenUI`.
+For backends where **messages arrive via callbacks/handlers**. You implement `print(text)` (send output to your backend) and `start_event_loop()` (register handlers and start listening), both async.
 
-### The Input Queue Pattern
+Your handler passes each incoming message to **`handle_incoming_message(text)`**, which routes it:
+
+1. If `get_input()` is blocked (an `ask_user` is waiting) → puts the text on `input_queue`, unblocking it.
+2. Otherwise → submits the text as a new message to the LLM.
 
 ```mermaid
 flowchart LR
@@ -352,32 +189,6 @@ flowchart LR
 
     OnMsg --> Handle --> Queue --> GetInput
 ```
-
-**Routing Logic:**
-- If NOT waiting for input → `handle_incoming_message()` submits as new LLM message
-- If waiting for input (ask_user blocked) → `handle_incoming_message()` puts to input_queue
-
-### Methods to Implement
-
-| Method | Description |
-|--------|-------------|
-| `print(text: str)` | Send output to your backend (async) |
-| `start_event_loop()` | Register handlers and start listening (async) |
-
-### Key Method: `handle_incoming_message(text)`
-
-Call this when your backend receives a message:
-
-```python
-# In your handler:
-async def on_telegram_message(update, context):
-    text = update.message.text
-    self.handle_incoming_message(text)  # Routes automatically!
-```
-
-**What it does:**
-1. If `get_input()` is blocked waiting → puts text in queue, unblocks it
-2. Otherwise → submits text as new message to LLM
 
 ### Example: Telegram Bot
 
@@ -495,24 +306,15 @@ llm_chat.ui_factories = [
 ]
 ```
 
-### Example: HTTP API / WebSocket
+### HTTP API / WebSocket
 
-`EventDrivenUI` also fits externally-driven backends — an HTTP or WebSocket
-handler calls `handle_incoming_message()` the same way a bot callback does.
-`zrb.runner.chat.http_ui.create_http_ui_factory` is the built-in example: it
-subclasses `EventDrivenUI`, broadcasts `print()` output over server-sent
-events, and routes `handle_incoming_message()` from the request handler into
-an `asyncio.Queue` that `get_input()` awaits. Use it directly, or read it as
-the reference implementation for your own HTTP/WebSocket backend. See
-`examples/chat-sse/` for the runnable version.
+An HTTP or WebSocket handler calls `handle_incoming_message()` just as a bot callback does. The built-in reference is `zrb.runner.chat.http_ui.create_http_ui_factory` (used by the FastAPI chat session runner): it subclasses `EventDrivenUI`, broadcasts `print()` output over server-sent events, and routes `handle_incoming_message()` from the request handler into an `asyncio.Queue` that `get_input()` awaits. Use it directly or copy its shape; `examples/chat-sse/` is the runnable version.
 
 ---
 
 ## Level 3: BaseUI (Full Control)
 
-Use `BaseUI` when you need complete control over the message loop or have custom architecture requirements.
-
-### Architecture Overview
+Use `BaseUI` when you need a custom `run_async()`, a real `run_interactive_command()`, low-level `append_to_output()`, or a custom multiplexer.
 
 ```mermaid
 flowchart TB
@@ -534,41 +336,21 @@ flowchart TB
     end
 ```
 
-### When to Use BaseUI vs SimpleUI
-
-| Use BaseUI When | Use SimpleUI When |
-|-----------------|-------------------|
-| You need custom `run_async()` logic | Standard event loop is fine |
-| You need `run_interactive_command()` | Shell commands not needed |
-| You want low-level `append_to_output()` | Simple `print()` is enough |
-| You're building a custom multiplexer | Single-channel UI |
-
-### What You Must Implement
-
-**5 items total:**
+### What you implement
 
 | Item | Purpose | Complexity |
-|------|---------|-------------|
+|------|---------|------------|
 | `__init__()` | Initialize with `ctx`, `llm_task`, `history_manager`, a `ui_config`, and a handful of others | Medium (boilerplate) |
 | `append_to_output(*values, sep, end, file, flush)` | Display output | Low |
 | `ask_user(prompt: str)` | Block for user input | Medium |
 | `run_interactive_command(cmd, shell)` | Execute shell commands | Low (or return error) |
-| `run_async()` | Start and run event loop | **High** - must manage lifecycle |
+| `run_async()` | Start and run the event loop | **High** — must manage lifecycle |
 
-### What You Get for Free
+**Free:** `process_messages_loop()` (queue-based processing), `submit_user_message()`, `stream_ai_response()`, command handlers (`/help`, `/exit`, `/save`, `/load`, `/model`, `/exec`, `/yolo`), history management, and tool confirmation handling.
 
-- `process_messages_loop()` - Queue-based message processing
-- `submit_user_message()` - Submit message to LLM
-- `stream_ai_response()` - Handle AI response streaming
-- Command handlers (`/help`, `/exit`, `/save`, `/load`, `/model`, `/exec`, `/yolo`)
-- History management integration
-- Tool confirmation handling
+### Customising a built-in command
 
-### Customising a Built-in Command
-
-Every slash command is a `handle_<name>_command(text) -> bool` method on `BaseUI`.
-Override one and it replaces the built-in — `command_table()` binds handlers to
-the UI instance, so your subclass wins:
+Every slash command is a `handle_<name>_command(text) -> bool` method on `BaseUI`. `command_table()` binds handlers to the UI instance, so overriding one in your subclass replaces the built-in:
 
 ```python
 class MyUI(SimpleUI):                       # or BaseUI, EventDrivenUI
@@ -580,11 +362,9 @@ class MyUI(SimpleUI):                       # or BaseUI, EventDrivenUI
         return True                         # consumed -> no further handlers run
 ```
 
-Return `True` when your handler consumed the input and `False` to let the next
-handler (and finally the LLM) see it. To add a command rather than replace one,
-or to change priority order, override `commands.command_table()`.
+Return `True` when consumed, `False` to let the next handler (and finally the LLM) see it. To add a command or change priority order, override `commands.command_table()`.
 
-### BaseUI Optional Methods
+### Optional methods
 
 | Method | Default | Purpose |
 |--------|---------|---------|
@@ -592,12 +372,12 @@ or to change priority order, override `commands.command_table()`.
 | `on_exit()` | No-op | Cleanup on shutdown |
 | `ask_user_choice(spec)` | Formats the spec as numbered text and delegates to `ask_user` | Override for an arrow-key-selectable widget |
 | `stream_to_parent()` | Calls `append_to_output` | For multiplexed UIs |
-| `_get_output_field_width()` | None | Custom text width for formatting (exposed publicly as the `output_field_width` property, which is what the diff/markdown formatters read) |
+| `_get_output_field_width()` | None | Custom text width for formatting (read by the diff/markdown formatters through the public `output_field_width` property) |
 | `record_tool_call_block(collapsed, full)` | Falls back to `append_to_output(collapsed, end="", kind="tool_call")` | Print a tool-call/result line that a toggle-capable UI can later expand in place |
 | `mark_thinking_block_start()` | No-op | Record where a live thinking block begins, so it can be collapsed once it ends |
-| `collapse_thinking_block(collapsed, full)` | No-op | Collapse the thinking block opened by `mark_thinking_block_start()`; the thinking text itself still reaches the UI via the normal `append_to_output` stream regardless |
+| `collapse_thinking_block(collapsed, full)` | No-op | Collapse the block opened by `mark_thinking_block_start()`; the thinking text still reaches the UI via the normal `append_to_output` stream |
 
-These three are looked up with `getattr(ui, name, None)` — implement them only if your UI wants collapsible tool-call/thinking blocks (like the default TUI's `Ctrl+O`); otherwise the defaults above keep existing behavior unchanged.
+The last three are looked up with `getattr(ui, name, None)` — implement them only for collapsible tool-call/thinking blocks (like the default TUI's `Ctrl+O`).
 
 ### Example: WebSocket Backend
 
@@ -687,24 +467,7 @@ async def main():
 
 ## BufferedOutputMixin (Rate-Limited Backends)
 
-For backends with **rate limits on message frequency** (Telegram: ~30 messages/sec, Discord: ~5 messages/sec), use `BufferedOutputMixin` to batch output and avoid API throttling.
-
-### Why Buffering?
-
-```mermaid
-flowchart LR
-    subgraph Without["Without buffering (fragmented)"]
-        LLM1["LLM streams"] --> S1["H → send"] --> S2["e → send"] --> S3["l → send"] --> S4["l → send"] --> S5["o → send"]
-        Result1["5 API calls, hits rate limits"]
-    end
-
-    subgraph With["With buffering"]
-        LLM2["LLM streams"] --> B1["H → buffer"] --> B2["e → buffer"] --> B3["l → buffer"] --> B4["l → buffer"] --> B5["o → buffer"] --> Flush["0.5s: flush → send 'Hello'"]
-        Result2["1 API call"]
-    end
-```
-
-### Usage Pattern
+Streaming sends one API call per token chunk, which trips message-rate limits (Telegram: ~30 messages/sec, Discord: ~5 messages/sec). `BufferedOutputMixin` batches output and flushes it periodically — "H", "e", "l", "l", "o" become one `send 'Hello'` call. It also drops spinner/progress fragments that would otherwise repeat in a chat channel.
 
 ```python
 from zrb.llm.ui import EventDrivenUI, BufferedOutputMixin
@@ -755,24 +518,16 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
         await self.stop_flush_loop()
 ```
 
-### Parameters
-
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `flush_interval` | 0.5 | Seconds between flushes |
-| `max_buffer_size` | 2000 | Characters before forced flush |
+| `flush_interval` | 0.5 (`CFG.LLM_UI_FLUSH_INTERVAL`, in ms: `500`) | Seconds between flushes |
+| `max_buffer_size` | 2000 (`CFG.LLM_UI_MAX_BUFFER_SIZE`) | Characters before a forced flush |
 
 ---
 
-## UIConfig: Cleaner Configuration
+## UIConfig
 
-`UIConfig` is **the** UI configuration object — `BaseUI.__init__` itself takes
-one `ui_config: UIConfig | None` parameter (not 25 individual ones), and every
-concrete UI (`SimpleUI`, `EventDrivenUI`, the built-in TUI, the
-web UI) is built from it. Each field defaults from its `CFG.LLM_UI_COMMAND_*`
-env twin (`docs/configuration/env-vars.md`), read lazily so a `zrb_init.py`
-change still wins — so every UI backend agrees on the shipped command aliases
-without each one re-deriving them.
+`UIConfig` is **the** UI configuration object: `BaseUI.__init__` takes one `ui_config: UIConfig | None` parameter (not 25 individual ones), and every concrete UI (`SimpleUI`, `EventDrivenUI`, the built-in TUI, the web UI) is built from it. Each field defaults from its `CFG.LLM_UI_COMMAND_*` env twin ([env-vars.md](../configuration/env-vars.md)), read lazily so a `zrb_init.py` change still wins — so every UI backend agrees on the shipped command aliases.
 
 ```python
 from zrb.llm.ui import UIConfig, create_ui_factory
@@ -795,11 +550,12 @@ config = UIConfig(
 llm_chat.ui_factories = [create_ui_factory(MyUI, ui_config=config)]
 ```
 
-### UIConfig Fields
-
 | Field | Default | Description |
 |-------|---------|-------------|
 | `assistant_name` | `CFG.LLM_ASSISTANT_NAME` | Name shown in prompts |
+| `ascii_art` | `CFG.LLM_ASSISTANT_ASCII_ART` | Banner art |
+| `jargon` | `CFG.LLM_ASSISTANT_JARGON` | Tagline |
+| `greeting` | `"{LLM_ASSISTANT_NAME}\n{LLM_ASSISTANT_JARGON}"` | Greeting shown at start |
 | `exit_commands` | `CFG.LLM_UI_COMMAND_EXIT` | Commands to exit |
 | `info_commands` | `CFG.LLM_UI_COMMAND_INFO` | Show help |
 | `save_commands` | `CFG.LLM_UI_COMMAND_SAVE` | Save conversation |
@@ -816,55 +572,35 @@ llm_chat.ui_factories = [create_ui_factory(MyUI, ui_config=config)]
 | `voice_commands` | `CFG.LLM_UI_COMMAND_VOICE` | Toggle voice dictation |
 | `photo_commands` | `CFG.LLM_UI_COMMAND_PHOTO` | Attach a photo |
 | `summarize_commands` | `CFG.LLM_UI_COMMAND_SUMMARIZE` | Summarize/compress history |
-| `is_yolo` | `False` | Auto-approve mode: `True` for all tools, or comma-separated names (e.g., `"Write,Edit"`) for selective |
+| `is_yolo` | `False` | Auto-approve: `True` for all tools, or a `frozenset` of tool names (e.g. `frozenset({"Write", "Edit"})`) for selective |
 | `yolo_xcom_key` | `"yolo"` | xcom key the session reads/writes when yolo is toggled at run time |
 | `show_ollama_models` | `CFG.LLM_SHOW_OLLAMA_MODELS` | Whether the model picker lists local Ollama models |
 | `show_pydantic_ai_models` | `CFG.LLM_SHOW_PYDANTIC_AI_MODELS` | Whether the model picker lists models known to pydantic-ai |
 | `conversation_session_name` | `""` | Session name (empty = random) |
 
-An `LLMChatTask` (`llm_chat` included) exposes the same object as a settable
-`ui_config` property — see [LLM Component Collections](../configuration/llm-collections.md#3-per-task--instance-arguments--override-one-host).
+Set a command list to `[]` to disable that command. An `LLMChatTask` (`llm_chat` included) exposes the same object as a settable `ui_config` property — see [LLM Component Collections](../configuration/llm-collections.md#3-per-task--instance-arguments--override-one-host).
 
 ---
 
-## create_ui_factory(): One-Line Registration
+## create_ui_factory()
 
-### The Problem: Factory Boilerplate
-
-Without `create_ui_factory()`, you need to handle 8 parameters:
+`LLMChatTask` calls each UI factory with eight parameters:
 
 ```python
-from zrb.llm.ui import UIConfig
-
-
-def create_my_ui(
-    ctx,                          # Task context
-    llm_task,                     # LLM task instance
-    history_manager,              # History manager
-    ui_commands,                  # Dict of command lists
-    initial_message,              # First message
-    initial_conversation_name,     # Session name
-    initial_yolo,                 # Auto-approve mode
-    initial_attachments,          # Files to attach
-):
-    return MyUI(
-        ctx=ctx,
-        llm_task=llm_task,
-        history_manager=history_manager,
-        initial_message=initial_message,
-        initial_attachments=initial_attachments,
-        # Build a UIConfig by hand and merge the task's command lists...
-        ui_config=UIConfig(
-            conversation_session_name=initial_conversation_name,
-            is_yolo=initial_yolo,
-            # ... and merge exit/info/... commands out of ui_commands manually
-        ),
-    )
-
-llm_chat.ui_factories = [create_my_ui]
+def factory(
+    ctx: AnyContext,              # Task context
+    llm_task: LLMTask,            # LLM task instance
+    history_manager: HistoryManager,  # History manager
+    ui_commands: dict,            # Command configuration
+    initial_message: str,         # First message (if any)
+    initial_conversation_name: str,  # Session name
+    initial_yolo: "bool | frozenset[str]",  # Auto-approve mode (True/False, or a set of tool names for selective auto-approve)
+    initial_attachments: list,    # Files to attach
+) -> BaseUI:
+    ...
 ```
 
-### The Solution: Automatic Parameter Handling
+Writing that by hand means building a `UIConfig` and merging `ui_commands` into it yourself. `create_ui_factory()` does it for you:
 
 ```python
 from zrb.llm.ui import create_ui_factory, UIConfig
@@ -876,149 +612,71 @@ llm_chat.ui_factories = [
 ]
 ```
 
-`create_ui_factory()` automatically:
-1. Maps the 8 standard parameters to UIConfig
-2. Merges `ui_commands` from task configuration
-3. Passes your extra kwargs (`bot_token`, `chat_id`) to `MyUI.__init__()`
+It (1) maps the eight standard parameters onto `UIConfig`, (2) merges `ui_commands` from the task configuration, and (3) passes extra kwargs (`bot_token`, `chat_id`) to `MyUI.__init__()`.
 
 ---
 
-## Migration Guide: BaseUI → SimpleUI
+## Multiple Channels (CLI + External)
 
-### What You're Really Saving
-
-| Aspect | BaseUI | SimpleUI | Savings |
-|--------|---------|----------|---------|
-| **Items to implement** | `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | `print()`, `get_input()` | the loop and the lifecycle |
-| **`__init__` parameters** | ~15 params, one of them `ui_config` | Config object + kwargs | Cleaner initialization |
-| **`__init__` boilerplate** | 20+ lines | 1 `super().__init__()` call | Less code |
-| **Event loop management** | You write `run_async()` | Handled by default | 30+ lines saved |
-| **Shell command handling** | You implement | Shows warning | Optional feature |
-
-### Method Translation
-
-| BaseUI | SimpleUI | Notes |
-|--------|----------|-------|
-| `append_to_output(*values, sep, end)` | `print(text: str)` | Simpler signature, async |
-| `ask_user(prompt)` | `get_input(prompt)` | Same semantics, simpler name |
-| `run_interactive_command(cmd)` | *(not supported)* | Returns error by default |
-| `run_async()` | *(handled for you)* | Uses `process_messages_loop()` |
-
-### Example Migration
-
-**Before (BaseUI - ~25 lines of user code):**
-
-```python
-class MyUI(BaseUI):
-    def __init__(self, ctx, llm_task, history_manager, **kwargs):
-        super().__init__(
-            ctx=ctx,
-            llm_task=llm_task,
-            history_manager=history_manager,
-            yolo_xcom_key="yolo",
-            assistant_name="Bot",
-            initial_message="",
-            initial_attachments=[],
-            conversation_session_name="",
-            is_yolo=False,
-            # ... 15 more params
-        )
-
-    def append_to_output(self, *values, sep=" ", end="\n", **kwargs):
-        text = sep.join(str(v) for v in values) + end
-        print(text, end="", flush=True)
-
-    async def ask_user(self, prompt: str) -> str:
-        return await asyncio.to_thread(input, prompt or "You> ")
-
-    async def run_interactive_command(self, cmd, shell=False):
-        await self.append_to_output("Shell commands not supported\n")
-        return 1
-
-    async def run_async(self):
-        self.process_messages_task = asyncio.create_task(
-            self.process_messages_loop()
-        )
-        if self.initial_message:
-            self.submit_user_message(self.llm_task, self.initial_message)
-        try:
-            while True:
-                await asyncio.sleep(1)
-        except asyncio.CancelledError:
-            pass
-        finally:
-            self.process_messages_task.cancel()
-        return self.last_output
-```
-
-**After (SimpleUI - ~8 lines of user code):**
-
-```python
-class MyUI(SimpleUI):
-    async def print(self, text: str, kind: str = "text") -> None:
-        print(text, end="", flush=True)
-
-    async def get_input(self, prompt: str) -> str:
-        return await asyncio.to_thread(input, prompt or "You> ")
-
-# Registration
-llm_chat.ui_factories = [create_ui_factory(MyUI)]
-```
-
-**Actual reduction: ~17 fewer lines of boilerplate.**
-
----
-
-## Multi-Channel Support (Multiple UIs)
-
-For systems that need **multiple input channels** (CLI + Telegram, Web + CLI), you can now use `append_ui()` and `append_approval_channel()` to add multiple UIs and approval channels.
-
-### How It Works
-
-```python
-from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui import create_ui_factory, MultiUI
-from zrb.llm.approval import MultiplexApprovalChannel, TerminalApprovalChannel
-
-# Add Telegram UI alongside default terminal UI
-llm_chat.append_ui_factory(create_ui_factory(TelegramUI, bot=bot, chat_id=CHAT_ID))
-
-# Add approval channels
-llm_chat.append_approval_channel(TelegramApprovalChannel(bot, CHAT_ID))
-llm_chat.append_approval_channel(TerminalApprovalChannel(my_ui))
-```
-
-The framework automatically creates:
-- `MultiUI` when multiple UIs are configured (broadcasts output to all, waits for first input)
-- `MultiplexApprovalChannel` when multiple approval channels (first response wins)
-
-### Built-in Classes
-
-| Class | Module | Purpose |
-|-------|--------|---------|
-| `MultiUI` | `zrb.llm.ui` | Broadcasts to multiple UIs, waits for first response |
-| `MultiplexApprovalChannel` | `zrb.llm.approval` | Waits for first approval from any channel |
-
-### Example: CLI + Telegram
+To run the default terminal UI **and** an external channel (Telegram, SSE, WebSocket) together, append instead of replacing — `append_ui_factory()` (or `append_ui()` for an instance) and `append_approval_channel()`:
 
 ```python
 from zrb.builtin.llm.chat import llm_chat
 from zrb.llm.ui import create_ui_factory
-from zrb.llm.approval import (
-    MultiplexApprovalChannel,
-    TerminalApprovalChannel,
-)
+from zrb.llm.approval import TerminalApprovalChannel
 
-# Default terminal UI is used automatically
-# Add Telegram on top
-llm_chat.append_ui_factory(create_ui_factory(TelegramUI, bot=bot, chat_id=CHAT_ID))
+# Default terminal UI is used automatically; add Telegram on top
+llm_chat.append_ui_factory(
+    create_ui_factory(TelegramUI, bot_token=BOT_TOKEN, chat_id=CHAT_ID)
+)
 
 # Both channels can approve/deny
 llm_chat.append_approval_channel(TelegramApprovalChannel(bot, CHAT_ID))
 llm_chat.append_approval_channel(TerminalApprovalChannel(my_ui))
 ```
 
-See `examples/chat-telegram/` for a complete implementation.
+The framework then wraps them automatically:
+
+| Class | Module | Behavior |
+|-------|--------|----------|
+| `MultiUI` | `zrb.llm.ui` | **Output** broadcasts to all UIs; **input** waits for the first response from any channel |
+| `MultiplexApprovalChannel` | `zrb.llm.approval` | First approval response wins (CLI or external) |
+
+### The primary child
+
+One child is the **primary** — `MultiUI(uis, main_ui_index=0)` picks it, defaulting to the first. The primary runs the main event loop, and `MultiUI` reads these state members off it only:
+
+| Member | What `MultiUI` uses it for |
+| --- | --- |
+| `snapshot_manager` | Taking a filesystem snapshot before each turn, so `/rewind` works |
+| `history_manager` | Loading the message count that a rewind restores to |
+| `conversation_session_name` | Naming the session a turn runs under |
+| `plan_mode_active` | Reading *and writing* the `/plan` badge as the agent switches mode mid-run |
+| `small_model` / `multimodal_model` | Binding the `/model small ...` and `/model multimodal ...` overrides for the run |
+| `last_output` | Reporting the session's final answer when a turn produced no result data |
+
+All are part of `AnyUI`, with inert `None`/`False`/`""` defaults from `UIStateDefaultsMixin` (real ones from `BaseUI`). So a UI that keeps none of this state **works as a secondary child, but disables snapshots, rewind and plan mode as the primary**. If yours goes in the `main_ui_index` slot, implement them for real — or keep the terminal UI primary and add yours alongside. A primary with its own `snapshot_manager` should build it with a callable returning the current `conversation_session_name` (as `BaseUI` does), or set the manager's `session_name` on every change; otherwise rewind stays on the session's starting conversation.
+
+### Optional enrichment hooks
+
+`MultiUI` forwards twelve richer output events to children that implement them, and skips children that don't — which is why a Telegram channel can ignore block-collapsing and still receive everything through `append_to_output`. They are not part of `AnyUI` for the same reason. Implement one only when your channel renders it better than a plain line:
+
+| Hook | Fired when |
+| --- | --- |
+| `accumulate_usage(usage, context_usage)` | A run reports token totals — needed for a session token meter |
+| `append_markdown(markdown_text)` | Markdown reaches the pane (the assistant's answer, or a markdownish user paste) — a child without it gets the pre-rendered text |
+| `mark_text_block_start()` | The assistant begins a text block |
+| `collapse_text_block(collapsed, full)` | That text block ends, with a short and a full form |
+| `mark_thinking_block_start()` | The assistant begins a reasoning block |
+| `collapse_thinking_block(collapsed, full)` | That reasoning block ends |
+| `update_tool_prepare(key, text)` | A tool call is being prepared |
+| `update_shell_output(key, text)` | A running shell command emits output |
+| `finish_shell_output(key, collapsed, full)` | That shell command completes |
+| `record_tool_call_block(collapsed, full)` | A tool call and its result are printed — a child without it gets the collapsed line |
+| `replay_history(messages)` | A conversation is replayed on resume |
+| `update_system_info()` | A turn ended and the child should refresh its system/git status line |
+
+The canonical list is `test/architecture/test_multi_ui_fanout_surface.py`, which fails if `MultiUI` fans out a name not on it.
 
 ---
 
@@ -1067,16 +725,12 @@ class TelegramApprovalChannel(AnyApprovalChannel):
 llm_chat.approval_channels = [TelegramApprovalChannel(bot, CHAT_ID)]
 ```
 
-### AnyApprovalChannel Interface
-
-| Method | Purpose |
+| `AnyApprovalChannel` method | Purpose |
 |--------|---------|
 | `request_approval(context)` | Ask user to approve/deny tool execution |
 | `notify(message, context)` | Send informational message |
 
-### ApprovalContext Fields
-
-| Field | Description |
+| `ApprovalContext` field | Description |
 |-------|-------------|
 | `tool_name` | Name of the tool to execute |
 | `tool_args` | Arguments passed to the tool |
@@ -1086,14 +740,7 @@ llm_chat.approval_channels = [TelegramApprovalChannel(bot, CHAT_ID)]
 | `user_id` | User identifier (optional) |
 | `extra` | Extra metadata dict (optional) |
 
-### Built-in Approval Channels
-
-| Channel | Description |
-|---------|-------------|
-| `TerminalApprovalChannel` | Default terminal confirmation (uses UI) |
-| `NullApprovalChannel` | Auto-approve everything (YOLO mode) |
-
-### YOLO Mode (Auto-Approve All)
+Built-in channels: `TerminalApprovalChannel` (default terminal confirmation, uses the UI) and `NullApprovalChannel` (auto-approves everything — YOLO mode):
 
 ```python
 from zrb.llm.approval import NullApprovalChannel
@@ -1108,49 +755,11 @@ llm_chat.ui_factories = [create_ui_factory(MyUI, ui_config=config)]
 
 ---
 
-## Working Examples
+## Implementation Tips
 
-| Example | Location | Level | Pattern |
-|---------|----------|-------|---------|
-| Minimal CLI | `examples/chat-minimal-ui/` | 1 | SimpleUI |
-| Telegram Bot | `examples/chat-telegram/` | 2 | EventDrivenUI + BufferedOutputMixin |
-| Telegram + CLI | `examples/chat-telegram/` | 2+ | Multi-UI (multiple channels) |
-| HTTP API | `examples/chat-sse/` | 2 | EventDrivenUI |
+### 1. Async methods
 
----
-
-## Pattern Selection Guide
-
-### By Backend Type
-
-| Backend Type | Recommended Level | Why |
-|--------------|-------------------|-----|
-| CLI / Terminal | `SimpleUI` | You control input flow |
-| File logger | `SimpleUI` | Sequential writes |
-| Telegram Bot | `EventDrivenUI` + `BufferedOutputMixin` | Callbacks + rate limits |
-| Discord Bot | `EventDrivenUI` + `BufferedOutputMixin` | Callbacks + rate limits |
-| WhatsApp | `EventDrivenUI` | Webhook callbacks |
-| HTTP API | `EventDrivenUI` | See `zrb.runner.chat.http_ui.create_http_ui_factory` |
-| WebSocket Server | `EventDrivenUI` | Same shape as HTTP API |
-| Custom Multiplexer | `BaseUI` | Full control needed |
-
-### By Feature Need
-
-| Need | Use |
-|------|-----|
-| Standard CLI | `SimpleUI` |
-| Event-driven messaging | `EventDrivenUI` |
-| Custom event loop | `BaseUI` |
-| Multi-channel input | Use `append_ui()` and `append_approval_channel()` |
-| Rate limit protection | Add `BufferedOutputMixin` |
-
----
-
-## Important Notes
-
-### 1. Async Methods
-
-Both `print()` and `get_input()` **must be async**. The base class schedules `print()` calls automatically when `append_to_output()` is called (which may happen from sync context).
+`print()` and `get_input()` **must be async**. The base class schedules `print()` whenever `append_to_output()` is called, which may happen from a sync context.
 
 ```python
 # CORRECT - async methods
@@ -1167,9 +776,9 @@ class BadUI(SimpleUI):
         print(text)
 ```
 
-### 2. Stripping ANSI Codes
+### 2. Strip ANSI codes for remote UIs
 
-Remote UIs (Telegram, Discord, etc.) don't support terminal ANSI codes. Use `remove_style()`:
+Telegram, Discord and similar don't render terminal ANSI codes:
 
 ```python
 from zrb.util.cli.style import remove_style
@@ -1179,9 +788,7 @@ async def print(self, text: str, kind: str = "text") -> None:
     await self.bot.send_message(self.chat_id, clean_text)
 ```
 
-### 3. Timeouts for Remote Channels
-
-Always implement timeouts to prevent hanging:
+### 3. Time out remote input
 
 ```python
 async def get_input(self, prompt: str) -> str:
@@ -1196,9 +803,7 @@ async def get_input(self, prompt: str) -> str:
         return "cancel"  # Or raise to abort
 ```
 
-### 4. Session Management for Multi-User
-
-For multi-user backends, maintain separate UI instances per user/channel:
+### 4. One UI instance per user in multi-user backends
 
 ```python
 # Per-user session storage
@@ -1221,36 +826,15 @@ async def on_message(update, context):
     sessions[user_id].handle_incoming_message(update.message.text)
 ```
 
-### 5. UI Factory Context
-
-The factory receives parameters from `LLMChatTask`:
-
-```python
-def factory(
-    ctx: AnyContext,              # Task context
-    llm_task: LLMTask,            # LLM task instance
-    history_manager: HistoryManager,  # History manager
-    ui_commands: dict,            # Command configuration
-    initial_message: str,         # First message (if any)
-    initial_conversation_name: str,  # Session name
-    initial_yolo: "bool | frozenset[str]",  # Auto-approve mode (True/False, or a set of tool names for selective auto-approve)
-    initial_attachments: list,    # Files to attach
-) -> BaseUI:
-    ...
-```
-
-Use `create_ui_factory()` to handle this automatically.
-
 ---
 
-## Summary
+## Working Examples
 
-| Level | Implements | Best For | Complexity |
-|-------|------------|----------|------------|
-| `SimpleUI` | `print()`, `get_input()` | CLI, file logging | Low |
-| `EventDrivenUI` | `print()`, `start_event_loop()` | Telegram, Discord, HTTP API, WebSocket | Medium |
-| `BaseUI` | `__init__`, `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Custom architectures | High |
-
-**Start with `SimpleUI`**. Upgrade only when your backend requires it.
+| Example | Location | Level | Pattern |
+|---------|----------|-------|---------|
+| Minimal CLI | `examples/chat-minimal-ui/` | 1 | SimpleUI |
+| Telegram Bot | `examples/chat-telegram/` | 2 | EventDrivenUI + BufferedOutputMixin |
+| Telegram + CLI | `examples/chat-telegram/` | 2+ | Multi-UI (dual mode) |
+| HTTP API (SSE) | `examples/chat-sse/` | 2 | EventDrivenUI, CLI + SSE dual mode |
 
 🔖 [Documentation Home](../../README.md) > [LLM](./) > Custom UI

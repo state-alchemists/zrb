@@ -27,8 +27,8 @@ class TcpCheck(BaseTask):
             host: Host to connect to. A literal, a `Tpl` rendered against the
                 context, or a callable taking it.
             port: Port to connect to.
-            interval: Seconds between attempts. Defaults to the readiness check
-                period.
+            interval: Seconds between attempts. Defaults to
+                `CFG.TCP_CHECK_INTERVAL`.
 
         Every parameter `BaseTask` accepts is also accepted here **except the
         retry and readiness settings** (`retries`, `retry_period`, `retry_if`,
@@ -44,8 +44,7 @@ class TcpCheck(BaseTask):
         )
         self._host = host
         self._port = port
-        # Read lazily at run time (like every other CFG read) so an env change
-        # after task definition still takes effect.
+        # None resolves CFG at run time, so a later env change takes effect.
         self._interval = interval
 
     def _get_interval(self) -> float:
@@ -67,9 +66,7 @@ class TcpCheck(BaseTask):
             try:
                 ctx.log_info(f"Checking TCP connection on {host}:{port}")
                 _, writer = await asyncio.open_connection(host, port)
-                # The successful connection is the readiness signal. Close the
-                # writer to avoid leaking the socket, but a cleanup error must not
-                # flip success back into a retry.
+                # Connecting is the signal; a close error must not force a retry.
                 try:
                     writer.close()
                     await writer.wait_closed()

@@ -25,7 +25,6 @@ from zrb.runner.web_route.task_session_api_route import serve_task_session_api
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 
 if TYPE_CHECKING:
-    # We want fastapi to only be loaded when necessary to decrease footprint
     from fastapi import FastAPI
 
 
@@ -57,15 +56,12 @@ def create_web_app(
     web_auth_config: WebAuthConfig,
     session_state_logger: AnySessionStateLogger,
 ) -> "FastAPI":
-
     # lazy: heavy third-party
     from fastapi import FastAPI
 
     _COROS = []
 
     async def _cleanup_sessions():
-
-        # Skip aggressive cleanup in pytest mode
         if "pytest" in sys.modules:
             return
         session_mgr = ChatSessionManager.get_instance_sync()

@@ -19,7 +19,7 @@ from __future__ import annotations
 import textwrap
 from typing import TYPE_CHECKING
 
-from zrb.config.config import CFG
+from zrb.llm.ui.default.app.focus import focus_widget, invalidate_app
 
 if TYPE_CHECKING:
     from prompt_toolkit.formatted_text import StyleAndTextTuples
@@ -32,11 +32,9 @@ if TYPE_CHECKING:
 class UISelection:
     """In-layout selection widget; pairs with `UIConfirmation`.
 
-    Reaches most state/methods through `self._ui` — the composed `UI` —
-    like every other part. The one exception is `handle_confirmation`'s
-    base-case fallback: it holds a direct reference to the `UIConfirmation`
-    sibling so the fallback call cannot loop back through the UI's own
-    `handle_confirmation` delegator (which dispatches to this class first).
+    Holds the `UIConfirmation` sibling directly so `handle_confirmation`'s
+    fallback cannot loop back through `UI.handle_confirmation`, which
+    dispatches here first.
     """
 
     def __init__(self, ui: "UI", confirmation: "UIConfirmation") -> None:
@@ -48,10 +46,8 @@ class UISelection:
         self._active_choice: dict | None = None
         self._choice_cursor: int = 0
         self._choice_selected: set[int] = set()
-        # Set when dropping to free-text from a (multi-select) choice: the
-        # already-selected labels to prepend to the typed answer. None means no
-        # free-text capture is pending. The question is stashed alongside so the
-        # resolved echo can still record it after the widget has closed.
+        # Pending free-text capture: the checked labels to prepend to the typed
+        # answer (None = none pending), plus the question for the echo.
         self._choice_freetext_prefix: str | None = None
         self._choice_freetext_question: str = ""
         self._choice_window = self._create_choice_window()
@@ -85,19 +81,11 @@ class UISelection:
     # --- hooks called by UIConfirmation -------------------------------
 
     def begin_choice(self, spec: dict) -> None:
-        # lazy: heavy third-party
-        from prompt_toolkit.application import get_app
-
         self._active_choice = spec
         self._choice_cursor = 0
         self._choice_selected = set()
-        # The question is shown inside the widget while active and echoed into
-        # scrollback (with the answer) on resolve — not duplicated here.
-        try:
-            get_app().layout.focus(self._choice_window)
-        except Exception as e:
-            # Layout not ready (e.g. before first render) — focus on next paint.
-            CFG.LOGGER.debug(f"Choice-window focus failed: {e}")
+        # The question is echoed into scrollback with the answer on resolve.
+        focus_widget(self._choice_window, "Choice-window")
 
     def end_choice(self) -> None:
         self._choice_freetext_prefix = None
@@ -107,14 +95,7 @@ class UISelection:
         self._active_choice = None
         self._choice_cursor = 0
         self._choice_selected = set()
-        try:
-            # lazy: heavy third-party
-            from prompt_toolkit.application import get_app
-
-            get_app().layout.focus(self._ui.input_field)
-        except Exception as e:
-            # Layout not ready (e.g. before first render) — focus on next paint.
-            CFG.LOGGER.debug(f"Input-field focus failed: {e}")
+        focus_widget(self._ui.input_field, "Input-field")
 
     # --- widget construction --------------------------------------------
 
@@ -145,10 +126,8 @@ class UISelection:
         control = FormattedTextControl(
             self.get_choice_text, focusable=True, key_bindings=kb
         )
-        # `get_choice_text` wraps at word boundaries itself, so this is only
-        # a backstop: it keeps a line the measured width got wrong (a wide
-        # glyph, a resize between render and paint) visible instead of
-        # clipped, which is prompt_toolkit's default.
+        # Backstop for `get_choice_text`'s own wrapping: a mis-measured line
+        # (wide glyph, resize mid-paint) wraps instead of clipping.
         return Window(
             content=control,
             style="class:choice",
@@ -206,10 +185,8 @@ class UISelection:
         options = spec.get("options", [])
         question = spec.get("question", "")
 
-        # Free-text row: close the widget, keep the future pending, and let the
-        # next Enter in the input field resolve it via handle_confirmation.
-        # In multi-select, any already-checked options are carried as a prefix
-        # so the final answer is "those options + the typed text".
+        # Free-text row: close the widget and leave the future pending for the
+        # input field's next Enter; checked options become the answer's prefix.
         if self._choice_cursor == self._free_text_row():
             prefix = ""
             if spec.get("multi_select"):
@@ -315,12 +292,9 @@ class UISelection:
     ) -> "StyleAndTextTuples":
         """One option: its label, then its description wrapped beneath it.
 
-        The description sits on its own lines under the label rather than
-        trailing it inline — an option whose description is a paragraph
-        (`AskUserQuestion` routinely sends those) otherwise buries the label
-        mid-sentence, and a wrapped inline row has no column the eye can
-        follow. Continuation lines are indented to the label's own column,
-        so a wrap never reads as a new option.
+        Paragraph-long descriptions would bury an inline label, so they go
+        beneath it; continuation lines indent to the label's column so a wrap
+        never reads as a new option.
         """
         cursor = "❯ " if i == self._choice_cursor else "  "
         if is_free_text:
@@ -331,8 +305,7 @@ class UISelection:
             marker = "◉ " if i == self._choice_cursor else "◯ "
         is_cursor = i == self._choice_cursor
         style = "class:choice.selected" if is_cursor else "class:choice.option"
-        # On the highlighted row the description shares the highlight style so the
-        # selection bar reads as one continuous segment.
+        # The highlight covers the description too, as one continuous bar.
         desc_style = style if is_cursor else "class:choice.desc"
         gutter = f" {cursor}{marker}"
         indent = " " * len(gutter)
@@ -345,16 +318,14 @@ class UISelection:
         return row
 
     def _fill(self, line: str, width: int, is_cursor: bool) -> str:
-        """A highlighted row pads to the full width so its selection bar is one
-        solid block across every wrapped line, not a ragged right edge."""
+        """Pad a highlighted line to full width so the bar has no ragged edge."""
         return (line.ljust(width) if is_cursor else line) + "\n"
 
     def _wrap_width(self) -> int:
         """Usable text width inside the choice float.
 
-        The float spans the terminal (`left=0, right=0`) inside a `Frame`, so
-        four columns go to its border and padding. Falls back to a readable
-        default when the width is unknown (no running application).
+        Four columns go to the full-width `Frame`'s border and padding; falls
+        back to a default when the width is unknown.
         """
         columns = getattr(self._ui, "output_field_width", None)
         return max(24, (columns or 84) - 4)
@@ -364,9 +335,8 @@ class UISelection:
     def _append_now(self, text: str) -> None:
         """Append to output now, bypassing the confirmation buffer guard.
 
-        The guard in `append_to_output` swallows output while a confirmation is
-        pending mid-thinking; the free-text future is still pending here, so we
-        clear the active slot for the duration of the write.
+        `append_to_output` buffers output while a confirmation is pending, and
+        the free-text future still is, so the slot is cleared for the write.
         """
         saved = self._ui.confirmation.current
         self._ui.confirmation.current = None
@@ -374,14 +344,7 @@ class UISelection:
         self._ui.confirmation.current = saved
 
     def _invalidate(self) -> None:
-        try:
-            # lazy: heavy third-party
-            from prompt_toolkit.application import get_app
-
-            get_app().invalidate()
-        except Exception as e:
-            # No active app to repaint — safe to ignore.
-            CFG.LOGGER.debug(f"Choice-widget invalidate failed: {e}")
+        invalidate_app("Choice-widget")
 
 
 def _wrap(text: str, width: int) -> list[str]:

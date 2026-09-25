@@ -18,7 +18,7 @@ Zrb's `zrb llm chat` is a coding agent with a pipeline engine underneath it. Cla
   - [Shipping an agent inside your own product](#shipping-an-agent-inside-your-own-product)
   - [You already have Claude Code assets](#you-already-have-claude-code-assets)
   - [Team access through a browser](#team-access-through-a-browser)
-- [Choose Zrb When… / Choose Another Harness When…](#choose-zrb-when-choose-another-harness-when)
+- [Choose Zrb When… / Choose Another Harness When…](#choose-zrb-when--choose-another-harness-when)
 
 ---
 

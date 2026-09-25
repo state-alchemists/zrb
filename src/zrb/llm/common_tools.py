@@ -67,13 +67,9 @@ from zrb.llm.tool_call.tool_policy.bash_validation import bash_safe_command_poli
 from zrb.llm.util.git import is_inside_git_dir
 from zrb.util.string.conversion import to_boolean
 
-# NOTE: `zrb.llm.tool` and `zrb.llm.lsp.tools` are imported lazily inside the
-# seed function below — not to dodge a circular import (there isn't one:
-# `zrb.llm.tool/__init__.py` doesn't eagerly re-export anything, see its own
-# docstring), but because both transitively load `pydantic_ai`. Deferring
-# them until the registry's seed is first resolved (i.e. the first
-# `apply_common_tools` call) keeps that cold-start cost off `import zrb`
-# for callers that never build an agent.
+# `zrb.llm.tool` and `zrb.llm.lsp.tools` are imported inside the seed function
+# because both transitively load `pydantic_ai`; that keeps the cost off
+# `import zrb` for callers that never build an agent.
 
 if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext
@@ -112,13 +108,11 @@ def apply_common_tools(host: CommonToolHost) -> None:
     """
     host.append_tool_factory(_common_tools_provider)
     host.append_toolset_factory(_common_toolsets_provider)
-    # Shell safety travels with the shell tools rather than with one builtin
-    # task: the allowlist in bash_safe_command_policy IS the git approval rule
-    # (read-only subcommands auto-approve, `commit`/`push`/`reset` reach the
-    # user), so registering it here is what lets that rule stay out of the
-    # prompt. Hosts without an approval channel (programmatic LLMTask,
-    # SubAgentManager — the latter inherits the caller's confirmation via the
-    # current_tool_confirmation ContextVar) have no prepend_tool_policy; skip them.
+    # Shell safety travels with the shell tools: bash_safe_command_policy's
+    # allowlist is the git approval rule (read-only subcommands auto-approve),
+    # which keeps that rule out of the prompt. Hosts without an approval
+    # channel (programmatic LLMTask, SubAgentManager) have no
+    # prepend_tool_policy.
     add_policy = getattr(host, "prepend_tool_policy", None)
     if callable(add_policy):
         add_policy(bash_safe_command_policy())
@@ -170,11 +164,9 @@ def _seed_default_tools() -> tuple[list, list, list]:
     (below), and appended to the `tools` list — or it silently resolves to
     `Capability.UNKNOWN` (denied in plan mode) with no error.
     """
-    # lazy + import from source modules directly. Going through the
-    # ``zrb.llm.tool`` re-export would deadlock: that package's __init__
-    # loads ``delegate.py`` which triggers ``SubAgentManager`` load which
-    # ultimately re-enters this function. By that time the re-export
-    # names (``analyze_file``, etc.) aren't yet bound on ``zrb.llm.tool``.
+    # Imported from the source modules: the ``zrb.llm.tool`` re-export loads
+    # ``delegate.py`` -> ``SubAgentManager``, which re-enters this function
+    # before the re-exported names are bound.
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import Tool
 
@@ -202,19 +194,11 @@ def _seed_default_tools() -> tuple[list, list, list]:
     from zrb.llm.tool.web import open_web_page, search_internet
     from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
 
-    # Register the 8 LSP tools only when a language server is actually installed
-    # — their own guidance already says to fall back to Read + Grep when none is
-    # available, so advertising them in a server-less repo is pure prompt weight.
-    # detect_available_lsp_servers() starts no server, but it reads every $PATH
-    # directory, so the gate costs real startup time -- unavoidable here, since
-    # it has to resolve before the seed is built.
+    # LSP tools only when a language server is installed; otherwise they are
+    # pure prompt weight. The check scans $PATH but starts no server.
     lsp_tools = create_lsp_tools() if detect_available_lsp_servers() else []
-    # Worktree tools only make sense inside a git repo — registering them in a
-    # non-git directory is pure prompt weight (their docstrings + schemas would
-    # still ship on every request). Mirrors the LSP gate above. is_inside_git_dir() is
-    # evaluated against the startup cwd; a user in a non-git dir trades away the
-    # tools' `cwd`-points-elsewhere escape hatch, same as the LSP gate trades
-    # away server-less repos — acceptable for the token saving.
+    # Worktree tools only inside a git repo (judged from the startup cwd),
+    # trading away their `cwd`-points-elsewhere use for the token saving.
     worktree_tools = (
         [enter_worktree, exit_worktree, list_worktrees] if is_inside_git_dir() else []
     )
@@ -260,12 +244,8 @@ def _seed_default_tools() -> tuple[list, list, list]:
         move_file,
         search_internet,
         open_web_page,
-        # Deferred loading: these are rarely needed (specific workflows or
-        # server-gated), so hide their schemas from the model's initial
-        # context. The model discovers them through native tool search
-        # (Anthropic/OpenAI server-side) only when it needs one, instead of
-        # paying their docstring + schema token cost on every turn. The name
-        # stays visible either way; the full description materializes on search.
+        # Rarely needed, so deferred: the name stays visible and the schema
+        # materializes through native tool search only when the model asks.
         Tool(analyze_code, defer_loading=True),
         Tool(analyze_file, defer_loading=True),
         *(Tool(_fn, defer_loading=True) for _fn in worktree_tools),
@@ -315,12 +295,8 @@ def _seed_tool_factories() -> tuple[list, list]:
         tag(_fn, Capability.EDIT)
 
     factories: list["Callable[[AnyContext], Any]"] = [
-        # Plan-mode and AskUserQuestion need a human in the loop, so register
-        # them only in interactive sessions. In non-interactive runs (one-shot
-        # CLI, sub-agents, programmatic LLMTask) they are dead weight —
-        # AskUserQuestion short-circuits and the prompt already says to skip plan
-        # mode — yet their docstrings + schemas (~350-450 tok) would still ship
-        # on every request.
+        # Plan-mode and AskUserQuestion need a human, so only interactive
+        # sessions get them (~350-450 tokens saved elsewhere).
         lambda ctx: (
             [
                 Tool(enter_plan_mode, defer_loading=True),
@@ -330,26 +306,14 @@ def _seed_tool_factories() -> tuple[list, list]:
             else []
         ),
         lambda ctx: [ask_user_question] if _resolve_interactive(ctx) else [],
-        # ReadToolResult only makes sense when spill is enabled — registering it
-        # otherwise is pure prompt weight for a tool that always answers "no
-        # result". A factory (re-evaluated on every run) rather than a static
-        # tool, so toggling LLM_ENABLE_TOOL_SPILL mid-session — e.g. via
-        # /config — takes effect on the next run instead of leaving a spilled
-        # result with no way to read it back.
+        # ReadToolResult only with spill enabled. A factory, re-evaluated per
+        # run, so toggling LLM_ENABLE_TOOL_SPILL via /config applies next run.
         lambda ctx: [read_tool_result] if CFG.LLM_ENABLE_TOOL_SPILL else [],
-        # The journal tools are the whole journal interface — there is no prompt
-        # section describing the protocol any more, so LLM_JOURNAL_ENABLED=false
-        # is enforced by these four simply not existing. Their docstrings carry
-        # what earns an entry and when to write it, and disappear with them.
-        #
-        # Deferred loading: the main agent only touches these on a small
-        # minority of turns, so hide their schemas until search_tools — same
-        # rationale as analyze_code/analyze_file in _seed_default_tools above. The
-        # journal-compliance hook (agent/hook_agent.py) names these tools
-        # explicitly rather than discovering them, so defer_loading would only
-        # cost it an extra search-then-call round trip on every run with no
-        # offsetting benefit — `resolve_agent_hook_tools` strips defer_loading
-        # back off there.
+        # The journal tools are the whole journal interface: their docstrings
+        # carry the protocol, so LLM_JOURNAL_ENABLED=false is enforced by their
+        # absence. Deferred, since few turns use them; the journal-compliance
+        # hook names them explicitly, so `resolve_agent_hook_tools` strips
+        # defer_loading there.
         lambda ctx: (
             [
                 Tool(search_journal, defer_loading=True),

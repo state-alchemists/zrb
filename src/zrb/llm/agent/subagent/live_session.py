@@ -52,37 +52,25 @@ class LiveSubAgentSession:
     session_id: str
     sub_agent_manager: "SubAgentManager"
     buffered_ui: "BufferedUI"
-    # The run_scope the original delegation turn ran under (see delegate.py's
-    # comment on why it's a fresh uuid4, not the display-only agent_id).
-    # Continuations must reuse it — a fresh scope per turn would make
-    # file_observation.py forget what earlier turns of this same sub-agent
-    # conversation already read.
+    # The original delegation's run_scope. Continuations reuse it so
+    # file_observation.py remembers what earlier turns already read.
     run_scope: str = field(default_factory=lambda: uuid.uuid4().hex)
-    # What the original delegation was actually granted (permission policy,
-    # yolo, sandbox), captured while its scope was still bound. A
-    # continuation runs long after that scope has exited, so it must rebind
-    # this explicitly rather than inherit whatever is ambient at that later,
-    # unrelated point — see `authority_snapshot.py`'s module docstring.
+    # What the original delegation was granted (permission policy, yolo,
+    # sandbox), captured while its scope was bound; continuations rebind it
+    # rather than inherit later ambient state (see `authority_snapshot.py`).
     authority: "AuthoritySnapshot | None" = None
     history: list = field(default_factory=list)
     pending_queue: list[str] = field(default_factory=list)
     state: str = "idle"  # "idle" | "running"
-    # The asyncio.Task currently driving this session's run — a continuation
-    # spawned by `send_message`, or the original delegate turn's own task (set
-    # by `run_agent_task`). `cancel` uses it to stop what the sub-agent is
-    # doing (Esc while viewing in the TUI).
+    # The task driving this session's run (a `send_message` continuation or
+    # the original delegate turn); `cancel` stops it.
     active_task: "asyncio.Task | None" = None
-    # True only between `cancel` and the cancelled task's own handling of the
-    # CancelledError. Lets `run_agent_task` tell a human-initiated cancel
-    # from the main run's own cancellation, and swallow only the former so the
-    # main agent's turn survives a sub-agent cancel in a fan-out.
+    # True only between `cancel` and the task handling its CancelledError, so
+    # `run_agent_task` swallows a human cancel but not the main run's own.
     cancelled_by_human: bool = False
-    # Sticky record that a human cancelled this session (Esc while viewing).
-    # Unlike `cancelled_by_human` it is never reset by a new continuation, so
-    # `_continue_live_session` can tell that the main agent only ever heard
-    # "Cancelled by user" from this delegation and must be handed the
-    # continuation's latest response on its natural end
-    # (`_report_latest_response_to_parent`).
+    # Sticky "a human cancelled this session": the main agent only heard
+    # "Cancelled by user", so a continuation hands it the latest response on
+    # its natural end (`_report_latest_response_to_parent`).
     notify_parent_on_end: bool = False
 
     def set_active_task(self, task: "asyncio.Task | None") -> None:
@@ -254,17 +242,9 @@ async def _continue_live_session(entry: LiveSubAgentSession) -> None:
                 entry.agent_id, entry.agent_name, task=text, session_id=entry.session_id
             )
             try:
-                # The reply is not surfaced anywhere else -- the human watches it
-                # stream via `entry.buffered_ui` directly (no tool call is
-                # waiting on a return value here, unlike a normal delegation).
-                # Rebind the original delegation's captured authority
-                # explicitly — this call runs long after that scope exited,
-                # so ambient inheritance alone would pick up whatever is
-                # current at this later point instead (see
-                # authority_snapshot.py). Passing these as explicit arguments
-                # is sufficient: run_agent resolves and binds each of them
-                # itself (its own ExitStack), regardless of what is ambient
-                # at the call site.
+                # The human watches the reply stream via `entry.buffered_ui`;
+                # no tool call awaits it. The captured authority is passed
+                # explicitly, and run_agent binds it itself.
                 authority = entry.authority
                 _result, history = await run_agent(
                     agent=agent,
@@ -291,20 +271,12 @@ async def _continue_live_session(entry: LiveSubAgentSession) -> None:
                     entry.agent_id, session_id=entry.session_id
                 )
     finally:
-        # The loop can be cut short before its trailing assignment: `cancel()`
-        # (Esc while viewing) cancels this task, and CancelledError is not an
-        # `Exception` so it would skip the plain `except` above. The session
-        # must still come back to "idle" or a later message would queue forever
-        # behind a stuck "running" state. `cancel()` also sets it, but this
-        # guards every other path (loop teardown, unexpected task death).
+        # Always back to idle, even on CancelledError (not an `Exception`),
+        # or a later message would queue forever behind "running".
         entry.state = "idle"
-        # The session ended (its queue drained, or a cancel cut it short).
-        # Mark the end in the live view — unless a human cancelled it, in
-        # which case the TUI already wrote "<Esc> Canceled" via
-        # `cancel_viewed_agent`, and a "<Done>" on top would contradict it. A
-        # session that was cancelled and then continued also hands its latest
-        # response to the main agent, which only ever heard "Cancelled by
-        # user" from it; a second cancel suppresses both.
+        # Mark the end in the live view, unless a human cancelled it (the TUI
+        # already wrote "<Esc> Canceled"). A cancelled-then-continued session
+        # also reports its latest response to the main agent.
         if not entry.cancelled_by_human:
             entry.buffered_ui.append_to_output("<Done>")
             if entry.notify_parent_on_end:

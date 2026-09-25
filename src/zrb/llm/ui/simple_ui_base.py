@@ -75,7 +75,7 @@ class SimpleUI(BaseUI):
         tool_policies: "list[ToolPolicy] | None" = None,
         argument_formatters: "list[ArgumentFormatter] | None" = None,
         custom_commands: "list[AnyCustomCommand] | None" = None,
-        **kwargs,  # Accept extra kwargs for easy subclassing
+        **kwargs,  # Accepted so subclasses can take extra keywords.
     ):
         super().__init__(
             ctx=ctx,
@@ -84,7 +84,7 @@ class SimpleUI(BaseUI):
             initial_message=initial_message,
             initial_attachments=initial_attachments or [],
             ui_config=ui_config or UIConfig.default(),
-            triggers=[],  # Empty list for triggers
+            triggers=[],
             response_handlers=response_handlers or [],
             tool_policies=tool_policies or [],
             argument_formatters=argument_formatters or [],
@@ -154,22 +154,15 @@ class SimpleUI(BaseUI):
         this method directly instead of print().
         """
         text = sep.join(str(v) for v in values) + end
-        # Schedule the async print in the running event loop
         try:
             loop = asyncio.get_running_loop()
             task = loop.create_task(self.print(text, kind))
-            # asyncio only holds a weak reference to a scheduled task — without
-            # a strong reference somewhere, it can be garbage-collected mid-
-            # execution. Track it the same way every other fire-and-forget
-            # task in this package does (base/ui.py, base/commands.py,
-            # base/conversation_commands.py).
+            # asyncio holds scheduled tasks weakly; keep a strong reference.
             if hasattr(self, "_background_tasks"):
                 self._background_tasks.add(task)
                 task.add_done_callback(self._background_tasks.discard)
         except RuntimeError:
-            # No running event loop - fall back to synchronous print
-            # This can happen during initialization or in edge cases
-
+            # No running loop (e.g. during initialization).
             sys.stdout.write(text)
             sys.stdout.flush()
 
@@ -192,7 +185,6 @@ class SimpleUI(BaseUI):
     async def run_async(self) -> str:
         """Default implementation - handles common pattern."""
         self._process_messages_task = asyncio.create_task(self.process_messages_loop())
-        # Add to background tasks to prevent premature garbage collection
         if hasattr(self, "_background_tasks"):
             self._background_tasks.add(self._process_messages_task)
 

@@ -388,8 +388,8 @@ class InputCompleter(Completer):
         only_files: bool = False,
         display_meta: str | None = None,
     ) -> Iterable[Completion]:
-        # If the user starts a path-style prefix, defer to PathCompleter; otherwise
-        # use fuzzy matching against the recursive walk (capped for big repos).
+        # Path-style prefixes go to PathCompleter; otherwise fuzzy-match the
+        # recursive walk, unless it hit the cap.
         if self._is_path_navigation(text):
             yield from self._get_path_completions(
                 text, complete_event, only_files, display_meta=display_meta
@@ -409,16 +409,12 @@ class InputCompleter(Completer):
             )
 
     def _is_path_navigation(self, text: str) -> bool:
-        # A Windows absolute path ("C:\\Users\\me\\", "C:/Users/me/") is a path
-        # prefix as much as "/" is. Without the drive form it fell through to
-        # the fuzzy walk of the current repo, which can never match a file
-        # outside that tree -- so typing an absolute path offered nothing.
-        # The bare "\\" root is Windows-only on purpose: on POSIX a leading
-        # backslash is an escape, and treating it as a path start would hand
-        # the fuzzy walk's job to a PathCompleter that can never match.
-        if os.name == "nt":
-            if re.match(r"^[A-Za-z]:[\\/]", text) or text.startswith("\\"):
-                return True
+        # Windows drive paths ("C:\\", "C:/") and the bare "\\" root are path
+        # prefixes too; on POSIX a leading backslash is an escape, not a root.
+        if os.name == "nt" and (
+            re.match(r"^[A-Za-z]:[\\/]", text) or text.startswith("\\")
+        ):
+            return True
         return text.startswith(("/", ".", "~"))
 
     def _get_path_completions(
@@ -430,9 +426,7 @@ class InputCompleter(Completer):
     ) -> Iterable[Completion]:
         fake_document = Document(text=text, cursor_position=len(text))
         for c in self._path_completer.get_completions(fake_document, complete_event):
-            # PathCompleter marks a directory with "/" on every platform, not
-            # with os.sep -- so an os.sep-only test let directories through the
-            # files-only filter on Windows.
+            # PathCompleter marks directories with "/" on every platform.
             if only_files and c.text.endswith(("/", os.sep)):
                 continue
             if display_meta is not None:

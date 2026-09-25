@@ -1,3 +1,5 @@
+from typing import Any, Callable
+
 from zrb.builtin.git import git_commit
 from zrb.builtin.group import git_subtree_group
 from zrb.config.config import CFG
@@ -6,7 +8,8 @@ from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
 from zrb.util.cli.style import stylize_muted
 from zrb.util.git.commands import get_repo_dir
-from zrb.util.git.subtree import add_subtree, load_config, pull_subtree, push_subtree
+from zrb.util.git.subtree import (add_subtree, load_config, pull_subtree,
+                                  push_subtree)
 
 
 @make_task(
@@ -56,32 +59,7 @@ async def git_add_subtree(ctx: AnyContext) -> None:
     alias="pull",
 )
 async def git_pull_subtree(ctx: AnyContext) -> None:
-    ctx.print(stylize_muted("Get directory"))
-    repo_dir = await get_repo_dir(print_method=ctx.print)
-    config = load_config(repo_dir)
-    if not config.data:
-        raise ValueError(
-            f"No subtrees.json in {repo_dir!r}. Run "
-            f"`{CFG.ROOT_GROUP_NAME} git subtree add` to register one before "
-            "pulling/pushing it."
-        )
-    first_err: Exception | None = None
-    for name, detail in config.data.items():
-        try:
-            ctx.print(stylize_muted(f"Pull from subtree {name}"))
-            await pull_subtree(
-                repo_dir=repo_dir,
-                prefix=detail.prefix,
-                repo_url=detail.repo_url,
-                branch=detail.branch,
-                print_method=ctx.print,
-            )
-        except Exception as e:
-            if first_err is None:
-                first_err = e
-            ctx.log_error(e)
-    if first_err is not None:
-        raise first_err
+    await _sync_subtrees(ctx, pull_subtree, "Pull from subtree")
 
 
 @make_task(
@@ -92,6 +70,12 @@ async def git_pull_subtree(ctx: AnyContext) -> None:
     alias="push",
 )
 async def git_push_subtree(ctx: AnyContext) -> None:
+    await _sync_subtrees(ctx, push_subtree, "Push to subtree")
+
+
+async def _sync_subtrees(ctx: AnyContext, sync: Callable[..., Any], label: str) -> None:
+    """Run `sync` for every registered subtree; raise the first failure after
+    trying them all."""
     ctx.print(stylize_muted("Get directory"))
     repo_dir = await get_repo_dir(print_method=ctx.print)
     config = load_config(repo_dir)
@@ -104,8 +88,8 @@ async def git_push_subtree(ctx: AnyContext) -> None:
     first_err: Exception | None = None
     for name, detail in config.data.items():
         try:
-            ctx.print(stylize_muted(f"Push to subtree {name}"))
-            await push_subtree(
+            ctx.print(stylize_muted(f"{label} {name}"))
+            await sync(
                 repo_dir=repo_dir,
                 prefix=detail.prefix,
                 repo_url=detail.repo_url,

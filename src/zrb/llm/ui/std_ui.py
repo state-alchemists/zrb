@@ -52,12 +52,11 @@ class StdUI(UIStateDefaultsMixin, AnyUI):
         agent_id: str | None = None,
     ) -> str:
         """Prompt user via CLI input."""
-
         # lazy: heavy third-party
         from prompt_toolkit import PromptSession
         from prompt_toolkit.output import create_output
 
-        # Always output to stderr to avoid polluting stdout
+        # stderr, so stdout carries only the result.
         output = create_output(stdout=sys.stderr)
         session = PromptSession(output=output)
 
@@ -72,9 +71,6 @@ class StdUI(UIStateDefaultsMixin, AnyUI):
         try:
             user_input = await session.prompt_async(prompt)
             return user_input.strip()
-        except KeyboardInterrupt:
-            # Let it propagate so the task runner can catch it or exit gracefully
-            raise
         except EOFError:
             return ""
 
@@ -135,7 +131,6 @@ class StdUI(UIStateDefaultsMixin, AnyUI):
         kind: str = "text",
     ):
         """Print output to stderr."""
-
         content = sep.join(str(v) for v in values) + end
         # The stream event handler opens each line with "\n" and never closes
         # the last one, the usage line. StdUI has no turn-closing step of its
@@ -158,10 +153,7 @@ class StdUI(UIStateDefaultsMixin, AnyUI):
         flush: bool = False,
         kind: str = "text",
     ):
-        """Stream output immediately (same as append_to_output for StdUI).
-
-        For StdUI, there's no buffering, so this is identical to append_to_output.
-        """
+        """Identical to `append_to_output`: StdUI does not buffer."""
         self.append_to_output(
             *values, sep=sep, end=end, file=file, flush=flush, kind=kind
         )
@@ -170,11 +162,7 @@ class StdUI(UIStateDefaultsMixin, AnyUI):
         self, cmd: str | list[str], shell: bool = False
     ) -> Any:
         """Run interactive commands using subprocess."""
-
-        def _run():
-            return subprocess.run(cmd, shell=shell)
-
-        return await asyncio.to_thread(_run)
+        return await asyncio.to_thread(subprocess.run, cmd, shell=shell)
 
     async def run_async(self) -> Any:
         """No-op event loop for `AnyUI` conformance.

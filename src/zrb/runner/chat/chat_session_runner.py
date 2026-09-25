@@ -157,15 +157,9 @@ async def _run_one_message(
             approval_channel=approval_channel,
         )
         try:
-            # Bound only around the spawn: asyncio.create_task
-            # copies the current context, so the task keeps this
-            # value for its whole run regardless of when this
-            # `with` block exits (see ADR-0069's "spawn inside the
-            # still-bound scope" invariant). Session.session_id is
-            # the unique key — never session_name, which
-            # ChatSessionManager never guarantees unique — so a
-            # background process this run starts can only ever be
-            # cleaned up by removing *this* session.
+            # asyncio.create_task copies the current context, so the
+            # task keeps this value for its whole run (ADR-0069). Keyed
+            # by session_id, never the non-unique session_name.
             with scoped(current_chat_session_id, session.session_id):
                 llm_task = asyncio.create_task(
                     _run_llm_message(

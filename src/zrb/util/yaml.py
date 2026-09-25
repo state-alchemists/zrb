@@ -25,11 +25,9 @@ def yaml_dump(obj: Any, key: str = "") -> str:
         explicit_end=False,
         width=float("inf"),
     )
-    if not isinstance(obj_to_dump, (dict, list)):
-        # PyYAML appends '...\n' (document-end) for top-level scalars.
-        # So, we remove it.
-        if yaml_str.endswith("...\n"):
-            yaml_str = yaml_str[:-4]
+    # PyYAML appends a '...\n' document-end marker to top-level scalars.
+    if not isinstance(obj_to_dump, (dict, list)) and yaml_str.endswith("...\n"):
+        yaml_str = yaml_str[:-4]
     return yaml_str
 
 
@@ -46,7 +44,6 @@ def edit_obj(obj: Any, key: str, val: str) -> Any:
 
     if not key:
         if isinstance(obj, dict) and isinstance(parsed_value, dict):
-            # Patch/merge the dict values
             return {**obj, **parsed_value}
         return parsed_value
 
@@ -56,21 +53,17 @@ def edit_obj(obj: Any, key: str, val: str) -> Any:
 
 def _sanitize_obj(obj: Any) -> Any:
     """Process a value for YAML conversion."""
-    if obj is None:
-        return None
-    elif isinstance(obj, (int, float, bool, str)):
+    if obj is None or isinstance(obj, (int, float, bool, str)):
         return obj
-    elif isinstance(obj, (list, tuple)):
+    if isinstance(obj, (list, tuple)):
         return [_sanitize_obj(item) for item in obj if not _is_complex_obj(item)]
-    elif isinstance(obj, dict):
+    if isinstance(obj, dict):
         return {k: _sanitize_obj(v) for k, v in obj.items() if not _is_complex_obj(v)}
-    elif isinstance(obj, set):
+    if isinstance(obj, set):
         return [
             _sanitize_obj(item) for item in sorted(obj) if not _is_complex_obj(item)
         ]
-    else:
-        # Ignore non-primitive/list/dict/set objects
-        return None
+    return None
 
 
 def _is_complex_obj(obj: Any) -> bool:
@@ -82,7 +75,6 @@ def _is_complex_obj(obj: Any) -> bool:
 def _multiline_string_presenter(dumper, data):
     """Custom representer for multiline strings."""
     if "\n" in data:
-        # Clean up the string for block style
         lines = [line.rstrip() for line in data.splitlines()]
         clean_data = "\n".join(lines)
         return dumper.represent_scalar("tag:yaml.org,2002:str", clean_data, style="|")
@@ -101,8 +93,7 @@ def load_yaml(value_str: str) -> Any:
     if value_str == "":
         return ""
     try:
-        parsed = yaml.safe_load(value_str)
-        return parsed
+        return yaml.safe_load(value_str)
     except yaml.YAMLError:
         return value_str
 
@@ -121,7 +112,7 @@ def set_obj_value(obj: Any, keys: list[str], value: Any) -> Any:
         else:
             obj[current_key] = value
         return obj
-    elif isinstance(obj, list):
+    if isinstance(obj, list):
         try:
             index = int(current_key)
             if 0 <= index < len(obj):
@@ -136,19 +127,13 @@ def set_obj_value(obj: Any, keys: list[str], value: Any) -> Any:
         except ValueError:
             raise KeyError(f"Cannot use non-integer key '{current_key}' with list")
         return obj
-    else:
-        if remaining_keys:
-            new_obj = {current_key: set_obj_value({}, remaining_keys, value)}
-            return new_obj
-        else:
-            return {current_key: value}
+    if remaining_keys:
+        return {current_key: set_obj_value({}, remaining_keys, value)}
+    return {current_key: value}
 
 
 def get_obj_value(obj: Any, keys: list[str]) -> Any:
-    """
-    Get a value from a nested structure using a list of keys.
-    Returns None if the key path does not exist.
-    """
+    """Get a value from a nested structure; None if the key path does not exist."""
     current_val = obj
     for key in keys:
         if isinstance(current_val, dict):

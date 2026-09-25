@@ -178,14 +178,12 @@ def test_unbuildable_native_provider_falls_back_to_the_bare_name(resolver, monke
 
     The bare name is the right fallback: pydantic-ai then raises its own
     "set `<VENDOR>_API_KEY`" message instead of this code inventing a worse
-    one. The first resolve primes the resolver's native-provider cache so the
-    patch below is seen only by `_resolve_native_model`, which is the call
-    site under test.
+    one. The first, credentialed resolve primes the resolver's native-provider
+    cache so the patch below is seen only by `_resolve_native_model`, which is
+    the call site under test.
     """
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    assert resolver.resolve("anthropic:claude-sonnet-4-5") == (
-        "anthropic:claude-sonnet-4-5"
-    )
+    resolver.resolve("anthropic:claude-sonnet-4-5", api_key="generic")
 
     with patch(
         "pydantic_ai.providers.infer_provider_class",

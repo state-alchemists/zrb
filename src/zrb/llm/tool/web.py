@@ -16,13 +16,10 @@ from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.tool_call.untrusted_data import UNTRUSTED_DATA_NOTE
 from zrb.util.truncate import truncate_text
 
-# Bounds every off-loop call below (DNS resolution, PDF parsing, HTML
-# conversion). Some blocking primitives underneath (notably C-level DNS
-# resolution via getaddrinfo) have no timeout of their own and cannot be
-# interrupted -- `asyncio.wait_for` alone would still leave the worker
-# thread running forever. Combined with `run_blocking`'s daemon thread
-# (below), the *coroutine* gives up on schedule regardless of whether the
-# underlying call ever returns.
+# Slack added to every off-loop call's own timeout (DNS resolution, PDF
+# parsing, HTML conversion). Some primitives underneath (C-level getaddrinfo)
+# have no timeout and cannot be interrupted; with `run_blocking`'s daemon
+# thread the *coroutine* still gives up on schedule.
 TIMEOUT_MARGIN_SECONDS = 10
 _LOCAL_PROCESSING_TIMEOUT_SECONDS = 30
 
@@ -55,23 +52,15 @@ def run_blocking(func, *args, timeout: float):
 def notify(message: str) -> None:
     """Best-effort interim status line for a slow-but-bounded operation.
 
-    Without this, a fetch/search is a silent black box between the tool-call
-    start line and its (up to ~60s away, Playwright + HTTP-fallback timeouts
-    stacked) result — indistinguishable from a hang to the user. Uses
-    ``stream_to_parent`` (part of ``AnyUI``, already implemented by every
-    UI including ``BufferedUI`` for sub-agents) so it reaches the activity
-    panel too. A missing/incompatible UI, or any failure here, must never
-    break the actual fetch — this is a courtesy message, not the result.
+    A fetch/search can take up to ~60s (Playwright + HTTP-fallback timeouts
+    stacked); without this it is indistinguishable from a hang. Uses
+    ``stream_to_parent`` (part of ``AnyUI``, including ``BufferedUI`` for
+    sub-agents) so it reaches the activity panel too. A missing UI, or any
+    failure here, never breaks the fetch.
 
-    The two-space indent matches ``StreamEventHandler``'s own
-    ``indentation`` (``indent_level=1``, the only value zrb ever constructs
-    it with) — this call sits outside that handler entirely, so without it
-    the line lands at column 0 while every event-driven line around it
-    (thinking, tool-call, usage) is indented. The leading ``\\n`` is this
-    call's own line break: it prints outside `StreamEventHandler`, which
-    relies on the *next* thing printed to supply the separator between
-    blocks rather than baking a trailing one into what came before — see
-    the note on `_close_thinking_block`'s label in stream_response.py.
+    The two-space indent matches ``StreamEventHandler``'s ``indent_level=1``;
+    this prints outside that handler, so it supplies its own leading ``\\n``
+    separator (see `_close_thinking_block` in stream_response.py).
     """
     ui = get_current_ui()
     if ui is None:
@@ -118,10 +107,9 @@ async def open_web_page(
             "url": url,
         }
 
-    # PDF text is already plain text — running it through the HTML
-    # converter would eat `<...>`-looking sequences (code, generics,
-    # emails) as if they were tags. The HTML conversion itself is
-    # blocking CPU (BeautifulSoup + markdownify), so it runs off-loop.
+    # PDF text is already plain: the HTML converter would eat `<...>`-looking
+    # sequences (code, generics, emails) as tags. The conversion is blocking
+    # CPU, so it runs off-loop.
     markdown_content = (
         content
         if is_pdf
@@ -131,37 +119,22 @@ async def open_web_page(
             timeout=_LOCAL_PROCESSING_TIMEOUT_SECONDS,
         )
     )
-    # Bound the payload before it becomes a message, like Shell caps its
-    # output: an unbounded page otherwise produces a request larger than the
-    # per-minute token budget, which the rate limiter can never admit — it
-    # loops forever and freezes the UI. Keep the head, where web pages
-    # front-load their content.
+    # An unbounded page can exceed the per-minute token budget, which the
+    # rate limiter can never admit — it would loop forever. Keep the head,
+    # where web pages front-load their content.
     markdown_content, truncated = truncate_text(
         markdown_content, CFG.LLM_MAX_OUTPUT_CHARS, keep="head"
     )
 
     if summarize:
-        summarized_content = await _summarize_web_content(markdown_content, url)
-        return {
-            "content": summarized_content,
-            "content_is": UNTRUSTED_DATA_NOTE,
-            "links_on_page": links,
-            "summarized": True,
-            "truncated": truncated,
-            "url": url,
-        }
-
-    # The summarize=True path is injection-hardened inside the sub-agent's
-    # own prompt (markdown/web_summarizer.md), but the summary still carries
-    # untrusted bytes from an external page — the site's own text, echoed
-    # back through the quotes the summarizer is told to preserve. Both paths
-    # therefore carry the same untrusted-data claim, so neither can read as
-    # agent-authored.
+        markdown_content = await _summarize_web_content(markdown_content, url)
+    # A summary still echoes the page's own text through the quotes the
+    # summarizer preserves, so both paths carry the untrusted-data claim.
     return {
         "content": markdown_content,
         "content_is": UNTRUSTED_DATA_NOTE,
         "links_on_page": links,
-        "summarized": False,
+        "summarized": summarize,
         "truncated": truncated,
         "url": url,
     }
@@ -181,56 +154,38 @@ async def search_internet(
     SERPAPI/Brave only activate when both the method and its key are set.
     """
     notify(f"🔎 Searching ({CFG.SEARCH_INTERNET_METHOD.strip().lower()}): {query!r}...")
+    backend = _select_search_backend()
     # lazy: tests patch `zrb.llm.tool.search.<backend>.search_internet` at
-    # the source path and expect the patch to take effect inside this
-    # function; hoisting would bind the names at module-load and bypass
-    # test mocks.
-    # Every backend below is a synchronous `requests.get` call — run off-loop
-    # via run_blocking, the same rule _fetch_page_content already follows
-    # ("inline they freeze the TUI's event loop for the whole download").
-    # Without this, one stalled connection blocks every concurrent sub-agent
-    # and the TUI's own redraw for the full call, timeout or not.
+    # the source path; hoisting would bind the names at load and bypass it.
+    if backend == "serpapi":
+        from zrb.llm.tool.search.serpapi import search_internet as backend_search
+    elif backend == "brave":
+        from zrb.llm.tool.search.brave import search_internet as backend_search
+    elif backend == "searxng":
+        from zrb.llm.tool.search.searxng import search_internet as backend_search
+    else:
+        from zrb.llm.tool.search.google_rss import search_internet as backend_search
+    # Every backend is a synchronous `requests.get`; inline, one stalled
+    # connection would freeze the event loop for every sub-agent and the TUI.
     search_timeout = CFG.LLM_WEB_HTTP_TIMEOUT / 1000 + TIMEOUT_MARGIN_SECONDS
+    try:
+        raw = await run_blocking(backend_search, query, page, timeout=search_timeout)
+    except Exception as e:  # noqa: BLE001
+        return _search_payload(query, [], page, error=str(e))
+    return normalize_search_result(raw, backend, page=page)
+
+
+def _select_search_backend() -> str:
+    """The configured backend; keyed backends fall back to the keyless
+    Google News RSS when their key is unset."""
     method = CFG.SEARCH_INTERNET_METHOD.strip().lower()
     if method == "serpapi" and CFG.SERPAPI_KEY:
-        from zrb.llm.tool.search.serpapi import search_internet as serpapi_search
-
-        try:
-            raw = await run_blocking(
-                serpapi_search, query, page, timeout=search_timeout
-            )
-        except Exception as e:  # noqa: BLE001
-            return _error_result(query, page, str(e), "serpapi")
-        return normalize_search_result(raw, "serpapi", page=page)
-
+        return "serpapi"
     if method == "brave" and CFG.BRAVE_API_KEY:
-        from zrb.llm.tool.search.brave import search_internet as brave_search
-
-        try:
-            raw = await run_blocking(brave_search, query, page, timeout=search_timeout)
-        except Exception as e:  # noqa: BLE001
-            return _error_result(query, page, str(e), "brave")
-        return normalize_search_result(raw, "brave", page=page)
-
+        return "brave"
     if method == "searxng":
-        from zrb.llm.tool.search.searxng import search_internet as searxng_search
-
-        try:
-            raw = await run_blocking(
-                searxng_search, query, page, timeout=search_timeout
-            )
-        except Exception as e:  # noqa: BLE001
-            return _error_result(query, page, str(e), "searxng")
-        return normalize_search_result(raw, "searxng")
-
-    # default: Google News RSS — free, no API key, no Docker required
-    from zrb.llm.tool.search.google_rss import search_internet as google_rss_search
-
-    try:
-        raw = await run_blocking(google_rss_search, query, page, timeout=search_timeout)
-    except Exception as e:  # noqa: BLE001
-        return _error_result(query, page, str(e), "google_rss")
-    return normalize_search_result(raw, "google_rss")
+        return "searxng"
+    return "google_rss"
 
 
 def normalize_search_result(raw: dict, backend: str, page: int = 1) -> dict:
@@ -262,13 +217,7 @@ def _normalize_brave(raw: dict, query: str, page: int = 1) -> dict:
                 "source": "brave",
             }
         )
-    return {
-        "query": query,
-        "results": results,
-        "total": len(results),
-        "page": page,
-        "error": None,
-    }
+    return _search_payload(query, results, page)
 
 
 def _normalize_serpapi(raw: dict, query: str, page: int = 1) -> dict:
@@ -284,13 +233,7 @@ def _normalize_serpapi(raw: dict, query: str, page: int = 1) -> dict:
                 "source": "serpapi",
             }
         )
-    return {
-        "query": query,
-        "results": results,
-        "total": len(results),
-        "page": page,
-        "error": None,
-    }
+    return _search_payload(query, results, page)
 
 
 def _normalize_searxng(raw: dict, query: str) -> dict:
@@ -304,13 +247,7 @@ def _normalize_searxng(raw: dict, query: str) -> dict:
                 "source": "searxng",
             }
         )
-    return {
-        "query": query,
-        "results": results,
-        "total": len(results),
-        "page": raw.get("pageno", 1),
-        "error": None,
-    }
+    return _search_payload(query, results, raw.get("pageno", 1))
 
 
 def _normalize_google_rss(raw: dict, query: str) -> dict:
@@ -324,22 +261,18 @@ def _normalize_google_rss(raw: dict, query: str) -> dict:
                 "source": item.get("source", "google_rss"),
             }
         )
+    return _search_payload(query, results, raw.get("page", 1))
+
+
+def _search_payload(
+    query: str, results: list[dict], page: int, error: str | None = None
+) -> dict:
     return {
         "query": query,
         "results": results,
         "total": len(results),
-        "page": raw.get("page", 1),
-        "error": None,
-    }
-
-
-def _error_result(query: str, page: int, message: str, backend: str) -> dict:
-    return {
-        "query": query,
-        "results": [],
-        "total": 0,
         "page": page,
-        "error": message,
+        "error": error,
     }
 
 
@@ -364,20 +297,14 @@ async def _fetch_page_content(url: str) -> tuple:
         except Exception as e:
             CFG.LOGGER.debug(f"Direct PDF fetch failed for {url}, trying browser: {e}")
     try:
-        # A browser launch/navigation talks to a Playwright driver subprocess
-        # over a pipe; if that pipe breaks (the driver crashes -- observed in
-        # practice) the awaiting coroutine has nothing telling it the reply
-        # will never come and hangs indefinitely. `wait_for` bounds it the
-        # same way `run_blocking` bounds the thread-based fallbacks below.
+        # If the Playwright driver subprocess crashes, its pipe breaks and the
+        # awaiting coroutine would hang forever; `wait_for` bounds it.
         page_timeout = CFG.LLM_WEB_PAGE_TIMEOUT / 1000 + TIMEOUT_MARGIN_SECONDS
         return await asyncio.wait_for(
             _fetch_via_browser(url, user_agent), timeout=page_timeout
         )
     except Exception:
-        # Otherwise a Playwright timeout/failure is a second silent wait
-        # (another up to LLM_WEB_HTTP_TIMEOUT) stacked right after the first,
-        # with nothing telling the user zrb moved on to a different attempt
-        # rather than being stuck on the same one.
+        # The fallback is a second wait of up to LLM_WEB_HTTP_TIMEOUT; say so.
         notify(f"↩️  Browser fetch failed for {url}, retrying via plain HTTP...")
         return await run_blocking(
             fetch_page_fallback, url, user_agent, timeout=fetch_timeout
@@ -391,11 +318,8 @@ async def _fetch_via_browser(url: str, user_agent: str) -> tuple:
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
-        # A launched browser must always be closed, even when goto/eval
-        # raises (e.g. a page.goto timeout on a slow/flaky site) — the bare
-        # try below only fell through to the fallback on exception, skipping
-        # browser.close() and leaking the headless Chromium process plus its
-        # disk-backed profile per failed fetch.
+        # Close even when goto/eval raises, or the headless Chromium process
+        # and its disk-backed profile leak per failed fetch.
         try:
             page = await browser.new_page()
             await page.set_extra_http_headers({"User-Agent": user_agent})
@@ -485,16 +409,11 @@ def convert_html_to_markdown(html_text: str) -> str:
 
 async def _summarize_web_content(markdown_content: str, url: str) -> str:
     """Summarize web content using an agent while preserving references."""
-    # lazy: zrb.llm.agent transitively loads pydantic_ai. Keeping this inside
-    # the one function that needs it preserves cold-start latency for
-    # search_internet/open_web_page callers that never hit summarization —
-    # and lets this module be re-exported from zrb.llm.tool without forcing
-    # the whole agent package to finish loading first.
+    # lazy: zrb.llm.agent transitively loads pydantic_ai; also lets this module
+    # be re-exported from zrb.llm.tool before the agent package finishes loading.
     from zrb.llm.agent import create_agent, run_agent
 
     agent = create_agent(
-        # Already resolved here; resolve_model=False stops create_agent from
-        # resolving it a second time.
         model=resolve_configured_model(),
         system_prompt=get_prompt("web_summarizer"),
         resolve_model=False,

@@ -27,4 +27,3 @@ class NullApprovalChannel(AnyApprovalChannel):
         context: ApprovalContext | None = None,
     ) -> None:
         """Ignore notifications."""
-        pass

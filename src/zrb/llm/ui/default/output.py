@@ -19,6 +19,7 @@ from zrb.llm.ui.output_chunk import (
     OpenCollapsibleBlock,
     merge_into_block,
     merge_output_chunk,
+    rebase_tracked_spans,
 )
 from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.markdown import render_markdown
@@ -148,20 +149,13 @@ class UIOutput:
         current_text = self._ui.output_field.text
 
         # The output window pins itself to the cursor, so follow-the-tail means
-        # "keep the cursor on the last line". While it is, new chunks scroll
-        # into view; the moment the user scrolls up (which moves the cursor up —
-        # see create_output_field's mouse handler / the output keybindings) the
-        # cursor leaves the last line and we freeze, preserving their position.
-        # Scrolling back down to the last line resumes following. Works
-        # regardless of which pane is focused, so the thinking process can be
-        # read mid-stream without first focusing the output pane (Ctrl+K).
+        # "keep the cursor on the last line"; scrolling up moves the cursor and
+        # freezes the view until the user scrolls back down. Independent of
+        # which pane is focused.
         #
-        # "Cursor on the last line" == "no newline after the cursor". Checked on
-        # the raw string on purpose: document.cursor_position_row/line_count
-        # build the Document's line index — an O(buffer) scan on EVERY streamed
-        # chunk (the render path rebuilds it anyway, but only at the debounced
-        # ~60Hz rate, not per token). str.find early-exits, so this is O(1)
-        # while following and O(distance to next newline) when scrolled up.
+        # "Cursor on the last line" == "no newline after the cursor", checked
+        # on the raw string: document.cursor_position_row builds the line
+        # index, an O(buffer) scan per streamed chunk.
         is_at_last_line = True
         try:
             cursor = self._ui.output_field.buffer.cursor_position
@@ -194,7 +188,6 @@ class UIOutput:
             return
 
         if kind not in ("text", "todo_progress"):
-
             content = stylize_muted(content)
 
         # Handle carriage returns (\r) for status updates. A chunk of an
@@ -210,13 +203,9 @@ class UIOutput:
             # tracked past that point moved with it.
             self._rebase_tracked_spans(rebase_from, len(new_text) - len(current_text))
 
-        # NB: we deliberately do NOT fire a Notification hook per output chunk.
-        # The Claude-Code `Notification` event means "the agent needs your
-        # attention" (permission/idle), not "output was produced"; firing it per
-        # streamed chunk spawned a command-hook subprocess per chunk, which under
-        # a real hook like peon-ping exhausted file descriptors and timed out.
-        # Genuine attention notifications fire at the right moments instead
-        # (PermissionRequest on approval; elicitation_dialog on AskUserQuestion).
+        # No Notification hook per chunk: that event means "the agent needs
+        # your attention", and a subprocess per streamed chunk exhausts file
+        # descriptors under a real command hook.
 
         new_cursor_position = (
             len(new_text)
@@ -410,34 +399,20 @@ class UIOutput:
         finishes.
         """
         span = self._shell_output_spans.pop(key, None)
-        if span is None or not full:
+        if span is None:
             return False
-        start, end = span
-        source = CollapsibleBlockSource(stylize_muted(collapsed), stylize_muted(full))
-        if not self.replace_output_span(start, end, source.collapsed):
-            return False
-        self.set_rendered_block(
-            start, start + len(source.collapsed), source, _render_collapsible_block
-        )
-        return True
+        return self._splice_collapsed_span(*span, collapsed, full)
 
     def _splice_collapsed_span(
         self, start: int, end: int, collapsed: str, full: str
     ) -> bool:
-        """Shared low-level mechanics: splice `collapsed` over `[start, end)`
-        and register the span as
-        Ctrl+O-expandable. Shared by the single-slot tracker
-        (`_collapse_collapsible_block`, thinking/text) and the keyed one
-        (`collapse_shell_output_block`) — both just resolve `start`
-        differently before calling this.
+        """Splice `collapsed` over `[start, end)` and register the span as
+        Ctrl+O-expandable, for both the single-slot tracker (thinking/text)
+        and the keyed one (`finish_shell_output`).
 
-        `full` is the caller's own accumulated text, deliberately NOT
-        re-read from the buffer: a stray carriage return anywhere in a
-        streamed chunk can rewrite or erase part of the *rendered* line
-        (see `append_to_output`'s `\\r` handling, built for progress
-        spinners but applying to any text), so reconstructing "the full
-        text" from what currently sits on screen would silently inherit
-        that erasure. A no-op if nothing was actually accumulated.
+        `full` is the caller's accumulated text, not re-read from the buffer:
+        a stray `\\r` in a streamed chunk can erase part of the *rendered*
+        line. A no-op if nothing was accumulated.
         """
         if not full or end <= start:
             return False
@@ -603,16 +578,12 @@ class UIOutput:
         advanced its `end`. A foreign edit that does move it shifts it itself,
         in `replace_output_span`.
         """
-        if not delta:
-            return
-        for entry in self._ui.rendered_blocks:
-            if entry[0] >= after:
-                entry[0] += delta
-                entry[1] += delta
-        for spans in (self._tool_prepare_spans, self._shell_output_spans):
-            for key, (span_start, span_end) in list(spans.items()):
-                if span_start >= after:
-                    spans[key] = (span_start + delta, span_end + delta)
+        rebase_tracked_spans(
+            self._ui.rendered_blocks,
+            (self._tool_prepare_spans, self._shell_output_spans),
+            after,
+            delta,
+        )
 
     def set_output_text(self, text: str) -> None:
         # lazy: heavy third-party

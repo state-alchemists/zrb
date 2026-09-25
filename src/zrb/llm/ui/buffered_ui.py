@@ -4,9 +4,6 @@ Used when several sub-agents run in parallel: each gets one of these, so their
 interleaved output is collected and flushed as a block rather than shredded
 across the terminal, while `ask`-style prompts are forwarded to the real UI one
 at a time under a shared lock.
-
-Lived inside `llm/tool/delegate.py` until 2.58.0 — a complete UI implementation
-in a tool module, which is also an import edge pointing the wrong way.
 """
 
 from __future__ import annotations
@@ -20,6 +17,7 @@ from zrb.llm.ui.output_chunk import (
     CollapsibleBlockSource,
     OpenCollapsibleBlock,
     merge_into_block,
+    rebase_tracked_spans,
 )
 from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
 from zrb.util.cli.style import stylize_muted
@@ -95,18 +93,13 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         output_to_parent: str = "",
         agent_id: str | None = None,
     ) -> str:
-        # The lock guards only the synchronous write below (prevents two
-        # sibling fan-out agents' output_to_parent writes from interleaving)
-        # — it must NOT wrap the wait for the human's answer. Holding it
-        # across that wait serialized every sibling's ENTIRE approval
-        # round-trip through whichever one acquired the lock first: the
-        # others never even reached the shared confirmation queue, so
-        # picking a different sub-agent via the picker had nothing of that
-        # agent's own to resolve yet.
+        # The lock guards only the parent write, so sibling fan-out agents'
+        # writes don't interleave. It must not wrap the wait for the answer,
+        # or every sibling's approval would serialize behind the first and
+        # never reach the shared confirmation queue.
         async with self._lock:
-            # Write the caller's approval/question message straight to the
-            # parent so the user sees *what* is being approved without
-            # navigating into the sub-agent's live view.
+            # Shown on the parent so the user sees what is being approved
+            # without opening the sub-agent's live view.
             if output_to_parent:
                 self._wrapped.append_to_output(output_to_parent, end="")
             prefixed_prompt = (
@@ -114,10 +107,8 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
                 if self._prefix and prompt.strip() != ""
                 else prompt
             )
-        # Preserve the originating agent's id through nested delegation (a
-        # sub-agent's own sub-agent) instead of relabeling it as this layer's
-        # — only stamp `self._agent_id` at the layer closest to the actual
-        # caller. Awaited outside the lock so siblings can enqueue concurrently.
+        # Keep the originating agent's id through nested delegation; only the
+        # layer closest to the caller stamps its own.
         return await self._wrapped.ask_user(
             prefixed_prompt,
             agent_id=agent_id if agent_id is not None else self._agent_id,
@@ -133,19 +124,14 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         kind: str = "text",
     ):
         text = sep.join(str(v) for v in values) + end
-        # The activity panel (agent.last_line, rendered as plain text in
-        # output.py's get_agent_activity_text) needs the UNSTYLED line — it
-        # never interprets ANSI, so a styled string would show raw escape
-        # codes there. Style only what goes into the buffer itself.
+        # The activity panel renders plain text and would show raw ANSI, so
+        # it gets the unstyled line; only the buffer is styled.
         if self._agent_id:
             agent_activity_registry.update(
                 self._agent_id, text, session_id=self._session_id
             )
 
-        # Mirrors UIOutput.append_to_output: everything but plain text/
-        # progress-todo gets muted — tool-call/thinking/progress/usage lines
-        # read as dimmed background chatter here too, not just in the main
-        # transcript.
+        # As in UIOutput: everything but text/todo_progress is muted.
         styled_text = (
             stylize_muted(text) if kind not in ("text", "todo_progress") else text
         )
@@ -191,16 +177,12 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         that rewrite the buffer somewhere other than the tail. The open block
         is not shifted here; see that method for why.
         """
-        if not delta:
-            return
-        for entry in self._rendered_blocks:
-            if entry[0] >= after:
-                entry[0] += delta
-                entry[1] += delta
-        for spans in (self._tool_prepare_spans, self._shell_output_spans):
-            for key, (span_start, span_end) in list(spans.items()):
-                if span_start >= after:
-                    spans[key] = (span_start + delta, span_end + delta)
+        rebase_tracked_spans(
+            self._rendered_blocks,
+            (self._tool_prepare_spans, self._shell_output_spans),
+            after,
+            delta,
+        )
 
     def append_toggle_block(self, collapsed: str, full: str) -> None:
         """Append a tool-call/result line that can later be expanded in
@@ -241,11 +223,8 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         return self._collapse_collapsible_block(collapsed, full)
 
     def _collapse_collapsible_block(self, collapsed: str, full: str) -> bool:
-        """Shared mechanics for `collapse_thinking_block`/`collapse_text_block`.
-
-        See `_splice_collapsed_span` for the mechanics. A no-op if no block
-        was marked.
-        """
+        """Shared by `collapse_thinking_block`/`collapse_text_block`; a no-op
+        if no block was marked."""
         block = self._collapsible_block
         self._collapsible_block = None
         if block is None:
@@ -259,9 +238,7 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
     def update_shell_output(self, key: str, text: str) -> None:
         """Grow or replace `key`'s own live shell-output line with `text`.
 
-        Mirrors `UIOutput.update_shell_output` — see `_update_keyed_line`
-        for the mechanics and why this replaces the original mark-once/
-        collapse-once design.
+        Mirrors `UIOutput.update_shell_output`; see `_update_keyed_line`.
         """
         self._update_keyed_line(self._shell_output_spans, key, text)
 
@@ -273,14 +250,9 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         for why.
         """
         span = self._shell_output_spans.pop(key, None)
-        if span is None or not full:
+        if span is None:
             return False
-        start, end = span
-        source = CollapsibleBlockSource(stylize_muted(collapsed), stylize_muted(full))
-        if not self._replace_span(start, end, source.collapsed):
-            return False
-        self._rendered_blocks.append([start, start + len(source.collapsed), source])
-        return True
+        return self._splice_collapsed_span(*span, collapsed, full)
 
     def _splice_collapsed_span(
         self, start: int, end: int, collapsed: str, full: str
@@ -313,10 +285,8 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
     ) -> None:
         """Shared mechanics for `update_tool_prepare`/`update_shell_output`.
 
-        Mirrors `UIOutput._update_keyed_line` — see its docstring for why
-        replace-in-place (rather than the `\\r` trick or the mark-once/
-        collapse-once trick) is what makes two keys' own lines safe to
-        grow concurrently.
+        Mirrors `UIOutput._update_keyed_line`: replacing in place is what
+        lets two keys' lines grow concurrently.
         """
         span = spans.get(key)
         if span is None:
@@ -367,11 +337,7 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
     async def ask_user_choice(
         self, spec: ChoiceSpec, agent_id: str | None = None
     ) -> str:
-        # No synchronous parent-write to guard here (unlike ask_user's
-        # output_to_parent), so nothing needs the lock — same reasoning as
-        # ask_user: the wait for the human's answer must never be held under
-        # it, or sibling fan-out agents can't reach the shared confirmation
-        # queue concurrently.
+        # No parent write to guard, so no lock (see `ask_user`).
         return await self._wrapped.ask_user_choice(
             spec, agent_id=agent_id if agent_id is not None else self._agent_id
         )
@@ -406,16 +372,15 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
     def flush_to_parent(self) -> None:
         """Flush buffered output to parent UI."""
         output = self.get_buffered_output()
-        if output:
-            if self._prefix:
-                indented = "\n".join(
-                    f"{self._prefix}{line}" if line.strip() != "" else ""
-                    for line in output.split("\n")
-                )
-                self._wrapped.append_to_output(indented)
-            else:
-                self._wrapped.append_to_output(output)
-            self._buffer.clear()
+        if not output:
+            return
+        if self._prefix:
+            output = "\n".join(
+                f"{self._prefix}{line}" if line.strip() != "" else ""
+                for line in output.split("\n")
+            )
+        self._wrapped.append_to_output(output)
+        self._buffer.clear()
 
     def clear_buffer(self) -> None:
         """Clear the buffer without flushing."""

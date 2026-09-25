@@ -10,8 +10,6 @@ from zrb.context.any_context import zrb_print
 from zrb.llm.agent import create_agent, run_agent
 from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.config.model_resolver import resolve_configured_model
-
-# LSP integration for semantic pre-analysis
 from zrb.llm.lsp.manager import lsp_manager
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.tool.code_constants import DEFAULT_EXTENSIONS, LSP_SUPPORTED_EXTENSIONS
@@ -27,9 +25,7 @@ async def get_lsp_context(file_path: str, abs_dir: str) -> dict | None:
     """
     try:
         full_path = os.path.join(abs_dir, file_path)
-
         symbols_result = await lsp_manager.get_document_symbols(full_path)
-
         diagnostics_result = await lsp_manager.get_diagnostics(full_path)
 
         if not symbols_result.get("found") and not diagnostics_result.get("found"):
@@ -64,7 +60,7 @@ async def get_lsp_context(file_path: str, abs_dir: str) -> dict | None:
         return context
 
     except Exception as e:
-        # LSP not available or error - return None to fall back to file reading
+        # None makes the caller fall back to reading the file.
         zrb_print(f"  LSP context error for {file_path}: {e}", plain=True)
         return None
 
@@ -143,22 +139,18 @@ async def analyze_code(
         else:
             include_patterns = [file_pattern]
 
-    if use_lsp:
-        available_servers = lsp_manager.list_available_servers()
-        if available_servers:
-            zrb_print(
-                f"  🔍 LSP enabled (servers: {list(available_servers.keys())})",
-                plain=True,
-            )
-            file_metadatas = await _get_file_metadatas_with_lsp(
-                abs_path, extensions, include_patterns, exclude_patterns
-            )
-        else:
-            zrb_print("  📄 LSP not available, using file reading", plain=True)
-            file_metadatas = get_file_metadatas(
-                abs_path, extensions, include_patterns, exclude_patterns
-            )
+    available_servers = lsp_manager.list_available_servers() if use_lsp else None
+    if available_servers:
+        zrb_print(
+            f"  🔍 LSP enabled (servers: {list(available_servers.keys())})",
+            plain=True,
+        )
+        file_metadatas = await _get_file_metadatas_with_lsp(
+            abs_path, extensions, include_patterns, exclude_patterns
+        )
     else:
+        if use_lsp:
+            zrb_print("  📄 LSP not available, using file reading", plain=True)
         file_metadatas = get_file_metadatas(
             abs_path, extensions, include_patterns, exclude_patterns
         )
@@ -205,8 +197,7 @@ def _collect_matching_files(
     the extension/include/exclude filters, in the same walk-then-sort order
     both `get_file_metadatas` and `_get_file_metadatas_with_lsp` need.
 
-    A filter-evaluation error is logged and the file skipped — matching the
-    original per-caller try/except around this exact block.
+    A filter-evaluation error is logged and the file skipped.
     """
     matches: list[tuple[str, str]] = []
     for root, dirs, files in os.walk(dir_path):
@@ -264,15 +255,14 @@ async def _get_file_metadatas_with_lsp(
 ) -> list[dict[str, str | dict]]:
     """Get file metadata with LSP semantic context when available.
 
-    This is more token-efficient than reading full file content for structure queries.
-    Falls back to reading file content if LSP is not available for the file type.
+    More token-efficient than full file content for structure queries. Falls
+    back to reading the file when LSP does not support its type, fails, or
+    returns no symbols.
     """
-
     metadata_list = []
     lsp_tasks = []
     file_paths = []
 
-    # First pass: collect files and start LSP tasks for supported file types
     for file_path, rel_path in _collect_matching_files(
         dir_path, extensions, include_patterns, exclude_patterns
     ):
@@ -293,22 +283,7 @@ async def _get_file_metadatas_with_lsp(
         lsp_results = await asyncio.gather(*lsp_tasks, return_exceptions=True)
 
         for rel_path, lsp_result in zip(file_paths, lsp_results):
-            if isinstance(lsp_result, Exception):
-                # LSP failed - fall back to reading file
-                try:
-                    with open(
-                        os.path.join(dir_path, rel_path),
-                        "r",
-                        encoding="utf-8",
-                        errors="ignore",
-                    ) as f:
-                        metadata_list.append({"path": rel_path, "content": f.read()})
-                except Exception as e:
-                    CFG.LOGGER.debug(
-                        f"analyze_code: skipped unreadable file {rel_path}: {e}"
-                    )
-            elif isinstance(lsp_result, dict) and lsp_result.get("lsp_symbols"):
-                # Use LSP context (more token-efficient for structure queries)
+            if isinstance(lsp_result, dict) and lsp_result.get("lsp_symbols"):
                 metadata_list.append(lsp_result)
             else:
                 try:
@@ -334,8 +309,6 @@ async def extract_info(
     token_limit: int,
 ) -> list[str]:
     agent = create_agent(
-        # Already resolved here; resolve_model=False avoids resolving twice
-        # inside create_agent.
         model=resolve_configured_model(),
         system_prompt=get_prompt("repo_extractor"),
         resolve_model=False,
@@ -345,7 +318,7 @@ async def extract_info(
     content_buffer = []
     current_token_count = 0
 
-    # We estimate token count of the prompt template overhead
+    # Estimated token overhead of the prompt template.
     base_overhead = 100
 
     for metadata in file_metadatas:
@@ -361,10 +334,9 @@ async def extract_info(
         else:
             payload = {"path": path, "content": metadata.get("content", "")}
 
-        # A single file larger than the whole batch budget would be flushed as a
-        # solo batch (below) and sent whole — if it also exceeds the per-minute
-        # token budget, the rate limiter can never admit it and livelocks the UI
-        # forever. Truncate it to fit, like WebFetch/Shell bound their payloads.
+        # A file larger than the batch budget would be sent whole as a solo
+        # batch; past the per-minute token budget the rate limiter could never
+        # admit it. Truncate it to fit.
         content, file_tokens = _fit_file_payload(payload, token_limit - base_overhead)
 
         if current_token_count + file_tokens + base_overhead > token_limit:
@@ -388,14 +360,9 @@ async def extract_info(
 def _fit_file_payload(payload: dict, budget: int) -> tuple[str, int]:
     """Serialize a per-file payload to fit ``budget``; returns ``(json, tokens)``.
 
-    Truncating the *serialized* string cut the JSON mid-string (unterminated,
-    no closing brace), so the extractor could misattribute the path/content
-    boundary. Truncate the dominant field and re-serialize instead — the
-    extractor always receives valid JSON.
-
-    The token count is returned rather than recomputed by the caller: counting
-    is the expensive part, and it already happens here to decide whether the
-    payload fits.
+    Truncates the dominant field and re-serializes, so the extractor always
+    receives valid JSON rather than a string cut mid-value. The token count is
+    returned because counting is the expensive part and already happens here.
     """
     content = json.dumps(payload)
     tokens = llm_limiter.count_tokens(content)
@@ -415,8 +382,6 @@ async def _summarize_info(
     token_limit: int,
 ) -> list[str]:
     agent = create_agent(
-        # Already resolved here; resolve_model=False avoids resolving twice
-        # inside create_agent.
         model=resolve_configured_model(),
         system_prompt=get_prompt("repo_summarizer"),
         resolve_model=False,
@@ -424,7 +389,6 @@ async def _summarize_info(
 
     summarized_infos = []
     content_buffer = ""
-    # Overhead for prompt structure
     base_overhead = 100
 
     for info in extracted_infos:

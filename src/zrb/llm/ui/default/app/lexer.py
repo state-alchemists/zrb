@@ -2,7 +2,7 @@ import re
 
 from prompt_toolkit.lexers import Lexer
 
-# Color lookup tables (class-level constants for reuse)
+# ANSI palette indices 0-7 for SGR 30-37/40-47 and 90-97.
 _STANDARD_FG = [
     "#000000",
     "#ff0000",
@@ -60,11 +60,9 @@ class CLIStyleLexer(Lexer):
             for match in ansi_escape.finditer(line):
                 start, end = match.span()
 
-                # Emit text before this escape with current style
                 if start > last_end:
                     tokens.append((_build_style(attrs, fg, bg), line[last_end:start]))
 
-                # Parse semicolon-separated codes
                 codes = match.group(1).split(";")
                 if not codes or codes == [""]:
                     codes = ["0"]
@@ -116,7 +114,7 @@ def _dispatch_code(
     params_consumed is the number of extra integers beyond the code itself
     that were consumed from int_codes[offset:].
     """
-    # --- Attribute codes (modify attrs set in-place) ---
+    # Attribute codes mutate `attrs` in place.
     if code == 0:
         attrs.clear()
         return (("", ""), 0)
@@ -127,23 +125,19 @@ def _dispatch_code(
         attrs.difference_update(_ATTR_CLEAR[code])
         return (None, 0)
 
-    # --- Color resets: 39 foreground, 49 background ---
     if code == 39:
         return (("", bg), 0)
     if code == 49:
         return ((fg, ""), 0)
 
-    # --- Standard foreground (30-37) / background (40-47) ---
     if 30 <= code <= 37:
         return ((_STANDARD_FG[code - 30], bg), 0)
     if 40 <= code <= 47:
         return ((fg, f"bg:{_STANDARD_FG[code - 40]}"), 0)
 
-    # --- Bright foreground (90-97) ---
     if 90 <= code <= 97:
         return ((_BRIGHT_FG[code - 90], bg), 0)
 
-    # --- Extended color: 38;mode;params foreground, 48;... background ---
     if code in (38, 48):
         return _apply_extended_color(
             int_codes, offset, is_background=code == 48, fg=fg, bg=bg
@@ -170,13 +164,13 @@ def _apply_extended_color(
 
     mode = int_codes[offset]
     if mode == 5 and remaining >= 2:
-        # 256-color palette — skip the index, no prompt_toolkit mapping
-        return ((fg, bg), 2)  # mode + index
+        # 256-color palette: no mapping, skip mode + index.
+        return ((fg, bg), 2)
     if mode == 2 and remaining >= 4:
         r, g, b = int_codes[offset + 1], int_codes[offset + 2], int_codes[offset + 3]
         hex_color = f"#{r:02x}{g:02x}{b:02x}"
         if is_background:
-            return ((fg, f"bg:{hex_color}"), 4)  # mode + R + G + B
-        return ((hex_color, bg), 4)  # mode + R + G + B
-
-    return ((fg, bg), 1 if remaining >= 1 else 0)  # mode only, skip
+            return ((fg, f"bg:{hex_color}"), 4)
+        return ((hex_color, bg), 4)
+    # Unknown or truncated mode: skip the mode only.
+    return ((fg, bg), 1)

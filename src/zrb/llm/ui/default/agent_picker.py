@@ -1,34 +1,25 @@
 """Sub-agent picker and live-view state for the default `UI`.
 
-The "talk to a running sub-agent directly" feature: press Down Arrow with an
-empty input field to open a picker listing every live (running or just-finished)
-sub-agent session tracked by `live_subagent_session_registry`; pick one with
-Enter to switch the output pane to that sub-agent's own buffered transcript and
-route typed messages to it. While viewing, Left Arrow returns to the main
-session (navigation — it never touches the sub-agent's work); Esc cancels what
-the sub-agent is doing, mirroring how Esc behaves on the main agent.
+Down Arrow on an empty input opens a picker of the live (running or
+just-finished) sub-agent sessions in `live_subagent_session_registry`; Enter
+switches the output pane to that sub-agent's buffered transcript and routes
+typed messages to it. In that view, Left returns to the main session and Esc
+cancels the sub-agent's work.
 
-State lives in two places on this part (exposed publicly — `picker_cursor`,
-`agent_picker_window`, `viewing_agent_id`, `saved_main_output` — for whichever
-sibling needs it, reached via `self._ui`):
-
-* `_picker_sessions` / `_picker_cursor` / `_agent_picker_window` — the picker
-  widget itself (a focusable `Window` shown as a `Float`, same approach as
-  `UISelection`; no nested `Application`).
-* `_viewing_agent_id` / `_saved_main_output` — the live view. While viewing, the
-  output pane is a redraw-time snapshot of the sub-agent's buffer (see
-  `sync_output_to_viewed_agent`), the main transcript is parked in
-  `saved_main_output`, and Enter routes to the sub-agent instead of the main
-  session (see `UIKeybindings._handle_enter_dispatch`).
+* Picker widget: `_picker_sessions` / `_picker_cursor` / `_agent_picker_window`
+  (a focusable `Window` in a `Float`, like `UISelection`).
+* Live view: `_viewing_agent_id` / `_saved_main_output`. The pane is a
+  redraw-time snapshot of the sub-agent's buffer (`sync_output_to_viewed_agent`)
+  and the main transcript is parked in `saved_main_output`.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from zrb.config.config import CFG
 from zrb.llm.agent.activity import agent_activity_registry
 from zrb.llm.tool.ambient_state import get_session_ownership_key
+from zrb.llm.ui.default.app.focus import focus_widget, invalidate_app
 from zrb.util.truncate import truncate_display
 
 if TYPE_CHECKING:
@@ -106,14 +97,7 @@ class UIAgentPicker:
             return False
         self._picker_sessions = list(sessions)
         self._picker_cursor = 0
-        try:
-            # lazy: heavy third-party
-            from prompt_toolkit.application import get_app
-
-            get_app().layout.focus(self._agent_picker_window)
-        except Exception as e:
-            # Layout not ready (e.g. before first render) — focus on next paint.
-            CFG.LOGGER.debug(f"Agent-picker focus failed: {e}")
+        focus_widget(self._agent_picker_window, "Agent-picker")
         self._invalidate()
         return True
 
@@ -123,14 +107,7 @@ class UIAgentPicker:
             return
         self._picker_sessions = []
         self._picker_cursor = 0
-        try:
-            # lazy: heavy third-party
-            from prompt_toolkit.application import get_app
-
-            get_app().layout.focus(self._ui.input_field)
-        except Exception as e:
-            # Layout not ready — focus on next paint.
-            CFG.LOGGER.debug(f"Input-field focus failed: {e}")
+        focus_widget(self._ui.input_field, "Input-field")
         self._invalidate()
 
     def move_agent_picker_cursor(self, delta: int) -> None:
@@ -179,11 +156,9 @@ class UIAgentPicker:
     def cancel_viewed_agent(self) -> bool:
         """Cancel what the viewed sub-agent is doing (Esc while viewing).
 
-        Mirrors the main agent's Esc: it stops the sub-agent's in-flight work
-        and drops its queued messages — it does *not* leave the view (Left
-        does that). Returns ``False`` when not viewing or when the sub-agent
-        had nothing in flight to cancel. On success, a ``<Esc> Canceled`` note
-        lands in the sub-agent's own buffer so its live view reflects it.
+        Stops in-flight work and drops queued messages without leaving the
+        view. Returns ``False`` when not viewing or nothing was in flight; on
+        success notes ``<Esc> Canceled`` in the sub-agent's own buffer.
         """
         if self._viewing_agent_id is None:
             return False
@@ -204,49 +179,28 @@ class UIAgentPicker:
     def sync_output_to_viewed_agent(self) -> None:
         """Copy the viewed sub-agent's buffered output into the output pane.
 
-        Called from the app's after-render hook (the periodic
-        ``LLM_UI_REFRESH_INTERVAL`` redraw) while `_viewing_agent_id` is set.
-        No-op when the content is unchanged, so a quiet sub-agent does not
-        re-invalidate the app forever.
+        Called from the after-render hook while viewing. No-op when the
+        content is unchanged, so a quiet sub-agent does not repaint forever.
         """
         if self._viewing_agent_id is None:
             return
-        # lazy: transitively heavy via internal — live_session.py imports
-        # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
-        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
-
-        session = live_subagent_session_registry.get(
-            get_session_ownership_key(self._ui.conversation_session_name),
-            self._viewing_agent_id,
-        )
+        session = self._get_viewed_session(self._viewing_agent_id)
         if session is None:
-            # The session was torn down while we were viewing it — return to main.
+            # Torn down while viewed: return to the main transcript.
             self.exit_agent_view()
             return
         self._show_viewed_agent_output(session.buffered_ui.get_buffered_output())
 
     def toggle_viewed_agent_block(self) -> bool:
-        """Expand/collapse the collapsible block at the output cursor, in
-        the currently-viewed sub-agent's own scope (public API).
+        """Toggle the collapsible block at the output cursor in the viewed
+        sub-agent's own `BufferedUI` scope (public API).
 
-        The sub-agent's `BufferedUI` tracks its own toggle blocks
-        independently of the main transcript's `UIOutput.rendered_blocks`
-        (see `BufferedUI.toggle_collapsible_block_at_offset`) — this method
-        is the routing point `UI.toggle_collapsible_block` calls into while
-        `viewing_agent_id` is set, so Ctrl+O always operates on whatever is
-        actually displayed. Returns `False` when not viewing, when the
-        session vanished, or when nothing was found to toggle.
+        Returns `False` when not viewing, the session vanished, or nothing
+        was toggled.
         """
         if self._viewing_agent_id is None:
             return False
-        # lazy: transitively heavy via internal — live_session.py imports
-        # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
-        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
-
-        session = live_subagent_session_registry.get(
-            get_session_ownership_key(self._ui.conversation_session_name),
-            self._viewing_agent_id,
-        )
+        session = self._get_viewed_session(self._viewing_agent_id)
         if session is None:
             return False
         offset = self._ui.output_field.buffer.cursor_position
@@ -254,6 +208,16 @@ class UIAgentPicker:
         if toggled:
             self._show_viewed_agent_output(session.buffered_ui.get_buffered_output())
         return toggled
+
+    def _get_viewed_session(self, agent_id: str) -> "LiveSubAgentSession | None":
+        # lazy: transitively heavy via internal — live_session.py imports
+        # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
+        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+
+        return live_subagent_session_registry.get(
+            get_session_ownership_key(self._ui.conversation_session_name),
+            agent_id,
+        )
 
     def _show_viewed_agent_output(self, content: str) -> None:
         if content == self._ui.output_text:
@@ -288,24 +252,15 @@ class UIAgentPicker:
 
         @kb.add("left")
         def _(event):
-            # The picker can be reopened while already viewing an agent (Down
-            # Arrow works regardless of `_viewing_agent_id` — see
-            # `UIMessageEditing.handle_down_arrow`). Without this, Left had no
-            # binding on the picker's own control, so it fell through to the
-            # app-level Left (`viewing_sub_agent`-filtered, in keybindings.py),
-            # which silently exited the agent view while the picker Float
-            # stayed drawn on top of it — Left appeared to do nothing, and the
-            # next Escape then hit the app-level handler with
-            # `_viewing_agent_id` already cleared, cancelling the main task
-            # instead of the sub-agent. Closing just the picker here (like
-            # Escape) leaves whatever view was already active untouched.
+            # The picker can open over an agent view; binding Left here keeps
+            # it from reaching the app-level Left, which would exit that view
+            # behind the still-drawn picker.
             self.close_agent_picker()
 
         control = FormattedTextControl(
             self.get_agent_picker_text, focusable=True, key_bindings=kb
         )
-        # prompt_toolkit defaults to wrap_lines=False, which clips long
-        # agent names and activity lines to the float's width.
+        # Wrap rather than clip long names and activity lines.
         return Window(
             content=control,
             style="class:agent-picker",
@@ -367,10 +322,7 @@ class UIAgentPicker:
     def _agent_needs_approval(self, agent_id: str) -> bool:
         """Whether `agent_id` has an unresolved confirmation request queued.
 
-        Lets the picker flag *which* running agent(s) are actually blocked on
-        an approval — without it, a user with several sub-agents in flight has
-        no way to tell them apart and may confirm-answer the wrong one (its
-        request just gets queued behind whichever is current).
+        Flags which of several in-flight sub-agents is blocked on approval.
         """
         confirmation = getattr(self._ui, "confirmation", None)
         queue = [] if confirmation is None else confirmation.queue
@@ -382,11 +334,4 @@ class UIAgentPicker:
     # --- helpers ---------------------------------------------------------
 
     def _invalidate(self) -> None:
-        try:
-            # lazy: heavy third-party
-            from prompt_toolkit.application import get_app
-
-            get_app().invalidate()
-        except Exception as e:
-            # No active app to repaint — safe to ignore.
-            CFG.LOGGER.debug(f"Agent-picker invalidate failed: {e}")
+        invalidate_app("Agent-picker")

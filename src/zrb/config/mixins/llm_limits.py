@@ -14,17 +14,11 @@ class LLMLimitsMixin:
         self.DEFAULT_LLM_MAX_TOKEN_PER_MINUTE: str = "128000"
         self.DEFAULT_LLM_MAX_TOKEN_PER_REQUEST: str = "128000"
         self.DEFAULT_LLM_THROTTLE_SLEEP: str = "1.0"
-        # Backstop for a run that stops converging. Chosen from measurement, not
-        # taste: the largest *legitimate* run observed in benchmarking was a
-        # 44-site migration at 79 tool calls, while the pathological case — a
-        # weak model re-editing the same nine files from memory — reached 343
-        # and would have kept going. 300 leaves ~4x headroom over real work and
-        # still cuts the loop well before a wall-clock timeout does.
+        # Measured: the largest legitimate benchmark run took 79 tool calls, a
+        # non-converging one reached 343. 300 gives ~4x headroom.
         self.DEFAULT_LLM_MAX_REQUEST_PER_RUN: str = "300"
-        # Mirrors LLM_MAX_AGENTS_IN_ROSTER's default: 10 concurrent sub-agent
-        # runs is generous for real fan-out (each is its own LLM run against
-        # the shared rate limiter, and possibly its own git worktree) while
-        # still bounding a model that requests an unreasonably large batch.
+        # Mirrors LLM_MAX_AGENTS_IN_ROSTER: generous for real fan-out, still
+        # bounding an unreasonable batch.
         self.DEFAULT_LLM_MAX_PARALLEL_DELEGATIONS: str = "10"
         self.DEFAULT_LLM_MAX_CONTEXT_RETRIES: str = "5"
         self.DEFAULT_LLM_TOOL_MAX_RETRIES: str = "3"
@@ -41,10 +35,8 @@ class LLMLimitsMixin:
         self.DEFAULT_LLM_MODEL_FETCH_TIMEOUT: str = "5000"
         self.DEFAULT_LLM_GIT_CMD_TIMEOUT: str = "5000"
         self.DEFAULT_LLM_MAX_OUTPUT_CHARS: str = "100000"
-        # 10x the model-facing cap: generous enough that a normal build, test
-        # run, or install still scrolls in full, small enough that a runaway
-        # command (an unscoped `git diff` in a dirty monorepo) cannot spend
-        # minutes of wall clock being printed.
+        # 10x the model-facing cap: normal builds scroll in full, a runaway
+        # command can't spend minutes printing.
         self.DEFAULT_LLM_MAX_CONSOLE_OUTPUT_CHARS: str = "1000000"
         self.DEFAULT_LLM_MAX_TOOL_RESULT_CHARS: str = "100000"
         self.DEFAULT_LLM_ENABLE_TOOL_SPILL: str = "off"
@@ -53,10 +45,8 @@ class LLMLimitsMixin:
         # near-lossless for screenshots while halving size vs. PNG re-encode.
         self.DEFAULT_LLM_MAX_IMAGE_DIMENSION: str = "1568"
         self.DEFAULT_LLM_IMAGE_JPEG_QUALITY: str = "85"
-        # 20MB: comfortably above a phone photo or a few-minute voice memo,
-        # well under providers' own per-attachment ceilings (e.g. Anthropic's
-        # 32MB document / 5MB image limits), and small enough that a runaway
-        # `/attach` can't balloon the on-disk conversation history.
+        # 20MB: above a phone photo or voice memo, under provider ceilings,
+        # small enough to keep on-disk history bounded.
         self.DEFAULT_LLM_MAX_ATTACHMENT_BYTES: str = "20000000"
         super().__init__()
 

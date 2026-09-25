@@ -1,8 +1,7 @@
 """Per-tool capability tags.
 
-Generalizes the existing ``zrb_is_delegate_tool`` attribute pattern: a tool
-optionally carries a ``zrb_capability`` tag describing what kind of side effect
-it has. Untagged tools resolve to ``UNKNOWN`` and are treated conservatively by
+A tool optionally carries a ``zrb_capability`` tag describing what kind of
+side effect it has. Untagged tools resolve to ``UNKNOWN`` and are treated conservatively by
 each consumer (e.g. denied in read-only plan mode), so leaving a third-party or
 MCP tool untagged is safe-by-default.
 """

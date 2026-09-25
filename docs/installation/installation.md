@@ -2,13 +2,13 @@
 
 # Installation & Setup
 
-Getting Zrb set up is straightforward, but it offers a few powerful options depending on your environment and needs. This guide covers everything from a quick `pipx` install to advanced containerized and Android setups.
+From a quick `pipx` install to Docker and Android setups. Zrb requires Python 3.11 to <3.15.
 
 ---
 
 ## Table of Contents
 
-- [🚀 Quick Start](#quick-start)
+- [🚀 Quick Start](#-quick-start)
 - [Which Method Should I Choose?](#which-method-should-i-choose)
 - [1. Standard Installation Methods](#1-standard-installation-methods)
 - [2. Advanced Installation Methods](#2-advanced-installation-methods)
@@ -23,7 +23,7 @@ Getting Zrb set up is straightforward, but it offers a few powerful options depe
 
 ## 🚀 Quick Start
 
-**Already have Python installed? Get started in seconds:**
+**Python already installed:**
 
 ```bash
 # Install pipx first (if you don't have it)
@@ -34,17 +34,7 @@ pipx install zrb
 zrb version
 ```
 
-**New to Python or setting up a fresh system?** Use our one-liner installer:
-
-```bash
-# Linux/macOS
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)"
-```
-
-```powershell
-# Windows (PowerShell)
-powershell -ExecutionPolicy Bypass -Command "iex ([System.Text.Encoding]::UTF8.GetString((New-Object System.Net.WebClient).DownloadData('https://raw.githubusercontent.com/state-alchemists/zrb/main/install.ps1')))"
-```
+**Fresh system or no Python:** use the one-liner installer — [Bash (Linux/macOS)](#using-the-installation-script---bash-recommended-for-new-pythonsystem-setups) or [PowerShell (Windows)](#using-the-installation-script---powershell-windows).
 
 ---
 
@@ -63,13 +53,9 @@ powershell -ExecutionPolicy Bypass -Command "iex ([System.Text.Encoding]::UTF8.G
 
 ## 1. Standard Installation Methods
 
-For most users, installing Zrb with `pipx` or using the provided installation script is the recommended approach.
-
 ### Using pipx (Recommended for Existing Python Setups)
 
-If you already have a Python environment set up, installing via pipx is the fastest way to get an isolated zrb environment.
-
-First, install pipx:
+pipx gives zrb its own isolated environment. First, install pipx:
 
 ```bash
 # macOS
@@ -100,14 +86,12 @@ PIP_PRE=1 pipx install zrb
 
 ### Using the Installation Script - Bash (Recommended for New Python/System Setups)
 
-The `install.sh` script is a powerful helper that automates the installation of Zrb and its common prerequisites, including Python environment management (like `pyenv` or a local virtual environment). This is especially useful if your system doesn't have Python set up optimally or you want a self-contained Zrb environment.
+`install.sh` installs Zrb plus its prerequisites, asking for consent before each change:
 
-**What it sets up:**
--   **Python Environment:** Installs `pyenv` to manage Python versions (and sets Python 3.13.0 globally). Legacy `~/.local-venv` installs are migrated to `pipx`: zrb is uninstalled from the old venv, but the venv directory and its rc-file activation block are left in place for you to remove (`rm -rf ~/.local-venv`).
--   **System Prerequisites:** Installs build tools and libraries (`build-essential`, `libssl-dev`, etc.) using your OS's package manager (`brew` on macOS, `apt`, `yum`, `dnf`, `pacman`, `apk` on Linux).
--   **Zrb:** Installs Zrb itself via `pipx` into an isolated venv.
-
-> 💡 **Tip:** The script is interactive and will ask for your consent before each change.
+-   **Python:** installs `pyenv` and sets Python 3.13.0 globally. Legacy `~/.local-venv` installs are migrated to `pipx`: zrb is uninstalled from the old venv, but the venv directory and its rc-file activation block are left for you to remove (`rm -rf ~/.local-venv`).
+-   **System prerequisites:** build tools and libraries (`build-essential`, `libssl-dev`, etc.) via your package manager (`brew` on macOS; `apt`, `yum`, `dnf`, `pacman`, `apk` on Linux).
+-   **Zrb:** via `pipx`, into an isolated venv.
+-   **Termux (Android):** detected and handled automatically.
 
 **Run from GitHub (recommended):**
 
@@ -128,20 +112,16 @@ bash install.sh
 | `-y`, `--yes` | Answer yes to every prompt (non-interactive) |
 | `--pre` | Install the latest pre-release instead of the latest stable |
 
-Piping from GitHub needs a `--` separator so the flags reach the script rather
-than `bash` itself:
+When piping from GitHub, put `--` before the flags so they reach the script, not `bash`:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/main/install.sh)" -- --pre
 ```
 
-`--pre` is passed through to pip as `--pip-args='--pre'`, which pipx stores in its
-metadata — so a later `pipx upgrade zrb` keeps tracking pre-releases without the flag.
+`--pre` becomes `--pip-args='--pre'`, which pipx stores in its metadata, so a later `pipx upgrade zrb` keeps tracking pre-releases.
 
 <details>
 <summary>📜 Script Functions Reference</summary>
-
-The script includes these helper functions:
 
 | Function | Purpose |
 |----------|---------|
@@ -158,16 +138,9 @@ The script includes these helper functions:
 
 </details>
 
-> ⚠️ **Note:** The script handles Termux-specific installations (Android) automatically if detected.
-
 ### Using the Installation Script - PowerShell (Windows)
 
-For Windows users, Zrb provides a PowerShell installation script (`install.ps1`) that simplifies setup.
-
-**Prerequisites:**
--   Python 3.11 to <3.15 (install before running the script)
-
-**Install Python on Windows (if needed):**
+`install.ps1` needs Python 3.11 to <3.15 installed first:
 
 ```powershell
 # Option 1: Using winget (recommended)
@@ -192,13 +165,10 @@ powershell -ExecutionPolicy Bypass -Command "iex ([System.Text.Encoding]::UTF8.G
 powershell -ExecutionPolicy Bypass -File install.ps1
 ```
 
-**Flags:** `-Yes` answers yes to every prompt; `-Pre` installs the latest
-pre-release instead of the latest stable.
+**Flags:** `-Yes` answers yes to every prompt; `-Pre` installs the latest pre-release instead of the latest stable.
 
 <details>
 <summary>📝 Manual Windows Installation</summary>
-
-If you prefer manual installation or already have Python set up:
 
 ```powershell
 # Install pipx first
@@ -219,11 +189,9 @@ python -m pipx install zrb
 
 ## 2. Advanced Installation Methods
 
-For specialized use cases like CI/CD pipelines or running automation on the go, Zrb offers containerized and mobile options.
-
 ### Running Zrb in a Docker Container
 
-Zrb provides container images for sandboxed, reproducible, and portable execution. This is ideal for consistent environments and CI/CD integration (see [CI/CD Integration](../advanced-topics/ci-cd.md)).
+Container images give a sandboxed, reproducible environment — ideal for CI/CD (see [CI/CD Integration](../advanced-topics/ci-cd.md)).
 
 **Standard Image** (general-purpose automation):
 
@@ -261,11 +229,7 @@ docker run \
 
 ### Running Zrb on Android (via Termux and Proot)
 
-You can run Zrb on your Android device using Termux (a terminal emulator and Linux environment) and Proot (a chroot-like environment). This turns your phone into a portable coding agent.
-
-**Prerequisites:**
--   An Android device with an internet connection
--   **Termux:** Install from [F-Droid](https://f-droid.org/en/packages/com.termux/) (NOT Google Play - outdated version)
+Termux (a terminal emulator and Linux environment) plus Proot (a chroot-like environment) turn your phone into a portable coding agent. You need an internet connection and **Termux from [F-Droid](https://f-droid.org/en/packages/com.termux/)** (the Google Play version is outdated).
 
 **Quick Setup:**
 
@@ -309,8 +273,6 @@ zrb version
 ---
 
 ## 3. Verify Installation
-
-After installing Zrb, verify everything is working:
 
 ```bash
 # Check version
@@ -418,13 +380,10 @@ docker pull stalchmst/zrb:latest
 pipx uninstall zrb
 ```
 
-**Clean up pipx-managed virtual environment:**
+**Clean up leftover virtual environments** (pipx-managed, and the legacy `~/.local-venv`):
 
 ```bash
 rm -rf ~/.local/pipx/venvs/zrb
-```
-
-```bash
 rm -rf ~/.local-venv
 ```
 
@@ -468,17 +427,7 @@ pipx ensurepath
 # Then restart PowerShell
 ```
 
-**macOS (Apple Silicon):**
-```bash
-# Install pipx via Homebrew (recommended)
-brew install pipx && pipx ensurepath
-
-# Then install zrb
-pipx install zrb
-
-# For Docker on Apple Silicon
-docker run --platform linux/amd64 ...
-```
+**macOS (Apple Silicon):** install pipx via Homebrew (`brew install pipx && pipx ensurepath`, then `pipx install zrb`); for Docker, add `--platform linux/amd64` ([see above](#running-zrb-in-a-docker-container)).
 
 **Linux:**
 ```bash
@@ -488,7 +437,6 @@ PIP_TRUSTED_HOST=pypi.org pipx install zrb
 
 ### Getting Help
 
-If you're still having trouble:
 -   Check [GitHub Issues](https://github.com/state-alchemists/zrb/issues) for similar problems
 -   Open a new issue with your OS, Python version, and full error message
 -   Join discussions on [GitHub Discussions](https://github.com/state-alchemists/zrb/discussions)
@@ -497,7 +445,7 @@ If you're still having trouble:
 
 ## 8. General Configuration
 
-Zrb's behavior can be customized further using environment variables. This includes everything from logging levels to default editors and web UI settings. For a complete, exhaustive list of all configurable environment variables, please refer to the dedicated configuration guides:
+Zrb is configured through environment variables (logging, editors, web UI, LLM, …). See:
 
 -   [Environment Variables & Overrides](../configuration/env-vars.md)
 -   [LLM & Rate Limiter Configuration](../configuration/llm-config.md)

@@ -2,8 +2,7 @@
 
 Owns `run_async` (start triggers, message loop, system-info loop, refresh
 loop; tear them down on exit) plus the periodic refresh / scroll-to-bottom
-helpers. The `_cancel_and_discard` helper deduplicates the cancel-await-
-discard pattern repeated for each background task.
+helpers.
 """
 
 from __future__ import annotations
@@ -13,6 +12,7 @@ import traceback as tb_lib
 from typing import TYPE_CHECKING, Callable
 
 from zrb.config.config import CFG
+from zrb.llm.ui.default.app.focus import invalidate_app
 from zrb.util.cli.style import stylize_muted, stylize_warning
 from zrb.util.exception import exception_summary
 
@@ -54,7 +54,6 @@ class UILifecycle:
 
     def handle_application_run_error(self, exc: Exception):
         """Handle error during application.run_async (public API)."""
-
         self._ui.append_to_output(
             f"[Error: {exception_summary(exc)}]\n{tb_lib.format_exc()}"
         )
@@ -130,12 +129,10 @@ class UILifecycle:
                 if app.layout.has_focus(ui.input_field):
                     self._scroll_output_to_bottom()
             except Exception as e:
-                # Best-effort repaint loop; a transient render error must not
-                # kill the loop.
+                # A transient render error must not kill the loop.
                 CFG.LOGGER.debug(f"Refresh loop repaint failed: {e}")
             try:
-                # When thinking or waiting for confirmation, refresh faster for
-                # animation (every 0.25s). Otherwise, refresh every 3s to save CPU.
+                # Fast refresh animates thinking/confirmation; slow saves CPU.
                 if (
                     getattr(ui, "is_thinking", False)
                     or getattr(getattr(ui, "confirmation", None), "current", None)
@@ -154,7 +151,6 @@ class UILifecycle:
             if buffer.cursor_position != len(buffer.text):
                 buffer.cursor_position = len(buffer.text)
         except Exception as e:
-            # Best-effort scroll; ignore if the buffer isn't ready.
             CFG.LOGGER.debug(f"Scroll-to-bottom failed: {e}")
 
     def handle_first_render(self):
@@ -164,23 +160,13 @@ class UILifecycle:
     def on_first_render(self, app) -> None:
         """Submit the initial message exactly once on first render."""
         ui = self._ui
-        # The handler registered on `after_render` is `ui.on_first_render`
-        # (bound to the `UI` instance) — remove that exact bound method, not
-        # `self.on_first_render` (bound to this part), or the removal is a
-        # silent no-op and the handler keeps firing on every render frame,
-        # resubmitting the initial message forever.
+        # Remove the exact bound method registered (`ui.on_first_render`, not
+        # this part's), or the initial message resubmits every frame.
         ui.application.after_render.remove_handler(ui.on_first_render)
         ui.submit_message(ui.initial_message)
 
     def invalidate_ui(self):
-        # lazy: heavy third-party
-        from prompt_toolkit.application import get_app
-
-        try:
-            get_app().invalidate()
-        except Exception:
-            # No active prompt_toolkit app (e.g. non-interactive) — nothing to repaint.
-            pass
+        invalidate_app("UI")
 
     def on_exit(self):
         # lazy: heavy third-party
@@ -189,7 +175,7 @@ class UILifecycle:
         try:
             get_app().exit()
         except Exception:
-            # No active app to exit (already torn down) — nothing to do.
+            # Already torn down.
             pass
 
         for task in self._ui.background_tasks:
@@ -208,12 +194,10 @@ def _make_snapshot_progress_handler(
 ) -> "Callable[[SnapshotProgress], None]":
     """Render init-snapshot progress as two muted lines (start + terminal).
 
-    Every snapshot invocation ends with exactly one terminal line, so the
-    start line never dangles: done (with the unreadable-file count), up-to-date
-    (resumed session), or error (with the reason — no debug mode needed to
-    see why; when the directory cannot be snapshotted at all, the line says
-    rewind is off). All events arrive on the event-loop thread (the manager
-    reports from coroutine context), so a direct append is safe.
+    Every run ends in exactly one terminal line: done (with the unreadable
+    file count), up-to-date, or error (with the reason; "rewind is off" when
+    the directory cannot be snapshotted at all). Events arrive on the event
+    loop thread, so a direct append is safe.
     """
 
     def handler(event: "SnapshotProgress") -> None:

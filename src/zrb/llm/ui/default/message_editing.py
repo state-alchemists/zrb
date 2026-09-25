@@ -22,14 +22,10 @@ Where each piece lives:
 * `redraw_echo` is the one splice path behind both callers (an edit and a
   paste merge) and re-decides the body from the entry's current text, so the
   two can never draw the message differently.
-* Every echo this UI tracks is also registered as a re-renderable block
-  (`RenderedEcho` + `render_echo`), and that block — not the `EchoSpan` — is
-  where the echo's offsets actually live. `UIOutput` keeps `rendered_blocks`
-  current through every buffer rewrite: `rewrap_output` re-renders each block
-  and updates its offsets, `_rebase_tracked_spans` shifts the blocks below an
-  in-place edit. `_refresh_echo_span` reads the span back off the block, so
-  the echo inherits that bookkeeping rather than keeping a second set of
-  offsets nothing updates.
+* Every tracked echo is also a re-renderable block (`RenderedEcho` +
+  `render_echo`), and the block — not the `EchoSpan` — holds the authoritative
+  offsets: `UIOutput` keeps `rendered_blocks` current through re-wraps and
+  in-place edits, and `_refresh_echo_span` reads the span back off it.
 """
 
 from __future__ import annotations
@@ -50,22 +46,17 @@ if TYPE_CHECKING:
 class RenderedEcho:
     """The source of a queued message's echo block.
 
-    `header` is the `\n💬 10:00 >> ` prefix and `text` the message as it was
-    last drawn — a re-wrap re-renders the region on screen, and every change
-    to the message rewrites that region through `redraw_echo`, which
-    re-registers the block with the new text.
+    `header` is the `\n💬 10:00 >> ` prefix and `text` the message as last
+    drawn; `redraw_echo` re-registers the block whenever the message changes.
 
-    `entry` is weak, and only identifies which block belongs to which queued
-    message. A strong reference would pin the `QueuedMessage` — with its
-    attachments and its run coroutine — for as long as the buffer holds the
-    block, which is never pruned. A dead referent matches nothing.
+    `entry` is weak and only identifies the owning message: a strong
+    reference would pin the `QueuedMessage` (attachments, run coroutine) for
+    as long as the never-pruned block lives. A dead referent matches nothing.
 
-    `rendered` is what `render_echo` last produced for this block, which is
-    exactly what the buffer holds at the block's offsets — `render_echo` is
-    the only renderer registered for it, and every call is followed by a
-    splice. `_refresh_echo_span` compares the region against it before
-    trusting the offsets, so a block whose offsets have drifted onto another
-    message is caught even when that message shares this one's header.
+    `rendered` is what `render_echo` last produced, i.e. exactly what the
+    buffer holds at the block's offsets. `_refresh_echo_span` compares
+    against it, catching a block that drifted onto another message with the
+    same header.
     """
 
     header: str
@@ -112,13 +103,9 @@ class UIMessageEditing:
     def recall_navigation_active(self) -> bool:
         """Whether Up should walk queued messages rather than move the cursor.
 
-        True while the input field holds a recalled message the user has not
-        touched since — the buffer still matches the recalled text with the
-        cursor at its end. A recalled message may span multiple lines, in which
-        case the cursor is not on the first line and the input field's Up
-        binding would otherwise treat the press as cursor movement. As soon as
-        the user types or moves the cursor, this returns False and Up resumes
-        cursor movement.
+        True while the input still holds the untouched recalled text with the
+        cursor at its end — needed because a multi-line recall leaves the
+        cursor off the first line, where Up would otherwise move the cursor.
         """
         entry = self._queued_edit_entry
         if entry is None:
@@ -137,25 +124,20 @@ class UIMessageEditing:
         entry = self._queued_edit_entry
 
         if entry is not None and not self.recall_navigation_active():
-            # The user typed or moved the cursor since the recall — return the
-            # arrows to their normal behavior instead of navigating the queue
-            # over the in-progress edit (which is not recoverable: the saved
-            # draft is the pre-recall text, not the edit).
+            # The user edited since the recall; navigating would clobber the
+            # edit, which the saved (pre-recall) draft cannot restore.
             return False
 
         if entry is not None:
             if not queue.contains(entry):
-                # The recalled message's turn started — drop the edit mode and
-                # treat this Up as a fresh recall. The saved draft survives:
-                # the pre-recall text is still what Down should restore.
+                # The recalled message's turn started: recall afresh, keeping
+                # the saved pre-recall draft.
                 self._queued_edit_entry = None
                 return self._recall_latest(buffer)
             older = queue.editable_before(entry)
             if older is not None:
                 self._queued_edit_entry = older
                 self._load_edit_text(buffer, older.text)
-                return True
-            # Already at the oldest queued message — stay put.
             return True
 
         return self._recall_latest(buffer, save_draft=True)
@@ -195,11 +177,8 @@ class UIMessageEditing:
         queue = self._ui.effective_message_queue
         entry = self._queued_edit_entry
 
-        if entry is not None and not self.recall_navigation_active():
-            # Same guard as Up: once the user typed or moved the cursor, Down
-            # must not restore the pre-recall draft over their in-progress edit.
-            return False
-        if entry is None:
+        # Same guard as Up: never restore the draft over an in-progress edit.
+        if entry is None or not self.recall_navigation_active():
             return False
         if not queue.contains(entry):
             self._queued_edit_entry = None
@@ -209,8 +188,7 @@ class UIMessageEditing:
             self._queued_edit_entry = newer
             self._load_edit_text(buffer, newer.text)
             return True
-        # At the newest queued message — Down exits edit mode and restores the
-        # draft the user was typing before they started recalling.
+        # Past the newest queued message: exit edit mode, restore the draft.
         self._queued_edit_entry = None
         self._load_edit_text(buffer, self._queued_edit_draft)
         return True
@@ -229,8 +207,7 @@ class UIMessageEditing:
         self._queued_edit_entry = None
         text = event.current_buffer.text
         if not text.strip():
-            # Empty edit cancels: restore the pre-edit draft instead of
-            # submitting anything.
+            # An empty edit cancels and restores the pre-edit draft.
             self._load_edit_text(event.current_buffer, self._queued_edit_draft)
             return True
         if self._ui.edit_queued_message(entry, text):
@@ -242,18 +219,11 @@ class UIMessageEditing:
     def track_echo_span(self, entry: QueuedMessage, echo: str) -> None:
         """Record where `echo` landed so an edit can rewrite it in place.
 
-        The span is stored on the shared entry keyed by this UI (`self._ui`),
-        so a `MultiUI` whose every child echoes the same line keeps one span
-        per child buffer — a child redraws against its own span, never the
-        last child's.
+        Spans are keyed by this UI, so each `MultiUI` child keeps its own.
 
-        Only recorded when the line actually reached the output buffer
-        verbatim — a pending confirmation buffers the content instead, which
-        would make the span a lie (the same guard `append_rendered` uses). The
-        echo's own writer appends a separator newline after the line (the
-        default `end="\\n"`), so the span is located by the exact echo
-        substring at the tail rather than by a bare `endswith` — the buffer
-        ends with `echo`, or with one blank line after it.
+        Recorded only when the line reached the buffer verbatim (a pending
+        confirmation buffers it instead). The writer appends a separator
+        newline, so the buffer ends with `echo` or `echo + "\\n"`.
         """
         text = self._ui.output_text
         if not (text.endswith(echo) or text.endswith(echo + "\n")):
@@ -266,17 +236,9 @@ class UIMessageEditing:
             end=index + len(echo),
             text=echo,
         )
-        # Register the echo as a re-renderable block so its offsets ride along
-        # with every later buffer rewrite (see the module docstring) — but only
-        # if re-rendering reproduces the line that was written. The writer
-        # decides Markdown from the stripped body and this decides from
-        # `entry.text`; where they disagree, a block would re-render the echo
-        # into something the user never saw.
-        source = RenderedEcho(
-            header=self._echo_header(entry),
-            text=entry.text,
-            entry=weakref.ref(entry),
-        )
+        # Register as a block only if re-rendering reproduces the written line:
+        # the writer and this decide Markdown from slightly different text.
+        source = self._create_echo_source(entry)
         if self.render_echo(source, self._ui.output_field_width) == echo:
             self._ui.set_rendered_block(
                 index, index + len(echo), source, self.render_echo
@@ -285,35 +247,24 @@ class UIMessageEditing:
     def _validated_echo_span(self, entry: QueuedMessage) -> EchoSpan | None:
         """The echo span still safe to splice for this UI, or ``None``.
 
-        The span is re-read off the echo's tracked block first, so a re-wrap
-        or an in-place edit above the echo leaves it correct rather than
-        stale. It is still unusable — and pruned — when it lies past the
-        buffer or no longer holds the echoed line: an echo with no block (one
-        whose registration the faithfulness check in `track_echo_span`
-        declined) has nothing keeping its offsets current, and a rewound
-        transcript invalidates both.
+        The span is re-read off its tracked block, then pruned if it lies past
+        the buffer or no longer holds the echoed line (a block-less echo whose
+        offsets nothing kept current, or a rewound transcript).
         """
         if getattr(self._ui, "viewing_agent_id", None) is not None:
-            # The pane is showing a sub-agent's transcript; `UIAgentPicker`
-            # parked the main text and will put it back. Every recorded offset
-            # addresses that parked text, so nothing here is spliceable — and
-            # the span is deliberately kept, being still correct for the text
-            # that returns. `append_to_output` and the re-wrap hook park the
-            # same way while a sub-agent is on screen.
+            # The main transcript is parked behind a sub-agent view; the span
+            # is kept, since it is still correct for the text that returns.
             return None
         span = self._refresh_echo_span(entry)
         if span is None:
             return None
         if span.end > len(self._ui.output_text):
-            # The span is stale — the buffer was rewritten since (e.g. rewind).
+            # Stale: the buffer was rewritten since (e.g. rewind).
             del entry.echo_spans[self._ui]
             return None
         if span.text and self._ui.output_text[span.start : span.end] != span.text:
-            # Reached only by an echo with no block to refresh from, whose
-            # offsets nothing has kept current: the transcript shifted under
-            # it. Drop the span rather than splice at the wrong offset — the
-            # edit is already effective (the turn streams the new text), it
-            # just no longer rewrites the echo.
+            # A block-less echo the transcript shifted under. The edit still
+            # takes effect; only the on-screen echo is left as is.
             del entry.echo_spans[self._ui]
             return None
         return span
@@ -321,17 +272,10 @@ class UIMessageEditing:
     def _refresh_echo_span(self, entry: QueuedMessage) -> EchoSpan | None:
         """This UI's recorded span for `entry`, re-read off its tracked block.
 
-        The block is the authoritative copy of where the echo is: a resize
-        re-renders it and rewrites its offsets, and an in-place edit above it
-        (a streamed shell span, a collapsing thinking block, another echo
-        redraw) shifts them. Re-reading them here is what keeps a later edit
-        able to rewrite the displayed message across both.
-
-        What the block cannot vouch for is that its offsets still address
-        *this* echo, so the region is checked against the text the block last
-        drew before being adopted. Falls back to the stored span when the
-        entry has no block, and returns ``None`` when this UI recorded no span
-        at all.
+        The block's offsets survive resizes and in-place edits above it, but
+        the region is checked against the text the block last drew before
+        being adopted. Falls back to the stored span when there is no block;
+        ``None`` when this UI recorded no span.
         """
         span = entry.echo_spans.get(self._ui)
         if span is None:
@@ -342,13 +286,8 @@ class UIMessageEditing:
         start, end = block[0], block[1]
         text = self._ui.output_text[start:end]
         if text != block[2].rendered:
-            # The buffer was replaced or rewound under the block. Adopting the
-            # region would splice the message over unrelated transcript, so
-            # drop the span *and* the block — one pointing at somebody else's
-            # text would corrupt the next re-wrap too. Checking the whole
-            # region rather than its header matters: two echoes a minute apart
-            # share a header, so a drifted block would otherwise be accepted
-            # onto another message's line.
+            # The buffer was replaced or rewound under the block: drop both
+            # the span and the block, which would corrupt the next re-wrap.
             self._ui.rendered_blocks.remove(block)
             del entry.echo_spans[self._ui]
             return None
@@ -359,16 +298,21 @@ class UIMessageEditing:
     def _echo_block(self, entry: QueuedMessage) -> "list[Any] | None":
         """The `rendered_blocks` record holding `entry`'s echo, or None.
 
-        Found by identity of the entry the block's `RenderedEcho` weakly
-        refers to, rather than through an index keyed on the entry — that
-        index would itself keep every queued message alive. The scan runs only
-        when a message is edited or merged into.
+        A linear scan by weakref identity: an index keyed on the entry would
+        keep every queued message alive. Runs only on an edit or merge.
         """
         for block in self._ui.rendered_blocks:
             source = block[2]
             if isinstance(source, RenderedEcho) and source.entry() is entry:
                 return block
         return None
+
+    def _create_echo_source(self, entry: QueuedMessage) -> RenderedEcho:
+        return RenderedEcho(
+            header=self._echo_header(entry),
+            text=entry.text,
+            entry=weakref.ref(entry),
+        )
 
     def _echo_header(self, entry: QueuedMessage) -> str:
         """`entry`'s echo prefix — the marker and timestamp it was echoed with."""
@@ -379,40 +323,22 @@ class UIMessageEditing:
     def redraw_echo(self, entry: QueuedMessage) -> str | None:
         """Splice `entry`'s echo back into the output buffer at its current text.
 
-        The single splice path behind both callers — an edit of a queued
-        message, and a paste line merging into one. The body is whatever
-        `entry.text` currently is, drawn by `_render_echo_body`: Markdown when
-        the text carries a construct (so a merged fenced block or list reads
-        as one block rather than a render of just the newest line), the raw
-        line otherwise. Because the decision is re-made here from the entry
-        itself, editing a merged Markdown message keeps rendering, and editing
-        it back to plain text stops.
+        The one splice path behind a queued-message edit and a paste merge.
+        Markdown vs. plain is re-decided from `entry.text` each time.
 
-        Returns the rewritten echo, or ``None`` when nothing was redrawn —
-        there is no tracked span for this UI, the span is stale, the buffer no
-        longer holds the echo, or the pane is showing a sub-agent's transcript
-        instead of this one. A caller that gets ``None`` (a bufferless UI, or
-        the default UI past a rendered echo that never claimed a span) can
-        fall back to emitting an ordinary echo so merged paste lines stay
-        visible.
-
-        The span lookup is keyed by this UI (`self._ui`), so one child's
-        redraw never touches — or invalidates — the span another child tracks
-        on the same shared entry.
+        Returns the rewritten echo, or ``None`` when nothing was redrawn (no
+        valid span for this UI, or a sub-agent view is on screen); the caller
+        may then fall back to emitting an ordinary echo. Spans are keyed by
+        this UI, so one `MultiUI` child never touches another's.
         """
         span = self._validated_echo_span(entry)
         if span is None:
             return None
-        source = RenderedEcho(
-            header=self._echo_header(entry),
-            text=entry.text,
-            entry=weakref.ref(entry),
-        )
+        source = self._create_echo_source(entry)
         echo = self.render_echo(source, self._ui.output_field_width)
         if not self._ui.replace_output_span(span.start, span.end, echo):
             return None
-        # Re-register over the same start: the block is what keeps this echo's
-        # offsets current afterwards, and what re-renders it on a resize.
+        # Re-register so the block keeps tracking (and re-wrapping) the echo.
         self._ui.set_rendered_block(
             span.start, span.start + len(echo), source, self.render_echo
         )
@@ -426,14 +352,9 @@ class UIMessageEditing:
     def render_echo(self, source: RenderedEcho, width: int | None) -> str:
         """Render a queued message's whole echo — header, body, separator.
 
-        The re-render hook of the echo's tracked block, so it has to reproduce
-        the entire spliced region: `rewrap_output` replaces the recorded span
-        with whatever this returns, and a hook covering only the body would
-        splice the body over its own header.
-
-        Records the result on `source`, so the block carries the text it put
-        on screen — a re-wrap goes through here too, which is why the record
-        cannot be written once at registration.
+        As the block's re-render hook it must reproduce the whole spliced
+        region. Records the result on `source` on every call, re-wraps
+        included.
         """
         source.rendered = (
             f"{source.header}{self._render_echo_body(source.text, width)}\n"
@@ -444,12 +365,7 @@ class UIMessageEditing:
         """Render a queued message's echo body at `width`.
 
         Markdown when `text` carries a construct, the stripped line otherwise
-        — the same rule `echo_user_message` applies to the first echo, so a
-        redrawn echo and a freshly written one never disagree.
-
-        `width` is the one a re-wrap re-renders at. A plain body renders to
-        itself, so one rule covers every echo and no block has to be untracked
-        when an edit turns Markdown back into plain text.
+        — the same rule `echo_user_message` applies to the first echo.
         """
         if should_render_user_markdown(text):
             return self._ui.render_markdown(text, width)

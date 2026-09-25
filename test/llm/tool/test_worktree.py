@@ -477,7 +477,7 @@ async def test_enter_worktree_keeps_earlier_note_when_later_call_errors(
 
 @pytest.mark.asyncio
 async def test_run_git_spawns_with_shell_py_style_protections(mock_subprocess):
-    """_run_git mirrors shell.py's _start_process: DEVNULL stdin (fail fast
+    """_run_git spawns through shell.py's start_process: DEVNULL stdin (fail fast
     on an unexpected prompt instead of hanging), its own session, and an
     enlarged StreamReader limit (one very long output line must not raise).
     """

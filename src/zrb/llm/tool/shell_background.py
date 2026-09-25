@@ -30,8 +30,7 @@ from zrb.util.string.name import get_random_name
 
 
 def _new_capture() -> StreamCapture:
-    # echo=0: background processes have no console-mirroring path today, so
-    # the echo budget is irrelevant here — only retain/spill matter.
+    # echo=0: background output is never mirrored to the console.
     return StreamCapture(CFG.LLM_MAX_OUTPUT_CHARS, 0)
 
 
@@ -43,14 +42,10 @@ class _BackgroundProcess:
     description: str = ""
     returncode: int | None = None
     tasks: list[asyncio.Task] = field(default_factory=list)
-    # The owning chat session's unique `ChatSessionManager` session_id (see
-    # `get_current_chat_session_id`) — NOT the display `session_name`, which
-    # is client-supplied and never guaranteed unique across concurrent
-    # sessions. Lets `cancel_for_session` clean up one web chat session's own
-    # background processes on teardown without ever touching another
-    # concurrent session's still-running ones, even if the two happen to
-    # share a display name. "" outside a web chat run (e.g. the CLI, which
-    # never calls `cancel_for_session` — only the blanket `cancel_all`).
+    # The owning chat session's unique `ChatSessionManager` session_id — NOT
+    # the client-supplied, non-unique display `session_name` — so
+    # `cancel_for_session` never touches another session's processes. "" outside
+    # a web chat run (the CLI only ever calls `cancel_all`).
     owner_session_id: str = ""
 
 
@@ -97,44 +92,35 @@ class _ShellBackgroundRegistry:
         if sandbox_note:
             bp.stderr_cap.feed(f"{sandbox_note}\n")
         self._procs[handle] = bp
-        # Start readers in the background and track them so cancel_all() /
-        # kill() can stop them — otherwise they leak past the process exit.
+        # Tracked so kill()/cancel_all() can stop them; they would otherwise
+        # leak past the process exit.
         bp.tasks = [
-            asyncio.ensure_future(self._read_stdout(handle, proc)),
-            asyncio.ensure_future(self._read_stderr(handle, proc)),
+            asyncio.ensure_future(self._read_pipe(handle, proc.stdout, "stdout")),
+            asyncio.ensure_future(self._read_pipe(handle, proc.stderr, "stderr")),
             asyncio.ensure_future(self._wait_exit(handle, proc)),
         ]
         return handle
 
-    async def _read_stdout(self, handle: str, proc: asyncio.subprocess.Process) -> None:
-        while proc.stdout and not proc.stdout.at_eof():
-            line = await proc.stdout.readline()
+    async def _read_pipe(
+        self, handle: str, stream: asyncio.StreamReader | None, name: str
+    ) -> None:
+        """Feed *stream* line by line into the handle's `name` capture."""
+        while stream and not stream.at_eof():
+            line = await stream.readline()
             if not line:
                 break
-            bp = self._procs.get(handle)
-            if bp is not None:
-                bp.stdout_cap.feed(line.decode(errors="replace"))
-        if proc.stdout:
-            remaining = await proc.stdout.read()
+            self._feed(handle, name, line)
+        if stream:
+            remaining = await stream.read()
             if remaining:
-                bp = self._procs.get(handle)
-                if bp is not None:
-                    bp.stdout_cap.feed(remaining.decode(errors="replace"))
+                self._feed(handle, name, remaining)
 
-    async def _read_stderr(self, handle: str, proc: asyncio.subprocess.Process) -> None:
-        while proc.stderr and not proc.stderr.at_eof():
-            line = await proc.stderr.readline()
-            if not line:
-                break
-            bp = self._procs.get(handle)
-            if bp is not None:
-                bp.stderr_cap.feed(line.decode(errors="replace"))
-        if proc.stderr:
-            remaining = await proc.stderr.read()
-            if remaining:
-                bp = self._procs.get(handle)
-                if bp is not None:
-                    bp.stderr_cap.feed(remaining.decode(errors="replace"))
+    def _feed(self, handle: str, name: str, data: bytes) -> None:
+        bp = self._procs.get(handle)
+        if bp is None:
+            return
+        cap = bp.stdout_cap if name == "stdout" else bp.stderr_cap
+        cap.feed(data.decode(errors="replace"))
 
     async def _wait_exit(self, handle: str, proc: asyncio.subprocess.Process) -> None:
         rc = await proc.wait()
@@ -162,12 +148,7 @@ class _ShellBackgroundRegistry:
     def poll(self, handle: str) -> str:
         bp = self._procs.get(handle)
         if bp is None:
-            return (
-                f"Unknown handle '{handle}'. "
-                "[SYSTEM SUGGESTION]: start a process with Shell "
-                "(background=True); a finished handle is consumed by the poll "
-                "that reports its exit."
-            )
+            return _unknown_handle_message(handle)
         stdout = bp.stdout_cap.text
         stderr = bp.stderr_cap.text
         status = "running"
@@ -185,8 +166,7 @@ class _ShellBackgroundRegistry:
         if bp.returncode is not None:
             if all(task.done() for task in bp.tasks):
                 # Output fully drained: release the entry so finished
-                # processes (and their output buffers) don't accumulate in
-                # the registry for the rest of the session.
+                # processes don't accumulate for the rest of the session.
                 lines.append("The handle has been consumed — the process has finished.")
                 _release_process(bp)
                 self._procs.pop(handle, None)
@@ -200,22 +180,12 @@ class _ShellBackgroundRegistry:
     async def kill(self, handle: str) -> str:
         bp = self._procs.get(handle)
         if bp is None:
-            return (
-                f"Unknown handle '{handle}'. "
-                "[SYSTEM SUGGESTION]: start a process with Shell "
-                "(background=True); a finished handle is consumed by the poll "
-                "that reports its exit."
-            )
+            return _unknown_handle_message(handle)
         if bp.process.returncode is not None:
             return (
                 f"Process '{handle}' has already exited (code {bp.process.returncode})."
             )
-        await terminate_process(
-            bp.process,
-            CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
-            print_method=CFG.LOGGER.warning,
-        )
-        _release_process(bp)
+        await _stop_process(bp)
         self._procs.pop(handle, None)
         return f"Killed process '{handle}'."
 
@@ -228,14 +198,8 @@ class _ShellBackgroundRegistry:
         when it eventually exits, because its exit event can no longer be
         delivered.
         """
-        for handle, bp in list(self._procs.items()):
-            if bp.process.returncode is None:
-                await terminate_process(
-                    bp.process,
-                    CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
-                    print_method=CFG.LOGGER.warning,
-                )
-            _release_process(bp)
+        for bp in list(self._procs.values()):
+            await _stop_process(bp)
         self._procs.clear()
 
     async def cancel_for_session(self, session_id: str) -> None:
@@ -245,20 +209,13 @@ class _ShellBackgroundRegistry:
         end while other sessions are still running, so — unlike `cancel_all`
         — this must only touch processes this one session started, tagged by
         `get_current_chat_session_id()` at `start()` time. `session_id` must
-        be `ChatSessionManager`'s own unique dict key, never a display
-        `session_name` — that is never guaranteed unique, so using it here
-        could reach into an unrelated session sharing the same display name.
+        be `ChatSessionManager`'s unique dict key, never a display
+        `session_name`, which is not guaranteed unique.
         """
         for handle, bp in list(self._procs.items()):
             if bp.owner_session_id != session_id:
                 continue
-            if bp.process.returncode is None:
-                await terminate_process(
-                    bp.process,
-                    CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
-                    print_method=CFG.LOGGER.warning,
-                )
-            _release_process(bp)
+            await _stop_process(bp)
             self._procs.pop(handle, None)
 
     def force_kill_all(self) -> None:
@@ -278,6 +235,26 @@ class _ShellBackgroundRegistry:
             except Exception:  # noqa: BLE001 - atexit backstop, must never raise
                 pass
         self._procs.clear()
+
+
+def _unknown_handle_message(handle: str) -> str:
+    return (
+        f"Unknown handle '{handle}'. "
+        "[SYSTEM SUGGESTION]: start a process with Shell "
+        "(background=True); a finished handle is consumed by the poll "
+        "that reports its exit."
+    )
+
+
+async def _stop_process(bp: _BackgroundProcess) -> None:
+    """Terminate *bp* if still running, then release it."""
+    if bp.process.returncode is None:
+        await terminate_process(
+            bp.process,
+            CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
+            print_method=CFG.LOGGER.warning,
+        )
+    _release_process(bp)
 
 
 def _truncation_note(stdout_cap: StreamCapture, stderr_cap: StreamCapture) -> str:
@@ -320,8 +297,7 @@ def _release_process(bp: _BackgroundProcess) -> None:
     ``stdout_cap``/``stderr_cap`` are closed (flushed, handle released) but
     never discarded: a poll response can name a spill path in the very call
     that triggers this release, so deleting the file here would make that
-    just-reported path immediately dangling. Matches `shell.py`'s own
-    never-auto-deleted dump file for the same reason.
+    just-reported path immediately dangling.
     """
     for task in bp.tasks:
         if not task.done():

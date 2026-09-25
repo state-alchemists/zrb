@@ -45,10 +45,7 @@ def _safe_segment(name: str) -> str:
 
 def default_history_manager() -> "FileHistoryManager":
     """The file-backed history manager used wherever no explicit one is
-    configured. One place to know the default so callers depend on this
-    factory instead of each re-reading `CFG.LLM_HISTORY_DIR` and constructing
-    `FileHistoryManager` themselves.
-    """
+    configured."""
     return FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
 
 
@@ -108,19 +105,8 @@ class FileHistoryManager(AnyHistoryManager):
                 content = f.read()
                 if not content.strip():
                     return []
-                data = json.loads(content)
-
-                # ALWAYS clean data before validation to prevent boolean corruption
-                # This is critical because pydantic_ai validation might allow boolean values
-                # which will cause TypeError in Google model's _map_user_prompt
-                cleaned_data = self._clean_corrupted_content(data)
-
-                # Filter out empty responses (responses with no parts) before validation
-                # Empty responses can cause "invalid message content type: <nil>" errors
-                # with certain models like GLM-5 via Ollama
-                filtered_data = self._filter_empty_responses(cleaned_data)
-
-                messages = ModelMessagesTypeAdapter.validate_python(filtered_data)
+                data = self._sanitize(json.loads(content))
+                messages = ModelMessagesTypeAdapter.validate_python(data)
                 self._cache[conversation_name] = messages
                 self._cache.move_to_end(conversation_name)
                 self._cache_mtime[conversation_name] = current_mtime
@@ -128,7 +114,6 @@ class FileHistoryManager(AnyHistoryManager):
                 return messages
 
         except ValidationError as e:
-            # If validation fails even after cleaning, log and return empty
             zrb_print(
                 f"Warning: Failed to load history for {conversation_name} even after cleanup: {e}",
                 plain=True,
@@ -188,27 +173,16 @@ class FileHistoryManager(AnyHistoryManager):
         file_path = self._get_file_path(conversation_name)
 
         try:
-            # Suppress Pydantic serialization warnings for BinaryContent in parts
-            # (pydantic-ai's type adapter schema doesn't include BinaryContent in its
-            # union, but serialization still works correctly)
-
+            # pydantic-ai's type adapter union omits BinaryContent, so dumping one
+            # warns even though serialization works.
             with warnings.catch_warnings():
                 warnings.filterwarnings(
                     "ignore",
                     message="Pydantic serializer warnings",
                     category=UserWarning,
                 )
-                data = ModelMessagesTypeAdapter.dump_python(messages, mode="json")
-
-            # ALWAYS clean data before saving to prevent boolean corruption
-            # This ensures that even if pydantic_ai validation allows boolean values,
-            # we convert them to strings before saving to disk
-            cleaned_data = self._clean_corrupted_content(data)
-
-            # Filter out empty responses before saving to prevent future issues
-            # Empty responses can cause "invalid message content type: <nil>" errors
-            # with certain models like GLM-5 via Ollama
-            filtered_data = self._filter_empty_responses(cleaned_data)
+                raw = ModelMessagesTypeAdapter.dump_python(messages, mode="json")
+            filtered_data = self._sanitize(raw)
 
             ModelMessagesTypeAdapter.validate_python(filtered_data)
 
@@ -245,7 +219,6 @@ class FileHistoryManager(AnyHistoryManager):
                         )
 
         except ValidationError as e:
-            # If validation fails even after cleaning, log and don't save
             zrb_print(
                 f"Warning: Failed to save history for {conversation_name} due to validation error: {e}",
                 plain=True,
@@ -284,9 +257,15 @@ class FileHistoryManager(AnyHistoryManager):
 
         return [m[0] for m in matches]
 
-    # ------------------------------------------------------------------
-    # Part-cleaner helpers for _clean_corrupted_content
-    # ------------------------------------------------------------------
+    def _sanitize(self, data: Any) -> Any:
+        """Normalize raw message data on both load and save.
+
+        Non-string content (e.g. booleans pydantic-ai lets through) raises a
+        TypeError in Google's ``_map_user_prompt``, and responses with no parts
+        cause "invalid message content type: <nil>" on some models (GLM-5 via
+        Ollama).
+        """
+        return self._filter_empty_responses(self._clean_corrupted_content(data))
 
     # Each cleaner starts from a copy of the original part and only normalizes
     # the field(s) that can be corrupted (chiefly ``content``). Fields the

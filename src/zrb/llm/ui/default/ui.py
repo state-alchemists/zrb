@@ -131,9 +131,7 @@ class UI(BaseUI):
         self._keybindings = UIKeybindings(self)
 
         self._refresh_task: asyncio.Task | None = None
-        # Built on first access, not here -- see the `application` property.
-        # Initialized before the parts construct (they read `is_application_built`
-        # during their setup) so it is always defined from the start.
+        # Built on first access; see the `application` property.
         self._application: "Application | None" = None
 
         self._capture = GlobalStreamCapture()
@@ -201,17 +199,14 @@ class UI(BaseUI):
     def _on_render(self, app: "Application") -> None:
         try:
             if self.viewing_agent_id is not None:
-                # While viewing a sub-agent the pane shows that agent's buffer
-                # (see UIAgentPicker); the main transcript's re-wrap is parked
-                # until Esc returns to it.
+                # The pane shows the sub-agent's buffer; the main transcript
+                # re-wraps once the view is left.
                 self._agent_picker.sync_output_to_viewed_agent()
             else:
                 self.rewrap_output()
         except Exception as e:
-            # Runs on every frame — a re-render failure must not kill the paint.
-            # Log only the first occurrence of each distinct failure: the same
-            # failure on every frame would otherwise print a warning per
-            # redraw (a "recurring error" wall of identical lines).
+            # Runs every frame: never kill the paint, and log each distinct
+            # failure once instead of once per redraw.
             message = f"Output re-wrap skipped: {e}"
             if message != getattr(self, "_last_render_error", None):
                 self._last_render_error = message
@@ -224,8 +219,7 @@ class UI(BaseUI):
         from prompt_toolkit.application import run_in_terminal
 
         def run_subprocess():
-            # Standard streams inherit from the parent, which has been restored
-            # to the TTY by self._capture.pause()
+            # Inherits the parent's streams, restored to the TTY by pause().
             subprocess.call(cmd, shell=shell)
 
         with self._capture.pause():
@@ -235,16 +229,10 @@ class UI(BaseUI):
     def application(self) -> "Application":
         """The prompt_toolkit `Application`, built on first access.
 
-        Deferred out of `__init__` because building it calls
-        `prompt_toolkit.output.create_output`, which needs a real console:
-        on Windows, constructing one without a Win32 console screen buffer
-        raises `NoConsoleScreenBufferError`. Doing that from `__init__` made
-        `UI(...)` unconstructible anywhere a console is absent -- a Git Bash
-        or mintty shell, a piped/redirected run, and every test that only
-        wanted the pure post-construction logic. Nothing between `__init__`
-        and `UILifecycle` needs the app object, and by the time it *is* read
-        the UI is genuinely about to take over the terminal, so that is the
-        honest place for the requirement to bite.
+        Deferred out of `__init__` because `create_output` needs a real
+        console (Windows raises `NoConsoleScreenBufferError` without one), so
+        `UI(...)` stays constructible under mintty, piped runs and tests. It is
+        first read only when the UI is about to take over the terminal.
         """
         if self._application is None:
             self._application = self._create_application(
@@ -310,54 +298,25 @@ class UI(BaseUI):
 
     def _create_choice_float(self):
         """Float hosting the AskUserQuestion widget, shown only when active."""
-        # lazy: heavy third-party
-        from prompt_toolkit.filters import Condition
-        from prompt_toolkit.layout.containers import ConditionalContainer, Float
-        from prompt_toolkit.widgets import Frame
-
         choice_window = self._selection.choice_window
         if choice_window is None:
             raise RuntimeError(
                 "init_selection_state was not called before _create_choice_float"
             )
-        framed = Frame(
+        return _create_frame_float(
             choice_window,
             title="Select an answer",
             style="class:choice-frame",
-        )
-        # Full-width (left=right=0): a narrower float leaves side margins where the
-        # streaming output behind it bleeds through. Anchored just above the input.
-        return Float(
-            bottom=4,
-            left=0,
-            right=0,
-            content=ConditionalContainer(
-                content=framed, filter=Condition(self._selection.has_active_choice)
-            ),
+            is_active=self._selection.has_active_choice,
         )
 
     def _create_agent_picker_float(self):
         """Float hosting the sub-agent picker, shown only while active."""
-        # lazy: heavy third-party
-        from prompt_toolkit.filters import Condition
-        from prompt_toolkit.layout.containers import ConditionalContainer, Float
-        from prompt_toolkit.widgets import Frame
-
-        framed = Frame(
+        return _create_frame_float(
             self._agent_picker.agent_picker_window,
             title="Talk to a sub-agent",
             style="class:agent-picker-frame",
-        )
-        # Full-width (left=right=0), anchored just above the input, matching
-        # the choice float.
-        return Float(
-            bottom=4,
-            left=0,
-            right=0,
-            content=ConditionalContainer(
-                content=framed,
-                filter=Condition(self._agent_picker.has_active_agent_picker),
-            ),
+            is_active=self._agent_picker.has_active_agent_picker,
         )
 
     def _create_application(
@@ -375,11 +334,6 @@ class UI(BaseUI):
             from prompt_toolkit.clipboard.pyperclip import PyperclipClipboard
 
             clipboard = PyperclipClipboard()
-        except ImportError:
-            # lazy: heavy third-party
-            from prompt_toolkit.clipboard import InMemoryClipboard
-
-            clipboard = InMemoryClipboard()
         except Exception:
             # lazy: heavy third-party
             from prompt_toolkit.clipboard import InMemoryClipboard
@@ -388,7 +342,7 @@ class UI(BaseUI):
 
         output = create_output(stdout=self._capture.get_original_stdout())
 
-        # Wrap output.get_size to survive a console-not-detected error on Windows.
+        # Survive a console-not-detected error on Windows.
         original_get_size = output.get_size
 
         def robust_get_size():
@@ -499,9 +453,6 @@ class UI(BaseUI):
     # =========================================================================
     # UIOutput delegators
     # =========================================================================
-    # `is_thinking`/`current_confirmation` are not redeclared here: `UI` is a
-    # genuine `BaseUI` subclass (is-a, not composed), and `BaseUI` already
-    # owns that state and exposes it correctly — inheriting it is enough.
 
     @property
     def output_part(self) -> "UIOutput":
@@ -615,10 +566,8 @@ class UI(BaseUI):
         return self._output.finish_shell_output(key, collapsed, full)
 
     def toggle_collapsible_block(self) -> bool:
-        # While viewing a sub-agent, the output pane shows THAT sub-agent's
-        # own buffered text, tracked by its own toggle-block scope — not the
-        # main transcript's `rendered_blocks`. Route there so Ctrl+O always
-        # operates on whatever is actually displayed.
+        # In agent view the pane shows the sub-agent's buffer, which has its
+        # own toggle-block scope.
         toggled = (
             self._agent_picker.toggle_viewed_agent_block()
             if self.viewing_agent_id is not None
@@ -669,3 +618,22 @@ class UI(BaseUI):
         # `UISelection` is the front: it handles the pending-free-text case
         # and falls through to `UIConfirmation`'s base case otherwise.
         return self._selection.handle_confirmation(event)
+
+
+def _create_frame_float(window: Any, title: str, style: str, is_active: Callable):
+    """A full-width framed float just above the input, shown while active.
+
+    Full width because side margins would let the streaming output bleed through.
+    """
+    # lazy: heavy third-party
+    from prompt_toolkit.filters import Condition
+    from prompt_toolkit.layout.containers import ConditionalContainer, Float
+    from prompt_toolkit.widgets import Frame
+
+    framed = Frame(window, title=title, style=style)
+    return Float(
+        bottom=4,
+        left=0,
+        right=0,
+        content=ConditionalContainer(content=framed, filter=Condition(is_active)),
+    )

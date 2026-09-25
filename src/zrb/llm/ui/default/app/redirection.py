@@ -13,7 +13,6 @@ class GlobalStreamCapture:
         self.thread: threading.Thread | None = None
         self.pipe_r = None
         self.pipe_w = None
-        # Buffer to store captured output instead of sending to UI
         self._buffer: list[str] = []
 
     def start(self):
@@ -24,11 +23,8 @@ class GlobalStreamCapture:
 
         self.pipe_r, self.pipe_w = os.pipe()
 
-        # Flush existing buffers to ensure order
         sys.stdout.flush()
         sys.stderr.flush()
-
-        # Redirect stdout (1) and stderr (2) to the write end of the pipe
         os.dup2(self.pipe_w, sys.stdout.fileno())
         os.dup2(self.pipe_w, sys.stderr.fileno())
 
@@ -48,7 +44,7 @@ class GlobalStreamCapture:
         os.dup2(self.original_stdout_fd, sys.stdout.fileno())
         os.dup2(self.original_stderr_fd, sys.stderr.fileno())
 
-        # Close the write end of the pipe to signal EOF to the reader
+        # Closing the write end signals EOF; the reader closes pipe_r.
         if self.pipe_w is not None:
             os.close(self.pipe_w)
             self.pipe_w = None
@@ -57,30 +53,22 @@ class GlobalStreamCapture:
             self.thread.join()
             self.thread = None
 
-        # pipe_r is closed by _reader context manager
-
     @contextmanager
     def pause(self):
-        """
-        Temporarily restores original file descriptors without tearing down the thread or pipe.
-        Use this when handing control of the terminal to a subprocess (e.g. vim).
-        """
+        """Point FD 1/2 back at the terminal for a subprocess (e.g. vim),
+        keeping the pipe and reader thread alive."""
         if not self.capturing:
             yield
             return
 
-        # 1. Flush Python buffers to ensure everything pending goes to the pipe
         sys.stdout.flush()
         sys.stderr.flush()
-
-        # 2. Restore original FDs (point FD 1/2 back to TTY)
         os.dup2(self.original_stdout_fd, sys.stdout.fileno())
         os.dup2(self.original_stderr_fd, sys.stderr.fileno())
 
         try:
             yield
         finally:
-            # 3. Restore redirection (point FD 1/2 back to pipe)
             if self.pipe_w is not None:
                 sys.stdout.flush()
                 sys.stderr.flush()
@@ -97,11 +85,10 @@ class GlobalStreamCapture:
         """Returns a file object connected to the original stdout (terminal)."""
         if os.name == "nt":
             try:
-                # On Windows, opening CONOUT$ is often more robust than duping FD 1
-                # especially when FD 1 has been redirected.
+                # CONOUT$ is more robust than duping a redirected FD 1.
                 return open("CONOUT$", "w", encoding="utf-8", errors="replace")
             except Exception:
-                # Best-effort Windows path; fall through to the portable os.dup.
+                # Fall through to the portable os.dup.
                 pass
         new_fd = os.dup(self.original_stdout_fd)
         return os.fdopen(

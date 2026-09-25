@@ -11,6 +11,7 @@ neither has to import the other's module to get it. Same rationale as
 from __future__ import annotations
 
 import re
+from typing import Any
 
 
 def merge_output_chunk(current_text: str, content: str) -> str:
@@ -31,6 +32,26 @@ def merge_output_chunk(current_text: str, content: str) -> str:
     combined = last + content
     resolved = re.sub(r"[^\n]*\r", "", combined)
     return previous + resolved
+
+
+def rebase_tracked_spans(
+    rendered_blocks: list[list[Any]],
+    span_maps: tuple[dict[str, tuple[int, int]], ...],
+    after: int,
+    delta: int,
+) -> None:
+    """Shift every rendered block and keyed span starting at or past `after`
+    by `delta`, in place."""
+    if not delta:
+        return
+    for entry in rendered_blocks:
+        if entry[0] >= after:
+            entry[0] += delta
+            entry[1] += delta
+    for spans in span_maps:
+        for key, (span_start, span_end) in list(spans.items()):
+            if span_start >= after:
+                spans[key] = (span_start + delta, span_end + delta)
 
 
 class CollapsibleBlockSource:

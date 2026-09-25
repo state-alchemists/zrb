@@ -31,14 +31,8 @@ TodoStatus = Literal["pending", "in_progress", "completed", "cancelled"]
 
 
 class TodoManager:
-    """
-    Singleton manager for todo lists per conversation session.
-
-    Features:
-    - Per-session todo storage (isolated between conversations)
-    - File persistence (survives restarts)
-    - Progress tracking
-    """
+    """Singleton holding each conversation session's todo list, persisted
+    to disk."""
 
     _instance: TodoManager | None = None
     _todos: dict[str, dict[str, Any]]  # session_name -> todo_data
@@ -104,7 +98,6 @@ class TodoManager:
                 self._build_todo_entry(todo, todo_id, existing_todos, replace, now)
             )
 
-        # Include existing todos not in this update when merging
         if not replace and existing:
             seen = {t["id"] for t in new_todos}
             for tid, t in existing_todos.items():
@@ -231,6 +224,23 @@ todo_manager = TodoManager()
 # ── Progress visualization ─────────────────────────────────────────────────
 
 
+# Plain-text status markers for the model-facing tool results.
+_STATUS_CHARS = {
+    "completed": "[+]",
+    "in_progress": "[>]",
+    "pending": "[ ]",
+    "cancelled": "[-]",
+}
+_VALID_TODO_KEYS = frozenset({"id", "content", "status"})
+_COMMON_MISTAKES: dict[str, str] = {
+    "description": "content",
+    "title": "content",
+    "name": "content",
+    "task": "content",
+    "summary": "content",
+    "text": "content",
+}
+
 _STATUS_ICONS = {
     "completed": "✅",
     "in_progress": "▶️",
@@ -307,9 +317,6 @@ def _broadcast_todo_progress(
         ui.append_to_output(f"\n  {text}", kind="todo_progress")
 
 
-# Tool functions for LLM integration
-
-
 async def write_todos(
     todos: Annotated[
         list[dict[str, Any]],
@@ -354,18 +361,11 @@ async def write_todos(
         return error
 
     result = todo_manager.write_todos(session_name, todos, replace)
-
-    # Format compactly — no emoji, clear structure
     lines = [
         f"[{session_name}] {result['completed']}/{result['total']} done, {result['in_progress']} in progress"
     ]
     for todo in result["todos"]:
-        status_char = {
-            "completed": "[+]",
-            "in_progress": "[>]",
-            "pending": "[ ]",
-            "cancelled": "[-]",
-        }.get(todo["status"], "[?]")
+        status_char = _STATUS_CHARS.get(todo["status"], "[?]")
         lines.append(f"  {status_char} [{todo['id']}] {todo['content']}")
 
     lines.append(
@@ -382,15 +382,6 @@ async def write_todos(
 
 def _validate_todo_keys(todos: list[dict[str, Any]]) -> str | None:
     """Check every todo for unknown keys. Return an error string or None."""
-    _VALID_TODO_KEYS = frozenset({"id", "content", "status"})
-    _COMMON_MISTAKES: dict[str, str] = {
-        "description": "content",
-        "title": "content",
-        "name": "content",
-        "task": "content",
-        "summary": "content",
-        "text": "content",
-    }
     for i, todo in enumerate(todos):
         unknown = set(todo) - _VALID_TODO_KEYS
         if not unknown:
@@ -437,7 +428,6 @@ async def get_todos(
     if not result or not result.get("todos"):
         return f"No todos for session '{session_name}'. Use `write_todos` to create a plan."
 
-    # Format compactly — no emoji, clear structure
     lines = [
         f"[{session_name}] Progress: {result['completed']}/{result['total']} done, {result['in_progress']} in progress, {result['pending']} pending"
     ]
@@ -445,12 +435,7 @@ async def get_todos(
         f"Updated: {result.get('updated_at', result.get('created_at', 'N/A'))}"
     )
     for todo in result["todos"]:
-        status_char = {
-            "completed": "[+]",
-            "in_progress": "[>]",
-            "pending": "[ ]",
-            "cancelled": "[-]",
-        }.get(todo["status"], "[?]")
+        status_char = _STATUS_CHARS.get(todo["status"], "[?]")
         lines.append(
             f"  {status_char} [{todo['id']}] {todo['content']} -> {todo['status']}"
         )
@@ -462,7 +447,6 @@ async def get_todos(
     return "\n".join(lines)
 
 
-# Export tool functions with proper names for LLM
 write_todos.__name__ = "TodoWrite"
 get_todos.__name__ = "TodoRead"
 

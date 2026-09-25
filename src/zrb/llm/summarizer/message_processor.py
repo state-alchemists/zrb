@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 else:
     ModelMessage = Any
 
-# Constants for message prefixes to avoid brittle string matching
 SUMMARY_PREFIX = "SUMMARY OF TOOL RESULT:"
 TRUNCATED_PREFIX = "TRUNCATED TOOL RESULT:"
 
@@ -63,12 +62,8 @@ async def process_tool_return_part(
     if original_content is None:
         return part, False
 
-    # Cheap early-return before deepcopy. The summarizer is idempotent on
-    # already-summarised / truncated content and on tool denial/approval
-    # markers, so re-processing them is wasted work. Avoiding the deepcopy
-    # here matters because every message in history is walked on each
-    # summarizer pass (see runner._prepare_history), so a no-op deepcopy per
-    # already-processed message adds up over a long conversation.
+    # Skip already-processed content before the deepcopy: every history
+    # message is walked on each summarizer pass, so no-op copies add up.
     if isinstance(original_content, (ToolDenied, ToolApproved)):
         return part, False
     if isinstance(original_content, str) and (
@@ -77,16 +72,7 @@ async def process_tool_return_part(
     ):
         return part, False
 
-    safe_content = safe_copy_result(original_content)
-
-    content_is_string = isinstance(safe_content, str)
-    if not content_is_string:
-        try:
-            content = json.dumps(safe_content, default=str)
-        except Exception:
-            content = str(safe_content)
-    else:
-        content = safe_content
+    content = _content_as_text(safe_copy_result(original_content))
 
     # Strip ANSI escapes before measuring and summarizing: terminal-styled tool
     # output (color codes, OSC) inflates the token count and pollutes the summary.
@@ -105,9 +91,8 @@ async def process_tool_return_part(
     prefix_tokens = limiter.count_tokens(prefix)
     available_tokens = message_threshold - prefix_tokens
 
-    # By capping at the conversational-level threshold, we ensure we don't spend
-    # too much time summarizing a single message, while still performing
-    # chunked summarization for messages that fit within history limits.
+    # Cap at the conversational threshold so one message cannot dominate the
+    # summarizer's time.
     if content_tokens > insanity_threshold:
         zrb_print(
             stylize_warning(
@@ -124,17 +109,27 @@ async def process_tool_return_part(
             ),
             plain=True,
         )
-        truncated = limiter.truncate_text(content, message_threshold)
-        new_part = replace(part, content=f"{TRUNCATED_PREFIX}\n{truncated}")
-        return new_part, True
+        return _truncated_part(part, content, limiter, message_threshold), True
     try:
         summary = await summarize_text_plain(content, agent, limiter, available_tokens)
         new_part = replace(part, content=f"{SUMMARY_PREFIX}\n{summary}")
         return new_part, True
     except Exception as e:
         zrb_print(stylize_error(f"  Error summarizing tool result: {e}"), plain=True)
-        # Return truncated content instead of original to prevent
-        # unbounded content growth in history when summarization fails
-        truncated = limiter.truncate_text(content, message_threshold)
-        new_part = replace(part, content=f"{TRUNCATED_PREFIX}\n{truncated}")
-        return new_part, True
+        # Truncate rather than keep the original, so a failing summarizer
+        # cannot let history grow unbounded.
+        return _truncated_part(part, content, limiter, message_threshold), True
+
+
+def _content_as_text(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    try:
+        return json.dumps(content, default=str)
+    except Exception:
+        return str(content)
+
+
+def _truncated_part(part: Any, content: str, limiter: LLMLimiter, limit: int) -> Any:
+    truncated = limiter.truncate_text(content, limit)
+    return replace(part, content=f"{TRUNCATED_PREFIX}\n{truncated}")

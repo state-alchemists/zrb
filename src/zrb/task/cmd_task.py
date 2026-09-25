@@ -12,7 +12,11 @@ from zrb.context.any_context import AnyContext
 from zrb.task.base.base_task import BaseTask
 from zrb.task.base.params import BaseTaskParams
 from zrb.util.attr import get_int_attr, get_str_attr
-from zrb.util.cmd.command import check_unrecommended_commands, run_command
+from zrb.util.cmd.command import (
+    check_unrecommended_commands,
+    get_shell_flag,
+    run_command,
+)
 from zrb.util.cmd.remote import get_remote_cmd_script
 from zrb.util.secret import redact_env_map
 from zrb.xcom.xcom import Xcom
@@ -157,10 +161,7 @@ class CmdTask(BaseTask):
     def _check_unrecommended_commands(
         self, ctx: AnyContext, shell: str, cmd_script: str
     ):
-        # `get_shell_name`, not `endswith`: on Windows `shell` is an absolute
-        # `...\bin\bash.exe` path, and a raw suffix test would silently skip
-        # the POSIX lint on the one platform whose default shell is now Git
-        # Bash -- i.e. exactly where these warnings matter most.
+        # By name, not suffix: on Windows `shell` is an absolute `bash.exe` path.
         if get_shell_name(shell) in ("bash", "zsh"):
             unrecommended_commands = check_unrecommended_commands(cmd_script)
             if unrecommended_commands:
@@ -170,9 +171,7 @@ class CmdTask(BaseTask):
 
     def __get_env_map(self, ctx: AnyContext) -> dict[str, str]:
         envs = {key: val for key, val in ctx.env.items()}
-        # SSHPASS must only exist for remote execution: exporting it into the
-        # environment of every local command would leak the credential to
-        # processes that never need it.
+        # SSHPASS only for remote execution, so local commands never see it.
         remote_password = self._get_remote_password(ctx)
         if self._remote_host is not None and remote_password != "":
             envs["SSHPASS"] = remote_password
@@ -183,21 +182,8 @@ class CmdTask(BaseTask):
         return get_str_attr(ctx, self._shell, CFG.SHELL)
 
     def _get_shell_flag(self, ctx: AnyContext) -> str:
-        default_shell_flags = {
-            "node": "-e",
-            "ruby": "-e",
-            "php": "-r",
-            "pwsh": "-Command",
-            "powershell": "-Command",
-            "cmd": "/c",
-        }
-        default_shell_flag = default_shell_flags.get(
-            get_shell_name(self._get_shell(ctx)), "-c"
-        )
         return get_str_attr(
-            ctx,
-            self._shell_flag,
-            default_shell_flag,
+            ctx, self._shell_flag, get_shell_flag(self._get_shell(ctx))
         )
 
     def _get_remote_host(self, ctx: AnyContext) -> str:
@@ -210,11 +196,7 @@ class CmdTask(BaseTask):
         return get_str_attr(ctx, self._remote_user, "")
 
     def _get_remote_password(self, ctx: AnyContext) -> str:
-        return get_str_attr(
-            ctx,
-            self._remote_password,
-            "",
-        )
+        return get_str_attr(ctx, self._remote_password, "")
 
     def _get_remote_ssh_key(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._remote_ssh_key, "")

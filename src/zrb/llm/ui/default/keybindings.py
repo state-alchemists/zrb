@@ -74,11 +74,9 @@ class UIKeybindings:
         def _(event):
             self._on_choice_toggle(event)
 
-        # Ctrl+K toggles focus between the input and output panes. The
-        # input/output controls bind no Tab/Shift+Tab focus traversal of their
-        # own (see app/layout.py, app/keybinding.py), leaving Shift+Tab free to
-        # cycle modes (below). Note: on Termux, Tab and Shift+Tab both produce byte
-        # 0x09, so mode cycling via Shift+Tab is unavailable there.
+        # Ctrl+K toggles focus between panes; the panes bind no Tab/Shift+Tab
+        # traversal (app/layout.py, app/keybinding.py), so Shift+Tab stays free
+        # for mode cycling.
         @app_keybindings.add("c-k", filter=no_active_choice)
         def _(event):
             self._on_toggle_focus(event)
@@ -108,10 +106,7 @@ class UIKeybindings:
 
         @app_keybindings.add("left", filter=viewing_sub_agent)
         def _(event):
-            # Left while the output pane shows a sub-agent returns to the main
-            # session. Filtered so Left still moves the text cursor in the
-            # input field everywhere else (the app-level binding only matches
-            # while `_viewing_agent_id` is set).
+            # Filtered so Left still moves the input cursor outside agent view.
             ui.exit_agent_view()
 
         @app_keybindings.add("enter", filter=no_active_choice)
@@ -122,15 +117,9 @@ class UIKeybindings:
         def _(event):
             ui.toggle_yolo()
 
-        # Ctrl+O expands/collapses the collapsible block at (or just before)
-        # the output cursor — a tool call's truncated args, a hidden tool
-        # result, or a thinking block collapsed once the model moved on.
-        # Follows the tail by default, so with no scrolling this toggles the
-        # most recently printed block. Unconditional (unlike `left` above):
-        # `ui.toggle_collapsible_block` itself routes to the currently-viewed
-        # sub-agent's own toggle-block scope when `viewing_agent_id` is set,
-        # so this single binding is always correct regardless of what the
-        # output pane is currently showing.
+        # Ctrl+O toggles the collapsible block at (or just before) the output
+        # cursor. Unfiltered: `toggle_collapsible_block` itself routes to the
+        # viewed sub-agent's scope when one is shown.
         @app_keybindings.add("c-o")
         def _(event):
             ui.toggle_collapsible_block()
@@ -143,9 +132,8 @@ class UIKeybindings:
                 self._on_cycle_mode(event)
 
         else:
-            # Shift+Tab — cycle normal → accept-edits → plan. Gated so a completion
-            # menu keeps Shift+Tab for previous-completion, and a choice widget keeps
-            # its own back-tab navigation.
+            # Shift+Tab cycles normal → accept-edits → plan. Gated so completion
+            # menus and choice widgets keep their own back-tab navigation.
             @app_keybindings.add("s-tab", filter=no_active_choice & ~has_completions)
             def _(event):
                 self._on_cycle_mode(event)
@@ -155,15 +143,9 @@ class UIKeybindings:
         def _(event):
             event.current_buffer.insert_text("\n")
 
-        # Voice push-to-talk: press to record, press again to stop.
-        #
-        # Terminals cannot detect key-release (byte 0x20 for space is sent on
-        # key-down only), so Claude Code's hold-to-talk model is unavailable.
-        # Instead: press once → start recording; press again → stop + exit
-        # voice mode. Transcribed text appears in the input field for editing,
-        # then the user presses Enter to submit like a normal message.
-        # OS key-repeat is filtered via a 300ms debounce (macOS default repeat
-        # interval is ~67ms). Ctrl+Space always inserts a literal newline.
+        # Voice push-to-talk is press-to-start, press-to-stop: terminals send
+        # no key-release event, so hold-to-talk is impossible. The transcript
+        # lands in the input field for editing before Enter submits it.
         voice_ptt_key = CFG.LLM_VOICE_PUSH_TO_TALK_KEY.strip().lower()
         voice_mode_active = Condition(
             lambda: getattr(getattr(ui, "voice", None), "mode_active", False)
@@ -207,14 +189,12 @@ class UIKeybindings:
         if buffer.text.strip() != "":
             buffer.reset()
             return
-        # Don't flush the confirmation buffer: the app is exiting, so
-        # writing buffered tokens is wasted work and adds latency.
+        # No flush: the app is exiting.
         ui.cancel_pending_confirmations(flush=False)
         if ui.running_llm_task and not ui.running_llm_task.done():
             ui.running_llm_task.cancel()
             ui.append_to_output("\n<Esc> Canceled")
-        # Abort an in-flight voice recording/model-download so Ctrl+C
-        # exits promptly instead of waiting on the download thread.
+        # Abort a voice recording/download so exit does not wait on it.
         voice = getattr(ui, "voice", None)
         voice_task = None if voice is None else voice.task
         if voice_task is not None and not voice_task.done():
@@ -272,9 +252,7 @@ class UIKeybindings:
                 )
                 ui.invalidate_ui()
             elif clipboard:
-                # No image found — paste text into input field. Always
-                # target input_field, not current_buffer, since focus
-                # may be on the read-only output field.
+                # Target input_field: focus may be on the read-only output pane.
                 # lazy: heavy third-party
                 from prompt_toolkit.application import get_app as _get_app
 
@@ -283,14 +261,12 @@ class UIKeybindings:
 
     def _on_escape(self, event: Any) -> None:
         ui = self._ui
-        # While viewing a sub-agent, Esc cancels what the sub-agent is
-        # doing (mirroring the main agent's Esc) — it never leaves the
-        # view (Left does that) and never touches the main task.
+        ui.cancel_pending_confirmations()
+        # In agent view, Esc cancels the sub-agent's work only; Left leaves
+        # the view and the main task is untouched.
         if getattr(ui, "viewing_agent_id", None) is not None:
-            ui.cancel_pending_confirmations()
             ui.cancel_viewed_agent()
             return
-        ui.cancel_pending_confirmations()
         if ui.running_llm_task and not ui.running_llm_task.done():
             ui.running_llm_task.cancel()
             ui.execute_hook(
@@ -304,11 +280,8 @@ class UIKeybindings:
 
     def _on_enter(self, event: Any, llm_task: "AnyTask") -> None:
         ui = self._ui
-        # Enter only ever acts on the input field. With focus on the
-        # read-only output pane (Ctrl+K), event.current_buffer is the output
-        # buffer — resolving a confirmation or submitting from it would send
-        # the entire pane content (banner, help, transcript) as user input.
-        # Refocus the input field instead.
+        # With focus on the output pane, current_buffer is the transcript;
+        # submitting it would send the whole pane as input. Refocus instead.
         if not event.app.layout.has_focus(ui.input_field):
             event.app.layout.focus(ui.input_field)
             return
@@ -319,8 +292,7 @@ class UIKeybindings:
         if ui.handle_confirmation(event):
             return
 
-        # A still-queued message recalled into the input field (Up arrow)
-        # is edited in place here instead of submitted as a new message.
+        # A queued message recalled with Up is edited in place, not resubmitted.
         if ui.handle_enter_queued_edit(event):
             return
 
@@ -332,23 +304,19 @@ class UIKeybindings:
     def _on_voice_ptt(self, event: Any) -> None:
         """Push-to-talk press: start/stop a voice recording.
 
-        Terminal key-repeat is filtered via a debounce on
-        `self._voice_last_press`, and the engine is cached on the part so the
-        transcriber backend is resolved only once (lazy import on first use).
+        OS key-repeat is debounced; the engine is created once and cached.
         """
         ui = self._ui
         if not event.app.layout.has_focus(ui.input_field):
             ui.input_field.buffer.insert_text(" ")
             return
 
-        # Debounce: filter OS key-repeat (events <300ms apart).
         now = time.time()
         if now - self._voice_last_press < self._KEY_REPEAT_DEBOUNCE:
             self._voice_last_press = now
             return
         self._voice_last_press = now
 
-        # Second press while recording → signal stop, exit voice mode.
         if ui.voice.recording_active:
             ui.voice.recording_active = False
             if ui.voice.stop_event is not None:
@@ -359,13 +327,13 @@ class UIKeybindings:
             return
 
         # lazy: heavy third-party — voice engine imports sounddevice/numpy
-        from zrb.llm.voice import VoiceEngine  # noqa: F811
+        from zrb.llm.voice import VoiceEngine
 
         if self._voice_engine is None:
             self._voice_engine = VoiceEngine()
         engine = self._voice_engine
 
-        # Set synchronously BEFORE create_task so key-repeat can't race.
+        # Set before create_task so a key-repeat cannot race the new task.
         ui.voice.recording_active = True
         ui.voice.stop_event = asyncio.Event()
         ui.voice.task = None
@@ -378,28 +346,22 @@ class UIKeybindings:
     async def _voice_record_and_insert(self, engine: "Any") -> None:
         """Record speech, then insert the transcription into the input field."""
         ui = self._ui
-        # Download the Vosk model before recording (first use only).
-        # This keeps the "Downloading..." status visible. The download
-        # is chunked and cancellable, so /q or Ctrl+C aborts it (both
-        # cancel this task). A pre-downloaded model must be extracted
-        # (the bare .zip is not detected). After the first download the
-        # model is cached for future recordings.
-        if not engine.is_ready and CFG.LLM_VOICE_MODE.strip().lower() == "vosk":
-            if not engine.is_vosk_model_ready():
-                ui.append_to_output(stylize_muted("\n  🎤 Downloading voice model..."))
-                ui.invalidate_ui()
-                try:
-                    await engine.download_vosk_model()
-                except Exception as exc:
-                    ui.voice.mode_active = False
-                    ui.voice.recording_active = False
-                    ui.voice.task = None
-                    ui.voice.stop_event = None
-                    ui.append_to_output(stylize_muted(f"\n  ⚠️ Voice error: {exc}\n"))
-                    ui.invalidate_ui()
-                    return
-                ui.append_to_output(stylize_muted("\n  🎤 Voice model ready"))
-                ui.invalidate_ui()
+        # First use downloads the Vosk model (cancellable: /q and Ctrl+C
+        # cancel this task). A pre-downloaded model must be extracted.
+        if (
+            not engine.is_ready
+            and CFG.LLM_VOICE_MODE.strip().lower() == "vosk"
+            and not engine.is_vosk_model_ready()
+        ):
+            ui.append_to_output(stylize_muted("\n  🎤 Downloading voice model..."))
+            ui.invalidate_ui()
+            try:
+                await engine.download_vosk_model()
+            except Exception as exc:
+                self._end_voice_with_error(exc)
+                return
+            ui.append_to_output(stylize_muted("\n  🎤 Voice model ready"))
+            ui.invalidate_ui()
 
         ui.append_to_output(stylize_muted("\n  🎤 Recording... "))
         ui.invalidate_ui()
@@ -408,17 +370,9 @@ class UIKeybindings:
                 stop_event=ui.voice.stop_event,
             )
         except Exception as exc:
-            ui.voice.mode_active = False
-            ui.voice.recording_active = False
-            ui.voice.task = None
-            ui.voice.stop_event = None
-            ui.append_to_output(stylize_muted(f"\n  ⚠️ Voice error: {exc}\n"))
-            ui.invalidate_ui()
+            self._end_voice_with_error(exc)
             return
-        ui.voice.mode_active = False
-        ui.voice.recording_active = False
-        ui.voice.task = None
-        ui.voice.stop_event = None
+        self._reset_voice_state()
         if text:
             ui.input_field.buffer.insert_text(text)
             word_count = len(text.split())
@@ -429,29 +383,37 @@ class UIKeybindings:
             ui.append_to_output(stylize_muted("\n  🎤 No speech detected\n"))
         ui.invalidate_ui()
 
+    def _end_voice_with_error(self, exc: Exception) -> None:
+        self._reset_voice_state()
+        self._ui.append_to_output(stylize_muted(f"\n  ⚠️ Voice error: {exc}\n"))
+        self._ui.invalidate_ui()
+
+    def _reset_voice_state(self) -> None:
+        voice = self._ui.voice
+        voice.mode_active = False
+        voice.recording_active = False
+        voice.task = None
+        voice.stop_event = None
+
     def _handle_multiline(self, event) -> bool:
+        """A trailing backslash with the cursor at the end becomes a newline."""
         buff = event.current_buffer
         text = buff.text
-        # Trailing backslash → newline-with-cursor-at-end (multiline indicator)
-        if text.strip().endswith("\\"):
-            if buff.cursor_position == len(text):
-                if text.endswith("\\"):
-                    buff.delete_before_cursor(count=1)
-                    buff.insert_text("\n")
-                    return True
-        return False
+        if buff.cursor_position != len(text) or not text.endswith("\\"):
+            return False
+        buff.delete_before_cursor(count=1)
+        buff.insert_text("\n")
+        return True
 
     def _handle_enter_dispatch(self, event: Any, llm_task: "AnyTask") -> None:
-        """Split out of the Enter closure to keep `setup_app_keybindings` under
-        the complexity ratchet."""
+        """Route submitted text to a sub-agent, a command, or the LLM."""
         ui = self._ui
         buff = event.current_buffer
         text = buff.text
         if not text.strip():
             return
 
-        # While viewing a sub-agent every Enter is a message to it — never a
-        # /command for the main session.
+        # In agent view every Enter is a message to the sub-agent, never a command.
         viewing_agent_id = getattr(ui, "viewing_agent_id", None)
         if viewing_agent_id is not None:
             session_id = get_session_ownership_key(ui.conversation_session_name)
@@ -470,8 +432,7 @@ class UIKeybindings:
                 await live_subagent_session_registry.send_message(
                     session_id, agent_id, message
                 )
-                # Echo the user's message into the sub-agent's own buffer so
-                # its live view reads as a conversation.
+                # Echo into the sub-agent's buffer so its live view reads as a chat.
                 entry = live_subagent_session_registry.get(session_id, agent_id)
                 if entry is not None:
                     entry.buffered_ui.append_to_output(f"\n💬 {message.strip()}\n")
@@ -481,24 +442,18 @@ class UIKeybindings:
             task.add_done_callback(ui.background_tasks.discard)
             return
 
-        # Route by recognition, not by "/" prefix — command tokens are
-        # user-configurable (e.g. ">" for redirect). Recognized commands go
-        # through the hook-wrapped async dispatch (PreCommand may block;
-        # PostCommand fires after); plain text is sent to the LLM.
+        # Classify by recognition, not "/" prefix: command tokens are
+        # user-configurable (e.g. ">" for redirect).
         kind = ui.classify_input(text)
 
-        # Run-while-thinking commands (/btw, YOLO toggle) dispatch even while
-        # the LLM is responding.
+        # /btw and the YOLO toggle run unguarded, even mid-response.
         if kind == "thinking_command":
-            # Not guarded: like main, /btw and YOLO toggle run independently
-            # — never blocked by, nor blocking, another in-flight command.
             buff.reset()
             ui.schedule_command(text, guarded=False)
             return
 
-        # Commands stay gated while thinking: they mutate session/UI state
-        # (/save, /load, /model), so running one mid-response is unsafe. The
-        # buffer is kept so the user can resubmit once the response finishes.
+        # Other commands mutate session state, so they wait out a response;
+        # the buffer is kept for resubmission.
         if kind == "command":
             if ui.is_thinking:
                 return
@@ -506,9 +461,7 @@ class UIKeybindings:
             ui.schedule_command(text)
             return
 
-        # Plain message — record for up-arrow recall, then submit. Submitting
-        # while thinking is allowed: the message loop runs one job at a time,
-        # so it lands in the queue and runs when the current turn ends.
+        # A plain message submitted mid-response is queued for the next turn.
         buff.append_to_history()
         ui.submit_user_message(llm_task, text)
         buff.reset()

@@ -50,14 +50,9 @@ from zrb.llm.tool.ambient_state import (
     set_interactive_mode,
 )
 
-# Anchors the <live-context> contract in the cached system prompt. Stable text
-# — costs nothing per turn and never invalidates the cacheable prefix — while
-# telling any model (not just ones that learned <system-reminder>) what the
-# block is and that the most recent one wins.
-# It names no individual line: the block's contents vary with the environment
-# (a composition may drop the todo lines), and an anchor that promises lines the
-# block cannot produce is the same dangle as a rulebook naming an absent tool,
-# minus the test that catches it. The block is self-describing once it arrives.
+# Anchors the <live-context> contract in the cached system prompt (stable, so
+# it never invalidates the cache): what the block is, and that the latest one
+# wins. It names no individual line, since the block's contents vary.
 LIVE_CONTEXT_ANCHOR = (
     "Each user turn ends with a <live-context> block describing current runtime "
     "state. It is injected automatically — not written by the user. Treat the "
@@ -68,10 +63,7 @@ LIVE_CONTEXT_ANCHOR = (
 
 SimpleLiveContextProvider = Callable[[AnyContext], str | None]
 
-# `append_live_context` always appends the block last, as `"\n\n" + block`
-# onto the existing text (or bare, when there was no prior text). Matched
-# non-greedily is unnecessary since the block never nests another
-# `<live-context>` — only `<journal-index>` can appear inside it.
+# `append_live_context` always appends the block last, after "\n\n" (or bare).
 _LIVE_CONTEXT_BLOCK_RE = re.compile(
     r"\n\n(<live-context>.*</live-context>)\s*\Z", re.DOTALL
 )
@@ -297,21 +289,15 @@ def render_journal_index(first_message: str | None = None) -> str | None:
         return None
     if not content.strip():
         return None
-    # A negative value disables the cap. Zero does not: "max 0 chars" reads as
-    # "inject nothing", and EnvField falls back to 0 on an unparseable value —
-    # so treating 0 as unlimited would let a typo'd env var silently uncap the
-    # injection instead of failing loudly.
+    # Negative disables the cap; 0 means "inject nothing", since EnvField
+    # parses a typo to 0 and that must not uncap.
     limit = CFG.LLM_JOURNAL_INDEX_MAX_CHARS
     if limit == 0:
         return None
     hint = ""
     if limit > 0 and len(content) > limit:
-        # Cut on a line boundary. A raw slice lands mid-word, so the last
-        # surviving entry arrives as a fragment the model has to guess at —
-        # and the HUD's entries are facts about the user, where half a
-        # sentence is worse than none. Overflow is dropped from the end, so
-        # the file is written most-durable-first (WriteJournalNote keeps the
-        # unbounded Recent Insights section last, so overflow evicts itself).
+        # Cut on a line boundary: half a fact is worse than none. Overflow
+        # drops from the end, where WriteJournalNote keeps Recent Insights.
         head = content[:limit]
         cut = head.rfind("\n")
         content = (head[:cut] if cut > 0 else head) + "\n (...more)"
@@ -488,10 +474,7 @@ def _render_parts(
             else "- Interactive: yes"
         )
     else:
-        # No tool names here. AskUserQuestion, EnterPlanMode and ExitPlanMode
-        # are registered only in interactive sessions (`_resolve_interactive`
-        # in common_tools.py), so this branch would spend ~55 tokens per turn
-        # forbidding tools that are already absent.
+        # No tool names: the interactive-only tools are already absent here.
         parts.append(
             "- Interactive: no — do not wait on user input mid-turn; there is no "
             "user to answer or approve a plan. Present any plan inline and "

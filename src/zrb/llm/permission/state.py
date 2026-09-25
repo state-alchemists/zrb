@@ -1,11 +1,8 @@
 """Ambient permission state — the in-force policy and agent mode.
 
-``current_agent_mode`` is a ``ContextVar`` whose value is a **mutable**
-``AgentModeState`` instance.  pydantic-ai spawns a fresh task per tool call
-(``_agent_graph.py:1873``), which snapshots the current ``ContextVar`` values.
-With an immutable ``AgentMode`` enum the change made by ``ExitPlanMode`` is
-lost — the next tool's task sees the snapshot.  By mutating an attribute on
-a shared instance, every task sees the update.
+``current_agent_mode`` holds a **mutable** ``AgentModeState`` so a mode change
+made inside one per-tool-call task is visible to every later one (see
+``AgentModeState``).
 """
 
 from __future__ import annotations
@@ -67,12 +64,11 @@ def get_current_agent_mode() -> AgentMode:
 
 
 def set_current_agent_mode(mode: AgentMode) -> None:
-    """Set agent mode on the *current* run's mutable state so every task sees it.
+    """Set agent mode on the current run's mutable state so every task sees it.
 
-    Within a single agent run this mutates the run-local ``AgentModeState`` that
-    ``enter_agent_mode_scope`` bound, so the change made by ``EnterPlanMode`` /
-    ``ExitPlanMode`` propagates to every per-tool-call task spawned afterwards
-    (which only snapshot the ``ContextVar`` map, not fresh objects).
+    Mutates the run-local ``AgentModeState`` that ``enter_agent_mode_scope``
+    bound, so ``EnterPlanMode`` / ``ExitPlanMode`` reach every per-tool-call
+    task spawned afterwards.
     """
     current_agent_mode.get().mode = mode
 
@@ -80,12 +76,9 @@ def set_current_agent_mode(mode: AgentMode) -> None:
 def enter_agent_mode_scope() -> "tuple[Any, AgentModeState]":
     """Bind a fresh, run-local ``AgentModeState`` that inherits the current mode.
 
-    Without this, every run that never rebinds the ContextVar mutates the single
-    import-time default instance, so concurrent runs (web chat sessions, MultiUI
-    children, parallel sub-agents) would share — and clobber — each other's plan
-    /build mode. Binding a fresh instance per run isolates them, while the
-    mutate-in-place ``set_current_agent_mode`` still propagates intra-run changes
-    to per-tool-call tasks.
+    Isolates concurrent runs (web chat sessions, MultiUI children, parallel
+    sub-agents), which would otherwise all mutate the one import-time default
+    instance and clobber each other's plan/build mode.
 
     Returns ``(token, parent_state)`` for ``exit_agent_mode_scope``.
     """

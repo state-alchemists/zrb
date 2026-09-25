@@ -12,11 +12,9 @@ from zrb.llm.history_manager.file_history_manager import (
 )
 from zrb.llm.prompt.live_context import split_live_context
 
-# Re-exported: existing callers (chat_api_route.py) and tests import
-# parse_delegated_session from this module; the definition itself lives in
-# subagent_session_naming.py, shared with delegate.py (which formats the
-# name) and the CLI TUI's persona-swap-on-/load, without dragging
-# delegate.py's heavy transitive imports into the web session lister.
+# Re-exported for chat_api_route.py and tests. Defined in
+# subagent_session_naming.py so the web session lister avoids delegate.py's
+# heavy imports.
 from zrb.llm.util.subagent_session_naming import (
     parse_delegated_session,
     subagent_history_directories,
@@ -254,11 +252,8 @@ class ChatSessionManager:
                 except asyncio.CancelledError:
                     pass
             del self._sessions[session_id]
-            # Otherwise this session's (now-empty) activity bucket and
-            # counter outlive it in agent_activity_registry for the rest of
-            # the process's life — a per-session-id leak, one dict entry per
-            # session ever seen (keying the registry by session traded
-            # cross-session bleed for this leak; this closes it).
+            # The registry is keyed by session id; without this, every
+            # session ever seen leaves an entry behind for the process's life.
             agent_activity_registry.clear(session_id=session_id)
             # lazy: transitively heavy via internal — live_session.py imports
             # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai;
@@ -268,18 +263,10 @@ class ChatSessionManager:
             )
 
             live_subagent_session_registry.clear(session_id=session_id)
-            # Otherwise a background Shell(background=True) process this
-            # session started (e.g. via a delegated sub-agent) outlives the
-            # session with no cleanup path: the per-message teardown
-            # deliberately skips it (a background process must survive across
-            # messages in the same session), and full-shutdown cancellation
-            # never reaches it either. Session-scoped, not cancel_all() —
-            # other sessions may still have their own background processes
-            # running. Keyed by this method's own `session_id` argument (the
-            # unique dict key), never `session.session_name` — that is a
-            # client-supplied display label with no uniqueness guarantee
-            # (`create_session` never checks it), so using it here could
-            # reach into an unrelated session that happens to share a name.
+            # Background shell processes survive across messages, so the
+            # per-message teardown skips them; this is their only cleanup path.
+            # Keyed by `session_id`, never `session_name`: the name is a
+            # client-supplied label with no uniqueness guarantee.
             # lazy: zrb internal (heavy via transitive — shell_background.py
             # is otherwise loaded lazily off this module's hot path)
             from zrb.llm.tool.shell_background import get_shell_background_registry

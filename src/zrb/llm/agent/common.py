@@ -91,13 +91,9 @@ def wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
             metadata=metadata,
         )
     else:
-        # It is a callable (hasattr(tool, "function") is False, so not a Tool).
-        # Wrapped into a Tool (rather than left bare) so the capability tag
-        # survives as ToolDefinition.metadata: the outer SafeToolsetWrapper
-        # gate (see wrap_toolset below) only ever sees a ToolsetTool, which
-        # carries a tool_def but no .function and no arbitrary attributes, so
-        # a tag() set on the raw callable would otherwise resolve as UNKNOWN
-        # there and be denied outright by policies like PLAN_MODE_POLICY.
+        # A bare callable is wrapped into a Tool so its capability tag survives
+        # as ToolDefinition.metadata: the SafeToolsetWrapper gate sees only a
+        # ToolsetTool, where a tag on the raw callable would resolve UNKNOWN.
         # lazy: heavy third-party
         from pydantic_ai import Tool as PydanticTool
 
@@ -197,11 +193,9 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
             if inspect.iscoroutinefunction(func):
                 result = await func(*args, **kwargs)
             else:
-                # This wrapper is a coroutine function, so pydantic-ai never
-                # applies its own executor offload for sync tools — inline they
-                # would block the TUI's event loop for the tool's duration
-                # (ReadFile on a big file, grep, journal search). ContextVars
-                # propagate into the thread; none of the sync tools write them.
+                # pydantic-ai's own sync-tool offload doesn't apply to this
+                # coroutine wrapper, so offload here. ContextVars propagate;
+                # no sync tool writes them.
                 result = await asyncio.to_thread(func, *args, **kwargs)
 
             # If result is already a ToolReturn, return it as-is. The tool framed
@@ -246,11 +240,9 @@ def wrap_toolset(
         async def call_tool(
             self, name: str, tool_args: dict[str, Any], ctx: Any, tool: Any
         ) -> Any:
-            # Consumed once per call, regardless of outcome: if the user edited
-            # this call's arguments during approval, the model's own turn in
-            # history still shows what it originally wrote (pydantic-ai never
-            # rewrites that ToolCallPart) — this note is the only place left to
-            # tell it what actually ran. See override_registry's docstring.
+            # Consumed once per call: when the user edited the arguments during
+            # approval, this note is the only way the model learns what ran
+            # (see override_registry).
             override_note = pop_override_note(getattr(ctx, "tool_call_id", None))
 
             def _with_override_note(result: Any) -> Any:
@@ -279,16 +271,9 @@ def wrap_toolset(
                 pre_hook_value = result.return_value
                 result = await _fire_post_tool_use(name, tool_args, result)
                 if tool_framed and result.return_value is pre_hook_value:
-                    # The tool framed (and possibly already truncated, e.g.
-                    # Shell/Read/Grep via LLM_MAX_OUTPUT_CHARS) its own result,
-                    # and no PostToolUse hook touched it — respect that framing.
-                    # LLM_MAX_TOOL_RESULT_CHARS is documented to catch outputs
-                    # "not already capped by a tool"; running it here too would
-                    # re-truncate an already-truncated result into a much
-                    # smaller spill preview with no way to recover the true
-                    # full output. A hook that rewrites the value (below) is
-                    # still subject to the backstop, since that content never
-                    # went through the tool's own cap.
+                    # The tool framed (and possibly capped) its own result and
+                    # no hook rewrote it, so LLM_MAX_TOOL_RESULT_CHARS does not
+                    # re-truncate it. Hook-rewritten values still get the cap.
                     return _with_override_note(result)
                 result = _apply_tool_result_limit(name, result)
                 return _with_override_note(result)
@@ -524,10 +509,7 @@ def create_agent(
     if model is None:
         model = CFG.LLM_MODEL
 
-    # Resolve through CFG's configured credentials here unless the caller
-    # already did so (resolve_model=False) — e.g. LLMTask._create_agent
-    # resolves once itself (applying its own model_getter/model_renderer
-    # hooks too) and passes resolve_model=False to avoid doing it twice.
+    # resolve_model=False: the caller (e.g. LLMTask) already resolved it.
     final_model = resolve_configured_model(model) if resolve_model else model
     effective_retries = retries if retries is not None else CFG.LLM_TOOL_MAX_RETRIES
     effective_model_settings = _apply_request_timeout(
@@ -549,11 +531,8 @@ def create_agent(
         instructions=effective_system_prompt,
         toolsets=effective_toolsets,
         model_settings=effective_model_settings,
-        # history_processors intentionally omitted: pydantic-ai applies them on a
-        # shallow copy of message_history without writing back, so any summarization
-        # it does is immediately discarded. We apply them ourselves in _prepare_history
-        # (before the first model call) and in _execution_loop (between tool-call
-        # iterations) where we own the history reference.
+        # history_processors omitted: pydantic-ai applies them to a copy and
+        # discards the result, so runner.py applies them where it owns history.
         capabilities=capabilities or [],
         retries={"tools": effective_retries},
     )
@@ -649,11 +628,8 @@ def _apply_reasoning_defaults(
     something to special-case per model) or the provider-agnostic ``thinking``
     field. Caller-supplied ``model_settings`` always win, key by key.
     """
-    # Untyped as a plain dict, not ModelSettings: the provider-namespaced keys
-    # only exist on their own provider's ModelSettings subclass (e.g.
-    # OpenAIChatModelSettings, AnthropicModelSettings), each more specific
-    # than the provider-agnostic one this function (and every caller in the
-    # chain) is typed against.
+    # A plain dict: provider-namespaced keys exist only on each provider's own
+    # ModelSettings subclass.
     defaults: dict[str, Any] = {
         "openai_reasoning_summary": "auto",
         "openai_prompt_cache_retention": "24h",

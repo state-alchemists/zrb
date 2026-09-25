@@ -8,7 +8,6 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 - [Upgrading to 3.3.0](#upgrading-to-330)
 - [Upgrading to 3.0.0](#upgrading-to-300)
-- [Upgrading to 2.58.0](#upgrading-to-2580)
 - [Upgrading to 2.54.0](#upgrading-to-2540)
 - [Upgrading from 1.x.x to 2.x.x](#upgrading-from-1xx-to-2xx)
 

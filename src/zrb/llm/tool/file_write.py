@@ -83,13 +83,8 @@ async def _write_file_locked(path: str, abs_path: str, content: str, mode: str) 
             "space, then retry."
         )
 
-    # Best-effort: the write already succeeded above, so a hiccup here must
-    # not turn that success into a reported error. mode="w" already wrote
-    # exactly `content` as the file's full new state, so it's recorded
-    # directly; mode="a" only wrote a suffix, so the file is re-read instead
-    # — the recorded hash must reflect the true, full new state, or a later
-    # mode="w" in the same session would see a mismatch against its own
-    # prior appends.
+    # Best-effort, since the write succeeded. The hash must be the file's full
+    # new state: `content` for mode="w", a re-read for mode="a".
     try:
         if mode == "w":
             record_observed(abs_path, content)

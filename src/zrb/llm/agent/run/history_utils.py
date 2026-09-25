@@ -471,11 +471,9 @@ def merge_consecutive_messages(current_history, current_message):
         and current_message is not None
         and isinstance(current_message, (str, list))
     ):
-        # Build a NEW ModelRequest rather than appending to the existing one's
-        # parts in place. current_history[-1] is aliased to the caller's loaded
-        # history (and to FileHistoryManager's cached list, which load() returns
-        # by reference), so an in-place append would graft this turn's prompt
-        # onto the stored message — duplicating it on the next save/cancel path.
+        # A NEW ModelRequest: the last message is aliased to the history
+        # manager's cached list, so appending in place would duplicate the
+        # prompt on the next save.
         last_msg = current_history[-1]
         merged_parts = list(last_msg.parts) + [UserPromptPart(content=current_message)]
         current_history[-1] = replace(last_msg, parts=merged_parts)

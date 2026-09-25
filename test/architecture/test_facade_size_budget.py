@@ -28,7 +28,7 @@ FACADE_BUDGETS = {
     # init it reads during UIOutput construction.
     "llm/ui/default/ui.py": 671,
     "llm/task/chat/task.py": 1068,
-    "llm/task/llm_task.py": 839,
+    "llm/task/llm_task.py": 783,
     "llm/agent/subagent/manager.py": 299,
 }
 

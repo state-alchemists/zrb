@@ -1,11 +1,8 @@
 """Detects `@agent-name` mentions in a chat message and nudges the main agent
-to delegate to that agent, mirroring `resolve_custom_command`'s detect-and-
-transform shape but for agent routing instead of slash commands.
+to delegate to that agent, like `resolve_custom_command` does for slash commands.
 
-Deliberately minimal: no new approval-bypass machinery. The nudge only
-changes what the main agent is told to prefer — the `DelegateToAgent` call it
-makes as a result still goes through the exact same permission/approval gates
-as any model-initiated delegation.
+The nudge only changes what the agent is told to prefer; the resulting
+`DelegateToAgent` call passes the same permission/approval gates as any other.
 """
 
 from __future__ import annotations

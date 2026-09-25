@@ -8,8 +8,8 @@ without circular imports.
 * ``policy``     — ``Rule`` / ``PermissionPolicy`` (allow|ask|deny) + ``PLAN_MODE_POLICY``
 * ``state``      — ambient ``current_permission_policy`` and ``current_agent_mode``
 
-Default-off invariant: with no policy set and mode ``BUILD``, every consumer
-reproduces today's behavior exactly.
+Default-off invariant: with no policy set and mode ``BUILD``, no consumer
+constrains any tool call.
 """
 
 from __future__ import annotations

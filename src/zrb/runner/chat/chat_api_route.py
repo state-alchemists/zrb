@@ -54,11 +54,9 @@ def save_uploaded_attachment(session_id: str, filename: str, data: bytes) -> str
     """
     upload_root = os.path.join(tempfile.gettempdir(), "zrb_web_chat_uploads")
     _ensure_private_dir(upload_root)
-    # `session_id` arrives from the request path, so it is an untrusted path
-    # component: `..` resolves the upload dir to the shared temp directory
-    # itself, which `_ensure_private_dir` would then chmod to 0700. Reduced to
-    # alphanumerics, `-` and `_`, which every generated id already is
-    # (`get_random_name`, and the `<parent>-sub-<agent>-<id>` delegated form).
+    # `session_id` is an untrusted path component (`..` would make
+    # `_ensure_private_dir` chmod the shared temp dir). Generated ids are
+    # already alphanumerics, `-` and `_`.
     safe_session = to_safe_filename(session_id)
     if not safe_session:
         raise ValueError(f"Invalid session id: {session_id!r}")
@@ -69,11 +67,8 @@ def save_uploaded_attachment(session_id: str, filename: str, data: bytes) -> str
     if os.path.dirname(os.path.abspath(upload_dir)) != os.path.abspath(upload_root):
         raise ValueError(f"Invalid session id: {session_id!r}")
     _ensure_private_dir(upload_dir)
-    # The stored name is generated outright. The client filename only ever
-    # contributes its extension, which `get_media_type` has already matched
-    # against the sniffed bytes -- a client name reaching the filesystem
-    # brings control characters, reserved device names, NULs and length
-    # limits with it, and none of that is needed to identify the file.
+    # The stored name is generated; the client filename contributes only its
+    # extension, already matched against the sniffed bytes.
     extension = os.path.splitext(os.path.basename(filename))[1][:16]
     if not extension.isascii() or any(c in extension for c in '\\/:*?"<>|\0'):
         extension = ""
@@ -291,10 +286,8 @@ async def _handle_upload_chat_attachment(
             content={"error": f"Unsupported file type: {filename}"},
             status_code=400,
         )
-    # Read one byte past the cap rather than the whole upload: starlette
-    # spools the multipart body to disk, but `read()` with no argument
-    # materializes all of it as one `bytes`, so an oversized file is
-    # allocated in full before anything rejects it.
+    # Read one byte past the cap, so an oversized upload is never allocated
+    # in full.
     limit = CFG.LLM_MAX_ATTACHMENT_BYTES
     if limit > 0:
         data = await file.read(limit + 1)
@@ -379,11 +372,8 @@ async def _handle_post_chat_message(
                         "type": approval_result.get("type"),
                     }
                 )
-        # A dict is never retried down the is_json=False path. That hands the
-        # dict to handle_response, which cannot parse it and denies the
-        # pending approval outright — turning a raced edit into a spurious
-        # tool denial. Unhandled dicts fall to the pending-state checks below,
-        # which report the miss without touching the pending call.
+        # A dict never retries as is_json=False: handle_response would deny
+        # the pending approval. It falls to the pending-state checks below.
 
         # Re-read: an unhandled claim above clears a stale edit slot, so the
         # value captured before the call is out of date. Using it would tell

@@ -132,22 +132,7 @@ Both YAML list (`[Read, Glob]`) and comma-separated string (`Read, Glob, Grep`) 
 
 ## 4. Hooks (hooks.json)
 
-Zrb supports Claude-compatible lifecycle hooks.
-
-### Discovery Paths
-
-| Location | Type |
-|----------|------|
-| `~/.claude/hooks.json` | User-level single file |
-| `~/.claude/hooks/*.json` | User-level directory |
-| `~/.zrb/hooks.json` | User-level single file |
-| `~/.zrb/hooks/*.json` | User-level directory |
-| `./.claude/hooks.json` | Project-level single file |
-| `./.claude/hooks/*.json` | Project-level directory |
-| `./.zrb/hooks.json` | Project-level single file |
-| `./.zrb/hooks/*.json` | Project-level directory |
-
-> 💡 **See Also:** [Hooks Guide](./hooks.md) for detailed hook configuration.
+Zrb supports Claude-compatible lifecycle hooks, read from `hooks.json` and `hooks/*.json` under `~/.zrb/`, `~/.claude/`, `./.zrb/`, and `./.claude/`, plus the `hooks` block of Claude's `settings.json`/`settings.local.json`. See the [Hooks Guide](./hooks.md) for the full [discovery order](./hooks.md#hook-locations), configuration, and [differences from Claude Code](./hooks.md#differences-from-claude-code).
 
 ---
 

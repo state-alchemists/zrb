@@ -18,7 +18,7 @@ import re
 import subprocess
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Iterator
 
 from pydantic import Field
 
@@ -75,10 +75,7 @@ def log_activity(
     out. Unless the user asked for the write, do not announce it. Use
     WriteJournalNote when the finding must be findable by topic.
     """
-    root = ensure_journal_tree()
-    with _journal_lock(root):
-        if CFG.LLM_JOURNAL_GIT_ENABLED:
-            _ensure_journal_git(root)
+    with _open_journal() as root:
         now = datetime.now()
         day_file = _ensure_activity_path(root, now)
         file_note = ", ".join(files) if files else "—"
@@ -175,15 +172,8 @@ def write_journal_note(
     remove with DeleteJournalNote. Unless the user asked for the write, do not
     announce it.
     """
-    root = ensure_journal_tree()
-    with _journal_lock(root):
-        if CFG.LLM_JOURNAL_GIT_ENABLED:
-            _ensure_journal_git(root)
-        if category not in NOTE_CATEGORIES:
-            raise ValueError(
-                f"[SYSTEM SUGGESTION]: unknown category {category!r}. "
-                f"Use one of: {', '.join(NOTE_CATEGORIES)}."
-            )
+    with _open_journal() as root:
+        _check_category(category)
         if not _SLUG_RE.match(slug):
             raise ValueError(
                 f"[SYSTEM SUGGESTION]: slug {slug!r} must be kebab-case "
@@ -233,15 +223,8 @@ def delete_journal_note(
     can recover the file from the journal's git history; you cannot. Unless
     the user asked for the deletion, do not announce it.
     """
-    root = ensure_journal_tree()
-    with _journal_lock(root):
-        if CFG.LLM_JOURNAL_GIT_ENABLED:
-            _ensure_journal_git(root)
-        if category not in NOTE_CATEGORIES:
-            raise ValueError(
-                f"[SYSTEM SUGGESTION]: unknown category {category!r}. "
-                f"Use one of: {', '.join(NOTE_CATEGORIES)}."
-            )
+    with _open_journal() as root:
+        _check_category(category)
         note_path = os.path.join(root, category, f"{slug}.md")
         if not os.path.isfile(note_path):
             raise ValueError(
@@ -299,14 +282,32 @@ def _scrub_links_to(root: str, target_path: str) -> None:
 
 
 @contextmanager
-def _journal_lock(root: str):
+def _open_journal() -> Iterator[str]:
+    """Yield the journal root with its tree in place, the lock held, and git
+    initialized when `LLM_JOURNAL_GIT_ENABLED`."""
+    root = ensure_journal_tree()
+    with _journal_lock(root):
+        if CFG.LLM_JOURNAL_GIT_ENABLED:
+            _ensure_journal_git(root)
+        yield root
+
+
+def _check_category(category: str) -> None:
+    if category not in NOTE_CATEGORIES:
+        raise ValueError(
+            f"[SYSTEM SUGGESTION]: unknown category {category!r}. "
+            f"Use one of: {', '.join(NOTE_CATEGORIES)}."
+        )
+
+
+@contextmanager
+def _journal_lock(root: str) -> Iterator[None]:
     """Coarse-grained advisory lock over the whole journal root, held for the
     duration of one write call. Makes the multi-file graph update (note +
     backlinks + two indexes) atomic as a unit, not just each file write in
     isolation — closes the lost-update race between concurrent writers (a
     sub-agent and the main session, or the compliance-judge hook racing the
-    turn it followed). POSIX-only; falls back to a no-op where `fcntl` is
-    unavailable, matching the previous unlocked behavior there.
+    turn it followed). POSIX-only; a no-op where `fcntl` is unavailable.
     """
     if fcntl is None:
         yield
@@ -400,9 +401,8 @@ def _git_commit(root: str, message: str) -> None:
             timeout=timeout,
         )
     except (OSError, subprocess.SubprocessError):
-        # subprocess.TimeoutExpired subclasses SubprocessError, so a hung git
-        # (GPG-sign prompt, stale index.lock) is swallowed the same way as a
-        # missing binary — never a new way for a journal call to fail.
+        # TimeoutExpired subclasses SubprocessError: a hung git (GPG-sign
+        # prompt, stale index.lock) is swallowed like a missing binary.
         return
 
 
@@ -460,10 +460,9 @@ def _write_note_file(
     is composed from the arguments — which is why the two link blocks have to be
     merged rather than rebuilt. Neither is the caller's to supply on an update:
 
-    * ``## Backlinks`` is written by *other* notes, via ``_add_backlink``. A
-      plain truncate dropped every one of them, so linking A→B and then updating
-      B left B with no way back to A. That is the ``missing-backlink`` invariant
-      this module claims to make unviolatable, violated by its own writer.
+    * ``## Backlinks`` is written by *other* notes, via ``_add_backlink``.
+      Rebuilding it would leave B with no way back to A after linking A→B and
+      then updating B — a ``missing-backlink`` violation.
     * ``## Related`` holds the forward links. Dropping those while the targets
       keep their backlinks is the same break seen from the other end — a
       backlink pointing at a note that no longer claims the relationship.
@@ -476,9 +475,6 @@ def _write_note_file(
     Merging is the conservative direction: a link is only ever added here, and
     ``_resolve_links`` has already confirmed each new target exists on disk.
     """
-    # Read before the rewrite below discards it: the note's prior revision,
-    # if any, becomes one bounded History entry (belief changes are traceable
-    # instead of silently overwritten — see `_prior_revision_entry`).
     history = _merge_entries(
         _entries_under(note_path, _HISTORY_HEADING), _prior_revision_entry(note_path)
     )
@@ -537,14 +533,8 @@ def _entries_under_text(text: str, heading: str) -> list[str]:
     lines = text.splitlines()
     if heading not in lines:
         return []
-    start = lines.index(heading) + 1
-    entries: list[str] = []
-    for line in lines[start:]:
-        if line.startswith("## "):
-            break
-        if line.startswith("- "):
-            entries.append(line)
-    return entries
+    start, end = _section_bounds(lines, heading)
+    return [line for line in lines[start:end] if line.startswith("- ")]
 
 
 def _merge_entries(existing: list[str], new: list[str]) -> list[str]:
@@ -611,7 +601,7 @@ def _register_link(
 
     Exactly one entry per target survives: the first existing line for the
     target is relabelled in place (keeping its position and section) and any
-    later ones — left by retitles before this rule existed — are dropped.
+    later duplicates are dropped.
     """
     entry = f"- [{label}]({rel_target})"
     text = _read_text(index_path)
@@ -642,13 +632,19 @@ def _append_under_heading(text: str, heading: str, entry: str) -> str:
     lines = text.splitlines()
     if heading not in lines:
         return f"{text.rstrip()}\n\n{heading}\n\n{entry}\n"
+    start, end = _section_bounds(lines, heading)
+    body = [line for line in lines[start:end] if line.strip()]
+    body.append(entry)
+    return "\n".join([*lines[:start], "", *body, "", *lines[end:]]).rstrip() + "\n"
+
+
+def _section_bounds(lines: list[str], heading: str) -> tuple[int, int]:
+    """`[start, end)` of the body under *heading*, up to the next `## `."""
     start = lines.index(heading) + 1
     end = start
     while end < len(lines) and not lines[end].startswith("## "):
         end += 1
-    body = [line for line in lines[start:end] if line.strip()]
-    body.append(entry)
-    return "\n".join([*lines[:start], "", *body, "", *lines[end:]]).rstrip() + "\n"
+    return start, end
 
 
 def _upsert_hud_line(root: str, section: str, line: str, note_rel: str) -> None:
@@ -656,8 +652,8 @@ def _upsert_hud_line(root: str, section: str, line: str, note_rel: str) -> None:
 
     The trailing note link is the key: a revised note's HUD line supersedes
     its old one instead of sitting beside it as a contradicting fact. A line
-    with no link to the note — one pinned before lines carried it — cannot be
-    attributed without guessing, so it stays until the section cap evicts it.
+    with no link to the note cannot be attributed without guessing, so it
+    stays until the section cap evicts it.
     """
     link = f"]({note_rel})"
     base = f"- {line.removeprefix('- ')}"
@@ -669,10 +665,7 @@ def _upsert_hud_line(root: str, section: str, line: str, note_rel: str) -> None:
     heading = f"## {section}"
     lines = text.splitlines()
     if heading in lines:
-        start = lines.index(heading) + 1
-        end = start
-        while end < len(lines) and not lines[end].startswith("## "):
-            end += 1
+        start, end = _section_bounds(lines, heading)
         kept = [
             ln
             for ln in lines[start:end]
@@ -681,7 +674,7 @@ def _upsert_hud_line(root: str, section: str, line: str, note_rel: str) -> None:
         text = "\n".join([*lines[:start], *kept, *lines[end:]]) + "\n"
     text = _append_under_heading(text, heading, entry)
     text = _cap_section_entries(
-        text, f"## {section}", CFG.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION
+        text, heading, CFG.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION
     )
     _write_text(index_path, text)
 
@@ -701,10 +694,7 @@ def _cap_section_entries(text: str, heading: str, max_entries: int) -> str:
     lines = text.splitlines()
     if heading not in lines:
         return text
-    start = lines.index(heading) + 1
-    end = start
-    while end < len(lines) and not lines[end].startswith("## "):
-        end += 1
+    start, end = _section_bounds(lines, heading)
     body = [line for line in lines[start:end] if line.strip()]
     if len(body) <= max_entries:
         return text

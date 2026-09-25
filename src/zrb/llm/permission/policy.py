@@ -36,9 +36,7 @@ _SALIENT_ARG_KEYS = (
     "pattern",
     "url",
     "agent_name",
-    # ExitWorktree's deletion target. EnterWorktree's own destination is
-    # computed internally and never appears in caller-supplied args, so this
-    # only ever matches ExitWorktree.
+    # ExitWorktree's deletion target (EnterWorktree computes its own).
     "worktree_path",
 )
 
@@ -101,7 +99,7 @@ def resolve_policy(raw: "PermissionPolicyInput") -> "PermissionPolicy | None":
     """Build a policy from user config.
 
     Accepts ``None``/empty (→ ``None``, nothing constrained), a ``PermissionPolicy``,
-    a shorthand ``"allow"``/``"ask"``/``"deny"``,     a ``"key:action"`` list string
+    a shorthand ``"allow"``/``"ask"``/``"deny"``, a ``"key:action"`` list string
     (e.g. ``"edit:deny,Shell:ask,*:allow"``), or a list of dicts/``Rule``s.
     """
     if raw is None or raw == "":
@@ -142,14 +140,13 @@ def _policy_from_items(raw: "list | tuple") -> "PermissionPolicy | None":
     return PermissionPolicy(tuple(rules)) if rules else None
 
 
-# Read-only discovery preset used by plan mode (#1). Network is allowed because
+# Read-only discovery preset used by plan mode. Network is allowed because
 # discovery legitimately includes web research; execute/delegate are denied
 # because shell and sub-agents are dual-use and cannot be proven read-only.
 PLAN_MODE_POLICY = PermissionPolicy(
     (
         Rule(Capability.READ.value, ALLOW),
-        # ExitPlanMode presents the plan for user approval before execution
-        # resumes — always require confirmation rather than auto-allow META.
+        # ExitPlanMode hands the plan to the user; never auto-allow it as META.
         Rule("ExitPlanMode", ASK),
         Rule(Capability.META.value, ALLOW),
         Rule(Capability.NETWORK.value, ALLOW),

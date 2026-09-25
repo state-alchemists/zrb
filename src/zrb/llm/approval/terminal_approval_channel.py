@@ -17,11 +17,7 @@ if TYPE_CHECKING:
 
 
 class TerminalApprovalChannel(AnyApprovalChannel):
-    """Default approval channel using terminal input.
-
-    This wraps the existing AnyUI.ask_user() pattern for backward
-    compatibility while conforming to the AnyApprovalChannel protocol.
-    """
+    """Default approval channel: asks through the UI's ``ask_user``."""
 
     def __init__(self, ui: "AnyUI"):
         self._ui = ui
@@ -68,21 +64,20 @@ class TerminalApprovalChannel(AnyApprovalChannel):
             f"TerminalApprovalChannel Got user response: '{user_response}'"
         )
 
-        r = user_response.lower().strip()
+        r = user_response.lower()
         if r in ("y", "yes", "ok", "accept", "✅", ""):
             return ApprovalResult(approved=True)
         if r in ("n", "no", "deny", "cancel", "🛑"):
             return ApprovalResult(approved=False, message="User denied")
 
         if r in ("e", "edit"):
-            # Use the UI's response handlers (e.g., replace_in_file_response_handler)
-            # which shows diff and handles editing properly
+            # The UI's response handlers (e.g. the diff-aware file-edit one)
+            # go first; the raw-args editor is the fallback.
             result = await self._handle_via_response_handler(
                 handler, call, user_response
             )
             if result is not None:
                 return result
-            # Fall back to simple edit if no response handler handled it
             return await self._handle_edit(context)
 
         return ApprovalResult(
@@ -117,18 +112,14 @@ class TerminalApprovalChannel(AnyApprovalChannel):
         result = await next_handler(self._ui, call, response, 0)
         if isinstance(result, ToolApproved):
             return ApprovalResult(approved=True, override_args=result.override_args)
-        elif isinstance(result, ToolDenied):
-            # Response handler denied or didn't handle it
-            return None
         return None
 
     async def _handle_edit(self, context: ApprovalContext) -> ApprovalResult:
         """Handle edit mode - open editor for new arguments."""
         current_args = context.tool_args or {}
 
-        # Two-space indent, matching every other mid-turn status line printed
-        # outside `StreamEventHandler` (see `web.py::_notify`) — without it
-        # these land at column 0.
+        # Two-space indent matches the other mid-turn status lines printed
+        # outside `StreamEventHandler` (see `web.py::_notify`).
         args_str = json.dumps(current_args, indent=2, default=str)
         self._ui.append_to_output(f"\n  📝 Current arguments:\n```\n{args_str}\n```\n")
         self._ui.append_to_output("  Opening editor...\n")

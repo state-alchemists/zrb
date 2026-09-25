@@ -10,11 +10,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class ApprovalContext:
-    """Context information for approval requests.
-
-    Provides metadata about the tool call being approved, making it easier
-    for approval channels to display rich information to users.
-    """
+    """Metadata about the tool call being approved, for channels to display."""
 
     tool_name: str
     tool_args: dict[str, Any]
@@ -27,10 +23,7 @@ class ApprovalContext:
 
 @dataclass
 class ApprovalResult:
-    """Result of an approval request.
-
-    Wraps the Pydantic AI approval/denial types for a cleaner interface.
-    """
+    """Result of an approval request; converts to pydantic-ai's approval types."""
 
     approved: bool
     message: str = ""
@@ -43,27 +36,18 @@ class ApprovalResult:
             from zrb.llm.agent.types import ToolApproved
 
             return ToolApproved(override_args=self.override_args)
-        else:
-            # lazy: zrb internal (heavy via transitive)
-            from zrb.llm.agent.types import ToolDenied
+        # lazy: zrb internal (heavy via transitive)
+        from zrb.llm.agent.types import ToolDenied
 
-            return ToolDenied(self.message)
+        return ToolDenied(self.message)
 
 
 class AnyApprovalChannel(ABC):
     """The approval-channel contract every backend implements.
 
-    An approval channel handles requests to approve/deny tool executions.
-    Implementations can route approvals through different interfaces:
-    - Terminal (stdin/stdout)
-    - Telegram bot
-    - Web interface
-    - Slack
-    - WhatsApp
-    - etc.
-
-    The channel must be async since it may need to wait for user input
-    from remote sources (e.g., waiting for Telegram message).
+    Routes approve/deny requests for tool executions through some interface
+    (terminal, Telegram, web, Slack, ...). Async because it may wait on a
+    remote user.
     """
 
     @abstractmethod

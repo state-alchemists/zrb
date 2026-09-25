@@ -1,17 +1,12 @@
 """`LLMTask` — single-shot task that creates a pydantic-ai agent and runs it.
 
-This module is decomposed into parts, mirroring `chat/task.py`:
+Decomposed into parts, mirroring `chat/task.py`:
 
-  building.py  - post-construction config API (add/append/set), public
-                      properties, and agent/prompt assembly (tools, system
-                      prompt, model selection)
-  history.py  - conversation/history resolution + error & cancellation
-                      recovery
+  building.py - post-construction config API and agent/prompt assembly
+  history.py  - conversation/history resolution, error & cancellation recovery
 
-The host class keeps `__init__` plus the execution core — `_exec_action`,
-`_exec_action_inner`, `_create_agent`, and `_handle_summarization`. Those own
-the `run_agent` / `create_agent` / `summarize_history` call sites, which tests
-patch at this module path (`zrb.llm.task.llm_task.*`), so they must stay here.
+The host keeps `__init__` and the execution core, which owns the `run_agent` /
+`create_agent` / `summarize_history` call sites tests patch at this module path.
 """
 
 from __future__ import annotations
@@ -30,22 +25,14 @@ from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
-from zrb.llm.permission import (
-    ALLOW,
-    ASK,
-    DENY,
-    Capability,
-    PermissionPolicyInput,
-    get_effective_policy,
-    resolve_policy,
-)
+from zrb.llm.permission import PermissionPolicyInput, resolve_policy
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.sandbox import SandboxInput, coerce_sandbox
 from zrb.llm.summarizer import summarize_history
 from zrb.llm.task.building import LLMTaskBuilding
 from zrb.llm.task.history import LLMTaskHistory
 from zrb.llm.task.history_config import HistoryConfig
-from zrb.llm.task.shared_getters import apply_model_hooks
+from zrb.llm.task.shared_getters import apply_model_hooks, get_policy_skip_decision
 from zrb.llm.util.attachment import get_attachments
 from zrb.task.base.base_task import BaseTask
 from zrb.task.base.params import BaseTaskParams
@@ -496,10 +483,9 @@ class LLMTask(BaseTask):
 
     @property
     def history_config(self) -> HistoryConfig:
-        """The history-manager/conversation-name knobs as one group — see
-        `HistoryConfig`. Recomputed on each read (not cached at construction)
-        so `history_manager`'s public setter stays immediately visible here,
-        matching that property's own contract."""
+        """The history-manager/conversation-name knobs as one `HistoryConfig`.
+
+        Recomputed on each read so the `history_manager` setter is visible."""
         return HistoryConfig(
             history_manager=self._history_manager,
             conversation_name=self._conversation_name,
@@ -610,11 +596,9 @@ class LLMTask(BaseTask):
         return self._llm_limiter
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
-        # Resolve toolset factories exactly once. Resolving again inside
-        # _create_agent would produce DIFFERENT instances: the batch entered on
-        # this stack would never be used, the batch given to the agent would
-        # never be entered, and factory side effects (e.g. MCP server spawn)
-        # would run twice per turn.
+        # Resolve toolset factories exactly once: re-resolving in _create_agent
+        # would hand the agent different, never-entered instances and run
+        # factory side effects (e.g. MCP server spawn) twice per turn.
         toolsets = self.get_all_toolsets(ctx)
         async with AsyncExitStack() as stack:
             for toolset in toolsets:
@@ -628,8 +612,7 @@ class LLMTask(BaseTask):
     ) -> Any:
         conversation_name = self.get_conversation_name(ctx)
         history_manager = self.get_history_manager(ctx)
-        # Offload: load deserializes + re-validates the whole conversation —
-        # O(history) blocking work that would stall the TUI's event loop.
+        # Offloaded: loading is O(history) blocking work.
         message_history = await asyncio.to_thread(
             history_manager.load, conversation_name
         )
@@ -641,17 +624,12 @@ class LLMTask(BaseTask):
         ):
             return "Conversation history compressed."
 
-        # Compute system prompt once and reuse for both agent creation and run_agent.
-        # This avoids rebuilding the prompt (including expensive system_context I/O)
-        # a second time inside _create_agent.
+        # Composed once and shared by _create_agent and run_agent.
         system_prompt = self.get_system_prompt(ctx)
-        # Render the volatile per-turn state separately and inject it into the
-        # user turn (not the system prompt) so the cacheable prefix stays
-        # byte-stable. This call also performs per-turn ambient-state wiring
-        # (session/interactive/worktree) — it must run every turn. The journal
-        # index snapshot is seeded on the first turn only (empty history); each
-        # later summarization re-seeds it at its own site (summarize_history), so
-        # the index is always present without living in the cached system prompt.
+        # Volatile per-turn state goes into the user turn so the cacheable
+        # system prefix stays byte-stable. This also wires per-turn ambient
+        # state, so it must run every turn. The journal index is seeded on the
+        # first turn; summarize_history re-seeds it after compaction.
         live_context = await self.get_live_context_async(
             ctx, inject_journal_index=not message_history, first_message=user_message
         )
@@ -663,11 +641,8 @@ class LLMTask(BaseTask):
         async def _checkpoint(snapshot: list[Any]) -> None:
             """Persist mid-turn progress so a crash/cancel can resume from it.
 
-            Fired in the background at every safe tool-call-round-trip
-            boundary (see `_build_event_stream_handler`) — never awaited by
-            the run loop itself. `write_backup=False`: a full timestamped
-            backup on every tool call would spam the history dir for no
-            benefit; the end-of-turn save below still writes one.
+            Fired in the background at each tool-call round-trip boundary.
+            Skips the timestamped backup, which the end-of-turn save writes.
             """
             history_manager.update(conversation_name, snapshot)
             await asyncio.to_thread(
@@ -680,16 +655,13 @@ class LLMTask(BaseTask):
                 if callable(self._dynamic_yolo)
                 else get_bool_attr(ctx, self._yolo, False)
             )
-            # Resolve the permission policy from the explicit task param, else
-            # global config. None → run_agent keeps the inherited policy.
+            # None → run_agent keeps the inherited policy.
             permission_policy = resolve_policy(
                 self._permissions
                 if self._permissions is not None
                 else CFG.LLM_PERMISSIONS
             )
-            # Resolve the sandbox policy from the explicit task param. None →
-            # run_agent keeps inherited/ambient behavior (CFG fallback at the
-            # enforcement sites — disabled unless the deployment opted in).
+            # None → run_agent keeps the inherited/ambient sandbox behavior.
             sandbox_policy = coerce_sandbox(ctx, self._sandbox)
             CFG.LOGGER.debug("llm_task Calling run_agent with:")
             CFG.LOGGER.debug(f"  tool_confirmation: {self._tool_confirmation}")
@@ -701,13 +673,11 @@ class LLMTask(BaseTask):
                 limiter=self._llm_limiter,
                 attachments=effective_attachments,
                 print_fn=lambda *args, **kwargs: ctx.print(*args, **kwargs, plain=True),
-                event_handler=None,  # Let run_agent create the event handler with proper status_fn
+                event_handler=None,
                 tool_confirmation=self._tool_confirmation,
                 hook_manager=self._hook_manager,
                 ui=self._uis,
-                # A falsy task-level yolo must keep inheriting the ambient
-                # context (run_agent treats None as inherit); an explicit
-                # opt-out is available on run_agent/delegate directly.
+                # A falsy task-level yolo inherits the ambient one (None).
                 yolo=yolo_value or None,
                 approval_channel=self._approval_channel,
                 system_prompt=system_prompt,
@@ -715,10 +685,8 @@ class LLMTask(BaseTask):
                 permission_policy=permission_policy,
                 sandbox_policy=sandbox_policy,
                 checkpoint_fn=_checkpoint,
-                # Stable across this conversation's turns (same identity used
-                # for history persistence above), so file_observation.py's
-                # read-before-overwrite tracking survives from one turn to
-                # the next rather than resetting every message.
+                # Stable across turns, so read-before-overwrite tracking
+                # (file_observation.py) survives between messages.
                 run_scope=conversation_name,
             )
         except asyncio.CancelledError as ce:
@@ -739,9 +707,7 @@ class LLMTask(BaseTask):
             raise e
 
         history_manager.update(conversation_name, new_history)
-        # Offload: save serializes, re-validates, and writes the whole
-        # conversation (twice, with the backup) — it lands at the exact moment
-        # the user expects the prompt back, so it must not block the loop.
+        # Offloaded: saving serializes and writes the whole conversation twice.
         await asyncio.to_thread(history_manager.save, conversation_name)
         ctx.log_debug(f"All messages: {new_history}")
 
@@ -756,18 +722,15 @@ class LLMTask(BaseTask):
         message_history: list[Any],
     ) -> bool:
         if (
-            isinstance(user_message, str)
-            and user_message.strip() in self._summarize_commands
+            not isinstance(user_message, str)
+            or user_message.strip() not in self._summarize_commands
         ):
-            ctx.print("Compressing conversation history...", plain=True)
-            new_history = await summarize_history(message_history, force=True)
-            history_manager.update(conversation_name, new_history)
-            # Offloaded for the same reason as the main path: save serializes,
-            # re-validates, and writes the whole conversation twice (with the
-            # backup), and must not block the loop.
-            await asyncio.to_thread(history_manager.save, conversation_name)
-            return True
-        return False
+            return False
+        ctx.print("Compressing conversation history...", plain=True)
+        new_history = await summarize_history(message_history, force=True)
+        history_manager.update(conversation_name, new_history)
+        await asyncio.to_thread(history_manager.save, conversation_name)
+        return True
 
     def _create_agent(
         self,
@@ -778,38 +741,21 @@ class LLMTask(BaseTask):
         if self._dynamic_yolo is not None:
             should_skip_approval = self._dynamic_yolo
         else:
-            # Default policy-aware callable (bare LLMTask without dynamic_yolo).
-            # Follows the same precedence chain as chat/task.py's
-            # _should_skip_approval.
-            # Caching the yolo value at closure-creation time is fine — bare
-            # LLMTask yolo is a BoolAttr, not a live xcom like LLMChatTask.
+            # Snapshotting yolo is fine here: a bare LLMTask's yolo is a
+            # BoolAttr, not LLMChatTask's live xcom.
             should_skip_approval_bool = get_bool_attr(ctx, self._yolo, False)
 
             def _should_skip_approval(tool_def=None):
-                policy = get_effective_policy()
-                if policy is not None:
-                    tool_name = (
-                        getattr(tool_def, "name", str(tool_def))
-                        if tool_def is not None
-                        else ""
-                    )
-                    result = policy.decide(tool_name, Capability.UNKNOWN, {})
-                    if result == ALLOW:
-                        return True
-                    if result == DENY:
-                        return True  # auto-approved (gate blocks at execution)
-                    if result == ASK:
-                        return False  # explicit policy ASK is a 'hard ask'
+                decision = get_policy_skip_decision(tool_def)
+                if decision is not None:
+                    return decision
                 return should_skip_approval_bool
 
             should_skip_approval = _should_skip_approval
         if system_prompt is None:
             system_prompt = self.get_system_prompt(ctx)
         ctx.log_debug(f"SYSTEM PROMPT: {system_prompt}")
-        # Get all tools and toolsets including those from factories. Toolsets
-        # may be pre-resolved by _exec_action (which entered their contexts) —
-        # re-resolving here would hand the agent different, never-entered
-        # instances.
+        # Toolsets may be pre-resolved (and entered) by _exec_action.
         resolved_tools = self.get_all_tools(ctx)
         resolved_toolsets = (
             toolsets if toolsets is not None else self.get_all_toolsets(ctx)
@@ -823,9 +769,7 @@ class LLMTask(BaseTask):
         for ui in self._uis:
             ui.model = final_model
 
-        # Pass resolve_model=False: we already ran model_getter/model_renderer
-        # above. Letting create_agent resolve again would double-fire those
-        # callbacks on the already-resolved model.
+        # resolve_model=False: the model hooks already ran above.
         return create_agent(
             model=final_model,
             system_prompt=system_prompt,

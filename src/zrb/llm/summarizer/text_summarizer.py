@@ -60,22 +60,18 @@ async def summarize_short_text(
 ) -> str:
     try:
         result = await _run_agent_with_retry(agent, text)
-        summary = getattr(result, "output", "")
-        if not isinstance(summary, str):
-            summary = str(summary) if summary is not None else ""
-        summary_tokens = limiter.count_tokens(summary)
-        if summary_tokens > threshold:
+        summary = _as_text(getattr(result, "output", ""))
+        if limiter.count_tokens(summary) > threshold:
             summary = limiter.truncate_text(summary, threshold)
         return summary
     except Exception as e:
         zrb_print(stylize_error(f"  Error during summarization: {e}"), plain=True)
-        raise e
+        raise
 
 
 async def summarize_long_text(
     text: str, agent: Any, limiter: LLMLimiter, threshold: int, depth: int = 0
 ) -> str:
-    # Chunking logic for extremely large text
     if depth > 5:
         return limiter.truncate_text(text, threshold)
     # Use 70% of threshold for chunks to leave room for consolidation
@@ -110,7 +106,7 @@ async def _summarize_chunks(
             zrb_print(
                 stylize_error(f"  Error during chunk summarization: {e}"), plain=True
             )
-            raise e
+            raise
         summaries.append(
             limiter.truncate_text(_as_text(getattr(result, "output", "")), chunk_limit)
         )
@@ -150,7 +146,7 @@ async def _consolidate(
         )
     except Exception as e:
         zrb_print(stylize_error(f"  Error during consolidation: {e}"), plain=True)
-        raise e
+        raise
     return _as_text(getattr(consolidated, "output", ""))
 
 

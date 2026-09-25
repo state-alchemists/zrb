@@ -139,23 +139,16 @@ async def run_agent_task(
     _tracks_activity = _start_activity_tracking(
         ui, agent_id, agent_name, deliverable or task, activity_session_id
     )
-    # The "talk to a running sub-agent directly" feature (live_session.py)
-    # needs the concrete BufferedUI (its buffer + active_run_context), not
-    # just the HasActivityTracking protocol — registered unconditionally
-    # here since it's the one place all three delegate paths (single,
-    # fan-out, background) construct their BufferedUI and share this code.
-    # active_task lets the TUI's Esc (while viewing this sub-agent) cancel
-    # exactly this turn; see `LiveSubAgentSessionRegistry.cancel`.
+    # Registered here because all three delegate paths (single, fan-out,
+    # background) share this code. live_session.py needs the concrete
+    # BufferedUI, not just the HasActivityTracking protocol.
     session = _register_live_session(
         ui, activity_session_id, agent_id, agent_name, sub_agent_manager, yolo
     )
     try:
-        # Fired inside the try (not before it): a cancel landing exactly
-        # during this await must go through the same handling as every other
-        # cancellation below (check `consume_cancelled_flag`), not propagate
-        # uncaught — in the single-delegate path `session.active_task` is the
-        # same asyncio Task driving the whole main turn, so an uncaught
-        # propagation here would kill the entire turn, not just this call.
+        # Inside the try so a cancel landing during this await goes through
+        # `consume_cancelled_flag` below; in the single-delegate path an
+        # uncaught cancel would kill the whole main turn.
         await fire_subagent_hook(HookEvent.SUBAGENT_START, agent_name, agent_id)
         result, history = await run_agent(
             agent=sub_agent,
@@ -164,20 +157,12 @@ async def run_agent_task(
             limiter=llm_limiter,
             ui=ui,
             yolo=bool(yolo) if yolo is not None else yolo,
-            # Not tied to the (display-only, 32-bit-truncated) agent_id
-            # above: this sub-agent's message_history starts empty, so it
-            # hasn't seen what the parent or a sibling observed —
-            # file_observation.py's read-before-overwrite tracking must not
-            # treat their reads as this run's own. `session.run_scope` is a
-            # fresh full-entropy uuid4 minted once when the live session was
-            # registered (or, when there's no live session to track, an
-            # equally fresh one that `run_agent` mints on its own below) —
-            # either way it sidesteps agent_id's birthday-bound collision
-            # risk over a long process lifetime (file_observation.py's map
-            # is never evicted, unlike the activity registry agent_id
-            # otherwise serves). Passing it explicitly (rather than leaving
-            # run_scope empty) lets `live_session.py`'s continuation turns
-            # reuse the same scope this original turn observed files under.
+            # A fresh scope so file_observation.py's read-before-overwrite
+            # tracking does not credit the parent's or a sibling's reads to
+            # this run. Not agent_id: that is 32-bit truncated and would
+            # collide over a long process lifetime. Passing the live
+            # session's scope lets its continuation turns reuse it; "" makes
+            # `run_agent` mint one.
             run_scope=session.run_scope if session is not None else "",
         )
 
@@ -211,11 +196,8 @@ async def run_agent_task(
             "simplify the task or break it into smaller steps.",
         )
     except Exception as e:  # noqa: BLE001
-        # No [SYSTEM SUGGESTION] here, unlike RecursionError above: that's a
-        # specific, recognizable failure mode with a known fix (simplify the
-        # task); an arbitrary sub-agent exception isn't — guessing generic
-        # recovery advice for an unknown cause would be more likely to
-        # mislead the parent agent than to help it.
+        # No [SYSTEM SUGGESTION]: unlike RecursionError, an arbitrary failure
+        # has no known fix, and guessed advice would mislead the parent.
         return AgentTaskResult(agent_name, None, str(e))
     finally:
         if session is not None and session.active_task is asyncio.current_task():
@@ -365,14 +347,9 @@ def _prune_old_subagent_history() -> None:
     history_dir = os.path.expanduser(CFG.LLM_HISTORY_DIR)
     if not os.path.isdir(history_dir):
         return
-    # Scoped to `subagent/{agent_type}/` only — never the flat history root.
-    # The root also holds ordinary (non-delegated) sessions, and a session
-    # name that merely *looks* delegated (matches `parse_delegated_session`'s
-    # best-effort shape, e.g. a user `/save`d name) must never become a
-    # deletion candidate. Cost: delegated files sitting flat in the root
-    # rather than under `subagent/` fall outside this pass and accumulate.
-    # Reads and search still scan both locations (see
-    # `subagent_history_directories`); only pruning is narrowed.
+    # Only `subagent/{agent_type}/`, never the flat history root: a user
+    # session whose name merely looks delegated must never be deleted.
+    # Delegated files sitting flat in the root are therefore never pruned.
     entries: list[tuple[float, str]] = []
     try:
         for directory in subagent_only_directories(history_dir):
@@ -410,14 +387,9 @@ async def fire_subagent_hook(event: HookEvent, agent_name: str, agent_id: str) -
             agent_id=agent_id,
         )
     except asyncio.CancelledError:
-        # `asyncio.CancelledError` is a `BaseException`, not caught by the
-        # `Exception` branch below — swallowed deliberately so "Never raises"
-        # is actually true. This call fires from `run_agent_task`'s `finally`
-        # block too, after its result is already decided; a stray cancel
-        # landing in this narrow best-effort notification must not override
-        # an already-settled return. It is not the cancellation signal the
-        # sub-agent's own turn responds to (that's handled separately, via
-        # `session.consume_cancelled_flag`), so absorbing it here costs nothing.
+        # Swallowed: this also fires from `run_agent_task`'s `finally`, and a
+        # stray cancel here must not override an already-settled result. The
+        # sub-agent's own cancellation goes through `consume_cancelled_flag`.
         CFG.LOGGER.debug(f"Delegation hook '{event}' cancelled")
     except Exception as e:
         CFG.LOGGER.debug(f"Delegation hook '{event}' failed: {e}")
@@ -656,12 +628,9 @@ async def _run_parallel(
                 yolo=None,
             )
         finally:
-            # Always attempt cleanup, including when the sub-agent errored —
-            # this is what lets isolate_worktree survive a crashed sub-agent
-            # rather than leaking worktrees (ADR-0068). Wrapped in its own
-            # try/except: a cleanup failure (git missing, disk/lock issue)
-            # must not escape into `asyncio.gather` and abort sibling tasks —
-            # same best-effort posture as `persist_subagent_history`.
+            # Cleanup runs even when the sub-agent errored, so worktrees do not
+            # leak (ADR-0068); a cleanup failure must not escape into
+            # `asyncio.gather` and abort sibling tasks.
             if isolate and worktree_path:
                 try:
                     dirty = await worktree_has_changes(worktree_path)
@@ -701,11 +670,8 @@ async def _run_parallel(
         async with _fan_out_semaphore:
             return await _run_single_agent_inner(task_spec)
 
-    # return_exceptions=True is defense in depth, not the primary fix: cleanup
-    # failures are already caught above so they surface as a result note, not
-    # a raise. This guards against anything else genuinely unanticipated
-    # (e.g. `run_agent_task` itself raising) taking down every sibling task
-    # instead of just the one that failed.
+    # Defense in depth (cleanup failures are already caught above): an
+    # unanticipated raise fails one task, not every sibling.
     raw_results = await asyncio.gather(
         *[run_single_agent(t) for t in tasks], return_exceptions=True
     )

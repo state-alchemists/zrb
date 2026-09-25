@@ -25,7 +25,6 @@ def split_history(
         return [], []
 
     tool_pairs = get_tool_pairs(messages)
-    # Try to keep summary_window messages, but at least 1 and at most all messages
     target_idx = len(messages) - min(summary_window, len(messages))
     budget = conversational_token_threshold * 0.7
 
@@ -34,14 +33,14 @@ def split_history(
         if split_idx is not None:
             return messages[:split_idx], messages[split_idx:]
 
-    # 3. Fallback to finding the largest safe split under 80% token threshold
+    # 4. Fallbacks: the earliest safe split under 80% of the threshold, then
+    # a best-effort split that may lose incomplete pairs.
     split_idx = find_safe_split_index(
         messages, limiter, conversational_token_threshold, tool_pairs
     )
     if split_idx >= 0:
         return messages[:split_idx], messages[split_idx:]
 
-    # 4. No safe split found - use best-effort approach
     to_summarize, to_keep = find_best_effort_split(
         messages, limiter, conversational_token_threshold, tool_pairs
     )
@@ -165,16 +164,13 @@ def _classify_split(
         return_idx = indices["return_idx"]
 
         if call_idx is not None and return_idx is not None:
-            # Complete pair - must not be separated
-            call_before_split = call_idx < split_idx
-            return_before_split = return_idx < split_idx
-            if call_before_split != return_before_split:
+            if (call_idx < split_idx) != (return_idx < split_idx):
                 would_break_complete_pair = True
                 break
-        elif call_idx is not None and return_idx is None:
+        elif call_idx is not None:
             if call_idx < split_idx:
                 broken_incomplete_pairs += 1
-        elif call_idx is None and return_idx is not None:
+        elif return_idx is not None:
             if return_idx >= split_idx:
                 would_break_complete_pair = True
                 break
@@ -211,7 +207,6 @@ def find_best_effort_split(
         to_keep = messages[split_idx:]
         tokens_to_keep = limiter.count_tokens(to_keep)
 
-        # Must stay under token limit (with some buffer)
         if tokens_to_keep > token_threshold * 0.8:
             continue
 
@@ -219,11 +214,9 @@ def find_best_effort_split(
             tool_pairs, split_idx
         )
         if would_break_complete_pair:
-            # Cannot use this split - it violates Pydantic AI requirements
             continue
 
-        # Calculate a score (higher is better)
-        # Prefer splits with fewer broken incomplete pairs and more messages kept
+        # Higher is better: more messages kept, fewer incomplete pairs lost.
         score = (len(to_keep) * 10) - (broken_incomplete_pairs * 50)
 
         if score > best_score:
@@ -231,19 +224,7 @@ def find_best_effort_split(
             best_split_idx = split_idx
             best_broken_incomplete_pairs = broken_incomplete_pairs
 
-    if best_split_idx >= 0:
-        to_summarize = messages[:best_split_idx]
-        to_keep = messages[best_split_idx:]
-        if best_broken_incomplete_pairs > 0:
-            zrb_print(
-                stylize_warning(
-                    f"  Warning: Best-effort split loses {best_broken_incomplete_pairs} incomplete tool call/return pair(s)"
-                ),
-                plain=True,
-            )
-        return to_summarize, to_keep
-    else:
-        # Last resort: Summarize everything
+    if best_split_idx < 0:
         zrb_print(
             stylize_warning(
                 "  Warning: Could not find any split that preserves tool call/return pairs. Summarizing entire history."
@@ -251,6 +232,14 @@ def find_best_effort_split(
             plain=True,
         )
         return messages, []
+    if best_broken_incomplete_pairs > 0:
+        zrb_print(
+            stylize_warning(
+                f"  Warning: Best-effort split loses {best_broken_incomplete_pairs} incomplete tool call/return pair(s)"
+            ),
+            plain=True,
+        )
+    return messages[:best_split_idx], messages[best_split_idx:]
 
 
 def is_split_safe(
@@ -268,33 +257,15 @@ def is_split_safe(
     return may simply arrive in a later turn, so there's nothing lost by
     keeping it as-is.
     """
-    for tool_call_id, indices in tool_pairs.items():
+    for indices in tool_pairs.values():
         call_idx = indices["call_idx"]
         return_idx = indices["return_idx"]
-
-        # If we have both call and return
         if call_idx is not None and return_idx is not None:
-            call_before_split = call_idx < split_idx
-            return_before_split = return_idx < split_idx
-
-            # They must be on the same side of the split
-            if call_before_split != return_before_split:
-                # This would separate a call from its return - unsafe
+            if (call_idx < split_idx) != (return_idx < split_idx):
                 return False
-
-        # If we have only a call (no return yet)
-        elif call_idx is not None and return_idx is None:
-            # Losing the call to summarization would discard its context with
-            # nothing left to explain a future return - unsafe. Keeping it
-            # (return_idx is None either side of the split) is fine.
+        elif call_idx is not None:
             if call_idx < split_idx:
                 return False
-
-        # If we have only a return (no call)
-        elif call_idx is None and return_idx is not None:
-            # Orphaned return - MUST NOT be kept
-            if return_idx >= split_idx:
-                # If we keep an orphan, the history remains broken
-                return False
-
+        elif return_idx is not None and return_idx >= split_idx:
+            return False
     return True

@@ -56,14 +56,9 @@ def create_summarizer_history_processor(
     async def process_history(
         messages: "list[ModelMessage]", system_prompt_overhead: int = 0
     ) -> "list[ModelMessage]":
-        # Create fresh summarizer agents each call so model changes
-        # from /model small take effect immediately.
-        #
-        # Guarded: both helpers below already treat a *failed* summarization as
-        # "keep the original messages", but until this guard the construction
-        # itself sat outside that tolerance — so a small model whose provider
-        # has no credentials killed the whole turn, on a summarization pass that
-        # may not even have been needed.
+        # Fresh agents per call so `/model small` takes effect immediately.
+        # Construction failure (e.g. a provider with no credentials) leaves the
+        # history unsummarized instead of killing the turn.
         try:
             active_message_agent = message_agent or create_message_summarizer_agent()
             active_conversational_agent = (
@@ -119,7 +114,6 @@ async def _summarize_fat_messages(
             stylize_error(f"  Error processing messages in history processor: {e}"),
             plain=True,
         )
-        # Continue with original messages if summarization fails
         return messages
 
 
@@ -149,7 +143,7 @@ async def _maybe_compress_history(
             is_within_tokens
             and limiter.count_tokens(to_summarize) < 0.3 * adjusted_threshold
         ):
-            # There is no need to summarize if we cannot save at least 0.3 of context window
+            # Not worth it unless it frees at least 30% of the window.
             return messages
 
         zrb_print(
@@ -307,14 +301,9 @@ async def _build_summary_text(
             has_multiple_snapshots,
             limiter=llm_limiter,
         )
-    # Re-seed the journal index into the summary so it
-    # survives compaction — summarization is one of exactly two moments the
-    # index can otherwise vanish (the other being a fresh session, handled by
-    # the first-turn live-context). Baking it into the summary message keeps
-    # the message structure intact (no extra turn to break role alternation
-    # or tool-call pairing) and means the index is present in the very same
-    # request the processor compacts for. See ADR-0042. render_journal_index
-    # honours LLM_JOURNAL_ENABLED, so a disabled journal adds nothing here.
+    # Re-seed the journal index so it survives compaction; baking it into the
+    # summary message adds no turn that could break role alternation or tool
+    # pairing (ADR-0042). Empty when the journal is disabled.
     journal_block = render_journal_index()
     if journal_block:
         return f"{summary_text}\n\n{journal_block}"
@@ -338,9 +327,8 @@ def _assemble_summarized_history(
         m is not first_user_message for m in to_keep
     ):
         result.append(first_user_message)
-    if not to_keep:
-        return ensure_alternating_roles(result)
-    result.extend(_without_orphaned_returns(to_keep))
+    if to_keep:
+        result.extend(_without_orphaned_returns(to_keep))
     return ensure_alternating_roles(result)
 
 

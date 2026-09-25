@@ -37,10 +37,8 @@ class LSPManager:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._lifecycle = LSPManagerLifecycle()
-            # Query keeps the manager reference (not the lifecycle collaborator
-            # directly)
-            # so instance-level patches like `patch.object(manager, "get_server", ...)`
-            # take effect inside Query's own methods too.
+            # Query holds the manager (not the lifecycle part) so instance-level
+            # patches like `patch.object(manager, "get_server", ...)` reach it.
             cls._instance._query = LSPManagerQuery(cls._instance)
         return cls._instance
 
@@ -168,9 +166,7 @@ class LSPManager:
 
 lsp_manager = LSPManager()
 
-# Backstop: a chat/agent run that used LSP tools starts language-server
-# subprocesses that nothing else tears down at process exit. At interpreter
-# shutdown the owning event loop may already be closed, so the async
-# ``shutdown_all`` can no longer run — force-kill survivors synchronously so
-# they can't be orphaned or hold the process open. No-op when no servers run.
+# Nothing else tears language-server subprocesses down at process exit, and by
+# then the owning event loop may be closed so the async ``shutdown_all`` cannot
+# run. Force-kill survivors synchronously so they are not orphaned.
 atexit.register(lsp_manager.force_kill_all)

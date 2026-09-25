@@ -3,10 +3,8 @@
 Binds the `current_ui`, `current_tool_confirmation`, `current_yolo`,
 `current_hook_manager`, `current_agent_run_scope`, and `current_approval_channel`
 `ContextVar`s on entry to `run_agent()`, resets them in `finally`. The vars
-themselves are defined in `zrb.llm.agent_state` (not here, and not nested
-under `zrb.llm.agent` at all — `setup.py`, which `runner.py` imports at the
-top, needs them too, and so does code outside this package entirely). Every
-other module reads them through the wrappers there
+are defined in `zrb.llm.agent_state`, since `setup.py` and code outside this
+package need them too; other modules read them through the wrappers there
 (re-exported from `zrb.contextvars`).
 
 Sibling files in this package each own one concern:
@@ -103,10 +101,7 @@ if TYPE_CHECKING:
     from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
     from zrb.llm.ui.any_ui import AnyUI
 
-# Process-wide guard: the OpenAI serialization patch is global and idempotent,
-# so it only needs to run once per process. The check-then-set is safe under
-# CPython's GIL for this single-process, asyncio (single-thread) usage; re-running
-# the patch would be harmless anyway.
+# The OpenAI serialization patch is global and idempotent: apply it once per process.
 _openai_patched = False
 
 
@@ -170,16 +165,14 @@ async def run_agent(
         effective_approval_channel,
     )
 
-    # Set the policy from the explicit arg, else keep whatever a parent run set
-    # (sub-agent inheritance), else None (nothing constrained).
+    # Explicit arg wins, else inherit the parent run's policy (sub-agents),
+    # else None (nothing constrained).
     effective_policy = (
         permission_policy
         if permission_policy is not None
         else current_permission_policy.get()
     )
-    # Same inheritance rule for the sandbox: explicit arg wins, else keep the
-    # parent run's policy (sub-agents), else None (resolved from CFG at the
-    # gate / shell tool — off unless the deployment opted in).
+    # Same rule for the sandbox; None is resolved from CFG at the gate / shell tool.
     effective_sandbox = (
         sandbox_policy if sandbox_policy is not None else current_sandbox_policy.get()
     )
@@ -188,9 +181,8 @@ async def run_agent(
     # sub-agent. Read before this run binds its own scope below.
     nested_run = bool(get_current_agent_run_scope())
 
-    # Bind the run-scoped ContextVars through an ExitStack so set/reset stays
-    # symmetric and exception-safe: if a later bind raises, the vars already
-    # bound are still reset on close, and no token is reset that was never set.
+    # ExitStack keeps set/reset symmetric: if a later bind raises, the vars
+    # already bound are still reset, and no unset token is ever reset.
     stack = ExitStack()
     try:
         bind_contextvar(stack, current_ui, effective_ui)
@@ -218,18 +210,13 @@ async def run_agent(
         bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         bind_contextvar(stack, current_permission_policy, effective_policy)
         bind_contextvar(stack, current_sandbox_policy, effective_sandbox)
-        # Resolved once, now that current_sandbox_policy reflects this run's
-        # own binding above — passed as `agent.run(deps=...)` so `sandbox_gate`
-        # reads it explicitly instead of re-deriving it from ambient state at
-        # every tool call (ADR-0069). Safe to freeze for the run's lifetime:
-        # unlike the permission policy, nothing mutates the sandbox policy
-        # mid-run.
+        # Passed as `agent.run(deps=...)` so `sandbox_gate` reads it explicitly
+        # (ADR-0069). Safe to freeze for the run: unlike the permission policy,
+        # nothing mutates the sandbox policy mid-run.
         sandbox_deps = get_effective_sandbox_policy()
-        # Backstop, not the primary contract: EnterWorktree/ExitWorktree still
-        # own setting/clearing this per tool call. This only guarantees that a
-        # forgotten ExitWorktree (agent forgets, run errors) can't leak the
-        # worktree past this run's boundary — it restores whatever was active
-        # when the run started, snapshot-and-restore rather than always "".
+        # Backstop: EnterWorktree/ExitWorktree own this per tool call; this
+        # restores the run-start value so a missed ExitWorktree can't leak the
+        # worktree past the run.
         bind_contextvar(stack, active_worktree, active_worktree.get())
         # Isolate agent mode per run so concurrent runs don't share/clobber each
         # other's plan/build state; the final mode is propagated back to the
@@ -412,13 +399,7 @@ async def _prepare_history(
     # "preserve the deployment steps") ahead of summarization.
     precompact_context = extract_additional_context(precompact_results)
     if precompact_context:
-        # lazy: heavy third-party
-        from pydantic_ai.messages import ModelRequest, SystemPromptPart
-
-        message_history = [
-            ModelRequest(parts=[SystemPromptPart(content=precompact_context)]),
-            *message_history,
-        ]
+        message_history = _prepend_system_context(message_history, precompact_context)
 
     # Claude-compatible: a PreCompact hook may block compaction (exit 2 /
     # decision="block"). When blocked we skip the history processors
@@ -459,13 +440,9 @@ async def _prepare_history(
     )
     postcompact_context = extract_additional_context(postcompact_results)
     if postcompact_context:
-        # lazy: heavy third-party
-        from pydantic_ai.messages import ModelRequest, SystemPromptPart
-
-        processed_history = [
-            ModelRequest(parts=[SystemPromptPart(content=postcompact_context)]),
-            *processed_history,
-        ]
+        processed_history = _prepend_system_context(
+            processed_history, postcompact_context
+        )
 
     effective_limit = max(0, limiter.max_token_per_request - reserved_tokens)
     # Reuse the token count from the hook when no processors ran — they are the only
@@ -499,6 +476,14 @@ async def _prepare_history(
     )
 
 
+def _prepend_system_context(history: list[Any], content: str) -> list[Any]:
+    """Return `history` with a system-prompt request carrying `content` in front."""
+    # lazy: heavy third-party
+    from pydantic_ai.messages import ModelRequest, SystemPromptPart
+
+    return [ModelRequest(parts=[SystemPromptPart(content=content)]), *history]
+
+
 async def _do_agent_run(
     agent: "Agent[None, Any]",
     cursor: TurnCursor,
@@ -508,12 +493,9 @@ async def _do_agent_run(
     """Isolates the `agent.run()` call as its own function, out of
     `_execution_loop`'s `while True` loop.
 
-    Purely a pyright-performance workaround (no behavior change): pydantic-ai's
-    `Agent.run` is a heavily overloaded generic method, and pyright re-runs its
-    overload resolution on every fixed-point pass of the loop's control-flow
-    narrowing when this call is inlined there — that combination alone took
-    ~7 minutes to check. Moving the call to its own ordinary function drops it
-    to ~2 seconds.
+    A pyright-performance workaround: `Agent.run` is heavily overloaded, and
+    inlined in the loop pyright re-resolves its overloads on every narrowing
+    pass (~7 minutes to check, versus ~2 seconds here).
     """
     # lazy: heavy third-party
     from pydantic_ai import UsageLimits
@@ -743,9 +725,7 @@ async def _resolve_deferred_requests(
     # rather than something this turn did.
     cursor.commit_round()
     CFG.LOGGER.debug("Got DeferredToolRequests, calling process_deferred_requests")
-    # effective_ui is typed as AnyUI | None but by this point in
-    # the loop we are past all the setup guards; the function it is
-    # passed to expects a concrete AnyUI.
+    # Past the setup guards the UI is always resolved.
     assert effective_ui is not None
     cursor.results = await process_deferred_requests(
         cursor.output,
@@ -760,12 +740,8 @@ async def _resolve_deferred_requests(
 
     cursor.results = rebuild_for_denials(cursor.results)
     cursor.message = None
-    # process_deferred_requests() always populates
-    # current_results.approvals for every resolved call (approved,
-    # denied, or hook-blocked alike), so history processors are never
-    # reapplied here -- run_history feeds the next iteration as-is.
-    # Processor effects were already applied in _prepare_history
-    # before the first stream call.
+    # Every resolved call has an approval entry, so run_history feeds the next
+    # iteration as-is; history processors already ran in _prepare_history.
     cursor.carry_forward()
     CFG.LOGGER.debug("Continuing to next iteration with current_results")
     return True
@@ -868,12 +844,8 @@ async def _finish_turn(
             # whether that run is a delegated sub-agent's.
             "run_scope": get_current_agent_run_scope(),
             "nested_run": nested_run,
-            # Additive derived field: wrote_files OR looks like a
-            # stated preference. wrote_files itself is left unchanged
-            # for any other consumer; journal_compliance.py matches on
-            # this combined field instead, since MatcherConfig has no
-            # OR primitive (hook/matcher.py evaluates a matcher list
-            # as AND-only).
+            # wrote_files OR a stated preference, precomputed because
+            # MatcherConfig has no OR primitive (journal_compliance.py).
             "journal_worthy": (
                 wrote_files or turn_states_preference(cursor.accumulated)
             ),
@@ -1006,11 +978,8 @@ def _set_active_run_context(effective_ui: AnyUI | None, ctx: Any) -> None:
 def _request_limit() -> int | None:
     """The per-run model-request cap, or ``None`` when disabled.
 
-    A run with no cap has no way to stop a model that has stopped converging:
-    the prompt's Recovery rules tell it to change approach by the third attempt,
-    but nothing enforces that, and a weak model will happily re-edit the same
-    file from memory until the wall clock runs out (343 tool calls, 267 of them
-    edits, was the worst observed). This is the enforcement half of that rule.
+    Enforces the prompt's Recovery rules: without a cap, a model that has
+    stopped converging can re-edit the same file until the wall clock runs out.
     """
     limit = CFG.LLM_MAX_REQUEST_PER_RUN
     return limit if limit > 0 else None
