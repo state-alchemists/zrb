@@ -8,6 +8,7 @@ import subprocess
 import pytest
 
 from zrb.util.git import snapshot_listing
+from zrb.util.git.snapshot_command import SnapshotError
 from zrb.util.git.snapshot_listing import (
     SnapshotBudgetError,
     get_fork_point,
@@ -56,6 +57,7 @@ def test_a_repository_is_listed_by_its_own_ignore_rules(tmp_path):
 
     assert sorted(listing.paths) == [".gitignore", "a.py", "new.py"]
     assert listing.repositories == [""]
+    assert listing.left_out == ["build/"]  # what it ignores, as git reports it
 
 
 def test_a_subdirectory_honours_the_ignore_rules_above_it(tmp_path):
@@ -353,3 +355,57 @@ def test_a_walk_does_not_follow_a_junction(tmp_path):
     )
 
     assert list_snapshot_paths(str(workspace)).paths == ["a.txt"]
+
+
+needs_permissions = pytest.mark.skipif(
+    os.name != "posix" or os.geteuid() == 0, reason="needs POSIX permissions, non-root"
+)
+
+
+@needs_permissions
+def test_a_directory_that_cannot_be_read_is_recorded_as_left_out(tmp_path):
+    repo = _repo(tmp_path / "r", {"a.py": "a\n"})
+    loose = tmp_path / "loose"
+    for top in (repo, loose):
+        (top / "volume").mkdir(parents=True)
+        (top / "volume" / "data").write_text("d\n")
+        (top / "volume").chmod(0)
+    try:
+        in_repository = list_snapshot_paths(str(repo))
+        outside = list_snapshot_paths(str(loose))
+    finally:
+        for top in (repo, loose):
+            (top / "volume").chmod(0o755)
+
+    assert in_repository.left_out == ["volume/"]
+    assert outside.left_out == ["volume/"]
+    assert outside.paths == []
+
+
+@needs_permissions
+def test_a_working_directory_that_cannot_be_read_is_not_listed_as_empty(tmp_path):
+    loose = tmp_path / "loose"
+    loose.mkdir()
+    (loose / "a.txt").write_text("a\n")
+    loose.chmod(0o300)  # enterable, not listable
+    try:
+        with pytest.raises(SnapshotError):
+            list_snapshot_paths(str(loose))
+    finally:
+        loose.chmod(0o755)
+
+
+@needs_permissions
+def test_an_unreadable_directory_in_a_repository_under_an_ignored_one_is_found(
+    tmp_path,
+):
+    repo = _repo(tmp_path / "r", {".gitignore": "worktrees/\n"})
+    feature = _repo(repo / "worktrees" / "feature", {"f.py": "f\n"})
+    (feature / "volume").mkdir()
+    (feature / "volume").chmod(0)
+    try:
+        listing = list_snapshot_paths(str(repo))
+    finally:
+        (feature / "volume").chmod(0o755)
+
+    assert "worktrees/feature/volume/" in listing.left_out

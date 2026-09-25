@@ -23,7 +23,7 @@ from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.schema import AgentHookConfig, HookConfig
 from zrb.llm.hook.types import HookEvent, HookType
 from zrb.llm.prompt.prompt import get_prompt
-from zrb.util.git.snapshot_command import SnapshotError
+from zrb.util.git.snapshot_command import SnapshotError, run_in_worker
 from zrb.util.git.snapshot_listing import get_fork_point
 from zrb.util.git.snapshot_store import Snapshot, SnapshotStore
 from zrb.util.truncate import truncate_text
@@ -58,8 +58,9 @@ def register_self_review_hook(manager: "HookManager") -> None:
         # The hook enforces `LLM_SELF_REVIEW_TIMEOUT` itself: its git
         # commands are cut off at the deadline, and the reviewer is cancelled
         # inside the hook's own event loop, where cancelling reaches its model
-        # request. The executor's timeout only abandons the worker thread, so
-        # it is set past that deadline and never fires first.
+        # request. The executor's timeout would cancel it too, but as a failed
+        # hook rather than a timed-out review, so it is set past that deadline
+        # and never fires first.
         timeout=CFG.LLM_SELF_REVIEW_TIMEOUT + _EXECUTOR_GRACE_SECONDS,
     )
     manager.add_hook(create_self_review_hook(), [HookEvent.STOP], config)
@@ -107,10 +108,10 @@ async def _review(context: HookContext, payload: dict[str, Any]) -> HookResult:
     """One review of the turn in *payload*: a block carrying the findings, or
     a pass-through result saying why the turn may end."""
     deadline = time.monotonic() + CFG.LLM_SELF_REVIEW_TIMEOUT
-    # Not wrapped in `wait_for`: cancelling cannot stop a worker thread,
-    # and `asyncio.run` waits for it on exit anyway. The deadline stops
-    # its git commands instead.
-    scope = await asyncio.to_thread(_resolve_scope, payload, deadline)
+    # Cancelled — the turn is, or the hook's timeout passes — it stops before
+    # its next git command and waits for the one running, which the deadline
+    # bounds, so its store is deleted before the review returns.
+    scope = await run_in_worker(_resolve_scope, payload, deadline)
     if time.monotonic() >= deadline:
         return _timed_out()
     if not scope.paths:

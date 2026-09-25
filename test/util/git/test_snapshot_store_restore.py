@@ -8,7 +8,7 @@ import subprocess
 import pytest
 
 from zrb.util.git.snapshot_command import SnapshotTimeoutError
-from zrb.util.git.snapshot_store import SnapshotStore
+from zrb.util.git.snapshot_store import Snapshot, SnapshotStore
 
 
 def _git(repo, *args) -> subprocess.CompletedProcess:
@@ -29,8 +29,8 @@ def _nested(path, files: dict[str, str]):
     return path
 
 
-def _snap(store: SnapshotStore) -> str:
-    return store.snapshot().tree
+def _snap(store: SnapshotStore) -> Snapshot:
+    return store.snapshot()
 
 
 @pytest.fixture(autouse=True)
@@ -90,18 +90,82 @@ def test_a_restore_keeps_a_tracked_file_matching_an_ignore_pattern(repo, tmp_pat
 
 
 def test_a_restore_keeps_a_file_its_snapshot_ignored_then(repo, tmp_path):
-    (repo / ".gitignore").write_bytes(b"*.log\n")
+    (repo / ".gitignore").write_bytes(b"*.log\nbuild/\n")
     (repo / "debug.log").write_bytes(b"precious\n")
+    (repo / "build").mkdir()
+    (repo / "build" / "out.bin").write_bytes(b"built\n")
     store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
-    before = _snap(store)  # debug.log is ignored: not captured
-    (repo / ".gitignore").write_bytes(b"")  # logs un-ignored since
+    before = _snap(store)  # both ignored: not captured
+    (repo / ".gitignore").write_bytes(b"")  # un-ignored since
     (repo / "made.py").write_bytes(b"m\n")
 
     store.restore(before)  # the `.gitignore` edit is rewound
 
-    assert (repo / ".gitignore").read_bytes() == b"*.log\n"
+    assert (repo / ".gitignore").read_bytes() == b"*.log\nbuild/\n"
     assert (repo / "debug.log").read_bytes() == b"precious\n"
+    assert (repo / "build" / "out.bin").read_bytes() == b"built\n"
     assert not (repo / "made.py").exists()  # created since: removed
+
+
+def test_a_restore_keeps_a_file_excluded_then_by_rules_no_snapshot_holds(
+    repo, tmp_path
+):
+    exclude = repo / ".git" / "info" / "exclude"
+    exclude.write_bytes(b"secret.txt\n")
+    (repo / "secret.txt").write_bytes(b"existed then\n")
+    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
+    before = _snap(store)
+    exclude.write_bytes(b"")  # `info/exclude` is in no snapshot's tree
+
+    store.restore(before)
+
+    assert (repo / "secret.txt").read_bytes() == b"existed then\n"
+
+
+def test_a_restore_removes_what_was_made_since_in_a_repository_empty_then(
+    repo, tmp_path
+):
+    lib = repo / "lib"
+    lib.mkdir()
+    _git(lib, "init", "-q")  # a repository, holding no file yet
+    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
+    before = _snap(store)
+    (lib / "made.py").write_bytes(b"m\n")
+
+    store.restore(before)
+
+    assert not (lib / "made.py").exists()
+
+
+def test_a_restore_removes_what_was_made_since_in_a_repository_its_parent_ignores(
+    repo, tmp_path
+):
+    (repo / ".gitignore").write_bytes(b"worktrees/\n")
+    feature = _nested(repo / "worktrees" / "feature", {"f.py": "f\n"})
+    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
+    before = _snap(store)  # `worktrees/` left out, the repository in it listed
+    (feature / "made.py").write_bytes(b"m\n")
+
+    store.restore(before)
+
+    assert not (feature / "made.py").exists()
+    assert (feature / "f.py").read_bytes() == b"f\n"
+
+
+@needs_permissions
+def test_a_restore_keeps_what_a_directory_it_could_not_read_then_holds(repo, tmp_path):
+    (repo / "volume").mkdir()
+    (repo / "volume" / "data").write_bytes(b"existed then\n")
+    (repo / "volume").chmod(0)  # a root-owned container volume, say
+    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
+    try:
+        before = _snap(store)
+    finally:
+        (repo / "volume").chmod(0o755)  # readable since
+
+    store.restore(before)
+
+    assert (repo / "volume" / "data").read_bytes() == b"existed then\n"
 
 
 def test_a_restore_leaves_a_repository_made_since_as_it_is(repo, tmp_path):
@@ -203,20 +267,18 @@ def test_a_restore_stopped_partway_reports_every_path_it_meant_to_change(
     (repo / "tracked.txt").write_bytes(b"b\n")
     (repo / "new.txt").write_bytes(b"new\n")
     real_run_git = store.run_git
-    writes = []
 
-    def time_out_on_the_second_write(args, *rest, **kwargs):
+    def time_out_while_writing(args, *rest, **kwargs):
         if args[:2] == ["read-tree", "-u"]:
-            writes.append(args)
-            if len(writes) == 2:
-                raise SnapshotTimeoutError("git read-tree timed out")
+            # Killed at its timeout: part of the tree was written, the rest not.
+            (repo / "tracked.txt").write_bytes(b"a\n")
+            raise SnapshotTimeoutError("git read-tree timed out")
         return real_run_git(args, *rest, **kwargs)
 
-    monkeypatch.setattr(store, "run_git", time_out_on_the_second_write)
+    monkeypatch.setattr(store, "run_git", time_out_while_writing)
     left_behind = store.restore(before)
     monkeypatch.undo()
 
     assert left_behind == ["new.txt", "tracked.txt"]
-    assert (repo / "tracked.txt").read_bytes() == b"a\n"  # pass 1 was written
     assert store.restore(before) == []
     assert not (repo / "new.txt").exists()

@@ -56,6 +56,20 @@ def get_command_timeout(deadline: float | None) -> float:
     return min(GIT_COMMAND_TIMEOUT_SECONDS, deadline - time.monotonic())
 
 
+def get_time_left(deadline: float | None, label: str) -> float:
+    """Seconds the next step of an operation may take — a git command, or a
+    stretch of the listing's own directory walk. Raises SnapshotError when
+    the operation's caller was cancelled (`run_in_worker`) or no time is
+    left."""
+    abort = getattr(_worker, "abort", None)
+    if abort is not None and abort.is_set():
+        raise SnapshotError(f"Snapshot cancelled before running {label}")
+    timeout = get_command_timeout(deadline)
+    if timeout <= 0:
+        raise SnapshotError(f"No time left to run {label}")
+    return timeout
+
+
 def get_clean_env() -> dict[str, str]:
     """The process environment without the variables that redirect git."""
     return {k: v for k, v in os.environ.items() if k not in _REDIRECTING_ENV}
@@ -149,12 +163,7 @@ def _run(
     **io: Any,
 ) -> Any:
     label = label or " ".join(argv[:2])
-    abort = getattr(_worker, "abort", None)
-    if abort is not None and abort.is_set():
-        raise SnapshotError(f"Snapshot cancelled before running {label}")
-    timeout = get_command_timeout(deadline)
-    if timeout <= 0:
-        raise SnapshotError(f"No time left to run {label}")
+    timeout = get_time_left(deadline, label)
     try:
         return subprocess.run(
             argv,

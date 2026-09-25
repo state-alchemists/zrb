@@ -18,14 +18,16 @@ or a history. The store keeps its own objects — rewind history outlives the
 session, and borrowing a repository's could lose a blob to a `git gc` there.
 
 Snapshot flow: snapshot the directory, ``commit-tree``, ``update-ref``. A
-commit names the files git could not read, as a trailer.
+commit's message records what the snapshot knows that its tree cannot hold —
+the files it could not read, the paths it left out, the repositories it
+listed — and a restore rebuilds the snapshot from it.
 
 Restore flow: refuse a commit outside this conversation's history, then
 `SnapshotStore.restore` — which rewrites changed files, recreates deleted
-ones and removes files created since, never one the snapshot left out for
-being ignored or unreadable, nor a repository made since, and never writing
-over a file it cannot read now — then move the conversation's ref back to
-``<sha>``. The outcome names every path a refused write left behind.
+ones and removes only the files the snapshot shows did not exist then, never
+a repository made since, and never writing over a file it cannot read now —
+then move the conversation's ref back to ``<sha>``. The outcome names every
+path a refused write left behind.
 
 Rewind turns itself off for the session, with a reason the first snapshot
 and `/rewind` show, when the directory cannot be snapshotted at all: a
@@ -52,6 +54,7 @@ from zrb.util.git.snapshot_command import (
     run_in_worker,
 )
 from zrb.util.git.snapshot_listing import DEFAULT_IGNORE_DIRS, SnapshotBudgetError
+from zrb.util.git.snapshot_store import Snapshot as StoreSnapshot
 from zrb.util.git.snapshot_store import SnapshotStore
 from zrb.util.string.conversion import to_safe_filename
 
@@ -337,28 +340,28 @@ class SnapshotManager:
         many files git could not read."""
         self._apply_pending_copies()
         store = self._get_store()
-        tree, unreadable, _ = store.snapshot()
-        skipped = len(unreadable)
+        snapshot = store.snapshot()
+        skipped = len(snapshot.unreadable)
         head = self._head_sha(session)
         if head is not None:
-            head_tree, head_subject = (
-                store.git(["log", "-1", "--format=%T%n%s", head]).strip().split("\n", 1)
-            )
+            head_snapshot, head_subject = self._read_commit(head)
             # A new commit is still needed when only message_count advanced
             # (e.g. after a rewind followed by turns that don't touch the FS):
             # restore reads mc from the commit, so a stale one would truncate
-            # conversation history to the wrong point.
+            # conversation history to the wrong point. So is one when only the
+            # record changed — a file ignored since HEAD was taken — or a
+            # rewind to this point could remove that file.
             _, head_mc = _parse_commit_message(head_subject)
-            if head_tree == tree and (
+            if head_snapshot == snapshot and (
                 message_count is None or head_mc == message_count
             ):
                 return head, skipped
         parent = ["-p", head] if head else []
-        message = _build_commit_message(label, message_count, unreadable)
-        # The message on stdin: it names every unreadable file, which could
-        # exceed a command-line argument's limit.
+        message = _build_commit_message(label, message_count, snapshot)
+        # The message on stdin: it names every path the snapshot left out,
+        # which could exceed a command-line argument's limit.
         sha = store.git(
-            ["commit-tree", "--no-gpg-sign", tree, *parent], stdin=message
+            ["commit-tree", "--no-gpg-sign", snapshot.tree, *parent], stdin=message
         ).strip()
         store.git(["update-ref", _ref(session), sha])
         return sha, skipped
@@ -375,8 +378,12 @@ class SnapshotManager:
         ancestry = store.run_git(["merge-base", "--is-ancestor", sha, _ref(session)])
         if ancestry.returncode:
             raise SnapshotError(f"{sha} is not one of this conversation's snapshots")
-        body = store.git(["log", "-1", "--format=%B", sha])
-        left_behind = store.restore(sha, keep=_parse_unreadable(body))
+        snapshot, _ = self._read_commit(sha)
+        if snapshot is None:
+            # Without it a restore cannot tell a file that did not exist then
+            # from one the snapshot never saw.
+            raise SnapshotError(f"{sha} has no readable record of what it left out")
+        left_behind = store.restore(snapshot)
         try:
             store.git(["update-ref", _ref(session), sha])
         except SnapshotError as e:
@@ -384,6 +391,14 @@ class SnapshotManager:
             # snapshots taken after *sha*.
             logger.warning(f"Could not move {session}'s rewind history back: {e}")
         return left_behind
+
+    def _read_commit(self, sha: str) -> tuple[StoreSnapshot | None, str]:
+        """The snapshot a commit records (None when its record is missing or
+        malformed) and the commit's subject."""
+        tree, _, message = (
+            self._get_store().git(["log", "-1", "--format=%T%n%B", sha]).partition("\n")
+        )
+        return _parse_record(tree, message), message.partition("\n")[0]
 
     def _copy_history(self, source: str, target: str) -> None:
         store = self._get_store()
@@ -428,24 +443,24 @@ def _ref(session: str) -> str:
 #
 #     <label, on one line> [mc:<message count, or ->]
 #
-#     zrb-unreadable: <JSON list of the files the snapshot could not read>
+#     zrb-snapshot: {"unreadable": [...], "left_out": [...], "repositories": [...]}
 #
 # The subject is one line, so no label can start a body line; the count tag
-# is always written, so no label can end with one of its own; and the trailer
-# is read from the body alone.
-_UNREADABLE_TRAILER = "zrb-unreadable: "
+# is always written, so no label can end with one of its own; and the record
+# is read from the body alone. It is written again with every commit: tens of
+# KB for a repository with thousands of scattered ignored files.
+_RECORD_TAG = "zrb-snapshot: "
+_RECORD_FIELDS = ("unreadable", "left_out", "repositories")
 _COUNT_TAG = re.compile(r" \[mc:(\d+|-)\]$")
 
 
 def _build_commit_message(
-    label: str, message_count: int | None, unreadable: tuple[str, ...] = ()
+    label: str, message_count: int | None, snapshot: StoreSnapshot
 ) -> str:
     one_line = " ".join(label.splitlines())
     count = "-" if message_count is None else str(message_count)
-    subject = f"{one_line} [mc:{count}]"
-    if not unreadable:
-        return subject
-    return f"{subject}\n\n{_UNREADABLE_TRAILER}{json.dumps(list(unreadable))}"
+    record = {name: list(getattr(snapshot, name)) for name in _RECORD_FIELDS}
+    return f"{one_line} [mc:{count}]\n\n{_RECORD_TAG}{json.dumps(record)}"
 
 
 def _parse_commit_message(subject: str) -> tuple[str, int | None]:
@@ -457,21 +472,26 @@ def _parse_commit_message(subject: str) -> tuple[str, int | None]:
     return subject[: match.start()], None if count == "-" else int(count)
 
 
-def _parse_unreadable(message: str) -> list[str]:
-    """The files a snapshot's commit message names as unreadable — read from
-    its body, never its subject. Malformed metadata counts as none."""
+def _parse_record(tree: str, message: str) -> StoreSnapshot | None:
+    """The snapshot of *tree* a commit message records — read from its body,
+    never its subject — or None when the record is missing or malformed."""
     _, _, body = message.partition("\n")
-    for line in body.splitlines():
-        if line.startswith(_UNREADABLE_TRAILER):
-            try:
-                paths = json.loads(line[len(_UNREADABLE_TRAILER) :])
-            except ValueError:
-                logger.warning(f"Ignoring a malformed snapshot trailer: {line!r}")
-                return []
-            if isinstance(paths, list) and all(isinstance(p, str) for p in paths):
-                return paths
-            return []
-    return []
+    line = next(
+        (line for line in body.splitlines() if line.startswith(_RECORD_TAG)), ""
+    )
+    try:
+        record = json.loads(line[len(_RECORD_TAG) :])
+    except ValueError:
+        return None
+    if not isinstance(record, dict):
+        return None
+    fields: dict[str, tuple[str, ...]] = {}
+    for name in _RECORD_FIELDS:
+        paths = record.get(name)
+        if not isinstance(paths, list) or not all(isinstance(p, str) for p in paths):
+            return None
+        fields[name] = tuple(paths)
+    return StoreSnapshot(tree.strip(), **fields)
 
 
 def _readable_key(name: str, identity: str) -> str:

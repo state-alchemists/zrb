@@ -2,8 +2,10 @@
 turn-start snapshot, every repository under it included, plus the file tools'
 paths the diff does not cover."""
 
+import asyncio
 import os
 import subprocess
+import threading
 import time
 
 import pytest
@@ -363,4 +365,45 @@ async def test_a_review_only_reads_the_turn_store_and_leaves_nothing_behind(
 
     assert "+x = 2" in seen[0].event_data
     assert _contents(before["store"]) == turn_store
+    assert _temporary_stores() == stores
+
+
+@pytest.mark.asyncio
+async def test_a_cancelled_review_stops_its_git_work_and_cleans_up(
+    tmp_path, monkeypatch, start_snapshot, gate, stop
+):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / "a.py").write_text("x = 1\n")
+    before = start_snapshot(tmp_path)
+    stores = _temporary_stores()
+    real_run = subprocess.run
+    running, release = threading.Event(), threading.Event()
+    after_cancel: list = []
+
+    def git_held_once(args, *rest, **kwargs):
+        if args[0] == "git" and not running.is_set():
+            running.set()
+            release.wait(5)  # the review's first git command, still running
+        elif args[0] == "git" and release.is_set():
+            after_cancel.append(args)
+        return real_run(args, *rest, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", git_held_once)
+    monkeypatch.chdir(tmp_path)
+    manager = HookManager(search_dirs=[])
+
+    with gate():
+        review = asyncio.ensure_future(stop(manager, turn_start_snapshot=before))
+        assert await asyncio.to_thread(running.wait, 5)
+        review.cancel()  # the user cancels the turn
+        await asyncio.sleep(0.2)  # the cancellation reaches the hook
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await review
+        for _ in range(50):  # the hook's thread finishes on its own
+            if _temporary_stores() == stores:
+                break
+            await asyncio.sleep(0.1)
+
+    assert after_cancel == []  # no git command started once cancelled
     assert _temporary_stores() == stores

@@ -23,6 +23,11 @@ repository. The listing is built here instead, repository by repository:
 
 `DEFAULT_IGNORE_DIRS` and the excluded paths apply everywhere, tracked files
 included, and are never searched for repositories.
+
+The listing also records what exists but it leaves out — each repository's
+ignored paths, and every directory it cannot look into, which git skips
+without a machine-readable word — so a restore can tell a file that did not
+exist then from one it never saw.
 """
 
 from __future__ import annotations
@@ -34,6 +39,7 @@ from typing import Iterable
 from zrb.util.git.snapshot_command import (
     SnapshotError,
     get_git_output,
+    get_time_left,
     run_git_command,
 )
 
@@ -84,6 +90,10 @@ class Listing:
     paths: list[str] = field(default_factory=list)
     #: Where each repository was listed from; `""` is the working directory.
     repositories: list[str] = field(default_factory=list)
+    #: What exists but is not listed, apart from `DEFAULT_IGNORE_DIRS` and
+    #: the excluded paths: each repository's ignored paths, and the
+    #: directories that cannot be read. A directory ends in `/`.
+    left_out: list[str] = field(default_factory=list)
 
 
 def list_snapshot_paths(
@@ -221,6 +231,7 @@ class _Lister:
             self._list_repository("")
         else:
             self._walk("")
+        self._find_unreadable_directories()
         return self._listing
 
     def _is_listed_by_a_repository(self) -> bool:
@@ -284,6 +295,8 @@ class _Lister:
         for path in nested:
             self._list_nested(_join(base, path))
         for path in ignored.split("\0"):
+            if path:
+                self._listing.left_out.append(_join(base, path))
             if path.endswith("/"):
                 self._find_repositories(_join(base, path[:-1]))
 
@@ -352,6 +365,39 @@ class _Lister:
                 elif os.path.lexists(os.path.join(entry.path, ".git")):
                     self._list_nested(child)
                 else:
+                    pending.append(child)
+
+    def _find_unreadable_directories(self) -> None:
+        """Add each directory that cannot be read to `left_out`. Git lists
+        nothing under one and says so only in a message; a walk of the
+        directories alone finds them. An ignored directory is left out whole
+        already, so it is not entered — but a repository listed from inside
+        one, a worktree under `.zrb/worktree/`, is walked from its own root."""
+        ignored = {path[:-1] for path in self._listing.left_out if path.endswith("/")}
+        roots = {"", *self._listing.repositories}
+        pending = sorted(roots)
+        while pending:
+            rel = pending.pop()
+            get_time_left(self._deadline, "the listing's directory walk")
+            try:
+                with os.scandir(self._scope.absolute(rel)) as it:
+                    entries = list(it)
+            except FileNotFoundError:
+                continue  # removed while the listing ran
+            except OSError as e:
+                if not rel:  # a snapshot of nothing would restore as nothing
+                    raise SnapshotError(f"Cannot read {self._scope.workdir}: {e}")
+                self._listing.left_out.append(f"{rel}/")
+                continue
+            for entry in entries:
+                child = _join(rel, entry.name)
+                if (
+                    entry.name != ".git"
+                    and child not in roots  # walked from there already
+                    and child not in ignored
+                    and self._is_real_directory(entry)
+                    and not self._scope.is_excluded(child, is_dir=True)
+                ):
                     pending.append(child)
 
     @staticmethod

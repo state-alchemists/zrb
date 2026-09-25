@@ -301,8 +301,10 @@ async def test_a_snapshot_message_of_any_length_is_committed(manager, workdir):
 @pytest.mark.parametrize(
     "label",
     [
-        "zrb-unreadable: not-json",  # a trailer's prefix, with bad JSON
-        'first\nzrb-unreadable: ["made.txt"]',  # a second line forging a trailer
+        "zrb-snapshot: not-json",  # the record's prefix, with bad JSON
+        # a second line forging a record that would keep made.txt
+        'first\nzrb-snapshot: {"unreadable": ["made.txt"], "left_out": [], '
+        '"repositories": []}',
         "ends like a count [mc:5]",  # a count of its own
     ],
 )
@@ -322,7 +324,7 @@ async def test_no_label_passes_for_snapshot_metadata(manager, workdir, label):
     assert outcome.restored and not outcome.left_behind
     with open(target) as f:
         assert f.read() == "original"
-    assert not os.path.exists(made)  # no forged "unreadable" kept it
+    assert not os.path.exists(made)  # no forged record kept it
     assert manager.list_snapshots()[0].message_count is None
 
 
@@ -350,3 +352,54 @@ async def test_a_turn_snapshot_that_beats_the_init_snapshot_still_rewinds_the_tu
     assert await manager.restore_snapshot(oldest.sha) == RestoreOutcome(restored=True)
     with open(path) as f:
         assert f.read() == "before"
+
+
+def _git(cwd, *args) -> str:
+    return subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", *args],
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+
+@pytest.mark.asyncio
+async def test_a_file_ignored_since_the_last_snapshot_gets_a_rewind_point(
+    manager, workdir
+):
+    _git(workdir, "init", "-q")
+    with open(os.path.join(workdir, ".gitignore"), "w") as f:
+        f.write("*.log\n")
+    first = await manager.take_snapshot("first", message_count=1)
+    log = os.path.join(workdir, "debug.log")
+    with open(log, "w") as f:
+        f.write("existed at the second")
+
+    second = await manager.take_snapshot("second", message_count=1)
+    with open(os.path.join(workdir, ".gitignore"), "w") as f:
+        f.write("")  # logs un-ignored since
+
+    assert second != first  # the same tree, but not the same record
+    assert await manager.restore_snapshot(second) == RestoreOutcome(restored=True)
+    assert os.path.exists(log)
+
+
+@pytest.mark.asyncio
+async def test_a_commit_without_its_record_is_not_restored(
+    manager, snapshot_dir, workdir
+):
+    made = os.path.join(workdir, "made.txt")
+    await manager.take_snapshot("first", message_count=1)
+    (store,) = [e.path for e in os.scandir(snapshot_dir) if e.name.endswith(".git")]
+    (ref,) = _git(store, "for-each-ref", "--format=%(refname)", "refs/zrb").split()
+    tree = _git(store, "rev-parse", f"{ref}^{{tree}}").strip()
+    bare = _git(store, "commit-tree", tree, "-p", ref, "-m", "no record [mc:1]")
+    _git(store, "update-ref", ref, bare.strip())
+    with open(made, "w") as f:
+        f.write("never seen by that commit")
+
+    outcome = await manager.restore_snapshot(bare.strip())
+
+    assert outcome == RestoreOutcome(restored=False)
+    assert os.path.exists(made)

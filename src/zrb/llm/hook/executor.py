@@ -41,6 +41,41 @@ class HookExecutionResult:
     hook_specific_output: dict[str, Any] | None = None
 
 
+class _HookRun:
+    """One synchronous hook's run, in an event loop of its own on a pool
+    thread. `cancel` reaches into that loop from the caller's: cancelling the
+    caller's future only abandons the thread, and a hook left running there —
+    a reviewer's model request, a command's process — would run on to the
+    end with nothing waiting for its result."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._task: asyncio.Task[Any] | None = None
+        self._cancelled = False
+
+    def can_start(self) -> bool:
+        """Called first inside the hook's loop, which it records so `cancel`
+        can reach it. False when the caller already cancelled."""
+        with self._lock:
+            if self._cancelled:
+                return False
+            self._loop = asyncio.get_running_loop()
+            self._task = asyncio.current_task()
+            return True
+
+    def cancel(self) -> None:
+        """Cancel the hook, whether it has started yet or not."""
+        with self._lock:
+            self._cancelled = True
+            if self._loop is None or self._task is None:
+                return
+            try:
+                self._loop.call_soon_threadsafe(self._task.cancel)
+            except RuntimeError:
+                pass  # its loop is closed: the hook already finished
+
+
 class ThreadPoolHookExecutor:
     """
     Thread-safe executor for hook execution with timeout controls.
@@ -105,6 +140,7 @@ class ThreadPoolHookExecutor:
             )
 
         timeout = timeout or self.default_timeout
+        run = _HookRun()
 
         try:
             # Use get_running_loop() for Python 3.14+ compatibility
@@ -112,13 +148,17 @@ class ThreadPoolHookExecutor:
             loop = asyncio.get_running_loop()
             result = await asyncio.wait_for(
                 loop.run_in_executor(
-                    self._executor, self._run_hook_sync, hook, context
+                    self._executor, self._run_hook_sync, hook, context, run
                 ),
                 timeout=timeout,
             )
             return result
 
+        except asyncio.CancelledError:
+            run.cancel()
+            raise
         except asyncio.TimeoutError:
+            run.cancel()
             logger.warning(f"Hook execution timed out after {timeout}s")
             return HookExecutionResult(
                 success=False,
@@ -130,7 +170,7 @@ class ThreadPoolHookExecutor:
             return HookExecutionResult(success=False, error=str(e), exit_code=1)
 
     def _run_hook_sync(
-        self, hook: HookCallable, context: HookContext
+        self, hook: HookCallable, context: HookContext, run: "_HookRun"
     ) -> HookExecutionResult:
         """
         Run hook synchronously in thread pool.
@@ -142,8 +182,12 @@ class ThreadPoolHookExecutor:
 
         async def run_hook_async():
             """Wrapper to run the hook and handle exceptions."""
+            if not run.can_start():
+                return HookResult(success=False, output="Hook cancelled")
             try:
                 return await hook(context)
+            except asyncio.CancelledError:
+                return HookResult(success=False, output="Hook cancelled")
             except Exception as e:
                 logger.error(f"Error in hook execution: {e}", exc_info=True)
                 return HookResult(success=False, output=str(e), should_stop=False)

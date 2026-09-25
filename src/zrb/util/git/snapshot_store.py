@@ -72,12 +72,21 @@ logger = logging.getLogger(__name__)
 
 
 class Snapshot(NamedTuple):
+    """A snapshot's tree, and what it knows about the directory that its tree
+    cannot hold — which a restore needs to tell a file that did not exist
+    then from one the snapshot never saw. Paths are relative to the work
+    tree."""
+
     #: The snapshot's tree SHA.
     tree: str
     #: Files left out because git could not read them.
     unreadable: tuple[str, ...] = ()
-    #: The repositories it holds, relative to the work tree; `""` is the work
-    #: tree itself.
+    #: Every other path that existed but the tree does not hold, apart from
+    #: `DEFAULT_IGNORE_DIRS` and the excluded paths: what each repository
+    #: ignored, and the directories that could not be read. A directory ends
+    #: in `/`.
+    left_out: tuple[str, ...] = ()
+    #: The repositories it listed; `""` is the work tree itself.
     repositories: tuple[str, ...] = ()
 
 
@@ -219,35 +228,35 @@ class SnapshotStore:
         with self._operation_index(from_cache=True) as index:
             listing, unreadable = self._index_directory(index, deadline)
             tree = self.git(["write-tree"], index=index, deadline=deadline).strip()
-        return Snapshot(tree, tuple(unreadable), tuple(listing.repositories))
+        # Sorted, so two snapshots of the same directory compare equal.
+        return Snapshot(
+            tree,
+            tuple(sorted(unreadable)),
+            tuple(sorted(listing.left_out)),
+            tuple(sorted(listing.repositories)),
+        )
 
-    def restore(
-        self,
-        treeish: str,
-        keep: Iterable[str] = (),
-        deadline: float | None = None,
-    ) -> list[str]:
-        """Make the directory match *treeish*, and return the paths it could
-        not — empty when the directory now matches. *keep* are the files that
-        snapshot could not read.
+    def restore(self, snapshot: Snapshot, deadline: float | None = None) -> list[str]:
+        """Make the directory match *snapshot*, and return the paths it could
+        not — empty when the directory now matches.
 
         Each path is decided by its state now (ADR-0101 has the table):
 
-        - listed and readable: rewritten to *treeish*'s version, or, when
-          *treeish* lacks it, removed only if it was created since;
+        - listed and readable: rewritten to the snapshot's version, or, when
+          the snapshot lacks it, removed only if the snapshot shows it did
+          not exist then;
         - unreadable, or under a directory that cannot be read: left alone —
           its content is in no snapshot, so writing over it is irreversible;
         - ignored or excluded: left alone;
-        - absent: recreated from *treeish*.
+        - absent: recreated from the snapshot.
 
         A write the filesystem refuses — a file another program holds open,
         a directory without write permission — does not stop the others: git
         writes every file it can, and the paths left behind are returned, so
         restoring again finishes once the cause is gone. A failure before the
-        first write raises, with nothing changed; one after it — a timeout
-        mid-write — returns every path the restore meant to change, since
-        the directory is then partly restored and restoring again finishes
-        it."""
+        write raises, with nothing changed; one during it — a timeout — returns
+        every path the restore meant to change, since the directory is then
+        partly restored and restoring again finishes it."""
         with self._operation_index(from_cache=True) as index:
             listing, unreadable = self._index_directory(index, deadline)
             before = self.git(["write-tree"], index=index, deadline=deadline).strip()
@@ -255,37 +264,28 @@ class SnapshotStore:
                 self.git(["ls-files", "--stage", "-z"], index=index, deadline=deadline)
             )
             target = self._create_restore_target(
-                treeish, listing, unreadable, current, deadline
+                snapshot.tree, listing, unreadable, current, deadline
             )
-            wanted = set(self._list_tree(target, deadline))
-            lacking = self._find_lacking(current, wanted)
-            # Pass 1: write the target, keeping every current file it lacks —
-            # such a file may have existed then without being captured.
-            kept = self._edit_tree(
+            lacking = self._find_lacking(
+                current, set(self._list_tree(target, deadline))
+            )
+            created = set(_find_created_since(lacking, snapshot, listing.repositories))
+            final = self._edit_tree(
                 target,
                 add=[
-                    f"{current[path][0]} {current[path][1]}\t{path}" for path in lacking
+                    f"{current[path][0]} {current[path][1]}\t{path}"
+                    for path in lacking
+                    if path not in created
                 ],
                 deadline=deadline,
             )
-            # Pass 2 only removes files from *lacking*.
-            might_change = sorted(
-                set(self._changed_paths(before, kept, deadline)) | set(lacking)
-            )
+            meant = self._changed_paths(before, final, deadline)
             try:
-                self._write_tree_to_disk(kept, index, deadline)
-                # Pass 2: with the target's own ignore rules back on disk,
-                # remove the files it lacks because they were created since.
-                created = self._find_created_since(
-                    lacking, wanted, listing, set(keep), deadline
-                )
-                final = self._edit_tree(kept, remove=created, deadline=deadline)
-                if created:
-                    self._write_tree_to_disk(final, index, deadline)
-                return self._find_left_behind(before, final, index, deadline)
+                self._write_tree_to_disk(final, index, deadline)
+                return self._find_left_behind(meant, final, index, deadline)
             except (SnapshotError, OSError) as e:
                 logger.warning(f"Restore stopped partway: {e}")
-                return might_change
+                return meant
 
     def _create_restore_target(
         self,
@@ -336,52 +336,17 @@ class SnapshotStore:
         }
         return sorted(path for path in current if path not in wanted | twins)
 
-    def _find_created_since(
-        self,
-        lacking: list[str],
-        wanted: set[str],
-        listing: Listing,
-        keep: set[str],
-        deadline: float | None,
-    ) -> list[str]:
-        """The *lacking* files that did not exist when the target was taken.
-        Run once the target's ignore rules are back on disk. A file is kept
-        when those rules leave it out (it existed then, ignored), when the
-        target could not read it (*keep*), or when its repository is one the
-        target holds nothing of — a worktree or clone made since, whose own
-        history holds its work."""
-        left_out = get_out_of_scope_paths(
-            self._workdir,
-            lacking,
-            listing.repositories,
-            self._ignore_dirs,
-            self._exclude_paths,
-            deadline,
-        )
-        made_since = [
-            base
-            for base in listing.repositories
-            if base and not any(path.startswith(f"{base}/") for path in wanted)
-        ]
-        return [
-            path
-            for path in lacking
-            if path not in keep
-            and path not in left_out
-            and not any(path.startswith(f"{base}/") for base in made_since)
-        ]
-
     def _list_tree(self, treeish: str, deadline: float | None) -> list[str]:
         return _tree_paths(
             self.git(["ls-tree", "-r", "-z", "--name-only", treeish], deadline=deadline)
         )
 
     def _find_left_behind(
-        self, before: str, final: str, index: str, deadline: float | None
+        self, meant: Iterable[str], final: str, index: str, deadline: float | None
     ) -> list[str]:
-        """The paths a restore meant to change — where *final* differs from
-        *before* — that the directory does not hold as *final* has them."""
-        meant = set(self._changed_paths(before, final, deadline))
+        """The paths of *meant*, the ones a restore meant to change, that the
+        directory does not hold as *final* has them."""
+        meant = set(meant)
         self._index_directory(index, deadline)
         actual = self.git(["write-tree"], index=index, deadline=deadline).strip()
         return [
@@ -814,3 +779,56 @@ def _read_from(store: SnapshotStore, other_git_dir: str) -> None:
     other_index = os.path.join(other_git_dir, "index")
     if os.path.exists(other_index):
         shutil.copy2(other_index, store.index)
+
+
+def _find_created_since(
+    lacking: list[str], snapshot: Snapshot, repositories: list[str]
+) -> list[str]:
+    """The *lacking* files *snapshot* shows did not exist when it was taken:
+    it would have listed them, since it neither left them out nor failed to
+    read them. The files of a repository listed now (*repositories*) that it
+    did not list are kept instead: a worktree or clone made since, whose own
+    history holds its work.
+
+    Left-out paths are matched ignoring case: on a filesystem that ignores
+    it, `Build/` then is `build/` now, and elsewhere this keeps at most a
+    file that differs from a left-out one only in case. Repositories are
+    matched exactly, which errs the same way — toward keeping."""
+    then = {repository.casefold() for repository in snapshot.repositories}
+    files = {
+        path.casefold()
+        for path in (*snapshot.unreadable, *snapshot.left_out)
+        if not path.endswith("/")
+    }
+    directories = [
+        path[:-1].casefold() for path in snapshot.left_out if path.endswith("/")
+    ]
+
+    def is_recorded(path: str) -> bool:
+        key = path.casefold()
+        if key in files:
+            return True
+        # A left-out directory covers what its own repository would list
+        # there, not a repository inside it, which listed itself.
+        owner = _find_repository(key, then)
+        return any(
+            key.startswith(f"{directory}/")
+            and _find_repository(directory, then) == owner
+            for directory in directories
+        )
+
+    def is_in_new_repository(path: str) -> bool:
+        repository = _find_repository(path, repositories)
+        return bool(repository) and repository not in snapshot.repositories
+
+    return [
+        path
+        for path in lacking
+        if not is_recorded(path) and not is_in_new_repository(path)
+    ]
+
+
+def _find_repository(path: str, repositories: Iterable[str]) -> str | None:
+    """The deepest of *repositories* holding *path*, or None when none does."""
+    holding = [r for r in repositories if not r or path.startswith(f"{r}/")]
+    return max(holding, key=len, default=None)
