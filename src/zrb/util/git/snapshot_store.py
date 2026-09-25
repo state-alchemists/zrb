@@ -238,7 +238,7 @@ class SnapshotStore:
     def create_repository_baseline(
         self,
         before: str,
-        after: str,
+        after: Snapshot,
         repository: str,
         fork: str,
         deadline: float | None = None,
@@ -250,7 +250,10 @@ class SnapshotStore:
         form its checkout writes (its end-of-line and smudge filters applied),
         and no file *fork* lacks. The diff from it to *after* then shows what
         changed since *fork*, whatever those filters make of the bytes on disk
-        — a checkout under `core.autocrlf` is CRLF where the commit is LF."""
+        — a checkout under `core.autocrlf` is CRLF where the commit is LF. A
+        changed file *after* lacks counts as deleted only while the listing
+        would still take it; one it leaves out now — ignored since, or under
+        an ignored directory — stays out of both."""
         where = os.path.join(self._workdir, *repository.split("/"))
         changed = get_git_output(
             ["diff", "--name-only", "-z", "--no-renames", fork], where, deadline
@@ -261,10 +264,23 @@ class SnapshotStore:
         )
         current = _tree_entries(
             self.git(
-                ["ls-tree", "-r", "-z", after, "--", repository], deadline=deadline
+                ["ls-tree", "-r", "-z", after.tree, "--", repository],
+                deadline=deadline,
             )
         )
         prefix = f"{repository}/"
+        out_of_scope = get_out_of_scope_paths(
+            self._workdir,
+            [
+                f"{prefix}{rel}"
+                for rel in changed_paths
+                if f"{prefix}{rel}" not in current
+            ],
+            list(after.repositories),
+            self._ignore_dirs,
+            self._exclude_paths,
+            deadline,
+        )
         entries = [
             f"{mode} {sha}\t{path}"
             for path, (mode, sha) in current.items()
@@ -273,6 +289,8 @@ class SnapshotStore:
         ]
         for rel in sorted(changed_paths):
             mode, _ = forked.get(rel, (_GITLINK_MODE, ""))
+            if f"{prefix}{rel}" in out_of_scope:
+                continue
             if mode != _GITLINK_MODE:  # absent from *fork*, or a submodule
                 blob = self._hash_checkout(where, f"{fork}:{rel}", deadline)
                 entries.append(f"{mode} {blob}\t{prefix}{rel}")

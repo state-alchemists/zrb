@@ -248,6 +248,8 @@ def test_a_fork_point_is_the_commit_a_repository_started_from(tmp_path):
     assert get_fork_point(str(worktree)) == base
     assert get_fork_point(str(tmp_path / "clone")) == base
     assert get_fork_point(str(_repo(tmp_path / "new", {}, commit=False))) is None
+    # A repository born with its first commit started from nothing too.
+    assert get_fork_point(str(_repo(tmp_path / "born", {"b.py": "b\n"}))) is None
 
 
 def test_out_of_scope_paths_follow_each_repositorys_rules_now(tmp_path):
@@ -276,3 +278,15 @@ def test_a_symlinked_directory_outside_git_is_listed_as_a_link(tmp_path):
     os.symlink(workspace / "real", workspace / "link")
 
     assert sorted(list_snapshot_paths(str(workspace)).paths) == ["link", "real/f.txt"]
+
+
+def test_a_tracked_file_matching_an_ignore_pattern_stays_in_scope(tmp_path):
+    repo = _repo(tmp_path / "r", {".gitignore": ".env*\n"})
+    (repo / ".env.example").write_text("KEY=\n")
+    _git(repo, "add", "-f", ".env.example")
+    _git(repo, "commit", "-qm", "example")
+
+    out = get_out_of_scope_paths(str(repo), [".env.example", ".env"], [""])
+
+    assert ".env.example" in list_snapshot_paths(str(repo)).paths
+    assert out == {".env"}

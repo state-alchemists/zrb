@@ -105,9 +105,11 @@ def get_out_of_scope_paths(
 ) -> set[str]:
     """Which of *paths* a listing of *workdir* would leave out now: those
     under an ignored or excluded directory, and those the repository owning
-    them ignores — the deepest of *repositories* each lies in. A path that no
-    longer exists is judged the same way, so a restore can still recreate
-    it."""
+    them ignores — the deepest of *repositories* each lies in. As in the
+    listing, a file that repository tracks is never ignored, whatever its
+    patterns say: a force-added file, or `.env.example` under `.env*`. A path
+    that no longer exists is judged the same way, so a restore can still
+    recreate it."""
     scope = _Scope(workdir, ignore_dirs, exclude_paths)
     out = {path for path in paths if scope.is_excluded(path)}
     bases = sorted(repositories, key=len, reverse=True)
@@ -118,7 +120,8 @@ def get_out_of_scope_paths(
             owned.setdefault(base, []).append(path[len(base) + 1 :] if base else path)
     for base, rels in owned.items():
         result = run_git_command(
-            ["git", "check-ignore", "--no-index", "-z", "--stdin"],
+            # Without `--no-index`: a tracked path is never reported.
+            ["git", "check-ignore", "-z", "--stdin"],
             scope.absolute(base),
             deadline,
             stdin="".join(f"{rel}\0" for rel in rels),
@@ -132,14 +135,16 @@ def get_out_of_scope_paths(
 def get_fork_point(repository: str, deadline: float | None = None) -> str | None:
     """The commit the repository at *repository* started from — its oldest
     `HEAD` reflog entry, which a worktree's creation or a clone writes — or
-    its current `HEAD` when that reflog is gone, or None before its first
-    commit."""
+    its current `HEAD` when that reflog is gone. None when it started from
+    nothing: before its first commit, or when its oldest entry is that first
+    commit (`commit (initial)`), since then everything in it is new."""
     log = run_git_command(
-        ["git", "reflog", "show", "--format=%H", "HEAD"], repository, deadline
+        ["git", "reflog", "show", "--format=%H %gs", "HEAD"], repository, deadline
     )
-    entries = log.stdout.split() if log.returncode == 0 else []
+    entries = log.stdout.splitlines() if log.returncode == 0 else []
     if entries:
-        return entries[-1]
+        sha, _, subject = entries[-1].partition(" ")
+        return None if subject.startswith("commit (initial)") else sha
     head = run_git_command(
         ["git", "rev-parse", "--verify", "-q", "HEAD"], repository, deadline
     )

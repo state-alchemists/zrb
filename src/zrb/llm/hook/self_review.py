@@ -214,7 +214,7 @@ def _with_new_repositories(
         )
         if fork is not None:
             before = store.create_repository_baseline(
-                before, after.tree, repository, fork, deadline
+                before, after, repository, fork, deadline
             )
     return before
 

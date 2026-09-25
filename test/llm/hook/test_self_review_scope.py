@@ -239,8 +239,9 @@ async def test_a_worktree_created_mid_turn_shows_only_what_the_turn_changed(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("committed", [False, True])
 async def test_a_repository_started_mid_turn_shows_all_its_files(
-    tmp_path, monkeypatch, start_snapshot, gate, stop
+    tmp_path, monkeypatch, start_snapshot, gate, stop, committed
 ):
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
     repo = tmp_path / "repo"
@@ -251,8 +252,19 @@ async def test_a_repository_started_mid_turn_shows_all_its_files(
     before = start_snapshot(repo)
     child = repo / "repos" / "new"
     child.mkdir(parents=True)
-    subprocess.run(["git", "init", "-q"], cwd=child, check=True)  # no commit yet
+    subprocess.run(["git", "init", "-q"], cwd=child, check=True)
     (child / "main.py").write_text("m = 1\n")
+    if committed:  # its first commit is the turn's work too
+        subprocess.run(
+            ["git", "-c", "user.email=t@t", "-c", "user.name=t", "add", "."],
+            cwd=child,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "1"],
+            cwd=child,
+            check=True,
+        )
     manager = HookManager(search_dirs=[])
 
     with gate() as (seen, _):

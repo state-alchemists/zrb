@@ -424,9 +424,7 @@ def test_a_repository_baseline_holds_what_its_own_checkout_wrote(repo, store, au
     (worktree / "new.txt").write_bytes(b"n\n")
     after = store.snapshot()
 
-    baseline = store.create_repository_baseline(
-        before, after.tree, ".zrb/worktree/wt", fork
-    )
+    baseline = store.create_repository_baseline(before, after, ".zrb/worktree/wt", fork)
 
     paths, diff = store.diff(baseline, after.tree)
     assert sorted(paths) == [
@@ -435,3 +433,35 @@ def test_a_repository_baseline_holds_what_its_own_checkout_wrote(repo, store, au
         ".zrb/worktree/wt/tracked.txt",
     ]
     assert "-a" in diff and "+changed" in diff
+
+
+def test_a_restore_keeps_a_tracked_file_matching_an_ignore_pattern(repo, tmp_path):
+    (repo / ".gitignore").write_bytes(b".env*\n")
+    (repo / ".env.example").write_bytes(b"KEY=\n")
+    _git(repo, "add", "-f", ".")
+    _git(repo, "commit", "-qm", "example")
+    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
+    before = _snap(store)
+    (repo / ".env.example").write_bytes(b"KEY=changed\n")
+
+    store.restore(before)
+
+    assert (repo / ".env.example").read_bytes() == b"KEY=\n"
+
+
+def test_a_repository_baseline_leaves_out_what_the_listing_leaves_out(repo, store):
+    (repo / ".gitignore").write_bytes(b"ignored.txt\n.zrb/worktree/\n")
+    (repo / ".cache").mkdir()
+    (repo / ".cache" / "c.txt").write_bytes(b"c\n")
+    _git(repo, "add", "-f", ".")
+    _git(repo, "commit", "-qm", "tracked cache")
+    fork = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    before = _snap(store)
+    worktree = repo / ".zrb" / "worktree" / "wt"
+    _git(repo, "worktree", "add", "-q", "-b", "wt", str(worktree))
+    (worktree / ".cache" / "c.txt").write_bytes(b"changed\n")  # never listed
+    after = store.snapshot()
+
+    baseline = store.create_repository_baseline(before, after, ".zrb/worktree/wt", fork)
+
+    assert store.diff(baseline, after.tree)[0] == []
