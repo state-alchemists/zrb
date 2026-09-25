@@ -19,6 +19,16 @@ def test_stdui_append_to_output():
         assert output == "Hello-World!"
 
 
+def test_stdui_append_to_output_terminates_usage_line():
+    """The streamed usage line arrives unterminated; StdUI closes it."""
+    ui = StdUI()
+
+    with patch("sys.stderr", new_callable=StringIO) as mock_stderr:
+        ui.append_to_output("\n  💸 (Requests: 1)", end="", kind="usage")
+        output = mock_stderr.getvalue()
+        assert "(Requests: 1)\n" in output
+
+
 def test_stdui_append_to_output_with_flush():
     """Test StdUI append_to_output with flush=True."""
     ui = StdUI()

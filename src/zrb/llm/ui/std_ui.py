@@ -137,6 +137,12 @@ class StdUI(UIStateDefaultsMixin, AnyUI):
         """Print output to stderr."""
 
         content = sep.join(str(v) for v in values) + end
+        # The stream event handler opens each line with "\n" and never closes
+        # the last one, the usage line. StdUI has no turn-closing step of its
+        # own, so it terminates that line here; otherwise the caller's next
+        # write (the result on stdout) lands on the same terminal line.
+        if kind == "usage" and not content.endswith("\n"):
+            content += "\n"
         if kind not in ("text", "todo_progress"):
             content = stylize_muted(content)
         sys.stderr.write(content)
