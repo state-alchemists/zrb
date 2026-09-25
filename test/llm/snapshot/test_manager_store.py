@@ -6,6 +6,7 @@ import os
 import subprocess
 import tempfile
 import threading
+import time
 
 import pytest
 
@@ -389,3 +390,32 @@ async def test_a_restore_reads_as_true_exactly_when_it_ran(snapshot_dir, workdir
     assert not await mgr.restore_snapshot("0" * 40)  # unknown: nothing touched
     assert await mgr.restore_snapshot(sha)
     assert RestoreOutcome(restored=True, left_behind=("locked.txt",))
+
+
+@pytest.mark.asyncio
+async def test_listing_never_waits_for_the_store(snapshot_dir, workdir):
+    """It runs on the UI's thread: another process restoring, or setting the
+    store up, must not freeze the UI."""
+    await SnapshotManager(snapshot_dir, "s", workdir).take_init_snapshot()
+    (store,) = [e.path for e in os.scandir(snapshot_dir) if e.name.endswith(".git")]
+    fresh = SnapshotManager(snapshot_dir, "s", workdir)  # a new process's
+    held, release = threading.Event(), threading.Event()
+
+    def other_operation():
+        with hold_file_lock(os.path.join(store, OPERATION_LOCK_NAME)):
+            held.set()
+            release.wait(5)
+
+    thread = threading.Thread(target=other_operation)
+    thread.start()
+    held.wait(5)
+    try:
+        started = time.monotonic()
+        listed = fresh.list_snapshots()
+        elapsed = time.monotonic() - started
+    finally:
+        release.set()
+        thread.join()
+
+    assert [snapshot.label for snapshot in listed] == ["init"]
+    assert elapsed < 2

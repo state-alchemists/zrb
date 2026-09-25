@@ -198,3 +198,20 @@ def test_an_operation_index_removed_by_a_racing_cleanup_never_fails_it(
     monkeypatch.setattr(os.path, "exists", seen_before_another_cleanup_removed_it)
 
     assert store.snapshot().tree
+
+
+def test_a_cache_copy_that_fails_partway_leaves_no_operation_index(
+    repo, store, monkeypatch
+):
+    store.snapshot()  # the named index exists from here
+
+    def copy_part_then_fail(source, destination, *args, **kwargs):
+        with open(destination, "wb") as f:
+            f.write(b"DIRC")  # the disk filled up mid-copy
+        raise OSError("No space left on device")
+
+    monkeypatch.setattr(shutil, "copy2", copy_part_then_fail)
+    with pytest.raises(OSError):
+        store.snapshot()
+
+    assert not [n for n in os.listdir(store.git_dir) if n.startswith("index.")]

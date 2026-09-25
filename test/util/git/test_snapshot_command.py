@@ -2,6 +2,7 @@
 git environment, and cancellable."""
 
 import asyncio
+import gc
 import subprocess
 import threading
 import time
@@ -78,3 +79,27 @@ async def test_a_cancelled_worker_stops_before_its_next_command_and_is_awaited(
 
     assert still_waiting
     assert ran == ["Snapshot cancelled before running git --version"]
+
+
+@pytest.mark.asyncio
+async def test_a_cancelled_workers_own_error_is_never_left_unretrieved():
+    loop = asyncio.get_running_loop()
+    unretrieved = []
+    loop.set_exception_handler(lambda loop, context: unretrieved.append(context))
+    started, finish = threading.Event(), threading.Event()
+
+    def fails_once_cancelled():
+        started.set()
+        finish.wait(5)
+        raise SnapshotError("stopped: cancelled")
+
+    call = asyncio.ensure_future(run_in_worker(fails_once_cancelled))
+    await asyncio.to_thread(started.wait, 5)
+    call.cancel()
+    finish.set()
+    with pytest.raises(asyncio.CancelledError):
+        await call
+    gc.collect()
+    await asyncio.sleep(0)
+
+    assert unretrieved == []

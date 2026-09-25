@@ -95,11 +95,16 @@ async def run_in_worker(fn: Callable[..., _T], *args: Any) -> _T:
 
     future = asyncio.ensure_future(asyncio.to_thread(work))
     try:
-        return await asyncio.shield(future)
+        # Not `shield`: cancelling a wait leaves the work running, and a
+        # shield would log the work's own error once its waiter is gone.
+        await asyncio.wait([future])
     except asyncio.CancelledError:
         abort.set()
         await asyncio.wait([future])
+        if not future.cancelled():
+            future.exception()  # retrieved: the cancellation is what is raised
         raise
+    return future.result()
 
 
 def get_git_output(

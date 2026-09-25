@@ -4,6 +4,7 @@ path it could not write reported."""
 
 import os
 import shutil
+import stat
 import subprocess
 
 import pytest
@@ -310,3 +311,104 @@ def test_a_restore_keeps_what_an_uninitialized_submodules_directory_held(
     store.restore(before)
 
     assert (repo / "sm" / "notes.txt").read_bytes() == b"existed then\n"
+
+
+def _write(path, content: bytes = b"x\n"):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(content)
+
+
+def _make_x_a_file(repo):
+    _write(repo / "x", b"file then\n")
+
+
+def _make_x_a_directory(repo):
+    _write(repo / "x" / "f", b"file then\n")
+
+
+def _replace_x_with_a_directory_of_ignored_files(repo):
+    (repo / "x").unlink()
+    _write(repo / "x" / "keep.o", b"ignored, in no snapshot\n")
+
+
+def _replace_x_with_ignored_and_new_files(repo):
+    _replace_x_with_a_directory_of_ignored_files(repo)
+    _write(repo / "x" / "new.c", b"created since\n")
+
+
+@pytest.mark.parametrize(
+    "then, now, precious",
+    [
+        (_make_x_a_file, _replace_x_with_a_directory_of_ignored_files, "x/keep.o"),
+        (_make_x_a_file, _replace_x_with_ignored_and_new_files, "x/keep.o"),
+    ],
+)
+def test_a_restore_never_writes_over_what_no_snapshot_holds(
+    repo, tmp_path, then, now, precious
+):
+    """`read-tree -u --reset` removes an untracked file or directory in the
+    way of what it writes; what stands there unlisted is left, and the path
+    reported."""
+    (repo / ".gitignore").write_bytes(b"*.o\n")
+    then(repo)
+    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
+    before = _snap(store)
+    now(repo)
+    content = (repo / precious).read_bytes()
+
+    left_behind = store.restore(before)
+
+    assert (repo / precious).read_bytes() == content
+    assert "x" in left_behind
+    assert not (repo / "x" / "new.c").exists()  # listed, created since: removed
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="needs FIFOs")
+@pytest.mark.parametrize("then, blocked", [("x", "x"), ("x/f", "x/f")])
+def test_a_restore_never_writes_over_a_fifo(repo, tmp_path, then, blocked):
+    """A FIFO where the snapshot has a file, or needs a directory: git
+    cannot store it, so it is unlisted, and writing would destroy it."""
+    _write(repo / then, b"file then\n")
+    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
+    before = _snap(store)
+    shutil.rmtree(repo / "x") if (repo / "x").is_dir() else (repo / "x").unlink()
+    os.mkfifo(repo / "x")
+
+    assert store.restore(before) == [blocked]
+    assert stat.S_ISFIFO(os.lstat(repo / "x").st_mode)
+
+
+@pytest.mark.parametrize("then_is_directory", [True, False])
+def test_a_restore_replaces_a_listed_file_or_directory_in_its_way(
+    repo, tmp_path, then_is_directory
+):
+    if then_is_directory:
+        _write(repo / "x" / "f", b"file then\n")
+    else:
+        _write(repo / "x", b"file then\n")
+    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
+    before = _snap(store)
+    shutil.rmtree(repo / "x") if then_is_directory else (repo / "x").unlink()
+    if then_is_directory:
+        _write(repo / "x", b"a file since\n")  # listed: the restore's own
+    else:
+        _write(repo / "x" / "g", b"a directory since\n")
+
+    assert store.restore(before) == []
+    if then_is_directory:
+        assert (repo / "x" / "f").read_bytes() == b"file then\n"
+    else:
+        assert (repo / "x").read_bytes() == b"file then\n"
+
+
+def test_a_file_the_restore_keeps_is_never_written_over(repo, tmp_path):
+    """A repository made since where the snapshot has a file: its files are
+    kept, the tree cannot hold both, and the snapshot's file stays behind."""
+    _write(repo / "x", b"file then\n")
+    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
+    before = _snap(store)
+    (repo / "x").unlink()
+    _nested(repo / "x", {"work.py": "uncommitted work\n"})
+
+    assert store.restore(before) == ["x"]
+    assert (repo / "x" / "work.py").read_bytes() == b"uncommitted work\n"

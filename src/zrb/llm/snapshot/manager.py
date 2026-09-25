@@ -241,13 +241,14 @@ class SnapshotManager:
             return []
         session = self._visible_history(self.session_name)
         try:
-            # Unlocked: it would hold the UI up behind another operation, and
-            # needs no lock — the ref is read once, and the commits it names
-            # never change.
-            head = self._head_sha(session)
-            if head is None:
+            # Unlocked, and never setting a store up: either would hold the UI
+            # up behind another operation. It needs no lock — the ref is read
+            # once, and the commits it names never change.
+            store = self._find_store_to_read()
+            head = None if store is None else _read_head(store, session)
+            if store is None or head is None:
                 return []
-            log = self._get_store().git(["log", "--format=%H|%ai|%s", head])
+            log = store.git(["log", "--format=%H|%ai|%s", head])
             snapshots: list[Snapshot] = []
             for line in log.splitlines():
                 parts = line.split("|", 2)
@@ -324,18 +325,9 @@ class SnapshotManager:
         with self._store_lock:
             if self._store is not None:
                 return self._store
-            name = _readable_key(os.path.basename(self._workdir), self._workdir)
-            git_dir = os.path.join(self._snapshot_dir, f"{name}.git")
+            git_dir = self._store_git_dir()
             try:
-                store = SnapshotStore(
-                    git_dir,
-                    self._workdir,
-                    ignore_dirs=self._ignore_dirs,
-                    # A snapshot dir inside the directory holds other
-                    # directories' stores too; none of it belongs in a
-                    # snapshot.
-                    exclude_paths=[self._snapshot_dir],
-                )
+                store = self._create_store_object(git_dir)
                 os.makedirs(git_dir, mode=0o700, exist_ok=True)  # holds the lock
                 with _hold_operation_lock(store):
                     store.ensure()
@@ -346,6 +338,31 @@ class SnapshotManager:
                 raise SnapshotError(self._unavailable) from e
             self._store = store
             return store
+
+    def _store_git_dir(self) -> str:
+        name = _readable_key(os.path.basename(self._workdir), self._workdir)
+        return os.path.join(self._snapshot_dir, f"{name}.git")
+
+    def _create_store_object(self, git_dir: str) -> SnapshotStore:
+        """The store at *git_dir*, not yet set up."""
+        return SnapshotStore(
+            git_dir,
+            self._workdir,
+            ignore_dirs=self._ignore_dirs,
+            # A snapshot dir inside the directory holds other directories'
+            # stores too; none of it belongs in a snapshot.
+            exclude_paths=[self._snapshot_dir],
+        )
+
+    def _find_store_to_read(self) -> SnapshotStore | None:
+        """The store as it is, set up or not, or None when there is none —
+        so listing never sets one up, which waits for the operation lock."""
+        if self._store is not None:
+            return self._store
+        git_dir = self._store_git_dir()
+        if not os.path.isdir(os.path.join(git_dir, "objects")):
+            return None
+        return self._create_store_object(git_dir)
 
     def _apply_pending_copies(self) -> None:
         """Apply the copies `copy_history` recorded, in the order it recorded
@@ -448,10 +465,7 @@ class SnapshotManager:
             store.git(["update-ref", "-d", _ref(target)])
 
     def _head_sha(self, session: str) -> str | None:
-        result = self._get_store().run_git(
-            ["rev-parse", "--verify", "-q", _ref(session)]
-        )
-        return result.stdout.strip() if result.returncode == 0 else None
+        return _read_head(self._get_store(), session)
 
 
 def _check_location(snapshot_dir: str, workdir: str) -> str:
@@ -479,6 +493,12 @@ def _hold_operation_lock(store: SnapshotStore) -> Iterator[None]:
             yield
     except FileLockTimeout as e:
         raise _StoreBusy(f"the snapshot store is busy: {e}") from e
+
+
+def _read_head(store: SnapshotStore, session: str) -> str | None:
+    """The newest snapshot of *session*'s history in *store*, if any."""
+    result = store.run_git(["rev-parse", "--verify", "-q", _ref(session)])
+    return result.stdout.strip() if result.returncode == 0 else None
 
 
 def _ref(session: str) -> str:
