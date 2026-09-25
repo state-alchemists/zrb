@@ -303,7 +303,9 @@ class SnapshotManager:
         """The working directory's store, set up on first use. A failure to
         set it up — its directory not writable, git not installed, a location
         the store refuses — will not pass by itself, so it turns rewind off
-        for the session with its reason."""
+        for the session with its reason. It is set up holding the operation
+        lock: two processes running `git init` on one directory at once fail
+        on each other's config lock."""
         with self._store_lock:
             if self._store is not None:
                 return self._store
@@ -319,7 +321,9 @@ class SnapshotManager:
                     # snapshot.
                     exclude_paths=[self._snapshot_dir],
                 )
-                store.ensure()
+                os.makedirs(git_dir, mode=0o700, exist_ok=True)  # holds the lock
+                with hold_file_lock(_operation_lock(store)):
+                    store.ensure()
             except (OSError, ValueError, SnapshotError) as e:
                 self._unavailable = f"the snapshot store {git_dir} is unusable: {e}"
                 raise SnapshotError(self._unavailable) from e
@@ -349,8 +353,7 @@ class SnapshotManager:
         process — so a restore never interleaves with another restore, and a
         snapshot never catches one half-written. The OS releases it when its
         holder dies."""
-        store = self._get_store()
-        with hold_file_lock(os.path.join(store.git_dir, OPERATION_LOCK_NAME)):
+        with hold_file_lock(_operation_lock(self._get_store())):
             self._apply_pending_copies()
             return operation(*args)
 
@@ -445,6 +448,10 @@ def _check_location(snapshot_dir: str, workdir: str) -> str:
             f"({workdir}); set LLM_SNAPSHOT_DIR elsewhere"
         )
     return ""
+
+
+def _operation_lock(store: SnapshotStore) -> str:
+    return os.path.join(store.git_dir, OPERATION_LOCK_NAME)
 
 
 def _ref(session: str) -> str:

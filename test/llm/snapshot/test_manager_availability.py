@@ -3,7 +3,10 @@ why: a snapshot directory that is the working directory itself, a store that
 cannot be set up, or more loose files than the listing's budget."""
 
 import os
+import subprocess
+import sys
 import tempfile
+import time
 
 import pytest
 
@@ -131,3 +134,36 @@ async def test_a_directory_too_large_to_snapshot_in_time_turns_rewind_off(
     tried = len(calls)
     assert await manager.take_snapshot("next turn") is None
     assert len(calls) == tried  # not held up again
+
+
+_SET_UP_AND_SNAPSHOT = """
+import asyncio, os, sys, time
+from zrb.llm.snapshot import SnapshotManager
+while not os.path.exists(sys.argv[4]):  # every process starts at once
+    time.sleep(0.005)
+manager = SnapshotManager(sys.argv[1], sys.argv[3], sys.argv[2])
+sha = asyncio.run(manager.take_init_snapshot())
+print(sha if sha else manager.unavailable_reason)
+"""
+
+
+def test_processes_setting_up_one_store_at_once_all_get_rewind(tmp_path):
+    snapshot_dir, workdir = tmp_path / "snapshots", tmp_path / "work"
+    go = tmp_path / "go"
+    workdir.mkdir()
+    (workdir / "f.txt").write_text("f\n")
+    starts = [
+        subprocess.Popen(
+            [sys.executable, "-c", _SET_UP_AND_SNAPSHOT]
+            + [str(snapshot_dir), str(workdir), f"conversation-{i}", str(go)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        for i in range(16)
+    ]
+    time.sleep(1)  # every process imported and waiting
+    go.touch()
+    outputs = [process.communicate(timeout=60)[0].strip() for process in starts]
+
+    assert all(len(output) == 40 for output in outputs), outputs

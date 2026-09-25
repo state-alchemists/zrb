@@ -36,6 +36,9 @@ def test_a_repository_baseline_holds_what_its_own_checkout_wrote(
     repo, store, autocrlf, attributes, checked_out
 ):
     _git(repo, "config", "core.autocrlf", autocrlf)
+    # Committed from these bytes on every platform: the fixture's
+    # `write_text` gives CRLF on Windows, which `autocrlf=false` keeps.
+    (repo / "tracked.txt").write_bytes(b"a\n")
     (repo / ".gitattributes").write_bytes(attributes)
     (repo / ".gitignore").write_bytes(b"ignored.txt\n.zrb/worktree/\n")
     (repo / "gone.txt").write_bytes(b"g\n")
