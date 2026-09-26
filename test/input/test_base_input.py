@@ -236,7 +236,7 @@ def test_base_input_prompt_cli_str_blank_answer_falls_back_to_default(
     monkeypatch.setattr("builtins.input", lambda: "")
     shared_ctx = SharedContext()
     assert inp.prompt_cli_str(shared_ctx) == "fallback"
-    assert "Enter value [fallback]" in capsys.readouterr().out
+    assert "Enter value [fallback]" in capsys.readouterr().err
 
 
 def test_base_input_prompt_cli_str_default_satisfies_non_empty_check(
@@ -256,9 +256,13 @@ def test_base_input_prompt_cli_str_default_satisfies_non_empty_check(
     assert len(calls) == 1
 
 
-def test_base_input_read_line_prints_prompt_when_not_tty(non_tty, monkeypatch, capsys):
+def test_base_input_read_line_prompts_on_stderr_when_not_tty(
+    non_tty, monkeypatch, capsys
+):
     inp = ConcreteInput("test", prompt="Enter value")
     monkeypatch.setattr("builtins.input", lambda: "typed-answer")
     shared_ctx = SharedContext()
     assert inp.prompt_cli_str(shared_ctx) == "typed-answer"
-    assert "Enter value" in capsys.readouterr().out
+    captured = capsys.readouterr()
+    assert "Enter value" in captured.err
+    assert captured.out == ""

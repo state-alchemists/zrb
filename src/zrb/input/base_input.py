@@ -1,4 +1,5 @@
 import html
+import sys
 from typing import Any
 
 from zrb.context.any_shared_context import AnySharedContext
@@ -146,7 +147,8 @@ class BaseInput(AnyInput):
 
     def _read_line(self, shared_ctx: AnySharedContext, prompt_message: str) -> str:
         if not shared_ctx.is_tty:
-            print(f"{prompt_message}: ", end="")
+            # stdout carries only the task's result, so the prompt goes to stderr.
+            print(f"{prompt_message}: ", end="", file=sys.stderr, flush=True)
             return input()
         # lazy: heavy third-party
         from prompt_toolkit import PromptSession
