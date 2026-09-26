@@ -18,8 +18,8 @@ import os
 
 from zrb.llm.sandbox.policy import (
     SandboxPolicy,
-    resolved_deny_read_roots,
     resolve_real,
+    resolved_deny_read_roots,
     resolved_writable_roots,
 )
 

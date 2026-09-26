@@ -5,7 +5,6 @@ from unittest.mock import patch
 import pytest
 
 
-
 @pytest.fixture
 def writable_journal(tmp_path):
     """Patch CFG for the writer module and return the journal root."""
@@ -337,9 +336,7 @@ def test_log_activity_holds_the_same_lock(writable_journal):
     from zrb.llm.tool.journal_write import log_activity
 
     events: list[str] = []
-    with patch(
-        "zrb.llm.tool.journal_write.hold_file_lock", _recording_lock(events)
-    ):
+    with patch("zrb.llm.tool.journal_write.hold_file_lock", _recording_lock(events)):
         log_activity("did a thing")
 
     assert events == ["acquire .lock", "release"]

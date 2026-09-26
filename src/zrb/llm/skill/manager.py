@@ -9,9 +9,9 @@ from zrb.llm.skill.registry import SkillRegistry, skill_registry
 from zrb.llm.skill.util import discover_companion_files
 from zrb.util.asset_scanner import IGNORE_DIRS, scan_files
 from zrb.util.dir_search import BUILTIN_PLUGIN_DIR, get_upward_dirs, scan_plugin_dirs
-from zrb.util.markdown import get_first_heading
 from zrb.util.frontmatter import parse_frontmatter
 from zrb.util.load import load_module_from_path
+from zrb.util.markdown import get_first_heading
 
 
 class Skill:
@@ -489,4 +489,3 @@ def _register_frontmatter_hooks(hooks_data: object, full_path: str) -> None:
         # Zrb flat format
         for hook_item in hooks_data:
             hook_manager.parse_and_register(hook_item, full_path)
-

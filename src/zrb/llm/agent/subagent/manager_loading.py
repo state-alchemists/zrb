@@ -16,8 +16,8 @@ from zrb.config.config import CFG
 from zrb.llm.agent.subagent.definition import SubAgentDefinition
 from zrb.util.asset_scanner import scan_files
 from zrb.util.frontmatter import parse_frontmatter
-from zrb.util.markdown import get_first_heading
 from zrb.util.load import load_module_from_path
+from zrb.util.markdown import get_first_heading
 
 _Default = TypeVar("_Default")
 
