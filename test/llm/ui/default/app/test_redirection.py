@@ -1,4 +1,5 @@
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -160,3 +161,39 @@ def test_global_stream_capture_not_capturing_pause():
 
 if __name__ == "__main__":
     pytest.main([__file__])
+
+
+_COLOR_PROBE = """
+from zrb.llm.ui.default.app.redirection import GlobalStreamCapture
+from zrb.util.cli.style import is_color_enabled
+
+capture = GlobalStreamCapture()
+capture.start()
+during = is_color_enabled()
+capture.stop()
+with open("result.txt", "w", encoding="utf-8") as f:
+    f.write(f"{during} {is_color_enabled()}")
+"""
+
+
+@pytest.mark.skipif(not hasattr(os, "openpty"), reason="needs a pseudo-terminal")
+def test_capture_keeps_colour_for_a_terminal_it_renders_back_to(tmp_path):
+    """FD 1/2 point at a pipe while capturing, but the output still reaches the
+    terminal, so styling must stay on."""
+    leader, follower = os.openpty()
+    env = {k: v for k, v in os.environ.items() if k not in ("NO_COLOR", "FORCE_COLOR")}
+    try:
+        subprocess.run(
+            [sys.executable, "-c", _COLOR_PROBE],
+            cwd=tmp_path,
+            env=env,
+            stdin=follower,
+            stdout=follower,
+            stderr=follower,
+            timeout=60,
+            check=True,
+        )
+    finally:
+        os.close(follower)
+        os.close(leader)
+    assert (tmp_path / "result.txt").read_text(encoding="utf-8") == "True True"

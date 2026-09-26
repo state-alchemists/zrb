@@ -231,3 +231,24 @@ def test_todo_helpers_read_only_color_from_cfg_no_style(fn, color_key, monkeypat
 def test_stylize_helpers_are_reachable_from_the_module_too():
     # Sanity check the public surface hasn't drifted from what's imported above.
     assert style.stylize_green("x") == stylize_green("x")
+
+
+def test_a_pinned_terminal_decision_overrides_detection(monkeypatch):
+    monkeypatch.delenv("FORCE_COLOR")
+    monkeypatch.setattr(style.sys, "stdout", _Stream(False))
+    monkeypatch.setattr(style.sys, "stderr", _Stream(False))
+    style.set_color_enabled(True)
+    try:
+        assert style.is_color_enabled() is True
+    finally:
+        style.set_color_enabled(None)
+    assert style.is_color_enabled() is False
+
+
+def test_no_color_wins_over_a_pinned_terminal_decision(monkeypatch):
+    monkeypatch.setenv("NO_COLOR", "1")
+    style.set_color_enabled(True)
+    try:
+        assert style.is_color_enabled() is False
+    finally:
+        style.set_color_enabled(None)
