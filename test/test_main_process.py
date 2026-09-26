@@ -19,9 +19,16 @@ posix_only = pytest.mark.skipif(
 )
 
 _INIT = """
-from zrb import cli, CmdTask, Task
+from zrb import cli, CmdTask, StrInput, Task
 
 cli.add_task(Task(name="hello", action=lambda ctx: "hi"))
+cli.add_task(
+    Task(
+        name="greet",
+        input=StrInput(name="who", prompt="Who"),
+        action=lambda ctx: f"hi {ctx.input.who}",
+    )
+)
 cli.add_task(CmdTask(name="fail", cmd="exit 7", retries=0))
 cli.add_task(CmdTask(name="slow", cmd="echo $$ > child.pid; exec sleep 30"))
 """
@@ -60,6 +67,21 @@ def test_the_result_alone_reaches_stdout(project):
     completed = _run(project, "hello")
     assert completed.returncode == 0
     assert completed.stdout == "hi\n"
+
+
+def test_a_value_piped_into_a_prompt_leaves_stdout_to_the_result(project):
+    completed = subprocess.run(
+        [sys.executable, "-m", "zrb", "greet"],
+        cwd=project,
+        env=_env(project),
+        input="bob\n",
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert completed.returncode == 0
+    assert completed.stdout == "hi bob\n"
+    assert "Who: " in completed.stderr
 
 
 def test_a_failed_command_exits_with_its_own_code(project):
