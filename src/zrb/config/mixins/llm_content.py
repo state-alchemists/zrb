@@ -30,7 +30,6 @@ class LLMContentMixin:
         self.DEFAULT_LLM_SNAPSHOT_COMMAND_TIMEOUT: str = "30"
         self.DEFAULT_LLM_SNAPSHOT_OPERATION_TIMEOUT: str = "120"
         self.DEFAULT_LLM_SNAPSHOT_LOCK_TIMEOUT: str = "60"
-        self.DEFAULT_LLM_SNAPSHOT_COPY_LOCK_TIMEOUT: str = "5"
         self.DEFAULT_LLM_HISTORY_RETENTION: str = "30d"
         self.DEFAULT_LLM_JOURNAL_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_DIR: str = ""
@@ -300,15 +299,6 @@ class LLMContentMixin:
             "Seconds a rewind snapshot or restore waits for another session's "
             "operation on the same directory before that one operation fails. "
             "Not counted against LLM_SNAPSHOT_OPERATION_TIMEOUT."
-        ),
-    )
-
-    LLM_SNAPSHOT_COPY_LOCK_TIMEOUT = EnvField(
-        float,
-        doc=(
-            "Seconds /save waits for another process writing the pending "
-            "rewind-history copy record beside the store. Past it, the copy is "
-            "still applied this session but not recorded for a later one."
         ),
     )
 

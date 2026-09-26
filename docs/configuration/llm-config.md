@@ -467,7 +467,6 @@ Before each AI turn, Zrb snapshots your working directory so `/rewind` can resto
 | `ZRB_LLM_SNAPSHOT_COMMAND_TIMEOUT` | Seconds one snapshot git command may take before it is killed | `30` |
 | `ZRB_LLM_SNAPSHOT_OPERATION_TIMEOUT` | Seconds one rewind snapshot or restore may take as a whole, once it holds the store; running out turns rewind off for the session | `120` |
 | `ZRB_LLM_SNAPSHOT_LOCK_TIMEOUT` | Seconds a rewind operation waits for another session's operation on the same directory before that one operation fails | `60` |
-| `ZRB_LLM_SNAPSHOT_COPY_LOCK_TIMEOUT` | Seconds `/save` waits for another process writing the pending rewind-history copy record; past it the copy still lands this session but is not recorded for a later one | `5` |
 | `ZRB_LLM_SNAPSHOT_RETENTION` | How long a conversation's rewind history is kept after its newest snapshot (`30d`, `2w`, …; `0` = keep all). Checked when a session starts in the same directory | `30d` |
 
 ### Python API

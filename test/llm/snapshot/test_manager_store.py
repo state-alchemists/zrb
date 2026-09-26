@@ -4,13 +4,10 @@ projects, sessions and directories are kept apart inside it."""
 import os
 import subprocess
 import tempfile
-import threading
 
 import pytest
 
 from zrb.llm.snapshot import RestoreOutcome, SnapshotManager
-from zrb.llm.snapshot.manager import OPERATION_LOCK_NAME
-from zrb.util.file_lock import hold_file_lock
 from zrb.util.git.snapshot_command import SnapshotError
 from zrb.util.git.snapshot_store import SnapshotStore
 
@@ -279,48 +276,6 @@ async def test_a_copy_of_a_copy_takes_the_original_history(snapshot_dir, workdir
 
 
 @pytest.mark.asyncio
-async def test_a_copy_a_later_session_never_applied_is_still_its_target_s(
-    snapshot_dir, workdir, monkeypatch
-):
-    """A `/save` whose copy could not be applied — the store was busy — must
-    not be lost when the session that recorded it ends. A manager with no
-    memory of the save shows the history the target is about to receive, and
-    its first operation applies it."""
-    saved = SnapshotManager(snapshot_dir, "draft", workdir)
-    await saved.take_snapshot("in draft", message_count=1)
-    (store,) = [e.path for e in os.scandir(snapshot_dir) if e.name.endswith(".git")]
-    held, release = threading.Event(), threading.Event()
-
-    def other_operation():
-        with hold_file_lock(os.path.join(store, OPERATION_LOCK_NAME)):
-            held.set()
-            release.wait(5)
-
-    monkeypatch.setenv("ZRB_LLM_SNAPSHOT_LOCK_TIMEOUT", "0.2")
-    thread = threading.Thread(target=other_operation)
-    thread.start()
-    try:
-        held.wait(5)
-        await saved.copy_history("draft", "final")  # recorded, not applied
-    finally:
-        release.set()
-        thread.join(5)
-
-    monkeypatch.undo()
-    later = SnapshotManager(snapshot_dir, "final", workdir)
-    assert [s.label for s in later.list_snapshots()] == ["in draft"]
-    await later.take_snapshot("after resume", message_count=2)
-
-    later.session_name = "final"
-    assert [s.label for s in later.list_snapshots()] == [
-        "after resume",
-        "in draft",
-    ]
-    later.session_name = "draft"
-    assert [s.label for s in later.list_snapshots()] == ["in draft"]
-
-
-@pytest.mark.asyncio
 async def test_a_restore_that_cannot_move_the_history_back_still_counts(
     snapshot_dir, workdir, monkeypatch
 ):
@@ -377,40 +332,5 @@ async def test_a_copy_git_refuses_is_dropped_rather_than_failing_every_operation
     monkeypatch.undo()
 
     assert await mgr.take_snapshot("later", message_count=2) is not None
-    assert not [e for e in os.scandir(snapshot_dir) if e.name.endswith(".copies.json")]
     later = SnapshotManager(snapshot_dir, "final", workdir)
     assert later.list_snapshots() == []
-
-
-@pytest.mark.asyncio
-async def test_a_copy_record_held_past_its_lock_timeout_still_lands_this_session(
-    snapshot_dir, workdir, monkeypatch
-):
-    """`LLM_SNAPSHOT_COPY_LOCK_TIMEOUT` bounds only the wait to record the
-    copy for a later session; the copy itself is still applied."""
-    monkeypatch.setenv("ZRB_LLM_SNAPSHOT_COPY_LOCK_TIMEOUT", "0.1")
-    mgr = SnapshotManager(snapshot_dir, "draft", workdir)
-    await mgr.take_snapshot("in draft", message_count=1)
-    (record_lock,) = [
-        e.path[: -len(".git")] + ".copies.json.lock"
-        for e in os.scandir(snapshot_dir)
-        if e.name.endswith(".git")
-    ]
-    held, release = threading.Event(), threading.Event()
-
-    def other_process():
-        with hold_file_lock(record_lock):
-            held.set()
-            release.wait(5)
-
-    thread = threading.Thread(target=other_process)
-    thread.start()
-    held.wait(5)
-    try:
-        await mgr.copy_history("draft", "final")
-    finally:
-        release.set()
-        thread.join(5)
-
-    later = SnapshotManager(snapshot_dir, "final", workdir)
-    assert [s.label for s in later.list_snapshots()] == ["in draft"]

@@ -66,14 +66,21 @@ def conv_ui():
 
 
 @pytest.fixture
-def rewind_ui(tmp_path):
+def rewind_ui(tmp_path, monkeypatch):
+    # BaseUI snapshots its working directory: a small one of the test's own,
+    # not the checkout the tests run from, whose size and platform decide how
+    # long hashing it takes.
+    workdir = tmp_path / "work"
+    workdir.mkdir()
+    (workdir / "f.txt").write_text("content")
+    monkeypatch.chdir(workdir)
     ui = _ConversationUI(
         ctx=Context(SharedContext(), "test", 0, ""),
         llm_task=MagicMock(),
         history_manager=MagicMock(),
         ui_config=UIConfig(**_COMMANDS),
         enable_rewind=True,
-        snapshot_dir=str(tmp_path),
+        snapshot_dir=str(tmp_path / "snapshots"),
     )
     ui.outputs = []
     return ui
