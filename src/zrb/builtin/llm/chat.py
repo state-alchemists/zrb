@@ -1,3 +1,5 @@
+import sys
+
 from zrb.attr.tpl import Tpl
 from zrb.builtin.group import llm_group
 from zrb.builtin.llm.chat_tool_policy import (
@@ -7,6 +9,7 @@ from zrb.builtin.llm.chat_tool_policy import (
     approve_if_path_inside_skill_or_plugin_dir,
 )
 from zrb.config.config import CFG
+from zrb.context.any_context import AnyContext
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.common_tools import apply_common_tools
@@ -36,6 +39,14 @@ from zrb.llm.tool_call.tool_policy.replace_in_file_validation import (
 )
 from zrb.runner.cli import cli
 
+
+def _get_message(ctx: AnyContext) -> str:
+    """`--message`, else whatever was piped in (`echo "..." | zrb llm chat`)."""
+    if ctx.input.message or ctx.is_tty or sys.stdin is None:
+        return ctx.input.message
+    return sys.stdin.read().strip()
+
+
 llm_chat = LLMChatTask(
     name="chat",
     description="🤖 Chat with your AI Assistant",
@@ -56,7 +67,8 @@ llm_chat = LLMChatTask(
         BoolInput(
             "interactive",
             "Interactive Mode",
-            default=True,
+            # Without a terminal there is nobody to answer the prompt.
+            default=lambda ctx: ctx.is_tty,
             allow_empty=True,
             always_prompt=False,
         ),
@@ -69,7 +81,7 @@ llm_chat = LLMChatTask(
     ],
     model=Tpl("{ctx.input.model}"),
     yolo=Tpl("{ctx.input.yolo}"),
-    message=Tpl("{ctx.input.message}"),
+    message=lambda ctx: _get_message(ctx),
     conversation_name=Tpl("{ctx.input.session}"),
     # Comma-separated file paths; normalized to BinaryContent in the agent
     # run path (prompt_content.normalize_attachments).

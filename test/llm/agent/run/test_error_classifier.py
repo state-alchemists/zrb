@@ -197,3 +197,60 @@ def test_is_permanent_error_keeps_unknown_and_transient_retryable():
     server_error = Exception("boom")
     server_error.status_code = 503
     assert is_permanent_error(server_error) is False
+
+
+_OPENAI_MISSING_KEY = (
+    "Set the `OPENAI_API_KEY` environment variable or pass it via "
+    "`OpenAIProvider(api_key=...)` to use the OpenAI provider."
+)
+
+
+def test_add_credential_hint_keeps_the_vendor_message_and_adds_zrb_key_scoping():
+    from pydantic_ai.exceptions import UserError
+
+    from zrb.llm.agent.run.error_classifier import add_credential_hint
+
+    original = UserError(_OPENAI_MISSING_KEY)
+    hinted = add_credential_hint(original)
+
+    assert isinstance(hinted, UserError)
+    assert hinted.__cause__ is original
+    assert str(hinted).startswith(_OPENAI_MISSING_KEY)
+    assert "ZRB_LLM_API_KEY" in str(hinted)
+    assert "ZRB_LLM_PROVIDER" in str(hinted)
+
+
+def test_add_credential_hint_spells_the_active_env_prefix(monkeypatch):
+    from pydantic_ai.exceptions import UserError
+
+    from zrb.config.config import CFG
+    from zrb.llm.agent.run.error_classifier import add_credential_hint
+
+    monkeypatch.setattr(CFG, "ENV_PREFIX", "ACME")
+    hinted = add_credential_hint(UserError(_OPENAI_MISSING_KEY))
+
+    assert "ACME_LLM_API_KEY" in str(hinted)
+    assert "ZRB_" not in str(hinted)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        RuntimeError(_OPENAI_MISSING_KEY),
+        ValueError("boom"),
+    ],
+    ids=["not-a-user-error", "unrelated"],
+)
+def test_add_credential_hint_leaves_other_errors_alone(error):
+    from zrb.llm.agent.run.error_classifier import add_credential_hint
+
+    assert add_credential_hint(error) is error
+
+
+def test_add_credential_hint_leaves_other_user_errors_alone():
+    from pydantic_ai.exceptions import UserError
+
+    from zrb.llm.agent.run.error_classifier import add_credential_hint
+
+    error = UserError("Unknown model: foo:bar")
+    assert add_credential_hint(error) is error

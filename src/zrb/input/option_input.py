@@ -1,5 +1,5 @@
 import html
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from zrb.attr.type import StrAttr, StrListAttr
 from zrb.context.any_shared_context import AnySharedContext
@@ -55,6 +55,22 @@ class OptionInput(BaseInput):
             )
         lines.append("</select>")
         return "\n".join(lines)
+
+    def update_shared_context(
+        self,
+        shared_ctx: AnySharedContext,
+        str_value: str | None = None,
+        value: Any = None,
+    ):
+        """Store the value, rejecting one outside `options` as the prompt does."""
+        options = get_str_list_attr(shared_ctx, self._options)
+        candidate = str_value if value is None else value
+        if options and candidate not in (None, "") and candidate not in options:
+            raise ValueError(
+                f"Invalid value for input '{self.name}': {candidate!r}. "
+                f"Choose one of: {', '.join(options)}."
+            )
+        super().update_shared_context(shared_ctx, str_value=str_value, value=value)
 
     def _prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
         prompt_message = self.prompt_message

@@ -117,13 +117,14 @@ from zrb import cli, CmdTask
 task_a = cli.add_task(CmdTask(name="task-a", cmd="echo A"))
 task_b = cli.add_task(CmdTask(name="task-b", cmd="echo B"))
 task_c = cli.add_task(CmdTask(name="task-c", cmd="echo C"))
+task_d = cli.add_task(CmdTask(name="task-d", cmd="echo D"))
 
 # task_a runs before task_b
 task_a >> task_b 
 # Equivalent to: task_b << task_a
 
 # A task can trigger multiple downstreams:
-task_b >> [task_c, other_task]
+task_b >> [task_c, task_d]
 
 # Multiple tasks can trigger a single downstream:
 task_c << [task_a, task_b]
@@ -154,9 +155,12 @@ task_c = cli.add_task(
 If `execute_condition` evaluates to `False`, the task skips its action but gracefully unblocks its downstreams.
 
 ```python
+from zrb import Env, cli, make_task
+
 @make_task(
     name="deploy",
     group=cli,
+    env=Env(name="ENVIRONMENT", default="development"),
     # Can be a boolean, f-string, or callable
     execute_condition=lambda ctx: ctx.env.ENVIRONMENT == "production"
 )

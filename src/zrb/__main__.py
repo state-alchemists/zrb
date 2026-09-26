@@ -1,5 +1,6 @@
 import logging
 import os
+import signal
 import sys
 import traceback
 from typing import Any, Callable
@@ -22,6 +23,28 @@ class FaintFormatter(logging.Formatter):
     def format(self, record):
         log_msg = super().format(record)
         return stylize_muted(log_msg)
+
+
+def _install_sigterm_handler() -> list[int]:
+    """Treat SIGTERM like Ctrl+C, and return the list of stop signals received.
+
+    `docker stop`, systemd and CI cancellation send SIGTERM, whose default
+    kills zrb outright and orphans running commands. Forwarding it to the
+    active SIGINT handler (asyncio's graceful cancel during a run) gives it
+    the same child cleanup Ctrl+C gets.
+    """
+    received: list[int] = []
+
+    def handle_sigterm(signum: int, frame: Any) -> None:
+        received.append(signum)
+        sigint_handler = signal.getsignal(signal.SIGINT)
+        if callable(sigint_handler):
+            sigint_handler(signal.SIGINT, frame)
+        else:
+            raise KeyboardInterrupt
+
+    signal.signal(signal.SIGTERM, handle_sigterm)
+    return received
 
 
 def _load_or_warn(label: str, load: "Callable[[], Any]") -> bool:
@@ -66,6 +89,7 @@ def serve_cli():
     handler = logging.StreamHandler()
     handler.setFormatter(FaintFormatter())
     CFG.LOGGER.addHandler(handler)
+    stop_signals = _install_sigterm_handler()
     try:
         loaded_cleanly = True
         for init_module in CFG.INIT_MODULES:
@@ -101,9 +125,9 @@ def serve_cli():
             sys.exit(1)
         cli.run(sys.argv[1:])
     except KeyboardInterrupt:
-        # The exception is handled by the task runner
         print(stylize_warning("\nStopped"), file=sys.stderr)
-        pass
+        # 128 + signal number: the shell's convention for a signal exit.
+        sys.exit(128 + (stop_signals[-1] if stop_signals else signal.SIGINT))
     except RuntimeError as e:
         if f"{e}".lower() == "event loop is closed":
             sys.exit(1)

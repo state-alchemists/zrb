@@ -196,7 +196,7 @@ Container images give a sandboxed, reproducible environment — ideal for CI/CD 
 **Standard Image** (general-purpose automation):
 
 ```bash
-docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:3.0.0 zrb
+docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:latest zrb
 ```
 
 **DIND (Docker-in-Docker) Image** (for tasks that need Docker commands):
@@ -205,7 +205,7 @@ docker run -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:3.0.0 zrb
 docker run \
     -v ${HOME}:/zrb-home \
     -v /var/run/docker.sock:/var/run/docker.sock \
-    -it --rm stalchmst/zrb:3.0.0-dind docker ps
+    -it --rm stalchmst/zrb:latest-dind docker ps
 ```
 
 <details>
@@ -224,7 +224,7 @@ docker run \
 
 > ⚠️ **Apple Silicon:** Use `--platform linux/amd64` if you encounter architecture issues:
 > ```bash
-> docker run --platform linux/amd64 -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:3.0.0 zrb
+> docker run --platform linux/amd64 -v ${HOME}:/zrb-home -it --rm stalchmst/zrb:latest zrb
 > ```
 
 ### Running Zrb on Android (via Termux and Proot)
@@ -293,8 +293,12 @@ zrb hello
 
 **Expected output:**
 ```
+260926 19:43:20.741 1/3   🐶 hello ⬤  Hello from Zrb!
+To run again: zrb hello
 Hello from Zrb!
 ```
+
+The first line is the task's log on stderr: timestamp, attempt number (tasks retry twice by default, so `1/3`), and the command's output. The last line is the result on stdout, the only line a pipe or `$(zrb hello)` receives.
 
 ---
 
@@ -365,9 +369,9 @@ PIP_PRE=1 pipx upgrade zrb
 
 Pull the latest image:
 ```bash
-docker pull stalchmst/zrb:3.0.0
-# Or for latest:
 docker pull stalchmst/zrb:latest
+# Or pin a release (tags: https://hub.docker.com/r/stalchmst/zrb/tags):
+docker pull stalchmst/zrb:<version>
 ```
 
 ---

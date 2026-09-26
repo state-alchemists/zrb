@@ -283,6 +283,51 @@ def test_run_command_omits_secret_input(capsys):
     assert "super-secret" not in err
 
 
+def test_run_command_omits_an_empty_value_whose_default_is_empty(capsys):
+    cli = Cli()
+    cli.add_task(
+        Task(
+            name="greet",
+            input=[
+                StrInput("name", default="world"),
+                StrInput("title", default="", allow_empty=True),
+                StrInput("suffix", default="!", allow_empty=True),
+            ],
+            action="ok",
+        )
+    )
+
+    cli.run(str_args=["greet", "--name", "world", "--title", "", "--suffix", ""])
+
+    err = capsys.readouterr().err
+    assert "--name world" in err
+    assert "--title" not in err
+    # An empty value that overrides a non-empty default must survive a rerun.
+    assert '--suffix ""' in err
+
+
+def test_an_interrupted_run_reaches_the_shell_as_keyboard_interrupt():
+    """`Task.run()` absorbs Ctrl+C for library callers; the CLI must not."""
+    import asyncio
+
+    import pytest
+
+    def interrupted(ctx):
+        raise asyncio.CancelledError()
+
+    cli = Cli()
+    cli.add_task(Task(name="stop", action=interrupted, retries=0))
+
+    with pytest.raises(KeyboardInterrupt):
+        cli.run(str_args=["stop"])
+
+
+def test_a_skipped_task_is_not_an_interrupted_run():
+    cli = Cli()
+    cli.add_task(Task(name="skip", action="x", execute_condition=False))
+    assert cli.run(str_args=["skip"]) is None
+
+
 def test_conversation_name_printed_at_end(capsys):
     """A task that stores a conversation name has it echoed to stderr."""
     cli = Cli()

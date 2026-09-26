@@ -82,7 +82,7 @@ aws_group.add_task(CmdTask(name="deploy", cmd="aws s3 sync ..."))
 
 ## Group & Task Aliases
 
-You can provide aliases when adding a task or a group. This is useful if you want the command name to differ from the Python object name, or if you want multiple ways to call the same task.
+You can provide aliases when adding a task or a group. This is useful if you want the command name to differ from the Python object name, or, by registering it twice, to offer more than one name.
 
 ```python
 from zrb import cli, CmdTask
@@ -99,6 +99,13 @@ Now you can execute it quickly:
 zrb rm-all
 ```
 
+The alias replaces the task's name in that group, so `zrb remove-all-containers` no longer resolves. To keep both, register the task twice:
+
+```python
+cli.add_task(task)
+cli.add_task(task, alias="rm-all")
+```
+
 ---
 
 ## Removing Tasks and Groups
@@ -109,6 +116,7 @@ If you are overriding a default `zrb_init.py` (e.g., from a parent directory) an
 from zrb import cli
 
 # Assuming a 'legacy-deploy' task was added in a parent directory's zrb_init.py
+# (removing a name that does not exist raises ValueError)
 cli.remove_task("legacy-deploy")
 cli.remove_group("old-tools")
 ```

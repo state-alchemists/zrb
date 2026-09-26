@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from zrb.config.config import CFG
 from zrb.llm.agent.gates import permission_gate, sandbox_gate
+from zrb.llm.agent.run.error_classifier import add_credential_hint
 from zrb.llm.agent.run.hook_result_extractor import (
     extract_post_tool_decision,
     extract_pre_tool_decision,
@@ -519,24 +520,28 @@ def create_agent(
         )
     )
 
-    agent: "Agent[None, Any]" = Agent(
-        model=final_model,
-        # Pins AgentDepsT=None so the contravariant `toolsets`/`model_settings`
-        # params below (all typed AbstractToolset[None]/etc.) resolve against
-        # the right overload instead of the deps_type=object default.
-        deps_type=type(None),
-        # final_output_type may be `output_type | DeferredToolRequests`, a union
-        # pydantic-ai accepts at runtime but its OutputSpec param type doesn't model.
-        output_type=cast("OutputSpec[Any]", final_output_type),
-        instructions=effective_system_prompt,
-        toolsets=effective_toolsets,
-        model_settings=effective_model_settings,
-        # history_processors omitted (deprecated in pydantic-ai for
-        # `ProcessHistory`): runner.py applies zrb's processors itself, where
-        # it owns and persists the history (ADR-0041).
-        capabilities=capabilities or [],
-        retries={"tools": effective_retries},
-    )
+    try:
+        agent: "Agent[None, Any]" = Agent(
+            model=final_model,
+            # Pins AgentDepsT=None so the contravariant `toolsets`/`model_settings`
+            # params below (all typed AbstractToolset[None]/etc.) resolve against
+            # the right overload instead of the deps_type=object default.
+            deps_type=type(None),
+            # final_output_type may be `output_type | DeferredToolRequests`, a union
+            # pydantic-ai accepts at runtime but its OutputSpec param type doesn't model.
+            output_type=cast("OutputSpec[Any]", final_output_type),
+            instructions=effective_system_prompt,
+            toolsets=effective_toolsets,
+            model_settings=effective_model_settings,
+            # history_processors omitted (deprecated in pydantic-ai for
+            # `ProcessHistory`): runner.py applies zrb's processors itself, where
+            # it owns and persists the history (ADR-0041).
+            capabilities=capabilities or [],
+            retries={"tools": effective_retries},
+        )
+    except Exception as e:
+        # pydantic-ai builds the provider here, so a missing key surfaces now.
+        raise add_credential_hint(e)
     # Ad-hoc attribute on the pydantic-ai agent; setattr keeps it honest
     # instead of a blanket type suppression.
     setattr(agent, "zrb_history_processors", history_processors or [])

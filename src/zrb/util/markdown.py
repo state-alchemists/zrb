@@ -57,9 +57,25 @@ def make_markdown_section(header: str, content: str, as_code: bool = False) -> s
 
 
 def get_first_heading(content: str) -> str | None:
-    """The text of the first `# ` heading, or `None` when there is none."""
+    """The text of the first `# ` heading, or `None` when there is none.
+
+    Follows CommonMark: a heading is indented at most three spaces (four, or a
+    tab, makes an indented code block), and lines inside a fenced code block
+    are code, so a `# comment` in an example never becomes the title.
+    """
+    fence: str | None = None
     for line in content.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("# "):
-            return stripped[2:].strip()
+        indent = len(line) - len(line.lstrip(" "))
+        body = line[indent:]
+        if indent < 4:
+            fence_match = re.match(r"(`{3,}|~{3,})", body)
+            if fence_match:
+                marker = fence_match.group(1)
+                if fence is None:
+                    fence = marker
+                elif marker[0] == fence[0] and len(marker) >= len(fence):
+                    fence = None
+                continue
+        if fence is None and indent < 4 and body.startswith("# "):
+            return body[2:].strip()
     return None
