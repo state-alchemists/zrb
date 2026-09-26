@@ -126,7 +126,11 @@ class FileSessionStateLogger(AnySessionStateLogger):
             return
         for entry in entries:
             name, extension = os.path.splitext(entry.name)
-            if extension == ".json" and name != keep and _is_expired(entry.path, cutoff):
+            if (
+                extension == ".json"
+                and name != keep
+                and _is_expired(entry.path, cutoff)
+            ):
                 _remove_quietly(entry.path)
 
     def get_session_file_path(self, session_name: str) -> str:

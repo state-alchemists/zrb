@@ -32,7 +32,6 @@ DEFAULT_EXCLUDED_PATTERNS = [
 ]
 
 
-
 def _listing_result(abs_path: str, sorted_files: list[str]) -> dict[str, Any]:
     """Cap the listing, record what was shown for RM's listed-path check,
     and add a truncation notice when files were omitted."""
@@ -47,6 +46,7 @@ def _listing_result(abs_path: str, sorted_files: list[str]) -> dict[str, Any]:
             f"of {len(sorted_files)}.]"
         ),
     }
+
 
 def _truncate_file_list(
     sorted_files: list[str],

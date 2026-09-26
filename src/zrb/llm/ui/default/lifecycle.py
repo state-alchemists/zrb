@@ -218,7 +218,10 @@ def _make_snapshot_progress_handler(
             notices.append(reason)
             return
         elif stage == "done":
-            notes = [*notices, *([f"{skipped} unreadable files skipped"] if skipped else [])]
+            notes = [
+                *notices,
+                *([f"{skipped} unreadable files skipped"] if skipped else []),
+            ]
             note = f" ({'; '.join(notes)})" if notes else ""
             message = f"\n  ✅ Initial workspace snapshot taken{note}\n"
         elif stage == "error" and reason == GIT_MISSING_REASON:

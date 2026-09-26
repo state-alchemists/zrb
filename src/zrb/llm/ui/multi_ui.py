@@ -2,8 +2,8 @@ import asyncio
 import inspect
 import logging
 import sys
-from datetime import datetime
 from collections.abc import Callable, Coroutine
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, TextIO
 
 if TYPE_CHECKING:

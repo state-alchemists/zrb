@@ -90,6 +90,4 @@ def is_random_name(name: str) -> bool:
     return _RANDOM_NAME.fullmatch(name) is not None
 
 
-_RANDOM_NAME = re.compile(
-    rf"(?:{'|'.join(PREFIXES)})-(?:{'|'.join(SUFFIXES)})-\d{{4}}"
-)
+_RANDOM_NAME = re.compile(rf"(?:{'|'.join(PREFIXES)})-(?:{'|'.join(SUFFIXES)})-\d{{4}}")

@@ -182,9 +182,7 @@ class CmdTask(BaseTask):
         return get_str_attr(ctx, self._shell, CFG.SHELL)
 
     def _get_shell_flag(self, ctx: AnyContext) -> str:
-        return get_str_attr(
-            ctx, self._shell_flag, get_shell_flag(self._get_shell(ctx))
-        )
+        return get_str_attr(ctx, self._shell_flag, get_shell_flag(self._get_shell(ctx)))
 
     def _get_remote_host(self, ctx: AnyContext) -> str:
         return get_str_attr(ctx, self._remote_host, "")

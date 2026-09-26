@@ -33,9 +33,7 @@ def _save(manager: FileHistoryManager, name: str) -> None:
 
 @pytest.fixture
 def retention():
-    with patch(
-        "zrb.llm.history_manager.file_history_manager.CFG"
-    ) as cfg:
+    with patch("zrb.llm.history_manager.file_history_manager.CFG") as cfg:
         cfg.LLM_HISTORY_RETENTION = "1d"
         cfg.LLM_HISTORY_BACKUP_RETAIN = 0
         yield cfg

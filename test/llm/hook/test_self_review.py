@@ -191,9 +191,7 @@ async def test_rounds_are_counted_per_turn_even_under_one_conversation_name(
 
 
 @pytest.mark.asyncio
-async def test_counts_of_turns_that_never_came_back_are_bounded(
-    gate, stop, blocked
-):
+async def test_counts_of_turns_that_never_came_back_are_bounded(gate, stop, blocked):
     """A turn cancelled mid-continuation never clears its count; past
     `LLM_SELF_REVIEW_MAX_TRACKED_TURNS` the oldest are dropped, so the first
     turn's is gone while the newest is kept."""

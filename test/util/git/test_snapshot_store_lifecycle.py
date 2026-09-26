@@ -245,4 +245,6 @@ def test_a_store_whose_attribute_rules_were_changed_gets_them_back(repo, tmp_pat
     with open(attributes) as f:
         assert "-filter" in f.read()
     # No temporary file is left beside it.
-    assert not [n for n in os.listdir(os.path.dirname(attributes)) if "attributes." in n]
+    assert not [
+        n for n in os.listdir(os.path.dirname(attributes)) if "attributes." in n
+    ]

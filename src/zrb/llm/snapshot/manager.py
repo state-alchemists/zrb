@@ -195,9 +195,9 @@ class SnapshotManager:
         # Conversations untouched this long lose their rewind history; 0 keeps
         # every one.
         self._retention_seconds = retention_seconds
-        self._unavailable = _check_location(
-            self._snapshot_dir, self._workdir
-        ) or _check_git()
+        self._unavailable = (
+            _check_location(self._snapshot_dir, self._workdir) or _check_git()
+        )
         # Orders this manager's snapshots, restores and history copies.
         self._lock = asyncio.Lock()
 
