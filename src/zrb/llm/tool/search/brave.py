@@ -4,7 +4,11 @@ from typing import Any
 import requests
 
 from zrb.config.config import CFG
-from zrb.llm.tool.search.http_errors import SearchToolError, raise_http_error
+from zrb.llm.tool.search.http_errors import (
+    BROWSER_USER_AGENT,
+    SearchToolError,
+    raise_http_error,
+)
 
 _MAX_RATE_LIMIT_RETRIES = 1
 _DEFAULT_RETRY_AFTER_SECONDS = 1.0
@@ -34,7 +38,7 @@ def search_internet(
             "[SYSTEM SUGGESTION]: Ask the user to provide their Brave API key. Pass it via the 'api_key' parameter in your next search_internet call."
         )
 
-    user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    user_agent = BROWSER_USER_AGENT
     page = max(1, page)
     if page > 10:
         raise SearchToolError(

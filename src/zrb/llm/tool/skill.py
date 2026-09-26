@@ -7,11 +7,7 @@ from zrb.config.config import CFG
 from zrb.llm.skill.manager import SkillManager
 from zrb.llm.skill.manager import skill_manager as default_skill_manager
 from zrb.llm.skill.util import discover_companion_files, format_companion_file_lines
-
-# On-demand search results are themselves capped so an unscoped query (or an
-# empty one) cannot dump the whole catalogue in one answer. 30 entries keeps a
-# full page of matches visible while still bounding a runaway listing.
-_SEARCH_RESULT_LIMIT = 30
+from zrb.llm.util.roster import cap_items, search_roster
 
 
 def create_activate_skill_tool(skill_manager: SkillManager | None = None):
@@ -99,21 +95,7 @@ def create_search_skill_tool(skill_manager: SkillManager | None = None):
         ] = "",
     ) -> str:
         skills = [s for s in skill_manager.get_skills() if s.model_invocable]
-        needle = query.strip().lower()
-        if needle:
-            skills = [
-                s
-                for s in skills
-                if needle in s.name.lower() or needle in (s.description or "").lower()
-            ]
-        if not skills:
-            return _no_skill_match_message(query)
-        shown = skills[:_SEARCH_RESULT_LIMIT]
-        lines = [f"- `{s.name}`: {s.description}" for s in shown]
-        hidden = len(skills) - len(shown)
-        if hidden > 0:
-            lines.append(f"(+{hidden} more match — refine the query)")
-        return "\n".join(lines)
+        return search_roster(skills, query) or _no_skill_match_message(query)
 
     search_skill.__name__ = "SearchSkill"
     # The roster is deliberately NOT embedded here (mirrors ActivateSkill): the
@@ -148,10 +130,8 @@ def _available_skills_hint(skill_manager: SkillManager) -> str:
     names = sorted(s.name for s in skill_manager.get_skills() if s.model_invocable)
     if not names:
         return "No activatable skills are registered."
-    cap = CFG.LLM_MAX_SKILLS_IN_CATALOG
-    shown = names if cap < 1 else names[:cap]
+    shown, hidden = cap_items(names, CFG.LLM_MAX_SKILLS_IN_CATALOG)
     hint = ", ".join(shown)
-    hidden = len(names) - len(shown)
     if hidden > 0:
         hint += f", and {hidden} more (use SearchSkill to list them)"
     return f"Activatable skills are: {hint}."

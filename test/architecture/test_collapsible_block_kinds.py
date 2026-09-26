@@ -11,40 +11,31 @@ here.
 
 import ast
 import pathlib
+from unittest.mock import MagicMock
+
+from pydantic_ai.messages import TextPart, ThinkingPart
+
+from zrb.llm.util.stream_response import StreamEventHandler
 
 REPO_ROOT = pathlib.Path(__file__).parents[2]
 SRC = REPO_ROOT / "src" / "zrb"
 
-# kind printed by StreamEventHandler -> the streamer method that prints it
-BLOCK_KINDS = {
-    "thinking": "_stream_thinking_content",
-    "streaming": "_stream_text_content",
-}
-
-
-def _print_kinds_in(method_name: str) -> set[str]:
-    """The literal kinds `method_name` passes to its print callback."""
-    tree = ast.parse((SRC / "llm" / "util" / "stream_response.py").read_text("utf-8"))
-    for node in ast.walk(tree):
-        if not (isinstance(node, ast.FunctionDef) and node.name == method_name):
-            continue
-        return {
-            arg.value
-            for call in ast.walk(node)
-            if isinstance(call, ast.Call)
-            for arg in call.args
-            if isinstance(arg, ast.Constant) and isinstance(arg.value, str)
-        }
-    raise AssertionError(f"{method_name} not found in stream_response.py")
+BLOCK_KINDS = {"thinking", "streaming"}
 
 
 def test_streamer_prints_each_block_under_the_kind_the_ui_registers():
-    for kind, method in BLOCK_KINDS.items():
-        assert kind in _print_kinds_in(method), (
-            f"{method} no longer prints with kind={kind!r}. The UI's "
-            f"mark_*_block_start registers that kind, so the collapse would "
-            f"silently stop working. Update both sides together."
-        )
+    print_fn = MagicMock()
+    handler = StreamEventHandler(print_fn=print_fn)
+    for part in (ThinkingPart(content="hmm"), TextPart(content="hello")):
+        event = MagicMock()
+        event.part = part
+        handler.handle_part_start(event)
+    printed_kinds = {call.args[1] for call in print_fn.call_args_list}
+    assert printed_kinds == BLOCK_KINDS, (
+        f"StreamEventHandler prints its blocks under {sorted(printed_kinds)}. "
+        f"The UI's mark_*_block_start registers {sorted(BLOCK_KINDS)}, so the "
+        f"collapse would silently stop working. Update both sides together."
+    )
 
 
 def test_both_uis_register_exactly_those_kinds():
@@ -63,7 +54,7 @@ def test_both_uis_register_exactly_those_kinds():
             for arg in call.args
             if isinstance(arg, ast.Constant) and isinstance(arg.value, str)
         }
-        assert registered == set(BLOCK_KINDS), (
+        assert registered == BLOCK_KINDS, (
             f"{rel} registers {sorted(registered)} for its collapsible "
             f"blocks; the streamer prints {sorted(BLOCK_KINDS)}."
         )

@@ -62,6 +62,12 @@ env:
   ZRB_INIT_STRICT: "1"
 ```
 
+### Inputs Read From Stdin
+
+Without a terminal, an input that would prompt reads one line from stdin instead, so answers can be piped in (`printf 'v1.2\n' | zrb release`). Once stdin is exhausted, each remaining input takes its default, or fails naming the `--flag` to pass. CI runners give stdin no data, so this needs no setup. A caller that keeps stdin open without writing to it (a harness spawning zrb with a pipe) makes zrb wait for that line: pass every value as a `--flag`, or run with `< /dev/null`.
+
+Exit codes follow the shell convention: a failed task exits non-zero, and a run stopped by Ctrl+C or `SIGTERM` exits `130` or `143`, with running commands stopped.
+
 ---
 
 ## 2. GitHub Actions

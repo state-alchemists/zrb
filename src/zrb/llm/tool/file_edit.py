@@ -9,6 +9,7 @@ from zrb.llm.tool.post_write_check import (
     compose_write_result,
     format_post_write_diagnostics,
 )
+from zrb.util.truncate import truncate_display
 
 _READ_LINE_NUMBER = re.compile(r"^ *\d+\t")
 
@@ -215,7 +216,7 @@ def _describe_missing_match(content: str, old_text: str, path: str) -> str:
                 f"  Line {num}: {line[:120]}" for num, line in near_matches[:3]
             )
             return (
-                f"Error: '{_trunc(old_text, 80)}' not found in {path}.\n"
+                f"Error: '{truncate_display(old_text, 80)}' not found in {path}.\n"
                 f"Similar lines found:\n{preview}\n"
                 f"[SYSTEM SUGGESTION]: old_text must match the file exactly. "
                 f"Check for trailing spaces or indentation differences. "
@@ -223,7 +224,7 @@ def _describe_missing_match(content: str, old_text: str, path: str) -> str:
                 f"from those, without Read's line-number prefix."
             )
     return (
-        f"Error: '{_trunc(old_text, 80)}' not found in {path}.\n"
+        f"Error: '{truncate_display(old_text, 80)}' not found in {path}.\n"
         f"[SYSTEM SUGGESTION]: Re-Read the region and copy old_text from it, "
         f"dropping the line-number prefix through the first tab. Do not "
         f"retry with guessed text."
@@ -357,7 +358,3 @@ def find_fuzzy_match(content: str, old_text: str) -> str | None:
         if result is not None:
             return result
     return None
-
-
-def _trunc(s: str, n: int) -> str:
-    return (s[:n] + "...") if len(s) > n else s

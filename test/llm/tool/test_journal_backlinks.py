@@ -1,13 +1,8 @@
 import os
+from contextlib import contextmanager
 from unittest.mock import patch
 
 import pytest
-
-# The journal's write lock is `fcntl.flock`; the module does not exist on
-# Windows, so there is no lock there to verify.
-needs_fcntl = pytest.mark.skipif(
-    os.name != "posix", reason="fcntl (the lock under test) is POSIX-only"
-)
 
 
 @pytest.fixture
@@ -296,25 +291,34 @@ def test_delete_journal_note_rejects_an_unknown_category(writable_journal):
     assert "unknown category" in str(excinfo.value)
 
 
-@needs_fcntl
-def test_write_journal_note_holds_an_exclusive_lock_for_the_whole_call(
-    writable_journal,
-):
-    """The coarse-grained lock is actually engaged around the write, not just
-    present in the module — verified via the real `fcntl` calls rather than
-    by trying to provoke an actual race (inherently flaky in a unit test)."""
-    import fcntl
+def _recording_lock(events: list[str]):
+    from zrb.util.file_lock import hold_file_lock
 
+    @contextmanager
+    def recording(path, *args, **kwargs):
+        with hold_file_lock(path, *args, **kwargs):
+            events.append(f"acquire {os.path.basename(path)}")
+            yield
+            events.append("release")
+
+    return recording
+
+
+def test_write_journal_note_holds_the_lock_for_the_whole_call(writable_journal):
+    """The note is written while the root's `.lock` is held, not before or after."""
     from zrb.llm.tool.journal_write import write_journal_note
 
-    calls: list[tuple[int, ...]] = []
-    real_flock = fcntl.flock
+    events: list[str] = []
+    note = os.path.join(writable_journal, "technical", "locked.md")
+    recording = _recording_lock(events)
 
-    def recording_flock(fd, operation):
-        calls.append((operation,))
-        return real_flock(fd, operation)
+    @contextmanager
+    def checking(path, *args, **kwargs):
+        with recording(path, *args, **kwargs):
+            yield
+            events.append(f"note exists: {os.path.isfile(note)}")
 
-    with patch("zrb.llm.tool.journal_write.fcntl.flock", side_effect=recording_flock):
+    with patch("zrb.llm.tool.journal_write.hold_file_lock", checking):
         write_journal_note(
             category="technical",
             slug="locked",
@@ -324,24 +328,15 @@ def test_write_journal_note_holds_an_exclusive_lock_for_the_whole_call(
             source="s",
         )
 
-    assert calls == [(fcntl.LOCK_EX,), (fcntl.LOCK_UN,)]
+    assert events == ["acquire .lock", "note exists: True", "release"]
     assert os.path.isfile(os.path.join(writable_journal, ".lock"))
 
 
-@needs_fcntl
 def test_log_activity_holds_the_same_lock(writable_journal):
-    import fcntl
-
     from zrb.llm.tool.journal_write import log_activity
 
-    calls: list[tuple[int, ...]] = []
-    real_flock = fcntl.flock
-
-    def recording_flock(fd, operation):
-        calls.append((operation,))
-        return real_flock(fd, operation)
-
-    with patch("zrb.llm.tool.journal_write.fcntl.flock", side_effect=recording_flock):
+    events: list[str] = []
+    with patch("zrb.llm.tool.journal_write.hold_file_lock", _recording_lock(events)):
         log_activity("did a thing")
 
-    assert calls == [(fcntl.LOCK_EX,), (fcntl.LOCK_UN,)]
+    assert events == ["acquire .lock", "release"]

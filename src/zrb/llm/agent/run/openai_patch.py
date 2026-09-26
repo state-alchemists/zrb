@@ -17,7 +17,7 @@ private.
 
 This is the *serialization-layer* fix; `history_utils.filter_nil_content` is
 the complementary *object-layer* fix that runs before every model call. See
-docs/contributing/maintainer-guide.md#the-openai-serializer-patch
+docs/technical-specs/llm-history-sanitization.md#the-openai-serializer-patch
 for the full picture (and why both layers exist).
 """
 

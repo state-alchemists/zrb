@@ -54,3 +54,33 @@ def make_markdown_section(header: str, content: str, as_code: bool = False) -> s
         fence = "`" * fence_len
         return f"# {header}\n{fence}\n{content.strip()}\n{fence}\n"
     return f"# {header}\n{demote_markdown_headers(content.strip())}\n"
+
+
+def get_first_heading(content: str) -> str | None:
+    """The text of the first `# ` heading, or `None` when there is none.
+
+    Follows CommonMark: a heading is indented at most three spaces (four, or a
+    tab, makes an indented code block), and lines inside a fenced code block
+    are code, so a `# comment` in an example never becomes the title.
+    """
+    fence: str | None = None
+    for line in content.splitlines():
+        indent = len(line) - len(line.lstrip(" "))
+        body = line[indent:]
+        fence_match = re.match(r"(`{3,}|~{3,})(.*)", body) if indent < 4 else None
+        if fence_match:
+            marker, rest = fence_match.groups()
+            if fence is None:
+                # A backtick fence's info string may not contain a backtick.
+                if not (marker[0] == "`" and "`" in rest):
+                    fence = marker
+                    continue
+            elif (
+                marker[0] == fence[0] and len(marker) >= len(fence) and not rest.strip()
+            ):
+                # A closing fence carries nothing but whitespace after it.
+                fence = None
+                continue
+        if fence is None and indent < 4 and body.startswith("# "):
+            return body[2:].strip()
+    return None

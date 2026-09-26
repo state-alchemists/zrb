@@ -12,6 +12,13 @@ from zrb.input.option_input import OptionInput
 from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
 
+_NAMESPACES = {
+    "dns": uuid.NAMESPACE_DNS,
+    "url": uuid.NAMESPACE_URL,
+    "oid": uuid.NAMESPACE_OID,
+    "x500": uuid.NAMESPACE_X500,
+}
+
 
 @make_task(
     name="generate-uuid-v1",
@@ -64,13 +71,7 @@ def generate_uuid_v1(ctx: AnyContext) -> str:
     alias="generate",
 )
 def generate_uuid_v3(ctx: AnyContext) -> str:
-    ns_map = {
-        "dns": uuid.NAMESPACE_DNS,
-        "url": uuid.NAMESPACE_URL,
-        "oid": uuid.NAMESPACE_OID,
-        "x500": uuid.NAMESPACE_X500,
-    }
-    namespace = ns_map[ctx.input.namespace]
+    namespace = _NAMESPACES[ctx.input.namespace]
     result = str(uuid.uuid3(namespace, ctx.input.name))
     ctx.print(result)
     return result
@@ -111,13 +112,7 @@ uuid_group.add_task(generate_uuid_v4, alias="generate")
     alias="generate",
 )
 def generate_uuid_v5(ctx: AnyContext) -> str:
-    ns_map = {
-        "dns": uuid.NAMESPACE_DNS,
-        "url": uuid.NAMESPACE_URL,
-        "oid": uuid.NAMESPACE_OID,
-        "x500": uuid.NAMESPACE_X500,
-    }
-    namespace = ns_map[ctx.input.namespace]
+    namespace = _NAMESPACES[ctx.input.namespace]
     result = str(uuid.uuid5(namespace, ctx.input.name))
     ctx.print(result)
     return result

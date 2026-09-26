@@ -45,7 +45,7 @@ When a task executes its `action`, Zrb passes it a `Context` object, universally
 | Method | Description |
 |--------|-------------|
 | `ctx.print(*values)` | Formatted printing (includes task's color and name) |
-| `ctx.log_info(msg)` | Log info message to session log |
+| `ctx.log_info(msg)` | Log an info message; shown only when `ZRB_LOGGING_LEVEL` is `INFO` or lower (the default is `WARNING`) |
 | `ctx.log_error(msg)` | Log error message to session log |
 | `ctx.render(template)` | Render an f-string-style template (single `{}`, evaluated against `ctx` and helpers) |
 
@@ -114,7 +114,8 @@ captures the *variable* and hands every task the last value.
 ```python
 from zrb import cli, CmdTask, Task, Tpl
 
-# This task returns "42" to its XCom queue automatically
+# This task pushes a CmdResult to its XCom queue; in a template it renders as
+# its stdout ("42"), in Python read `.output`
 create_magic_number = cli.add_task(
     CmdTask(name="create-magic-number", cmd="echo 42")
 )
@@ -143,6 +144,8 @@ You can manually interact with XCom queues within a Python task:
 ### Example: Manual Transfer
 
 ```python
+from zrb import cli, make_task
+
 @make_task(name="task1", group=cli)
 def task1(ctx):
     # Manual push (bypassing the return mechanism)

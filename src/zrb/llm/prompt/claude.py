@@ -5,6 +5,7 @@ from typing import Callable
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.skill.manager import Skill, SkillManager
+from zrb.llm.util.roster import cap_items
 from zrb.util.markdown import make_markdown_section
 
 
@@ -71,10 +72,8 @@ def _format_skill_list(skills: list[Skill]) -> str:
     saves tokens, and the note keeps the truncated entries discoverable instead
     of silently dropped.
     """
-    cap = CFG.LLM_MAX_SKILLS_IN_CATALOG
-    shown = skills if cap < 1 else skills[:cap]
+    shown, hidden = cap_items(skills, CFG.LLM_MAX_SKILLS_IN_CATALOG)
     lines = "\n".join(f"- **{s.name}** — {s.description}" for s in shown)
-    hidden = len(skills) - len(shown)
     if hidden > 0:
         lines += f"\n(+{hidden} more — use SearchSkill to find them)"
     return lines

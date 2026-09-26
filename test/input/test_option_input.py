@@ -379,3 +379,30 @@ def test_option_input_to_html_escapes_options():
     assert "<img" not in rendered
     assert "&lt;img" in rendered
     assert "<b>desc</b>" not in rendered
+
+
+def test_option_input_rejects_a_value_outside_its_options():
+    """A `--flag` value must meet the same rule the interactive prompt enforces."""
+    option_input = OptionInput(name="role", options=["viewer", "editor"])
+    try:
+        option_input.update_shared_context(SharedContext(), str_value="admin")
+    except ValueError as e:
+        assert "'admin'" in str(e) and "viewer, editor" in str(e)
+    else:
+        raise AssertionError("expected ValueError")
+
+
+def test_option_input_accepts_a_listed_value_and_an_empty_one():
+    option_input = OptionInput(name="role", options=["viewer", "editor"])
+    ctx = SharedContext()
+    option_input.update_shared_context(ctx, str_value="editor")
+    assert ctx.input["role"] == "editor"
+    empty = OptionInput(name="env", options=["dev"], allow_empty=True)
+    empty.update_shared_context(ctx, str_value="")
+    assert ctx.input["env"] == ""
+
+
+def test_option_input_without_options_accepts_anything():
+    ctx = SharedContext()
+    OptionInput(name="free").update_shared_context(ctx, str_value="anything")
+    assert ctx.input["free"] == "anything"

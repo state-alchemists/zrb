@@ -1,4 +1,7 @@
+import os
 import re
+import sys
+from typing import Any
 
 BLACK = 30
 RED = 31
@@ -131,6 +134,8 @@ def stylize(
     background: int | None = None,
     style: int | None = None,
 ):
+    if not is_color_enabled():
+        return text
     code_parts = []
     if style is not None and style in VALID_STYLES:
         code_parts.append(str(style))
@@ -141,6 +146,27 @@ def stylize(
     if len(code_parts) > 0:
         return "\033[" + ";".join(code_parts) + "m" + text + "\033[0m"
     return text
+
+
+def is_color_enabled() -> bool:
+    """Whether to emit ANSI styling.
+
+    Any non-empty ``NO_COLOR`` disables it (no-color.org) and ``FORCE_COLOR``
+    enables it; otherwise it is on while stdout or stderr is a terminal, so
+    redirected and piped runs stay plain.
+    """
+    if os.environ.get("NO_COLOR"):
+        return False
+    if os.environ.get("FORCE_COLOR"):
+        return True
+    return any(_is_terminal(stream) for stream in (sys.stdout, sys.stderr))
+
+
+def _is_terminal(stream: Any) -> bool:
+    try:
+        return stream is not None and stream.isatty()
+    except (AttributeError, ValueError):
+        return False
 
 
 def stylize_section_header(text: str):

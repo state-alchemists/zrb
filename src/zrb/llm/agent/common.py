@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from zrb.config.config import CFG
 from zrb.llm.agent.gates import permission_gate, sandbox_gate
+from zrb.llm.agent.run.error_classifier import add_credential_hint
 from zrb.llm.agent.run.hook_result_extractor import (
     extract_post_tool_decision,
     extract_pre_tool_decision,
@@ -519,23 +520,28 @@ def create_agent(
         )
     )
 
-    agent: "Agent[None, Any]" = Agent(
-        model=final_model,
-        # Pins AgentDepsT=None so the contravariant `toolsets`/`model_settings`
-        # params below (all typed AbstractToolset[None]/etc.) resolve against
-        # the right overload instead of the deps_type=object default.
-        deps_type=type(None),
-        # final_output_type may be `output_type | DeferredToolRequests`, a union
-        # pydantic-ai accepts at runtime but its OutputSpec param type doesn't model.
-        output_type=cast("OutputSpec[Any]", final_output_type),
-        instructions=effective_system_prompt,
-        toolsets=effective_toolsets,
-        model_settings=effective_model_settings,
-        # history_processors omitted: pydantic-ai applies them to a copy and
-        # discards the result, so runner.py applies them where it owns history.
-        capabilities=capabilities or [],
-        retries={"tools": effective_retries},
-    )
+    try:
+        agent: "Agent[None, Any]" = Agent(
+            model=final_model,
+            # Pins AgentDepsT=None so the contravariant `toolsets`/`model_settings`
+            # params below (all typed AbstractToolset[None]/etc.) resolve against
+            # the right overload instead of the deps_type=object default.
+            deps_type=type(None),
+            # final_output_type may be `output_type | DeferredToolRequests`, a union
+            # pydantic-ai accepts at runtime but its OutputSpec param type doesn't model.
+            output_type=cast("OutputSpec[Any]", final_output_type),
+            instructions=effective_system_prompt,
+            toolsets=effective_toolsets,
+            model_settings=effective_model_settings,
+            # history_processors omitted (deprecated in pydantic-ai for
+            # `ProcessHistory`): runner.py applies zrb's processors itself, where
+            # it owns and persists the history (ADR-0041).
+            capabilities=capabilities or [],
+            retries={"tools": effective_retries},
+        )
+    except Exception as e:
+        # pydantic-ai builds the provider here, so a missing key surfaces now.
+        raise add_credential_hint(e)
     # Ad-hoc attribute on the pydantic-ai agent; setattr keeps it honest
     # instead of a blanket type suppression.
     setattr(agent, "zrb_history_processors", history_processors or [])
@@ -573,60 +579,28 @@ def _apply_reasoning_defaults(
     model_settings: "ModelSettings | None",
     model: "Model | str | None",
 ) -> "ModelSettings | None":
-    """Default to a visible, cached reasoning experience out of the box.
+    """Default to visible reasoning and warm prompt caches; caller keys win.
 
-    Without ``openai_reasoning_summary``, OpenAI's Responses API returns a
-    ``ThinkingPart`` with empty ``content`` and only an opaque encrypted
-    ``signature`` — real reasoning happened, but nothing human-readable comes
-    back (confirmed against a live session's persisted history: 1612 bytes of
-    signature, zero characters of text). ``"auto"`` asks OpenAI to include a
-    readable summary. ``openai_prompt_cache_retention="24h"`` extends how long
-    OpenAI keeps a conversation's cached prefix warm (default is much
-    shorter), which matters for zrb's usage pattern of resending a growing
-    history on every turn; per pydantic-ai's own docs the two prompt-cache
-    settings are independent of the newer GPT-5.6 ``openai_prompt_cache_options``
-    mechanism, so setting both is safe.
+    - ``openai_reasoning_summary="auto"``: without it OpenAI's Responses API
+      returns a ``ThinkingPart`` holding only an encrypted ``signature`` (seen
+      in a live session: 1612 bytes of signature, no text).
+    - ``openai_prompt_cache_retention="24h"``: keeps the cached prefix warm
+      for zrb's resend-the-growing-history pattern. Independent of GPT-5.6's
+      ``openai_prompt_cache_options`` per pydantic-ai's docs, so both are safe.
+    - ``anthropic_cache="5m"``: Anthropic caches nothing unless asked; this
+      requests the automatic, forward-moving breakpoint at Anthropic's default
+      TTL ("1h" costs more per write). Gemini has no equivalent request-level
+      default — its caching is an out-of-band cache resource.
+    - ``thinking``: ``LLM_THINKING`` maps onto pydantic-ai's cross-provider
+      field. When unset, it defaults to True only for models flagged
+      ``supports_thinking_summary`` (Gemini 2.5/3): Gemini already thinks and
+      bills ``thoughts_tokens`` but returns no summary without
+      ``include_thoughts``. A blanket default would also switch on
+      Anthropic's opt-in extended thinking, a real cost change. Anthropic
+      needs no summary default — its thinking blocks are readable text.
 
-    ``LLM_THINKING`` (unset by default) maps onto pydantic-ai's own
-    cross-provider ``ModelSettings.thinking`` field, so one CFG knob controls
-    reasoning effort across OpenAI/Anthropic/Google/etc. instead of a
-    per-provider setting. Unlike OpenAI, Anthropic's thinking blocks already
-    come back as readable text once ``thinking`` is enabled — no
-    summary-equivalent default needed there.
-
-    Google is the odd one out: Gemini 2.5/3 think (and bill
-    ``thoughts_tokens``) whether or not a request sets ``thinking``, but only
-    return the readable summary when ``thinking_config.include_thoughts`` is
-    explicitly requested — confirmed against a live session: ``thoughts_tokens``
-    non-zero on every turn, no thinking block ever rendered. Unlike OpenAI's
-    fix, this can't be a blanket default: the same unified ``thinking`` field
-    also drives Anthropic's *opt-in* extended thinking, so defaulting
-    ``thinking=True`` for every model would turn that on too — a real
-    cost/latency change, not a visibility fix. So the ``thinking=True``
-    fallback below only fires when ``LLM_THINKING`` is unset *and* the
-    resolved model is capability-flagged ``supports_thinking_summary``
-    (currently Gemini 2.5/3 only, see ``zrb.llm.util.capabilities``) — Gemini
-    already reasons by default, so this only makes the existing reasoning
-    visible, it doesn't turn anything on that wasn't already running and
-    billed.
-
-    ``anthropic_cache="5m"`` requests Anthropic's automatic prompt-cache
-    breakpoint (a top-level ``cache_control`` that the server moves forward
-    as the conversation grows). Unlike OpenAI, Anthropic never caches a
-    prompt unless a request asks for it — without this, zrb's
-    resend-the-whole-history-every-turn pattern reprocesses the full
-    conversation from scratch on every Anthropic call. "5m" is Anthropic's
-    own default TTL; "1h" costs more per cache write and only pays off for
-    gaps longer than 5 minutes between turns. Google has no request-level
-    caching default to mirror this: Gemini's context caching is a
-    pre-created cache *resource* (``google_cached_content``) that must be
-    created and kept alive out-of-band via a separate API call — out of
-    scope for a settings default.
-
-    Every key here is either provider-namespaced (silently ignored by every
-    other provider's model class — pydantic-ai's own convention, not
-    something to special-case per model) or the provider-agnostic ``thinking``
-    field. Caller-supplied ``model_settings`` always win, key by key.
+    Provider-namespaced keys are ignored by other providers' model classes
+    (pydantic-ai convention), so no per-provider branching is needed.
     """
     # A plain dict: provider-namespaced keys exist only on each provider's own
     # ModelSettings subclass.
@@ -649,39 +623,18 @@ def _apply_capability_constraints(
     final_model: "Model | str | None",
     model_settings: "ModelSettings | None",
 ) -> "ModelSettings | None":
-    """Translate :mod:`zrb.llm.util.capabilities` into pydantic-ai settings.
+    """Map ``supports_parallel_tool_calls=False`` to ``parallel_tool_calls=False``.
 
-    Currently the only constraint applied here is
-    ``supports_parallel_tool_calls=False`` → ``parallel_tool_calls=False``
-    in the provider request. Caller-supplied settings always win — if
-    ``parallel_tool_calls`` is already set, this helper leaves it alone.
+    Caller-supplied ``parallel_tool_calls`` wins. This is defense in depth:
+    OpenAI/Azure honor the flag, but Ollama-cloud ignores it (verified with
+    minimax-m2.7 and glm-4.7), so the prompt-side line in
+    ``zrb.llm.prompt.system_context`` is what changes those models. Both read
+    the same capability registry.
 
-    .. note::
-
-       This is **defense-in-depth, not the primary fix** for models that
-       malform parallel tool calls. Real OpenAI / Azure OpenAI honor the
-       flag; Ollama-cloud's OpenAI-compatible endpoint silently ignores
-       it (verified empirically against minimax-m2.7 and glm-4.7). The
-       **prompt-side** parallel-tool-call line in the System Context
-       section (see ``_format_parallel_tool_call_line`` in
-       ``zrb.llm.prompt.system_context``) is what actually changes those
-       models' behavior. Both layers use
-       the same capability registry, so toggling
-       ``supports_parallel_tool_calls`` in one place updates both.
-
-    .. warning::
-
-       Some providers reject ``parallel_tool_calls`` outright rather than
-       honouring or ignoring it — OpenAI's o-series answers "Unsupported
-       parameter: 'parallel_tool_calls' is not supported with this model" with
-       a 400, and kimi-k2.5 behind NVIDIA NIM answers "This model only supports
-       single tool-calls at once!". For such a model, declaring
-       ``supports_parallel_tool_calls=False`` would send the one parameter that
-       breaks every request — a worse failure than the batching it prevents.
-       Splitting "malforms parallel calls" from "rejects the flag" into two
-       fields is the fix if that case ever needs supporting; until then the
-       registry comment on ``_NO_PARALLEL_TOOL_CALLS`` says to keep such models
-       off the list.
+    Models that *reject* the parameter (OpenAI o-series, kimi-k2.5 on NVIDIA
+    NIM — both 400) must stay off the list: flagging them would break every
+    request. Splitting "malforms parallel calls" from "rejects the flag" is
+    the fix if that is ever needed; see ``_NO_PARALLEL_TOOL_CALLS``.
     """
     capabilities = model_capabilities.get(
         model if isinstance(model, str) else final_model

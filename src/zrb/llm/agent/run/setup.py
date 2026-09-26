@@ -22,7 +22,7 @@ from zrb.llm.approval.approval_channel import current_approval_channel
 from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
 from zrb.llm.approval.terminal_approval_channel import TerminalApprovalChannel
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
-from zrb.llm.ui.multi_ui import MultiUI
+from zrb.llm.ui.multi_ui import create_combined_ui
 from zrb.llm.ui.std_ui import StdUI
 from zrb.util.contextvar_scope import scoped
 
@@ -41,16 +41,7 @@ def resolve_context_dependencies(
     ui_arg = ui if ui is not None else current_ui.get()
     if ui_arg is None:
         ui_arg = StdUI()
-
-    if isinstance(ui_arg, list):
-        if len(ui_arg) == 1:
-            effective_ui = ui_arg[0]
-        elif len(ui_arg) == 0:
-            effective_ui = StdUI()
-        else:
-            effective_ui = MultiUI(ui_arg)
-    else:
-        effective_ui = ui_arg
+    effective_ui = create_combined_ui(ui_arg, fallback=StdUI())
 
     effective_tool_confirmation = tool_confirmation or current_tool_confirmation.get()
     effective_hook_manager = hook_manager or default_hook_manager

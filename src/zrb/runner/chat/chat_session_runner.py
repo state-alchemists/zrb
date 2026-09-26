@@ -126,7 +126,7 @@ def _build_message_context(
             "attach": ",".join(attachments),
             "model": "",
             # Explicit: without this key the task falls back to the CLI
-            # input's default (True) and runs the *interactive* branch
+            # input's default (True in a terminal) and runs the *interactive* branch
             # per message — replaying full history to the SSE client and
             # tearing down LSP servers / firing SESSION_END hooks every turn.
             "interactive": "false",

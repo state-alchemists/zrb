@@ -5,7 +5,7 @@ import pytest
 from zrb.llm.util.stream_response import (
     StreamEventHandler,
     create_event_handler,
-    get_truncated_event_part_args,
+    get_event_part_args,
 )
 
 
@@ -368,48 +368,48 @@ class TestCreateEventHandler:
 class TestGetTruncatedEventPartArgs:
     def test_no_part_attribute(self):
         event = MagicMock(spec=[])
-        result = get_truncated_event_part_args(event)
+        result = get_event_part_args(event)
         assert result == {}
 
     def test_part_no_args(self):
         event = MagicMock()
         event.part = MagicMock(spec=[])
-        result = get_truncated_event_part_args(event)
+        result = get_event_part_args(event)
         assert result == {}
 
     def test_args_empty_string(self):
         event = MagicMock()
         event.part = MagicMock()
         event.part.args = ""
-        result = get_truncated_event_part_args(event)
+        result = get_event_part_args(event)
         assert result == {}
 
     def test_args_none(self):
         event = MagicMock()
         event.part = MagicMock()
         event.part.args = None
-        result = get_truncated_event_part_args(event)
+        result = get_event_part_args(event)
         assert result == {}
 
     def test_args_null_string(self):
         event = MagicMock()
         event.part = MagicMock()
         event.part.args = "null"
-        result = get_truncated_event_part_args(event)
+        result = get_event_part_args(event)
         assert result == {}
 
     def test_args_empty_dict_string(self):
         event = MagicMock()
         event.part = MagicMock()
         event.part.args = "{}"
-        result = get_truncated_event_part_args(event)
+        result = get_event_part_args(event)
         assert result == {}
 
     def test_args_json_string(self):
         event = MagicMock()
         event.part = MagicMock()
         event.part.args = '{"key": "value", "long": "' + "x" * 50 + '"}'
-        result = get_truncated_event_part_args(event)
+        result = get_event_part_args(event)
         assert isinstance(result, dict)
         assert "key" in result
 
@@ -417,5 +417,5 @@ class TestGetTruncatedEventPartArgs:
         event = MagicMock()
         event.part = MagicMock()
         event.part.args = {"key": "value"}
-        result = get_truncated_event_part_args(event)
+        result = get_event_part_args(event)
         assert result == {"key": "value"}

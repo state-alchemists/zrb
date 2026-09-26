@@ -6,7 +6,8 @@ its parent's `__init__` parameters by hand, and nothing else checks the copy.
 - *Count* — `PARAM_BUDGETS` caps how wide a constructor may get.
 - *Order* — `LLMTask.__init__` and `LLMChatTask.__init__` share ~50 parameters
   that must stay in the same relative order, so muscle memory built on one
-  transfers to the other.
+  transfers to the other, and the same docstring text unless the meaning
+  genuinely differs.
 - *Fidelity* — a parameter a subclass forwards must carry its parent's
   annotation (`test_subclasses_do_not_narrow_an_inherited_parameter_type`), and
   a parameter it does not forward must be a recorded decision, not an
@@ -23,6 +24,7 @@ through `UIConfig` rather than its own signature.
 
 import ast
 import inspect
+import re
 import textwrap
 from typing import Unpack, get_origin
 
@@ -160,6 +162,51 @@ def test_the_two_task_classes_agree_on_their_shared_parameters():
         "LLMTask and LLMChatTask disagree on the relative order of their "
         f"shared constructor parameters.\nLLMTask order:     {ordered_in_llm_task}\n"
         f"LLMChatTask order: {ordered_in_chat_task}"
+    )
+
+
+# Shared LLMTask/LLMChatTask parameters whose meaning differs between a
+# one-shot run and an interactive session.
+SHARED_PARAM_DOCS_THAT_DIFFER = {
+    "active_skills": "pre-activated per task vs. per session",
+    "approval_channel": "without one, LLMTask denies; chat asks through its UI",
+    "attachment": "chat attaches to the initial message only",
+    "custom_model_names": "chat offers them through the model picker",
+    "hook_manager": "chat defaults to a fresh manager per run",
+    "message": "chat's message is optional and precedes user input",
+    "ui": "chat takes a ready-made UI to drive the session",
+}
+
+
+def _documented_params(cls) -> dict[str, str]:
+    """`{name: description}` from the `Args:` block of `cls.__init__`'s docstring."""
+    documented: dict[str, str] = {}
+    current = None
+    for line in (inspect.getdoc(cls.__init__) or "").splitlines():
+        match = re.match(r"    (\w+): (.*)", line)
+        if match:
+            current = match.group(1)
+            documented[current] = match.group(2)
+        elif current and line.startswith("        "):
+            documented[current] += " " + line.strip()
+        else:
+            current = None
+    return documented
+
+
+def test_the_two_task_classes_document_shared_parameters_identically():
+    llm_task_docs = _documented_params(LLMTask)
+    chat_task_docs = _documented_params(LLMChatTask)
+    drifted = sorted(
+        name
+        for name in set(llm_task_docs) & set(chat_task_docs)
+        if llm_task_docs[name] != chat_task_docs[name]
+        and name not in SHARED_PARAM_DOCS_THAT_DIFFER
+    )
+    assert not drifted, (
+        "LLMTask and LLMChatTask document these shared parameters differently. "
+        "Copy one wording to both, or add the name to "
+        f"SHARED_PARAM_DOCS_THAT_DIFFER with the reason: {drifted}"
     )
 
 

@@ -70,10 +70,12 @@ If you run the task without providing the required inputs, Zrb uses `prompt_tool
 
 ```bash
 $ zrb hello
-? The name to greet: › Edward
-? A title to use (Mr./Ms.): › Dr.
+name: Edward
+prefix [Mr./Ms.]: Dr.
 Hello Dr. Edward
 ```
+
+The prompt shows the input's `prompt=` text, falling back to its name, and a default in brackets (Enter accepts it).
 
 ---
 

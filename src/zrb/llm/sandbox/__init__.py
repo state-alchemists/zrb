@@ -16,7 +16,7 @@ actually touch. This package is a leaf (no ``zrb.llm.agent`` imports).
 
 from __future__ import annotations
 
-from zrb.llm.sandbox.fs_policy import check_read, check_write, resolve_real
+from zrb.llm.sandbox.fs_policy import check_read, check_write
 from zrb.llm.sandbox.os_sandbox import (
     ESCAPE_NOTE,
     SandboxUnavailableError,
@@ -27,6 +27,7 @@ from zrb.llm.sandbox.policy import (
     SandboxInput,
     SandboxPolicy,
     coerce_sandbox,
+    resolve_real,
     resolve_sandbox_policy_from_config,
     resolved_deny_read_roots,
     resolved_writable_roots,

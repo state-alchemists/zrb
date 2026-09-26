@@ -84,6 +84,8 @@ from zrb import CmdTask, cli
 echo_task = cli.add_task(CmdTask(name="echo", cmd="echo 'Hello, World!'"))
 ```
 
+A multi-line `cmd` (or a list of commands) runs as one shell script, so, as in any shell script, a failing line does not stop the ones after it; the task's exit code is the last command's. Start the script with `set -e` to stop at the first failure.
+
 ### Command with Input and Templating
 
 You can inject context variables into the command by wrapping it in `Tpl`, which
@@ -139,7 +141,7 @@ start_server = CmdTask(
 | **Purpose** | Python code | Shell commands |
 | **Syntax** | `action=lambda ctx: ...` | `cmd="shell command"` |
 | **Templating** | Python string formatting | Zrb's own f-string-style substitution `{ctx.input.x}` (single braces, evaluated with a restricted set of builtins) |
-| **Return value** | Explicit `return` | stdout captured to XCom |
+| **Return value** | Explicit `return` | A `CmdResult` pushed to XCom: `.output` (stdout), `.error` (stderr); renders as stdout in templates |
 | **Environment** | Via `os.environ` | Auto-injected into shell |
 | **Best for** | Complex logic, APIs | External tools, scripts |
 

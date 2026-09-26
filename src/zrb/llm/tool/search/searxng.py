@@ -4,7 +4,7 @@ from typing import Any
 import requests
 
 from zrb.config.config import CFG
-from zrb.llm.tool.search.http_errors import SearchToolError
+from zrb.llm.tool.search.http_errors import BROWSER_USER_AGENT, SearchToolError
 
 
 def is_docker_installed() -> bool:
@@ -38,7 +38,7 @@ def search_internet(
     if not language:
         language = CFG.SEARXNG_LANG
 
-    user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    user_agent = BROWSER_USER_AGENT
 
     try:
         response = requests.get(

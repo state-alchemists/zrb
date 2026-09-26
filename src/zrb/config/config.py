@@ -25,7 +25,6 @@ To find a setting:
 - Theme selection (ZRB_THEME preset)         -> mixins/theme.py
 """
 
-import difflib
 from typing import Any
 
 from zrb.config.env_field import EnvField
@@ -45,6 +44,7 @@ from zrb.config.mixins.rag import RAGMixin
 from zrb.config.mixins.task_runtime import TaskRuntimeMixin
 from zrb.config.mixins.theme import ThemeMixin
 from zrb.config.mixins.web import WebMixin
+from zrb.util.string.suggestion import suggest_name
 
 
 class Config(
@@ -111,7 +111,7 @@ class Config(
             for n in dir(type(self))
             if n.isupper() and not n.startswith("DEFAULT_") and _is_assignable(n)
         )
-        suggestions = difflib.get_close_matches(name, known, n=3, cutoff=0.6)
+        suggestions = suggest_name(name, known)
         message = f"CFG has no setting named {name!r}."
         if suggestions:
             message += " Did you mean " + " / ".join(suggestions) + "?"

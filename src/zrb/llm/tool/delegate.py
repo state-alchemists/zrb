@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import difflib
 import os
 import uuid
 from dataclasses import dataclass
@@ -40,17 +39,14 @@ from zrb.llm.ui.std_ui import StdUI
 
 if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.util.roster import cap_items, search_roster
 from zrb.llm.util.subagent_session_naming import (
     format_delegated_session_name,
     parse_delegated_session,
     subagent_only_directories,
 )
 from zrb.util.string.name import get_random_name
-
-# On-demand search results are themselves capped so an unscoped query (or an
-# empty one) cannot dump the whole roster in one answer. 30 entries keeps a
-# full page of matches visible while still bounding a runaway listing.
-_SEARCH_RESULT_LIMIT = 30
+from zrb.util.string.suggestion import suggest_name
 
 
 @dataclass
@@ -444,10 +440,8 @@ def agent_roster_doc(sub_agent_manager: SubAgentManager) -> str:
     # Keep core agents at the front, then sort by name so the roster (and its
     # truncation boundary) is deterministic.
     agents = _sort_agents(agents)
-    cap = CFG.LLM_MAX_AGENTS_IN_ROSTER
-    shown = agents if cap < 1 else agents[:cap]
+    shown, hidden = cap_items(agents, CFG.LLM_MAX_AGENTS_IN_ROSTER)
     lines = "\n".join(f"- `{a.name}`: {a.description}" for a in shown)
-    hidden = len(agents) - len(shown)
     if hidden > 0:
         lines += f"\n(+{hidden} more — use SearchAgent to find them)"
     return lines
@@ -456,13 +450,10 @@ def agent_roster_doc(sub_agent_manager: SubAgentManager) -> str:
 def agent_not_found_message(agent_name: str, sub_agent_manager: SubAgentManager) -> str:
     """Error text for an unknown `agent_name`, naming the valid ones.
 
-    The previous text said only "Check DelegateToAgent's description for
-    available sub-agents" — an instruction to re-read something the model
-    already has and just misread, which makes the next attempt another guess.
-    The names are cheap; spelling them out here turns the retry into a
-    correction. The closest match is offered first because the usual failure is
-    a near-miss (`research` for `researcher`, or a name carried over from a
-    different harness's roster).
+    Spelling out the names turns the retry into a correction rather than
+    another guess. The closest match comes first because the usual failure is
+    a near-miss (`research` for `researcher`, or a name from another
+    harness's roster).
     """
     names = [a.name for a in _sort_agents(_delegatable_agents(sub_agent_manager))]
     if not names:
@@ -471,11 +462,9 @@ def agent_not_found_message(agent_name: str, sub_agent_manager: SubAgentManager)
             "[SYSTEM SUGGESTION]: Do the work yourself — delegation is "
             "unavailable in this session."
         )
-    close = difflib.get_close_matches(agent_name, names, n=1, cutoff=0.6)
+    close = suggest_name(agent_name, names, limit=1)
     suggestion = f" Did you mean '{close[0]}'?" if close else ""
-    cap = CFG.LLM_MAX_AGENTS_IN_ROSTER
-    shown = names if cap < 1 else names[:cap]
-    hidden = len(names) - len(shown)
+    shown, hidden = cap_items(names, CFG.LLM_MAX_AGENTS_IN_ROSTER)
     more = f", and {hidden} more (use SearchAgent to list them)" if hidden > 0 else ""
     return (
         f"Sub-agent '{agent_name}' not found.{suggestion} "
@@ -848,21 +837,7 @@ def create_search_agent_tool(
         ] = "",
     ) -> str:
         agents = _sort_agents(_delegatable_agents(sub_agent_manager))
-        needle = query.strip().lower()
-        if needle:
-            agents = [
-                a
-                for a in agents
-                if needle in a.name.lower() or needle in (a.description or "").lower()
-            ]
-        if not agents:
-            return _no_agent_match_message(query)
-        shown = agents[:_SEARCH_RESULT_LIMIT]
-        lines = [f"- `{a.name}`: {a.description}" for a in shown]
-        hidden = len(agents) - len(shown)
-        if hidden > 0:
-            lines.append(f"(+{hidden} more match — refine the query)")
-        return "\n".join(lines)
+        return search_roster(agents, query) or _no_agent_match_message(query)
 
     setattr(search_agent, "zrb_is_delegate_tool", True)
     search_agent.__name__ = "SearchAgent"

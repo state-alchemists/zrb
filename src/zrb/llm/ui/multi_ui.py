@@ -797,3 +797,13 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
 
 def is_shutdown_requested() -> bool:
     return getattr(sys, "zrb_shutdown_requested", False)
+
+
+def create_combined_ui(uis: "AnyUI | list[AnyUI]", fallback: "AnyUI") -> "AnyUI":
+    """One UI for *uis*: itself, its only member, a `MultiUI`, or *fallback*
+    when the list is empty."""
+    if not isinstance(uis, list):
+        return uis
+    if not uis:
+        return fallback
+    return uis[0] if len(uis) == 1 else MultiUI(uis)

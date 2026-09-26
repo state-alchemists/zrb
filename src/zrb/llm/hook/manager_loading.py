@@ -26,6 +26,7 @@ from zrb.llm.hook.schema import (
     PromptHookConfig,
 )
 from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
+from zrb.util.asset_scanner import scan_files
 from zrb.util.load import load_module_from_path
 
 if TYPE_CHECKING:
@@ -59,42 +60,22 @@ class HookManagerLoading:
         try:
             search_path = Path(path).resolve()
             if search_path.is_file():
-                if search_path.suffix in [".json", ".yaml", ".yml"]:
-                    self._load_file(search_path)
-                elif search_path.name.endswith(".hook.py"):
-                    self._load_hooks_from_python(search_path)
+                self._load_hook_file(search_path)
             else:
-                self._scan_dir_recursive(search_path, search_path, self._max_depth, 0)
+                scan_files(
+                    search_path,
+                    self._max_depth,
+                    self._load_hook_file,
+                    ignore_dirs=list(self._ignore_dirs),
+                )
         except Exception as e:
             logger.debug(f"Failed to load hooks from {path}: {e}")
 
-    def _scan_dir_recursive(
-        self,
-        base_dir: Path,
-        current_dir: Path,
-        max_depth: int,
-        current_depth: int,
-    ) -> None:
-        """Recursively scan directories with explicit depth control."""
-        if current_depth > max_depth:
-            return
-
-        try:
-            for item in current_dir.iterdir():
-                if item.is_dir():
-                    if item.name in self._ignore_dirs or item.name.startswith("."):
-                        continue
-                    self._scan_dir_recursive(
-                        base_dir, item, max_depth, current_depth + 1
-                    )
-                elif item.is_file():
-                    if item.suffix in [".json", ".yaml", ".yml"]:
-                        self._load_file(item)
-                    elif item.name.endswith(".hook.py"):
-                        self._load_hooks_from_python(item)
-        except (PermissionError, OSError):
-            # Skip directories we can't access
-            pass
+    def _load_hook_file(self, item: Path) -> None:
+        if item.suffix in [".json", ".yaml", ".yml"]:
+            self._load_file(item)
+        elif item.name.endswith(".hook.py"):
+            self._load_hooks_from_python(item)
 
     def _load_hooks_from_python(self, file_path: Path) -> None:
         try:

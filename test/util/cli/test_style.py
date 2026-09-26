@@ -35,6 +35,48 @@ from zrb.util.cli.style import (
 )
 
 
+@pytest.fixture(autouse=True)
+def force_color(monkeypatch):
+    """These tests check the escape codes, so run as if on a terminal."""
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
+
+
+class _Stream:
+    def __init__(self, is_tty: bool):
+        self._is_tty = is_tty
+
+    def isatty(self) -> bool:
+        return self._is_tty
+
+
+def test_no_color_disables_styling_even_when_forced(monkeypatch):
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert style.is_color_enabled() is False
+    assert stylize("x", color=RED) == "x"
+
+
+def test_styling_is_off_when_neither_stream_is_a_terminal(monkeypatch):
+    monkeypatch.delenv("FORCE_COLOR")
+    monkeypatch.setattr(style.sys, "stdout", _Stream(False))
+    monkeypatch.setattr(style.sys, "stderr", _Stream(False))
+    assert stylize("x", color=RED) == "x"
+
+
+def test_styling_is_on_when_either_stream_is_a_terminal(monkeypatch):
+    monkeypatch.delenv("FORCE_COLOR")
+    monkeypatch.setattr(style.sys, "stdout", _Stream(False))
+    monkeypatch.setattr(style.sys, "stderr", _Stream(True))
+    assert style.is_color_enabled() is True
+
+
+def test_a_closed_stream_counts_as_not_a_terminal(monkeypatch):
+    monkeypatch.delenv("FORCE_COLOR")
+    monkeypatch.setattr(style.sys, "stdout", None)
+    monkeypatch.setattr(style.sys, "stderr", None)
+    assert style.is_color_enabled() is False
+
+
 def test_remove_style_strips_ansi_codes():
     plain = remove_style(stylize("hello", color=RED, style=BOLD))
     assert plain == "hello"

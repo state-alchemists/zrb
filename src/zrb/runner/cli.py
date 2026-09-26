@@ -118,13 +118,22 @@ class Cli(Group):
         task_str_kwargs: dict[str, str],
     ) -> str:
         parts = [self.name] + node_path
-        secret_input_names = {
-            task_input.name for task_input in task.inputs if task_input.is_secret
+        shared_ctx = SharedContext()
+        # Secrets never echo; an empty value whose default is also empty says
+        # nothing, while an empty value overriding a real default must stay.
+        omitted = {
+            task_input.name
+            for task_input in task.inputs
+            if task_input.is_secret
+            or (
+                task_str_kwargs.get(task_input.name) == ""
+                and task_input.get_default_str(shared_ctx) == ""
+            )
         }
         parts += [
             self.get_run_command_param(key, val)
             for key, val in task_str_kwargs.items()
-            if key not in secret_input_names
+            if key not in omitted
         ]
         return " ".join(parts)
 
@@ -140,6 +149,11 @@ class Cli(Group):
         shared_ctx = SharedContext(args=args)
         session = Session(shared_ctx=shared_ctx, root_group=self)
         result = task.run(session, str_kwargs=run_kwargs)
+        status = session.get_task_status(task)
+        if not (status.is_completed or status.is_skipped):
+            # `run()` absorbs an interrupt and returns None for library
+            # callers; the shell must still see a stopped run as a failure.
+            raise KeyboardInterrupt
         return result, session
 
     def _show_task_info(self, task: AnyTask):

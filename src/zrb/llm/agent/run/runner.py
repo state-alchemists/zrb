@@ -15,7 +15,7 @@ Sibling files in this package each own one concern:
   deferred_calls.py   - resume after deferred tool requests
 
 For the *why* behind history sanitization and the OpenAI patch, see
-docs/contributing/maintainer-guide.md#llm-history-sanitization-layer.
+docs/technical-specs/llm-history-sanitization.md.
 """
 
 from __future__ import annotations
@@ -32,7 +32,10 @@ from zrb.llm.agent.run.deferred_calls import (
     process_deferred_requests,
     rebuild_for_denials,
 )
-from zrb.llm.agent.run.error_classifier import classify_error_type
+from zrb.llm.agent.run.error_classifier import (
+    add_credential_hint,
+    classify_error_type,
+)
 from zrb.llm.agent.run.history_utils import (
     history_without_trailing_response,
     is_empty_completion,
@@ -612,7 +615,10 @@ async def _execution_loop(
         partial_run.is_interrupted = True
         setattr(ce, "zrb_partial_run", partial_run)
         raise
-    except Exception as e:
+    except Exception as raised:
+        e = add_credential_hint(raised)
+        if e is not raised and hasattr(raised, "zrb_history"):
+            setattr(e, "zrb_history", getattr(raised, "zrb_history"))
         partial_run.error = str(e)
         setattr(e, "zrb_partial_run", partial_run)
         if not hasattr(e, "zrb_history"):

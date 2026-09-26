@@ -10,9 +10,8 @@ from pathlib import Path
 _LOGGER = logging.getLogger(__name__)
 
 # The shipped `zrb/llm_plugin/` tree (core skills, skills, agents, hooks).
-# Located by walking up to the `zrb` package rather than counting `.parent`
-# hops, so moving a caller to a different nesting depth cannot silently
-# retarget it — a hand-counted chain broke exactly that way once.
+# Found by walking up to the `zrb` package, not by counting `.parent` hops,
+# so moving this module to another depth cannot retarget it.
 BUILTIN_PLUGIN_DIR = (
     next(p for p in Path(__file__).resolve().parents if p.name == "zrb") / "llm_plugin"
 )

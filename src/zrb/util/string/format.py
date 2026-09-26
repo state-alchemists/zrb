@@ -53,10 +53,9 @@ def fstring_format(template: str, data: dict[str, Any]) -> str:
         ValueError: If an expression in the template fails to evaluate, uses a
             dunder name, or the template is invalid.
     """
-    # Step 1: Replace escaped braces with unique tokens (temporary)
+    # Park escaped braces as sentinels so the expression regex skips them.
     template = template.replace("{{", "\u0000").replace("}}", "\u0001")
 
-    # Step 2: Replace real expressions {expr}
     eval_globals: dict[str, Any] = {"__builtins__": _SAFE_BUILTINS}
 
     def eval_expr(match: re.Match) -> str:
@@ -68,7 +67,6 @@ def fstring_format(template: str, data: dict[str, Any]) -> str:
 
     rendered = re.sub(r"\{([^{}]+)\}", eval_expr, template)
 
-    # Step 3: Restore escaped braces
     return rendered.replace("\u0000", "{").replace("\u0001", "}")
 
 

@@ -27,6 +27,9 @@ def create_http_ui_factory(  # noqa: C901 -- registration/factory fn; mccabe sum
     """Build a UI factory closed over per-session HTTP collaborators."""
 
     class HTTPUI(EventDrivenUI):
+        # Server shutdown must see the cancellation.
+        propagates_cancellation = True
+
         def __init__(self, **kwargs):
             self._session_manager = session_manager
             self._session_id = session_id
@@ -88,36 +91,6 @@ def create_http_ui_factory(  # noqa: C901 -- registration/factory fn; mccabe sum
             """Process one message then return; multi-turn handled by session runner."""
             # Block until every submitted user message has been task_done()'d.
             await self._message_queue.join()
-
-        async def run_async(self) -> str:
-            """Override so `CancelledError` propagates on server shutdown."""
-            self._process_messages_task = asyncio.create_task(
-                self.process_messages_loop()
-            )
-            if hasattr(self, "_background_tasks"):
-                self._background_tasks.add(self._process_messages_task)
-
-            if self._initial_message:
-                self.submit_user_message(self.llm_task, self._initial_message)
-
-            _was_cancelled = False
-            try:
-                await self._run_loop()
-            except asyncio.CancelledError:
-                _was_cancelled = True
-            finally:
-                self._process_messages_task.cancel()
-                try:
-                    await self._process_messages_task
-                except asyncio.CancelledError:
-                    pass
-                finally:
-                    if hasattr(self, "_background_tasks"):
-                        self._background_tasks.discard(self._process_messages_task)
-
-            if _was_cancelled:
-                raise asyncio.CancelledError()
-            return self.last_output
 
     def http_ui_factory(
         ctx,

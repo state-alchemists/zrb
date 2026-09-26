@@ -34,12 +34,7 @@ The journal is a directory of Markdown files organized hierarchically by topic o
 
 Journal entries are stored in a directory structure with a central index file.
 
-| Setting | Environment Variable | Default |
-|---------|---------------------|---------|
-| Enabled | `ZRB_LLM_JOURNAL_ENABLED` | `on` |
-| Journal Directory | `ZRB_LLM_JOURNAL_DIR` | `~/.zrb/llm-notes/` |
-| Index File | `ZRB_LLM_JOURNAL_INDEX_FILE` | `index.md` |
-| Injected index cap | `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` | `2500` |
+Every journal knob (directory, index file, injection cap, HUD cap, first-turn auto-search, git backing) is listed in [LLM Configuration → Journal & Context Storage](../configuration/llm-config.md#5-journal--context-storage); the directory defaults to `~/.zrb/llm-notes/` and the index file to `index.md`.
 
 `ZRB_LLM_JOURNAL_ENABLED=false` turns the whole subsystem off. There is no journal prompt section to suppress — the journal *is* its three tools (`SearchJournal`, `LogActivity`, `WriteJournalNote`), so the flag unregisters them in `apply_common_tools`, and `render_journal_index` checks the same flag for the `<journal-index>` injection. The model is then never told a journal exists (ADR-0055).
 

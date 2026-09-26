@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+import re
+
+from zrb.config.config import CFG
+
+# pydantic-ai's wording when a provider finds no key: it names the vendor's own
+# variable (`OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, ...), which is correct as-is.
+_MISSING_KEY_MESSAGE = re.compile(r"Set the `\w+` environment variable")
+
 
 def is_prompt_too_long_error(e: Exception) -> bool:
     """Returns True if the exception is a context length / token limit error."""
@@ -191,3 +199,28 @@ def get_retry_wait(e: Exception, attempt: int, max_wait: float) -> float:
             except ValueError:
                 pass
     return min(2**attempt, max_wait)
+
+
+def add_credential_hint(e: Exception) -> Exception:
+    """Return *e* with zrb's key scoping appended when it is a missing-key error.
+
+    pydantic-ai's message already names the vendor variable that would work;
+    what it cannot know is zrb's own key, which applies only to the provider
+    `LLM_PROVIDER` or `LLM_MODEL`'s prefix names (ADR-0094). Anything else is
+    returned unchanged.
+    """
+    # lazy: heavy third-party -- pydantic_ai
+    from pydantic_ai.exceptions import UserError
+
+    if not isinstance(e, UserError) or not _MISSING_KEY_MESSAGE.search(str(e)):
+        return e
+    prefix = CFG.ENV_PREFIX
+    hint = (
+        f"Alternatively, set {prefix}_LLM_API_KEY: zrb sends it only to the "
+        f"provider named by {prefix}_LLM_PROVIDER, else by the prefix of "
+        f"{prefix}_LLM_MODEL. See docs/configuration/llm-config.md, "
+        '"Which API Key Gets Used".'
+    )
+    hinted = UserError(f"{e}\n{hint}")
+    hinted.__cause__ = e
+    return hinted

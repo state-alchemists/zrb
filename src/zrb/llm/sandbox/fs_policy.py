@@ -18,19 +18,10 @@ import os
 
 from zrb.llm.sandbox.policy import (
     SandboxPolicy,
+    resolve_real,
     resolved_deny_read_roots,
     resolved_writable_roots,
 )
-
-
-def resolve_real(path: str) -> str:
-    """Canonicalize a tool-supplied path: ``~`` → abs → realpath.
-
-    ``realpath`` resolves the existing prefix and keeps the non-existent tail,
-    which is exactly what write checks need for not-yet-created targets
-    (``write_file`` creates parent directories).
-    """
-    return os.path.realpath(os.path.abspath(os.path.expanduser(path)))
 
 
 def is_within(child: str, root: str) -> bool:

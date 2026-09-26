@@ -38,7 +38,6 @@ async def replace_in_file_validation_policy(
     if path is None or old_text is None or new_text is None:
         return await next_handler(ui, call)
 
-    # 1. Check if identical
     if old_text == new_text:
         return ToolDenied(
             "Old text and new text are identical. "
@@ -48,7 +47,6 @@ async def replace_in_file_validation_policy(
 
     abs_path = os.path.abspath(os.path.expanduser(path))
 
-    # 2. Check if file exists
     if not os.path.exists(abs_path):
         return ToolDenied(
             f"File not found: {path} (resolved to {abs_path}). "
@@ -56,10 +54,8 @@ async def replace_in_file_validation_policy(
             "directory, not the project root. Use List to confirm the path."
         )
 
-    # 3. Check if old_text is in file. Accept either an exact substring match
-    #    or a fuzzy match (whitespace/indentation tolerant), mirroring the
-    #    replace_in_file tool's own matching so we don't deny edits the tool
-    #    would actually be able to apply.
+    # Accept exact or fuzzy (whitespace-tolerant) matches, mirroring the
+    # replace_in_file tool, so no edit the tool could apply is denied.
     try:
         with open(abs_path, "r", encoding="utf-8") as f:
             content = f.read()

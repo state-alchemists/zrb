@@ -198,10 +198,9 @@ def _encode_stdin_payload(context: HookContext) -> bytes:
 def _resolve_hook_cwd(config: CommandHookConfig, context: HookContext) -> str | None:
     """The directory to run the hook in, or None to inherit our own.
 
-    Resolved defensively. A hook must not fail just because the cwd carries a
-    "~" (the OS does not expand it, unlike a shell) or no longer exists — that
-    turned every UI-fired hook into a ``[Errno 2] No such file or directory:
-    '~/...'`` once the cwd came from a display-formatted path.
+    A "~" is expanded (the OS does not, unlike a shell) and a missing
+    directory falls back to inheriting, so a display-formatted or stale cwd
+    never fails the hook with ``[Errno 2]``.
     """
     raw_cwd = config.working_dir or context.cwd
     if not raw_cwd:

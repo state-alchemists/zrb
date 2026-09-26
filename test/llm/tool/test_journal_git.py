@@ -40,7 +40,7 @@ def _git(root: str, *args: str) -> str:
 
 
 def test_ensure_journal_tree_alone_does_not_initialize_git(git_journal):
-    """Git init/first-commit only happens under `_journal_lock` (inside a
+    """Git init/first-commit only happens under the journal lock (inside a
     writer call), never from `ensure_journal_tree()` alone — otherwise two
     first-time writers could race `git init` outside any lock."""
     root = ensure_journal_tree()

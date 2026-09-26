@@ -323,7 +323,7 @@ def test_strip_to_text_only_truncates_long_tool_return():
     text = result[0].parts[0].content
     assert isinstance(result[0].parts[0], UserPromptPart)
     assert text.endswith("...")
-    assert "R" * 500 in text
+    assert "R" * 497 + "..." in text
     assert "R" * 700 not in text
 
 

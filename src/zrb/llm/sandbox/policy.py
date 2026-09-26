@@ -77,7 +77,13 @@ def coerce_sandbox(
     return replace(resolve_sandbox_policy_from_config(), enabled=sandbox)
 
 
-def _realpath(path: str) -> str:
+def resolve_real(path: str) -> str:
+    """Canonicalize a tool-supplied path: ``~`` → abs → realpath.
+
+    ``realpath`` resolves the existing prefix and keeps the non-existent tail,
+    which is exactly what write checks need for not-yet-created targets
+    (``write_file`` creates parent directories).
+    """
     return os.path.realpath(os.path.abspath(os.path.expanduser(path)))
 
 
@@ -95,12 +101,12 @@ def resolved_writable_roots(policy: SandboxPolicy, cwd: str = "") -> tuple[str, 
     ``/private/var/folders/...``).
     """
     if policy.writable_paths:
-        roots = [_realpath(p) for p in policy.writable_paths]
+        roots = [resolve_real(p) for p in policy.writable_paths]
     else:
-        roots = [_realpath(cwd or os.getcwd())]
-    roots.append(_realpath(tempfile.gettempdir()))
+        roots = [resolve_real(cwd or os.getcwd())]
+    roots.append(resolve_real(tempfile.gettempdir()))
     if os.name == "posix":
-        roots.append(_realpath("/tmp"))
+        roots.append(resolve_real("/tmp"))
     return tuple(dict.fromkeys(roots))
 
 
@@ -112,7 +118,7 @@ def resolved_deny_read_roots(policy: SandboxPolicy) -> tuple[str, ...]:
     """
     roots = []
     for p in policy.deny_read_paths:
-        rp = _realpath(p)
+        rp = resolve_real(p)
         if os.path.exists(rp):
             roots.append(rp)
     return tuple(dict.fromkeys(roots))

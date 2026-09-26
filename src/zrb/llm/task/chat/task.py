@@ -174,7 +174,8 @@ class LLMChatTask(BaseTask):
         Args:
             message: Initial message to send before handing over to the user.
                 Leave unset to start with an empty prompt.
-            attachment: Images or files to send with the initial message.
+            attachment: Images or files to send with the initial message. A
+                single item, a list, or a callable taking the context.
             system_prompt: System prompt text, or a callable taking the context.
                 Overrides whatever `prompt_manager` would compose.
             prompt_manager: `PromptManager` composing the system prompt from
@@ -182,7 +183,8 @@ class LLMChatTask(BaseTask):
             active_skills: Names of skills to pre-activate for the session.
             model: The model to use, as a name or a pydantic-ai `Model`. Defaults
                 to `CFG.LLM_MODEL`.
-            model_settings: Provider settings such as temperature.
+            model_settings: Provider settings such as temperature, or a callable
+                taking the context.
             model_getter: Callable transforming the resolved base model into the
                 active model (e.g. tier switching, A/B testing) — applied before
                 `model_renderer`.
@@ -196,7 +198,8 @@ class LLMChatTask(BaseTask):
             capabilities: pydantic-ai capabilities to enable for the run.
             tools: Functions or `Tool`s the model may call.
             toolsets: Toolsets whose tools the model may call.
-            tool_factories: Callables building tools per run from the context.
+            tool_factories: Callables building tools per run from the context. Use
+                these when a tool must close over resolved inputs.
             toolset_factories: Callables building toolsets per run from the
                 context.
             hook_manager: `HookManager` supplying lifecycle hooks. Unlike
@@ -213,7 +216,7 @@ class LLMChatTask(BaseTask):
             argument_formatters: Callables controlling how tool-call arguments are
                 displayed. All run in order, each overwriting the last.
             approval_channel: Channel carrying approval requests to whoever answers
-                them.
+                them. Installed on the UI when set.
             permissions: Policy bounding which files and commands tools may touch.
             sandbox: Whether, and how, tool calls run sandboxed.
             yolo: Skip tool confirmation. True for all tools, or a comma-separated
@@ -225,8 +228,10 @@ class LLMChatTask(BaseTask):
                 command family. Each field left unset keeps its `CFG` default.
             conversation_name: Name the conversation is stored under.
             history_manager: Store persisting conversation history across runs.
+                Without one, a default file-backed store under LLM_HISTORY_DIR
+                is used.
             history_processors: Callables rewriting history before each request,
-                run in order.
+                run in order. This is the seam summarization uses.
             enable_rewind: Whether the session can roll back to an earlier turn.
                 Defaults to `LLM_ENABLE_REWIND` (on).
             snapshot_dir: Directory holding rewind snapshots. Defaults to

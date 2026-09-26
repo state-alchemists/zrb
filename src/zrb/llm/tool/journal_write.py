@@ -9,7 +9,7 @@ is what makes these five invariants unviolatable rather than merely checkable:
 - **orphan** — every note is registered in its directory index, and every
   directory index is linked from the root index.
 - **missing-index** — indexes are created on the way down to the leaf.
-- **no lost update** — a coarse-grained lock (`_journal_lock`) makes each
+- **no lost update** — a coarse-grained lock on the root's `.lock` makes each
   writer's multi-file graph update atomic against a concurrent writer.
 """
 
@@ -22,12 +22,9 @@ from typing import Annotated, Iterator
 
 from pydantic import Field
 
-try:
-    import fcntl
-except ImportError:  # pragma: no cover - non-POSIX platforms
-    fcntl = None  # ponytail: POSIX-only lock; non-POSIX falls back to unlocked
-
 from zrb.config.config import CFG
+from zrb.util.file_lock import hold_file_lock
+from zrb.util.markdown import get_first_heading
 
 NOTE_CATEGORIES = ("user", "preferences", "projects", "technical")
 ACTIVITY_DIR = "activity-log"
@@ -291,7 +288,10 @@ def _open_journal() -> Iterator[str]:
     """Yield the journal root with its tree in place, the lock held, and git
     initialized when `LLM_JOURNAL_GIT_ENABLED`."""
     root = ensure_journal_tree()
-    with _journal_lock(root):
+    # One lock over the whole root makes the multi-file update (note,
+    # backlinks, two indexes) atomic against a concurrent writer — a sub-agent,
+    # the main session, or the compliance-judge hook.
+    with hold_file_lock(os.path.join(root, ".lock")):
         if CFG.LLM_JOURNAL_GIT_ENABLED:
             _ensure_journal_git(root)
         yield root
@@ -303,29 +303,6 @@ def _check_category(category: str) -> None:
             f"[SYSTEM SUGGESTION]: unknown category {category!r}. "
             f"Use one of: {', '.join(NOTE_CATEGORIES)}."
         )
-
-
-@contextmanager
-def _journal_lock(root: str) -> Iterator[None]:
-    """Coarse-grained advisory lock over the whole journal root, held for the
-    duration of one write call. Makes the multi-file graph update (note +
-    backlinks + two indexes) atomic as a unit, not just each file write in
-    isolation — closes the lost-update race between concurrent writers (a
-    sub-agent and the main session, or the compliance-judge hook racing the
-    turn it followed). POSIX-only; a no-op where `fcntl` is unavailable.
-    """
-    if fcntl is None:
-        yield
-        return
-    lock_path = os.path.join(root, ".lock")
-    # Binary: the file is a flock handle and never carries text, so there is
-    # no encoding for it to get wrong.
-    with open(lock_path, "wb") as lock_file:
-        fcntl.flock(lock_file, fcntl.LOCK_EX)
-        try:
-            yield
-        finally:
-            fcntl.flock(lock_file, fcntl.LOCK_UN)
 
 
 def ensure_journal_tree() -> str:
@@ -353,9 +330,8 @@ def _ensure_journal_git(root: str) -> None:
     real, unbounded commits instead of relying only on the in-file History
     block (capped at `_HISTORY_MAX_ENTRIES`). Never raises: a missing `git`
     binary or a failed init leaves an ungitted but fully working journal —
-    same fallback spirit as the `fcntl`-unavailable branch above.
 
-    Callers must hold `_journal_lock(root)` — this races two first-time
+    Callers must hold the journal lock — this races two first-time
     writers' `git init`/initial commit against each other otherwise."""
     if os.path.isdir(os.path.join(root, ".git")):
         return
@@ -740,10 +716,10 @@ def _field(text: str, prefix: str) -> str | None:
 
 
 def _title_of(path: str) -> str:
-    for line in _read_text(path).splitlines():
-        if line.startswith("# "):
-            return line[2:].strip()
-    return os.path.splitext(os.path.basename(path))[0]
+    return (
+        get_first_heading(_read_text(path))
+        or os.path.splitext(os.path.basename(path))[0]
+    )
 
 
 def _write_if_absent(path: str, content: str) -> None:

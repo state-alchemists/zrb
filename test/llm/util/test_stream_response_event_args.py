@@ -2,9 +2,8 @@ from unittest.mock import MagicMock, patch
 
 from zrb.llm.util.stream_response import (
     StreamEventHandler,
+    get_event_part_args,
     get_event_part_content,
-    get_full_event_part_args,
-    get_truncated_event_part_args,
 )
 
 
@@ -16,16 +15,16 @@ def _spinner_calls(print_fn):
     ]
 
 
-class TestGetFullEventPartArgs:
+class TestGetEventPartArgsFull:
     def test_no_part_attribute(self):
         event = MagicMock(spec=[])
-        assert get_full_event_part_args(event) == {}
+        assert get_event_part_args(event, full=True) == {}
 
     def test_args_empty_string(self):
         event = MagicMock()
         event.part = MagicMock()
         event.part.args = ""
-        assert get_full_event_part_args(event) == {}
+        assert get_event_part_args(event, full=True) == {}
 
     def test_returns_untruncated_values(self):
         """The whole point: unlike the truncated variant, long values survive."""
@@ -33,17 +32,17 @@ class TestGetFullEventPartArgs:
         event = MagicMock()
         event.part = MagicMock()
         event.part.args = {"long": long_value}
-        result = get_full_event_part_args(event)
+        result = get_event_part_args(event, full=True)
         assert result == {"long": long_value}
         # Sanity: the truncated sibling really does clip the same input.
-        assert get_truncated_event_part_args(event) != result
+        assert get_event_part_args(event) != result
 
     def test_does_not_mutate_original_args(self):
         event = MagicMock()
         event.part = MagicMock()
         original = {"long": "x" * 50}
         event.part.args = original
-        get_full_event_part_args(event)
+        get_event_part_args(event, full=True)
         assert event.part.args == original
 
 

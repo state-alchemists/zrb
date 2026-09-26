@@ -61,7 +61,7 @@ from zrb.llm.ui.base.system_info import BaseUISystemInfo
 from zrb.llm.ui.base.triggers import BaseUITriggers
 from zrb.llm.ui.base.usage import BaseUIUsage
 from zrb.llm.ui.base.voice_state import BaseUIVoiceState
-from zrb.llm.ui.multi_ui import MultiUI
+from zrb.llm.ui.multi_ui import create_combined_ui
 from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
 from zrb.llm.ui.turn_snapshot import take_pre_turn_snapshot
 from zrb.llm.ui.ui_config import UIConfig
@@ -1162,14 +1162,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         call: "ToolCallPart",
     ) -> "ToolApproved | ToolDenied | None":
         # The ambient UI (e.g. a sub-agent's BufferedUI), not the captured main UI.
-        ui = get_current_ui() or self
-        if isinstance(ui, list):
-            if len(ui) == 0:
-                ui = self
-            elif len(ui) == 1:
-                ui = ui[0]
-            else:
-                ui = MultiUI(ui)
+        ui = create_combined_ui(get_current_ui() or self, fallback=self)
         return await self._tool_call_handler.handle(ui, call)
 
     async def trigger_loop(
