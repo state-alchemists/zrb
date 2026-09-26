@@ -223,6 +223,35 @@ def test_delete_journal_note_removes_the_file_and_every_reference(writable_journ
     assert "[First]" not in _read(writable_journal, "projects", "second.md")
 
 
+def test_delete_scrubs_a_note_whose_title_contains_a_bracket(writable_journal):
+    """broken-link: no line may survive pointing at the file just removed."""
+    from zrb.llm.tool.journal_write import delete_journal_note, write_journal_note
+
+    write_journal_note(
+        category="technical",
+        slug="nested",
+        title="Fixes [nested] brackets",
+        context="c",
+        finding="f",
+        source="s",
+    )
+    write_journal_note(
+        category="projects",
+        slug="second",
+        title="Second",
+        context="c",
+        finding="f",
+        source="s",
+        links=["technical/nested.md"],
+    )
+
+    delete_journal_note("technical", "nested")
+
+    assert "nested.md" not in _read(writable_journal, "technical", "index.md")
+    assert "technical/nested.md" not in _read(writable_journal, "index.md")
+    assert "nested.md" not in _read(writable_journal, "projects", "second.md")
+
+
 def test_delete_journal_note_removes_its_pinned_hud_line(writable_journal):
     from zrb.llm.tool.journal_write import delete_journal_note, write_journal_note
 

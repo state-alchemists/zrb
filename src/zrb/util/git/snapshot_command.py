@@ -1,6 +1,6 @@
 """Running the git commands behind working-directory snapshots.
 
-Every command is bounded: by `GIT_COMMAND_TIMEOUT_SECONDS`, and by an optional
+Every command is bounded: by `CFG.LLM_SNAPSHOT_COMMAND_TIMEOUT`, and by an optional
 *deadline* (a `time.monotonic()` value) that cuts off a whole sequence of
 commands. Every command runs without the inherited variables that would point
 git at another repository, index or object database. A command run inside
@@ -19,8 +19,7 @@ import threading
 import time
 from typing import Any, Callable, TypeVar
 
-#: The most one git command may take, deadline or not.
-GIT_COMMAND_TIMEOUT_SECONDS = 30
+from zrb.config.config import CFG
 
 # Inherited variables that would point git at another repository, index or
 # object database than the one each command names.
@@ -44,30 +43,46 @@ class SnapshotError(RuntimeError):
     """A snapshot git command failed, timed out, or was cancelled."""
 
 
+class SnapshotCancelledError(SnapshotError):
+    """The operation's caller was cancelled, so it stopped: says nothing
+    about the directory or the store, and must never be taken for a failure
+    of either."""
+
+
 class SnapshotTimeoutError(SnapshotError):
     """A git command ran past its time limit and was killed."""
 
 
 def get_command_timeout(deadline: float | None) -> float:
-    """Seconds the next git command may take: `GIT_COMMAND_TIMEOUT_SECONDS`,
+    """Seconds the next git command may take: `CFG.LLM_SNAPSHOT_COMMAND_TIMEOUT`,
     or less when *deadline* is nearer. Zero or below means no time is left."""
+    cap = CFG.LLM_SNAPSHOT_COMMAND_TIMEOUT
     if deadline is None:
-        return GIT_COMMAND_TIMEOUT_SECONDS
-    return min(GIT_COMMAND_TIMEOUT_SECONDS, deadline - time.monotonic())
+        return cap
+    return min(cap, deadline - time.monotonic())
 
 
 def get_time_left(deadline: float | None, label: str) -> float:
     """Seconds the next step of an operation may take — a git command, or a
-    stretch of the listing's own directory walk. Raises SnapshotError when
-    the operation's caller was cancelled (`run_in_worker`) or no time is
-    left."""
-    abort = getattr(_worker, "abort", None)
+    stretch of the listing's own directory walk. Raises SnapshotCancelledError
+    when the operation's caller was cancelled (`run_in_worker`) or SnapshotTimeoutError
+    when no time is left — the operation ran past its deadline, which is what
+    that error has always meant for a single command."""
+    abort = get_worker_cancel()
     if abort is not None and abort.is_set():
-        raise SnapshotError(f"Snapshot cancelled before running {label}")
+        raise SnapshotCancelledError(f"Snapshot cancelled before running {label}")
     timeout = get_command_timeout(deadline)
     if timeout <= 0:
-        raise SnapshotError(f"No time left to run {label}")
+        raise SnapshotTimeoutError(f"No time left to run {label}")
     return timeout
+
+
+def get_worker_cancel() -> threading.Event | None:
+    """The event `run_in_worker` sets when the caller awaiting this worker is
+    cancelled, or None outside one. A step that blocks without running a git
+    command — waiting for the store's operation lock — watches it to stop
+    waiting, since `get_time_left` is never reached while it waits."""
+    return getattr(_worker, "abort", None)
 
 
 def get_clean_env() -> dict[str, str]:

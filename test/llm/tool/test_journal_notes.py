@@ -207,10 +207,10 @@ def test_hud_line_lands_in_the_section_matching_the_category(writable_journal):
 def test_hud_line_does_not_duplicate_on_a_repeat(writable_journal):
     from zrb.llm.tool.journal_write import write_journal_note
 
-    for slug in ("first-say", "second-say"):
+    for _ in range(2):
         write_journal_note(
             category="user",
-            slug=slug,
+            slug="goes-by-go",
             title="T",
             context="c",
             finding="f",
@@ -219,6 +219,113 @@ def test_hud_line_does_not_duplicate_on_a_repeat(writable_journal):
         )
 
     assert _read(writable_journal, "index.md").count("Goes by Go.") == 1
+
+
+def test_two_notes_sharing_a_hud_line_both_keep_their_pin(writable_journal):
+    """`projects` and `technical` share the Active Constraints section, so two
+    notes compressing the same fact collide there by design. The note link, not
+    the text, is the key — matching by text would delete one note's pin."""
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    for category, slug in (("projects", "retry-cap"), ("technical", "retry-cap-hard")):
+        write_journal_note(
+            category=category,
+            slug=slug,
+            title="T",
+            context="c",
+            finding="f",
+            source="s",
+            hud_line="Retries are capped at 3.",
+        )
+
+    index = _read(writable_journal, "index.md")
+    section = index.split("## Active Constraints", 1)[1].split("\n## ", 1)[0]
+    assert section.count("Retries are capped at 3.") == 2
+    assert "([note](projects/retry-cap.md))" in section
+    assert "([note](technical/retry-cap-hard.md))" in section
+
+
+def test_revising_a_note_leaves_another_notes_hud_line_that_cites_it(writable_journal):
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    write_journal_note(
+        category="user",
+        slug="identity",
+        title="T",
+        context="c",
+        finding="f",
+        source="s",
+        hud_line="Goes by Go.",
+    )
+    write_journal_note(
+        category="user",
+        slug="plan",
+        title="T",
+        context="c",
+        finding="f",
+        source="s",
+        hud_line="Follows the plan in [the plan](user/identity.md)",
+    )
+
+    write_journal_note(
+        category="user",
+        slug="identity",
+        title="T",
+        context="revised",
+        finding="f",
+        source="s",
+        hud_line="Goes by Go Jr.",
+    )
+
+    index = _read(writable_journal, "index.md")
+    assert "- Goes by Go Jr. ([note](user/identity.md))" in index
+    assert (
+        "- Follows the plan in [the plan](user/identity.md) "
+        "([note](user/plan.md))" in index
+    )
+
+
+def test_an_unlinked_hud_line_is_left_for_the_cap_to_evict(writable_journal):
+    """A hand-pinned line has no note link, so it cannot be attributed to this
+    note; the cap is what retires it. One reading exactly as the new line does
+    is the same fact, and is replaced rather than repeated."""
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    index_path = os.path.join(writable_journal, "index.md")
+    write_journal_note(
+        category="user",
+        slug="seed",
+        title="T",
+        context="c",
+        finding="f",
+        source="s",
+    )
+    with open(index_path, encoding="utf-8") as f:
+        text = f.read()
+    with open(index_path, "w", encoding="utf-8") as f:
+        f.write(
+            text.replace(
+                "## User\n",
+                "## User\n\n- Hand-pinned, no note link.\n- Another pinned fact.\n",
+                1,
+            )
+        )
+
+    write_journal_note(
+        category="user",
+        slug="seed",
+        title="T",
+        context="c",
+        finding="f",
+        source="s",
+        hud_line="Hand-pinned, no note link.",
+    )
+
+    index = _read(writable_journal, "index.md")
+    assert "- Another pinned fact.\n" in index
+    assert "- Hand-pinned, no note link.\n" not in index
+    assert index.count("Hand-pinned, no note link.") == 1
+    assert "- Hand-pinned, no note link. ([note](user/seed.md))" in index
 
 
 def test_revised_hud_line_replaces_the_notes_earlier_line(writable_journal):
@@ -257,6 +364,33 @@ def test_retitled_note_is_relabelled_not_duplicated_in_indexes(writable_journal)
         index = _read(writable_journal, index_path)
         assert index.count("prompt-review.md)") == 1
         assert "[Sep review]" in index
+
+
+def test_retitling_a_note_whose_title_contains_a_bracket_relabels_not_duplicates(
+    writable_journal,
+):
+    """A title is free-form model text, so a `]` in it must not hide the line
+    from the target-keyed lookup that registration is keyed on."""
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    for title in ("Fixes [nested] brackets", "Fixes [nested] brackets, revised"):
+        write_journal_note(
+            category="technical",
+            slug="nested",
+            title=title,
+            context="c",
+            finding="f",
+            source="s",
+        )
+
+    assert _read(writable_journal, "technical", "index.md").count("nested.md)") == 1
+    assert "- [Fixes [nested] brackets, revised](nested.md)" in _read(
+        writable_journal, "technical", "index.md"
+    )
+    assert _read(writable_journal, "index.md").count("nested.md)") == 1
+    assert "- [Fixes [nested] brackets, revised](technical/nested.md)" in _read(
+        writable_journal, "index.md"
+    )
 
 
 def test_revision_collapses_preexisting_duplicate_index_entries(writable_journal):

@@ -379,6 +379,18 @@ action_coro = asyncio.create_task(run_async(execute_action_with_retry(task, sess
 
 Python copies the context at `create_task()` time, so if the parent resets `current_ctx` before the task is scheduled, the task still sees the creation-time value. This is safe because `execute_action_with_retry` re-establishes its own `current_ctx` scope — keep it in mind if the execution model changes.
 
+### Gotcha: `ThreadPoolExecutor` Does Not Copy the Context
+
+A pool thread starts with an **empty** context — nothing ambient reaches work submitted to one, which silently turns every per-run value into its static default. `ThreadPoolHookExecutor` (the synchronous hook dispatcher) hit this: the self-review gate's reviewer resolved `CFG.LLM_MODEL` instead of the run's model, since `current_model` was unset in the thread. Anything crossing a thread boundary must copy the caller's context explicitly:
+
+```python
+executor.submit(contextvars.copy_context().run, callable, *args)
+```
+
+`contextvars.copy_context()` captures the values as they are at submission; the hook's own `current_*` writes stay inside the copy, so the pool thread never mutates the caller's scope. Prefer `asyncio.to_thread`, which copies the context for you, where the call site can be async.
+
+Copy what is safe to use from the other thread, not everything. The hook executor runs each hook in an event loop of its own, so it clears `current_ui`, `current_tool_confirmation` and `current_approval_channel` in the copy (`_copy_context_for_hook`): all three are driven from the caller's loop, and a hook tool reaching one would cross threads.
+
 ---
 
 ## LLM History Sanitization Layer

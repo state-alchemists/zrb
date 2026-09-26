@@ -125,6 +125,8 @@ Zrb persists session state (task execution records, LLM chat history) to disk:
 | Variable | Default | Description |
 |---|---|---|
 | `ZRB_SESSION_LOG_DIR` | `~/.zrb/session` | Directory for session logs and execution history |
+| `ZRB_SESSION_LOG_RETENTION` | `30d` | How long a session's log is kept (`2w`, `90d`, …; `0` = keep all). Older logs are pruned at most once per `ZRB_SESSION_LOG_PRUNE_INTERVAL`, the first time a session is logged |
+| `ZRB_SESSION_LOG_PRUNE_INTERVAL` | `1d` | How often that retention is enforced per directory (`6h`, `1w`, …; `0` = on every process's first write). Every `zrb` command is its own process, so this keeps each from walking the whole timeline |
 
 These are JSON records of task runs, not Python log output. They are used internally for session restore and audit trails.
 

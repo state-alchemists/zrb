@@ -16,6 +16,7 @@ mutated directly by `_execution_loop`.
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -42,6 +43,11 @@ class TurnCursor:
     # payload's `turn_start_snapshot` is read from it. `_execution_loop`
     # closes it — deleting its store — when the turn ends.
     snapshot: "TurnSnapshot | None" = None
+    # Names this turn — one `_execution_loop`, every round a Stop hook adds
+    # included — for a hook keeping per-turn state (the Stop payload's
+    # `turn_id`). Unique, unlike the run scope, which is the conversation's
+    # name and may be shared by concurrent sessions.
+    turn_id: str = field(default_factory=lambda: uuid.uuid4().hex)
 
     def begin_round(self, sanitized_history: list[Any]) -> None:
         """Start one `agent.run()` round: install the sanitized history and

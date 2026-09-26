@@ -1,5 +1,6 @@
-"""hold_file_lock: one holder at a time, across threads and processes, and
-released by the OS when its holder dies."""
+"""hold_file_lock: one holder at a time, across threads and processes,
+released by the OS when its holder dies, and given up on by a caller that
+cancelled or ran out of time."""
 
 import subprocess
 import sys
@@ -8,7 +9,7 @@ import time
 
 import pytest
 
-from zrb.util.file_lock import FileLockTimeout, hold_file_lock
+from zrb.util.file_lock import FileLockCancelled, FileLockTimeout, hold_file_lock
 
 
 def test_a_second_holder_in_another_thread_waits_for_the_first(tmp_path):
@@ -87,3 +88,69 @@ def test_a_wait_past_its_timeout_gives_up(tmp_path):
         thread.join()
 
     assert time.monotonic() - started < 2
+
+
+def _held_by_another_thread(path: str) -> tuple[threading.Thread, threading.Event]:
+    """A thread holding *path*'s lock, and the event that releases it."""
+    held, release = threading.Event(), threading.Event()
+
+    def holder():
+        with hold_file_lock(path):
+            held.set()
+            release.wait(5)
+
+    thread = threading.Thread(target=holder)
+    thread.start()
+    held.wait(5)
+    return thread, release
+
+
+def test_a_cancelled_wait_gives_up_at_once(tmp_path):
+    """A caller that gave up waiting must not take the lock when it frees up:
+    the work it would be doing has no reader left."""
+    path = str(tmp_path / "op.lock")
+    thread, release = _held_by_another_thread(path)
+    cancel = threading.Event()
+    threading.Timer(0.1, cancel.set).start()
+    started = time.monotonic()
+    try:
+        with pytest.raises(FileLockCancelled):
+            with hold_file_lock(path, timeout=30, cancel=cancel):
+                pytest.fail("acquired a lock nobody was waiting for")
+    finally:
+        release.set()
+        thread.join()
+
+    assert time.monotonic() - started < 5
+
+
+def test_a_cancelled_wait_reports_the_cancel_not_a_timeout(tmp_path):
+    path = str(tmp_path / "op.lock")
+    thread, release = _held_by_another_thread(path)
+    cancel = threading.Event()
+    cancel.set()
+    started = time.monotonic()
+    try:
+        with pytest.raises(FileLockCancelled):
+            with hold_file_lock(path, timeout=30, cancel=cancel):
+                pass
+    finally:
+        release.set()
+        thread.join()
+
+    assert time.monotonic() - started < 2
+
+
+def test_a_caller_cancelled_already_never_takes_a_free_lock(tmp_path):
+    """Not even briefly: holding it would make another process wait on work
+    nobody reads."""
+    path = str(tmp_path / "op.lock")
+    cancel = threading.Event()
+    cancel.set()
+
+    with pytest.raises(FileLockCancelled):
+        with hold_file_lock(path, timeout=30, cancel=cancel):
+            pytest.fail("took a lock for a caller that was already cancelled")
+
+    with hold_file_lock(path, timeout=0):  # free: nothing kept it
+        pass

@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 import warnings
 from collections import OrderedDict
 from datetime import datetime
@@ -19,6 +20,8 @@ from zrb.llm.util.subagent_session_naming import (
 )
 from zrb.util.match import fuzzy_match
 from zrb.util.string.conversion import to_string
+from zrb.util.string.name import is_random_name
+from zrb.util.todo.duration import parse_duration
 
 # Pattern to match timestamp suffix like -2024-03-18-10-30-00 or -2024-03-18-10-30
 _TIMESTAMP_PATTERN = re.compile(r"-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d{2})?$")
@@ -63,6 +66,9 @@ class FileHistoryManager(AnyHistoryManager):
         # Dirty entries are never evicted — dropping them would lose data
         # that exists only in RAM.
         self._dirty: set[str] = set()
+        # Expired auto-named conversations are pruned once per manager, on
+        # its first save (`_prune_expired`).
+        self._has_pruned = False
         if not os.path.exists(self._history_dir):
             os.makedirs(self._history_dir, exist_ok=True)
 
@@ -196,6 +202,9 @@ class FileHistoryManager(AnyHistoryManager):
             self._cache_mtime[conversation_name] = self._file_mtime(file_path)
             # Disk now matches the cache: the entry is evictable again.
             self._dirty.discard(conversation_name)
+            if not self._has_pruned:
+                self._has_pruned = True
+                self._prune_expired(conversation_name)
 
             # Retention is controlled by LLM_HISTORY_BACKUP_RETAIN:
             #   0  → backups disabled entirely
@@ -486,6 +495,39 @@ class FileHistoryManager(AnyHistoryManager):
             except OSError:
                 pass
             return False
+
+    def _prune_expired(self, current: str) -> None:
+        """Delete the histories, backups included, of auto-named
+        conversations last saved longer ago than `LLM_HISTORY_RETENTION`.
+
+        Run on the first save rather than at start-up, so a conversation
+        resumed after the cut-off has just been saved again and is not among
+        them; *current* is skipped regardless. Only the history root: a
+        delegated sub-agent's transcripts are capped by count
+        (`LLM_SUBAGENT_HISTORY_RETAIN`), and a conversation someone named is
+        never pruned. Errors are swallowed: pruning must not break the save
+        that triggered it."""
+        retention = parse_duration(CFG.LLM_HISTORY_RETENTION or "")
+        if retention <= 0:
+            return
+        cutoff = time.time() - retention
+        protected = {_safe_segment(current), *map(_safe_segment, self._dirty)}
+        try:
+            entries = list(os.scandir(self._history_dir))
+        except OSError:
+            return
+        for entry in entries:
+            if not entry.name.endswith(".json"):
+                continue
+            match = _BACKUP_FILENAME_PATTERN.match(entry.name)
+            base = match.group("base") if match else entry.name[: -len(".json")]
+            if not is_random_name(base) or base in protected:
+                continue
+            try:
+                if entry.is_file() and entry.stat().st_mtime < cutoff:
+                    os.remove(entry.path)
+            except OSError:
+                continue
 
     def _rotate_backups(
         self, base_name: str, keep: int, main_file_name: str | None = None

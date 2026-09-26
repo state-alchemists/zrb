@@ -54,16 +54,15 @@ def test_list_snapshots_returns_empty_when_setup_fails(workdir):
 async def test_a_directory_over_the_budget_turns_rewind_off_for_the_session(
     manager, workdir, monkeypatch
 ):
-    from zrb.util.git import snapshot_listing
 
-    monkeypatch.setattr(snapshot_listing, "LOOSE_FILE_LIMIT", 1)
+    monkeypatch.setenv("ZRB_LLM_SNAPSHOT_LOOSE_MAX_FILES", "1")
     for name in ("a.txt", "b.txt"):
         with open(os.path.join(workdir, name), "w") as f:
             f.write("x")
     events = []
 
     assert await manager.take_init_snapshot(on_progress=events.append) is None
-    monkeypatch.setattr(snapshot_listing, "LOOSE_FILE_LIMIT", 100)
+    monkeypatch.setenv("ZRB_LLM_SNAPSHOT_LOOSE_MAX_FILES", "100")
 
     assert events[-1].stage == "error"
     assert "more than 1 files outside any git repository" in events[-1].reason
@@ -167,3 +166,56 @@ def test_processes_setting_up_one_store_at_once_all_get_rewind(tmp_path):
     outputs = [process.communicate(timeout=60)[0].strip() for process in starts]
 
     assert all(len(output) == 40 for output in outputs), outputs
+
+
+@pytest.mark.asyncio
+async def test_without_git_rewind_is_off_with_its_reason(tmp_path, monkeypatch):
+    from zrb.llm.snapshot import manager as snapshot_manager
+    from zrb.llm.snapshot.manager import GIT_MISSING_REASON
+
+    monkeypatch.setattr(snapshot_manager.shutil, "which", lambda name: None)
+    mgr = SnapshotManager(str(tmp_path / "snapshots"), "s", str(tmp_path))
+
+    assert mgr.unavailable_reason == GIT_MISSING_REASON
+    assert await mgr.take_snapshot("turn") is None
+
+
+@pytest.mark.asyncio
+async def test_a_snapshot_cancelled_while_setting_the_store_up_leaves_rewind_on(
+    tmp_path,
+):
+    """Cancelling says nothing about the store: the setup is tried again by
+    the next operation, which succeeds."""
+    import asyncio
+    import threading
+
+    from zrb.llm.snapshot.manager import OPERATION_LOCK_NAME
+    from zrb.util.file_lock import hold_file_lock
+
+    workdir, snapshots = str(tmp_path / "work"), str(tmp_path / "snapshots")
+    os.makedirs(workdir)
+    await SnapshotManager(snapshots, "other", workdir).take_snapshot("x")
+    (store,) = [e.path for e in os.scandir(snapshots) if e.name.endswith(".git")]
+    held, release = threading.Event(), threading.Event()
+
+    def other_process():
+        with hold_file_lock(os.path.join(store, OPERATION_LOCK_NAME)):
+            held.set()
+            release.wait(10)
+
+    thread = threading.Thread(target=other_process)
+    thread.start()
+    held.wait(5)
+    mgr = SnapshotManager(snapshots, "s", workdir)
+    try:
+        task = asyncio.create_task(mgr.take_snapshot("turn"))
+        await asyncio.sleep(0.3)  # waiting for the store's lock, mid-setup
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    finally:
+        release.set()
+        thread.join(5)
+
+    assert mgr.unavailable_reason == ""
+    assert await mgr.take_snapshot("after", message_count=1) is not None

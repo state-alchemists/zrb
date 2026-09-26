@@ -28,6 +28,8 @@ class MockLifecycleUI:
         self.trigger_tasks = [create_mock_task()]
         self.message_queue = asyncio.Queue()
         self.background_tasks = set()
+        self.hook_tasks = set()
+        self.drain_hook_tasks = AsyncMock()
         self.message_queue.put_nowait("msg")
         self.triggers = [MagicMock()]
         self.application = MagicMock()
@@ -241,13 +243,14 @@ async def test_on_exit_exception():
         ui.on_exit()  # should not raise exception
 
 
-async def _init_snapshot_lines(unavailable_reason: str, event) -> str:
-    """What the TUI prints for one init-snapshot *event*."""
+async def _init_snapshot_lines(unavailable_reason: str, *events) -> str:
+    """What the TUI prints for a run of init-snapshot *events*."""
     ui = MockLifecycleUI()
     ui.snapshot_manager.unavailable_reason = unavailable_reason
 
     async def init_snapshot(on_progress):
-        on_progress(event)
+        for event in events:
+            on_progress(event)
 
     ui.snapshot_manager.take_init_snapshot = init_snapshot
     started: list = []
@@ -281,6 +284,35 @@ async def test_an_init_snapshot_failure_says_rewind_resumes_next_turn():
 
 
 @pytest.mark.asyncio
+async def test_a_shallow_snapshot_says_so_on_its_done_line():
+    from zrb.llm.snapshot import SnapshotProgress
+
+    lines = await _init_snapshot_lines(
+        "",
+        SnapshotProgress("notice", reason="no git repository here"),
+        SnapshotProgress("done", 2),
+    )
+
+    assert (
+        "Initial workspace snapshot taken (no git repository here; "
+        "2 unreadable files skipped)" in lines
+    )
+    assert lines.count("\n  ") == 1
+
+
+@pytest.mark.asyncio
+async def test_a_missing_git_prints_nothing_at_startup():
+    from zrb.llm.snapshot import SnapshotProgress
+    from zrb.llm.snapshot.manager import GIT_MISSING_REASON
+
+    lines = await _init_snapshot_lines(
+        GIT_MISSING_REASON, SnapshotProgress("error", reason=GIT_MISSING_REASON)
+    )
+
+    assert lines == ""
+
+
+@pytest.mark.asyncio
 async def test_a_directory_that_cannot_be_snapshotted_says_rewind_is_off():
     from zrb.llm.snapshot import SnapshotProgress
 
@@ -288,3 +320,28 @@ async def test_a_directory_that_cannot_be_snapshotted_says_rewind_is_off():
     lines = await _init_snapshot_lines(reason, SnapshotProgress("error", reason=reason))
 
     assert f"Rewind is off for this session: {reason}." in lines
+
+
+@pytest.mark.asyncio
+async def test_on_exit_leaves_hook_tasks_for_teardown_to_drain():
+    ui = MockLifecycleUI()
+    hook_task = MagicMock(done=MagicMock(return_value=False))
+    other_task = MagicMock(done=MagicMock(return_value=False))
+    ui.background_tasks = {hook_task, other_task}
+    ui.hook_tasks = {hook_task}
+
+    with patch("prompt_toolkit.application.get_app"):
+        ui.lifecycle_part.on_exit()
+
+    hook_task.cancel.assert_not_called()
+    other_task.cancel.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_cleanup_drains_hooks_before_cancelling_the_rest(monkeypatch):
+    monkeypatch.setenv("ZRB_HOOKS_EXIT_TIMEOUT", "2500")
+    ui = MockLifecycleUI()
+
+    await ui.lifecycle_part.cleanup_background_tasks()
+
+    ui.drain_hook_tasks.assert_awaited_once_with(2.5)

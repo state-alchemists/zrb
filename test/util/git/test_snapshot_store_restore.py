@@ -412,3 +412,39 @@ def test_a_file_the_restore_keeps_is_never_written_over(repo, tmp_path):
 
     assert store.restore(before) == ["x"]
     assert (repo / "x" / "work.py").read_bytes() == b"uncommitted work\n"
+
+
+def test_a_file_too_large_to_snapshot_is_left_out_and_left_alone(
+    repo, tmp_path, monkeypatch
+):
+    """Left out like an ignored file: not held, never written over by a
+    restore, never removed by one, and not reported as left behind."""
+    monkeypatch.setenv("ZRB_LLM_SNAPSHOT_FILE_MAX_MB", str(10 / 2**20))
+    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
+    (repo / "data.bin").write_bytes(b"x" * 100)
+    (repo / "small.txt").write_text("then\n")
+    before = _snap(store)
+    (repo / "data.bin").write_bytes(b"y" * 200)
+    (repo / "small.txt").write_text("now\n")
+
+    left_behind = store.restore(before)
+
+    assert "data.bin" in before.left_out
+    assert (repo / "data.bin").read_bytes() == b"y" * 200
+    assert (repo / "small.txt").read_text() == "then\n"
+    assert left_behind == []
+
+
+def test_a_file_that_grew_too_large_is_not_overwritten_with_its_old_bytes(
+    repo, tmp_path, monkeypatch
+):
+    monkeypatch.setenv("ZRB_LLM_SNAPSHOT_FILE_MAX_MB", str(10 / 2**20))
+    store = SnapshotStore(str(tmp_path / "snaps.git"), str(repo))
+    (repo / "grows.log").write_text("small\n")
+    before = _snap(store)
+    (repo / "grows.log").write_bytes(b"z" * 100)
+
+    left_behind = store.restore(before)
+
+    assert (repo / "grows.log").read_bytes() == b"z" * 100
+    assert left_behind == []

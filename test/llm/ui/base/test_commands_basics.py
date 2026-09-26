@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
@@ -17,18 +18,33 @@ def test_handle_info_command(ui):
     assert any("Available Commands" in o for o in ui.outputs)
 
 
-def test_handle_save_command(ui):
+@pytest.mark.asyncio
+async def test_handle_save_command(ui):
     ui.history_manager.load.return_value = ["msg1"]
+    ui.snapshot_manager.copy_history = AsyncMock()
+    previous = ui.conversation_session_name
+
+    assert ui.handle_save_command("/save my-session") is True
+    await asyncio.gather(*ui.background_tasks)
+
+    ui.history_manager.update.assert_called_with("my-session", ["msg1"])
+    ui.history_manager.save.assert_called_with("my-session")
+    # The saved copy keeps the conversation's rewind history.
+    ui.snapshot_manager.copy_history.assert_awaited_once_with(previous, "my-session")
+    assert "saved" in "".join(ui.outputs)
+
+
+def test_save_without_a_running_loop_still_registers_the_copy(ui):
+    """Registered on the call, so the next operation applies it even with no
+    loop to run the rest on."""
+    ui.history_manager.load.return_value = ["msg1"]
+    ui.snapshot_manager.copy_history = AsyncMock()
     previous = ui.conversation_session_name
 
     assert ui.handle_save_command("/save my-session") is True
 
-    ui.history_manager.update.assert_called_with("my-session", ["msg1"])
     ui.history_manager.save.assert_called_with("my-session")
-    # The saved copy keeps the conversation's rewind history, recorded
-    # before the command returns.
     ui.snapshot_manager.copy_history.assert_called_once_with(previous, "my-session")
-    assert "saved" in "".join(ui.outputs)
 
 
 def test_handle_load_command(ui):

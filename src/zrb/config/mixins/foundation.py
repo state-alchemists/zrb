@@ -98,6 +98,8 @@ class FoundationMixin:
             ]
         )
         self.DEFAULT_SESSION_LOG_DIR: str = ""
+        self.DEFAULT_SESSION_LOG_RETENTION: str = "30d"
+        self.DEFAULT_SESSION_LOG_PRUNE_INTERVAL: str = "1d"
         self.DEFAULT_TODO_DIR: str = ""
         self.DEFAULT_TODO_VISUAL_FILTER: str = ""
         self.DEFAULT_TODO_RETENTION: str = "2w"
@@ -246,6 +248,25 @@ class FoundationMixin:
             or os.path.expanduser(os.path.join("~", f".{c.ROOT_GROUP_NAME}", "session"))
         ),
         doc="Directory for session-specific logs and history.",
+    )
+
+    SESSION_LOG_RETENTION = EnvField(
+        str,
+        doc=(
+            "How long a task session's log is kept (e.g. 30d, 2w); older ones "
+            "are pruned the first time a session is logged in each process. 0 "
+            "keeps every log."
+        ),
+    )
+
+    SESSION_LOG_PRUNE_INTERVAL = EnvField(
+        str,
+        doc=(
+            "How often SESSION_LOG_RETENTION is enforced per log directory "
+            "(e.g. 1d, 6h). Every zrb command is its own process, so this "
+            "keeps each from walking the whole session timeline. 0 prunes on "
+            "every process's first log write."
+        ),
     )
 
     TODO_DIR = EnvField(

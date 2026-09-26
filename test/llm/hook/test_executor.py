@@ -1,4 +1,5 @@
 import asyncio
+import contextvars
 import threading
 import time
 
@@ -141,6 +142,69 @@ async def test_a_hook_cancelled_before_it_starts_never_runs():
         await waiting
     executor.shutdown()
     assert not ran.is_set()
+
+
+@pytest.mark.asyncio
+async def test_a_hook_runs_in_the_callers_context():
+    """A pool thread starts with an empty context: without the copy, a hook
+    sees none of the caller's ambient state — the run's model, its tool call."""
+    executor = ThreadPoolHookExecutor()
+    executor.start()
+    ambient: contextvars.ContextVar[str] = contextvars.ContextVar("ambient")
+    seen: list[str | None] = []
+
+    async def reads_the_caller_context(ctx):
+        seen.append(ambient.get("unset"))
+        return HookResult(success=True)
+
+    token = ambient.set("the run's model")
+    try:
+        result = await executor.execute_hook(reads_the_caller_context, _start_context())
+    finally:
+        ambient.reset(token)
+        executor.shutdown()
+
+    assert result.success is True
+    assert seen == ["the run's model"]
+
+
+@pytest.mark.asyncio
+async def test_a_hook_does_not_inherit_what_is_bound_to_the_callers_loop():
+    """The hook runs in an event loop of its own, so the chat's UI, tool
+    confirmation and approval channel — all driven from the caller's loop —
+    are not passed on, while the rest of the caller's state is."""
+    from zrb.llm.agent_state import current_model, current_ui
+    from zrb.llm.approval.approval_channel import current_approval_channel
+
+    executor = ThreadPoolHookExecutor()
+    executor.start()
+    seen: dict = {}
+
+    async def reads_the_caller_context(ctx):
+        seen.update(
+            ui=current_ui.get(),
+            channel=current_approval_channel.get(),
+            model=current_model.get(),
+        )
+        return HookResult(success=True)
+
+    ui = object()
+    tokens = [
+        (current_ui, current_ui.set(ui)),
+        (current_approval_channel, current_approval_channel.set(object())),
+        (current_model, current_model.set("the run's model")),
+    ]
+    try:
+        await executor.execute_hook(reads_the_caller_context, _start_context())
+        callers_ui = current_ui.get()
+    finally:
+        for var, token in reversed(tokens):
+            var.reset(token)
+        executor.shutdown()
+
+    assert seen == {"ui": None, "channel": None, "model": "the run's model"}
+    # The caller's own binding is untouched.
+    assert callers_ui is ui
 
 
 def test_executor_singleton():

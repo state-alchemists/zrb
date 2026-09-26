@@ -66,14 +66,21 @@ def conv_ui():
 
 
 @pytest.fixture
-def rewind_ui(tmp_path):
+def rewind_ui(tmp_path, monkeypatch):
+    # BaseUI snapshots its working directory: a small one of the test's own,
+    # not the checkout the tests run from, whose size and platform decide how
+    # long hashing it takes.
+    workdir = tmp_path / "work"
+    workdir.mkdir()
+    (workdir / "f.txt").write_text("content")
+    monkeypatch.chdir(workdir)
     ui = _ConversationUI(
         ctx=Context(SharedContext(), "test", 0, ""),
         llm_task=MagicMock(),
         history_manager=MagicMock(),
         ui_config=UIConfig(**_COMMANDS),
         enable_rewind=True,
-        snapshot_dir=str(tmp_path),
+        snapshot_dir=str(tmp_path / "snapshots"),
     )
     ui.outputs = []
     return ui
@@ -128,6 +135,20 @@ def test_load_command_rolls_back_on_failure(conv_ui):
 def test_load_command_blank_argument_passes_through(conv_ui):
     assert conv_ui.handle_load_command("load   ") is True  # bare-warning consumed
     assert conv_ui.handle_load_command("stray text") is False
+
+
+@pytest.mark.asyncio
+async def test_save_command_carries_the_rewind_history_to_the_new_name(rewind_ui):
+    """`/save` hands the saved conversation's rewind history to its new name,
+    the way it hands it the chat history — the copy runs off the UI thread."""
+    manager = rewind_ui.snapshot_manager
+    await manager.take_init_snapshot()
+
+    assert rewind_ui.handle_save_command("save myconvo") is True
+    await asyncio.gather(*list(rewind_ui.background_tasks))
+
+    assert rewind_ui.conversation_session_name == "myconvo"
+    assert [s.label for s in manager.list_snapshots()] == ["init"]
 
 
 def test_rewind_unavailable_when_disabled(conv_ui, monkeypatch):

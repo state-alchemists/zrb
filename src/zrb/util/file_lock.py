@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import errno
 import sys
+import threading
 import time
 from contextlib import contextmanager
 from typing import IO, Iterator
@@ -53,18 +54,39 @@ class FileLockTimeout(TimeoutError):
     """Another thread or process held the lock past the wait allowed."""
 
 
+class FileLockCancelled(Exception):
+    """The wait was cancelled: its caller no longer wants the lock."""
+
+
 @contextmanager
-def hold_file_lock(path: str, timeout: float | None = None) -> Iterator[None]:
+def hold_file_lock(
+    path: str, timeout: float | None = None, cancel: threading.Event | None = None
+) -> Iterator[None]:
     """Hold an exclusive lock on *path*, created if missing, waiting while
     another thread or process holds it — at most *timeout* seconds, then
-    `FileLockTimeout`. An error other than the lock being held is raised
-    at once rather than waited out."""
+    `FileLockTimeout`, and `FileLockCancelled` as soon as *cancel* is set.
+    An error other than the lock being held is raised at once rather than
+    waited out.
+
+    *cancel* is for a wait nobody is waiting on any more: a caller cancelled
+    mid-wait, so holding the lock for it afterwards would do work whose
+    result has no reader. It is checked before every attempt, the first
+    included, so a caller cancelled already never holds the lock — not even
+    one that was free. A cancel landing after the lock is taken is the
+    caller's to check."""
     with open(path, "ab") as handle:
         give_up = None if timeout is None else time.monotonic() + timeout
-        while not _has_taken_lock(handle):
+        while True:
+            if cancel is not None and cancel.is_set():
+                raise FileLockCancelled(f"the wait for {path} was cancelled")
+            if _has_taken_lock(handle):
+                break
             if give_up is not None and time.monotonic() >= give_up:
                 raise FileLockTimeout(f"{path} is still locked after {timeout}s")
-            time.sleep(_POLL_SECONDS)
+            if cancel is None:
+                time.sleep(_POLL_SECONDS)
+            else:
+                cancel.wait(_POLL_SECONDS)
         try:
             yield
         finally:

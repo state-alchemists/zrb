@@ -127,6 +127,7 @@ async def run_agent(
     sandbox_policy: Any = None,
     checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None = None,
     run_scope: str = "",
+    nested: bool | None = None,
 ) -> tuple[Any, list[Any]]:
     """
     Runs the agent with rate limiting, history management, and optional CLI confirmation loop.
@@ -142,6 +143,11 @@ async def run_agent(
     state (see `current_agent_run_scope`'s docstring). Pass the session name for
     a top-level conversation, a fresh per-delegation id for a sub-agent; empty
     defaults to a fresh id so an unscoped caller stays isolated.
+
+    `nested` says whether this is a delegated sub-agent's run — no turn
+    snapshot, and the Stop payload's `nested_run` set. None infers it from
+    whether another run is bound; pass it when that inference cannot see the
+    parent, as a live sub-agent continued from the TUI cannot.
     """
     global _openai_patched
     if not _openai_patched:
@@ -178,8 +184,10 @@ async def run_agent(
     )
 
     # A run started while another is bound is nested — a delegated
-    # sub-agent. Read before this run binds its own scope below.
-    nested_run = bool(get_current_agent_run_scope())
+    # sub-agent. Read before this run binds its own scope below. A caller
+    # outside every run that still continues a sub-agent — a message sent to
+    # a finished one from the TUI — says so with `nested`.
+    nested_run = bool(get_current_agent_run_scope()) if nested is None else nested
 
     # ExitStack keeps set/reset symmetric: if a later bind raises, the vars
     # already bound are still reset, and no unset token is ever reset.
@@ -843,6 +851,7 @@ async def _finish_turn(
             # state (self_review.py's round counter) keeps it per run, and
             # whether that run is a delegated sub-agent's.
             "run_scope": get_current_agent_run_scope(),
+            "turn_id": cursor.turn_id,
             "nested_run": nested_run,
             # wrote_files OR a stated preference, precomputed because
             # MatcherConfig has no OR primitive (journal_compliance.py).

@@ -59,6 +59,7 @@ def _gate(
     builder=True,
     timeout=240,
     delay=0.0,
+    max_tracked_turns=64,
 ):
     seen: list = []
     cancelled: list = []
@@ -87,6 +88,7 @@ def _gate(
         cfg.LLM_SELF_REVIEW_MAX_ROUNDS = max_rounds
         cfg.LLM_SELF_REVIEW_MODEL = ""
         cfg.LLM_SELF_REVIEW_TIMEOUT = timeout
+        cfg.LLM_SELF_REVIEW_MAX_TRACKED_TURNS = max_tracked_turns
         cfg.LLM_MAX_OUTPUT_CHARS = 100_000
         cfg.LOGGER = MagicMock()
         yield seen, cancelled
@@ -99,6 +101,7 @@ async def _stop(
     turn_start_snapshot=None,
     run_scope="run-1",
     nested_run=False,
+    turn_id=None,
 ):
     return await manager.execute_hooks(
         HookEvent.STOP,
@@ -108,6 +111,7 @@ async def _stop(
             "turn_start_snapshot": turn_start_snapshot,
             "run_scope": run_scope,
             "nested_run": nested_run,
+            "turn_id": turn_id,
         },
         stop_hook_active=stop_hook_active,
     )

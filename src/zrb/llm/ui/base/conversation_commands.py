@@ -22,6 +22,7 @@ from zrb.llm.util.subagent_session_naming import parse_delegated_session
 from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
 
 if TYPE_CHECKING:
+    from zrb.llm.snapshot.manager import SnapshotManager
     from zrb.llm.ui.base.ui import BaseUI
 
 logger = logging.getLogger(__name__)
@@ -71,7 +72,9 @@ class BaseUIConversationCommands:
                     self._base_ui.history_manager.load(name)
                     # The saved copy keeps the conversation's rewind history.
                     if self._base_ui.snapshot_manager is not None:
-                        self._base_ui.snapshot_manager.copy_history(previous_name, name)
+                        self._schedule_history_copy(
+                            self._base_ui.snapshot_manager, previous_name, name
+                        )
                     self._base_ui.conversation_session_name = name
                     self._base_ui.append_to_output(
                         stylize_muted(
@@ -84,6 +87,27 @@ class BaseUIConversationCommands:
                     )
                 return True
         return False
+
+    def _schedule_history_copy(
+        self, manager: "SnapshotManager", source: str, target: str
+    ) -> None:
+        """Give *target* the rewind history *source* has. Calling
+        `copy_history` registers the copy at once, before the session
+        switches to *target*, so no snapshot of *target* can land first; the
+        task records it beside the store and applies it off the UI thread.
+        Never fails the save it belongs to: the chat history is written
+        either way."""
+        copy = manager.copy_history(source, target)
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No loop to run it on: still registered, so the next operation
+            # applies it — unrecorded, so only while this session lasts.
+            copy.close()
+            return
+        task = loop.create_task(copy)
+        self._base_ui.background_tasks.add(task)
+        task.add_done_callback(self._base_ui.background_tasks.discard)
 
     def handle_load_command(self, text: str) -> bool:
         text = text.strip()

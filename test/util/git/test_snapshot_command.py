@@ -10,7 +10,6 @@ import time
 import pytest
 
 from zrb.util.git.snapshot_command import (
-    GIT_COMMAND_TIMEOUT_SECONDS,
     SnapshotError,
     get_clean_env,
     get_command_timeout,
@@ -20,15 +19,15 @@ from zrb.util.git.snapshot_command import (
 
 
 def test_command_timeout_is_capped_and_shrinks_toward_the_deadline():
-    assert get_command_timeout(None) == GIT_COMMAND_TIMEOUT_SECONDS
-    assert get_command_timeout(time.monotonic() + 3600) == GIT_COMMAND_TIMEOUT_SECONDS
+    assert get_command_timeout(None) == 30
+    assert get_command_timeout(time.monotonic() + 3600) == 30
     assert 0 < get_command_timeout(time.monotonic() + 5) <= 5
     assert get_command_timeout(time.monotonic() - 1) <= 0
 
 
 def test_a_command_past_its_timeout_is_reported_by_its_label(monkeypatch):
     def run(argv, *args, **kwargs):
-        raise subprocess.TimeoutExpired(argv, GIT_COMMAND_TIMEOUT_SECONDS)
+        raise subprocess.TimeoutExpired(argv, 30)
 
     monkeypatch.setattr(subprocess, "run", run)
 
@@ -103,3 +102,10 @@ async def test_a_cancelled_workers_own_error_is_never_left_unretrieved():
     await asyncio.sleep(0)
 
     assert unretrieved == []
+
+
+def test_the_command_cap_is_read_at_each_command(monkeypatch):
+    """Read when a command runs, not at import, so `zrb_init.py` can set it."""
+    monkeypatch.setenv("ZRB_LLM_SNAPSHOT_COMMAND_TIMEOUT", "7")
+
+    assert get_command_timeout(None) == 7

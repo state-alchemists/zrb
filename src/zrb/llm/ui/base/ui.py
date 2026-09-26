@@ -72,6 +72,7 @@ from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
 from zrb.util.exception import exception_summary
 from zrb.util.string.name import get_random_name
+from zrb.util.todo.duration import parse_duration
 from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
@@ -240,6 +241,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
                 # Read at each operation, so rewind follows `/load` and `/save`.
                 session_name=lambda: self._conversation_session_name,
                 workdir=self._cwd,
+                retention_seconds=parse_duration(CFG.LLM_SNAPSHOT_RETENTION),
             )
 
         self._pending_attachments: list["UserContent"] = _default_list(
@@ -256,6 +258,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
         # Strong references so fire-and-forget hook tasks aren't GC'd mid-run.
         self._background_tasks: set[asyncio.Task] = set()
+        # The hook tasks among them, which teardown lets finish
+        # (`drain_hook_tasks`) instead of cancelling with the rest.
+        self._hook_tasks: set[asyncio.Task] = set()
 
         self._base_commands = BaseUICommands(self)
         self._conversation = self._base_commands.conversation
@@ -377,6 +382,24 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     def background_tasks(self) -> "set[asyncio.Task]":
         """Public read accessor for the background-task set."""
         return self._background_tasks
+
+    @property
+    def hook_tasks(self) -> "set[asyncio.Task]":
+        """The fire-and-forget hook tasks still running (`execute_hook`)."""
+        return self._hook_tasks
+
+    async def drain_hook_tasks(self, timeout: float) -> None:
+        """Give the hook tasks still running *timeout* seconds to finish,
+        then cancel the rest. A Stop hook fired as the chat exits (Ctrl+C) is
+        still running when the UI tears down, and a synchronous hook's
+        process is killed when its task is cancelled."""
+        pending = [task for task in self._hook_tasks if not task.done()]
+        if not pending:
+            return
+        _, unfinished = await asyncio.wait(pending, timeout=timeout)
+        for task in unfinished:
+            logger.warning("A hook was still running at exit; cancelling it.")
+            task.cancel()
 
     @property
     def pending_attachments(self) -> list[Any]:
@@ -654,6 +677,8 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             )
             self._background_tasks.add(task)
             task.add_done_callback(self._background_tasks.discard)
+            self._hook_tasks.add(task)
+            task.add_done_callback(self._hook_tasks.discard)
 
         except RuntimeError:
             # Sync context: Runner restores the thread's previous loop state on

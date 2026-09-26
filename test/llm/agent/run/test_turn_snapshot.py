@@ -6,7 +6,6 @@ import subprocess
 import pytest
 
 from zrb.llm.agent.run.turn_snapshot import TurnSnapshot
-from zrb.util.git import snapshot_listing
 from zrb.util.git.snapshot_store import SnapshotStore
 
 
@@ -65,7 +64,7 @@ def test_a_store_that_fails_to_set_up_is_deleted_and_the_turn_goes_on(
 
 
 def test_a_directory_over_the_budget_is_reported_once(tmp_path, monkeypatch, caplog):
-    monkeypatch.setattr(snapshot_listing, "LOOSE_FILE_LIMIT", 1)
+    monkeypatch.setenv("ZRB_LLM_SNAPSHOT_LOOSE_MAX_FILES", "1")
     workdir = tmp_path / "loose"
     workdir.mkdir()
     (workdir / "a.txt").write_text("a\n")

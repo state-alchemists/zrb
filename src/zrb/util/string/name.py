@@ -1,4 +1,5 @@
 import random
+import re
 import string
 
 PREFIXES = [
@@ -79,3 +80,16 @@ def get_random_name(
         random_digit = "".join(random.choices(string.digits, k=digit_count))
         parts.append(random_digit)
     return separator.join(parts)
+
+
+def is_random_name(name: str) -> bool:
+    """Whether *name* has the shape `get_random_name()` gives by default —
+    a prefix, a suffix and four digits — and so was most likely generated
+    rather than chosen. A user who types such a name by hand is
+    indistinguishable from it."""
+    return _RANDOM_NAME.fullmatch(name) is not None
+
+
+_RANDOM_NAME = re.compile(
+    rf"(?:{'|'.join(PREFIXES)})-(?:{'|'.join(SUFFIXES)})-\d{{4}}"
+)

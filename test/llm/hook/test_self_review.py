@@ -169,3 +169,40 @@ async def test_rounds_are_counted_per_run(gate, stop, blocked):
     assert len(blocked(other)) == 1
     assert blocked(capped) == []
     assert len(seen) == 3
+
+
+@pytest.mark.asyncio
+async def test_rounds_are_counted_per_turn_even_under_one_conversation_name(
+    gate, stop, blocked
+):
+    """Two sessions under one conversation name share a run scope; the turn
+    id keeps their counts apart."""
+    manager = HookManager(search_dirs=[])
+    with gate(report=_FINDINGS, max_rounds=1) as (seen, _):
+        await stop(manager, run_scope="shared", turn_id="a")  # a at its cap
+        other = await stop(manager, run_scope="shared", turn_id="b")
+        capped = await stop(
+            manager, run_scope="shared", turn_id="a", stop_hook_active=True
+        )
+
+    assert len(blocked(other)) == 1
+    assert blocked(capped) == []
+    assert len(seen) == 2
+
+
+@pytest.mark.asyncio
+async def test_counts_of_turns_that_never_came_back_are_bounded(
+    gate, stop, blocked
+):
+    """A turn cancelled mid-continuation never clears its count; past
+    `LLM_SELF_REVIEW_MAX_TRACKED_TURNS` the oldest are dropped, so the first
+    turn's is gone while the newest is kept."""
+    manager = HookManager(search_dirs=[])
+    with gate(report=_FINDINGS, max_rounds=1, max_tracked_turns=3):
+        for turn in range(4):
+            await stop(manager, turn_id=f"t{turn}")
+        first_again = await stop(manager, turn_id="t0", stop_hook_active=True)
+        newest_again = await stop(manager, turn_id="t3", stop_hook_active=True)
+
+    assert len(blocked(first_again)) == 1  # dropped: counted afresh
+    assert blocked(newest_again) == []  # kept: at its cap

@@ -260,15 +260,13 @@ def render_journal_index(first_message: str | None = None) -> str | None:
     ``## Possibly Related`` section — see ``_render_possibly_related``. Gated
     independently by ``LLM_JOURNAL_AUTO_SEARCH_ENABLED``.
 
-    A missing block is therefore not proof of an empty journal — and nothing
-    tells the model so: the journal is deliberately exposed as three tools and
-    no prose. Left as a known gap rather than papered over: the only places it
-    could go are the prompt (which is deliberately kept empty of journal
-    prose) or ``SearchJournal``'s docstring, and a
-    docstring ships with its schema on *every* request, so a caveat about a
-    config most deployments never touch would be paid for on every turn
-    forever. It matters only when ``LLM_JOURNAL_INDEX_MAX_CHARS`` is 0 while the
-    journal tools stay registered, which is a deliberate and unusual pairing.
+    A missing block is therefore not proof of an empty journal. When the block
+    renders, its header names the three journal writers and says to search
+    for them when they are not visible, since their docstrings — where the
+    rules live — are deferred. When it does not, nothing says so: that
+    happens only when ``LLM_JOURNAL_INDEX_MAX_CHARS`` is 0 while the journal
+    tools stay registered, a deliberate and unusual pairing not worth a caveat
+    on every request.
     """
     # Callers pick the moment (first turn / summarization); this check is what
     # LLM_JOURNAL_ENABLED clears — but summarize_history reaches this directly,
