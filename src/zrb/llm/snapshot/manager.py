@@ -266,14 +266,15 @@ class SnapshotManager:
                 existing_sha = await run_in_worker(
                     self._run_locked, self._head_sha, session
                 )
-                await run_in_worker(self._run_locked, self._tidy, session)
                 if existing_sha is not None:
+                    await run_in_worker(self._run_locked, self._tidy, session)
                     _report_progress(on_progress, SnapshotProgress("up-to-date"))
                     return existing_sha
                 _report_progress(on_progress, SnapshotProgress("start"))
                 commit = await run_in_worker(
                     self._run_locked, self._commit, session, "init", 0
                 )
+                await run_in_worker(self._run_locked, self._tidy, session)
             if "" not in commit.repositories:
                 # Said once per conversation: a resumed session never gets
                 # here, and the shallow listing is worth knowing about.

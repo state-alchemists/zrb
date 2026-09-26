@@ -10,6 +10,7 @@ import time
 import pytest
 
 from zrb.llm.snapshot import SnapshotManager
+from zrb.util.git.snapshot_store import SnapshotStore
 
 
 @pytest.fixture
@@ -33,6 +34,31 @@ def _refs(snapshot_dir) -> list[str]:
         text=True,
     ).stdout
     return listing.split()
+
+
+@pytest.mark.asyncio
+async def test_init_snapshot_commits_before_housekeeping(
+    snapshot_dir, workdir, monkeypatch
+):
+    commands: list[tuple[str, ...]] = []
+    real_git = SnapshotStore.git
+
+    def record_git(self, args, *positional, **keyword):
+        commands.append(tuple(args))
+        return real_git(self, args, *positional, **keyword)
+
+    monkeypatch.setattr(SnapshotStore, "git", record_git)
+
+    sha = await SnapshotManager(snapshot_dir, "s", workdir).take_init_snapshot()
+
+    assert sha is not None
+    commit_index = next(
+        i for i, args in enumerate(commands) if args[0] == "commit-tree"
+    )
+    gc_index = next(
+        i for i, args in enumerate(commands) if args[-3:] == ("gc", "--auto", "--quiet")
+    )
+    assert commit_index < gc_index
 
 
 @pytest.mark.asyncio
