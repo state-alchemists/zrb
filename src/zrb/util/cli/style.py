@@ -159,7 +159,23 @@ def is_color_enabled() -> bool:
         return False
     if os.environ.get("FORCE_COLOR"):
         return True
+    if _terminal_override is not None:
+        return _terminal_override
     return any(_is_terminal(stream) for stream in (sys.stdout, sys.stderr))
+
+
+_terminal_override: bool | None = None
+
+
+def set_color_enabled(enabled: bool | None) -> None:
+    """Pin the terminal half of `is_color_enabled`; `None` restores detection.
+
+    For code that points fd 1/2 at a pipe it renders back to the terminal
+    itself (the chat TUI's stream capture): the pipe is not a TTY, but the
+    output still ends up on one. `NO_COLOR` and `FORCE_COLOR` still win.
+    """
+    global _terminal_override
+    _terminal_override = enabled
 
 
 def _is_terminal(stream: Any) -> bool:

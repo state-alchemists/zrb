@@ -4,6 +4,8 @@ import threading
 from contextlib import contextmanager
 from typing import TextIO
 
+from zrb.util.cli.style import is_color_enabled, set_color_enabled
+
 
 class GlobalStreamCapture:
     def __init__(self):
@@ -23,6 +25,9 @@ class GlobalStreamCapture:
 
         self.pipe_r, self.pipe_w = os.pipe()
 
+        # FD 1/2 become a pipe, but what is written there is still shown on
+        # this terminal, so keep the colour decision made before the swap.
+        set_color_enabled(is_color_enabled())
         sys.stdout.flush()
         sys.stderr.flush()
         os.dup2(self.pipe_w, sys.stdout.fileno())
@@ -43,6 +48,7 @@ class GlobalStreamCapture:
         sys.stderr.flush()
         os.dup2(self.original_stdout_fd, sys.stdout.fileno())
         os.dup2(self.original_stderr_fd, sys.stderr.fileno())
+        set_color_enabled(None)
 
         # Closing the write end signals EOF; the reader closes pipe_r.
         if self.pipe_w is not None:
