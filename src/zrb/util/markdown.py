@@ -67,14 +67,19 @@ def get_first_heading(content: str) -> str | None:
     for line in content.splitlines():
         indent = len(line) - len(line.lstrip(" "))
         body = line[indent:]
-        if indent < 4:
-            fence_match = re.match(r"(`{3,}|~{3,})", body)
-            if fence_match:
-                marker = fence_match.group(1)
-                if fence is None:
+        fence_match = re.match(r"(`{3,}|~{3,})(.*)", body) if indent < 4 else None
+        if fence_match:
+            marker, rest = fence_match.groups()
+            if fence is None:
+                # A backtick fence's info string may not contain a backtick.
+                if not (marker[0] == "`" and "`" in rest):
                     fence = marker
-                elif marker[0] == fence[0] and len(marker) >= len(fence):
-                    fence = None
+                    continue
+            elif (
+                marker[0] == fence[0] and len(marker) >= len(fence) and not rest.strip()
+            ):
+                # A closing fence carries nothing but whitespace after it.
+                fence = None
                 continue
         if fence is None and indent < 4 and body.startswith("# "):
             return body[2:].strip()
