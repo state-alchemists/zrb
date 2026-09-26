@@ -1,59 +1,29 @@
 """Shared default-tool registration for zrb-shipped agents.
 
-`apply_common_tools(host)` gives any ``CommonToolHost`` the standard
-zrb-shipped tools, toolset factories, and the shell-safety policy — used by
-``LLMChatTask`` (main agent), ``LLMTask`` (programmatic agents), and
-``SubAgentManager`` (sub-agents) so they share the same tool surface.
+`apply_common_tools(host)` gives a ``CommonToolHost`` the shipped tools,
+toolset factories and shell-safety policy, so ``LLMChatTask``, ``LLMTask`` and
+``SubAgentManager`` share one tool surface. The canonical set lives in
+``tool_registry`` (``registry.py``); this module owns its lazy seed
+(``tool_registry.set_seed``) and the host glue.
 
-Application is *storage-only*: it appends per-run tool/toolset providers onto
-the host through its own public append API, exactly like appending any other
-custom tool. Nothing resolves at apply time — the host's build-time resolution
-(`get_all_tools` / `resolve_agent_build`) runs those providers against a fresh
-per-run list each time, and only then does the registry's lazy seed
-materialize. That is what keeps the ``pydantic_ai`` import off ``import zrb``:
-call `apply_common_tools(host)` once when you construct ``llm_chat`` /
-``sub_agent_manager`` (or your own task) and the heavy import lands on the
-first agent build instead of at module load.
+Application is storage-only: it appends per-run providers through the host's
+public append API. Nothing resolves until the host's build-time resolution
+(`get_all_tools` / `resolve_agent_build`), which keeps ``pydantic_ai`` off
+``import zrb``. ``SubAgentManager`` resolves tools by name from sub-agent
+definitions (read-only agents are name-gated) instead of a flat list.
 
-``SubAgentManager`` resolves its tools *by name* from sub-agent definitions
-(read-only agents are name-gated), rather than consuming a flat merged list the
-way a task can. Its manager always includes the shared static registry lazily;
-the per-run factory/toolset content still arrives through the same providers.
+Tool guidance lives with the tool, not in the prompt. A parameter's
+``Field(description=...)`` owns that argument (``Edit``'s ``count`` documents
+``-1``); the docstring owns the tool — what it does, when to prefer a sibling,
+how to read its result — and never restates a parameter, since both ship in
+every request. The only lever on definition weight is the number of tools:
+LSP, worktree, plan-mode and journal tools register conditionally, rare ones
+use ``defer_loading``.
 
-The canonical set lives in ``tool_registry`` (see ``registry.py``): this
-module owns its lazy *seed* (the built-in tool content, wired via
-``tool_registry.set_seed``) and the host-application glue — a host is fed
-from the registry rather than staying a hardwired copy of it.
-
-There is no prompt-side tool catalogue. What a tool does, what its arguments
-mean, and which tool to reach for instead all live with the tool itself, next
-to the schema the model fills in. pydantic-ai serializes every registered
-tool's docstring + parameter schema into every request either way, so the
-docstring is not deferred context — the only lever on tool-definition weight is
-the *number* of registered tools, which is why LSP, worktree, plan-mode, and
-journal tools are registered conditionally and rarely-used ones use
-``defer_loading``.
-
-Because both halves ship in the same payload, they split the work rather than
-repeat it:
-
-- The **parameter's** ``Field(description=...)`` owns that argument — what it
-  means, which values are legal, how to choose one. ``Edit``'s ``count`` says
-  there that ``-1`` replaces every occurrence.
-- The **docstring** owns the tool — what it does, when to reach for it instead
-  of a sibling, what the result means and how to react to it. It does not
-  restate a parameter the schema already describes.
-
-Restating one in the other pays twice in every request and leaves the model
-deciding which phrasing is canonical when they drift. ``LS`` and ``Glob`` each
-carried three sentences that were their own ``Field`` descriptions reworded.
-
-Delegate tools (``DelegateToAgent`` — which also fans out via its ``tasks``
-arg — and ``DelegateToAgentBackground``) are intentionally NOT registered here
-— they're main-agent-only and sub-agents filter them out via
-``zrb_is_delegate_tool``. Argument formatters and response handlers are out of
-scope: those live on ``LLMChatTask`` and propagate to sub-agents at runtime via
-the ``current_tool_confirmation`` ContextVar.
+Not registered here: delegate tools (main-agent-only; sub-agents filter them
+via ``zrb_is_delegate_tool``), argument formatters and response handlers
+(owned by ``LLMChatTask``, reaching sub-agents through the
+``current_tool_confirmation`` ContextVar).
 """
 
 from __future__ import annotations

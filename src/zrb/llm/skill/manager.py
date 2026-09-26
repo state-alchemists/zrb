@@ -9,6 +9,7 @@ from zrb.llm.skill.registry import SkillRegistry, skill_registry
 from zrb.llm.skill.util import discover_companion_files
 from zrb.util.asset_scanner import IGNORE_DIRS, scan_files
 from zrb.util.dir_search import BUILTIN_PLUGIN_DIR, get_upward_dirs, scan_plugin_dirs
+from zrb.util.markdown import get_first_heading
 from zrb.util.frontmatter import parse_frontmatter
 from zrb.util.load import load_module_from_path
 
@@ -406,7 +407,7 @@ class SkillManager:
             # containing directory's name.
             name = (
                 fields.pop("name", None)
-                or _first_markdown_heading(content)
+                or get_first_heading(content)
                 or os.path.basename(os.path.dirname(full_path))
             )
             # A later scan directory overrides an earlier one with this name.
@@ -489,11 +490,3 @@ def _register_frontmatter_hooks(hooks_data: object, full_path: str) -> None:
         for hook_item in hooks_data:
             hook_manager.parse_and_register(hook_item, full_path)
 
-
-def _first_markdown_heading(content: str) -> str | None:
-    """The text of the first `# ` heading, or `None` when there is none."""
-    for line in content.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("# "):
-            return stripped[2:].strip()
-    return None

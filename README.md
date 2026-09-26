@@ -46,6 +46,8 @@ That's a full agent session: it reads and writes files, runs commands behind a p
 
 For most days, this is the whole product. Stop reading here if that's what you came for.
 
+> **No API key yet?** The task runner works without one. [Installation → Verify](docs/installation/installation.md#3-verify-installation) has a one-task `zrb_init.py` (`zrb hello`) that runs a plain shell command.
+
 ---
 
 ## 2. Then you hit the thing prompting can't fix
@@ -71,6 +73,8 @@ cli.add_task(deploy)
 
 write_fix >> run_tests >> deploy   # the agent proposes; the pipeline decides
 ```
+
+Save it as `zrb_init.py` in the directory you run `zrb` from, or in any parent of it: zrb loads every `zrb_init.py` on the path from the filesystem root down to the current directory, outermost first, so a repo-root file serves every subdirectory.
 
 ```bash
 zrb deploy
@@ -277,7 +281,8 @@ Shaping `zrb llm chat` and the LLM task types.
 - [Choosing Between Agent Harnesses](docs/llm/harness-comparison.md) — zrb `llm chat` vs Claude Code, opencode, DeepSeek Harness, and Pi: when each is the right tool
 - [Programming the Agent](docs/llm/programming-the-agent.md) — the overview: every way to shape agent behavior in Python (tools, hooks, dynamic prompts, history processors, agent-as-pipeline-node)
 - [Programming the Prompt](docs/llm/programming-the-prompt.md) — the ladder from a plain-string `message` up to a composed `PromptManager`; feeding a `CmdTask`'s output into `LLMTask`/`LLMChatTask`
-- [LLM Assistant & AI Tasks](docs/llm/llm-integration.md) — interactive chat, `LLMTask`/`LLMChatTask` usage, troubleshooting
+- [LLM Assistant & AI Tasks](docs/llm/llm-integration.md) — interactive chat, `LLMTask`/`LLMChatTask` usage
+- [Voice & Photo Troubleshooting](docs/llm/voice-photo-troubleshooting.md) — microphone/camera setup per platform, including WSL2 camera passthrough
 - [Extending the LLM](docs/llm/extending-the-llm.md) — built-in tools, custom tools, sub-agents, model capabilities, context management
 - [Custom UI](docs/llm/llm-custom-ui.md) — build a TUI, web/SSE, or chat-bot front end for `LLMChatTask`
 - [Permission Policy System](docs/llm/permission-policy.md) — fine-grained tool control & security gates
@@ -323,6 +328,8 @@ All task types available in Zrb, from basic to advanced.
 - [Architecture & Conventions](docs/contributing/architecture.md) — for maintainers and contributors
 - [Framework Conventions](docs/contributing/framework-conventions.md) — the enforced R1–R12 rules
 - [Maintainer Guide](docs/contributing/maintainer-guide.md) — start here to contribute code
+- [Technical Spec: Context Propagation](docs/technical-specs/context-propagation.md) — the `ContextVar` layers and their scoping rules
+- [Technical Spec: LLM History Sanitization](docs/technical-specs/llm-history-sanitization.md) — provider quirks and the history-repair pipeline
 
 ### VI. Configuration
 - [Environment Variables & Overrides](docs/configuration/env-vars.md)

@@ -86,7 +86,7 @@ class TestWriteFileFormatter:
             mock_diff.return_value = "created diff"
 
             with patch(
-                "zrb.llm.tool_call.argument_formatter.write_file_formatter.render_markdown"
+                "zrb.llm.tool_call.argument_formatter.util.render_markdown"
             ) as mock_render:
                 mock_render.return_value = "rendered"
 
@@ -123,7 +123,7 @@ class TestWriteFileFormatter:
                 mock_diff.return_value = "diff content"
 
                 with patch(
-                    "zrb.llm.tool_call.argument_formatter.write_file_formatter.render_markdown"
+                    "zrb.llm.tool_call.argument_formatter.util.render_markdown"
                 ) as mock_render:
                     mock_render.return_value = "rendered diff"
 
@@ -161,7 +161,7 @@ class TestWriteFileFormatter:
                 mock_diff.return_value = "append diff"
 
                 with patch(
-                    "zrb.llm.tool_call.argument_formatter.write_file_formatter.render_markdown"
+                    "zrb.llm.tool_call.argument_formatter.util.render_markdown"
                 ) as mock_render:
                     mock_render.return_value = "rendered"
 
@@ -187,7 +187,7 @@ class TestWriteFileFormatter:
             mock_diff.return_value = "diff"
 
             with patch(
-                "zrb.llm.tool_call.argument_formatter.write_file_formatter.render_markdown"
+                "zrb.llm.tool_call.argument_formatter.util.render_markdown"
             ) as mock_render:
                 mock_render.return_value = "rendered"
 
@@ -212,7 +212,7 @@ class TestFormatSingleWrite:
             mock_diff.return_value = "new file diff"
 
             with patch(
-                "zrb.llm.tool_call.argument_formatter.write_file_formatter.render_markdown"
+                "zrb.llm.tool_call.argument_formatter.util.render_markdown"
             ) as mock_render:
                 mock_render.return_value = "rendered"
 
@@ -241,7 +241,7 @@ class TestFormatSingleWrite:
                 mock_diff.return_value = "overwrite diff"
 
                 with patch(
-                    "zrb.llm.tool_call.argument_formatter.write_file_formatter.render_markdown"
+                    "zrb.llm.tool_call.argument_formatter.util.render_markdown"
                 ) as mock_render:
                     mock_render.return_value = "rendered"
 
@@ -269,7 +269,7 @@ class TestFormatSingleWrite:
                 mock_diff.return_value = "append diff"
 
                 with patch(
-                    "zrb.llm.tool_call.argument_formatter.write_file_formatter.render_markdown"
+                    "zrb.llm.tool_call.argument_formatter.util.render_markdown"
                 ) as mock_render:
                     mock_render.return_value = "rendered"
 
@@ -316,7 +316,7 @@ class TestFormatSingleWrite:
             mock_diff.return_value = "diff"
 
             with patch(
-                "zrb.llm.tool_call.argument_formatter.write_file_formatter.render_markdown"
+                "zrb.llm.tool_call.argument_formatter.util.render_markdown"
             ) as mock_render:
                 mock_render.return_value = "rendered"
 

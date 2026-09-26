@@ -2,6 +2,7 @@ import difflib
 import re
 import textwrap
 
+from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.terminal import get_terminal_size
 
 
@@ -128,3 +129,13 @@ def format_diff(
                 formatted_lines.append(f"{continuation_prefix}{wrapped_line}")
 
     return "```diff\n" + "\n".join(formatted_lines) + "\n```"
+
+
+def render_indented_diff(diff_md: str) -> str:
+    """Render *diff_md* at the real terminal width, indented under a tool line.
+
+    ``width=None`` would make Rich fall back to 80 when stdout is a capture
+    pipe, re-wrapping the already-wide lines `format_diff` produced.
+    """
+    rendered = render_markdown(diff_md, width=get_terminal_size().columns)
+    return "\n".join(" " * 7 + line for line in rendered.splitlines())

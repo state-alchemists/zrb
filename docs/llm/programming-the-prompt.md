@@ -187,7 +187,21 @@ flowchart LR
     P["persona"] --> R["principle"] --> W["workflow"] --> E["example"] --> F["profile"] --> S["system_context"] --> C["project_context"]
 ```
 
-> Per-tool rules are **not** a section. They live in each tool's docstring, which pydantic-ai ships with the schema on every request (ADR-0045).
+| Section | Purpose |
+|---------|---------|
+| `persona` | AI identity + response style |
+| `principle` | The operating principle underlying the rules |
+| `workflow` | The whole rulebook: priority order, turn sequence, skill activation, working loop, verify gate, tool usage, recovery |
+| `example` | Answer-scale and stance demonstrations |
+| `profile` | Model-class calibration (autonomy register) — resolved as `profile.{name}.md` |
+| `system_context` | Stable runtime facts (OS / CWD / model / detected tools) |
+| `project_context` | Project docs (`AGENTS.md`, `CLAUDE.md`, `README.md`, …) |
+
+Three things are **not** sections:
+
+- **The skill catalogue** (core skills, available skills, active-skill contents) is part of `workflow`, via the `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders. Each list is capped by `LLM_MAX_SKILLS_IN_CATALOG`, with overflow pointing to the `SearchSkill` tool.
+- **Per-tool rules** live in each tool's docstring, which pydantic-ai ships with the schema on every request (ADR-0045).
+- **Volatile per-turn state** (time, git status, todos, worktree, interactivity) is injected into the latest user turn as a `<live-context>` block, so the cached system prompt stays byte-stable.
 
 A `PromptManager` lets you control that assembly. Two independent levers:
 
@@ -213,7 +227,9 @@ pm = PromptManager(
 cli.add_task(LLMChatTask(name="lean-chat", prompt_manager=pm))
 ```
 
-You can also set the order without touching code, via the `ZRB_LLM_INCLUDE_SECTIONS` env var (comma-separated, order-sensitive).
+You can also set the order without touching code, via the `ZRB_LLM_INCLUDE_SECTIONS` env var (comma-separated, order-sensitive; see [LLM Configuration → Prompt Component Configuration](../configuration/llm-config.md#prompt-component-configuration)). A *new* name in `include_sections` resolves to nothing (ADR-0044).
+
+**Task scope vs. registry scope.** Each task exposes its manager as `task.prompt_manager`. The same API exists at registry scope: `prompt_registry.set_prompts` / `append_prompt` in `zrb_init.py` changes the default **every** task starts from (`PromptManager(prompts=None)` defers there); a task's `prompts=` argument or mutation overrides just that task. Each layer's append/remove ops stack on the one below — see [LLM Component Collections](../configuration/llm-collections.md).
 
 ## Rung 6 — sections that reflect live state
 
@@ -221,6 +237,31 @@ The built-in section set is fixed, so there are no user-defined system-prompt se
 
 - **`pm.append_prompt(...)`** — static, dynamic, or full-middleware content emitted **after** all built-in sections; part of the cached system prompt.
 - **`pm.add_live_context(name, provider)`** — inject volatile per-turn state into the `<live-context>` block appended to each user message, **without** invalidating the cacheable system-prompt prefix.
+
+`append_prompt()` takes a static string, a `Callable[[AnyContext], str]`, or a *full middleware* `Callable[[ctx, current_prompt, next], str]` that can rewrite the whole assembled prompt (detected by arity — 3+ parameters):
+
+```python
+from zrb import LLMChatTask
+
+task = LLMChatTask(name="chat")
+
+# Static text
+task.prompt_manager.append_prompt("Always answer in British English.")
+
+# Dynamic text — receives the active context
+import datetime
+def date_note(ctx) -> str:
+    return f"Today's date is {datetime.date.today():%Y-%m-%d}."
+task.prompt_manager.append_prompt(date_note)
+
+# Full middleware — `current_prompt` is everything assembled so far
+def strip_blank_lines(ctx, current_prompt, nxt):
+    cleaned = "\n".join(line for line in current_prompt.splitlines() if line.strip())
+    return nxt(ctx, cleaned)
+task.prompt_manager.append_prompt(strip_blank_lines)
+```
+
+`add_live_context(name, provider)` registers a `Callable[[AnyContext], str]` whose non-empty output joins the `<live-context>` block — for content that must reflect live state (time, git status, deploy target). Return `""` to emit nothing; a provider that throws is logged and skipped.
 
 ```python
 pm = PromptManager()
@@ -233,16 +274,32 @@ The `add_live_context` provider runs every turn, so the injected block always re
 
 ## Rung 7 — file-backed sections and profiles
 
-Section wording ships as files, so you can override any of them without Python: place a same-named file higher on the override chain (project override → env → base-prompt-dir → package) and it replaces the packaged wording, `{PLACEHOLDER}` substitution included.
+Section wording ships as files, so you can override any of them without Python: place a same-named file higher on the override chain (project override → env → base-prompt-dir → package) and it replaces the packaged wording, `{PLACEHOLDER}` substitution included — e.g. `persona.md` in `ZRB_LLM_PROMPT_DIR` replaces the packaged persona. The chain's env vars and the list of overridable names are in [LLM Configuration → Prompt Customization Hierarchy](../configuration/llm-config.md#prompt-customization-hierarchy).
 
 Independently, `ZRB_LLM_PROFILE` selects one of three **profiles** — `minimal`, `standard`, or `capable` — that swap the final `profile` section via `profile.{name}.md`, and for `minimal` only, drop the delegate (sub-agent) tools:
 
-- `minimal` — concise, one clear next action; no delegate tools. For very small models (~3B).
-- `standard` (default) — balance autonomy with clear communication.
-- `capable` — strong ownership of substantial work.
-- `auto` — derived from the model id: a declared size of ≤4B selects `minimal`, 5–14B `standard`, above 14B `capable`; an id declaring nothing stays `standard`.
+| Profile | `profile` section | Delegate tools |
+|---------|-------------------|----------------|
+| `minimal` | `profile.minimal.md` — concise, one clear next action | not registered |
+| `standard` | `profile.standard.md` — balance autonomy with clear communication | registered |
+| `capable` | `profile.capable.md` — strong ownership of substantial work | registered |
 
-A profile changes **only** the `profile` section and the `minimal` delegate restriction — not the other sections, their wording, or the rest of the tool surface (ADR-0049). Override a profile's wording by dropping a `profile.{name}.md` into `ZRB_LLM_PROMPT_DIR`; run `ZRB_LLM_PROFILE=minimal` for a session on a small local model. See `AGENTS.md` → *LLM Prompt System*, ADR-0049.
+A profile changes **only** the `profile` section and the `minimal` delegate restriction — not `persona` / `principle` / `workflow` / `example`, their wording, or the rest of the tool surface (ADR-0049). `minimal` targets very small models (~3B), which cannot use delegation well, so the delegate tools would be pure token cost (ADR-0058). Override a profile's wording by dropping a `profile.{name}.md` into `ZRB_LLM_PROMPT_DIR`; run `ZRB_LLM_PROFILE=minimal` for a session on a small local model. An explicit name never changes with the model; only `auto` does, and an unrecognized value falls back to `standard`.
+
+`auto` (the default) derives the profile from the model id. It never guesses from a family name (`deepseek`, `qwen`, `llama` each span tiny→frontier); it reads a **stated size**:
+
+| Profile | `auto` selects it when |
+|---------|------------------------|
+| `minimal` | a stated count of 4B or less — `qwen2.5:3b`, `deepseek-r1:1.5b`, `qwen2.5:0.5b`; or a small-tier label served locally — `ollama:phi4-mini`, `lmstudio:gemma-tiny` |
+| `standard` | a stated count above 4B and up to 14B — `qwen3-12b`, `llama-3-8b`; or an id that declares nothing |
+| `capable` | a stated count above 14B — `llama-3-70b`, `llama-3.1-405b` |
+
+- The count is a **number**: `1.5b` is 1.5B, not 5B.
+- With two counts the first wins, so an MoE id reads as its total parameters (`qwen3-30b-a3b` → 30B → `capable`).
+- A count outranks a label: `some-mini-32b` stays `capable`.
+- A label **alone** never selects `minimal` — `nano`/`tiny` also name hosted models (`gpt-5-nano`) far stronger than a local 3B. It does with a **local provider prefix** (`ollama:`, `lmstudio:`, `llamacpp:`, `localai:`), e.g. `ollama:phi4-mini` (3.8B on a laptop). Ollama's hosted `:cloud` suffix is excluded, so `ollama:kimi-k2.6:cloud` stays `standard`.
+
+See `AGENTS.md` → *LLM Prompt System*, ADR-0049.
 
 ---
 
@@ -251,7 +308,7 @@ A profile changes **only** the `profile` section and the `minimal` delegate rest
 - [Programming the Agent](programming-the-agent.md) — the full map: tools, hooks, dynamic prompts, history processors, agent-as-pipeline-node
 - [XCom Deep Dive](../core-concepts/xcom-deep-dive.md) — how task outputs flow into `{ctx.xcom[...]}`
 - [LLMChatTask API Reference](../task-types/llmchat-task.md) — the full constructor and builder API
-- [LLM Assistant & AI Tasks](llm-integration.md) — TUI, `LLMTask`/`LLMChatTask` usage, troubleshooting
+- [LLM Assistant & AI Tasks](llm-integration.md) — TUI, `LLMTask`/`LLMChatTask` usage
 - [Extending the LLM](extending-the-llm.md) — tools, sub-agents, context management
 - `AGENTS.md` → *LLM Prompt System* and ADR-0044, ADR-0049 — section resolution, profiles and the auto ladder
 

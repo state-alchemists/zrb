@@ -54,3 +54,12 @@ def make_markdown_section(header: str, content: str, as_code: bool = False) -> s
         fence = "`" * fence_len
         return f"# {header}\n{fence}\n{content.strip()}\n{fence}\n"
     return f"# {header}\n{demote_markdown_headers(content.strip())}\n"
+
+
+def get_first_heading(content: str) -> str | None:
+    """The text of the first `# ` heading, or `None` when there is none."""
+    for line in content.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("# "):
+            return stripped[2:].strip()
+    return None

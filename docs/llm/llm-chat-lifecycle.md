@@ -85,7 +85,7 @@ flowchart TD
 
 `LLMTask._exec_action()` resolves dynamic attributes (model, system prompt, message), calls `create_agent()` to build a `pydantic_ai.Agent`, then enters `run_agent()`.
 
-`run_agent()` is where five agent and permission `ContextVar`s get bound: `current_ui`, `current_tool_confirmation`, `current_yolo`, `current_approval_channel`, and `current_permission_policy`. They're reset in the matching `finally`. (`current_agent_mode` is *not* bound here — it is set by the plan-mode tools.) See [maintainer-guide.md#context-propagation-internals](../contributing/maintainer-guide.md#context-propagation-internals) for the full ContextVar map.
+`run_agent()` is where five agent and permission `ContextVar`s get bound: `current_ui`, `current_tool_confirmation`, `current_yolo`, `current_approval_channel`, and `current_permission_policy`. They're reset in the matching `finally`. (`current_agent_mode` is *not* bound here — it is set by the plan-mode tools.) See [Context Propagation](../technical-specs/context-propagation.md) for the full ContextVar map.
 
 ---
 
@@ -104,7 +104,7 @@ flowchart TD
 
 This is the heart. Every turn:
 
-1. **Sanitize history** before the model call. Four steps in fixed order: `filter_nil_content` → `sanitize_orphaned_tool_calls` → drop empty messages → `ensure_alternating_roles`. Why each step exists, and which providers' bugs each one neutralises, is documented in [maintainer-guide.md#llm-history-sanitization-layer](../contributing/maintainer-guide.md#llm-history-sanitization-layer).
+1. **Sanitize history** before the model call. Four steps in fixed order: `filter_nil_content` → `sanitize_orphaned_tool_calls` → drop empty messages → `ensure_alternating_roles`. Why each step exists, and which providers' bugs each one neutralises, is documented in [LLM History Sanitization](../technical-specs/llm-history-sanitization.md).
 2. **Stream events** from `pydantic_ai` via the `event_stream_handler` passed to `agent.run()` — the handler also registers the live `RunContext` on the UI, so a message sent mid-turn can be steered into this same run instead of queuing (ADR-0078). `result_output`/`run_history` come from `agent.run()`'s direct return value, not a stream-witnessed event; `_execution_loop` re-fires a synthetic `AgentRunResultEvent` through the per-event handler afterward so usage accounting keeps working. The OpenAI client also gets a runtime monkey-patch from `openai_patch.py` so it never serialises `"content": null` when there are tool calls.
 3. **Classify exceptions** (`error_classifier.py`) and decide whether to retry, strip thinking parts, or give up (`retry_loop.py`).
 4. **Sanitize the result history** after a successful turn so the next call sees a provider-clean message list.

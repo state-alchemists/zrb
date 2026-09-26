@@ -2,10 +2,7 @@ import time
 from typing import TYPE_CHECKING, Any, Callable, Literal
 
 from zrb.llm.tool_call.args import parse_tool_args_value
-from zrb.llm.util.tool_args import (
-    is_empty_tool_args,
-    truncate_tool_args_values,
-)
+from zrb.llm.util.tool_args import is_empty_tool_args, truncate_tool_args_values
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import (
@@ -24,6 +21,90 @@ PrintKind = Literal[
 # Minimum seconds between "Prepare tool parameters" spinner repaints: thousands
 # of tool-arg deltas would otherwise flood stdout and add write latency.
 _PROGRESS_REPAINT_INTERVAL = 0.1
+
+
+class StreamedBlock:
+    """One live-streamed, later-collapsed block: the model's thinking or its
+    final-text reply. `StreamEventHandler` holds one of each.
+
+    `kind` is the `print_fn` kind every chunk is printed under — the UI's
+    `mark_*_block_start` registers the same kind to know which chunks belong
+    to the block. `label` heads the collapsed placeholder line.
+    """
+
+    def __init__(
+        self,
+        kind: PrintKind,
+        label: str,
+        on_start: Callable[[], None] | None,
+        on_collapse: Callable[[str, str], None] | None,
+        format_content: Callable[[str, bool], str],
+        print_fn: Callable[[str, str], Any],
+    ):
+        self._kind: PrintKind = kind
+        self._label = label
+        self._on_start = on_start
+        self._on_collapse = on_collapse
+        self._format_content = format_content
+        self._print_fn = print_fn
+        self._open = False
+        self._open_prefix = ""
+        self._full_chunks: list[str] = []
+
+    @property
+    def is_open(self) -> bool:
+        return self._open
+
+    def open(self, prefix: str) -> None:
+        """Start a block whose collapsed line will begin with `prefix`."""
+        if self._on_start is not None:
+            self._on_start()
+        self._open = True
+        self._open_prefix = prefix
+        self._full_chunks = []
+
+    def stream(self, raw: str, preserve_leading_newline: bool) -> None:
+        """Format, accumulate, and print one chunk of the block.
+
+        Accumulating here (not re-reading the buffer later) is deliberate:
+        `append_to_output`'s carriage-return handling can rewrite/erase part
+        of the *rendered* line whenever a chunk contains `\\r` — a mechanism
+        built for progress spinners, but it applies to any text. Re-deriving
+        the full text from the buffer after the fact would inherit that
+        erasure; keeping our own copy of exactly what was sent to print_fn
+        does not.
+        """
+        formatted = self._format_content(raw, preserve_leading_newline)
+        if self._on_collapse is not None:
+            self._full_chunks.append(formatted)
+        self._print_fn(formatted, self._kind)
+
+    def close(self) -> None:
+        """Collapse the just-finished block, if one was open.
+
+        Called whenever a part starts that ends this block, and when the run
+        ends. For the final-text block, `BaseUI.stream_ai_response` appends a
+        markdown-rendered copy separately afterward; this only collapses the
+        raw streamed copy so the two don't both sit on screen at once.
+        """
+        if not self._open:
+            return
+        self._open = False
+        chunks, self._full_chunks = self._full_chunks, []
+        if self._on_collapse is None:
+            return
+        full = "".join(chunks)
+        # Some providers return only an opaque reasoning signature; the
+        # count shows an empty block as such rather than as a bug.
+        char_count = len(full.strip())
+        # No trailing "\n": whatever prints next supplies its own leading one.
+        label = (
+            f"{self._label} ({char_count} chars)"
+            if char_count
+            else f"{self._label} (empty)"
+        )
+        collapsed = self._format_content(f"{self._open_prefix}{label}", True)
+        self._on_collapse(collapsed, full)
 
 
 class StreamEventHandler:
@@ -49,10 +130,6 @@ class StreamEventHandler:
         self._show_tool_call_detail = show_tool_call_detail
         self._show_tool_result = show_tool_result
         self._tool_block_recorder = tool_block_recorder
-        self._on_thinking_start = on_thinking_start
-        self._on_thinking_collapse = on_thinking_collapse
-        self._on_text_start = on_text_start
-        self._on_text_collapse = on_text_collapse
         self._on_tool_prepare_update = on_tool_prepare_update
 
         self._progress_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
@@ -65,12 +142,22 @@ class StreamEventHandler:
         # line needs the separator too.
         self._event_prefix = f"\n{self._indentation}"
         self._printed_tool_ids = set()
-        self._thinking_open = False
-        self._thinking_open_prefix = ""
-        self._thinking_full_chunks: list[str] = []
-        self._text_open = False
-        self._text_open_prefix = ""
-        self._text_full_chunks: list[str] = []
+        self._thinking = StreamedBlock(
+            "thinking",
+            "🧠 Thought",
+            on_thinking_start,
+            on_thinking_collapse,
+            self._format_content,
+            print_fn,
+        )
+        self._text = StreamedBlock(
+            "streaming",
+            "💬 Response",
+            on_text_start,
+            on_text_collapse,
+            self._format_content,
+            print_fn,
+        )
         # Part `.index` -> `tool_call_id` (deltas carry only `.index`), and
         # each tool call's `_event_prefix` when its placeholder opened. Used
         # only by the `on_tool_prepare_update` offset path.
@@ -199,103 +286,6 @@ class StreamEventHandler:
         if not skip_prefix_update:
             self._event_prefix = f"\n{self._indentation}"
 
-    def _open_thinking_block(self) -> None:
-        if self._on_thinking_start is not None:
-            self._on_thinking_start()
-        self._thinking_open = True
-        self._thinking_open_prefix = self._event_prefix
-        self._thinking_full_chunks = []
-
-    def _stream_thinking_content(
-        self, raw: str, preserve_leading_newline: bool
-    ) -> None:
-        """Format, accumulate, and print one chunk of live thinking text.
-
-        Accumulating here (not re-reading the buffer later) is deliberate:
-        `append_to_output`'s carriage-return handling can rewrite/erase part
-        of the *rendered* line whenever a chunk contains `\\r` — a mechanism
-        built for progress spinners, but it applies to any text. Re-deriving
-        "the full thinking text" from the buffer after the fact would inherit
-        that erasure; keeping our own copy of exactly what was sent to
-        print_fn does not.
-        """
-        formatted = self._format_content(raw, preserve_leading_newline)
-        if self._on_thinking_collapse is not None:
-            self._thinking_full_chunks.append(formatted)
-        self._print_fn(formatted, "thinking")
-
-    def _close_thinking_block(self) -> None:
-        """Collapse the just-finished thinking block, if one was open.
-
-        Called whenever a new part starts (a new thinking part, a tool call,
-        or the final text response) — any of those means the previous
-        thinking, if any, is done streaming.
-        """
-        if not self._thinking_open:
-            return
-        self._thinking_open = False
-        chunks, self._thinking_full_chunks = self._thinking_full_chunks, []
-        if self._on_thinking_collapse is None:
-            return
-        full = "".join(chunks)
-        # Some providers return only an opaque reasoning signature; the
-        # count shows an empty thought as such rather than as a bug.
-        char_count = len(full.strip())
-        # No trailing "\n": whatever prints next supplies its own leading one.
-        label = (
-            f"🧠 Thought ({char_count} chars)" if char_count else "🧠 Thought (empty)"
-        )
-        collapsed = self._format_content(
-            f"{self._thinking_open_prefix}{label}", preserve_leading_newline=True
-        )
-        self._on_thinking_collapse(collapsed, full)
-
-    def _open_text_block(self) -> None:
-        if self._on_text_start is not None:
-            self._on_text_start()
-        self._text_open = True
-        self._text_open_prefix = self._event_prefix
-        self._text_full_chunks = []
-
-    def _stream_text_content(self, raw: str, preserve_leading_newline: bool) -> None:
-        """Format, accumulate, and print one chunk of the live final-text
-        response. Mirrors `_stream_thinking_content` for the same reason:
-        accumulating here (not re-reading the buffer later) survives a stray
-        `\\r` in a chunk, which `append_to_output`'s carriage-return handling
-        would otherwise rewrite/erase from the *rendered* line."""
-        formatted = self._format_content(raw, preserve_leading_newline)
-        if self._on_text_collapse is not None:
-            self._text_full_chunks.append(formatted)
-        self._print_fn(formatted, "streaming")
-
-    def _close_text_block(self) -> None:
-        """Collapse the just-finished final-text block, if one was open.
-
-        Mirrors `_close_thinking_block` for the assistant's own reply
-        instead of its reasoning. Called whenever a new part starts (a tool
-        call or a thinking part) and when the run ends — either means the
-        text streamed so far is done. `BaseUI.stream_ai_response` appends a
-        markdown-rendered copy of the same text separately afterward; this
-        only collapses the raw streamed copy so the two don't both sit on
-        screen at once.
-        """
-        if not self._text_open:
-            return
-        self._text_open = False
-        chunks, self._text_full_chunks = self._text_full_chunks, []
-        if self._on_text_collapse is None:
-            return
-        full = "".join(chunks)
-        char_count = len(full.strip())
-        # No trailing "\n" — see the matching note in `_close_thinking_block`.
-        label = (
-            f"💬 Response ({char_count} chars)" if char_count else "💬 Response (empty)"
-        )
-        collapsed = self._format_content(
-            f"{self._text_open_prefix}{label}", preserve_leading_newline=True
-        )
-        self._on_text_collapse(collapsed, full)
-
     def _update_tool_prepare(self, tool_call_id: str, text: str) -> None:
         """Print/replace `tool_call_id`'s own "Prepare tool parameters" line.
 
@@ -324,11 +314,11 @@ class StreamEventHandler:
         # thinking: some providers stream one thought as several ThinkingParts,
         # which should collapse into one block.
         if isinstance(event.part, (ToolCallPart, TextPart)):
-            self._close_thinking_block()
+            self._thinking.close()
         # Likewise a non-text part closes an open text response; a new
         # TextPart merges into it.
         if not isinstance(event.part, TextPart):
-            self._close_text_block()
+            self._text.close()
 
         if isinstance(event.part, ToolCallPart):
             # Static placeholder; streaming providers overwrite it with the
@@ -358,13 +348,13 @@ class StreamEventHandler:
             # Mirrors the 🧠 lead-in below: marked once, on the block's first
             # chunk, so the icon survives into `full` — an expanded response
             # (Ctrl+O) keeps its 💬, not just the collapsed summary line.
-            if not self._text_open:
-                self._open_text_block()
+            if not self._text.is_open:
+                self._text.open(self._event_prefix)
                 marker = "💬 "
             else:
                 marker = ""
             if content or marker:
-                self._stream_text_content(
+                self._text.stream(
                     f"{self._event_prefix}{marker}{content}",
                     preserve_leading_newline=True,
                 )
@@ -373,12 +363,12 @@ class StreamEventHandler:
             # Only mark and print the 🧠 lead-in for the FIRST part of a
             # thinking streak — a later summary chunk (see the comment above)
             # continues the same open block instead of restarting it.
-            if not self._thinking_open:
-                self._open_thinking_block()
+            if not self._thinking.is_open:
+                self._thinking.open(self._event_prefix)
                 marker = "🧠 "
             else:
                 marker = ""
-            self._stream_thinking_content(
+            self._thinking.stream(
                 f"{self._event_prefix}{marker}{content}", preserve_leading_newline=True
             )
         self._was_tool_call_delta = False
@@ -397,7 +387,7 @@ class StreamEventHandler:
             # content_delta or "" mirrors the ThinkingPartDelta guard below —
             # not currently known to be None for text, but f"{None}" would
             # print the literal word "None" if a provider ever did.
-            self._stream_text_content(
+            self._text.stream(
                 event.delta.content_delta or "", preserve_leading_newline=False
             )
             self._was_tool_call_delta = False
@@ -406,7 +396,7 @@ class StreamEventHandler:
             # content_delta can be None for providers that deliver thinking
             # text out-of-band (via provider_details rather than the delta
             # itself) — f"{None}" would print the literal word "None".
-            self._stream_thinking_content(
+            self._thinking.stream(
                 event.delta.content_delta or "", preserve_leading_newline=False
             )
             self._was_tool_call_delta = False
@@ -479,8 +469,8 @@ class StreamEventHandler:
                 line = f"{self._event_prefix}🧰 {tool_call_id} | {tool_name}"
                 self.fprint(line, preserve_leading_newline=True, kind="tool_call")
             else:
-                args = get_truncated_event_part_args(event)
-                full_args = get_full_event_part_args(event)
+                args = get_event_part_args(event)
+                full_args = get_event_part_args(event, full=True)
                 collapsed = (
                     f"{self._event_prefix}🧰 {tool_call_id} | {tool_name} {args}"
                 )
@@ -508,10 +498,10 @@ class StreamEventHandler:
         self._was_tool_call_delta = False
 
     def handle_run_result(self, event: "AgentRunResultEvent"):
-        self._close_thinking_block()
+        self._thinking.close()
         # The normal case: a turn ends with the final text as the last
         # streamed part, so this is where most text blocks actually collapse.
-        self._close_text_block()
+        self._text.close()
         usage = event.result.usage
         if self._usage_callback is not None:
             self._usage_callback(usage, _last_request_usage(event.result))
@@ -563,9 +553,8 @@ def create_event_handler(
         usage_callback: Called with the run's `RunUsage` when the run completes.
         tool_block_recorder: Called with (collapsed, full) instead of
             printing a collapsed-by-default tool-call/result line directly,
-            so a UI that supports it can make the line expandable. UIs that
-            don't support toggling leave this unset and get the identical
-            collapsed-only line as before.
+            so a UI that supports it can make the line expandable. Unset, the
+            collapsed line is printed as-is.
         on_thinking_start: Called right before the first chunk of a thinking
             block is printed, so a UI that supports it can note where the
             block begins. Thinking always streams live either way.
@@ -575,7 +564,7 @@ def create_event_handler(
             `full` is every chunk actually sent to print_fn for that block
             (accumulated here, not re-read from the rendered buffer, since a
             stray carriage return in a chunk can rewrite/erase part of the
-            live-rendered line — see `_stream_thinking_content`). A UI that
+            live-rendered line — see `StreamedBlock.stream`). A UI that
             supports it replaces the already-printed live text with
             `collapsed` and keeps `full` for later expansion.
         on_text_start: Called right before the first chunk of the final text
@@ -629,26 +618,13 @@ def _last_request_usage(result: Any) -> Any:
     return None
 
 
-def get_truncated_event_part_args(event: "AgentStreamEvent | ToolCallEvent") -> Any:
-    if not hasattr(event, "part"):
-        return {}
-    part = getattr(event, "part")
-    if not hasattr(part, "args"):
-        return {}
-    args = getattr(part, "args")
-    if is_empty_tool_args(args):
-        return {}
-    parsed = parse_tool_args_value(args)
-    if parsed is not None:
-        return truncate_tool_args_values(parsed)
-    return args
+def get_event_part_args(
+    event: "AgentStreamEvent | ToolCallEvent", full: bool = False
+) -> Any:
+    """The event part's tool-call args, values truncated unless `full`.
 
-
-def get_full_event_part_args(event: "AgentStreamEvent | ToolCallEvent") -> Any:
-    """Same as `get_truncated_event_part_args`, but with untruncated values.
-
-    `event.part.args` is never mutated by parsing/truncation, so this is
-    just the same lookup with `full=True`.
+    `event.part.args` is never mutated by parsing/truncation, so both
+    variants can be read from the same event.
     """
     if not hasattr(event, "part"):
         return {}
@@ -660,7 +636,7 @@ def get_full_event_part_args(event: "AgentStreamEvent | ToolCallEvent") -> Any:
         return {}
     parsed = parse_tool_args_value(args)
     if parsed is not None:
-        return truncate_tool_args_values(parsed, full=True)
+        return truncate_tool_args_values(parsed, full=full)
     return args
 
 

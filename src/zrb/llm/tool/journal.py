@@ -1,4 +1,3 @@
-import difflib
 import os
 import re
 import shutil
@@ -9,6 +8,8 @@ from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.tool.journal_write import NOTE_CATEGORIES
+from zrb.util.markdown import get_first_heading
+from zrb.util.string.suggestion import suggest_name
 from zrb.util.truncate import truncate_text
 
 
@@ -143,10 +144,9 @@ def _suggest_similar(query: str, abs_dir: str) -> list[str]:
                 continue
             try:
                 with open(os.path.join(category_dir, filename), encoding="utf-8") as f:
-                    for line in f:
-                        if line.startswith("# "):
-                            candidates.append(line[2:].strip())
-                            break
+                    heading = get_first_heading(f.read())
+                if heading:
+                    candidates.append(heading)
             except OSError:
                 continue
-    return difflib.get_close_matches(query, candidates, n=5, cutoff=0.6)
+    return suggest_name(query, candidates, limit=5)

@@ -3,9 +3,10 @@ import os
 from typing import TYPE_CHECKING
 
 from zrb.llm.tool_call.args import parse_tool_args
-from zrb.llm.tool_call.argument_formatter.util import format_diff
-from zrb.util.cli.markdown import render_markdown
-from zrb.util.cli.terminal import get_terminal_size
+from zrb.llm.tool_call.argument_formatter.util import (
+    format_diff,
+    render_indented_diff,
+)
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart
@@ -66,13 +67,6 @@ def _format_replace(path, old_text, new_text, count, ui) -> str | None:
     if not diff_md:
         return None
 
-    indent = " " * 7
-    # Render at the real terminal width. width=None makes Rich fall back to 80
-    # when stdout is a capture pipe (see get_terminal_size note), which re-wraps
-    # the already-wide diff lines from util.py.
-    formatted_diff = render_markdown(diff_md, width=get_terminal_size().columns)
-    formatted_diff = "\n".join(
-        [f"{indent}{line}" for line in formatted_diff.splitlines()]
-    )
+    formatted_diff = render_indented_diff(diff_md)
 
     return f"       📄 File: {path}\n{formatted_diff}\n"

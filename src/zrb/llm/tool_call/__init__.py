@@ -20,14 +20,9 @@ from zrb.llm.tool_call.tool_policy.read_file_validation import (
     read_file_validation_policy,
 )
 
-# NOTE: `replace_in_file_validation_policy` is NOT re-exported here (unlike its
-# sibling policies) — it's the one tool_policy module that reaches into
-# `zrb.llm.tool` (for fuzzy-match validation), and `zrb.llm.tool`'s own package
-# init transitively needs `zrb.llm.common_tools`, which imports THIS package
-# for `bash_safe_command_policy` above. Re-exporting it here would make that a
-# real import cycle. Import it from its own module instead:
-# `from zrb.llm.tool_call.tool_policy.replace_in_file_validation import
-# replace_in_file_validation_policy`.
+# `replace_in_file_validation_policy` is not re-exported: it imports
+# `zrb.llm.tool`, whose init reaches `zrb.llm.common_tools`, which imports this
+# package — a cycle. Import it from `tool_policy.replace_in_file_validation`.
 
 __all__ = [
     "check_tool_policies",

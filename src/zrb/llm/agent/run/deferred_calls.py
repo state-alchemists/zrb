@@ -363,7 +363,7 @@ def _resolve_non_interactive_ask(call, policy_decision, force_ask):
 
     Without a human, a hard ASK can neither be prompted nor overridden by YOLO,
     so it would fall through to the stdin prompt at Priority 5 and block forever
-    (the root cause of the `--interactive false` plan-mode hang). Resolve it
+    (e.g. plan mode under `--interactive false`). Resolve it
     deterministically instead: auto-approve the plan gate (`ExitPlanMode`'s
     approval is a no-op with no user to read the plan, mirroring
     `AskUserQuestion`) and deny any other approval-gated tool rather than

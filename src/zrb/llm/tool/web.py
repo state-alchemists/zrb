@@ -13,6 +13,7 @@ from zrb.llm.agent_state import get_current_ui
 from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.tool.search.http_errors import BROWSER_USER_AGENT
 from zrb.llm.tool_call.untrusted_data import UNTRUSTED_DATA_NOTE
 from zrb.util.truncate import truncate_text
 
@@ -283,7 +284,7 @@ async def _fetch_page_content(url: str) -> tuple:
     ``run_blocking`` — inline they freeze the TUI's event loop for the whole
     download + parse.
     """
-    user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    user_agent = BROWSER_USER_AGENT
     fetch_timeout = CFG.LLM_WEB_HTTP_TIMEOUT / 1000 + TIMEOUT_MARGIN_SECONDS
     # A known .pdf extension lets us skip launching a browser entirely — but
     # only as a shortcut: plain HTTP can be refused (Cloudflare, cookie/JS wall)

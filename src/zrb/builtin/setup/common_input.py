@@ -10,6 +10,14 @@ def get_default_package_manager(_: AnyContext) -> str:
     return "brew" if sys.platform == "darwin" else "apt"
 
 
+def get_install_packages_cmd(ctx: AnyContext, packages: str) -> str:
+    """The install command for *packages* under the chosen package manager."""
+    package_manager: str = ctx.input["package-manager"]
+    verb = "-S" if package_manager == "pacman" else "install"
+    cmd = f"{package_manager} {verb} {packages}"
+    return f"sudo {cmd}" if ctx.input["use-sudo"] else cmd
+
+
 def get_default_use_sudo(_: AnyContext) -> bool:
     # brew must run unprivileged: `sudo brew` corrupts its directory permissions.
     return sys.platform != "darwin"

@@ -40,17 +40,15 @@ class CustomCommand(AnyCustomCommand):
             replacements[str(i + 1)] = kwargs.get(arg_name, "")
         replacements["ARGUMENTS"] = " ".join(kwargs.values())
 
-        # 1. Replace ${name:-default}
+        # Most specific form first: ${name:-default}, then ${name}, then $name.
         prompt = re.sub(
             r"\${([a-zA-Z0-9_]+):-([^}]+)}",
             lambda m: replacements.get(m.group(1), m.group(2)),
             prompt,
         )
-        # 2. Replace ${name}
         prompt = re.sub(
             r"\${([a-zA-Z0-9_]+)}", lambda m: replacements.get(m.group(1), ""), prompt
         )
-        # 3. Replace $name
         prompt = re.sub(
             r"\$([a-zA-Z0-9_]+)",
             lambda m: replacements.get(m.group(1), m.group(0)),

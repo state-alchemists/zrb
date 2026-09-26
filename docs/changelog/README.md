@@ -2,6 +2,7 @@
 
 # Changelog
 
+- [3.8.1](v3/3.8.1.md) — September 26, 2026
 - [3.8.0](v3/3.8.0.md) — September 24, 2026
 - [3.7.0](v3/3.7.0.md) — September 24, 2026
 - [3.6.0-3.6.1](v3/3.6.0-3.6.1.md) — September 19, 2026–September 22, 2026
@@ -10,7 +11,7 @@
 - [3.3.0](v3/3.3.0.md) — September 13, 2026
 - [3.2.0](v3/3.2.0.md) — September 12, 2026
 - [3.1.0](v3/3.1.0.md) — September 12, 2026
-- [3.0.0a1 - 3.0.0b11](v3/3.0.0.md) — September 3, 2026–September 11, 2026
+- [3.0.0](v3/3.0.0.md) — September 11, 2026
 - [2.69.0](v2/2.69.0.md) — September 2, 2026
 - [2.68.0](v2/2.68.0.md) — September 1, 2026
 - [2.67.0 - 2.67.7](v2/2.67.0-2.67.7.md) — August 27, 2026–August 31, 2026

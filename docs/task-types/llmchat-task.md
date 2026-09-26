@@ -106,7 +106,7 @@ chat = LLMChatTask(
 
 `custom_model_names`, and `ui_config`'s `show_ollama_models`/`show_pydantic_ai_models` fields, only affect the `/model` picker's autocomplete list in the chat TUI — see [Model Autocomplete](../configuration/llm-config.md#8-model-autocomplete).
 
-`active_skills` pre-activates named skills for the session (skipping their normal on-demand discovery); wrap an entry in `Tpl` to resolve it against the context. See the skill catalogue notes under [System Prompts & Identity](../configuration/llm-config.md#4-system-prompts--identity).
+`active_skills` pre-activates named skills for the session (skipping their normal on-demand discovery); wrap an entry in `Tpl` to resolve it against the context. See the skill catalogue notes under [Programming the Prompt → Rung 5](../llm/programming-the-prompt.md#rung-5--composing-sections-with-promptmanager).
 
 ---
 
@@ -219,7 +219,7 @@ chat.append_hook_factory(lambda hm: hm.add_hook(my_hook, events=[HookEvent.SESSI
 chat.append_hook_factory(lambda hm: hm.add_hook(other_hook, events=[HookEvent.SESSION_END]))
 ```
 
-> **Isolation differs from `LLMTask`.** `LLMChatTask` builds a **fresh** `HookManager` per execution and replays every registered factory onto it each time, so one session's hooks never leak into the next. `LLMTask` instead holds a **persistent** manager — on `LLMTask`, the *first* `append_hook_factory` call swaps the process-wide default for a fresh task-local manager (later calls apply to that same manager), unless a manager was passed explicitly to the constructor, which is never swapped. See [ADR-0072](../adr/adr-0072.md) and [Hooks — Defining Hooks Programmatically](../llm/hooks.md#defining-hooks-programmatically-python) for the full rationale.
+> **Isolation differs from `LLMTask`:** `LLMChatTask` replays every factory onto a fresh `HookManager` per execution, while `LLMTask` keeps a persistent one. The details are in [Hooks → Scoped to one task](../llm/hooks.md#scoped-to-one-task-append_hook_factory) and [ADR-0072](../adr/adr-0072.md).
 
 ### Approval & Policy
 

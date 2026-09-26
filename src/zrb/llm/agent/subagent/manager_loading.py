@@ -16,6 +16,7 @@ from zrb.config.config import CFG
 from zrb.llm.agent.subagent.definition import SubAgentDefinition
 from zrb.util.asset_scanner import scan_files
 from zrb.util.frontmatter import parse_frontmatter
+from zrb.util.markdown import get_first_heading
 from zrb.util.load import load_module_from_path
 
 _Default = TypeVar("_Default")
@@ -155,11 +156,7 @@ class SubAgentManagerLoading:
 
             # 2. Fallback: H1 in markdown body, full file as system prompt.
             if not is_name_resolved:
-                for line in content.splitlines():
-                    stripped = line.strip()
-                    if stripped.startswith("# "):
-                        name = stripped[2:].strip()
-                        break
+                name = get_first_heading(content) or name
                 if not system_prompt:
                     system_prompt = content
 

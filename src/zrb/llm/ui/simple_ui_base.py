@@ -182,8 +182,12 @@ class SimpleUI(BaseUI):
         )
         return 1
 
+    # Re-raise a cancelled `_run_loop` instead of returning `last_output` —
+    # for hosts whose shutdown must see the cancellation (the HTTP UI).
+    propagates_cancellation: bool = False
+
     async def run_async(self) -> str:
-        """Default implementation - handles common pattern."""
+        """Run `_run_loop` alongside the message loop; return the last output."""
         self._process_messages_task = asyncio.create_task(self.process_messages_loop())
         if hasattr(self, "_background_tasks"):
             self._background_tasks.add(self._process_messages_task)
@@ -191,10 +195,11 @@ class SimpleUI(BaseUI):
         if self._initial_message:
             self.submit_user_message(self.llm_task, self._initial_message)
 
+        was_cancelled = False
         try:
             await self._run_loop()
         except asyncio.CancelledError:
-            pass
+            was_cancelled = True
         finally:
             self._process_messages_task.cancel()
             try:
@@ -205,6 +210,8 @@ class SimpleUI(BaseUI):
                 if hasattr(self, "_background_tasks"):
                     self._background_tasks.discard(self._process_messages_task)
 
+        if was_cancelled and self.propagates_cancellation:
+            raise asyncio.CancelledError()
         return self.last_output
 
     async def _run_loop(self) -> None:

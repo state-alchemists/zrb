@@ -218,7 +218,7 @@ def test_truncation_of_long_results():
     )
 
     name, args, result = acc.completed_tools[0]
-    assert len(result) == 500 + 3  # truncated + "..."
+    assert len(result) == 500  # capped at 500 total, ellipsis included
     assert result.endswith("...")
 
 

@@ -72,6 +72,11 @@ EXTENSION_POINT_EXCEPTIONS = {
     # run_agent_task's isinstance check for "can this UI feed the activity
     # panel" — a capability probe, not a slot any task/UI constructor takes.
     "HasActivityTracking",
+    # llm/util/layered_registry.py's TypeVar bound — the shape an item needs
+    # (`name`, `path`), not a slot anything takes.
+    "RegistryItem",
+    # llm/util/roster.py's TypeVar bound — likewise a shape, not a slot.
+    "RosterItem",
 }
 
 

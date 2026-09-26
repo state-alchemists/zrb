@@ -166,8 +166,8 @@ class LLMTask(BaseTask):
                 run in order. This is the seam summarization uses.
             summarize_commands: Aliases for the summarize command exposed to any
                 attached UI.
-            hook_manager: `HookManager` supplying lifecycle hooks. Defaults to a
-                task-local manager.
+            hook_manager: `HookManager` supplying lifecycle hooks. Defaults to
+                the process-wide `hook_manager`.
             ui: UI receiving streamed output and prompts.
 
         Every parameter `BaseTask` accepts is also accepted here and behaves

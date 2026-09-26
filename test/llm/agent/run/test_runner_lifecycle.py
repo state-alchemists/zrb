@@ -413,13 +413,8 @@ async def test_run_agent_multi_ui_resolution():
     limiter.count_tokens.return_value = 10
     limiter.fit_context_window.side_effect = lambda h, m, r, *args, **kwargs: h
 
-    # MultiUI is imported (real, module-level) into agent/run/setup.py, which
-    # is where resolve_context_dependencies actually looks it up — patch
-    # there, not at zrb.llm.ui.multi_ui, since setup.py's own name binding
-    # predates this patch.
-    with patch(
-        "zrb.llm.agent.run.setup.MultiUI", return_value=MagicMock()
-    ) as mock_multi:
+    # create_combined_ui builds the MultiUI inside multi_ui.py, so patch there.
+    with patch("zrb.llm.ui.multi_ui.MultiUI", return_value=MagicMock()) as mock_multi:
         await run_agent(
             agent=agent,
             message="Hi",

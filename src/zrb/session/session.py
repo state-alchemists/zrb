@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import itertools
 import json
 from typing import TYPE_CHECKING, Any, Coroutine, Iterator
 
@@ -72,21 +73,21 @@ class Session(AnySession):
         self._action_coros: dict[AnyTask, asyncio.Task[Any]] = {}
         self._monitoring_coros: dict[AnyTask, asyncio.Task[Any]] = {}
         self._coros: list[asyncio.Task[Any]] = []
-        self._colors = [
-            GREEN,
-            YELLOW,
-            BLUE,
-            MAGENTA,
-            CYAN,
-            BRIGHT_GREEN,
-            BRIGHT_YELLOW,
-            BRIGHT_BLUE,
-            BRIGHT_MAGENTA,
-            BRIGHT_CYAN,
-        ]
-        self._icons = ICONS
-        self._color_index = 0
-        self._icon_index = 0
+        self._colors = itertools.cycle(
+            [
+                GREEN,
+                YELLOW,
+                BLUE,
+                MAGENTA,
+                CYAN,
+                BRIGHT_GREEN,
+                BRIGHT_YELLOW,
+                BRIGHT_BLUE,
+                BRIGHT_MAGENTA,
+                BRIGHT_CYAN,
+            ]
+        )
+        self._icons = itertools.cycle(ICONS)
         self._is_terminated = False
         self._main_task: AnyTask | None = None
         self._main_task_path: list[str] = []
@@ -444,20 +445,12 @@ class Session(AnySession):
     def _get_color(self, task: AnyTask) -> int:
         if task.color is not None:
             return task.color
-        chosen = self._colors[self._color_index]
-        self._color_index += 1
-        if self._color_index >= len(self._colors):
-            self._color_index = 0
-        return chosen
+        return next(self._colors)
 
     def _get_icon(self, task: AnyTask) -> str:
         if task.icon is not None:
             return task.icon
-        chosen = self._icons[self._icon_index]
-        self._icon_index += 1
-        if self._icon_index >= len(self._icons):
-            self._icon_index = 0
-        return chosen
+        return next(self._icons)
 
     def is_allowed_to_run(self, task: AnyTask):
         if self.is_terminated:

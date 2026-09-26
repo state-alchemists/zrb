@@ -1,4 +1,4 @@
-"""Recursive file-system scanning utility shared by SkillManager and SubAgentManager."""
+"""Recursive file-system scanning shared by the skill, sub-agent and hook loaders."""
 
 from collections.abc import Callable
 from pathlib import Path
@@ -29,16 +29,13 @@ def scan_files(
     effective_ignore = ignore_dirs if ignore_dirs is not None else IGNORE_DIRS
     try:
         search_path = directory.resolve()
-        _scan_recursive(
-            search_path, search_path, max_depth, 0, on_file_found, effective_ignore
-        )
+        _scan_recursive(search_path, max_depth, 0, on_file_found, effective_ignore)
     except (PermissionError, OSError):
         # See docstring: one inaccessible branch must not abort the whole scan.
         pass
 
 
 def _scan_recursive(
-    base_dir: Path,
     current_dir: Path,
     max_depth: int,
     current_depth: int,
@@ -53,7 +50,6 @@ def _scan_recursive(
                 if item.name in ignore_dirs or item.name.startswith("."):
                     continue
                 _scan_recursive(
-                    base_dir,
                     item,
                     max_depth,
                     current_depth + 1,

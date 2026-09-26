@@ -321,17 +321,6 @@ If you only interact with the built-in `llm_chat` task (i.e. you don't subclass 
 
 Update your environment variable if you had set a custom timeout.
 
-### New Features in 2.x
-
-These are additions, not breaking changes, but worth knowing:
-
-| Feature | How to use |
-|---|---|
-| Multiple UIs | `llm_chat.append_ui_factory(...)` — broadcast to CLI + Telegram simultaneously |
-| Approval channels | `llm_chat.append_approval_channel(...)` — first approval from any channel wins |
-| Rewind/Snapshot | `/rewind` command in TUI; `enable_rewind=True` on `LLMChatTask` |
-| MCP servers | `mcp-config.json` — see [MCP Support](../llm/mcp-support.md) |
-| Worktree tools | `EnterWorktree` / `ExitWorktree` tools available in agent sessions |
-| PowerShell autocomplete | `zrb shell autocomplete powershell` |
+The 2.x line also added features that need no migration (multiple UIs, approval channels, rewind, MCP, worktrees, …); they are listed per release in the [changelog](../changelog/README.md).
 
 🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Upgrading Guide

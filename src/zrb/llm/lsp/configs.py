@@ -13,43 +13,23 @@ from pathlib import Path
 
 
 def _names_on_path(wanted: set[str]) -> set[str]:
-    """Which of *wanted* plausibly exist on ``$PATH``, one listing per directory.
+    """Which bare names in *wanted* plausibly exist on ``$PATH``.
 
-    *wanted* holds bare executable names; a command carrying a directory
-    resolves against that directory rather than ``$PATH``, so it has no
-    business here.
+    A prefilter for ``shutil.which``, O($PATH) instead of O(names x $PATH).
+    Returns ``os.path.normcase``-d names (Windows matches ``GOPLS.EXE`` for
+    ``gopls``). Matching is deliberately loose (``gopls``, ``gopls.exe`` and
+    ``gopls.cmd`` all match): a false positive costs one ``which`` call, a
+    false negative hides an installed server.
 
-    Returns ``os.path.normcase``-d names, which is what callers must match on:
-    Windows resolves executables case-insensitively, so a configured ``gopls``
-    is satisfied by ``GOPLS.EXE``.
+    It must search everywhere ``which`` would:
 
-    A prefilter, not a resolver: it answers "is this name worth a ``which``
-    call" in O($PATH) rather than O(names x $PATH). Matching is loose on
-    purpose -- ``gopls`` matches ``gopls``, ``gopls.exe`` and ``gopls.cmd``
-    alike -- because a false positive costs one ``which`` call while a false
-    negative hides an installed server.
-
-    Where to look has to cover everywhere ``shutil.which`` would look, since
-    anything ruled out here never reaches ``which`` to be resolved: an unset
-    ``$PATH`` falls back to the system default, an empty one means nowhere at
-    all, and an empty *entry* within one means the working directory. The last
-    two read alike and are not: ``which`` returns ``None`` for ``PATH=""``
-    before it splits anything (bpo-35755), while ``PATH=":"`` is two empty
-    entries and does look in the working directory.
-
-    Only a successful listing is a negative. A missing directory or a plain
-    file is one -- ``which`` stats a name under it and fails too -- but every
-    other refusal, a permission denial above all, says the directory could not
-    be read rather than that it holds nothing. A directory can be searchable
-    without being readable, and ``which`` stats the single name it wants, so it
-    resolves what no listing can see; where that happens the prefilter drops
-    out and every name goes through to ``which``.
-
-    Both system defaults are searched because the two sources disagree:
-    CPython's ``shutil.which`` reads ``CS_PATH`` and falls back to
-    ``os.defpath``, while its documentation promises ``os.defpath`` alone. A
-    directory scanned that the resolver ignores costs nothing; one skipped that
-    the resolver would have used hides an installed server.
+    - Unset ``$PATH``: both ``CS_PATH`` and ``os.defpath``, since CPython
+      reads the former but documents only the latter.
+    - ``PATH=""``: nowhere (``which`` returns ``None``, bpo-35755). An empty
+      *entry* (``PATH=":"``) means the working directory.
+    - A missing directory or plain file is a negative. Any other listing
+      error (e.g. a searchable but unreadable directory, which ``which`` can
+      still stat into) disables the prefilter: every name is returned.
     """
     search_path = os.environ.get("PATH")
     if search_path is None:

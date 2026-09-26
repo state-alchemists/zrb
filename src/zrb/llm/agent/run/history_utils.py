@@ -7,7 +7,7 @@ themselves produced one turn earlier — `content: null`, missing
 each `converse_stream` call to neutralise those provider-side inconsistencies.
 
 For the full failure catalogue and the rationale behind each step, see
-docs/contributing/maintainer-guide.md#llm-history-sanitization-layer.
+docs/technical-specs/llm-history-sanitization.md.
 """
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ from zrb.llm.message import (
     sanitize_orphaned_tool_calls,
     validate_tool_pair_integrity,
 )
+from zrb.util.truncate import truncate_display
 
 _TOOL_RESULT_MAX_CHARS = 500
 
@@ -432,8 +433,7 @@ def _tool_return_to_text(part: Any) -> str:
     name = part.tool_name if hasattr(part, "tool_name") else "(unnamed)"
     raw = part.content
     content = str(raw) if raw is not None else "(no value)"
-    if len(content) > _TOOL_RESULT_MAX_CHARS:
-        content = content[:_TOOL_RESULT_MAX_CHARS] + "..."
+    content = truncate_display(content, _TOOL_RESULT_MAX_CHARS)
     return f'(sanitized-history) previous result from tool "{name}": ' f"{content}"
 
 
@@ -456,8 +456,7 @@ def _retry_prompt_to_text(part: Any) -> str:
     name = getattr(part, "tool_name", None) or "(unnamed)"
     raw = part.content if hasattr(part, "content") else None
     content = str(raw) if raw not in (None, "") else "(no value)"
-    if len(content) > _TOOL_RESULT_MAX_CHARS:
-        content = content[:_TOOL_RESULT_MAX_CHARS] + "..."
+    content = truncate_display(content, _TOOL_RESULT_MAX_CHARS)
     return f'(sanitized-history) prior retry feedback for tool "{name}": ' f"{content}"
 
 

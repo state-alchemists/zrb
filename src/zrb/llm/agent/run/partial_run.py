@@ -11,6 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from zrb.util.truncate import truncate_display
+
 _TOOL_RESULT_PREVIEW_CHARS = 500
 
 
@@ -59,13 +61,19 @@ class PartialRunAccumulator:
             args = event.part.args
             self._pending_calls[event.part.tool_call_id] = (
                 event.part.tool_name,
-                self._truncate(str(args)) if args is not None else "",
+                (
+                    truncate_display(str(args), _TOOL_RESULT_PREVIEW_CHARS)
+                    if args is not None
+                    else ""
+                ),
             )
 
         elif isinstance(event, ToolResultEvent):
             pending = self._pending_calls.pop(event.part.tool_call_id, None)
             if pending is not None and pending[0] == event.part.tool_name:
-                result_preview = self._truncate(str(event.part.content))
+                result_preview = truncate_display(
+                    str(event.part.content), _TOOL_RESULT_PREVIEW_CHARS
+                )
                 self.completed_tools.append((*pending, result_preview))
 
     def build_summary(self) -> str:
@@ -105,9 +113,3 @@ class PartialRunAccumulator:
             "Follow the user's latest message over the earlier plan."
         )
         return "\n".join(lines)
-
-    @staticmethod
-    def _truncate(text: str, max_chars: int = _TOOL_RESULT_PREVIEW_CHARS) -> str:
-        if len(text) > max_chars:
-            return text[:max_chars] + "..."
-        return text
