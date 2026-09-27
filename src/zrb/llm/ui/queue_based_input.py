@@ -72,7 +72,11 @@ class QueueBasedInput:
         if self.waiting_for_input:
             self.input_queue.put_nowait(text)
             return
-        outcome = run_custom_command(text, self._simple_ui.custom_commands)
+        outcome = (
+            run_custom_command(text, self._simple_ui.custom_commands)
+            if isinstance(text, str)
+            else None
+        )
         if outcome is None:
             self._simple_ui.submit_message(text)
         elif outcome.prompt is not None:

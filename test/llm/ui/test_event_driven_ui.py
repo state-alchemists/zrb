@@ -151,6 +151,18 @@ async def test_handle_incoming_message_runs_action_command():
     assert ui.printed == ["Toggled"]
 
 
+def test_handle_incoming_message_forwards_non_string_input():
+    from zrb.llm.custom_command import ActionCommand
+
+    ui = MockEventUI(custom_commands=[ActionCommand("/toggle", lambda kwargs: "x")])
+    ui.waiting_for_input = False
+    payload = {"type": "image"}
+
+    ui.handle_incoming_message(payload)
+
+    ui.submit_user_message.assert_called_with(ui.llm_task, payload)
+
+
 @pytest.mark.asyncio
 async def test_run_async_triggers_event_loop():
     ui = MockEventUI()
