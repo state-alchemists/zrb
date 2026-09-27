@@ -58,6 +58,7 @@ async def hands_free():
     async for audio in _utterances():
         try:
             text = (await engine.transcribe(audio)).strip()
+            log(f"hands-free: transcribed {len(text)} chars")
         except Exception as e:
             # A background trigger has no UI to show this in, so say it.
             log(f"hands-free: transcription failed: {e}")
@@ -129,6 +130,7 @@ async def _listen(np, sd, threshold: float, max_silence: float):
     silent_for = 0.0
     cooldown_blocks = 0  # in blocks, not wall time, for the same reason
     with stream:
+        log(f"hands-free: listening on {sd.query_devices(kind='input')['name']}")
         while _hands_free["on"]:
             block, agent_speaking = await blocks.get()
             if agent_speaking:
@@ -153,6 +155,7 @@ async def _listen(np, sd, threshold: float, max_silence: float):
                 continue
             if duration - silent_for >= MIN_SPEECH_SECONDS:
                 audio = np.concatenate(speech, axis=0)
+                log(f"hands-free: heard {duration - silent_for:.1f} s of speech")
                 yield (audio * 32767).astype(np.int16).tobytes()
             speech, silent_for = [], 0.0
 
