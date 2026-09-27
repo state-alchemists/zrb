@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import threading
 from contextlib import contextmanager
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -13,6 +14,7 @@ from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.speech import SpeechConfig, enable_speech
 from zrb.llm.speech.feature import SpeechSession, describe_tool_call
+from zrb.llm.util.feature_config import close_feature_sessions
 
 NOTE = "Rest on screen."
 
@@ -66,6 +68,15 @@ class FakeSpeaker:
 
     def say(self, text):
         self.said.append(text)
+
+    def say_later(self, produce):
+        """Run *produce* off the test's event loop, as the speaker's thread
+        does."""
+        produced = []
+        worker = threading.Thread(target=lambda: produced.append(produce()))
+        worker.start()
+        worker.join()
+        self.said.extend(produced)
 
     def clear(self):
         self.cleared += 1
@@ -123,6 +134,7 @@ def _fake_summarizer(monkeypatch, output=None, error=None):
     class Agent:
         async def run(self, text):
             prompts.append(text)
+            await asyncio.sleep(0.01)  # a model call awaits
             if error:
                 raise error
             return SimpleNamespace(output=output)
@@ -136,8 +148,11 @@ def _fake_summarizer(monkeypatch, output=None, error=None):
 
 
 async def _settle(session):
-    await asyncio.sleep(0)
-    await asyncio.sleep(0)
+    """Wait for the summary, which is spoken from a thread of its own."""
+    for _ in range(200):
+        if session.speaker.said:
+            return
+        await asyncio.sleep(0.01)
 
 
 @pytest.mark.asyncio
@@ -261,7 +276,6 @@ def test_enable_speech_reads_cfg_when_a_session_starts(monkeypatch, enabled):
         HookEvent.STOP,
         HookEvent.PERMISSION_REQUEST,
         HookEvent.NOTIFICATION,
-        HookEvent.SESSION_END,
     }
     assert command.command == "/talk"
     assert command.handle({}, None) == f"🔊 Speech {'off' if enabled else 'on'}"
@@ -305,10 +319,10 @@ def test_enabling_speech_again_replaces_the_hooks_already_registered():
     task = PersistentHookTask()
 
     enable_speech(task, SpeechConfig(voice="alloy"))
-    assert _hook_count(task.hook_manager) == 4
+    assert _hook_count(task.hook_manager) == 3
 
     enable_speech(task, SpeechConfig(voice="echo"))
-    assert _hook_count(task.hook_manager) == 4
+    assert _hook_count(task.hook_manager) == 3
 
 
 def test_enabling_speech_again_uses_the_new_config():
@@ -338,25 +352,19 @@ def test_a_task_reusing_one_manager_never_gains_a_second_set_of_hooks():
     for _ in range(4):
         register_hooks(manager)
 
-    assert _hook_count(manager) == 4
+    assert _hook_count(manager) == 3
 
 
-@pytest.mark.asyncio
-async def test_a_session_end_drops_the_session_so_the_next_one_starts_fresh():
+def test_a_closed_session_is_dropped_so_the_next_one_starts_fresh():
     """Otherwise the registry keeps every session this process ever served,
     and the next session's `/speech` would toggle a dead one."""
     chat = MagicMock()
     enable_speech(chat, SpeechConfig(commands=["/speech"]))
-    (register_hooks,) = chat.append_hook_factory.call_args.args
     (create_commands,) = chat.append_custom_command.call_args.args
-    manager = HookManager()
 
     with _as_session("first"):
-        register_hooks(manager)
         (before,) = create_commands()
-        (session_end,) = manager.registry.get_hooks(HookEvent.SESSION_END)
-
-        await session_end(HookContext(event=HookEvent.SESSION_END, event_data={}))
+        close_feature_sessions("first")
         (after,) = create_commands()
 
     assert before is not after
@@ -375,6 +383,25 @@ def test_closing_a_session_takes_its_hooks_back_out_and_stops_the_speaker():
     assert session.speaker.closed == 1
 
 
+def test_speech_says_so_when_the_hook_allowlist_leaves_it_out(caplog, monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_HOOKS", ["handle_stop", "my_hook"])
+
+    with caplog.at_level(logging.WARNING, logger="zrb.llm.speech.feature"):
+        _session()
+
+    assert "handle_notification, handle_permission_request" in caplog.text
+    assert "handle_stop" not in caplog.text
+
+
+def test_speech_with_no_hook_allowlist_warns_of_nothing(caplog, monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_HOOKS", [])
+
+    with caplog.at_level(logging.WARNING, logger="zrb.llm.speech.feature"):
+        _session()
+
+    assert "allowlist" not in caplog.text
+
+
 def test_speech_says_so_when_the_hook_subsystem_is_off(caplog, monkeypatch):
     monkeypatch.setattr(CFG, "HOOKS_ENABLED", False)
 
@@ -382,3 +409,55 @@ def test_speech_says_so_when_the_hook_subsystem_is_off(caplog, monkeypatch):
         enable_speech(PersistentHookTask())
 
     assert "ZRB_HOOKS_ENABLED" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_a_summary_survives_the_hook_loop_closing(monkeypatch):
+    """Python hooks run on a loop of their own, closed when the hook returns;
+    a summary left as a task on it was cancelled and nothing was spoken."""
+    _fake_summarizer(monkeypatch, output="All tests pass.")
+    session = _session(max_chars=30, summarize=True)
+    manager = HookManager(search_dirs=[])
+    session.register_hooks(manager)
+
+    await manager.execute_hooks(
+        HookEvent.STOP, {}, last_assistant_message="The long reply. " * 10
+    )
+    await _settle(session)
+
+    assert session.speaker.said == [f"All tests pass. {NOTE}"]
+
+
+@pytest.mark.asyncio
+async def test_a_session_ignores_another_sessions_events_on_a_shared_manager():
+    with _as_session("first"):
+        first = _session()
+    with _as_session("second"):
+        second = _session()
+
+        await first.handle_stop(_stop("for the second session"))
+        await first.handle_permission_request(
+            HookContext(
+                event=HookEvent.PERMISSION_REQUEST, event_data={}, tool_name="Shell"
+            )
+        )
+        await second.handle_stop(_stop("for the second session"))
+
+    assert first.speaker.said == []
+    assert second.speaker.said == ["for the second session"]
+
+
+@pytest.mark.asyncio
+async def test_a_question_is_spoken_clean_and_fitted():
+    session = _session(max_chars=30)
+
+    await session.handle_notification(
+        HookContext(
+            event=HookEvent.NOTIFICATION,
+            event_data={},
+            notification_type="elicitation_dialog",
+            message="Pick `one`. " + "Very long detail. " * 10,
+        )
+    )
+
+    assert session.speaker.said == [f"Pick one. Very long detail. {NOTE}"]

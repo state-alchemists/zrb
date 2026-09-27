@@ -9,7 +9,8 @@ the two during a session.
 
 Read when a chat session starts, not at import, so `zrb_init.py` may change
 any of these after importing zrb. Audio dependencies (sounddevice, numpy,
-vosk) load only when the microphone is first opened.
+vosk) load only when the microphone is first opened. A negative listening
+duration counts as 0.
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_THRESHOLD: str = "0.01"
         self.DEFAULT_LLM_DICTATION_SILENCE: str = "1.0"
         self.DEFAULT_LLM_DICTATION_WAKE_WINDOW: str = "8.0"
-        self.DEFAULT_LLM_DICTATION_MIN_SPEECH: str = "0.4"
+        self.DEFAULT_LLM_DICTATION_MIN_SPEECH: str = "0.25"
         self.DEFAULT_LLM_DICTATION_MAX_UTTERANCE: str = "30.0"
         self.DEFAULT_LLM_DICTATION_MAX_BACKLOG: str = "30.0"
         self.DEFAULT_LLM_DICTATION_PRE_ROLL: str = "0.3"
@@ -110,7 +111,10 @@ class LLMDictationMixin:
     LLM_DICTATION_SILENCE = EnvField(
         float,
         fallback=1.0,
-        doc="Seconds of silence that end an utterance. Default: 1.0.",
+        doc=(
+            "Seconds of silence that end an utterance; at least one 0.1 s "
+            "block. Default: 1.0."
+        ),
     )
 
     LLM_DICTATION_WAKE_WINDOW = EnvField(
@@ -124,8 +128,11 @@ class LLMDictationMixin:
 
     LLM_DICTATION_MIN_SPEECH = EnvField(
         float,
-        fallback=0.4,
-        doc="Shortest speech kept, in seconds; shorter bursts are coughs and clicks.",
+        fallback=0.25,
+        doc=(
+            "Shortest speech kept, in seconds; shorter bursts are coughs and "
+            "clicks. Default: 0.25."
+        ),
     )
 
     LLM_DICTATION_MAX_UTTERANCE = EnvField(
@@ -168,9 +175,10 @@ class LLMDictationMixin:
         comma_list,
         serialize=comma_join,
         doc=(
-            "Comma-separated phrases that, said at the start of a short "
-            "hands-free answer to a tool approval, approve it. Anything else "
-            "said then denies it, with what was said as the reason."
+            "Comma-separated phrases that approve a tool approval when a "
+            "hands-free answer is made only of them and polite words "
+            "('yes please'). Anything else said then denies it, with what was "
+            "said as the reason."
         ),
     )
 
@@ -178,9 +186,10 @@ class LLMDictationMixin:
         comma_list,
         serialize=comma_join,
         doc=(
-            "Comma-separated phrases that, said alone as a hands-free answer "
-            "to a tool approval, deny it. An answer that does not approve "
-            "denies too, with what was said as the reason."
+            "Comma-separated phrases that deny a tool approval when a "
+            "hands-free answer is made only of them and polite words "
+            "('no thanks'). An answer that does not approve denies too, with "
+            "what was said as the reason."
         ),
     )
 

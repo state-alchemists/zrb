@@ -32,7 +32,7 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 | `ZRB_LLM_UI_COMMAND_VOICE` | `ZRB_LLM_DICTATION_COMMANDS` |
 | `ZRB_LLM_UI_COMMAND_PHOTO` | `ZRB_LLM_CAMERA_COMMANDS` |
 
-There are no aliases: an old variable is ignored. New settings are listed in [LLM configuration § 23](../configuration/llm-config.md#23-voice-and-camera).
+There are no aliases: an old variable is ignored. Each command in `ZRB_LLM_CAMERA_COMMANDS`, `ZRB_LLM_DICTATION_COMMANDS` and `ZRB_LLM_SPEECH_COMMANDS` must start with `/` and is matched case-sensitively: `photo` or `/Photo` never matches `/photo`. New settings are listed in [LLM configuration § 23](../configuration/llm-config.md#23-voice-and-camera).
 
 ### Code
 
@@ -67,10 +67,7 @@ guide](../llm/llm-custom-ui.md) recommends. Every removal fails loudly with
 | `ui.current_confirmation` | `ui.confirmation.current` |
 | `ui.confirmation_queue` | `ui.confirmation.queue` |
 | `ui.confirmation_output_buffer` | `ui.confirmation.output_buffer` |
-| `ui.voice_mode_active` | `ui.voice.mode_active` |
-| `ui.voice_recording_active` | `ui.voice.recording_active` |
-| `ui.voice_stop_event` | `ui.voice.stop_event` |
-| `ui.voice_task` | `ui.voice.task` |
+| `ui.voice_mode_active`, `ui.voice_recording_active`, `ui.voice_stop_event`, `ui.voice_task` | `ui.voice.*` in 3.3.0; removed in 3.10.0 ([above](#upgrading-to-3100)) |
 | `ui.active_subagent_persona` | `ui.persona.active_subagent` |
 | `ui.original_persona_snapshot` | `ui.persona.original_snapshot` |
 | `ui.session_token_usage` | `ui.usage.session_token_usage` |
@@ -80,15 +77,15 @@ guide](../llm/llm-custom-ui.md) recommends. Every removal fails loudly with
 
 Each was a getter (and often a setter) whose whole body reached one field on
 one part, so the part is the shorter name for the same state. Reads and writes
-both move — `ui.voice.mode_active = True` replaces `ui.voice_mode_active = True`.
+both move — `ui.usage.context_tokens = 0` replaces `ui.context_tokens = 0`.
 
 `accumulate_usage` is deliberately not in the table. It stays a method on
 `BaseUI` because the custom UI guide lists it as an enrichment hook and
 `MultiUI`/`BufferedUI` implement it too.
 
 A UI that tolerates hosts other than `BaseUI` should reach the part, not the
-field: `getattr(ui, "voice", None)` in place of
-`getattr(ui, "voice_mode_active", False)`. `StdUI` and `MultiUI` keep none of
+field: `getattr(ui, "usage", None)` in place of
+`getattr(ui, "session_token_usage", 0)`. `StdUI` and `MultiUI` keep none of
 this state, exactly as before.
 
 ---

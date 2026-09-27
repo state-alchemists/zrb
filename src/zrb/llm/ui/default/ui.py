@@ -612,6 +612,18 @@ class UI(BaseUI):
     def is_waiting_for_answer(self) -> bool:
         return self.confirmation.current is not None
 
+    @property
+    def pending_answer_since(self) -> float | None:
+        # In a sub-agent's view the pending request may belong to an agent not
+        # on screen, so a spoken reply answers nothing there.
+        if self.viewing_agent_id is not None:
+            return None
+        return self.confirmation.current_since
+
+    @property
+    def is_waiting_for_choice(self) -> bool:
+        return self.confirmation.current_spec is not None
+
     def submit_answer(self, text: str) -> None:
         if not self._confirmation.submit_user_answer(text):
             self.submit_message(text)

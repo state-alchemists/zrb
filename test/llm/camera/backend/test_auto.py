@@ -39,17 +39,21 @@ class _FakeProcess:
     ):
         self._stdout = stdout
         self._stderr = stderr
-        self.returncode = returncode
+        # Like a real process: no return code until it exits.
+        self._exit_code = returncode
+        self.returncode: int | None = None
         self._hang_seconds = hang_seconds
         self.killed = False
 
     async def communicate(self):
         if self._hang_seconds:
             await asyncio.sleep(self._hang_seconds)
+        self.returncode = self._exit_code
         return (self._stdout, self._stderr)
 
     def kill(self):
         self.killed = True
+        self.returncode = -9
 
     async def wait(self):
         return self.returncode
@@ -242,31 +246,6 @@ async def test_linux_ffmpeg_falls_back_to_raw_when_mjpeg_unsupported(clean_env):
 
 
 @pytest.mark.asyncio
-async def test_capture_timeout_returns_none_with_hint(clean_env):
-    """A hung ffmpeg (open camera, no frame ever delivered) times out instead
-    of blocking forever -- this is the `_run` timeout backstop."""
-    clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
-    clean_env.setattr("shutil.which", _which_only("ffmpeg"))
-
-    hung_procs: list[_FakeProcess] = []
-
-    def _make_proc(*args, **kwargs):
-        proc = _FakeProcess(stdout=b"jpeg", hang_seconds=10)
-        hung_procs.append(proc)
-        return proc
-
-    with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
-        backend = AutoCameraBackend(ffmpeg=FfmpegCameraBackend(timeout=0.05))
-        result = await backend.capture(None)
-
-    # The inner backend's own timeout still holds under auto's longer one.
-    assert result is None
-    assert all(proc.killed for proc in hung_procs)
-    assert "timed out" in backend.get_failure_hint()
-
-
-@pytest.mark.asyncio
 async def test_linux_ffmpeg_explicit_device_overrides_default(clean_env):
     clean_env.setattr("sys.platform", "linux")
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
@@ -309,71 +288,6 @@ async def test_windows_ffmpeg_uses_explicit_device_name(clean_env):
 
 
 @pytest.mark.asyncio
-async def test_a_hung_termux_capture_is_abandoned_after_the_timeout(
-    clean_env, tmp_path
-):
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
-    clean_env.setattr("shutil.which", _which_only("termux-camera-photo"))
-    hung: list[_FakeProcess] = []
-
-    def _make_proc(*args, **kwargs):
-        proc = _FakeProcess(hang_seconds=10)
-        hung.append(proc)
-        return proc
-
-    backend = TermuxCameraBackend(str(tmp_path / "photo.jpg"), timeout=0.05)
-    with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
-        result = await backend.capture(None)
-
-    assert result is None
-    assert [proc.killed for proc in hung] == [True]
-
-
-@pytest.mark.asyncio
-async def test_an_mjpeg_attempt_that_times_out_leaves_no_time_for_the_raw_one(
-    clean_env,
-):
-    """Both ffmpeg attempts share one deadline: a 0.05 s timeout never
-    becomes 0.1 s."""
-    clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("shutil.which", _which_only("ffmpeg"))
-    started: list[_FakeProcess] = []
-
-    def _make_proc(*args, **kwargs):
-        proc = _FakeProcess(hang_seconds=10)
-        started.append(proc)
-        return proc
-
-    with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
-        result = await FfmpegCameraBackend(timeout=0.05).capture(None)
-
-    assert result is None
-    assert len(started) == 1
-
-
-@pytest.mark.asyncio
-async def test_auto_shares_one_deadline_between_termux_and_ffmpeg(clean_env, tmp_path):
-    clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
-    clean_env.setattr("shutil.which", _which_only("termux-camera-photo", "ffmpeg"))
-    started: list[_FakeProcess] = []
-
-    def _make_proc(*args, **kwargs):
-        proc = _FakeProcess(hang_seconds=10)
-        started.append(proc)
-        return proc
-
-    backend = AutoCameraBackend(
-        termux=TermuxCameraBackend(str(tmp_path / "p.jpg")), timeout=0.05
-    )
-    with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
-        result = await backend.capture(None)
-
-    assert result is None
-    assert len(started) == 1  # the termux attempt used up the time
-
-
-@pytest.mark.asyncio
 async def test_a_failed_termux_capture_never_returns_an_earlier_photo(
     clean_env, tmp_path
 ):
@@ -406,25 +320,37 @@ async def test_each_termux_capture_writes_its_own_file(clean_env):
         await backend.capture(None)
 
     assert len(set(paths)) == 2
-    assert all(f"_camera_" in path for path in paths)
+    assert all("_camera_" in path for path in paths)
 
 
 @pytest.mark.asyncio
-async def test_windows_device_detection_stays_inside_the_deadline(clean_env):
-    clean_env.setattr("sys.platform", "win32")
+async def test_a_capture_that_never_runs_ffmpeg_drops_the_last_error(clean_env):
+    clean_env.setattr("sys.platform", "linux")
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
-    started: list[_FakeProcess] = []
+    backend = FfmpegCameraBackend()
+    failed = _FakeProcess(stderr=b"device busy", returncode=1)
+    with patch("asyncio.create_subprocess_exec", new=AsyncMock(return_value=failed)):
+        await backend.capture(None)
+    assert backend.last_error == "device busy"
 
-    def _make_proc(*args, **kwargs):
-        proc = _FakeProcess(hang_seconds=10)
-        started.append(proc)
-        return proc
+    clean_env.setattr("shutil.which", _which_only())
+    await backend.capture(None)
 
-    loop = asyncio.get_running_loop()
-    begin = loop.time()
-    with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
-        result = await FfmpegCameraBackend(timeout=0.05).capture(None)
+    assert backend.last_error is None
+
+
+@pytest.mark.asyncio
+async def test_an_unreadable_termux_photo_is_a_failed_capture(clean_env, tmp_path):
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
+    clean_env.setattr("shutil.which", _which_only("termux-camera-photo"))
+    unreadable = tmp_path / "photo.jpg"
+
+    async def _write_a_directory(*args, **kwargs):
+        unreadable.mkdir()
+        return _FakeProcess()
+
+    with patch("asyncio.create_subprocess_exec", new=_write_a_directory):
+        result = await TermuxCameraBackend(str(unreadable)).capture(None)
 
     assert result is None
-    assert loop.time() - begin < 1  # not the 5 s device-listing timeout
-    assert len(started) == 1

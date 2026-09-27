@@ -8,6 +8,7 @@ it still owns.
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import TYPE_CHECKING
 
 from zrb.llm.custom_command.resolver import run_custom_command
@@ -30,6 +31,7 @@ class QueueBasedInput:
         self._simple_ui = simple_ui
         self._input_queue: "asyncio.Queue[str]" = asyncio.Queue()
         self._waiting_for_input = False
+        self._waiting_since = 0.0
 
     @property
     def input_queue(self) -> "asyncio.Queue[str]":
@@ -48,7 +50,15 @@ class QueueBasedInput:
 
     @waiting_for_input.setter
     def waiting_for_input(self, value: bool) -> None:
+        if value and not self._waiting_for_input:
+            self._waiting_since = time.monotonic()
         self._waiting_for_input = value
+
+    @property
+    def waiting_since(self) -> float | None:
+        """`time.monotonic()` when `get_input` began waiting, ``None`` when
+        it is not waiting."""
+        return self._waiting_since if self._waiting_for_input else None
 
     async def get_input(self, prompt: str) -> str:
         """Blocks until handle_incoming_message() receives a response."""

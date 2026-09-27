@@ -2,8 +2,8 @@ import pytest
 
 from zrb.llm.dictation.words import split_phrases, strip_wake_word, to_answer
 
-APPROVE = split_phrases(["yes", "go ahead", "ok"])
-DENY = split_phrases(["no", "don't"])
+APPROVE = split_phrases(["yes", "yeah", "go ahead", "ok", "okay", "do it"])
+DENY = split_phrases(["no", "don't", "stop"])
 
 
 def test_split_phrases_lowercases_and_drops_empty_ones():
@@ -44,6 +44,17 @@ def test_without_wake_words_everything_counts():
             "yes but first rename the file to foo",
         ),
         ("open the file", "open the file"),
+        ("okay, go ahead, thanks", "yes"),
+        ("No thanks.", "no"),
+        # A denial or a hedge anywhere keeps an answer from approving.
+        ("Okay, no, stop.", "Okay, no, stop."),
+        ("Yes, but don't.", "Yes, but don't."),
+        ("yes wait no", "yes wait no"),
+        ("Yeah no", "Yeah no"),
+        ("ok run the tests", "ok run the tests"),
+        ("do it later", "do it later"),
+        ("please", "please"),
+        ("", ""),
     ],
 )
 def test_to_answer(said, answer):

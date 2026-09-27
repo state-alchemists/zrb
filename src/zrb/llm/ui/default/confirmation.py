@@ -122,11 +122,7 @@ class UIConfirmation:
         in any case, or its 1-based number — resolves to that label; anything
         else is kept as the free-text answer.
         """
-        current = self._ui.confirmation.current
-        spec = next(
-            (entry[2] for entry in self._ui.confirmation.queue if entry[0] is current),
-            None,
-        )
+        spec = self._ui.confirmation.current_spec
         answer = _match_choice_label(spec, text) if spec is not None else text
         return self._ui.resolve_current(answer, echo=answer + "\n")
 
@@ -274,6 +270,12 @@ def _match_choice_label(spec: Any, text: str) -> str:
 
 
 def _match_one_label(labels: list[str], text: str) -> str | None:
+    # Most exact first: "1" names the label "1" before the first option, and
+    # "C" names "C" before "C++", which normalizes to "c" too.
+    exact = text.strip().casefold()
+    for label in labels:
+        if label.strip().casefold() == exact:
+            return label
     wanted = _normalize(text)
     if wanted.isdigit() and 1 <= int(wanted) <= len(labels):
         return labels[int(wanted) - 1]

@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import logging
 import os
 import shlex
 import shutil
 import subprocess
 import tempfile
+import threading
 
 from zrb.config.config import CFG
+
+logger = logging.getLogger(__name__)
 
 _WAV_PLAYERS = (
     ["afplay"],
@@ -26,16 +30,37 @@ class Utterance:
     def __init__(self, argv: list[str], temp_path: str | None = None):
         self.argv = argv
         self.temp_path = temp_path
+        self._lock = threading.Lock()
+        self._process: subprocess.Popen[bytes] | None = None
+        self._is_stopped = False
 
     def play(self, timeout: float | None) -> None:
-        """Play to the end, or stop after *timeout* seconds."""
-        subprocess.run(
-            self.argv,
-            check=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=timeout,
-        )
+        """Play to the end, or until *timeout* seconds or `stop`."""
+        with self._lock:
+            if self._is_stopped:
+                return
+            process = self._process = subprocess.Popen(
+                self.argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
+        try:
+            returncode = process.wait(timeout)
+        except subprocess.TimeoutExpired:
+            self.stop()
+            return
+        except BaseException:
+            self.stop()
+            raise
+        if returncode != 0 and not self._is_stopped:
+            logger.warning(f"Speech player {self.argv[0]} exited with {returncode}")
+
+    def stop(self) -> None:
+        """End playback now, from any thread; a later `play` does nothing."""
+        with self._lock:
+            self._is_stopped = True
+            process = self._process
+        if process is not None and process.poll() is None:
+            process.kill()
+            process.wait()
 
     def cleanup(self) -> None:
         if self.temp_path:

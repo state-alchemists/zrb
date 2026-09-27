@@ -181,13 +181,15 @@ def _cutter(**config):
 
 
 def _feed(cutter, levels, echo_at=()):
-    """Feed one block per level (block i captured at i/10 s); the finished
-    utterances as (blocks, started_at, ended_at)."""
+    """Feed one block per level (block i captured at i/10 s, so its speech
+    began at (i-1)/10 s); the finished utterances as (blocks, started_at,
+    ended_at), times rounded."""
     finished = []
     for index, level in enumerate(levels):
         done = cutter.feed(index, level, index / 10, index in echo_at)
         if done is not None:
-            finished.append(done)
+            blocks, started_at, ended_at = done
+            finished.append((blocks, round(started_at, 6), round(ended_at, 6)))
     return finished
 
 
@@ -195,13 +197,13 @@ def test_speech_ends_after_the_silence_and_keeps_its_pre_roll():
     # pre_roll=0.2 keeps the two quiet blocks before the first loud one.
     finished = _feed(_cutter(), [0, 0, 0, 1, 1, 1, 0, 0, 0])
 
-    assert finished == [([1, 2, 3, 4, 5, 6, 7], 0.3, 0.7)]
+    assert finished == [([1, 2, 3, 4, 5, 6, 7], 0.2, 0.7)]
 
 
 def test_zero_pre_roll_keeps_no_quiet_block():
     finished = _feed(_cutter(pre_roll=0), [0, 0, 1, 1, 0, 0])
 
-    assert finished == [([2, 3, 4, 5], 0.2, 0.5)]
+    assert finished == [([2, 3, 4, 5], 0.1, 0.5)]
 
 
 def test_zero_max_utterance_means_no_limit():
@@ -209,6 +211,31 @@ def test_zero_max_utterance_means_no_limit():
 
     assert len(finished) == 1
     assert len(finished[0][0]) == 32  # 30 loud and 2 quiet; nothing came before
+
+
+def test_negative_pre_roll_keeps_no_quiet_block():
+    finished = _feed(_cutter(pre_roll=-1), [0, 0, 1, 1, 0, 0])
+
+    assert finished == [([2, 3, 4, 5], 0.1, 0.5)]
+
+
+def test_negative_max_utterance_means_no_limit():
+    finished = _feed(_cutter(max_utterance=-1), [1] * 30 + [0, 0])
+
+    assert len(finished) == 1
+    assert len(finished[0][0]) == 32
+
+
+def test_zero_silence_ends_speech_at_the_first_quiet_block():
+    finished = _feed(_cutter(silence=0, pre_roll=0), [1, 1, 0, 1, 1, 0])
+
+    assert finished == [([0, 1, 2], -0.1, 0.2), ([3, 4, 5], 0.2, 0.5)]
+
+
+def test_negative_echo_cooldown_is_no_cooldown():
+    finished = _feed(_cutter(echo_cooldown=-1), [1, 1, 1, 1, 0, 0], echo_at={0})
+
+    assert finished == [([1, 2, 3, 4, 5], 0.0, 0.5)]
 
 
 def test_a_click_shorter_than_min_speech_is_dropped():
@@ -231,7 +258,7 @@ def test_flush_returns_speech_cut_off_mid_sentence():
     cutter = _cutter()
     _feed(cutter, [0, 1, 1, 1])
 
-    assert cutter.flush(9.0) == ([0, 1, 2, 3], 0.1, 9.0)
+    assert cutter.flush(9.0) == ([0, 1, 2, 3], pytest.approx(0.0), 9.0)
     assert cutter.flush(9.0) is None
 
 
@@ -297,6 +324,15 @@ async def test_no_backlog_limit_keeps_everything():
     blocks = [_block(0.5), _block(0.5), _block(0.0), _block(0.0)]
 
     utterances = await _collect_with(_backlog_config(0), blocks)
+
+    assert [u.audio for u in utterances] == [_pcm(*[0.5] * 4, *[0.0] * 4)]
+
+
+@pytest.mark.asyncio
+async def test_a_negative_backlog_limit_keeps_everything():
+    blocks = [_block(0.5), _block(0.5), _block(0.0), _block(0.0)]
+
+    utterances = await _collect_with(_backlog_config(-1), blocks)
 
     assert [u.audio for u in utterances] == [_pcm(*[0.5] * 4, *[0.0] * 4)]
 

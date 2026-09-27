@@ -381,3 +381,25 @@ async def test_a_typed_answer_names_an_unlabeled_option_as_the_widget_does(said)
         await asyncio.sleep(0.01)
         ui.submit_user_answer(said)
         assert await task == "Option 2"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "labels, said, answer",
+    [
+        (["10", "5", "1"], "1", "1"),
+        (["10", "5", "1"], "2", "5"),
+        (["C++", "C"], "c", "C"),
+        (["C++", "C"], "C++", "C++"),
+    ],
+)
+async def test_an_answer_that_is_a_label_names_that_label(labels, said, answer):
+    """An exact label outranks both the 1-based index and the
+    punctuation-blind match: "1" is the option "1", "C" is not "C++"."""
+    spec = {"question": "Pick", "options": [{"label": label} for label in labels]}
+    ui = MockConfirmationUI()
+    with patch("prompt_toolkit.application.get_app"):
+        task = asyncio.create_task(ui.ask_user_choice(spec))
+        await asyncio.sleep(0.01)
+        ui.submit_user_answer(said)
+        assert await task == answer

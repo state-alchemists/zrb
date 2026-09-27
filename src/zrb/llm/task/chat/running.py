@@ -18,11 +18,13 @@ facade, which delegates to both collaborators uniformly.
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
+from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.custom_command.resolver import (
+    get_custom_command_match,
     resolve_custom_commands,
     run_custom_command,
 )
@@ -39,6 +41,7 @@ if TYPE_CHECKING:
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.ui.base.ui import BaseUI
     from zrb.llm.ui.multi_ui import MultiUI
 
 
@@ -156,9 +159,15 @@ class ChatRunning:
         snapshot_dir: str = "",
     ) -> Any:
         resolved_custom_commands = self._resolve_custom_commands()
-        initial_message, reply = _expand_message(
-            initial_message, resolved_custom_commands
-        )
+        # An action may need the UI (`/photo` attaches to it), which does not
+        # exist yet: run it once the UI does.
+        initial_action = ""
+        if _is_action_command(initial_message, resolved_custom_commands):
+            initial_action, initial_message, reply = initial_message, "", None
+        else:
+            initial_message, reply = _expand_message(
+                initial_message, resolved_custom_commands
+            )
         if initial_message is None:
             initial_message = ""
 
@@ -197,6 +206,11 @@ class ChatRunning:
 
         if initial_conversation_name:
             self.load_session_history(ui, history_manager, initial_conversation_name)
+        if initial_action:
+            outcome = run_custom_command(
+                initial_action, resolved_custom_commands, _get_action_ui(ui)
+            )
+            reply = outcome.reply if outcome is not None else None
         if reply:
             ui.append_to_output(stylize_muted(f"\n  {reply}\n"))
 
@@ -337,6 +351,23 @@ class ChatRunning:
             CFG.LOGGER.warning(
                 f"Failed to load history for session {conversation_name}: {e}"
             )
+
+
+def _get_action_ui(ui: "AnyUI") -> "BaseUI":
+    """The UI an action command acts on: a combined UI's main one, which typed
+    commands run against too."""
+    # lazy: zrb.llm.ui.multi_ui transitively loads prompt_toolkit and
+    # pydantic_ai.
+    from zrb.llm.ui.multi_ui import MultiUI
+
+    return cast("BaseUI", ui.main_ui if isinstance(ui, MultiUI) else ui)
+
+
+def _is_action_command(message: Any, custom_commands: "list[AnyCustomCommand]") -> bool:
+    if not isinstance(message, str):
+        return False
+    match = get_custom_command_match(message, custom_commands)
+    return match is not None and isinstance(match[0], ActionCommand)
 
 
 def _expand_message(

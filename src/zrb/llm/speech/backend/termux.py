@@ -44,7 +44,8 @@ class TermuxSpeechBackend(AnySpeechBackend):
         for flag, value in self._flags:
             if value:
                 argv += [flag, str(value)]
-        return argv + [text]
+        # "--", or text such as "-5 degrees" is read as an option.
+        return argv + ["--", text]
 
     def create_utterance(self, text: str) -> Utterance:
         if shutil.which("termux-tts-speak") is None:

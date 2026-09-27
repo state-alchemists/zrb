@@ -103,5 +103,6 @@ def test_termux_settings_reach_the_backend(monkeypatch):
         "1.5",
         "-p",
         "0.8",
+        "--",
         "halo",
     ]

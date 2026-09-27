@@ -45,6 +45,7 @@ from typing import Any
 from zrb.config.helper import is_wsl
 from zrb.llm.camera.backend.any_camera_backend import AnyCameraBackend
 from zrb.llm.camera.backend.deadline import (
+    communicate_within,
     create_deadline,
     get_earlier,
     get_remaining,
@@ -93,6 +94,8 @@ class FfmpegCameraBackend(AnyCameraBackend):
         """`capture`, giving up at *deadline* (`time.monotonic()`) or after
         this backend's own timeout, whichever comes first."""
         deadline = get_earlier(deadline, create_deadline(self._timeout))
+        # Early returns set no error; don't report the previous capture's.
+        self._last_error = None
         try:
             return await self._capture(device, deadline)
         except Exception:
@@ -141,12 +144,10 @@ class FfmpegCameraBackend(AnyCameraBackend):
         except FileNotFoundError:
             return None
         try:
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+            stdout, stderr = await communicate_within(proc, timeout)
         except asyncio.TimeoutError:
-            proc.kill()
-            await proc.wait()
             self._last_error = (
-                f"capture timed out after {self._timeout}s -- the camera opened "
+                f"capture timed out after {timeout:.1f}s -- the camera opened "
                 "but never delivered a frame (over WSL2 this usually means "
                 "usbipd's USB/IP tunnel can't keep up with the requested "
                 "format/resolution)"
@@ -276,10 +277,8 @@ async def _list_dshow_devices(
             stderr=asyncio.subprocess.PIPE,
         )
         try:
-            _, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+            _, stderr = await communicate_within(proc, timeout)
         except asyncio.TimeoutError:
-            proc.kill()
-            await proc.wait()
             return []
     except FileNotFoundError:
         return []

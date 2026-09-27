@@ -88,3 +88,42 @@ def test_identifiers_survive_but_emphasis_does_not(text, spoken):
 
 def test_an_empty_note_adds_nothing():
     assert fit_for_speech("one two three four five six", 10, "") == "one two."
+
+
+@pytest.mark.parametrize(
+    "text, spoken",
+    [
+        ("~~~\ncode here\n~~~ after", "after"),
+        ("Run this:\n```python\nx = 1", "Run this:"),
+        ("See <https://x.com/a>. And more", "See. And more"),
+        ("Go to https://x.com/a. Then", "Go to. Then"),
+        ("Is it?\n\nYes.", "Is it? Yes."),
+        ("Wrap it in ``` fences, then go on.", "Wrap it in fences, then go on."),
+        ("Wiki: https://en.wikipedia.org/wiki/Foo_(bar) is nice.", "Wiki: is nice."),
+        ("a ~~~ b", "a b"),
+        ("One\n\nTwo", "One. Two"),
+    ],
+)
+def test_clean_handles_every_fence_link_and_paragraph_form(text, spoken):
+    assert clean_for_speech(text) == spoken
+
+
+@pytest.mark.parametrize(
+    "text, max_chars, opening",
+    [
+        # The end of the window is not the end of a sentence.
+        (
+            "Open the config file main.py and change it now please.",
+            26,
+            "Open the config file.",
+        ),
+        # Nor is the dot after a lone letter.
+        (
+            "Use a tool, e.g. grep here, to find it. Then more words follow.",
+            22,
+            "Use a tool, e.g. grep.",
+        ),
+    ],
+)
+def test_a_cut_never_ends_on_a_false_sentence_end(text, max_chars, opening):
+    assert fit_for_speech(text, max_chars, "N") == f"{opening} N"

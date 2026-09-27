@@ -1,6 +1,6 @@
 """`enable_speech`: read replies, tool approvals and questions aloud.
 
-Everything is spoken by one background thread per task, in order, so a hook
+Everything is spoken by one background thread per session, in order, so a hook
 only queues text and returns. A long reply is cut at a sentence end, or
 summarized by a model, and followed by a note that the rest is on screen.
 """
@@ -8,6 +8,7 @@ summarized by a model, and followed by a note that the rest is on screen.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import logging
 import weakref
 from typing import TYPE_CHECKING, Any
@@ -19,7 +20,11 @@ from zrb.llm.hook.types import HookEvent
 from zrb.llm.speech.config import SpeechConfig
 from zrb.llm.speech.player import Speaker
 from zrb.llm.speech.text import clean_for_speech, fit_for_speech
-from zrb.llm.util.feature_config import replace_feature_sessions, replace_registration
+from zrb.llm.util.feature_config import (
+    current_session_key,
+    replace_feature_sessions,
+    replace_registration,
+)
 
 if TYPE_CHECKING:
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
@@ -31,6 +36,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _QUESTION_NOTIFICATIONS = ("elicitation_dialog", "permission_prompt")
+# The names the `LLM_HOOKS` allowlist knows speech's hooks by.
+_HOOK_NAMES = ("handle_stop", "handle_permission_request", "handle_notification")
 
 
 def enable_speech(
@@ -53,7 +60,6 @@ def enable_speech(
 
     def register_hooks(manager: "HookManager") -> None:
         sessions.get().register_hooks(manager)
-        sessions.register_teardown(manager)
 
     def create_commands() -> "list[AnyCustomCommand]":
         return sessions.get().create_commands()
@@ -70,19 +76,27 @@ class SpeechSession:
     def __init__(self, config: SpeechConfig) -> None:
         self._config = config
         self._events = {event.strip().lower() for event in config.events or []}
-        self._pending: set[asyncio.Task[Any]] = set()
+        # A task given a `hook_manager` shares it between sessions; each
+        # session's hooks then see every session's events.
+        self._session_key = current_session_key()
         # The bound methods handed to each manager, so they can be taken back
         # out: `remove_hook` matches on identity, and a bound method is a new
         # object on every attribute read.
-        self._hooks: "weakref.WeakKeyDictionary[HookManager, list[tuple[Any, list[HookEvent]]]]" = (
-            weakref.WeakKeyDictionary()
-        )
+        self._hooks: (
+            "weakref.WeakKeyDictionary[HookManager, list[tuple[Any, list[HookEvent]]]]"
+        ) = weakref.WeakKeyDictionary()
         self.speaker = Speaker(config)
         self.speaker.is_enabled = bool(config.enabled)
         if not CFG.HOOKS_ENABLED:
             logger.warning(
                 "Speech is delivered by the hook subsystem, which is off "
                 "(ZRB_HOOKS_ENABLED), so nothing will be spoken."
+            )
+        hidden = set(_HOOK_NAMES) - set(CFG.LLM_HOOKS or _HOOK_NAMES)
+        if hidden:
+            logger.warning(
+                "The ZRB_LLM_HOOKS allowlist leaves out speech's hooks "
+                f"({', '.join(sorted(hidden))}), so those events are not spoken."
             )
 
     def register_hooks(self, manager: "HookManager") -> None:
@@ -116,9 +130,6 @@ class SpeechSession:
         """Take the hooks back out and stop the speaker."""
         for manager in list(self._hooks):
             self.unregister_hooks(manager)
-        for task in list(self._pending):
-            task.cancel()
-        self._pending.clear()
         self.speaker.close()
 
     def create_commands(self) -> "list[AnyCustomCommand]":
@@ -142,20 +153,30 @@ class SpeechSession:
         """Speak the reply, but not a sub-agent's: only the main turn is for
         the user."""
         event_data = context.event_data if isinstance(context.event_data, dict) else {}
-        if not event_data.get("nested_run") and context.last_assistant_message:
+        if (
+            self._is_own_session()
+            and not event_data.get("nested_run")
+            and context.last_assistant_message
+        ):
             self.say_reply(context.last_assistant_message)
         return HookResult(success=True)
 
     async def handle_permission_request(self, context: HookContext) -> HookResult:
-        self.speaker.say(describe_tool_call(context.tool_name, context.tool_input))
+        if self._is_own_session():
+            self.speaker.say(describe_tool_call(context.tool_name, context.tool_input))
         return HookResult(success=True)
 
     async def handle_notification(self, context: HookContext) -> HookResult:
-        if context.notification_type in _QUESTION_NOTIFICATIONS:
-            self.speaker.say(
-                context.message or "A question is waiting for your answer."
-            )
+        if (
+            self._is_own_session()
+            and context.notification_type in _QUESTION_NOTIFICATIONS
+        ):
+            question = self._fit(clean_for_speech(context.message or ""))
+            self.speaker.say(question or "A question is waiting for your answer.")
         return HookResult(success=True)
+
+    def _is_own_session(self) -> bool:
+        return current_session_key() == self._session_key
 
     def say_reply(self, reply: str) -> None:
         """Speak *reply* in full if it fits, else shortened: summarized in the
@@ -165,23 +186,26 @@ class SpeechSession:
         if max_chars <= 0 or len(spoken) <= max_chars or not self._config.summarize:
             self.speaker.say(self._fit(spoken))
             return
-        task = asyncio.ensure_future(self._say_summary(reply, spoken))
-        self._pending.add(task)
-        task.add_done_callback(self._pending.discard)
+        # On the speaker's thread, not as a task on the running loop: a hook
+        # runs on a loop of its own that is closed once the hook returns,
+        # cancelling what is left on it.
+        context = contextvars.copy_context()
+        self.speaker.say_later(
+            lambda: context.run(asyncio.run, self._create_summary(reply, spoken))
+        )
 
-    async def _say_summary(self, reply: str, spoken: str) -> None:
+    async def _create_summary(self, reply: str, spoken: str) -> str:
         try:
             summary = clean_for_speech(await self._summarize(reply))
         except Exception as exc:
             logger.warning(f"Speech summary failed, speaking the opening: {exc}")
             summary = ""
         if not summary:
-            self.speaker.say(self._fit(spoken))
-            return
+            return self._fit(spoken)
         fitted = self._fit(summary)
         if fitted == summary:
             fitted = f"{summary} {self._config.on_screen_note or ''}".strip()
-        self.speaker.say(fitted)
+        return fitted
 
     async def _summarize(self, reply: str) -> str:
         # lazy: heavy transitive (pydantic_ai) via zrb.llm.agent.summarizer

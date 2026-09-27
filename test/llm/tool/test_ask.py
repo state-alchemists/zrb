@@ -286,3 +286,32 @@ def test_get_set_interactive_mode_round_trip():
     assert get_interactive_mode() is False
     set_interactive_mode(True)
     assert get_interactive_mode() is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "multi, raw, expected",
+    [
+        (False, "1", "1"),
+        (False, "2", "5"),
+        (True, "1, 10", "1, 10"),
+        (True, "2, 3", "5, 1"),
+    ],
+)
+async def test_an_answer_that_is_a_numeric_label_is_not_reindexed(multi, raw, expected):
+    """The UI returns the label it resolved; the label "1" must stay "1", not
+    become the first option "10"."""
+    fake_ui = AsyncMock()
+    fake_ui.ask_user_choice.return_value = raw
+    with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
+        result = await ask_user_question(
+            [
+                {
+                    "question": "How many?",
+                    "header": "Count",
+                    "options": [{"label": "10"}, {"label": "5"}, {"label": "1"}],
+                    "multi_select": multi,
+                }
+            ]
+        )
+    assert f"Q1 (Count): {expected}" in result

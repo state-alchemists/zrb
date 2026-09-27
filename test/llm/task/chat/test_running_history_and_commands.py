@@ -282,3 +282,82 @@ async def test_interactive_action_command_shows_reply_and_sends_nothing(
 
     assert MockUI.call_args.kwargs["initial_message"] == ""
     assert any("Toggled" in str(v) for v in shown)
+
+
+@pytest.mark.asyncio
+async def test_interactive_initial_action_command_runs_with_the_ui(runner, ui_commands):
+    """`zrb llm chat "/photo"`: the action must get the interactive UI, not
+    the `None` of the pre-UI expansion that makes it answer "needs an
+    interactive chat session"."""
+    from zrb.llm.custom_command import ActionCommand
+
+    seen: list = []
+
+    def action(kwargs, ui):
+        seen.append(ui)
+        return "Captured"
+
+    runner.llm_chat_task.custom_commands = [ActionCommand("/photo", action)]
+    ctx = MagicMock()
+    ctx.xcom = {}
+    history_manager = MagicMock()
+    history_manager.load.return_value = []
+    mock_ui = SimpleMockUI()
+    shown: list = []
+    mock_ui.append_to_output = lambda *values, **kwargs: shown.extend(values)
+
+    with patch("zrb.llm.ui.default.ui.UI") as MockUI:
+        MockUI.return_value = mock_ui
+        await runner.run_interactive_session(
+            ctx=ctx,
+            llm_task_core=MagicMock(),
+            history_manager=history_manager,
+            ui_commands=ui_commands,
+            initial_message="/photo",
+            initial_conversation_name="",
+            initial_yolo=False,
+            initial_attachments=[],
+        )
+
+    assert seen == [mock_ui]
+    assert MockUI.call_args.kwargs["initial_message"] == ""
+    assert any("Captured" in str(v) for v in shown)
+
+
+@pytest.mark.asyncio
+async def test_initial_action_command_gets_the_main_ui_of_a_combined_ui(
+    runner, ui_commands
+):
+    """A combined UI lacks what an action needs (`insert_input_text`,
+    `pending_attachments`); typed commands run against its main UI, and so
+    does the initial one."""
+    from zrb.llm.custom_command import ActionCommand
+
+    seen: list = []
+    runner.llm_chat_task.custom_commands = [
+        ActionCommand("/photo", lambda kwargs, ui: seen.append(ui) or "Captured")
+    ]
+    runner.llm_chat_task.ui_factories = [lambda **kwargs: SimpleMockUI()]
+    ctx = MagicMock()
+    ctx.xcom = {}
+    history_manager = MagicMock()
+    history_manager.load.return_value = []
+    main_ui = SimpleMockUI()
+    main_ui.tool_call_handler = None
+
+    with (
+        patch("zrb.llm.ui.default.ui.UI", return_value=main_ui),
+        patch("zrb.llm.ui.multi_ui.MultiUI.run_async", new=AsyncMock(return_value="")),
+    ):
+        await runner.run_interactive_session(
+            ctx=ctx,
+            llm_task_core=MagicMock(),
+            history_manager=history_manager,
+            ui_commands=ui_commands,
+            initial_message="/photo",
+            initial_conversation_name="",
+            initial_yolo=False,
+            initial_attachments=[],
+        )
+
+    assert seen == [main_ui]

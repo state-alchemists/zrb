@@ -40,11 +40,21 @@ class TriggerMessage(NamedTuple):
 class TriggerReply:
     """A trigger item that answers the pending approval or question.
 
-    The text is the answer as if the user had typed it: an approval reads
-    ``y``/``yes`` as approve and anything else as a denial. With nothing
-    pending it becomes a user turn like a plain string. Only a trigger that
-    speaks for the user (dictation) should yield one: a scheduled or remote
-    source must not be able to approve a tool call.
+    `text` is what the user said. It answers a question, and with nothing
+    pending it becomes a user turn like a plain string. `approval` is what to
+    send instead when the pending prompt is a tool approval, which reads
+    ``y``/``yes`` as approve and anything else as a denial; ``None`` sends
+    `text`. An empty answer is never sent: it would approve.
+
+    `started_at` is `time.monotonic()` when the user began speaking. When set,
+    the reply answers only a prompt that was already pending by then; a prompt
+    that appeared later gets `text` as a user turn instead, so a "yes" said to
+    nothing cannot approve a tool call shown while it was being transcribed.
+
+    Only a trigger that speaks for the user (dictation) should yield one: a
+    scheduled or remote source must not be able to approve a tool call.
     """
 
     text: str
+    approval: str | None = None
+    started_at: float | None = None

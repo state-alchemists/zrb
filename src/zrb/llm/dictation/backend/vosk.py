@@ -101,11 +101,14 @@ class VoskDictationBackend(AnyDictationBackend):
         # lazy: heavy third-party; after the model, which reports it missing
         from vosk import KaldiRecognizer
 
-        recognizer = KaldiRecognizer(model, SAMPLE_RATE)
-        if recognizer.AcceptWaveform(audio):
-            result = json.loads(recognizer.Result())
-        else:
-            result = json.loads(recognizer.FinalResult())
+        def recognize() -> str:
+            recognizer = KaldiRecognizer(model, SAMPLE_RATE)
+            if recognizer.AcceptWaveform(audio):
+                return recognizer.Result()
+            return recognizer.FinalResult()
+
+        # Decoding takes long enough to freeze the chat UI on the event loop.
+        result = json.loads(await asyncio.to_thread(recognize))
         return result.get("text", "")
 
     async def _get_model(self) -> Any:

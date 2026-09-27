@@ -1083,6 +1083,21 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         """
         return False
 
+    @property
+    def pending_answer_since(self) -> float | None:
+        """`time.monotonic()` when the prompt waiting for an answer appeared.
+
+        ``None`` with nothing pending, or when the UI cannot tell; a timed
+        `TriggerReply` then answers nothing.
+        """
+        return None
+
+    @property
+    def is_waiting_for_choice(self) -> bool:
+        """Whether the pending prompt is a multiple-choice question rather
+        than a tool approval."""
+        return False
+
     def submit_answer(self, text: str) -> None:
         """Answer the pending approval or question with *text*, as if typed.
 

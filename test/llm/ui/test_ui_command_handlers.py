@@ -184,7 +184,6 @@ class TestBaseUICommandHandlers:
         ui.exit_commands = []
         ui.info_commands = []
         ui.attach_commands = []
-        ui.photo_commands = []
         ui.save_commands = []
         ui.load_commands = []
         ui.rewind_commands = []
@@ -196,7 +195,6 @@ class TestBaseUICommandHandlers:
         ui.plan_commands = []
         ui.copy_commands = []
         ui.btw_commands = []
-        ui.voice_commands = []
         ui.custom_commands = []
 
         help_text = ui.get_help_text()

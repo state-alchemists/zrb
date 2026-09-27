@@ -141,8 +141,13 @@ from zrb.llm.snapshot import SnapshotManager
 while not os.path.exists(sys.argv[4]):  # every process starts at once
     time.sleep(0.005)
 manager = SnapshotManager(sys.argv[1], sys.argv[3], sys.argv[2])
-sha = asyncio.run(manager.take_init_snapshot())
-print(sha if sha else manager.unavailable_reason)
+# The "error" event's reason is the failure's text even when rewind stays on,
+# where `unavailable_reason` is empty.
+errors = []
+sha = asyncio.run(manager.take_init_snapshot(
+    lambda p: errors.append(p.reason) if p.stage == "error" else None
+))
+print(sha if sha else f"failed: {errors}")
 """
 
 

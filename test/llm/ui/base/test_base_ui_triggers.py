@@ -31,11 +31,21 @@ class AnsweringUI(ConcreteUI):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.waiting = True
+        self.since: float | None = 100.0
+        self.choice = False
         self.answers: list[str] = []
 
     @property
     def is_waiting_for_answer(self) -> bool:
         return self.waiting
+
+    @property
+    def pending_answer_since(self) -> float | None:
+        return self.since if self.waiting else None
+
+    @property
+    def is_waiting_for_choice(self) -> bool:
+        return self.choice
 
     def submit_answer(self, text: str) -> None:
         self.answers.append(text)
@@ -258,3 +268,132 @@ def test_base_ui_holds_no_pending_answer_and_submits_instead(base_ui, monkeypatc
     base_ui.insert_input_text("draft")
 
     assert sent == ["yes", "draft"]
+
+
+@pytest.mark.asyncio
+async def test_a_reply_said_before_the_prompt_appeared_is_a_turn(monkeypatch):
+    """A "yes" said to nothing must not approve a tool call shown while it was
+    being transcribed."""
+    ui = _create_ui(AnsweringUI)
+    submitted = collect_submitted(ui, monkeypatch)
+
+    await ui.trigger_loop(
+        trigger_yielding(TriggerReply("yes", approval="y", started_at=99.0))
+    )
+
+    assert ui.answers == []
+    assert submitted == [("yes", [])]
+
+
+@pytest.mark.asyncio
+async def test_a_reply_said_after_the_prompt_appeared_answers_it(monkeypatch):
+    ui = _create_ui(AnsweringUI)
+    submitted = collect_submitted(ui, monkeypatch)
+
+    await ui.trigger_loop(
+        trigger_yielding(TriggerReply("yes", approval="y", started_at=100.0))
+    )
+
+    assert ui.answers == ["y"]
+    assert submitted == []
+
+
+@pytest.mark.asyncio
+async def test_a_timed_reply_never_answers_a_prompt_of_unknown_age(monkeypatch):
+    ui = _create_ui(AnsweringUI)
+    ui.since = None
+    submitted = collect_submitted(ui, monkeypatch)
+
+    await ui.trigger_loop(
+        trigger_yielding(TriggerReply("yes", approval="y", started_at=500.0))
+    )
+
+    assert ui.answers == []
+    assert submitted == [("yes", [])]
+
+
+@pytest.mark.asyncio
+async def test_a_question_gets_the_words_not_the_approval(monkeypatch):
+    ui = _create_ui(AnsweringUI)
+    ui.choice = True
+    collect_submitted(ui, monkeypatch)
+
+    await ui.trigger_loop(
+        trigger_yielding(TriggerReply("the red one", approval="n", started_at=101.0))
+    )
+
+    assert ui.answers == ["the red one"]
+
+
+@pytest.mark.asyncio
+async def test_an_approval_without_an_approval_field_gets_the_words(monkeypatch):
+    ui = _create_ui(AnsweringUI)
+    collect_submitted(ui, monkeypatch)
+
+    await ui.trigger_loop(trigger_yielding(TriggerReply("not now")))
+
+    assert ui.answers == ["not now"]
+
+
+@pytest.mark.asyncio
+async def test_an_empty_approval_is_never_sent(monkeypatch):
+    ui = _create_ui(AnsweringUI)
+    collect_submitted(ui, monkeypatch)
+
+    await ui.trigger_loop(trigger_yielding(TriggerReply("  ", approval=" ")))
+
+    assert ui.answers == []
+
+
+@pytest.mark.asyncio
+async def test_a_failed_answer_is_reported_and_the_loop_goes_on(monkeypatch):
+    ui = _create_ui(AnsweringUI)
+    reported: list[str] = []
+    monkeypatch.setattr(
+        ui, "append_to_output", lambda *v, **k: reported.append(" ".join(map(str, v)))
+    )
+    calls: list[str] = []
+
+    def submit_answer(text):
+        calls.append(text)
+        if len(calls) == 1:
+            raise RuntimeError("answer failed")
+
+    monkeypatch.setattr(ui, "submit_answer", submit_answer)
+
+    await ui.trigger_loop(trigger_yielding(TriggerReply("yes"), TriggerReply("no")))
+
+    assert calls == ["yes", "no"]
+    assert any("answer failed" in line for line in reported), reported
+
+
+@pytest.mark.asyncio
+async def test_a_failed_submission_is_reported_and_the_loop_goes_on(
+    base_ui, monkeypatch
+):
+    reported: list[str] = []
+    monkeypatch.setattr(
+        base_ui,
+        "append_to_output",
+        lambda *v, **k: reported.append(" ".join(map(str, v))),
+    )
+    submitted: list[str] = []
+
+    def submit(llm_task, user_message):
+        submitted.append(user_message)
+        if user_message == "first":
+            raise RuntimeError("backend down")
+
+    monkeypatch.setattr(base_ui, "submit_user_message", submit)
+
+    await base_ui.trigger_loop(
+        trigger_yielding("first", TriggerReply("second"), "third")
+    )
+
+    assert submitted == ["first", "second", "third"]
+    assert any("backend down" in line for line in reported), reported
+
+
+def test_base_ui_cannot_date_a_pending_prompt(base_ui):
+    assert base_ui.pending_answer_since is None
+    assert base_ui.is_waiting_for_choice is False

@@ -1,4 +1,5 @@
 import threading
+import time
 
 import pytest
 
@@ -108,9 +109,19 @@ def test_a_failing_backend_falls_back_to_the_local_engine(lock_file, monkeypatch
     monkeypatch.setattr(
         "shutil.which", lambda name: f"/usr/bin/{name}" if name == "espeak-ng" else None
     )
+
+    class FinishedPopen:
+        def __init__(self, argv, **kwargs):
+            runs.append(argv)
+
+        def wait(self, timeout=None):
+            return 0
+
+        def poll(self):
+            return 0
+
     monkeypatch.setattr(
-        "zrb.llm.speech.backend.utterance.subprocess.run",
-        lambda argv, **kwargs: runs.append(argv),
+        "zrb.llm.speech.backend.utterance.subprocess.Popen", FinishedPopen
     )
     speaker = Speaker(_config(FakeBackend(fail=True), lock_file, voice="alloy"))
 
@@ -200,3 +211,120 @@ def test_a_lock_file_is_only_forgotten_once_every_speaker_using_it_is(lock_file)
     second.close()
     with hold_file_lock(lock_file):
         assert not is_speaking()
+
+
+class HangingUtterance(Utterance):
+    """Plays until stopped."""
+
+    def __init__(self, started: threading.Event):
+        super().__init__([])
+        self.started = started
+        self.stopped = threading.Event()
+
+    def play(self, timeout):
+        self.started.set()
+        self.stopped.wait(5)
+
+    def stop(self):
+        self.stopped.set()
+
+
+class HangingBackend(AnySpeechBackend):
+    def __init__(self):
+        self.started = threading.Event()
+        self.utterances: list[HangingUtterance] = []
+
+    def create_utterance(self, text):
+        utterance = HangingUtterance(self.started)
+        self.utterances.append(utterance)
+        return utterance
+
+
+def test_close_cuts_off_what_is_playing(lock_file):
+    backend = HangingBackend()
+    speaker = Speaker(_config(backend, lock_file, drain_timeout=5))
+    speaker.say("a long reply")
+    assert backend.started.wait(1)
+
+    speaker.close()
+
+    assert backend.utterances[0].stopped.is_set()
+
+
+def test_drain_cuts_off_what_outlives_its_timeout(lock_file):
+    backend = HangingBackend()
+    speaker = Speaker(_config(backend, lock_file, drain_timeout=0.05))
+    speaker.say("a long reply")
+    assert backend.started.wait(1)
+
+    speaker.drain()
+
+    assert backend.utterances[0].stopped.is_set()
+
+
+def test_a_closed_speaker_says_nothing(lock_file):
+    backend = FakeBackend()
+    speaker = Speaker(_config(backend, lock_file))
+    speaker.close()
+
+    speaker.say("too late")
+    speaker.drain()
+
+    assert backend.played == []
+
+
+def test_speech_created_after_close_is_never_played(lock_file):
+    """A backend still synthesizing when the session closes."""
+    created = threading.Event()
+    release = threading.Event()
+
+    class SlowBackend(FakeBackend):
+        def create_utterance(self, text):
+            created.set()
+            release.wait(5)
+            return super().create_utterance(text)
+
+    backend = SlowBackend()
+    speaker = Speaker(_config(backend, lock_file))
+    speaker.say("slow")
+    assert created.wait(1)
+
+    speaker.close()
+    release.set()
+    time.sleep(0.1)
+
+    assert backend.played == []
+    assert backend.utterances[0].cleaned
+
+
+def test_text_said_later_keeps_its_place_and_is_waited_for_at_exit(lock_file):
+    """A summary queued at the end of `zrb chat --message` must be spoken
+    before the process exits, and before what was queued after it."""
+    backend = FakeBackend()
+    speaker = Speaker(_config(backend, lock_file, drain_timeout=5))
+
+    speaker.say_later(lambda: time.sleep(0.05) or "the summary")
+    speaker.say("the approval")
+    speaker.drain()
+
+    assert backend.played == ["the summary", "the approval"]
+
+
+def test_text_said_later_is_dropped_when_the_speaker_closes(lock_file):
+    backend = FakeBackend()
+    speaker = Speaker(_config(backend, lock_file))
+    producing = threading.Event()
+    release = threading.Event()
+
+    def produce():
+        producing.set()
+        release.wait(5)
+        return "too late"
+
+    speaker.say_later(produce)
+    assert producing.wait(1)
+    speaker.close()
+    release.set()
+    time.sleep(0.1)
+
+    assert backend.played == []

@@ -87,6 +87,10 @@ class EventDrivenUI(SimpleUI):
     def is_waiting_for_answer(self) -> bool:
         return self.waiting_for_input
 
+    @property
+    def pending_answer_since(self) -> float | None:
+        return self._input_handling.waiting_since
+
     def submit_answer(self, text: str) -> None:
         self.handle_incoming_message(text)
 

@@ -20,8 +20,8 @@ BLOCK_SECONDS = 0.1
 
 
 class Utterance(NamedTuple):
-    """One utterance: 16-bit PCM, and when it started and ended
-    (`time.monotonic()` at capture)."""
+    """One utterance: 16-bit PCM, and when its speech started and ended
+    (`time.monotonic()`)."""
 
     audio: bytes
     started_at: float
@@ -33,11 +33,11 @@ class UtteranceCutter:
 
     A block is loud when its level reaches ``threshold``. Speech starts at the
     first loud block, keeping ``pre_roll`` seconds from before it, and ends
-    after ``silence`` quiet seconds or ``max_utterance`` in all (``0``: no
-    limit). Speech
-    shorter than ``min_speech``, from its first loud block to its last, is
-    dropped as a cough or a click. While zrb is
-    speaking, and for ``echo_cooldown`` after, blocks are ignored.
+    after ``silence`` quiet seconds (at least one block) or ``max_utterance``
+    in all (``0``: no limit). Speech shorter than ``min_speech``, from its
+    first loud block to its last, is dropped as a cough or a click. While zrb
+    is speaking, and for ``echo_cooldown`` after, blocks are ignored. A
+    negative duration counts as ``0``.
     """
 
     def __init__(self, config: DictationConfig) -> None:
@@ -52,8 +52,8 @@ class UtteranceCutter:
     def feed(
         self, block: Any, level: float, captured_at: float, is_echo: bool
     ) -> "tuple[list[Any], float, float] | None":
-        """Add one block; return ``(blocks, started_at, ended_at)`` when it
-        finishes an utterance."""
+        """Add one block, captured by *captured_at*; return ``(blocks,
+        started_at, ended_at)`` when it finishes an utterance."""
         if is_echo:
             self.reset()
             self._cooldown_blocks = _to_blocks(self._config.echo_cooldown or 0)
@@ -68,7 +68,8 @@ class UtteranceCutter:
                 return None
             self._speech = [*self._pre_roll, block]
             self._pre_roll_blocks = len(self._pre_roll)
-            self._started_at = captured_at
+            # The block's first sample, heard one block before it arrived.
+            self._started_at = captured_at - BLOCK_SECONDS
             self._pre_roll.clear()
             return None
         self._speech.append(block)
@@ -76,7 +77,9 @@ class UtteranceCutter:
         config = self._config
         max_blocks = _to_blocks(config.max_utterance or 0)
         is_too_long = bool(max_blocks) and len(self._speech) >= max_blocks
-        if self._silent_blocks < _to_blocks(config.silence or 0) and not is_too_long:
+        # At least one quiet block, or speech would end at its next block.
+        silence_blocks = max(1, _to_blocks(config.silence or 0))
+        if self._silent_blocks < silence_blocks and not is_too_long:
             return None
         blocks, spoken_blocks = self._speech, self._count_spoken_blocks()
         self.reset()
@@ -224,7 +227,8 @@ def _open_microphone(sd: Any, on_audio: Callable[..., None], **options: Any) -> 
 
 
 def _to_blocks(seconds: float) -> int:
-    return round(seconds / BLOCK_SECONDS)
+    """*seconds* as whole blocks; a negative duration is none."""
+    return max(0, round(seconds / BLOCK_SECONDS))
 
 
 async def record(should_record: Callable[[], bool]) -> bytes:

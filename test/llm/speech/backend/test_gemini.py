@@ -67,6 +67,34 @@ def test_gemini_wraps_the_pcm_it_returns_in_a_wav(requests, monkeypatch):
     utterance.cleanup()
 
 
+def test_gemini_joins_audio_split_across_parts(requests, monkeypatch):
+    sent, replies = requests
+    first, second = b"\x00\x01" * 5, b"\x02\x03" * 5
+    parts = [
+        {"inlineData": {"data": base64.b64encode(first).decode()}},
+        {"text": "not audio"},
+        {"inlineData": {"data": base64.b64encode(second).decode()}},
+    ]
+    replies.append(json.dumps({"candidates": [{"content": {"parts": parts}}]}).encode())
+    monkeypatch.setenv("GEMINI_API_KEY", "key")
+
+    utterance = GeminiSpeechBackend(wav_player="mpv").create_utterance("hello")
+
+    with wave.open(utterance.argv[-1], "rb") as wav:
+        assert wav.readframes(20) == first + second
+    utterance.cleanup()
+
+
+def test_gemini_without_audio_raises_so_zrb_falls_back(requests, monkeypatch):
+    _, replies = requests
+    parts = [{"text": "I can't say that."}]
+    replies.append(json.dumps({"candidates": [{"content": {"parts": parts}}]}).encode())
+    monkeypatch.setenv("GEMINI_API_KEY", "key")
+
+    with pytest.raises(RuntimeError, match="no audio"):
+        GeminiSpeechBackend().create_utterance("hello")
+
+
 def test_gemini_without_a_key_raises(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("GOOGLE_API_KEY", raising=False)

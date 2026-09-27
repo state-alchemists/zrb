@@ -35,17 +35,21 @@ class _FakeProcess:
     ):
         self._stdout = stdout
         self._stderr = stderr
-        self.returncode = returncode
+        # Like a real process: no return code until it exits.
+        self._exit_code = returncode
+        self.returncode: int | None = None
         self._hang_seconds = hang_seconds
         self.killed = False
 
     async def communicate(self):
         if self._hang_seconds:
             await asyncio.sleep(self._hang_seconds)
+        self.returncode = self._exit_code
         return (self._stdout, self._stderr)
 
     def kill(self):
         self.killed = True
+        self.returncode = -9
 
     async def wait(self):
         return self.returncode

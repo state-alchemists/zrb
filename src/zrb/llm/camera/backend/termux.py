@@ -20,6 +20,7 @@ import uuid
 from zrb.config.config import CFG
 from zrb.llm.camera.backend.any_camera_backend import AnyCameraBackend
 from zrb.llm.camera.backend.deadline import (
+    communicate_within,
     create_deadline,
     get_earlier,
     get_remaining,
@@ -87,17 +88,14 @@ class TermuxCameraBackend(AnyCameraBackend):
         except Exception:
             return None
         try:
-            await asyncio.wait_for(proc.communicate(), timeout=timeout)
-        except asyncio.TimeoutError:
-            proc.kill()
-            await proc.wait()
-            return None
+            await communicate_within(proc, timeout)
         except Exception:
             return None
-        if not (os.path.exists(path) and os.path.getsize(path) > 0):
+        try:
+            with open(path, "rb") as photo_file:
+                return photo_file.read() or None
+        except OSError:
             return None
-        with open(path, "rb") as photo_file:
-            return photo_file.read()
 
     def list_devices(self) -> list[str]:
         return ["0", "1"]

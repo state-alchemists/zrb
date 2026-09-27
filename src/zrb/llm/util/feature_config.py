@@ -12,16 +12,10 @@ from __future__ import annotations
 import weakref
 from collections.abc import Callable
 from dataclasses import fields, replace
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from zrb.config.config import CFG
-from zrb.llm.hook.interface import HookResult
-from zrb.llm.hook.types import HookEvent
 from zrb.llm.tool.ambient_state import get_session_ownership_key
-
-if TYPE_CHECKING:
-    from zrb.llm.hook.interface import HookContext
-    from zrb.llm.hook.manager import HookManager
 
 T = TypeVar("T")
 
@@ -65,6 +59,7 @@ class FeatureSessions(Generic[T]):
         self._create = create
         self._close = close
         self._sessions: dict[str, T] = {}
+        _every_feature_sessions.add(self)
 
     def get(self, session_key: str | None = None) -> T:
         """The value for *session_key*, or for the session asking now."""
@@ -100,21 +95,17 @@ class FeatureSessions(Generic[T]):
         for session_key in list(self._sessions):
             self.close_session(session_key)
 
-    def register_teardown(self, manager: "HookManager") -> None:
-        """Close the calling session's value when that session ends.
 
-        Idempotent, so a task holding one `HookManager` across runs — which
-        re-applies every factory each run — registers it once.
-        """
-        if self._handle_session_end in manager.registry.get_hooks(
-            HookEvent.SESSION_END
-        ):
-            return
-        manager.add_hook(self._handle_session_end, events=[HookEvent.SESSION_END])
+# Every registry, for `close_feature_sessions`.
+_every_feature_sessions: "weakref.WeakSet[FeatureSessions[Any]]" = weakref.WeakSet()
 
-    async def _handle_session_end(self, context: "HookContext") -> HookResult:
-        self.close_session(current_session_key())
-        return HookResult(success=True)
+
+def close_feature_sessions(session_key: str) -> None:
+    """Close *session_key*'s value in every feature that holds one; called
+    where a chat session ends — the interactive CLI's teardown and the web
+    runner's session removal."""
+    for sessions in list(_every_feature_sessions):
+        sessions.close_session(session_key)
 
 
 _registered: "weakref.WeakKeyDictionary[Any, dict[str, list[tuple[str, Any]]]]" = (

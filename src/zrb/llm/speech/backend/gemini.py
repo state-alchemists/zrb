@@ -54,6 +54,15 @@ class GeminiSpeechBackend(AnySpeechBackend):
             f"{self._model}:generateContent"
         )
         reply = json.loads(post_json(url, body, {"x-goog-api-key": key}, self._timeout))
-        part = reply["candidates"][0]["content"]["parts"][0]["inlineData"]
-        pcm = base64.b64decode(part["data"])
+        parts = reply["candidates"][0]["content"]["parts"]
+        pcm = b"".join(
+            base64.b64decode(part["inlineData"]["data"])
+            for part in parts
+            if "inlineData" in part
+        )
+        if not pcm:
+            # A text or safety reply: raising lets the local engine speak.
+            raise RuntimeError(
+                "Gemini returned no audio for this text; falling back to local speech"
+            )
         return create_wav_utterance(pcm_to_wav(pcm), self._wav_player)

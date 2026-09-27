@@ -11,11 +11,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from contextlib import aclosing
 from typing import TYPE_CHECKING
 
 from zrb.llm.custom_command.action_command import ActionCommand
+from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.builtin import get_dictation_backend
 from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.listen import import_audio, listen
@@ -68,7 +69,7 @@ class DictationSession:
 
     def __init__(self, config: DictationConfig) -> None:
         self._config = config
-        self.backend = get_dictation_backend(config.backend or "vosk", config)
+        self._backend: AnyDictationBackend | None = None
         self._stop_recording: asyncio.Event | None = None
         # Set when hands-free is switched off, so a transcription already under
         # way can be dropped instead of submitted after the user said stop.
@@ -76,7 +77,25 @@ class DictationSession:
         self._wake_words = split_phrases(config.wake_words or [])
         self._approve_words = split_phrases(config.approve_words or [])
         self._deny_words = split_phrases(config.deny_words or [])
+        self._report: Callable[[str], None] = logger.warning
         self.is_hands_free = (config.mode or "").strip().lower() == HANDS_FREE
+
+    @property
+    def backend(self) -> AnyDictationBackend:
+        """The configured backend, built on first use so a misconfigured one
+        fails only a session that uses dictation."""
+        return self._get_backend()
+
+    @backend.setter
+    def backend(self, backend: AnyDictationBackend) -> None:
+        self._backend = backend
+
+    def _get_backend(self) -> AnyDictationBackend:
+        if self._backend is None:
+            self._backend = get_dictation_backend(
+                self._config.backend or "vosk", self._config
+            )
+        return self._backend
 
     @property
     def is_recording(self) -> bool:
@@ -120,15 +139,31 @@ class DictationSession:
         if self.is_hands_free:
             commands = ", ".join(self._config.hands_free_commands or [])
             return f"🎤 Hands-free is on; switch it off first ({commands})."
-        self._stop_recording = asyncio.Event()
-        return self._record_into(ui, self._stop_recording)
+        try:
+            self._get_backend()
+        except ValueError as e:
+            return f"🎤 {e}"
+        stop = asyncio.Event()
+        self._stop_recording = stop
+        recording = asyncio.ensure_future(self._record_into(ui, stop))
+        # A done callback, not a `finally`: a task cancelled before its first
+        # step never enters the coroutine.
+        recording.add_done_callback(lambda _: self._release_recording(stop))
+        return recording
+
+    def _release_recording(self, stop: asyncio.Event) -> None:
+        if self._stop_recording is stop:
+            self._stop_recording = None
 
     def toggle_hands_free(self, kwargs: dict[str, str], ui: "BaseUI | None") -> str:
         if not self.is_hands_free:
             try:
                 import_audio()
-            except RuntimeError as e:
+                self._get_backend()
+            except (RuntimeError, ValueError) as e:
                 return f"🎤 {e}"
+            if ui is not None:
+                self._report = _to_output(ui)
         self.is_hands_free = not self.is_hands_free
         if self.is_hands_free:
             self._hands_free_off.clear()
@@ -139,20 +174,13 @@ class DictationSession:
         return f"🎤 Hands-free {'on' if self.is_hands_free else 'off'}"
 
     async def _record_into(self, ui: "BaseUI", stop: asyncio.Event) -> str:
-        try:
-            await self.backend.prepare(
-                lambda message: ui.append_to_output(
-                    stylize_muted(f"\n  🎤 {message}\n")
-                )
-            )
-            commands = ", ".join(self._config.commands or [])
-            ui.append_to_output(
-                stylize_muted(f"\n  🎤 Listening... ({commands} or a pause to stop)\n")
-            )
-            audio = await self._record_one(stop)
-            text = (await self.backend.transcribe(audio)).strip() if audio else ""
-        finally:
-            self._stop_recording = None
+        await self.backend.prepare(_to_output(ui))
+        commands = ", ".join(self._config.commands or [])
+        ui.append_to_output(
+            stylize_muted(f"\n  🎤 Listening... ({commands} or a pause to stop)\n")
+        )
+        audio = await self._record_one(stop)
+        text = (await self.backend.transcribe(audio)).strip() if audio else ""
         if not text:
             return "🎤 Heard nothing."
         ui.insert_input_text(text)
@@ -173,17 +201,19 @@ class DictationSession:
 
     async def listen_hands_free(self) -> AsyncGenerator[TriggerReply, None]:
         """Yield one reply per utterance while hands-free is on, for the life
-        of the session."""
+        of the session. Progress and failures go to the UI hands-free was last
+        switched on from, else to the log."""
         while True:
             while not self.is_hands_free:
                 await asyncio.sleep(0.2)
             try:
-                async for reply in self._replies():
-                    yield reply
+                await self.backend.prepare(self._report)
+                async with aclosing(self._replies()) as replies:
+                    async for reply in replies:
+                        yield reply
             except Exception as exc:
-                # A listener has no output of its own; stop it rather than
-                # retrying a broken microphone forever.
-                logger.warning(f"Hands-free dictation stopped: {exc}")
+                # Stop rather than retry a broken microphone forever.
+                self._report(f"Hands-free dictation stopped: {exc}")
                 self.is_hands_free = False
 
     async def _replies(self) -> AsyncGenerator[TriggerReply, None]:
@@ -195,10 +225,12 @@ class DictationSession:
                 try:
                     text = await self._transcribe_or_drop(utterance.audio)
                 except Exception as exc:
-                    logger.warning(f"Hands-free transcription failed: {exc}")
+                    self._report(f"Hands-free transcription failed: {exc}")
                     continue
                 if text is None:
                     return
+                if not text:
+                    continue
                 command = strip_wake_word(text, self._wake_words)
                 # Against when the utterance was spoken, not when transcription
                 # finished: transcription alone can take seconds.
@@ -212,7 +244,9 @@ class DictationSession:
                     continue
                 armed_until = 0.0
                 yield TriggerReply(
-                    to_answer(command, self._approve_words, self._deny_words)
+                    command,
+                    approval=to_answer(command, self._approve_words, self._deny_words),
+                    started_at=utterance.started_at,
                 )
 
     async def _transcribe_or_drop(self, audio: bytes) -> str | None:
@@ -232,3 +266,7 @@ class DictationSession:
             for task in (transcribing, switched_off):
                 if not task.done():
                     task.cancel()
+
+
+def _to_output(ui: "BaseUI") -> Callable[[str], None]:
+    return lambda message: ui.append_to_output(stylize_muted(f"\n  🎤 {message}\n"))

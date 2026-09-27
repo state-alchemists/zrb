@@ -1,5 +1,6 @@
 import asyncio
 import os
+import threading
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
@@ -55,6 +56,19 @@ class TestVoskBackend:
         backend = VoskDictationBackend("m", "http://host")
         with patch.dict("sys.modules", {"vosk": fake_vosk}), _local_model():
             assert await backend.transcribe(b"audio") == "final text"
+
+    @pytest.mark.asyncio
+    async def test_transcribe_decodes_off_the_event_loop_thread(self):
+        fake_vosk = _fake_vosk()
+        recognizer = fake_vosk.KaldiRecognizer.return_value
+        decoded_on = []
+        recognizer.AcceptWaveform.side_effect = lambda audio: (
+            decoded_on.append(threading.get_ident()) or True
+        )
+        backend = VoskDictationBackend("m", "http://host")
+        with patch.dict("sys.modules", {"vosk": fake_vosk}), _local_model():
+            await backend.transcribe(b"audio")
+        assert decoded_on and decoded_on[0] != threading.get_ident()
 
     @pytest.mark.asyncio
     async def test_model_loaded_once_across_transcriptions(self):

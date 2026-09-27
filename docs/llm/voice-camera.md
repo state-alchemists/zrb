@@ -32,7 +32,7 @@ Every setting is an environment variable, listed in [LLM Configuration § 23](..
 **Hands-free.** `/handsfree` keeps the microphone open. Every utterance is sent as a turn, and while zrb waits for a tool approval, what you say answers it:
 
 - "Yes", "yes please", "go ahead" approve.
-- Anything else denies, and what you said becomes the reason: "no, use pytest instead" tells the agent what to do.
+- Anything else denies, and what you said becomes the reason: "no, use pytest instead" tells the agent what to do. A hedge or a "no" anywhere ("yes, but wait", "okay, no") never approves.
 - An answer to a multiple-choice question picks the option you name, by its label or its number; for a question that takes several, name them all ("one and three", "cheese, olives").
 
 Set `ZRB_LLM_DICTATION_MODE=hands_free` to start every session this way. Set `ZRB_LLM_DICTATION_WAKE_WORDS` so that only utterances starting with a wake word count. Without one, anything the microphone hears becomes a turn, including a conversation in the room.
@@ -55,7 +55,7 @@ Switching speech off with `/speech` drops whatever has not been said yet.
 
 Each chat session gets its own speaker, microphone and hands-free flag, so one session switching speech off does not silence the next. Two zrb processes still take turns rather than talk over each other, through a lock file that a session claims while it is speaking and releases when it is closed.
 
-Speech and dictation ride on the hook subsystem, so they need hooks on: with `ZRB_HOOKS_ENABLED=off` neither speaks or listens, and enabling them says so. Hooks are re-registered per session and taken back out when that session ends, so a long-lived server does not accumulate one set per session it has served.
+Speech rides on the hook subsystem, so it needs hooks on: with `ZRB_HOOKS_ENABLED=off` nothing is spoken, and enabling speech says so. Each session's speaker, microphone and hooks are closed when that session ends — on exit in the terminal, on removal in the web chat — so a long-lived server does not accumulate them.
 
 ## Configuring in code
 

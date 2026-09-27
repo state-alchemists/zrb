@@ -1,4 +1,5 @@
 import asyncio
+import time
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -187,3 +188,19 @@ async def test_submit_answer_goes_to_the_waiting_question():
 
     ui.submit_answer("yes")
     assert await waiting == "yes"
+
+
+@pytest.mark.asyncio
+async def test_pending_answer_since_dates_the_waiting_question():
+    ui = MockEventUI()
+    assert ui.pending_answer_since is None
+
+    before = time.monotonic()
+    waiting = asyncio.create_task(ui.get_input(""))
+    await asyncio.sleep(0)
+    since = ui.pending_answer_since
+
+    assert since is not None and since >= before
+    ui.submit_answer("yes")
+    await waiting
+    assert ui.pending_answer_since is None

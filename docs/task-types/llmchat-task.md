@@ -249,8 +249,8 @@ There are two kinds:
   `${name:-default}` and `$1`, `$2`, … are replaced with the arguments.
 - **`ActionCommand`** runs a Python callable instead and starts no LLM turn.
   The callable receives the parsed arguments as a dict and the chat UI
-  (`None` when there is none yet, as for an initial `--message`), and returns
-  the text to show the user, or `None` to show nothing.
+  (`None` when there is none, as for the initial message of a non-interactive
+  run), and returns the text to show the user, or `None` to show nothing.
 
 ```python
 from zrb.llm.custom_command import ActionCommand, CustomCommand
@@ -306,9 +306,13 @@ Its `can_run_while_thinking` and `get_arg_completions(prefix)` default to
 `False` and no completions.
 
 A trigger's items become turns. A trigger that speaks for the user (such as
-hands-free dictation) can yield `TriggerReply(text)` instead, which answers
-the tool approval or question being asked, if there is one. A plain string
-never answers one, so a scheduled or remote trigger cannot approve a tool call.
+hands-free dictation) can yield `TriggerReply(text, approval=None,
+started_at=None)` instead, which answers the tool approval or question being
+asked, if there is one: a question gets `text`, an approval gets `approval`
+(or `text` when it is `None`). With `started_at` (`time.monotonic()` when the
+user began speaking), only a prompt already pending by then is answered; one
+that appeared later gets `text` as a turn. A plain string never answers one,
+so a scheduled or remote trigger cannot approve a tool call.
 
 Camera, dictation and speech are added with one call each — see
 [Voice and camera](../llm/voice-camera.md).

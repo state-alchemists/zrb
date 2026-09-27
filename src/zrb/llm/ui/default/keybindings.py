@@ -264,6 +264,15 @@ class UIKeybindings:
         if self._handle_multiline(event):
             return
 
+        # A mid-turn command (`/btw`, stopping a recording) runs ahead of
+        # everything else, so it is never taken as the answer to a pending
+        # approval or sent to a viewed sub-agent.
+        text = event.current_buffer.text
+        if self._is_thinking_command(text):
+            event.current_buffer.reset()
+            ui.schedule_command(text, guarded=False)
+            return
+
         if ui.handle_confirmation(event):
             return
 
@@ -285,6 +294,11 @@ class UIKeybindings:
         buff.delete_before_cursor(count=1)
         buff.insert_text("\n")
         return True
+
+    def _is_thinking_command(self, text: str) -> bool:
+        return bool(text.strip()) and (
+            self._ui.classify_input(text) == "thinking_command"
+        )
 
     def _handle_enter_dispatch(self, event: Any, llm_task: "AnyTask") -> None:
         """Route submitted text to a sub-agent, a command, or the LLM."""
@@ -326,12 +340,6 @@ class UIKeybindings:
         # Classify by recognition, not "/" prefix: command tokens are
         # user-configurable (e.g. ">" for redirect).
         kind = ui.classify_input(text)
-
-        # /btw and the YOLO toggle run unguarded, even mid-response.
-        if kind == "thinking_command":
-            buff.reset()
-            ui.schedule_command(text, guarded=False)
-            return
 
         # Other commands mutate session state, so they wait out a response;
         # the buffer is kept for resubmission.
