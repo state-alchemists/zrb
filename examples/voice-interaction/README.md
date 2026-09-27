@@ -4,21 +4,21 @@ Talk to zrb and hear it answer. Responses, approval prompts and questions are re
 
 ```bash
 cd examples/voice-interaction
-zrb chat                                 # /voice, Space, talk, Space, Enter
-                                         # or /handsfree, then just talk
+zrb chat                   # /voice, Space, talk, Space, Enter
+                           # or /handsfree, then just talk
+zrb voice say "hello"      # hear the current speech backend
+zrb voice mic-test         # check the microphone level for hands-free
 ```
 
-zrb loads `zrb_init.py` and `.zrb/hooks.json` from every directory between the filesystem root and where it starts, so both apply to sessions started here and nowhere else. Listening needs `zrb[voice]`; speaking needs nothing extra.
+Everything lives in `zrb_init.py`. zrb loads `zrb_init.py` from every directory between the filesystem root and where it starts, so it applies to sessions started here or in a subfolder, and nowhere else. Listening needs `zrb[voice]`; speaking needs nothing extra.
 
 | File | Role |
 |---|---|
-| `.zrb/hooks.json` | Speaking: `command` hooks on `Stop`, `PermissionRequest`, `Notification` |
-| `hook_speak.py` | Hook entry point: reads the event, decides what to say |
-| `voice_speaker.py` | Text cleanup, TTS backends, serialized playback |
-| `llm_summary.py` | Optional LLM rewrite of the response before speaking |
-| `zrb_init.py` | Listening: push-to-talk switch, hands-free listener, `/handsfree` |
+| `zrb_init.py` | Everything: TTS backends, speaking hooks, `/handsfree`, hands-free listener, `zrb voice` tasks |
+| `test_voice_interaction.py` | Unit tests |
+| `test_concurrency.py` | Two sessions' speech must not overlap |
 
-The hook command is the relative `python3 hook_speak.py`, and hooks run in the session's working directory, so start zrb from this folder, not a subfolder. To speak in every session, copy the `hooks` block into `~/.zrb/hooks.json` with an absolute path, quoted in case it contains spaces: `python3 "/path/to/examples/voice-interaction/hook_speak.py" || exit 0`.
+To use it in every session, add its absolute path to `ZRB_INIT_SCRIPTS` (colon-separated).
 
 ## Listening
 
@@ -73,7 +73,7 @@ A single run on synthetic speech: expect different timings and errors with a rea
 | `openai` | `OPENAI_API_KEY` | `alloy` | ~2 s |
 | `gemini` | `GEMINI_API_KEY` or `GOOGLE_API_KEY` | `Sulafat` | ~3.5 s |
 
-`auto` (default) picks `say`, else `espeak-ng`. Cloud backends are opt-in (`ZRB_VOICE_BACKEND=openai`). If a backend fails, the utterance is spoken by the local engine instead. Cloud requests use `urllib`, so the hook needs no packages.
+`auto` (default) picks `say`, else `espeak-ng`. Cloud backends are opt-in (`ZRB_VOICE_BACKEND=openai`). If a backend fails, the utterance is spoken by the local engine instead. Cloud requests use `urllib`, so no packages are needed.
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -94,25 +94,25 @@ A single run on synthetic speech: expect different timings and errors with a rea
 
 What is said:
 
-- **`Stop`**: `last_assistant_message`, with code blocks, tables (with or without outer pipes), URLs and markdown stripped.
+- **`Stop`**: `last_assistant_message`, with code blocks, tables (with or without outer pipes), URLs and markdown stripped. A sub-agent's turn (`event_data["nested_run"]`) is not spoken.
 - **`PermissionRequest`**: "I need to write a file /tmp/a.py. I need your approval." A template, since you are waiting on it.
 - **`Notification`**: only `elicitation_dialog` and `permission_prompt`.
 
-## Hook safety
+## How speaking works
 
-On `Stop`, exit code 2 makes zrb re-run the turn with stderr as the prompt, and stdout is parsed as JSON. So the hooks are `"async": true` (fire-and-forget, cannot block), the command ends in `|| exit 0`, and `hook_speak.py` always exits 0 and writes only to the side log.
+The hooks are Python functions registered with `llm_chat.append_hook_factory`, so they read `HookContext` fields directly: no subprocess, no stdin JSON, no env size limit. zrb awaits a Python hook inline, so each one only puts text on a queue and returns `HookResult(success=True)`. One background thread plays the queue in order. When zrb exits, it waits up to 30 s for queued speech to finish, since `zrb chat --message` exits right after the reply.
 
 ## Limitations
 
-- Sub-agent turns also fire `Stop` and are spoken; the hook cannot tell them apart from the main turn.
-- Hooks run independently, so utterances are serialized but not ordered.
+- Two zrb sessions speaking at once are serialized by a lock file, but not ordered.
 - No barge-in: new speech waits for the current utterance, and hands-free does not listen while the agent speaks.
 - `fcntl` makes this POSIX-only.
 
 ## Tests
 
+Run them with the Python zrb is installed in, since the hooks import zrb:
+
 ```bash
-python3 test_voice_interaction.py
-python3 test_concurrency.py          # three speakers must not overlap
-python3 voice_speaker.py "hello"     # hear the current backend
+~/.local/pipx/venvs/zrb/bin/python test_voice_interaction.py
+~/.local/pipx/venvs/zrb/bin/python test_concurrency.py   # speakers must not overlap
 ```
