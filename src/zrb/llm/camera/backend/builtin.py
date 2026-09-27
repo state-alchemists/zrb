@@ -20,11 +20,12 @@ def get_camera_backend(
     if isinstance(backend, AnyCameraBackend):
         return backend
     name = backend.strip().lower() or "auto"
-    timeout = config.timeout or 15.0
+    timeout = config.timeout or 0.0
     if name == "auto":
         return AutoCameraBackend(
             termux=TermuxCameraBackend(timeout=timeout),
             ffmpeg=FfmpegCameraBackend(timeout),
+            timeout=timeout,
         )
     if name == "termux":
         return TermuxCameraBackend(timeout=timeout)

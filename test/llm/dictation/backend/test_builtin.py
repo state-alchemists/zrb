@@ -47,10 +47,12 @@ def test_unknown_name_raises():
 
 
 def test_vosk_built_from_config():
-    config = _config(vosk_model_name="m", vosk_model_url="http://host")
+    config = _config(
+        vosk_model_name="m", vosk_model_url="http://host", vosk_download_timeout=5
+    )
     with patch(f"{MODULE}.VoskDictationBackend") as vosk:
         get_dictation_backend("vosk", config)
-    vosk.assert_called_once_with("m", "http://host")
+    vosk.assert_called_once_with("m", "http://host", 5)
 
 
 def test_openai_built_from_config():

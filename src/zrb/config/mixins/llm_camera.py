@@ -50,7 +50,8 @@ class LLMCameraMixin:
         float,
         fallback=15.0,
         doc=(
-            "Seconds a capture may take before it is abandoned; a camera that "
-            "opens but never delivers a frame would otherwise hang. Default: 15."
+            "Seconds a capture may take, every attempt included, before it is "
+            "abandoned; a camera that opens but never delivers a frame would "
+            "otherwise hang. 0 means no limit. Default: 15."
         ),
     )

@@ -160,7 +160,10 @@ class LLMSpeechMixin:
     LLM_SPEECH_TIMEOUT = EnvField(
         float,
         fallback=15.0,
-        doc="Seconds a cloud backend may take before the local engine speaks instead.",
+        doc=(
+            "Seconds a cloud backend may take before the local engine speaks "
+            "instead; 0 means no limit."
+        ),
     )
 
     LLM_SPEECH_SUMMARY_MODEL = EnvField(
@@ -229,5 +232,8 @@ class LLMSpeechMixin:
     LLM_SPEECH_PLAYER_TIMEOUT = EnvField(
         float,
         fallback=120.0,
-        doc="Seconds one utterance may play before it is stopped. Default: 120.",
+        doc=(
+            "Seconds one utterance may play before it is stopped; 0 means no "
+            "limit. Default: 120."
+        ),
     )

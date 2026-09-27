@@ -71,7 +71,7 @@ def _create_openai(config: "SpeechConfig") -> AnySpeechBackend:
         voice=config.voice or "alloy",
         model=config.openai_model or "",
         base_url=config.openai_base_url or "",
-        timeout=config.timeout,
+        timeout=config.timeout or None,
         wav_player=config.wav_player or "",
     )
 
@@ -80,7 +80,7 @@ def _create_gemini(config: "SpeechConfig") -> AnySpeechBackend:
     return GeminiSpeechBackend(
         voice=config.voice or "Sulafat",
         model=config.gemini_model or "",
-        timeout=config.timeout,
+        timeout=config.timeout or None,
         wav_player=config.wav_player or "",
     )
 

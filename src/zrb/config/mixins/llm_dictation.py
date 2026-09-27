@@ -46,6 +46,7 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_VOSK_MODEL_URL: str = (
             "https://alphacephei.com/vosk/models"
         )
+        self.DEFAULT_LLM_DICTATION_VOSK_DOWNLOAD_TIMEOUT: str = "120"
         super().__init__()
 
     LLM_DICTATION_MODE = EnvField(
@@ -125,7 +126,10 @@ class LLMDictationMixin:
     LLM_DICTATION_MAX_UTTERANCE = EnvField(
         float,
         fallback=30.0,
-        doc="Longest utterance in seconds; longer speech is cut there. Default: 30.",
+        doc=(
+            "Longest utterance in seconds; longer speech is cut there. 0 means "
+            "no limit. Default: 30."
+        ),
     )
 
     LLM_DICTATION_PRE_ROLL = EnvField(
@@ -201,5 +205,14 @@ class LLMDictationMixin:
             "Base URL the Vosk model zip is downloaded from: <url>/<model_name>.zip, "
             "extracted to ~/.cache/vosk/. "
             "Default: https://alphacephei.com/vosk/models."
+        ),
+    )
+
+    LLM_DICTATION_VOSK_DOWNLOAD_TIMEOUT = EnvField(
+        float,
+        fallback=120.0,
+        doc=(
+            "Seconds to wait for the Vosk model server to answer; 0 means no "
+            "limit. Default: 120."
         ),
     )

@@ -80,7 +80,7 @@ class TestVoskBackend:
             ) as mock_download,
         ):
             await backend.transcribe(b"a")
-        mock_download.assert_awaited_once_with("m", "http://host")
+        mock_download.assert_awaited_once_with("m", "http://host", 120.0)
         fake_vosk.Model.assert_called_once_with("/dl/m")
 
     @pytest.mark.parametrize(
@@ -124,7 +124,7 @@ class TestVoskBackend:
             patch(f"{MODULE}.download_vosk_model", new_callable=AsyncMock) as dl,
         ):
             await VoskDictationBackend("m", "http://host").prepare(report)
-        dl.assert_awaited_once_with("m", "http://host")
+        dl.assert_awaited_once_with("m", "http://host", 120.0)
         assert [c.args[0] for c in report.call_args_list] == [
             "Downloading the voice model...",
             "Voice model ready",
@@ -244,3 +244,66 @@ class TestDownloadVoskModel:
                 await task
             resp.close.assert_called_once()
             release.set()
+
+
+def _zip_of(files: dict[str, bytes]) -> bytes:
+    import io
+    import zipfile
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for name, data in files.items():
+            archive.writestr(name, data)
+    return buffer.getvalue()
+
+
+class _Response:
+    def __init__(self, body: bytes):
+        import io
+
+        self._body = io.BytesIO(body)
+
+    def read(self, size):
+        return self._body.read(size)
+
+    def close(self):
+        pass
+
+
+@pytest.mark.asyncio
+async def test_download_moves_a_complete_model_into_place(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    body = _zip_of({"m/conf/model.conf": b"ok"})
+    seen_timeouts = []
+
+    def urlopen(url, timeout=None):
+        seen_timeouts.append(timeout)
+        return _Response(body)
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen)
+
+    path = await download_vosk_model("m", "http://host", timeout=0)
+
+    cache = tmp_path / ".cache" / "vosk"
+    assert path == str(cache / "m")
+    assert (cache / "m" / "conf" / "model.conf").read_bytes() == b"ok"
+    # Nothing is left of the staging directory, and 0 means no limit.
+    assert [p.name for p in cache.iterdir()] == ["m"]
+    assert seen_timeouts == [None]
+
+
+@pytest.mark.asyncio
+async def test_a_model_another_session_installed_first_is_kept(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    installed = tmp_path / ".cache" / "vosk" / "m"
+    installed.mkdir(parents=True)
+    (installed / "marker").write_bytes(b"first")
+    body = _zip_of({"m/marker": b"second"})
+    monkeypatch.setattr(
+        "urllib.request.urlopen", lambda url, timeout=None: _Response(body)
+    )
+
+    await download_vosk_model("m", "http://host")
+
+    assert (installed / "marker").read_bytes() == b"first"
+    assert [p.name for p in installed.parent.iterdir()] == ["m"]

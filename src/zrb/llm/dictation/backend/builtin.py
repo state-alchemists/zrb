@@ -22,7 +22,9 @@ def get_dictation_backend(
     name = backend.strip().lower() or "vosk"
     if name == "vosk":
         return VoskDictationBackend(
-            config.vosk_model_name or "", config.vosk_model_url or ""
+            config.vosk_model_name or "",
+            config.vosk_model_url or "",
+            config.vosk_download_timeout,
         )
     if name == "openai":
         return OpenAIDictationBackend(

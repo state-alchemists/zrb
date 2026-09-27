@@ -134,7 +134,8 @@ async def test_listen_yields_an_utterance_ended_by_silence():
     utterances, captured = await _collect(blocks)
 
     assert len(utterances) == 1
-    assert utterances[0].audio == _pcm(*[0.5] * 4, *[0.0] * 4)
+    # pre_roll=0.1 keeps the one quiet block before speech started.
+    assert utterances[0].audio == _pcm(*[0.0] * 2, *[0.5] * 4, *[0.0] * 4)
     assert utterances[0].started_at <= utterances[0].ended_at
     assert captured["blocksize"] == 1600
 
@@ -191,9 +192,23 @@ def _feed(cutter, levels, echo_at=()):
 
 
 def test_speech_ends_after_the_silence_and_keeps_its_pre_roll():
+    # pre_roll=0.2 keeps the two quiet blocks before the first loud one.
     finished = _feed(_cutter(), [0, 0, 0, 1, 1, 1, 0, 0, 0])
 
-    assert finished == [([2, 3, 4, 5, 6, 7], 0.3, 0.7)]
+    assert finished == [([1, 2, 3, 4, 5, 6, 7], 0.3, 0.7)]
+
+
+def test_zero_pre_roll_keeps_no_quiet_block():
+    finished = _feed(_cutter(pre_roll=0), [0, 0, 1, 1, 0, 0])
+
+    assert finished == [([2, 3, 4, 5], 0.2, 0.5)]
+
+
+def test_zero_max_utterance_means_no_limit():
+    finished = _feed(_cutter(max_utterance=0), [1] * 30 + [0, 0])
+
+    assert len(finished) == 1
+    assert len(finished[0][0]) == 32  # 30 loud and 2 quiet; nothing came before
 
 
 def test_a_click_shorter_than_min_speech_is_dropped():

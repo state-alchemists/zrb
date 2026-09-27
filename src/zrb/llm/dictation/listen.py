@@ -33,7 +33,8 @@ class UtteranceCutter:
 
     A block is loud when its level reaches ``threshold``. Speech starts at the
     first loud block, keeping ``pre_roll`` seconds from before it, and ends
-    after ``silence`` quiet seconds or ``max_utterance`` in all. Speech
+    after ``silence`` quiet seconds or ``max_utterance`` in all (``0``: no
+    limit). Speech
     shorter than ``min_speech``, from its first loud block to its last, is
     dropped as a cough or a click. While zrb is
     speaking, and for ``echo_cooldown`` after, blocks are ignored.
@@ -41,9 +42,7 @@ class UtteranceCutter:
 
     def __init__(self, config: DictationConfig) -> None:
         self._config = config
-        self._pre_roll: deque[Any] = deque(
-            maxlen=max(1, _to_blocks(config.pre_roll or 0))
-        )
+        self._pre_roll: deque[Any] = deque(maxlen=_to_blocks(config.pre_roll or 0))
         self._speech: list[Any] = []
         self._pre_roll_blocks = 0
         self._silent_blocks = 0
@@ -64,19 +63,20 @@ class UtteranceCutter:
             return None
         loud = level >= (self._config.threshold or 0)
         if not self._speech:
-            self._pre_roll.append(block)
-            if loud:
-                self._speech = list(self._pre_roll)
-                self._pre_roll_blocks = len(self._speech) - 1
-                self._started_at = captured_at
-                self._pre_roll.clear()
+            if not loud:
+                self._pre_roll.append(block)
+                return None
+            self._speech = [*self._pre_roll, block]
+            self._pre_roll_blocks = len(self._pre_roll)
+            self._started_at = captured_at
+            self._pre_roll.clear()
             return None
         self._speech.append(block)
         self._silent_blocks = 0 if loud else self._silent_blocks + 1
         config = self._config
-        if self._silent_blocks < _to_blocks(config.silence or 0) and len(
-            self._speech
-        ) < _to_blocks(config.max_utterance or 0):
+        max_blocks = _to_blocks(config.max_utterance or 0)
+        is_too_long = bool(max_blocks) and len(self._speech) >= max_blocks
+        if self._silent_blocks < _to_blocks(config.silence or 0) and not is_too_long:
             return None
         blocks, spoken_blocks = self._speech, self._count_spoken_blocks()
         self._reset()

@@ -7,6 +7,8 @@ import json
 import logging
 import os
 import platform
+import shutil
+import tempfile
 from collections.abc import Callable
 from typing import Any
 
@@ -25,9 +27,11 @@ class VoskDictationBackend(AnyDictationBackend):
         self,
         model_name: str = "vosk-model-small-en-us-0.15",
         model_url: str = "https://alphacephei.com/vosk/models",
+        download_timeout: float | None = 120.0,
     ) -> None:
         self._model_name = model_name
         self._model_url = model_url
+        self._download_timeout = download_timeout
         self._model: Any = None
 
     @property
@@ -42,7 +46,9 @@ class VoskDictationBackend(AnyDictationBackend):
         if self._model is not None or self.is_model_downloaded:
             return
         report("Downloading the voice model...")
-        await download_vosk_model(self._model_name, self._model_url)
+        await download_vosk_model(
+            self._model_name, self._model_url, self._download_timeout
+        )
         report("Voice model ready")
 
     async def transcribe(self, audio: bytes) -> str:
@@ -66,7 +72,7 @@ class VoskDictationBackend(AnyDictationBackend):
         except ImportError:
             raise RuntimeError(_missing_vosk_message()) from None
         model_path = get_vosk_model_dir(self._model_name) or await download_vosk_model(
-            self._model_name, self._model_url
+            self._model_name, self._model_url, self._download_timeout
         )
         try:
             self._model = await asyncio.to_thread(Model, model_path)
@@ -109,11 +115,16 @@ def get_vosk_model_dir(model_name: str) -> str | None:
 
 
 async def download_vosk_model(
-    model_name: str, model_url: str
+    model_name: str, model_url: str, timeout: float | None = 120.0
 ) -> (
     str
 ):  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
-    """Download and extract a Vosk model.
+    """Download and extract a Vosk model, waiting at most *timeout* seconds
+    (``0`` or ``None``: no limit) for the server to answer.
+
+    The zip is extracted into a private staging directory and the model moved
+    into place with one rename, so another session never loads a
+    half-extracted model; when two download at once, the first rename wins.
 
     The response body is read in 64 KiB chunks with an ``await`` between each,
     so the coroutine is cancellable (``/q`` or Ctrl+C) at chunk boundaries
@@ -123,11 +134,9 @@ async def download_vosk_model(
     Returns the model path on success.
     Raises RuntimeError if the download or extraction fails.
     """
-    # lazy: heavy (stdlib) — urllib.request drags in ssl/http and zipfile
-    # drags in lzma/bz2, for a one-shot download path.
-    import io as _io
+    # lazy: heavy (stdlib) — urllib.request drags in ssl/http, for a one-shot
+    # download path.
     import urllib.request as _urllib
-    import zipfile
 
     url = f"{model_url}/{model_name}.zip"
     cache = os.path.join(os.path.expanduser("~"), ".cache", "vosk")
@@ -144,7 +153,7 @@ async def download_vosk_model(
         )
 
     try:
-        resp = await asyncio.to_thread(_urllib.urlopen, url, timeout=120)
+        resp = await asyncio.to_thread(_urllib.urlopen, url, timeout=timeout or None)
     except Exception as exc:
         raise _download_error(exc) from exc
 
@@ -163,21 +172,7 @@ async def download_vosk_model(
         resp.close()
     zip_data = b"".join(chunks)
 
-    def _do_extract() -> None:
-        real_cache = os.path.realpath(cache)
-        with zipfile.ZipFile(_io.BytesIO(zip_data)) as zf:
-            for member in zf.namelist():
-                member_path = os.path.realpath(os.path.join(cache, member))
-                if member_path != real_cache and not member_path.startswith(
-                    real_cache + os.sep
-                ):
-                    raise RuntimeError(
-                        f"Refusing to extract Vosk model: unsafe path in "
-                        f"archive member {member!r}"
-                    )
-            zf.extractall(cache)
-
-    await asyncio.to_thread(_do_extract)
+    await asyncio.to_thread(_extract_model, zip_data, cache, model_name)
 
     if not os.path.isdir(target_dir):
         raise RuntimeError(
@@ -188,3 +183,34 @@ async def download_vosk_model(
 
     logger.info("Vosk model downloaded to %s", target_dir)
     return target_dir
+
+
+def _extract_model(zip_data: bytes, cache: str, model_name: str) -> None:
+    # lazy: heavy (stdlib) — zipfile drags in lzma/bz2, for a one-shot path.
+    import io
+    import zipfile
+
+    target_dir = os.path.join(cache, model_name)
+    staging = tempfile.mkdtemp(prefix=f".{model_name}-", dir=cache)
+    try:
+        real_staging = os.path.realpath(staging)
+        with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
+            for member in zf.namelist():
+                member_path = os.path.realpath(os.path.join(staging, member))
+                if member_path != real_staging and not member_path.startswith(
+                    real_staging + os.sep
+                ):
+                    raise RuntimeError(
+                        f"Refusing to extract Vosk model: unsafe path in "
+                        f"archive member {member!r}"
+                    )
+            zf.extractall(staging)
+        staged_model = os.path.join(staging, model_name)
+        if os.path.isdir(staged_model) and not os.path.isdir(target_dir):
+            try:
+                os.rename(staged_model, target_dir)
+            except OSError:
+                # Another session renamed its copy into place first.
+                pass
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)

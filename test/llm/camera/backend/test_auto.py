@@ -260,6 +260,7 @@ async def test_capture_timeout_returns_none_with_hint(clean_env):
         backend = AutoCameraBackend(ffmpeg=FfmpegCameraBackend(timeout=0.05))
         result = await backend.capture(None)
 
+    # The inner backend's own timeout still holds under auto's longer one.
     assert result is None
     assert all(proc.killed for proc in hung_procs)
     assert "timed out" in backend.get_failure_hint()
@@ -326,3 +327,82 @@ async def test_a_hung_termux_capture_is_abandoned_after_the_timeout(
 
     assert result is None
     assert [proc.killed for proc in hung] == [True]
+
+
+@pytest.mark.asyncio
+async def test_an_mjpeg_attempt_that_times_out_leaves_no_time_for_the_raw_one(
+    clean_env,
+):
+    """Both ffmpeg attempts share one deadline: a 0.05 s timeout never
+    becomes 0.1 s."""
+    clean_env.setattr("sys.platform", "linux")
+    clean_env.setattr("shutil.which", _which_only("ffmpeg"))
+    started: list[_FakeProcess] = []
+
+    def _make_proc(*args, **kwargs):
+        proc = _FakeProcess(hang_seconds=10)
+        started.append(proc)
+        return proc
+
+    with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
+        result = await FfmpegCameraBackend(timeout=0.05).capture(None)
+
+    assert result is None
+    assert len(started) == 1
+
+
+@pytest.mark.asyncio
+async def test_auto_shares_one_deadline_between_termux_and_ffmpeg(clean_env, tmp_path):
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
+    clean_env.setattr("shutil.which", _which_only("termux-camera-photo", "ffmpeg"))
+    started: list[_FakeProcess] = []
+
+    def _make_proc(*args, **kwargs):
+        proc = _FakeProcess(hang_seconds=10)
+        started.append(proc)
+        return proc
+
+    backend = AutoCameraBackend(
+        termux=TermuxCameraBackend(str(tmp_path / "p.jpg")), timeout=0.05
+    )
+    with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
+        result = await backend.capture(None)
+
+    assert result is None
+    assert len(started) == 1  # the termux attempt used up the time
+
+
+@pytest.mark.asyncio
+async def test_a_failed_termux_capture_never_returns_an_earlier_photo(
+    clean_env, tmp_path
+):
+    stale = tmp_path / "photo.jpg"
+    stale.write_bytes(b"old photo")
+    clean_env.setattr("shutil.which", _which_only("termux-camera-photo"))
+
+    with patch(
+        "asyncio.create_subprocess_exec",
+        new=AsyncMock(side_effect=lambda *a, **k: _FakeProcess(returncode=1)),
+    ):
+        result = await TermuxCameraBackend(str(stale)).capture(None)
+
+    assert result is None
+    assert not stale.exists()
+
+
+@pytest.mark.asyncio
+async def test_each_termux_capture_writes_its_own_file(clean_env):
+    clean_env.setattr("shutil.which", _which_only("termux-camera-photo"))
+    paths: list[str] = []
+
+    def _make_proc(*args, **kwargs):
+        paths.append(args[-1])
+        return _FakeProcess()
+
+    with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
+        backend = TermuxCameraBackend()
+        await backend.capture(None)
+        await backend.capture(None)
+
+    assert len(set(paths)) == 2
+    assert all(f"_camera_" in path for path in paths)

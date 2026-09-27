@@ -886,8 +886,8 @@ Three optional features of `zrb llm chat`, each added with one call and read fro
 | `ZRB_LLM_DICTATION_THRESHOLD` | RMS microphone level that counts as speech (`zrb voice mic-test` in `examples/voice-interaction` measures yours) | `0.01` |
 | `ZRB_LLM_DICTATION_SILENCE` | Seconds of silence that end an utterance | `1.0` |
 | `ZRB_LLM_DICTATION_MIN_SPEECH` | Shortest speech kept, in seconds; shorter is a cough or a click | `0.4` |
-| `ZRB_LLM_DICTATION_MAX_UTTERANCE` | Longest utterance, in seconds | `30.0` |
-| `ZRB_LLM_DICTATION_PRE_ROLL` | Seconds kept from before speech is detected, so the first word is not clipped | `0.3` |
+| `ZRB_LLM_DICTATION_MAX_UTTERANCE` | Longest utterance, in seconds; `0` means no limit | `30.0` |
+| `ZRB_LLM_DICTATION_PRE_ROLL` | Seconds kept from before speech is detected, so the first word is not clipped; `0` keeps none | `0.3` |
 | `ZRB_LLM_DICTATION_ECHO_COOLDOWN` | Seconds the microphone stays deaf after zrb stops speaking | `0.4` |
 | `ZRB_LLM_DICTATION_APPROVE_WORDS` | Phrases that, opening a short hands-free answer to a tool approval, approve it. Any other answer denies it, with what was said as the reason | `yes, yeah, yep, ok, okay, sure, approve, accept, go ahead, do it` |
 | `ZRB_LLM_DICTATION_DENY_WORDS` | Phrases that, said alone, deny a tool approval | `no, nope, deny, cancel, stop, don't` |
@@ -901,6 +901,7 @@ Each backend uses only its own variables:
 | `google` | `ZRB_LLM_DICTATION_GOOGLE_MODEL` | Gemini model | `gemini-2.5-flash` |
 | `vosk` | `ZRB_LLM_DICTATION_VOSK_MODEL_NAME` | Model directory name (without `.zip`), downloaded from `<VOSK_MODEL_URL>/<name>.zip` | `vosk-model-small-en-us-0.15` |
 | `vosk` | `ZRB_LLM_DICTATION_VOSK_MODEL_URL` | Base URL for the model zip (extracted to `~/.cache/vosk/`) | `https://alphacephei.com/vosk/models` |
+| `vosk` | `ZRB_LLM_DICTATION_VOSK_DOWNLOAD_TIMEOUT` | Seconds to wait for the model server to answer; `0` means no limit | `120` |
 
 ### Speech (text-to-speech)
 
@@ -921,7 +922,7 @@ Reads the reply at the end of each turn, tool approvals and questions aloud. `/s
 | `ZRB_LLM_SPEECH_OPENAI_MODEL` | Model for `openai` | `gpt-4o-mini-tts` |
 | `ZRB_LLM_SPEECH_OPENAI_BASE_URL` | API base URL for `openai` | `https://api.openai.com/v1` |
 | `ZRB_LLM_SPEECH_GEMINI_MODEL` | Model for `gemini` | `gemini-2.5-flash-preview-tts` |
-| `ZRB_LLM_SPEECH_TIMEOUT` | Seconds a cloud backend may take | `15` |
+| `ZRB_LLM_SPEECH_TIMEOUT` | Seconds a cloud backend may take; `0` means no limit | `15` |
 | `ZRB_LLM_SPEECH_TERMUX_LANGUAGE` | Language for `termux` (`-l`), e.g. `en`; empty is the phone's | (none) |
 | `ZRB_LLM_SPEECH_TERMUX_ENGINE` | Android TTS engine for `termux` (`-e`) | (none) |
 | `ZRB_LLM_SPEECH_TERMUX_REGION` | Region for `termux` (`-n`), e.g. `US` | (none) |
@@ -932,7 +933,7 @@ Reads the reply at the end of each turn, tool approvals and questions aloud. `/s
 | `ZRB_LLM_SPEECH_LOCK_FILE` | File locked while speech plays, so sessions take turns and dictation ignores zrb's own voice | `<tmp>/<root group name>-speech.lock` |
 | `ZRB_LLM_SPEECH_LOCK_TIMEOUT` | Seconds to wait for another session to finish before dropping an utterance | `30` |
 | `ZRB_LLM_SPEECH_DRAIN_TIMEOUT` | Seconds queued speech may still play after zrb exits | `30` |
-| `ZRB_LLM_SPEECH_PLAYER_TIMEOUT` | Seconds one utterance may play | `120` |
+| `ZRB_LLM_SPEECH_PLAYER_TIMEOUT` | Seconds one utterance may play; `0` means no limit | `120` |
 
 The cloud backends read `OPENAI_API_KEY`, and `GEMINI_API_KEY` or `GOOGLE_API_KEY`.
 
@@ -945,7 +946,7 @@ The cloud backends read `OPENAI_API_KEY`, and `GEMINI_API_KEY` or `GOOGLE_API_KE
 | `ZRB_LLM_CAMERA_COMMANDS` | Aliases for the camera command | `/photo, /p` |
 | `ZRB_LLM_CAMERA_BACKEND` | `auto` (Termux:API on Android when installed, else ffmpeg), `termux`, `ffmpeg` | `auto` |
 | `ZRB_LLM_CAMERA_DEVICE` | Device used when the command names none; empty picks the platform default | (none) |
-| `ZRB_LLM_CAMERA_TIMEOUT` | Seconds a capture may take before it is abandoned | `15` |
+| `ZRB_LLM_CAMERA_TIMEOUT` | Seconds a capture may take, every attempt included, before it is abandoned; `0` means no limit | `15` |
 
 ```bash
 # Hands-free with OpenAI transcription, a wake word, and replies read aloud

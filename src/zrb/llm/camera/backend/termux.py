@@ -15,9 +15,15 @@ from __future__ import annotations
 import asyncio
 import os
 import shutil
+import uuid
 
 from zrb.config.config import CFG
 from zrb.llm.camera.backend.any_camera_backend import AnyCameraBackend
+from zrb.llm.camera.backend.deadline import (
+    create_deadline,
+    get_earlier,
+    get_remaining,
+)
 
 # Termux's real home directory is always at this fixed location, regardless
 # of whether the caller is native Termux or a proot-distro guest.
@@ -27,9 +33,10 @@ TERMUX_HOME = "/data/data/com.termux/files/home"
 class TermuxCameraBackend(AnyCameraBackend):
     """`termux-camera-photo`; a device is a camera id (``0`` back, ``1`` front).
 
-    The app writes the photo to *photo_path*, by default a dot-file named for
-    `CFG.ROOT_GROUP_NAME` in Termux's home. A capture taking over *timeout*
-    seconds is abandoned.
+    The app writes each photo to a fresh file in Termux's home, named for
+    `CFG.ROOT_GROUP_NAME`, or to *photo_path*; the file is removed before and
+    after, so a failed capture never returns an earlier photo. A capture taking
+    over *timeout* seconds is abandoned; ``0`` means no limit.
     """
 
     def __init__(self, photo_path: str | None = None, timeout: float = 15.0) -> None:
@@ -45,9 +52,29 @@ class TermuxCameraBackend(AnyCameraBackend):
         return shutil.which("termux-camera-photo") is not None
 
     async def capture(self, device: str | None) -> bytes | None:
+        return await self.capture_by(device, None)
+
+    async def capture_by(
+        self, device: str | None, deadline: float | None
+    ) -> bytes | None:
+        """`capture`, giving up at *deadline* (`time.monotonic()`) or after
+        this backend's own timeout, whichever comes first."""
+        deadline = get_earlier(deadline, create_deadline(self._timeout))
         path = self._photo_path or os.path.join(
-            TERMUX_HOME, f".{CFG.ROOT_GROUP_NAME}_camera_photo.jpg"
+            TERMUX_HOME, f".{CFG.ROOT_GROUP_NAME}_camera_{uuid.uuid4().hex}.jpg"
         )
+        _remove(path)
+        try:
+            return await self._capture(device, path, deadline)
+        finally:
+            _remove(path)
+
+    async def _capture(
+        self, device: str | None, path: str, deadline: float | None
+    ) -> bytes | None:
+        timeout = get_remaining(deadline)
+        if timeout == 0:
+            return None
         try:
             proc = await asyncio.create_subprocess_exec(
                 "termux-camera-photo",
@@ -60,7 +87,7 @@ class TermuxCameraBackend(AnyCameraBackend):
         except Exception:
             return None
         try:
-            await asyncio.wait_for(proc.communicate(), timeout=self._timeout)
+            await asyncio.wait_for(proc.communicate(), timeout=timeout)
         except asyncio.TimeoutError:
             proc.kill()
             await proc.wait()
@@ -70,15 +97,17 @@ class TermuxCameraBackend(AnyCameraBackend):
         if not (os.path.exists(path) and os.path.getsize(path) > 0):
             return None
         with open(path, "rb") as photo_file:
-            data = photo_file.read()
-        try:
-            os.unlink(path)
-        except OSError:
-            pass
-        return data
+            return photo_file.read()
 
     def list_devices(self) -> list[str]:
         return ["0", "1"]
 
     def get_failure_hint(self) -> str:
         return "  Install the Termux:API app (F-Droid) and `pkg install termux-api`.\n"
+
+
+def _remove(path: str) -> None:
+    try:
+        os.unlink(path)
+    except OSError:
+        pass

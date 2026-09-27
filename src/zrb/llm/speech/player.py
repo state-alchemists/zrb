@@ -133,7 +133,7 @@ def play(utterance: Utterance, config: SpeechConfig) -> None:
         ):
             _playing.set()
             try:
-                utterance.play(config.player_timeout)
+                utterance.play(config.player_timeout or None)
             finally:
                 _playing.clear()
     except FileLockTimeout:

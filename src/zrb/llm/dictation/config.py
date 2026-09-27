@@ -38,6 +38,7 @@ class DictationConfig:
     google_model: str | None = None
     vosk_model_name: str | None = None
     vosk_model_url: str | None = None
+    vosk_download_timeout: float | None = None
 
     def resolve(self) -> "DictationConfig":
         """A copy with every ``None`` field read from `CFG`."""

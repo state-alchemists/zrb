@@ -44,6 +44,11 @@ from typing import Any
 
 from zrb.config.helper import is_wsl
 from zrb.llm.camera.backend.any_camera_backend import AnyCameraBackend
+from zrb.llm.camera.backend.deadline import (
+    create_deadline,
+    get_earlier,
+    get_remaining,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +62,8 @@ _TROUBLESHOOTING_URL = (
 
 class FfmpegCameraBackend(AnyCameraBackend):
     """ffmpeg capture; a device is an avfoundation index, a dshow name, or a
-    /dev/video* path. A capture taking over *timeout* seconds is abandoned."""
+    /dev/video* path. A capture taking over *timeout* seconds, all attempts
+    together, is abandoned; ``0`` means no limit."""
 
     def __init__(self, timeout: float = 15.0) -> None:
         self._timeout = timeout
@@ -75,12 +81,22 @@ class FfmpegCameraBackend(AnyCameraBackend):
         return self._last_error
 
     async def capture(self, device: str | None) -> bytes | None:
+        return await self.capture_by(device, None)
+
+    async def capture_by(
+        self, device: str | None, deadline: float | None
+    ) -> bytes | None:
+        """`capture`, giving up at *deadline* (`time.monotonic()`) or after
+        this backend's own timeout, whichever comes first."""
+        deadline = get_earlier(deadline, create_deadline(self._timeout))
         try:
-            return await self._capture(device)
+            return await self._capture(device, deadline)
         except Exception:
             return None
 
-    async def _capture(self, device: str | None) -> bytes | None:
+    async def _capture(
+        self, device: str | None, deadline: float | None
+    ) -> bytes | None:
         if shutil.which("ffmpeg") is None:
             return None
         extra_args: list[str] = []
@@ -101,12 +117,17 @@ class FfmpegCameraBackend(AnyCameraBackend):
             # and so does 720p MJPEG; 640x480 MJPEG is the largest that lands.
             # Cameras without MJPEG fall back to the raw default.
             mjpeg_args = ["-input_format", "mjpeg", "-video_size", "640x480"]
-            data = await self._run(_ffmpeg_cmd(input_fmt, mjpeg_args, input_arg))
+            data = await self._run(
+                _ffmpeg_cmd(input_fmt, mjpeg_args, input_arg), deadline
+            )
             if data is not None:
                 return data
-        return await self._run(_ffmpeg_cmd(input_fmt, extra_args, input_arg))
+        return await self._run(_ffmpeg_cmd(input_fmt, extra_args, input_arg), deadline)
 
-    async def _run(self, cmd: list[str]) -> bytes | None:
+    async def _run(self, cmd: list[str], deadline: float | None) -> bytes | None:
+        timeout = get_remaining(deadline)
+        if timeout == 0:
+            return None
         try:
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -116,9 +137,7 @@ class FfmpegCameraBackend(AnyCameraBackend):
         except FileNotFoundError:
             return None
         try:
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=self._timeout
-            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         except asyncio.TimeoutError:
             proc.kill()
             await proc.wait()
