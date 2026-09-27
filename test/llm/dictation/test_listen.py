@@ -240,3 +240,97 @@ def test_flush_drops_too_little_speech():
     _feed(cutter, [0, 1])
 
     assert cutter.flush(1.0) is None
+
+
+# --- listen: the backlog ----------------------------------------------------
+
+
+async def _collect_with(config, blocks):
+    """Feed every block before the listener reads any, as happens while the
+    caller is busy transcribing."""
+    captured = {}
+
+    async def consume():
+        stream = listen(config, _holds_for(len(blocks)), keep_partial=True)
+        return [utterance async for utterance in stream]
+
+    with (
+        patch.dict("sys.modules", {"sounddevice": _fake_sounddevice(captured)}),
+        patch("zrb.llm.dictation.listen.is_speaking", return_value=False),
+    ):
+        task = asyncio.create_task(consume())
+        await _play(captured, blocks)
+        return await task
+
+
+def _backlog_config(max_backlog):
+    return DictationConfig(
+        threshold=0.1,
+        silence=0.2,
+        min_speech=0.1,
+        max_utterance=10,
+        pre_roll=0,
+        echo_cooldown=0,
+        max_backlog=max_backlog,
+    )
+
+
+@pytest.mark.asyncio
+async def test_audio_beyond_the_backlog_is_dropped_oldest_first():
+    blocks = [
+        _block(0.5),
+        _block(0.5),
+        _block(0.5),
+        _block(0.25),
+        _block(0.0),
+        _block(0.0),
+    ]
+
+    utterances = await _collect_with(_backlog_config(0.3), blocks)
+
+    # Only the newest three blocks were kept: the 0.25 one and the silence.
+    assert [u.audio for u in utterances] == [_pcm(0.25, 0.25, 0.0, 0.0, 0.0, 0.0)]
+
+
+@pytest.mark.asyncio
+async def test_no_backlog_limit_keeps_everything():
+    blocks = [_block(0.5), _block(0.5), _block(0.0), _block(0.0)]
+
+    utterances = await _collect_with(_backlog_config(0), blocks)
+
+    assert [u.audio for u in utterances] == [_pcm(*[0.5] * 4, *[0.0] * 4)]
+
+
+@pytest.mark.asyncio
+async def test_a_one_block_backlog_still_marks_the_gap():
+    blocks = [_block(0.5), _block(0.5), _block(0.0)]
+
+    utterances = await _collect_with(_backlog_config(0.1), blocks)
+
+    # Only the last, quiet block survives: no speech, no utterance.
+    assert utterances == []
+
+
+@pytest.mark.asyncio
+async def test_speech_is_never_joined_across_dropped_audio():
+    """An utterance in progress when audio is dropped is discarded, not
+    spliced onto what comes after the gap."""
+    captured = {}
+    config = _backlog_config(0.2)
+
+    async def consume():
+        stream = listen(config, _holds_for(5), keep_partial=True)
+        return [utterance async for utterance in stream]
+
+    with (
+        patch.dict("sys.modules", {"sounddevice": _fake_sounddevice(captured)}),
+        patch("zrb.llm.dictation.listen.is_speaking", return_value=False),
+    ):
+        task = asyncio.create_task(consume())
+        await _play(captured, [_block(0.5)])  # read at once: speech starts
+        await asyncio.sleep(0.01)
+        # Then three more arrive at once; with room for two, one is dropped.
+        await _play(captured, [_block(0.25), _block(0.75), _block(0.75)])
+        utterances = await task
+
+    assert [u.audio for u in utterances] == [_pcm(0.75, 0.75, 0.75, 0.75)]

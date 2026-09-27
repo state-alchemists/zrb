@@ -55,7 +55,7 @@ class UtteranceCutter:
         """Add one block; return ``(blocks, started_at, ended_at)`` when it
         finishes an utterance."""
         if is_echo:
-            self._reset()
+            self.reset()
             self._cooldown_blocks = _to_blocks(self._config.echo_cooldown or 0)
             return None
         if self._cooldown_blocks:
@@ -79,7 +79,7 @@ class UtteranceCutter:
         if self._silent_blocks < _to_blocks(config.silence or 0) and not is_too_long:
             return None
         blocks, spoken_blocks = self._speech, self._count_spoken_blocks()
-        self._reset()
+        self.reset()
         if spoken_blocks < _to_blocks(config.min_speech or 0):
             return None
         return blocks, self._started_at, captured_at
@@ -88,7 +88,7 @@ class UtteranceCutter:
         """The utterance in progress, as `feed` would return it, if it holds
         enough speech; for a recording stopped mid-sentence."""
         blocks, spoken_blocks = self._speech, self._count_spoken_blocks()
-        self._reset()
+        self.reset()
         if not blocks or spoken_blocks < _to_blocks(self._config.min_speech or 0):
             return None
         return blocks, self._started_at, ended_at
@@ -98,7 +98,8 @@ class UtteranceCutter:
         silence are not speech."""
         return len(self._speech) - self._pre_roll_blocks - self._silent_blocks
 
-    def _reset(self) -> None:
+    def reset(self) -> None:
+        """Forget the utterance in progress and the pre-roll."""
         self._speech, self._silent_blocks = [], 0
         self._pre_roll.clear()
 
@@ -110,27 +111,34 @@ async def listen(
 ) -> AsyncIterator[Utterance]:
     """Yield utterances from the default microphone while *should_listen*
     holds; the microphone closes once it stops holding. With *keep_partial*,
-    speech cut off by that is yielded too."""
+    speech cut off by that is yielded too.
+
+    Audio keeps arriving while the caller handles an utterance (a slow
+    transcription), and is kept, since the user may already be saying the
+    next thing; but only the newest ``max_backlog`` seconds of it (``0``: no
+    limit). When older audio is dropped, any utterance in progress is
+    dropped with it rather than spliced across the gap.
+    """
     np, sd = import_audio()
     loop = asyncio.get_running_loop()
-    blocks: "asyncio.Queue[tuple[Any, bool, float]]" = asyncio.Queue()
+    backlog = _Backlog(_to_blocks(config.max_backlog or 0))
 
     def on_audio(indata: Any, frames: int, time_info: Any, status: Any) -> None:
         # Checked at capture: blocks queue up during transcription, so
         # checking later would let zrb's own voice through.
         captured = (indata.copy(), is_speaking(), time.monotonic())
-        loop.call_soon_threadsafe(blocks.put_nowait, captured)
+        loop.call_soon_threadsafe(backlog.append, captured)
 
     cutter = UtteranceCutter(config)
     stream = _open_microphone(sd, on_audio, blocksize=int(SAMPLE_RATE * BLOCK_SECONDS))
     with stream:
         while should_listen():
-            try:
-                block, is_echo, captured_at = await asyncio.wait_for(
-                    blocks.get(), timeout=BLOCK_SECONDS * 5
-                )
-            except asyncio.TimeoutError:
+            item = await backlog.get(timeout=BLOCK_SECONDS * 5)
+            if item is None:
                 continue
+            block, is_echo, captured_at, follows_gap = item
+            if follows_gap:
+                cutter.reset()
             level = float(np.sqrt(np.mean(block**2)))
             finished = cutter.feed(block, level, captured_at, is_echo)
             if finished is not None:
@@ -139,6 +147,42 @@ async def listen(
         finished = cutter.flush(time.monotonic())
         if finished is not None:
             yield _to_utterance(np, finished)
+
+
+class _Backlog:
+    """Captured blocks waiting to be read, at most *max_blocks* of them
+    (``0``: no limit). When the oldest is dropped, the block now first is
+    marked as following a gap, so the reader never joins audio across it.
+
+    Touched only from the event loop's thread: the audio callback hands
+    blocks over with `call_soon_threadsafe`.
+    """
+
+    def __init__(self, max_blocks: int) -> None:
+        self._max_blocks = max_blocks
+        self._blocks: deque[tuple[Any, bool, float, bool]] = deque()
+        self._arrived = asyncio.Event()
+
+    def append(self, captured: "tuple[Any, bool, float]") -> None:
+        follows_gap = False
+        if self._max_blocks and len(self._blocks) >= self._max_blocks:
+            self._blocks.popleft()
+            if self._blocks:
+                self._blocks[0] = (*self._blocks[0][:3], True)
+            else:
+                follows_gap = True
+        self._blocks.append((*captured, follows_gap))
+        self._arrived.set()
+
+    async def get(self, timeout: float) -> "tuple[Any, bool, float, bool] | None":
+        """The oldest block, or ``None`` if none arrives within *timeout*."""
+        while not self._blocks:
+            self._arrived.clear()
+            try:
+                await asyncio.wait_for(self._arrived.wait(), timeout=timeout)
+            except asyncio.TimeoutError:
+                return None
+        return self._blocks.popleft()
 
 
 def _to_utterance(np: Any, finished: "tuple[list[Any], float, float]") -> Utterance:

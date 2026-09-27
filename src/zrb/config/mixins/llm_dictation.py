@@ -31,6 +31,7 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_WAKE_WINDOW: str = "8.0"
         self.DEFAULT_LLM_DICTATION_MIN_SPEECH: str = "0.4"
         self.DEFAULT_LLM_DICTATION_MAX_UTTERANCE: str = "30.0"
+        self.DEFAULT_LLM_DICTATION_MAX_BACKLOG: str = "30.0"
         self.DEFAULT_LLM_DICTATION_PRE_ROLL: str = "0.3"
         self.DEFAULT_LLM_DICTATION_ECHO_COOLDOWN: str = "0.4"
         self.DEFAULT_LLM_DICTATION_APPROVE_WORDS: str = (
@@ -129,6 +130,15 @@ class LLMDictationMixin:
         doc=(
             "Longest utterance in seconds; longer speech is cut there. 0 means "
             "no limit. Default: 30."
+        ),
+    )
+
+    LLM_DICTATION_MAX_BACKLOG = EnvField(
+        float,
+        fallback=30.0,
+        doc=(
+            "Seconds of hands-free audio kept while an utterance is being "
+            "transcribed; older audio is dropped. 0 means no limit. Default: 30."
         ),
     )
 

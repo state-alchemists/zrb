@@ -291,9 +291,7 @@ async def test_download_moves_a_complete_model_into_place(tmp_home, monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_a_model_another_session_installed_first_is_kept(
-    tmp_home, monkeypatch
-):
+async def test_a_model_another_session_installed_first_is_kept(tmp_home, monkeypatch):
     tmp_path = tmp_home
     installed = tmp_path / ".cache" / "vosk" / "m"
     installed.mkdir(parents=True)

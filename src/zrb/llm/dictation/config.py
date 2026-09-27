@@ -29,6 +29,7 @@ class DictationConfig:
     silence: float | None = None
     min_speech: float | None = None
     max_utterance: float | None = None
+    max_backlog: float | None = None
     pre_roll: float | None = None
     echo_cooldown: float | None = None
     approve_words: list[str] | None = None
