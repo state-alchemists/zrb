@@ -117,6 +117,53 @@ async def test_handle_incoming_message_resolves_slash_command():
 
 
 @pytest.mark.asyncio
+async def test_handle_incoming_message_runs_action_command():
+    from zrb.llm.custom_command import ActionCommand
+
+    class CapturingEventUI(EventDrivenUI):
+        def __init__(self, custom_commands=None):
+            self.submitted: list[str] = []
+            self.printed: list[str] = []
+            super().__init__(
+                ctx=MagicMock(),
+                llm_task=MagicMock(),
+                history_manager=MagicMock(),
+                custom_commands=custom_commands,
+            )
+
+        def submit_user_message(self, llm_task, user_message):
+            self.submitted.append(user_message)
+
+        async def print(self, text, kind="text"):
+            self.printed.append(text)
+
+        async def start_event_loop(self):
+            pass
+
+    ui = CapturingEventUI(
+        custom_commands=[ActionCommand("/toggle", lambda kwargs: "Toggled")]
+    )
+
+    ui.handle_incoming_message("/toggle")
+    await asyncio.sleep(0)
+
+    assert ui.submitted == []
+    assert ui.printed == ["Toggled"]
+
+
+def test_handle_incoming_message_forwards_non_string_input():
+    from zrb.llm.custom_command import ActionCommand
+
+    ui = MockEventUI(custom_commands=[ActionCommand("/toggle", lambda kwargs: "x")])
+    ui.waiting_for_input = False
+    payload = {"type": "image"}
+
+    ui.handle_incoming_message(payload)
+
+    ui.submit_user_message.assert_called_with(ui.llm_task, payload)
+
+
+@pytest.mark.asyncio
 async def test_run_async_triggers_event_loop():
     ui = MockEventUI()
     ui.submit_user_message = MagicMock()

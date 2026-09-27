@@ -125,11 +125,37 @@ def test_handle_custom_command(ui):
     custom_cmd.command = "/mycmd"
     custom_cmd.args = ["arg1"]
     custom_cmd.get_prompt.return_value = "custom prompt"
+    custom_cmd.handle.return_value = None
     ui.custom_commands = [custom_cmd]
 
     assert ui.handle_custom_command("/mycmd val1") is True
     assert ui.submitted_prompt == "custom prompt"
     custom_cmd.get_prompt.assert_called_with({"arg1": "val1"})
+
+
+def test_handle_action_command_shows_reply_without_prompting(ui):
+    from zrb.llm.custom_command import ActionCommand
+
+    calls = []
+    ui.custom_commands = [
+        ActionCommand("/toggle", lambda kwargs: calls.append(kwargs) or "Toggled")
+    ]
+    ui.submitted_prompt = None
+
+    assert ui.handle_custom_command("/toggle") is True
+    assert calls == [{}]
+    assert ui.submitted_prompt is None
+    assert "Toggled" in "".join(ui.outputs)
+
+
+def test_classify_input_routes_action_command_without_running_it(ui):
+    from zrb.llm.custom_command import ActionCommand
+
+    calls = []
+    ui.custom_commands = [ActionCommand("/toggle", lambda kwargs: calls.append(1))]
+
+    assert ui.classify_input("/toggle") == "command"
+    assert calls == []
 
 
 def test_classify_input_routes_by_recognition_not_prefix(ui):

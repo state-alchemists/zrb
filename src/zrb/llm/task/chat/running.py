@@ -23,12 +23,13 @@ from typing import TYPE_CHECKING, Any
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
 from zrb.llm.custom_command.resolver import (
-    resolve_custom_command,
     resolve_custom_commands,
+    run_custom_command,
 )
 from zrb.llm.task.chat.agent_mention import resolve_agent_mention
 from zrb.session.session import Session
 from zrb.util.attr import get_attr
+from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext
@@ -63,9 +64,15 @@ class ChatRunning:
         initial_yolo: "bool | frozenset[str]",
         initial_attachments: "list[UserContent]",
     ) -> Any:
-        effective_message = _expand_message(
+        effective_message, reply = _expand_message(
             initial_message, self._resolve_custom_commands()
         )
+        if effective_message is None:
+            # An action command ran in place of the turn.
+            # No turn ran, so no session to report for resuming.
+            if reply:
+                ctx.print(reply, plain=True)
+            return reply
 
         # Factory-produced UIs (e.g. the web/SSE HTTPUI) become output sinks so
         # run_agent streams through them. Programmatic `uis` are already wired
@@ -149,7 +156,11 @@ class ChatRunning:
         snapshot_dir: str = "",
     ) -> Any:
         resolved_custom_commands = self._resolve_custom_commands()
-        initial_message = _expand_message(initial_message, resolved_custom_commands)
+        initial_message, reply = _expand_message(
+            initial_message, resolved_custom_commands
+        )
+        if initial_message is None:
+            initial_message = ""
 
         resolved_uis: list["AnyUI"] = list(self._llm_chat_task.uis)
         for factory in self._llm_chat_task.ui_factories:
@@ -186,6 +197,8 @@ class ChatRunning:
 
         if initial_conversation_name:
             self.load_session_history(ui, history_manager, initial_conversation_name)
+        if reply:
+            ui.append_to_output(stylize_muted(f"\n  {reply}\n"))
 
         await ui.run_async()
         last_output = getattr(ui, "last_output", "")
@@ -326,16 +339,21 @@ class ChatRunning:
             )
 
 
-def _expand_message(message: Any, custom_commands: "list[AnyCustomCommand]") -> Any:
+def _expand_message(
+    message: Any, custom_commands: "list[AnyCustomCommand]"
+) -> tuple[Any, str | None]:
     """Expand a slash command, else an @agent mention, in a string message.
 
-    The two syntaxes are mutually exclusive, so a mention is only considered
-    when the message is not a slash command.
+    Returns ``(message, reply)``. A command handled in-process (an
+    `ActionCommand`) returns ``(None, reply)``: there is no turn to run, and
+    *reply* is for the caller to show. The two syntaxes are mutually
+    exclusive, so a mention is only considered when the message is not a
+    slash command.
     """
     if not isinstance(message, str):
-        return message
-    resolved = resolve_custom_command(message, custom_commands)
-    if resolved is not None:
-        return resolved
+        return message, None
+    outcome = run_custom_command(message, custom_commands)
+    if outcome is not None:
+        return outcome.prompt, outcome.reply
     mentioned = resolve_agent_mention(message)
-    return message if mentioned is None else mentioned
+    return (message if mentioned is None else mentioned), None

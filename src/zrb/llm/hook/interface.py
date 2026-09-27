@@ -49,6 +49,7 @@ class HookContext:
     source: str | None = None  # SessionStart
     model: str | None = None
     permission_suggestions: list[dict[str, Any]] | None = None  # PermissionRequest
+    last_assistant_message: str | None = None  # Stop
 
     # Fields to include in JSON output when non-None
     _JSON_FIELDS: "ClassVar[list[str]]" = [
@@ -70,6 +71,7 @@ class HookContext:
         "agent_type",
         "agent_transcript_path",
         "stop_hook_active",
+        "last_assistant_message",
         "teammate_name",
         "team_name",
         "task_id",

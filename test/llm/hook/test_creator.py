@@ -286,6 +286,27 @@ async def test_command_hook_injects_event_and_field_env_vars():
 
 @posix_shell_only
 @pytest.mark.asyncio
+async def test_command_hook_gets_response_text_when_event_data_is_too_large():
+    """A Stop payload with real history overflows CLAUDE_EVENT_DATA and is
+    dropped; the response text must still arrive on its own env var."""
+    hook = create_command_hook(
+        CommandHookConfig(
+            command='echo "[$CLAUDE_EVENT_DATA]|$CLAUDE_LAST_ASSISTANT_MESSAGE"'
+        )
+    )
+    context = HookContext(
+        event=HookEvent.STOP,
+        event_data={"output": "All tests pass.", "history": ["x" * 20000]},
+        last_assistant_message="All tests pass.",
+    )
+
+    result = await hook(context)
+
+    assert (result.output or "").strip() == "[]|All tests pass."
+
+
+@posix_shell_only
+@pytest.mark.asyncio
 async def test_command_hook_remote_metadata_sets_env():
     """metadata['remote'] flips CLAUDE_CODE_REMOTE to 'true'."""
     hook = create_command_hook(CommandHookConfig(command='echo "$CLAUDE_CODE_REMOTE"'))

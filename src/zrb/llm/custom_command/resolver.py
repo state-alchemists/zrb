@@ -1,5 +1,6 @@
 import shlex
 from collections.abc import Callable
+from typing import NamedTuple
 
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 
@@ -23,6 +24,14 @@ def resolve_custom_commands(
     return resolved
 
 
+class CustomCommandOutcome(NamedTuple):
+    """What a matched custom command produced: a prompt for the LLM, or a
+    reply to show the user (``handle`` ran and no turn starts)."""
+
+    prompt: str | None
+    reply: str | None
+
+
 def resolve_custom_command(
     message: str,
     custom_commands: list[AnyCustomCommand],
@@ -30,8 +39,42 @@ def resolve_custom_command(
     """If *message* starts with a registered custom command, resolve its prompt.
 
     Returns the transformed prompt string on match, or ``None`` if no
-    registered command matched.
+    registered command matched. Never runs ``handle``; see
+    `run_custom_command` for callers that should.
     """
+    match = get_custom_command_match(message, custom_commands)
+    if match is None:
+        return None
+    custom_cmd, kwargs = match
+    return custom_cmd.get_prompt(kwargs)
+
+
+def run_custom_command(
+    message: str,
+    custom_commands: list[AnyCustomCommand],
+) -> CustomCommandOutcome | None:
+    """Run the custom command *message* names, or return ``None`` if none matches.
+
+    The command's ``handle`` runs first; only when it declines (returns
+    ``None``) is ``get_prompt`` resolved for the LLM.
+    """
+    match = get_custom_command_match(message, custom_commands)
+    if match is None:
+        return None
+    custom_cmd, kwargs = match
+    # getattr: duck-typed commands written before `handle` existed lack it.
+    handle = getattr(custom_cmd, "handle", None)
+    reply = handle(kwargs) if handle is not None else None
+    if reply is not None:
+        return CustomCommandOutcome(prompt=None, reply=reply)
+    return CustomCommandOutcome(prompt=custom_cmd.get_prompt(kwargs), reply=None)
+
+
+def get_custom_command_match(
+    message: str,
+    custom_commands: list[AnyCustomCommand],
+) -> tuple[AnyCustomCommand, dict[str, str]] | None:
+    """The command *message* names and its parsed arguments, or ``None``."""
     if not message.startswith("/"):
         return None
 
@@ -63,5 +106,5 @@ def resolve_custom_command(
                 custom_cmd.args[i]: (provided_args[i] if i < len(provided_args) else "")
                 for i in range(len(custom_cmd.args))
             }
-            return custom_cmd.get_prompt(args_dict)
+            return custom_cmd, args_dict
     return None

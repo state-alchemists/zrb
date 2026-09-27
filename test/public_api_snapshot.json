@@ -716,7 +716,8 @@
         "reason:POSITIONAL_OR_KEYWORD:1",
         "source:POSITIONAL_OR_KEYWORD:1",
         "model:POSITIONAL_OR_KEYWORD:1",
-        "permission_suggestions:POSITIONAL_OR_KEYWORD:1"
+        "permission_suggestions:POSITIONAL_OR_KEYWORD:1",
+        "last_assistant_message:POSITIONAL_OR_KEYWORD:1"
       ],
       "members": [
         "to_claude_json"
