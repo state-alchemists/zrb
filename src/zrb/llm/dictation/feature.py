@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
+from contextlib import aclosing
 from typing import TYPE_CHECKING
 
 from zrb.llm.custom_command.action_command import ActionCommand
@@ -20,7 +21,7 @@ from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.listen import import_audio, listen
 from zrb.llm.dictation.words import split_phrases, strip_wake_word, to_answer
 from zrb.llm.ui.trigger import TriggerReply
-from zrb.llm.util.feature_config import replace_registration
+from zrb.llm.util.feature_config import get_feature_sessions, replace_registration
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
@@ -40,19 +41,22 @@ def enable_dictation(
     sessions; empty command lists leave the commands out. The microphone opens
     only for a recording, or while hands-free is on. Calling it again replaces
     the earlier call."""
-    sessions: list[DictationSession] = []
-
-    def get_session() -> DictationSession:
-        if not sessions:
-            sessions.append(DictationSession((config or DictationConfig()).resolve()))
-        return sessions[0]
+    sessions = get_feature_sessions(
+        chat,
+        "dictation",
+        lambda: DictationSession((config or DictationConfig()).resolve()),
+        lambda session: session.close(),
+    )
+    # A second call replaces the first, so its microphone is not left open.
+    sessions.close_all()
 
     def create_commands() -> "list[AnyCustomCommand]":
-        return get_session().create_commands()
+        return sessions.get().create_commands()
 
-    async def hands_free() -> AsyncIterator[TriggerReply]:
-        async for reply in get_session().listen_hands_free():
-            yield reply
+    async def hands_free() -> AsyncGenerator[TriggerReply, None]:
+        async with aclosing(sessions.get().listen_hands_free()) as listener:
+            async for reply in listener:
+                yield reply
 
     replace_registration(
         chat,
@@ -68,6 +72,9 @@ class DictationSession:
         self._config = config
         self.backend = get_dictation_backend(config.backend or "vosk", config)
         self._stop_recording: asyncio.Event | None = None
+        # Set when hands-free is switched off, so a transcription already under
+        # way can be dropped instead of submitted after the user said stop.
+        self._hands_free_off = asyncio.Event()
         self._wake_words = split_phrases(config.wake_words or [])
         self._approve_words = split_phrases(config.approve_words or [])
         self._deny_words = split_phrases(config.deny_words or [])
@@ -76,6 +83,13 @@ class DictationSession:
     @property
     def is_recording(self) -> bool:
         return self._stop_recording is not None
+
+    def close(self) -> None:
+        """Switch hands-free off and release a recording in progress."""
+        self.is_hands_free = False
+        self._hands_free_off.set()
+        if self._stop_recording is not None:
+            self._stop_recording.set()
 
     def create_commands(self) -> "list[AnyCustomCommand]":
         push_to_talk: "list[AnyCustomCommand]" = [
@@ -118,6 +132,10 @@ class DictationSession:
             except RuntimeError as e:
                 return f"🎤 {e}"
         self.is_hands_free = not self.is_hands_free
+        if self.is_hands_free:
+            self._hands_free_off.clear()
+        else:
+            self._hands_free_off.set()
         if self._stop_recording is not None:
             self._stop_recording.set()
         return f"🎤 Hands-free {'on' if self.is_hands_free else 'off'}"
@@ -146,11 +164,16 @@ class DictationSession:
         def should_listen() -> bool:
             return not stop.is_set()
 
-        async for utterance in listen(self._config, should_listen, keep_partial=True):
-            return utterance.audio
-        return b""
+        # aclosing, or the `with stream` inside `listen` waits on generator
+        # finalization to close the microphone.
+        async with aclosing(
+            listen(self._config, should_listen, keep_partial=True)
+        ) as mic:
+            async for utterance in mic:
+                return utterance.audio
+            return b""
 
-    async def listen_hands_free(self) -> AsyncIterator[TriggerReply]:
+    async def listen_hands_free(self) -> AsyncGenerator[TriggerReply, None]:
         """Yield one reply per utterance while hands-free is on, for the life
         of the session."""
         while True:
@@ -165,26 +188,49 @@ class DictationSession:
                 logger.warning(f"Hands-free dictation stopped: {exc}")
                 self.is_hands_free = False
 
-    async def _replies(self) -> AsyncIterator[TriggerReply]:
+    async def _replies(self) -> AsyncGenerator[TriggerReply, None]:
         armed_until = 0.0
-        async for utterance in listen(self._config, lambda: self.is_hands_free):
-            try:
-                text = (await self.backend.transcribe(utterance.audio)).strip()
-            except Exception as exc:
-                logger.warning(f"Hands-free transcription failed: {exc}")
-                continue
-            command = strip_wake_word(text, self._wake_words)
-            # Against when the utterance was spoken, not when transcription
-            # finished: transcription alone can take seconds.
-            if command is None and utterance.started_at < armed_until:
-                command = text
-            if command is None:
-                continue
-            if not command:
-                # The wake word alone: people pause after it.
-                armed_until = utterance.ended_at + (self._config.wake_window or 0)
-                continue
-            armed_until = 0.0
-            yield TriggerReply(
-                to_answer(command, self._approve_words, self._deny_words)
+        # aclosing so switching hands-free off closes the microphone as soon as
+        # the utterance in flight is dropped, not at finalization.
+        async with aclosing(listen(self._config, lambda: self.is_hands_free)) as mic:
+            async for utterance in mic:
+                try:
+                    text = await self._transcribe_or_drop(utterance.audio)
+                except Exception as exc:
+                    logger.warning(f"Hands-free transcription failed: {exc}")
+                    continue
+                if text is None:
+                    return
+                command = strip_wake_word(text, self._wake_words)
+                # Against when the utterance was spoken, not when transcription
+                # finished: transcription alone can take seconds.
+                if command is None and utterance.started_at < armed_until:
+                    command = text
+                if command is None:
+                    continue
+                if not command:
+                    # The wake word alone: people pause after it.
+                    armed_until = utterance.ended_at + (self._config.wake_window or 0)
+                    continue
+                armed_until = 0.0
+                yield TriggerReply(
+                    to_answer(command, self._approve_words, self._deny_words)
+                )
+
+    async def _transcribe_or_drop(self, audio: bytes) -> str | None:
+        """*audio*'s transcript, or ``None`` when hands-free was switched off
+        while it was being transcribed — the user said stop, so that utterance
+        is theirs, not the model's."""
+        transcribing = asyncio.ensure_future(self.backend.transcribe(audio))
+        switched_off = asyncio.ensure_future(self._hands_free_off.wait())
+        try:
+            await asyncio.wait(
+                {transcribing, switched_off}, return_when=asyncio.FIRST_COMPLETED
             )
+            if not transcribing.done():
+                return None
+            return (await transcribing).strip()
+        finally:
+            for task in (transcribing, switched_off):
+                if not task.done():
+                    task.cancel()

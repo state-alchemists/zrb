@@ -15,7 +15,15 @@ _HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s*", re.MULTILINE)
 _QUOTE_RE = re.compile(r"^\s{0,3}>\s?", re.MULTILINE)
 _RULE_RE = re.compile(r"^\s*([-*_])(\s*\1){2,}\s*$", re.MULTILINE)
 _BULLET_RE = re.compile(r"^\s*[-*+]\s+", re.MULTILINE)
-_EMPHASIS_RE = re.compile(r"(\*\*|__|\*|_|~~)")
+# Emphasis markers, matched as pairs and never inside a word, so
+# `set_app_name` and `2 * 3` survive. `__strong__` is left alone on purpose:
+# it is indistinguishable from the dunder in `__init__.py`.
+_EMPHASIS_RES = (
+    re.compile(r"(?<!\*)\*\*(?=\S)(.+?)(?<=\S)\*\*(?!\*)", re.DOTALL),
+    re.compile(r"(?<!~)~~(?=\S)(.+?)(?<=\S)~~(?!~)", re.DOTALL),
+    re.compile(r"(?<![\w*])\*(?=[^\s*])(.+?)(?<=\S)\*(?![\w*])"),
+    re.compile(r"(?<![\w_])_(?=[^\s_])(.+?)(?<=\S)_(?![\w_])", re.DOTALL),
+)
 # espeak-ng reads some emoji aloud ("smiling face").
 _NON_SPEECH_RE = re.compile(
     "[\U0001f300-\U0001faff\U00002600-\U000027bf\U0001f1e6-\U0001f1ff]"
@@ -42,7 +50,8 @@ def clean_for_speech(text: str) -> str:
     text = _HEADING_RE.sub("", text)
     text = _QUOTE_RE.sub("", text)
     text = _BULLET_RE.sub("", text)
-    text = _EMPHASIS_RE.sub("", text)
+    for emphasis in _EMPHASIS_RES:
+        text = emphasis.sub(r"\1", text)
     text = _NON_SPEECH_RE.sub("", text)
     text = text.replace("→", " to ").replace("—", ", ").replace("–", ", ")
     # Paragraph breaks become sentence pauses.

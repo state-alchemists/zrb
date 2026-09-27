@@ -9,15 +9,17 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import weakref
 from typing import TYPE_CHECKING, Any
 
+from zrb.config.config import CFG
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.speech.config import SpeechConfig
 from zrb.llm.speech.player import Speaker
 from zrb.llm.speech.text import clean_for_speech, fit_for_speech
-from zrb.llm.util.feature_config import replace_registration
+from zrb.llm.util.feature_config import get_feature_sessions, replace_registration
 
 if TYPE_CHECKING:
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
@@ -37,19 +39,26 @@ def enable_speech(
     """Speak *task*'s replies, approvals and questions, from the start of a
     session when ``enabled``. On an `LLMChatTask`, also add the command that
     switches speech on and off during a session. Calling it again replaces the
-    earlier call."""
-    sessions: list[SpeechSession] = []
+    earlier call.
 
-    def get_session() -> SpeechSession:
-        if not sessions:
-            sessions.append(SpeechSession((config or SpeechConfig()).resolve()))
-        return sessions[0]
+    Speech rides on the hook subsystem, so `ZRB_HOOKS_ENABLED` off silences
+    it; a warning says so at session start.
+    """
+    sessions = get_feature_sessions(
+        task,
+        "speech",
+        lambda: SpeechSession((config or SpeechConfig()).resolve()),
+        lambda session: session.close(),
+    )
+    # A second call replaces the first, so nothing it started keeps speaking.
+    sessions.close_all()
 
     def register_hooks(manager: "HookManager") -> None:
-        get_session().register_hooks(manager)
+        sessions.get().register_hooks(manager)
+        sessions.register_teardown(manager)
 
     def create_commands() -> "list[AnyCustomCommand]":
-        return get_session().create_commands()
+        return sessions.get().create_commands()
 
     registrations: list[tuple[str, Any]] = [("append_hook_factory", register_hooks)]
     if callable(getattr(task, "append_custom_command", None)):
@@ -64,18 +73,55 @@ class SpeechSession:
         self._config = config
         self._events = {event.strip().lower() for event in config.events or []}
         self._pending: set[asyncio.Task[Any]] = set()
+        # The bound methods handed to each manager, so they can be taken back
+        # out: `remove_hook` matches on identity, and a bound method is a new
+        # object on every attribute read.
+        self._hooks: "weakref.WeakKeyDictionary[HookManager, list[tuple[Any, list[HookEvent]]]]" = (
+            weakref.WeakKeyDictionary()
+        )
         self.speaker = Speaker(config)
         self.speaker.is_enabled = bool(config.enabled)
+        if not CFG.HOOKS_ENABLED:
+            logger.warning(
+                "Speech is delivered by the hook subsystem, which is off "
+                "(ZRB_HOOKS_ENABLED), so nothing will be spoken."
+            )
 
     def register_hooks(self, manager: "HookManager") -> None:
+        """Add this session's hooks to *manager*, taking out any it added to
+        that manager before.
+
+        A task holding one `HookManager` across runs has every factory
+        re-applied on each run, so registering has to be idempotent or the
+        second run would speak every reply twice.
+        """
+        self.unregister_hooks(manager)
+        hooks: list[tuple[Any, list[HookEvent]]] = []
         if "reply" in self._events:
-            manager.add_hook(self.handle_stop, events=[HookEvent.STOP])
+            hooks.append((self.handle_stop, [HookEvent.STOP]))
         if "approval" in self._events:
-            manager.add_hook(
-                self.handle_permission_request, events=[HookEvent.PERMISSION_REQUEST]
+            hooks.append(
+                (self.handle_permission_request, [HookEvent.PERMISSION_REQUEST])
             )
         if "question" in self._events:
-            manager.add_hook(self.handle_notification, events=[HookEvent.NOTIFICATION])
+            hooks.append((self.handle_notification, [HookEvent.NOTIFICATION]))
+        for hook, events in hooks:
+            manager.add_hook(hook, events=events)
+        self._hooks[manager] = hooks
+
+    def unregister_hooks(self, manager: "HookManager") -> None:
+        """Take this session's hooks back out of *manager*."""
+        for hook, _ in self._hooks.pop(manager, []):
+            manager.remove_hook(hook)
+
+    def close(self) -> None:
+        """Take the hooks back out and stop the speaker."""
+        for manager in list(self._hooks):
+            self.unregister_hooks(manager)
+        for task in list(self._pending):
+            task.cancel()
+        self._pending.clear()
+        self.speaker.close()
 
     def create_commands(self) -> "list[AnyCustomCommand]":
         return [

@@ -16,7 +16,10 @@ if TYPE_CHECKING:
 FREE_TEXT = "__zrb_free_text__"
 
 
-def option_text(opt: "ChoiceOption", index: int = 0) -> str:
+def option_text(opt: "ChoiceOption", index: int) -> str:
+    """*opt*'s row text, labelled by its *index* in the option list. Required,
+    since an option carrying only a ``description`` is named "Option N" and a
+    defaulted index would name every one of them "Option 1"."""
     label = get_option_label(opt, index)
     desc = opt.get("description", "")
     return f"{label} — {desc}" if desc else label

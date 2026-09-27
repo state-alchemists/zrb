@@ -51,7 +51,11 @@ Speech starts off. Turn it on with `ZRB_LLM_SPEECH_ENABLED=on`, or with `/speech
 
 Code, tables and links are not read. A reply longer than 400 characters (`ZRB_LLM_SPEECH_MAX_CHARS`) is cut at a sentence end, followed by "The full answer is on screen." With `ZRB_LLM_SPEECH_SUMMARIZE=on`, the small model summarizes it instead, at the cost of one model call per long reply.
 
-Switching speech off with `/speech` drops whatever has not been said yet. Two zrb sessions on one machine take turns rather than talk over each other.
+Switching speech off with `/speech` drops whatever has not been said yet.
+
+Each chat session gets its own speaker, microphone and hands-free flag, so one session switching speech off does not silence the next. Two zrb processes still take turns rather than talk over each other, through a lock file that a session claims while it is speaking and releases when it is closed.
+
+Speech and dictation ride on the hook subsystem, so they need hooks on: with `ZRB_HOOKS_ENABLED=off` neither speaks or listens, and enabling them says so. Hooks are re-registered per session and taken back out when that session ends, so a long-lived server does not accumulate one set per session it has served.
 
 ## Configuring in code
 
@@ -103,7 +107,7 @@ class LocalTTS(AnySpeechBackend):
 enable_speech(llm_chat, SpeechConfig(backend=LocalTTS(), enabled=True))
 ```
 
-`llm_chat` already called `enable_speech` with the default config; calling it again replaces that call, so there is still one speaker and one `/speech`. The same holds for `enable_camera` and `enable_dictation`.
+`llm_chat` already called `enable_speech` with the default config; calling it again replaces that call, so there is still one `/speech` per session and the earlier session's speaker is closed. The same holds for `enable_camera` and `enable_dictation`.
 
 If your backend fails, the local engine (`termux`, `say` or `espeak-ng`) speaks instead. zrb-extras adds a pyttsx3 backend. Audio passed to `transcribe` is 16 kHz mono 16-bit PCM; `zrb.llm.dictation.backend.wav.pcm16_to_wav_bytes` wraps it for an API that wants a file.
 

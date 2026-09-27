@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import time
 from collections import deque
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncGenerator, Callable
 from typing import Any, NamedTuple
 
 from zrb.llm.dictation.config import DictationConfig
@@ -108,7 +108,7 @@ async def listen(
     config: DictationConfig,
     should_listen: Callable[[], bool],
     keep_partial: bool = False,
-) -> AsyncIterator[Utterance]:
+) -> AsyncGenerator[Utterance, None]:
     """Yield utterances from the default microphone while *should_listen*
     holds; the microphone closes once it stops holding. With *keep_partial*,
     speech cut off by that is yielded too.
@@ -118,6 +118,9 @@ async def listen(
     next thing; but only the newest ``max_backlog`` seconds of it (``0``: no
     limit). When older audio is dropped, any utterance in progress is
     dropped with it rather than spliced across the gap.
+
+    A caller that stops early must close this — `contextlib.aclosing` — or the
+    microphone stays open until the generator is finalized.
     """
     np, sd = import_audio()
     loop = asyncio.get_running_loop()

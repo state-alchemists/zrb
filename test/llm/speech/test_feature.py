@@ -1,11 +1,15 @@
 import asyncio
+import logging
+from contextlib import contextmanager
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 
 from zrb.config.config import CFG
+from zrb.contextvars import current_chat_session_id
 from zrb.llm.hook.interface import HookContext
+from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.speech import SpeechConfig, enable_speech
 from zrb.llm.speech.feature import SpeechSession, describe_tool_call
@@ -13,10 +17,51 @@ from zrb.llm.speech.feature import SpeechSession, describe_tool_call
 NOTE = "Rest on screen."
 
 
+class PersistentHookTask:
+    """An `LLMTask`-shaped task: one hook manager for the life of the task,
+    with `append_hook_factory` applied to it immediately (docs/llm/hooks.md)."""
+
+    def __init__(self):
+        self.hook_manager = HookManager()
+        self.hook_factories: list = []
+        self.custom_commands: list = []
+
+    def append_hook_factory(self, factory):
+        self.hook_factories.append(factory)
+        factory(self.hook_manager)
+
+    def remove_hook_factory(self, factory):
+        self.hook_factories.remove(factory)
+
+    def append_custom_command(self, command):
+        self.custom_commands.append(command)
+
+    def remove_custom_command(self, command):
+        self.custom_commands.remove(command)
+
+
+def _hook_count(manager: HookManager) -> int:
+    registry = manager.registry
+    return len(registry.get_global_hooks()) + sum(
+        len(registry.get_hooks(event)) for event in HookEvent
+    )
+
+
+@contextmanager
+def _as_session(name: str):
+    """Run the block as chat session *name*, the way the web runner does."""
+    token = current_chat_session_id.set(name)
+    try:
+        yield
+    finally:
+        current_chat_session_id.reset(token)
+
+
 class FakeSpeaker:
     def __init__(self):
         self.said: list[str] = []
         self.cleared = 0
+        self.closed = 0
         self.is_enabled = True
 
     def say(self, text):
@@ -24,6 +69,9 @@ class FakeSpeaker:
 
     def clear(self):
         self.cleared += 1
+
+    def close(self):
+        self.closed += 1
 
 
 def _session(**config) -> SpeechSession:
@@ -208,7 +256,13 @@ def test_enable_speech_reads_cfg_when_a_session_starts(monkeypatch, enabled):
     (command,) = create_commands()
 
     # Offered either way, so speech that starts off can be switched on.
-    assert manager.add_hook.call_count == 3
+    events = {call.kwargs["events"][0] for call in manager.add_hook.call_args_list}
+    assert events == {
+        HookEvent.STOP,
+        HookEvent.PERMISSION_REQUEST,
+        HookEvent.NOTIFICATION,
+        HookEvent.SESSION_END,
+    }
     assert command.command == "/talk"
     assert command.handle({}, None) == f"🔊 Speech {'off' if enabled else 'on'}"
 
@@ -226,3 +280,89 @@ def test_enable_speech_on_a_task_without_commands_adds_only_hooks():
     enable_speech(task)
 
     assert len(task.factories) == 1
+
+
+def test_two_sessions_get_a_speaker_each():
+    """One task serves every web chat connection, so a session that switched
+    its speech off must not silence the next one."""
+    chat = MagicMock()
+    enable_speech(chat, SpeechConfig(enabled=True, commands=["/speech"]))
+    (create_commands,) = chat.append_custom_command.call_args.args
+
+    with _as_session("first"):
+        (first,) = create_commands()
+    with _as_session("second"):
+        (second,) = create_commands()
+
+    # Interleaved, so a shared speaker shows up: each session's own first press
+    # reads its own state, still enabled, and switches off.
+    assert first.handle({}, None) == "🔊 Speech off"
+    assert second.handle({}, None) == "🔊 Speech off"
+    assert first.handle({}, None) == "🔊 Speech on"
+
+
+def test_enabling_speech_again_replaces_the_hooks_already_registered():
+    task = PersistentHookTask()
+
+    enable_speech(task, SpeechConfig(voice="alloy"))
+    assert _hook_count(task.hook_manager) == 4
+
+    enable_speech(task, SpeechConfig(voice="echo"))
+    assert _hook_count(task.hook_manager) == 4
+
+
+def test_a_task_reusing_one_manager_never_gains_a_second_set_of_hooks():
+    """`execution.py` re-applies every factory on each run, so a task holding
+    one manager used to speak each reply once more per run."""
+    chat = MagicMock()
+    enable_speech(chat)
+    (register_hooks,) = chat.append_hook_factory.call_args.args
+    manager = HookManager()
+
+    for _ in range(4):
+        register_hooks(manager)
+
+    assert _hook_count(manager) == 4
+
+
+@pytest.mark.asyncio
+async def test_a_session_end_drops_the_session_so_the_next_one_starts_fresh():
+    """Otherwise the registry keeps every session this process ever served,
+    and the next session's `/speech` would toggle a dead one."""
+    chat = MagicMock()
+    enable_speech(chat, SpeechConfig(commands=["/speech"]))
+    (register_hooks,) = chat.append_hook_factory.call_args.args
+    (create_commands,) = chat.append_custom_command.call_args.args
+    manager = HookManager()
+
+    with _as_session("first"):
+        register_hooks(manager)
+        (before,) = create_commands()
+        (session_end,) = manager.registry.get_hooks(HookEvent.SESSION_END)
+
+        await session_end(HookContext(event=HookEvent.SESSION_END, event_data={}))
+        (after,) = create_commands()
+
+    assert before is not after
+
+
+def test_closing_a_session_takes_its_hooks_back_out_and_stops_the_speaker():
+    session = _session()
+    manager = HookManager()
+
+    session.register_hooks(manager)
+    assert _hook_count(manager) == 3
+
+    session.close()
+
+    assert _hook_count(manager) == 0
+    assert session.speaker.closed == 1
+
+
+def test_speech_says_so_when_the_hook_subsystem_is_off(caplog, monkeypatch):
+    monkeypatch.setattr(CFG, "HOOKS_ENABLED", False)
+
+    with caplog.at_level(logging.WARNING, logger="zrb.llm.speech.feature"):
+        enable_speech(PersistentHookTask())
+
+    assert "ZRB_HOOKS_ENABLED" in caplog.text

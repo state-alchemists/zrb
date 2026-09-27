@@ -176,3 +176,27 @@ def test_two_speakers_playing_at_once_keep_speaking_true(tmp_path):
     # The second speaker finishing must not hide the first one still playing.
     assert seen_after_second == [True]
     assert not is_speaking()
+
+
+def test_a_closed_speaker_stops_being_probed_for_its_lock_file(lock_file):
+    """`is_speaking` probes every lock file a live speaker configured, once
+    per captured audio block. A speaker that has gone away must stop being
+    one, or a long-lived process keeps re-checking a dead session's path and
+    stays muted whenever anything else holds it."""
+    Speaker(_config(FakeBackend(), lock_file)).close()
+
+    with hold_file_lock(lock_file):
+        assert not is_speaking()
+
+
+def test_a_lock_file_is_only_forgotten_once_every_speaker_using_it_is(lock_file):
+    first = Speaker(_config(FakeBackend(), lock_file))
+    second = Speaker(_config(FakeBackend(), lock_file))
+
+    first.close()
+    with hold_file_lock(lock_file):
+        assert is_speaking()
+
+    second.close()
+    with hold_file_lock(lock_file):
+        assert not is_speaking()

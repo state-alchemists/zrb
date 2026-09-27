@@ -65,5 +65,26 @@ def test_a_long_reply_is_cut_at_a_boundary_and_says_so(text, max_chars, opening)
     assert fit_for_speech(text, max_chars, NOTE) == f"{opening} {NOTE}"
 
 
+@pytest.mark.parametrize(
+    "text, spoken",
+    [
+        # A bare `_` and `*` strip read these as one run-together word.
+        ("Run set_app_name now", "Run set_app_name now"),
+        ("Edit src/zrb/util/cli/style.py", "Edit src/zrb/util/cli/style.py"),
+        ("Set ZRB_HOOKS_ENABLED off", "Set ZRB_HOOKS_ENABLED off"),
+        ("See __init__.py", "See __init__.py"),
+        # Markdown emphasis is still emphasis.
+        ("**Done** and *later*", "Done and later"),
+        ("_optional_ and __strong__", "optional and __strong__"),
+        ("~~dropped~~", "dropped"),
+        # Arithmetic is not emphasis.
+        ("2 * 3 = 6", "2 * 3 = 6"),
+        ("a*b*c", "a*b*c"),
+    ],
+)
+def test_identifiers_survive_but_emphasis_does_not(text, spoken):
+    assert clean_for_speech(text) == spoken
+
+
 def test_an_empty_note_adds_nothing():
     assert fit_for_speech("one two three four five six", 10, "") == "one two."

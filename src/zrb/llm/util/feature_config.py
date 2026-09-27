@@ -10,10 +10,18 @@ import (R3), so `zrb_init.py` may change the knobs after importing zrb.
 from __future__ import annotations
 
 import weakref
+from collections.abc import Callable
 from dataclasses import fields, replace
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from zrb.config.config import CFG
+from zrb.llm.hook.interface import HookResult
+from zrb.llm.hook.types import HookEvent
+from zrb.llm.tool.ambient_state import get_session_ownership_key
+
+if TYPE_CHECKING:
+    from zrb.llm.hook.interface import HookContext
+    from zrb.llm.hook.manager import HookManager
 
 T = TypeVar("T")
 
@@ -31,7 +39,71 @@ def resolve_from_cfg(config: T, prefix: str) -> T:
     return replace(config, **values)  # type: ignore[type-var]
 
 
+def current_session_key() -> str:
+    """The chat session a feature registration belongs to.
+
+    `get_session_ownership_key` is what the rest of the chat names a session's
+    resources with. Called with no display name it reads the ambient chat
+    session id, which the web runner scopes per connection and which the
+    interactive CLI leaves empty because it serves one session per process.
+    """
+    return get_session_ownership_key()
+
+
+class FeatureSessions(Generic[T]):
+    """One value per chat session, created on first use and closed with the
+    session.
+
+    A task outlives the sessions it serves — one `LLMChatTask` answers every
+    web chat connection — so state a feature carries between its own
+    registrations is keyed by the session that owns it, not held in a closure
+    over the task. Config is resolved per session for the same reason: a knob
+    changed between two sessions has to reach the second one (ADR-0102).
+    """
+
+    def __init__(self, create: Callable[[], T], close: Callable[[T], None]) -> None:
+        self._create = create
+        self._close = close
+        self._sessions: dict[str, T] = {}
+
+    def get(self, session_key: str | None = None) -> T:
+        """The value for *session_key*, or for the session asking now."""
+        key = session_key or current_session_key()
+        if key not in self._sessions:
+            self._sessions[key] = self._create()
+        return self._sessions[key]
+
+    def close_session(self, session_key: str) -> None:
+        """Close and forget one session's value, if it has one."""
+        value = self._sessions.pop(session_key, None)
+        if value is not None:
+            self._close(value)
+
+    def close_all(self) -> None:
+        for session_key in list(self._sessions):
+            self.close_session(session_key)
+
+    def register_teardown(self, manager: "HookManager") -> None:
+        """Close the calling session's value when that session ends.
+
+        Idempotent, so a task holding one `HookManager` across runs — which
+        re-applies every factory each run — registers it once.
+        """
+        if self._handle_session_end in manager.registry.get_hooks(
+            HookEvent.SESSION_END
+        ):
+            return
+        manager.add_hook(self._handle_session_end, events=[HookEvent.SESSION_END])
+
+    async def _handle_session_end(self, context: "HookContext") -> HookResult:
+        self.close_session(current_session_key())
+        return HookResult(success=True)
+
+
 _registered: "weakref.WeakKeyDictionary[Any, dict[str, list[tuple[str, Any]]]]" = (
+    weakref.WeakKeyDictionary()
+)
+_session_values: "weakref.WeakKeyDictionary[Any, dict[str, FeatureSessions[Any]]]" = (
     weakref.WeakKeyDictionary()
 )
 
@@ -51,3 +123,20 @@ def replace_registration(
     for append_method, item in registrations:
         getattr(task, append_method)(item)
     per_task[feature] = registrations
+
+
+def get_feature_sessions(
+    task: Any, feature: str, create: Callable[[], T], close: Callable[[T], None]
+) -> "FeatureSessions[T]":
+    """The one `FeatureSessions` *task* uses for *feature*.
+
+    Keyed by *feature*, the same key `replace_registration` uses, so a second
+    `enable_*` call finds the registry its first call made and can close what
+    that one left running instead of leaving a second speaker or microphone.
+    """
+    per_task = _session_values.setdefault(task, {})
+    sessions = per_task.get(feature)
+    if not isinstance(sessions, FeatureSessions):
+        sessions = FeatureSessions(create, close)
+        per_task[feature] = sessions
+    return sessions

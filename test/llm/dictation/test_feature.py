@@ -1,9 +1,11 @@
 import asyncio
+from contextlib import contextmanager
 from unittest.mock import MagicMock
 
 import pytest
 
 from zrb.config.config import CFG
+from zrb.contextvars import current_chat_session_id
 from zrb.llm.dictation import AnyDictationBackend, DictationConfig, enable_dictation
 from zrb.llm.dictation.feature import DictationSession
 from zrb.llm.dictation.listen import Utterance
@@ -38,6 +40,16 @@ class FakeUI:
 
     def insert_input_text(self, text):
         self.inserted.append(text)
+
+
+@contextmanager
+def _as_session(name: str):
+    """Run the block as chat session *name*, the way the web runner does."""
+    token = current_chat_session_id.set(name)
+    try:
+        yield
+    finally:
+        current_chat_session_id.reset(token)
 
 
 def _session(**config) -> DictationSession:
@@ -262,3 +274,77 @@ async def test_any_of_several_wake_words_counts(monkeypatch):
     session = _session(mode="hands_free")
 
     assert await _replies(session, 3) == ["open the file", "run the tests", "Commit it"]
+
+
+@pytest.mark.asyncio
+async def test_an_utterance_being_transcribed_at_switch_off_is_dropped(monkeypatch):
+    """Transcription takes seconds, so the user can say stop while one is
+    running. That utterance belongs to them, so it must not be submitted —
+    and the microphone it was read from has to close with it."""
+    transcribing = asyncio.Event()
+    release = asyncio.Event()
+    closed = asyncio.Event()
+
+    class SlowBackend(FakeBackend):
+        async def transcribe(self, audio: bytes) -> str:
+            transcribing.set()
+            await release.wait()
+            return audio.decode()
+
+    async def listen(config, should_listen, keep_partial=False):
+        try:
+            yield Utterance(b"run the tests", 0.0, 1.0)
+            await asyncio.Event().wait()
+            yield  # pragma: no cover
+        finally:
+            closed.set()
+
+    monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
+    session = DictationSession(DictationConfig(mode="hands_free").resolve())
+    session.backend = SlowBackend()
+    stream = session.listen_hands_free()
+
+    waiting = asyncio.ensure_future(anext(stream))
+    await asyncio.wait_for(transcribing.wait(), 5)
+    session.toggle_hands_free({}, None)
+
+    await asyncio.wait_for(closed.wait(), 5)
+    # The listener keeps waiting for hands-free to come back on, but the
+    # utterance the user retracted never becomes a reply.
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(waiting, 0.5)
+    release.set()
+    await stream.aclose()
+
+
+@pytest.mark.asyncio
+async def test_two_sessions_hands_free_state_is_their_own(monkeypatch):
+    _fake_listen(monkeypatch, ("run the tests", 0.0, 1.0))
+    chat = MagicMock()
+    enable_dictation(
+        chat,
+        DictationConfig(
+            commands=[],
+            hands_free_commands=["/handsfree"],
+            backend=FakeBackend(),
+        ),
+    )
+    (create_commands,) = chat.append_custom_command.call_args.args
+    (hands_free,) = chat.append_trigger.call_args.args
+
+    with _as_session("first"):
+        (first,) = create_commands()
+        assert first.handle({}, None) == "🎤 Hands-free on"
+        first_stream = hands_free()
+        assert (await asyncio.wait_for(anext(first_stream), 5)).text == "run the tests"
+        await first_stream.aclose()
+
+    with _as_session("second"):
+        second_stream = hands_free()
+        waiting = asyncio.ensure_future(anext(second_stream))
+        await asyncio.sleep(0.1)
+        # The second session's own hands-free is off, whatever the first did.
+        assert not waiting.done()
+        waiting.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await waiting

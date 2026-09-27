@@ -25,8 +25,10 @@ logger = logging.getLogger(__name__)
 _state_lock = threading.Lock()
 # How many utterances this process is playing now, across every speaker.
 _playing_count = 0
-# Every lock file a speaker in this process plays under.
-_lock_files: set[str] = set()
+# Lock file -> how many live speakers configured it. Counted, not a plain set,
+# so a finished speaker takes its entry with it: `is_speaking` probes every
+# path here on every captured audio block.
+_lock_files: dict[str, int] = {}
 
 
 def is_speaking(lock_file: str | None = None) -> bool:
@@ -34,8 +36,8 @@ def is_speaking(lock_file: str | None = None) -> bool:
     playing speech.
 
     The lock files checked are *lock_file*, `CFG.LLM_SPEECH_LOCK_FILE`, and
-    every one a `Speaker` in this process uses, so dictation hears a speaker
-    configured with its own lock file without being told about it.
+    every one a live `Speaker` in this process uses, so dictation hears a
+    speaker configured with its own lock file without being told about it.
     """
     with _state_lock:
         if _playing_count:
@@ -44,6 +46,19 @@ def is_speaking(lock_file: str | None = None) -> bool:
     if lock_file:
         lock_files.add(lock_file)
     return any(_is_locked(path) for path in lock_files)
+
+
+def _register_lock_file(lock_file: str) -> None:
+    with _state_lock:
+        _lock_files[lock_file] = _lock_files.get(lock_file, 0) + 1
+
+
+def _unregister_lock_file(lock_file: str) -> None:
+    with _state_lock:
+        if _lock_files.get(lock_file, 0) <= 1:
+            _lock_files.pop(lock_file, None)
+        else:
+            _lock_files[lock_file] -= 1
 
 
 def _is_locked(lock_file: str) -> bool:
@@ -66,9 +81,10 @@ class Speaker:
 
     def __init__(self, config: SpeechConfig) -> None:
         self._config = config
-        if config.lock_file:
-            with _state_lock:
-                _lock_files.add(config.lock_file)
+        self._lock_file = config.lock_file or ""
+        self._lock_file_held = bool(self._lock_file)
+        if self._lock_file_held:
+            _register_lock_file(self._lock_file)
         self._queue: "queue.Queue[str | None]" = queue.Queue()
         self._worker: threading.Thread | None = None
         self.is_enabled = True
@@ -130,15 +146,27 @@ class Speaker:
             except Exception as exc:
                 logger.warning(f"Speech failed: {exc}")
 
+    def close(self) -> None:
+        """Drop queued speech, stop the thread and release the lock file, for
+        a session that is over."""
+        self.clear()
+        self._stop(self._config.drain_timeout)
+
     def drain(self) -> None:
         """Let queued speech finish, for up to the config's
         ``drain_timeout``, then stop the thread."""
+        self._stop(self._config.drain_timeout)
+
+    def _stop(self, join_timeout: float | None) -> None:
+        if self._lock_file_held:
+            self._lock_file_held = False
+            _unregister_lock_file(self._lock_file)
         worker, self._worker = self._worker, None
         if worker is None:
             return
         atexit.unregister(self.drain)
         self._queue.put(None)
-        worker.join(self._config.drain_timeout)
+        worker.join(join_timeout)
 
 
 def play(utterance: Utterance, config: SpeechConfig) -> None:

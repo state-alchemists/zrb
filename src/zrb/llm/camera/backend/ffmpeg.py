@@ -70,6 +70,10 @@ class FfmpegCameraBackend(AnyCameraBackend):
         self._last_error: str | None = None
         # {"time": float, "devices": list[str], "refreshing": bool}
         self._device_cache: dict[str, Any] = {}
+        # The in-flight probe. Held here because `list_devices` ignores the
+        # returned task, and asyncio holds tasks weakly: a collected probe
+        # would leave "refreshing" True and wedge every later refresh.
+        self._refresh_task: "asyncio.Task[None] | None" = None
 
     @property
     def name(self) -> str:
@@ -213,9 +217,11 @@ class FfmpegCameraBackend(AnyCameraBackend):
                 logger.debug(f"Camera device refresh failed: {e}")
             finally:
                 cache["refreshing"] = False
+                self._refresh_task = None
 
         cache["refreshing"] = True
-        return loop.create_task(refresh())
+        self._refresh_task = loop.create_task(refresh())
+        return self._refresh_task
 
     def _is_cache_fresh(self) -> bool:
         age = time.monotonic() - float(self._device_cache.get("time", 0.0))

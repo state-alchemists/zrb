@@ -7,6 +7,7 @@ Everything goes through the backends' public API. External dependencies
 from __future__ import annotations
 
 import asyncio
+import time
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -287,3 +288,38 @@ def test_list_devices_serves_the_cache_until_it_is_stale(clean_env):
     assert backend.list_devices() == ["/dev/video0"]
     # A second call within the TTL reads the cache, not the filesystem.
     assert backend.list_devices() == ["/dev/video0"]
+
+
+@pytest.mark.asyncio
+async def test_a_scheduled_probe_runs_to_completion_and_is_not_scheduled_twice(
+    clean_env,
+):
+    """The dshow listing is slow, so `list_devices` starts it in the background
+    and returns what it has. The probe still has to land, and while it is in
+    flight no second one is started."""
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("sys.platform", "win32")
+    backend = FfmpegCameraBackend()
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def slow_probe(self):
+        started.set()
+        await release.wait()
+        self._device_cache["time"] = time.monotonic()
+        self._device_cache["devices"] = ["USB Camera"]
+
+    with patch.object(FfmpegCameraBackend, "refresh_devices", new=slow_probe):
+        assert backend.list_devices() == []
+        await asyncio.wait_for(started.wait(), 5)
+        # In flight, so a second probe is refused.
+        assert backend.schedule_device_refresh() is None
+        release.set()
+        for _ in range(100):
+            if backend.list_devices() == ["USB Camera"]:
+                break
+            await asyncio.sleep(0)
+
+    assert backend.list_devices() == ["USB Camera"]
+    # Fresh cache → no new probe.
+    assert backend.schedule_device_refresh() is None
