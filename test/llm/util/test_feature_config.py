@@ -1,7 +1,11 @@
 from dataclasses import dataclass
 
 from zrb.config.config import CFG
-from zrb.llm.util.feature_config import replace_registration, resolve_from_cfg
+from zrb.llm.util.feature_config import (
+    replace_feature_sessions,
+    replace_registration,
+    resolve_from_cfg,
+)
 
 
 @dataclass
@@ -56,3 +60,39 @@ def test_a_task_that_cannot_remove_keeps_the_earlier_item():
     replace_registration(task, "speech", [("append_custom_command", "second")])
 
     assert task.commands == ["first", "second"]
+
+
+def test_a_session_running_when_the_feature_is_replaced_is_closed_by_its_own_close():
+    """A second `enable_*` call closes what the first left running, and the
+    close callback that arrives with the new config is not necessarily the one
+    that fits the session on its way out — so the old one has to close it."""
+    task = _Task()
+    closed_by = []
+
+    first = replace_feature_sessions(
+        task,
+        "speech",
+        lambda: "old",
+        lambda session: closed_by.append(("old", session)),
+    )
+    first.get()
+    replace_feature_sessions(
+        task,
+        "speech",
+        lambda: "new",
+        lambda session: closed_by.append(("new", session)),
+    )
+
+    assert closed_by == [("old", "old")]
+
+
+def test_a_feature_replaced_again_builds_from_the_new_factory():
+    task = _Task()
+    sessions = replace_feature_sessions(
+        task, "speech", lambda: "first", lambda _s: None
+    )
+    assert sessions.get() == "first"
+
+    replace_feature_sessions(task, "speech", lambda: "second", lambda _s: None)
+
+    assert sessions.get() == "second"

@@ -25,6 +25,10 @@ def get_dictation_backend(
             config.vosk_model_name or "",
             config.vosk_model_url or "",
             config.vosk_download_timeout,
+            config.vosk_max_download_mb,
+            config.vosk_max_uncompressed_mb,
+            config.vosk_max_file_mb,
+            config.vosk_max_files,
         )
     if name == "openai":
         return OpenAIDictationBackend(

@@ -21,7 +21,7 @@ from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.listen import import_audio, listen
 from zrb.llm.dictation.words import split_phrases, strip_wake_word, to_answer
 from zrb.llm.ui.trigger import TriggerReply
-from zrb.llm.util.feature_config import get_feature_sessions, replace_registration
+from zrb.llm.util.feature_config import replace_feature_sessions, replace_registration
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
@@ -41,14 +41,12 @@ def enable_dictation(
     sessions; empty command lists leave the commands out. The microphone opens
     only for a recording, or while hands-free is on. Calling it again replaces
     the earlier call."""
-    sessions = get_feature_sessions(
+    sessions = replace_feature_sessions(
         chat,
         "dictation",
         lambda: DictationSession((config or DictationConfig()).resolve()),
         lambda session: session.close(),
     )
-    # A second call replaces the first, so its microphone is not left open.
-    sessions.close_all()
 
     def create_commands() -> "list[AnyCustomCommand]":
         return sessions.get().create_commands()

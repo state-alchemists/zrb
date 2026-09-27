@@ -311,6 +311,22 @@ def test_enabling_speech_again_replaces_the_hooks_already_registered():
     assert _hook_count(task.hook_manager) == 4
 
 
+def test_enabling_speech_again_uses_the_new_config():
+    """`llm_chat` enables speech at import, so a `zrb_init.py` that calls
+    `enable_speech` with its own backend replaces that call. Keeping the first
+    call's factory would build every later session from the config being
+    replaced, and the documented replacement would do nothing."""
+    task = MagicMock()
+
+    enable_speech(task, SpeechConfig(commands=["/first"]))
+    (first_commands,) = task.append_custom_command.call_args.args
+    assert [c.command for c in first_commands()] == ["/first"]
+
+    enable_speech(task, SpeechConfig(commands=["/second"]))
+    (second_commands,) = task.append_custom_command.call_args.args
+    assert [c.command for c in second_commands()] == ["/second"]
+
+
 def test_a_task_reusing_one_manager_never_gains_a_second_set_of_hooks():
     """`execution.py` re-applies every factory on each run, so a task holding
     one manager used to speak each reply once more per run."""

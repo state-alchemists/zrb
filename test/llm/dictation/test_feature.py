@@ -57,7 +57,9 @@ def _session(**config) -> DictationSession:
 
 
 def _fake_listen(monkeypatch, *said: tuple[str, float, float]):
-    """Make the microphone hear *said*: (text, started_at, ended_at) each."""
+    """Make the microphone hear *said*: (text, started_at, ended_at) each. Also
+    make the audio extra look installed, since a machine without PortAudio is
+    not what these tests are about."""
     heard = []
 
     async def listen(config, should_listen, keep_partial=False):
@@ -68,6 +70,7 @@ def _fake_listen(monkeypatch, *said: tuple[str, float, float]):
             yield Utterance(text.encode(), started_at, ended_at)
 
     monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
+    monkeypatch.setattr("zrb.llm.dictation.feature.import_audio", lambda: (None, None))
     return heard
 
 
@@ -348,3 +351,29 @@ async def test_two_sessions_hands_free_state_is_their_own(monkeypatch):
         waiting.cancel()
         with pytest.raises(asyncio.CancelledError):
             await waiting
+
+
+@pytest.mark.asyncio
+async def test_enabling_dictation_again_uses_the_new_config(monkeypatch):
+    """Same as speech: the second `enable_*` call is the one that has to reach
+    the sessions started after it."""
+    _fake_listen(monkeypatch, ("run the tests", 0.0, 1.0))
+    chat = MagicMock()
+
+    enable_dictation(
+        chat,
+        DictationConfig(
+            commands=["/first"], hands_free_commands=[], backend=FakeBackend()
+        ),
+    )
+    (first_commands,) = chat.append_custom_command.call_args.args
+    assert [c.command for c in first_commands()] == ["/first"]
+
+    enable_dictation(
+        chat,
+        DictationConfig(
+            commands=["/second"], hands_free_commands=[], backend=FakeBackend()
+        ),
+    )
+    (second_commands,) = chat.append_custom_command.call_args.args
+    assert [c.command for c in second_commands()] == ["/second"]

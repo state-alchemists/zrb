@@ -19,7 +19,7 @@ from zrb.llm.hook.types import HookEvent
 from zrb.llm.speech.config import SpeechConfig
 from zrb.llm.speech.player import Speaker
 from zrb.llm.speech.text import clean_for_speech, fit_for_speech
-from zrb.llm.util.feature_config import get_feature_sessions, replace_registration
+from zrb.llm.util.feature_config import replace_feature_sessions, replace_registration
 
 if TYPE_CHECKING:
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
@@ -44,14 +44,12 @@ def enable_speech(
     Speech rides on the hook subsystem, so `ZRB_HOOKS_ENABLED` off silences
     it; a warning says so at session start.
     """
-    sessions = get_feature_sessions(
+    sessions = replace_feature_sessions(
         task,
         "speech",
         lambda: SpeechSession((config or SpeechConfig()).resolve()),
         lambda session: session.close(),
     )
-    # A second call replaces the first, so nothing it started keeps speaking.
-    sessions.close_all()
 
     def register_hooks(manager: "HookManager") -> None:
         sessions.get().register_hooks(manager)

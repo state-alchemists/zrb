@@ -40,6 +40,10 @@ class DictationConfig:
     vosk_model_name: str | None = None
     vosk_model_url: str | None = None
     vosk_download_timeout: float | None = None
+    vosk_max_download_mb: float | None = None
+    vosk_max_uncompressed_mb: float | None = None
+    vosk_max_file_mb: float | None = None
+    vosk_max_files: float | None = None
 
     def resolve(self) -> "DictationConfig":
         """A copy with every ``None`` field read from `CFG`."""

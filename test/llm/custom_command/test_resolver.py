@@ -1,5 +1,8 @@
 """Tests for llm/custom_command/resolver.py."""
 
+import pytest
+from unittest.mock import MagicMock
+
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.custom_command.custom_command import CustomCommand
 from zrb.llm.custom_command.resolver import (
@@ -102,6 +105,63 @@ def test_run_custom_command_action_returning_none_is_still_handled():
     assert run_custom_command("/quiet", [cmd], None) == CustomCommandOutcome(
         prompt=None, reply=""
     )
+
+
+class OneArgCommand:
+    """A command written against `handle(kwargs)`, before it gained `ui`."""
+
+    command = "/one-arg"
+    description = "one"
+    args: list[str] = []
+
+    def __init__(self):
+        self.seen: list[dict[str, str]] = []
+
+    def get_prompt(self, kwargs):
+        return "prompt"
+
+    def handle(self, kwargs):
+        self.seen.append(kwargs)
+        return "handled"
+
+
+class StarArgsCommand(OneArgCommand):
+    command = "/star-args"
+
+    def handle(self, *args):
+        self.seen = list(args)  # type: ignore[assignment]
+        return "handled"
+
+
+def test_run_custom_command_gives_a_one_argument_handle_just_the_kwargs():
+    """`handle(kwargs)` is published API, so calling it with two arguments
+    raises TypeError inside the handler and the command fails to dispatch."""
+    cmd = OneArgCommand()
+    outcome = run_custom_command("/one-arg", [cmd], MagicMock())  # type: ignore[list-item]
+    assert outcome == CustomCommandOutcome(prompt=None, reply="handled")
+    assert cmd.seen == [{}]
+
+
+def test_run_custom_command_gives_a_varargs_handle_both_arguments():
+    cmd = StarArgsCommand()
+    ui = MagicMock()
+    outcome = run_custom_command("/star-args", [cmd], ui)  # type: ignore[list-item]
+    assert outcome == CustomCommandOutcome(prompt=None, reply="handled")
+    assert cmd.seen == [{}, ui]
+
+
+def test_a_type_error_inside_a_handle_is_not_read_as_a_wrong_arity():
+    """Deciding the arity from the signature rather than from a TypeError
+    matters here: a handler that raises one for its own reasons is a real
+    failure and has to stay visible. So the error raised has to be a
+    `TypeError` — anything else would sail past a resolver that catches one."""
+    cmd = ActionCommand("/boom", _raising_handle)
+    with pytest.raises(TypeError, match="handler failed"):
+        run_custom_command("/boom", [cmd], None)
+
+
+def _raising_handle(kwargs, ui):
+    raise TypeError("handler failed")
 
 
 def test_run_custom_command_accepts_duck_typed_command_without_handle():

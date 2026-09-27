@@ -18,6 +18,46 @@ from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 logger = logging.getLogger(__name__)
 
 SAMPLE_RATE = 16000
+MEGABYTE = 1 << 20
+
+
+class VoskDownloadLimits:
+    """How much a model download may cost, in megabytes.
+
+    A model zip comes from a URL the user configures, so it is untrusted
+    input: a hostile or mistyped one can claim any size, and an archive that
+    looks small can expand without bound. Every limit is ``0`` for no limit.
+    """
+
+    def __init__(
+        self,
+        max_download_mb: float | None = None,
+        max_uncompressed_mb: float | None = None,
+        max_file_mb: float | None = None,
+        max_files: float | None = None,
+    ) -> None:
+        prefix = "LLM_DICTATION_VOSK"
+        self.max_download = _megabytes(max_download_mb, f"{prefix}_MAX_DOWNLOAD_MB")
+        self.max_uncompressed = _megabytes(
+            max_uncompressed_mb, f"{prefix}_MAX_UNCOMPRESSED_MB"
+        )
+        self.max_file = _megabytes(max_file_mb, f"{prefix}_MAX_FILE_MB")
+        self.max_files = _count(max_files, f"{prefix}_MAX_FILES")
+
+
+def _megabytes(value: float | None, knob: str) -> int:
+    """Megabytes as bytes; ``None`` reads the knob, ``0`` means no limit."""
+    megabytes = getattr(CFG, knob) if value is None else value
+    return int(megabytes * MEGABYTE)
+
+
+def _count(value: float | None, knob: str) -> int:
+    """A member count; ``None`` reads the knob, ``0`` means no limit."""
+    return int(getattr(CFG, knob) if value is None else value)
+
+
+class _TooLarge(RuntimeError):
+    """A download or archive exceeded one of `VoskDownloadLimits`."""
 
 
 class VoskDictationBackend(AnyDictationBackend):
@@ -28,10 +68,17 @@ class VoskDictationBackend(AnyDictationBackend):
         model_name: str = "vosk-model-small-en-us-0.15",
         model_url: str = "https://alphacephei.com/vosk/models",
         download_timeout: float | None = 120.0,
+        max_download_mb: float | None = None,
+        max_uncompressed_mb: float | None = None,
+        max_file_mb: float | None = None,
+        max_files: float | None = None,
     ) -> None:
         self._model_name = model_name
         self._model_url = model_url
         self._download_timeout = download_timeout
+        self._limits = VoskDownloadLimits(
+            max_download_mb, max_uncompressed_mb, max_file_mb, max_files
+        )
         self._model: Any = None
 
     @property
@@ -46,9 +93,7 @@ class VoskDictationBackend(AnyDictationBackend):
         if self._model is not None or self.is_model_downloaded:
             return
         report("Downloading the voice model...")
-        await download_vosk_model(
-            self._model_name, self._model_url, self._download_timeout
-        )
+        await self._download()
         report("Voice model ready")
 
     async def transcribe(self, audio: bytes) -> str:
@@ -71,9 +116,7 @@ class VoskDictationBackend(AnyDictationBackend):
             from vosk import Model
         except ImportError:
             raise RuntimeError(_missing_vosk_message()) from None
-        model_path = get_vosk_model_dir(self._model_name) or await download_vosk_model(
-            self._model_name, self._model_url, self._download_timeout
-        )
+        model_path = get_vosk_model_dir(self._model_name) or await self._download()
         try:
             self._model = await asyncio.to_thread(Model, model_path)
         except Exception as e:
@@ -85,6 +128,14 @@ class VoskDictationBackend(AnyDictationBackend):
                 f"{prefix}_LLM_DICTATION_VOSK_MODEL_URL."
             ) from e
         return self._model
+
+    async def _download(self) -> str:
+        return await download_vosk_model(
+            self._model_name,
+            self._model_url,
+            self._download_timeout,
+            self._limits,
+        )
 
 
 def _missing_vosk_message() -> str:
@@ -115,16 +166,23 @@ def get_vosk_model_dir(model_name: str) -> str | None:
 
 
 async def download_vosk_model(
-    model_name: str, model_url: str, timeout: float | None = 120.0
+    model_name: str,
+    model_url: str,
+    timeout: float | None = 120.0,
+    limits: "VoskDownloadLimits | None" = None,
 ) -> (
     str
 ):  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     """Download and extract a Vosk model, waiting at most *timeout* seconds
     (``0`` or ``None``: no limit) for the server to answer.
 
-    The zip is extracted into a private staging directory and the model moved
-    into place with one rename, so another session never loads a
-    half-extracted model; when two download at once, the first rename wins.
+    The response is streamed to a file in the cache directory rather than
+    accumulated in memory, and stopped at ``limits.max_download``. The zip is
+    extracted into a private staging directory, checked against *limits*
+    before anything is written, and the model moved into place with one
+    rename, so another session never loads a half-extracted model; when two
+    download at once, the first rename wins. Both the download file and the
+    staging directory are removed on every path out, including cancellation.
 
     The response body is read in 64 KiB chunks with an ``await`` between each,
     so the coroutine is cancellable (``/q`` or Ctrl+C) at chunk boundaries
@@ -138,6 +196,7 @@ async def download_vosk_model(
     # download path.
     import urllib.request as _urllib
 
+    limits = limits or VoskDownloadLimits()
     url = f"{model_url}/{model_name}.zip"
     cache = os.path.join(os.path.expanduser("~"), ".cache", "vosk")
     os.makedirs(cache, exist_ok=True)
@@ -157,22 +216,39 @@ async def download_vosk_model(
     except Exception as exc:
         raise _download_error(exc) from exc
 
-    chunks: list[bytes] = []
+    download, zip_path = tempfile.mkstemp(
+        prefix=f".{model_name}-", suffix=".zip", dir=cache
+    )
     try:
-        while True:
-            # CancelledError (BaseException) skips `except Exception` below and
-            # propagates, running `finally` to close the socket — the abort path.
-            chunk = await asyncio.to_thread(resp.read, 1 << 16)
-            if not chunk:
-                break
-            chunks.append(chunk)
-    except Exception as exc:
-        raise _download_error(exc) from exc
-    finally:
-        resp.close()
-    zip_data = b"".join(chunks)
+        downloaded = 0
+        try:
+            with os.fdopen(download, "wb") as sink:
+                while True:
+                    # CancelledError (BaseException) skips `except Exception`
+                    # below and propagates, running `finally` to close the
+                    # socket — the abort path.
+                    chunk = await asyncio.to_thread(resp.read, 1 << 16)
+                    if not chunk:
+                        break
+                    downloaded += len(chunk)
+                    if limits.max_download and downloaded > limits.max_download:
+                        raise _TooLarge(
+                            f"{model_name}.zip is larger than the "
+                            f"{_mb(limits.max_download)} MB limit "
+                            f"({CFG.ENV_PREFIX}_LLM_DICTATION_VOSK_MAX_DOWNLOAD_MB); "
+                            f"it had already sent {_mb(downloaded)} MB."
+                        )
+                    sink.write(chunk)
+        except _TooLarge:
+            raise
+        except Exception as exc:
+            raise _download_error(exc) from exc
+        finally:
+            resp.close()
 
-    await asyncio.to_thread(_extract_model, zip_data, cache, model_name)
+        await asyncio.to_thread(_extract_model, zip_path, cache, model_name, limits)
+    finally:
+        _remove_quietly(zip_path)
 
     if not os.path.isdir(target_dir):
         raise RuntimeError(
@@ -185,25 +261,19 @@ async def download_vosk_model(
     return target_dir
 
 
-def _extract_model(zip_data: bytes, cache: str, model_name: str) -> None:
+def _extract_model(
+    zip_path: str, cache: str, model_name: str, limits: "VoskDownloadLimits"
+) -> None:
     # lazy: heavy (stdlib) — zipfile drags in lzma/bz2, for a one-shot path.
-    import io
     import zipfile
 
     target_dir = os.path.join(cache, model_name)
     staging = tempfile.mkdtemp(prefix=f".{model_name}-", dir=cache)
     try:
         real_staging = os.path.realpath(staging)
-        with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
-            for member in zf.namelist():
-                member_path = os.path.realpath(os.path.join(staging, member))
-                if member_path != real_staging and not member_path.startswith(
-                    real_staging + os.sep
-                ):
-                    raise RuntimeError(
-                        f"Refusing to extract Vosk model: unsafe path in "
-                        f"archive member {member!r}"
-                    )
+        with zipfile.ZipFile(zip_path) as zf:
+            members = zf.infolist()
+            _check_archive(members, staging, real_staging, limits)
             zf.extractall(staging)
         staged_model = os.path.join(staging, model_name)
         if os.path.isdir(staged_model) and not os.path.isdir(target_dir):
@@ -214,3 +284,58 @@ def _extract_model(zip_data: bytes, cache: str, model_name: str) -> None:
                 pass
     finally:
         shutil.rmtree(staging, ignore_errors=True)
+
+
+def _check_archive(
+    members: "list[Any]", staging: str, real_staging: str, limits: "VoskDownloadLimits"
+) -> None:
+    """Reject an archive that escapes *staging* or costs too much, before
+    anything is written.
+
+    The sizes come from the archive's own directory, which is as untrusted as
+    the rest of it — that is the point. What makes the check sufficient is that
+    `zipfile` reads no more than the declared size of a member and verifies its
+    CRC, so a member cannot write more than it declared.
+    """
+    if limits.max_files and len(members) > limits.max_files:
+        raise _TooLarge(
+            f"Vosk model archive has {len(members)} files, over the "
+            f"{limits.max_files} limit "
+            f"({CFG.ENV_PREFIX}_LLM_DICTATION_VOSK_MAX_FILES)."
+        )
+    total = 0
+    for member in members:
+        member_path = os.path.realpath(os.path.join(staging, member.filename))
+        if member_path != real_staging and not member_path.startswith(
+            real_staging + os.sep
+        ):
+            raise RuntimeError(
+                f"Refusing to extract Vosk model: unsafe path in "
+                f"archive member {member.filename!r}"
+            )
+        total += member.file_size
+        if limits.max_file and member.file_size > limits.max_file:
+            raise _TooLarge(
+                f"Vosk model archive member {member.filename!r} unpacks to "
+                f"{_mb(member.file_size)} MB, over the {_mb(limits.max_file)} MB "
+                f"per-file limit "
+                f"({CFG.ENV_PREFIX}_LLM_DICTATION_VOSK_MAX_FILE_MB)."
+            )
+    if limits.max_uncompressed and total > limits.max_uncompressed:
+        raise _TooLarge(
+            f"Vosk model archive unpacks to {_mb(total)} MB, over the "
+            f"{_mb(limits.max_uncompressed)} MB limit "
+            f"({CFG.ENV_PREFIX}_LLM_DICTATION_VOSK_MAX_UNCOMPRESSED_MB)."
+        )
+
+
+def _mb(size: int) -> str:
+    # `:g`, so a sub-megabyte overage does not read as "0 MB".
+    return f"{size / MEGABYTE:g}"
+
+
+def _remove_quietly(path: str) -> None:
+    try:
+        os.remove(path)
+    except OSError:
+        pass

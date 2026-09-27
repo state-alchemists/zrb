@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import inspect
 import shlex
+from inspect import Parameter
 from collections.abc import Callable
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 
@@ -70,10 +72,39 @@ def run_custom_command(
     custom_cmd, kwargs = match
     # getattr: duck-typed commands written before `handle` existed lack it.
     handle = getattr(custom_cmd, "handle", None)
-    reply = handle(kwargs, ui) if handle is not None else None
+    if handle is None:
+        reply = None
+    elif _can_take_ui(handle):
+        reply = handle(kwargs, ui)
+    else:
+        reply = handle(kwargs)
     if reply is not None:
         return CustomCommandOutcome(prompt=None, reply=reply)
     return CustomCommandOutcome(prompt=custom_cmd.get_prompt(kwargs), reply=None)
+
+
+def _can_take_ui(handle: "Callable[..., Any]") -> bool:
+    """Whether *handle* can take the ``ui`` argument.
+
+    `handle(kwargs)` is part of the published extension surface — the
+    signature gained ``ui`` in 3.10.0 — and a command written against it
+    raises ``TypeError`` if called with two arguments. The arity is read from
+    the signature rather than discovered from a ``TypeError``, which a real
+    failure inside the handler looks exactly like.
+    """
+    try:
+        parameters = inspect.signature(handle).parameters
+    except (TypeError, ValueError):
+        # Not introspectable (a C function, say): the current signature.
+        return True
+    if any(p.kind is Parameter.VAR_POSITIONAL for p in parameters.values()):
+        return True
+    positional = [
+        p
+        for p in parameters.values()
+        if p.kind in (Parameter.POSITIONAL_ONLY, Parameter.POSITIONAL_OR_KEYWORD)
+    ]
+    return len(positional) >= 2
 
 
 def get_custom_command_match(

@@ -48,11 +48,17 @@ def test_unknown_name_raises():
 
 def test_vosk_built_from_config():
     config = _config(
-        vosk_model_name="m", vosk_model_url="http://host", vosk_download_timeout=5
+        vosk_model_name="m",
+        vosk_model_url="http://host",
+        vosk_download_timeout=5,
+        vosk_max_download_mb=10,
+        vosk_max_uncompressed_mb=20,
+        vosk_max_file_mb=15,
+        vosk_max_files=7,
     )
     with patch(f"{MODULE}.VoskDictationBackend") as vosk:
         get_dictation_backend("vosk", config)
-    vosk.assert_called_once_with("m", "http://host", 5)
+    vosk.assert_called_once_with("m", "http://host", 5, 10, 20, 15, 7)
 
 
 def test_openai_built_from_config():

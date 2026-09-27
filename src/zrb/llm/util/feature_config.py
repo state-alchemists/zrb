@@ -73,6 +73,23 @@ class FeatureSessions(Generic[T]):
             self._sessions[key] = self._create()
         return self._sessions[key]
 
+    def replace(self, create: Callable[[], T], close: Callable[[T], None]) -> None:
+        """Build every later session with *create*, closing the rest with
+        *close*.
+
+        A second `enable_*` call on the same task brings a new config, so the
+        factory has to be the new one: keeping the old would leave the
+        replacement half-done, with every session after this point built by the
+        call being replaced.
+
+        The sessions already running are closed with the callback that was
+        installed for them, before the new one takes over — a `close` for the
+        new config may not fit what is on its way out.
+        """
+        self.close_all()
+        self._create = create
+        self._close = close
+
     def close_session(self, session_key: str) -> None:
         """Close and forget one session's value, if it has one."""
         value = self._sessions.pop(session_key, None)
@@ -125,18 +142,22 @@ def replace_registration(
     per_task[feature] = registrations
 
 
-def get_feature_sessions(
+def replace_feature_sessions(
     task: Any, feature: str, create: Callable[[], T], close: Callable[[T], None]
 ) -> "FeatureSessions[T]":
-    """The one `FeatureSessions` *task* uses for *feature*.
+    """The one `FeatureSessions` *task* uses for *feature*, building every
+    later session with *create*.
 
     Keyed by *feature*, the same key `replace_registration` uses, so a second
-    `enable_*` call finds the registry its first call made and can close what
-    that one left running instead of leaving a second speaker or microphone.
+    `enable_*` call finds the registry its first call made, adopts the new
+    config and closes what the earlier one left running rather than leaving a
+    second speaker or microphone.
     """
     per_task = _session_values.setdefault(task, {})
     sessions = per_task.get(feature)
     if not isinstance(sessions, FeatureSessions):
         sessions = FeatureSessions(create, close)
         per_task[feature] = sessions
+        return sessions
+    sessions.replace(create, close)
     return sessions

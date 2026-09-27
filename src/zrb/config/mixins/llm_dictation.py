@@ -48,6 +48,10 @@ class LLMDictationMixin:
             "https://alphacephei.com/vosk/models"
         )
         self.DEFAULT_LLM_DICTATION_VOSK_DOWNLOAD_TIMEOUT: str = "120"
+        self.DEFAULT_LLM_DICTATION_VOSK_MAX_DOWNLOAD_MB: str = "4096"
+        self.DEFAULT_LLM_DICTATION_VOSK_MAX_UNCOMPRESSED_MB: str = "8192"
+        self.DEFAULT_LLM_DICTATION_VOSK_MAX_FILE_MB: str = "4096"
+        self.DEFAULT_LLM_DICTATION_VOSK_MAX_FILES: str = "10000"
         super().__init__()
 
     LLM_DICTATION_MODE = EnvField(
@@ -224,5 +228,42 @@ class LLMDictationMixin:
         doc=(
             "Seconds to wait for the Vosk model server to answer; 0 means no "
             "limit. Default: 120."
+        ),
+    )
+
+    LLM_DICTATION_VOSK_MAX_DOWNLOAD_MB = EnvField(
+        float,
+        fallback=4096.0,
+        doc=(
+            "Megabytes of zip to accept for a Vosk model; 0 means no limit. "
+            "The largest published model is about 1.8 GB. Default: 4096."
+        ),
+    )
+
+    LLM_DICTATION_VOSK_MAX_UNCOMPRESSED_MB = EnvField(
+        float,
+        fallback=8192.0,
+        doc=(
+            "Megabytes a Vosk model may take once extracted, summed over every "
+            "file in the archive; 0 means no limit. Bounds a decompression "
+            "bomb. Default: 8192."
+        ),
+    )
+
+    LLM_DICTATION_VOSK_MAX_FILE_MB = EnvField(
+        float,
+        fallback=4096.0,
+        doc=(
+            "Megabytes for any single file in a Vosk model archive; 0 means no "
+            "limit. A model's acoustic model is one large file. Default: 4096."
+        ),
+    )
+
+    LLM_DICTATION_VOSK_MAX_FILES = EnvField(
+        float,
+        fallback=10000.0,
+        doc=(
+            "Files a Vosk model archive may contain; 0 means no limit. Bounds "
+            "the many-tiny-files shape of a decompression bomb. Default: 10000."
         ),
     )
