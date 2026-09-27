@@ -1,19 +1,15 @@
-"""Speaker core for the voice-interaction hook.
+"""Speaker for the voice-interaction hook: clean text, synthesize, play.
 
-Two jobs:
-
-1. Turn a wall of agent output into something worth listening to.
-2. Make sure only one thing is ever audible at a time.
-
-Job 2 is not an optimization. Stop, PermissionRequest and Notification are
-separate hook invocations, each a separate process; zrb runs hooks on a thread
-pool and may fire them concurrently. Without a cross-process lock two espeak
-processes fight over the audio device and the user hears garbled overlap.
+Each hook event is its own process, so playback is serialized with a
+cross-process file lock. Stdlib only, so it runs under any python3.
 """
 
 from __future__ import annotations
 
+import base64
 import fcntl
+import io
+import json
 import os
 import re
 import shutil
@@ -21,21 +17,24 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.request
+import wave
 from pathlib import Path
 
-# ---------------------------------------------------------------------------
-# Configuration (env-overridable so the prototype can be tuned without edits)
-# ---------------------------------------------------------------------------
-
 DEFAULT_MAX_CHARS = 400
-DEFAULT_VOICE = "en-us+m3"
 DEFAULT_RATE = 165
 DEFAULT_LOCK_TIMEOUT = 30.0
+DEFAULT_CLOUD_TIMEOUT = 15.0
 
-# Ceiling on how long we are willing to wait for the audio device. A stuck
-# espeak must never hold a hook open past its timeout, because a hook that
-# overruns gets its whole process tree killed and, on Stop, can look like a
-# failure.
+DEFAULT_VOICES = {
+    "say": "",  # the system default voice
+    "espeak-ng": "en-us+m3",
+    "openai": "alloy",
+    "gemini": "Sulafat",
+}
+DEFAULT_OPENAI_MODEL = "gpt-4o-mini-tts"
+DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-preview-tts"
+
 LOCK_PATH = Path(
     os.getenv(
         "ZRB_VOICE_LOCK",
@@ -51,11 +50,7 @@ SPEAK_LOG = Path(
 
 
 def log(message: str) -> None:
-    """Append to a side log.
-
-    Never stderr: on a Stop hook, stderr output participates in the block
-    protocol, and we must never accidentally signal anything to zrb.
-    """
+    """Append to the side log; stderr is reserved for zrb's hook protocol."""
     try:
         with open(SPEAK_LOG, "a") as fh:
             fh.write(f"{time.strftime('%H:%M:%S')} {message}\n")
@@ -63,37 +58,26 @@ def log(message: str) -> None:
         pass
 
 
-# ---------------------------------------------------------------------------
-# Text cleanup
-# ---------------------------------------------------------------------------
-
-# Fenced code blocks: keep nothing. Reading source aloud is never useful.
 _FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
-# Inline code: keep the word, drop the backticks.
 _INLINE_CODE_RE = re.compile(r"`([^`]*)`")
-# Markdown tables: a row is mostly pipes and dashes.
 _TABLE_ROW_RE = re.compile(r"^\s*\|.*\|\s*$", re.MULTILINE)
-# Links: keep the label, drop the URL.
 _LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]+\)")
-# Bare URLs.
 _URL_RE = re.compile(r"https?://\S+")
-# Headings, blockquotes, list bullets, emphasis.
 _HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s*", re.MULTILINE)
 _QUOTE_RE = re.compile(r"^\s{0,3}>\s?", re.MULTILINE)
 _BULLET_RE = re.compile(r"^\s*[-*+]\s+", re.MULTILINE)
 _EMPHASIS_RE = re.compile(r"(\*\*|__|\*|_|~~)")
-# Emoji and other pictographs: espeak-ng reads some as words ("smiling face").
+# espeak-ng reads some emoji aloud ("smiling face").
 _NON_SPEECH_RE = re.compile(
     "[\U0001f300-\U0001faff\U00002600-\U000027bf\U0001f1e6-\U0001f1ff]"
 )
 
 
 def clean_for_speech(text: str) -> str:
-    """Reduce markdown-ish agent output to speakable prose.
+    """Reduce markdown to speakable prose.
 
-    Order matters: fences before inline code (triple backticks would otherwise
-    be eaten as three inline spans), links before bare URLs so a link's label
-    survives.
+    Fences go before inline code, and links before bare URLs, or the triple
+    backticks and link labels are mangled.
     """
     text = _FENCE_RE.sub(" ", text)
     text = _LINK_RE.sub(r"\1", text)
@@ -106,7 +90,7 @@ def clean_for_speech(text: str) -> str:
     text = _EMPHASIS_RE.sub("", text)
     text = _NON_SPEECH_RE.sub("", text)
     text = text.replace("→", " to ").replace("—", ", ").replace("–", ", ")
-    # Collapse whitespace, but keep paragraph breaks as sentence pauses.
+    # Paragraph breaks become sentence pauses.
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n\s*\n+", ".\n", text)
     text = re.sub(r"\s*\n\s*", " ", text)
@@ -116,12 +100,7 @@ def clean_for_speech(text: str) -> str:
 
 
 def truncate_for_speech(text: str, max_chars: int) -> str:
-    """Cut at a sentence boundary near *max_chars*.
-
-    Cutting mid-sentence is the single most jarring failure mode of a speaker
-    like this, so prefer the last sentence end before the budget and only fall
-    back to a hard cut when the text has no sentence break at all.
-    """
+    """Cut at the last sentence end before *max_chars*, else hard-cut."""
     if max_chars <= 0 or len(text) <= max_chars:
         return text
     window = text[:max_chars]
@@ -131,79 +110,212 @@ def truncate_for_speech(text: str, max_chars: int) -> str:
     return window.rstrip() + "..."
 
 
-# ---------------------------------------------------------------------------
-# Serialized playback
-# ---------------------------------------------------------------------------
+class Utterance:
+    """The argv that plays the speech, plus a temp file to delete afterwards."""
+
+    def __init__(self, argv: list[str], temp_path: str | None = None):
+        self.argv = argv
+        self.temp_path = temp_path
+
+    def cleanup(self) -> None:
+        if self.temp_path:
+            try:
+                os.remove(self.temp_path)
+            except OSError:
+                pass
 
 
-def _speak_espeak(text: str, voice: str, rate: int) -> None:
-    subprocess.run(
-        ["espeak-ng", "-v", voice, "-s", str(rate), text],
-        check=False,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        timeout=120,
+def resolve_backend_name(name: str) -> str:
+    """Map `auto` to the local engine this platform has."""
+    if name != "auto":
+        return name
+    if shutil.which("say"):
+        return "say"
+    return "espeak-ng"
+
+
+def prepare(backend: str, text: str, voice: str, rate: int) -> Utterance:
+    """Synthesize outside the lock; only playback is serialized."""
+    if backend == "say":
+        return _prepare_say(text, voice, rate)
+    if backend == "espeak-ng":
+        return _prepare_espeak(text, voice, rate)
+    if backend == "openai":
+        return _wav_utterance(_synthesize_openai(text, voice))
+    if backend == "gemini":
+        return _wav_utterance(_pcm_to_wav(_synthesize_gemini(text, voice)))
+    raise ValueError(f"unknown backend {backend!r}")
+
+
+def _prepare_say(text: str, voice: str, rate: int) -> Utterance:
+    _require_binary("say")
+    argv = ["say", "-r", str(rate)]
+    if voice:
+        argv += ["-v", voice]
+    return Utterance(argv + ["--", text])
+
+
+def _prepare_espeak(text: str, voice: str, rate: int) -> Utterance:
+    _require_binary("espeak-ng")
+    argv = ["espeak-ng", "-s", str(rate)]
+    if voice:
+        argv += ["-v", voice]
+    return Utterance(argv + ["--", text])
+
+
+def _synthesize_openai(text: str, voice: str) -> bytes:
+    """OpenAI /audio/speech. Returns a complete WAV file."""
+    base_url = os.getenv("ZRB_VOICE_OPENAI_BASE_URL", "https://api.openai.com/v1")
+    body = {
+        "model": os.getenv("ZRB_VOICE_OPENAI_MODEL", DEFAULT_OPENAI_MODEL),
+        "voice": voice,
+        "input": text,
+        "response_format": "wav",
+    }
+    headers = {"Authorization": f"Bearer {_require_env('OPENAI_API_KEY')}"}
+    return _post(f"{base_url.rstrip('/')}/audio/speech", body, headers)
+
+
+def _synthesize_gemini(text: str, voice: str) -> bytes:
+    """Gemini TTS via generateContent. Returns raw 24 kHz 16-bit mono PCM."""
+    key = os.getenv("GEMINI_API_KEY") or _require_env("GOOGLE_API_KEY")
+    model = os.getenv("ZRB_VOICE_GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
+    body = {
+        # Without "Say:", Gemini may answer a short line instead of reading it.
+        "contents": [{"parts": [{"text": f"Say: {text}"}]}],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {
+                "voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}
+            },
+        },
+    }
+    url = (
+        "https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{model}:generateContent"
     )
+    reply = json.loads(_post(url, body, {"x-goog-api-key": key}))
+    part = reply["candidates"][0]["content"]["parts"][0]["inlineData"]
+    return base64.b64decode(part["data"])
 
 
-def _speak_gemini(text: str, voice: str, rate: int) -> None:
-    """Gemini TTS. Requires `pip install 'zrb-extras[google-genai]'`.
-
-    Imported lazily so the hook keeps working on the espeak backend when
-    zrb-extras is not installed (it is NOT installed on this machine -- see
-    the README).
-    """
-    from zrb_extras.llm.tool import create_speak_tool  # noqa: F401
-
-    raise NotImplementedError(
-        "Gemini backend is not wired up in the prototype; use espeak-ng."
+def _post(url: str, body: dict, headers: dict) -> bytes:
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json", **headers},
     )
+    timeout = float(os.getenv("ZRB_VOICE_CLOUD_TIMEOUT", str(DEFAULT_CLOUD_TIMEOUT)))
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return response.read()
 
 
-def _resolve_backend(name: str):
-    """Look the backend up by name on every call.
+def _pcm_to_wav(pcm: bytes, sample_rate: int = 24000) -> bytes:
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(sample_rate)
+        wav.writeframes(pcm)
+    return buffer.getvalue()
 
-    Deliberately not a module-level dict of callables: that would capture each
-    function object at import time, so patching or replacing a backend later
-    would have no effect. Every backend takes the same (text, voice, rate)
-    signature so the call site stays uniform.
-    """
-    return {
-        "espeak-ng": _speak_espeak,
-        "gemini": _speak_gemini,
-    }.get(name)
+
+def _wav_utterance(wav_bytes: bytes) -> Utterance:
+    fd, path = tempfile.mkstemp(prefix="zrb-voice-", suffix=".wav")
+    with os.fdopen(fd, "wb") as fh:
+        fh.write(wav_bytes)
+    return Utterance(_wav_player() + [path], temp_path=path)
+
+
+def _wav_player() -> list[str]:
+    players = (
+        ["afplay"],
+        ["paplay"],
+        ["aplay", "-q"],
+        ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet"],
+    )
+    for argv in players:
+        if shutil.which(argv[0]):
+            return argv
+    raise RuntimeError("no WAV player on PATH (afplay, paplay, aplay, ffplay)")
+
+
+def _require_binary(name: str) -> None:
+    if shutil.which(name) is None:
+        raise RuntimeError(f"{name} not on PATH")
+
+
+def _require_env(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"{name} is not set")
+    return value
 
 
 def speak(text: str) -> None:
-    """Speak *text*, serialized against every other speaking process."""
+    """Speak *text*, falling back to the local engine if the backend fails."""
     text = text.strip()
     if not text:
         log("skip: empty after cleanup")
         return
 
-    backend = os.getenv("ZRB_VOICE_BACKEND", "espeak-ng")
-    voice = os.getenv("ZRB_VOICE_NAME", DEFAULT_VOICE)
-    rate = int(os.getenv("ZRB_VOICE_RATE", str(DEFAULT_RATE)))
     max_chars = int(os.getenv("ZRB_VOICE_MAX_CHARS", str(DEFAULT_MAX_CHARS)))
-
     spoken = truncate_for_speech(clean_for_speech(text), max_chars)
     if not spoken:
         log("skip: nothing left after truncation")
         return
 
-    if backend == "espeak-ng" and shutil.which("espeak-ng") is None:
-        log("error: espeak-ng not on PATH")
+    requested = resolve_backend_name(os.getenv("ZRB_VOICE_BACKEND", "auto"))
+    utterance = _prepare_with_fallback(requested, spoken)
+    if utterance is None:
         return
+    try:
+        run_player(utterance.argv, spoken)
+    finally:
+        utterance.cleanup()
 
-    fn = _resolve_backend(backend)
-    if fn is None:
-        log(f"error: unknown backend {backend!r}")
-        return
 
+def _prepare_with_fallback(requested: str, spoken: str) -> Utterance | None:
+    rate = int(os.getenv("ZRB_VOICE_RATE", str(DEFAULT_RATE)))
+    candidates = [requested]
+    local = resolve_backend_name("auto")
+    if local != requested:
+        candidates.append(local)
+    for index, backend in enumerate(candidates):
+        # ZRB_VOICE_NAME is in the requested backend's vocabulary, not the fallback's.
+        voice = DEFAULT_VOICES.get(backend, "")
+        if index == 0:
+            voice = os.getenv("ZRB_VOICE_NAME", voice)
+        try:
+            utterance = prepare(backend, spoken, voice, rate)
+            log(f"speak[{backend}]: {spoken[:80]!r}")
+            return utterance
+        except Exception as exc:
+            log(f"error: backend {backend} failed: {type(exc).__name__}: {exc}")
+    return None
+
+
+def is_speaking() -> bool:
+    """True while any process holds the audio lock, i.e. is playing speech."""
+    try:
+        fd = os.open(str(LOCK_PATH), os.O_CREAT | os.O_RDWR, 0o600)
+    except OSError:
+        return False
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        return False
+    except OSError:
+        return True
+    finally:
+        os.close(fd)
+
+
+def run_player(argv: list[str], label: str = "") -> None:
+    """Run *argv* while holding the cross-process audio lock."""
     lock_timeout = float(os.getenv("ZRB_VOICE_LOCK_TIMEOUT", str(DEFAULT_LOCK_TIMEOUT)))
     deadline = time.monotonic() + lock_timeout
 
-    # O_CREAT so two processes racing on first ever run both succeed.
     fd = os.open(str(LOCK_PATH), os.O_CREAT | os.O_RDWR, 0o600)
     acquired = False
     try:
@@ -214,16 +326,19 @@ def speak(text: str) -> None:
                 break
             except OSError:
                 if time.monotonic() >= deadline:
-                    # Dropping the utterance is the right call: a hook that
-                    # blocks past its timeout gets killed, and on Stop that can
-                    # be read as a failure.
-                    log(f"skip: lock busy >{lock_timeout}s, dropping: {spoken[:60]!r}")
+                    # Better dropped than killed at the hook timeout.
+                    log(f"skip: lock busy >{lock_timeout}s, dropping: {label[:60]!r}")
                     return
                 time.sleep(0.1)
-        log(f"speak[{backend}]: {spoken[:80]!r}")
-        fn(spoken, voice, rate)
-    except Exception as exc:  # never propagate: hooks must exit 0
-        log(f"error: {type(exc).__name__}: {exc}")
+        subprocess.run(
+            argv,
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=120,
+        )
+    except Exception as exc:  # hooks must exit 0
+        log(f"error: player {argv[0]} failed: {type(exc).__name__}: {exc}")
     finally:
         try:
             if acquired:

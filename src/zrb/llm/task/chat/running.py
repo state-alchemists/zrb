@@ -23,8 +23,8 @@ from typing import TYPE_CHECKING, Any
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
 from zrb.llm.custom_command.resolver import (
-    resolve_custom_command,
     resolve_custom_commands,
+    run_custom_command,
 )
 from zrb.llm.task.chat.agent_mention import resolve_agent_mention
 from zrb.session.session import Session
@@ -334,8 +334,9 @@ def _expand_message(message: Any, custom_commands: "list[AnyCustomCommand]") -> 
     """
     if not isinstance(message, str):
         return message
-    resolved = resolve_custom_command(message, custom_commands)
-    if resolved is not None:
-        return resolved
+    outcome = run_custom_command(message, custom_commands)
+    if outcome is not None:
+        # A command handled in-process leaves no message to send.
+        return outcome.prompt if outcome.prompt is not None else ""
     mentioned = resolve_agent_mention(message)
     return message if mentioned is None else mentioned

@@ -416,6 +416,7 @@ async def _apply_permission_request_hook(call, hook_manager):
         HookEvent.PERMISSION_REQUEST,
         {"tool": call.tool_name, "args": getattr(call, "args", None)},
         tool_name=call.tool_name,
+        tool_input=_as_tool_input(getattr(call, "args", None)),
         message=f"Approval requested to run {call.tool_name}",
     )
     perm_decision = extract_permission_decision(perm_results)

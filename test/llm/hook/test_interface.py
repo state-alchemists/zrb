@@ -224,6 +224,17 @@ class TestHookContext:
         assert result["teammate_name"] == "helper-bot"
         assert result["team_name"] == "core-team"
 
+    def test_to_claude_json_carries_last_assistant_message(self):
+        """Stop's response text reaches stdin, where event_data never does."""
+        ctx = HookContext(
+            event=HookEvent.STOP,
+            event_data={"output": "done", "history": ["large"]},
+            last_assistant_message="done",
+        )
+        result = ctx.to_claude_json()
+        assert result["last_assistant_message"] == "done"
+        assert "history" not in result
+
     def test_to_claude_json_with_trigger_and_instructions_and_reason(self):
         """Test to_claude_json includes trigger, custom_instructions, reason."""
         ctx = HookContext(

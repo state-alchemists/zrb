@@ -80,6 +80,39 @@ async def test_stop_failure_fires_on_unrecoverable_error():
 
 
 @pytest.mark.asyncio
+async def test_run_agent_stop_carries_last_assistant_message():
+    """STOP hands hooks the response text as its own field, not only buried
+    in event_data next to the history."""
+    agent = MagicMock()
+    run_result = MagicMock()
+    run_result.output = "Final answer"
+    run_result.all_messages.return_value = []
+
+    async def _gen(*args, **kwargs):
+        yield AgentRunResultEvent(result=run_result)
+
+    agent.run = _run_from(_gen)
+    seen: list = []
+
+    async def rec(context: HookContext) -> HookResult:
+        seen.append(context.last_assistant_message)
+        return HookResult()
+
+    manager = HookManager(search_dirs=[])
+    manager.add_hook(rec, events=[HookEvent.STOP])
+
+    await run_agent(
+        agent=agent,
+        message="Test message",
+        message_history=[],
+        limiter=LLMLimiter(),
+        hook_manager=manager,
+    )
+
+    assert seen == ["Final answer"]
+
+
+@pytest.mark.asyncio
 async def test_run_agent_stop_replace_response_false():
     """Test STOP hook with replace_response=False returns original response."""
     agent = MagicMock()

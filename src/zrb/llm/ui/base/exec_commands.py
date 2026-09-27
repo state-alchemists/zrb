@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from zrb.llm.config.model_resolver import resolve_configured_model
-from zrb.llm.custom_command.resolver import resolve_custom_command
+from zrb.llm.custom_command.resolver import run_custom_command
 from zrb.llm.task.shared_getters import apply_model_hooks
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.util.cli.style import stylize_error, stylize_muted
@@ -233,8 +233,11 @@ class BaseUIExecCommands:
         if not text:
             return False
 
-        prompt = resolve_custom_command(text, self._base_ui.custom_commands)
-        if prompt is None:
+        outcome = run_custom_command(text, self._base_ui.custom_commands)
+        if outcome is None:
             return False
-        self._base_ui.submit_message(prompt)
+        if outcome.prompt is not None:
+            self._base_ui.submit_message(outcome.prompt)
+        elif outcome.reply:
+            self._base_ui.append_to_output(stylize_muted(f"\n  {outcome.reply}\n"))
         return True

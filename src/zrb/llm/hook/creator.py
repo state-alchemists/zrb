@@ -42,7 +42,8 @@ _STDOUT_CONTEXT_EVENTS = frozenset(
 # Per-value cap for injected CLAUDE_* env vars. The OS rejects an exec whose
 # combined args+environment exceed ARG_MAX (and a single var over MAX_ARG_STRLEN,
 # ~128 KiB). event_data can carry the whole message history, so we cap well
-# under that; the full payload is always available on stdin.
+# under that. stdin does not carry event_data, so a command hook can only rely
+# on the HookContext fields.
 _MAX_HOOK_ENV_BYTES = 16384
 
 # Context fields exported as CLAUDE_<FIELD>, for hooks that read the environment
@@ -57,6 +58,7 @@ _ENV_CONTEXT_FIELDS = (
     "message",
     "title",
     "notification_type",
+    "last_assistant_message",
     "agent_id",
     "teammate_name",
     "task_id",
@@ -140,8 +142,8 @@ def _build_hook_env(
 
     Values are size-bounded. event_data for SessionStart/Stop/SessionEnd carries
     the whole message history; serialized into the environment that overflows
-    the OS exec arg+env limit (E2BIG: "Argument list too long"). Hooks get the
-    full structured payload on stdin, so dropping an oversized env value is safe.
+    the OS exec arg+env limit (E2BIG: "Argument list too long"), so an oversized
+    value is dropped whole.
     """
     env = os.environ.copy()
     env["CLAUDE_HOOK_EVENT"] = str(context.event.value)

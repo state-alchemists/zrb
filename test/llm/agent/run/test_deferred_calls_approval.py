@@ -308,6 +308,39 @@ async def test_permission_request_hook_auto_allows():
 
 
 @pytest.mark.asyncio
+async def test_permission_request_hook_receives_tool_input():
+    """PermissionRequest carries the call's args as Claude's `tool_input`."""
+    ui = MagicMock(spec=AnyUI)
+    hook_manager = MagicMock(spec=HookManager)
+    allow = HookExecutionResult(
+        success=True, hook_specific_output={"decision": {"behavior": "allow"}}
+    )
+    hook_manager.execute_hooks = _route_execute_hooks(
+        {HookEvent.PERMISSION_REQUEST: [allow]}
+    )
+
+    call = MagicMock()
+    call.tool_name = "Write"
+    call.args = '{"path": "/tmp/a.py"}'
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    await process_deferred_requests(
+        result_output, None, ui, hook_manager, approval_channel=MagicMock()
+    )
+
+    kwargs = next(
+        c.kwargs
+        for c in hook_manager.execute_hooks.call_args_list
+        if c.args[0] == HookEvent.PERMISSION_REQUEST
+    )
+    assert kwargs["tool_input"] == {"path": "/tmp/a.py"}
+
+
+@pytest.mark.asyncio
 async def test_permission_request_hook_auto_denies():
     """A PermissionRequest hook returning decision.behavior="deny" denies the
     call without consulting the interactive approval channel."""

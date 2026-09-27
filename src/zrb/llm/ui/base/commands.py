@@ -20,7 +20,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.llm.custom_command.resolver import resolve_custom_command
+from zrb.llm.custom_command.resolver import get_custom_command_match
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.ui.base.conversation_commands import BaseUIConversationCommands
 from zrb.llm.ui.base.exec_commands import BaseUIExecCommands
@@ -75,7 +75,7 @@ class BaseUICommands:
         and :meth:`_run_command_chain` (which calls ``handler``). Because both
         derive from this one table, routing and execution cannot drift on which
         tokens map to which command. Custom commands are matched separately via
-        ``resolve_custom_command`` (they have no fixed token list).
+        ``get_custom_command_match`` (they have no fixed token list).
 
         ``prefix=True`` → the token may be followed by ``" <args>"``;
         ``prefix=False`` → exact-match toggle.
@@ -124,7 +124,7 @@ class BaseUICommands:
         for _handler, tokens, prefix, run_while_thinking in self.command_table():
             if _matches(stripped, tokens, prefix):
                 return "thinking_command" if run_while_thinking else "command"
-        if resolve_custom_command(stripped, self._base_ui.custom_commands) is not None:
+        if get_custom_command_match(stripped, self._base_ui.custom_commands):
             return "command"
         return "message"
 

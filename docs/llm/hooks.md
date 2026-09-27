@@ -205,7 +205,7 @@ With no explicit `timeout`, this runs at the `command` default of 600 seconds.
 | `shell` | boolean | Use shell interpreter (default: true) |
 | `working_dir` | string | Working directory (optional) |
 
-**Input: env vars _and_ stdin.** Both Claude-Code hook styles work: the `CLAUDE_*` [environment variables](#environment-variables) are set, and the full event payload is written to **stdin** as JSON (`hook_event_name`, `session_id`, `cwd`, …; tool events add `tool_name`, `tool_input`, and `tool_response` on `PostToolUse`):
+**Input: env vars _and_ stdin.** Both Claude-Code hook styles work: the `CLAUDE_*` [environment variables](#environment-variables) are set, and the Claude-shaped payload is written to **stdin** as JSON (`hook_event_name`, `session_id`, `cwd`, …; tool events and `PermissionRequest` add `tool_name` and `tool_input`, `PostToolUse` adds `tool_response`, and `Stop` adds `last_assistant_message`, the turn's response text):
 
 ```bash
 event=$(cat)                                    # read the JSON payload from stdin
@@ -587,7 +587,8 @@ Command hooks receive these environment variables automatically:
 | `CLAUDE_TRANSCRIPT_PATH` | Path to transcript file |
 | `CLAUDE_PERMISSION_MODE` | Current permission mode |
 | `CLAUDE_PROJECT_DIR` | Best-guess project root directory |
-| `CLAUDE_EVENT_DATA` | Full event data as JSON string |
+| `CLAUDE_EVENT_DATA` | Full event data as JSON string. Dropped when over 16 KiB, which a `Stop` payload (it carries the history) usually is; read `last_assistant_message` instead |
+| `CLAUDE_LAST_ASSISTANT_MESSAGE` | The turn's response text (for `Stop`) |
 | `CLAUDE_TOOL_NAME` | Tool name (for tool events) |
 | `CLAUDE_TOOL_INPUT` | Tool input as JSON string |
 | `CLAUDE_PROMPT` | User prompt (for prompt events) |

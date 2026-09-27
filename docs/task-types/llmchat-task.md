@@ -242,6 +242,38 @@ chat.append_trigger(my_async_iterator)
 chat.append_custom_command(my_command)
 ```
 
+A custom command is a slash command added to the chat, listed in `/help`.
+There are two kinds:
+
+- **`CustomCommand`** expands into a prompt for the LLM. `$name`, `${name}`,
+  `${name:-default}` and `$1`, `$2`, … are replaced with the arguments.
+- **`ActionCommand`** runs a Python callable instead and starts no LLM turn.
+  The callable receives the parsed arguments as a dict and returns the text to
+  show the user, or `None` to show nothing.
+
+```python
+from zrb.llm.custom_command import ActionCommand, CustomCommand
+
+chat.append_custom_command(
+    CustomCommand("/review", "Review $path for bugs", args=["path"]),
+)
+
+state = {"verbose": False}
+
+def toggle_verbose(kwargs: dict[str, str]) -> str:
+    state["verbose"] = not state["verbose"]
+    return f"Verbose {'on' if state['verbose'] else 'off'}"
+
+chat.append_custom_command(
+    ActionCommand("/verbose", toggle_verbose, description="Toggle verbose mode"),
+)
+```
+
+To write your own kind, subclass `AnyCustomCommand`. Its `handle(kwargs)`
+decides: returning `None` (the default) sends `get_prompt(kwargs)` to the LLM,
+and returning a string handles the command in-process and shows that string.
+Custom commands run only while the model is idle.
+
 ### History Manager
 
 ```python

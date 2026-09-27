@@ -866,6 +866,9 @@ async def _finish_turn(
             ),
         },
         stop_hook_active=extension_state.block_count > 0,
+        last_assistant_message=(
+            cursor.output if isinstance(cursor.output, str) else None
+        ),
     )
     stop_outcome = apply_turn_end_extension(
         stop_results,
