@@ -97,6 +97,8 @@ async def test_stream_btw_response_survives_agent_failure(ui):
 def test_handle_custom_command_ignored_while_thinking_or_blank(ui):
     custom_cmd = MagicMock()
     custom_cmd.command = "/mycmd"
+    custom_cmd.args = []
+    custom_cmd.can_run_while_thinking = False
     ui.custom_commands = [custom_cmd]
 
     ui.is_thinking = True
@@ -138,7 +140,7 @@ def test_handle_action_command_shows_reply_without_prompting(ui):
 
     calls = []
     ui.custom_commands = [
-        ActionCommand("/toggle", lambda kwargs: calls.append(kwargs) or "Toggled")
+        ActionCommand("/toggle", lambda kwargs, ui: calls.append(kwargs) or "Toggled")
     ]
     ui.submitted_prompt = None
 
@@ -152,7 +154,7 @@ def test_classify_input_routes_action_command_without_running_it(ui):
     from zrb.llm.custom_command import ActionCommand
 
     calls = []
-    ui.custom_commands = [ActionCommand("/toggle", lambda kwargs: calls.append(1))]
+    ui.custom_commands = [ActionCommand("/toggle", lambda kwargs, ui: calls.append(1))]
 
     assert ui.classify_input("/toggle") == "command"
     assert calls == []
@@ -182,8 +184,35 @@ def test_classify_input_recognizes_custom_command(ui):
     custom_cmd.command = "/mycmd"
     custom_cmd.args = ["arg1"]
     custom_cmd.get_prompt.return_value = "prompt"
+    custom_cmd.can_run_while_thinking = False
     ui.custom_commands = [custom_cmd]
     assert ui.classify_input("/mycmd arg") == "command"
+
+
+def test_command_that_can_run_while_thinking_runs_mid_turn(ui):
+    from zrb.llm.custom_command import ActionCommand
+
+    calls = []
+    ui.custom_commands = [
+        ActionCommand(
+            "/mute", lambda kwargs, ui: calls.append(1), can_run_while_thinking=True
+        )
+    ]
+    ui.is_thinking = True
+
+    assert ui.classify_input("/mute") == "thinking_command"
+    assert ui.handle_custom_command("/mute") is True
+    assert calls == [1]
+
+
+def test_action_command_receives_the_ui(ui):
+    from zrb.llm.custom_command import ActionCommand
+
+    seen = []
+    ui.custom_commands = [ActionCommand("/who", lambda kwargs, got: seen.append(got))]
+
+    ui.handle_custom_command("/who")
+    assert seen == [ui]
 
 
 @pytest.mark.asyncio
@@ -357,43 +386,3 @@ async def test_command_dispatch_exception_is_logged(ui):
     ui.schedule_command("/help")
     assert len(ui.background_tasks) == 1
     await list(ui.background_tasks)[0]
-
-
-def test_handle_toggle_voice_enables(ui):
-    """`/voice` toggles voice mode on when disabled."""
-    with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "true"}):
-        assert ui.voice.mode_active is False
-        result = ui.handle_toggle_voice("/voice")
-        assert result is True
-        assert ui.voice.mode_active is True
-        assert any("ON" in o for o in ui.outputs)
-
-
-def test_handle_toggle_voice_disables(ui):
-    """`/voice` toggles voice mode off when enabled."""
-    ui.voice.mode_active = True
-    with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "true"}):
-        result = ui.handle_toggle_voice("/voice")
-        assert result is True
-        assert ui.voice.mode_active is False
-        assert any("OFF" in o for o in ui.outputs)
-
-
-def test_handle_toggle_voice_blocked_when_disabled(ui):
-    """`/voice` shows a message when voice is not enabled in config."""
-    with patch.dict(os.environ, {"ZRB_LLM_VOICE_ENABLED": "false"}):
-        result = ui.handle_toggle_voice("/voice")
-        assert result is True
-        assert ui.voice.mode_active is False
-        assert any("not enabled" in o for o in ui.outputs)
-
-
-def test_handle_toggle_voice_auto_enables_when_vosk_installed(ui):
-    """Untouched `LLM_VOICE_ENABLED` + vosk installed → voice just works."""
-    env = {k: v for k, v in os.environ.items() if not k.endswith("_LLM_VOICE_ENABLED")}
-    with patch.dict(os.environ, env, clear=True):
-        with patch("zrb.llm.voice.engine.vosk_installed", return_value=True):
-            result = ui.handle_toggle_voice("/voice")
-    assert result is True
-    assert ui.voice.mode_active is True
-    assert any("vosk detected" in o for o in ui.outputs)

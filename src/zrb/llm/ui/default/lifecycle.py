@@ -54,6 +54,12 @@ class UILifecycle:
         # still finishes, bounded by the snapshot's own git timeout.
         await self._cancel_and_discard(self._init_snapshot_task)
         self._init_snapshot_task = None
+        # Whatever is left — an async command's action, a message to a
+        # sub-agent — is cancelled here too, since Ctrl+C and Ctrl+D exit the
+        # app without passing through `on_exit`.
+        for task in list(ui.background_tasks):
+            if not task.done():
+                task.cancel()
 
     def handle_application_run_error(self, exc: Exception):
         """Handle error during application.run_async (public API)."""

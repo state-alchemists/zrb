@@ -71,7 +71,7 @@ Hooks are discovered automatically in these locations (in order of precedence, h
 | `./.claude/settings.local.json` | Claude Code compatibility, project — the nested `hooks` block |
 | `CFG.HOOKS_DIRS` | Additional colon-separated (semicolon on Windows) custom directories |
 
-Hooks Claude Code (and drop-in tools like [peon-ping](https://peonping.com)) register inside `settings.json`/`settings.local.json` are picked up automatically — only the nested `hooks` block is read; other settings keys are ignored.
+Hooks Claude Code (and drop-in tools like peon-ping) register inside `settings.json`/`settings.local.json` are picked up automatically — only the nested `hooks` block is read; other settings keys are ignored. To hear replies and approval prompts, zrb's own [speech](voice-camera.md#speech) reads them aloud without an external tool.
 
 ### Hooks Subsystem Configuration
 

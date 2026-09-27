@@ -42,6 +42,28 @@ class TestChatSessionManagerCleanup:
         assert agent_activity_registry.tracked_session_count() == before
 
     @pytest.mark.asyncio
+    async def test_remove_session_closes_its_feature_state(self):
+        """A web session never fires SESSION_END, so its dictation and speech
+        state would otherwise stay open for the process's life."""
+        from zrb.contextvars import current_chat_session_id
+        from zrb.llm.util.feature_config import FeatureSessions
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        closed: list[str] = []
+        sessions = FeatureSessions(lambda: "state", closed.append)
+        manager = await ChatSessionManager.get_instance()
+        await manager.create_session(session_id="feature-leak")
+        token = current_chat_session_id.set("feature-leak")
+        try:
+            sessions.get()
+        finally:
+            current_chat_session_id.reset(token)
+
+        await manager.remove_session("feature-leak")
+
+        assert closed == ["state"]
+
+    @pytest.mark.asyncio
     async def test_remove_session_clears_its_live_subagent_session_bucket(self):
         """Same leak, same fix, for the "talk to a running sub-agent
         directly" registry (live_session.py) -- it must not outlive session

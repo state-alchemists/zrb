@@ -36,7 +36,6 @@ def completer(mock_history_manager):
         history_manager=mock_history_manager,
         ui_config=_config(
             attach_commands=["/attach"],
-            photo_commands=["/photo"],
             exit_commands=["/exit"],
             info_commands=["/info"],
             save_commands=["/save"],
@@ -57,6 +56,7 @@ def _make_custom_command(command, description):
     cc = MagicMock(spec=AnyCustomCommand)
     cc.command = command
     cc.description = description
+    cc.get_arg_completions.return_value = []
     return cc
 
 

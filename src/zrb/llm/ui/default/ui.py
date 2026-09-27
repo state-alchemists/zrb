@@ -608,6 +608,30 @@ class UI(BaseUI):
     def resolve_current(self, text: str, echo: str | None) -> bool:
         return self._confirmation.resolve_current(text, echo)
 
+    @property
+    def is_waiting_for_answer(self) -> bool:
+        return self.confirmation.current is not None
+
+    @property
+    def pending_answer_since(self) -> float | None:
+        # In a sub-agent's view the pending request may belong to an agent not
+        # on screen, so a spoken reply answers nothing there.
+        if self.viewing_agent_id is not None:
+            return None
+        return self.confirmation.current_since
+
+    @property
+    def is_waiting_for_choice(self) -> bool:
+        return self.confirmation.current_spec is not None
+
+    def submit_answer(self, text: str) -> None:
+        if not self._confirmation.submit_user_answer(text):
+            self.submit_message(text)
+
+    def insert_input_text(self, text: str) -> None:
+        self._input_field.buffer.insert_text(text)
+        self.invalidate_ui()
+
     def begin_choice(self, spec: Any) -> None:
         self._selection.begin_choice(spec)
 

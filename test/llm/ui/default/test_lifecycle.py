@@ -111,6 +111,20 @@ async def test_cleanup_background_tasks():
 
 
 @pytest.mark.asyncio
+async def test_cleanup_cancels_an_async_command_still_running():
+    """Ctrl+C and Ctrl+D exit the app without `on_exit`; the teardown after
+    `run_async` must still stop a running `ActionCommand` action."""
+    ui = MockLifecycleUI()
+    action = asyncio.ensure_future(asyncio.sleep(3600))
+    ui.background_tasks.add(action)
+
+    await ui.cleanup_background_tasks()
+    await asyncio.sleep(0)
+
+    assert action.cancelled()
+
+
+@pytest.mark.asyncio
 async def test_failed_run_cancels_a_still_running_init_snapshot():
     """Teardown must not leave the init snapshot running against a UI that
     is gone, nor let it report progress there afterwards."""

@@ -38,7 +38,6 @@ def completer(mock_history_manager):
         history_manager=mock_history_manager,
         ui_config=_config(
             attach_commands=["/attach"],
-            photo_commands=["/photo"],
             exit_commands=["/exit"],
             info_commands=["/info"],
             save_commands=["/save"],
@@ -59,6 +58,7 @@ def _make_custom_command(command, description):
     cc = MagicMock(spec=AnyCustomCommand)
     cc.command = command
     cc.description = description
+    cc.get_arg_completions.return_value = []
     return cc
 
 
@@ -68,23 +68,33 @@ def test_command_completion(completer, complete_event):
     assert any(c.text == "/exit" for c in completions)
 
 
-def test_photo_command_completion(completer, complete_event):
-    doc = Document(text="/pho", cursor_position=4)
-    completions = list(completer.get_completions(doc, complete_event))
-    matches = [c for c in completions if c.text == "/photo"]
-    assert len(matches) == 1
-    assert "camera" in matches[0].display_meta_text.lower()
+def test_custom_command_offers_its_argument_values(
+    mock_history_manager, complete_event
+):
+    """A command with an argument completer offers its values after a space."""
+    from zrb.llm.custom_command import ActionCommand
 
-
-@patch(
-    "zrb.llm.util.camera.list_camera_devices",
-    return_value=["/dev/video0", "/dev/video1"],
-)
-def test_photo_device_argument_completion(mock_devices, completer, complete_event):
-    """/photo <space> suggests camera device ids."""
+    photo = ActionCommand(
+        "/photo",
+        lambda kwargs, ui: None,
+        args=["device"],
+        complete_arg=lambda prefix: [
+            d for d in ["/dev/video0", "/dev/video1"] if d.startswith(prefix)
+        ],
+    )
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        ui_config=_config(),
+        custom_commands=[photo],
+    )
     doc = Document(text="/photo ", cursor_position=7)
     completions = list(completer.get_completions(doc, complete_event))
     assert [c.text for c in completions] == ["/dev/video0", "/dev/video1"]
+    assert all(c.display_meta_text == "device" for c in completions)
+
+    doc = Document(text="/photo /dev/video1", cursor_position=18)
+    completions = list(completer.get_completions(doc, complete_event))
+    assert [c.text for c in completions] == ["/dev/video1"]
 
 
 @patch("zrb.llm.ui.default.app.completion.args.datetime")

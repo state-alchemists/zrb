@@ -5,7 +5,6 @@ from prompt_toolkit.clipboard import ClipboardData
 from prompt_toolkit.key_binding import KeyBindings
 
 from zrb.llm.ui.base.message_queue import MessageQueue
-from zrb.llm.ui.base.voice_state import BaseUIVoiceState
 from zrb.llm.ui.default.agent_picker import UIAgentPicker
 from zrb.llm.ui.default.keybindings import UIKeybindings
 from zrb.llm.ui.default.message_editing import UIMessageEditing
@@ -27,7 +26,6 @@ class MockUI:
         self.conversation_session_name = "test_session"
         self.running_llm_task = None
         self.is_thinking = False
-        self.voice = BaseUIVoiceState()
         self.choice_active = False
         self.selection_part = _FakeSelection(self)
 

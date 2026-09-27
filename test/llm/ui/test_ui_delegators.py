@@ -7,6 +7,7 @@ surface user code and keybindings call, so they are pinned here: every arrow
 part, which has its own dedicated tests for behavior.
 """
 
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -242,3 +243,120 @@ def test_toggle_collapsible_block_both_paths(mock_ui_deps):
         output.toggle_collapsible_block_at_cursor.return_value = True
         assert ui.toggle_collapsible_block() is True
         invalidate_ui.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_answer_seams_resolve_the_pending_confirmation(mock_ui_deps):
+    import asyncio
+
+    ui = _ui(mock_ui_deps)
+    assert ui.is_waiting_for_answer is False
+
+    future: asyncio.Future[str] = asyncio.get_running_loop().create_future()
+    ui.confirmation.queue.append((future, "Approve?", None, None))
+    ui.confirmation.current = future
+    assert ui.is_waiting_for_answer is True
+
+    with patch("prompt_toolkit.application.get_app"):
+        ui.submit_answer("yes")
+    assert future.result() == "yes"
+    assert ui.is_waiting_for_answer is False
+
+
+@pytest.mark.asyncio
+async def test_pending_answer_since_dates_the_request_on_screen(mock_ui_deps):
+    import asyncio
+
+    ui = _ui(mock_ui_deps)
+    assert ui.pending_answer_since is None
+    loop = asyncio.get_running_loop()
+    first: asyncio.Future[str] = loop.create_future()
+    ui.confirmation.queue.append((first, "Approve?", None, None))
+
+    before = time.monotonic()
+    ui.confirmation.current = first
+    since = ui.pending_answer_since
+
+    assert since is not None and since >= before
+    assert ui.is_waiting_for_choice is False
+
+
+@pytest.mark.asyncio
+async def test_no_request_is_dated_while_a_sub_agent_is_on_screen(mock_ui_deps):
+    """The pending request may be another agent's, which the user cannot see
+    from a sub-agent's view; a spoken reply must not answer it."""
+    import asyncio
+
+    ui = _ui(mock_ui_deps)
+    future: asyncio.Future[str] = asyncio.get_running_loop().create_future()
+    ui.confirmation.queue.append((future, "Approve?", None, None))
+    ui.confirmation.current = future
+    session = MagicMock(agent_id="agent-1")
+    session.buffered_ui.get_buffered_output.return_value = ""
+
+    ui.agent_picker_part.enter_agent_view(session)
+
+    assert ui.pending_answer_since is None
+
+
+@pytest.mark.asyncio
+async def test_flushing_buffered_output_keeps_the_request_date(mock_ui_deps):
+    """Flushing clears and restores `current`; that is not a new prompt, so a
+    reply said while it was on screen must still count as said to it."""
+    import asyncio
+
+    ui = _ui(mock_ui_deps)
+    future: asyncio.Future[str] = asyncio.get_running_loop().create_future()
+    ui.confirmation.queue.append((future, "Approve?", None, None))
+    ui.confirmation.current = future
+    since = ui.pending_answer_since
+
+    ui.confirmation.current = None
+    ui.confirmation.current = future
+
+    assert ui.pending_answer_since == since
+
+
+@pytest.mark.asyncio
+async def test_the_next_request_is_dated_when_it_becomes_current(mock_ui_deps):
+    import asyncio
+
+    ui = _ui(mock_ui_deps)
+    loop = asyncio.get_running_loop()
+    first: asyncio.Future[str] = loop.create_future()
+    second: asyncio.Future[str] = loop.create_future()
+    ui.confirmation.queue.extend(
+        [(first, "Approve?", None, None), (second, "", {"options": []}, None)]
+    )
+    ui.confirmation.current = first
+    first_since = ui.pending_answer_since
+
+    with patch("prompt_toolkit.application.get_app"):
+        ui.submit_answer("y")
+
+    assert ui.confirmation.current is second
+    second_since = ui.pending_answer_since
+    assert second_since is not None and first_since is not None
+    assert second_since >= first_since
+    assert ui.is_waiting_for_choice is True
+
+
+def test_submit_answer_without_a_pending_confirmation_is_a_message(mock_ui_deps):
+    ui = _ui(mock_ui_deps)
+    ui.submit_message = MagicMock()
+
+    ui.submit_answer("hello")
+
+    ui.submit_message.assert_called_once_with("hello")
+
+
+@pytest.mark.asyncio
+async def test_insert_input_text_types_at_the_cursor(mock_ui_deps):
+    ui = _ui(mock_ui_deps)
+    ui.input_field.buffer.text = "please "
+    ui.input_field.buffer.cursor_position = 7
+
+    with patch.object(ui, "invalidate_ui"):
+        ui.insert_input_text("run the tests")
+
+    assert ui.input_field.buffer.text == "please run the tests"

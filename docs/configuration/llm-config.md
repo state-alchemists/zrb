@@ -32,7 +32,7 @@ Zrb talks to LLMs through `pydantic-ai`, so OpenAI, Anthropic, Google Vertex, Ol
 - [TUI Color Styles](#20-tui-color-styles)
 - [Sandbox Configuration](#21-sandbox-configuration)
 - [CLI Semantic Colors](#22-cli-semantic-colors)
-- [Voice Dictation](#23-voice-dictation)
+- [Voice and Camera](#23-voice-and-camera)
 
 ---
 
@@ -632,7 +632,7 @@ All interval and delay values are in **milliseconds**.
 | `ZRB_LLM_MAX_AGENTS_IN_ROSTER` | Sub-agents listed in the delegation tools' AVAILABLE AGENTS roster before truncating with a pointer to `SearchAgent` (which always reaches the rest) — a token-economy cap. `0` or negative lists all. | `10` |
 | `ZRB_LLM_MAX_PARALLEL_DELEGATIONS` | Max sub-agent tasks one `DelegateToAgent` fan-out (`tasks=[...]`) runs at once. Each is its own LLM run on the shared rate limiter (and, with `isolate_worktree`, its own git worktree). Paces concurrency, not total: a 50-task call still runs all 50, at most N in flight. `0` or negative disables. | `10` |
 
-> 💡 `ZRB_LLM_MAX_IMAGE_DIMENSION` and `ZRB_LLM_IMAGE_JPEG_QUALITY` also apply to `/photo` captures (see § 17), which are downscaled and re-encoded like pasted or attached images.
+> 💡 `ZRB_LLM_MAX_IMAGE_DIMENSION` and `ZRB_LLM_IMAGE_JPEG_QUALITY` also apply to `/photo` captures (see § 23), which are downscaled and re-encoded like pasted or attached images.
 
 ---
 
@@ -661,17 +661,17 @@ Customize the tokens that trigger built-in UI commands. Each value is a **comma-
 | `ZRB_LLM_UI_COMMAND_EXIT` | Leave the chat session | `/q, :q, /bye, /quit, /exit` |
 | `ZRB_LLM_UI_COMMAND_INFO` | Show session info and the command list | `/info, /help` |
 | `ZRB_LLM_UI_COMMAND_LOAD` | Resume a saved conversation | `/load, /resume` |
-| `ZRB_LLM_UI_COMMAND_PHOTO` | `<cmd> [device]` — capture a photo from the camera and attach it to the conversation (device is optional; auto-detected per platform) | `/photo, /p` |
 | `ZRB_LLM_UI_COMMAND_PLAN_TOGGLE` | Toggle Plan Mode | `/plan` |
 | `ZRB_LLM_UI_COMMAND_REDIRECT_OUTPUT` | Bare: copy the **last response** to the clipboard. `<cmd> <path>`: write that response to a file | `>, /redirect` |
 | `ZRB_LLM_UI_COMMAND_REWIND` | Rewind to a previous turn | `/rewind` |
 | `ZRB_LLM_UI_COMMAND_SAVE` | Save the current conversation | `/save` |
 | `ZRB_LLM_UI_COMMAND_SET_MODEL` | Switch the model mid-session | `/model` |
 | `ZRB_LLM_UI_COMMAND_SUMMARIZE` | Compact the conversation history | `/compress, /compact` |
-| `ZRB_LLM_UI_COMMAND_VOICE` | Toggle voice input | `/voice, /v` |
 | `ZRB_LLM_UI_COMMAND_YOLO_TOGGLE` | Toggle auto-approval of tool calls | `/yolo` |
 
 > ⚠️ **Don't guess the variable from the command.** Several differ: `/yolo` → `YOLO_TOGGLE`, `/plan` → `PLAN_TOGGLE`, `/model` → `SET_MODEL`, `/compress` → `SUMMARIZE`, `>` → `REDIRECT_OUTPUT`. A wrong name is silently ignored.
+>
+> `/photo`, `/voice`, `/handsfree` and `/speech` belong to the camera, dictation and speech features; their aliases are `ZRB_LLM_CAMERA_COMMANDS`, `ZRB_LLM_DICTATION_COMMANDS`, `ZRB_LLM_DICTATION_HANDS_FREE_COMMANDS` and `ZRB_LLM_SPEECH_COMMANDS` (§ 23).
 
 ---
 
@@ -867,35 +867,95 @@ ANSI colors for plain terminal output (outside the TUI). Each `_COLOR_*` value i
 
 ---
 
-## 23. Voice Dictation
+## 23. Voice and Camera
 
-Push-to-talk voice input in the chat TUI, toggled by `/voice`. It auto-enables when `vosk` is installed and `ZRB_LLM_VOICE_ENABLED` is unset; an explicit value always wins (`on` enables any backend, `off` disables even with vosk). Audio dependencies (sounddevice, numpy) load lazily, costing nothing at startup.
+Three optional features of `zrb llm chat`, each added with one call and read from these variables **when a session starts**, so `zrb_init.py` may change them after importing zrb. A setting passed to `CameraConfig`, `DictationConfig` or `SpeechConfig` in code wins over its variable; see [Voice and camera](../llm/voice-camera.md) for that, and for plugging in your own backend. Audio dependencies (sounddevice, numpy, vosk) load only when the microphone first opens, costing nothing at startup.
+
+### Dictation (speech-to-text)
+
+`/voice` starts recording; a pause or `/voice` again stops it, and the transcript lands in the input box. `/handsfree` switches to always listening: each utterance is submitted as a turn, or answers the tool approval or question being asked.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_VOICE_ENABLED` | Master switch for voice dictation. Requires sounddevice + an STT backend. Unset + `vosk` installed = on. | `off` |
-| `ZRB_LLM_VOICE_MODE` | Speech-to-text backend: `vosk` (offline, cross-platform), `openai` (Whisper API), `google` (Gemini STT), or `multimodal` (uses `ZRB_LLM_MULTIMODAL_MODEL` — slower/more expensive) | `vosk` |
-| `ZRB_LLM_VOICE_PUSH_TO_TALK_KEY` | prompt_toolkit key name for push-to-talk (e.g. `space`, `c-t` for Ctrl+T) | `space` |
-
-### Backend-Specific Settings
+| `ZRB_LLM_DICTATION_MODE` | Mode a session starts in: `ptt` or `hands_free` | `ptt` |
+| `ZRB_LLM_DICTATION_COMMANDS` | Aliases that start and stop a push-to-talk recording | `/voice, /v` |
+| `ZRB_LLM_DICTATION_HANDS_FREE_COMMANDS` | Aliases that switch hands-free on and off | `/handsfree` |
+| `ZRB_LLM_DICTATION_BACKEND` | `vosk` (offline), `openai`, `google`, or `multimodal` (uses `ZRB_LLM_MULTIMODAL_MODEL`) | `vosk` |
+| `ZRB_LLM_DICTATION_WAKE_WORDS` | Comma-separated; in hands-free mode only utterances starting with one count. Said alone, one accepts the next utterance within `ZRB_LLM_DICTATION_WAKE_WINDOW` seconds | (none) |
+| `ZRB_LLM_DICTATION_WAKE_WINDOW` | Seconds a lone wake word keeps listening | `8.0` |
+| `ZRB_LLM_DICTATION_THRESHOLD` | RMS microphone level that counts as speech (`zrb voice mic-test` in `examples/voice-interaction` measures yours) | `0.01` |
+| `ZRB_LLM_DICTATION_SILENCE` | Seconds of silence that end an utterance; at least one 0.1 s block | `1.0` |
+| `ZRB_LLM_DICTATION_MIN_SPEECH` | Shortest speech kept, in seconds; shorter is a cough or a click | `0.25` |
+| `ZRB_LLM_DICTATION_MAX_UTTERANCE` | Longest utterance, in seconds; `0` means no limit | `30.0` |
+| `ZRB_LLM_DICTATION_MAX_BACKLOG` | Seconds of hands-free audio kept while an utterance is being transcribed, so what you say meanwhile is not lost; older audio is dropped. `0` means no limit | `30.0` |
+| `ZRB_LLM_DICTATION_PRE_ROLL` | Seconds kept from before speech is detected, so the first word is not clipped; `0` keeps none | `0.3` |
+| `ZRB_LLM_DICTATION_ECHO_COOLDOWN` | Seconds the microphone stays deaf after zrb stops speaking | `0.4` |
+| `ZRB_LLM_DICTATION_APPROVE_WORDS` | Phrases that approve a tool approval when a hands-free answer is made only of them and polite words ("yes please"). Any other answer denies it, with what was said as the reason | `yes, yeah, yep, ok, okay, sure, approve, accept, go ahead, do it` |
+| `ZRB_LLM_DICTATION_DENY_WORDS` | Phrases that deny a tool approval when a hands-free answer is made only of them and polite words ("no thanks") | `no, nope, deny, cancel, stop, don't` |
 
 Each backend uses only its own variables:
 
 | Backend | Variable | Description | Default |
 |---------|----------|-------------|---------|
-| `openai` | `ZRB_LLM_VOICE_OPENAI_MODEL` | Whisper API model name | `whisper-1` |
-| `google` | `ZRB_LLM_VOICE_GOOGLE_MODEL` | Gemini STT model name | `gemini-2.5-flash` |
-| `vosk` | `ZRB_LLM_VOICE_VOSK_MODEL_NAME` | Model directory name (without `.zip`). Downloaded from `<VOSK_MODEL_URL>/<name>.zip` | `vosk-model-small-en-us-0.15` |
-| `vosk` | `ZRB_LLM_VOICE_VOSK_MODEL_URL` | Base URL for downloading the Vosk model zip (extracted to `~/.cache/vosk/`) | `https://alphacephei.com/vosk/models` |
+| `openai` | `ZRB_LLM_DICTATION_OPENAI_MODEL` | Transcription model, e.g. `gpt-4o-transcribe` | `whisper-1` |
+| `openai` | `ZRB_LLM_DICTATION_OPENAI_BASE_URL` | An OpenAI-compatible transcription server; empty is OpenAI's | (none) |
+| `google` | `ZRB_LLM_DICTATION_GOOGLE_MODEL` | Gemini model | `gemini-2.5-flash` |
+| `vosk` | `ZRB_LLM_DICTATION_VOSK_MODEL_NAME` | Model directory name (without `.zip`), downloaded from `<VOSK_MODEL_URL>/<name>.zip` | `vosk-model-small-en-us-0.15` |
+| `vosk` | `ZRB_LLM_DICTATION_VOSK_MODEL_URL` | Base URL for the model zip (extracted to `~/.cache/vosk/`) | `https://alphacephei.com/vosk/models` |
+| `vosk` | `ZRB_LLM_DICTATION_VOSK_DOWNLOAD_TIMEOUT` | Seconds to wait for the model server to answer; `0` means no limit | `120` |
+
+### Speech (text-to-speech)
+
+Reads the reply at the end of each turn, tool approvals and questions aloud. `/speech` switches it off and on during a session, dropping anything not yet said.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_SPEECH_ENABLED` | Speak from the start of a session; `/speech` switches it either way | `off` |
+| `ZRB_LLM_SPEECH_COMMANDS` | Aliases that switch speech off and on | `/speech` |
+| `ZRB_LLM_SPEECH_EVENTS` | What to speak: `reply`, `approval`, `question` | `reply, approval, question` |
+| `ZRB_LLM_SPEECH_BACKEND` | `auto` (`termux` on Termux, `say` on macOS, else `espeak-ng`), `termux`, `say`, `espeak-ng`, `openai`, `gemini`. A failing backend falls back to the local engine | `auto` |
+| `ZRB_LLM_SPEECH_VOICE` | Voice name for the backend (for `termux`, the `-v` variant); empty uses its default (system voice, `en-us+m3`, `alloy`, `Sulafat`) | (none) |
+| `ZRB_LLM_SPEECH_RATE` | Words per minute for `say` and `espeak-ng` | `165` |
+| `ZRB_LLM_SPEECH_MAX_CHARS` | Longest reply spoken in full; a longer one is cut at a sentence end and followed by `ZRB_LLM_SPEECH_ON_SCREEN_NOTE`. `0` means no limit | `400` |
+| `ZRB_LLM_SPEECH_SUMMARIZE` | Speak a model summary of a long reply instead of its opening: one model call per long reply | `off` |
+| `ZRB_LLM_SPEECH_SUMMARY_MODEL` | Model for the summary; empty uses `ZRB_LLM_SMALL_MODEL`, else the main model. The prompt is `speech_summarizer` | (none) |
+| `ZRB_LLM_SPEECH_ON_SCREEN_NOTE` | Said after a cut or summarized reply | `The full answer is on screen.` |
+| `ZRB_LLM_SPEECH_OPENAI_MODEL` | Model for `openai` | `gpt-4o-mini-tts` |
+| `ZRB_LLM_SPEECH_OPENAI_BASE_URL` | API base URL for `openai` | `https://api.openai.com/v1` |
+| `ZRB_LLM_SPEECH_GEMINI_MODEL` | Model for `gemini` | `gemini-2.5-flash-preview-tts` |
+| `ZRB_LLM_SPEECH_TIMEOUT` | Seconds a cloud backend may take; `0` means no limit | `15` |
+| `ZRB_LLM_SPEECH_TERMUX_LANGUAGE` | Language for `termux` (`-l`), e.g. `en`; empty is the phone's | (none) |
+| `ZRB_LLM_SPEECH_TERMUX_ENGINE` | Android TTS engine for `termux` (`-e`) | (none) |
+| `ZRB_LLM_SPEECH_TERMUX_REGION` | Region for `termux` (`-n`), e.g. `US` | (none) |
+| `ZRB_LLM_SPEECH_TERMUX_RATE` | Speech rate for `termux`; `1.0` is normal | `1.0` |
+| `ZRB_LLM_SPEECH_TERMUX_PITCH` | Pitch for `termux`; `1.0` is normal | `1.0` |
+| `ZRB_LLM_SPEECH_TERMUX_STREAM` | Android audio stream for `termux` (`-s`): `ALARM`, `MUSIC`, `NOTIFICATION`, `RING`, `SYSTEM`, `VOICE_CALL` | (none) |
+| `ZRB_LLM_SPEECH_WAV_PLAYER` | Command playing the cloud backends' WAV, the path appended (e.g. `mpv --really-quiet`); empty picks `afplay`, `paplay`, `aplay` or `ffplay` | (none) |
+| `ZRB_LLM_SPEECH_LOCK_FILE` | File locked while speech plays, so sessions take turns and dictation ignores zrb's own voice | `<tmp>/<root group name>-speech.lock` |
+| `ZRB_LLM_SPEECH_LOCK_TIMEOUT` | Seconds to wait for another session to finish before dropping an utterance | `30` |
+| `ZRB_LLM_SPEECH_DRAIN_TIMEOUT` | Seconds queued speech may still play after zrb exits | `30` |
+| `ZRB_LLM_SPEECH_PLAYER_TIMEOUT` | Seconds one utterance may play; `0` means no limit | `120` |
+
+The cloud backends read `OPENAI_API_KEY`, and `GEMINI_API_KEY` or `GOOGLE_API_KEY`.
+
+### Camera
+
+`/photo [device]` attaches a camera photo to the next message.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_CAMERA_COMMANDS` | Aliases for the camera command | `/photo, /p` |
+| `ZRB_LLM_CAMERA_BACKEND` | `auto` (Termux:API on Android when installed, else ffmpeg), `termux`, `ffmpeg` | `auto` |
+| `ZRB_LLM_CAMERA_DEVICE` | Device used when the command names none; empty picks the platform default | (none) |
+| `ZRB_LLM_CAMERA_TIMEOUT` | Seconds a capture may take, every attempt included, before it is abandoned; `0` means no limit | `15` |
 
 ```bash
-# Offline voice dictation with Vosk: nothing to configure — with vosk
-# installed, /voice just works (auto-enabled).
-
-# Or use OpenAI Whisper (explicit opt-in required)
-export ZRB_LLM_VOICE_ENABLED=on
-export ZRB_LLM_VOICE_MODE=openai
-export ZRB_LLM_VOICE_OPENAI_MODEL=whisper-1
+# Hands-free with OpenAI transcription, a wake word, and replies read aloud
+export ZRB_LLM_DICTATION_MODE=hands_free
+export ZRB_LLM_DICTATION_BACKEND=openai
+export ZRB_LLM_DICTATION_OPENAI_MODEL=gpt-4o-transcribe
+export ZRB_LLM_DICTATION_WAKE_WORDS="hi,hai,hey,嗨"   # every spelling the transcriber writes
+export ZRB_LLM_SPEECH_ENABLED=on
 ```
 
 ---

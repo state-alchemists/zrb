@@ -27,7 +27,6 @@ class MockUI:
         self.conversation_session_name = "test_session"
         self.running_llm_task = None
         self.is_thinking = False
-        self.voice = BaseUIVoiceState()
 
         self.input_field = MagicMock()
         self.output_field = MagicMock()
@@ -194,7 +193,6 @@ def trigger_binding(key_bindings, key, event):
 
 
 from zrb.llm.ui.base.commands import BaseUICommands  # noqa: E402
-from zrb.llm.ui.base.voice_state import BaseUIVoiceState
 
 
 class IntegrationUI:
@@ -212,7 +210,6 @@ class IntegrationUI:
         self.rewind_commands = ["/rewind"]
         self.redirect_output_commands = [">"]  # non-"/" token (the regression)
         self.attach_commands = ["/attach"]
-        self.photo_commands = []
         self.yolo_toggle_commands = ["/yolo"]
         self.set_model_commands = ["/model"]
         self.exec_commands = ["/exec"]
@@ -220,8 +217,6 @@ class IntegrationUI:
         self.plan_commands = ["/plan"]
         self.summarize_commands = ["/summarize"]
         self.copy_commands = []
-        self.voice_commands = []
-        self.voice = BaseUIVoiceState()
         self.custom_commands = []
         self.is_thinking = False
         self.background_tasks = set()

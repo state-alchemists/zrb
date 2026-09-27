@@ -1,8 +1,9 @@
 """Running a chat UI's external triggers.
 
 A trigger is a callable returning an async iterable; each item it yields
-becomes a user turn on the owning UI. The item vocabulary — a plain string, or
-a `TriggerMessage` carrying attachments — lives in `zrb.llm.ui.trigger`.
+becomes a user turn on the owning UI. The item vocabulary — a plain string,
+a `TriggerMessage` carrying attachments, or a `TriggerReply` answering a
+pending prompt — lives in `zrb.llm.ui.trigger`.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ import logging
 from collections.abc import AsyncIterable, Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
+from zrb.llm.ui.trigger import TriggerReply
 from zrb.util.cli.style import stylize_error
 from zrb.util.exception import exception_summary
 
@@ -54,29 +56,16 @@ class BaseUITriggers:
                 except StopAsyncIteration:
                     break
                 try:
-                    text, attachments = self._split(item)
-                except ValueError as split_error:
+                    self._deliver(item)
+                except Exception as deliver_error:
                     # Report and keep going: a trigger is a long-lived source
-                    # (a button, a queue), so one malformed item must not stop
-                    # every later one from being delivered.
+                    # (a button, a queue, a microphone), so one bad item or
+                    # one failed submission must not stop every later one.
                     owner.append_to_output(
-                        stylize_error(f"\n[Trigger Error: {split_error}]\n")
+                        stylize_error(
+                            f"\n[Trigger Error: {exception_summary(deliver_error)}]\n"
+                        )
                     )
-                    continue
-                if not text and not attachments:
-                    continue
-                # Drained by the `submit_user_message` below (a `MultiUI`
-                # parent collects from its children) -- no await between, so
-                # this slice still holds exactly what this item staged. The
-                # drain happens after the submission's echo, so a submission
-                # that raises before it would otherwise leave these staged for
-                # whatever turn comes next.
-                owner.pending_attachments.extend(attachments)
-                try:
-                    owner.submit_user_message(owner.llm_task, text)
-                except BaseException:
-                    _unstage(owner.pending_attachments, attachments)
-                    raise
         except asyncio.CancelledError:
             # A trigger runs as a background task; swallowing this would make
             # a cancelled loop look like one that finished.
@@ -94,6 +83,47 @@ class BaseUITriggers:
                         await result
                 except Exception as close_error:
                     logger.debug(f"Trigger iterator close failed: {close_error}")
+
+    def _deliver(self, item: Any) -> None:
+        if isinstance(item, TriggerReply):
+            self._reply(item)
+            return
+        owner = self._owner
+        text, attachments = self._split(item)
+        if not text and not attachments:
+            return
+        # Drained by the `submit_user_message` below (a `MultiUI` parent
+        # collects from its children) -- no await between, so this slice
+        # still holds exactly what this item staged. The drain happens after
+        # the submission's echo, so a submission that raises before it would
+        # otherwise leave these staged for whatever turn comes next.
+        owner.pending_attachments.extend(attachments)
+        try:
+            owner.submit_user_message(owner.llm_task, text)
+        except BaseException:
+            _unstage(owner.pending_attachments, attachments)
+            raise
+
+    def _reply(self, reply: TriggerReply) -> None:
+        owner = self._owner
+        if owner.is_waiting_for_answer and self._is_said_to_pending(reply):
+            if owner.is_waiting_for_choice:
+                answer = reply.text
+            else:
+                answer = reply.approval or reply.text
+            # An empty answer approves a tool call, so it is never sent.
+            if answer.strip():
+                owner.submit_answer(answer)
+            return
+        if reply.text.strip():
+            owner.submit_user_message(owner.llm_task, reply.text)
+
+    def _is_said_to_pending(self, reply: TriggerReply) -> bool:
+        if reply.started_at is None:
+            return True
+        since = self._owner.pending_answer_since
+        # A UI that cannot say when its prompt appeared gets no timed answers.
+        return since is not None and since <= reply.started_at
 
     def _split(self, item: Any) -> "tuple[str, list[UserContent]]":
         """Split a yielded item into its text and its attachments.

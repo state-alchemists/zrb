@@ -569,8 +569,6 @@ llm_chat.ui_factories = [create_ui_factory(MyUI, ui_config=config)]
 | `btw_commands` | `CFG.LLM_UI_COMMAND_BTW` | Side-channel message |
 | `plan_commands` | `CFG.LLM_UI_COMMAND_PLAN_TOGGLE` | Toggle plan mode |
 | `copy_commands` | `CFG.LLM_UI_COMMAND_COPY` | Copy the transcript |
-| `voice_commands` | `CFG.LLM_UI_COMMAND_VOICE` | Toggle voice dictation |
-| `photo_commands` | `CFG.LLM_UI_COMMAND_PHOTO` | Attach a photo |
 | `summarize_commands` | `CFG.LLM_UI_COMMAND_SUMMARIZE` | Summarize/compress history |
 | `is_yolo` | `False` | Auto-approve: `True` for all tools, or a `frozenset` of tool names (e.g. `frozenset({"Write", "Edit"})`) for selective |
 | `yolo_xcom_key` | `"yolo"` | xcom key the session reads/writes when yolo is toggled at run time |

@@ -312,3 +312,94 @@ async def test_draft_restored_only_after_queue_drains():
         assert ui.confirmation.current is None
         assert getattr(ui.confirmation_part, "_saved_draft") is None
         assert ui.input_field.buffer.text == "fix the auth bug"
+
+
+_CHOICE_SPEC = {
+    "question": "Which color?",
+    "options": [{"label": "Dark Red"}, {"label": "Blue"}],
+    "multi_select": False,
+}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "said, answer",
+    [
+        ("dark red.", "Dark Red"),
+        ("BLUE", "Blue"),
+        ("2", "Blue"),
+        ("green, please", "green, please"),
+        ("3", "3"),
+    ],
+)
+async def test_answer_to_a_choice_resolves_to_the_option_it_names(said, answer):
+    ui = MockConfirmationUI()
+    with patch("prompt_toolkit.application.get_app"):
+        task = asyncio.create_task(ui.ask_user_choice(_CHOICE_SPEC))
+        await asyncio.sleep(0.01)
+        ui.submit_user_answer(said)
+        assert await task == answer
+
+
+_MULTI_SPEC = {
+    "question": "Which toppings?",
+    "options": [{"label": "Cheese"}, {"label": "Salt and pepper"}, {"label": "Olives"}],
+    "multi_select": True,
+}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "said, answer",
+    [
+        ("1,3", "Cheese, Olives"),
+        ("cheese and olives", "Cheese, Olives"),
+        ("Salt and pepper", "Salt and pepper"),
+        ("3, 1, 3", "Olives, Cheese"),
+        ("1 and anchovies", "1 and anchovies"),
+    ],
+)
+async def test_answer_to_a_multi_select_resolves_every_option_it_names(said, answer):
+    ui = MockConfirmationUI()
+    with patch("prompt_toolkit.application.get_app"):
+        task = asyncio.create_task(ui.ask_user_choice(_MULTI_SPEC))
+        await asyncio.sleep(0.01)
+        ui.submit_user_answer(said)
+        assert await task == answer
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("said", ["2", "option 2", "Option 2."])
+async def test_a_typed_answer_names_an_unlabeled_option_as_the_widget_does(said):
+    spec = {
+        "question": "Pick",
+        "options": [{"label": "A"}, {"description": "no label"}],
+    }
+    ui = MockConfirmationUI()
+    with patch("prompt_toolkit.application.get_app"):
+        task = asyncio.create_task(ui.ask_user_choice(spec))
+        await asyncio.sleep(0.01)
+        ui.submit_user_answer(said)
+        assert await task == "Option 2"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "labels, said, answer",
+    [
+        (["10", "5", "1"], "1", "1"),
+        (["10", "5", "1"], "2", "5"),
+        (["C++", "C"], "c", "C"),
+        (["C++", "C"], "C++", "C++"),
+    ],
+)
+async def test_an_answer_that_is_a_label_names_that_label(labels, said, answer):
+    """An exact label outranks both the 1-based index and the
+    punctuation-blind match: "1" is the option "1", "C" is not "C++"."""
+    spec = {"question": "Pick", "options": [{"label": label} for label in labels]}
+    ui = MockConfirmationUI()
+    with patch("prompt_toolkit.application.get_app"):
+        task = asyncio.create_task(ui.ask_user_choice(spec))
+        await asyncio.sleep(0.01)
+        ui.submit_user_answer(said)
+        assert await task == answer

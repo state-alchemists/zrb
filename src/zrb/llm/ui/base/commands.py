@@ -19,14 +19,13 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
-from zrb.config.config import CFG
 from zrb.llm.custom_command.resolver import get_custom_command_match
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.ui.base.conversation_commands import BaseUIConversationCommands
 from zrb.llm.ui.base.exec_commands import BaseUIExecCommands
 from zrb.llm.ui.base.model_commands import BaseUIModelCommands
 from zrb.util.cli.help_panel import HelpPanel, render_help_panel
-from zrb.util.cli.style import stylize_muted, stylize_warning
+from zrb.util.cli.style import stylize_muted
 from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
@@ -49,7 +48,7 @@ class BaseUICommands:
 
     @property
     def conversation(self) -> BaseUIConversationCommands:
-        """Handlers for exit/info/save/load/rewind/redirect/copy/attach/photo."""
+        """Handlers for exit/info/save/load/rewind/redirect/copy/attach."""
         return self._conversation
 
     @property
@@ -86,7 +85,6 @@ class BaseUICommands:
             (base_ui.handle_toggle_plan, base_ui.plan_commands, True, True),
             # prefix=True: `/yolo` toggles, `/yolo Write,Edit` sets selective yolo.
             (base_ui.handle_toggle_yolo, base_ui.yolo_toggle_commands, True, True),
-            (base_ui.handle_toggle_voice, base_ui.voice_commands, False, True),
             (base_ui.handle_exit_command, base_ui.exit_commands, False, False),
             (base_ui.handle_info_command, base_ui.info_commands, False, False),
             (base_ui.handle_save_command, base_ui.save_commands, True, False),
@@ -99,7 +97,6 @@ class BaseUICommands:
                 False,
             ),
             (base_ui.handle_attach_command, base_ui.attach_commands, True, False),
-            (base_ui.handle_photo_command, base_ui.photo_commands, True, False),
             (base_ui.handle_set_model_command, base_ui.set_model_commands, True, False),
             (base_ui.handle_exec_command, base_ui.exec_commands, True, False),
             (base_ui.handle_copy_command, base_ui.copy_commands, True, False),
@@ -124,9 +121,10 @@ class BaseUICommands:
         for _handler, tokens, prefix, run_while_thinking in self.command_table():
             if _matches(stripped, tokens, prefix):
                 return "thinking_command" if run_while_thinking else "command"
-        if get_custom_command_match(stripped, self._base_ui.custom_commands):
-            return "command"
-        return "message"
+        match = get_custom_command_match(stripped, self._base_ui.custom_commands)
+        if match is None:
+            return "message"
+        return "thinking_command" if match[0].can_run_while_thinking else "command"
 
     def schedule_command(self, text: str, *, guarded: bool = True) -> None:
         """Run the hook-wrapped command dispatch as a background task.
@@ -236,72 +234,23 @@ class BaseUICommands:
 
         Returns ``True`` if a handler consumed the input. Run-while-thinking
         commands (`/btw`, YOLO toggle) run first; everything else is gated
-        behind the thinking guard. Custom commands are tried last.
+        behind the thinking guard. Custom commands are tried last, and while
+        thinking only those that can run while thinking.
         """
         for handler, _tokens, _prefix, run_while_thinking in self.command_table():
             if not run_while_thinking and self._base_ui.is_thinking:
-                return False
+                break
             if handler(text):
                 return True
         return self._base_ui.handle_custom_command(text)
 
     # --- delegators to the handler parts ---------------------------------
 
-    async def submit_photo(self, device: str | None) -> None:
-        await self._conversation.submit_photo(device)
-
     async def run_shell_command(self, cmd: str) -> None:
         await self._exec.run_shell_command(cmd)
 
     async def stream_btw_response(self, llm_task: Any, question: str) -> None:
         await self._exec.stream_btw_response(llm_task, question)
-
-    def handle_toggle_voice(self, text: str) -> bool:
-        """Toggle voice dictation mode on/off.
-
-        ``/voice`` when OFF → enter voice mode (press space to record).
-        ``/voice`` when ON → exit voice mode without recording.
-        Voice mode also auto-exits after a recording completes.
-        """
-        base_ui = self._base_ui
-        if text.strip().lower() not in [c.lower() for c in base_ui.voice_commands]:
-            return False
-        auto_vosk = False
-        if not CFG.LLM_VOICE_ENABLED:
-            if not _voice_auto_enabled_by_vosk():
-                base_ui.append_to_output(
-                    stylize_warning(
-                        "\n  🎤 Voice dictation is not enabled.\n"
-                        f"     Set {CFG.ENV_PREFIX}_LLM_VOICE_ENABLED=on and restart.\n"
-                    )
-                )
-                return True
-            auto_vosk = True
-        if base_ui.voice.mode_active:
-            self._exit_voice_mode()
-        else:
-            base_ui.voice.mode_active = True
-            ptt_key = CFG.LLM_VOICE_PUSH_TO_TALK_KEY.strip()
-            backend_note = " (vosk detected)" if auto_vosk else ""
-            base_ui.append_to_output(
-                stylize_muted(
-                    f"\n  🎤 Voice dictation: ON{backend_note}"
-                    f" — press [{ptt_key}] to record\n"
-                )
-            )
-        base_ui.invalidate_ui()
-        return True
-
-    def _exit_voice_mode(self):
-        """Exit voice mode and stop any in-flight recording."""
-        base_ui = self._base_ui
-        base_ui.voice.mode_active = False
-        base_ui.voice.recording_active = False
-        if base_ui.voice.stop_event is not None:
-            base_ui.voice.stop_event.set()
-        base_ui.voice.stop_event = None
-        base_ui.voice.task = None
-        base_ui.append_to_output(stylize_muted("\n  🎤 Voice dictation: OFF\n"))
 
     # --- help text --------------------------------------------------------
 
@@ -345,10 +294,6 @@ class BaseUICommands:
         add_cmd_help(base_ui.exit_commands, "Exit the application")
         add_cmd_help(base_ui.info_commands, "Show this help message")
         add_cmd_help(base_ui.attach_commands, "Attach file (usage: {cmd} <path>)")
-        add_cmd_help(
-            base_ui.photo_commands,
-            "Capture a photo from the camera (usage: {cmd} [device])",
-        )
         add_cmd_help(base_ui.save_commands, "Save conversation (usage: {cmd} <name>)")
         add_cmd_help(base_ui.load_commands, "Load conversation (usage: {cmd} <name>)")
         add_cmd_help(
@@ -377,7 +322,6 @@ class BaseUICommands:
             "Ask a side question without saving to history (usage: {cmd} <question>)",
         )
         add_cmd_help(base_ui.plan_commands, "Toggle PLAN mode (read-only) on/off")
-        add_cmd_help(base_ui.voice_commands, "Toggle voice dictation on/off")
         for custom_cmd in base_ui.custom_commands:
             raw_lines.append((custom_cmd.command, custom_cmd.description))
 
@@ -403,27 +347,6 @@ def _get_default_help_width() -> int | None:
         return get_terminal_size().columns
     except Exception:
         return None
-
-
-def _voice_auto_enabled_by_vosk() -> bool:
-    """Voice may run without explicit opt-in when config is untouched and vosk
-    is installed.
-
-    Two conditions must hold. First, `LLM_VOICE_ENABLED` must be unset — an
-    explicit value always wins: `on` enables voice with any backend, `off`
-    disables it even when vosk is installed. Second, the configured backend
-    must actually be vosk: auto-enabling a user who set
-    `LLM_VOICE_MODE=openai` would announce "(vosk detected)" and then fail on
-    a missing API key.
-    """
-    if CFG.is_env_set("LLM_VOICE_ENABLED"):
-        return False
-    if CFG.is_env_set("LLM_VOICE_MODE"):
-        return False
-    # lazy: tests patch zrb.llm.voice.engine.vosk_installed; hoisting bypasses the mock
-    from zrb.llm.voice.engine import vosk_installed
-
-    return vosk_installed()
 
 
 def _matches(text: str, tokens: list[str], prefix: bool) -> bool:

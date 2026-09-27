@@ -2,15 +2,14 @@
 
 `setup_app_keybindings` is a registration table: it wires each
 prompt-toolkit key to a thin closure that delegates to a named `_on_*`
-handler method. The involved handlers (Enter dispatch, clipboard paste,
-voice push-to-talk) live in those methods rather than as nested
+handler method. The involved handlers (Enter dispatch, clipboard paste)
+live in those methods rather than as nested
 closures, so each is a reviewable, individually testable unit.
 """
 
 from __future__ import annotations
 
 import asyncio
-import time
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
@@ -31,12 +30,8 @@ if TYPE_CHECKING:
 class UIKeybindings:
     """Application key bindings for the default UI."""
 
-    _KEY_REPEAT_DEBOUNCE = 0.3
-
     def __init__(self, ui: "UI") -> None:
         self._ui = ui
-        self._voice_last_press: float = 0.0
-        self._voice_engine: "Any | None" = None
 
     def setup_app_keybindings(  # noqa: C901 -- registration/factory fn; mccabe counts each nested handler def, radon scores each separately (near-trivial on its own)
         self, app_keybindings: "KeyBindings", llm_task: "AnyTask"
@@ -143,18 +138,6 @@ class UIKeybindings:
         def _(event):
             event.current_buffer.insert_text("\n")
 
-        # Voice push-to-talk is press-to-start, press-to-stop: terminals send
-        # no key-release event, so hold-to-talk is impossible. The transcript
-        # lands in the input field for editing before Enter submits it.
-        voice_ptt_key = CFG.LLM_VOICE_PUSH_TO_TALK_KEY.strip().lower()
-        voice_mode_active = Condition(
-            lambda: getattr(getattr(ui, "voice", None), "mode_active", False)
-        )
-
-        @app_keybindings.add(voice_ptt_key, filter=voice_mode_active & no_active_choice)
-        def _(event):
-            self._on_voice_ptt(event)
-
     def _on_choice_cursor(self, event: Any, delta: int) -> None:
         self._ui.selection_part.move_choice_cursor(delta)
 
@@ -194,11 +177,6 @@ class UIKeybindings:
         if ui.running_llm_task and not ui.running_llm_task.done():
             ui.running_llm_task.cancel()
             ui.append_to_output("\n<Esc> Canceled")
-        # Abort a voice recording/download so exit does not wait on it.
-        voice = getattr(ui, "voice", None)
-        voice_task = None if voice is None else voice.task
-        if voice_task is not None and not voice_task.done():
-            voice_task.cancel()
         ui.execute_hook(
             HookEvent.STOP,
             {"reason": "ctrl_c", "session": ui.conversation_session_name},
@@ -219,10 +197,7 @@ class UIKeybindings:
         # lazy: tests patch `zrb.llm.util.clipboard.get_clipboard_image`
         # at the source path; hoisting would bind the name at
         # module-load and bypass the mock.
-        from zrb.llm.util.clipboard import (
-            get_clipboard_image,
-            missing_tool_hint,
-        )
+        from zrb.llm.util.clipboard import get_clipboard_image, missing_tool_hint
 
         ui = self._ui
         img_bytes = await get_clipboard_image()
@@ -289,6 +264,15 @@ class UIKeybindings:
         if self._handle_multiline(event):
             return
 
+        # A mid-turn command (`/btw`, stopping a recording) runs ahead of
+        # everything else, so it is never taken as the answer to a pending
+        # approval or sent to a viewed sub-agent.
+        text = event.current_buffer.text
+        if self._is_thinking_command(text):
+            event.current_buffer.reset()
+            ui.schedule_command(text, guarded=False)
+            return
+
         if ui.handle_confirmation(event):
             return
 
@@ -301,100 +285,6 @@ class UIKeybindings:
     def _on_cycle_mode(self, event: Any) -> None:
         self._ui.cycle_mode()
 
-    def _on_voice_ptt(self, event: Any) -> None:
-        """Push-to-talk press: start/stop a voice recording.
-
-        OS key-repeat is debounced; the engine is created once and cached.
-        """
-        ui = self._ui
-        if not event.app.layout.has_focus(ui.input_field):
-            ui.input_field.buffer.insert_text(" ")
-            return
-
-        now = time.time()
-        if now - self._voice_last_press < self._KEY_REPEAT_DEBOUNCE:
-            self._voice_last_press = now
-            return
-        self._voice_last_press = now
-
-        if ui.voice.recording_active:
-            ui.voice.recording_active = False
-            if ui.voice.stop_event is not None:
-                ui.voice.stop_event.set()
-            ui.voice.mode_active = False
-            ui.append_to_output(stylize_muted("  🎤 Stopped\n"))
-            ui.invalidate_ui()
-            return
-
-        # lazy: heavy third-party — voice engine imports sounddevice/numpy
-        from zrb.llm.voice import VoiceEngine
-
-        if self._voice_engine is None:
-            self._voice_engine = VoiceEngine()
-        engine = self._voice_engine
-
-        # Set before create_task so a key-repeat cannot race the new task.
-        ui.voice.recording_active = True
-        ui.voice.stop_event = asyncio.Event()
-        ui.voice.task = None
-
-        task = asyncio.create_task(self._voice_record_and_insert(engine))
-        ui.voice.task = task
-        ui.background_tasks.add(task)
-        task.add_done_callback(ui.background_tasks.discard)
-
-    async def _voice_record_and_insert(self, engine: "Any") -> None:
-        """Record speech, then insert the transcription into the input field."""
-        ui = self._ui
-        # First use downloads the Vosk model (cancellable: /q and Ctrl+C
-        # cancel this task). A pre-downloaded model must be extracted.
-        if (
-            not engine.is_ready
-            and CFG.LLM_VOICE_MODE.strip().lower() == "vosk"
-            and not engine.is_vosk_model_ready()
-        ):
-            ui.append_to_output(stylize_muted("\n  🎤 Downloading voice model..."))
-            ui.invalidate_ui()
-            try:
-                await engine.download_vosk_model()
-            except Exception as exc:
-                self._end_voice_with_error(exc)
-                return
-            ui.append_to_output(stylize_muted("\n  🎤 Voice model ready"))
-            ui.invalidate_ui()
-
-        ui.append_to_output(stylize_muted("\n  🎤 Recording... "))
-        ui.invalidate_ui()
-        try:
-            text = await engine.start_listening(
-                stop_event=ui.voice.stop_event,
-            )
-        except Exception as exc:
-            self._end_voice_with_error(exc)
-            return
-        self._reset_voice_state()
-        if text:
-            ui.input_field.buffer.insert_text(text)
-            word_count = len(text.split())
-            ui.append_to_output(
-                stylize_muted(f"\n  🎤 Transcribed ({word_count} words)\n")
-            )
-        else:
-            ui.append_to_output(stylize_muted("\n  🎤 No speech detected\n"))
-        ui.invalidate_ui()
-
-    def _end_voice_with_error(self, exc: Exception) -> None:
-        self._reset_voice_state()
-        self._ui.append_to_output(stylize_muted(f"\n  ⚠️ Voice error: {exc}\n"))
-        self._ui.invalidate_ui()
-
-    def _reset_voice_state(self) -> None:
-        voice = self._ui.voice
-        voice.mode_active = False
-        voice.recording_active = False
-        voice.task = None
-        voice.stop_event = None
-
     def _handle_multiline(self, event) -> bool:
         """A trailing backslash with the cursor at the end becomes a newline."""
         buff = event.current_buffer
@@ -404,6 +294,11 @@ class UIKeybindings:
         buff.delete_before_cursor(count=1)
         buff.insert_text("\n")
         return True
+
+    def _is_thinking_command(self, text: str) -> bool:
+        return bool(text.strip()) and (
+            self._ui.classify_input(text) == "thinking_command"
+        )
 
     def _handle_enter_dispatch(self, event: Any, llm_task: "AnyTask") -> None:
         """Route submitted text to a sub-agent, a command, or the LLM."""
@@ -445,12 +340,6 @@ class UIKeybindings:
         # Classify by recognition, not "/" prefix: command tokens are
         # user-configurable (e.g. ">" for redirect).
         kind = ui.classify_input(text)
-
-        # /btw and the YOLO toggle run unguarded, even mid-response.
-        if kind == "thinking_command":
-            buff.reset()
-            ui.schedule_command(text, guarded=False)
-            return
 
         # Other commands mutate session state, so they wait out a response;
         # the buffer is kept for resubmission.

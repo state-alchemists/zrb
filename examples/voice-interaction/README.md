@@ -1,60 +1,42 @@
 # Voice interaction
 
-Talk to zrb and hear it answer. Responses, approval prompts and questions are read aloud.
+Talk to zrb and hear it answer. Replies, approval prompts and questions are read aloud, and in hands-free mode you can answer them by voice.
 
 ```bash
 cd examples/voice-interaction
-zrb chat                   # /voice, Space, talk, Space, Enter
+zrb chat                   # /voice, talk, pause (or /voice again); edit, Enter
                            # or /handsfree, then just talk
 zrb voice say "hello"      # hear the current speech backend
 zrb voice mic-test         # check the microphone level for hands-free
 ```
 
-Everything lives in `zrb_init.py`. zrb loads `zrb_init.py` from every directory between the filesystem root and where it starts, so it applies to sessions started here or in a subfolder, and nowhere else. Listening needs `zrb[voice]`; speaking needs nothing extra.
+Speech and dictation are built into `zrb chat`. `zrb_init.py` only switches speech on (`ZRB_LLM_SPEECH_ENABLED`, unless you set it yourself) and adds the two `zrb voice` tasks. zrb loads `zrb_init.py` from every directory between the filesystem root and where it starts, so this applies to sessions started here or in a subfolder. To use it everywhere, add its absolute path to `ZRB_INIT_SCRIPTS`, or just export `ZRB_LLM_SPEECH_ENABLED=on`. Listening needs `zrb[voice]`; speaking needs nothing extra.
 
-| File | Role |
-|---|---|
-| `zrb_init.py` | Everything: TTS backends, speaking hooks, `/handsfree`, hands-free listener, `zrb voice` tasks |
-| `test_voice_interaction.py` | Unit tests |
-| `test_concurrency.py` | Two sessions' speech must not overlap |
-
-To use it in every session, add its absolute path to `ZRB_INIT_SCRIPTS` (colon-separated).
+Every setting is listed in [LLM configuration](../../docs/configuration/llm-config.md) under `LLM_SPEECH_*` and `LLM_DICTATION_*`. To go further than the settings allow, pass your own backend to `enable_speech`/`enable_dictation` — see [Voice and camera](../../docs/llm/voice-camera.md).
 
 ## Listening
 
-**Push-to-talk** (default). `zrb_init.py` sets `ZRB_LLM_VOICE_ENABLED=true` unless you set it yourself. Type `/voice`, press Space to start recording, talk, press Space again to stop. The transcript lands in the input box; edit it or press Enter to send. Voice mode switches off after each recording, so type `/voice` again for the next one. Transcription uses `ZRB_LLM_VOICE_MODE` (offline vosk by default); the key is `ZRB_LLM_VOICE_PUSH_TO_TALK_KEY`.
+**Push-to-talk** (default). Type `/voice` and talk. A pause of `ZRB_LLM_DICTATION_SILENCE` seconds (default 1), or `/voice` again, stops the recording; the transcript lands in the input box to edit or send with Enter.
 
-**Hands-free**. Type `/handsfree` to switch it on or off; set `ZRB_VOICE_HANDS_FREE=1` to start with it on. While it is on, the microphone stays open; an utterance ends after a second of silence and is submitted as a turn. Audio captured while the agent is speaking is dropped, plus a 0.4 s echo cooldown. `/handsfree` is an `ActionCommand` (see [LLMChatTask → Triggers & Custom Commands](../../docs/task-types/llmchat-task.md#triggers--custom-commands)): it runs code instead of prompting the LLM.
+**Hands-free.** Type `/handsfree` to switch it on or off; `ZRB_LLM_DICTATION_MODE=hands_free` starts sessions with it on. The microphone stays open and every utterance is submitted as a turn. While zrb waits for a tool approval, a short "yes" (`ZRB_LLM_DICTATION_APPROVE_WORDS`) approves it; anything else denies it, with what you said as the reason, so "no, use pytest instead" tells the agent why. Audio captured while zrb is speaking is dropped.
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `ZRB_VOICE_HANDS_FREE` | off | `1` starts the session with hands-free on |
-| `ZRB_VOICE_WAKE_WORD` | none | Comma-separated; only utterances starting with one count, and it is stripped. Said alone, it accepts the next utterance spoken within 8 s |
-| `ZRB_VOICE_HANDS_FREE_THRESHOLD` | `0.01` | RMS level that counts as speech |
-| `ZRB_VOICE_HANDS_FREE_SILENCE` | `1.0` | Seconds of silence that end an utterance |
-| `ZRB_VOICE_DEBUG` | off | `1` writes what was heard to the side log |
+With `ZRB_LLM_DICTATION_WAKE_WORDS` set (comma-separated), only utterances starting with a wake word count, and it is stripped. Said alone, the wake word accepts the next utterance spoken within `ZRB_LLM_DICTATION_WAKE_WINDOW` seconds. Without wake words, anything the microphone hears becomes a turn.
 
-List every spelling the transcriber may produce. With an Indonesian-accented
-"Hi", `gpt-4o-transcribe` wrote `Hai` in 7 of 12 clips and once `嗨`; pinning
-the language to English did not stop it. Avoid made-up words: vosk hears "zrb"
-as "hazy are be". When an utterance is dropped, `ZRB_VOICE_DEBUG=1` shows what
-the transcriber wrote.
-
-Without a wake word, anything the microphone hears becomes a turn. Don't use push-to-talk while hands-free is on, or the words are submitted twice.
+List every spelling the transcriber may produce. With an Indonesian-accented "Hi", `gpt-4o-transcribe` wrote `Hai` in 7 of 12 clips and once `嗨`; pinning the language to English did not stop it. Avoid made-up words: vosk hears "zrb" as "hazy are be".
 
 ### Recommended transcription
 
 zrb defaults to offline vosk, which mangles technical speech. With `OPENAI_API_KEY` set, use this instead:
 
 ```bash
-export ZRB_LLM_VOICE_MODE=openai
-export ZRB_LLM_VOICE_OPENAI_MODEL=gpt-4o-transcribe
-export ZRB_VOICE_WAKE_WORD="hi,hai,hey,嗨"
+export ZRB_LLM_DICTATION_BACKEND=openai
+export ZRB_LLM_DICTATION_OPENAI_MODEL=gpt-4o-transcribe
+export ZRB_LLM_DICTATION_WAKE_WORDS="hi,hai,hey,嗨"
 ```
 
 One clip, generated with macOS `say`: *"Refactor the hook manager in zrb so pydantic AI streams the last assistant message, then run pytest and push to GitHub."*
 
-| `ZRB_LLM_VOICE_MODE` / model | Time | Transcript |
+| Backend / model | Time | Transcript |
 |---|---|---|
 | `vosk` (default) | 1.8 s | we factor the hook manager and zr be so pedantic ai streams … run dust and push to get up |
 | `openai` / `whisper-1` (default) | 5.7 s | … in zrbsopydantic-aistreams … run pydest … GitHub |
@@ -73,46 +55,8 @@ A single run on synthetic speech: expect different timings and errors with a rea
 | `openai` | `OPENAI_API_KEY` | `alloy` | ~2 s |
 | `gemini` | `GEMINI_API_KEY` or `GOOGLE_API_KEY` | `Sulafat` | ~3.5 s |
 
-`auto` (default) picks `say`, else `espeak-ng`. Cloud backends are opt-in (`ZRB_VOICE_BACKEND=openai`). If a backend fails, the utterance is spoken by the local engine instead. Cloud requests use `urllib`, so no packages are needed.
+`auto` (default) picks `say`, else `espeak-ng`. If a cloud backend fails, the local engine speaks instead. `/speech` switches speech off and on during a session, dropping anything not yet said.
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `ZRB_VOICE_BACKEND` | `auto` | `auto`, `say`, `espeak-ng`, `openai`, `gemini` |
-| `ZRB_VOICE_NAME` | per backend | Voice name for the chosen backend |
-| `ZRB_VOICE_RATE` | `165` | Words per minute (`say`, `espeak-ng`) |
-| `ZRB_VOICE_MAX_CHARS` | `400` | Longer text is cut at a sentence end |
-| `ZRB_VOICE_SUMMARY` | `clean` | `llm` rewrites the response with a model first |
-| `ZRB_VOICE_SUMMARY_MODEL` | `gpt-4o-mini` | Any OpenAI-compatible chat model |
-| `ZRB_VOICE_SUMMARY_BASE_URL` | `https://api.openai.com/v1` | |
-| `ZRB_VOICE_SUMMARY_API_KEY` | `$OPENAI_API_KEY` | |
-| `ZRB_VOICE_OPENAI_MODEL` | `gpt-4o-mini-tts` | |
-| `ZRB_VOICE_OPENAI_BASE_URL` | `https://api.openai.com/v1` | |
-| `ZRB_VOICE_GEMINI_MODEL` | `gemini-2.5-flash-preview-tts` | |
-| `ZRB_VOICE_CLOUD_TIMEOUT` | `15` | Seconds |
-| `ZRB_VOICE_LOCK_TIMEOUT` | `30` | Seconds to wait for the audio device before dropping |
-| `ZRB_VOICE_LOG` | `$TMPDIR/zrb-voice-speaker.log` | Side log: events and errors, never the spoken text; created `0600` |
+A reply longer than `ZRB_LLM_SPEECH_MAX_CHARS` (default 400) is cut at a sentence end and followed by "The full answer is on screen." With `ZRB_LLM_SPEECH_SUMMARIZE=on`, the small model (`ZRB_LLM_SPEECH_SUMMARY_MODEL`, else `ZRB_LLM_SMALL_MODEL`) summarizes it instead: one model call per long reply.
 
-What is said:
-
-- **`Stop`**: `last_assistant_message`, with code blocks, tables (with or without outer pipes), URLs and markdown stripped. A sub-agent's turn (`event_data["nested_run"]`) is not spoken.
-- **`PermissionRequest`**: "I need to write a file /tmp/a.py. I need your approval." A template, since you are waiting on it.
-- **`Notification`**: only `elicitation_dialog` and `permission_prompt`.
-
-## How speaking works
-
-The hooks are Python functions registered with `llm_chat.append_hook_factory`, so they read `HookContext` fields directly: no subprocess, no stdin JSON, no env size limit. zrb awaits a Python hook inline, so each one only puts text on a queue and returns `HookResult(success=True)`. One background thread plays the queue in order. When zrb exits, it waits up to 30 s for queued speech to finish, since `zrb chat --message` exits right after the reply.
-
-## Limitations
-
-- Two zrb sessions speaking at once are serialized by a lock file, but not ordered.
-- No barge-in: new speech waits for the current utterance, and hands-free does not listen while the agent speaks.
-- `fcntl` makes this POSIX-only.
-
-## Tests
-
-Run them with the Python zrb is installed in, since the hooks import zrb:
-
-```bash
-~/.local/pipx/venvs/zrb/bin/python test_voice_interaction.py
-~/.local/pipx/venvs/zrb/bin/python test_concurrency.py   # speakers must not overlap
-```
+Two sessions on one machine take turns through a lock file, so they never talk over each other.

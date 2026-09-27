@@ -5,7 +5,6 @@ from prompt_toolkit.clipboard import ClipboardData
 from prompt_toolkit.key_binding import KeyBindings
 
 from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
-from zrb.llm.ui.base.voice_state import BaseUIVoiceState
 from zrb.llm.ui.default.agent_picker import UIAgentPicker
 from zrb.llm.ui.default.keybindings import UIKeybindings
 from zrb.llm.ui.default.message_editing import UIMessageEditing
@@ -27,7 +26,6 @@ class MockUI:
         self.conversation_session_name = "test_session"
         self.running_llm_task = None
         self.is_thinking = False
-        self.voice = BaseUIVoiceState()
 
         self.input_field = MagicMock()
         self.output_field = MagicMock()
@@ -280,7 +278,6 @@ async def test_enter_while_viewing_sends_message_to_sub_agent(mock_ui, setup_bin
         )
         assert not mock_ui.submit_user_message.called
         assert not mock_ui.schedule_command.called
-        assert not mock_ui.classify_input.called
 
 
 @pytest.mark.asyncio
@@ -303,6 +300,52 @@ async def test_enter_while_viewing_sends_slash_command_as_message(
 
     assert not mock_ui.schedule_command.called
     assert not mock_ui.submit_user_message.called
+
+
+def test_a_mid_turn_command_runs_instead_of_answering_a_pending_prompt(
+    mock_ui, setup_bindings
+):
+    """Typing `/voice` to stop a recording must not deny the pending tool
+    call with "/voice" as the reason."""
+    event = create_mock_event("/voice")
+    mock_ui.classify_input.return_value = "thinking_command"
+    mock_ui.handle_confirmation.return_value = True
+
+    trigger_binding(setup_bindings, "c-m", event)
+
+    mock_ui.schedule_command.assert_called_once_with("/voice", guarded=False)
+    assert not mock_ui.handle_confirmation.called
+
+
+@pytest.mark.asyncio
+async def test_a_mid_turn_command_runs_while_viewing_a_sub_agent(
+    mock_ui, setup_bindings
+):
+    event = create_mock_event("/voice")
+    mock_ui.viewing_agent_id = "abc123"
+    mock_ui.classify_input.return_value = "thinking_command"
+    fake = _FakeLiveRegistry()
+
+    with patch(
+        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry", fake
+    ):
+        trigger_binding(setup_bindings, "c-m", event)
+        for task in list(mock_ui.background_tasks):
+            await task
+
+    mock_ui.schedule_command.assert_called_once_with("/voice", guarded=False)
+    assert not mock_ui.handle_confirmation.called
+    assert fake.sent == []
+
+
+def test_a_plain_answer_still_goes_to_the_pending_prompt(mock_ui, setup_bindings):
+    event = create_mock_event("y")
+    mock_ui.handle_confirmation.return_value = True
+
+    trigger_binding(setup_bindings, "c-m", event)
+
+    mock_ui.handle_confirmation.assert_called_once_with(event)
+    assert not mock_ui.schedule_command.called
 
 
 def test_up_arrow_recalls_queued_message(mock_ui):

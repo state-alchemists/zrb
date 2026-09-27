@@ -198,8 +198,8 @@ def _patch_dialog(selection, multi=False):
 
 
 def test_option_text_with_and_without_description():
-    assert option_text({"label": "A", "description": "d"}) == "A — d"
-    assert option_text({"label": "B"}) == "B"
+    assert option_text({"label": "A", "description": "d"}, 0) == "A — d"
+    assert option_text({"label": "B"}, 1) == "B"
 
 
 def test_resolve_choice_selection_single_and_multi():
@@ -285,3 +285,20 @@ async def test_ask_user_choice_multi_free_text_combines_checked_and_typed():
             _spec([{"label": "A"}, {"label": "B"}, {"label": "C"}], multi=True)
         )
     assert result == "A, C, custom"
+
+
+def test_an_unlabeled_option_is_named_the_same_everywhere():
+    from zrb.llm.tool_call.choice_spec_format import format_choice_spec
+
+    spec = {"question": "Pick", "options": [{"label": "A"}, {"description": "d"}]}
+
+    assert option_text(spec["options"][1], 1) == "Option 2 — d"
+    assert "2. Option 2 — d" in format_choice_spec(spec)
+    assert resolve_choice_selection(spec, 1) == "Option 2"
+
+
+def test_option_text_will_not_guess_which_option_number_it_is():
+    """The index names the option, so it has to be passed: a defaulted one
+    labelled every description-only option "Option 1"."""
+    with pytest.raises(TypeError):
+        option_text({"description": "d"})

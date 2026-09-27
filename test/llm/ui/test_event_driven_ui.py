@@ -1,4 +1,5 @@
 import asyncio
+import time
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -141,7 +142,7 @@ async def test_handle_incoming_message_runs_action_command():
             pass
 
     ui = CapturingEventUI(
-        custom_commands=[ActionCommand("/toggle", lambda kwargs: "Toggled")]
+        custom_commands=[ActionCommand("/toggle", lambda kwargs, ui: "Toggled")]
     )
 
     ui.handle_incoming_message("/toggle")
@@ -154,7 +155,7 @@ async def test_handle_incoming_message_runs_action_command():
 def test_handle_incoming_message_forwards_non_string_input():
     from zrb.llm.custom_command import ActionCommand
 
-    ui = MockEventUI(custom_commands=[ActionCommand("/toggle", lambda kwargs: "x")])
+    ui = MockEventUI(custom_commands=[ActionCommand("/toggle", lambda kwargs, ui: "x")])
     ui.waiting_for_input = False
     payload = {"type": "image"}
 
@@ -174,3 +175,32 @@ async def test_run_async_triggers_event_loop():
     await asyncio.wait_for(ui.run_async(), timeout=0.1)
 
     ui.start_mock.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_submit_answer_goes_to_the_waiting_question():
+    ui = MockEventUI()
+    assert ui.is_waiting_for_answer is False
+
+    waiting = asyncio.create_task(ui.get_input(""))
+    await asyncio.sleep(0)
+    assert ui.is_waiting_for_answer is True
+
+    ui.submit_answer("yes")
+    assert await waiting == "yes"
+
+
+@pytest.mark.asyncio
+async def test_pending_answer_since_dates_the_waiting_question():
+    ui = MockEventUI()
+    assert ui.pending_answer_since is None
+
+    before = time.monotonic()
+    waiting = asyncio.create_task(ui.get_input(""))
+    await asyncio.sleep(0)
+    since = ui.pending_answer_since
+
+    assert since is not None and since >= before
+    ui.submit_answer("yes")
+    await waiting
+    assert ui.pending_answer_since is None

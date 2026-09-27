@@ -29,6 +29,7 @@ from zrb.llm.hook.types import HookEvent
 from zrb.llm.tool.ambient_state import get_interactive_mode
 from zrb.llm.tool.wrapper import tool_safe_async
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
+from zrb.llm.tool_call.choice_spec_format import get_option_label
 
 if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import ChoiceSpec
@@ -160,14 +161,21 @@ def _resolve_answer(q: dict[str, Any], raw: str) -> str:
         return "(no answer)"
     options = q["options"]
     multi = bool(q.get("multi_select"))
+    labels = [get_option_label(option, i) for i, option in enumerate(options)]
+    # The UI may already have resolved the answer to a label, and a label can
+    # itself be a number: re-indexing "1" would turn the option "1" into "10".
+    if raw in labels:
+        return raw
 
     def pick(token: str) -> str | None:
         token = token.strip()
+        if token in labels:
+            return token
         if not token.isdigit():
             return None
         i = int(token) - 1
-        if 0 <= i < len(options):
-            return options[i].get("label", token)
+        if 0 <= i < len(labels):
+            return labels[i]
         return None
 
     if multi:

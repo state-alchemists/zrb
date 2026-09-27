@@ -83,6 +83,17 @@ class EventDrivenUI(SimpleUI):
     def handle_incoming_message(self, text: str) -> None:
         self._input_handling.handle_incoming_message(text)
 
+    @property
+    def is_waiting_for_answer(self) -> bool:
+        return self.waiting_for_input
+
+    @property
+    def pending_answer_since(self) -> float | None:
+        return self._input_handling.waiting_since
+
+    def submit_answer(self, text: str) -> None:
+        self.handle_incoming_message(text)
+
     @abstractmethod
     async def start_event_loop(self):
         """Start the event loop for this UI.

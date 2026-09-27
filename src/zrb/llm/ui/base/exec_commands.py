@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from zrb.llm.config.model_resolver import resolve_configured_model
-from zrb.llm.custom_command.resolver import run_custom_command
+from zrb.llm.custom_command.resolver import get_custom_command_match, run_custom_command
 from zrb.llm.task.shared_getters import apply_model_hooks
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.util.cli.style import stylize_error, stylize_muted
@@ -226,14 +226,15 @@ class BaseUIExecCommands:
     # --- custom commands --------------------------------------------------
 
     def handle_custom_command(self, text: str) -> bool:
-        if self._base_ui.is_thinking:
-            return False
-
         text = text.strip()
         if not text:
             return False
+        if self._base_ui.is_thinking:
+            match = get_custom_command_match(text, self._base_ui.custom_commands)
+            if match is None or not match[0].can_run_while_thinking:
+                return False
 
-        outcome = run_custom_command(text, self._base_ui.custom_commands)
+        outcome = run_custom_command(text, self._base_ui.custom_commands, self._base_ui)
         if outcome is None:
             return False
         if outcome.prompt is not None:

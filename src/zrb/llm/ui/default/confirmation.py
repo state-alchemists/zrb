@@ -13,10 +13,12 @@ and choice requests share one active slot so they never contend for input.
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.llm.tool.ambient_state import get_session_ownership_key
+from zrb.llm.tool_call.choice_spec_format import get_option_label
 
 if TYPE_CHECKING:
     from zrb.llm.ui.default.ui import UI
@@ -114,8 +116,15 @@ class UIConfirmation:
         buffer.cursor_position = cursor
 
     def submit_user_answer(self, text: str) -> bool:
-        """Resolve the current confirmation prompt with the given answer (public API)."""
-        return self._ui.resolve_current(text, echo=text + "\n")
+        """Resolve the current confirmation prompt with the given answer (public API).
+
+        For a multiple-choice request, an answer naming an option — its label
+        in any case, or its 1-based number — resolves to that label; anything
+        else is kept as the free-text answer.
+        """
+        spec = self._ui.confirmation.current_spec
+        answer = _match_choice_label(spec, text) if spec is not None else text
+        return self._ui.resolve_current(answer, echo=answer + "\n")
 
     def resolve_current(self, text: str, echo: str | None) -> bool:
         """Resolve the active request with `text`; optionally echo to output."""
@@ -240,3 +249,41 @@ class UIConfirmation:
         entry = live_subagent_session_registry.get(session_id, agent_id)
         if entry is not None:
             entry.buffered_ui.append_to_output(f"{text}\n")
+
+
+def _match_choice_label(spec: Any, text: str) -> str:
+    """The option label(s) *text* names, joined like the selection widget
+    joins them, else *text* as a free-text answer. A multi-select answer
+    lists options separated by commas or "and": "1, 3", "red and blue"."""
+    options = spec.get("options", []) if isinstance(spec, dict) else []
+    labels = [get_option_label(option, index) for index, option in enumerate(options)]
+    whole = _match_one_label(labels, text)
+    if whole is not None:
+        return whole
+    if not spec.get("multi_select"):
+        return text
+    parts = [part for part in re.split(r",|\band\b", text) if part.strip()]
+    matched = [_match_one_label(labels, part) for part in parts]
+    if not matched or None in matched:
+        return text
+    return ", ".join(dict.fromkeys(label for label in matched if label))
+
+
+def _match_one_label(labels: list[str], text: str) -> str | None:
+    # Most exact first: "1" names the label "1" before the first option, and
+    # "C" names "C" before "C++", which normalizes to "c" too.
+    exact = text.strip().casefold()
+    for label in labels:
+        if label.strip().casefold() == exact:
+            return label
+    wanted = _normalize(text)
+    if wanted.isdigit() and 1 <= int(wanted) <= len(labels):
+        return labels[int(wanted) - 1]
+    for label in labels:
+        if _normalize(label) == wanted:
+            return label
+    return None
+
+
+def _normalize(text: str) -> str:
+    return " ".join(re.sub(r"[^\w\s]", " ", text.lower()).split())

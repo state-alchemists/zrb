@@ -242,8 +242,9 @@ def _warm_modules_shadowed_by_sys_modules_patches():
 
     ``numpy``: ``unittest.mock.patch.dict`` restores by ``clear()`` +
     ``update(snapshot)``, so **any module imported for the first time inside
-    the block is deleted from ``sys.modules`` on exit**. ``VoiceEngine.record``
-    lazily does ``import numpy`` inside ``test/llm/voice/test_engine.py``'s
+    the block is deleted from ``sys.modules`` on exit**. Dictation's recorder
+    (``zrb.llm.dictation.listen``) lazily does ``import numpy`` inside
+    ``test/llm/dictation/test_listen.py``'s
     ``patch.dict("sys.modules", {"sounddevice": ...})``, which evicts numpy's
     entries while its C extension stays loaded in the process — so the next
     ``import numpy`` raises "ImportError: cannot load module more than once

@@ -24,7 +24,7 @@ def format_choice_spec(spec: "ChoiceSpec | dict[str, Any]") -> str:
     counter = f"{idx}/{total}" if total > 1 else f"{idx}"
     lines: list[str] = [f"\n[Q{counter}] {spec.get('question', '')}"]
     for i, opt in enumerate(spec.get("options", []), start=1):
-        label = opt.get("label", f"Option {i}")
+        label = get_option_label(opt, i - 1)
         desc = opt.get("description", "")
         suffix = f" — {desc}" if desc else ""
         lines.append(f"  {i}. {label}{suffix}")
@@ -35,3 +35,10 @@ def format_choice_spec(spec: "ChoiceSpec | dict[str, Any]") -> str:
     )
     lines.append(hint)
     return "\n".join(lines)
+
+
+def get_option_label(option: Any, index: int) -> str:
+    """*option*'s label, or ``Option N`` (1-based) when it has none: what every
+    UI shows for it, and what an answer choosing it resolves to."""
+    label = option.get("label") if isinstance(option, dict) else None
+    return str(label) if label else f"Option {index + 1}"

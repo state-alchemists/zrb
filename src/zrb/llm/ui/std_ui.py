@@ -4,6 +4,7 @@ import sys
 from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.config.config import CFG
+from zrb.llm.tool_call.choice_spec_format import get_option_label
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
 from zrb.util.cli.style import stylize_muted
@@ -15,8 +16,11 @@ if TYPE_CHECKING:
 FREE_TEXT = "__zrb_free_text__"
 
 
-def option_text(opt: "ChoiceOption") -> str:
-    label = opt.get("label", "")
+def option_text(opt: "ChoiceOption", index: int) -> str:
+    """*opt*'s row text, labelled by its *index* in the option list. Required,
+    since an option carrying only a ``description`` is named "Option N" and a
+    defaulted index would name every one of them "Option 1"."""
+    label = get_option_label(opt, index)
     desc = opt.get("description", "")
     return f"{label} — {desc}" if desc else label
 
@@ -31,7 +35,7 @@ def resolve_choice_selection(spec: "ChoiceSpec", selection: Any) -> str:
     options = spec.get("options", [])
     indices = selection if isinstance(selection, list) else [selection]
     labels = [
-        options[i].get("label", str(i))
+        get_option_label(options[i], i)
         for i in indices
         if isinstance(i, int) and 0 <= i < len(options)
     ]
@@ -184,7 +188,7 @@ def _choice_title(spec: "ChoiceSpec") -> str:
 def _choice_values(options: list) -> list[tuple[int | str, str]]:
     """The selectable rows, with the free-text escape hatch appended last."""
     values: list[tuple[int | str, str]] = [
-        (i, option_text(opt)) for i, opt in enumerate(options)
+        (i, option_text(opt, i)) for i, opt in enumerate(options)
     ]
     values.append((FREE_TEXT, "✎ Type my own answer…"))
     return values

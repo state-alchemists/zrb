@@ -282,6 +282,7 @@ Shaping `zrb llm chat` and the LLM task types.
 - [Programming the Agent](docs/llm/programming-the-agent.md) — the overview: every way to shape agent behavior in Python (tools, hooks, dynamic prompts, history processors, agent-as-pipeline-node)
 - [Programming the Prompt](docs/llm/programming-the-prompt.md) — the ladder from a plain-string `message` up to a composed `PromptManager`; feeding a `CmdTask`'s output into `LLMTask`/`LLMChatTask`
 - [LLM Assistant & AI Tasks](docs/llm/llm-integration.md) — interactive chat, `LLMTask`/`LLMChatTask` usage
+- [Voice and Camera](docs/llm/voice-camera.md) — `/photo`, push-to-talk and hands-free dictation, replies read aloud, and plugging in your own backend
 - [Voice & Photo Troubleshooting](docs/llm/voice-photo-troubleshooting.md) — microphone/camera setup per platform, including WSL2 camera passthrough
 - [Extending the LLM](docs/llm/extending-the-llm.md) — built-in tools, custom tools, sub-agents, model capabilities, context management
 - [Custom UI](docs/llm/llm-custom-ui.md) — build a TUI, web/SSE, or chat-bot front end for `LLMChatTask`

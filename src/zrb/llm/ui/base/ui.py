@@ -60,7 +60,6 @@ from zrb.llm.ui.base.replay import BaseUIReplay
 from zrb.llm.ui.base.system_info import BaseUISystemInfo
 from zrb.llm.ui.base.triggers import BaseUITriggers
 from zrb.llm.ui.base.usage import BaseUIUsage
-from zrb.llm.ui.base.voice_state import BaseUIVoiceState
 from zrb.llm.ui.multi_ui import create_combined_ui
 from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
 from zrb.llm.ui.turn_snapshot import take_pre_turn_snapshot
@@ -221,7 +220,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._markdown_theme = markdown_theme
         self._custom_commands = _default_list(custom_commands)
         self._plan_mode_active = False
-        self.voice = BaseUIVoiceState()
         self._trigger_tasks: list[asyncio.Task] = []
         self._base_triggers = BaseUITriggers(self)
         self.usage = BaseUIUsage()
@@ -349,7 +347,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     save_commands = _command_alias_property("save", "save")
     load_commands = _command_alias_property("load", "load")
     attach_commands = _command_alias_property("attach", "attach")
-    photo_commands = _command_alias_property("photo", "photo capture")
     redirect_output_commands = _command_alias_property(
         "redirect_output", "redirect output"
     )
@@ -422,7 +419,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
     btw_commands = _command_alias_property("btw", "`/btw` (side-question)")
     plan_commands = _command_alias_property("plan", "plan-mode-toggle")
-    voice_commands = _command_alias_property("voice", "voice-dictation-toggle")
     rewind_commands = _command_alias_property("rewind", "rewind/snapshot")
     copy_commands = _command_alias_property("copy", "copy-transcript")
 
@@ -509,9 +505,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     async def dispatch_command(self, text: str, *, guarded: bool = True) -> None:
         await self._base_commands.dispatch_command(text, guarded=guarded)
 
-    def handle_toggle_voice(self, text: str) -> bool:
-        return self._base_commands.handle_toggle_voice(text)
-
     def get_help_panel(
         self, art: str = "", header: str = "", max_commands: int | None = None
     ) -> Any:
@@ -559,12 +552,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
     def submit_attachment(self, path: str) -> None:
         self._conversation.submit_attachment(path)
-
-    def handle_photo_command(self, text: str) -> bool:
-        return self._conversation.handle_photo_command(text)
-
-    async def submit_photo(self, device: str | None) -> None:
-        await self._base_commands.submit_photo(device)
 
     def apply_persona_for_session(self, name: str) -> None:
         self._conversation.apply_persona_for_session(name)
@@ -1086,6 +1073,45 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         continuation code calls this to hand the main agent a synthesized
         report without reaching into `_llm_task`."""
         self.submit_user_message(self.llm_task, user_message)
+
+    @property
+    def is_waiting_for_answer(self) -> bool:
+        """Whether a tool approval or a question is waiting for the user.
+
+        ``False`` here; a UI that can hold one overrides it together with
+        `submit_answer`.
+        """
+        return False
+
+    @property
+    def pending_answer_since(self) -> float | None:
+        """`time.monotonic()` when the prompt waiting for an answer appeared.
+
+        ``None`` with nothing pending, or when the UI cannot tell; a timed
+        `TriggerReply` then answers nothing.
+        """
+        return None
+
+    @property
+    def is_waiting_for_choice(self) -> bool:
+        """Whether the pending prompt is a multiple-choice question rather
+        than a tool approval."""
+        return False
+
+    def submit_answer(self, text: str) -> None:
+        """Answer the pending approval or question with *text*, as if typed.
+
+        With nothing pending, *text* is submitted as a message instead.
+        """
+        self.submit_message(text)
+
+    def insert_input_text(self, text: str) -> None:
+        """Insert *text* in the input box, at the cursor, for the user to edit
+        and send.
+
+        A UI with no input box to edit in submits it as a message instead.
+        """
+        self.submit_message(text)
 
     async def stream_ai_response(
         self,

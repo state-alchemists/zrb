@@ -11,6 +11,7 @@ from zrb.llm.history_manager.file_history_manager import (
     default_history_manager,
 )
 from zrb.llm.prompt.live_context import split_live_context
+from zrb.llm.util.feature_config import close_feature_sessions
 
 # Re-exported for chat_api_route.py and tests. Defined in
 # subagent_session_naming.py so the web session lister avoids delegate.py's
@@ -255,6 +256,8 @@ class ChatSessionManager:
             # The registry is keyed by session id; without this, every
             # session ever seen leaves an entry behind for the process's life.
             agent_activity_registry.clear(session_id=session_id)
+            # Where a web chat session ends: its voice and camera state goes too.
+            close_feature_sessions(session_id)
             # lazy: transitively heavy via internal — live_session.py imports
             # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai;
             # deferring keeps that off chat_session_manager's module-load path.

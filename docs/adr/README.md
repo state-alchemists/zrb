@@ -149,15 +149,17 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0073** — [Todo progress reaches the user through a side channel](adr-0073.md)
 - **ADR-0074** — [`ask_user_choice` with a text fallback](adr-0074.md)
 - **ADR-0075** — [Shift+Tab cycles the mode, with a Termux fallback](adr-0075.md)
-- **ADR-0076** — [Voice dictation as an opt-in UI input method](adr-0076.md)
+- **ADR-0076** — [Dictation is push-to-talk by command, plus a hands-free mode that can answer approvals](adr-0076.md)
 - **ADR-0077** — [Queued messages are editable entries, edited in place from the input field](adr-0077.md)
 - **ADR-0078** — [Mid-turn messages steer the live run via pydantic-ai's `enqueue`, falling back to the queue](adr-0078.md)
 - **ADR-0079** — [LaTeX math renders as Unicode via masked pre-parse, not a Rich `Markdown` subclass](adr-0079.md)
 - **ADR-0080** — [Mermaid renders as Unicode diagram art via `termaid`; PlantUML stays deferred](adr-0080.md)
 - **ADR-0081** — [Web chat renders markdown/math/diagrams client-side; the non-interactive loop finalizes its output](adr-0081.md)
-- **ADR-0082** — [Photo capture is a one-shot command, not a toggled mode, and carries no enable gate](adr-0082.md)
+- **ADR-0082** — [Photo capture is a one-shot command with a pluggable backend, and carries no enable gate](adr-0082.md)
 - **ADR-0093** — [A slash command is always offered; an unavailable one explains itself](adr-0093.md)
 - **ADR-0101** — [Working-directory snapshots are git trees in a private store, listed repository by repository](adr-0101.md)
+- **ADR-0102** — [Optional chat features install through `LLMChatTask`'s extension points, configured when a session starts](adr-0102.md)
+- **ADR-0103** — [Speech reads a reply aloud whole, cut at a sentence end, or summarized, then says the rest is on screen](adr-0103.md)
 
 ### Sub-agent sessions
 

@@ -37,7 +37,9 @@ from zrb.llm.task.shared_getters import (
     resolve_model,
     resolve_system_prompt,
 )
+from zrb.llm.tool.ambient_state import get_session_ownership_key
 from zrb.llm.tool_call.handler import ToolCallHandler
+from zrb.llm.util.feature_config import close_feature_sessions
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.std_ui import StdUI
 from zrb.llm.util.attachment import get_attachments
@@ -216,6 +218,11 @@ class ChatExecution:
                 )
             except Exception:
                 CFG.LOGGER.debug("SESSION_END hook raised at teardown", exc_info=True)
+
+        try:
+            close_feature_sessions(get_session_ownership_key())
+        except Exception:
+            CFG.LOGGER.debug("Closing feature sessions failed", exc_info=True)
 
         try:
             await lsp_manager.shutdown_all()

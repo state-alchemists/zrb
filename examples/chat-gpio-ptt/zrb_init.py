@@ -20,8 +20,7 @@ Usage:
     sudo apt install ffmpeg libportaudio2
 
     cd examples/chat-gpio-ptt
-    export ZRB_LLM_VOICE_ENABLED=true    # vosk: offline, no API key
-    zrb llm chat
+    zrb llm chat                         # vosk: offline, no API key
 
     Hold GPIO 17, speak, release  → your words are submitted as a user turn.
     Hold GPIO 27 as you release   → a photo is attached to that same turn.
@@ -34,10 +33,11 @@ import asyncio
 import os
 import tempfile
 
-from zrb import TriggerMessage
+from zrb import CFG, TriggerMessage
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.util.camera import get_camera_photo
-from zrb.llm.voice import VoiceEngine
+from zrb.llm.camera import AutoCameraBackend
+from zrb.llm.dictation import DictationConfig, record
+from zrb.llm.dictation.backend import get_dictation_backend
 
 try:
     from gpiozero import Button
@@ -46,6 +46,8 @@ except ImportError:
 
 PTT_PIN = 17
 CAMERA_PIN = 27
+
+camera_backend = AutoCameraBackend()
 
 
 # =============================================================================
@@ -72,11 +74,12 @@ async def capture_photo() -> list[str]:
     hook for "this turn consumed its attachment". Delete each one from a
     post-turn callback if you adapt this into something long-running.
     """
-    frame = await get_camera_photo()
+    frame = await camera_backend.capture(None)
     if frame is None:
         print("[gpio-ptt] camera capture failed; sending the turn without it.")
         return []
-    handle, path = tempfile.mkstemp(prefix="zrb-gpio-photo-", suffix=".jpg")
+    prefix = f"{CFG.ROOT_GROUP_NAME}-gpio-photo-"
+    handle, path = tempfile.mkstemp(prefix=prefix, suffix=".jpg")
     with os.fdopen(handle, "wb") as photo_file:
         photo_file.write(frame)
     return [path]
@@ -90,7 +93,10 @@ async def capture_photo() -> list[str]:
 async def gpio_push_to_talk():
     """Record while GPIO 17 is held, then submit what was said."""
     loop = asyncio.get_running_loop()
-    engine = VoiceEngine()
+    # Resolved here, when the session starts, so ZRB_LLM_DICTATION_* set in
+    # zrb_init.py or the environment apply.
+    config = DictationConfig().resolve()
+    dictation = get_dictation_backend(config.backend or "vosk", config)
     # Bound for the lifetime of this generator: a garbage-collected Button
     # releases its pin and stops firing.
     talk, camera = Button(PTT_PIN), Button(CAMERA_PIN)
@@ -105,12 +111,11 @@ async def gpio_push_to_talk():
         await pressed.wait()
         pressed.clear()
         released.clear()
-        # `VoiceEngine.start_listening` is record + transcribe in one call; the
-        # two halves are split here only so the camera button is sampled at the
-        # moment of release, rather than after transcription has run.
-        audio = await engine.record(released)
+        # The camera button is sampled at the moment of release, before
+        # transcription has run.
+        audio = await record(lambda: not released.is_set())
         attachments = await capture_photo() if camera.is_pressed else []
-        text = await engine.transcribe(audio) if audio else ""
+        text = await dictation.transcribe(audio) if audio else ""
         # Silence with no photo yields ("", []), which the trigger loop skips.
         yield TriggerMessage(text, attachments)
 
