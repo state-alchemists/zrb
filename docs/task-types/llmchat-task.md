@@ -248,8 +248,9 @@ There are two kinds:
 - **`CustomCommand`** expands into a prompt for the LLM. `$name`, `${name}`,
   `${name:-default}` and `$1`, `$2`, … are replaced with the arguments.
 - **`ActionCommand`** runs a Python callable instead and starts no LLM turn.
-  The callable receives the parsed arguments as a dict and returns the text to
-  show the user, or `None` to show nothing.
+  The callable receives the parsed arguments as a dict and the chat UI
+  (`None` when there is none yet, as for an initial `--message`), and returns
+  the text to show the user, or `None` to show nothing.
 
 ```python
 from zrb.llm.custom_command import ActionCommand, CustomCommand
@@ -260,7 +261,7 @@ chat.append_custom_command(
 
 state = {"verbose": False}
 
-def toggle_verbose(kwargs: dict[str, str]) -> str:
+def toggle_verbose(kwargs: dict[str, str], ui) -> str:
     state["verbose"] = not state["verbose"]
     return f"Verbose {'on' if state['verbose'] else 'off'}"
 
@@ -269,10 +270,48 @@ chat.append_custom_command(
 )
 ```
 
-To write your own kind, subclass `AnyCustomCommand`. Its `handle(kwargs)`
+An action may also:
+
+- **Be async.** It then runs as one of the UI's background tasks, cancelled
+  when the session ends, and its result is shown when it finishes.
+- **Reach the UI.** `ui.pending_attachments.append(...)` attaches to the next
+  message, `ui.insert_input_text(text)` types at the cursor, and
+  `ui.append_to_output(text)` prints.
+- **Run mid-turn**, with `can_run_while_thinking=True`. Otherwise a command
+  waits for the model to finish.
+- **Complete its first argument**, with `complete_arg=lambda prefix: [...]`.
+
+A `/photo` command, simplified from the built-in one (`zrb.llm.camera.feature`):
+
+```python
+async def attach_photo(kwargs, ui):
+    photo = await camera.capture(kwargs.get("device") or None)
+    ui.pending_attachments.append(BinaryContent(data=photo, media_type="image/jpeg"))
+    return "📷 Photo attached"
+
+chat.append_custom_command(
+    ActionCommand(
+        "/photo",
+        attach_photo,
+        args=["device"],
+        complete_arg=lambda prefix: [d for d in camera.list_devices() if d.startswith(prefix)],
+    )
+)
+```
+
+To write your own kind, subclass `AnyCustomCommand`. Its `handle(kwargs, ui)`
 decides: returning `None` (the default) sends `get_prompt(kwargs)` to the LLM,
 and returning a string handles the command in-process and shows that string.
-Custom commands run only while the model is idle.
+Its `can_run_while_thinking` and `get_arg_completions(prefix)` default to
+`False` and no completions.
+
+A trigger's items become turns. A trigger that speaks for the user (such as
+hands-free dictation) can yield `TriggerReply(text)` instead, which answers
+the tool approval or question being asked, if there is one. A plain string
+never answers one, so a scheduled or remote trigger cannot approve a tool call.
+
+Camera, dictation and speech are added with one call each — see
+[Voice and camera](../llm/voice-camera.md).
 
 ### History Manager
 

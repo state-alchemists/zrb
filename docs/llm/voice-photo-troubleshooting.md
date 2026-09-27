@@ -2,7 +2,7 @@
 
 # Voice & Photo Troubleshooting
 
-`/voice` and `/photo` depend on OS-level microphone/camera access, so failures are usually platform setup, not a zrb bug. Configuration knobs for both features are in [LLM Configuration → Voice Dictation](../configuration/llm-config.md#23-voice-dictation); the commands themselves are listed under [TUI Commands](llm-integration.md#tui-commands).
+`/voice` and `/photo` depend on OS-level microphone/camera access, so failures are usually platform setup, not a zrb bug. Configuration knobs for both features are in [LLM Configuration → Voice and Camera](../configuration/llm-config.md#23-voice-and-camera); the commands themselves are listed under [TUI Commands](llm-integration.md#tui-commands).
 
 ---
 
@@ -18,8 +18,10 @@
 
 | Symptom | Solution |
 |---------|----------|
-| `/voice` says voice dictation is disabled | Voice auto-enables when `vosk` is installed and `ZRB_LLM_VOICE_ENABLED` is unset. Otherwise: `pip install sounddevice vosk numpy`, or set `ZRB_LLM_VOICE_ENABLED=true` after installing a backend — see [Voice Dictation](../configuration/llm-config.md#23-voice-dictation) |
-| `RuntimeError` mentioning `sounddevice` or `vosk` | Those are optional dependencies: `pip install sounddevice vosk numpy` (or switch `ZRB_LLM_VOICE_MODE` to `openai`/`google`/`multimodal`) |
+| `/voice` or `/handsfree` says dictation needs the `zrb[voice]` extra | `pip install 'zrb[voice]'` (sounddevice, numpy, vosk) |
+| An error mentioning `vosk` | vosk is the default backend: install it, or switch `ZRB_LLM_DICTATION_BACKEND` to `openai`/`google`/`multimodal` |
+| Hands-free never submits anything | Run `zrb voice mic-test` from `examples/voice-interaction`; if your speech stays under the threshold, lower `ZRB_LLM_DICTATION_THRESHOLD`. With wake words set, only utterances starting with one count |
+| Hands-free switched itself off | The microphone failed while listening; the reason is in zrb's log |
 | Recording starts but no audio is captured | Check OS microphone permissions for your terminal app; on Linux, check that PulseAudio/PipeWire is running |
 | No sound on WSL | WSL2 needs WSLg (Windows 11) or a PulseAudio server bridged from Windows for audio passthrough |
 | Termux: no microphone access | Install `termux-api` (`pkg install termux-api`) and the Termux:API app from F-Droid; grant microphone permission to Termux:API in Android settings |

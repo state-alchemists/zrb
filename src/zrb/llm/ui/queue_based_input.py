@@ -73,7 +73,7 @@ class QueueBasedInput:
             self.input_queue.put_nowait(text)
             return
         outcome = (
-            run_custom_command(text, self._simple_ui.custom_commands)
+            run_custom_command(text, self._simple_ui.custom_commands, self._simple_ui)
             if isinstance(text, str)
             else None
         )

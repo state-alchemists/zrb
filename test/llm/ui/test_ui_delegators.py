@@ -242,3 +242,42 @@ def test_toggle_collapsible_block_both_paths(mock_ui_deps):
         output.toggle_collapsible_block_at_cursor.return_value = True
         assert ui.toggle_collapsible_block() is True
         invalidate_ui.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_answer_seams_resolve_the_pending_confirmation(mock_ui_deps):
+    import asyncio
+
+    ui = _ui(mock_ui_deps)
+    assert ui.is_waiting_for_answer is False
+
+    future: asyncio.Future[str] = asyncio.get_running_loop().create_future()
+    ui.confirmation.queue.append((future, "Approve?", None, None))
+    ui.confirmation.current = future
+    assert ui.is_waiting_for_answer is True
+
+    with patch("prompt_toolkit.application.get_app"):
+        ui.submit_answer("yes")
+    assert future.result() == "yes"
+    assert ui.is_waiting_for_answer is False
+
+
+def test_submit_answer_without_a_pending_confirmation_is_a_message(mock_ui_deps):
+    ui = _ui(mock_ui_deps)
+    ui.submit_message = MagicMock()
+
+    ui.submit_answer("hello")
+
+    ui.submit_message.assert_called_once_with("hello")
+
+
+@pytest.mark.asyncio
+async def test_insert_input_text_types_at_the_cursor(mock_ui_deps):
+    ui = _ui(mock_ui_deps)
+    ui.input_field.buffer.text = "please "
+    ui.input_field.buffer.cursor_position = 7
+
+    with patch.object(ui, "invalidate_ui"):
+        ui.insert_input_text("run the tests")
+
+    assert ui.input_field.buffer.text == "please run the tests"

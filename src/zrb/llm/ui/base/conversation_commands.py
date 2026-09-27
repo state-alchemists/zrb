@@ -16,8 +16,6 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.llm.util.attachment import get_media_type, get_oversized_by
-from zrb.llm.util.camera import get_camera_photo, missing_tool_hint
-from zrb.llm.util.image_scale import scale_image_bytes
 from zrb.llm.util.subagent_session_naming import parse_delegated_session
 from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
 
@@ -596,41 +594,6 @@ class BaseUIConversationCommands:
             return
         self._base_ui.pending_attachments.append(expanded_path)
         self._base_ui.append_to_output(stylize_muted(f"\n  📎 Attached: {path}\n"))
-
-    def handle_photo_command(self, text: str) -> bool:
-        text = text.strip()
-        for cmd in self._base_ui.photo_commands:
-            if text.lower() == cmd.lower():
-                device = None
-            else:
-                prefix = f"{cmd} "
-                if not text.lower().startswith(prefix.lower()):
-                    continue
-                device = text[len(prefix) :].strip() or None
-            task = asyncio.create_task(self.submit_photo(device))
-            self._base_ui.background_tasks.add(task)
-            task.add_done_callback(self._base_ui.background_tasks.discard)
-            return True
-        return False
-
-    async def submit_photo(self, device: str | None):
-        self._base_ui.append_to_output(stylize_muted("\n  📷 Capturing photo...\n"))
-        photo_bytes = await get_camera_photo(device)
-        if photo_bytes is None:
-            self._base_ui.append_to_output(
-                stylize_error(f"\n  ❌ Camera capture failed.\n{missing_tool_hint()}")
-            )
-            return
-        # lazy: heavy transitive (pydantic_ai) via zrb.llm.agent.types
-        from zrb.llm.agent.types import BinaryContent
-
-        scaled = scale_image_bytes(photo_bytes, media_type="image/jpeg")
-        attachment = BinaryContent(data=scaled.data, media_type=scaled.media_type)
-        self._base_ui.pending_attachments.append(attachment)
-        self._base_ui.append_to_output(
-            stylize_muted(f"\n  📷 Photo captured ({scaled.final_bytes} bytes)\n")
-        )
-        self._base_ui.invalidate_ui()
 
 
 def _describe_restore(sha: str, left_behind: tuple[str, ...]) -> str:

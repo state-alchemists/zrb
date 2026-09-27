@@ -72,6 +72,7 @@
     "ToolRegistry",
     "Tpl",
     "TriggerMessage",
+    "TriggerReply",
     "User",
     "Xcom",
     "builtin",
@@ -1799,6 +1800,12 @@
     },
     "TriggerMessage": {
       "init": [],
+      "members": []
+    },
+    "TriggerReply": {
+      "init": [
+        "text:POSITIONAL_OR_KEYWORD:0"
+      ],
       "members": []
     },
     "User": {

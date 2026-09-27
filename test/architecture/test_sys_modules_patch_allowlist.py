@@ -43,10 +43,10 @@ REVIEWED_SYS_MODULES_SHADOWS = {
     # import ...` for real while the parent package is mocked.
     "pydantic_ai": "warmed (pydantic_ai.toolsets)",
     "pydantic_ai.models.openai": "mock-only; resolved via the warmed parent",
-    # Warmed in conftest: `VoiceEngine.record` really does `import numpy`
+    # Warmed in conftest: `zrb.llm.dictation.listen.record`/`listen` really do `import numpy`
     # inside the block, and numpy is a single-phase-init C extension.
     "sounddevice": "warmed (numpy, imported for real alongside it)",
-    # mock-only: the transcriber factories read names off the fake module.
+    # mock-only: the dictation backends read names off the fake module.
     "vosk": "mock-only",
     "openai": "mock-only",
     "google": "mock-only",

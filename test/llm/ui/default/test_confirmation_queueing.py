@@ -312,3 +312,30 @@ async def test_draft_restored_only_after_queue_drains():
         assert ui.confirmation.current is None
         assert getattr(ui.confirmation_part, "_saved_draft") is None
         assert ui.input_field.buffer.text == "fix the auth bug"
+
+
+_CHOICE_SPEC = {
+    "question": "Which color?",
+    "options": [{"label": "Dark Red"}, {"label": "Blue"}],
+    "multi_select": False,
+}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "said, answer",
+    [
+        ("dark red.", "Dark Red"),
+        ("BLUE", "Blue"),
+        ("2", "Blue"),
+        ("green, please", "green, please"),
+        ("3", "3"),
+    ],
+)
+async def test_answer_to_a_choice_resolves_to_the_option_it_names(said, answer):
+    ui = MockConfirmationUI()
+    with patch("prompt_toolkit.application.get_app"):
+        task = asyncio.create_task(ui.ask_user_choice(_CHOICE_SPEC))
+        await asyncio.sleep(0.01)
+        ui.submit_user_answer(said)
+        assert await task == answer

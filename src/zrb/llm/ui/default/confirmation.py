@@ -13,6 +13,7 @@ and choice requests share one active slot so they never contend for input.
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
@@ -114,8 +115,19 @@ class UIConfirmation:
         buffer.cursor_position = cursor
 
     def submit_user_answer(self, text: str) -> bool:
-        """Resolve the current confirmation prompt with the given answer (public API)."""
-        return self._ui.resolve_current(text, echo=text + "\n")
+        """Resolve the current confirmation prompt with the given answer (public API).
+
+        For a multiple-choice request, an answer naming an option — its label
+        in any case, or its 1-based number — resolves to that label; anything
+        else is kept as the free-text answer.
+        """
+        current = self._ui.confirmation.current
+        spec = next(
+            (entry[2] for entry in self._ui.confirmation.queue if entry[0] is current),
+            None,
+        )
+        answer = _match_choice_label(spec, text) if spec is not None else text
+        return self._ui.resolve_current(answer, echo=answer + "\n")
 
     def resolve_current(self, text: str, echo: str | None) -> bool:
         """Resolve the active request with `text`; optionally echo to output."""
@@ -240,3 +252,19 @@ class UIConfirmation:
         entry = live_subagent_session_registry.get(session_id, agent_id)
         if entry is not None:
             entry.buffered_ui.append_to_output(f"{text}\n")
+
+
+def _match_choice_label(spec: Any, text: str) -> str:
+    options = spec.get("options", []) if isinstance(spec, dict) else []
+    labels = [str(option.get("label", "")) for option in options]
+    wanted = _normalize(text)
+    if wanted.isdigit() and 1 <= int(wanted) <= len(labels):
+        return labels[int(wanted) - 1]
+    for label in labels:
+        if _normalize(label) == wanted:
+            return label
+    return text
+
+
+def _normalize(text: str) -> str:
+    return " ".join(re.sub(r"[^\w\s]", " ", text.lower()).split())

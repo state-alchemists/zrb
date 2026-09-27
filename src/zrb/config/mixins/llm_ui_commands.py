@@ -1,4 +1,4 @@
-"""LLM UI slash-command aliases (16 command-list properties).
+"""LLM UI slash-command aliases (14 command-list properties).
 
 Each property reads a comma-separated env value and returns a parsed list.
 Setters serialize back to comma-separated form.
@@ -27,8 +27,6 @@ class LLMUICommandsMixin:
         self.DEFAULT_LLM_UI_COMMAND_BTW: str = "/btw"
         self.DEFAULT_LLM_UI_COMMAND_PLAN_TOGGLE: str = "/plan"
         self.DEFAULT_LLM_UI_COMMAND_COPY: str = "/copy"
-        self.DEFAULT_LLM_UI_COMMAND_VOICE: str = "/voice, /v"
-        self.DEFAULT_LLM_UI_COMMAND_PHOTO: str = "/photo, /p"
         super().__init__()
 
     LLM_UI_COMMAND_SUMMARIZE = EnvField(
@@ -118,20 +116,5 @@ class LLMUICommandsMixin:
         doc=(
             "Comma-separated command aliases to copy the full conversation "
             "transcript to the clipboard."
-        ),
-    )
-
-    LLM_UI_COMMAND_VOICE = EnvField(
-        comma_list,
-        serialize=comma_join,
-        doc="Comma-separated command aliases to toggle voice dictation mode.",
-    )
-
-    LLM_UI_COMMAND_PHOTO = EnvField(
-        comma_list,
-        serialize=comma_join,
-        doc=(
-            "Comma-separated command aliases to capture a photo from the "
-            "camera and attach it to the next message (usage: {cmd} [device])."
         ),
     )

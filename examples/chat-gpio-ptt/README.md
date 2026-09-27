@@ -34,14 +34,13 @@ sudo apt install ffmpeg libportaudio2
 
 Speech-to-text defaults to **vosk**, which runs offline with no API key — the
 model (~50MB) downloads on first use. A Pi 4 or 5 handles it comfortably; a Zero
-2 W will be slow. Set `ZRB_LLM_VOICE_MODE` to `openai` or `google` to transcribe
-over the network instead.
+2 W will be slow. Set `ZRB_LLM_DICTATION_BACKEND` to `openai` or `google` to
+transcribe over the network instead.
 
 ## Usage
 
 ```bash
 cd examples/chat-gpio-ptt
-export ZRB_LLM_VOICE_ENABLED=true
 zrb llm chat
 ```
 
@@ -73,11 +72,13 @@ when to look, register the camera as a tool instead and let it call one:
 
 ```python
 from zrb.llm.agent.types import BinaryContent
-from zrb.llm.util.camera import get_camera_photo
+from zrb.llm.camera import AutoCameraBackend
+
+camera = AutoCameraBackend()
 
 async def look() -> BinaryContent:
     """Capture a photo from the attached camera."""
-    return BinaryContent(data=await get_camera_photo(), media_type="image/jpeg")
+    return BinaryContent(data=await camera.capture(None), media_type="image/jpeg")
 
 llm_chat.append_tool(look)
 ```

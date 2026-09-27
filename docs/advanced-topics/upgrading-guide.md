@@ -6,10 +6,48 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ## Table of Contents
 
+- [Upgrading to 3.10.0](#upgrading-to-3100)
 - [Upgrading to 3.3.0](#upgrading-to-330)
 - [Upgrading to 3.0.0](#upgrading-to-300)
 - [Upgrading to 2.54.0](#upgrading-to-2540)
 - [Upgrading from 1.x.x to 2.x.x](#upgrading-from-1xx-to-2xx)
+
+---
+
+## Upgrading to 3.10.0
+
+3.10.0 moves `/photo` and `/voice` out of the UI into three optional features — camera, dictation and speech — that `zrb llm chat` enables through its public extension points ([Voice and camera](../llm/voice-camera.md), ADR-0102). The commands work as before; configuration, and code that reached into the UI for them, changes.
+
+### Settings
+
+| Before | After |
+|---|---|
+| `ZRB_LLM_VOICE_ENABLED` | (removed — `/voice` is always offered and explains a missing `zrb[voice]`) |
+| `ZRB_LLM_VOICE_MODE` | `ZRB_LLM_DICTATION_BACKEND` |
+| `ZRB_LLM_VOICE_PUSH_TO_TALK_KEY` | (removed — `/voice` starts and a pause or `/voice` stops) |
+| `ZRB_LLM_VOICE_OPENAI_MODEL` | `ZRB_LLM_DICTATION_OPENAI_MODEL` |
+| `ZRB_LLM_VOICE_GOOGLE_MODEL` | `ZRB_LLM_DICTATION_GOOGLE_MODEL` |
+| `ZRB_LLM_VOICE_VOSK_MODEL_NAME` | `ZRB_LLM_DICTATION_VOSK_MODEL_NAME` |
+| `ZRB_LLM_VOICE_VOSK_MODEL_URL` | `ZRB_LLM_DICTATION_VOSK_MODEL_URL` |
+| `ZRB_LLM_UI_COMMAND_VOICE` | `ZRB_LLM_DICTATION_COMMANDS` |
+| `ZRB_LLM_UI_COMMAND_PHOTO` | `ZRB_LLM_CAMERA_COMMANDS` |
+
+There are no aliases: an old variable is ignored. New settings are listed in [LLM configuration § 23](../configuration/llm-config.md#23-voice-and-camera).
+
+### Code
+
+| Before | After |
+|---|---|
+| `ActionCommand("/x", lambda kwargs: ...)` | `ActionCommand("/x", lambda kwargs, ui: ...)` — the action also gets the chat UI, or `None` |
+| `AnyCustomCommand.handle(self, kwargs)` | `handle(self, kwargs, ui)` |
+| `run_custom_command(message, commands)` | `run_custom_command(message, commands, ui)` |
+| `from zrb.llm.voice import VoiceEngine` | `zrb.llm.dictation`: `record(should_record)` / `listen(config, should_listen)` for audio, `get_dictation_backend(...).transcribe(audio)` for text |
+| `from zrb.llm.util.camera import get_camera_photo` | `from zrb.llm.camera import AutoCameraBackend`; `await AutoCameraBackend().capture(device)` |
+| `missing_tool_hint()` (camera) | `backend.get_failure_hint()` on the backend that captured |
+| `ui.voice`, `ui.voice_commands`, `ui.photo_commands`, `ui.handle_toggle_voice`, `ui.handle_photo_command`, `ui.submit_photo` | (removed) |
+| `UIConfig(voice_commands=..., photo_commands=...)` | `DictationConfig(commands=...)`, `CameraConfig(commands=...)` passed to `enable_dictation`/`enable_camera` |
+
+A custom `LLMChatTask` gets the features with `enable_camera(task)`, `enable_dictation(task)` and `enable_speech(task)`.
 
 ---
 

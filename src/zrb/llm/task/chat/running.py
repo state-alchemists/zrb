@@ -352,7 +352,7 @@ def _expand_message(
     """
     if not isinstance(message, str):
         return message, None
-    outcome = run_custom_command(message, custom_commands)
+    outcome = run_custom_command(message, custom_commands, None)
     if outcome is not None:
         return outcome.prompt, outcome.reply
     mentioned = resolve_agent_mention(message)

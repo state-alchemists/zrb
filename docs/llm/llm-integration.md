@@ -46,7 +46,7 @@ This launches a full-screen chat application where you can have a conversation w
 | `/load <name>` | Load a named session |
 | `/save <name>` | Save current session |
 | `/attach <file_path>` | Attach a file to next message (capped by `LLM_MAX_ATTACHMENT_BYTES`, default 20MB; content is sniffed against its extension) |
-| `/photo [device]` | Capture a photo from the camera and attach it to the next message (device is optional; auto-detected per platform) |
+| `/photo [device]` | Capture a photo from the camera and attach it to the next message (device is optional and tab-completes; auto-detected per platform) |
 | `>` or `/redirect` (bare) | Copy last AI response to clipboard |
 | `>` or `/redirect <file_path>` | Save last AI response to a file |
 | `/copy` (bare) | Copy full conversation transcript to clipboard |
@@ -55,11 +55,13 @@ This launches a full-screen chat application where you can have a conversation w
 | `/btw <text>` | Inject a side note for the next turn without sending it as a message (runs while the assistant is thinking) |
 | `/plan` | Toggle [Plan Mode](./plan-mode.md) (read-only discovery) |
 | `/rewind [n\|sha]` | List or restore filesystem + history [snapshots](../configuration/llm-config.md#6-rewind--snapshots) (on by default; `ZRB_LLM_ENABLE_REWIND`) |
-| `/voice` | Toggle push-to-talk voice dictation on/off (enabled automatically when `vosk` is installed and `ZRB_LLM_VOICE_ENABLED` is unset; see [Voice Dictation](../configuration/llm-config.md#23-voice-dictation)) |
+| `/voice` | Record speech: a pause or `/voice` again stops, and the transcript lands in the input box. Needs `zrb[voice]` |
+| `/handsfree` | Switch hands-free voice input on or off: every utterance becomes a turn, or answers the pending approval |
+| `/speech` | Switch reading replies aloud on or off |
 
 > 💡 **Tip:** Any `/command` that matches a loaded skill will be executed as a skill.
 >
-> The token(s) that trigger each command are configurable — see [Slash Command Aliases](../configuration/llm-config.md#17-slash-command-aliases).
+> The token(s) that trigger each command are configurable — see [Slash Command Aliases](../configuration/llm-config.md#17-slash-command-aliases). `/photo`, `/voice`, `/handsfree` and `/speech` come from [Voice and camera](voice-camera.md) and are configured there.
 
 ### Session Token Tracking
 
@@ -89,7 +91,7 @@ By default, Zrb prompts for confirmation before executing most tools. This is co
 
 ### Troubleshooting: Voice & Photo
 
-`/voice` and `/photo` depend on OS-level microphone/camera access, so failures are usually platform setup, not a zrb bug. Symptom-by-symptom fixes (macOS/Linux/Windows/WSL/Termux, including building a WSL2 kernel with camera support) are in [Voice & Photo Troubleshooting](voice-photo-troubleshooting.md).
+How `/photo`, `/voice`, `/handsfree` and `/speech` work, and how to configure them, is in [Voice and Camera](voice-camera.md). They depend on OS-level microphone/camera access, so failures are usually platform setup, not a zrb bug. Symptom-by-symptom fixes (macOS/Linux/Windows/WSL/Termux, including building a WSL2 kernel with camera support) are in [Voice & Photo Troubleshooting](voice-photo-troubleshooting.md).
 
 ---
 

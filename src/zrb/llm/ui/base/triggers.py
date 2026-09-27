@@ -13,6 +13,7 @@ import logging
 from collections.abc import AsyncIterable, Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
+from zrb.llm.ui.trigger import TriggerReply
 from zrb.util.cli.style import stylize_error
 from zrb.util.exception import exception_summary
 
@@ -53,6 +54,9 @@ class BaseUITriggers:
                     item = await async_iter.__anext__()
                 except StopAsyncIteration:
                     break
+                if isinstance(item, TriggerReply):
+                    self._reply(item.text)
+                    continue
                 try:
                     text, attachments = self._split(item)
                 except ValueError as split_error:
@@ -94,6 +98,16 @@ class BaseUITriggers:
                         await result
                 except Exception as close_error:
                     logger.debug(f"Trigger iterator close failed: {close_error}")
+
+    def _reply(self, text: str) -> None:
+        # An empty answer approves a tool call, so it is never sent.
+        if not text.strip():
+            return
+        owner = self._owner
+        if owner.is_waiting_for_answer:
+            owner.submit_answer(text)
+        else:
+            owner.submit_user_message(owner.llm_task, text)
 
     def _split(self, item: Any) -> "tuple[str, list[UserContent]]":
         """Split a yielded item into its text and its attachments.

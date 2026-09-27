@@ -69,8 +69,6 @@ class UIConfig:
         default_factory=_commands("LLM_UI_COMMAND_PLAN_TOGGLE")
     )
     copy_commands: list[str] = field(default_factory=_commands("LLM_UI_COMMAND_COPY"))
-    voice_commands: list[str] = field(default_factory=_commands("LLM_UI_COMMAND_VOICE"))
-    photo_commands: list[str] = field(default_factory=_commands("LLM_UI_COMMAND_PHOTO"))
 
     # Behavior
     is_yolo: bool | frozenset = (

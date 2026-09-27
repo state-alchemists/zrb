@@ -92,13 +92,11 @@ def test_command_alias_lists_read_from_config(surface_ui):
     assert surface_ui.save_commands
     assert surface_ui.load_commands
     assert surface_ui.attach_commands
-    assert surface_ui.photo_commands
     assert surface_ui.redirect_output_commands
     assert surface_ui.yolo_toggle_commands
     assert surface_ui.set_model_commands
     assert surface_ui.btw_commands
     assert surface_ui.plan_commands
-    assert surface_ui.voice_commands
     assert surface_ui.rewind_commands
     assert surface_ui.copy_commands
 
@@ -106,7 +104,6 @@ def test_command_alias_lists_read_from_config(surface_ui):
 def test_classify_input_routes_plain_text_as_message(surface_ui):
     assert surface_ui.classify_input("hello there") == "message"
     assert surface_ui.classify_input("   ") == "message"
-    assert surface_ui.handle_toggle_voice("garbage") is False
 
 
 @pytest.mark.asyncio

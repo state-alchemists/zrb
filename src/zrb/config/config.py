@@ -9,9 +9,11 @@ To find a setting:
 - foundation/env/shell/init/version/banner   -> mixins/foundation.py
 - web HTTP/auth/branding/pagination          -> mixins/web.py
 - LLM model/API key/base URL                 -> mixins/llm_core.py
-- LLM UI styles/commands/intervals/voice      -> mixins/llm_ui.py, which
+- LLM UI styles/commands/intervals          -> mixins/llm_ui.py, which
   itself stitches together (not imported here directly) llm_ui_styles.py,
-  llm_ui_commands.py, llm_ui_runtime.py and llm_voice.py
+  llm_ui_commands.py and llm_ui_runtime.py
+- Camera / dictation / speech               -> mixins/llm_camera.py,
+  llm_dictation.py, llm_speech.py
 - LLM throttle/retry/timeout/size caps       -> mixins/llm_limits.py
 - LLM history/journal/snapshot/summarization -> mixins/llm_content.py
 - LLM prompt dirs/INCLUDE_* toggles          -> mixins/llm_prompt.py
@@ -32,12 +34,15 @@ from zrb.config.mixins.cli_style import CLIStyleMixin
 from zrb.config.mixins.foundation import FoundationMixin
 from zrb.config.mixins.hooks import HooksMixin
 from zrb.config.mixins.internet_search import InternetSearchMixin
+from zrb.config.mixins.llm_camera import LLMCameraMixin
 from zrb.config.mixins.llm_content import LLMContentMixin
 from zrb.config.mixins.llm_core import LLMCoreMixin
+from zrb.config.mixins.llm_dictation import LLMDictationMixin
 from zrb.config.mixins.llm_limits import LLMLimitsMixin
 from zrb.config.mixins.llm_prompt import LLMPromptMixin
 from zrb.config.mixins.llm_sandbox import LLMSandboxMixin
 from zrb.config.mixins.llm_search import LLMSearchMixin
+from zrb.config.mixins.llm_speech import LLMSpeechMixin
 from zrb.config.mixins.llm_tools import LLMToolsMixin
 from zrb.config.mixins.llm_ui import LLMUIMixin
 from zrb.config.mixins.rag import RAGMixin
@@ -52,6 +57,9 @@ class Config(
     WebMixin,
     LLMCoreMixin,
     LLMUIMixin,
+    LLMCameraMixin,
+    LLMDictationMixin,
+    LLMSpeechMixin,
     LLMLimitsMixin,
     LLMContentMixin,
     LLMPromptMixin,

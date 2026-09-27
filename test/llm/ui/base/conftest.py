@@ -15,7 +15,6 @@ from zrb.config.config import CFG
 from zrb.llm.ui.base.commands import BaseUICommands
 from zrb.llm.ui.base.persona_state import BaseUIPersonaState
 from zrb.llm.ui.base.usage import BaseUIUsage
-from zrb.llm.ui.base.voice_state import BaseUIVoiceState
 
 
 class MockUI:
@@ -35,7 +34,6 @@ class MockUI:
         self.rewind_commands = ["/rewind"]
         self.redirect_output_commands = ["/redirect"]
         self.attach_commands = ["/attach"]
-        self.photo_commands = ["/photo"]
         self.yolo_toggle_commands = ["/yolo"]
         self.set_model_commands = ["/model"]
         self.exec_commands = ["/exec"]
@@ -43,8 +41,6 @@ class MockUI:
         self.plan_commands = ["/plan"]
         self.summarize_commands = ["/summarize"]
         self.copy_commands = []
-        self.voice_commands = ["/voice"]
-        self.voice = BaseUIVoiceState()
         self.custom_commands = []
 
         self.execute_hook = MagicMock()

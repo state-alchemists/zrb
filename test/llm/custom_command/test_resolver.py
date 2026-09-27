@@ -83,23 +83,23 @@ def test_resolve_custom_command_missing_args_default_to_empty():
 
 def test_run_custom_command_returns_prompt_when_handle_declines():
     cmd = CustomCommand("/greet", "Say hi to $name", args=["name"])
-    outcome = run_custom_command("/greet Ann", [cmd])
+    outcome = run_custom_command("/greet Ann", [cmd], None)
     assert outcome == CustomCommandOutcome(prompt="Say hi to Ann", reply=None)
 
 
 def test_run_custom_command_runs_action_instead_of_prompting():
     calls = []
     cmd = ActionCommand(
-        "/toggle", lambda kwargs: calls.append(kwargs) or "on", args=["mode"]
+        "/toggle", lambda kwargs, ui: calls.append(kwargs) or "on", args=["mode"]
     )
-    outcome = run_custom_command("/toggle fast", [cmd])
+    outcome = run_custom_command("/toggle fast", [cmd], None)
     assert outcome == CustomCommandOutcome(prompt=None, reply="on")
     assert calls == [{"mode": "fast"}]
 
 
 def test_run_custom_command_action_returning_none_is_still_handled():
-    cmd = ActionCommand("/quiet", lambda kwargs: None)
-    assert run_custom_command("/quiet", [cmd]) == CustomCommandOutcome(
+    cmd = ActionCommand("/quiet", lambda kwargs, ui: None)
+    assert run_custom_command("/quiet", [cmd], None) == CustomCommandOutcome(
         prompt=None, reply=""
     )
 
@@ -113,26 +113,30 @@ def test_run_custom_command_accepts_duck_typed_command_without_handle():
         def get_prompt(self, kwargs):
             return "legacy prompt"
 
-    outcome = run_custom_command("/old", [Legacy()])  # type: ignore[list-item]
+    outcome = run_custom_command("/old", [Legacy()], None)  # type: ignore[list-item]
     assert outcome is not None and outcome.prompt == "legacy prompt"
 
 
 def test_run_custom_command_no_match_returns_none():
     assert (
-        run_custom_command("/nope", [ActionCommand("/toggle", lambda k: "x")]) is None
+        run_custom_command("/nope", [ActionCommand("/toggle", lambda k, ui: "x")], None)
+        is None
     )
 
 
 def test_get_custom_command_match_does_not_run_the_action():
     calls = []
-    cmd = ActionCommand("/toggle", lambda kwargs: calls.append(1))
+    cmd = ActionCommand("/toggle", lambda kwargs, ui: calls.append(1))
     match = get_custom_command_match("/toggle", [cmd])
     assert match == (cmd, {})
     assert calls == []
 
 
 def test_action_command_description_lists_args():
-    cmd = ActionCommand("/set", lambda k: None, args=["key", "value"])
+    cmd = ActionCommand("/set", lambda k, ui: None, args=["key", "value"])
     assert cmd.description == "/set <key> <value>"
     assert cmd.get_prompt({}) == ""
-    assert ActionCommand("/x", lambda k: None, description="Do x").description == "Do x"
+    assert (
+        ActionCommand("/x", lambda k, ui: None, description="Do x").description
+        == "Do x"
+    )

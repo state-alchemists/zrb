@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 import shlex
 from collections.abc import Callable
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
+
+if TYPE_CHECKING:
+    from zrb.llm.ui.base.ui import BaseUI
 
 
 def resolve_custom_commands(
@@ -52,11 +57,12 @@ def resolve_custom_command(
 def run_custom_command(
     message: str,
     custom_commands: list[AnyCustomCommand],
+    ui: "BaseUI | None",
 ) -> CustomCommandOutcome | None:
     """Run the custom command *message* names, or return ``None`` if none matches.
 
-    The command's ``handle`` runs first; only when it declines (returns
-    ``None``) is ``get_prompt`` resolved for the LLM.
+    The command's ``handle`` runs first, given *ui*; only when it declines
+    (returns ``None``) is ``get_prompt`` resolved for the LLM.
     """
     match = get_custom_command_match(message, custom_commands)
     if match is None:
@@ -64,7 +70,7 @@ def run_custom_command(
     custom_cmd, kwargs = match
     # getattr: duck-typed commands written before `handle` existed lack it.
     handle = getattr(custom_cmd, "handle", None)
-    reply = handle(kwargs) if handle is not None else None
+    reply = handle(kwargs, ui) if handle is not None else None
     if reply is not None:
         return CustomCommandOutcome(prompt=None, reply=reply)
     return CustomCommandOutcome(prompt=custom_cmd.get_prompt(kwargs), reply=None)

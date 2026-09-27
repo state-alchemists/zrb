@@ -224,7 +224,7 @@ async def test_non_interactive_action_command_runs_no_turn(runner):
     from zrb.llm.custom_command import ActionCommand
 
     runner.llm_chat_task.custom_commands = [
-        ActionCommand("/toggle", lambda kwargs: "Toggled")
+        ActionCommand("/toggle", lambda kwargs, ui: "Toggled")
     ]
     ctx = MagicMock()
     ctx.xcom = {}
@@ -257,7 +257,7 @@ async def test_interactive_action_command_shows_reply_and_sends_nothing(
     from zrb.llm.custom_command import ActionCommand
 
     runner.llm_chat_task.custom_commands = [
-        ActionCommand("/toggle", lambda kwargs: "Toggled")
+        ActionCommand("/toggle", lambda kwargs, ui: "Toggled")
     ]
     ctx = MagicMock()
     ctx.xcom = {}

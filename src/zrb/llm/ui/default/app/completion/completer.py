@@ -17,7 +17,6 @@ from zrb.llm.ui.default.app.completion.args import (
     complete_copy_arg,
     complete_exec_arg,
     complete_load_arg,
-    complete_photo_arg,
     complete_redirect_arg,
     complete_save_arg,
 )
@@ -55,8 +54,6 @@ class InputCompleter(Completer):
         self._btw_commands = list(ui_config.btw_commands)
         self._plan_commands = list(ui_config.plan_commands)
         self._copy_commands = list(ui_config.copy_commands)
-        self._voice_commands = list(ui_config.voice_commands)
-        self._photo_commands = list(ui_config.photo_commands)
         self._custom_commands = list(custom_commands or [])
         self._custom_model_names = list(custom_model_names or [])
         self._show_ollama_models = ui_config.show_ollama_models
@@ -146,8 +143,6 @@ class InputCompleter(Completer):
             + self._btw_commands
             + self._plan_commands
             + self._copy_commands
-            + self._voice_commands
-            + self._photo_commands
         )
         return all_commands + [cc.command for cc in self._custom_commands]
 
@@ -223,11 +218,6 @@ class InputCompleter(Completer):
                 self._copy_commands,
                 lambda cmd: f"Copy transcript to clipboard (bare) or to file (i.e., {cmd} <path>)",
             ),
-            (self._voice_commands, "Toggle voice dictation on/off"),
-            (
-                self._photo_commands,
-                lambda cmd: f"Capture a photo from the camera (i.e., {cmd} [device])",
-            ),
         ]
         for cmds, meta in groups:
             yield from self._yield_command_completions(
@@ -262,13 +252,10 @@ class InputCompleter(Completer):
         cmd = parts[0]
         arg_prefix = text_before_cursor[len(cmd) :].lstrip()
 
-        # Custom commands: yield a single description-only completion.
         for custom_cmd in self._custom_commands:
             if cmd == custom_cmd.command:
-                yield Completion(
-                    arg_prefix,
-                    start_position=-len(arg_prefix),
-                    display_meta=custom_cmd.description,
+                yield from self._get_custom_command_arg_completions(
+                    custom_cmd, parts, text_before_cursor, arg_prefix
                 )
                 return
 
@@ -287,6 +274,30 @@ class InputCompleter(Completer):
         yield from self._get_single_token_arg_completions(
             cmd, single_arg, complete_event
         )
+
+    def _get_custom_command_arg_completions(
+        self,
+        custom_cmd: AnyCustomCommand,
+        parts: list[str],
+        text_before_cursor: str,
+        arg_prefix: str,
+    ) -> Iterable[Completion]:
+        single_arg = self._single_token_arg(parts, text_before_cursor)
+        values = (
+            [] if single_arg is None else custom_cmd.get_arg_completions(single_arg)
+        )
+        if not values:
+            yield Completion(
+                arg_prefix,
+                start_position=-len(arg_prefix),
+                display_meta=custom_cmd.description,
+            )
+            return
+        meta = custom_cmd.args[0] if custom_cmd.args else None
+        for value in values:
+            yield Completion(
+                value, start_position=-len(single_arg or ""), display_meta=meta
+            )
 
     def _get_model_argument_completions(
         self, text_before_cursor: str, parts: list[str]
@@ -374,7 +385,6 @@ class InputCompleter(Completer):
                     display_meta="File Path",
                 ),
             ),
-            (self._photo_commands, lambda: complete_photo_arg(single_arg)),
         ]
         for cmd_list, completions_fn in dispatch:
             if self._is_command(cmd, cmd_list):

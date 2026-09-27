@@ -700,10 +700,6 @@ class UIOutput:
             ),
             (f"fg:{CFG.LLM_UI_STYLE_FAINT}", "shift+tab to cycle "),
         ]
-        # Voice mode indicator (see ADR-0076)
-        voice = getattr(self._ui, "voice", None)
-        if voice is not None and voice.mode_active:
-            result.append((CFG.LLM_UI_STYLE_STATUS, " 🎤 VOICE "))
         result.extend(self._get_token_usage_fragments())
         return result
 

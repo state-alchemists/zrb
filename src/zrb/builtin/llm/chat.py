@@ -12,11 +12,14 @@ from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
+from zrb.llm.camera import enable_camera
 from zrb.llm.common_tools import apply_common_tools
 from zrb.llm.custom_command import get_skill_custom_command
+from zrb.llm.dictation import enable_dictation
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.profile import MINIMAL_PROFILE, active_profile
 from zrb.llm.skill.manager import skill_manager
+from zrb.llm.speech import enable_speech
 from zrb.llm.task.chat.task import LLMChatTask
 from zrb.llm.tool.delegate import (
     create_delegate_to_agent_tool,
@@ -215,6 +218,12 @@ llm_chat.prepend_tool_policy(
 
 # Add custom command (slash commands)
 llm_chat.append_custom_command(get_skill_custom_command(skill_manager))
+
+# Each reads its settings when a session starts, so zrb_init.py may change
+# them after this import.
+enable_camera(llm_chat)
+enable_dictation(llm_chat)
+enable_speech(llm_chat)
 
 llm_group.add_task(llm_chat)
 cli.add_task(llm_chat)
