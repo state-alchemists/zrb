@@ -29,7 +29,7 @@ The hook command is the relative `python3 hook_speak.py`, and hooks run in the s
 | Variable | Default | Meaning |
 |---|---|---|
 | `ZRB_VOICE_HANDS_FREE` | off | `1` starts the session with hands-free on |
-| `ZRB_VOICE_WAKE_WORD` | none | Only utterances starting with it count; it is stripped |
+| `ZRB_VOICE_WAKE_WORD` | none | Only utterances starting with it count; it is stripped. Said alone, it accepts the next utterance within 8 s. Use a real word: vosk hears "zrb" as "hazy are be" |
 | `ZRB_VOICE_HANDS_FREE_THRESHOLD` | `0.01` | RMS level that counts as speech |
 | `ZRB_VOICE_HANDS_FREE_SILENCE` | `1.0` | Seconds of silence that end an utterance |
 
@@ -37,11 +37,12 @@ Without a wake word, anything the microphone hears becomes a turn. Don't use pus
 
 ### Recommended transcription
 
-zrb defaults to offline vosk, which mangles technical speech. With an OpenAI key, use this instead:
+zrb defaults to offline vosk, which mangles technical speech. With `GEMINI_API_KEY` set, use this instead:
 
 ```bash
-export ZRB_LLM_VOICE_MODE=openai
-export ZRB_LLM_VOICE_OPENAI_MODEL=gpt-4o-transcribe
+export ZRB_LLM_VOICE_MODE=google
+export ZRB_LLM_VOICE_GOOGLE_MODEL=gemini-3.5-flash
+export ZRB_VOICE_WAKE_WORD=hi
 ```
 
 One clip, generated with macOS `say`: *"Refactor the hook manager in zrb so pydantic AI streams the last assistant message, then run pytest and push to GitHub."*
