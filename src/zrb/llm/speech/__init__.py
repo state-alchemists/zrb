@@ -6,6 +6,7 @@ from zrb.llm.speech.backend import (
     GeminiSpeechBackend,
     LocalCommandBackend,
     OpenAISpeechBackend,
+    TermuxSpeechBackend,
     Utterance,
 )
 from zrb.llm.speech.config import SpeechConfig
@@ -19,6 +20,7 @@ __all__ = [
     "OpenAISpeechBackend",
     "Speaker",
     "SpeechConfig",
+    "TermuxSpeechBackend",
     "Utterance",
     "enable_speech",
     "is_speaking",

@@ -911,8 +911,8 @@ Reads the reply at the end of each turn, tool approvals and questions aloud. `/s
 | `ZRB_LLM_SPEECH_ENABLED` | Speak from the start of a session; `/speech` switches it either way | `off` |
 | `ZRB_LLM_SPEECH_COMMANDS` | Aliases that switch speech off and on | `/speech` |
 | `ZRB_LLM_SPEECH_EVENTS` | What to speak: `reply`, `approval`, `question` | `reply, approval, question` |
-| `ZRB_LLM_SPEECH_BACKEND` | `auto` (`say` on macOS, else `espeak-ng`), `say`, `espeak-ng`, `openai`, `gemini`. A failing backend falls back to the local engine | `auto` |
-| `ZRB_LLM_SPEECH_VOICE` | Voice name for the backend; empty uses its default (system voice, `en-us+m3`, `alloy`, `Sulafat`) | (none) |
+| `ZRB_LLM_SPEECH_BACKEND` | `auto` (`termux` on Termux, `say` on macOS, else `espeak-ng`), `termux`, `say`, `espeak-ng`, `openai`, `gemini`. A failing backend falls back to the local engine | `auto` |
+| `ZRB_LLM_SPEECH_VOICE` | Voice name for the backend (for `termux`, the `-v` variant); empty uses its default (system voice, `en-us+m3`, `alloy`, `Sulafat`) | (none) |
 | `ZRB_LLM_SPEECH_RATE` | Words per minute for `say` and `espeak-ng` | `165` |
 | `ZRB_LLM_SPEECH_MAX_CHARS` | Longest reply spoken in full; a longer one is cut at a sentence end and followed by `ZRB_LLM_SPEECH_ON_SCREEN_NOTE`. `0` means no limit | `400` |
 | `ZRB_LLM_SPEECH_SUMMARIZE` | Speak a model summary of a long reply instead of its opening: one model call per long reply | `off` |
@@ -922,6 +922,12 @@ Reads the reply at the end of each turn, tool approvals and questions aloud. `/s
 | `ZRB_LLM_SPEECH_OPENAI_BASE_URL` | API base URL for `openai` | `https://api.openai.com/v1` |
 | `ZRB_LLM_SPEECH_GEMINI_MODEL` | Model for `gemini` | `gemini-2.5-flash-preview-tts` |
 | `ZRB_LLM_SPEECH_TIMEOUT` | Seconds a cloud backend may take | `15` |
+| `ZRB_LLM_SPEECH_TERMUX_LANGUAGE` | Language for `termux` (`-l`), e.g. `en`; empty is the phone's | (none) |
+| `ZRB_LLM_SPEECH_TERMUX_ENGINE` | Android TTS engine for `termux` (`-e`) | (none) |
+| `ZRB_LLM_SPEECH_TERMUX_REGION` | Region for `termux` (`-n`), e.g. `US` | (none) |
+| `ZRB_LLM_SPEECH_TERMUX_RATE` | Speech rate for `termux`; `1.0` is normal | `1.0` |
+| `ZRB_LLM_SPEECH_TERMUX_PITCH` | Pitch for `termux`; `1.0` is normal | `1.0` |
+| `ZRB_LLM_SPEECH_TERMUX_STREAM` | Android audio stream for `termux` (`-s`): `ALARM`, `MUSIC`, `NOTIFICATION`, `RING`, `SYSTEM`, `VOICE_CALL` | (none) |
 | `ZRB_LLM_SPEECH_WAV_PLAYER` | Command playing the cloud backends' WAV, the path appended (e.g. `mpv --really-quiet`); empty picks `afplay`, `paplay`, `aplay` or `ffplay` | (none) |
 | `ZRB_LLM_SPEECH_LOCK_FILE` | File locked while speech plays, so sessions take turns and dictation ignores zrb's own voice | `<tmp>/<root group name>-speech.lock` |
 | `ZRB_LLM_SPEECH_LOCK_TIMEOUT` | Seconds to wait for another session to finish before dropping an utterance | `30` |

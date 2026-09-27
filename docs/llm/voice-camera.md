@@ -8,7 +8,7 @@
 |---|---|---|
 | Camera | `/photo [device]` | `ffmpeg`, or Termux:API on Android |
 | Dictation | `/voice`, `/handsfree` | `pip install 'zrb[voice]'` |
-| Speech | `/speech` | nothing on macOS; `espeak-ng` on Linux and Windows; or a cloud key |
+| Speech | `/speech` | nothing on macOS; Termux:API on Android; `espeak-ng` on Linux and Windows; or a cloud key |
 
 Every setting is an environment variable, listed in [LLM Configuration § 23](../configuration/llm-config.md#23-voice-and-camera). Platform problems are covered in [Voice & Photo Troubleshooting](voice-photo-troubleshooting.md).
 
@@ -33,7 +33,7 @@ Every setting is an environment variable, listed in [LLM Configuration § 23](..
 
 - "Yes", "yes please", "go ahead" approve.
 - Anything else denies, and what you said becomes the reason: "no, use pytest instead" tells the agent what to do.
-- An answer to a multiple-choice question picks the option you name, by its label or its number.
+- An answer to a multiple-choice question picks the option you name, by its label or its number; for a question that takes several, name them all ("one and three", "cheese, olives").
 
 Set `ZRB_LLM_DICTATION_MODE=hands_free` to start every session this way. Set `ZRB_LLM_DICTATION_WAKE_WORDS` so that only utterances starting with a wake word count. Without one, anything the microphone hears becomes a turn, including a conversation in the room.
 
@@ -76,7 +76,7 @@ Each feature takes a backend name or an object implementing its interface:
 |---|---|---|
 | Camera | `zrb.llm.camera.AnyCameraBackend` — `async capture(device) -> bytes \| None` | `auto`, `termux`, `ffmpeg` |
 | Dictation | `zrb.llm.dictation.AnyDictationBackend` — `async transcribe(audio) -> str` | `vosk`, `openai`, `google`, `multimodal` |
-| Speech | `zrb.llm.speech.AnySpeechBackend` — `create_utterance(text) -> Utterance` | `auto`, `say`, `espeak-ng`, `openai`, `gemini` |
+| Speech | `zrb.llm.speech.AnySpeechBackend` — `create_utterance(text) -> Utterance` | `auto`, `termux`, `say`, `espeak-ng`, `openai`, `gemini` |
 
 A speech backend that talks to a local TTS server and plays the WAV it returns:
 
@@ -105,7 +105,7 @@ enable_speech(llm_chat, SpeechConfig(backend=LocalTTS(), enabled=True))
 
 `llm_chat` already called `enable_speech` with the default config; calling it again replaces that call, so there is still one speaker and one `/speech`. The same holds for `enable_camera` and `enable_dictation`.
 
-If your backend fails, the local engine (`say` or `espeak-ng`) speaks instead. Audio passed to `transcribe` is 16 kHz mono 16-bit PCM; `zrb.llm.dictation.backend.wav.pcm16_to_wav_bytes` wraps it for an API that wants a file.
+If your backend fails, the local engine (`termux`, `say` or `espeak-ng`) speaks instead. zrb-extras adds a pyttsx3 backend. Audio passed to `transcribe` is 16 kHz mono 16-bit PCM; `zrb.llm.dictation.backend.wav.pcm16_to_wav_bytes` wraps it for an API that wants a file.
 
 ## On your own chat task
 

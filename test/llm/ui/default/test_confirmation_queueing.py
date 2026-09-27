@@ -339,3 +339,30 @@ async def test_answer_to_a_choice_resolves_to_the_option_it_names(said, answer):
         await asyncio.sleep(0.01)
         ui.submit_user_answer(said)
         assert await task == answer
+
+
+_MULTI_SPEC = {
+    "question": "Which toppings?",
+    "options": [{"label": "Cheese"}, {"label": "Salt and pepper"}, {"label": "Olives"}],
+    "multi_select": True,
+}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "said, answer",
+    [
+        ("1,3", "Cheese, Olives"),
+        ("cheese and olives", "Cheese, Olives"),
+        ("Salt and pepper", "Salt and pepper"),
+        ("3, 1, 3", "Olives, Cheese"),
+        ("1 and anchovies", "1 and anchovies"),
+    ],
+)
+async def test_answer_to_a_multi_select_resolves_every_option_it_names(said, answer):
+    ui = MockConfirmationUI()
+    with patch("prompt_toolkit.application.get_app"):
+        task = asyncio.create_task(ui.ask_user_choice(_MULTI_SPEC))
+        await asyncio.sleep(0.01)
+        ui.submit_user_answer(said)
+        assert await task == answer

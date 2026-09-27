@@ -83,9 +83,7 @@ def _fake_summarizer(monkeypatch, output=None, error=None):
         prompts.append(("model", model))
         return Agent()
 
-    monkeypatch.setattr(
-        "zrb.llm.agent.summarizer.create_summarizer_agent", create
-    )
+    monkeypatch.setattr("zrb.llm.agent.summarizer.create_summarizer_agent", create)
     return prompts
 
 

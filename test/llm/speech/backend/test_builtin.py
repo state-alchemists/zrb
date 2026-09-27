@@ -74,3 +74,34 @@ def test_a_backend_object_is_used_as_is():
 def test_an_unknown_name_is_refused():
     with pytest.raises(ValueError, match="unknown speech backend"):
         get_speech_backend("parrot", SpeechConfig().resolve())
+
+
+def test_auto_picks_termux_on_termux(monkeypatch):
+    monkeypatch.setattr("zrb.config.helper.is_termux", lambda: True)
+    monkeypatch.setattr(
+        "shutil.which",
+        lambda name: f"/usr/bin/{name}" if name == "termux-tts-speak" else None,
+    )
+
+    assert get_speech_backend("auto", SpeechConfig().resolve()).name == "termux"
+
+
+def test_termux_settings_reach_the_backend(monkeypatch):
+    config = SpeechConfig(
+        voice="f1", termux_language="id", termux_rate=1.5, termux_pitch=0.8
+    ).resolve()
+
+    backend = get_speech_backend("termux", config)
+
+    assert backend.create_command("halo") == [
+        "termux-tts-speak",
+        "-l",
+        "id",
+        "-v",
+        "f1",
+        "-r",
+        "1.5",
+        "-p",
+        "0.8",
+        "halo",
+    ]

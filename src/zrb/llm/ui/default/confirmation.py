@@ -255,15 +255,31 @@ class UIConfirmation:
 
 
 def _match_choice_label(spec: Any, text: str) -> str:
+    """The option label(s) *text* names, joined like the selection widget
+    joins them, else *text* as a free-text answer. A multi-select answer
+    lists options separated by commas or "and": "1, 3", "red and blue"."""
     options = spec.get("options", []) if isinstance(spec, dict) else []
     labels = [str(option.get("label", "")) for option in options]
+    whole = _match_one_label(labels, text)
+    if whole is not None:
+        return whole
+    if not spec.get("multi_select"):
+        return text
+    parts = [part for part in re.split(r",|\band\b", text) if part.strip()]
+    matched = [_match_one_label(labels, part) for part in parts]
+    if not matched or None in matched:
+        return text
+    return ", ".join(dict.fromkeys(label for label in matched if label))
+
+
+def _match_one_label(labels: list[str], text: str) -> str | None:
     wanted = _normalize(text)
     if wanted.isdigit() and 1 <= int(wanted) <= len(labels):
         return labels[int(wanted) - 1]
     for label in labels:
         if _normalize(label) == wanted:
             return label
-    return text
+    return None
 
 
 def _normalize(text: str) -> str:

@@ -28,11 +28,13 @@ class TermuxCameraBackend(AnyCameraBackend):
     """`termux-camera-photo`; a device is a camera id (``0`` back, ``1`` front).
 
     The app writes the photo to *photo_path*, by default a dot-file named for
-    `CFG.ROOT_GROUP_NAME` in Termux's home.
+    `CFG.ROOT_GROUP_NAME` in Termux's home. A capture taking over *timeout*
+    seconds is abandoned.
     """
 
-    def __init__(self, photo_path: str | None = None) -> None:
+    def __init__(self, photo_path: str | None = None, timeout: float = 15.0) -> None:
         self._photo_path = photo_path
+        self._timeout = timeout
 
     @property
     def name(self) -> str:
@@ -55,7 +57,14 @@ class TermuxCameraBackend(AnyCameraBackend):
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
-            await proc.communicate()
+        except Exception:
+            return None
+        try:
+            await asyncio.wait_for(proc.communicate(), timeout=self._timeout)
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+            return None
         except Exception:
             return None
         if not (os.path.exists(path) and os.path.getsize(path) > 0):

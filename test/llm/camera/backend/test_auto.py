@@ -305,3 +305,24 @@ async def test_windows_ffmpeg_uses_explicit_device_name(clean_env):
     cmd = seen_cmds[0]
     assert cmd[cmd.index("-f") + 1] == "dshow"
     assert cmd[cmd.index("-i") + 1] == "video=USB2.0 Camera"
+
+
+@pytest.mark.asyncio
+async def test_a_hung_termux_capture_is_abandoned_after_the_timeout(
+    clean_env, tmp_path
+):
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
+    clean_env.setattr("shutil.which", _which_only("termux-camera-photo"))
+    hung: list[_FakeProcess] = []
+
+    def _make_proc(*args, **kwargs):
+        proc = _FakeProcess(hang_seconds=10)
+        hung.append(proc)
+        return proc
+
+    backend = TermuxCameraBackend(str(tmp_path / "photo.jpg"), timeout=0.05)
+    with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
+        result = await backend.capture(None)
+
+    assert result is None
+    assert [proc.killed for proc in hung] == [True]

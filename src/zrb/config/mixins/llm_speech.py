@@ -33,6 +33,12 @@ class LLMSpeechMixin:
         self.DEFAULT_LLM_SPEECH_OPENAI_BASE_URL: str = "https://api.openai.com/v1"
         self.DEFAULT_LLM_SPEECH_GEMINI_MODEL: str = "gemini-2.5-flash-preview-tts"
         self.DEFAULT_LLM_SPEECH_TIMEOUT: str = "15"
+        self.DEFAULT_LLM_SPEECH_TERMUX_LANGUAGE: str = ""
+        self.DEFAULT_LLM_SPEECH_TERMUX_ENGINE: str = ""
+        self.DEFAULT_LLM_SPEECH_TERMUX_REGION: str = ""
+        self.DEFAULT_LLM_SPEECH_TERMUX_RATE: str = "1.0"
+        self.DEFAULT_LLM_SPEECH_TERMUX_PITCH: str = "1.0"
+        self.DEFAULT_LLM_SPEECH_TERMUX_STREAM: str = ""
         self.DEFAULT_LLM_SPEECH_SUMMARY_MODEL: str = ""
         self.DEFAULT_LLM_SPEECH_ON_SCREEN_NOTE: str = "The full answer is on screen."
         self.DEFAULT_LLM_SPEECH_EVENTS: str = "reply, approval, question"
@@ -64,7 +70,9 @@ class LLMSpeechMixin:
         str,
         doc=(
             "Text-to-speech backend. One of:\n"
-            "- 'auto' (default): 'say' on macOS, else 'espeak-ng'.\n"
+            "- 'auto' (default): 'termux' on Termux, 'say' on macOS, else "
+            "'espeak-ng'.\n"
+            "- 'termux': Android's voices through Termux:API.\n"
             "- 'say': macOS.\n"
             "- 'espeak-ng': needs espeak-ng on PATH.\n"
             "- 'openai': needs OPENAI_API_KEY.\n"
@@ -118,6 +126,35 @@ class LLMSpeechMixin:
     LLM_SPEECH_GEMINI_MODEL = EnvField(
         str,
         doc="Model for the 'gemini' backend. Default: gemini-2.5-flash-preview-tts.",
+    )
+
+    LLM_SPEECH_TERMUX_LANGUAGE = EnvField(
+        str,
+        doc="Language for the 'termux' backend (-l), e.g. 'en'. Empty: the phone's.",
+    )
+
+    LLM_SPEECH_TERMUX_ENGINE = EnvField(
+        str, doc="Android TTS engine for the 'termux' backend (-e). Empty: the default."
+    )
+
+    LLM_SPEECH_TERMUX_REGION = EnvField(
+        str, doc="Region for the 'termux' backend (-n), e.g. 'US'. Empty: the default."
+    )
+
+    LLM_SPEECH_TERMUX_RATE = EnvField(
+        float, fallback=1.0, doc="Speech rate for the 'termux' backend; 1.0 is normal."
+    )
+
+    LLM_SPEECH_TERMUX_PITCH = EnvField(
+        float, fallback=1.0, doc="Pitch for the 'termux' backend; 1.0 is normal."
+    )
+
+    LLM_SPEECH_TERMUX_STREAM = EnvField(
+        str,
+        doc=(
+            "Android audio stream for the 'termux' backend (-s): ALARM, MUSIC, "
+            "NOTIFICATION, RING, SYSTEM or VOICE_CALL. Empty: the default."
+        ),
     )
 
     LLM_SPEECH_TIMEOUT = EnvField(
