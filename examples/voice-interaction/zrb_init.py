@@ -11,7 +11,6 @@ answer its own voice.
 """
 
 import asyncio
-import logging
 import os
 import re
 import sys
@@ -25,9 +24,7 @@ from zrb.llm.voice import VoiceEngine
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from voice_speaker import is_speaking  # noqa: E402
-
-logger = logging.getLogger(__name__)
+from voice_speaker import is_speaking, log, speak  # noqa: E402
 
 SAMPLE_RATE = 16000  # what VoiceEngine's transcribers expect
 BLOCK_SECONDS = 0.1
@@ -61,14 +58,16 @@ async def hands_free():
     async for audio in _utterances():
         try:
             text = (await engine.transcribe(audio)).strip()
-        except Exception:
-            logger.exception("hands-free: transcription failed")
+        except Exception as e:
+            # A background trigger has no UI to show this in, so say it.
+            log(f"hands-free: transcription failed: {e}")
+            await asyncio.to_thread(speak, "Sorry, transcription failed.")
             continue
         command = _strip_wake_word(text, wake_word)
         if command is None and time.monotonic() < armed_until:
             command = text
         if command is None:
-            logger.info("hands-free: dropped an utterance without the wake word")
+            log("hands-free: dropped an utterance without the wake word")
         elif not command:
             # The wake word alone: people pause after it, so the command
             # arrives as the next utterance.
