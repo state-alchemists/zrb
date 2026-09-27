@@ -366,3 +366,18 @@ async def test_answer_to_a_multi_select_resolves_every_option_it_names(said, ans
         await asyncio.sleep(0.01)
         ui.submit_user_answer(said)
         assert await task == answer
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("said", ["2", "option 2", "Option 2."])
+async def test_a_typed_answer_names_an_unlabeled_option_as_the_widget_does(said):
+    spec = {
+        "question": "Pick",
+        "options": [{"label": "A"}, {"description": "no label"}],
+    }
+    ui = MockConfirmationUI()
+    with patch("prompt_toolkit.application.get_app"):
+        task = asyncio.create_task(ui.ask_user_choice(spec))
+        await asyncio.sleep(0.01)
+        ui.submit_user_answer(said)
+        assert await task == "Option 2"

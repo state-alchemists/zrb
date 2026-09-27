@@ -107,7 +107,7 @@ class FfmpegCameraBackend(AnyCameraBackend):
             input_fmt, input_arg = "avfoundation", device or "0"
             extra_args = ["-framerate", "30"]
         elif sys.platform == "win32":
-            name = device or await self._get_dshow_default_device()
+            name = device or await self._get_dshow_default_device(deadline)
             if name is None:
                 return None
             input_fmt, input_arg = "dshow", f"video={name}"
@@ -154,8 +154,14 @@ class FfmpegCameraBackend(AnyCameraBackend):
         self._last_error = stderr.decode(errors="ignore").strip()[-500:]
         return None
 
-    async def _get_dshow_default_device(self) -> str | None:
-        names = await _list_dshow_devices()
+    async def _get_dshow_default_device(self, deadline: float | None) -> str | None:
+        remaining = get_remaining(deadline)
+        if remaining == 0:
+            return None
+        timeout = DSHOW_LIST_TIMEOUT_SECONDS
+        names = await _list_dshow_devices(
+            timeout if remaining is None else min(timeout, remaining)
+        )
         return names[0] if names else None
 
     def list_devices(self) -> list[str]:
@@ -243,7 +249,9 @@ def _ffmpeg_cmd(input_fmt: str, extra_args: list[str], input_arg: str) -> list[s
     ]
 
 
-async def _list_dshow_devices() -> list[str]:
+async def _list_dshow_devices(
+    timeout: float = DSHOW_LIST_TIMEOUT_SECONDS,
+) -> list[str]:
     """All dshow video device names, via ffmpeg's device listing.
 
     `ffmpeg -f dshow -list_devices true -i dummy` always exits non-zero (the
@@ -262,9 +270,7 @@ async def _list_dshow_devices() -> list[str]:
             stderr=asyncio.subprocess.PIPE,
         )
         try:
-            _, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=DSHOW_LIST_TIMEOUT_SECONDS
-            )
+            _, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         except asyncio.TimeoutError:
             proc.kill()
             await proc.wait()

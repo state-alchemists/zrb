@@ -164,6 +164,16 @@ def _zip(members):
     return fake_zip
 
 
+@pytest.fixture
+def tmp_home(tmp_path, monkeypatch):
+    """A home directory of its own, so no test touches the real ~/.cache and
+    none depends on it already existing."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    return tmp_path
+
+
+@pytest.mark.usefixtures("tmp_home")
 class TestDownloadVoskModel:
     @pytest.mark.asyncio
     async def test_reads_body_in_chunks_then_extracts(self):
@@ -172,7 +182,6 @@ class TestDownloadVoskModel:
         with (
             patch("urllib.request.urlopen", return_value=resp) as urlopen,
             patch("zipfile.ZipFile", return_value=fake_zip) as zip_cls,
-            patch("os.makedirs"),
             patch("os.path.isdir", return_value=True),
         ):
             result = await download_vosk_model("model-x", "http://host")
@@ -186,10 +195,7 @@ class TestDownloadVoskModel:
 
     @pytest.mark.asyncio
     async def test_open_failure_raises_guidance(self):
-        with (
-            patch("urllib.request.urlopen", side_effect=OSError("refused")),
-            patch("os.makedirs"),
-        ):
+        with (patch("urllib.request.urlopen", side_effect=OSError("refused")),):
             with pytest.raises(RuntimeError, match="Failed to download Vosk model"):
                 await download_vosk_model("m", "http://host")
 
@@ -197,10 +203,7 @@ class TestDownloadVoskModel:
     async def test_read_failure_raises_and_closes(self):
         resp = MagicMock()
         resp.read.side_effect = OSError("read broke")
-        with (
-            patch("urllib.request.urlopen", return_value=resp),
-            patch("os.makedirs"),
-        ):
+        with (patch("urllib.request.urlopen", return_value=resp),):
             with pytest.raises(RuntimeError, match="Failed to download Vosk model"):
                 await download_vosk_model("m", "http://host")
         resp.close.assert_called_once()
@@ -210,7 +213,6 @@ class TestDownloadVoskModel:
         with (
             patch("urllib.request.urlopen", return_value=_response(b"d", b"")),
             patch("zipfile.ZipFile", return_value=_zip(["m/x"])),
-            patch("os.makedirs"),
             patch("os.path.isdir", return_value=False),
         ):
             with pytest.raises(RuntimeError, match="did not produce expected"):
@@ -222,7 +224,6 @@ class TestDownloadVoskModel:
         with (
             patch("urllib.request.urlopen", return_value=_response(b"d", b"")),
             patch("zipfile.ZipFile", return_value=fake_zip),
-            patch("os.makedirs"),
         ):
             with pytest.raises(RuntimeError, match="unsafe path in archive member"):
                 await download_vosk_model("m", "http://host")
@@ -233,10 +234,7 @@ class TestDownloadVoskModel:
         release = threading.Event()
         resp = MagicMock()
         resp.read.side_effect = lambda _n: release.wait(timeout=5) and b""
-        with (
-            patch("urllib.request.urlopen", return_value=resp),
-            patch("os.makedirs"),
-        ):
+        with (patch("urllib.request.urlopen", return_value=resp),):
             task = asyncio.create_task(download_vosk_model("m", "http://host"))
             await asyncio.sleep(0.1)
             task.cancel()
@@ -271,8 +269,8 @@ class _Response:
 
 
 @pytest.mark.asyncio
-async def test_download_moves_a_complete_model_into_place(tmp_path, monkeypatch):
-    monkeypatch.setenv("HOME", str(tmp_path))
+async def test_download_moves_a_complete_model_into_place(tmp_home, monkeypatch):
+    tmp_path = tmp_home
     body = _zip_of({"m/conf/model.conf": b"ok"})
     seen_timeouts = []
 
@@ -293,8 +291,10 @@ async def test_download_moves_a_complete_model_into_place(tmp_path, monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_a_model_another_session_installed_first_is_kept(tmp_path, monkeypatch):
-    monkeypatch.setenv("HOME", str(tmp_path))
+async def test_a_model_another_session_installed_first_is_kept(
+    tmp_home, monkeypatch
+):
+    tmp_path = tmp_home
     installed = tmp_path / ".cache" / "vosk" / "m"
     installed.mkdir(parents=True)
     (installed / "marker").write_bytes(b"first")

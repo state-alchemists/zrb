@@ -29,6 +29,7 @@ from zrb.llm.hook.types import HookEvent
 from zrb.llm.tool.ambient_state import get_interactive_mode
 from zrb.llm.tool.wrapper import tool_safe_async
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
+from zrb.llm.tool_call.choice_spec_format import get_option_label
 
 if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import ChoiceSpec
@@ -167,7 +168,7 @@ def _resolve_answer(q: dict[str, Any], raw: str) -> str:
             return None
         i = int(token) - 1
         if 0 <= i < len(options):
-            return options[i].get("label", token)
+            return get_option_label(options[i], i)
         return None
 
     if multi:

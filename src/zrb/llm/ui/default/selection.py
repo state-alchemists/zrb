@@ -19,6 +19,7 @@ from __future__ import annotations
 import textwrap
 from typing import TYPE_CHECKING
 
+from zrb.llm.tool_call.choice_spec_format import get_option_label
 from zrb.llm.ui.default.app.focus import focus_widget, invalidate_app
 
 if TYPE_CHECKING:
@@ -192,7 +193,7 @@ class UISelection:
             if spec.get("multi_select"):
                 checked = sorted(self._choice_selected)
                 prefix = ", ".join(
-                    options[i].get("label", str(i))
+                    get_option_label(options[i], i)
                     for i in checked
                     if 0 <= i < len(options)
                 )
@@ -208,7 +209,7 @@ class UISelection:
         else:
             indices = [self._choice_cursor]
         labels = [
-            options[i].get("label", str(i)) for i in indices if 0 <= i < len(options)
+            get_option_label(options[i], i) for i in indices if 0 <= i < len(options)
         ]
         answer = ", ".join(labels)
         self._ui.resolve_current(answer, echo=self._answer_echo(question, answer))
@@ -259,7 +260,7 @@ class UISelection:
             frags.append(("class:choice.option", "\n"))
             frags += self._render_row(
                 i,
-                opt.get("label", f"Option {i + 1}"),
+                get_option_label(opt, i),
                 opt.get("description", ""),
                 multi,
                 width,

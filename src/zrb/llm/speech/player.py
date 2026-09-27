@@ -22,16 +22,33 @@ from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 
 logger = logging.getLogger(__name__)
 
-_playing = threading.Event()
+_state_lock = threading.Lock()
+# How many utterances this process is playing now, across every speaker.
+_playing_count = 0
+# Every lock file a speaker in this process plays under.
+_lock_files: set[str] = set()
 
 
 def is_speaking(lock_file: str | None = None) -> bool:
-    """Whether this process, or another zrb session using *lock_file*
-    (default `CFG.LLM_SPEECH_LOCK_FILE`), is playing speech."""
-    if _playing.is_set():
-        return True
+    """Whether this process, or a zrb session sharing a lock file with it, is
+    playing speech.
+
+    The lock files checked are *lock_file*, `CFG.LLM_SPEECH_LOCK_FILE`, and
+    every one a `Speaker` in this process uses, so dictation hears a speaker
+    configured with its own lock file without being told about it.
+    """
+    with _state_lock:
+        if _playing_count:
+            return True
+        lock_files = {*_lock_files, CFG.LLM_SPEECH_LOCK_FILE}
+    if lock_file:
+        lock_files.add(lock_file)
+    return any(_is_locked(path) for path in lock_files)
+
+
+def _is_locked(lock_file: str) -> bool:
     try:
-        with hold_file_lock(lock_file or CFG.LLM_SPEECH_LOCK_FILE, timeout=0):
+        with hold_file_lock(lock_file, timeout=0):
             return False
     except FileLockTimeout:
         return True
@@ -49,6 +66,9 @@ class Speaker:
 
     def __init__(self, config: SpeechConfig) -> None:
         self._config = config
+        if config.lock_file:
+            with _state_lock:
+                _lock_files.add(config.lock_file)
         self._queue: "queue.Queue[str | None]" = queue.Queue()
         self._worker: threading.Thread | None = None
         self.is_enabled = True
@@ -131,12 +151,18 @@ def play(utterance: Utterance, config: SpeechConfig) -> None:
         with hold_file_lock(
             config.lock_file or CFG.LLM_SPEECH_LOCK_FILE, timeout=config.lock_timeout
         ):
-            _playing.set()
+            _set_playing(+1)
             try:
                 utterance.play(config.player_timeout or None)
             finally:
-                _playing.clear()
+                _set_playing(-1)
     except FileLockTimeout:
         logger.warning("Speech dropped: another session held the audio device")
     except Exception as exc:
         logger.warning(f"Speech playback failed: {exc}")
+
+
+def _set_playing(change: int) -> None:
+    global _playing_count
+    with _state_lock:
+        _playing_count += change

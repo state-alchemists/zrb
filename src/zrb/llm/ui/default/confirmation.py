@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.llm.tool.ambient_state import get_session_ownership_key
+from zrb.llm.tool_call.choice_spec_format import get_option_label
 
 if TYPE_CHECKING:
     from zrb.llm.ui.default.ui import UI
@@ -259,7 +260,7 @@ def _match_choice_label(spec: Any, text: str) -> str:
     joins them, else *text* as a free-text answer. A multi-select answer
     lists options separated by commas or "and": "1, 3", "red and blue"."""
     options = spec.get("options", []) if isinstance(spec, dict) else []
-    labels = [str(option.get("label", "")) for option in options]
+    labels = [get_option_label(option, index) for index, option in enumerate(options)]
     whole = _match_one_label(labels, text)
     if whole is not None:
         return whole

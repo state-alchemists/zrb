@@ -137,3 +137,42 @@ def test_a_failing_player_is_logged_not_raised(lock_file):
     play(Broken([]), _config(FakeBackend(), lock_file))
 
     assert not is_speaking(lock_file)
+
+
+def test_dictation_hears_a_speaker_with_its_own_lock_file(tmp_path, lock_file):
+    """is_speaking() without arguments is what dictation calls."""
+    custom = str(tmp_path / "custom.lock")
+    Speaker(_config(FakeBackend(), custom))
+
+    with hold_file_lock(custom):
+        assert is_speaking()
+    assert not is_speaking()
+
+
+def test_two_speakers_playing_at_once_keep_speaking_true(tmp_path):
+    first_started, release_first = threading.Event(), threading.Event()
+    seen_after_second = []
+
+    class Blocking(Utterance):
+        def play(self, timeout):
+            first_started.set()
+            release_first.wait(5)
+
+    class Checking(Utterance):
+        def play(self, timeout):
+            pass
+
+    first_config = _config(FakeBackend(), str(tmp_path / "a.lock"))
+    second_config = _config(FakeBackend(), str(tmp_path / "b.lock"))
+    worker = threading.Thread(target=play, args=(Blocking([]), first_config))
+    worker.start()
+    first_started.wait(5)
+
+    play(Checking([]), second_config)
+    seen_after_second.append(is_speaking())
+    release_first.set()
+    worker.join(5)
+
+    # The second speaker finishing must not hide the first one still playing.
+    assert seen_after_second == [True]
+    assert not is_speaking()

@@ -353,6 +353,7 @@ async def test_an_mjpeg_attempt_that_times_out_leaves_no_time_for_the_raw_one(
 
 @pytest.mark.asyncio
 async def test_auto_shares_one_deadline_between_termux_and_ffmpeg(clean_env, tmp_path):
+    clean_env.setattr("sys.platform", "linux")
     clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
     clean_env.setattr("shutil.which", _which_only("termux-camera-photo", "ffmpeg"))
     started: list[_FakeProcess] = []
@@ -406,3 +407,24 @@ async def test_each_termux_capture_writes_its_own_file(clean_env):
 
     assert len(set(paths)) == 2
     assert all(f"_camera_" in path for path in paths)
+
+
+@pytest.mark.asyncio
+async def test_windows_device_detection_stays_inside_the_deadline(clean_env):
+    clean_env.setattr("sys.platform", "win32")
+    clean_env.setattr("shutil.which", _which_only("ffmpeg"))
+    started: list[_FakeProcess] = []
+
+    def _make_proc(*args, **kwargs):
+        proc = _FakeProcess(hang_seconds=10)
+        started.append(proc)
+        return proc
+
+    loop = asyncio.get_running_loop()
+    begin = loop.time()
+    with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
+        result = await FfmpegCameraBackend(timeout=0.05).capture(None)
+
+    assert result is None
+    assert loop.time() - begin < 1  # not the 5 s device-listing timeout
+    assert len(started) == 1
