@@ -50,21 +50,35 @@ SPEAK_LOG = Path(
 
 
 def log(message: str) -> None:
-    """Append to the side log; stderr is reserved for zrb's hook protocol."""
+    """Append to the side log; stderr is reserved for zrb's hook protocol.
+
+    The file is created 0600 and never followed through a symlink, and a log
+    owned by another user is left alone.
+    """
+    flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND | getattr(os, "O_NOFOLLOW", 0)
     try:
-        with open(SPEAK_LOG, "a") as fh:
-            fh.write(f"{time.strftime('%H:%M:%S')} {message}\n")
+        fd = os.open(str(SPEAK_LOG), flags, 0o600)
+    except OSError:
+        return
+    try:
+        if os.fstat(fd).st_uid == os.getuid():
+            os.write(fd, f"{time.strftime('%H:%M:%S')} {message}\n".encode())
     except OSError:
         pass
+    finally:
+        os.close(fd)
 
 
 _FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
 _INLINE_CODE_RE = re.compile(r"`([^`]*)`")
 _TABLE_ROW_RE = re.compile(r"^\s*\|.*\|\s*$", re.MULTILINE)
+# A table's separator row, with or without outer pipes: `--- | :---:`.
+_TABLE_SEPARATOR_RE = re.compile(r"^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?\s*$")
 _LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]+\)")
 _URL_RE = re.compile(r"https?://\S+")
 _HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s*", re.MULTILINE)
 _QUOTE_RE = re.compile(r"^\s{0,3}>\s?", re.MULTILINE)
+_RULE_RE = re.compile(r"^\s*([-*_])(\s*\1){2,}\s*$", re.MULTILINE)
 _BULLET_RE = re.compile(r"^\s*[-*+]\s+", re.MULTILINE)
 _EMPHASIS_RE = re.compile(r"(\*\*|__|\*|_|~~)")
 # espeak-ng reads some emoji aloud ("smiling face").
@@ -82,8 +96,10 @@ def clean_for_speech(text: str) -> str:
     text = _FENCE_RE.sub(" ", text)
     text = _LINK_RE.sub(r"\1", text)
     text = _URL_RE.sub(" ", text)
+    text = _strip_tables(text)
     text = _TABLE_ROW_RE.sub(" ", text)
     text = _INLINE_CODE_RE.sub(r"\1", text)
+    text = _RULE_RE.sub("", text)
     text = _HEADING_RE.sub("", text)
     text = _QUOTE_RE.sub("", text)
     text = _BULLET_RE.sub("", text)
@@ -97,6 +113,24 @@ def clean_for_speech(text: str) -> str:
     text = re.sub(r"\.{2,}", ".", text)
     text = re.sub(r"\s+([.,;:!?])", r"\1", text)
     return text.strip()
+
+
+def _strip_tables(text: str) -> str:
+    """Drop every table: its header, separator and pipe-separated rows."""
+    lines = text.split("\n")
+    kept: list[str] = []
+    in_table = False
+    for line in lines:
+        if _TABLE_SEPARATOR_RE.match(line):
+            if kept and "|" in kept[-1]:
+                kept.pop()  # the header row
+            in_table = True
+            continue
+        if in_table and "|" in line:
+            continue
+        in_table = False
+        kept.append(line)
+    return "\n".join(kept)
 
 
 def truncate_for_speech(text: str, max_chars: int) -> str:
@@ -288,7 +322,7 @@ def _prepare_with_fallback(requested: str, spoken: str) -> Utterance | None:
             voice = os.getenv("ZRB_VOICE_NAME", voice)
         try:
             utterance = prepare(backend, spoken, voice, rate)
-            log(f"speak[{backend}]: {spoken[:80]!r}")
+            log(f"speak[{backend}]: {len(spoken)} chars")
             return utterance
         except Exception as exc:
             log(f"error: backend {backend} failed: {type(exc).__name__}: {exc}")
@@ -327,7 +361,7 @@ def run_player(argv: list[str], label: str = "") -> None:
             except OSError:
                 if time.monotonic() >= deadline:
                     # Better dropped than killed at the hook timeout.
-                    log(f"skip: lock busy >{lock_timeout}s, dropping: {label[:60]!r}")
+                    log(f"skip: lock busy >{lock_timeout}s, dropping {len(label)} chars")
                     return
                 time.sleep(0.1)
         subprocess.run(

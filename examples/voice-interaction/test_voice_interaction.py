@@ -56,6 +56,17 @@ class TestCleanup(unittest.TestCase):
         self.assertIn("the PR", cleaned, "link label should survive")
         self.assertIn("no further action needed", cleaned)
 
+    def test_strips_tables_without_outer_pipes(self):
+        cleaned = clean_for_speech("Results:\n\ncol | val\n--- | :-:\na | 1\n\nAll done.")
+        self.assertNotIn("|", cleaned)
+        self.assertNotIn("---", cleaned)
+        self.assertIn("All done", cleaned)
+
+    def test_keeps_a_pipe_in_prose_and_drops_rules(self):
+        cleaned = clean_for_speech("Intro.\n\n---\n\nUse a | b here.")
+        self.assertIn("a | b", cleaned)
+        self.assertNotIn("---", cleaned)
+
     def test_empty_input(self):
         self.assertEqual(clean_for_speech(""), "")
         self.assertEqual(clean_for_speech("```only code```"), "")
@@ -121,6 +132,38 @@ class TestSpeakSerialization(unittest.TestCase):
             voice_speaker.run_player(["say", "second"])  # deadlocks if leaked
 
 
+class TestLog(unittest.TestCase):
+    def setUp(self):
+        self.path = Path(tempfile.gettempdir()) / f"zrb-voice-log-test-{os.getpid()}.log"
+        self.path.unlink(missing_ok=True)
+        self.original = voice_speaker.SPEAK_LOG
+        voice_speaker.SPEAK_LOG = self.path
+
+    def tearDown(self):
+        voice_speaker.SPEAK_LOG = self.original
+        self.path.unlink(missing_ok=True)
+
+    def test_log_is_private_to_the_user(self):
+        voice_speaker.log("hello")
+        self.assertEqual(self.path.stat().st_mode & 0o777, 0o600)
+
+    def test_log_does_not_follow_a_symlink(self):
+        target = self.path.with_suffix(".target")
+        target.write_text("")
+        try:
+            self.path.symlink_to(target)
+            voice_speaker.log("hello")
+            self.assertEqual(target.read_text(), "")
+        finally:
+            target.unlink(missing_ok=True)
+
+    def test_spoken_text_is_not_logged(self):
+        with mock.patch.object(voice_speaker, "run_player"), \
+                mock.patch.object(voice_speaker.shutil, "which", return_value="/usr/bin/say"):
+            voice_speaker.speak("my secret plan")
+        self.assertNotIn("secret", self.path.read_text())
+
+
 class TestBackends(unittest.TestCase):
     def test_auto_picks_say_when_present(self):
         with mock.patch.object(voice_speaker.shutil, "which", return_value="/usr/bin/say"):
@@ -182,6 +225,15 @@ class TestHookContract(unittest.TestCase):
         )
         self.assertEqual(code, 0, "hook must exit 0 or zrb re-runs the turn")
         self.assertIn("All tests pass", speak_mock.call_args[0][0])
+
+    def test_stop_speaks_a_response_over_the_env_limit(self):
+        """stdin has no 16 KiB cap, unlike CLAUDE_EVENT_DATA."""
+        long_text = "All tests pass. " + "x" * 20000
+        code, speak_mock = self._run(
+            "Stop", {"hook_event_name": "Stop", "last_assistant_message": long_text}
+        )
+        self.assertEqual(code, 0)
+        speak_mock.assert_called_once()
 
     def test_stop_without_message_is_silent(self):
         code, speak_mock = self._run("Stop", {"hook_event_name": "Stop"})

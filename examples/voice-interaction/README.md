@@ -24,7 +24,8 @@ nowhere else. Listening needs `zrb[voice]`; speaking needs nothing extra.
 The hook command is the relative `python3 hook_speak.py`, and hooks run in the
 session's working directory, so start zrb from this folder, not a subfolder.
 To speak in every session, copy the `hooks` block into `~/.zrb/hooks.json` with
-an absolute path.
+an absolute path, quoted in case it contains spaces:
+`python3 "/path/to/examples/voice-interaction/hook_speak.py" || exit 0`.
 
 ## Listening
 
@@ -107,12 +108,12 @@ packages.
 | `ZRB_VOICE_GEMINI_MODEL` | `gemini-2.5-flash-preview-tts` | |
 | `ZRB_VOICE_CLOUD_TIMEOUT` | `15` | Seconds |
 | `ZRB_VOICE_LOCK_TIMEOUT` | `30` | Seconds to wait for the audio device before dropping |
-| `ZRB_VOICE_LOG` | `$TMPDIR/zrb-voice-speaker.log` | Side log |
+| `ZRB_VOICE_LOG` | `$TMPDIR/zrb-voice-speaker.log` | Side log: events and errors, never the spoken text; created `0600` |
 
 What is said:
 
-- **`Stop`**: `last_assistant_message`, with code blocks, tables, URLs and
-  markdown stripped.
+- **`Stop`**: `last_assistant_message`, with code blocks, tables (with or
+  without outer pipes), URLs and markdown stripped.
 - **`PermissionRequest`**: "I need to write a file /tmp/a.py. I need your
   approval." A template, since you are waiting on it.
 - **`Notification`**: only `elicitation_dialog` and `permission_prompt`.

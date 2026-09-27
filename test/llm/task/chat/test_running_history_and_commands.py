@@ -215,3 +215,70 @@ async def test_run_non_interactive_session_applies_agent_mention_nudge(runner):
     mock_resolve_mention.assert_called_once_with("hi @researcher")
     sent_session = llm_task_core.async_run.call_args.args[0]
     assert sent_session.shared_ctx.input["message"] == "NUDGED:hi @researcher"
+
+
+@pytest.mark.asyncio
+async def test_non_interactive_action_command_runs_no_turn(runner):
+    """An ActionCommand as the initial message prints its reply and never
+    reaches the LLM."""
+    from zrb.llm.custom_command import ActionCommand
+
+    runner.llm_chat_task.custom_commands = [
+        ActionCommand("/toggle", lambda kwargs: "Toggled")
+    ]
+    ctx = MagicMock()
+    ctx.xcom = {}
+    llm_task_core = MagicMock()
+    llm_task_core.async_run = AsyncMock()
+
+    result = await runner.run_non_interactive_session(
+        ctx=ctx,
+        llm_task_core=llm_task_core,
+        history_manager=MagicMock(),
+        ui_commands={},
+        initial_message="/toggle",
+        initial_conversation_name="sess1",
+        initial_yolo=False,
+        initial_attachments=[],
+    )
+
+    assert result == "Toggled"
+    llm_task_core.async_run.assert_not_called()
+    ctx.print.assert_called_once_with("Toggled", plain=True)
+    assert "__conversation_name__" not in ctx.xcom
+
+
+@pytest.mark.asyncio
+async def test_interactive_action_command_shows_reply_and_sends_nothing(
+    runner, ui_commands
+):
+    """In the TUI the reply lands in the output and the UI starts with no
+    initial message, so no turn is submitted."""
+    from zrb.llm.custom_command import ActionCommand
+
+    runner.llm_chat_task.custom_commands = [
+        ActionCommand("/toggle", lambda kwargs: "Toggled")
+    ]
+    ctx = MagicMock()
+    ctx.xcom = {}
+    history_manager = MagicMock()
+    history_manager.load.return_value = []
+    mock_ui = SimpleMockUI()
+    shown: list = []
+    mock_ui.append_to_output = lambda *values, **kwargs: shown.extend(values)
+
+    with patch("zrb.llm.ui.default.ui.UI") as MockUI:
+        MockUI.return_value = mock_ui
+        await runner.run_interactive_session(
+            ctx=ctx,
+            llm_task_core=MagicMock(),
+            history_manager=history_manager,
+            ui_commands=ui_commands,
+            initial_message="/toggle",
+            initial_conversation_name="",
+            initial_yolo=False,
+            initial_attachments=[],
+        )
+
+    assert MockUI.call_args.kwargs["initial_message"] == ""
+    assert any("Toggled" in str(v) for v in shown)
