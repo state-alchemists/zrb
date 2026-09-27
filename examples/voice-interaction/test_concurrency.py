@@ -1,10 +1,10 @@
 """Concurrency check: concurrent speakers must not overlap.
 
-Mirrors production: zrb fires Stop / PermissionRequest / Notification on a
-thread pool as separate *processes*. They share only the lock file, so this
-uses real subprocesses rather than threads or multiprocessing.
+One session plays its queue in order; separate zrb sessions share only the
+lock file, so this uses real subprocesses rather than threads.
 
-Run: python3 test_concurrency.py
+Run with the Python zrb is installed in:
+    ~/.local/pipx/venvs/zrb/bin/python test_concurrency.py
 """
 
 import os
@@ -48,7 +48,13 @@ def main() -> int:
 
     procs = [
         subprocess.Popen(
-            [sys.executable, str(HERE / "voice_speaker.py"), f"message-number-{i}"],
+            [
+                sys.executable,
+                "-c",
+                "import sys, zrb_init; zrb_init.speak(sys.argv[1])",
+                f"message-number-{i}",
+            ],
+            cwd=HERE,
             env=env,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
