@@ -29,20 +29,27 @@ The hook command is the relative `python3 hook_speak.py`, and hooks run in the s
 | Variable | Default | Meaning |
 |---|---|---|
 | `ZRB_VOICE_HANDS_FREE` | off | `1` starts the session with hands-free on |
-| `ZRB_VOICE_WAKE_WORD` | none | Only utterances starting with it count; it is stripped. Said alone, it accepts the next utterance within 8 s. Use a real word: vosk hears "zrb" as "hazy are be" |
+| `ZRB_VOICE_WAKE_WORD` | none | Comma-separated; only utterances starting with one count, and it is stripped. Said alone, it accepts the next utterance spoken within 8 s |
 | `ZRB_VOICE_HANDS_FREE_THRESHOLD` | `0.01` | RMS level that counts as speech |
 | `ZRB_VOICE_HANDS_FREE_SILENCE` | `1.0` | Seconds of silence that end an utterance |
+| `ZRB_VOICE_DEBUG` | off | `1` writes what was heard to the side log |
+
+List every spelling the transcriber may produce. With an Indonesian-accented
+"Hi", `gpt-4o-transcribe` wrote `Hai` in 7 of 12 clips and once `嗨`; pinning
+the language to English did not stop it. Avoid made-up words: vosk hears "zrb"
+as "hazy are be". When an utterance is dropped, `ZRB_VOICE_DEBUG=1` shows what
+the transcriber wrote.
 
 Without a wake word, anything the microphone hears becomes a turn. Don't use push-to-talk while hands-free is on, or the words are submitted twice.
 
 ### Recommended transcription
 
-zrb defaults to offline vosk, which mangles technical speech. With `GEMINI_API_KEY` set, use this instead:
+zrb defaults to offline vosk, which mangles technical speech. With `OPENAI_API_KEY` set, use this instead:
 
 ```bash
-export ZRB_LLM_VOICE_MODE=google
-export ZRB_LLM_VOICE_GOOGLE_MODEL=gemini-3.5-flash
-export ZRB_VOICE_WAKE_WORD=hi
+export ZRB_LLM_VOICE_MODE=openai
+export ZRB_LLM_VOICE_OPENAI_MODEL=gpt-4o-transcribe
+export ZRB_VOICE_WAKE_WORD="hi,hai,hey,嗨"
 ```
 
 One clip, generated with macOS `say`: *"Refactor the hook manager in zrb so pydantic AI streams the last assistant message, then run pytest and push to GitHub."*

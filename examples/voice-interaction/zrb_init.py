@@ -53,43 +53,53 @@ def toggle_hands_free(kwargs: dict[str, str]) -> str:
 async def hands_free():
     """Yield one user turn per spoken utterance."""
     engine = VoiceEngine()
-    wake_word = os.getenv("ZRB_VOICE_WAKE_WORD", "")
+    wake_words = _parse_wake_words(os.getenv("ZRB_VOICE_WAKE_WORD", ""))
+    debug = os.getenv("ZRB_VOICE_DEBUG", "").strip().lower() in ("1", "true", "yes")
     armed_until = 0.0
-    async for audio in _utterances():
+    async for audio, started_at, ended_at in _utterances():
         try:
             text = (await engine.transcribe(audio)).strip()
-            log(f"hands-free: transcribed {len(text)} chars")
+            log(f"hands-free: heard {text!r}" if debug else "hands-free: transcribed")
         except Exception as e:
             # A background trigger has no UI to show this in, so say it.
             log(f"hands-free: transcription failed: {e}")
             await asyncio.to_thread(speak, "Sorry, transcription failed.")
             continue
-        command = _strip_wake_word(text, wake_word)
-        if command is None and time.monotonic() < armed_until:
+        command = _strip_wake_word(text, wake_words)
+        # Compared against when this utterance was spoken, not when its
+        # transcription finished: transcription alone can take seconds.
+        if command is None and started_at < armed_until:
             command = text
         if command is None:
             log("hands-free: dropped an utterance without the wake word")
         elif not command:
             # The wake word alone: people pause after it, so the command
             # arrives as the next utterance.
-            armed_until = time.monotonic() + WAKE_WINDOW_SECONDS
+            armed_until = ended_at + WAKE_WINDOW_SECONDS
         else:
             armed_until = 0.0
             yield command
 
 
-def _strip_wake_word(text: str, wake_word: str) -> str | None:
-    """Return *text* after the wake word, or None if it does not start with it.
+def _parse_wake_words(value: str) -> list[list[str]]:
+    """Split "hi, hai, hey jarvis" into alternatives, each a list of words."""
+    alternatives = (_WORD_RE.findall(part.lower()) for part in value.split(","))
+    return [words for words in alternatives if words]
+
+
+def _strip_wake_word(text: str, wake_words: list[list[str]]) -> str | None:
+    """Return *text* after a wake word, or None if it starts with none of them.
 
     Compared word by word, so "Hey, Jarvis." matches "hey jarvis".
     """
-    wanted = _WORD_RE.findall(wake_word.lower())
-    if not wanted:
+    if not wake_words:
         return text
     words = list(_WORD_RE.finditer(text))
-    if [w.group().lower() for w in words[: len(wanted)]] != wanted:
-        return None
-    return text[words[len(wanted) - 1].end() :].lstrip(" ,.!?;:")
+    heard = [w.group().lower() for w in words]
+    for wanted in wake_words:
+        if heard[: len(wanted)] == wanted:
+            return text[words[len(wanted) - 1].end() :].lstrip(" ,.!?;:，。")
+    return None
 
 
 async def _utterances():
@@ -103,19 +113,22 @@ async def _utterances():
         import numpy as np
         import sounddevice as sd
 
-        async for audio in _listen(np, sd, threshold, max_silence):
-            yield audio
+        async for utterance in _listen(np, sd, threshold, max_silence):
+            yield utterance
 
 
 async def _listen(np, sd, threshold: float, max_silence: float):
-    """Yield utterances until hands-free is switched off; the mic closes then."""
+    """Yield (audio, started_at, ended_at) until hands-free is switched off.
+
+    The times are `time.monotonic()` at capture. The mic closes on switch-off.
+    """
     loop = asyncio.get_running_loop()
     blocks: asyncio.Queue = asyncio.Queue()
 
     def on_audio(indata, frames, time_info, status):
         # Sample the lock at capture: blocks queue up during transcription,
         # so checking at processing time would let playback audio through.
-        captured = (indata.copy(), is_speaking())
+        captured = (indata.copy(), is_speaking(), time.monotonic())
         loop.call_soon_threadsafe(blocks.put_nowait, captured)
 
     stream = sd.InputStream(
@@ -128,11 +141,12 @@ async def _listen(np, sd, threshold: float, max_silence: float):
     pre_roll: deque = deque(maxlen=PRE_ROLL_BLOCKS)
     speech: list = []
     silent_for = 0.0
+    started_at = 0.0
     cooldown_blocks = 0  # in blocks, not wall time, for the same reason
     with stream:
         log(f"hands-free: listening on {sd.query_devices(kind='input')['name']}")
         while _hands_free["on"]:
-            block, agent_speaking = await blocks.get()
+            block, agent_speaking, captured_at = await blocks.get()
             if agent_speaking:
                 speech, silent_for = [], 0.0
                 pre_roll.clear()
@@ -146,6 +160,7 @@ async def _listen(np, sd, threshold: float, max_silence: float):
                 pre_roll.append(block)
                 if loud:
                     speech, silent_for = list(pre_roll), 0.0
+                    started_at = captured_at
                     pre_roll.clear()
                 continue
             speech.append(block)
@@ -156,7 +171,8 @@ async def _listen(np, sd, threshold: float, max_silence: float):
             if duration - silent_for >= MIN_SPEECH_SECONDS:
                 audio = np.concatenate(speech, axis=0)
                 log(f"hands-free: heard {duration - silent_for:.1f} s of speech")
-                yield (audio * 32767).astype(np.int16).tobytes()
+                pcm = (audio * 32767).astype(np.int16).tobytes()
+                yield pcm, started_at, captured_at
             speech, silent_for = [], 0.0
 
 
