@@ -13,7 +13,9 @@ answer its own voice.
 import asyncio
 import logging
 import os
+import re
 import sys
+import time
 from collections import deque
 
 from zrb import CFG
@@ -33,6 +35,8 @@ PRE_ROLL_BLOCKS = 3  # keep 0.3 s before speech starts, or the first word clips
 MIN_SPEECH_SECONDS = 0.4  # shorter bursts are coughs and clicks
 MAX_UTTERANCE_SECONDS = 30.0
 POST_SPEECH_COOLDOWN = 0.4  # room echo outlives the player process
+WAKE_WINDOW_SECONDS = 8.0  # how long the wake word alone keeps listening
+_WORD_RE = re.compile(r"[\w']+")
 
 
 # Push-to-talk, unless the user set it either way.
@@ -52,25 +56,40 @@ def toggle_hands_free(kwargs: dict[str, str]) -> str:
 async def hands_free():
     """Yield one user turn per spoken utterance."""
     engine = VoiceEngine()
-    wake_word = os.getenv("ZRB_VOICE_WAKE_WORD", "").strip().lower()
+    wake_word = os.getenv("ZRB_VOICE_WAKE_WORD", "")
+    armed_until = 0.0
     async for audio in _utterances():
         try:
             text = (await engine.transcribe(audio)).strip()
         except Exception:
             logger.exception("hands-free: transcription failed")
             continue
-        text = _strip_wake_word(text, wake_word)
-        if text:
-            yield text
+        command = _strip_wake_word(text, wake_word)
+        if command is None and time.monotonic() < armed_until:
+            command = text
+        if command is None:
+            logger.info("hands-free: dropped an utterance without the wake word")
+        elif not command:
+            # The wake word alone: people pause after it, so the command
+            # arrives as the next utterance.
+            armed_until = time.monotonic() + WAKE_WINDOW_SECONDS
+        else:
+            armed_until = 0.0
+            yield command
 
 
-def _strip_wake_word(text: str, wake_word: str) -> str:
-    """With a wake word set, only utterances that start with it count."""
-    if not wake_word:
+def _strip_wake_word(text: str, wake_word: str) -> str | None:
+    """Return *text* after the wake word, or None if it does not start with it.
+
+    Compared word by word, so "Hey, Jarvis." matches "hey jarvis".
+    """
+    wanted = _WORD_RE.findall(wake_word.lower())
+    if not wanted:
         return text
-    if not text.lower().startswith(wake_word):
-        return ""
-    return text[len(wake_word) :].lstrip(" ,.")
+    words = list(_WORD_RE.finditer(text))
+    if [w.group().lower() for w in words[: len(wanted)]] != wanted:
+        return None
+    return text[words[len(wanted) - 1].end() :].lstrip(" ,.!?;:")
 
 
 async def _utterances():
