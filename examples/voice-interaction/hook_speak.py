@@ -81,7 +81,10 @@ def handle_permission_request(payload: dict) -> None:
 
 def handle_notification(payload: dict) -> None:
     # Only the notifications the user has to act on.
-    if payload.get("notification_type") not in ("elicitation_dialog", "permission_prompt"):
+    if payload.get("notification_type") not in (
+        "elicitation_dialog",
+        "permission_prompt",
+    ):
         log(f"notification: ignored type={payload.get('notification_type')!r}")
         return
     speak(payload.get("message") or "A question is waiting for your answer.")

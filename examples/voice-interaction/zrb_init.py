@@ -70,7 +70,7 @@ def _strip_wake_word(text: str, wake_word: str) -> str:
         return text
     if not text.lower().startswith(wake_word):
         return ""
-    return text[len(wake_word):].lstrip(" ,.")
+    return text[len(wake_word) :].lstrip(" ,.")
 
 
 async def _utterances():
@@ -137,6 +137,7 @@ async def _listen(np, sd, threshold: float, max_silence: float):
                 audio = np.concatenate(speech, axis=0)
                 yield (audio * 32767).astype(np.int16).tobytes()
             speech, silent_for = [], 0.0
+
 
 llm_chat.append_trigger(hands_free)
 llm_chat.append_custom_command(

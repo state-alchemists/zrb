@@ -366,7 +366,9 @@ def run_player(argv: list[str], label: str = "") -> None:
             except OSError:
                 if time.monotonic() >= deadline:
                     # Better dropped than killed at the hook timeout.
-                    log(f"skip: lock busy >{lock_timeout}s, dropping {len(label)} chars")
+                    log(
+                        f"skip: lock busy >{lock_timeout}s, dropping {len(label)} chars"
+                    )
                     return
                 time.sleep(0.1)
         subprocess.run(

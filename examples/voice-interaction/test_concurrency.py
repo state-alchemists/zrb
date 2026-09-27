@@ -19,7 +19,7 @@ STUB = HERE / "_stub_backend.py"
 
 # A backend that records when it started and finished, and takes long enough
 # that any overlap is unmistakable.
-STUB_CODE = '''
+STUB_CODE = """
 import sys, time
 start = time.monotonic()
 with open("/tmp/zrb-concurrency-trace.log", "a") as fh:
@@ -29,7 +29,7 @@ time.sleep(0.5)
 with open("/tmp/zrb-concurrency-trace.log", "a") as fh:
     fh.write(f"END   {sys.argv[1]} {time.monotonic():.4f}\\n")
     fh.flush()
-'''
+"""
 
 
 def main() -> int:
@@ -42,9 +42,7 @@ def main() -> int:
     shim_dir = Path("/tmp/zrb-voice-shim")
     shim_dir.mkdir(exist_ok=True)
     shim = shim_dir / "espeak-ng"
-    shim.write_text(
-        f'#!/bin/sh\nexec {sys.executable} {STUB} "$@"\n'
-    )
+    shim.write_text(f'#!/bin/sh\nexec {sys.executable} {STUB} "$@"\n')
     shim.chmod(0o755)
     env["PATH"] = f"{shim_dir}:{env['PATH']}"
 

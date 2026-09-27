@@ -57,7 +57,9 @@ class TestCleanup(unittest.TestCase):
         self.assertIn("no further action needed", cleaned)
 
     def test_strips_tables_without_outer_pipes(self):
-        cleaned = clean_for_speech("Results:\n\ncol | val\n--- | :-:\na | 1\n\nAll done.")
+        cleaned = clean_for_speech(
+            "Results:\n\ncol | val\n--- | :-:\na | 1\n\nAll done."
+        )
         self.assertNotIn("|", cleaned)
         self.assertNotIn("---", cleaned)
         self.assertIn("All done", cleaned)
@@ -94,8 +96,10 @@ class TestSpeakSerialization(unittest.TestCase):
         self.tmp.unlink(missing_ok=True)
 
     def test_dispatch_reaches_player(self):
-        with mock.patch.dict(os.environ, {"ZRB_VOICE_BACKEND": "auto"}), \
-                mock.patch.object(voice_speaker, "run_player") as player:
+        with (
+            mock.patch.dict(os.environ, {"ZRB_VOICE_BACKEND": "auto"}),
+            mock.patch.object(voice_speaker, "run_player") as player,
+        ):
             voice_speaker.speak("hello there")
         player.assert_called_once()
         argv = player.call_args[0][0]
@@ -118,7 +122,8 @@ class TestSpeakSerialization(unittest.TestCase):
         """The hands-free listener mutes the mic on this; it must see playback."""
         seen = []
         with mock.patch.object(
-            voice_speaker.subprocess, "run",
+            voice_speaker.subprocess,
+            "run",
             side_effect=lambda *a, **k: seen.append(voice_speaker.is_speaking()),
         ):
             self.assertFalse(voice_speaker.is_speaking())
@@ -134,7 +139,9 @@ class TestSpeakSerialization(unittest.TestCase):
 
 class TestLog(unittest.TestCase):
     def setUp(self):
-        self.path = Path(tempfile.gettempdir()) / f"zrb-voice-log-test-{os.getpid()}.log"
+        self.path = (
+            Path(tempfile.gettempdir()) / f"zrb-voice-log-test-{os.getpid()}.log"
+        )
         self.path.unlink(missing_ok=True)
         self.original = voice_speaker.SPEAK_LOG
         voice_speaker.SPEAK_LOG = self.path
@@ -158,15 +165,21 @@ class TestLog(unittest.TestCase):
             target.unlink(missing_ok=True)
 
     def test_spoken_text_is_not_logged(self):
-        with mock.patch.object(voice_speaker, "run_player"), \
-                mock.patch.object(voice_speaker.shutil, "which", return_value="/usr/bin/say"):
+        with (
+            mock.patch.object(voice_speaker, "run_player"),
+            mock.patch.object(
+                voice_speaker.shutil, "which", return_value="/usr/bin/say"
+            ),
+        ):
             voice_speaker.speak("my secret plan")
         self.assertNotIn("secret", self.path.read_text())
 
 
 class TestBackends(unittest.TestCase):
     def test_auto_picks_say_when_present(self):
-        with mock.patch.object(voice_speaker.shutil, "which", return_value="/usr/bin/say"):
+        with mock.patch.object(
+            voice_speaker.shutil, "which", return_value="/usr/bin/say"
+        ):
             self.assertEqual(voice_speaker.resolve_backend_name("auto"), "say")
 
     def test_auto_picks_espeak_without_say(self):
@@ -177,29 +190,51 @@ class TestBackends(unittest.TestCase):
         self.assertEqual(voice_speaker.resolve_backend_name("gemini"), "gemini")
 
     def test_say_argv_guards_leading_dash(self):
-        with mock.patch.object(voice_speaker.shutil, "which", return_value="/usr/bin/say"):
+        with mock.patch.object(
+            voice_speaker.shutil, "which", return_value="/usr/bin/say"
+        ):
             utterance = voice_speaker.prepare("say", "-rf all", "", 165)
         self.assertEqual(utterance.argv[-2:], ["--", "-rf all"])
 
     def test_cloud_without_key_falls_back_to_local(self):
         """A missing API key must degrade to the local voice, not to silence."""
         env = {"ZRB_VOICE_BACKEND": "openai"}
-        with mock.patch.dict(os.environ, env, clear=True), \
-                mock.patch.object(voice_speaker.shutil, "which", return_value="/usr/bin/x"), \
-                mock.patch.object(voice_speaker, "run_player") as player:
+        with (
+            mock.patch.dict(os.environ, env, clear=True),
+            mock.patch.object(voice_speaker.shutil, "which", return_value="/usr/bin/x"),
+            mock.patch.object(voice_speaker, "run_player") as player,
+        ):
             voice_speaker.speak("fallback please")
         argv = player.call_args[0][0]
         self.assertEqual(argv[0], "say")
         self.assertNotIn("alloy", argv, "fallback must not inherit the cloud voice")
 
     def test_gemini_pcm_is_wrapped_as_wav(self):
-        reply = json.dumps({"candidates": [{"content": {"parts": [{"inlineData": {
-            "mimeType": "audio/L16;codec=pcm;rate=24000",
-            "data": "AAAAAA==",
-        }}]}}]}).encode()
-        with mock.patch.dict(os.environ, {"GEMINI_API_KEY": "k"}), \
-                mock.patch.object(voice_speaker.urllib.request, "urlopen") as urlopen, \
-                mock.patch.object(voice_speaker.shutil, "which", return_value="/usr/bin/afplay"):
+        reply = json.dumps(
+            {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "inlineData": {
+                                        "mimeType": "audio/L16;codec=pcm;rate=24000",
+                                        "data": "AAAAAA==",
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        ).encode()
+        with (
+            mock.patch.dict(os.environ, {"GEMINI_API_KEY": "k"}),
+            mock.patch.object(voice_speaker.urllib.request, "urlopen") as urlopen,
+            mock.patch.object(
+                voice_speaker.shutil, "which", return_value="/usr/bin/afplay"
+            ),
+        ):
             urlopen.return_value.__enter__.return_value.read.return_value = reply
             utterance = voice_speaker.prepare("gemini", "hi", "Sulafat", 165)
         try:
@@ -209,14 +244,30 @@ class TestBackends(unittest.TestCase):
         self.assertFalse(Path(utterance.temp_path).exists(), "temp WAV must be deleted")
 
     def test_no_wav_player_leaves_no_temp_file(self):
-        reply = json.dumps({"candidates": [{"content": {"parts": [{"inlineData": {
-            "data": "AAAAAA==",
-        }}]}}]}).encode()
-        with tempfile.TemporaryDirectory() as tmp, \
-                mock.patch.dict(os.environ, {"GEMINI_API_KEY": "k"}), \
-                mock.patch.object(voice_speaker.urllib.request, "urlopen") as urlopen, \
-                mock.patch.object(voice_speaker.tempfile, "tempdir", tmp), \
-                mock.patch.object(voice_speaker.shutil, "which", return_value=None):
+        reply = json.dumps(
+            {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "inlineData": {
+                                        "data": "AAAAAA==",
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        ).encode()
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            mock.patch.dict(os.environ, {"GEMINI_API_KEY": "k"}),
+            mock.patch.object(voice_speaker.urllib.request, "urlopen") as urlopen,
+            mock.patch.object(voice_speaker.tempfile, "tempdir", tmp),
+            mock.patch.object(voice_speaker.shutil, "which", return_value=None),
+        ):
             urlopen.return_value.__enter__.return_value.read.return_value = reply
             with self.assertRaisesRegex(RuntimeError, "no WAV player"):
                 voice_speaker.prepare("gemini", "hi", "Sulafat", 165)
@@ -227,15 +278,18 @@ class TestHookContract(unittest.TestCase):
     """The hook must never signal anything back to zrb."""
 
     def _run(self, event, payload):
-        with mock.patch.dict(os.environ, {"CLAUDE_HOOK_EVENT": event}), \
-                mock.patch.object(sys, "stdin", io.StringIO(json.dumps(payload))), \
-                mock.patch.object(hook_speak, "speak") as speak_mock:
+        with (
+            mock.patch.dict(os.environ, {"CLAUDE_HOOK_EVENT": event}),
+            mock.patch.object(sys, "stdin", io.StringIO(json.dumps(payload))),
+            mock.patch.object(hook_speak, "speak") as speak_mock,
+        ):
             code = hook_speak.main()
         return code, speak_mock
 
     def test_stop_speaks_the_response(self):
         code, speak_mock = self._run(
-            "Stop", {"hook_event_name": "Stop", "last_assistant_message": "All tests pass."}
+            "Stop",
+            {"hook_event_name": "Stop", "last_assistant_message": "All tests pass."},
         )
         self.assertEqual(code, 0, "hook must exit 0 or zrb re-runs the turn")
         self.assertIn("All tests pass", speak_mock.call_args[0][0])
@@ -290,13 +344,17 @@ class TestHookContract(unittest.TestCase):
         speak_mock.assert_not_called()
 
     def test_malformed_stdin_exits_clean(self):
-        with mock.patch.dict(os.environ, {"CLAUDE_HOOK_EVENT": "Stop"}), \
-                mock.patch.object(sys, "stdin", io.StringIO("{not json")):
+        with (
+            mock.patch.dict(os.environ, {"CLAUDE_HOOK_EVENT": "Stop"}),
+            mock.patch.object(sys, "stdin", io.StringIO("{not json")),
+        ):
             self.assertEqual(hook_speak.main(), 0)
 
     def test_empty_stdin_exits_clean(self):
-        with mock.patch.dict(os.environ, {"CLAUDE_HOOK_EVENT": "Stop"}), \
-                mock.patch.object(sys, "stdin", io.StringIO("")):
+        with (
+            mock.patch.dict(os.environ, {"CLAUDE_HOOK_EVENT": "Stop"}),
+            mock.patch.object(sys, "stdin", io.StringIO("")),
+        ):
             self.assertEqual(hook_speak.main(), 0)
 
     def test_unknown_event_is_ignored(self):
@@ -305,13 +363,15 @@ class TestHookContract(unittest.TestCase):
         speak_mock.assert_not_called()
 
     def test_handler_exception_still_exits_zero(self):
-        with mock.patch.dict(os.environ, {"CLAUDE_HOOK_EVENT": "Stop"}), \
-                mock.patch.object(
-                    sys, "stdin", io.StringIO('{"last_assistant_message": "hi"}')
-                ), \
-                mock.patch.object(
-                    hook_speak, "handle_stop", side_effect=RuntimeError("boom")
-                ):
+        with (
+            mock.patch.dict(os.environ, {"CLAUDE_HOOK_EVENT": "Stop"}),
+            mock.patch.object(
+                sys, "stdin", io.StringIO('{"last_assistant_message": "hi"}')
+            ),
+            mock.patch.object(
+                hook_speak, "handle_stop", side_effect=RuntimeError("boom")
+            ),
+        ):
             self.assertEqual(hook_speak.main(), 0)
 
 

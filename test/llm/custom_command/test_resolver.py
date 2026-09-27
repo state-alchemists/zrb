@@ -89,7 +89,9 @@ def test_run_custom_command_returns_prompt_when_handle_declines():
 
 def test_run_custom_command_runs_action_instead_of_prompting():
     calls = []
-    cmd = ActionCommand("/toggle", lambda kwargs: calls.append(kwargs) or "on", args=["mode"])
+    cmd = ActionCommand(
+        "/toggle", lambda kwargs: calls.append(kwargs) or "on", args=["mode"]
+    )
     outcome = run_custom_command("/toggle fast", [cmd])
     assert outcome == CustomCommandOutcome(prompt=None, reply="on")
     assert calls == [{"mode": "fast"}]
@@ -97,7 +99,9 @@ def test_run_custom_command_runs_action_instead_of_prompting():
 
 def test_run_custom_command_action_returning_none_is_still_handled():
     cmd = ActionCommand("/quiet", lambda kwargs: None)
-    assert run_custom_command("/quiet", [cmd]) == CustomCommandOutcome(prompt=None, reply="")
+    assert run_custom_command("/quiet", [cmd]) == CustomCommandOutcome(
+        prompt=None, reply=""
+    )
 
 
 def test_run_custom_command_accepts_duck_typed_command_without_handle():
@@ -114,7 +118,9 @@ def test_run_custom_command_accepts_duck_typed_command_without_handle():
 
 
 def test_run_custom_command_no_match_returns_none():
-    assert run_custom_command("/nope", [ActionCommand("/toggle", lambda k: "x")]) is None
+    assert (
+        run_custom_command("/nope", [ActionCommand("/toggle", lambda k: "x")]) is None
+    )
 
 
 def test_get_custom_command_match_does_not_run_the_action():
