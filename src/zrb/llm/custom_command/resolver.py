@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import inspect
 import shlex
-from inspect import Parameter
 from collections.abc import Callable
+from inspect import Parameter
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand

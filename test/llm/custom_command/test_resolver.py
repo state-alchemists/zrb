@@ -1,7 +1,8 @@
 """Tests for llm/custom_command/resolver.py."""
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.custom_command.custom_command import CustomCommand

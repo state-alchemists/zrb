@@ -39,10 +39,10 @@ from zrb.llm.task.shared_getters import (
 )
 from zrb.llm.tool.ambient_state import get_session_ownership_key
 from zrb.llm.tool_call.handler import ToolCallHandler
-from zrb.llm.util.feature_config import close_feature_sessions
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.std_ui import StdUI
 from zrb.llm.util.attachment import get_attachments
+from zrb.llm.util.feature_config import close_feature_sessions
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
 from zrb.util.cli.style import stylize_highlight, stylize_muted
 from zrb.xcom.xcom import Xcom
