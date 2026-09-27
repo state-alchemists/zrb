@@ -208,6 +208,20 @@ class TestBackends(unittest.TestCase):
             utterance.cleanup()
         self.assertFalse(Path(utterance.temp_path).exists(), "temp WAV must be deleted")
 
+    def test_no_wav_player_leaves_no_temp_file(self):
+        reply = json.dumps({"candidates": [{"content": {"parts": [{"inlineData": {
+            "data": "AAAAAA==",
+        }}]}}]}).encode()
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.dict(os.environ, {"GEMINI_API_KEY": "k"}), \
+                mock.patch.object(voice_speaker.urllib.request, "urlopen") as urlopen, \
+                mock.patch.object(voice_speaker.tempfile, "tempdir", tmp), \
+                mock.patch.object(voice_speaker.shutil, "which", return_value=None):
+            urlopen.return_value.__enter__.return_value.read.return_value = reply
+            with self.assertRaisesRegex(RuntimeError, "no WAV player"):
+                voice_speaker.prepare("gemini", "hi", "Sulafat", 165)
+            self.assertEqual(os.listdir(tmp), [])
+
 
 class TestHookContract(unittest.TestCase):
     """The hook must never signal anything back to zrb."""

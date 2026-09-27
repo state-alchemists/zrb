@@ -255,10 +255,15 @@ def _pcm_to_wav(pcm: bytes, sample_rate: int = 24000) -> bytes:
 
 
 def _wav_utterance(wav_bytes: bytes) -> Utterance:
+    player = _wav_player()
     fd, path = tempfile.mkstemp(prefix="zrb-voice-", suffix=".wav")
-    with os.fdopen(fd, "wb") as fh:
-        fh.write(wav_bytes)
-    return Utterance(_wav_player() + [path], temp_path=path)
+    try:
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(wav_bytes)
+    except BaseException:
+        os.unlink(path)
+        raise
+    return Utterance(player + [path], temp_path=path)
 
 
 def _wav_player() -> list[str]:
