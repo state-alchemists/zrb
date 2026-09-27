@@ -33,7 +33,7 @@ import wave
 from collections import deque
 from pathlib import Path
 
-from zrb import CFG, Group, StrInput, Task, cli
+from zrb import CFG, Group, StrInput, cli, make_task
 from zrb.builtin.llm.chat import llm_chat
 from zrb.llm.custom_command import ActionCommand
 from zrb.llm.hook.interface import HookContext, HookResult
@@ -689,7 +689,38 @@ async def _listen(np, sd, threshold: float, max_silence: float):
             speech, silent_for = [], 0.0
 
 
-def check_microphone(ctx) -> str:
+llm_chat.append_hook_factory(register_speaking_hooks)
+llm_chat.append_trigger(hands_free)
+llm_chat.append_custom_command(
+    ActionCommand(
+        "/handsfree", toggle_hands_free, description="Toggle hands-free voice input"
+    )
+)
+
+
+# CLI
+
+voice_group = cli.add_group(Group("voice", description="🔊 Voice interaction"))
+
+
+@make_task(
+    name="say",
+    description="Speak text with the current backend",
+    input=StrInput("text", description="Text to speak", default="Hello from zrb"),
+    retries=0,
+    group=voice_group,
+)
+def say(ctx) -> None:
+    speak(ctx.input.text)
+
+
+@make_task(
+    name="mic-test",
+    description="Check the microphone level for hands-free",
+    retries=0,
+    group=voice_group,
+)
+def mic_test(ctx) -> str:
     """Record five seconds and report the level against the speech threshold."""
     # lazy: heavy third-party (numpy/sounddevice are zrb[voice] extras)
     import numpy as np
@@ -707,29 +738,3 @@ def check_microphone(ctx) -> str:
         f"Peak level {levels.max():.4f}, threshold {threshold}: "
         f"{loud} of {len(levels)} blocks count as speech"
     )
-
-
-llm_chat.append_hook_factory(register_speaking_hooks)
-llm_chat.append_trigger(hands_free)
-llm_chat.append_custom_command(
-    ActionCommand(
-        "/handsfree", toggle_hands_free, description="Toggle hands-free voice input"
-    )
-)
-
-voice_group = cli.add_group(Group("voice", description="🔊 Voice interaction"))
-voice_group.add_task(
-    Task(
-        name="say",
-        description="Speak text with the current backend",
-        input=StrInput("text", description="Text to speak", default="Hello from zrb"),
-        action=lambda ctx: speak(ctx.input.text),
-    )
-)
-voice_group.add_task(
-    Task(
-        name="mic-test",
-        description="Check the microphone level for hands-free",
-        action=check_microphone,
-    )
-)
