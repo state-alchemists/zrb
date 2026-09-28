@@ -194,6 +194,7 @@ async def test_submit_answer_goes_to_the_waiting_question():
 async def test_pending_answer_since_dates_the_waiting_question():
     ui = MockEventUI()
     assert ui.pending_answer_since is None
+    assert not ui.is_prompt_answered_since(0)
 
     before = time.monotonic()
     waiting = asyncio.create_task(ui.get_input(""))
@@ -204,3 +205,5 @@ async def test_pending_answer_since_dates_the_waiting_question():
     ui.submit_answer("yes")
     await waiting
     assert ui.pending_answer_since is None
+    assert ui.is_prompt_answered_since(before)
+    assert not ui.is_prompt_answered_since(time.monotonic())

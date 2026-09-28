@@ -1105,6 +1105,14 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         """
         return None
 
+    def is_prompt_answered_since(self, asked_at: float) -> bool:
+        """Whether the first prompt asked at or after *asked_at* (a
+        `time.monotonic()` value) has been answered or cancelled, however
+        briefly it was up. ``False`` before it is asked, or when the UI cannot
+        tell.
+        """
+        return False
+
     @property
     def is_waiting_for_choice(self) -> bool:
         """Whether the pending prompt is a multiple-choice question rather

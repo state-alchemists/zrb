@@ -41,5 +41,11 @@ class OpenAISpeechBackend(AnySpeechBackend):
         }
         url = f"{self._base_url.rstrip('/')}/audio/speech"
         headers = {"Authorization": f"Bearer {key}"}
-        response = open_post_json(url, body, headers, self._timeout)
+        timeout = self._timeout or _STALL_SECONDS
+        response = open_post_json(url, body, headers, timeout)
         return create_streamed_wav_utterance(response, self._wav_player)
+
+
+# The audio is read after `create_utterance` returns, on a thread nothing can
+# interrupt, so a server that stops sending must not hold it open forever.
+_STALL_SECONDS = 30.0

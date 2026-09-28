@@ -87,3 +87,17 @@ def test_openai_without_a_key_raises(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
         OpenAISpeechBackend().create_utterance("hello")
+
+
+def test_openai_without_a_timeout_still_bounds_a_stalled_download(
+    requests, which, monkeypatch
+):
+    sent, replies = requests
+    replies.append(b"RIFF-wav")
+    which("afplay")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+
+    OpenAISpeechBackend().create_utterance("hello").cleanup()
+
+    _, timeout = sent[0]
+    assert timeout is not None

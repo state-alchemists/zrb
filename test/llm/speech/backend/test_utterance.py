@@ -1,5 +1,6 @@
 import io
 import logging
+import socket
 import subprocess
 import sys
 import threading
@@ -169,6 +170,87 @@ def test_a_streamed_utterance_stopped_mid_stream_ends(tmp_path):
     player.join(5)
 
     assert not player.is_alive()
+
+
+class StalledSource(io.RawIOBase):
+    """A response whose server sent nothing and never will, until closed."""
+
+    def __init__(self):
+        self.released = threading.Event()
+
+    def read(self, size=-1):
+        self.released.wait(10)
+        return b""
+
+
+def test_stopping_a_streamed_utterance_ends_play_while_its_download_stalls():
+    source = StalledSource()
+    utterance = StreamedUtterance([sys.executable, "-c", "input()"], source)
+    player = threading.Thread(target=utterance.play, args=(None,))
+    player.start()
+    time.sleep(0.3)
+
+    utterance.stop()
+    player.join(5)
+    source.released.set()
+
+    assert not player.is_alive()
+
+
+def test_stopping_mid_download_ends_a_read_stalled_on_its_socket():
+    """Killing the player does not end a read blocked on the response's
+    socket; `stop` shuts the connection down so the pump can close it."""
+    ours, server = socket.socketpair()
+    source = ours.makefile("rb")
+    utterance = StreamedUtterance([sys.executable, "-c", "input()"], source)
+    player = threading.Thread(target=utterance.play, args=(None,))
+    player.start()
+    time.sleep(0.3)
+
+    utterance.stop()
+    player.join(5)
+    utterance.cleanup()
+
+    assert not player.is_alive()
+    assert source.closed
+    ours.close()
+    server.close()
+
+
+def test_cleanup_ends_a_stalled_read_after_the_player_quits_early():
+    ours, server = socket.socketpair()
+    source = ours.makefile("rb")
+    utterance = StreamedUtterance([sys.executable, "-c", "pass"], source)
+
+    utterance.play(5)
+    utterance.cleanup()
+
+    assert source.closed
+    ours.close()
+    server.close()
+
+
+def test_the_play_timeout_covers_a_stalled_download():
+    source = StalledSource()
+    utterance = StreamedUtterance([sys.executable, "-c", "input()"], source)
+
+    started = time.monotonic()
+    utterance.play(0.5)
+    source.released.set()
+
+    assert time.monotonic() - started < 5
+    assert utterance.is_stopped
+
+
+def test_cleanup_closes_the_source_of_a_streamed_utterance_never_played():
+    source = io.BytesIO(b"RIFF")
+    utterance = StreamedUtterance(["paplay"], source)
+    utterance.stop()
+
+    utterance.play(None)
+    utterance.cleanup()
+
+    assert source.closed
 
 
 def test_a_streamed_wav_is_read_in_full_for_a_player_needing_a_file(which):

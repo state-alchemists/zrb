@@ -1,7 +1,6 @@
 """A spoken approval request is dropped once its prompt is answered."""
 
 import time
-from types import SimpleNamespace
 
 import pytest
 
@@ -24,10 +23,25 @@ class StaleCheckSpeaker:
         pass
 
 
+class PromptUI:
+    """Dates each prompt it asks, as a UI does."""
+
+    def __init__(self):
+        self.prompts: list[list] = []  # [asked at, is answered]
+
+    def ask(self) -> list:
+        prompt = [time.monotonic(), False]
+        self.prompts.append(prompt)
+        return prompt
+
+    def is_prompt_answered_since(self, asked_at: float) -> bool:
+        return next((p[1] for p in self.prompts if p[0] >= asked_at), False)
+
+
 @pytest.fixture
 def session_ui():
     """A UI bound to the session, reporting when its prompt appeared."""
-    ui = SimpleNamespace(pending_answer_since=None)
+    ui = PromptUI()
     set_session_ui(ui)  # type: ignore[arg-type]
     yield ui
     reset_session_ui()
@@ -42,9 +56,9 @@ def _session() -> tuple[SpeechSession, StaleCheckSpeaker]:
 
 def _assert_goes_stale_once_answered(ui, is_stale) -> None:
     assert not is_stale()
-    ui.pending_answer_since = time.monotonic()
+    prompt = ui.ask()
     assert not is_stale()
-    ui.pending_answer_since = None
+    prompt[1] = True
     assert is_stale()
 
 
@@ -77,15 +91,13 @@ async def test_the_session_ui_reaches_a_hook_run_by_the_hook_manager(session_ui)
 
 
 def test_an_older_prompt_answered_does_not_make_a_new_approval_stale():
-    ui = SimpleNamespace(pending_answer_since=time.monotonic() - 5)
+    ui = PromptUI()
+    older = ui.ask()
     is_answered = is_answered_since(ui, time.monotonic())
 
+    older[1] = True
     assert not is_answered()
-    ui.pending_answer_since = None
-    assert not is_answered()
-    ui.pending_answer_since = time.monotonic()
-    assert not is_answered()
-    ui.pending_answer_since = time.monotonic() + 1  # the next prompt
+    ui.ask()[1] = True  # the prompt after the hook
     assert is_answered()
 
 
@@ -93,14 +105,3 @@ def test_a_ui_that_cannot_time_its_prompt_never_reads_as_answered():
     is_answered = is_answered_since(None, time.monotonic())
 
     assert not is_answered()
-
-
-def test_a_prompt_answered_before_the_first_check_still_reads_as_answered():
-    ui = SimpleNamespace(pending_answer_since=None)
-    is_answered = is_answered_since(ui, time.monotonic())
-
-    ui.pending_answer_since = time.monotonic()
-    time.sleep(0.3)  # the prompt is up long enough to be seen
-    ui.pending_answer_since = None
-
-    assert is_answered()

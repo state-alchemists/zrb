@@ -91,6 +91,9 @@ class EventDrivenUI(SimpleUI):
     def pending_answer_since(self) -> float | None:
         return self._input_handling.waiting_since
 
+    def is_prompt_answered_since(self, asked_at: float) -> bool:
+        return self._input_handling.is_answered_since(asked_at)
+
     def submit_answer(self, text: str) -> None:
         self.handle_incoming_message(text)
 

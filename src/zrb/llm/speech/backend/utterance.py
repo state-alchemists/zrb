@@ -4,6 +4,7 @@ import logging
 import os
 import shlex
 import shutil
+import socket
 import subprocess
 import tempfile
 import threading
@@ -91,11 +92,17 @@ class Utterance:
 
 class StreamedUtterance(Utterance):
     """Plays WAV audio as it is read from *source*, piped into a player that
-    reads standard input, so playback starts with the first bytes."""
+    reads standard input, so playback starts with the first bytes.
+
+    *source* is a response read from a socket, with a read timeout: `stop`
+    shuts that socket down to end a stalled read. Any other stream is read
+    until it ends or fails on its own.
+    """
 
     def __init__(self, argv: list[str], source: BinaryIO):
         super().__init__(argv)
         self._source = source
+        self._pump: threading.Thread | None = None
 
     def open_player(self) -> "subprocess.Popen[bytes]":
         return subprocess.Popen(
@@ -106,28 +113,66 @@ class StreamedUtterance(Utterance):
         )
 
     def feed_player(self, process: "subprocess.Popen[bytes]") -> None:
-        # ponytail: the play timeout starts once the audio is all read; a
-        # stalled download is bounded by the HTTP timeout on each read.
+        # Pumped on its own thread so the play timeout and `stop` cover the
+        # download too: killing the player ends `play` whatever the read does.
+        # `stop` shuts down the connection under a stalled read to end it.
+        self._pump = threading.Thread(target=self._pump_into, args=(process,))
+        self._pump.daemon = True
+        self._pump.start()
+
+    def _pump_into(self, process: "subprocess.Popen[bytes]") -> None:
         stdin = process.stdin
-        if stdin is None:
-            return
         try:
-            while not self.is_stopped and (chunk := self._source.read(8192)):
+            while stdin and not self.is_stopped and (chunk := self._source.read(8192)):
                 stdin.write(chunk)
         except BrokenPipeError:
             pass  # the player exited or was stopped; its exit code tells which
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
             if not self.is_stopped:
                 logger.warning(f"Speech stream failed: {exc}")
         finally:
-            try:
-                stdin.close()
-            except OSError:
-                pass
+            for stream in (self._source, stdin):
+                try:
+                    if stream:
+                        stream.close()
+                except OSError:
+                    pass
+
+    def stop(self) -> None:
+        super().stop()
+        _shut_down_socket(self._source)
 
     def cleanup(self) -> None:
-        self._source.close()
+        pump = self._pump
+        if pump is None:  # never played; else the pump closes it
+            self._source.close()
+        else:  # the player may have quit before reading it all
+            _shut_down_socket(self._source)
+            pump.join(_PUMP_JOIN_SECONDS)
         super().cleanup()
+
+
+_PUMP_JOIN_SECONDS = 1.0
+
+
+def _shut_down_socket(source: BinaryIO) -> None:
+    """End a read blocked on *source*'s socket, from another thread. Closing
+    the reader itself would wait for the read, which holds its lock; a source
+    not backed by a socket is left alone."""
+    try:
+        fd = os.dup(source.fileno())
+    except (OSError, ValueError):
+        return
+    try:
+        sock = socket.socket(fileno=fd)
+    except OSError:
+        os.close(fd)
+        return
+    with sock:
+        try:
+            sock.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
 
 
 def create_streamed_wav_utterance(source: BinaryIO, wav_player: str = "") -> Utterance:

@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import logging
-import threading
 import time
 import weakref
 from collections.abc import Callable
@@ -234,48 +233,17 @@ class SpeechSession:
 
 
 def is_answered_since(ui: Any, asked_at: float) -> Callable[[], bool]:
-    """Whether the first prompt *ui* shows at or after *asked_at* has been
-    answered. The hook fires just before its prompt appears, so a prompt not
-    yet seen is not answered; a UI that cannot say when its prompt appeared
-    never reads as answered.
-
-    The prompt is watched for from the start, not only when the answer is
-    asked for: speech queued behind a reply is first checked seconds later,
-    after a quick answer has already taken the prompt away.
+    """Whether a prompt *ui* showed at or after *asked_at* has been answered.
+    The hook fires just before its prompt appears, so an older prompt
+    answered meanwhile does not count; a UI that cannot say when its prompts
+    appeared never reads as answered.
     """
-    seen: list[float] = []
-    lock = threading.Lock()
-
-    def observe() -> float | None:
-        since = getattr(ui, "pending_answer_since", None)
-        if since is not None and since >= asked_at:
-            with lock:
-                if not seen:
-                    seen.append(since)
-        return since
 
     def is_answered() -> bool:
-        since = observe()
-        with lock:
-            return bool(seen) and since != seen[0]
+        is_answered_since = getattr(ui, "is_prompt_answered_since", None)
+        return bool(is_answered_since and is_answered_since(asked_at))
 
-    def watch() -> None:
-        give_up_at = time.monotonic() + _PROMPT_WATCH_SECONDS
-        while not seen and time.monotonic() < give_up_at:
-            observe()
-            time.sleep(_PROMPT_POLL_SECONDS)
-
-    if ui is not None:
-        threading.Thread(target=watch, daemon=True).start()
     return is_answered
-
-
-# ponytail: one short-lived thread per spoken approval; it ends as soon as the
-# prompt is seen, or after this long for a UI that never reports one. A prompt
-# shown and answered within one poll is missed and read out as before; a UI
-# prompt counter would close that, if a person could ever answer that fast.
-_PROMPT_WATCH_SECONDS = 30.0
-_PROMPT_POLL_SECONDS = 0.05
 
 
 _TOOL_ACTIONS = {
