@@ -1,5 +1,7 @@
 import asyncio
+import gc
 import time
+import weakref
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -455,3 +457,26 @@ async def test_answered_requests_dropped_from_the_record_still_read_as_answered(
 
     assert state.is_answered_since(before)
     assert not state.is_answered_since(still_pending_since)
+
+
+@pytest.mark.asyncio
+async def test_a_stalled_request_does_not_keep_the_answered_ones_behind_it():
+    state = BaseUIConfirmationState()
+    loop = asyncio.get_running_loop()
+    before_stalled = time.monotonic()
+    state.handle_asked(loop.create_future())
+    answered_refs = []
+    before_answered = time.monotonic()
+    for _ in range(200):
+        answered = loop.create_future()
+        answered.set_result("y")
+        state.handle_asked(answered)
+        answered_refs.append(weakref.ref(answered))
+    del answered
+    state.handle_asked(loop.create_future())
+    gc.collect()
+
+    assert sum(ref() is not None for ref in answered_refs) <= 1
+    assert state.is_answered_since(before_answered)
+    assert not state.is_answered_since(before_stalled)
+    assert not state.is_answered_since(time.monotonic())

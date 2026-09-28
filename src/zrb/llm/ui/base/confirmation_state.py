@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import threading
 import time
-from collections import deque
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -30,11 +29,12 @@ class BaseUIConfirmationState:
         self._current: "asyncio.Future[str] | None" = None
         self._timed: "asyncio.Future[str] | None" = None
         self._current_since = 0.0
-        # (time asked, future) per request, oldest first; a finished one is
-        # dropped from the front once there are enough, and `_dropped_until`
-        # keeps when the last dropped one was asked. Read from other threads.
-        self._asked: "deque[tuple[float, asyncio.Future[str]]]" = deque()
-        self._dropped_until = float("-inf")
+        # (time asked, future) per request, oldest first. A finished request
+        # followed by a finished one is dropped: a lookup that would have
+        # found it finds the next one, just as finished. What is left is at
+        # most two entries per unfinished request, plus the newest. Read from
+        # other threads.
+        self._asked: "list[tuple[float, asyncio.Future[str]]]" = []
         self._asked_lock = threading.Lock()
         # Buffer for main-agent output during confirmation (avoids interleaving).
         self.output_buffer: list[str] = []
@@ -61,17 +61,19 @@ class BaseUIConfirmationState:
     def handle_asked(self, future: "asyncio.Future[str]") -> None:
         """Date a new request, which ends when *future* is done."""
         with self._asked_lock:
-            self._asked.append((time.monotonic(), future))
-            while len(self._asked) > _KEPT_REQUESTS and self._asked[0][1].done():
-                self._dropped_until = self._asked.popleft()[0]
+            asked = self._asked
+            asked.append((time.monotonic(), future))
+            self._asked = [
+                entry
+                for entry, following in zip(asked, asked[1:])
+                if not (entry[1].done() and following[1].done())
+            ] + [asked[-1]]
 
     def is_answered_since(self, asked_at: float) -> bool:
         """Whether the first request asked at or after *asked_at* has been
         answered or cancelled, in whatever order the requests were answered.
         Safe to call from another thread."""
         with self._asked_lock:
-            if asked_at <= self._dropped_until:
-                return True  # only finished requests are dropped
             for since, future in self._asked:
                 if since >= asked_at:
                     return future.done()
@@ -82,9 +84,3 @@ class BaseUIConfirmationState:
         """`current`'s `ChoiceSpec`, or ``None`` for a plain-text request."""
         current = self._current
         return next((entry[2] for entry in self.queue if entry[0] is current), None)
-
-
-# ponytail: a request left unanswered holds every later one in `_asked`, one
-# small tuple per prompt answered meanwhile; drop from the middle, with a
-# per-request drop time, if a session ever answers that many.
-_KEPT_REQUESTS = 64

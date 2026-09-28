@@ -158,21 +158,21 @@ _PUMP_JOIN_SECONDS = 1.0
 def _shut_down_socket(source: BinaryIO) -> None:
     """End a read blocked on *source*'s socket, from another thread. Closing
     the reader itself would wait for the read, which holds its lock; a source
-    not backed by a socket is left alone."""
+    not backed by a socket is left alone.
+
+    The socket is wrapped in place and detached, never closed, so the reader
+    keeps its descriptor. It is not duplicated: on Windows the number is a
+    socket handle, which `os.dup` rejects."""
     try:
-        fd = os.dup(source.fileno())
+        sock = socket.socket(fileno=source.fileno())
     except (OSError, ValueError):
         return
     try:
-        sock = socket.socket(fileno=fd)
+        sock.shutdown(socket.SHUT_RDWR)
     except OSError:
-        os.close(fd)
-        return
-    with sock:
-        try:
-            sock.shutdown(socket.SHUT_RDWR)
-        except OSError:
-            pass
+        pass
+    finally:
+        sock.detach()
 
 
 def create_streamed_wav_utterance(source: BinaryIO, wav_player: str = "") -> Utterance:
