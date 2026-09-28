@@ -43,9 +43,9 @@ class AnyUI(ABC):
     zrb's own docs show implementing this class directly.
 
     The contract is in two halves: the eight behavioral methods below, which
-    every UI performs, and the seventeen state members and side-effect hooks
+    every UI performs, and the eighteen state members and side-effect hooks
     after them, which describe what a *full* UI keeps. `BaseUI` implements all
-    seventeen; a UI that keeps none of it mixes in `UIStateDefaultsMixin`
+    eighteen; a UI that keeps none of it mixes in `UIStateDefaultsMixin`
     (`llm/ui/state_defaults.py`). `track_echo_span`/`redraw_echo` are declared
     in the mixin too, with inert defaults, so a UI that never splices an echo
     (any of the wrappers) constructs unchanged.
@@ -249,6 +249,13 @@ class AnyUI(ABC):
     @abstractmethod
     def invalidate_ui(self) -> None:
         """Ask this UI to repaint. A no-op for UIs with no live surface."""
+
+    @abstractmethod
+    def set_status_badge(self, key: str, text: str | None) -> None:
+        """Show *text* in the status bar under *key*, replacing what *key*
+        showed before; ``None`` takes it away. For a feature's one-line state,
+        such as the microphone's. A no-op for UIs with no status bar.
+        """
 
     @abstractmethod
     def cancel_pending_confirmations(self, flush: bool = True) -> None:

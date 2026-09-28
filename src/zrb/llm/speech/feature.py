@@ -10,7 +10,10 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import logging
+import threading
+import time
 import weakref
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
@@ -22,6 +25,7 @@ from zrb.llm.speech.player import Speaker
 from zrb.llm.speech.text import clean_for_speech, fit_for_speech
 from zrb.llm.util.feature_config import (
     current_session_key,
+    get_session_ui,
     replace_feature_sessions,
     replace_registration,
 )
@@ -162,8 +166,12 @@ class SpeechSession:
         return HookResult(success=True)
 
     async def handle_permission_request(self, context: HookContext) -> HookResult:
+        """Speak the approval request, unless it is answered first."""
         if self._is_own_session():
-            self.speaker.say(describe_tool_call(context.tool_name, context.tool_input))
+            self.speaker.say(
+                describe_tool_call(context.tool_name, context.tool_input),
+                is_stale=is_answered_since(get_session_ui(), time.monotonic()),
+            )
         return HookResult(success=True)
 
     async def handle_notification(self, context: HookContext) -> HookResult:
@@ -223,6 +231,51 @@ class SpeechSession:
         return fit_for_speech(
             text, self._config.max_chars or 0, self._config.on_screen_note or ""
         )
+
+
+def is_answered_since(ui: Any, asked_at: float) -> Callable[[], bool]:
+    """Whether the first prompt *ui* shows at or after *asked_at* has been
+    answered. The hook fires just before its prompt appears, so a prompt not
+    yet seen is not answered; a UI that cannot say when its prompt appeared
+    never reads as answered.
+
+    The prompt is watched for from the start, not only when the answer is
+    asked for: speech queued behind a reply is first checked seconds later,
+    after a quick answer has already taken the prompt away.
+    """
+    seen: list[float] = []
+    lock = threading.Lock()
+
+    def observe() -> float | None:
+        since = getattr(ui, "pending_answer_since", None)
+        if since is not None and since >= asked_at:
+            with lock:
+                if not seen:
+                    seen.append(since)
+        return since
+
+    def is_answered() -> bool:
+        since = observe()
+        with lock:
+            return bool(seen) and since != seen[0]
+
+    def watch() -> None:
+        give_up_at = time.monotonic() + _PROMPT_WATCH_SECONDS
+        while not seen and time.monotonic() < give_up_at:
+            observe()
+            time.sleep(_PROMPT_POLL_SECONDS)
+
+    if ui is not None:
+        threading.Thread(target=watch, daemon=True).start()
+    return is_answered
+
+
+# ponytail: one short-lived thread per spoken approval; it ends as soon as the
+# prompt is seen, or after this long for a UI that never reports one. A prompt
+# shown and answered within one poll is missed and read out as before; a UI
+# prompt counter would close that, if a person could ever answer that fast.
+_PROMPT_WATCH_SECONDS = 30.0
+_PROMPT_POLL_SECONDS = 0.05
 
 
 _TOOL_ACTIONS = {

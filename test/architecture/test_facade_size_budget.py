@@ -20,7 +20,9 @@ SRC = REPO_ROOT / "src" / "zrb"
 # just to make the test pass.
 # Ceilings that only ever go DOWN — see test_constructor_surface.py's note.
 FACADE_BUDGETS = {
-    "llm/ui/base/ui.py": 1200,
+    # +11 (1200->1211): `set_status_badge` and `status_badges`, the status-bar
+    # badge `AnyUI` declares (ADR-0102) -- new surface, not a delegator.
+    "llm/ui/base/ui.py": 1211,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

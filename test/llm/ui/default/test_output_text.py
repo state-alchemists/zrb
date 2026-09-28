@@ -32,6 +32,7 @@ class MockOutputUI:
         self.pending_invalidate = False
         self.invalidate_task = None
         self.markdown_theme = None
+        self.status_badges: tuple[str, ...] = ()
         # This double IS the implementation site for these (mirroring the
         # real `UI`, which owns them directly — `UIOutput` just reads them
         # through the public properties below, one hop, no bounce back).

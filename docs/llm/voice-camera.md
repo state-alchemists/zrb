@@ -37,7 +37,20 @@ Every setting is an environment variable, listed in [LLM Configuration § 23](..
 
 Set `ZRB_LLM_DICTATION_MODE=hands_free` to start every session this way. Set `ZRB_LLM_DICTATION_WAKE_WORDS` so that only utterances starting with a wake word count. Without one, anything the microphone hears becomes a turn, including a conversation in the room.
 
-zrb ignores the microphone while it is speaking, so its own voice is not taken as yours.
+zrb ignores the microphone while it is speaking, so its own voice is not taken as yours. Anything you say over it is lost, so wait for it to finish, or answer by keyboard.
+
+The status bar shows what the microphone is doing:
+
+| Badge | Meaning |
+|---|---|
+| `🎤 listening` | Waiting for you to speak |
+| `🎙️ hearing you…` | You are speaking |
+| `✍️ transcribing…` | Turning what you said into text |
+| `🎤 heard "Yes." · listening` | What it heard last; it is listening again |
+| `🔇 mic paused while speaking` | zrb is talking; what you say now is not heard |
+| `🎤 ignored "…" (no wake word)` | Heard, but it did not start with a wake word |
+
+Push-to-talk shows `🎙️ recording…` and `✍️ transcribing…` the same way.
 
 The default transcriber is vosk, which runs offline and downloads its model on first use, but mangles technical terms. With an OpenAI key, `ZRB_LLM_DICTATION_BACKEND=openai` and `ZRB_LLM_DICTATION_OPENAI_MODEL=gpt-4o-transcribe` are far more accurate. [`examples/voice-interaction`](../../examples/voice-interaction/README.md) compares the backends on one clip.
 
@@ -46,12 +59,14 @@ The default transcriber is vosk, which runs offline and downloads its model on f
 Speech starts off. Turn it on with `ZRB_LLM_SPEECH_ENABLED=on`, or with `/speech` during a session. zrb then reads aloud:
 
 - the reply at the end of each turn (not a sub-agent's),
-- "I need to write a file /tmp/a.py. I need your approval." when a tool waits for approval,
+- "I need to write a file /tmp/a.py. I need your approval." when a tool waits for approval — not read if you answer first, and cut off if you answer while it is being read,
 - a question the agent asks you.
 
 Code, tables and links are not read. A reply longer than 400 characters (`ZRB_LLM_SPEECH_MAX_CHARS`) is cut at a sentence end, followed by "The full answer is on screen." With `ZRB_LLM_SPEECH_SUMMARIZE=on`, the small model summarizes it instead, at the cost of one model call per long reply.
 
 Switching speech off with `/speech` drops whatever has not been said yet.
+
+The `openai` backend starts playing as the audio arrives, through a player that reads standard input (`paplay`, `aplay` or `ffplay`), so a long reply starts as soon as a short one does. With `ZRB_LLM_SPEECH_WAV_PLAYER` set, or only `afplay`, it waits for the whole file.
 
 Each chat session gets its own speaker, microphone and hands-free flag, so one session switching speech off does not silence the next. Two zrb processes still take turns rather than talk over each other, through a lock file that a session claims while it is speaking and releases when it is closed.
 

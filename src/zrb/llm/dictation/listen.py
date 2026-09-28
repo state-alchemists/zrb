@@ -10,6 +10,7 @@ import asyncio
 import time
 from collections import deque
 from collections.abc import AsyncGenerator, Callable
+from enum import Enum
 from typing import Any, NamedTuple
 
 from zrb.llm.dictation.config import DictationConfig
@@ -26,6 +27,14 @@ class Utterance(NamedTuple):
     audio: bytes
     started_at: float
     ended_at: float
+
+
+class MicState(Enum):
+    """What the microphone is doing, as `listen` reports it."""
+
+    LISTENING = "listening"
+    HEARING = "hearing"  # speech in progress
+    PAUSED = "paused"  # zrb is speaking, or just was
 
 
 class UtteranceCutter:
@@ -87,6 +96,16 @@ class UtteranceCutter:
             return None
         return blocks, self._started_at, captured_at
 
+    @property
+    def is_hearing(self) -> bool:
+        """Whether an utterance is in progress."""
+        return bool(self._speech)
+
+    @property
+    def is_cooling_down(self) -> bool:
+        """Whether blocks are still ignored after zrb stopped speaking."""
+        return self._cooldown_blocks > 0
+
     def flush(self, ended_at: float) -> "tuple[list[Any], float, float] | None":
         """The utterance in progress, as `feed` would return it, if it holds
         enough speech; for a recording stopped mid-sentence."""
@@ -111,10 +130,12 @@ async def listen(
     config: DictationConfig,
     should_listen: Callable[[], bool],
     keep_partial: bool = False,
+    on_state: Callable[[MicState], None] | None = None,
 ) -> AsyncGenerator[Utterance, None]:
     """Yield utterances from the default microphone while *should_listen*
     holds; the microphone closes once it stops holding. With *keep_partial*,
-    speech cut off by that is yielded too.
+    speech cut off by that is yielded too. *on_state* is called with the
+    `MicState` whenever it changes, starting with the first block.
 
     Audio keeps arriving while the caller handles an utterance (a slow
     transcription), and is kept, since the user may already be saying the
@@ -136,6 +157,7 @@ async def listen(
         loop.call_soon_threadsafe(backlog.append, captured)
 
     cutter = UtteranceCutter(config)
+    state: MicState | None = None
     stream = _open_microphone(sd, on_audio, blocksize=int(SAMPLE_RATE * BLOCK_SECONDS))
     with stream:
         while should_listen():
@@ -147,12 +169,22 @@ async def listen(
                 cutter.reset()
             level = float(np.sqrt(np.mean(block**2)))
             finished = cutter.feed(block, level, captured_at, is_echo)
+            new_state = _get_mic_state(cutter, is_echo)
+            if on_state is not None and new_state != state:
+                on_state(new_state)
+            state = new_state
             if finished is not None:
                 yield _to_utterance(np, finished)
     if keep_partial:
         finished = cutter.flush(time.monotonic())
         if finished is not None:
             yield _to_utterance(np, finished)
+
+
+def _get_mic_state(cutter: UtteranceCutter, is_echo: bool) -> MicState:
+    if is_echo or cutter.is_cooling_down:
+        return MicState.PAUSED
+    return MicState.HEARING if cutter.is_hearing else MicState.LISTENING
 
 
 class _Backlog:

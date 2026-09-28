@@ -220,6 +220,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._markdown_theme = markdown_theme
         self._custom_commands = _default_list(custom_commands)
         self._plan_mode_active = False
+        self._status_badges: dict[str, str] = {}
         self._trigger_tasks: list[asyncio.Task] = []
         self._base_triggers = BaseUITriggers(self)
         self.usage = BaseUIUsage()
@@ -1073,6 +1074,18 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         continuation code calls this to hand the main agent a synthesized
         report without reaching into `_llm_task`."""
         self.submit_user_message(self.llm_task, user_message)
+
+    def set_status_badge(self, key: str, text: str | None) -> None:
+        if text is None:
+            self._status_badges.pop(key, None)
+        else:
+            self._status_badges[key] = text
+        self.invalidate_ui()
+
+    @property
+    def status_badges(self) -> tuple[str, ...]:
+        """The badges `set_status_badge` shows, in the order first set."""
+        return tuple(self._status_badges.values())
 
     @property
     def is_waiting_for_answer(self) -> bool:

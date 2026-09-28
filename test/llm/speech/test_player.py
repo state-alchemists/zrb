@@ -328,3 +328,28 @@ def test_text_said_later_is_dropped_when_the_speaker_closes(lock_file):
     time.sleep(0.1)
 
     assert backend.played == []
+
+
+def test_stale_text_is_skipped(lock_file):
+    backend = FakeBackend()
+    speaker = Speaker(_config(backend, lock_file))
+
+    speaker.say("stale", is_stale=lambda: True)
+    speaker.say("fresh")
+
+    assert backend.done.wait(1)
+    speaker.drain()
+    assert backend.played == ["fresh"]
+
+
+def test_text_going_stale_while_playing_is_cut_off(lock_file):
+    backend = HangingBackend()
+    speaker = Speaker(_config(backend, lock_file))
+    answered = threading.Event()
+    speaker.say("approve this?", is_stale=answered.is_set)
+    assert backend.started.wait(1)
+
+    answered.set()
+
+    assert backend.utterances[0].stopped.wait(1)
+    speaker.close()

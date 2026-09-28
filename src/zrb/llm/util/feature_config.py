@@ -1,5 +1,6 @@
-"""Filling an optional feature's config from `CFG` when a session starts, and
-registering a feature on a task once.
+"""Filling an optional feature's config from `CFG` when a session starts,
+registering a feature on a task once, and handing a feature the UI serving
+its session.
 
 Each field of such a config dataclass mirrors one `CFG` knob by name — field
 ``device`` of the camera config is `CFG.LLM_CAMERA_DEVICE` — and ``None``
@@ -12,10 +13,13 @@ from __future__ import annotations
 import weakref
 from collections.abc import Callable
 from dataclasses import fields, replace
-from typing import Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from zrb.config.config import CFG
 from zrb.llm.tool.ambient_state import get_session_ownership_key
+
+if TYPE_CHECKING:
+    from zrb.llm.ui.any_ui import AnyUI
 
 T = TypeVar("T")
 
@@ -106,6 +110,28 @@ def close_feature_sessions(session_key: str) -> None:
     runner's session removal."""
     for sessions in list(_every_feature_sessions):
         sessions.close_session(session_key)
+    _session_uis.pop(session_key, None)
+
+
+# The UI serving each chat session. Hooks run on a pool thread with the
+# ambient UI cleared, and triggers are called with no arguments, so this is
+# how a feature reaches its session's UI.
+_session_uis: "dict[str, AnyUI]" = {}
+
+
+def set_session_ui(ui: "AnyUI") -> None:
+    """Make *ui* the one serving the session asking now."""
+    _session_uis[current_session_key()] = ui
+
+
+def get_session_ui() -> "AnyUI | None":
+    """The UI serving the session asking now, if one is running."""
+    return _session_uis.get(current_session_key())
+
+
+def reset_session_ui() -> None:
+    """Forget the session's UI, once it stops running."""
+    _session_uis.pop(current_session_key(), None)
 
 
 _registered: "weakref.WeakKeyDictionary[Any, dict[str, list[tuple[str, Any]]]]" = (

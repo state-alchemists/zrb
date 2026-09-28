@@ -1,11 +1,17 @@
+import io
 import logging
 import subprocess
+import sys
 import threading
 import time
 
 import pytest
 
 from zrb.llm.speech.backend import Utterance, create_wav_utterance
+from zrb.llm.speech.backend.utterance import (
+    StreamedUtterance,
+    create_streamed_wav_utterance,
+)
 
 
 class FakePopen:
@@ -133,3 +139,46 @@ def test_without_a_wav_player_on_path_it_says_which_it_tried(which):
     which()
     with pytest.raises(RuntimeError, match="afplay, paplay, aplay, ffplay"):
         create_wav_utterance(b"wav")
+
+
+def test_a_streamed_utterance_pipes_its_source_into_the_player(tmp_path):
+    out = tmp_path / "heard.wav"
+    copy_stdin = f"import sys; open({str(out)!r}, 'wb').write(sys.stdin.buffer.read())"
+    source = io.BytesIO(b"RIFF" + b"x" * 20000)
+    utterance = StreamedUtterance([sys.executable, "-c", copy_stdin], source)
+
+    utterance.play(10)
+    utterance.cleanup()
+
+    assert out.read_bytes() == b"RIFF" + b"x" * 20000
+    assert source.closed
+
+
+def test_a_streamed_utterance_stopped_mid_stream_ends(tmp_path):
+    class EndlessSource(io.RawIOBase):
+        def read(self, size=-1):
+            return b"x" * 8192
+
+    never_reads = "import time; time.sleep(30)"
+    utterance = StreamedUtterance([sys.executable, "-c", never_reads], EndlessSource())
+    player = threading.Thread(target=utterance.play, args=(None,))
+    player.start()
+    time.sleep(0.3)
+
+    utterance.stop()
+    player.join(5)
+
+    assert not player.is_alive()
+
+
+def test_a_streamed_wav_is_read_in_full_for_a_player_needing_a_file(which):
+    which("paplay")
+    source = io.BytesIO(b"RIFF-wav")
+
+    utterance = create_streamed_wav_utterance(source, wav_player="myplayer --fast")
+
+    assert utterance.argv[:2] == ["myplayer", "--fast"]
+    with open(utterance.argv[-1], "rb") as wav_file:
+        assert wav_file.read() == b"RIFF-wav"
+    assert source.closed
+    utterance.cleanup()

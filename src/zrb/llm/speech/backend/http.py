@@ -7,16 +7,25 @@ import json
 import os
 import urllib.request
 import wave
+from typing import BinaryIO
 
 
 def post_json(url: str, body: dict, headers: dict, timeout: float | None) -> bytes:
+    with open_post_json(url, body, headers, timeout) as response:
+        return response.read()
+
+
+def open_post_json(
+    url: str, body: dict, headers: dict, timeout: float | None
+) -> BinaryIO:
+    """The response to a JSON POST, its body not read yet: it raises on an
+    HTTP error here, and streams once read."""
     request = urllib.request.Request(
         url,
         data=json.dumps(body).encode(),
         headers={"Content-Type": "application/json", **headers},
     )
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        return response.read()
+    return urllib.request.urlopen(request, timeout=timeout)
 
 
 def pcm_to_wav(pcm: bytes, sample_rate: int = 24000) -> bytes:

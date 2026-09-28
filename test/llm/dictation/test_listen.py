@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from zrb.llm.dictation.config import DictationConfig
-from zrb.llm.dictation.listen import listen, record
+from zrb.llm.dictation.listen import MicState, listen, record
 
 np = pytest.importorskip("numpy")
 
@@ -110,12 +110,17 @@ def _listen_config():
     )
 
 
-async def _collect(blocks, keep_partial=False, speaking=False):
+async def _collect(blocks, keep_partial=False, speaking=False, on_state=None):
     captured = {}
 
     async def consume():
         should_listen = _holds_for(len(blocks))
-        stream = listen(_listen_config(), should_listen, keep_partial=keep_partial)
+        stream = listen(
+            _listen_config(),
+            should_listen,
+            keep_partial=keep_partial,
+            on_state=on_state,
+        )
         return [utterance async for utterance in stream]
 
     with (
@@ -164,6 +169,25 @@ async def test_listen_ignores_blocks_captured_while_zrb_speaks():
 
 
 # --- UtteranceCutter --------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_listen_reports_each_change_of_mic_state():
+    blocks = [_block(0.0), _block(0.5), _block(0.5), _block(0.0), _block(0.0)]
+    states = []
+
+    await _collect(blocks, on_state=states.append)
+
+    assert states == [MicState.LISTENING, MicState.HEARING, MicState.LISTENING]
+
+
+@pytest.mark.asyncio
+async def test_listen_reports_the_mic_paused_while_zrb_speaks():
+    states = []
+
+    await _collect([_block(0.5), _block(0.5)], speaking=True, on_state=states.append)
+
+    assert states == [MicState.PAUSED]
 
 
 def _cutter(**config):

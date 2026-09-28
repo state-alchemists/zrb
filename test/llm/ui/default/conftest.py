@@ -32,6 +32,7 @@ class MockEditingUI:
         self.pending_invalidate = False
         self.invalidate_task = None
         self.markdown_theme = None
+        self.status_badges: tuple[str, ...] = ()
         self._is_thinking = False
         self._current_confirmation = None
         self._output = UIOutput(self)

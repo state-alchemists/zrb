@@ -17,6 +17,8 @@ facade, which delegates to both collaborators uniformly.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any, cast
 
@@ -29,6 +31,11 @@ from zrb.llm.custom_command.resolver import (
     run_custom_command,
 )
 from zrb.llm.task.chat.agent_mention import resolve_agent_mention
+from zrb.llm.util.feature_config import (
+    get_session_ui,
+    reset_session_ui,
+    set_session_ui,
+)
 from zrb.session.session import Session
 from zrb.util.attr import get_attr
 from zrb.util.cli.style import stylize_muted
@@ -104,7 +111,11 @@ class ChatRunning:
             print_fn=ctx.shared_print,
         )
         session = Session(shared_ctx)
-        result = await llm_task_core.async_run(session)
+        uis = llm_task_core.get_uis()
+        # ponytail: the first sink stands for the session; the web runner
+        # attaches one HTTPUI, so there is no second to choose from.
+        with _bound_session_ui(uis[0] if uis else None):
+            result = await llm_task_core.async_run(session)
         # Unlike stream_ai_response, this path never finalizes with a rendered
         # pass, so do it here for every UI that supports it.
         if isinstance(result, str):
@@ -214,7 +225,8 @@ class ChatRunning:
         if reply:
             ui.append_to_output(stylize_muted(f"\n  {reply}\n"))
 
-        await ui.run_async()
+        with _bound_session_ui(_get_action_ui(ui)):
+            await ui.run_async()
         last_output = getattr(ui, "last_output", "")
         final_conversation_name = self._llm_chat_task.get_ui_conversation_name(
             ui, initial_conversation_name
@@ -353,14 +365,28 @@ class ChatRunning:
             )
 
 
+@contextmanager
+def _bound_session_ui(ui: "AnyUI | None") -> Iterator[None]:
+    """Make *ui* the session's UI for the block, ``None`` meaning none, then
+    put back the one bound before it, if any."""
+    previous = get_session_ui()
+    if ui is None:
+        reset_session_ui()
+    else:
+        set_session_ui(ui)
+    try:
+        yield
+    finally:
+        if previous is None:
+            reset_session_ui()
+        else:
+            set_session_ui(previous)
+
+
 def _get_action_ui(ui: "AnyUI") -> "BaseUI":
     """The UI an action command acts on: a combined UI's main one, which typed
-    commands run against too."""
-    # lazy: zrb.llm.ui.multi_ui transitively loads prompt_toolkit and
-    # pydantic_ai.
-    from zrb.llm.ui.multi_ui import MultiUI
-
-    return cast("BaseUI", ui.main_ui if isinstance(ui, MultiUI) else ui)
+    commands run against too. Only `MultiUI` has a `main_ui`."""
+    return cast("BaseUI", getattr(ui, "main_ui", None) or ui)
 
 
 def _is_action_command(message: Any, custom_commands: "list[AnyCustomCommand]") -> bool:

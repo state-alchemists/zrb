@@ -1,10 +1,16 @@
 from dataclasses import dataclass
 
 from zrb.config.config import CFG
+from zrb.contextvars import current_chat_session_id
 from zrb.llm.util.feature_config import (
+    close_feature_sessions,
+    current_session_key,
+    get_session_ui,
     replace_feature_sessions,
     replace_registration,
+    reset_session_ui,
     resolve_from_cfg,
+    set_session_ui,
 )
 
 
@@ -96,3 +102,23 @@ def test_a_feature_replaced_again_builds_from_the_new_factory():
     replace_feature_sessions(task, "speech", lambda: "second", lambda _s: None)
 
     assert sessions.get() == "second"
+
+
+def test_each_session_has_its_own_ui_until_it_ends():
+    first, second = object(), object()
+    token = current_chat_session_id.set("first")
+    try:
+        set_session_ui(first)  # type: ignore[arg-type]
+        first_key = current_session_key()
+        current_chat_session_id.set("second")
+        set_session_ui(second)  # type: ignore[arg-type]
+        assert get_session_ui() is second
+        reset_session_ui()
+        assert get_session_ui() is None
+
+        current_chat_session_id.set("first")
+        assert get_session_ui() is first
+        close_feature_sessions(first_key)
+        assert get_session_ui() is None
+    finally:
+        current_chat_session_id.reset(token)

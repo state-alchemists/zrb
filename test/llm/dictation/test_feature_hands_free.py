@@ -6,9 +6,10 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.dictation import AnyDictationBackend, DictationConfig
-from zrb.llm.dictation.feature import DictationSession
-from zrb.llm.dictation.listen import Utterance
+from zrb.llm.dictation.feature import BADGE_KEY, DictationSession
+from zrb.llm.dictation.listen import MicState, Utterance
 from zrb.llm.ui.trigger import TriggerReply
+from zrb.llm.util.feature_config import reset_session_ui, set_session_ui
 
 
 class FakeBackend(AnyDictationBackend):
@@ -33,6 +34,10 @@ class FakeUI:
         self.background_tasks: set = set()
         self.outputs: list[str] = []
         self.inserted: list[str] = []
+        self.badges: list[tuple[str, str | None]] = []
+
+    def set_status_badge(self, key, text):
+        self.badges.append((key, text))
 
     def append_to_output(self, text):
         self.outputs.append(text)
@@ -51,11 +56,14 @@ def _fake_listen(monkeypatch, *said: tuple[str, float, float]):
     not what these tests are about."""
     heard = []
 
-    async def listen(config, should_listen, keep_partial=False):
+    async def listen(config, should_listen, keep_partial=False, on_state=None):
         heard.append(keep_partial)
         for text, started_at, ended_at in said:
             if not should_listen():
                 return
+            if on_state is not None:
+                on_state(MicState.HEARING)
+                on_state(MicState.LISTENING)
             yield Utterance(text.encode(), started_at, ended_at)
 
     monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
@@ -165,7 +173,7 @@ async def test_a_failed_transcription_is_skipped(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_a_broken_microphone_switches_hands_free_off(monkeypatch):
-    async def listen(config, should_listen, keep_partial=False):
+    async def listen(config, should_listen, keep_partial=False, on_state=None):
         raise OSError("no input device")
         yield  # pragma: no cover
 
@@ -224,7 +232,7 @@ async def test_an_utterance_being_transcribed_at_switch_off_is_dropped(monkeypat
             await release.wait()
             return audio.decode()
 
-    async def listen(config, should_listen, keep_partial=False):
+    async def listen(config, should_listen, keep_partial=False, on_state=None):
         try:
             yield Utterance(b"run the tests", 0.0, 1.0)
             await asyncio.Event().wait()
@@ -268,7 +276,7 @@ async def test_hands_free_prepares_the_backend_and_reports_to_the_ui(monkeypatch
 
 @pytest.mark.asyncio
 async def test_a_broken_microphone_is_reported_to_the_ui(monkeypatch):
-    async def listen(config, should_listen, keep_partial=False):
+    async def listen(config, should_listen, keep_partial=False, on_state=None):
         raise OSError("no input device")
         yield  # pragma: no cover
 
@@ -292,7 +300,7 @@ async def test_a_broken_microphone_is_reported_to_the_ui(monkeypatch):
 async def test_closing_the_listener_closes_the_microphone_at_once(monkeypatch):
     closed = asyncio.Event()
 
-    async def listen(config, should_listen, keep_partial=False):
+    async def listen(config, should_listen, keep_partial=False, on_state=None):
         try:
             yield Utterance(b"run the tests", 0.0, 1.0)
             await asyncio.Event().wait()
@@ -307,3 +315,71 @@ async def test_closing_the_listener_closes_the_microphone_at_once(monkeypatch):
     await stream.aclose()
 
     assert closed.is_set()
+
+
+@pytest.fixture
+def session_ui():
+    ui = FakeUI()
+    set_session_ui(ui)  # type: ignore[arg-type]
+    yield ui
+    reset_session_ui()
+
+
+def _badges(ui: FakeUI) -> list[str | None]:
+    return [text for key, text in ui.badges if key == BADGE_KEY]
+
+
+@pytest.mark.asyncio
+async def test_hands_free_shows_what_the_mic_is_doing(monkeypatch, session_ui):
+    _fake_listen(monkeypatch, ("Yes.", 0, 1))
+    session = _session(mode="hands_free")
+
+    await _trigger_replies(session, 1)
+
+    assert _badges(session_ui) == [
+        "🎤 listening",
+        "🎙️ hearing you…",
+        "🎤 listening",
+        "✍️ transcribing…",
+        '🎤 heard "Yes." · listening',
+        None,
+    ]
+
+
+@pytest.mark.asyncio
+async def test_hands_free_says_what_an_utterance_came_to(monkeypatch, session_ui):
+    _fake_listen(
+        monkeypatch,
+        ("", 0, 1),
+        ("bad", 2, 3),
+        ("hello there", 4, 5),
+        ("hey zrb", 6, 7),
+        ("x" * 60, 8, 9),
+    )
+    session = DictationSession(
+        DictationConfig(
+            backend=FakeBackend(fail_on=b"bad"),
+            mode="hands_free",
+            wake_words=["hey zrb"],
+        ).resolve()
+    )
+
+    await _trigger_replies(session, 1)
+
+    badges = _badges(session_ui)
+    assert "🎤 didn't catch that · listening" in badges
+    assert "⚠️ transcription failed · listening" in badges
+    assert '🎤 ignored "hello there" (no wake word)' in badges
+    assert "🎤 go ahead…" in badges
+    assert f'🎤 heard "{"x" * 39}…" · listening' in badges
+
+
+def test_switching_hands_free_off_clears_the_badge(monkeypatch, session_ui):
+    monkeypatch.setattr("zrb.llm.dictation.feature.import_audio", lambda: (None, None))
+    session = _session(hands_free_commands=["/handsfree"])
+    (command,) = [c for c in session.create_commands() if c.command == "/handsfree"]
+
+    command.handle({}, None)
+    command.handle({}, None)
+
+    assert _badges(session_ui) == [None]

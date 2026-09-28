@@ -196,3 +196,17 @@ async def test_drain_hook_tasks_cancels_a_hook_past_its_timeout(surface_ui):
         await asyncio.sleep(0)
 
     assert cancelled.is_set()
+
+
+def test_status_badges_are_set_replaced_and_removed_by_key(surface_ui):
+    surface_ui.invalidate_ui = MagicMock()
+
+    surface_ui.set_status_badge("mic", "🎤 listening")
+    surface_ui.set_status_badge("camera", "📷 on")
+    surface_ui.set_status_badge("mic", "🎙️ hearing you…")
+    assert surface_ui.status_badges == ("🎙️ hearing you…", "📷 on")
+
+    surface_ui.set_status_badge("mic", None)
+    surface_ui.set_status_badge("gone", None)
+    assert surface_ui.status_badges == ("📷 on",)
+    assert surface_ui.invalidate_ui.call_count == 5
