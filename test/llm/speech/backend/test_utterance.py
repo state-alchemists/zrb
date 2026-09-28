@@ -5,6 +5,7 @@ import subprocess
 import sys
 import threading
 import time
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -226,6 +227,28 @@ def test_cleanup_ends_a_stalled_read_after_the_player_quits_early():
     utterance.cleanup()
 
     assert source.closed
+    ours.close()
+    server.close()
+
+
+def test_stopping_on_windows_also_cancels_the_read_pending_on_the_socket():
+    """A shutdown does not wake a blocked `recv` on Windows; the pending
+    I/O on the socket handle is cancelled instead."""
+    ours, server = socket.socketpair()
+    source = ours.makefile("rb")
+    utterance = StreamedUtterance([sys.executable, "-c", "pass"], source)
+    windll = MagicMock()
+
+    with (
+        patch("zrb.llm.speech.backend.utterance.sys.platform", "win32"),
+        patch("ctypes.windll", windll, create=True),
+    ):
+        utterance.stop()
+
+    cancel = windll.kernel32.CancelIoEx
+    cancel.assert_called_once()
+    assert cancel.call_args.args[0].value == ours.fileno()
+    source.close()
     ours.close()
     server.close()
 

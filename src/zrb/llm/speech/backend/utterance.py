@@ -6,6 +6,7 @@ import shlex
 import shutil
 import socket
 import subprocess
+import sys
 import tempfile
 import threading
 from typing import BinaryIO
@@ -146,8 +147,9 @@ class StreamedUtterance(Utterance):
         pump = self._pump
         if pump is None:  # never played; else the pump closes it
             self._source.close()
-        else:  # the player may have quit before reading it all
-            _shut_down_socket(self._source)
+        else:  # the player may have quit before reading it all; stopping
+            # ends the read, and the pump does not report it as a failure
+            self.stop()
             pump.join(_PUMP_JOIN_SECONDS)
         super().cleanup()
 
@@ -164,7 +166,8 @@ def _shut_down_socket(source: BinaryIO) -> None:
     keeps its descriptor. It is not duplicated: on Windows the number is a
     socket handle, which `os.dup` rejects."""
     try:
-        sock = socket.socket(fileno=source.fileno())
+        handle = source.fileno()
+        sock = socket.socket(fileno=handle)
     except (OSError, ValueError):
         return
     try:
@@ -173,6 +176,20 @@ def _shut_down_socket(source: BinaryIO) -> None:
         pass
     finally:
         sock.detach()
+    if sys.platform == "win32":
+        _cancel_pending_io(handle)
+
+
+def _cancel_pending_io(handle: int) -> None:
+    """Abort a `recv` blocked on *handle*: unlike on POSIX, a shutdown does
+    not wake it on Windows, and closing the handle here would leave the
+    reader to close it again once the number may belong to another socket."""
+    # lazy: platform-only — `ctypes.windll` exists only on Windows, and
+    # loading ctypes costs import time the other platforms never use.
+    import ctypes
+
+    kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+    kernel32.CancelIoEx(ctypes.c_void_p(handle), None)
 
 
 def create_streamed_wav_utterance(source: BinaryIO, wav_player: str = "") -> Utterance:
