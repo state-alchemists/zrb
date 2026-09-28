@@ -22,7 +22,7 @@ SRC = REPO_ROOT / "src" / "zrb"
 FACADE_BUDGETS = {
     # +11 (1200->1211): `set_status_badge` and `status_badges`, the status-bar
     # badge `AnyUI` declares (ADR-0102) -- new surface, not a delegator.
-    # +9 (1211->1220): `last_answered_since`, beside `pending_answer_since`,
+    # +9 (1211->1220): `is_prompt_answered_since`, beside `pending_answer_since`,
     # so speech can tell a prompt answered between two checks -- new surface.
     "llm/ui/base/ui.py": 1220,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
