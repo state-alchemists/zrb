@@ -19,20 +19,33 @@ from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.builtin import get_dictation_backend
 from zrb.llm.dictation.config import DictationConfig
-from zrb.llm.dictation.listen import import_audio, listen
+from zrb.llm.dictation.listen import MicState, import_audio, listen
 from zrb.llm.dictation.words import split_phrases, strip_wake_word, to_answer
 from zrb.llm.ui.trigger import TriggerReply
-from zrb.llm.util.feature_config import replace_feature_sessions, replace_registration
+from zrb.llm.util.feature_config import (
+    get_session_ui,
+    replace_feature_sessions,
+    replace_registration,
+)
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.task.chat.task import LLMChatTask
+    from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.ui.base.ui import BaseUI
 
 logger = logging.getLogger(__name__)
 
 HANDS_FREE = "hands_free"
+BADGE_KEY = "dictation"
+_LISTENING = "🎤 listening"
+_MIC_STATE_BADGES = {
+    MicState.HEARING: "🎙️ hearing you…",
+    MicState.PAUSED: "🔇 mic paused while speaking",
+}
+_TRANSCRIBING = "✍️ transcribing…"
+_MAX_QUOTED_CHARS = 40
 
 
 def enable_dictation(
@@ -77,7 +90,12 @@ class DictationSession:
         self._wake_words = split_phrases(config.wake_words or [])
         self._approve_words = split_phrases(config.approve_words or [])
         self._deny_words = split_phrases(config.deny_words or [])
-        self._report: Callable[[str], None] = logger.warning
+        # The UI hands-free was last switched on from, for when no UI is bound
+        # to the session.
+        self._ui: "AnyUI | None" = None
+        # The badge shown while the mic is listening, which says what the last
+        # utterance came to.
+        self._resting_badge = _LISTENING
         self.is_hands_free = (config.mode or "").strip().lower() == HANDS_FREE
 
     @property
@@ -107,6 +125,7 @@ class DictationSession:
         self._hands_free_off.set()
         if self._stop_recording is not None:
             self._stop_recording.set()
+        self._show(None)
 
     def create_commands(self) -> "list[AnyCustomCommand]":
         push_to_talk: "list[AnyCustomCommand]" = [
@@ -163,12 +182,13 @@ class DictationSession:
             except (RuntimeError, ValueError) as e:
                 return f"🎤 {e}"
             if ui is not None:
-                self._report = _to_output(ui)
+                self._ui = ui
         self.is_hands_free = not self.is_hands_free
         if self.is_hands_free:
             self._hands_free_off.clear()
         else:
             self._hands_free_off.set()
+            self._show(None)
         if self._stop_recording is not None:
             self._stop_recording.set()
         return f"🎤 Hands-free {'on' if self.is_hands_free else 'off'}"
@@ -176,11 +196,13 @@ class DictationSession:
     async def _record_into(self, ui: "BaseUI", stop: asyncio.Event) -> str:
         await self.backend.prepare(_to_output(ui))
         commands = ", ".join(self._config.commands or [])
-        ui.append_to_output(
-            stylize_muted(f"\n  🎤 Listening... ({commands} or a pause to stop)\n")
-        )
-        audio = await self._record_one(stop)
-        text = (await self.backend.transcribe(audio)).strip() if audio else ""
+        try:
+            self._show(f"🎙️ recording… ({commands} or a pause to stop)", ui)
+            audio = await self._record_one(stop)
+            self._show(_TRANSCRIBING, ui)
+            text = (await self.backend.transcribe(audio)).strip() if audio else ""
+        finally:
+            self._show(None, ui)
         if not text:
             return "🎤 Heard nothing."
         ui.insert_input_text(text)
@@ -208,6 +230,7 @@ class DictationSession:
                 await asyncio.sleep(0.2)
             try:
                 await self.backend.prepare(self._report)
+                self._rest(_LISTENING)
                 async with aclosing(self._replies()) as replies:
                     async for reply in replies:
                         yield reply
@@ -215,21 +238,29 @@ class DictationSession:
                 # Stop rather than retry a broken microphone forever.
                 self._report(f"Hands-free dictation stopped: {exc}")
                 self.is_hands_free = False
+            finally:
+                self._show(None)
 
     async def _replies(self) -> AsyncGenerator[TriggerReply, None]:
         armed_until = 0.0
         # aclosing so switching hands-free off closes the microphone as soon as
         # the utterance in flight is dropped, not at finalization.
-        async with aclosing(listen(self._config, lambda: self.is_hands_free)) as mic:
+        mic_listen = listen(
+            self._config, lambda: self.is_hands_free, on_state=self._show_mic_state
+        )
+        async with aclosing(mic_listen) as mic:
             async for utterance in mic:
+                self._show(_TRANSCRIBING)
                 try:
                     text = await self._transcribe_or_drop(utterance.audio)
                 except Exception as exc:
+                    self._rest("⚠️ transcription failed · listening")
                     self._report(f"Hands-free transcription failed: {exc}")
                     continue
                 if text is None:
                     return
                 if not text:
+                    self._rest("🎤 didn't catch that · listening")
                     continue
                 command = strip_wake_word(text, self._wake_words)
                 # Against when the utterance was spoken, not when transcription
@@ -237,17 +268,41 @@ class DictationSession:
                 if command is None and utterance.started_at < armed_until:
                     command = text
                 if command is None:
+                    self._rest(f"🎤 ignored {_quote(text)} (no wake word)")
                     continue
                 if not command:
                     # The wake word alone: people pause after it.
                     armed_until = utterance.ended_at + (self._config.wake_window or 0)
+                    self._rest("🎤 go ahead…")
                     continue
                 armed_until = 0.0
+                self._rest(f"🎤 heard {_quote(command)} · listening")
                 yield TriggerReply(
                     command,
                     approval=to_answer(command, self._approve_words, self._deny_words),
                     started_at=utterance.started_at,
                 )
+
+    def _show_mic_state(self, state: MicState) -> None:
+        self._show(_MIC_STATE_BADGES.get(state, self._resting_badge))
+
+    def _rest(self, badge: str) -> None:
+        """Show *badge*, and come back to it whenever the mic is listening."""
+        self._resting_badge = badge
+        self._show(badge)
+
+    def _show(self, badge: str | None, ui: "AnyUI | None" = None) -> None:
+        target = get_session_ui() or ui or self._ui
+        if target is not None:
+            target.set_status_badge(BADGE_KEY, badge)
+
+    def _report(self, message: str) -> None:
+        """Say *message* on the session's UI, else log it."""
+        ui = get_session_ui() or self._ui
+        if ui is None:
+            logger.warning(message)
+            return
+        _to_output(ui)(message)
 
     async def _transcribe_or_drop(self, audio: bytes) -> str | None:
         """*audio*'s transcript, or ``None`` when hands-free was switched off
@@ -268,5 +323,13 @@ class DictationSession:
                     task.cancel()
 
 
-def _to_output(ui: "BaseUI") -> Callable[[str], None]:
+def _quote(text: str) -> str:
+    """*text* on one line, cut to fit a status bar."""
+    line = " ".join(text.split())
+    if len(line) > _MAX_QUOTED_CHARS:
+        line = line[: _MAX_QUOTED_CHARS - 1].rstrip() + "…"
+    return f'"{line}"'
+
+
+def _to_output(ui: "AnyUI") -> Callable[[str], None]:
     return lambda message: ui.append_to_output(stylize_muted(f"\n  🎤 {message}\n"))

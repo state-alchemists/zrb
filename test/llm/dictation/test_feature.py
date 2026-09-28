@@ -8,7 +8,7 @@ from zrb.config.config import CFG
 from zrb.contextvars import current_chat_session_id
 from zrb.llm.dictation import AnyDictationBackend, DictationConfig, enable_dictation
 from zrb.llm.dictation.feature import DictationSession
-from zrb.llm.dictation.listen import Utterance
+from zrb.llm.dictation.listen import MicState, Utterance
 from zrb.llm.ui.trigger import TriggerReply
 
 
@@ -34,6 +34,10 @@ class FakeUI:
         self.background_tasks: set = set()
         self.outputs: list[str] = []
         self.inserted: list[str] = []
+        self.badges: list[tuple[str, str | None]] = []
+
+    def set_status_badge(self, key, text):
+        self.badges.append((key, text))
 
     def append_to_output(self, text):
         self.outputs.append(text)
@@ -62,11 +66,14 @@ def _fake_listen(monkeypatch, *said: tuple[str, float, float]):
     not what these tests are about."""
     heard = []
 
-    async def listen(config, should_listen, keep_partial=False):
+    async def listen(config, should_listen, keep_partial=False, on_state=None):
         heard.append(keep_partial)
         for text, started_at, ended_at in said:
             if not should_listen():
                 return
+            if on_state is not None:
+                on_state(MicState.HEARING)
+                on_state(MicState.LISTENING)
             yield Utterance(text.encode(), started_at, ended_at)
 
     monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
@@ -97,6 +104,11 @@ async def test_push_to_talk_puts_the_transcript_in_the_input_box(monkeypatch):
     assert not session.is_recording
     assert any("getting ready" in output for output in ui.outputs)
     assert any("Transcribed" in output for output in ui.outputs)
+    assert [text for _, text in ui.badges] == [
+        "🎙️ recording… (/voice or a pause to stop)",
+        "✍️ transcribing…",
+        None,
+    ]
 
 
 @pytest.mark.asyncio
@@ -117,7 +129,7 @@ async def test_push_to_talk_says_so_when_nothing_was_heard(monkeypatch):
 async def test_the_command_again_stops_the_recording(monkeypatch):
     stopped = asyncio.Event()
 
-    async def listen(config, should_listen, keep_partial=False):
+    async def listen(config, should_listen, keep_partial=False, on_state=None):
         while should_listen():
             await asyncio.sleep(0)
         stopped.set()

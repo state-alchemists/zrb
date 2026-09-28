@@ -1,11 +1,19 @@
+import io
 import logging
+import socket
 import subprocess
+import sys
 import threading
 import time
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from zrb.llm.speech.backend import Utterance, create_wav_utterance
+from zrb.llm.speech.backend.utterance import (
+    StreamedUtterance,
+    create_streamed_wav_utterance,
+)
 
 
 class FakePopen:
@@ -133,3 +141,149 @@ def test_without_a_wav_player_on_path_it_says_which_it_tried(which):
     which()
     with pytest.raises(RuntimeError, match="afplay, paplay, aplay, ffplay"):
         create_wav_utterance(b"wav")
+
+
+def test_a_streamed_utterance_pipes_its_source_into_the_player(tmp_path):
+    out = tmp_path / "heard.wav"
+    copy_stdin = f"import sys; open({str(out)!r}, 'wb').write(sys.stdin.buffer.read())"
+    source = io.BytesIO(b"RIFF" + b"x" * 20000)
+    utterance = StreamedUtterance([sys.executable, "-c", copy_stdin], source)
+
+    utterance.play(10)
+    utterance.cleanup()
+
+    assert out.read_bytes() == b"RIFF" + b"x" * 20000
+    assert source.closed
+
+
+def test_a_streamed_utterance_stopped_mid_stream_ends(tmp_path):
+    class EndlessSource(io.RawIOBase):
+        def read(self, size=-1):
+            return b"x" * 8192
+
+    never_reads = "import time; time.sleep(30)"
+    utterance = StreamedUtterance([sys.executable, "-c", never_reads], EndlessSource())
+    player = threading.Thread(target=utterance.play, args=(None,))
+    player.start()
+    time.sleep(0.3)
+
+    utterance.stop()
+    player.join(5)
+
+    assert not player.is_alive()
+
+
+class StalledSource(io.RawIOBase):
+    """A response whose server sent nothing and never will, until closed."""
+
+    def __init__(self):
+        self.released = threading.Event()
+
+    def read(self, size=-1):
+        self.released.wait(10)
+        return b""
+
+
+def test_stopping_a_streamed_utterance_ends_play_while_its_download_stalls():
+    source = StalledSource()
+    utterance = StreamedUtterance([sys.executable, "-c", "input()"], source)
+    player = threading.Thread(target=utterance.play, args=(None,))
+    player.start()
+    time.sleep(0.3)
+
+    utterance.stop()
+    player.join(5)
+    source.released.set()
+
+    assert not player.is_alive()
+
+
+def test_stopping_mid_download_ends_a_read_stalled_on_its_socket():
+    """Killing the player does not end a read blocked on the response's
+    socket; `stop` shuts the connection down so the pump can close it."""
+    ours, server = socket.socketpair()
+    source = ours.makefile("rb")
+    utterance = StreamedUtterance([sys.executable, "-c", "input()"], source)
+    player = threading.Thread(target=utterance.play, args=(None,))
+    player.start()
+    time.sleep(0.3)
+
+    utterance.stop()
+    player.join(5)
+    utterance.cleanup()
+
+    assert not player.is_alive()
+    assert source.closed
+    ours.close()
+    server.close()
+
+
+def test_cleanup_ends_a_stalled_read_after_the_player_quits_early():
+    ours, server = socket.socketpair()
+    source = ours.makefile("rb")
+    utterance = StreamedUtterance([sys.executable, "-c", "pass"], source)
+
+    utterance.play(5)
+    utterance.cleanup()
+
+    assert source.closed
+    ours.close()
+    server.close()
+
+
+def test_stopping_on_windows_also_cancels_the_read_pending_on_the_socket():
+    """A shutdown does not wake a blocked `recv` on Windows; the pending
+    I/O on the socket handle is cancelled instead."""
+    ours, server = socket.socketpair()
+    source = ours.makefile("rb")
+    utterance = StreamedUtterance([sys.executable, "-c", "pass"], source)
+    windll = MagicMock()
+
+    with (
+        patch("zrb.llm.speech.backend.utterance.sys.platform", "win32"),
+        patch("ctypes.windll", windll, create=True),
+    ):
+        utterance.stop()
+
+    cancel = windll.kernel32.CancelIoEx
+    cancel.assert_called_once()
+    assert cancel.call_args.args[0].value == ours.fileno()
+    source.close()
+    ours.close()
+    server.close()
+
+
+def test_the_play_timeout_covers_a_stalled_download():
+    source = StalledSource()
+    utterance = StreamedUtterance([sys.executable, "-c", "input()"], source)
+
+    started = time.monotonic()
+    utterance.play(0.5)
+    source.released.set()
+
+    assert time.monotonic() - started < 5
+    assert utterance.is_stopped
+
+
+def test_cleanup_closes_the_source_of_a_streamed_utterance_never_played():
+    source = io.BytesIO(b"RIFF")
+    utterance = StreamedUtterance(["paplay"], source)
+    utterance.stop()
+
+    utterance.play(None)
+    utterance.cleanup()
+
+    assert source.closed
+
+
+def test_a_streamed_wav_is_read_in_full_for_a_player_needing_a_file(which):
+    which("paplay")
+    source = io.BytesIO(b"RIFF-wav")
+
+    utterance = create_streamed_wav_utterance(source, wav_player="myplayer --fast")
+
+    assert utterance.argv[:2] == ["myplayer", "--fast"]
+    with open(utterance.argv[-1], "rb") as wav_file:
+        assert wav_file.read() == b"RIFF-wav"
+    assert source.closed
+    utterance.cleanup()

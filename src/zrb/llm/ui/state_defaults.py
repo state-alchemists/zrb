@@ -1,11 +1,11 @@
 """Inert implementations of `AnyUI`'s state members and side-effect hooks.
 
 `AnyUI` splits in two: eight behavioral methods every UI performs, and
-seventeen members describing what a *full* UI keeps — the model it talks to,
+eighteen members describing what a *full* UI keeps — the model it talks to,
 whether the assistant is mid-turn, which background tasks it owns, what the
-primary child exposes to `MultiUI`. `BaseUI` implements all seventeen;
+primary child exposes to `MultiUI`. `BaseUI` implements all eighteen;
 `StdUI`, `BufferedUI` and `MultiUI` track almost none of it, so they mix this
-in instead of each writing seventeen stubs. The mixin also carries the two
+in instead of each writing eighteen stubs. The mixin also carries the two
 echo hooks (`track_echo_span`/`redraw_echo`) as inert defaults — those three
 wrappers have no output buffer to record a span against or splice into.
 
@@ -166,6 +166,9 @@ class UIStateDefaultsMixin:
 
     def invalidate_ui(self) -> None:
         """Repaint hook. A UI with no addressable surface has nothing to do."""
+
+    def set_status_badge(self, key: str, text: str | None) -> None:
+        """No status bar to show a badge in."""
 
     def track_echo_span(self, entry: "QueuedMessage", echo: str) -> None:
         """No output buffer to record an echo span against (echo contract)."""

@@ -58,6 +58,7 @@ class UIConfirmation:
 
         future: asyncio.Future[str] = asyncio.Future()
         self._ui.confirmation.queue.append((future, prompt, spec, agent_id))
+        self._ui.confirmation.handle_asked(future)
 
         if self._ui.confirmation.current is None:
             # Render before marking pending: `append_to_output` buffers output

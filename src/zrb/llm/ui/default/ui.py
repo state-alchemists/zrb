@@ -620,6 +620,9 @@ class UI(BaseUI):
             return None
         return self.confirmation.current_since
 
+    def is_prompt_answered_since(self, asked_at: float) -> bool:
+        return self.confirmation.is_answered_since(asked_at)
+
     @property
     def is_waiting_for_choice(self) -> bool:
         return self.confirmation.current_spec is not None

@@ -129,6 +129,7 @@ def test_the_side_effect_hooks_are_silent_no_ops():
     assert ui.flush_to_parent() is None
     assert ui.cancel_pending_confirmations() is None
     assert ui.cancel_pending_confirmations(flush=False) is None
+    assert ui.set_status_badge("mic", "🎤 listening") is None
 
 
 def test_a_host_implementing_a_member_for_real_wins_over_the_default():

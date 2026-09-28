@@ -35,6 +35,7 @@ FANOUT_METHODS = frozenset(
         "mark_thinking_block_start",
         "record_tool_call_block",
         "replay_history",
+        "set_status_badge",
         "update_shell_output",
         "update_system_info",
         "update_tool_prepare",

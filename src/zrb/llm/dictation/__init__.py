@@ -10,12 +10,13 @@ from zrb.llm.dictation.backend import (
 )
 from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.feature import enable_dictation
-from zrb.llm.dictation.listen import listen, record
+from zrb.llm.dictation.listen import MicState, listen, record
 
 __all__ = [
     "AnyDictationBackend",
     "DictationConfig",
     "GoogleDictationBackend",
+    "MicState",
     "MultimodalDictationBackend",
     "OpenAIDictationBackend",
     "VoskDictationBackend",

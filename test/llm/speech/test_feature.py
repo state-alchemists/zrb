@@ -13,7 +13,7 @@ from zrb.llm.hook.interface import HookContext
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.speech import SpeechConfig, enable_speech
-from zrb.llm.speech.feature import SpeechSession, describe_tool_call
+from zrb.llm.speech.feature import SpeechSession, describe_tool_call, is_answered_since
 from zrb.llm.util.feature_config import close_feature_sessions
 
 NOTE = "Rest on screen."
@@ -66,7 +66,7 @@ class FakeSpeaker:
         self.closed = 0
         self.is_enabled = True
 
-    def say(self, text):
+    def say(self, text, is_stale=None):
         self.said.append(text)
 
     def say_later(self, produce):

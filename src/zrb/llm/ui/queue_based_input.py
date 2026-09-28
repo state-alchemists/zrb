@@ -32,6 +32,7 @@ class QueueBasedInput:
         self._input_queue: "asyncio.Queue[str]" = asyncio.Queue()
         self._waiting_for_input = False
         self._waiting_since = 0.0
+        self._last_ended_since = float("-inf")
 
     @property
     def input_queue(self) -> "asyncio.Queue[str]":
@@ -52,6 +53,8 @@ class QueueBasedInput:
     def waiting_for_input(self, value: bool) -> None:
         if value and not self._waiting_for_input:
             self._waiting_since = time.monotonic()
+        elif not value and self._waiting_for_input:
+            self._last_ended_since = self._waiting_since
         self._waiting_for_input = value
 
     @property
@@ -59,6 +62,11 @@ class QueueBasedInput:
         """`time.monotonic()` when `get_input` began waiting, ``None`` when
         it is not waiting."""
         return self._waiting_since if self._waiting_for_input else None
+
+    def is_answered_since(self, asked_at: float) -> bool:
+        """Whether the first wait begun at or after *asked_at* has ended.
+        Waits run one at a time, so that is the latest ended one."""
+        return self._last_ended_since >= asked_at
 
     async def get_input(self, prompt: str) -> str:
         """Blocks until handle_incoming_message() receives a response."""

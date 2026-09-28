@@ -10,7 +10,9 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import logging
+import time
 import weakref
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
@@ -22,6 +24,7 @@ from zrb.llm.speech.player import Speaker
 from zrb.llm.speech.text import clean_for_speech, fit_for_speech
 from zrb.llm.util.feature_config import (
     current_session_key,
+    get_session_ui,
     replace_feature_sessions,
     replace_registration,
 )
@@ -162,8 +165,12 @@ class SpeechSession:
         return HookResult(success=True)
 
     async def handle_permission_request(self, context: HookContext) -> HookResult:
+        """Speak the approval request, unless it is answered first."""
         if self._is_own_session():
-            self.speaker.say(describe_tool_call(context.tool_name, context.tool_input))
+            self.speaker.say(
+                describe_tool_call(context.tool_name, context.tool_input),
+                is_stale=is_answered_since(get_session_ui(), time.monotonic()),
+            )
         return HookResult(success=True)
 
     async def handle_notification(self, context: HookContext) -> HookResult:
@@ -223,6 +230,20 @@ class SpeechSession:
         return fit_for_speech(
             text, self._config.max_chars or 0, self._config.on_screen_note or ""
         )
+
+
+def is_answered_since(ui: Any, asked_at: float) -> Callable[[], bool]:
+    """Whether a prompt *ui* showed at or after *asked_at* has been answered.
+    The hook fires just before its prompt appears, so an older prompt
+    answered meanwhile does not count; a UI that cannot say when its prompts
+    appeared never reads as answered.
+    """
+
+    def is_answered() -> bool:
+        is_answered_since = getattr(ui, "is_prompt_answered_since", None)
+        return bool(is_answered_since and is_answered_since(asked_at))
+
+    return is_answered
 
 
 _TOOL_ACTIONS = {

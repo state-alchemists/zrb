@@ -28,6 +28,7 @@ class MockOutputUI:
         self.pending_invalidate = False
         self.invalidate_task = None
         self.markdown_theme = None
+        self.status_badges: tuple[str, ...] = ()
         # This double IS the implementation site for these (mirroring the
         # real `UI`, which owns them directly — `UIOutput` just reads them
         # through the public properties below, one hop, no bounce back).
@@ -349,3 +350,18 @@ def test_collapse_thinking_block_without_full_text_is_a_noop():
         ui.mark_thinking_block_start()
 
     assert ui.collapse_thinking_block("🧠 Thought\n", "") is False
+
+
+def test_status_badges_show_in_every_status_bar_state():
+    ui = MockOutputUI()
+    ui.status_badges = ("🎤 listening",)
+
+    def shown() -> str:
+        return "".join(fragment[1] for fragment in ui.get_status_bar_text())
+
+    assert "Ready" in shown() and "🎤 listening" in shown()
+    ui.set_thinking(True)
+    assert "working" in shown() and "🎤 listening" in shown()
+    ui.set_thinking(False)
+    ui.confirmation.current = MagicMock()
+    assert "confirmation" in shown() and "🎤 listening" in shown()

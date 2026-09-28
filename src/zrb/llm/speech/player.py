@@ -30,6 +30,8 @@ _playing_count = 0
 # so a finished speaker takes its entry with it: `is_speaking` probes every
 # path here on every captured audio block.
 _lock_files: dict[str, int] = {}
+_STALE_POLL_SECONDS = 0.1
+IsStale = Callable[[], bool] | None
 
 
 def is_speaking(lock_file: str | None = None) -> bool:
@@ -86,7 +88,9 @@ class Speaker:
         self._lock_file_held = bool(self._lock_file)
         if self._lock_file_held:
             _register_lock_file(self._lock_file)
-        self._queue: "queue.Queue[str | Callable[[], str] | None]" = queue.Queue()
+        self._queue: "queue.Queue[tuple[str | Callable[[], str], IsStale] | None]" = (
+            queue.Queue()
+        )
         self._worker: threading.Thread | None = None
         # Hooks call `say` from worker threads, so starting the worker, and
         # tracking what it is playing, is guarded.
@@ -97,10 +101,14 @@ class Speaker:
         self._is_cut_off = False
         self.is_enabled = True
 
-    def say(self, text: str) -> None:
-        """Queue *text*; dropped while the speaker is disabled or closed."""
+    def say(self, text: str, is_stale: "IsStale" = None) -> None:
+        """Queue *text*; dropped while the speaker is disabled or closed.
+
+        *is_stale*, when given, says the text no longer needs saying: it is
+        then skipped if its turn has not come, or cut off if it is playing.
+        """
         if text.strip():
-            self._enqueue(text)
+            self._enqueue(text, is_stale)
 
     def say_later(self, produce: "Callable[[], str]") -> None:
         """Queue what *produce* returns, called on the speaker's thread when
@@ -108,7 +116,9 @@ class Speaker:
         summary, so it keeps its place and the exit drain waits for it."""
         self._enqueue(produce)
 
-    def _enqueue(self, item: "str | Callable[[], str]") -> None:
+    def _enqueue(
+        self, item: "str | Callable[[], str]", is_stale: "IsStale" = None
+    ) -> None:
         if not self.is_enabled:
             return
         with self._lock:
@@ -122,7 +132,7 @@ class Speaker:
                 )
                 self._worker.start()
                 atexit.register(self.drain)
-            self._queue.put(item)
+            self._queue.put((item, is_stale))
 
     def clear(self) -> None:
         """Drop everything not yet spoken."""
@@ -132,22 +142,30 @@ class Speaker:
         except queue.Empty:
             pass
 
-    def speak(self, text: str) -> None:
+    def speak(self, text: str, is_stale: "IsStale" = None) -> None:
         """Speak *text* now, blocking; the local engine stands in for a
-        backend that fails."""
-        if not text.strip():
+        backend that fails. *is_stale* as for `say`."""
+        if not text.strip() or (is_stale is not None and is_stale()):
             return
         utterance = self._create_with_fallback(text)
         if utterance is None:
             return
         with self._lock:
-            if self._is_cut_off:
+            if self._is_cut_off or (is_stale is not None and is_stale()):
                 utterance.cleanup()
                 return
             self._playing = utterance
+        played = threading.Event()
+        if is_stale is not None:
+            threading.Thread(
+                target=_stop_when_stale,
+                args=(utterance, is_stale, played),
+                daemon=True,
+            ).start()
         try:
             play(utterance, self._config)
         finally:
+            played.set()
             with self._lock:
                 self._playing = None
             utterance.cleanup()
@@ -170,9 +188,10 @@ class Speaker:
         return [requested, local]
 
     def _play_queue(self) -> None:
-        while (item := self._queue.get()) is not None:
+        while (entry := self._queue.get()) is not None:
+            item, is_stale = entry
             try:
-                self.speak(item() if callable(item) else item)
+                self.speak(item() if callable(item) else item, is_stale)
             except Exception as exc:
                 logger.warning(f"Speech failed: {exc}")
 
@@ -233,6 +252,15 @@ def play(utterance: Utterance, config: SpeechConfig) -> None:
         logger.warning("Speech dropped: another session held the audio device")
     except Exception as exc:
         logger.warning(f"Speech playback failed: {exc}")
+
+
+def _stop_when_stale(
+    utterance: Utterance, is_stale: "Callable[[], bool]", played: threading.Event
+) -> None:
+    while not played.wait(_STALE_POLL_SECONDS):
+        if is_stale():
+            utterance.stop()
+            return
 
 
 def _set_playing(change: int) -> None:

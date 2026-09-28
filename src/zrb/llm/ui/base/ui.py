@@ -220,6 +220,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._markdown_theme = markdown_theme
         self._custom_commands = _default_list(custom_commands)
         self._plan_mode_active = False
+        self._status_badges: dict[str, str] = {}
         self._trigger_tasks: list[asyncio.Task] = []
         self._base_triggers = BaseUITriggers(self)
         self.usage = BaseUIUsage()
@@ -1074,6 +1075,18 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         report without reaching into `_llm_task`."""
         self.submit_user_message(self.llm_task, user_message)
 
+    def set_status_badge(self, key: str, text: str | None) -> None:
+        if text is None:
+            self._status_badges.pop(key, None)
+        else:
+            self._status_badges[key] = text
+        self.invalidate_ui()
+
+    @property
+    def status_badges(self) -> tuple[str, ...]:
+        """The badges `set_status_badge` shows, in the order first set."""
+        return tuple(self._status_badges.values())
+
     @property
     def is_waiting_for_answer(self) -> bool:
         """Whether a tool approval or a question is waiting for the user.
@@ -1091,6 +1104,14 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         `TriggerReply` then answers nothing.
         """
         return None
+
+    def is_prompt_answered_since(self, asked_at: float) -> bool:
+        """Whether the first prompt asked at or after *asked_at* (a
+        `time.monotonic()` value) has been answered or cancelled, however
+        briefly it was up. ``False`` before it is asked, or when the UI cannot
+        tell.
+        """
+        return False
 
     @property
     def is_waiting_for_choice(self) -> bool:

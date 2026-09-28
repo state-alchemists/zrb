@@ -235,6 +235,9 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             except Exception as e:
                 CFG.LOGGER.debug(f"Child UI append_to_output failed: {e}")
 
+    def set_status_badge(self, key: str, text: str | None) -> None:
+        self._fanout("set_status_badge", key, text)
+
     def _fanout(self, method_name: str, /, *args, **kwargs) -> None:
         """Call `method_name` on every child that implements it.
 

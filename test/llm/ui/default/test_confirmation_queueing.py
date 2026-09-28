@@ -1,4 +1,8 @@
 import asyncio
+import gc
+import time
+import weakref
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -403,3 +407,76 @@ async def test_an_answer_that_is_a_label_names_that_label(labels, said, answer):
         await asyncio.sleep(0.01)
         ui.submit_user_answer(said)
         assert await task == answer
+
+
+@pytest.mark.asyncio
+async def test_a_request_answered_out_of_order_in_its_agent_view_is_answered_alone():
+    """A sub-agent's request answered from its own view, before it is the one
+    on screen, counts as answered; the request still ahead of it does not."""
+    ui = MockConfirmationUI()
+    ui.viewing_agent_id = "agent-1"
+    event = SimpleNamespace(current_buffer=FakeBuffer("yes"))
+
+    with patch("prompt_toolkit.application.get_app"):
+        before_main = time.monotonic()
+        main = asyncio.create_task(ui.ask_user("main"))
+        await asyncio.sleep(0.01)
+        before_agent = time.monotonic()
+        agent = asyncio.create_task(ui.ask_user("agent", agent_id="agent-1"))
+        await asyncio.sleep(0.01)
+        assert not ui.confirmation.is_answered_since(before_agent)
+
+        assert ui.handle_confirmation(event)
+        assert await agent == "yes"
+        assert ui.confirmation.is_answered_since(before_agent)
+        assert not ui.confirmation.is_answered_since(before_main)
+
+        ui.cancel_pending_confirmations()
+        with pytest.raises(asyncio.CancelledError):
+            await main
+        assert ui.confirmation.is_answered_since(before_main)
+    assert not ui.confirmation.is_answered_since(time.monotonic())
+
+
+@pytest.mark.asyncio
+async def test_answered_requests_dropped_from_the_record_still_read_as_answered():
+    state = BaseUIConfirmationState()
+    loop = asyncio.get_running_loop()
+    before = time.monotonic()
+    pending = loop.create_future()
+    state.handle_asked(pending)
+    for _ in range(100):
+        answered = loop.create_future()
+        answered.set_result("y")
+        state.handle_asked(answered)
+    pending.set_result("y")
+    still_pending_since = time.monotonic()
+
+    for _ in range(100):
+        state.handle_asked(loop.create_future())
+
+    assert state.is_answered_since(before)
+    assert not state.is_answered_since(still_pending_since)
+
+
+@pytest.mark.asyncio
+async def test_a_stalled_request_does_not_keep_the_answered_ones_behind_it():
+    state = BaseUIConfirmationState()
+    loop = asyncio.get_running_loop()
+    before_stalled = time.monotonic()
+    state.handle_asked(loop.create_future())
+    answered_refs = []
+    before_answered = time.monotonic()
+    for _ in range(200):
+        answered = loop.create_future()
+        answered.set_result("y")
+        state.handle_asked(answered)
+        answered_refs.append(weakref.ref(answered))
+    del answered
+    state.handle_asked(loop.create_future())
+    gc.collect()
+
+    assert sum(ref() is not None for ref in answered_refs) <= 1
+    assert state.is_answered_since(before_answered)
+    assert not state.is_answered_since(before_stalled)
+    assert not state.is_answered_since(time.monotonic())

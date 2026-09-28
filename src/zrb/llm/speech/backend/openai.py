@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from zrb.llm.speech.backend.any_speech_backend import AnySpeechBackend
-from zrb.llm.speech.backend.http import get_required_env, post_json
-from zrb.llm.speech.backend.utterance import Utterance, create_wav_utterance
+from zrb.llm.speech.backend.http import get_required_env, open_post_json
+from zrb.llm.speech.backend.utterance import Utterance, create_streamed_wav_utterance
 
 
 class OpenAISpeechBackend(AnySpeechBackend):
@@ -40,5 +40,12 @@ class OpenAISpeechBackend(AnySpeechBackend):
             "response_format": "wav",
         }
         url = f"{self._base_url.rstrip('/')}/audio/speech"
-        wav = post_json(url, body, {"Authorization": f"Bearer {key}"}, self._timeout)
-        return create_wav_utterance(wav, self._wav_player)
+        headers = {"Authorization": f"Bearer {key}"}
+        timeout = self._timeout or _STALL_SECONDS
+        response = open_post_json(url, body, headers, timeout)
+        return create_streamed_wav_utterance(response, self._wav_player)
+
+
+# The audio is read after `create_utterance` returns, on a thread nothing can
+# interrupt, so a server that stops sending must not hold it open forever.
+_STALL_SECONDS = 30.0

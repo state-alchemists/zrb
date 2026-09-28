@@ -8,6 +8,7 @@ reference back to the owner.
 
 from __future__ import annotations
 
+import threading
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -28,6 +29,13 @@ class BaseUIConfirmationState:
         self._current: "asyncio.Future[str] | None" = None
         self._timed: "asyncio.Future[str] | None" = None
         self._current_since = 0.0
+        # (time asked, future) per request, oldest first. A finished request
+        # followed by a finished one is dropped: a lookup that would have
+        # found it finds the next one, just as finished. What is left is at
+        # most two entries per unfinished request, plus the newest. Read from
+        # other threads.
+        self._asked: "list[tuple[float, asyncio.Future[str]]]" = []
+        self._asked_lock = threading.Lock()
         # Buffer for main-agent output during confirmation (avoids interleaving).
         self.output_buffer: list[str] = []
 
@@ -49,6 +57,27 @@ class BaseUIConfirmationState:
     def current_since(self) -> float | None:
         """`time.monotonic()` when `current` appeared, ``None`` without one."""
         return self._current_since if self._current is not None else None
+
+    def handle_asked(self, future: "asyncio.Future[str]") -> None:
+        """Date a new request, which ends when *future* is done."""
+        with self._asked_lock:
+            asked = self._asked
+            asked.append((time.monotonic(), future))
+            self._asked = [
+                entry
+                for entry, following in zip(asked, asked[1:])
+                if not (entry[1].done() and following[1].done())
+            ] + [asked[-1]]
+
+    def is_answered_since(self, asked_at: float) -> bool:
+        """Whether the first request asked at or after *asked_at* has been
+        answered or cancelled, in whatever order the requests were answered.
+        Safe to call from another thread."""
+        with self._asked_lock:
+            for since, future in self._asked:
+                if since >= asked_at:
+                    return future.done()
+        return False
 
     @property
     def current_spec(self) -> Any:

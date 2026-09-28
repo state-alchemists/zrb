@@ -352,3 +352,14 @@ class TestMultiUIReplayHistory:
         multi_ui.replay_history(["m1"])
 
         good_child.replay_history.assert_called_once_with(["m1"])
+
+
+def test_multi_ui_set_status_badge_forwards_to_every_child(
+    multi_ui, child_ui_1, child_ui_2
+):
+    child_ui_1.set_status_badge.side_effect = RuntimeError("closed")
+
+    multi_ui.set_status_badge("mic", "🎤 listening")
+
+    child_ui_1.set_status_badge.assert_called_once_with("mic", "🎤 listening")
+    child_ui_2.set_status_badge.assert_called_once_with("mic", "🎤 listening")

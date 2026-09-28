@@ -4,9 +4,12 @@ import logging
 import os
 import shlex
 import shutil
+import socket
 import subprocess
+import sys
 import tempfile
 import threading
+from typing import BinaryIO
 
 from zrb.config.config import CFG
 
@@ -17,6 +20,12 @@ _WAV_PLAYERS = (
     ["paplay"],
     ["aplay", "-q"],
     ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet"],
+)
+# The WAV players that read standard input when given no file.
+_STREAM_PLAYERS = (
+    ["paplay"],
+    ["aplay", "-q"],
+    ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", "-"],
 )
 
 
@@ -39,10 +48,9 @@ class Utterance:
         with self._lock:
             if self._is_stopped:
                 return
-            process = self._process = subprocess.Popen(
-                self.argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-            )
+            process = self._process = self.open_player()
         try:
+            self.feed_player(process)
             returncode = process.wait(timeout)
         except subprocess.TimeoutExpired:
             self.stop()
@@ -52,6 +60,19 @@ class Utterance:
             raise
         if returncode != 0 and not self._is_stopped:
             logger.warning(f"Speech player {self.argv[0]} exited with {returncode}")
+
+    def open_player(self) -> "subprocess.Popen[bytes]":
+        return subprocess.Popen(
+            self.argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
+
+    def feed_player(self, process: "subprocess.Popen[bytes]") -> None:
+        """Hand the started player its audio; nothing here, the path is in
+        its arguments."""
+
+    @property
+    def is_stopped(self) -> bool:
+        return self._is_stopped
 
     def stop(self) -> None:
         """End playback now, from any thread; a later `play` does nothing."""
@@ -68,6 +89,120 @@ class Utterance:
                 os.remove(self.temp_path)
             except OSError:
                 pass
+
+
+class StreamedUtterance(Utterance):
+    """Plays WAV audio as it is read from *source*, piped into a player that
+    reads standard input, so playback starts with the first bytes.
+
+    *source* is a response read from a socket, with a read timeout: `stop`
+    shuts that socket down to end a stalled read. Any other stream is read
+    until it ends or fails on its own.
+    """
+
+    def __init__(self, argv: list[str], source: BinaryIO):
+        super().__init__(argv)
+        self._source = source
+        self._pump: threading.Thread | None = None
+
+    def open_player(self) -> "subprocess.Popen[bytes]":
+        return subprocess.Popen(
+            self.argv,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+    def feed_player(self, process: "subprocess.Popen[bytes]") -> None:
+        # Pumped on its own thread so the play timeout and `stop` cover the
+        # download too: killing the player ends `play` whatever the read does.
+        # `stop` shuts down the connection under a stalled read to end it.
+        self._pump = threading.Thread(target=self._pump_into, args=(process,))
+        self._pump.daemon = True
+        self._pump.start()
+
+    def _pump_into(self, process: "subprocess.Popen[bytes]") -> None:
+        stdin = process.stdin
+        try:
+            while stdin and not self.is_stopped and (chunk := self._source.read(8192)):
+                stdin.write(chunk)
+        except BrokenPipeError:
+            pass  # the player exited or was stopped; its exit code tells which
+        except (OSError, ValueError) as exc:
+            if not self.is_stopped:
+                logger.warning(f"Speech stream failed: {exc}")
+        finally:
+            for stream in (self._source, stdin):
+                try:
+                    if stream:
+                        stream.close()
+                except OSError:
+                    pass
+
+    def stop(self) -> None:
+        super().stop()
+        _shut_down_socket(self._source)
+
+    def cleanup(self) -> None:
+        pump = self._pump
+        if pump is None:  # never played; else the pump closes it
+            self._source.close()
+        else:  # the player may have quit before reading it all; stopping
+            # ends the read, and the pump does not report it as a failure
+            self.stop()
+            pump.join(_PUMP_JOIN_SECONDS)
+        super().cleanup()
+
+
+_PUMP_JOIN_SECONDS = 1.0
+
+
+def _shut_down_socket(source: BinaryIO) -> None:
+    """End a read blocked on *source*'s socket, from another thread. Closing
+    the reader itself would wait for the read, which holds its lock; a source
+    not backed by a socket is left alone.
+
+    The socket is wrapped in place and detached, never closed, so the reader
+    keeps its descriptor. It is not duplicated: on Windows the number is a
+    socket handle, which `os.dup` rejects."""
+    try:
+        handle = source.fileno()
+        sock = socket.socket(fileno=handle)
+    except (OSError, ValueError):
+        return
+    try:
+        sock.shutdown(socket.SHUT_RDWR)
+    except OSError:
+        pass
+    finally:
+        sock.detach()
+    if sys.platform == "win32":
+        _cancel_pending_io(handle)
+
+
+def _cancel_pending_io(handle: int) -> None:
+    """Abort a `recv` blocked on *handle*: unlike on POSIX, a shutdown does
+    not wake it on Windows, and closing the handle here would leave the
+    reader to close it again once the number may belong to another socket."""
+    # lazy: platform-only — `ctypes.windll` exists only on Windows, and
+    # loading ctypes costs import time the other platforms never use.
+    import ctypes
+
+    kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+    kernel32.CancelIoEx(ctypes.c_void_p(handle), None)
+
+
+def create_streamed_wav_utterance(source: BinaryIO, wav_player: str = "") -> Utterance:
+    """An utterance playing the WAV read from *source* as it arrives, when a
+    player on PATH reads standard input; else, or with a *wav_player* (which
+    takes a file path), it is read in full first."""
+    if not wav_player:
+        for argv in _STREAM_PLAYERS:
+            if shutil.which(argv[0]):
+                return StreamedUtterance(argv, source)
+    with source:
+        wav_bytes = source.read()
+    return create_wav_utterance(wav_bytes, wav_player)
 
 
 def create_wav_utterance(wav_bytes: bytes, wav_player: str = "") -> Utterance:
