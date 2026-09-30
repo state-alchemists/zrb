@@ -25,8 +25,6 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_MODE: str = "ptt"
         self.DEFAULT_LLM_DICTATION_COMMANDS: str = "/voice, /v"
         self.DEFAULT_LLM_DICTATION_HANDS_FREE_COMMANDS: str = "/handsfree"
-        self.DEFAULT_LLM_DICTATION_LIVE_COMMANDS: str = "/live"
-        self.DEFAULT_LLM_DICTATION_LIVE_BARGE_IN: str = "off"
         self.DEFAULT_LLM_DICTATION_BACKEND: str = "vosk"
         self.DEFAULT_LLM_DICTATION_WAKE_WORDS: str = ""
         self.DEFAULT_LLM_DICTATION_THRESHOLD: str = "0.01"
@@ -65,8 +63,7 @@ class LLMDictationMixin:
         str,
         doc=(
             "Mode a session starts in: 'ptt' (push-to-talk via the dictation "
-            "command), 'hands_free' (always listening) or 'live' (hands-free, "
-            "with each reply spoken as it streams). Default: ptt."
+            "command) or 'hands_free' (always listening). Default: ptt."
         ),
     )
 
@@ -83,25 +80,6 @@ class LLMDictationMixin:
         comma_list,
         serialize=comma_join,
         doc="Comma-separated command aliases that switch hands-free on and off.",
-    )
-
-    LLM_DICTATION_LIVE_COMMANDS = EnvField(
-        comma_list,
-        serialize=comma_join,
-        doc=(
-            "Comma-separated command aliases that switch live mode on and off: "
-            "hands-free, speech on, each reply spoken a sentence at a time as "
-            "it streams, and a tool call announced after a silence."
-        ),
-    )
-
-    LLM_DICTATION_LIVE_BARGE_IN = EnvField(
-        str,
-        doc=(
-            "{ENV_PREFIX}_LLM_DICTATION_BARGE_IN while live mode is on: 'off' "
-            "(default) or 'headset'. Set 'headset' when you wear headphones, "
-            "so you can talk over zrb; on speakers zrb would hear itself."
-        ),
     )
 
     LLM_DICTATION_BACKEND = EnvField(

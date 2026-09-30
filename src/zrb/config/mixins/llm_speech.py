@@ -1,9 +1,11 @@
 """Speech config mixin: text-to-speech output for `enable_speech`.
 
-When enabled, the reply at the end of each turn, tool approvals and questions
-are read aloud. A reply longer than `LLM_SPEECH_MAX_CHARS` is cut at a
-sentence end, or summarized by the small model with `LLM_SPEECH_SUMMARIZE`,
-and followed by a note that the full answer is on screen.
+When enabled, replies are read aloud a sentence at a time as they stream
+(`LLM_SPEECH_STREAM`), along with tool approvals, questions, and a tool call
+that starts after a silence. With streaming off, the reply is read at the end
+of the turn: one longer than `LLM_SPEECH_MAX_CHARS` is cut at a sentence end,
+or summarized by the small model with `LLM_SPEECH_SUMMARIZE`, and followed by
+a note that the full answer is on screen.
 
 Read when a chat session starts, not at import, so `zrb_init.py` may change
 any of these after importing zrb.
@@ -29,7 +31,7 @@ class LLMSpeechMixin:
         self.DEFAULT_LLM_SPEECH_RATE: str = "165"
         self.DEFAULT_LLM_SPEECH_MAX_CHARS: str = "400"
         self.DEFAULT_LLM_SPEECH_SUMMARIZE: str = "false"
-        self.DEFAULT_LLM_SPEECH_STREAM: str = "false"
+        self.DEFAULT_LLM_SPEECH_STREAM: str = "true"
         self.DEFAULT_LLM_SPEECH_PROGRESS_INTERVAL: str = "8"
         self.DEFAULT_LLM_SPEECH_OPENAI_MODEL: str = "gpt-4o-mini-tts"
         self.DEFAULT_LLM_SPEECH_OPENAI_BASE_URL: str = "https://api.openai.com/v1"
@@ -43,7 +45,7 @@ class LLMSpeechMixin:
         self.DEFAULT_LLM_SPEECH_TERMUX_STREAM: str = ""
         self.DEFAULT_LLM_SPEECH_SUMMARY_MODEL: str = ""
         self.DEFAULT_LLM_SPEECH_ON_SCREEN_NOTE: str = "The full answer is on screen."
-        self.DEFAULT_LLM_SPEECH_EVENTS: str = "reply, approval, question"
+        self.DEFAULT_LLM_SPEECH_EVENTS: str = "reply, approval, question, progress"
         self.DEFAULT_LLM_SPEECH_WAV_PLAYER: str = ""
         self.DEFAULT_LLM_SPEECH_LOCK_TIMEOUT: str = "30"
         self.DEFAULT_LLM_SPEECH_DRAIN_TIMEOUT: str = "30"
@@ -124,7 +126,7 @@ class LLMSpeechMixin:
             "text before a tool call when the call starts, instead of the "
             "whole reply once the turn ends. {ENV_PREFIX}_LLM_SPEECH_MAX_CHARS "
             "then caps what one turn speaks, and "
-            "{ENV_PREFIX}_LLM_SPEECH_SUMMARIZE does not apply. Default: false."
+            "{ENV_PREFIX}_LLM_SPEECH_SUMMARIZE does not apply. Default: true."
         ),
     )
 
@@ -215,7 +217,7 @@ class LLMSpeechMixin:
             "'approval' (a tool call waits for approval), 'question' (the "
             "agent asks something), 'progress' (a tool call starts after a "
             "silence, see {ENV_PREFIX}_LLM_SPEECH_PROGRESS_INTERVAL). Default: "
-            "reply, approval, question."
+            "reply, approval, question, progress."
         ),
     )
 

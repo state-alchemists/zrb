@@ -7,7 +7,7 @@
 | Feature | Commands | Needs |
 |---|---|---|
 | Camera | `/photo [device]` | `ffmpeg`, or Termux:API on Android |
-| Dictation | `/voice`, `/handsfree`, `/live` | `pip install 'zrb[voice]'` |
+| Dictation | `/voice`, `/handsfree` | `pip install 'zrb[voice]'` |
 | Speech | `/speech` | nothing on macOS; Termux:API on Android; `espeak-ng` on Linux and Windows; or a cloud key |
 
 Every setting is an environment variable, listed in [LLM Configuration § 23](../configuration/llm-config.md#23-voice-and-camera). Platform problems are covered in [Voice & Photo Troubleshooting](voice-photo-troubleshooting.md).
@@ -17,7 +17,7 @@ Every setting is an environment variable, listed in [LLM Configuration § 23](..
 - [Camera](#camera)
 - [Dictation](#dictation)
 - [Speech](#speech)
-- [Live conversation](#live-conversation)
+- [Talking with zrb](#talking-with-zrb)
 - [Configuring in code](#configuring-in-code)
 - [Your own backend](#your-own-backend)
 - [On your own chat task](#on-your-own-chat-task)
@@ -72,15 +72,16 @@ The default transcriber is vosk, which runs offline and downloads its model on f
 
 Speech starts off. Turn it on with `ZRB_LLM_SPEECH_ENABLED=on`, or with `/speech` during a session. zrb then reads aloud:
 
-- the reply at the end of each turn (not a sub-agent's),
+- the reply (not a sub-agent's), a sentence at a time while the model writes it,
+- a tool call that starts after a silence, so a long one is not silent,
 - "I need to write a file /tmp/a.py. I need your approval." when a tool waits for approval — not read if you answer first, and cut off if you answer while it is being read,
 - a question the agent asks you.
 
-Code, tables and links are not read. A reply longer than 400 characters (`ZRB_LLM_SPEECH_MAX_CHARS`) is cut at a sentence end, followed by "The full answer is on screen." With `ZRB_LLM_SPEECH_SUMMARIZE=on`, the small model summarizes it instead, at the cost of one model call per long reply.
+**Speaking as it writes.** A reply is read a sentence at a time while the model is still writing it, and what it writes before a tool call ("Let me run the tests.") is read when the call starts. Code, tables and links are not read. At most 400 characters (`ZRB_LLM_SPEECH_MAX_CHARS`) are read per turn: the sentence crossing the limit is finished, then "The full answer is on screen." The next sentence's audio is made while the current one plays, so a cloud voice has no gap between sentences.
 
-**Speaking as it writes.** With `ZRB_LLM_SPEECH_STREAM=on`, a reply is read a sentence at a time while the model is still writing it, instead of once the turn ends, and what it writes before a tool call ("Let me run the tests.") is read when the call starts. `ZRB_LLM_SPEECH_MAX_CHARS` then caps what one turn reads: the sentence crossing it is finished, then "The full answer is on screen." The next sentence's audio is made while the current one plays, so a cloud voice has no gap between sentences.
+With `ZRB_LLM_SPEECH_STREAM=off`, the reply is read once the turn ends instead, cut at a sentence end past 400 characters; `ZRB_LLM_SPEECH_SUMMARIZE=on` then has the small model summarize a long reply, at the cost of one model call per long reply.
 
-**Saying what it is doing.** Add `progress` to `ZRB_LLM_SPEECH_EVENTS` and a tool call that starts after 8 seconds of silence (`ZRB_LLM_SPEECH_PROGRESS_INTERVAL`) is announced: "Running a command.", "Searching the code." Nothing is announced while zrb is speaking, and an announcement still waiting when its tool finishes is dropped.
+**Saying what it is doing.** A tool call that starts after 8 seconds of silence (`ZRB_LLM_SPEECH_PROGRESS_INTERVAL`) is announced: "Running a command.", "Searching the code." Nothing is announced while zrb is speaking, and an announcement still waiting when its tool finishes is dropped. Take `progress` out of `ZRB_LLM_SPEECH_EVENTS` to turn it off.
 
 While speech is on, the model is told its reply is heard, so it opens with the answer in a sentence or two and puts code and detail after it.
 
@@ -92,11 +93,15 @@ Each chat session gets its own speaker, microphone and hands-free flag, so one s
 
 Speech rides on the hook subsystem, so it needs hooks on: with `ZRB_HOOKS_ENABLED=off` nothing is spoken, and enabling speech says so. Each session's speaker, microphone and hooks are closed when that session ends — on exit in the terminal, on removal in the web chat — so a long-lived server does not accumulate them.
 
-## Live conversation
+## Talking with zrb
 
-`/live` turns zrb into a voice conversation: hands-free on, speech on, each reply read a sentence at a time as it streams, and long tool calls announced — whatever the speech settings say. `/live` again, or `/handsfree` off, ends it and puts the settings back. `ZRB_LLM_DICTATION_MODE=live` starts every session this way.
+`/speech` and `/handsfree` together make a voice conversation: you speak, and zrb answers aloud as it writes. To start every session that way:
 
-With headphones, set `ZRB_LLM_DICTATION_LIVE_BARGE_IN=headset` so you can talk over it (see barge-in under [Dictation](#dictation)). It is off by default because on speakers zrb would hear itself.
+```bash
+ZRB_LLM_SPEECH_ENABLED=on ZRB_LLM_DICTATION_MODE=hands_free zrb llm chat
+```
+
+With headphones, add `ZRB_LLM_DICTATION_BARGE_IN=headset` so you can talk over it (see barge-in under [Dictation](#dictation)). It is off by default because on speakers zrb would hear itself.
 
 For the quickest replies, use vosk for dictation (it transcribes while you speak and ends an utterance half a second after you finish) and a fast model. Each part's delay can be tuned with the variables above.
 

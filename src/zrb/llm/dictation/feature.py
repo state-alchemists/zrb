@@ -13,7 +13,6 @@ import asyncio
 import logging
 from collections.abc import AsyncGenerator, Callable
 from contextlib import aclosing
-from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from zrb.llm.custom_command.action_command import ActionCommand
@@ -22,7 +21,7 @@ from zrb.llm.dictation.backend.builtin import get_dictation_backend
 from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.listen import MicState, Utterance, import_audio, listen
 from zrb.llm.dictation.words import split_phrases, strip_wake_word, to_answer
-from zrb.llm.speech.feature import interrupt_speech, set_speech_live
+from zrb.llm.speech.feature import interrupt_speech
 from zrb.llm.ui.trigger import TriggerReply
 from zrb.llm.util.feature_config import (
     current_session_key,
@@ -41,7 +40,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 HANDS_FREE = "hands_free"
-LIVE = "live"
 BADGE_KEY = "dictation"
 _LISTENING = "🎤 listening"
 _MIC_STATE_BADGES = {
@@ -107,14 +105,7 @@ class DictationSession:
         self._resting_badge = _LISTENING
         # The chat session this belongs to, whose speech a barge-in silences.
         self._session_key = current_session_key()
-        # Bumped to make a running hands-free listener reopen the microphone
-        # with the settings live mode changed.
-        self._listen_generation = 0
-        self._is_live = False
-        mode = (config.mode or "").strip().lower()
-        self.is_hands_free = mode in (HANDS_FREE, LIVE)
-        if mode == LIVE:
-            self._set_live(True)
+        self.is_hands_free = (config.mode or "").strip().lower() == HANDS_FREE
 
     @property
     def backend(self) -> AnyDictationBackend:
@@ -137,15 +128,8 @@ class DictationSession:
     def is_recording(self) -> bool:
         return self._stop_recording is not None
 
-    @property
-    def is_live(self) -> bool:
-        """Whether live mode is on: hands-free, with replies spoken as they
-        stream."""
-        return self._is_live
-
     def close(self) -> None:
         """Switch hands-free off and release a recording in progress."""
-        self._set_live(False)
         self.is_hands_free = False
         self._hands_free_off.set()
         if self._stop_recording is not None:
@@ -171,16 +155,7 @@ class DictationSession:
             )
             for command in self._config.hands_free_commands or []
         ]
-        live = [
-            ActionCommand(
-                command,
-                self.toggle_live,
-                description="Switch live voice conversation on or off",
-                can_run_while_thinking=True,
-            )
-            for command in self._config.live_commands or []
-        ]
-        return push_to_talk + hands_free + live
+        return push_to_talk + hands_free
 
     def toggle_recording(self, kwargs: dict[str, str], ui: "BaseUI | None"):
         """Stop the recording in progress, else start one."""
@@ -217,44 +192,15 @@ class DictationSession:
                 return f"🎤 {e}"
             if ui is not None:
                 self._ui = ui
-        self._set_hands_free(not self.is_hands_free)
-        return f"🎤 Hands-free {'on' if self.is_hands_free else 'off'}"
-
-    def toggle_live(self, kwargs: dict[str, str], ui: "BaseUI | None") -> str:
-        """Switch live mode: hands-free, speech on, each reply spoken as it
-        streams, and ``live_barge_in`` for talking over zrb."""
-        if not self._is_live:
-            try:
-                import_audio()
-                self._get_backend()
-            except (RuntimeError, ValueError) as e:
-                return f"🎙️ {e}"
-            if ui is not None:
-                self._ui = ui
-        self._set_live(not self._is_live)
-        self._set_hands_free(self._is_live)
-        return f"🎙️ Live {'on' if self._is_live else 'off'}"
-
-    def _set_live(self, is_live: bool) -> None:
-        if is_live == self._is_live:
-            return
-        self._is_live = is_live
-        set_speech_live(is_live, self._session_key)
-        # Reopen the microphone: barge-in differs between the two.
-        self._listen_generation += 1
-
-    def _set_hands_free(self, is_hands_free: bool) -> None:
-        if not is_hands_free:
-            # Live mode is hands-free; one does not outlast the other.
-            self._set_live(False)
-        self.is_hands_free = is_hands_free
-        if is_hands_free:
+        self.is_hands_free = not self.is_hands_free
+        if self.is_hands_free:
             self._hands_free_off.clear()
         else:
             self._hands_free_off.set()
             self._show(None)
         if self._stop_recording is not None:
             self._stop_recording.set()
+        return f"🎤 Hands-free {'on' if self.is_hands_free else 'off'}"
 
     async def _record_into(self, ui: "BaseUI", stop: asyncio.Event) -> str:
         await self.backend.prepare(_to_output(ui))
@@ -308,10 +254,9 @@ class DictationSession:
         armed_until = 0.0
         # aclosing so switching hands-free off closes the microphone as soon as
         # the utterance in flight is dropped, not at finalization.
-        generation = self._listen_generation
         mic_listen = listen(
-            self._get_listen_config(),
-            lambda: self.is_hands_free and generation == self._listen_generation,
+            self._config,
+            lambda: self.is_hands_free,
             on_state=self._show_mic_state,
             on_barge_in=self._handle_barge_in,
             create_stream=self.backend.create_stream,
@@ -355,13 +300,6 @@ class DictationSession:
                     approval=to_answer(command, self._approve_words, self._deny_words),
                     started_at=utterance.started_at,
                 )
-
-    def _get_listen_config(self) -> DictationConfig:
-        """The config with live mode's barge-in, while live mode is on."""
-        live_barge_in = (self._config.live_barge_in or "").strip()
-        if self._is_live and live_barge_in:
-            return replace(self._config, barge_in=live_barge_in)
-        return self._config
 
     def _handle_barge_in(self) -> None:
         """The user started talking over zrb: stop it at once. With wake words

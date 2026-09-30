@@ -282,34 +282,3 @@ def test_a_closed_session_is_no_longer_interrupted():
     interrupt_speech("")
 
     assert session.speaker.interrupted == 0
-
-
-def test_live_mode_turns_speech_on_and_streams_until_it_ends():
-    from zrb.llm.speech import set_speech_live
-
-    session = _session(enabled=False, stream=False)
-    session.speaker = FakeSpeaker()
-    session.speaker.is_enabled = False
-    try:
-        set_speech_live(True)
-        assert session.is_live and session.is_streaming
-        assert session.speaker.is_enabled
-
-        set_speech_live(False)
-        assert not session.is_streaming
-        assert not session.speaker.is_enabled
-    finally:
-        set_speech_live(False)
-        session.close()
-
-
-def test_a_session_made_during_live_mode_starts_live():
-    from zrb.llm.speech import set_speech_live
-
-    set_speech_live(True)
-    try:
-        session = SpeechSession(SpeechConfig(enabled=False).resolve())
-        assert session.speaker.is_enabled
-        session.close()
-    finally:
-        set_speech_live(False)
