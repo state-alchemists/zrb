@@ -282,3 +282,44 @@ def test_a_closed_session_is_no_longer_interrupted():
     interrupt_speech("")
 
     assert session.speaker.interrupted == 0
+
+
+def test_pause_and_resume_speech_reach_this_chat_sessions_speaker():
+    from zrb.llm.speech import pause_speech, resume_speech
+
+    class ControlledSpeaker(FakeSpeaker):
+        def __init__(self):
+            super().__init__()
+            self.events: list[str] = []
+
+        def pause(self):
+            self.events.append("pause")
+
+        def resume(self):
+            self.events.append("resume")
+
+    session = _session()
+    session.speaker = ControlledSpeaker()
+    try:
+        pause_speech()
+        resume_speech()
+        pause_speech("another chat")
+        assert session.speaker.events == ["pause", "resume"]
+    finally:
+        session.close()
+
+
+def test_a_failing_speaker_does_not_stop_speech_control(caplog):
+    from zrb.llm.speech import pause_speech
+
+    class BrokenSpeaker(FakeSpeaker):
+        def pause(self):
+            raise RuntimeError("device gone")
+
+    session = _session()
+    session.speaker = BrokenSpeaker()
+    try:
+        pause_speech()
+        assert "device gone" in caplog.text
+    finally:
+        session.close()

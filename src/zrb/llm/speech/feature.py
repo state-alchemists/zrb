@@ -92,16 +92,35 @@ def enable_speech(
 _speech_sessions: "dict[str, weakref.WeakSet[SpeechSession]]" = {}
 
 
+def pause_speech(session_key: str | None = None) -> None:
+    """Hold what the chat session *session_key* (default: the one asking) is
+    saying, for a user who may have started talking over it: `resume_speech`
+    carries on, `interrupt_speech` drops it. Speech that cannot pause (a
+    player program) is interrupted."""
+    _for_each_session(session_key, lambda session: session.speaker.pause())
+
+
+def resume_speech(session_key: str | None = None) -> None:
+    """Carry on after `pause_speech`: what was heard was not the user."""
+    _for_each_session(session_key, lambda session: session.speaker.resume())
+
+
+def _for_each_session(
+    session_key: str | None, act: Callable[["SpeechSession"], None]
+) -> None:
+    key = current_session_key() if session_key is None else session_key
+    for session in list(_speech_sessions.get(key, ())):
+        try:
+            act(session)
+        except Exception as exc:
+            logger.warning(f"Speech control failed: {exc}")
+
+
 def interrupt_speech(session_key: str | None = None) -> None:
     """Stop what the chat session *session_key* (default: the one asking) is
     saying and drop what it has queued, for a user who started talking over
     it. Speech after this is spoken as usual."""
-    key = current_session_key() if session_key is None else session_key
-    for session in list(_speech_sessions.get(key, ())):
-        try:
-            session.interrupt()
-        except Exception as exc:
-            logger.warning(f"Interrupting speech failed: {exc}")
+    _for_each_session(session_key, lambda session: session.interrupt())
 
 
 class SpeechSession:

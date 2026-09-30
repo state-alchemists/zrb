@@ -114,3 +114,17 @@ def test_gemini_puts_the_style_ahead_of_the_text_to_read(requests, monkeypatch):
 
     text = json.loads(sent[0][0].data)["contents"][0]["parts"][0]["text"]
     assert text == "Warm and clear.\n\nSay exactly this, and nothing else: hello"
+
+
+def test_gemini_renders_its_pcm_as_24_khz_audio(requests, monkeypatch):
+    sent, replies = requests
+    part = {"inlineData": {"data": base64.b64encode(b"\x03\x00").decode()}}
+    replies.append(
+        json.dumps({"candidates": [{"content": {"parts": [part]}}]}).encode()
+    )
+    monkeypatch.setenv("GEMINI_API_KEY", "g-key")
+
+    audio = GeminiSpeechBackend().create_audio("hi")
+
+    assert audio.sample_rate == 24000
+    assert list(audio.chunks) == [b"\x03\x00"]

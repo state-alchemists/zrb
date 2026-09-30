@@ -3,6 +3,7 @@
 import io
 import json
 import os
+import struct
 
 import pytest
 
@@ -123,3 +124,30 @@ def test_openai_sends_the_style_as_instructions_to_a_model_that_takes_them(
 
     body = json.loads(sent[0][0].data)
     assert body.get("instructions") == instructions
+
+
+def _streamed_wav(pcm: bytes, rate: int = 24000) -> bytes:
+    fmt = struct.pack("<HHIIHH", 1, 1, rate, rate * 2, 2, 16)
+    header = b"RIFF\xff\xff\xff\xffWAVEfmt " + struct.pack("<I", 16) + fmt
+    return header + b"data\xff\xff\xff\xff" + pcm
+
+
+def test_openai_renders_the_streamed_wav_as_audio(requests, monkeypatch):
+    sent, replies = requests
+    replies.append(_streamed_wav(b"\x01\x00" * 3))
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+
+    audio = OpenAISpeechBackend().create_audio("hi")
+
+    assert audio.sample_rate == 24000
+    assert b"".join(audio.chunks) == b"\x01\x00" * 3
+    audio.close()
+    assert json.loads(sent[0][0].data)["response_format"] == "wav"
+
+
+def test_openai_closes_a_response_that_is_not_audio(requests, monkeypatch):
+    sent, replies = requests
+    replies.append(b"not a wav at all")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    with pytest.raises(RuntimeError, match="not a WAV"):
+        OpenAISpeechBackend().create_audio("hi")

@@ -5,8 +5,11 @@ import json
 import os
 
 from zrb.llm.speech.backend.any_speech_backend import AnySpeechBackend
+from zrb.llm.speech.backend.audio import SpeechAudio
 from zrb.llm.speech.backend.http import get_required_env, pcm_to_wav, post_json
 from zrb.llm.speech.backend.utterance import Utterance, create_wav_utterance
+
+_SAMPLE_RATE = 24000
 
 
 class GeminiSpeechBackend(AnySpeechBackend):
@@ -38,6 +41,15 @@ class GeminiSpeechBackend(AnySpeechBackend):
         return "gemini"
 
     def create_utterance(self, text: str) -> Utterance:
+        return create_wav_utterance(
+            pcm_to_wav(self._synthesize(text)), self._wav_player
+        )
+
+    def create_audio(self, text: str) -> SpeechAudio:
+        return SpeechAudio(_SAMPLE_RATE, [self._synthesize(text)])
+
+    def _synthesize(self, text: str) -> bytes:
+        """*text* as 16-bit mono PCM at 24 kHz."""
         key = (
             self._api_key
             or os.getenv("GEMINI_API_KEY")
@@ -68,7 +80,7 @@ class GeminiSpeechBackend(AnySpeechBackend):
             raise RuntimeError(
                 "Gemini returned no audio for this text; falling back to local speech"
             )
-        return create_wav_utterance(pcm_to_wav(pcm), self._wav_player)
+        return pcm
 
     def _create_prompt(self, text: str) -> str:
         # Without "Say:", Gemini may answer a short line instead of reading it.

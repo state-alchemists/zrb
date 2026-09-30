@@ -43,6 +43,7 @@ class SpeechConfig:
     termux_stream: str | None = None
     timeout: float | None = None
     wav_player: str | None = None
+    player: str | None = None
     lock_file: str | None = None
     lock_timeout: float | None = None
     drain_timeout: float | None = None

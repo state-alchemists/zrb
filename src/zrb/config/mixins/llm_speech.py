@@ -53,6 +53,7 @@ class LLMSpeechMixin:
         self.DEFAULT_LLM_SPEECH_ON_SCREEN_NOTE: str = "The full answer is on screen."
         self.DEFAULT_LLM_SPEECH_EVENTS: str = "reply, approval, question, progress"
         self.DEFAULT_LLM_SPEECH_WAV_PLAYER: str = ""
+        self.DEFAULT_LLM_SPEECH_PLAYER: str = "auto"
         self.DEFAULT_LLM_SPEECH_LOCK_TIMEOUT: str = "30"
         self.DEFAULT_LLM_SPEECH_DRAIN_TIMEOUT: str = "30"
         self.DEFAULT_LLM_SPEECH_PLAYER_TIMEOUT: str = "120"
@@ -234,6 +235,20 @@ class LLMSpeechMixin:
             "agent asks something), 'progress' (a tool call starts after a "
             "silence, see {ENV_PREFIX}_LLM_SPEECH_PROGRESS_INTERVAL). Default: "
             "reply, approval, question, progress."
+        ),
+    )
+
+    LLM_SPEECH_PLAYER = EnvField(
+        str,
+        doc=(
+            "How speech is played. One of:\n"
+            "- 'auto' (default): by zrb itself through sounddevice when the "
+            "zrb[voice] extra is installed and the backend can render audio "
+            "('say', 'espeak-ng', 'openai', 'gemini'), so dictation can cancel "
+            "zrb's voice out of the microphone and pause it; else by a player "
+            "program.\n"
+            "- 'command': always by a player program (say, espeak-ng, "
+            "termux-tts-speak, a WAV player)."
         ),
     )
 

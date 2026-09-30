@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+from typing import BinaryIO
+
 from zrb.llm.speech.backend.any_speech_backend import AnySpeechBackend
+from zrb.llm.speech.backend.audio import SpeechAudio, create_streamed_wav_audio
 from zrb.llm.speech.backend.http import get_required_env, open_post_json
-from zrb.llm.speech.backend.utterance import Utterance, create_streamed_wav_utterance
+from zrb.llm.speech.backend.utterance import (
+    Utterance,
+    create_streamed_wav_utterance,
+    shut_down_socket,
+)
 
 
 class OpenAISpeechBackend(AnySpeechBackend):
@@ -36,6 +43,17 @@ class OpenAISpeechBackend(AnySpeechBackend):
         return "openai"
 
     def create_utterance(self, text: str) -> Utterance:
+        return create_streamed_wav_utterance(self._request(text), self._wav_player)
+
+    def create_audio(self, text: str) -> SpeechAudio:
+        response = self._request(text)
+        try:
+            return create_streamed_wav_audio(response, lambda: _close(response))
+        except BaseException:
+            response.close()
+            raise
+
+    def _request(self, text: str) -> BinaryIO:
         key = self._api_key or get_required_env("OPENAI_API_KEY")
         body = {
             "model": self._model,
@@ -48,8 +66,16 @@ class OpenAISpeechBackend(AnySpeechBackend):
         url = f"{self._base_url.rstrip('/')}/audio/speech"
         headers = {"Authorization": f"Bearer {key}"}
         timeout = self._timeout or _STALL_SECONDS
-        response = open_post_json(url, body, headers, timeout)
-        return create_streamed_wav_utterance(response, self._wav_player)
+        return open_post_json(url, body, headers, timeout)
+
+
+def _close(response: BinaryIO) -> None:
+    """Close a download, ending a read blocked on it from another thread."""
+    shut_down_socket(response)
+    try:
+        response.close()
+    except OSError:
+        pass
 
 
 # The audio is read after `create_utterance` returns, on a thread nothing can

@@ -47,6 +47,9 @@ def lock_file(tmp_path):
 
 
 def _config(backend, lock_file, **fields):
+    # Played by a program unless a test says otherwise: these tests are about
+    # queueing, locking and stopping, not where the audio goes.
+    fields.setdefault("player", "command")
     return SpeechConfig(
         backend=backend, lock_file=lock_file, lock_timeout=0.05, **fields
     ).resolve()

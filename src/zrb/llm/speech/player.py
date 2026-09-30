@@ -20,6 +20,8 @@ from zrb.llm.speech.backend.any_speech_backend import AnySpeechBackend
 from zrb.llm.speech.backend.builtin import get_speech_backend
 from zrb.llm.speech.backend.utterance import Utterance
 from zrb.llm.speech.config import SpeechConfig
+from zrb.llm.speech.pcm_player import PcmUtterance
+from zrb.llm.speech.pcm_player import is_available as is_in_process_available
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 
 logger = logging.getLogger(__name__)
@@ -169,6 +171,26 @@ class Speaker:
         except queue.Empty:
             pass
 
+    def pause(self) -> None:
+        """Hold what is playing, for a user who may be talking over it; what
+        is queued waits. Speech a player program is playing cannot pause, so
+        it is interrupted instead."""
+        with self._lock:
+            playing = self._playing
+        if playing is None:
+            return
+        if playing.is_pausable:
+            playing.pause()
+        else:
+            self.interrupt()
+
+    def resume(self) -> None:
+        """Carry on after `pause`."""
+        with self._lock:
+            playing = self._playing
+        if playing is not None:
+            playing.resume()
+
     def interrupt(self) -> None:
         """Drop queued speech and stop what is playing, for a user who started
         talking over it. Unlike `close`, the speaker keeps speaking whatever
@@ -225,10 +247,19 @@ class Speaker:
     def _create_with_fallback(self, text: str) -> Utterance | None:
         for backend in self._get_backends():
             try:
-                return backend.create_utterance(text)
+                return self._create_utterance(backend, text)
             except Exception as exc:
                 logger.warning(f"Speech backend {backend.name} failed: {exc}")
         return None
+
+    def _create_utterance(self, backend: AnySpeechBackend, text: str) -> Utterance:
+        """Played by zrb itself when it can be, else by a player program."""
+        player = (self._config.player or "auto").strip().lower()
+        if player != "command" and is_in_process_available():
+            audio = backend.create_audio(text)
+            if audio is not None:
+                return PcmUtterance(audio)
+        return backend.create_utterance(text)
 
     def _get_backends(self) -> list[AnySpeechBackend]:
         config = self._config
