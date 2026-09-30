@@ -38,15 +38,24 @@ Every setting is an environment variable, listed in [LLM Configuration § 23](..
 
 Set `ZRB_LLM_DICTATION_MODE=hands_free` to start every session this way. Set `ZRB_LLM_DICTATION_WAKE_WORDS` so that only utterances starting with a wake word count. Without one, anything the microphone hears becomes a turn, including a conversation in the room.
 
-zrb ignores the microphone while it is speaking, so its own voice is not taken as yours. Anything you say over it is lost, so wait for it to finish, or answer by keyboard — unless you wear headphones and turn on barge-in.
+By default zrb ignores the microphone while it is speaking, so its own voice is not taken as yours, and anything you say over it is lost.
 
-**Talking over zrb (barge-in).** With `ZRB_LLM_DICTATION_BARGE_IN=headset`, the microphone keeps listening while zrb speaks. About a third of a second of speech over it (`ZRB_LLM_DICTATION_BARGE_IN_MIN_SPEECH`) stops it at once, before what you said is even transcribed, and the rest of that reply is not read. Then:
+**Talking over zrb (barge-in).** With `ZRB_LLM_DICTATION_BARGE_IN=on`, the microphone keeps listening while zrb speaks, on laptop speakers too: zrb removes its own voice from what the microphone hears (echo cancellation, below). About a third of a second of speech over it (`ZRB_LLM_DICTATION_BARGE_IN_MIN_SPEECH`) pauses zrb at once. If what you said turns out to be words, zrb stops and the rest of that reply is not read; if it was a cough or a door, zrb carries on where it paused. Then:
 
 - "Stop" or "no" said alone cancels the turn, as Esc does, and is sent nowhere.
 - Anything else steers the running turn: the agent takes it into account at its next step (`ZRB_LLM_DICTATION_BARGE_IN_ACTION=steer`). With `cancel`, the turn stops and what you said starts a new one.
 - While a tool approval is waiting, what you say answers it, as usual: "no" denies the tool call, not the turn.
 
-With wake words, zrb stops only once it has heard one, so talk in the room does not silence it. Use barge-in only with headphones: on speakers the microphone hears zrb's own voice, and it stops itself.
+With wake words, zrb stops only once it has heard one; it pauses for talk in the room and carries on.
+
+**Echo cancellation.** For zrb to hear you over itself, it has to subtract its own voice from the microphone, so it plays its speech itself (`ZRB_LLM_SPEECH_PLAYER=auto`, the default with the `zrb[voice]` extra, for `say`, `espeak-ng`, `openai` and `gemini`) and knows every sample it played. It measures how long its voice takes to reach the microphone from the audio itself, and needs a few seconds of speaking to learn the room: until then, once a session, the microphone stays deaf while zrb speaks, as with barge-in off. `ZRB_LLM_DICTATION_ECHO_CANCELLER` picks how:
+
+| Canceller | Use it when |
+|---|---|
+| `numpy` (default) | Speakers: an adaptive echo canceller in pure NumPy, running wherever dictation does, Termux included |
+| `none` | Headphones, or your system already cancels echo (PipeWire's or PulseAudio's echo-cancel module): the microphone is trusted as it is |
+
+Speech a player program plays cannot be cancelled (zrb never sees its samples), so with Termux's own voice (`termux-tts-speak`) or `ZRB_LLM_SPEECH_PLAYER=command`, the `numpy` canceller keeps the microphone deaf while zrb speaks; use `espeak-ng` or a cloud voice on Termux, or `none` with headphones.
 
 **Transcribing while you speak.** vosk transcribes an utterance as you say it, and the status bar shows the last words heard. Once you pause for half a second (`ZRB_LLM_DICTATION_MIN_SILENCE`) after words that sound finished, the utterance ends; after "and", "the" or "um" it waits the full second (`ZRB_LLM_DICTATION_SILENCE`), since you are still thinking. The other backends transcribe the whole utterance after it ends and always wait the full second.
 
@@ -60,7 +69,8 @@ The status bar shows what the microphone is doing:
 | `✍️ transcribing…` | Turning what you said into text |
 | `🎤 heard "Yes." · listening` | What it heard last; it is listening again |
 | `🔇 mic paused while speaking` | zrb is talking; what you say now is not heard |
-| `✋ interrupted · go on…` | You talked over zrb and it stopped (barge-in) |
+| `✋ paused · listening…` | You talked over zrb; it paused until it knows whether that was words |
+| `✋ interrupted · go on…` | It was words: zrb stopped (barge-in) |
 | `✋ stopped · listening` | You said "stop" over it; the turn was cancelled |
 | `🎤 ignored "…" (no wake word)` | Heard, but it did not start with a wake word |
 
@@ -103,7 +113,7 @@ Speech rides on the hook subsystem, so it needs hooks on: with `ZRB_HOOKS_ENABLE
 ZRB_LLM_SPEECH_ENABLED=on ZRB_LLM_DICTATION_MODE=hands_free zrb llm chat
 ```
 
-With headphones, add `ZRB_LLM_DICTATION_BARGE_IN=headset` so you can talk over it (see barge-in under [Dictation](#dictation)). It is off by default because on speakers zrb would hear itself.
+Add `ZRB_LLM_DICTATION_BARGE_IN=on` to talk over it, on speakers or headphones (see barge-in under [Dictation](#dictation)).
 
 For the quickest replies, use vosk for dictation (it transcribes while you speak and ends an utterance half a second after you finish) and a fast model. Each part's delay can be tuned with the variables above.
 
@@ -130,7 +140,8 @@ Each feature takes a backend name or an object implementing its interface:
 |---|---|---|
 | Camera | `zrb.llm.camera.AnyCameraBackend` — `async capture(device) -> bytes \| None` | `auto`, `termux`, `ffmpeg` |
 | Dictation | `zrb.llm.dictation.AnyDictationBackend` — `async transcribe(audio) -> str`; optionally `async create_stream() -> AnyTranscriptionStream \| None` to transcribe while the user speaks | `vosk`, `openai`, `google`, `multimodal` |
-| Speech | `zrb.llm.speech.AnySpeechBackend` — `create_utterance(text) -> Utterance` | `auto`, `termux`, `say`, `espeak-ng`, `openai`, `gemini` |
+| Echo cancellation | `zrb.llm.dictation.echo.AnyEchoCanceller` — `process(mic, far) -> mic`, float32 at 16 kHz; `is_converged`, `needs_reference`, `reset()` | `numpy`, `none` |
+| Speech | `zrb.llm.speech.AnySpeechBackend` — `create_utterance(text) -> Utterance`; optionally `create_audio(text) -> SpeechAudio \| None` so zrb plays it itself (needed for barge-in on speakers) | `auto`, `termux`, `say`, `espeak-ng`, `openai`, `gemini` |
 
 A speech backend that talks to a local TTS server and plays the WAV it returns:
 
