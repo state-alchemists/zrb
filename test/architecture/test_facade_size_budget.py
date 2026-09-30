@@ -31,8 +31,13 @@ FACADE_BUDGETS = {
     # `is_application_built` predicate and the hoisted `_application`
     # init it reads during UIOutput construction.
     "llm/ui/default/ui.py": 671,
-    "llm/task/chat/task.py": 1068,
-    "llm/task/llm_task.py": 783,
+    # +10 (1068->1078): the `stream_observers` collection (append/prepend/
+    # set/remove plus its property), the seam speech streams through --
+    # new surface.
+    "llm/task/chat/task.py": 1078,
+    # +26 (783->809): `stream_observers` with its setter and append/prepend/
+    # remove, handed to `run_agent` -- new surface.
+    "llm/task/llm_task.py": 809,
     "llm/agent/subagent/manager.py": 299,
 }
 

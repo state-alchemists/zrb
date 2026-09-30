@@ -22,6 +22,7 @@ ORDERED_COLLECTION_STEMS = [
     ("trigger", "triggers"),
     ("custom_command", "custom_commands"),
     ("hook_factory", "hook_factories"),
+    ("stream_observer", "stream_observers"),
     ("tool_policy", "tool_policies"),
     ("response_handler", "response_handlers"),
     ("argument_formatter", "argument_formatters"),

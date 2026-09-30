@@ -29,6 +29,7 @@ from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.stream_observer import StreamObserver
 from zrb.llm.task.chat.execution import ChatExecution
 from zrb.llm.task.chat.running import ChatRunning
 from zrb.llm.task.history_config import HistoryConfig
@@ -321,6 +322,7 @@ class LLMChatTask(BaseTask):
         self._tool_factories = tool_factories or []
         self._toolset_factories = toolset_factories or []
         self._hook_factories: list[Callable[[HookManager], None]] = []
+        self._stream_observers: list[StreamObserver] = []
 
     def _init_ui_surface(self, ui, ui_factory, approval_channel) -> None:
         """Seed the UI, UI-factory and approval-channel lists.
@@ -559,6 +561,25 @@ class LLMChatTask(BaseTask):
     def remove_history_processor(self, processor: "HistoryProcessor") -> None:
         """Drop *processor*. A no-op if it is not registered."""
         _remove_first(self._history_processors, processor)
+
+    # Stream observers (ordered) ---------------------------------------------
+
+    def append_stream_observer(self, *observer: StreamObserver) -> None:
+        """Add observers seeing every event a run streams, after those
+        already registered (`zrb.llm.stream_observer`)."""
+        self._stream_observers += list(observer)
+
+    def prepend_stream_observer(self, *observer: StreamObserver) -> None:
+        """Add observers before those already registered."""
+        self._stream_observers[0:0] = observer
+
+    def set_stream_observers(self, observers: list[StreamObserver]) -> None:
+        """Replace the stream-observer list wholesale."""
+        self._stream_observers = list(observers)
+
+    def remove_stream_observer(self, observer: StreamObserver) -> None:
+        """Drop *observer*. A no-op if it is not registered."""
+        _remove_first(self._stream_observers, observer)
 
     # Response handlers (ordered) --------------------------------------------
 
@@ -978,6 +999,11 @@ class LLMChatTask(BaseTask):
     def history_processors(self) -> "list[HistoryProcessor]":
         """Processors rewriting conversation history before each request."""
         return self._history_processors
+
+    @property
+    def stream_observers(self) -> list[StreamObserver]:
+        """Callables seeing every event a run streams."""
+        return self._stream_observers
 
     @property
     def response_handlers(self) -> list[ResponseHandler]:

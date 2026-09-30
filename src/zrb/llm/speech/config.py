@@ -26,6 +26,7 @@ class SpeechConfig:
     rate: int | None = None
     max_chars: int | None = None
     summarize: bool | None = None
+    stream: bool | None = None
     summary_model: str | None = None
     on_screen_note: str | None = None
     events: list[str] | None = None

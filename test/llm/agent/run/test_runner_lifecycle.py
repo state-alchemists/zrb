@@ -463,3 +463,31 @@ async def test_an_explicit_nested_flag_wins_over_the_bound_scope(monkeypatch):
     assert [data["nested_run"] for data in captured] == [True, True]
     # Each turn has an id of its own.
     assert captured[0]["turn_id"] != captured[1]["turn_id"]
+
+
+@pytest.mark.asyncio
+async def test_run_agent_passes_every_streamed_event_to_stream_observers():
+    agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.output = "AI result"
+    mock_result.all_messages.return_value = []
+    streamed = object()
+
+    async def _gen(*args, **kwargs):
+        yield streamed
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run = _run_from(_gen)
+    seen = []
+
+    await run_agent(
+        agent=agent,
+        message="Hi",
+        message_history=[],
+        limiter=LLMLimiter(),
+        event_handler=AsyncMock(),
+        stream_observers=[seen.append],
+    )
+
+    assert seen[0] is streamed
+    assert isinstance(seen[-1], AgentRunResultEvent)

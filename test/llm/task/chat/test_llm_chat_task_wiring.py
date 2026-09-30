@@ -86,6 +86,22 @@ async def test_llm_chat_task_forwards_permissions_to_run_agent():
     assert mock_run_agent.call_args.kwargs["permission_policy"] is policy
 
 
+@pytest.mark.asyncio
+async def test_llm_chat_task_forwards_stream_observers_to_run_agent():
+    observer = MagicMock()
+    task = LLMChatTask(name="observer-task", message="Hello", interactive=False)
+    task.append_stream_observer(observer)
+
+    with patch(
+        "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+    ) as mock_run_agent:
+        mock_run_agent.return_value = ("Done", [])
+        session = Session(SharedContext(), state_logger=MagicMock())
+        await task.async_run(session)
+
+    assert mock_run_agent.call_args.kwargs["stream_observers"] == [observer]
+
+
 def test_llm_chat_task_history_config_reflects_constructor_values():
     manager = MagicMock()
     task = LLMChatTask(

@@ -25,6 +25,7 @@ import os
 import uuid
 from contextlib import ExitStack
 from dataclasses import replace
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine, cast
 
 from zrb.config.config import CFG
@@ -94,6 +95,7 @@ from zrb.llm.permission.state import (
 )
 from zrb.llm.prompt.live_context import append_live_context
 from zrb.llm.sandbox.state import current_sandbox_policy, get_effective_sandbox_policy
+from zrb.llm.stream_observer import StreamObserver, create_observed_event_handler
 from zrb.llm.tool.ambient_state import active_worktree
 from zrb.llm.util.prompt import expand_prompt
 from zrb.util.git.snapshot_command import run_in_worker
@@ -131,6 +133,7 @@ async def run_agent(
     checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None = None,
     run_scope: str = "",
     nested: bool | None = None,
+    stream_observers: "Sequence[StreamObserver] | None" = None,
 ) -> tuple[Any, list[Any]]:
     """
     Runs the agent with rate limiting, history management, and optional CLI confirmation loop.
@@ -151,6 +154,10 @@ async def run_agent(
     snapshot, and the Stop payload's `nested_run` set. None infers it from
     whether another run is bound; pass it when that inference cannot see the
     parent, as a live sub-agent continued from the TUI cannot.
+
+    `stream_observers` see every streamed event after the event handler does
+    (`zrb.llm.stream_observer`). A delegated sub-agent's run does not inherit
+    them.
     """
     global _openai_patched
     if not _openai_patched:
@@ -237,6 +244,9 @@ async def run_agent(
 
         effective_print_fn, effective_event_handler = setup_print_and_events(
             print_fn, event_handler, effective_ui
+        )
+        effective_event_handler = create_observed_event_handler(
+            effective_event_handler, stream_observers
         )
 
         effective_message = expand_prompt(message) if message else message

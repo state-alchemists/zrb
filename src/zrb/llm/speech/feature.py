@@ -19,8 +19,10 @@ from zrb.config.config import CFG
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.speech.config import SpeechConfig
 from zrb.llm.speech.player import Speaker
+from zrb.llm.speech.streamed_reply import StreamedReply
 from zrb.llm.speech.text import clean_for_speech, fit_for_speech
 from zrb.llm.util.feature_config import (
     current_session_key,
@@ -67,10 +69,21 @@ def enable_speech(
     def create_commands() -> "list[AnyCustomCommand]":
         return sessions.get().create_commands()
 
+    def observe_stream(event: Any) -> None:
+        sessions.get().handle_stream_event(event)
+
     registrations: list[tuple[str, Any]] = [("append_hook_factory", register_hooks)]
+    if callable(getattr(task, "append_stream_observer", None)):
+        registrations.append(("append_stream_observer", observe_stream))
     if callable(getattr(task, "append_custom_command", None)):
         registrations.append(("append_custom_command", create_commands))
     replace_registration(task, "speech", registrations)
+    prompt_manager = getattr(task, "prompt_manager", None)
+    if prompt_manager is not None:
+        # Keyed by name, so enabling speech again replaces it.
+        prompt_manager.add_live_context(
+            "speech", lambda ctx: sessions.get().create_live_context()
+        )
 
 
 class SpeechSession:
@@ -90,6 +103,13 @@ class SpeechSession:
         ) = weakref.WeakKeyDictionary()
         self.speaker = Speaker(config)
         self.speaker.is_enabled = bool(config.enabled)
+        # Through `self.speaker` at call time, not a bound `say`, so a speaker
+        # replaced later is the one that speaks.
+        self.streamed_reply = StreamedReply(
+            lambda text: self.speaker.say(text),
+            config.max_chars or 0,
+            config.on_screen_note or "",
+        )
         if not CFG.HOOKS_ENABLED:
             logger.warning(
                 "Speech is delivered by the hook subsystem, which is off "
@@ -150,17 +170,37 @@ class SpeechSession:
         self.speaker.is_enabled = not self.speaker.is_enabled
         if not self.speaker.is_enabled:
             self.speaker.clear()
+            self.streamed_reply.reset()
         return f"🔊 Speech {'on' if self.speaker.is_enabled else 'off'}"
+
+    def create_live_context(self) -> str:
+        """Tell the model its reply is heard, while it is: a reply written to
+        be read aloud opens with the answer instead of a table."""
+        if self.speaker.is_enabled and "reply" in self._events:
+            return get_prompt("speech_live")
+        return ""
+
+    def handle_stream_event(self, event: Any) -> None:
+        """Speak the reply's sentences as they stream, when ``stream`` is on.
+        Only the main run's events arrive: a sub-agent's run has no stream
+        observers."""
+        if self._config.stream and self.speaker.is_enabled and "reply" in self._events:
+            self.streamed_reply.handle_event(event)
 
     async def handle_stop(self, context: HookContext) -> HookResult:
         """Speak the reply, but not a sub-agent's: only the main turn is for
-        the user."""
+        the user. A streamed reply only needs its last words spoken; one
+        cancelled with Esc is not finished at all."""
         event_data = context.event_data if isinstance(context.event_data, dict) else {}
-        if (
-            self._is_own_session()
-            and not event_data.get("nested_run")
-            and context.last_assistant_message
-        ):
+        if not self._is_own_session() or event_data.get("nested_run"):
+            return HookResult(success=True)
+        if event_data.get("reason") == "escape":
+            self.streamed_reply.reset()
+            self.speaker.clear()
+            return HookResult(success=True)
+        if self._config.stream and self.streamed_reply.finish():
+            return HookResult(success=True)
+        if context.last_assistant_message:
             self.say_reply(context.last_assistant_message)
         return HookResult(success=True)
 
@@ -217,7 +257,6 @@ class SpeechSession:
     async def _summarize(self, reply: str) -> str:
         # lazy: heavy transitive (pydantic_ai) via zrb.llm.agent.summarizer
         from zrb.llm.agent.summarizer import create_summarizer_agent
-        from zrb.llm.prompt.prompt import get_prompt
 
         agent = create_summarizer_agent(
             model=self._config.summary_model or None,

@@ -29,6 +29,7 @@ class LLMSpeechMixin:
         self.DEFAULT_LLM_SPEECH_RATE: str = "165"
         self.DEFAULT_LLM_SPEECH_MAX_CHARS: str = "400"
         self.DEFAULT_LLM_SPEECH_SUMMARIZE: str = "false"
+        self.DEFAULT_LLM_SPEECH_STREAM: str = "false"
         self.DEFAULT_LLM_SPEECH_OPENAI_MODEL: str = "gpt-4o-mini-tts"
         self.DEFAULT_LLM_SPEECH_OPENAI_BASE_URL: str = "https://api.openai.com/v1"
         self.DEFAULT_LLM_SPEECH_GEMINI_MODEL: str = "gemini-2.5-flash-preview-tts"
@@ -111,6 +112,18 @@ class LLMSpeechMixin:
             "Speak a small-model summary of a reply longer than "
             "{ENV_PREFIX}_LLM_SPEECH_MAX_CHARS instead of its opening. Costs a "
             "model call per long reply. Default: false."
+        ),
+    )
+
+    LLM_SPEECH_STREAM = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Speak a reply a sentence at a time while it is written, and the "
+            "text before a tool call when the call starts, instead of the "
+            "whole reply once the turn ends. {ENV_PREFIX}_LLM_SPEECH_MAX_CHARS "
+            "then caps what one turn speaks, and "
+            "{ENV_PREFIX}_LLM_SPEECH_SUMMARIZE does not apply. Default: false."
         ),
     )
 
