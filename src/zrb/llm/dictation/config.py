@@ -22,6 +22,8 @@ class DictationConfig:
     mode: str | None = None
     commands: list[str] | None = None
     hands_free_commands: list[str] | None = None
+    live_commands: list[str] | None = None
+    live_barge_in: str | None = None
     backend: "str | AnyDictationBackend | None" = None
     wake_words: list[str] | None = None
     wake_window: float | None = None

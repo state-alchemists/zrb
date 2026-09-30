@@ -181,7 +181,8 @@ async def test_enable_dictation_reads_cfg_when_a_session_starts(monkeypatch):
 
     monkeypatch.setattr(CFG, "LLM_DICTATION_COMMANDS", ["/talk"])
     monkeypatch.setattr(CFG, "LLM_DICTATION_HANDS_FREE_COMMANDS", ["/listen"])
-    assert [c.command for c in create_commands()] == ["/talk", "/listen"]
+    monkeypatch.setattr(CFG, "LLM_DICTATION_LIVE_COMMANDS", ["/converse"])
+    assert [c.command for c in create_commands()] == ["/talk", "/listen", "/converse"]
 
 
 @pytest.mark.asyncio
@@ -207,6 +208,7 @@ async def test_two_sessions_hands_free_state_is_their_own(monkeypatch):
         DictationConfig(
             commands=[],
             hands_free_commands=["/handsfree"],
+            live_commands=[],
             backend=FakeBackend(),
         ),
     )
@@ -241,7 +243,10 @@ async def test_enabling_dictation_again_uses_the_new_config(monkeypatch):
     enable_dictation(
         chat,
         DictationConfig(
-            commands=["/first"], hands_free_commands=[], backend=FakeBackend()
+            commands=["/first"],
+            hands_free_commands=[],
+            live_commands=[],
+            backend=FakeBackend(),
         ),
     )
     (first_commands,) = chat.append_custom_command.call_args.args
@@ -250,7 +255,10 @@ async def test_enabling_dictation_again_uses_the_new_config(monkeypatch):
     enable_dictation(
         chat,
         DictationConfig(
-            commands=["/second"], hands_free_commands=[], backend=FakeBackend()
+            commands=["/second"],
+            hands_free_commands=[],
+            live_commands=[],
+            backend=FakeBackend(),
         ),
     )
     (second_commands,) = chat.append_custom_command.call_args.args
@@ -261,7 +269,10 @@ def test_an_unknown_backend_does_not_break_a_session_that_never_uses_it(monkeypa
     monkeypatch.setattr("zrb.llm.dictation.feature.import_audio", lambda: (None, None))
     session = DictationSession(
         DictationConfig(
-            backend="whisper", commands=["/voice"], hands_free_commands=["/handsfree"]
+            backend="whisper",
+            commands=["/voice"],
+            hands_free_commands=["/handsfree"],
+            live_commands=[],
         ).resolve()
     )
     voice, hands_free = session.create_commands()

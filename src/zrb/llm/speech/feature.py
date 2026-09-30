@@ -92,6 +92,24 @@ def enable_speech(
 _speech_sessions: "dict[str, weakref.WeakSet[SpeechSession]]" = {}
 
 
+# Chat sessions in live mode: every reply streamed, tool calls announced.
+_live_session_keys: set[str] = set()
+
+
+def set_speech_live(is_live: bool, session_key: str | None = None) -> None:
+    """Put the chat session *session_key* (default: the one asking) in live
+    mode, or take it out: speech on, each reply spoken a sentence at a time
+    as it streams, and a tool call announced after a silence, whatever the
+    config says. Leaving live mode restores the config's settings."""
+    key = current_session_key() if session_key is None else session_key
+    if is_live:
+        _live_session_keys.add(key)
+    else:
+        _live_session_keys.discard(key)
+    for session in list(_speech_sessions.get(key, ())):
+        session.speaker.is_enabled = is_live or bool(session.config.enabled)
+
+
 def interrupt_speech(session_key: str | None = None) -> None:
     """Stop what the chat session *session_key* (default: the one asking) is
     saying and drop what it has queued, for a user who started talking over
@@ -121,7 +139,7 @@ class SpeechSession:
             "weakref.WeakKeyDictionary[HookManager, list[tuple[Any, list[HookEvent]]]]"
         ) = weakref.WeakKeyDictionary()
         self.speaker = Speaker(config)
-        self.speaker.is_enabled = bool(config.enabled)
+        self.speaker.is_enabled = bool(config.enabled) or self.is_live
         self._clock = SpeechClock()
         self.streamed_reply = StreamedReply(
             self._say, config.max_chars or 0, config.on_screen_note or ""
@@ -203,6 +221,21 @@ class SpeechSession:
             self.streamed_reply.reset()
         return f"🔊 Speech {'on' if self.speaker.is_enabled else 'off'}"
 
+    @property
+    def config(self) -> SpeechConfig:
+        """The resolved config this session was built from."""
+        return self._config
+
+    @property
+    def is_live(self) -> bool:
+        """Whether this chat session is in live mode (`set_speech_live`)."""
+        return self._session_key in _live_session_keys
+
+    @property
+    def is_streaming(self) -> bool:
+        """Whether replies are spoken as they stream."""
+        return bool(self._config.stream) or self.is_live
+
     def create_live_context(self) -> str:
         """Tell the model its reply is heard, while it is: a reply written to
         be read aloud opens with the answer instead of a table."""
@@ -219,9 +252,9 @@ class SpeechSession:
             return
         # The reply first: text flushed at a tool call's start counts as
         # speech, so the call is not announced on top of it.
-        if self._config.stream and "reply" in self._events:
+        if self.is_streaming and "reply" in self._events:
             self.streamed_reply.handle_event(event)
-        if "progress" in self._events:
+        if "progress" in self._events or self.is_live:
             self.progress.handle_event(event)
 
     def _say(self, text: str, is_stale: IsStale = None) -> None:
@@ -247,7 +280,7 @@ class SpeechSession:
             self.streamed_reply.reset()
             self.speaker.clear()
             return HookResult(success=True)
-        if self._config.stream:
+        if self.is_streaming:
             self.streamed_reply.flush()
             has_claimed_turn = self.streamed_reply.has_claimed_turn
             self.streamed_reply.reset()
