@@ -27,7 +27,10 @@ FACADE_BUDGETS = {
     # +12 (1220->1232): `cancel_current_turn`, the turn cancel `AnyUI` now
     # declares so Esc and a spoken barge-in stop a turn the same way -- new
     # surface.
-    "llm/ui/base/ui.py": 1232,
+    # +11 (1232->1243): `execute_hook` takes the hook manager to dispatch
+    # through, so `cancel_current_turn` fires `Stop` on the one the turn ran
+    # with -- new surface.
+    "llm/ui/base/ui.py": 1243,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

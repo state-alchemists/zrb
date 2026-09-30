@@ -213,6 +213,7 @@ class DictationSession:
             self._hands_free_off.clear()
         else:
             self._hands_free_off.set()
+            self._release_barge_in()
             self._show(None)
         if self._stop_recording is not None:
             self._stop_recording.set()
@@ -261,6 +262,7 @@ class DictationSession:
                         yield reply
             except Exception as exc:
                 # Stop rather than retry a broken microphone forever.
+                self._release_barge_in()
                 self._report(f"Hands-free dictation stopped: {exc}")
                 self.is_hands_free = False
             finally:

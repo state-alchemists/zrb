@@ -31,7 +31,7 @@ from zrb.context.shared_context import SharedContext
 from zrb.llm.agent_state import get_current_ui
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-from zrb.llm.hook.manager import hook_manager
+from zrb.llm.hook.manager import HookManager, hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission.state import (
     AgentMode,
@@ -661,20 +661,31 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         if running is None or running.done():
             return
         running.cancel()
+        # Through the manager the turn ran with (a chat task builds one per
+        # run), so the hooks that saw the turn see it end; else the global one.
         self.execute_hook(
             HookEvent.STOP,
             {"reason": reason, "session": self.conversation_session_name},
+            manager=getattr(self.llm_task, "active_hook_manager", None),
         )
 
-    def execute_hook(self, event: HookEvent, event_data: Any, **kwargs) -> None:
+    def execute_hook(
+        self,
+        event: HookEvent,
+        event_data: Any,
+        manager: HookManager | None = None,
+        **kwargs,
+    ) -> None:
         """
-        Safely execute hooks from either sync or async context.
+        Safely execute hooks from either sync or async context, through
+        *manager* (default: the process-wide one).
         Maintains strong references to tasks to prevent garbage collection.
         """
+        effective: HookManager = manager or hook_manager
         try:
             loop = asyncio.get_running_loop()
             task = loop.create_task(
-                hook_manager.execute_hooks(event, event_data, **kwargs)
+                effective.execute_hooks(event, event_data, **kwargs)
             )
             self._background_tasks.add(task)
             task.add_done_callback(self._background_tasks.discard)
@@ -685,7 +696,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             # Sync context: Runner restores the thread's previous loop state on
             # close, so no closed loop is left installed as the default.
             with asyncio.Runner() as runner:
-                runner.run(hook_manager.execute_hooks(event, event_data, **kwargs))
+                runner.run(effective.execute_hooks(event, event_data, **kwargs))
 
     async def execute_hook_blocking(
         self, event: HookEvent, event_data: Any, **kwargs

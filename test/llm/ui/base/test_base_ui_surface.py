@@ -247,3 +247,22 @@ def test_cancel_current_turn_with_no_turn_running_only_releases(surface_ui, done
 
     release.assert_called_once()
     execute_hook.assert_not_called()
+
+
+def test_cancel_current_turn_fires_stop_on_the_turns_own_hook_manager(surface_ui):
+    running = MagicMock()
+    running.done.return_value = False
+    surface_ui.running_llm_task = running
+    turn_manager = MagicMock()
+    turn_manager.execute_hooks = AsyncMock(return_value=[])
+    surface_ui.llm_task.active_hook_manager = turn_manager
+
+    async def cancel_and_settle():
+        surface_ui.cancel_current_turn("barge_in")
+        await asyncio.sleep(0)
+
+    asyncio.run(cancel_and_settle())
+
+    [call] = turn_manager.execute_hooks.call_args_list
+    assert call.args[0].value == "Stop"
+    assert call.args[1]["reason"] == "barge_in"

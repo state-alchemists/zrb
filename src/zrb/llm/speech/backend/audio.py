@@ -16,6 +16,12 @@ from collections.abc import Callable, Iterable, Iterator
 from typing import BinaryIO
 
 _CHUNK_BYTES = 4096
+# The header before the samples, all chunks together: a WAV's metadata is a
+# few hundred bytes, and a stream that claims more (a hostile or broken
+# server) must not make zrb read it into memory.
+_MAX_HEADER_BYTES = 1 << 20
+_PCM = 1
+_EXTENSIBLE = 0xFFFE
 
 
 class SpeechAudio:
@@ -39,10 +45,13 @@ class SpeechAudio:
 
 def create_wav_audio(wav_bytes: bytes) -> SpeechAudio:
     """*wav_bytes* (a whole 16-bit mono WAV file) as `SpeechAudio`."""
-    with wave.open(io.BytesIO(wav_bytes)) as wav:
-        if wav.getsampwidth() != 2 or wav.getnchannels() != 1:
-            raise RuntimeError(_unplayable("must be 16-bit mono"))
-        return SpeechAudio(wav.getframerate(), [wav.readframes(wav.getnframes())])
+    try:
+        with wave.open(io.BytesIO(wav_bytes)) as wav:
+            if wav.getsampwidth() != 2 or wav.getnchannels() != 1:
+                raise RuntimeError(_unplayable("must be 16-bit mono"))
+            return SpeechAudio(wav.getframerate(), [wav.readframes(wav.getnframes())])
+    except wave.Error as exc:  # the module reads uncompressed PCM only
+        raise RuntimeError(_unplayable(f"is not uncompressed PCM ({exc})")) from exc
 
 
 def create_streamed_wav_audio(
@@ -61,17 +70,37 @@ def _read_wav_header(source: BinaryIO) -> int:
     if riff[:4] != b"RIFF" or riff[8:12] != b"WAVE":
         raise RuntimeError(_unplayable("is not a WAV stream"))
     sample_rate = 0
+    header_bytes = 12
     while True:
         chunk_id, size = struct.unpack("<4sI", _read_exactly(source, 8))
         if chunk_id == b"data":
             if not sample_rate:
                 raise RuntimeError(_unplayable("has no format chunk"))
             return sample_rate
+        header_bytes += 8 + size + (size & 1)
+        if header_bytes > _MAX_HEADER_BYTES:
+            raise RuntimeError(_unplayable("has a header too large to be speech"))
         body = _read_exactly(source, size + (size & 1))
         if chunk_id == b"fmt ":
-            _, channels, sample_rate, _, _, bits = struct.unpack("<HHIIHH", body[:16])
-            if channels != 1 or bits != 16:
-                raise RuntimeError(_unplayable("must be 16-bit mono"))
+            sample_rate = _read_format(body)
+
+
+def _read_format(body: bytes) -> int:
+    """The sample rate of a ``fmt `` chunk describing 16-bit mono PCM;
+    anything else (compressed, A-law, stereo) would play as noise."""
+    if len(body) < 16:
+        raise RuntimeError(_unplayable("has a broken format chunk"))
+    audio_format, channels, sample_rate, _, _, bits = struct.unpack(
+        "<HHIIHH", body[:16]
+    )
+    if audio_format == _EXTENSIBLE and len(body) >= 26:
+        # The real format is the first two bytes of the sub-format GUID.
+        (audio_format,) = struct.unpack("<H", body[24:26])
+    if audio_format != _PCM:
+        raise RuntimeError(_unplayable("is not uncompressed PCM"))
+    if channels != 1 or bits != 16:
+        raise RuntimeError(_unplayable("must be 16-bit mono"))
+    return sample_rate
 
 
 def _read_exactly(source: BinaryIO, size: int) -> bytes:

@@ -165,3 +165,32 @@ def test_pause_interrupts_speech_that_cannot_pause(lock_file):
 
     assert backend.utterances[0].stopped.is_set()
     speaker.close()
+
+
+def _slow_backend(created, release):
+    class SlowBackend(FakeBackend):
+        def create_utterance(self, text):
+            created.set()
+            release.wait(5)
+            return super().create_utterance(text)
+
+    return SlowBackend()
+
+
+@pytest.mark.parametrize("switch_off", [True, False])
+def test_speech_being_made_when_cleared_is_never_played(lock_file, switch_off):
+    """/speech off (or clearing the queue) while a sentence is still being
+    synthesized drops that sentence once it is made."""
+    created, release = threading.Event(), threading.Event()
+    backend = _slow_backend(created, release)
+    speaker = Speaker(_config(backend, lock_file))
+    speaker.say("in the making")
+    assert created.wait(1)
+
+    if switch_off:
+        speaker.is_enabled = False
+    speaker.clear()
+    release.set()
+    speaker.drain()
+
+    assert backend.played == []

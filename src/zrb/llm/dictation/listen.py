@@ -180,6 +180,7 @@ class UtteranceCutter:
         before the reset clears it."""
         blocks, spoken_blocks = self._speech, self._count_spoken_blocks()
         is_barge_in = self.is_barge_in
+        self._is_finished_barge_in = False
         self.reset()
         if not blocks or spoken_blocks < _to_blocks(self._config.min_speech or 0):
             return None
@@ -381,6 +382,10 @@ class _BlockHandler:
         return await self._to_utterance(finished)
 
     async def close(self) -> None:
+        """The microphone is closing: an utterance still in progress is
+        dropped, and so is a barge-in it reported, so what it paused
+        resumes."""
+        self._reports.abandon()
         await self._streamer.abandon()
 
     async def _to_utterance(
@@ -407,6 +412,12 @@ class _BlockReports:
         self._on_barge_in_dropped = on_barge_in_dropped
         self._state: MicState | None = None
         self._is_barge_in_reported = False
+
+    def abandon(self) -> None:
+        """Report a barge-in still in progress as dropped."""
+        if self._is_barge_in_reported:
+            self._is_barge_in_reported = False
+            _call(self._on_barge_in_dropped)
 
     def update(self, cutter: UtteranceCutter, is_deaf: bool, is_ending: bool) -> None:
         """After a block: *is_ending* when the block finished an utterance

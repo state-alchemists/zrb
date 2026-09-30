@@ -154,7 +154,10 @@ class Speaker:
             self._queue.put((item, is_stale))
 
     def clear(self) -> None:
-        """Drop everything not yet spoken."""
+        """Drop everything not yet spoken, including what is being
+        synthesized now: it is dropped once made, not played late."""
+        with self._lock:
+            self._generation += 1
         try:
             while True:
                 self._queue.get_nowait()
@@ -223,6 +226,7 @@ class Speaker:
         with self._lock:
             if (
                 self._is_cut_off
+                or not self.is_enabled
                 or generation != self._generation
                 or (is_stale is not None and is_stale())
             ):

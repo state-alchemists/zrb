@@ -335,3 +335,26 @@ async def test_a_barge_in_too_short_to_keep_is_reported_dropped():
         assert await task == []
 
     assert barge_ins == [True] and dropped == [True]
+
+
+@pytest.mark.asyncio
+async def test_a_yielded_barge_in_is_not_reported_dropped():
+    dropped = []
+    blocks = LOUD_THEN_QUIET + [_block(0.0)] * 4
+    [utterance] = await _listen_with_echo(
+        blocks, FakeEcho(), on_barge_in_dropped=lambda: dropped.append(True)
+    )
+    assert utterance.is_barge_in and dropped == []
+
+
+@pytest.mark.asyncio
+async def test_closing_the_microphone_mid_barge_in_reports_it_dropped():
+    events = []
+    # Loud to the end: the utterance is still in progress when listening stops.
+    await _listen_with_echo(
+        [_block(0.5)] * 4,
+        FakeEcho(),
+        on_barge_in=lambda: events.append("barge_in"),
+        on_barge_in_dropped=lambda: events.append("dropped"),
+    )
+    assert events == ["barge_in", "dropped"]

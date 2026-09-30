@@ -90,3 +90,53 @@ def test_closing_audio_calls_its_close():
     SpeechAudio(8000, [], lambda: closed.append(True)).close()
     SpeechAudio(8000, []).close()
     assert closed == [True]
+
+
+def _format_chunk(audio_format=1, channels=1, bits=16, extra=b""):
+    body = struct.pack("<HHIIHH", audio_format, channels, 24000, 48000, 2, bits) + extra
+    return b"fmt " + struct.pack("<I", len(body)) + body
+
+
+def _wav_with(fmt: bytes, pcm=b"\x01\x00") -> bytes:
+    return b"RIFF\xff\xff\xff\xffWAVE" + fmt + b"data\xff\xff\xff\xff" + pcm
+
+
+def _extensible(sub_format):
+    # cbSize 22, valid bits, channel mask, then the sub-format GUID.
+    return struct.pack("<HHI", 22, 16, 4) + struct.pack("<H", sub_format) + b"\x00" * 14
+
+
+def test_compressed_audio_is_refused_not_played_as_noise():
+    with pytest.raises(RuntimeError, match="not uncompressed PCM"):
+        create_streamed_wav_audio(io.BytesIO(_wav_with(_format_chunk(audio_format=2))))
+
+
+def test_extensible_pcm_is_accepted_and_extensible_other_refused():
+    pcm = _format_chunk(audio_format=0xFFFE, extra=_extensible(1))
+    assert create_streamed_wav_audio(io.BytesIO(_wav_with(pcm))).sample_rate == 24000
+    float_audio = _format_chunk(audio_format=0xFFFE, extra=_extensible(3))
+    with pytest.raises(RuntimeError, match="not uncompressed PCM"):
+        create_streamed_wav_audio(io.BytesIO(_wav_with(float_audio)))
+
+
+def test_a_short_format_chunk_is_refused():
+    fmt = b"fmt " + struct.pack("<I", 8) + b"\x01\x00" * 4
+    with pytest.raises(RuntimeError, match="broken format chunk"):
+        create_streamed_wav_audio(io.BytesIO(_wav_with(fmt)))
+
+
+def test_a_header_claiming_gigabytes_is_refused_before_reading_it():
+    header = b"RIFF\xff\xff\xff\xffWAVE" + b"LIST" + struct.pack("<I", 2**31)
+    source = io.BufferedReader(io.BytesIO(header))
+
+    with pytest.raises(RuntimeError, match="header too large"):
+        create_streamed_wav_audio(source)
+
+
+def test_a_whole_file_that_is_not_pcm_is_refused():
+    with pytest.raises(RuntimeError, match="not uncompressed PCM"):
+        create_wav_audio(
+            _wav_with(_format_chunk(audio_format=2))
+            .replace(b"\xff\xff\xff\xff", b"\x2a\x00\x00\x00", 1)
+            .replace(b"data\xff\xff\xff\xff", b"data\x02\x00\x00\x00")
+        )

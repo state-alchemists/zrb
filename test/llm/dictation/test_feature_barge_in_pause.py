@@ -166,3 +166,51 @@ async def test_no_echo_cancellation_with_barge_in_off(monkeypatch, speech):
     seen = _listen(monkeypatch, "first")
     await _replies(_session(barge_in="off"), 1)
     assert seen["echo"] is None
+
+
+@pytest.mark.asyncio
+async def test_switching_hands_free_off_resumes_paused_speech(monkeypatch, speech):
+    session = _session(hands_free_commands=["/handsfree"])
+    heard = asyncio.Event()
+
+    async def listen(config, should_listen, on_barge_in=None, **kwargs):
+        on_barge_in()  # the user started talking over zrb...
+        heard.set()
+        await asyncio.Event().wait()  # ...and is still talking
+        yield
+
+    monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
+    stream = session.listen_hands_free()
+    task = asyncio.ensure_future(anext(stream))
+    await asyncio.wait_for(heard.wait(), 1)
+
+    [command] = [c for c in session.create_commands() if c.command == "/handsfree"]
+    command.handle({}, None)
+
+    assert speech == ["pause", "resume"]
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError, StopAsyncIteration):
+        await task
+    await stream.aclose()
+
+
+@pytest.mark.asyncio
+async def test_a_broken_microphone_mid_barge_in_resumes_speech(monkeypatch, speech):
+    session = _session()
+
+    async def listen(config, should_listen, on_barge_in=None, **kwargs):
+        on_barge_in()
+        raise OSError("microphone unplugged")
+        yield
+
+    monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
+    stream = session.listen_hands_free()
+    task = asyncio.ensure_future(anext(stream))
+    await asyncio.sleep(0.05)
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError, StopAsyncIteration):
+        await task
+    await stream.aclose()
+
+    assert speech[:2] == ["pause", "resume"]
+    assert not session.is_hands_free
