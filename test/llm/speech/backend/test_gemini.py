@@ -110,7 +110,8 @@ def test_gemini_puts_the_style_ahead_of_the_text_to_read(requests, monkeypatch):
     )
     monkeypatch.setenv("GEMINI_API_KEY", "g-key")
 
-    GeminiSpeechBackend(style="Warm and clear.").create_utterance("hello").cleanup()
+    # create_audio: the prompt is the point, and it needs no WAV player.
+    GeminiSpeechBackend(style="Warm and clear.").create_audio("hello")
 
     text = json.loads(sent[0][0].data)["contents"][0]["parts"][0]["text"]
     assert text == "Warm and clear.\n\nSay exactly this, and nothing else: hello"
