@@ -265,3 +265,19 @@ async def test_transient_error_still_burns_every_retry():
             await task.async_run(session)
 
     assert mock_run_agent.call_count == 3
+
+
+@pytest.mark.asyncio
+async def test_the_inner_task_runs_with_the_chats_active_hook_manager():
+    """The UI holds the inner LLMTask; cancelling a turn fires Stop on its
+    `hook_manager`, which must be the manager the turn's hooks live on."""
+    task = LLMChatTask(name="hook-task", message="Hello", interactive=False)
+
+    with patch(
+        "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+    ) as mock_run_agent:
+        mock_run_agent.return_value = ("Done", [])
+        await task.async_run(Session(SharedContext(), state_logger=MagicMock()))
+
+    used = mock_run_agent.call_args.kwargs["hook_manager"]
+    assert used is task.active_hook_manager

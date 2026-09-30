@@ -13,6 +13,8 @@ import pytest
 
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
+from zrb.llm.hook.manager import HookManager
+from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.llm.ui.base.ui import BaseUI
 
@@ -249,16 +251,23 @@ def test_cancel_current_turn_with_no_turn_running_only_releases(surface_ui, done
     execute_hook.assert_not_called()
 
 
-def test_cancel_current_turn_fires_stop_on_the_turns_own_hook_manager(surface_ui):
+def test_cancel_current_turn_fires_stop_on_the_turns_own_hook_manager():
+    """An interactive chat's UI holds the inner LLMTask, built with the
+    manager the turn runs with: that is where Stop must go, not the
+    process-wide manager."""
+    turn_manager = HookManager(search_dirs=[])
+    turn_manager.execute_hooks = AsyncMock(return_value=[])
+    ui = _SurfaceUI(
+        ctx=Context(SharedContext(), "test", 0, ""),
+        llm_task=LLMTask(name="inner", hook_manager=turn_manager),
+        history_manager=MagicMock(),
+    )
     running = MagicMock()
     running.done.return_value = False
-    surface_ui.running_llm_task = running
-    turn_manager = MagicMock()
-    turn_manager.execute_hooks = AsyncMock(return_value=[])
-    surface_ui.llm_task.active_hook_manager = turn_manager
+    ui.running_llm_task = running
 
     async def cancel_and_settle():
-        surface_ui.cancel_current_turn("barge_in")
+        ui.cancel_current_turn("barge_in")
         await asyncio.sleep(0)
 
     asyncio.run(cancel_and_settle())

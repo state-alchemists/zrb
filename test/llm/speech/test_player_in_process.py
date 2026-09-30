@@ -194,3 +194,22 @@ def test_speech_being_made_when_cleared_is_never_played(lock_file, switch_off):
     speaker.drain()
 
     assert backend.played == []
+
+
+def test_audio_that_fails_to_render_is_spoken_by_a_player_program(
+    lock_file, monkeypatch, caplog
+):
+    made = _in_process(monkeypatch)
+
+    class BrokenRender(AudioBackend):
+        def create_audio(self, text):
+            raise RuntimeError("say could not write the WAV")
+
+    backend = BrokenRender()
+    speaker = Speaker(_config(backend, lock_file, player="auto"))
+
+    speaker.speak("hello")
+
+    assert made == []
+    assert backend.played == ["hello"]
+    assert "could not write the WAV" in caplog.text

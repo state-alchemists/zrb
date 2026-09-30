@@ -257,10 +257,18 @@ class Speaker:
         return None
 
     def _create_utterance(self, backend: AnySpeechBackend, text: str) -> Utterance:
-        """Played by zrb itself when it can be, else by a player program."""
+        """Played by zrb itself when it can be, else by a player program:
+        audio *backend* fails to render is still spoken its usual way."""
         player = (self._config.player or "auto").strip().lower()
         if player != "command" and is_in_process_available():
-            audio = backend.create_audio(text)
+            try:
+                audio = backend.create_audio(text)
+            except Exception as exc:
+                logger.warning(
+                    f"Speech backend {backend.name} could not render audio for "
+                    f"zrb to play ({exc}); a player program plays it instead"
+                )
+                audio = None
             if audio is not None:
                 return PcmUtterance(audio)
         return backend.create_utterance(text)
