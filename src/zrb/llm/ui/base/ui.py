@@ -661,12 +661,16 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         if running is None or running.done():
             return
         running.cancel()
-        # Through the manager the turn ran with: the UI holds the inner
-        # LLMTask, built with it as `hook_manager`, so the turn's hooks see Stop.
+        # On the manager the turn ran with: a chat task's active one, else
+        # the task's own (the inner LLMTask a chat UI holds is built with it).
+        task = self.llm_task
+        manager = getattr(task, "active_hook_manager", None) or getattr(
+            task, "hook_manager", None
+        )
         self.execute_hook(
             HookEvent.STOP,
             {"reason": reason, "session": self.conversation_session_name},
-            manager=getattr(self.llm_task, "hook_manager", None),
+            manager=manager,
         )
 
     def execute_hook(

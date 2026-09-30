@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from zrb.config.config import CFG
 from zrb.contextvars import current_chat_session_id
 from zrb.llm.util.feature_config import (
+    FeatureSessions,
     close_feature_sessions,
     current_session_key,
     get_session_ui,
@@ -120,5 +121,29 @@ def test_each_session_has_its_own_ui_until_it_ends():
         assert get_session_ui() is first
         close_feature_sessions(first_key)
         assert get_session_ui() is None
+    finally:
+        current_chat_session_id.reset(token)
+
+
+def test_one_feature_failing_to_close_does_not_keep_the_others_open(caplog):
+    closed = []
+
+    def broken_close(value):
+        raise AttributeError("'object' object has no attribute 'set_status_badge'")
+
+    broken = FeatureSessions(lambda: "broken", broken_close)
+    working = FeatureSessions(lambda: "working", closed.append)
+    token = current_chat_session_id.set("closing")
+    try:
+        broken.get()
+        working.get()
+        set_session_ui(object())  # type: ignore[arg-type]
+        key = current_session_key()
+
+        close_feature_sessions(key)
+
+        assert closed == ["working"]
+        assert get_session_ui() is None
+        assert "set_status_badge" in caplog.text
     finally:
         current_chat_session_id.reset(token)

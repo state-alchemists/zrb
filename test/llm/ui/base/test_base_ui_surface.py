@@ -275,3 +275,27 @@ def test_cancel_current_turn_fires_stop_on_the_turns_own_hook_manager():
     [call] = turn_manager.execute_hooks.call_args_list
     assert call.args[0].value == "Stop"
     assert call.args[1]["reason"] == "barge_in"
+
+
+def test_cancel_current_turn_prefers_a_chat_tasks_active_hook_manager():
+    """A UI handed the outer chat task: its per-run manager, not its
+    configured one (None when each run builds its own)."""
+    active = HookManager(search_dirs=[])
+    active.execute_hooks = AsyncMock(return_value=[])
+    chat_task = MagicMock(active_hook_manager=active, hook_manager=None)
+    ui = _SurfaceUI(
+        ctx=Context(SharedContext(), "test", 0, ""),
+        llm_task=chat_task,
+        history_manager=MagicMock(),
+    )
+    running = MagicMock()
+    running.done.return_value = False
+    ui.running_llm_task = running
+
+    async def cancel_and_settle():
+        ui.cancel_current_turn("escape")
+        await asyncio.sleep(0)
+
+    asyncio.run(cancel_and_settle())
+
+    assert active.execute_hooks.call_args.args[1]["reason"] == "escape"
