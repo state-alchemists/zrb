@@ -204,6 +204,7 @@ def create_layout(
     status_bar_text: Callable[[], AnyFormattedText],
     extra_floats: list[Float] | None = None,
     agent_activity_text: Callable[[], AnyFormattedText] | None = None,
+    badge_bar_text: Callable[[], AnyFormattedText] | None = None,
 ) -> Layout:
     title_bar_text = HTML(
         " <title-text><b> {} </b></title-text> <faint>| {}</faint>"
@@ -222,6 +223,20 @@ def create_layout(
                     style="class:bottom-toolbar",
                 ),
                 filter=Condition(lambda: bool(agent_activity_text())),
+            )
+        )
+
+    # The status badges (the microphone's state) on a line of their own,
+    # shown only while a feature has one.
+    if badge_bar_text is not None:
+        extra_children.append(
+            ConditionalContainer(
+                Window(
+                    height=1,
+                    content=FormattedTextControl(badge_bar_text),
+                    style="class:bottom-toolbar",
+                ),
+                filter=Condition(lambda: bool(badge_bar_text())),
             )
         )
 

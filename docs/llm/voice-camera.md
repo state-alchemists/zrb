@@ -59,7 +59,7 @@ Speech a player program plays cannot be cancelled (zrb never sees its samples), 
 
 **Transcribing while you speak.** vosk transcribes an utterance as you say it, and the status bar shows the last words heard. Once you pause for half a second (`ZRB_LLM_DICTATION_MIN_SILENCE`) after words that sound finished, the utterance ends; after "and", "the" or "um" it waits the full second (`ZRB_LLM_DICTATION_SILENCE`), since you are still thinking. The other backends transcribe the whole utterance after it ends and always wait the full second.
 
-The status bar shows what the microphone is doing:
+A line above the status bar shows what the microphone is doing, while hands-free is on:
 
 | Badge | Meaning |
 |---|---|

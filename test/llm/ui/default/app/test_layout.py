@@ -412,3 +412,31 @@ class TestCreateLayout:
             and child.content.content.text is activity_text
         ]
         assert len(panel) == 1
+
+    def test_the_badge_line_sits_just_above_the_status_bar_while_shown(self):
+        input_field, output_field = self._fields()
+        badges: list = []
+
+        def badge_text():
+            return badges
+
+        def status_text():
+            return "s"
+
+        layout = create_layout(
+            "title",
+            "jargon",
+            input_field,
+            output_field,
+            lambda: "i",
+            status_text,
+            badge_bar_text=badge_text,
+        )
+        children = layout.container.content.children
+        badge_line, status_bar = children[-2], children[-1]
+        assert isinstance(badge_line, ConditionalContainer)
+        assert badge_line.content.content.text is badge_text
+        assert status_bar.content.text is status_text
+        assert not badge_line.filter()
+        badges.append(("", " 🎤 listening "))
+        assert badge_line.filter()
