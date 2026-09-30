@@ -290,4 +290,3 @@ async def test_a_recording_cancelled_before_it_starts_can_be_started_again(
     assert not session.is_recording
     assert voice.handle({}, ui) == ""
     await asyncio.gather(*ui.background_tasks)
-

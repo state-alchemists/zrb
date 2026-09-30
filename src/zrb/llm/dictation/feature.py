@@ -35,6 +35,9 @@ from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
+    from zrb.llm.dictation.backend.any_transcription_stream import (
+        AnyTranscriptionStream,
+    )
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.ui.base.ui import BaseUI
@@ -420,17 +423,32 @@ class DictationSession:
             coroutine = self.backend.transcribe(utterance.audio)
         transcribing = asyncio.ensure_future(coroutine)
         switched_off = asyncio.ensure_future(self._hands_free_off.wait())
+        is_finished = False
         try:
             await asyncio.wait(
                 {transcribing, switched_off}, return_when=asyncio.FIRST_COMPLETED
             )
             if not transcribing.done():
                 return None
-            return (await transcribing).strip()
+            text = (await transcribing).strip()
+            is_finished = True
+            return text
         finally:
             for task in (transcribing, switched_off):
                 if not task.done():
                     task.cancel()
+            # A stream that did not finish (hands-free switched off, `finish`
+            # failed, this task cancelled) is abandoned, and an abandoned
+            # stream is closed: it may hold a connection or a decoder.
+            if utterance.stream is not None and not is_finished:
+                await _close_quietly(utterance.stream)
+
+
+async def _close_quietly(stream: "AnyTranscriptionStream") -> None:
+    try:
+        await stream.close()
+    except Exception as exc:
+        logger.warning(f"Closing a transcription stream failed: {exc}")
 
 
 async def _wait_for_turn_end(ui: "AnyUI") -> None:
