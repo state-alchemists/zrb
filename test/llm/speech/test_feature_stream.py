@@ -19,6 +19,7 @@ class FakeSpeaker:
     def __init__(self):
         self.said: list[str] = []
         self.cleared = 0
+        self.interrupted = 0
         self.is_enabled = True
 
     def say(self, text, is_stale=None):
@@ -28,7 +29,7 @@ class FakeSpeaker:
         self.cleared += 1
 
     def interrupt(self):
-        pass
+        self.interrupted += 1
 
     def close(self):
         pass
@@ -142,7 +143,8 @@ async def test_a_turn_cancelled_with_escape_is_not_finished_aloud():
     )
 
     assert session.speaker.said == []
-    assert session.speaker.cleared == 1
+    # The sentence playing is stopped too, not only the queue.
+    assert session.speaker.interrupted == 1
 
 
 def test_enable_speech_registers_a_stream_observer_on_a_task_that_takes_one():
@@ -237,15 +239,6 @@ def test_nothing_streams_or_is_announced_while_speech_is_off():
     assert session.speaker.said == []
 
 
-class InterruptibleSpeaker(FakeSpeaker):
-    def __init__(self):
-        super().__init__()
-        self.interrupted = 0
-
-    def interrupt(self):
-        self.interrupted += 1
-
-
 @pytest.mark.asyncio
 async def test_interrupt_speech_silences_this_chat_session_only():
     from zrb.contextvars import current_chat_session_id
@@ -256,7 +249,7 @@ async def test_interrupt_speech_silences_this_chat_session_only():
         token = current_chat_session_id.set(name)
         try:
             sessions[name] = _session(stream=True)
-            sessions[name].speaker = InterruptibleSpeaker()
+            sessions[name].speaker = FakeSpeaker()
         finally:
             current_chat_session_id.reset(token)
     try:
@@ -276,7 +269,7 @@ def test_a_closed_session_is_no_longer_interrupted():
     from zrb.llm.speech import interrupt_speech
 
     session = _session()
-    session.speaker = InterruptibleSpeaker()
+    session.speaker = FakeSpeaker()
     session.close()
 
     interrupt_speech("")

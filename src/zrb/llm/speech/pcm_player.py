@@ -28,6 +28,8 @@ from zrb.llm.speech.echo_reference import (
 
 _BLOCK_FRAMES = 1024
 _MAX_BUFFERED = 32
+# How long playback waits for the source reader to see it has ended.
+_READER_JOIN_SECONDS = 1.0
 _BUFFER_POLL_SECONDS = 0.005
 _available: bool | None = None
 
@@ -82,8 +84,8 @@ class PcmUtterance(Utterance):
             return
         np, sd = _import_audio()
         reader = threading.Thread(target=self._read_source, daemon=True)
-        reader.start()
         self._reference.add_player(+1)
+        is_played = False
         try:
             stream = sd.OutputStream(
                 samplerate=self._audio.sample_rate,
@@ -98,12 +100,21 @@ class PcmUtterance(Utterance):
             # Before the stream starts, so its first callback sees it; only
             # used when the host gives no timestamps.
             self._started_at = time.monotonic() + float(stream.latency)
+            # Only once there is a stream to play into: a device that cannot
+            # open must not leave a download running.
+            reader.start()
             with stream:
                 if not self._finished.wait(timeout):
                     self.stop()
+            is_played = True
         finally:
             self._reference.add_player(-1)
             self._finished.set()
+            if not is_played:
+                # The device failed: close the source, which ends the read.
+                self.stop()
+            if reader.is_alive():
+                reader.join(_READER_JOIN_SECONDS)
 
     def stop(self) -> None:
         super().stop()

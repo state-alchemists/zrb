@@ -175,3 +175,34 @@ def test_is_available_says_whether_the_audio_packages_import(monkeypatch):
     monkeypatch.setattr(pcm_player, "_available", None)
     with patch.dict("sys.modules", {"sounddevice": types.SimpleNamespace()}):
         assert pcm_player.is_available() is True
+
+
+@pytest.mark.parametrize("fails_on", ["open", "start"])
+def test_a_device_that_fails_closes_the_source_and_reads_nothing(monkeypatch, fails_on):
+    class BrokenStream(FakeOutputStream):
+        def __init__(self, *args, **kwargs):
+            if fails_on == "open":
+                raise OSError("no default output device")
+            super().__init__(*args, **kwargs)
+
+        def __enter__(self):
+            raise OSError("device busy")
+
+    read = []
+
+    def chunks():
+        read.append(True)
+        yield _pcm([1] * 256)
+
+    closed = []
+    fake = types.SimpleNamespace(OutputStream=BrokenStream, CallbackStop=CallbackStop)
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, chunks(), lambda: closed.append(True)), EchoReference()
+    )
+    with patch.dict("sys.modules", {"sounddevice": fake}):
+        with pytest.raises(OSError):
+            utterance.play(timeout=1)
+
+    assert closed and utterance.is_stopped
+    if fails_on == "open":
+        assert read == []  # the reader never started
