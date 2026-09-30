@@ -9,11 +9,13 @@ from __future__ import annotations
 import asyncio
 import time
 from collections import deque
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from enum import Enum
 from typing import Any, NamedTuple
 
+from zrb.llm.dictation.backend.any_transcription_stream import AnyTranscriptionStream
 from zrb.llm.dictation.config import DictationConfig
+from zrb.llm.dictation.words import is_finished_phrase
 from zrb.llm.speech.player import is_speaking
 
 SAMPLE_RATE = 16000  # what the transcribers expect
@@ -22,12 +24,15 @@ BLOCK_SECONDS = 0.1
 
 class Utterance(NamedTuple):
     """One utterance: 16-bit PCM, when its speech started and ended
-    (`time.monotonic()`), and whether it talked over zrb (barge-in)."""
+    (`time.monotonic()`), whether it talked over zrb (barge-in), and the
+    stream transcribing it, if any."""
 
     audio: bytes
     started_at: float
     ended_at: float
     is_barge_in: bool = False
+    # Transcribing it since it started, when the backend streams.
+    stream: "AnyTranscriptionStream | None" = None
 
 
 class MicState(Enum):
@@ -131,6 +136,16 @@ class UtteranceCutter:
         return bool(self._speech)
 
     @property
+    def speech_blocks(self) -> list[Any]:
+        """The blocks of the utterance in progress, pre-roll included."""
+        return self._speech
+
+    @property
+    def quiet_seconds(self) -> float:
+        """How long the utterance in progress has been quiet."""
+        return self._silent_blocks * BLOCK_SECONDS
+
+    @property
     def is_cooling_down(self) -> bool:
         """Whether blocks are still ignored after zrb stopped speaking."""
         return self._cooldown_blocks > 0
@@ -161,6 +176,8 @@ async def listen(
     keep_partial: bool = False,
     on_state: Callable[[MicState], None] | None = None,
     on_barge_in: Callable[[], None] | None = None,
+    create_stream: "CreateStream | None" = None,
+    on_partial: Callable[[str], None] | None = None,
 ) -> AsyncGenerator[Utterance, None]:
     """Yield utterances from the default microphone while *should_listen*
     holds; the microphone closes once it stops holding. With *keep_partial*,
@@ -169,6 +186,12 @@ async def listen(
     *on_barge_in* is called once per utterance, as soon as it has talked over
     zrb long enough to count as an interruption (`UtteranceCutter`), before
     the utterance ends.
+
+    With *create_stream* returning a stream (`AnyTranscriptionStream`), each
+    utterance is fed to one while it is spoken, handed over on its
+    `Utterance.stream`, and *on_partial* sees the transcript so far. Such an
+    utterance ends after ``min_silence`` quiet seconds, rather than
+    ``silence``, once its transcript does not trail off on a word like "and".
 
     Audio keeps arriving while the caller handles an utterance (a slow
     transcription), and is kept, since the user may already be saying the
@@ -189,36 +212,164 @@ async def listen(
         captured = (indata.copy(), is_speaking(), time.monotonic())
         loop.call_soon_threadsafe(backlog.append, captured)
 
-    cutter = UtteranceCutter(config)
-    state: MicState | None = None
-    is_barge_in_reported = False
+    blocks = _BlockHandler(
+        np,
+        config,
+        on_state,
+        on_barge_in,
+        _UtteranceStreamer(np, create_stream, on_partial),
+    )
     stream = _open_microphone(sd, on_audio, blocksize=int(SAMPLE_RATE * BLOCK_SECONDS))
-    with stream:
-        while should_listen():
-            item = await backlog.get(timeout=BLOCK_SECONDS * 5)
-            if item is None:
-                continue
-            block, is_echo, captured_at, follows_gap = item
-            if follows_gap:
-                cutter.reset()
-            level = float(np.sqrt(np.mean(block**2)))
-            finished = cutter.feed(block, level, captured_at, is_echo)
-            if cutter.is_barge_in and not is_barge_in_reported:
-                is_barge_in_reported = True
-                if on_barge_in is not None:
-                    on_barge_in()
-            if not cutter.is_hearing:
-                is_barge_in_reported = False
-            new_state = _get_mic_state(cutter, is_echo)
-            if on_state is not None and new_state != state:
-                on_state(new_state)
-            state = new_state
-            if finished is not None:
-                yield _to_utterance(np, finished, cutter.is_barge_in)
-    if keep_partial:
-        finished = cutter.flush(time.monotonic())
-        if finished is not None:
-            yield _to_utterance(np, finished, cutter.is_barge_in)
+    try:
+        with stream:
+            while should_listen():
+                item = await backlog.get(timeout=BLOCK_SECONDS * 5)
+                if item is None:
+                    continue
+                utterance = await blocks.handle(*item)
+                if utterance is not None:
+                    yield utterance
+        if keep_partial:
+            utterance = await blocks.flush(time.monotonic())
+            if utterance is not None:
+                yield utterance
+    finally:
+        await blocks.close()
+
+
+# Makes a stream for one utterance, or None when the backend has none.
+CreateStream = Callable[[], Awaitable["AnyTranscriptionStream | None"]]
+
+
+class _BlockHandler:
+    """Runs each captured block through the `UtteranceCutter`, reports the
+    microphone's state and a barge-in, and feeds the utterance's stream."""
+
+    def __init__(
+        self,
+        np: Any,
+        config: DictationConfig,
+        on_state: Callable[[MicState], None] | None,
+        on_barge_in: Callable[[], None] | None,
+        streamer: "_UtteranceStreamer",
+    ) -> None:
+        self._np = np
+        self._config = config
+        self._cutter = UtteranceCutter(config)
+        self._on_state = on_state
+        self._on_barge_in = on_barge_in
+        self._streamer = streamer
+        self._state: MicState | None = None
+        self._is_barge_in_reported = False
+
+    async def handle(
+        self, block: Any, is_echo: bool, captured_at: float, follows_gap: bool
+    ) -> Utterance | None:
+        cutter = self._cutter
+        if follows_gap:
+            cutter.reset()
+        level = float(self._np.sqrt(self._np.mean(block**2)))
+        finished = cutter.feed(block, level, captured_at, is_echo)
+        self._report_barge_in()
+        self._report_state(is_echo)
+        if finished is None:
+            await self._streamer.update(cutter)
+            if self._streamer.should_end(cutter, self._config):
+                finished = cutter.flush(captured_at)
+        if finished is None:
+            return None
+        return await self._to_utterance(finished)
+
+    async def flush(self, ended_at: float) -> Utterance | None:
+        """The utterance in progress, for a recording stopped mid-sentence."""
+        finished = self._cutter.flush(ended_at)
+        if finished is None:
+            return None
+        return await self._to_utterance(finished)
+
+    async def close(self) -> None:
+        await self._streamer.abandon()
+
+    async def _to_utterance(
+        self, finished: "tuple[list[Any], float, float]"
+    ) -> Utterance:
+        stream = await self._streamer.take(finished[0])
+        return _to_utterance(self._np, finished, self._cutter.is_barge_in, stream)
+
+    def _report_barge_in(self) -> None:
+        if self._cutter.is_barge_in and not self._is_barge_in_reported:
+            self._is_barge_in_reported = True
+            if self._on_barge_in is not None:
+                self._on_barge_in()
+        if not self._cutter.is_hearing:
+            self._is_barge_in_reported = False
+
+    def _report_state(self, is_echo: bool) -> None:
+        state = _get_mic_state(self._cutter, is_echo)
+        if self._on_state is not None and state != self._state:
+            self._on_state(state)
+        self._state = state
+
+
+class _UtteranceStreamer:
+    """Feeds the utterance in progress to a transcription stream, block by
+    block, so its transcript is mostly done when it ends."""
+
+    def __init__(
+        self,
+        np: Any,
+        create_stream: "CreateStream | None",
+        on_partial: Callable[[str], None] | None,
+    ) -> None:
+        self._np = np
+        self._create_stream = create_stream
+        self._on_partial = on_partial
+        self._stream: "AnyTranscriptionStream | None" = None
+        self._fed = 0
+
+    async def update(self, cutter: UtteranceCutter) -> None:
+        """Feed the blocks the utterance gained; abandon a dropped one."""
+        blocks = cutter.speech_blocks
+        if not blocks or len(blocks) < self._fed:
+            await self.abandon()
+        if not blocks or self._create_stream is None:
+            return
+        if self._stream is None:
+            self._stream = await self._create_stream()
+            if self._stream is None:
+                # A batch-only backend: stop asking.
+                self._create_stream = None
+                return
+        await self._feed(blocks)
+        if self._on_partial is not None:
+            self._on_partial(self._stream.partial)
+
+    def should_end(self, cutter: UtteranceCutter, config: DictationConfig) -> bool:
+        """Whether the utterance sounds finished after a short pause."""
+        min_silence = config.min_silence or 0
+        if self._stream is None or min_silence <= 0 or not cutter.is_hearing:
+            return False
+        if cutter.quiet_seconds < min_silence:
+            return False
+        return is_finished_phrase(self._stream.partial)
+
+    async def take(self, blocks: list[Any]) -> "AnyTranscriptionStream | None":
+        """Hand over the stream of an utterance that ended with *blocks*."""
+        stream = self._stream
+        if stream is not None:
+            await self._feed(blocks)
+        self._stream, self._fed = None, 0
+        return stream
+
+    async def abandon(self) -> None:
+        stream, self._stream, self._fed = self._stream, None, 0
+        if stream is not None:
+            await stream.close()
+
+    async def _feed(self, blocks: list[Any]) -> None:
+        new_blocks, self._fed = blocks[self._fed :], len(blocks)
+        if new_blocks and self._stream is not None:
+            await self._stream.feed(_to_pcm(self._np, new_blocks))
 
 
 def _get_mic_state(cutter: UtteranceCutter, is_echo: bool) -> MicState:
@@ -264,11 +415,17 @@ class _Backlog:
 
 
 def _to_utterance(
-    np: Any, finished: "tuple[list[Any], float, float]", is_barge_in: bool = False
+    np: Any,
+    finished: "tuple[list[Any], float, float]",
+    is_barge_in: bool = False,
+    stream: "AnyTranscriptionStream | None" = None,
 ) -> Utterance:
     speech, started_at, ended_at = finished
-    audio = (np.concatenate(speech, axis=0) * 32767).astype(np.int16)
-    return Utterance(audio.tobytes(), started_at, ended_at, is_barge_in)
+    return Utterance(_to_pcm(np, speech), started_at, ended_at, is_barge_in, stream)
+
+
+def _to_pcm(np: Any, blocks: list[Any]) -> bytes:
+    return (np.concatenate(blocks, axis=0) * 32767).astype(np.int16).tobytes()
 
 
 def import_audio() -> tuple[Any, Any]:

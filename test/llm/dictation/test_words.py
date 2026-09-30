@@ -1,6 +1,11 @@
 import pytest
 
-from zrb.llm.dictation.words import split_phrases, strip_wake_word, to_answer
+from zrb.llm.dictation.words import (
+    is_finished_phrase,
+    split_phrases,
+    strip_wake_word,
+    to_answer,
+)
 
 APPROVE = split_phrases(["yes", "yeah", "go ahead", "ok", "okay", "do it"])
 DENY = split_phrases(["no", "don't", "stop"])
@@ -59,3 +64,18 @@ def test_without_wake_words_everything_counts():
 )
 def test_to_answer(said, answer):
     assert to_answer(said, APPROVE, DENY) == answer
+
+
+@pytest.mark.parametrize(
+    "text, is_finished",
+    [
+        ("run the tests", True),
+        ("run the tests and", False),
+        ("open the", False),
+        ("um", False),
+        ("", False),
+        ("Yes.", True),
+    ],
+)
+def test_is_finished_phrase(text, is_finished):
+    assert is_finished_phrase(text) is is_finished

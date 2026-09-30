@@ -52,7 +52,12 @@ def ui():
 
 def _fake_listen(monkeypatch, *said: str, is_barge_in=True):
     async def listen(
-        config, should_listen, keep_partial=False, on_state=None, on_barge_in=None
+        config,
+        should_listen,
+        keep_partial=False,
+        on_state=None,
+        on_barge_in=None,
+        **kwargs,
     ):
         for index, text in enumerate(said):
             if is_barge_in and on_barge_in is not None:

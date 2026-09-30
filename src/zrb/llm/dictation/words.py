@@ -8,6 +8,18 @@ _WORD_RE = re.compile(r"[\w']+")
 _STRIPPED_AFTER_WAKE_WORD = " ,.!?;:，。"
 # Words a yes or a no may carry without changing it, as in "yes please".
 _POLITE_WORDS = frozenset({"please", "thanks", "thank", "you"})
+# Words a sentence rarely ends on: someone who pauses after one is thinking,
+# not done.
+_TRAILING_WORDS = frozenset(
+    {
+        *("a", "an", "the", "my", "your", "our", "this", "that", "these", "those"),
+        *("and", "but", "or", "so", "because", "if", "then", "than", "when"),
+        *("while", "which", "who", "where", "whether", "although", "unless"),
+        *("to", "of", "for", "with", "in", "on", "at", "from", "into", "about"),
+        *("by", "as", "is", "are", "was", "be", "can", "could", "should", "would"),
+        *("will", "um", "uh", "er", "erm", "hmm", "like", "also", "maybe", "let's"),
+    }
+)
 
 
 def split_phrases(phrases: list[str]) -> list[list[str]]:
@@ -32,6 +44,13 @@ def strip_wake_word(text: str, wake_words: list[list[str]]) -> str | None:
                 _STRIPPED_AFTER_WAKE_WORD
             )
     return None
+
+
+def is_finished_phrase(text: str) -> bool:
+    """Whether *text* could be a whole request: it has words and does not
+    trail off on one a sentence rarely ends with ("and", "the", "um")."""
+    words = _WORD_RE.findall(text.lower())
+    return bool(words) and words[-1] not in _TRAILING_WORDS
 
 
 def to_answer(

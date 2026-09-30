@@ -29,6 +29,7 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_WAKE_WORDS: str = ""
         self.DEFAULT_LLM_DICTATION_THRESHOLD: str = "0.01"
         self.DEFAULT_LLM_DICTATION_SILENCE: str = "1.0"
+        self.DEFAULT_LLM_DICTATION_MIN_SILENCE: str = "0.5"
         self.DEFAULT_LLM_DICTATION_WAKE_WINDOW: str = "8.0"
         self.DEFAULT_LLM_DICTATION_MIN_SPEECH: str = "0.25"
         self.DEFAULT_LLM_DICTATION_MAX_UTTERANCE: str = "30.0"
@@ -117,6 +118,17 @@ class LLMDictationMixin:
         doc=(
             "Seconds of silence that end an utterance; at least one 0.1 s "
             "block. Default: 1.0."
+        ),
+    )
+
+    LLM_DICTATION_MIN_SILENCE = EnvField(
+        float,
+        fallback=0.5,
+        doc=(
+            "With a backend that transcribes while you speak (vosk), seconds "
+            "of silence that end an utterance whose words so far sound "
+            "finished, rather than trailing off on 'and' or 'the'; 0 always "
+            "waits {ENV_PREFIX}_LLM_DICTATION_SILENCE. Default: 0.5."
         ),
     )
 

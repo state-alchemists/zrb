@@ -67,7 +67,12 @@ def _fake_listen(monkeypatch, *said: tuple[str, float, float]):
     heard = []
 
     async def listen(
-        config, should_listen, keep_partial=False, on_state=None, on_barge_in=None
+        config,
+        should_listen,
+        keep_partial=False,
+        on_state=None,
+        on_barge_in=None,
+        **kwargs,
     ):
         heard.append(keep_partial)
         for text, started_at, ended_at in said:
@@ -132,7 +137,12 @@ async def test_the_command_again_stops_the_recording(monkeypatch):
     stopped = asyncio.Event()
 
     async def listen(
-        config, should_listen, keep_partial=False, on_state=None, on_barge_in=None
+        config,
+        should_listen,
+        keep_partial=False,
+        on_state=None,
+        on_barge_in=None,
+        **kwargs,
     ):
         while should_listen():
             await asyncio.sleep(0)

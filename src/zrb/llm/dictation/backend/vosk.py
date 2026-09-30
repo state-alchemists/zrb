@@ -14,6 +14,7 @@ from typing import Any
 
 from zrb.config.config import CFG
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
+from zrb.llm.dictation.backend.any_transcription_stream import AnyTranscriptionStream
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +112,13 @@ class VoskDictationBackend(AnyDictationBackend):
         result = json.loads(await asyncio.to_thread(recognize))
         return result.get("text", "")
 
+    async def create_stream(self) -> AnyTranscriptionStream:
+        model = await self._get_model()
+        # lazy: heavy third-party; after the model, which reports it missing
+        from vosk import KaldiRecognizer
+
+        return VoskTranscriptionStream(KaldiRecognizer(model, SAMPLE_RATE))
+
     async def _get_model(self) -> Any:
         if self._model is not None:
             return self._model
@@ -139,6 +147,39 @@ class VoskDictationBackend(AnyDictationBackend):
             self._download_timeout,
             self._limits,
         )
+
+
+class VoskTranscriptionStream(AnyTranscriptionStream):
+    """A vosk recognizer fed as the user speaks. vosk returns a finished
+    phrase whenever it hears a pause inside the utterance; those are kept,
+    and `partial` is them plus the phrase in progress."""
+
+    def __init__(self, recognizer: Any) -> None:
+        self._recognizer = recognizer
+        self._phrases: list[str] = []
+        self._in_progress = ""
+
+    @property
+    def partial(self) -> str:
+        return " ".join([*self._phrases, self._in_progress]).strip()
+
+    async def feed(self, audio: bytes) -> None:
+        # Decoding takes long enough to freeze the chat UI on the event loop.
+        await asyncio.to_thread(self._accept, audio)
+
+    async def finish(self) -> str:
+        final = await asyncio.to_thread(self._recognizer.FinalResult)
+        self._in_progress = ""
+        self._phrases.append(json.loads(final).get("text", ""))
+        return " ".join(phrase for phrase in self._phrases if phrase).strip()
+
+    def _accept(self, audio: bytes) -> None:
+        if self._recognizer.AcceptWaveform(audio):
+            self._phrases.append(json.loads(self._recognizer.Result()).get("text", ""))
+            self._in_progress = ""
+        else:
+            partial = json.loads(self._recognizer.PartialResult())
+            self._in_progress = partial.get("partial", "")
 
 
 def _missing_vosk_message() -> str:

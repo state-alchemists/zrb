@@ -19,7 +19,7 @@ from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.builtin import get_dictation_backend
 from zrb.llm.dictation.config import DictationConfig
-from zrb.llm.dictation.listen import MicState, import_audio, listen
+from zrb.llm.dictation.listen import MicState, Utterance, import_audio, listen
 from zrb.llm.dictation.words import split_phrases, strip_wake_word, to_answer
 from zrb.llm.speech.feature import interrupt_speech
 from zrb.llm.ui.trigger import TriggerReply
@@ -259,12 +259,14 @@ class DictationSession:
             lambda: self.is_hands_free,
             on_state=self._show_mic_state,
             on_barge_in=self._handle_barge_in,
+            create_stream=self.backend.create_stream,
+            on_partial=self._show_partial,
         )
         async with aclosing(mic_listen) as mic:
             async for utterance in mic:
                 self._show(_TRANSCRIBING)
                 try:
-                    text = await self._transcribe_or_drop(utterance.audio)
+                    text = await self._transcribe_or_drop(utterance)
                 except Exception as exc:
                     self._rest("⚠️ transcription failed · listening")
                     self._report(f"Hands-free transcription failed: {exc}")
@@ -328,6 +330,11 @@ class DictationSession:
             await _wait_for_turn_end(ui)
         return True
 
+    def _show_partial(self, partial: str) -> None:
+        """Show the end of what is being heard, while it is said."""
+        if partial:
+            self._show(f"🎙️ …{partial[-_MAX_QUOTED_CHARS:]}")
+
     def _show_mic_state(self, state: MicState) -> None:
         self._show(_MIC_STATE_BADGES.get(state, self._resting_badge))
 
@@ -349,11 +356,16 @@ class DictationSession:
             return
         _to_output(ui)(message)
 
-    async def _transcribe_or_drop(self, audio: bytes) -> str | None:
-        """*audio*'s transcript, or ``None`` when hands-free was switched off
-        while it was being transcribed — the user said stop, so that utterance
-        is theirs, not the model's."""
-        transcribing = asyncio.ensure_future(self.backend.transcribe(audio))
+    async def _transcribe_or_drop(self, utterance: Utterance) -> str | None:
+        """*utterance*'s transcript, finished by its stream when it has one,
+        or ``None`` when hands-free was switched off while it was being
+        transcribed — the user said stop, so that utterance is theirs, not the
+        model's."""
+        if utterance.stream is not None:
+            coroutine = utterance.stream.finish()
+        else:
+            coroutine = self.backend.transcribe(utterance.audio)
+        transcribing = asyncio.ensure_future(coroutine)
         switched_off = asyncio.ensure_future(self._hands_free_off.wait())
         try:
             await asyncio.wait(

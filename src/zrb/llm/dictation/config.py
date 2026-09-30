@@ -27,6 +27,7 @@ class DictationConfig:
     wake_window: float | None = None
     threshold: float | None = None
     silence: float | None = None
+    min_silence: float | None = None
     min_speech: float | None = None
     max_utterance: float | None = None
     max_backlog: float | None = None
