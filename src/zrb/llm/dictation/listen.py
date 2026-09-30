@@ -56,7 +56,8 @@ class UtteranceCutter:
 
     With ``barge_in`` on (``headset``: the microphone cannot hear zrb), blocks
     are heard while zrb speaks too, and an utterance with ``barge_in_min_speech``
-    of loud blocks over zrb's voice `is_barge_in`.
+    of loud blocks over zrb's voice `is_barge_in`; once `feed` or `flush`
+    returns it, `is_finished_barge_in` says so.
     """
 
     def __init__(self, config: DictationConfig) -> None:
@@ -70,6 +71,7 @@ class UtteranceCutter:
         self._is_barge_in_enabled = (config.barge_in or "off") != "off"
         self._barge_in_blocks = max(1, _to_blocks(config.barge_in_min_speech or 0))
         self._loud_echo_blocks = 0
+        self._is_finished_barge_in = False
 
     @property
     def is_barge_in_enabled(self) -> bool:
@@ -78,9 +80,15 @@ class UtteranceCutter:
 
     @property
     def is_barge_in(self) -> bool:
-        """Whether the utterance in progress, or the one `feed` just
-        finished, talked over zrb for long enough to interrupt it."""
+        """Whether the utterance in progress has talked over zrb for long
+        enough to interrupt it. False between utterances."""
         return self._loud_echo_blocks >= self._barge_in_blocks
+
+    @property
+    def is_finished_barge_in(self) -> bool:
+        """Whether the utterance `feed` or `flush` last returned was a
+        barge-in."""
+        return self._is_finished_barge_in
 
     def feed(
         self, block: Any, level: float, captured_at: float, is_echo: bool
@@ -124,11 +132,7 @@ class UtteranceCutter:
         silence_blocks = max(1, _to_blocks(config.silence or 0))
         if self._silent_blocks < silence_blocks and not is_too_long:
             return None
-        blocks, spoken_blocks = self._speech, self._count_spoken_blocks()
-        self.reset()
-        if spoken_blocks < _to_blocks(config.min_speech or 0):
-            return None
-        return blocks, self._started_at, captured_at
+        return self._finish(captured_at)
 
     @property
     def is_hearing(self) -> bool:
@@ -153,10 +157,18 @@ class UtteranceCutter:
     def flush(self, ended_at: float) -> "tuple[list[Any], float, float] | None":
         """The utterance in progress, as `feed` would return it, if it holds
         enough speech; for a recording stopped mid-sentence."""
+        return self._finish(ended_at)
+
+    def _finish(self, ended_at: float) -> "tuple[list[Any], float, float] | None":
+        """End the utterance in progress, returning it if it holds enough
+        speech. Its barge-in status is kept for `is_finished_barge_in`
+        before the reset clears it."""
         blocks, spoken_blocks = self._speech, self._count_spoken_blocks()
+        is_barge_in = self.is_barge_in
         self.reset()
         if not blocks or spoken_blocks < _to_blocks(self._config.min_speech or 0):
             return None
+        self._is_finished_barge_in = is_barge_in
         return blocks, self._started_at, ended_at
 
     def _count_spoken_blocks(self) -> int:
@@ -165,8 +177,10 @@ class UtteranceCutter:
         return len(self._speech) - self._pre_roll_blocks - self._silent_blocks
 
     def reset(self) -> None:
-        """Forget the utterance in progress and the pre-roll."""
+        """Forget the utterance in progress, its barge-in count, and the
+        pre-roll."""
         self._speech, self._silent_blocks = [], 0
+        self._loud_echo_blocks = 0
         self._pre_roll.clear()
 
 
@@ -294,7 +308,9 @@ class _BlockHandler:
         self, finished: "tuple[list[Any], float, float]"
     ) -> Utterance:
         stream = await self._streamer.take(finished[0])
-        return _to_utterance(self._np, finished, self._cutter.is_barge_in, stream)
+        return _to_utterance(
+            self._np, finished, self._cutter.is_finished_barge_in, stream
+        )
 
     def _report_barge_in(self) -> None:
         if self._cutter.is_barge_in and not self._is_barge_in_reported:

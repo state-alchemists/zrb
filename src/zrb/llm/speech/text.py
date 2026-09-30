@@ -33,8 +33,9 @@ _NON_SPEECH_RE = re.compile(
     "[\U0001f300-\U0001faff\U00002600-\U000027bf\U0001f1e6-\U0001f1ff]"
 )
 # A sentence ends at punctuation followed by space, so the dot in "main.py"
-# does not count, nor one after a lone letter ("e.g.").
-_SENTENCE_END_RE = re.compile(r"(?<!\b[a-zA-Z])[.!?](?=\s)")
+# does not count, nor the last dot of a dotted abbreviation ("e.g.", "U.S.").
+# A one-letter word may still end a sentence: "I." does.
+_SENTENCE_END_RE = re.compile(r"(?<!\.[a-zA-Z])[.!?](?=\s)")
 _CLAUSE_END_RE = re.compile(r"[,;:](?=\s)")
 
 

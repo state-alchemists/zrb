@@ -127,3 +127,8 @@ def test_clean_handles_every_fence_link_and_paragraph_form(text, spoken):
 )
 def test_a_cut_never_ends_on_a_false_sentence_end(text, max_chars, opening):
     assert fit_for_speech(text, max_chars, "N") == f"{opening} N"
+
+
+def test_a_cut_may_end_after_a_one_letter_word():
+    text = "Should we go on? I. " + "More words follow here. " * 3
+    assert fit_for_speech(text, 30, "NOTE") == "Should we go on? I. NOTE"

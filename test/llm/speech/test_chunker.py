@@ -96,3 +96,15 @@ def test_flush_keeps_a_held_prose_line_but_not_a_fence_opener():
     assert chunker.flush() == ["|x"]
     chunker.feed("``")
     assert chunker.flush() == []
+
+
+def test_a_one_letter_word_can_end_a_sentence():
+    chunker = SpeechChunker(min_chars=1)
+    chunks = _feed_all(chunker, _stream("I. We should continue. Then"))
+    assert chunks == ["I.", "We should continue."]
+
+
+def test_a_dotted_abbreviation_does_not_end_a_sentence():
+    chunker = SpeechChunker(min_chars=1)
+    chunks = _feed_all(chunker, _stream("Use a tool, e.g. grep, i.e. fast. Next"))
+    assert chunks == ["Use a tool, e.g. grep, i.e. fast."]
