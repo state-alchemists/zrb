@@ -11,6 +11,7 @@ import atexit
 import logging
 import queue
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import replace
 
@@ -75,9 +76,11 @@ def _is_locked(lock_file: str) -> bool:
 
 
 class Speaker:
-    """Speaks queued text in order on a background thread.
+    """Speaks queued text in order on background threads.
 
-    The thread starts on the first `say`. At exit, queued speech gets the
+    One thread makes the audio and another plays it, so the next sentence is
+    synthesized while the current one plays and follows it without a gap;
+    at most one waits ready. The threads start on the first `say`. At exit, queued speech gets the
     config's ``drain_timeout`` to finish, since `zrb chat --message` exits
     right after its reply. *config* is a resolved `SpeechConfig`.
     """
@@ -91,7 +94,12 @@ class Speaker:
         self._queue: "queue.Queue[tuple[str | Callable[[], str], IsStale] | None]" = (
             queue.Queue()
         )
+        # Made but not yet played: what the player thread takes next.
+        self._ready: "queue.Queue[tuple[Utterance, IsStale, int] | None]" = queue.Queue(
+            maxsize=1
+        )
         self._worker: threading.Thread | None = None
+        self._player: threading.Thread | None = None
         # Hooks call `say` from worker threads, so starting the worker, and
         # tracking what it is playing, is guarded.
         self._lock = threading.Lock()
@@ -129,11 +137,17 @@ class Speaker:
                 return
             if self._worker is None:
                 self._worker = threading.Thread(
-                    target=self._play_queue,
+                    target=self._prepare_queue,
                     name=f"{CFG.ROOT_GROUP_NAME}-speech",
                     daemon=True,
                 )
+                self._player = threading.Thread(
+                    target=self._play_ready,
+                    name=f"{CFG.ROOT_GROUP_NAME}-speech-player",
+                    daemon=True,
+                )
                 self._worker.start()
+                self._player.start()
                 atexit.register(self.drain)
             self._queue.put((item, is_stale))
 
@@ -142,6 +156,16 @@ class Speaker:
         try:
             while True:
                 self._queue.get_nowait()
+        except queue.Empty:
+            pass
+        try:
+            while True:
+                entry = self._ready.get_nowait()
+                if entry is None:
+                    # The player's stop signal is not ours to drop.
+                    self._ready.put_nowait(None)
+                    break
+                entry[0].cleanup()
         except queue.Empty:
             pass
 
@@ -162,11 +186,18 @@ class Speaker:
         self._speak(text, is_stale, self._generation)
 
     def _speak(self, text: str, is_stale: "IsStale", generation: int) -> None:
+        utterance = self._prepare(text, is_stale)
+        if utterance is not None:
+            self._play_prepared(utterance, is_stale, generation)
+
+    def _prepare(self, text: str, is_stale: "IsStale") -> Utterance | None:
         if not text.strip() or (is_stale is not None and is_stale()):
-            return
-        utterance = self._create_with_fallback(text)
-        if utterance is None:
-            return
+            return None
+        return self._create_with_fallback(text)
+
+    def _play_prepared(
+        self, utterance: Utterance, is_stale: "IsStale", generation: int
+    ) -> None:
         with self._lock:
             if (
                 self._is_cut_off
@@ -208,12 +239,24 @@ class Speaker:
             return [requested]
         return [requested, local]
 
-    def _play_queue(self) -> None:
+    def _prepare_queue(self) -> None:
+        """Make each queued text's audio, handing it to the player thread."""
         while (entry := self._queue.get()) is not None:
             item, is_stale = entry
             generation = self._generation
             try:
-                self._speak(item() if callable(item) else item, is_stale, generation)
+                utterance = self._prepare(item() if callable(item) else item, is_stale)
+            except Exception as exc:
+                logger.warning(f"Speech failed: {exc}")
+                continue
+            if utterance is not None:
+                self._ready.put((utterance, is_stale, generation))
+        self._ready.put(None)
+
+    def _play_ready(self) -> None:
+        while (entry := self._ready.get()) is not None:
+            try:
+                self._play_prepared(*entry)
             except Exception as exc:
                 logger.warning(f"Speech failed: {exc}")
 
@@ -248,11 +291,16 @@ class Speaker:
             _unregister_lock_file(self._lock_file)
         with self._lock:
             worker, self._worker = self._worker, None
+            player, self._player = self._player, None
         if worker is None:
             return
         atexit.unregister(self.drain)
         self._queue.put(None)
+        deadline = None if join_timeout is None else time.monotonic() + join_timeout
         worker.join(join_timeout)
+        if player is not None:
+            remaining = None if deadline is None else deadline - time.monotonic()
+            player.join(None if remaining is None else max(remaining, 0))
 
 
 def play(utterance: Utterance, config: SpeechConfig) -> None:
