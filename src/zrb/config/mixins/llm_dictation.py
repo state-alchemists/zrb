@@ -37,6 +37,7 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_PRE_ROLL: str = "0.3"
         self.DEFAULT_LLM_DICTATION_ECHO_COOLDOWN: str = "0.4"
         self.DEFAULT_LLM_DICTATION_BARGE_IN: str = "off"
+        self.DEFAULT_LLM_DICTATION_ECHO_CANCELLER: str = "numpy"
         self.DEFAULT_LLM_DICTATION_BARGE_IN_MIN_SPEECH: str = "0.3"
         self.DEFAULT_LLM_DICTATION_BARGE_IN_ACTION: str = "steer"
         self.DEFAULT_LLM_DICTATION_APPROVE_WORDS: str = (
@@ -189,11 +190,25 @@ class LLMDictationMixin:
     LLM_DICTATION_BARGE_IN = EnvField(
         str,
         doc=(
-            "Whether hands-free hears you while zrb speaks, so you can talk "
-            "over it and it stops. One of:\n"
-            "- 'off' (default): the microphone is deaf while zrb speaks.\n"
-            "- 'headset': zrb's voice goes to headphones the microphone cannot "
-            "hear. On speakers, zrb would hear itself and stop."
+            "'on' lets hands-free hear you while zrb speaks, so you can talk "
+            "over it: zrb pauses at once, and stops if what you said has "
+            "words. zrb's own voice is removed from the microphone by "
+            "{ENV_PREFIX}_LLM_DICTATION_ECHO_CANCELLER, which needs zrb to play "
+            "its speech itself ({ENV_PREFIX}_LLM_SPEECH_PLAYER=auto) and a few "
+            "seconds of zrb speaking to learn the room; until then the "
+            "microphone stays deaf while zrb speaks. Default: off."
+        ),
+    )
+
+    LLM_DICTATION_ECHO_CANCELLER = EnvField(
+        str,
+        doc=(
+            "How zrb's own voice is removed from the microphone for barge-in. "
+            "One of:\n"
+            "- 'numpy' (default): an adaptive echo canceller in NumPy, "
+            "working from the audio zrb plays; laptop speakers work.\n"
+            "- 'none': trust the microphone: headphones, or the system "
+            "already cancels echo (PipeWire/PulseAudio echo-cancel)."
         ),
     )
 
@@ -201,8 +216,8 @@ class LLMDictationMixin:
         float,
         fallback=0.3,
         doc=(
-            "Seconds of speech over zrb's voice that interrupt it, so a cough "
-            "does not. Default: 0.3."
+            "Seconds of speech over zrb's voice that pause it, so a click "
+            "does not; it then stops if what was said has words. Default: 0.3."
         ),
     )
 

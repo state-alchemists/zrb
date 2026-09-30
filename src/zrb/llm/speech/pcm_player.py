@@ -19,7 +19,12 @@ from typing import Any
 
 from zrb.llm.speech.backend.audio import SpeechAudio
 from zrb.llm.speech.backend.utterance import Utterance
-from zrb.llm.speech.echo_reference import RATE, EchoReference, echo_reference
+from zrb.llm.speech.echo_reference import (
+    RATE,
+    EchoReference,
+    echo_reference,
+    get_monotonic_time,
+)
 
 _BLOCK_FRAMES = 1024
 _MAX_BUFFERED = 32
@@ -86,11 +91,12 @@ class PcmUtterance(Utterance):
                 dtype="int16",
                 blocksize=_BLOCK_FRAMES,
                 callback=lambda out, frames, info, status: self._fill(
-                    np, sd, out, frames
+                    np, sd, out, frames, info
                 ),
                 finished_callback=self._finished.set,
             )
-            # Before the stream starts, so its first callback sees it.
+            # Before the stream starts, so its first callback sees it; only
+            # used when the host gives no timestamps.
             self._started_at = time.monotonic() + float(stream.latency)
             with stream:
                 if not self._finished.wait(timeout):
@@ -121,10 +127,17 @@ class PcmUtterance(Utterance):
         finally:
             self._is_source_done = True
 
-    def _fill(self, np: Any, sd: Any, out: Any, frames: int) -> None:
+    def _fill(self, np: Any, sd: Any, out: Any, frames: int, info: Any = None) -> None:
         """The stream's callback: the next *frames* samples, or silence
-        while paused or waiting for the download."""
-        start = self._started_at + self._frames_elapsed / self._audio.sample_rate
+        while paused or waiting for the download. They reach the speakers
+        when the host says (``outputBufferDacTime``); a stream's start time
+        drifts from its reported latency by tens of milliseconds from one
+        utterance to the next, which would move the echo delay each time."""
+        start = get_monotonic_time(
+            getattr(info, "outputBufferDacTime", 0.0), getattr(info, "currentTime", 0.0)
+        )
+        if start is None:
+            start = self._started_at + self._frames_elapsed / self._audio.sample_rate
         self._frames_elapsed += frames
         if self.is_stopped:
             out.fill(0)

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from zrb.llm.util.feature_config import resolve_from_cfg
 
 if TYPE_CHECKING:
+    from zrb.llm.dictation.echo.any_echo_canceller import AnyEchoCanceller
     from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 
 
@@ -34,6 +35,7 @@ class DictationConfig:
     pre_roll: float | None = None
     echo_cooldown: float | None = None
     barge_in: str | None = None
+    echo_canceller: "str | AnyEchoCanceller | None" = None
     barge_in_min_speech: float | None = None
     barge_in_action: str | None = None
     approve_words: list[str] | None = None

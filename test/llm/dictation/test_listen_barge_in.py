@@ -5,6 +5,7 @@ to the test, which then plays blocks into it.
 """
 
 import asyncio
+import types
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -84,7 +85,7 @@ def test_without_barge_in_speech_over_zrb_is_never_heard():
 
 
 def test_with_barge_in_speech_over_zrb_is_heard_and_marked():
-    cutter = _cutter(barge_in="headset", barge_in_min_speech=0.2, pre_roll=0)
+    cutter = _cutter(barge_in="on", barge_in_min_speech=0.2, pre_roll=0)
 
     finished = _feed(cutter, [1, 1, 1, 0, 0, 0], echo_at={0, 1, 2, 3, 4, 5})
 
@@ -95,7 +96,7 @@ def test_with_barge_in_speech_over_zrb_is_heard_and_marked():
 
 
 def test_a_cough_over_zrb_is_not_a_barge_in():
-    cutter = _cutter(barge_in="headset", barge_in_min_speech=0.3, pre_roll=0)
+    cutter = _cutter(barge_in="on", barge_in_min_speech=0.3, pre_roll=0)
 
     _feed(cutter, [1, 1, 0, 0, 0], echo_at={0, 1, 2, 3, 4})
 
@@ -104,7 +105,7 @@ def test_a_cough_over_zrb_is_not_a_barge_in():
 
 
 def test_speech_after_zrb_stopped_is_not_a_barge_in():
-    cutter = _cutter(barge_in="headset", barge_in_min_speech=0.1, pre_roll=0)
+    cutter = _cutter(barge_in="on", barge_in_min_speech=0.1, pre_roll=0)
 
     finished = _feed(cutter, [1, 1, 0, 0, 0, 1, 1, 0, 0], echo_at={0, 1})
 
@@ -123,7 +124,7 @@ async def test_listen_reports_a_barge_in_once_before_the_utterance_ends():
         max_utterance=10,
         pre_roll=0,
         echo_cooldown=0,
-        barge_in="headset",
+        barge_in="on",
         barge_in_min_speech=0.1,
     ).resolve()
     blocks = [_block(0.5), _block(0.5), _block(0.5), _block(0.0), _block(0.0)]
@@ -151,7 +152,7 @@ async def test_listen_reports_a_barge_in_once_before_the_utterance_ends():
 
 
 def test_a_barge_in_is_forgotten_when_its_utterance_is_dropped():
-    cutter = _cutter(barge_in="headset", barge_in_min_speech=0.1, pre_roll=0)
+    cutter = _cutter(barge_in="on", barge_in_min_speech=0.1, pre_roll=0)
     _feed(cutter, [1, 1, 1], echo_at={0, 1, 2})
     assert cutter.is_barge_in
 
@@ -171,7 +172,7 @@ async def test_a_barge_in_is_reported_once_and_does_not_mark_the_next_utterance(
         max_utterance=10,
         pre_roll=0,
         echo_cooldown=0,
-        barge_in="headset",
+        barge_in="on",
         barge_in_min_speech=0.1,
     ).resolve()
     # Talked over zrb, then idle blocks, then an ordinary utterance after it
@@ -201,3 +202,136 @@ async def test_a_barge_in_is_reported_once_and_does_not_mark_the_next_utterance(
 
     assert barge_ins == [True]
     assert [u.is_barge_in for u in utterances] == [True, False]
+
+
+# --- echo cancellation in listen ---------------------------------------------
+
+
+class FakeEcho:
+    """Stands in for `EchoCancellation`: records the start time of each block
+    and passes it through."""
+
+    def __init__(self, is_ready=True, needs_reference=True):
+        self.is_ready = is_ready
+        self.canceller = types.SimpleNamespace(needs_reference=needs_reference)
+        self.starts: list[float] = []
+
+    def process(self, mic, start):
+        self.starts.append(start)
+        return mic
+
+
+async def _listen_with_echo(
+    blocks, echo, speaking=True, has_reference=True, barge_in="on", **callbacks
+):
+    captured = {}
+    config = DictationConfig(
+        threshold=0.1,
+        silence=0.2,
+        min_speech=0.1,
+        max_utterance=10,
+        pre_roll=0,
+        echo_cooldown=0,
+        barge_in=barge_in,
+        barge_in_min_speech=0.1,
+    ).resolve()
+
+    async def consume():
+        stream = listen(config, _holds_for(len(blocks)), echo=echo, **callbacks)
+        return [utterance async for utterance in stream]
+
+    with (
+        patch.dict("sys.modules", {"sounddevice": _fake_sounddevice(captured)}),
+        patch("zrb.llm.dictation.listen.is_speaking", return_value=speaking),
+        patch(
+            "zrb.llm.dictation.listen.echo_reference",
+            types.SimpleNamespace(is_active=has_reference),
+        ),
+    ):
+        task = asyncio.create_task(consume())
+        await _play(captured, blocks)
+        return await task
+
+
+LOUD_THEN_QUIET = [_block(0.5)] * 3 + [_block(0.0)] * 3
+
+
+@pytest.mark.asyncio
+async def test_speech_over_zrb_is_heard_once_its_echo_can_be_cancelled():
+    echo = FakeEcho(is_ready=True)
+    [utterance] = await _listen_with_echo(LOUD_THEN_QUIET, echo)
+    assert utterance.is_barge_in
+    # Timed by counting samples: exactly one block (2 samples here) apart.
+    gaps = {round(b - a, 9) for a, b in zip(echo.starts, echo.starts[1:])}
+    assert gaps == {round(2 / 16000, 9)}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("is_ready, has_reference", [(False, True), (True, False)])
+async def test_speech_over_zrb_is_not_heard_while_its_echo_cannot_be_cancelled(
+    is_ready, has_reference
+):
+    states = []
+    echo = FakeEcho(is_ready=is_ready)
+    utterances = await _listen_with_echo(
+        LOUD_THEN_QUIET, echo, has_reference=has_reference, on_state=states.append
+    )
+    assert utterances == []
+    assert MicState.PAUSED in states
+
+
+@pytest.mark.asyncio
+async def test_a_canceller_needing_no_reference_trusts_the_microphone():
+    echo = FakeEcho(is_ready=True, needs_reference=False)
+    [utterance] = await _listen_with_echo(LOUD_THEN_QUIET, echo, has_reference=False)
+    assert utterance.is_barge_in
+
+
+@pytest.mark.asyncio
+async def test_with_barge_in_off_the_echo_is_not_used():
+    echo = FakeEcho()
+    assert await _listen_with_echo(LOUD_THEN_QUIET, echo, barge_in="off") == []
+    assert echo.starts == []
+
+
+@pytest.mark.asyncio
+async def test_a_barge_in_too_short_to_keep_is_reported_dropped():
+    dropped = []
+    config_blocks = [_block(0.5)] + [_block(0.0)] * 4
+
+    captured = {}
+    config = DictationConfig(
+        threshold=0.1,
+        silence=0.2,
+        min_speech=0.3,
+        max_utterance=10,
+        pre_roll=0,
+        echo_cooldown=0,
+        barge_in="on",
+        barge_in_min_speech=0.1,
+    ).resolve()
+    barge_ins = []
+
+    async def consume():
+        stream = listen(
+            config,
+            _holds_for(len(config_blocks)),
+            echo=FakeEcho(),
+            on_barge_in=lambda: barge_ins.append(True),
+            on_barge_in_dropped=lambda: dropped.append(True),
+        )
+        return [u async for u in stream]
+
+    with (
+        patch.dict("sys.modules", {"sounddevice": _fake_sounddevice(captured)}),
+        patch("zrb.llm.dictation.listen.is_speaking", return_value=True),
+        patch(
+            "zrb.llm.dictation.listen.echo_reference",
+            types.SimpleNamespace(is_active=True),
+        ),
+    ):
+        task = asyncio.create_task(consume())
+        await _play(captured, config_blocks)
+        assert await task == []
+
+    assert barge_ins == [True] and dropped == [True]

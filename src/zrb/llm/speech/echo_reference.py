@@ -13,6 +13,7 @@ microphone are shared by every session in the process. Timestamps are
 from __future__ import annotations
 
 import threading
+import time
 from typing import Any
 
 RATE = 16000
@@ -83,6 +84,17 @@ class EchoReference:
             head = min(len(part), self._size - first)
             self._ring[first : first + head] = part[:head]
             self._ring[: len(part) - head] = part[head:]
+
+
+def get_monotonic_time(stream_time: float, stream_now: float) -> float | None:
+    """*stream_time* (an audio stream's clock, as PortAudio passes a
+    callback: when its first sample reaches the speakers, or was captured)
+    on the `time.monotonic()` clock, given the stream clock's *stream_now*;
+    ``None`` when the host gives no times (zeros). The two stream clocks and
+    monotonic are read together, so callback scheduling does not skew it."""
+    if stream_time <= 0 or stream_now <= 0:
+        return None
+    return time.monotonic() + (stream_time - stream_now)
 
 
 def _numpy() -> Any:
