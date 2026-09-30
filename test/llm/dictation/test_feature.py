@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 from contextlib import contextmanager
 from unittest.mock import MagicMock
 
@@ -7,6 +8,7 @@ import pytest
 from zrb.config.config import CFG
 from zrb.contextvars import current_chat_session_id
 from zrb.llm.dictation import AnyDictationBackend, DictationConfig, enable_dictation
+from zrb.llm.dictation import feature as dictation_feature
 from zrb.llm.dictation.feature import DictationSession
 from zrb.llm.dictation.listen import MicState, Utterance
 from zrb.llm.ui.trigger import TriggerReply
@@ -112,8 +114,8 @@ async def test_push_to_talk_puts_the_transcript_in_the_input_box(monkeypatch):
     assert any("getting ready" in output for output in ui.outputs)
     assert any("Transcribed" in output for output in ui.outputs)
     assert [text for _, text in ui.badges] == [
-        "🎙️ recording… (/voice or a pause to stop)",
-        "✍️ transcribing…",
+        "🔴 recording… (/voice or a pause to stop)",
+        "📝 transcribing…",
         None,
     ]
 
@@ -290,3 +292,10 @@ async def test_a_recording_cancelled_before_it_starts_can_be_started_again(
     assert not session.is_recording
     assert voice.handle({}, ui) == ""
     await asyncio.gather(*ui.background_tasks)
+
+
+def test_badges_use_no_emoji_a_terminal_may_draw_narrow():
+    """A variation selector (U+FE0F) turns a narrow symbol into an emoji that
+    many terminals draw one column wide while prompt_toolkit counts two, so
+    the badge's next letter is overwritten."""
+    assert "\ufe0f" not in inspect.getsource(dictation_feature)

@@ -64,9 +64,9 @@ A line above the status bar shows what the microphone is doing, while hands-free
 | Badge | Meaning |
 |---|---|
 | `🎤 listening` | Waiting for you to speak |
-| `🎙️ hearing you…` | You are speaking |
-| `🎙️ …run the tests` | The last words heard so far (vosk) |
-| `✍️ transcribing…` | Turning what you said into text |
+| `👂 hearing you…` | You are speaking |
+| `👂 …run the tests` | The last words heard so far (vosk) |
+| `📝 transcribing…` | Turning what you said into text |
 | `🎤 heard "Yes." · listening` | What it heard last; it is listening again |
 | `🔇 mic paused while speaking` | zrb is talking; what you say now is not heard |
 | `✋ paused · listening…` | You talked over zrb; it paused until it knows whether that was words |
@@ -74,7 +74,7 @@ A line above the status bar shows what the microphone is doing, while hands-free
 | `✋ stopped · listening` | You said "stop" over it; the turn was cancelled |
 | `🎤 ignored "…" (no wake word)` | Heard, but it did not start with a wake word |
 
-Push-to-talk shows `🎙️ recording…` and `✍️ transcribing…` the same way.
+Push-to-talk shows `🔴 recording…` and `📝 transcribing…` the same way.
 
 The default transcriber is vosk, which runs offline and downloads its model on first use, but mangles technical terms. With an OpenAI key, `ZRB_LLM_DICTATION_BACKEND=openai` and `ZRB_LLM_DICTATION_OPENAI_MODEL=gpt-4o-transcribe` are far more accurate. [`examples/voice-interaction`](../../examples/voice-interaction/README.md) compares the backends on one clip.
 

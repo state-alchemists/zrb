@@ -2,6 +2,7 @@
 carries on for anything else."""
 
 import asyncio
+import contextlib
 
 import pytest
 
@@ -137,6 +138,10 @@ async def test_closing_mid_pause_resumes(monkeypatch, speech):
     task = asyncio.ensure_future(anext(stream))
     await asyncio.sleep(0.05)
     task.cancel()
+    with contextlib.suppress(asyncio.CancelledError, StopAsyncIteration):
+        await task
+    # Closed here, not by the garbage collector during a later test.
+    await stream.aclose()
     assert speech[:2] == ["pause", "resume"]
 
 

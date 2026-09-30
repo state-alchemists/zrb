@@ -373,9 +373,9 @@ async def test_hands_free_shows_what_the_mic_is_doing(monkeypatch, session_ui):
 
     assert _badges(session_ui) == [
         "🎤 listening",
-        "🎙️ hearing you…",
+        "👂 hearing you…",
         "🎤 listening",
-        "✍️ transcribing…",
+        "📝 transcribing…",
         '🎤 heard "Yes." · listening',
         None,
     ]
@@ -403,7 +403,7 @@ async def test_hands_free_says_what_an_utterance_came_to(monkeypatch, session_ui
 
     badges = _badges(session_ui)
     assert "🎤 didn't catch that · listening" in badges
-    assert "⚠️ transcription failed · listening" in badges
+    assert "❗ transcription failed · listening" in badges
     assert '🎤 ignored "hello there" (no wake word)' in badges
     assert "🎤 go ahead…" in badges
     assert f'🎤 heard "{"x" * 39}…" · listening' in badges

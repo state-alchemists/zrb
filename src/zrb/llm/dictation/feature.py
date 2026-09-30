@@ -42,13 +42,17 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 HANDS_FREE = "hands_free"
+# Badge emoji are all wide by default (Emoji_Presentation). One made an emoji
+# by a variation selector (U+FE0F after the writing hand or the studio
+# microphone) is drawn one column wide by many terminals but counted as two
+# by prompt_toolkit, so it overlaps the next letter ("trenscribing").
 BADGE_KEY = "dictation"
 _LISTENING = "🎤 listening"
 _MIC_STATE_BADGES = {
-    MicState.HEARING: "🎙️ hearing you…",
+    MicState.HEARING: "👂 hearing you…",
     MicState.PAUSED: "🔇 mic paused while speaking",
 }
-_TRANSCRIBING = "✍️ transcribing…"
+_TRANSCRIBING = "📝 transcribing…"
 _INTERRUPTED = "✋ interrupted · go on…"
 _PAUSED = "✋ paused · listening…"
 # How long a cancelled turn may take to unwind before what the user said
@@ -215,7 +219,7 @@ class DictationSession:
         await self.backend.prepare(_to_output(ui))
         commands = ", ".join(self._config.commands or [])
         try:
-            self._show(f"🎙️ recording… ({commands} or a pause to stop)", ui)
+            self._show(f"🔴 recording… ({commands} or a pause to stop)", ui)
             audio = await self._record_one(stop)
             self._show(_TRANSCRIBING, ui)
             text = (await self.backend.transcribe(audio)).strip() if audio else ""
@@ -280,7 +284,7 @@ class DictationSession:
                     text = await self._transcribe_or_drop(utterance)
                 except Exception as exc:
                     self._release_barge_in()
-                    self._rest("⚠️ transcription failed · listening")
+                    self._rest("❗ transcription failed · listening")
                     self._report(f"Hands-free transcription failed: {exc}")
                     continue
                 if text is None:
@@ -378,7 +382,7 @@ class DictationSession:
         heard over zrb stop it without waiting for the utterance to end."""
         if not partial:
             return
-        self._show(f"🎙️ …{partial[-_MAX_QUOTED_CHARS:]}")
+        self._show(f"👂 …{partial[-_MAX_QUOTED_CHARS:]}")
         if self._is_paused_by_barge_in and (
             strip_wake_word(partial, self._wake_words) is not None
         ):
