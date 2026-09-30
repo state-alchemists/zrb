@@ -32,6 +32,9 @@ class DictationConfig:
     max_backlog: float | None = None
     pre_roll: float | None = None
     echo_cooldown: float | None = None
+    barge_in: str | None = None
+    barge_in_min_speech: float | None = None
+    barge_in_action: str | None = None
     approve_words: list[str] | None = None
     deny_words: list[str] | None = None
     openai_model: str | None = None

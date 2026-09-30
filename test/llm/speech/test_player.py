@@ -353,3 +353,42 @@ def test_text_going_stale_while_playing_is_cut_off(lock_file):
 
     assert backend.utterances[0].stopped.wait(1)
     speaker.close()
+
+
+def test_interrupt_stops_what_is_playing_and_drops_the_queue(lock_file):
+    backend = HangingBackend()
+    speaker = Speaker(_config(backend, lock_file, drain_timeout=1))
+    speaker.say("a long reply")
+    speaker.say("queued behind it")
+    assert backend.started.wait(1)
+
+    speaker.interrupt()
+    speaker.drain()
+
+    assert backend.utterances[0].stopped.is_set()
+    assert len(backend.utterances) == 1
+
+
+def test_speech_being_made_when_interrupted_is_dropped(lock_file):
+    created = threading.Event()
+    release = threading.Event()
+
+    class SlowBackend(FakeBackend):
+        def create_utterance(self, text):
+            if text == "slow":
+                created.set()
+                release.wait(5)
+            return super().create_utterance(text)
+
+    backend = SlowBackend()
+    speaker = Speaker(_config(backend, lock_file))
+    speaker.say("slow")
+    assert created.wait(1)
+
+    speaker.interrupt()
+    release.set()
+    speaker.say("after")
+    speaker.drain()
+
+    assert backend.played == ["after"]
+    assert backend.utterances[0].cleaned

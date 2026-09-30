@@ -210,3 +210,40 @@ def test_status_badges_are_set_replaced_and_removed_by_key(surface_ui):
     surface_ui.set_status_badge("gone", None)
     assert surface_ui.status_badges == ("📷 on",)
     assert surface_ui.invalidate_ui.call_count == 5
+
+
+def test_cancel_current_turn_cancels_the_running_turn_and_fires_stop(surface_ui):
+    running = MagicMock()
+    running.done.return_value = False
+    surface_ui.running_llm_task = running
+    surface_ui.conversation_session_name = "s1"
+
+    with (
+        patch.object(surface_ui, "cancel_pending_confirmations") as release,
+        patch.object(surface_ui, "execute_hook") as execute_hook,
+    ):
+        surface_ui.cancel_current_turn("barge_in")
+
+    release.assert_called_once()
+    running.cancel.assert_called_once()
+    [(event, data), _] = execute_hook.call_args
+    assert event.value == "Stop"
+    assert data == {"reason": "barge_in", "session": "s1"}
+
+
+@pytest.mark.parametrize("done", [None, True])
+def test_cancel_current_turn_with_no_turn_running_only_releases(surface_ui, done):
+    running = None
+    if done:
+        running = MagicMock()
+        running.done.return_value = True
+    surface_ui.running_llm_task = running
+
+    with (
+        patch.object(surface_ui, "cancel_pending_confirmations") as release,
+        patch.object(surface_ui, "execute_hook") as execute_hook,
+    ):
+        surface_ui.cancel_current_turn("escape")
+
+    release.assert_called_once()
+    execute_hook.assert_not_called()

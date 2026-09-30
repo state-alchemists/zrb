@@ -653,6 +653,19 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._pending_attachments.clear()
         return attachments
 
+    def cancel_current_turn(self, reason: str) -> None:
+        """Release a pending confirmation, cancel the running turn and fire
+        `Stop` with *reason*; `AnyUI.cancel_current_turn`."""
+        self.cancel_pending_confirmations()
+        running = self._running_llm_task
+        if running is None or running.done():
+            return
+        running.cancel()
+        self.execute_hook(
+            HookEvent.STOP,
+            {"reason": reason, "session": self.conversation_session_name},
+        )
+
     def execute_hook(self, event: HookEvent, event_data: Any, **kwargs) -> None:
         """
         Safely execute hooks from either sync or async context.

@@ -180,5 +180,8 @@ class UIStateDefaultsMixin:
     def cancel_pending_confirmations(self, flush: bool = True) -> None:
         """No confirmations of its own to release."""
 
+    def cancel_current_turn(self, reason: str) -> None:
+        """No turn of its own to cancel."""
+
     def flush_to_parent(self) -> None:
         """Nothing buffered, so nothing to hand upward."""

@@ -46,6 +46,7 @@ class MockUI:
 
         # Mocks for BaseUI methods
         self.cancel_pending_confirmations = MagicMock()
+        self.cancel_current_turn = MagicMock()
         self.execute_hook = MagicMock()
         self.append_to_output = MagicMock(side_effect=lambda x: self.outputs.append(x))
         self.invalidate_ui = MagicMock()
@@ -298,11 +299,7 @@ def test_escape_binding(mock_ui, setup_bindings):
     trigger_binding(setup_bindings, "escape", event)
 
     mock_ui.cancel_pending_confirmations.assert_called_once()
-    mock_task.cancel.assert_called_once()
-    mock_ui.execute_hook.assert_called_with(
-        HookEvent.STOP,
-        {"reason": "escape", "session": "test_session"},
-    )
+    mock_ui.cancel_current_turn.assert_called_once_with("escape")
     assert "\n<Esc> Canceled" in mock_ui.outputs
 
 

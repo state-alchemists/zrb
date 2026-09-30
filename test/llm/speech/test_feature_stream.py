@@ -27,6 +27,9 @@ class FakeSpeaker:
     def clear(self):
         self.cleared += 1
 
+    def interrupt(self):
+        pass
+
     def close(self):
         pass
 
@@ -232,3 +235,50 @@ def test_nothing_streams_or_is_announced_while_speech_is_off():
     session.handle_stream_event(_tool_call("Shell"))
 
     assert session.speaker.said == []
+
+
+class InterruptibleSpeaker(FakeSpeaker):
+    def __init__(self):
+        super().__init__()
+        self.interrupted = 0
+
+    def interrupt(self):
+        self.interrupted += 1
+
+
+@pytest.mark.asyncio
+async def test_interrupt_speech_silences_this_chat_session_only():
+    from zrb.contextvars import current_chat_session_id
+    from zrb.llm.speech import interrupt_speech
+
+    sessions = {}
+    for name in ("mine", "other"):
+        token = current_chat_session_id.set(name)
+        try:
+            sessions[name] = _session(stream=True)
+            sessions[name].speaker = InterruptibleSpeaker()
+        finally:
+            current_chat_session_id.reset(token)
+    try:
+        interrupt_speech("mine")
+
+        assert sessions["mine"].speaker.interrupted == 1
+        assert sessions["other"].speaker.interrupted == 0
+        # Talked over mid-reply: the rest of the reply is not spoken at Stop.
+        await sessions["mine"].handle_stop(_stop("The whole reply."))
+        assert sessions["mine"].speaker.said == []
+    finally:
+        for session in sessions.values():
+            session.close()
+
+
+def test_a_closed_session_is_no_longer_interrupted():
+    from zrb.llm.speech import interrupt_speech
+
+    session = _session()
+    session.speaker = InterruptibleSpeaker()
+    session.close()
+
+    interrupt_speech("")
+
+    assert session.speaker.interrupted == 0

@@ -37,25 +37,37 @@ class StreamedReply:
         self._spoken_chars = 0
         self._has_spoken = False
         self._is_noted = False
+        self._is_muted = False
+        self._was_muted = False
 
     @property
-    def has_spoken(self) -> bool:
-        """Whether this turn has spoken anything yet."""
-        return self._has_spoken
+    def has_claimed_turn(self) -> bool:
+        """Whether this turn's reply is streaming's to speak: some of it was
+        spoken, or the user talked over it. Either way, the whole reply must
+        not be spoken again when the turn ends."""
+        return self._has_spoken or self._was_muted
 
     def handle_event(self, event: Any) -> None:
         """Speak whatever sentences *event* completes."""
         with self._lock:
+            if self._is_muted and not _is_response_start(event):
+                return
+            self._is_muted = False
             self._speak(self._read(event))
 
-    def finish(self) -> int:
-        """Speak what is left of the turn and start over; how many characters
-        the turn spoke."""
+    def mute_response(self) -> None:
+        """Say nothing more of the response being written, for a user who
+        talked over it; the model's next response is spoken again. What the
+        user said reaches the run as a steer, so the run keeps going."""
         with self._lock:
-            self._speak(self._chunker.flush())
-            spoken_chars = self._spoken_chars
-            self._reset()
-        return spoken_chars
+            self._chunker.reset()
+            self._is_muted = self._was_muted = True
+
+    def flush(self) -> None:
+        """Speak what is left of the turn, however short; it has ended."""
+        with self._lock:
+            if not self._is_muted:
+                self._speak(self._chunker.flush())
 
     def reset(self) -> None:
         """Drop the turn without speaking the rest of it."""
@@ -66,6 +78,7 @@ class StreamedReply:
         self._chunker.reset()
         self._spoken_chars = 0
         self._has_spoken = self._is_noted = False
+        self._is_muted = self._was_muted = False
 
     def _read(self, event: Any) -> list[str]:
         kind = getattr(event, "event_kind", None)
@@ -97,3 +110,11 @@ class StreamedReply:
             self._say(chunk)
             self._spoken_chars += len(chunk)
             self._has_spoken = True
+
+
+def _is_response_start(event: Any) -> bool:
+    """Whether *event* opens a new model response: its first part."""
+    return (
+        getattr(event, "event_kind", None) == "part_start"
+        and getattr(event, "index", None) == 0
+    )

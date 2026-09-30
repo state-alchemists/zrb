@@ -25,7 +25,7 @@ def test_the_end_of_a_text_part_speaks_what_it_held():
     reply.handle_event(_event("part_start", part=_part("text", "Short")))
     reply.handle_event(_event("part_end", part=_part("text")))
     assert said == ["Short"]
-    assert reply.has_spoken
+    assert reply.has_claimed_turn
 
 
 def test_a_tool_call_event_or_the_run_result_flushes():
@@ -44,16 +44,19 @@ def test_thinking_and_tool_argument_text_is_never_spoken():
     reply.handle_event(_event("part_delta", delta=_delta("tool_call", "{}")))
     reply.handle_event(_event("part_end", part=_part("thinking")))
     reply.handle_event(_event("final_result"))
-    assert reply.finish() == 0
+    reply.flush()
+    assert not reply.has_claimed_turn
     assert said == []
 
 
-def test_finish_starts_the_next_turn_fresh():
+def test_reset_starts_the_next_turn_fresh():
     reply, said = _reply(max_chars=5)
     reply.handle_event(_event("part_delta", delta=_delta("text", "Hello")))
-    assert reply.finish() == 5
+    reply.flush()
+    reply.reset()
+    assert not reply.has_claimed_turn
     reply.handle_event(_event("part_delta", delta=_delta("text", "Again")))
-    assert reply.finish() == 5
+    reply.flush()
     assert said == ["Hello", "Again"]
 
 
@@ -61,5 +64,20 @@ def test_reset_drops_the_rest_unspoken():
     reply, said = _reply()
     reply.handle_event(_event("part_delta", delta=_delta("text", "unfinished")))
     reply.reset()
-    assert reply.finish() == 0
+    reply.flush()
     assert said == []
+
+
+def test_a_muted_response_is_silent_until_the_next_response_starts():
+    reply, said = _reply()
+    reply.handle_event(_event("part_delta", delta=_delta("text", "Half of it")))
+    reply.mute_response()
+    reply.handle_event(_event("part_delta", delta=_delta("text", " and more.")))
+    reply.handle_event(_event("part_start", index=1, part=_part("tool-call")))
+    reply.flush()
+    assert said == []
+    assert reply.has_claimed_turn
+
+    reply.handle_event(_event("part_start", index=0, part=_part("text", "New")))
+    reply.flush()
+    assert said == ["New"]

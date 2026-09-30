@@ -24,7 +24,10 @@ FACADE_BUDGETS = {
     # badge `AnyUI` declares (ADR-0102) -- new surface, not a delegator.
     # +9 (1211->1220): `is_prompt_answered_since`, beside `pending_answer_since`,
     # so speech can tell a prompt answered between two checks -- new surface.
-    "llm/ui/base/ui.py": 1220,
+    # +12 (1220->1232): `cancel_current_turn`, the turn cancel `AnyUI` now
+    # declares so Esc and a spoken barge-in stop a turn the same way -- new
+    # surface.
+    "llm/ui/base/ui.py": 1232,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

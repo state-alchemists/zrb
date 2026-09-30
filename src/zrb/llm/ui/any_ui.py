@@ -266,6 +266,14 @@ class AnyUI(ABC):
         """
 
     @abstractmethod
+    def cancel_current_turn(self, reason: str) -> None:
+        """Stop the turn the assistant is taking, as Esc does: release a
+        pending confirmation, cancel the running turn and fire `Stop` with
+        *reason* (``"escape"``, ``"barge_in"``). A no-op when no turn is
+        running, and for UIs that never run one.
+        """
+
+    @abstractmethod
     def flush_to_parent(self) -> None:
         """Write anything buffered here out to the delegating parent UI.
 

@@ -239,6 +239,7 @@
         "ask_user",
         "ask_user_choice",
         "background_tasks",
+        "cancel_current_turn",
         "cancel_pending_confirmations",
         "conversation_session_name",
         "flush_to_parent",

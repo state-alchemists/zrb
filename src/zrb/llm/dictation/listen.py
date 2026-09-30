@@ -21,12 +21,13 @@ BLOCK_SECONDS = 0.1
 
 
 class Utterance(NamedTuple):
-    """One utterance: 16-bit PCM, and when its speech started and ended
-    (`time.monotonic()`)."""
+    """One utterance: 16-bit PCM, when its speech started and ended
+    (`time.monotonic()`), and whether it talked over zrb (barge-in)."""
 
     audio: bytes
     started_at: float
     ended_at: float
+    is_barge_in: bool = False
 
 
 class MicState(Enum):
@@ -47,6 +48,10 @@ class UtteranceCutter:
     first loud block to its last, is dropped as a cough or a click. While zrb
     is speaking, and for ``echo_cooldown`` after, blocks are ignored. A
     negative duration counts as ``0``.
+
+    With ``barge_in`` on (``headset``: the microphone cannot hear zrb), blocks
+    are heard while zrb speaks too, and an utterance with ``barge_in_min_speech``
+    of loud blocks over zrb's voice `is_barge_in`.
     """
 
     def __init__(self, config: DictationConfig) -> None:
@@ -57,13 +62,27 @@ class UtteranceCutter:
         self._silent_blocks = 0
         self._started_at = 0.0
         self._cooldown_blocks = 0
+        self._is_barge_in_enabled = (config.barge_in or "off") != "off"
+        self._barge_in_blocks = max(1, _to_blocks(config.barge_in_min_speech or 0))
+        self._loud_echo_blocks = 0
+
+    @property
+    def is_barge_in_enabled(self) -> bool:
+        """Whether blocks are heard while zrb speaks."""
+        return self._is_barge_in_enabled
+
+    @property
+    def is_barge_in(self) -> bool:
+        """Whether the utterance in progress, or the one `feed` just
+        finished, talked over zrb for long enough to interrupt it."""
+        return self._loud_echo_blocks >= self._barge_in_blocks
 
     def feed(
         self, block: Any, level: float, captured_at: float, is_echo: bool
     ) -> "tuple[list[Any], float, float] | None":
         """Add one block, captured by *captured_at*; return ``(blocks,
         started_at, ended_at)`` when it finishes an utterance."""
-        if is_echo:
+        if is_echo and not self._is_barge_in_enabled:
             self.reset()
             self._cooldown_blocks = _to_blocks(self._config.echo_cooldown or 0)
             return None
@@ -75,14 +94,24 @@ class UtteranceCutter:
             if not loud:
                 self._pre_roll.append(block)
                 return None
+            self._loud_echo_blocks = int(is_echo)
             self._speech = [*self._pre_roll, block]
             self._pre_roll_blocks = len(self._pre_roll)
             # The block's first sample, heard one block before it arrived.
             self._started_at = captured_at - BLOCK_SECONDS
             self._pre_roll.clear()
             return None
+        return self._continue_speech(block, loud, captured_at, is_echo)
+
+    def _continue_speech(
+        self, block: Any, loud: bool, captured_at: float, is_echo: bool
+    ) -> "tuple[list[Any], float, float] | None":
+        """Add *block* to the utterance in progress, returning it if the
+        block ends it."""
         self._speech.append(block)
         self._silent_blocks = 0 if loud else self._silent_blocks + 1
+        if loud and is_echo:
+            self._loud_echo_blocks += 1
         config = self._config
         max_blocks = _to_blocks(config.max_utterance or 0)
         is_too_long = bool(max_blocks) and len(self._speech) >= max_blocks
@@ -131,11 +160,15 @@ async def listen(
     should_listen: Callable[[], bool],
     keep_partial: bool = False,
     on_state: Callable[[MicState], None] | None = None,
+    on_barge_in: Callable[[], None] | None = None,
 ) -> AsyncGenerator[Utterance, None]:
     """Yield utterances from the default microphone while *should_listen*
     holds; the microphone closes once it stops holding. With *keep_partial*,
     speech cut off by that is yielded too. *on_state* is called with the
     `MicState` whenever it changes, starting with the first block.
+    *on_barge_in* is called once per utterance, as soon as it has talked over
+    zrb long enough to count as an interruption (`UtteranceCutter`), before
+    the utterance ends.
 
     Audio keeps arriving while the caller handles an utterance (a slow
     transcription), and is kept, since the user may already be saying the
@@ -158,6 +191,7 @@ async def listen(
 
     cutter = UtteranceCutter(config)
     state: MicState | None = None
+    is_barge_in_reported = False
     stream = _open_microphone(sd, on_audio, blocksize=int(SAMPLE_RATE * BLOCK_SECONDS))
     with stream:
         while should_listen():
@@ -169,20 +203,26 @@ async def listen(
                 cutter.reset()
             level = float(np.sqrt(np.mean(block**2)))
             finished = cutter.feed(block, level, captured_at, is_echo)
+            if cutter.is_barge_in and not is_barge_in_reported:
+                is_barge_in_reported = True
+                if on_barge_in is not None:
+                    on_barge_in()
+            if not cutter.is_hearing:
+                is_barge_in_reported = False
             new_state = _get_mic_state(cutter, is_echo)
             if on_state is not None and new_state != state:
                 on_state(new_state)
             state = new_state
             if finished is not None:
-                yield _to_utterance(np, finished)
+                yield _to_utterance(np, finished, cutter.is_barge_in)
     if keep_partial:
         finished = cutter.flush(time.monotonic())
         if finished is not None:
-            yield _to_utterance(np, finished)
+            yield _to_utterance(np, finished, cutter.is_barge_in)
 
 
 def _get_mic_state(cutter: UtteranceCutter, is_echo: bool) -> MicState:
-    if is_echo or cutter.is_cooling_down:
+    if (is_echo and not cutter.is_barge_in_enabled) or cutter.is_cooling_down:
         return MicState.PAUSED
     return MicState.HEARING if cutter.is_hearing else MicState.LISTENING
 
@@ -223,10 +263,12 @@ class _Backlog:
         return self._blocks.popleft()
 
 
-def _to_utterance(np: Any, finished: "tuple[list[Any], float, float]") -> Utterance:
+def _to_utterance(
+    np: Any, finished: "tuple[list[Any], float, float]", is_barge_in: bool = False
+) -> Utterance:
     speech, started_at, ended_at = finished
     audio = (np.concatenate(speech, axis=0) * 32767).astype(np.int16)
-    return Utterance(audio.tobytes(), started_at, ended_at)
+    return Utterance(audio.tobytes(), started_at, ended_at, is_barge_in)
 
 
 def import_audio() -> tuple[Any, Any]:

@@ -56,7 +56,9 @@ def _fake_listen(monkeypatch, *said: tuple[str, float, float]):
     not what these tests are about."""
     heard = []
 
-    async def listen(config, should_listen, keep_partial=False, on_state=None):
+    async def listen(
+        config, should_listen, keep_partial=False, on_state=None, on_barge_in=None
+    ):
         heard.append(keep_partial)
         for text, started_at, ended_at in said:
             if not should_listen():
@@ -173,7 +175,9 @@ async def test_a_failed_transcription_is_skipped(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_a_broken_microphone_switches_hands_free_off(monkeypatch):
-    async def listen(config, should_listen, keep_partial=False, on_state=None):
+    async def listen(
+        config, should_listen, keep_partial=False, on_state=None, on_barge_in=None
+    ):
         raise OSError("no input device")
         yield  # pragma: no cover
 
@@ -232,7 +236,9 @@ async def test_an_utterance_being_transcribed_at_switch_off_is_dropped(monkeypat
             await release.wait()
             return audio.decode()
 
-    async def listen(config, should_listen, keep_partial=False, on_state=None):
+    async def listen(
+        config, should_listen, keep_partial=False, on_state=None, on_barge_in=None
+    ):
         try:
             yield Utterance(b"run the tests", 0.0, 1.0)
             await asyncio.Event().wait()
@@ -276,7 +282,9 @@ async def test_hands_free_prepares_the_backend_and_reports_to_the_ui(monkeypatch
 
 @pytest.mark.asyncio
 async def test_a_broken_microphone_is_reported_to_the_ui(monkeypatch):
-    async def listen(config, should_listen, keep_partial=False, on_state=None):
+    async def listen(
+        config, should_listen, keep_partial=False, on_state=None, on_barge_in=None
+    ):
         raise OSError("no input device")
         yield  # pragma: no cover
 
@@ -300,7 +308,9 @@ async def test_a_broken_microphone_is_reported_to_the_ui(monkeypatch):
 async def test_closing_the_listener_closes_the_microphone_at_once(monkeypatch):
     closed = asyncio.Event()
 
-    async def listen(config, should_listen, keep_partial=False, on_state=None):
+    async def listen(
+        config, should_listen, keep_partial=False, on_state=None, on_barge_in=None
+    ):
         try:
             yield Utterance(b"run the tests", 0.0, 1.0)
             await asyncio.Event().wait()

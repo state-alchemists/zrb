@@ -243,14 +243,7 @@ class UIKeybindings:
             ui.cancel_viewed_agent()
             return
         if ui.running_llm_task and not ui.running_llm_task.done():
-            ui.running_llm_task.cancel()
-            ui.execute_hook(
-                HookEvent.STOP,
-                {
-                    "reason": "escape",
-                    "session": ui.conversation_session_name,
-                },
-            )
+            ui.cancel_current_turn("escape")
             ui.append_to_output("\n<Esc> Canceled")
 
     def _on_enter(self, event: Any, llm_task: "AnyTask") -> None:

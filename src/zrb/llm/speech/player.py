@@ -99,6 +99,9 @@ class Speaker:
         # Closed: `say` queues nothing more. Cut off: nothing more is played.
         self._is_closed = False
         self._is_cut_off = False
+        # Bumped by `interrupt`: speech taken off the queue before it is
+        # dropped rather than played late.
+        self._generation = 0
         self.is_enabled = True
 
     def say(self, text: str, is_stale: "IsStale" = None) -> None:
@@ -142,16 +145,34 @@ class Speaker:
         except queue.Empty:
             pass
 
+    def interrupt(self) -> None:
+        """Drop queued speech and stop what is playing, for a user who started
+        talking over it. Unlike `close`, the speaker keeps speaking whatever
+        is said after this."""
+        with self._lock:
+            self._generation += 1
+            playing = self._playing
+        self.clear()
+        if playing is not None:
+            playing.stop()
+
     def speak(self, text: str, is_stale: "IsStale" = None) -> None:
         """Speak *text* now, blocking; the local engine stands in for a
         backend that fails. *is_stale* as for `say`."""
+        self._speak(text, is_stale, self._generation)
+
+    def _speak(self, text: str, is_stale: "IsStale", generation: int) -> None:
         if not text.strip() or (is_stale is not None and is_stale()):
             return
         utterance = self._create_with_fallback(text)
         if utterance is None:
             return
         with self._lock:
-            if self._is_cut_off or (is_stale is not None and is_stale()):
+            if (
+                self._is_cut_off
+                or generation != self._generation
+                or (is_stale is not None and is_stale())
+            ):
                 utterance.cleanup()
                 return
             self._playing = utterance
@@ -190,8 +211,9 @@ class Speaker:
     def _play_queue(self) -> None:
         while (entry := self._queue.get()) is not None:
             item, is_stale = entry
+            generation = self._generation
             try:
-                self.speak(item() if callable(item) else item, is_stale)
+                self._speak(item() if callable(item) else item, is_stale, generation)
             except Exception as exc:
                 logger.warning(f"Speech failed: {exc}")
 

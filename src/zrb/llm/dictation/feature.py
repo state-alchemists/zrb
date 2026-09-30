@@ -21,8 +21,10 @@ from zrb.llm.dictation.backend.builtin import get_dictation_backend
 from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.listen import MicState, import_audio, listen
 from zrb.llm.dictation.words import split_phrases, strip_wake_word, to_answer
+from zrb.llm.speech.feature import interrupt_speech
 from zrb.llm.ui.trigger import TriggerReply
 from zrb.llm.util.feature_config import (
+    current_session_key,
     get_session_ui,
     replace_feature_sessions,
     replace_registration,
@@ -45,6 +47,11 @@ _MIC_STATE_BADGES = {
     MicState.PAUSED: "🔇 mic paused while speaking",
 }
 _TRANSCRIBING = "✍️ transcribing…"
+_INTERRUPTED = "✋ interrupted · go on…"
+# How long a cancelled turn may take to unwind before what the user said
+# is sent anyway.
+_TURN_END_TIMEOUT = 5.0
+_TURN_END_POLL = 0.05
 _MAX_QUOTED_CHARS = 40
 
 
@@ -96,6 +103,8 @@ class DictationSession:
         # The badge shown while the mic is listening, which says what the last
         # utterance came to.
         self._resting_badge = _LISTENING
+        # The chat session this belongs to, whose speech a barge-in silences.
+        self._session_key = current_session_key()
         self.is_hands_free = (config.mode or "").strip().lower() == HANDS_FREE
 
     @property
@@ -246,7 +255,10 @@ class DictationSession:
         # aclosing so switching hands-free off closes the microphone as soon as
         # the utterance in flight is dropped, not at finalization.
         mic_listen = listen(
-            self._config, lambda: self.is_hands_free, on_state=self._show_mic_state
+            self._config,
+            lambda: self.is_hands_free,
+            on_state=self._show_mic_state,
+            on_barge_in=self._handle_barge_in,
         )
         async with aclosing(mic_listen) as mic:
             async for utterance in mic:
@@ -276,12 +288,45 @@ class DictationSession:
                     self._rest("🎤 go ahead…")
                     continue
                 armed_until = 0.0
+                if utterance.is_barge_in and not await self._should_send_barge_in(
+                    command
+                ):
+                    continue
                 self._rest(f"🎤 heard {_quote(command)} · listening")
                 yield TriggerReply(
                     command,
                     approval=to_answer(command, self._approve_words, self._deny_words),
                     started_at=utterance.started_at,
                 )
+
+    def _handle_barge_in(self) -> None:
+        """The user started talking over zrb: stop it at once. With wake words
+        this waits for the transcript, so talk in the room does not silence
+        it."""
+        if not self._wake_words:
+            interrupt_speech(self._session_key)
+            self._rest(_INTERRUPTED)
+
+    async def _should_send_barge_in(self, command: str) -> bool:
+        """Act on what the user said over zrb, and say whether it still goes
+        on to be a turn or an answer. A deny word alone stops the turn and is sent
+        nowhere; with ``barge_in_action`` ``cancel``, anything else stops the
+        turn and starts a new one. An answer to the prompt being asked is
+        left alone: "no" there denies a tool call, not the turn."""
+        if self._wake_words:
+            interrupt_speech(self._session_key)
+        ui = get_session_ui() or self._ui
+        if ui is None or getattr(ui, "is_waiting_for_answer", False):
+            return True
+        if to_answer(command, [], self._deny_words) == "no":
+            ui.cancel_current_turn("barge_in")
+            self._rest("✋ stopped · listening")
+            return False
+        action = (self._config.barge_in_action or "steer").strip().lower()
+        if action == "cancel" and ui.is_thinking:
+            ui.cancel_current_turn("barge_in")
+            await _wait_for_turn_end(ui)
+        return True
 
     def _show_mic_state(self, state: MicState) -> None:
         self._show(_MIC_STATE_BADGES.get(state, self._resting_badge))
@@ -321,6 +366,14 @@ class DictationSession:
             for task in (transcribing, switched_off):
                 if not task.done():
                     task.cancel()
+
+
+async def _wait_for_turn_end(ui: "AnyUI") -> None:
+    """Wait for a cancelled turn to unwind, so what the user said starts a
+    new turn instead of steering into the one being cancelled."""
+    deadline = asyncio.get_running_loop().time() + _TURN_END_TIMEOUT
+    while ui.is_thinking and asyncio.get_running_loop().time() < deadline:
+        await asyncio.sleep(_TURN_END_POLL)
 
 
 def _quote(text: str) -> str:

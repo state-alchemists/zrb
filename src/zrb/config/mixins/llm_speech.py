@@ -133,8 +133,8 @@ class LLMSpeechMixin:
         fallback=8.0,
         doc=(
             "With 'progress' in {ENV_PREFIX}_LLM_SPEECH_EVENTS, the seconds of "
-            "silence after which a tool call starting is announced (\"Running "
-            "a command.\"); 0 announces nothing. Default: 8."
+            'silence after which a tool call starting is announced ("Running '
+            'a command."); 0 announces nothing. Default: 8.'
         ),
     )
 

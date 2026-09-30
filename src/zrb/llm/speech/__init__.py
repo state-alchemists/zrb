@@ -10,7 +10,7 @@ from zrb.llm.speech.backend import (
     Utterance,
 )
 from zrb.llm.speech.config import SpeechConfig
-from zrb.llm.speech.feature import enable_speech
+from zrb.llm.speech.feature import enable_speech, interrupt_speech
 from zrb.llm.speech.player import Speaker, is_speaking
 
 __all__ = [
@@ -23,5 +23,6 @@ __all__ = [
     "TermuxSpeechBackend",
     "Utterance",
     "enable_speech",
+    "interrupt_speech",
     "is_speaking",
 ]

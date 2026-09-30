@@ -35,6 +35,9 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_MAX_BACKLOG: str = "30.0"
         self.DEFAULT_LLM_DICTATION_PRE_ROLL: str = "0.3"
         self.DEFAULT_LLM_DICTATION_ECHO_COOLDOWN: str = "0.4"
+        self.DEFAULT_LLM_DICTATION_BARGE_IN: str = "off"
+        self.DEFAULT_LLM_DICTATION_BARGE_IN_MIN_SPEECH: str = "0.3"
+        self.DEFAULT_LLM_DICTATION_BARGE_IN_ACTION: str = "steer"
         self.DEFAULT_LLM_DICTATION_APPROVE_WORDS: str = (
             "yes, yeah, yep, ok, okay, sure, approve, accept, go ahead, do it"
         )
@@ -168,6 +171,37 @@ class LLMDictationMixin:
         doc=(
             "Seconds the microphone stays deaf after zrb stops speaking, "
             "since room echo outlives playback. Default: 0.4."
+        ),
+    )
+
+    LLM_DICTATION_BARGE_IN = EnvField(
+        str,
+        doc=(
+            "Whether hands-free hears you while zrb speaks, so you can talk "
+            "over it and it stops. One of:\n"
+            "- 'off' (default): the microphone is deaf while zrb speaks.\n"
+            "- 'headset': zrb's voice goes to headphones the microphone cannot "
+            "hear. On speakers, zrb would hear itself and stop."
+        ),
+    )
+
+    LLM_DICTATION_BARGE_IN_MIN_SPEECH = EnvField(
+        float,
+        fallback=0.3,
+        doc=(
+            "Seconds of speech over zrb's voice that interrupt it, so a cough "
+            "does not. Default: 0.3."
+        ),
+    )
+
+    LLM_DICTATION_BARGE_IN_ACTION = EnvField(
+        str,
+        doc=(
+            "What talking over a running turn does with what you said. One "
+            "of:\n"
+            "- 'steer' (default): the turn goes on and takes it into account.\n"
+            "- 'cancel': the turn stops and what you said starts a new one.\n"
+            "A deny word said alone ('stop', 'no') cancels the turn either way."
         ),
     )
 

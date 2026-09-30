@@ -87,6 +87,23 @@ def enable_speech(
         )
 
 
+# Every live `SpeechSession`, by the chat session it speaks for, so dictation
+# can silence the right one when the user talks over it.
+_speech_sessions: "dict[str, weakref.WeakSet[SpeechSession]]" = {}
+
+
+def interrupt_speech(session_key: str | None = None) -> None:
+    """Stop what the chat session *session_key* (default: the one asking) is
+    saying and drop what it has queued, for a user who started talking over
+    it. Speech after this is spoken as usual."""
+    key = current_session_key() if session_key is None else session_key
+    for session in list(_speech_sessions.get(key, ())):
+        try:
+            session.interrupt()
+        except Exception as exc:
+            logger.warning(f"Interrupting speech failed: {exc}")
+
+
 class SpeechSession:
     """The speaker and the hooks feeding it, for one resolved *config*."""
 
@@ -96,6 +113,7 @@ class SpeechSession:
         # A task given a `hook_manager` shares it between sessions; each
         # session's hooks then see every session's events.
         self._session_key = current_session_key()
+        _speech_sessions.setdefault(self._session_key, weakref.WeakSet()).add(self)
         # The bound methods handed to each manager, so they can be taken back
         # out: `remove_hook` matches on identity, and a bound method is a new
         # object on every attribute read.
@@ -155,6 +173,17 @@ class SpeechSession:
         for manager in list(self._hooks):
             self.unregister_hooks(manager)
         self.speaker.close()
+        sessions = _speech_sessions.get(self._session_key)
+        if sessions is not None:
+            sessions.discard(self)
+            if not sessions:
+                _speech_sessions.pop(self._session_key, None)
+
+    def interrupt(self) -> None:
+        """Stop speaking now and say nothing more of the response being
+        written; `interrupt_speech`."""
+        self.speaker.interrupt()
+        self.streamed_reply.mute_response()
 
     def create_commands(self) -> "list[AnyCustomCommand]":
         return [
@@ -209,16 +238,21 @@ class SpeechSession:
     async def handle_stop(self, context: HookContext) -> HookResult:
         """Speak the reply, but not a sub-agent's: only the main turn is for
         the user. A streamed reply only needs its last words spoken; one
-        cancelled with Esc is not finished at all."""
+        cancelled (Esc, a barge-in: the payload names a ``reason``) is not
+        finished at all."""
         event_data = context.event_data if isinstance(context.event_data, dict) else {}
         if not self._is_own_session() or event_data.get("nested_run"):
             return HookResult(success=True)
-        if event_data.get("reason") == "escape":
+        if event_data.get("reason"):
             self.streamed_reply.reset()
             self.speaker.clear()
             return HookResult(success=True)
-        if self._config.stream and self.streamed_reply.finish():
-            return HookResult(success=True)
+        if self._config.stream:
+            self.streamed_reply.flush()
+            has_claimed_turn = self.streamed_reply.has_claimed_turn
+            self.streamed_reply.reset()
+            if has_claimed_turn:
+                return HookResult(success=True)
         if context.last_assistant_message:
             self.say_reply(context.last_assistant_message)
         return HookResult(success=True)

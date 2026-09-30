@@ -66,7 +66,9 @@ def _fake_listen(monkeypatch, *said: tuple[str, float, float]):
     not what these tests are about."""
     heard = []
 
-    async def listen(config, should_listen, keep_partial=False, on_state=None):
+    async def listen(
+        config, should_listen, keep_partial=False, on_state=None, on_barge_in=None
+    ):
         heard.append(keep_partial)
         for text, started_at, ended_at in said:
             if not should_listen():
@@ -129,7 +131,9 @@ async def test_push_to_talk_says_so_when_nothing_was_heard(monkeypatch):
 async def test_the_command_again_stops_the_recording(monkeypatch):
     stopped = asyncio.Event()
 
-    async def listen(config, should_listen, keep_partial=False, on_state=None):
+    async def listen(
+        config, should_listen, keep_partial=False, on_state=None, on_barge_in=None
+    ):
         while should_listen():
             await asyncio.sleep(0)
         stopped.set()
