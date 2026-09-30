@@ -186,3 +186,49 @@ def test_enable_speech_adds_a_live_context_to_the_tasks_prompt_manager():
         assert "read aloud" in providers[0][1](None)
     finally:
         close_feature_sessions("")
+
+
+def _tool_call(tool):
+    return SimpleNamespace(
+        event_kind="function_tool_call",
+        part=SimpleNamespace(tool_name=tool, tool_call_id="c1"),
+    )
+
+
+def test_a_tool_call_after_a_silence_is_announced_with_progress(monkeypatch):
+    monkeypatch.setattr("zrb.llm.speech.feature.is_speaking", lambda lock: False)
+    session = _session(events=["progress"], progress_interval=5)
+
+    session.handle_stream_event(_tool_call("Shell"))
+
+    assert session.speaker.said == ["Running a command."]
+
+
+def test_a_tool_call_right_after_its_spoken_intro_is_not_announced(monkeypatch):
+    monkeypatch.setattr("zrb.llm.speech.feature.is_speaking", lambda lock: False)
+    session = _session(stream=True, events=["reply", "progress"], progress_interval=5)
+
+    session.handle_stream_event(_text_start("Let me run the tests."))
+    session.handle_stream_event(_tool_call_start())
+    session.handle_stream_event(_tool_call("Shell"))
+
+    assert session.speaker.said == ["Let me run the tests."]
+
+
+def test_nothing_is_announced_while_speech_is_playing(monkeypatch):
+    monkeypatch.setattr("zrb.llm.speech.feature.is_speaking", lambda lock: True)
+    session = _session(events=["progress"], progress_interval=5)
+
+    session.handle_stream_event(_tool_call("Shell"))
+
+    assert session.speaker.said == []
+
+
+def test_nothing_streams_or_is_announced_while_speech_is_off():
+    session = _session(stream=True, events=["reply", "progress"])
+    session.speaker.is_enabled = False
+
+    session.handle_stream_event(_text_delta("A whole sentence is right here. "))
+    session.handle_stream_event(_tool_call("Shell"))
+
+    assert session.speaker.said == []

@@ -30,6 +30,7 @@ class LLMSpeechMixin:
         self.DEFAULT_LLM_SPEECH_MAX_CHARS: str = "400"
         self.DEFAULT_LLM_SPEECH_SUMMARIZE: str = "false"
         self.DEFAULT_LLM_SPEECH_STREAM: str = "false"
+        self.DEFAULT_LLM_SPEECH_PROGRESS_INTERVAL: str = "8"
         self.DEFAULT_LLM_SPEECH_OPENAI_MODEL: str = "gpt-4o-mini-tts"
         self.DEFAULT_LLM_SPEECH_OPENAI_BASE_URL: str = "https://api.openai.com/v1"
         self.DEFAULT_LLM_SPEECH_GEMINI_MODEL: str = "gemini-2.5-flash-preview-tts"
@@ -127,6 +128,16 @@ class LLMSpeechMixin:
         ),
     )
 
+    LLM_SPEECH_PROGRESS_INTERVAL = EnvField(
+        float,
+        fallback=8.0,
+        doc=(
+            "With 'progress' in {ENV_PREFIX}_LLM_SPEECH_EVENTS, the seconds of "
+            "silence after which a tool call starting is announced (\"Running "
+            "a command.\"); 0 announces nothing. Default: 8."
+        ),
+    )
+
     LLM_SPEECH_OPENAI_MODEL = EnvField(
         str, doc="Model for the 'openai' backend. Default: gpt-4o-mini-tts."
     )
@@ -202,7 +213,9 @@ class LLMSpeechMixin:
         doc=(
             "Comma-separated moments to speak: 'reply' (end of a turn), "
             "'approval' (a tool call waits for approval), 'question' (the "
-            "agent asks something). Default: reply, approval, question."
+            "agent asks something), 'progress' (a tool call starts after a "
+            "silence, see {ENV_PREFIX}_LLM_SPEECH_PROGRESS_INTERVAL). Default: "
+            "reply, approval, question."
         ),
     )
 

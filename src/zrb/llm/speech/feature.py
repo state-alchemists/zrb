@@ -21,7 +21,8 @@ from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.speech.config import SpeechConfig
-from zrb.llm.speech.player import Speaker
+from zrb.llm.speech.player import IsStale, Speaker, is_speaking
+from zrb.llm.speech.progress import ProgressNarrator, SpeechClock
 from zrb.llm.speech.streamed_reply import StreamedReply
 from zrb.llm.speech.text import clean_for_speech, fit_for_speech
 from zrb.llm.util.feature_config import (
@@ -103,12 +104,12 @@ class SpeechSession:
         ) = weakref.WeakKeyDictionary()
         self.speaker = Speaker(config)
         self.speaker.is_enabled = bool(config.enabled)
-        # Through `self.speaker` at call time, not a bound `say`, so a speaker
-        # replaced later is the one that speaks.
+        self._clock = SpeechClock()
         self.streamed_reply = StreamedReply(
-            lambda text: self.speaker.say(text),
-            config.max_chars or 0,
-            config.on_screen_note or "",
+            self._say, config.max_chars or 0, config.on_screen_note or ""
+        )
+        self.progress = ProgressNarrator(
+            self._say, self._seconds_since_said, config.progress_interval or 0
         )
         if not CFG.HOOKS_ENABLED:
             logger.warning(
@@ -181,11 +182,29 @@ class SpeechSession:
         return ""
 
     def handle_stream_event(self, event: Any) -> None:
-        """Speak the reply's sentences as they stream, when ``stream`` is on.
-        Only the main run's events arrive: a sub-agent's run has no stream
-        observers."""
-        if self._config.stream and self.speaker.is_enabled and "reply" in self._events:
+        """Speak the reply's sentences as they stream, when ``stream`` is on,
+        and announce a tool call that starts after a silence, with
+        ``progress``. Only the main run's events arrive: a sub-agent's run
+        has no stream observers."""
+        if not self.speaker.is_enabled:
+            return
+        # The reply first: text flushed at a tool call's start counts as
+        # speech, so the call is not announced on top of it.
+        if self._config.stream and "reply" in self._events:
             self.streamed_reply.handle_event(event)
+        if "progress" in self._events:
+            self.progress.handle_event(event)
+
+    def _say(self, text: str, is_stale: IsStale = None) -> None:
+        # Through `self.speaker` at call time, so a speaker replaced later is
+        # the one that speaks.
+        self._clock.mark()
+        self.speaker.say(text, is_stale=is_stale)
+
+    def _seconds_since_said(self) -> float:
+        if is_speaking(self._config.lock_file or None):
+            return 0.0
+        return self._clock.seconds_since_said()
 
     async def handle_stop(self, context: HookContext) -> HookResult:
         """Speak the reply, but not a sub-agent's: only the main turn is for
@@ -207,7 +226,7 @@ class SpeechSession:
     async def handle_permission_request(self, context: HookContext) -> HookResult:
         """Speak the approval request, unless it is answered first."""
         if self._is_own_session():
-            self.speaker.say(
+            self._say(
                 describe_tool_call(context.tool_name, context.tool_input),
                 is_stale=is_answered_since(get_session_ui(), time.monotonic()),
             )
@@ -219,7 +238,7 @@ class SpeechSession:
             and context.notification_type in _QUESTION_NOTIFICATIONS
         ):
             question = self._fit(clean_for_speech(context.message or ""))
-            self.speaker.say(question or "A question is waiting for your answer.")
+            self._say(question or "A question is waiting for your answer.")
         return HookResult(success=True)
 
     def _is_own_session(self) -> bool:
@@ -231,7 +250,7 @@ class SpeechSession:
         spoken = clean_for_speech(reply)
         max_chars = self._config.max_chars or 0
         if max_chars <= 0 or len(spoken) <= max_chars or not self._config.summarize:
-            self.speaker.say(self._fit(spoken))
+            self._say(self._fit(spoken))
             return
         # On the speaker's thread, not as a task on the running loop: a hook
         # runs on a loop of its own that is closed once the hook returns,
