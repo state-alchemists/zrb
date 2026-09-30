@@ -23,6 +23,7 @@ class SpeechConfig:
     commands: list[str] | None = None
     backend: "str | AnySpeechBackend | None" = None
     voice: str | None = None
+    style: str | None = None
     rate: int | None = None
     max_chars: int | None = None
     summarize: bool | None = None

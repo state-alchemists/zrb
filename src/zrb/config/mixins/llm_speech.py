@@ -28,6 +28,12 @@ class LLMSpeechMixin:
         self.DEFAULT_LLM_SPEECH_COMMANDS: str = "/speech"
         self.DEFAULT_LLM_SPEECH_BACKEND: str = "auto"
         self.DEFAULT_LLM_SPEECH_VOICE: str = ""
+        self.DEFAULT_LLM_SPEECH_STYLE: str = (
+            "Speak like a capable colleague talking a teammate through their "
+            "work: warm, clear and natural, at a relaxed conversational pace, "
+            "with the rise and fall of real speech. Sound engaged, not "
+            "theatrical."
+        )
         self.DEFAULT_LLM_SPEECH_RATE: str = "165"
         self.DEFAULT_LLM_SPEECH_MAX_CHARS: str = "400"
         self.DEFAULT_LLM_SPEECH_SUMMARIZE: str = "false"
@@ -90,6 +96,16 @@ class LLMSpeechMixin:
         doc=(
             "Voice name for the chosen backend. Empty uses the backend's "
             "default (system voice, en-us+m3, alloy, Sulafat)."
+        ),
+    )
+
+    LLM_SPEECH_STYLE = EnvField(
+        str,
+        doc=(
+            "How the 'openai' and 'gemini' backends should sound: a direction "
+            "in plain words (tone, pace, warmth), not read aloud. Empty reads "
+            "in the voice's default manner. The local engines ignore it. "
+            "Default: a warm, clear, conversational colleague."
         ),
     )
 

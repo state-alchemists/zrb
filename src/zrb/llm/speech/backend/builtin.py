@@ -73,6 +73,7 @@ def _create_openai(config: "SpeechConfig") -> AnySpeechBackend:
         base_url=config.openai_base_url or "",
         timeout=config.timeout or None,
         wav_player=config.wav_player or "",
+        style=config.style or "",
     )
 
 
@@ -82,6 +83,7 @@ def _create_gemini(config: "SpeechConfig") -> AnySpeechBackend:
         model=config.gemini_model or "",
         timeout=config.timeout or None,
         wav_player=config.wav_player or "",
+        style=config.style or "",
     )
 
 

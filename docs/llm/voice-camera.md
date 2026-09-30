@@ -87,6 +87,8 @@ While speech is on, the model is told its reply is heard, so it opens with the a
 
 Switching speech off with `/speech` drops whatever has not been said yet.
 
+**How it sounds.** The `openai` and `gemini` voices take a direction in plain words, `ZRB_LLM_SPEECH_STYLE`. By default it asks for a capable colleague talking you through the work: warm, clear, conversational, engaged but not theatrical. Change it to taste ("brisk and matter-of-fact", "calm and slow") or set it empty for the voice's default manner. The direction is never read aloud. The local engines (`say`, `espeak-ng`, Termux) ignore it; their `ZRB_LLM_SPEECH_RATE` and voice are what you can change.
+
 The `openai` backend starts playing as the audio arrives, through a player that reads standard input (`paplay`, `aplay` or `ffplay`), so a long reply starts as soon as a short one does. With `ZRB_LLM_SPEECH_WAV_PLAYER` set, or only `afplay`, it waits for the whole file.
 
 Each chat session gets its own speaker, microphone and hands-free flag, so one session switching speech off does not silence the next. Two zrb processes still take turns rather than talk over each other, through a lock file that a session claims while it is speaking and releases when it is closed.

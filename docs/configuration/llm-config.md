@@ -919,6 +919,7 @@ Reads the reply a sentence at a time as it streams, tool approvals, questions, a
 | `ZRB_LLM_SPEECH_EVENTS` | What to speak: `reply`, `approval`, `question`, `progress` (a tool call starting after a silence: "Running a command.") | `reply, approval, question, progress` |
 | `ZRB_LLM_SPEECH_BACKEND` | `auto` (`termux` on Termux, `say` on macOS, else `espeak-ng`), `termux`, `say`, `espeak-ng`, `openai`, `gemini`. A failing backend falls back to the local engine | `auto` |
 | `ZRB_LLM_SPEECH_VOICE` | Voice name for the backend (for `termux`, the `-v` variant); empty uses its default (system voice, `en-us+m3`, `alloy`, `Sulafat`) | (none) |
+| `ZRB_LLM_SPEECH_STYLE` | How `openai` and `gemini` should sound, in plain words (tone, pace, warmth); a direction, not read aloud. Empty uses the voice's default manner. The local engines ignore it | a warm, clear, conversational colleague |
 | `ZRB_LLM_SPEECH_RATE` | Words per minute for `say` and `espeak-ng` | `165` |
 | `ZRB_LLM_SPEECH_MAX_CHARS` | Longest reply spoken in full; a longer one is cut at a sentence end and followed by `ZRB_LLM_SPEECH_ON_SCREEN_NOTE`. `0` means no limit | `400` |
 | `ZRB_LLM_SPEECH_SUMMARIZE` | Speak a model summary of a long reply instead of its opening: one model call per long reply | `off` |

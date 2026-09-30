@@ -101,3 +101,25 @@ def test_openai_without_a_timeout_still_bounds_a_stalled_download(
 
     _, timeout = sent[0]
     assert timeout is not None
+
+
+@pytest.mark.parametrize(
+    "model, style, instructions",
+    [
+        ("gpt-4o-mini-tts", "Warm and clear.", "Warm and clear."),
+        ("gpt-4o-mini-tts", "", None),
+        ("tts-1-hd", "Warm and clear.", None),
+    ],
+)
+def test_openai_sends_the_style_as_instructions_to_a_model_that_takes_them(
+    requests, which, monkeypatch, model, style, instructions
+):
+    sent, replies = requests
+    replies.append(b"RIFF-wav")
+    which("afplay")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+
+    OpenAISpeechBackend(model=model, style=style).create_utterance("hi").cleanup()
+
+    body = json.loads(sent[0][0].data)
+    assert body.get("instructions") == instructions

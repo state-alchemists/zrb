@@ -8,7 +8,9 @@ from zrb.llm.speech.backend.utterance import Utterance, create_streamed_wav_utte
 class OpenAISpeechBackend(AnySpeechBackend):
     """OpenAI's /audio/speech endpoint, or any API compatible with it.
 
-    The key is *api_key*, else ``OPENAI_API_KEY``.
+    The key is *api_key*, else ``OPENAI_API_KEY``. *style* directs how the
+    voice sounds (the API's ``instructions``); the ``tts-1`` models do not
+    take one, so it is left out for them.
     """
 
     def __init__(
@@ -19,8 +21,10 @@ class OpenAISpeechBackend(AnySpeechBackend):
         api_key: str | None = None,
         timeout: float | None = None,
         wav_player: str = "",
+        style: str = "",
     ) -> None:
         self._voice = voice
+        self._style = style
         self._model = model
         self._base_url = base_url
         self._api_key = api_key
@@ -39,6 +43,8 @@ class OpenAISpeechBackend(AnySpeechBackend):
             "input": text,
             "response_format": "wav",
         }
+        if self._style and not self._model.startswith("tts-1"):
+            body["instructions"] = self._style
         url = f"{self._base_url.rstrip('/')}/audio/speech"
         headers = {"Authorization": f"Bearer {key}"}
         timeout = self._timeout or _STALL_SECONDS

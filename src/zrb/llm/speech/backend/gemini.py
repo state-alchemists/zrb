@@ -13,6 +13,8 @@ class GeminiSpeechBackend(AnySpeechBackend):
     """Gemini text-to-speech via generateContent.
 
     The key is *api_key*, else ``GEMINI_API_KEY``, else ``GOOGLE_API_KEY``.
+    *style* directs how the voice sounds; Gemini takes it as part of the
+    prompt, ahead of the text to read.
     """
 
     def __init__(
@@ -22,8 +24,10 @@ class GeminiSpeechBackend(AnySpeechBackend):
         api_key: str | None = None,
         timeout: float | None = None,
         wav_player: str = "",
+        style: str = "",
     ) -> None:
         self._voice = voice
+        self._style = style
         self._model = model
         self._api_key = api_key
         self._timeout = timeout
@@ -40,8 +44,7 @@ class GeminiSpeechBackend(AnySpeechBackend):
             or get_required_env("GOOGLE_API_KEY")
         )
         body = {
-            # Without "Say:", Gemini may answer a short line instead of reading it.
-            "contents": [{"parts": [{"text": f"Say: {text}"}]}],
+            "contents": [{"parts": [{"text": self._create_prompt(text)}]}],
             "generationConfig": {
                 "responseModalities": ["AUDIO"],
                 "speechConfig": {
@@ -66,3 +69,9 @@ class GeminiSpeechBackend(AnySpeechBackend):
                 "Gemini returned no audio for this text; falling back to local speech"
             )
         return create_wav_utterance(pcm_to_wav(pcm), self._wav_player)
+
+    def _create_prompt(self, text: str) -> str:
+        # Without "Say:", Gemini may answer a short line instead of reading it.
+        if not self._style:
+            return f"Say: {text}"
+        return f"{self._style}\n\nSay exactly this, and nothing else: {text}"
