@@ -243,7 +243,7 @@ _COMMON_MISTAKES: dict[str, str] = {
 
 _STATUS_ICONS = {
     "completed": "✅",
-    "in_progress": "▶️",
+    "in_progress": "🔄",
     "pending": "  ",
     "cancelled": "✗",
 }
@@ -267,7 +267,7 @@ def _render_todo_progress(
     if todo_data["completed"]:
         parts.append(f"✅ {todo_data['completed']} completed")
     if todo_data["in_progress"]:
-        parts.append(f"▶️ {todo_data['in_progress']} in progress")
+        parts.append(f"🔄 {todo_data['in_progress']} in progress")
     if todo_data["pending"]:
         parts.append(f"☐ {todo_data['pending']} pending")
     if todo_data.get("cancelled", 0):

@@ -50,7 +50,7 @@ def throw_dice(ctx: AnyContext) -> str:
         name="values",
         description="Value to be shuffled",
         prompt="List of values (comma separated)",
-        default="🪙, 🪄, ⚔️, 🍷",
+        default="🪙, 🪄, 🎲, 🍷",
     ),
     retries=0,
     group=random_group,
@@ -85,7 +85,7 @@ def generate_password(ctx: AnyContext) -> str:
 
 @make_task(
     name="generate-token",
-    description="🎟️ Generate a secure URL-safe token",
+    description="🎫 Generate a secure URL-safe token",
     input=IntInput(
         name="bytes",
         description="Number of random bytes (token is longer after encoding)",

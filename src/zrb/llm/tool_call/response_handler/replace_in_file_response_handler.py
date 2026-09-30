@@ -58,7 +58,7 @@ async def replace_in_file_response_handler(
             ui.append_to_output("\n  ✅ Replacement modified.")
             return ToolApproved(override_args=new_args)
         else:
-            ui.append_to_output("\n  ℹ️ No changes made.")
+            ui.append_to_output("\n  🔹 No changes made.")
             return None
 
     except Exception as e:

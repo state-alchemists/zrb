@@ -306,7 +306,7 @@ async def _fetch_page_content(url: str) -> tuple:
         )
     except Exception:
         # The fallback is a second wait of up to LLM_WEB_HTTP_TIMEOUT; say so.
-        notify(f"↩️  Browser fetch failed for {url}, retrying via plain HTTP...")
+        notify(f"🔁 Browser fetch failed for {url}, retrying via plain HTTP...")
         return await run_blocking(
             fetch_page_fallback, url, user_agent, timeout=fetch_timeout
         )

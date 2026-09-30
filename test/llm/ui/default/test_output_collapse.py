@@ -275,12 +275,12 @@ def test_finish_shell_output_collapses_and_registers_for_toggle():
         ui.append_to_output("before ")
         ui.update_shell_output("cmd_1", "line one\nline two")
         collapsed = ui.finish_shell_output(
-            "cmd_1", "🖥️ Output (17 chars)", "line one\nline two"
+            "cmd_1", "💻 Output (17 chars)", "line one\nline two"
         )
 
     assert collapsed is True
     assert "line one" not in ui.output_text
-    assert "🖥️ Output" in ui.output_text
+    assert "💻 Output" in ui.output_text
     assert ui.output_text.startswith("before ")
     assert len(ui.rendered_blocks) == 1
     with patch.object(ui.output_part, "schedule_invalidate"):
@@ -302,7 +302,7 @@ def test_finish_shell_output_keeps_rendered_blocks_in_position_order():
         ui.update_shell_output("cmd_1", "line one\nline two")
         # A tool line lands at the tail while the shell line is still open.
         ui.append_toggle_block("tool call", "tool call, expanded")
-        ui.finish_shell_output("cmd_1", "🖥️ Output", "line one\nline two")
+        ui.finish_shell_output("cmd_1", "💻 Output", "line one\nline two")
 
     starts = [block[0] for block in ui.rendered_blocks]
     assert starts == sorted(starts)
@@ -329,7 +329,7 @@ def test_finish_shell_output_without_any_update_is_a_noop():
     ui = MockMarkdownUI()
     ui.output_field.text = "no shell output line here"
 
-    assert ui.finish_shell_output("cmd_1", "🖥️ Output", "some text") is False
+    assert ui.finish_shell_output("cmd_1", "💻 Output", "some text") is False
     assert ui.output_text == "no shell output line here"
 
 
@@ -338,9 +338,9 @@ def test_finish_shell_output_consumes_the_span_once():
 
     with patch.object(ui.output_part, "schedule_invalidate"):
         ui.update_shell_output("cmd_1", "output")
-        ui.finish_shell_output("cmd_1", "🖥️ Output", "output")
+        ui.finish_shell_output("cmd_1", "💻 Output", "output")
         after_first = ui.output_text
-        result = ui.finish_shell_output("cmd_1", "🖥️ Output", "output")
+        result = ui.finish_shell_output("cmd_1", "💻 Output", "output")
 
     assert result is False
     assert ui.output_text == after_first
@@ -361,13 +361,13 @@ def test_shell_output_keeps_each_commands_own_line_independent_while_growing():
         ui.update_shell_output("cmd_B", "cat 1")
         ui.update_shell_output("cmd_A", "dog 1\ndog 2")
         ui.update_shell_output("cmd_B", "cat 1\ncat 2")
-        finished_a = ui.finish_shell_output("cmd_A", "🖥️ A", "dog 1\ndog 2")
-        finished_b = ui.finish_shell_output("cmd_B", "🖥️ B", "cat 1\ncat 2")
+        finished_a = ui.finish_shell_output("cmd_A", "💻 A", "dog 1\ndog 2")
+        finished_b = ui.finish_shell_output("cmd_B", "💻 B", "cat 1\ncat 2")
 
     assert finished_a is True
     assert finished_b is True
     assert "dog" not in ui.output_text and "cat" not in ui.output_text
-    assert "🖥️ A" in ui.output_text and "🖥️ B" in ui.output_text
+    assert "💻 A" in ui.output_text and "💻 B" in ui.output_text
     assert len(ui.rendered_blocks) == 2
     # Both blocks independently expand to their OWN full text — neither
     # swallowed the other's lines.

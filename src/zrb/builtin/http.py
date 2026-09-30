@@ -104,7 +104,7 @@ def http_request(ctx: AnyContext) -> str:
         # so failures aren't silent when the body is piped elsewhere.
         if response.status_code >= 400:
             ctx.print_err(
-                f"⚠️ Server returned an error status: "
+                f"❗ Server returned an error status: "
                 f"{response.status_code} {response.reason}"
             )
         return response.text

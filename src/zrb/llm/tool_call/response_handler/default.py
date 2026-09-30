@@ -54,7 +54,7 @@ async def default_response_handler(
                 return None  # Signal loop retry
 
             if new_args == args:
-                ui.append_to_output("\n  ℹ️ No changes made.")
+                ui.append_to_output("\n  🔹 No changes made.")
                 return None
 
             ui.append_to_output("\n  ✅ Execution approved (with modification).")
