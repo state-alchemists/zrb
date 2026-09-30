@@ -28,8 +28,9 @@ BLOCK_SECONDS = 0.1
 
 class Utterance(NamedTuple):
     """One utterance: 16-bit PCM, when its speech started and ended
-    (`time.monotonic()`), whether it talked over zrb (barge-in), and the
-    stream transcribing it, if any."""
+    (`time.monotonic()`), whether it talked over zrb long enough to pause it
+    (barge-in), the stream transcribing it, if any, and whether any of it
+    was said over zrb's voice at all (a short "stop" is, without pausing)."""
 
     audio: bytes
     started_at: float
@@ -37,6 +38,7 @@ class Utterance(NamedTuple):
     is_barge_in: bool = False
     # Transcribing it since it started, when the backend streams.
     stream: "AnyTranscriptionStream | None" = None
+    is_over_speech: bool = False
 
 
 class MicState(Enum):
@@ -62,7 +64,8 @@ class UtteranceCutter:
     too, when the caller says they can be (zrb's voice is cancelled out of
     them), and an utterance with ``barge_in_min_speech`` of loud blocks over
     zrb's voice `is_barge_in`; once `feed` or `flush` returns it,
-    `is_finished_barge_in` says so.
+    `is_finished_barge_in` says so, and `is_finished_over_speech` whether
+    any of it was loud over zrb's voice.
     """
 
     def __init__(self, config: DictationConfig) -> None:
@@ -77,6 +80,7 @@ class UtteranceCutter:
         self._barge_in_blocks = max(1, _to_blocks(config.barge_in_min_speech or 0))
         self._loud_echo_blocks = 0
         self._is_finished_barge_in = False
+        self._is_finished_over_speech = False
 
     @property
     def is_barge_in_enabled(self) -> bool:
@@ -94,6 +98,12 @@ class UtteranceCutter:
         """Whether the utterance `feed` or `flush` last returned was a
         barge-in."""
         return self._is_finished_barge_in
+
+    @property
+    def is_finished_over_speech(self) -> bool:
+        """Whether the utterance `feed` or `flush` last returned was loud
+        over zrb's voice at all, even too briefly to be a barge-in."""
+        return self._is_finished_over_speech
 
     def feed(
         self,
@@ -180,11 +190,14 @@ class UtteranceCutter:
         before the reset clears it."""
         blocks, spoken_blocks = self._speech, self._count_spoken_blocks()
         is_barge_in = self.is_barge_in
+        is_over_speech = self._loud_echo_blocks > 0
         self._is_finished_barge_in = False
+        self._is_finished_over_speech = False
         self.reset()
         if not blocks or spoken_blocks < _to_blocks(self._config.min_speech or 0):
             return None
         self._is_finished_barge_in = is_barge_in
+        self._is_finished_over_speech = is_over_speech
         return blocks, self._started_at, ended_at
 
     def _count_spoken_blocks(self) -> int:
@@ -392,8 +405,13 @@ class _BlockHandler:
         self, finished: "tuple[list[Any], float, float]"
     ) -> Utterance:
         stream = await self._streamer.take(finished[0])
+        cutter = self._cutter
         return _to_utterance(
-            self._np, finished, self._cutter.is_finished_barge_in, stream
+            self._np,
+            finished,
+            cutter.is_finished_barge_in,
+            stream,
+            cutter.is_finished_over_speech,
         )
 
 
@@ -548,9 +566,17 @@ def _to_utterance(
     finished: "tuple[list[Any], float, float]",
     is_barge_in: bool = False,
     stream: "AnyTranscriptionStream | None" = None,
+    is_over_speech: bool = False,
 ) -> Utterance:
     speech, started_at, ended_at = finished
-    return Utterance(_to_pcm(np, speech), started_at, ended_at, is_barge_in, stream)
+    return Utterance(
+        _to_pcm(np, speech),
+        started_at,
+        ended_at,
+        is_barge_in,
+        stream,
+        is_over_speech or is_barge_in,
+    )
 
 
 def _to_pcm(np: Any, blocks: list[Any]) -> bytes:

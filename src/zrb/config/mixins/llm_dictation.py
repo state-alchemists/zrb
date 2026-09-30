@@ -217,7 +217,9 @@ class LLMDictationMixin:
         fallback=0.3,
         doc=(
             "Seconds of speech over zrb's voice that pause it, so a click "
-            "does not; it then stops if what was said has words. Default: 0.3."
+            "does not; it then stops if what was said has words. Shorter "
+            "words over zrb (a crisp 'stop') do not pause it but still stop "
+            "it once transcribed. Default: 0.3."
         ),
     )
 

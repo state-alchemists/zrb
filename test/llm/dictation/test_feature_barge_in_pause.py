@@ -117,6 +117,24 @@ async def test_words_heard_while_still_speaking_stop_zrb_early(monkeypatch, spee
 
 
 @pytest.mark.asyncio
+async def test_stop_said_too_briefly_to_pause_zrb_still_stops_it(monkeypatch, speech):
+    """A crisp "stop" is shorter than barge_in_min_speech: nothing paused
+    zrb, but it was said over it, so it stops zrb and cancels the turn
+    rather than reaching the model as a message."""
+    ui = FakeUI()
+    set_session_ui(ui)
+
+    async def listen(config, should_listen, **kwargs):
+        yield Utterance(b"stop", 0, 0.3, is_over_speech=True)
+        yield Utterance(b"carry on", 1, 1.5)
+
+    monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
+    assert await _replies(_session(), 1) == ["carry on"]
+    assert speech == ["interrupt"]
+    assert ui.cancelled == ["barge_in"]
+
+
+@pytest.mark.asyncio
 async def test_a_dropped_barge_in_lets_zrb_carry_on(monkeypatch, speech):
     _listen(monkeypatch, "hello", drop_first=True)
     assert await _replies(_session(), 1) == ["hello"]

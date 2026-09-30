@@ -102,6 +102,8 @@ def test_a_cough_over_zrb_is_not_a_barge_in():
 
     assert not cutter.is_barge_in
     assert not cutter.is_finished_barge_in
+    # Still said over zrb: a crisp "stop" is as short as a cough.
+    assert cutter.is_finished_over_speech
 
 
 def test_speech_after_zrb_stopped_is_not_a_barge_in():
@@ -111,6 +113,7 @@ def test_speech_after_zrb_stopped_is_not_a_barge_in():
 
     assert len(finished) == 2
     assert not cutter.is_finished_barge_in
+    assert not cutter.is_finished_over_speech
 
 
 @pytest.mark.asyncio
@@ -222,7 +225,13 @@ class FakeEcho:
 
 
 async def _listen_with_echo(
-    blocks, echo, speaking=True, has_reference=True, barge_in="on", **callbacks
+    blocks,
+    echo,
+    speaking=True,
+    has_reference=True,
+    barge_in="on",
+    barge_in_min_speech=0.1,
+    **callbacks,
 ):
     captured = {}
     config = DictationConfig(
@@ -233,7 +242,7 @@ async def _listen_with_echo(
         pre_roll=0,
         echo_cooldown=0,
         barge_in=barge_in,
-        barge_in_min_speech=0.1,
+        barge_in_min_speech=barge_in_min_speech,
     ).resolve()
 
     async def consume():
@@ -278,6 +287,19 @@ async def test_speech_over_zrb_is_not_heard_while_its_echo_cannot_be_cancelled(
     )
     assert utterances == []
     assert MicState.PAUSED in states
+
+
+@pytest.mark.asyncio
+async def test_a_short_word_over_zrb_is_marked_said_over_it_without_pausing_it():
+    barge_ins = []
+    [utterance] = await _listen_with_echo(
+        LOUD_THEN_QUIET,
+        FakeEcho(is_ready=True),
+        barge_in_min_speech=0.5,
+        on_barge_in=lambda: barge_ins.append(True),
+    )
+    assert utterance.is_over_speech and not utterance.is_barge_in
+    assert barge_ins == []
 
 
 @pytest.mark.asyncio

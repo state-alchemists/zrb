@@ -300,8 +300,7 @@ class DictationSession:
                 # finished: transcription alone can take seconds.
                 if command is None and text and utterance.started_at < armed_until:
                     command = text
-                if utterance.is_barge_in:
-                    self._settle_barge_in(command is not None)
+                self._settle_barge_in(utterance, command is not None)
                 if not text:
                     self._rest("🎤 didn't catch that · listening")
                     continue
@@ -314,7 +313,7 @@ class DictationSession:
                     self._rest("🎤 go ahead…")
                     continue
                 armed_until = 0.0
-                if utterance.is_barge_in and not await self._should_send_barge_in(
+                if _is_over_speech(utterance) and not await self._should_send_barge_in(
                     command
                 ):
                     continue
@@ -344,19 +343,26 @@ class DictationSession:
         pause_speech(self._session_key)
         self._rest(_PAUSED)
 
-    def _settle_barge_in(self, is_meant_for_zrb: bool) -> None:
-        """Stop zrb for words meant for it (with wake words: starting with
-        one); carry on after anything else (a cough, leftover echo)."""
-        if is_meant_for_zrb:
-            self._confirm_barge_in()
-        else:
+    def _settle_barge_in(self, utterance: Utterance, is_meant_for_zrb: bool) -> None:
+        """For *utterance* said over zrb: stop zrb for words meant for it
+        (with wake words: starting with one); carry on after anything else
+        (a cough, leftover echo). Words too brief to have paused zrb (a
+        crisp "stop" is shorter than ``barge_in_min_speech``) stop it too."""
+        if not _is_over_speech(utterance):
+            return
+        if not is_meant_for_zrb:
             self._release_barge_in()
+        elif self._is_paused_by_barge_in or not utterance.is_barge_in:
+            self._stop_speech()
 
     def _confirm_barge_in(self) -> None:
         if self._is_paused_by_barge_in:
-            self._is_paused_by_barge_in = False
-            interrupt_speech(self._session_key)
-            self._rest(_INTERRUPTED)
+            self._stop_speech()
+
+    def _stop_speech(self) -> None:
+        self._is_paused_by_barge_in = False
+        interrupt_speech(self._session_key)
+        self._rest(_INTERRUPTED)
 
     def _release_barge_in(self) -> None:
         if self._is_paused_by_barge_in:
@@ -444,6 +450,11 @@ class DictationSession:
             # stream is closed: it may hold a connection or a decoder.
             if utterance.stream is not None and not is_finished:
                 await _close_quietly(utterance.stream)
+
+
+def _is_over_speech(utterance: Utterance) -> bool:
+    """Whether any of *utterance* was said over zrb's voice."""
+    return utterance.is_barge_in or utterance.is_over_speech
 
 
 async def _close_quietly(stream: "AnyTranscriptionStream") -> None:
