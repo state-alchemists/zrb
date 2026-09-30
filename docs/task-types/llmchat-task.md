@@ -221,6 +221,18 @@ chat.append_hook_factory(lambda hm: hm.add_hook(other_hook, events=[HookEvent.SE
 
 > **Isolation differs from `LLMTask`:** `LLMChatTask` replays every factory onto a fresh `HookManager` per execution, while `LLMTask` keeps a persistent one. The details are in [Hooks → Scoped to one task](../llm/hooks.md#scoped-to-one-task-append_hook_factory) and [ADR-0072](../adr/adr-0072.md).
 
+### Stream Observers
+
+```python
+def on_event(event):
+    if getattr(event, "event_kind", None) == "part_delta":
+        ...  # a text delta, a tool call's arguments, ...
+
+chat.append_stream_observer(on_event)
+```
+
+An observer is called with every event a run streams, after the UI, and may be async. It runs on the event loop for every delta, so it must return quickly; one that raises is logged and skipped. A delegated sub-agent's run does not reach it. Speech uses one to read a reply while it is written ([ADR-0104](../adr/adr-0104.md)).
+
 ### Approval & Policy
 
 ```python
@@ -350,6 +362,7 @@ Same property, same fields, on both `LLMTask` and `LLMChatTask` (ADR-0072).
 | **Shared tool APIs** | `append_tool`, `append_tool_factory`, `append_toolset` | Same |
 | **Hook system** | `append_hook_factory` onto a **fresh** manager per run | `append_hook_factory` onto a **persistent** manager ([ADR-0072](../adr/adr-0072.md)) |
 | **History processors** | `append_history_processor` | Same |
+| **Stream observers** | `append_stream_observer` | Same |
 | **System prompt** | Via `system_prompt` or `prompt_manager` | Same |
 
 ---

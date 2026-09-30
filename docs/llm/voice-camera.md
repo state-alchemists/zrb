@@ -7,7 +7,7 @@
 | Feature | Commands | Needs |
 |---|---|---|
 | Camera | `/photo [device]` | `ffmpeg`, or Termux:API on Android |
-| Dictation | `/voice`, `/handsfree` | `pip install 'zrb[voice]'` |
+| Dictation | `/voice`, `/handsfree`, `/live` | `pip install 'zrb[voice]'` |
 | Speech | `/speech` | nothing on macOS; Termux:API on Android; `espeak-ng` on Linux and Windows; or a cloud key |
 
 Every setting is an environment variable, listed in [LLM Configuration § 23](../configuration/llm-config.md#23-voice-and-camera). Platform problems are covered in [Voice & Photo Troubleshooting](voice-photo-troubleshooting.md).
@@ -17,6 +17,7 @@ Every setting is an environment variable, listed in [LLM Configuration § 23](..
 - [Camera](#camera)
 - [Dictation](#dictation)
 - [Speech](#speech)
+- [Live conversation](#live-conversation)
 - [Configuring in code](#configuring-in-code)
 - [Your own backend](#your-own-backend)
 - [On your own chat task](#on-your-own-chat-task)
@@ -37,7 +38,17 @@ Every setting is an environment variable, listed in [LLM Configuration § 23](..
 
 Set `ZRB_LLM_DICTATION_MODE=hands_free` to start every session this way. Set `ZRB_LLM_DICTATION_WAKE_WORDS` so that only utterances starting with a wake word count. Without one, anything the microphone hears becomes a turn, including a conversation in the room.
 
-zrb ignores the microphone while it is speaking, so its own voice is not taken as yours. Anything you say over it is lost, so wait for it to finish, or answer by keyboard.
+zrb ignores the microphone while it is speaking, so its own voice is not taken as yours. Anything you say over it is lost, so wait for it to finish, or answer by keyboard — unless you wear headphones and turn on barge-in.
+
+**Talking over zrb (barge-in).** With `ZRB_LLM_DICTATION_BARGE_IN=headset`, the microphone keeps listening while zrb speaks. About a third of a second of speech over it (`ZRB_LLM_DICTATION_BARGE_IN_MIN_SPEECH`) stops it at once, before what you said is even transcribed, and the rest of that reply is not read. Then:
+
+- "Stop" or "no" said alone cancels the turn, as Esc does, and is sent nowhere.
+- Anything else steers the running turn: the agent takes it into account at its next step (`ZRB_LLM_DICTATION_BARGE_IN_ACTION=steer`). With `cancel`, the turn stops and what you said starts a new one.
+- While a tool approval is waiting, what you say answers it, as usual: "no" denies the tool call, not the turn.
+
+With wake words, zrb stops only once it has heard one, so talk in the room does not silence it. Use barge-in only with headphones: on speakers the microphone hears zrb's own voice, and it stops itself.
+
+**Transcribing while you speak.** vosk transcribes an utterance as you say it, and the status bar shows the last words heard. Once you pause for half a second (`ZRB_LLM_DICTATION_MIN_SILENCE`) after words that sound finished, the utterance ends; after "and", "the" or "um" it waits the full second (`ZRB_LLM_DICTATION_SILENCE`), since you are still thinking. The other backends transcribe the whole utterance after it ends and always wait the full second.
 
 The status bar shows what the microphone is doing:
 
@@ -45,9 +56,12 @@ The status bar shows what the microphone is doing:
 |---|---|
 | `🎤 listening` | Waiting for you to speak |
 | `🎙️ hearing you…` | You are speaking |
+| `🎙️ …run the tests` | The last words heard so far (vosk) |
 | `✍️ transcribing…` | Turning what you said into text |
 | `🎤 heard "Yes." · listening` | What it heard last; it is listening again |
 | `🔇 mic paused while speaking` | zrb is talking; what you say now is not heard |
+| `✋ interrupted · go on…` | You talked over zrb and it stopped (barge-in) |
+| `✋ stopped · listening` | You said "stop" over it; the turn was cancelled |
 | `🎤 ignored "…" (no wake word)` | Heard, but it did not start with a wake word |
 
 Push-to-talk shows `🎙️ recording…` and `✍️ transcribing…` the same way.
@@ -64,6 +78,12 @@ Speech starts off. Turn it on with `ZRB_LLM_SPEECH_ENABLED=on`, or with `/speech
 
 Code, tables and links are not read. A reply longer than 400 characters (`ZRB_LLM_SPEECH_MAX_CHARS`) is cut at a sentence end, followed by "The full answer is on screen." With `ZRB_LLM_SPEECH_SUMMARIZE=on`, the small model summarizes it instead, at the cost of one model call per long reply.
 
+**Speaking as it writes.** With `ZRB_LLM_SPEECH_STREAM=on`, a reply is read a sentence at a time while the model is still writing it, instead of once the turn ends, and what it writes before a tool call ("Let me run the tests.") is read when the call starts. `ZRB_LLM_SPEECH_MAX_CHARS` then caps what one turn reads: the sentence crossing it is finished, then "The full answer is on screen." The next sentence's audio is made while the current one plays, so a cloud voice has no gap between sentences.
+
+**Saying what it is doing.** Add `progress` to `ZRB_LLM_SPEECH_EVENTS` and a tool call that starts after 8 seconds of silence (`ZRB_LLM_SPEECH_PROGRESS_INTERVAL`) is announced: "Running a command.", "Searching the code." Nothing is announced while zrb is speaking, and an announcement still waiting when its tool finishes is dropped.
+
+While speech is on, the model is told its reply is heard, so it opens with the answer in a sentence or two and puts code and detail after it.
+
 Switching speech off with `/speech` drops whatever has not been said yet.
 
 The `openai` backend starts playing as the audio arrives, through a player that reads standard input (`paplay`, `aplay` or `ffplay`), so a long reply starts as soon as a short one does. With `ZRB_LLM_SPEECH_WAV_PLAYER` set, or only `afplay`, it waits for the whole file.
@@ -71,6 +91,14 @@ The `openai` backend starts playing as the audio arrives, through a player that 
 Each chat session gets its own speaker, microphone and hands-free flag, so one session switching speech off does not silence the next. Two zrb processes still take turns rather than talk over each other, through a lock file that a session claims while it is speaking and releases when it is closed.
 
 Speech rides on the hook subsystem, so it needs hooks on: with `ZRB_HOOKS_ENABLED=off` nothing is spoken, and enabling speech says so. Each session's speaker, microphone and hooks are closed when that session ends — on exit in the terminal, on removal in the web chat — so a long-lived server does not accumulate them.
+
+## Live conversation
+
+`/live` turns zrb into a voice conversation: hands-free on, speech on, each reply read a sentence at a time as it streams, and long tool calls announced — whatever the speech settings say. `/live` again, or `/handsfree` off, ends it and puts the settings back. `ZRB_LLM_DICTATION_MODE=live` starts every session this way.
+
+With headphones, set `ZRB_LLM_DICTATION_LIVE_BARGE_IN=headset` so you can talk over it (see barge-in under [Dictation](#dictation)). It is off by default because on speakers zrb would hear itself.
+
+For the quickest replies, use vosk for dictation (it transcribes while you speak and ends an utterance half a second after you finish) and a fast model. Each part's delay can be tuned with the variables above.
 
 ## Configuring in code
 
@@ -94,7 +122,7 @@ Each feature takes a backend name or an object implementing its interface:
 | Feature | Interface | Built-in names |
 |---|---|---|
 | Camera | `zrb.llm.camera.AnyCameraBackend` — `async capture(device) -> bytes \| None` | `auto`, `termux`, `ffmpeg` |
-| Dictation | `zrb.llm.dictation.AnyDictationBackend` — `async transcribe(audio) -> str` | `vosk`, `openai`, `google`, `multimodal` |
+| Dictation | `zrb.llm.dictation.AnyDictationBackend` — `async transcribe(audio) -> str`; optionally `async create_stream() -> AnyTranscriptionStream \| None` to transcribe while the user speaks | `vosk`, `openai`, `google`, `multimodal` |
 | Speech | `zrb.llm.speech.AnySpeechBackend` — `create_utterance(text) -> Utterance` | `auto`, `termux`, `say`, `espeak-ng`, `openai`, `gemini` |
 
 A speech backend that talks to a local TTS server and plays the WAV it returns:
@@ -144,6 +172,6 @@ enable_speech(chat)
 
 `enable_speech` also works on an `LLMTask`, which has no commands: it speaks the task's final reply.
 
-The three features are built only from `LLMChatTask`'s public extension points — `append_custom_command`, `append_trigger`, `append_hook_factory` — so the same shapes are open to your own features. [LLMChatTask → Triggers & Custom Commands](../task-types/llmchat-task.md#triggers--custom-commands) describes them; ADR-0102 records the design.
+The three features are built only from `LLMChatTask`'s public extension points — `append_custom_command`, `append_trigger`, `append_hook_factory`, `append_stream_observer` — so the same shapes are open to your own features. A stream observer is called with every event a run streams, text deltas included, after the UI (ADR-0104). [LLMChatTask → Triggers & Custom Commands](../task-types/llmchat-task.md#triggers--custom-commands) describes them; ADR-0102 records the design.
 
 🔖 [Documentation Home](../../README.md) > [LLM Integration](llm-integration.md) > Voice and Camera

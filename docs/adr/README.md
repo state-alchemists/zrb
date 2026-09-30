@@ -143,13 +143,14 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0071** — [Lifecycle hooks, Claude-compatible, control protocol included](adr-0071.md)
 - **ADR-0072** — [`LLMTask` and `LLMChatTask` expose the same knobs](adr-0072.md)
 - **ADR-0100** — [An opt-in Stop hook reviews each file-changing turn before it ends](adr-0100.md)
+- **ADR-0104** — [Stream observers see an agent run's events beside the UI](adr-0104.md)
 
 ### Interactive UI
 
 - **ADR-0073** — [Todo progress reaches the user through a side channel](adr-0073.md)
 - **ADR-0074** — [`ask_user_choice` with a text fallback](adr-0074.md)
 - **ADR-0075** — [Shift+Tab cycles the mode, with a Termux fallback](adr-0075.md)
-- **ADR-0076** — [Dictation is push-to-talk by command, plus a hands-free mode that can answer approvals](adr-0076.md)
+- **ADR-0076** — [Dictation is push-to-talk by command, plus a hands-free mode that answers approvals and can be talked over](adr-0076.md)
 - **ADR-0077** — [Queued messages are editable entries, edited in place from the input field](adr-0077.md)
 - **ADR-0078** — [Mid-turn messages steer the live run via pydantic-ai's `enqueue`, falling back to the queue](adr-0078.md)
 - **ADR-0079** — [LaTeX math renders as Unicode via masked pre-parse, not a Rich `Markdown` subclass](adr-0079.md)
@@ -159,7 +160,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0093** — [A slash command is always offered; an unavailable one explains itself](adr-0093.md)
 - **ADR-0101** — [Working-directory snapshots are git trees in a private store, listed repository by repository](adr-0101.md)
 - **ADR-0102** — [Optional chat features install through `LLMChatTask`'s extension points, configured when a session starts](adr-0102.md)
-- **ADR-0103** — [Speech reads a reply aloud whole, cut at a sentence end, or summarized, then says the rest is on screen](adr-0103.md)
+- **ADR-0103** — [Speech reads a reply aloud as it streams or at the end, cut or summarized, and stops when talked over](adr-0103.md)
 
 ### Sub-agent sessions
 

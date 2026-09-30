@@ -873,23 +873,29 @@ Three optional features of `zrb llm chat`, each added with one call and read fro
 
 ### Dictation (speech-to-text)
 
-`/voice` starts recording; a pause or `/voice` again stops it, and the transcript lands in the input box. `/handsfree` switches to always listening: each utterance is submitted as a turn, or answers the tool approval or question being asked.
+`/voice` starts recording; a pause or `/voice` again stops it, and the transcript lands in the input box. `/handsfree` switches to always listening: each utterance is submitted as a turn, or answers the tool approval or question being asked. `/live` is hands-free with each reply spoken as it streams (see [Voice and camera § Live conversation](../llm/voice-camera.md#live-conversation)).
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_DICTATION_MODE` | Mode a session starts in: `ptt` or `hands_free` | `ptt` |
+| `ZRB_LLM_DICTATION_MODE` | Mode a session starts in: `ptt`, `hands_free` or `live` | `ptt` |
 | `ZRB_LLM_DICTATION_COMMANDS` | Aliases that start and stop a push-to-talk recording | `/voice, /v` |
 | `ZRB_LLM_DICTATION_HANDS_FREE_COMMANDS` | Aliases that switch hands-free on and off | `/handsfree` |
+| `ZRB_LLM_DICTATION_LIVE_COMMANDS` | Aliases that switch live mode on and off: hands-free, speech on, each reply spoken as it streams, tool calls announced | `/live` |
 | `ZRB_LLM_DICTATION_BACKEND` | `vosk` (offline), `openai`, `google`, or `multimodal` (uses `ZRB_LLM_MULTIMODAL_MODEL`) | `vosk` |
 | `ZRB_LLM_DICTATION_WAKE_WORDS` | Comma-separated; in hands-free mode only utterances starting with one count. Said alone, one accepts the next utterance within `ZRB_LLM_DICTATION_WAKE_WINDOW` seconds | (none) |
 | `ZRB_LLM_DICTATION_WAKE_WINDOW` | Seconds a lone wake word keeps listening | `8.0` |
 | `ZRB_LLM_DICTATION_THRESHOLD` | RMS microphone level that counts as speech (`zrb voice mic-test` in `examples/voice-interaction` measures yours) | `0.01` |
 | `ZRB_LLM_DICTATION_SILENCE` | Seconds of silence that end an utterance; at least one 0.1 s block | `1.0` |
+| `ZRB_LLM_DICTATION_MIN_SILENCE` | With a backend that transcribes while you speak (`vosk`), seconds of silence that end an utterance whose words sound finished, not trailing off on "and" or "the"; `0` always waits `ZRB_LLM_DICTATION_SILENCE` | `0.5` |
 | `ZRB_LLM_DICTATION_MIN_SPEECH` | Shortest speech kept, in seconds; shorter is a cough or a click | `0.25` |
 | `ZRB_LLM_DICTATION_MAX_UTTERANCE` | Longest utterance, in seconds; `0` means no limit | `30.0` |
 | `ZRB_LLM_DICTATION_MAX_BACKLOG` | Seconds of hands-free audio kept while an utterance is being transcribed, so what you say meanwhile is not lost; older audio is dropped. `0` means no limit | `30.0` |
 | `ZRB_LLM_DICTATION_PRE_ROLL` | Seconds kept from before speech is detected, so the first word is not clipped; `0` keeps none | `0.3` |
 | `ZRB_LLM_DICTATION_ECHO_COOLDOWN` | Seconds the microphone stays deaf after zrb stops speaking | `0.4` |
+| `ZRB_LLM_DICTATION_BARGE_IN` | `off`: the microphone is deaf while zrb speaks. `headset`: it keeps listening, and talking over zrb stops it. Only with headphones; on speakers zrb hears itself and stops | `off` |
+| `ZRB_LLM_DICTATION_BARGE_IN_MIN_SPEECH` | Seconds of speech over zrb's voice that stop it, so a cough does not | `0.3` |
+| `ZRB_LLM_DICTATION_BARGE_IN_ACTION` | What talking over a running turn does with what you said: `steer` (the turn takes it into account) or `cancel` (the turn stops and it starts a new one). A deny word said alone ("stop") cancels the turn either way | `steer` |
+| `ZRB_LLM_DICTATION_LIVE_BARGE_IN` | `ZRB_LLM_DICTATION_BARGE_IN` while live mode is on; set `headset` if you wear headphones | `off` |
 | `ZRB_LLM_DICTATION_APPROVE_WORDS` | Phrases that approve a tool approval when a hands-free answer is made only of them and polite words ("yes please"). Any other answer denies it, with what was said as the reason | `yes, yeah, yep, ok, okay, sure, approve, accept, go ahead, do it` |
 | `ZRB_LLM_DICTATION_DENY_WORDS` | Phrases that deny a tool approval when a hands-free answer is made only of them and polite words ("no thanks") | `no, nope, deny, cancel, stop, don't` |
 
@@ -906,18 +912,20 @@ Each backend uses only its own variables:
 
 ### Speech (text-to-speech)
 
-Reads the reply at the end of each turn, tool approvals and questions aloud. `/speech` switches it off and on during a session, dropping anything not yet said.
+Reads the reply at the end of each turn, or a sentence at a time as it streams, tool approvals and questions aloud. `/speech` switches it off and on during a session, dropping anything not yet said.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_LLM_SPEECH_ENABLED` | Speak from the start of a session; `/speech` switches it either way | `off` |
 | `ZRB_LLM_SPEECH_COMMANDS` | Aliases that switch speech off and on | `/speech` |
-| `ZRB_LLM_SPEECH_EVENTS` | What to speak: `reply`, `approval`, `question` | `reply, approval, question` |
+| `ZRB_LLM_SPEECH_EVENTS` | What to speak: `reply`, `approval`, `question`, `progress` (a tool call starting after a silence: "Running a command.") | `reply, approval, question` |
 | `ZRB_LLM_SPEECH_BACKEND` | `auto` (`termux` on Termux, `say` on macOS, else `espeak-ng`), `termux`, `say`, `espeak-ng`, `openai`, `gemini`. A failing backend falls back to the local engine | `auto` |
 | `ZRB_LLM_SPEECH_VOICE` | Voice name for the backend (for `termux`, the `-v` variant); empty uses its default (system voice, `en-us+m3`, `alloy`, `Sulafat`) | (none) |
 | `ZRB_LLM_SPEECH_RATE` | Words per minute for `say` and `espeak-ng` | `165` |
 | `ZRB_LLM_SPEECH_MAX_CHARS` | Longest reply spoken in full; a longer one is cut at a sentence end and followed by `ZRB_LLM_SPEECH_ON_SCREEN_NOTE`. `0` means no limit | `400` |
 | `ZRB_LLM_SPEECH_SUMMARIZE` | Speak a model summary of a long reply instead of its opening: one model call per long reply | `off` |
+| `ZRB_LLM_SPEECH_STREAM` | Speak a reply a sentence at a time while it is written, and the text before a tool call when the call starts. `ZRB_LLM_SPEECH_MAX_CHARS` then caps what one turn speaks, and `ZRB_LLM_SPEECH_SUMMARIZE` does not apply | `off` |
+| `ZRB_LLM_SPEECH_PROGRESS_INTERVAL` | With `progress` in `ZRB_LLM_SPEECH_EVENTS`, seconds of silence after which a tool call starting is announced; `0` announces nothing | `8` |
 | `ZRB_LLM_SPEECH_SUMMARY_MODEL` | Model for the summary; empty uses `ZRB_LLM_SMALL_MODEL`, else the main model. The prompt is `speech_summarizer` | (none) |
 | `ZRB_LLM_SPEECH_ON_SCREEN_NOTE` | Said after a cut or summarized reply | `The full answer is on screen.` |
 | `ZRB_LLM_SPEECH_OPENAI_MODEL` | Model for `openai` | `gpt-4o-mini-tts` |
