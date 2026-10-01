@@ -139,6 +139,17 @@ class AnyUI(ABC):
 
     @property
     @abstractmethod
+    def is_waiting_for_answer(self) -> bool:
+        """Whether a tool approval or a question is waiting for the user."""
+
+    @abstractmethod
+    def is_prompt_answered_since(self, asked_at: float) -> bool:
+        """Whether the first prompt asked at or after *asked_at* (a
+        `time.monotonic()` value) has been answered or cancelled. ``False``
+        before it is asked, or when the UI cannot tell."""
+
+    @property
+    @abstractmethod
     def llm_task(self) -> Any:
         """The `LLMTask` driving this UI, or None when it has none."""
 

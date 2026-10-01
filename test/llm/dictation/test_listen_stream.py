@@ -174,3 +174,62 @@ async def test_a_batch_backend_is_asked_for_a_stream_only_once():
 
     assert asked == [True]
     assert utterance.stream is None
+
+
+class FailingStream(RecordingStream):
+    async def feed(self, audio):
+        raise RuntimeError("connection reset")
+
+
+@pytest.mark.asyncio
+async def test_a_failing_stream_falls_back_to_transcribing_the_whole_utterance():
+    """A stream error must not end hands-free: the utterance is still
+    handed over, without a stream, and later ones stop asking for one."""
+    failing = FailingStream([])
+    spare = RecordingStream(["unused"])
+    blocks = ([_block(0.5)] * 3 + [_block(0.0)] * 5) * 2
+
+    first, second = await _collect(blocks, [failing, spare])
+
+    assert failing.closed is True
+    assert first.stream is None and second.stream is None
+    assert first.audio and second.audio
+    assert spare.fed == []
+
+
+@pytest.mark.asyncio
+async def test_a_stream_that_cannot_be_created_falls_back_too():
+    captured = {}
+
+    async def create_stream():
+        raise RuntimeError("no model")
+
+    def make_input_stream(**kwargs):
+        captured.update(kwargs)
+        return FakeStream()
+
+    fake_sd = MagicMock()
+    fake_sd.InputStream.side_effect = make_input_stream
+    blocks = [_block(0.5)] * 3 + [_block(0.0)] * 5
+    remaining = [len(blocks)]
+
+    def should_listen():
+        remaining[0] -= 1
+        return remaining[0] >= 0
+
+    async def consume():
+        stream = listen(_config(), should_listen, create_stream=create_stream)
+        return [utterance async for utterance in stream]
+
+    with (
+        patch.dict("sys.modules", {"sounddevice": fake_sd}),
+        patch("zrb.llm.dictation.listen.is_speaking", return_value=False),
+    ):
+        task = asyncio.create_task(consume())
+        await asyncio.sleep(0)
+        for block in blocks:
+            captured["callback"](block, len(block), None, None)
+        [utterance] = await task
+
+    assert utterance.stream is None
+    assert utterance.audio

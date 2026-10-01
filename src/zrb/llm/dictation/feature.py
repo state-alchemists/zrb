@@ -245,9 +245,12 @@ class DictationSession:
             return not stop.is_set()
 
         # aclosing, or the `with stream` inside `listen` waits on generator
-        # finalization to close the microphone.
+        # finalization to close the microphone. The echo too: without it,
+        # barge-in on would record zrb's own voice into the transcript.
         async with aclosing(
-            listen(self._config, should_listen, keep_partial=True)
+            listen(
+                self._config, should_listen, keep_partial=True, echo=self._get_echo()
+            )
         ) as mic:
             async for utterance in mic:
                 return utterance.audio
@@ -319,9 +322,9 @@ class DictationSession:
                     self._rest("🎤 go ahead…")
                     continue
                 armed_until = 0.0
-                if _is_over_speech(utterance) and not await self._should_send_barge_in(
-                    command
-                ):
+                if self._is_interrupting(
+                    utterance
+                ) and not await self._should_send_barge_in(command):
                     continue
                 self._rest(f"🎤 heard {_quote(command)} · listening")
                 yield TriggerReply(
@@ -338,7 +341,7 @@ class DictationSession:
     def _get_echo(self) -> "EchoCancellation | None":
         """The session's echo cancellation, built on first use with barge-in
         on; it keeps what it learned of the room across microphone reopens."""
-        if (self._config.barge_in or "off").strip().lower() != "on":
+        if not self._config.is_barge_in_enabled:
             return None
         if self._echo is None:
             canceller = get_echo_canceller(
@@ -380,6 +383,16 @@ class DictationSession:
             self._is_paused_by_barge_in = False
             resume_speech(self._session_key)
 
+    def _is_interrupting(self, utterance: Utterance) -> bool:
+        """Whether *utterance* talks over zrb: over its voice, or, with
+        barge-in on, while a turn runs and zrb is not yet speaking."""
+        if _is_over_speech(utterance):
+            return True
+        if not self._config.is_barge_in_enabled:
+            return False
+        ui = get_session_ui() or self._ui
+        return ui is not None and ui.is_thinking
+
     async def _should_send_barge_in(self, command: str) -> bool:
         """Act on what the user said over zrb, and say whether it still goes
         on to be a turn or an answer. A stop word alone stops the turn and is sent
@@ -387,7 +400,7 @@ class DictationSession:
         turn and starts a new one. An answer to the prompt being asked is
         left alone: "no" there denies a tool call, not the turn."""
         ui = get_session_ui() or self._ui
-        if ui is None or getattr(ui, "is_waiting_for_answer", False):
+        if ui is None or ui.is_waiting_for_answer:
             return True
         if is_said_alone(command, self._stop_words, self._polite_words):
             ui.cancel_current_turn("barge_in")

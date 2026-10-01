@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
 from zrb.llm.approval.any_approval_channel import ApprovalContext
+from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission.state import (
     AgentMode,
     get_current_agent_mode,
@@ -22,6 +23,7 @@ from zrb.llm.permission.state import (
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.base.message_queue import MessageQueue, submit_user_message_via_queue
 from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
+from zrb.llm.ui.turn_hooks import get_turn_hook_manager
 from zrb.llm.ui.turn_snapshot import take_pre_turn_snapshot
 from zrb.session.session import Session
 from zrb.util.cli.markdown import render_markdown
@@ -674,9 +676,36 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             self._pending_input_tasks = []
 
     def cancel_current_turn(self, reason: str) -> None:
-        """Cancel the turn in every child: whichever runs it stops it."""
+        """Release every child's pending confirmation, cancel the turn this
+        MultiUI runs (its children run none) and fire `Stop` with *reason*
+        once; `AnyUI.cancel_current_turn`."""
         for ui in self._uis:
-            ui.cancel_current_turn(reason)
+            ui.cancel_pending_confirmations()
+        running = self._running_llm_task
+        if running is None or running.done():
+            return
+        running.cancel()
+        main_ui = self.main_ui
+        stop = get_turn_hook_manager(self._llm_task).execute_hooks(
+            HookEvent.STOP,
+            {
+                "reason": reason,
+                "session": main_ui.conversation_session_name if main_ui else "",
+            },
+        )
+        task = asyncio.get_running_loop().create_task(stop)
+        self.background_tasks.add(task)
+        task.add_done_callback(self.background_tasks.discard)
+
+    @property
+    def is_waiting_for_answer(self) -> bool:
+        """Whether any child holds a prompt waiting for the user."""
+        return any(ui.is_waiting_for_answer for ui in self._uis)
+
+    def is_prompt_answered_since(self, asked_at: float) -> bool:
+        """Whether any child has answered the first prompt asked at or after
+        *asked_at*: an answer from any of them settles it."""
+        return any(ui.is_prompt_answered_since(asked_at) for ui in self._uis)
 
     def clear_pending_confirmations_except(self, except_index: int):
         """Cancel pending confirmation futures in all UIs except the winner.

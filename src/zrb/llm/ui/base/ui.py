@@ -62,6 +62,7 @@ from zrb.llm.ui.base.triggers import BaseUITriggers
 from zrb.llm.ui.base.usage import BaseUIUsage
 from zrb.llm.ui.multi_ui import create_combined_ui
 from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
+from zrb.llm.ui.turn_hooks import get_turn_hook_manager
 from zrb.llm.ui.turn_snapshot import take_pre_turn_snapshot
 from zrb.llm.ui.ui_config import UIConfig
 from zrb.session.any_session import AnySession
@@ -661,16 +662,10 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         if running is None or running.done():
             return
         running.cancel()
-        # On the manager the turn ran with: a chat task's active one, else
-        # the task's own (the inner LLMTask a chat UI holds is built with it).
-        task = self.llm_task
-        manager = getattr(task, "active_hook_manager", None) or getattr(
-            task, "hook_manager", None
-        )
         self.execute_hook(
             HookEvent.STOP,
             {"reason": reason, "session": self.conversation_session_name},
-            manager=manager,
+            manager=get_turn_hook_manager(self.llm_task),
         )
 
     def execute_hook(

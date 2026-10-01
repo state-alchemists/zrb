@@ -218,3 +218,74 @@ async def test_cancel_action_gives_up_waiting_after_the_turn_end_timeout(
         assert reply == ["start over"]
     finally:
         reset_session_ui()
+
+
+@pytest.mark.asyncio
+async def test_a_stop_word_while_the_turn_thinks_cancels_it_before_zrb_speaks(
+    monkeypatch, interrupted, ui
+):
+    """Not said over zrb's voice, but over a running turn: with barge-in on,
+    "stop" still cancels it instead of steering the model."""
+    _fake_listen(monkeypatch, "stop", "what now", is_barge_in=False)
+    ui.is_thinking = True
+    session = _session(barge_in="on")
+
+    assert await _replies(session, 1) == ["what now"]
+    assert ui.cancelled == ["barge_in"]
+    assert interrupted == []
+
+
+@pytest.mark.asyncio
+async def test_a_stop_word_while_the_turn_thinks_is_sent_with_barge_in_off(
+    monkeypatch, interrupted, ui
+):
+    _fake_listen(monkeypatch, "stop", is_barge_in=False)
+    ui.is_thinking = True
+    session = _session(barge_in="off")
+
+    assert await _replies(session, 1) == ["stop"]
+    assert ui.cancelled == []
+
+
+@pytest.mark.asyncio
+async def test_a_stop_word_with_no_turn_running_is_sent(monkeypatch, interrupted, ui):
+    _fake_listen(monkeypatch, "stop", is_barge_in=False)
+    session = _session(barge_in="on")
+
+    assert await _replies(session, 1) == ["stop"]
+    assert ui.cancelled == []
+
+
+@pytest.mark.asyncio
+async def test_push_to_talk_cancels_zrbs_voice_out_like_hands_free(monkeypatch):
+    """With barge-in on, a recording made while zrb speaks gets the same echo
+    cancellation as hands-free: without it, zrb's own voice was transcribed."""
+    pytest.importorskip("numpy")
+    echoes = []
+
+    async def listen(config, should_listen, keep_partial=False, echo=None, **kwargs):
+        echoes.append(echo)
+        yield Utterance(b"run the tests", 0, 0.5)
+
+    monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
+
+    class RecordingUI(FakeUI):
+        def __init__(self):
+            super().__init__()
+            self.inserted: list[str] = []
+
+        def insert_input_text(self, text):
+            self.inserted.append(text)
+
+    recording_ui = RecordingUI()
+    session = DictationSession(
+        DictationConfig(
+            backend=FakeBackend(), mode="ptt", barge_in="on", echo_canceller="none"
+        ).resolve()
+    )
+
+    await session.toggle_recording({}, recording_ui)
+
+    assert recording_ui.inserted == ["run the tests"]
+    [echo] = echoes
+    assert echo is not None

@@ -370,7 +370,8 @@ Return `True` when consumed, `False` to let the next handler (and finally the LL
 |--------|---------|---------|
 | `invalidate_ui()` | No-op | Redraw/refresh UI |
 | `set_status_badge(key, text)` | Stores it in `status_badges` and calls `invalidate_ui()` | Show a feature's one-line state (the microphone's, under `"dictation"`); `None` removes it. The default TUI draws `status_badges` on a line of their own above its status bar |
-| `cancel_current_turn(reason)` | Releases a pending confirmation, cancels `running_llm_task` and fires `Stop` with `reason` | Stop the running turn, as Esc does; hands-free dictation calls it when the user says "stop" over zrb. A class implementing `AnyUI` directly must define it |
+| `cancel_current_turn(reason)` | Releases a pending confirmation, cancels `running_llm_task` and fires `Stop` with `reason` | Stop the running turn, as Esc does; hands-free dictation calls it when the user says "stop" over zrb or over a running turn. A class implementing `AnyUI` directly must define it |
+| `is_waiting_for_answer` / `is_prompt_answered_since(asked_at)` | `False` | Whether a tool approval or question is waiting, and whether the first prompt asked at or after a `time.monotonic()` time has been answered; dictation keeps a spoken "no" as an answer, and speech drops a stale approval prompt, by them. A class implementing `AnyUI` directly must define both |
 | `on_exit()` | No-op | Cleanup on shutdown |
 | `ask_user_choice(spec)` | Formats the spec as numbered text and delegates to `ask_user` | Override for an arrow-key-selectable widget |
 | `stream_to_parent()` | Calls `append_to_output` | For multiplexed UIs |

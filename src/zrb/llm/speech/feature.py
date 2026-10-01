@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from zrb.llm.hook.manager import HookManager
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.task.llm_task import LLMTask
+    from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.ui.base.ui import BaseUI
 
 logger = logging.getLogger(__name__)
@@ -360,16 +361,17 @@ class SpeechSession:
         )
 
 
-def is_answered_since(ui: Any, asked_at: float) -> Callable[[], bool]:
+def is_answered_since(
+    ui: "AnyUI | None", asked_at: float
+) -> Callable[[], bool]:
     """Whether a prompt *ui* showed at or after *asked_at* has been answered.
     The hook fires just before its prompt appears, so an older prompt
-    answered meanwhile does not count; a UI that cannot say when its prompts
-    appeared never reads as answered.
+    answered meanwhile does not count; no UI, or one that cannot say when its
+    prompts appeared, never reads as answered.
     """
 
     def is_answered() -> bool:
-        is_answered_since = getattr(ui, "is_prompt_answered_since", None)
-        return bool(is_answered_since and is_answered_since(asked_at))
+        return ui is not None and ui.is_prompt_answered_since(asked_at)
 
     return is_answered
 

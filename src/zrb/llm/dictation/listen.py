@@ -7,6 +7,7 @@ it is testable without a microphone; `listen` feeds it from `sounddevice`.
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from collections import deque
 from collections.abc import AsyncGenerator, Awaitable, Callable
@@ -22,6 +23,8 @@ from zrb.llm.speech.player import is_speaking
 
 if TYPE_CHECKING:
     from zrb.llm.dictation.echo.cancellation import EchoCancellation
+
+logger = logging.getLogger(__name__)
 
 SAMPLE_RATE = 16000  # what the transcribers expect
 # How often a push-to-talk recording checks whether to stop.
@@ -79,7 +82,7 @@ class UtteranceCutter:
         self._silent_blocks = 0
         self._started_at = 0.0
         self._cooldown_blocks = 0
-        self._is_barge_in_enabled = (config.barge_in or "off").strip().lower() == "on"
+        self._is_barge_in_enabled = config.is_barge_in_enabled
         self._barge_in_blocks = max(1, self._to_blocks(config.barge_in_min_speech))
         self._loud_echo_blocks = 0
         self._is_finished_barge_in = False
@@ -286,7 +289,7 @@ async def listen(
         config,
         _BlockReports(on_state, on_barge_in, on_barge_in_dropped),
         _UtteranceStreamer(np, create_stream, on_partial),
-        echo if config.barge_in and config.barge_in.strip().lower() == "on" else None,
+        echo if config.is_barge_in_enabled else None,
     )
     stream = _open_microphone(sd, on_audio, blocksize=int(SAMPLE_RATE * block_seconds))
     try:
@@ -476,7 +479,9 @@ def _call(callback: Callable[[], None] | None) -> None:
 
 class _UtteranceStreamer:
     """Feeds the utterance in progress to a transcription stream, block by
-    block, so its transcript is mostly done when it ends."""
+    block, so its transcript is mostly done when it ends. A stream that
+    fails is given up on, for this and every later utterance: they are then
+    transcribed whole once they end, as a backend without streams does."""
 
     def __init__(
         self,
@@ -496,6 +501,14 @@ class _UtteranceStreamer:
         if not blocks or len(blocks) < self._fed:
             await self.abandon()
         if not blocks or self._create_stream is None:
+            return
+        try:
+            await self._stream_blocks(blocks)
+        except Exception as exc:
+            await self._give_up(exc)
+
+    async def _stream_blocks(self, blocks: list[Any]) -> None:
+        if self._create_stream is None:
             return
         if self._stream is None:
             self._stream = await self._create_stream()
@@ -520,7 +533,11 @@ class _UtteranceStreamer:
         """Hand over the stream of an utterance that ended with *blocks*."""
         stream = self._stream
         if stream is not None:
-            await self._feed(blocks)
+            try:
+                await self._feed(blocks)
+            except Exception as exc:
+                await self._give_up(exc)
+                return None
         self._stream, self._fed = None, 0
         return stream
 
@@ -528,6 +545,17 @@ class _UtteranceStreamer:
         stream, self._stream, self._fed = self._stream, None, 0
         if stream is not None:
             await stream.close()
+
+    async def _give_up(self, exc: Exception) -> None:
+        logger.warning(
+            f"Streaming transcription failed ({exc}); utterances are "
+            "transcribed once they end instead"
+        )
+        self._create_stream = None
+        try:
+            await self.abandon()
+        except Exception as close_exc:
+            logger.warning(f"Closing a transcription stream failed: {close_exc}")
 
     async def _feed(self, blocks: list[Any]) -> None:
         new_blocks, self._fed = blocks[self._fed :], len(blocks)

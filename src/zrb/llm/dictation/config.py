@@ -75,6 +75,12 @@ class DictationConfig:
     vosk_max_file_mb: float | None = None
     vosk_max_files: float | None = None
 
+    @property
+    def is_barge_in_enabled(self) -> bool:
+        """Whether *barge_in* is ``on``: hands-free hears the user while zrb
+        speaks, and a stop word cancels a running turn."""
+        return (self.barge_in or "off").strip().lower() == "on"
+
     def resolve(self) -> "DictationConfig":
         """A copy with every ``None`` field read from `CFG`."""
         return resolve_from_cfg(self, "LLM_DICTATION_")
