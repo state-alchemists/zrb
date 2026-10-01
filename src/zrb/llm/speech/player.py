@@ -106,6 +106,11 @@ class Speaker:
         # tracking what it is playing, is guarded.
         self._lock = threading.Lock()
         self._playing: Utterance | None = None
+        # Set by `pause`, cleared by `resume` and `interrupt`: while set, the
+        # next utterance waits to start, even one still being synthesized
+        # when the pause came. Waiters are woken through `_unpaused`.
+        self._is_paused = False
+        self._unpaused = threading.Condition(self._lock)
         # Closed: `say` queues nothing more. Cut off: nothing more is played.
         self._is_closed = False
         self._is_cut_off = False
@@ -158,6 +163,7 @@ class Speaker:
         synthesized now: it is dropped once made, not played late."""
         with self._lock:
             self._generation += 1
+            self._unpaused.notify_all()
         try:
             while True:
                 self._queue.get_nowait()
@@ -176,9 +182,11 @@ class Speaker:
 
     def pause(self) -> None:
         """Hold what is playing, for a user who may be talking over it; what
-        is queued waits. Speech a player program is playing cannot pause, so
+        is queued or still being synthesized waits to start until `resume`
+        or `interrupt`. Speech a player program is playing cannot pause, so
         it is interrupted instead."""
         with self._lock:
+            self._is_paused = True
             playing = self._playing
         if playing is None:
             return
@@ -190,6 +198,8 @@ class Speaker:
     def resume(self) -> None:
         """Carry on after `pause`."""
         with self._lock:
+            self._is_paused = False
+            self._unpaused.notify_all()
             playing = self._playing
         if playing is not None:
             playing.resume()
@@ -200,6 +210,8 @@ class Speaker:
         is said after this."""
         with self._lock:
             self._generation += 1
+            self._is_paused = False
+            self._unpaused.notify_all()
             playing = self._playing
         self.clear()
         if playing is not None:
@@ -224,6 +236,14 @@ class Speaker:
         self, utterance: Utterance, is_stale: "IsStale", generation: int
     ) -> None:
         with self._lock:
+            # Paused: wait to start until resumed, or until this utterance is
+            # dropped (interrupted, cleared, cut off).
+            while (
+                self._is_paused
+                and not self._is_cut_off
+                and generation == self._generation
+            ):
+                self._unpaused.wait()
             if (
                 self._is_cut_off
                 or not self.is_enabled
@@ -327,6 +347,7 @@ class Speaker:
     def _cut_off(self) -> None:
         with self._lock:
             self._is_closed = self._is_cut_off = True
+            self._unpaused.notify_all()
             playing = self._playing
         self.clear()
         if playing is not None:

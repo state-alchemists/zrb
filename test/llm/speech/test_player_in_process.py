@@ -163,7 +163,6 @@ def test_pause_holds_a_pausable_utterance_and_resume_carries_on(lock_file):
         or backend.utterances[-1]
     )
     speaker = Speaker(_config(backend, lock_file))
-    speaker.pause()  # nothing playing: nothing to do
     speaker.say("long")
     assert backend.started.wait(1)
 
@@ -233,3 +232,51 @@ def test_audio_that_fails_to_render_is_spoken_by_a_player_program(
     assert made == []
     assert backend.played == ["hello"]
     assert "could not write the WAV" in caplog.text
+
+
+class SignallingBackend(FakeBackend):
+    def __init__(self):
+        super().__init__()
+        self.done = threading.Event()
+
+    def create_utterance(self, text):
+        return RecordingUtterance(text, self.played, self.done)
+
+
+def test_speech_made_while_paused_waits_for_resume(lock_file):
+    backend = SignallingBackend()
+    speaker = Speaker(_config(backend, lock_file))
+    speaker.pause()  # a barge-in before anything is playing
+
+    speaker.say("queued")
+    assert not backend.done.wait(0.3)
+
+    speaker.resume()
+    assert backend.done.wait(1)
+    assert backend.played == ["queued"]
+    speaker.close()
+
+
+def test_interrupting_a_pause_drops_what_waited_and_unpauses(lock_file):
+    backend = SignallingBackend()
+    speaker = Speaker(_config(backend, lock_file))
+    speaker.pause()
+    speaker.say("dropped")
+    assert not backend.done.wait(0.3)
+
+    speaker.interrupt()
+    speaker.say("next")
+
+    assert backend.done.wait(1)
+    assert backend.played == ["next"]
+    speaker.close()
+
+
+def test_closing_a_paused_speaker_does_not_hang(lock_file):
+    backend = SignallingBackend()
+    speaker = Speaker(_config(backend, lock_file))
+    speaker.pause()
+    speaker.say("never")
+    speaker.close()
+    assert not backend.done.wait(0.3)
+    assert backend.played == []
