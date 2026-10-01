@@ -63,7 +63,11 @@ def _fake_listen(monkeypatch, *said: str, is_barge_in=True):
             if is_barge_in and on_barge_in is not None:
                 on_barge_in()
             yield Utterance(
-                text.encode(), index, index + 0.5, is_barge_in, is_over_speech=is_barge_in
+                text.encode(),
+                index,
+                index + 0.5,
+                is_barge_in,
+                is_over_speech=is_barge_in,
             )
 
     monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
@@ -306,7 +310,9 @@ async def test_a_single_word_answers_a_pending_prompt_over_zrb(monkeypatch, ui):
 
 
 @pytest.mark.asyncio
-async def test_the_transcriber_guessing_at_noise_is_dropped(monkeypatch, interrupted, ui):
+async def test_the_transcriber_guessing_at_noise_is_dropped(
+    monkeypatch, interrupted, ui
+):
     _fake_listen(monkeypatch, "and this and this", "Thank you.", "run the tests")
 
     assert await _replies(_session(), 1) == ["run the tests"]

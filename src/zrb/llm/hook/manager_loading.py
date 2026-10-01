@@ -14,8 +14,6 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import yaml
-
 from zrb.llm.hook.hook_loader import get_plugin_root_for_path
 from zrb.llm.hook.matcher import CLAUDE_EVENT_MATCHER_FIELDS
 from zrb.llm.hook.schema import (
@@ -100,6 +98,10 @@ class HookManagerLoading:
                 if file_path.suffix == ".json":
                     data = json.load(f)
                 else:
+                    # lazy: heavy third-party -- yaml costs ~20 ms at startup,
+                    # and only a project with a YAML hook file reads one
+                    import yaml
+
                     data = yaml.safe_load(f)
 
             if (

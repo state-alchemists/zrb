@@ -68,7 +68,9 @@ def _listen(monkeypatch, *heard, partials=(), drop_first=False):
             if index == 0:
                 for partial in partials:
                     kwargs["on_partial"](partial)
-            yield Utterance(text.encode(), index, index + 0.5, True, is_over_speech=True)
+            yield Utterance(
+                text.encode(), index, index + 0.5, True, is_over_speech=True
+            )
 
     monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
     return seen

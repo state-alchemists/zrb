@@ -7,6 +7,10 @@ from zrb.config.config import CFG
 # pydantic-ai's wording when a provider finds no key: it names the vendor's own
 # variable (`OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, ...), which is correct as-is.
 _MISSING_KEY_MESSAGE = re.compile(r"Set the `\w+` environment variable")
+# The OpenAI SDK's own wording, raised as `openai.OpenAIError` when the client
+# is built before pydantic-ai checks for a key (`openai:` models, and every
+# OpenAI-compatible provider).
+_OPENAI_SDK_MISSING_KEY_MESSAGE = re.compile(r"Missing credentials")
 
 
 def is_prompt_too_long_error(e: Exception) -> bool:
@@ -209,10 +213,16 @@ def add_credential_hint(e: Exception) -> Exception:
     `LLM_PROVIDER` or `LLM_MODEL`'s prefix names (ADR-0094). Anything else is
     returned unchanged.
     """
-    # lazy: heavy third-party -- pydantic_ai
+    # lazy: heavy third-party -- pydantic_ai, openai
+    from openai import OpenAIError
     from pydantic_ai.exceptions import UserError
 
-    if not isinstance(e, UserError) or not _MISSING_KEY_MESSAGE.search(str(e)):
+    hinted_type: type[Exception]
+    if isinstance(e, UserError) and _MISSING_KEY_MESSAGE.search(str(e)):
+        hinted_type = UserError
+    elif isinstance(e, OpenAIError) and _OPENAI_SDK_MISSING_KEY_MESSAGE.search(str(e)):
+        hinted_type = OpenAIError
+    else:
         return e
     prefix = CFG.ENV_PREFIX
     hint = (
@@ -221,6 +231,6 @@ def add_credential_hint(e: Exception) -> Exception:
         f"{prefix}_LLM_MODEL. See docs/configuration/llm-config.md, "
         '"Which API Key Gets Used".'
     )
-    hinted = UserError(f"{e}\n{hint}")
+    hinted = hinted_type(f"{e}\n{hint}")
     hinted.__cause__ = e
     return hinted

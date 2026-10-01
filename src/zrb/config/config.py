@@ -12,8 +12,8 @@ To find a setting:
 - LLM UI styles/commands/intervals          -> mixins/llm_ui.py, which
   itself stitches together (not imported here directly) llm_ui_styles.py,
   llm_ui_commands.py and llm_ui_runtime.py
-- Camera / dictation / speech               -> mixins/llm_camera.py,
-  llm_dictation.py, llm_speech.py
+- Camera / dictation / speech / voice preset -> mixins/llm_camera.py,
+  llm_dictation.py, llm_speech.py, llm_voice.py
 - LLM throttle/retry/timeout/size caps       -> mixins/llm_limits.py
 - LLM history/journal/snapshot/summarization -> mixins/llm_content.py
 - LLM prompt dirs/INCLUDE_* toggles          -> mixins/llm_prompt.py
@@ -27,6 +27,7 @@ To find a setting:
 - Theme selection (ZRB_THEME preset)         -> mixins/theme.py
 """
 
+import os
 from typing import Any
 
 from zrb.config.env_field import EnvField
@@ -45,11 +46,19 @@ from zrb.config.mixins.llm_search import LLMSearchMixin
 from zrb.config.mixins.llm_speech import LLMSpeechMixin
 from zrb.config.mixins.llm_tools import LLMToolsMixin
 from zrb.config.mixins.llm_ui import LLMUIMixin
+from zrb.config.mixins.llm_voice import LLMVoiceMixin
 from zrb.config.mixins.rag import RAGMixin
 from zrb.config.mixins.task_runtime import TaskRuntimeMixin
 from zrb.config.mixins.theme import ThemeMixin
 from zrb.config.mixins.web import WebMixin
+from zrb.config.retired import RETIRED_SETTINGS
 from zrb.util.string.suggestion import suggest_name
+
+# How alike a set variable must be to a setting's name to be called a typo of
+# it: `BARGEIN` for `BARGE_IN` scores 0.99, `MAX_TOKEN_PER_MINUTE` for
+# `LLM_MAX_TOKEN_PER_MINUTE` 0.92, while a project's own `ZRB_USE_BORG_*`
+# scores 0.6 against its nearest setting.
+_TYPO_CUTOFF = 0.85
 
 
 class Config(
@@ -60,6 +69,7 @@ class Config(
     LLMCameraMixin,
     LLMDictationMixin,
     LLMSpeechMixin,
+    LLMVoiceMixin,
     LLMLimitsMixin,
     LLMContentMixin,
     LLMPromptMixin,
@@ -127,6 +137,42 @@ class Config(
             message
             + f" ({len(known)} settings; see `{self.ROOT_GROUP_NAME} config explain`.)"
         )
+
+    def get_mistyped_env_keys(self) -> dict[str, str]:
+        """Each set `<ENV_PREFIX>_*` variable no setting reads, mapped to the
+        setting it most likely meant.
+
+        A mistyped variable (`ZRB_LLM_MODELL`) is otherwise ignored without a
+        word. Only a close match is reported, because the prefix is shared:
+        a project's own `ZRB_DEPLOY_TARGET` read by its `zrb_init.py` is not
+        a typo and must stay quiet.
+        """
+        known = sorted(
+            key
+            for name in dir(type(self))
+            if isinstance(field := getattr(type(self), name, None), EnvField)
+            for key in field.get_read_keys(self.ENV_PREFIX)
+        )
+        skipped = set(known) | set(self.get_retired_env_keys())
+        mistyped: dict[str, str] = {}
+        for key in sorted(os.environ):
+            if not key.startswith(f"{self.ENV_PREFIX}_") or key in skipped:
+                continue
+            matches = suggest_name(key, known, limit=1, cutoff=_TYPO_CUTOFF)
+            if matches:
+                mistyped[key] = matches[0]
+        return mistyped
+
+    def get_retired_env_keys(self) -> dict[str, str]:
+        """Each set variable of a setting zrb no longer reads, mapped to what
+        to set instead (or why there is nothing to set)."""
+        retired: dict[str, str] = {}
+        for name, instead in RETIRED_SETTINGS.items():
+            key = f"{self.ENV_PREFIX}_{name}"
+            if key in os.environ:
+                is_setting = instead.isupper() and " " not in instead
+                retired[key] = f"{self.ENV_PREFIX}_{instead}" if is_setting else instead
+        return retired
 
     def is_env_set(self, name: str) -> bool:
         """Whether the user set the environment variable behind `CFG.<name>`.

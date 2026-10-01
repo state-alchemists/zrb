@@ -11,8 +11,8 @@ from zrb.config.config import CFG
 from zrb.contextvars import current_chat_session_id
 from zrb.llm.hook.interface import HookContext
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.speech import SpeechConfig, enable_speech
 from zrb.llm.speech.feature import SpeechSession, describe_tool_call, is_answered_since
 from zrb.llm.util.feature_config import close_feature_sessions

@@ -123,6 +123,7 @@ def serve_cli():
                 file=sys.stderr,
             )
             sys.exit(1)
+        _warn_mistyped_env_keys()
         cli.run(sys.argv[1:])
     except KeyboardInterrupt:
         print(stylize_warning("\nStopped"), file=sys.stderr)
@@ -137,6 +138,27 @@ def serve_cli():
         sys.exit(1)
     except Exception as e:
         _handle_uncaught(e)
+
+
+def _warn_mistyped_env_keys() -> None:
+    """Name each set variable that looks like a setting but is not one.
+
+    Runs after the init sources, which may set `ENV_PREFIX` or the variables
+    themselves. A warning, never fatal: the variable may be the project's own.
+    """
+    for key, instead in CFG.get_retired_env_keys().items():
+        if instead.startswith(f"{CFG.ENV_PREFIX}_"):
+            message = f"{key} is no longer read and is ignored. Set {instead} instead."
+        else:
+            message = f"{key} is no longer read and is ignored: {instead}."
+        print(stylize_warning(message), file=sys.stderr)
+    for key, meant in CFG.get_mistyped_env_keys().items():
+        print(
+            stylize_warning(
+                f"{key} is not a setting and is ignored. Did you mean {meant}?"
+            ),
+            file=sys.stderr,
+        )
 
 
 def _handle_uncaught(error: Exception) -> None:

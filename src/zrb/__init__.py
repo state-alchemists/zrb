@@ -242,6 +242,24 @@ __all__ = [
 _LAZY_EXPORTS = {"User": "zrb.runner.web_schema.user"}
 
 
+_NO_LLM_CONFIG = (
+    "was removed in 3.0.0: every LLM setting is a `CFG` knob (`CFG.LLM_MODEL`, "
+    "`CFG.LLM_API_KEY`, ...) and models resolve through `model_resolver`."
+)
+
+# Names `from zrb import ...` used to offer, and what to use instead, so code
+# written for an older zrb (or a plugin not yet updated) fails with directions.
+_RETIRED_EXPORTS = {
+    "LLMConfig": _NO_LLM_CONFIG,
+    "llm_config": _NO_LLM_CONFIG,
+    "UICommands": (
+        "was removed in 3.0.0: command aliases are `UIConfig` fields, or the "
+        "ZRB_LLM_UI_COMMAND_* settings."
+    ),
+    "fstring": "was removed in 3.0.0: it was an alias of `str`; use `str`.",
+}
+
+
 def __getattr__(name: str):
     """Resolve heavy public exports on first access (PEP 562).
 
@@ -254,6 +272,14 @@ def __getattr__(name: str):
     if name in _LAZY_EXPORTS:
         module = importlib.import_module(_LAZY_EXPORTS[name])
         return getattr(module, name)
+    if name in _RETIRED_EXPORTS:
+        # An ImportError, not an AttributeError: `from zrb import X` turns an
+        # AttributeError into a bare "cannot import name", dropping the hint.
+        raise ImportError(
+            f"zrb.{name} {_RETIRED_EXPORTS[name]} See "
+            "docs/advanced-topics/upgrading-guide.md.",
+            name=name,
+        )
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 

@@ -32,7 +32,7 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 | `ZRB_LLM_UI_COMMAND_VOICE` | `ZRB_LLM_DICTATION_COMMANDS` |
 | `ZRB_LLM_UI_COMMAND_PHOTO` | `ZRB_LLM_CAMERA_COMMANDS` |
 
-There are no aliases: an old variable is ignored. Each command in `ZRB_LLM_CAMERA_COMMANDS`, `ZRB_LLM_DICTATION_COMMANDS` and `ZRB_LLM_SPEECH_COMMANDS` must start with `/` and is matched case-sensitively: `photo` or `/Photo` never matches `/photo`. New settings are listed in [LLM configuration § 23](../configuration/llm-config.md#23-voice-and-camera).
+There are no aliases: an old variable is ignored, and from 3.12.0 zrb says so when it starts, naming what to set instead. Each command in `ZRB_LLM_CAMERA_COMMANDS`, `ZRB_LLM_DICTATION_COMMANDS` and `ZRB_LLM_SPEECH_COMMANDS` must start with `/` and is matched case-sensitively: `photo` or `/Photo` never matches `/photo`. New settings are listed in [LLM configuration § 23](../configuration/llm-config.md#23-voice-and-camera).
 
 ### Code
 
