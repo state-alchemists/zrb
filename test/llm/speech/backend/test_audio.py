@@ -140,3 +140,17 @@ def test_a_whole_file_that_is_not_pcm_is_refused():
             .replace(b"\xff\xff\xff\xff", b"\x2a\x00\x00\x00", 1)
             .replace(b"data\xff\xff\xff\xff", b"data\x02\x00\x00\x00")
         )
+
+
+@pytest.mark.parametrize("rate", [0, 10, 10_000_000])
+def test_a_streamed_wav_with_an_impossible_sample_rate_is_refused(rate):
+    with pytest.raises(RuntimeError, match="sample rate"):
+        create_streamed_wav_audio(io.BytesIO(_streamed(b"\x01\x00", rate=rate)))
+
+
+@pytest.mark.parametrize("rate", [0, 10_000_000])
+def test_a_whole_wav_file_with_an_impossible_sample_rate_is_refused(rate):
+    wav = bytearray(_wav(b"\x01\x00"))
+    wav[24:28] = struct.pack("<I", rate)  # the format chunk's sample rate
+    with pytest.raises(RuntimeError, match="sample rate"):
+        create_wav_audio(bytes(wav))

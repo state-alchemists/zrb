@@ -21,6 +21,11 @@ _CHUNK_BYTES = 4096
 # server) must not make zrb read it into memory.
 _MAX_HEADER_BYTES = 1 << 20
 _PCM = 1
+# Sample rates speech can have: a rate outside them is a broken or hostile
+# header, and would open no output stream (0 also divides by zero when
+# resampling for echo cancellation).
+_MIN_SAMPLE_RATE = 1000
+_MAX_SAMPLE_RATE = 384000
 _EXTENSIBLE = 0xFFFE
 
 
@@ -49,7 +54,8 @@ def create_wav_audio(wav_bytes: bytes) -> SpeechAudio:
         with wave.open(io.BytesIO(wav_bytes)) as wav:
             if wav.getsampwidth() != 2 or wav.getnchannels() != 1:
                 raise RuntimeError(_unplayable("must be 16-bit mono"))
-            return SpeechAudio(wav.getframerate(), [wav.readframes(wav.getnframes())])
+            sample_rate = _check_sample_rate(wav.getframerate())
+            return SpeechAudio(sample_rate, [wav.readframes(wav.getnframes())])
     except wave.Error as exc:  # the module reads uncompressed PCM only
         raise RuntimeError(_unplayable(f"is not uncompressed PCM ({exc})")) from exc
 
@@ -100,6 +106,17 @@ def _read_format(body: bytes) -> int:
         raise RuntimeError(_unplayable("is not uncompressed PCM"))
     if channels != 1 or bits != 16:
         raise RuntimeError(_unplayable("must be 16-bit mono"))
+    return _check_sample_rate(sample_rate)
+
+
+def _check_sample_rate(sample_rate: int) -> int:
+    if not _MIN_SAMPLE_RATE <= sample_rate <= _MAX_SAMPLE_RATE:
+        raise RuntimeError(
+            _unplayable(
+                f"has a sample rate of {sample_rate} Hz, outside "
+                f"{_MIN_SAMPLE_RATE}-{_MAX_SAMPLE_RATE}"
+            )
+        )
     return sample_rate
 
 
