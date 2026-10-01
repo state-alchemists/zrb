@@ -2,9 +2,11 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.dictation.words import (
+    count_words,
     is_finished_phrase,
     is_said_alone,
     is_said_back,
+    is_transcriber_guess,
     split_phrases,
     strip_wake_word,
     to_answer,
@@ -140,3 +142,35 @@ def test_is_said_back_spots_zrbs_own_words(heard, said):
 )
 def test_is_said_back_leaves_the_users_own_words(heard, said, min_share):
     assert not is_said_back(heard, said, min_share)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "and this and this",
+        "the top of the top of the top",  # cut off part-way, as reported
+        "you you you",
+        "Thank you.",
+        "Thanks for watching!",
+    ],
+)
+def test_is_transcriber_guess_spots_text_written_for_noise(text):
+    assert is_transcriber_guess(text)
+
+
+@pytest.mark.parametrize(
+    "text", ["run the tests", "very very good", "what time is it", "yes", ""]
+)
+def test_is_transcriber_guess_leaves_speech(text):
+    assert not is_transcriber_guess(text)
+
+
+def test_count_words():
+    assert count_words("Don't stop, please!") == 3
+    assert count_words("") == 0
+
+
+def test_is_said_back_reads_a_longer_transcript_letter_by_letter():
+    """Misheard past the word match: still zrb's sentence, near enough."""
+    said = "so blue comes at you from every direction and the sky looks blue"
+    assert is_said_back("from every directions and the skies", said, 0.8)

@@ -22,8 +22,7 @@ _CHUNK_BYTES = 4096
 _MAX_HEADER_BYTES = 1 << 20
 _PCM = 1
 # Sample rates speech can have: a rate outside them is a broken or hostile
-# header, and would open no output stream (0 also divides by zero when
-# resampling for echo cancellation).
+# header, and would open no output stream.
 _MIN_SAMPLE_RATE = 1000
 _MAX_SAMPLE_RATE = 384000
 _EXTENSIBLE = 0xFFFE

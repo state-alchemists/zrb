@@ -38,8 +38,9 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_PRE_ROLL: str = "0.3"
         self.DEFAULT_LLM_DICTATION_ECHO_COOLDOWN: str = "0.4"
         self.DEFAULT_LLM_DICTATION_BARGE_IN_ENABLED: str = "off"
-        self.DEFAULT_LLM_DICTATION_ECHO_CANCELLER: str = "numpy"
         self.DEFAULT_LLM_DICTATION_BARGE_IN_MIN_SPEECH: str = "0.3"
+        self.DEFAULT_LLM_DICTATION_BARGE_IN_MARGIN: str = "3.0"
+        self.DEFAULT_LLM_DICTATION_BARGE_IN_MIN_WORDS: str = "2"
         self.DEFAULT_LLM_DICTATION_BARGE_IN_ACTION: str = "steer"
         self.DEFAULT_LLM_DICTATION_SELF_ECHO_MATCH: str = "0.8"
         self.DEFAULT_LLM_DICTATION_SELF_ECHO_TAIL: str = "1.0"
@@ -62,7 +63,7 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_VOSK_MAX_FILE_MB: str = "4096"
         self.DEFAULT_LLM_DICTATION_VOSK_MAX_FILES: str = "10000"
         self.DEFAULT_LLM_DICTATION_STOP_WORDS: str = (
-            "stop, cancel, no, nope, deny, don't"
+            "stop, wait, hold on, cancel, no, nope, deny, don't"
         )
         self.DEFAULT_LLM_DICTATION_POLITE_WORDS: str = "please, thanks, thank, you"
         self.DEFAULT_LLM_DICTATION_TRAILING_WORDS: str = (
@@ -73,24 +74,6 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_TRANSCRIBE_PROMPT: str = (
             "Transcribe this audio to text. Return only the transcription."
         )
-        self.DEFAULT_LLM_DICTATION_ECHO_LEAD: str = "0.04"
-        self.DEFAULT_LLM_DICTATION_ECHO_MIN_DELAY: str = "-0.5"
-        self.DEFAULT_LLM_DICTATION_ECHO_MAX_DELAY: str = "1.0"
-        self.DEFAULT_LLM_DICTATION_ECHO_DELAY_WINDOW: str = "2.0"
-        self.DEFAULT_LLM_DICTATION_ECHO_DELAY_INTERVAL: str = "1.0"
-        self.DEFAULT_LLM_DICTATION_ECHO_MIN_PEAK: str = "0.05"
-        self.DEFAULT_LLM_DICTATION_ECHO_MIN_PEAK_RATIO: str = "6.0"
-        self.DEFAULT_LLM_DICTATION_ECHO_DELAY_AGREEMENT: str = "0.003"
-        self.DEFAULT_LLM_DICTATION_ECHO_RELOCK: str = "0.025"
-        self.DEFAULT_LLM_DICTATION_ECHO_MIN_REFERENCE_LEVEL: str = "0.01"
-        self.DEFAULT_LLM_DICTATION_ECHO_READY_BLOCKS: str = "20"
-        self.DEFAULT_LLM_DICTATION_ECHO_MAX_LOUD_LEFTOVERS: str = "1"
-        self.DEFAULT_LLM_DICTATION_ECHO_PLAYING_LEVEL: str = "0.005"
-        self.DEFAULT_LLM_DICTATION_ECHO_FRAME: str = "0.01"
-        self.DEFAULT_LLM_DICTATION_ECHO_FILTER_LENGTH: str = "0.32"
-        self.DEFAULT_LLM_DICTATION_ECHO_STEP: str = "0.5"
-        self.DEFAULT_LLM_DICTATION_ECHO_SUPPRESS_RESIDUAL: str = "on"
-        self.DEFAULT_LLM_DICTATION_ECHO_CONVERGE_AFTER: str = "2.0"
         super().__init__()
 
     LLM_DICTATION_MODE = EnvField(
@@ -216,7 +199,8 @@ class LLMDictationMixin:
         fallback=0.4,
         doc=(
             "Seconds the microphone stays deaf after zrb stops speaking, "
-            "since room echo outlives playback. Default: 0.4."
+            "since room echo outlives playback; with barge-in on, it hears "
+            "them against the bar over zrb's voice instead. Default: 0.4."
         ),
     )
 
@@ -225,24 +209,38 @@ class LLMDictationMixin:
         serialize=on_off,
         doc=(
             "'on' lets hands-free hear you while zrb speaks, so you can talk "
-            "over it: zrb pauses at once, and stops if what you said has "
-            "words. zrb's own voice is removed from the microphone by "
-            "{ENV_PREFIX}_LLM_DICTATION_ECHO_CANCELLER, which needs zrb to play "
-            "its speech itself ({ENV_PREFIX}_LLM_SPEECH_PLAYER=auto) and a few "
-            "seconds of zrb speaking to learn the room; until then the "
-            "microphone stays deaf while zrb speaks. Default: off."
+            "over it: zrb pauses at once, and stops if what you said is "
+            "words meant for it. On speakers the microphone hears zrb too, "
+            "so speech over it must be "
+            "{ENV_PREFIX}_LLM_DICTATION_BARGE_IN_MARGIN times louder than "
+            "zrb's voice reaches the microphone, and at least "
+            "{ENV_PREFIX}_LLM_DICTATION_BARGE_IN_MIN_WORDS words. 'off' "
+            "keeps the microphone deaf while zrb speaks: zrb and you take "
+            "turns. Default: off."
         ),
     )
 
-    LLM_DICTATION_ECHO_CANCELLER = EnvField(
-        str,
+
+    LLM_DICTATION_BARGE_IN_MARGIN = EnvField(
+        float,
+        fallback=3.0,
         doc=(
-            "How zrb's own voice is removed from the microphone for barge-in. "
-            "One of:\n"
-            "- 'numpy' (default): an adaptive echo canceller in NumPy, "
-            "working from the audio zrb plays; laptop speakers work.\n"
-            "- 'none': trust the microphone: headphones, or the system "
-            "already cancels echo (PipeWire/PulseAudio echo-cancel)."
+            "With barge-in on, how many times louder than zrb's own voice, "
+            "as the microphone hears it, speech over zrb must be to count "
+            "(3 is about 10 dB). It follows the volume and the room; on "
+            "headphones zrb is not heard, and the usual "
+            "{ENV_PREFIX}_LLM_DICTATION_THRESHOLD applies. Default: 3."
+        ),
+    )
+
+    LLM_DICTATION_BARGE_IN_MIN_WORDS = EnvField(
+        int,
+        fallback=2,
+        doc=(
+            "With barge-in on, the fewest words said over zrb, or while a "
+            "turn runs, that reach it: fewer are taken for zrb's own voice "
+            "or noise, and zrb carries on. A stop word, or an answer to the "
+            "prompt being asked, always counts. Default: 2."
         ),
     )
 
@@ -321,7 +319,7 @@ class LLMDictationMixin:
             "allowed) over zrb or while a turn runs with "
             "{ENV_PREFIX}_LLM_DICTATION_BARGE_IN_ENABLED=on, stop "
             "zrb speaking and cancel the turn instead of reaching the "
-            "model. Default: stop, cancel, no, nope, deny, don't."
+            "model. Default: stop, wait, hold on, cancel, no, nope, deny, don't."
         ),
     )
 
@@ -378,170 +376,23 @@ class LLMDictationMixin:
         ),
     )
 
-    LLM_DICTATION_ECHO_LEAD = EnvField(
-        float,
-        fallback=0.04,
-        doc=(
-            "Echo cancellation: seconds the reference (what zrb played) is "
-            "read ahead of the measured echo delay, so it never arrives "
-            "after its echo. Default: 0.04."
-        ),
-    )
 
-    LLM_DICTATION_ECHO_MIN_DELAY = EnvField(
-        float,
-        fallback=-0.5,
-        doc=(
-            "Echo cancellation: shortest echo delay searched, in seconds; "
-            "negative because the audio driver's reported latencies can be "
-            "off. Default: -0.5."
-        ),
-    )
 
-    LLM_DICTATION_ECHO_MAX_DELAY = EnvField(
-        float,
-        fallback=1.0,
-        doc=(
-            "Echo cancellation: longest echo delay searched, in seconds "
-            "(Bluetooth speakers can need more). Default: 1."
-        ),
-    )
 
-    LLM_DICTATION_ECHO_DELAY_WINDOW = EnvField(
-        float,
-        fallback=2.0,
-        doc=(
-            "Echo cancellation: seconds of microphone audio each delay "
-            "estimate correlates with what zrb played. Default: 2."
-        ),
-    )
 
-    LLM_DICTATION_ECHO_DELAY_INTERVAL = EnvField(
-        float,
-        fallback=1.0,
-        doc=("Echo cancellation: seconds between delay estimates. Default: " "1."),
-    )
 
-    LLM_DICTATION_ECHO_MIN_PEAK = EnvField(
-        float,
-        fallback=0.05,
-        doc=(
-            "Echo cancellation: weakest correlation peak taken as the echo "
-            "rather than chance. Default: 0.05."
-        ),
-    )
 
-    LLM_DICTATION_ECHO_MIN_PEAK_RATIO = EnvField(
-        float,
-        fallback=6.0,
-        doc=(
-            "Echo cancellation: how many times above the typical "
-            "correlation the peak must stand. Default: 6."
-        ),
-    )
 
-    LLM_DICTATION_ECHO_DELAY_AGREEMENT = EnvField(
-        float,
-        fallback=0.003,
-        doc=(
-            "Echo cancellation: seconds within which two delay estimates in "
-            "a row agree, which is what locks the delay. Default: 0.003."
-        ),
-    )
 
-    LLM_DICTATION_ECHO_RELOCK = EnvField(
-        float,
-        fallback=0.025,
-        doc=(
-            "Echo cancellation: once locked, a delay that moves more than "
-            "this many seconds (another output device) re-locks and "
-            "restarts the canceller; less is drift the canceller follows. "
-            "Default: 0.025."
-        ),
-    )
 
-    LLM_DICTATION_ECHO_MIN_REFERENCE_LEVEL = EnvField(
-        float,
-        fallback=0.01,
-        doc=(
-            "Echo cancellation: RMS level of what zrb played below which no "
-            "delay is estimated (too quiet to correlate). Default: 0.01."
-        ),
-    )
 
-    LLM_DICTATION_ECHO_READY_BLOCKS = EnvField(
-        int,
-        fallback=20,
-        doc=(
-            "Echo cancellation: recent microphone blocks of zrb speaking "
-            "judged to decide whether cancellation is ready. Default: 20."
-        ),
-    )
 
-    LLM_DICTATION_ECHO_MAX_LOUD_LEFTOVERS = EnvField(
-        int,
-        fallback=1,
-        doc=(
-            "Echo cancellation: of those blocks, how many may still be at "
-            "or over {ENV_PREFIX}_LLM_DICTATION_THRESHOLD after cancelling "
-            "for it to count as ready, so the microphone hears you over "
-            "zrb. Default: 1."
-        ),
-    )
 
-    LLM_DICTATION_ECHO_PLAYING_LEVEL = EnvField(
-        float,
-        fallback=0.005,
-        doc=(
-            "Echo cancellation: RMS level of what zrb played above which a "
-            "block counts as zrb speaking. Default: 0.005."
-        ),
-    )
 
-    LLM_DICTATION_ECHO_FRAME = EnvField(
-        float,
-        fallback=0.01,
-        doc=(
-            "The 'numpy' echo canceller: seconds of audio per filter step. "
-            "Default: 0.01."
-        ),
-    )
 
-    LLM_DICTATION_ECHO_FILTER_LENGTH = EnvField(
-        float,
-        fallback=0.32,
-        doc=(
-            "The 'numpy' echo canceller: seconds of echo path its filter "
-            "covers, the lead plus the room's tail. Default: 0.32."
-        ),
-    )
 
-    LLM_DICTATION_ECHO_STEP = EnvField(
-        float,
-        fallback=0.5,
-        doc=(
-            "The 'numpy' echo canceller: adaptation step, 0 to 1; larger "
-            "learns the room faster but settles less. Default: 0.5."
-        ),
-    )
 
-    LLM_DICTATION_ECHO_SUPPRESS_RESIDUAL = EnvField(
-        to_boolean,
-        serialize=on_off,
-        doc=(
-            "The 'numpy' echo canceller: damp what the filter leaves of "
-            "zrb's voice. Default: on."
-        ),
-    )
 
-    LLM_DICTATION_ECHO_CONVERGE_AFTER = EnvField(
-        float,
-        fallback=2.0,
-        doc=(
-            "The 'numpy' echo canceller: seconds of zrb speaking it adapts "
-            "over before it may count as converged. Default: 2."
-        ),
-    )
 
     LLM_DICTATION_OPENAI_MODEL = EnvField(
         str,

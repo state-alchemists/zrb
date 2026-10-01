@@ -19,12 +19,12 @@ from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.builtin import get_dictation_backend
 from zrb.llm.dictation.config import DictationConfig
-from zrb.llm.dictation.echo.builtin import get_echo_canceller
-from zrb.llm.dictation.echo.cancellation import EchoCancellation
 from zrb.llm.dictation.listen import MicState, Utterance, import_audio, listen
 from zrb.llm.dictation.words import (
+    count_words,
     is_said_alone,
     is_said_back,
+    is_transcriber_guess,
     split_phrases,
     strip_wake_word,
     to_answer,
@@ -61,9 +61,6 @@ _LISTENING = "🎤 listening"
 _MIC_STATE_BADGES = {
     MicState.HEARING: "👂 hearing you…",
     MicState.PAUSED: "🔇 mic paused while speaking",
-    # Barge-in is on, but zrb's voice cannot be told from the user yet.
-    MicState.LEARNING: "🔇 learning the room…",
-    MicState.NO_ECHO_REFERENCE: "🔇 mic paused (speech not played by zrb)",
 }
 _TRANSCRIBING = "📝 transcribing…"
 _INTERRUPTED = "✋ interrupted · go on…"
@@ -133,8 +130,6 @@ class DictationSession:
         self._badge_before_pause = _LISTENING
         # A wake word said alone arms the utterances started before this.
         self._armed_until = 0.0
-        # One per session: it keeps what it learned of the room.
-        self._echo: "EchoCancellation | None" = None
         self.is_hands_free = (config.mode or "").strip().lower() == HANDS_FREE
 
     @property
@@ -254,12 +249,9 @@ class DictationSession:
             return not stop.is_set()
 
         # aclosing, or the `with stream` inside `listen` waits on generator
-        # finalization to close the microphone. The echo too: without it,
-        # barge-in on would record zrb's own voice into the transcript.
+        # finalization to close the microphone.
         async with aclosing(
-            listen(
-                self._config, should_listen, keep_partial=True, echo=self._get_echo()
-            )
+            listen(self._config, should_listen, keep_partial=True)
         ) as mic:
             async for utterance in mic:
                 return utterance.audio
@@ -315,19 +307,23 @@ class DictationSession:
             on_barge_in=self._handle_barge_in,
             create_stream=self.backend.create_stream,
             on_partial=self._show_partial,
-            echo=self._get_echo(),
             on_barge_in_dropped=self._release_barge_in,
         )
 
     async def _to_command(self, utterance: Utterance, text: str) -> str | None:
         """What *utterance*, transcribed as *text*, asks zrb, or ``None``
         when there is nothing to send; the badge says which."""
-        if self._is_own_voice(utterance, text):
-            # zrb heard itself: not the user's, so zrb carries on.
+        why_not = self._get_why_not_the_user(utterance, text)
+        if why_not:
+            # Not the user's words: zrb carries on, and nothing is sent.
             self._release_barge_in()
-            self._rest(f"🔁 ignored {_quote(text)} (zrb's own voice)")
+            self._rest(f"🎤 ignored {_quote(text)} ({why_not})")
             return None
         command = self._get_command(utterance, text)
+        if command and self._is_too_short_over_zrb(utterance, command):
+            self._release_barge_in()
+            self._rest(f"🎤 ignored {_quote(command)} (too few words over zrb)")
+            return None
         self._settle_barge_in(utterance, command is not None)
         if not command:
             self._rest_without_command(utterance, text, command)
@@ -340,9 +336,39 @@ class DictationSession:
         self._rest(f"🎤 heard {_quote(command)} · listening")
         return command
 
+    def _get_why_not_the_user(self, utterance: Utterance, text: str) -> str:
+        """Why *text* is not words the user said, or ``""`` when it may be:
+        the transcriber guessing at noise, or zrb's own voice heard back.
+        A stop word or a yes/no is never set aside: "no no" is meant."""
+        if not text or self._is_answer_or_stop(text):
+            return ""
+        if is_transcriber_guess(text):
+            return "the transcriber guessing at noise"
+        if self._is_own_voice(utterance, text):
+            return "zrb's own voice"
+        return ""
+
+    def _is_answer_or_stop(self, text: str) -> bool:
+        phrases = self._stop_words + self._approve_words + self._deny_words
+        return is_said_alone(text, phrases, self._polite_words)
+
+    def _is_too_short_over_zrb(self, utterance: Utterance, command: str) -> bool:
+        """Whether *command*, said over zrb's voice, has too few words to be
+        the user's: zrb's voice and noise come through as a word or two
+        ("sleep", "yeah"). A stop word, or an answer to the prompt being
+        asked, is meant however short."""
+        if not utterance.is_over_speech:
+            return False
+        if self._is_answer_or_stop(command):
+            return False
+        ui = get_session_ui() or self._ui
+        if ui is not None and ui.is_waiting_for_answer:
+            return False
+        return count_words(command) < (self._config.barge_in_min_words or 0)
+
     def _is_own_voice(self, utterance: Utterance, text: str) -> bool:
         """Whether *text* only repeats what zrb was saying while *utterance*
-        was heard: what echo cancellation left of its voice, transcribed."""
+        was heard: zrb's voice through the microphone, transcribed."""
         said = spoken_log.get_text_said(
             utterance.started_at,
             utterance.ended_at,
@@ -382,18 +408,6 @@ class DictationSession:
             ),
             started_at=utterance.started_at,
         )
-
-    def _get_echo(self) -> "EchoCancellation | None":
-        """The session's echo cancellation, built on first use with barge-in
-        on; it keeps what it learned of the room across microphone reopens."""
-        if not self._config.is_barge_in_enabled:
-            return None
-        if self._echo is None:
-            canceller = get_echo_canceller(
-                self._config.echo_canceller or "numpy", self._config
-            )
-            self._echo = EchoCancellation(canceller, config=self._config)
-        return self._echo
 
     def _handle_barge_in(self) -> None:
         """The user may be talking over zrb: hold its voice at once, until

@@ -182,11 +182,11 @@ async def test_stop_words_are_their_own_list_not_the_deny_words(
     monkeypatch, interrupted, ui
 ):
     # "hold on" stops the turn; "no" is a deny word here but no stop word.
-    _fake_listen(monkeypatch, "Hold on, please.", "no", "next")
+    _fake_listen(monkeypatch, "Hold on, please.", "no", "what next")
     ui.is_thinking = True
     session = _session(stop_words=["hold on"], deny_words=["no"])
 
-    assert await _replies(session, 2) == ["no", "next"]
+    assert await _replies(session, 2) == ["no", "what next"]
     assert ui.cancelled == ["barge_in"]
 
 
@@ -194,12 +194,12 @@ async def test_stop_words_are_their_own_list_not_the_deny_words(
 async def test_the_polite_words_a_stop_word_may_carry_are_configured(
     monkeypatch, interrupted, ui
 ):
-    _fake_listen(monkeypatch, "stop tolong", "stop please", "next")
+    _fake_listen(monkeypatch, "stop tolong", "stop please", "what next")
     ui.is_thinking = True
     session = _session(polite_words=["tolong"])
 
     # "please" is no polite word here, so "stop please" is a message.
-    assert await _replies(session, 2) == ["stop please", "next"]
+    assert await _replies(session, 2) == ["stop please", "what next"]
     assert ui.cancelled == ["barge_in"]
 
 
@@ -259,63 +259,65 @@ async def test_a_stop_word_with_no_turn_running_is_sent(monkeypatch, interrupted
 
 
 @pytest.mark.asyncio
-async def test_push_to_talk_cancels_zrbs_voice_out_like_hands_free(monkeypatch):
-    """With barge-in on, a recording made while zrb speaks gets the same echo
-    cancellation as hands-free: without it, zrb's own voice was transcribed."""
-    pytest.importorskip("numpy")
-    echoes = []
-
-    async def listen(config, should_listen, keep_partial=False, echo=None, **kwargs):
-        echoes.append(echo)
-        yield Utterance(b"run the tests", 0, 0.5)
-
-    monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
-
-    class RecordingUI(FakeUI):
-        def __init__(self):
-            super().__init__()
-            self.inserted: list[str] = []
-
-        def insert_input_text(self, text):
-            self.inserted.append(text)
-
-    recording_ui = RecordingUI()
-    session = DictationSession(
-        DictationConfig(
-            backend=FakeBackend(), mode="ptt", barge_in_enabled=True, echo_canceller="none"
-        ).resolve()
-    )
-
-    await session.toggle_recording({}, recording_ui)
-
-    assert recording_ui.inserted == ["run the tests"]
-    [echo] = echoes
-    assert echo is not None
-
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "state, badge",
-    [
-        (MicState.LEARNING, "🔇 learning the room…"),
-        (MicState.NO_ECHO_REFERENCE, "🔇 mic paused (speech not played by zrb)"),
-        (MicState.PAUSED, "🔇 mic paused while speaking"),
-    ],
-)
-async def test_the_badge_says_why_the_mic_is_deaf_over_zrb(
-    monkeypatch, ui, state, badge
-):
-    """With barge-in on yet nothing heard over zrb, the badge tells the room
-    still being learned from speech zrb cannot cancel at all."""
-
+async def test_the_badge_says_when_the_mic_is_deaf_over_zrb(monkeypatch, ui):
     async def listen(config, should_listen, on_state=None, **kwargs):
-        on_state(state)
+        on_state(MicState.PAUSED)
         yield Utterance(b"hello", 0, 0.5)
 
     monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
     monkeypatch.setattr("zrb.llm.dictation.feature.import_audio", lambda: (None, None))
 
-    await _replies(_session(barge_in_enabled=True), 1)
+    await _replies(_session(), 1)
 
-    assert badge in ui.badges
+    assert "🔇 mic paused while speaking" in ui.badges
+
+
+@pytest.mark.asyncio
+async def test_a_single_word_over_zrb_is_not_taken_for_the_user(
+    monkeypatch, interrupted, ui
+):
+    """zrb's own voice and noise come through as a word or two ("sleep",
+    "yeah"); over zrb it takes two words, so zrb carries on."""
+    _fake_listen(monkeypatch, "sleep", "use pytest")
+    session = _session()
+
+    assert await _replies(session, 1) == ["use pytest"]
+    assert any("too few words over zrb" in str(badge) for badge in ui.badges)
+
+
+@pytest.mark.asyncio
+async def test_a_single_stop_word_or_answer_over_zrb_still_counts(
+    monkeypatch, interrupted, ui
+):
+    _fake_listen(monkeypatch, "wait", "yes")
+    ui.is_thinking = True
+    session = _session(approve_words=["yes"])
+
+    assert await _replies(session, 1) == ["yes"]
+    assert ui.cancelled == ["barge_in"]
+
+
+@pytest.mark.asyncio
+async def test_a_single_word_answers_a_pending_prompt_over_zrb(monkeypatch, ui):
+    _fake_listen(monkeypatch, "later")
+    ui.is_waiting_for_answer = True
+
+    assert await _replies(_session(), 1) == ["later"]
+
+
+@pytest.mark.asyncio
+async def test_the_transcriber_guessing_at_noise_is_dropped(monkeypatch, interrupted, ui):
+    _fake_listen(monkeypatch, "and this and this", "Thank you.", "run the tests")
+
+    assert await _replies(_session(), 1) == ["run the tests"]
+    assert any("guessing at noise" in str(badge) for badge in ui.badges)
+
+
+@pytest.mark.asyncio
+async def test_no_no_is_meant_however_repetitive(monkeypatch, interrupted, ui):
+    _fake_listen(monkeypatch, "no no")
+    ui.is_thinking = True
+
+    replies = _session(stop_words=[], deny_words=["no"]).listen_hands_free()
+    assert (await anext(replies)).text == "no no"
+    await replies.aclose()

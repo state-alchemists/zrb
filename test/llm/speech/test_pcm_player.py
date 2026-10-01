@@ -10,8 +10,9 @@ import pytest
 
 from zrb.llm.speech import pcm_player
 from zrb.llm.speech.backend.audio import SpeechAudio
-from zrb.llm.speech.echo_reference import RATE, EchoReference
 from zrb.llm.speech.pcm_player import PcmUtterance
+
+RATE = 16000
 
 np = pytest.importorskip("numpy")
 
@@ -77,42 +78,20 @@ def _played(stream):
     return np.concatenate(stream.played)[:, 0]
 
 
-def test_the_audio_is_played_and_written_to_the_echo_reference(sd):
-    reference = EchoReference()
-    starts = []
-    write = reference.write
-    reference.write = lambda start, audio: (starts.append(start), write(start, audio))
+def test_the_audio_is_played(sd):
     samples = list(range(1, 2049))
     chunks = [_pcm(samples[:700]), _pcm(samples[700:])]
-    utterance = PcmUtterance(SpeechAudio(RATE, chunks), reference)
+    utterance = PcmUtterance(SpeechAudio(RATE, chunks))
 
     utterance.play(timeout=5)
 
     [stream] = FakeOutputStream.instances
     assert _played(stream)[:2048].tolist() == samples
-    assert not reference.is_active
-    heard = reference.read(starts[0], 2048)
-    assert np.allclose(heard, np.array(samples) / 32768, atol=1e-6)
-
-
-def test_the_reference_is_resampled_to_16_khz(sd):
-    reference = EchoReference()
-    utterance = PcmUtterance(SpeechAudio(24000, [_pcm([1000] * 2400)]), reference)
-    writes = []
-    reference.write = lambda start, audio: writes.append((start, len(audio)))
-
-    utterance.play(timeout=5)
-
-    total = sum(length for _, length in writes)
-    assert abs(total - 1600) <= len(writes)  # 2400 samples at 24 kHz = 0.1 s
-    starts = [start for start, _ in writes]
-    assert starts == sorted(starts)
 
 
 def test_a_paused_utterance_plays_silence_and_holds_its_place(sd):
-    reference = EchoReference()
     chunks = [_pcm([5] * 1024)] * 3
-    utterance = PcmUtterance(SpeechAudio(RATE, chunks), reference)
+    utterance = PcmUtterance(SpeechAudio(RATE, chunks))
     utterance.pause()
     assert utterance.is_paused and utterance.is_pausable
     threading.Timer(0.05, utterance.resume).start()
@@ -133,8 +112,7 @@ def test_stop_ends_playback_and_closes_the_download(sd):
             yield _pcm([1] * 256)
 
     utterance = PcmUtterance(
-        SpeechAudio(RATE, endless(), lambda: closed.append(True)), EchoReference()
-    )
+        SpeechAudio(RATE, endless(), lambda: closed.append(True)))
     threading.Timer(0.05, utterance.stop).start()
 
     utterance.play(timeout=5)
@@ -147,13 +125,13 @@ def test_the_timeout_stops_an_utterance_that_never_ends(sd):
         while True:
             yield _pcm([1] * 256)
 
-    utterance = PcmUtterance(SpeechAudio(RATE, endless()), EchoReference())
+    utterance = PcmUtterance(SpeechAudio(RATE, endless()))
     utterance.play(timeout=0.05)
     assert utterance.is_stopped
 
 
 def test_a_stopped_utterance_does_not_play(sd):
-    utterance = PcmUtterance(SpeechAudio(RATE, [_pcm([1])]), EchoReference())
+    utterance = PcmUtterance(SpeechAudio(RATE, [_pcm([1])]))
     utterance.stop()
     utterance.play(timeout=1)
     assert FakeOutputStream.instances == []
@@ -164,7 +142,7 @@ def test_a_failing_download_plays_what_came(sd):
         yield _pcm([7] * 100)
         raise OSError("connection reset")
 
-    utterance = PcmUtterance(SpeechAudio(RATE, failing()), EchoReference())
+    utterance = PcmUtterance(SpeechAudio(RATE, failing()))
     utterance.play(timeout=5)
     assert int(np.count_nonzero(_played(FakeOutputStream.instances[0]))) == 100
     utterance.cleanup()
@@ -205,8 +183,7 @@ def test_a_device_that_fails_closes_the_source_and_reads_nothing(monkeypatch, fa
     closed = []
     fake = types.SimpleNamespace(OutputStream=BrokenStream, CallbackStop=CallbackStop)
     utterance = PcmUtterance(
-        SpeechAudio(RATE, chunks(), lambda: closed.append(True)), EchoReference()
-    )
+        SpeechAudio(RATE, chunks(), lambda: closed.append(True)))
     with patch.dict("sys.modules", {"sounddevice": fake}):
         with pytest.raises(OSError):
             utterance.play(timeout=1)
@@ -260,7 +237,6 @@ def test_a_device_that_cannot_open_hands_the_speech_to_a_player_program(fails_on
     events, closed = [], []
     utterance = PcmUtterance(
         SpeechAudio(RATE, [_pcm([1] * 256)], lambda: closed.append(True)),
-        EchoReference(),
         fallback=lambda: ProgramUtterance(events),
     )
     with patch.dict("sys.modules", {"sounddevice": _broken_device(fails_on)}):
@@ -275,7 +251,6 @@ def test_a_device_failing_after_it_opened_is_not_played_twice():
     device = _broken_device("start", after_opening=True)
     fresh = PcmUtterance(
         SpeechAudio(RATE, [_pcm([1] * 256)]),
-        EchoReference(),
         fallback=lambda: ProgramUtterance(events),
     )
     with patch.dict("sys.modules", {"sounddevice": device}):
@@ -296,7 +271,6 @@ def test_stopping_during_the_fallback_stops_the_player_program():
 
     utterance = PcmUtterance(
         SpeechAudio(RATE, [_pcm([1] * 256)]),
-        EchoReference(),
         fallback=lambda: Hanging(events),
     )
     with patch.dict("sys.modules", {"sounddevice": _broken_device()}):
@@ -322,7 +296,6 @@ def test_audio_failing_before_any_of_it_played_goes_to_the_player_program(sd):
     events = []
     utterance = PcmUtterance(
         SpeechAudio(RATE, _failing_source()),
-        EchoReference(),
         fallback=lambda: ProgramUtterance(events),
     )
 
@@ -335,7 +308,6 @@ def test_audio_failing_part_way_is_played_as_far_as_it_came_and_logged(sd, caplo
     events = []
     utterance = PcmUtterance(
         SpeechAudio(RATE, _failing_source([_pcm([7] * 512)])),
-        EchoReference(),
         fallback=lambda: ProgramUtterance(events),
     )
 
@@ -357,7 +329,6 @@ def test_audio_cut_off_by_stop_is_no_failure(sd, caplog):
 
     utterance = PcmUtterance(
         SpeechAudio(RATE, chunks()),
-        EchoReference(),
         fallback=lambda: ProgramUtterance(events),
     )
 
@@ -371,7 +342,7 @@ def test_paused_time_does_not_use_up_the_timeout(sd):
     """A user talking over zrb for longer than the timeout must not end the
     sentence they paused: only playing time counts."""
     chunks = [_pcm([5] * 256)] * 2
-    utterance = PcmUtterance(SpeechAudio(RATE, chunks), EchoReference())
+    utterance = PcmUtterance(SpeechAudio(RATE, chunks))
     utterance.pause()
     threading.Timer(0.3, utterance.resume).start()
 
@@ -390,7 +361,6 @@ def test_the_fallback_after_failing_audio_keeps_the_timeout(sd):
     events = []
     utterance = PcmUtterance(
         SpeechAudio(RATE, _failing_source()),
-        EchoReference(),
         fallback=lambda: TimedProgramUtterance(events),
     )
 
@@ -405,7 +375,6 @@ def test_a_fallback_paused_before_it_starts_is_not_played():
     events = []
     utterance = PcmUtterance(
         SpeechAudio(RATE, [_pcm([1] * 256)]),
-        EchoReference(),
         fallback=lambda: utterance.pause() or ProgramUtterance(events),
     )
     with patch.dict("sys.modules", {"sounddevice": _broken_device()}):

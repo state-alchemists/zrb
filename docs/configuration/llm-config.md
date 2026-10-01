@@ -890,43 +890,21 @@ Three optional features of `zrb llm chat`, each added with one call and read fro
 | `ZRB_LLM_DICTATION_MAX_UTTERANCE` | Longest utterance, in seconds; `0` means no limit | `30.0` |
 | `ZRB_LLM_DICTATION_MAX_BACKLOG` | Seconds of hands-free audio kept while an utterance is being transcribed, so what you say meanwhile is not lost; older audio is dropped. `0` means no limit | `30.0` |
 | `ZRB_LLM_DICTATION_PRE_ROLL` | Seconds kept from before speech is detected, so the first word is not clipped; `0` keeps none | `0.3` |
-| `ZRB_LLM_DICTATION_ECHO_COOLDOWN` | Seconds the microphone stays deaf after zrb stops speaking | `0.4` |
-| `ZRB_LLM_DICTATION_BARGE_IN_ENABLED` | `on` lets hands-free hear you while zrb speaks, on speakers too: zrb pauses at once, stops if what you said has words, and carries on if not. Its own voice is removed by `ZRB_LLM_DICTATION_ECHO_CANCELLER`, which learns the room over a few seconds of zrb speaking; until then the microphone stays deaf while zrb speaks | `off` |
-| `ZRB_LLM_DICTATION_ECHO_CANCELLER` | `numpy`: remove zrb's voice from the microphone, from the audio zrb plays (needs `ZRB_LLM_SPEECH_PLAYER=auto` and a backend that renders audio). `none`: trust the microphone (headphones, or system echo cancellation) | `numpy` |
+| `ZRB_LLM_DICTATION_ECHO_COOLDOWN` | Seconds the microphone stays deaf after zrb stops speaking, since room echo outlives playback; with barge-in on, it hears them against the bar over zrb's voice instead | `0.4` |
+| `ZRB_LLM_DICTATION_BARGE_IN_ENABLED` | `on` lets hands-free hear you while zrb speaks, on speakers too: zrb pauses at once, stops if what you said is words meant for it, and carries on if not. Speech over zrb must be `ZRB_LLM_DICTATION_BARGE_IN_MARGIN` times louder than zrb's voice reaches the microphone and at least `ZRB_LLM_DICTATION_BARGE_IN_MIN_WORDS` words. `off`: the microphone stays deaf while zrb speaks, and you take turns | `off` |
+| `ZRB_LLM_DICTATION_BARGE_IN_MARGIN` | With barge-in on, how many times louder than zrb's own voice, as the microphone hears it (the median over its last few seconds), speech over zrb must be (3 is about 10 dB). It follows the volume and the room; on headphones zrb is not heard and `ZRB_LLM_DICTATION_THRESHOLD` applies | `3.0` |
+| `ZRB_LLM_DICTATION_BARGE_IN_MIN_WORDS` | With barge-in on, the fewest words said over zrb that reach it; fewer are taken for zrb's own voice or noise, and zrb carries on. A stop word, or an answer to the prompt being asked, always counts | `2` |
 | `ZRB_LLM_DICTATION_BARGE_IN_MIN_SPEECH` | Seconds of speech over zrb's voice that pause it, so a click does not; it then stops only if what was said has words. Shorter words over zrb (a crisp "stop") do not pause it, but still stop it once transcribed | `0.3` |
 | `ZRB_LLM_DICTATION_BARGE_IN_ACTION` | What talking over a running turn does with what you said: `steer` (the turn takes it into account) or `cancel` (the turn stops and it starts a new one). A stop word said alone (`ZRB_LLM_DICTATION_STOP_WORDS`) cancels the turn either way | `steer` |
-| `ZRB_LLM_DICTATION_SELF_ECHO_MATCH` | Share (0–1) of what hands-free heard that must be words zrb was saying then for it to count as zrb's own voice coming back through the microphone, and be dropped instead of becoming a turn; echo cancellation never removes all of it. `0` turns this off | `0.8` |
+| `ZRB_LLM_DICTATION_SELF_ECHO_MATCH` | Share (0–1) of what hands-free heard that must be words zrb was saying then (or, ten letters or more, a stretch of it letter by letter) for it to count as zrb's own voice coming back through the microphone, and be dropped instead of becoming a turn. `0` turns this off | `0.8` |
 | `ZRB_LLM_DICTATION_SELF_ECHO_TAIL` | Seconds after zrb says a sentence that hearing its words still counts as its echo (`ZRB_LLM_DICTATION_SELF_ECHO_MATCH`) | `1` |
 | `ZRB_LLM_DICTATION_APPROVE_WORDS` | Phrases that approve a tool approval when a hands-free answer is made only of them and polite words ("yes please"). Any other answer denies it, with what was said as the reason | `yes, yeah, yep, ok, okay, sure, approve, accept, go ahead, do it` |
 | `ZRB_LLM_DICTATION_DENY_WORDS` | Phrases that deny a tool approval when a hands-free answer is made only of them and polite words ("no thanks") | `no, nope, deny, cancel, stop, don't` |
-| `ZRB_LLM_DICTATION_STOP_WORDS` | Phrases that, said alone (polite words allowed) over zrb or while a turn runs with barge-in on, stop zrb speaking and cancel the turn instead of reaching the model. A list of their own, so "no" can deny an approval without stopping anything | `stop, cancel, no, nope, deny, don't` |
+| `ZRB_LLM_DICTATION_STOP_WORDS` | Phrases that, said alone (polite words allowed) over zrb or while a turn runs with barge-in on, stop zrb speaking and cancel the turn instead of reaching the model. A list of their own, so "no" can deny an approval without stopping anything | `stop, wait, hold on, cancel, no, nope, deny, don't` |
 | `ZRB_LLM_DICTATION_POLITE_WORDS` | Words a yes, a no or a stop word may carry without changing it ("yes please", "no thanks") | `please, thanks, thank, you` |
 | `ZRB_LLM_DICTATION_TRAILING_WORDS` | Words a sentence rarely ends on: an utterance whose words so far end on one waits the full `ZRB_LLM_DICTATION_SILENCE` rather than `ZRB_LLM_DICTATION_MIN_SILENCE`, since you are thinking, not done. English by default; set it for your language | `a, an, the, ..., and, but, or, ..., to, of, for, ..., um, uh, hmm, like, maybe, let's` |
 | `ZRB_LLM_DICTATION_BLOCK_DURATION` | Seconds of audio per microphone block: the step every other listening duration is counted in, and how often speech is checked | `0.1` |
 | `ZRB_LLM_DICTATION_TURN_END_TIMEOUT` | With `ZRB_LLM_DICTATION_BARGE_IN_ACTION=cancel`, seconds to wait for the cancelled turn to end before what you said starts the next one | `5` |
-
-**Echo cancellation tuning.** With `ZRB_LLM_DICTATION_BARGE_IN_ENABLED=on`, these tune how zrb's voice is removed from the microphone ([ADR-0105](../adr/adr-0105.md)). The defaults were measured on real laptops; change them only for unusual hardware, such as Bluetooth speakers whose delay exceeds a second.
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `ZRB_LLM_DICTATION_ECHO_LEAD` | Seconds the reference (what zrb played) is read ahead of the measured echo delay, so it never arrives after its echo | `0.04` |
-| `ZRB_LLM_DICTATION_ECHO_MIN_DELAY` | Shortest echo delay searched, in seconds; negative because drivers misreport latency | `-0.5` |
-| `ZRB_LLM_DICTATION_ECHO_MAX_DELAY` | Longest echo delay searched, in seconds | `1.0` |
-| `ZRB_LLM_DICTATION_ECHO_DELAY_WINDOW` | Seconds of microphone audio each delay estimate correlates with what zrb played | `2.0` |
-| `ZRB_LLM_DICTATION_ECHO_DELAY_INTERVAL` | Seconds between delay estimates | `1.0` |
-| `ZRB_LLM_DICTATION_ECHO_MIN_PEAK` | Weakest correlation peak taken as the echo rather than chance | `0.05` |
-| `ZRB_LLM_DICTATION_ECHO_MIN_PEAK_RATIO` | How many times above the typical correlation the peak must stand | `6.0` |
-| `ZRB_LLM_DICTATION_ECHO_DELAY_AGREEMENT` | Seconds within which two estimates in a row agree, which locks the delay | `0.003` |
-| `ZRB_LLM_DICTATION_ECHO_RELOCK` | Once locked, a move of more than this many seconds (another output device) re-locks and restarts the canceller; less is drift it follows | `0.025` |
-| `ZRB_LLM_DICTATION_ECHO_MIN_REFERENCE_LEVEL` | RMS level of what zrb played below which no delay is estimated | `0.01` |
-| `ZRB_LLM_DICTATION_ECHO_READY_BLOCKS` | Recent blocks of zrb speaking judged to decide whether cancellation is ready | `20` |
-| `ZRB_LLM_DICTATION_ECHO_MAX_LOUD_LEFTOVERS` | Of those, how many may stay at or over `ZRB_LLM_DICTATION_THRESHOLD` after cancelling for it to count as ready | `1` |
-| `ZRB_LLM_DICTATION_ECHO_PLAYING_LEVEL` | RMS level of what zrb played above which a block counts as zrb speaking | `0.005` |
-| `ZRB_LLM_DICTATION_ECHO_FRAME` | `numpy` canceller: seconds of audio per filter step | `0.01` |
-| `ZRB_LLM_DICTATION_ECHO_FILTER_LENGTH` | `numpy` canceller: seconds of echo path the filter covers (the lead plus the room's tail) | `0.32` |
-| `ZRB_LLM_DICTATION_ECHO_STEP` | `numpy` canceller: adaptation step, 0 to 1; larger learns faster, settles less | `0.5` |
-| `ZRB_LLM_DICTATION_ECHO_SUPPRESS_RESIDUAL` | `numpy` canceller: damp what the filter leaves of zrb's voice | `on` |
-| `ZRB_LLM_DICTATION_ECHO_CONVERGE_AFTER` | `numpy` canceller: seconds of zrb speaking it adapts over before it may count as converged | `2.0` |
 
 Each backend uses only its own variables:
 
@@ -975,8 +953,8 @@ Reads the reply a sentence at a time as it streams, tool approvals, questions, a
 | `ZRB_LLM_SPEECH_TERMUX_RATE` | Speech rate for `termux`; `1.0` is normal | `1.0` |
 | `ZRB_LLM_SPEECH_TERMUX_PITCH` | Pitch for `termux`; `1.0` is normal | `1.0` |
 | `ZRB_LLM_SPEECH_TERMUX_STREAM` | Android audio stream for `termux` (`-s`): `ALARM`, `MUSIC`, `NOTIFICATION`, `RING`, `SYSTEM`, `VOICE_CALL` | (none) |
-| `ZRB_LLM_SPEECH_PLAYER` | `auto`: zrb plays speech itself through sounddevice when the `zrb[voice]` extra is installed and the backend can render audio (`say`, `espeak-ng`, `openai`, `gemini`), which barge-in's echo cancellation needs; else a player program. A cloud backend with `ZRB_LLM_SPEECH_WAV_PLAYER` set uses that player, and a device that cannot open sends the rest of the session to a player program. `command`: always a player program. Any other value is logged and read as `auto` | `auto` |
-| `ZRB_LLM_SPEECH_WAV_PLAYER` | Command playing the cloud backends' WAV, the path appended (e.g. `mpv --really-quiet`); set, it plays every sentence even under `ZRB_LLM_SPEECH_PLAYER=auto` (outside barge-in's echo cancellation); empty picks `afplay`, `paplay`, `aplay` or `ffplay` | (none) |
+| `ZRB_LLM_SPEECH_PLAYER` | `auto`: zrb plays speech itself through sounddevice when the `zrb[voice]` extra is installed and the backend can render audio (`say`, `espeak-ng`, `openai`, `gemini`), so speech can pause while you talk over it; else a player program. A cloud backend with `ZRB_LLM_SPEECH_WAV_PLAYER` set uses that player, and a device that cannot open sends the rest of the session to a player program. `command`: always a player program. Any other value is logged and read as `auto` | `auto` |
+| `ZRB_LLM_SPEECH_WAV_PLAYER` | Command playing the cloud backends' WAV, the path appended (e.g. `mpv --really-quiet`); set, it plays every sentence even under `ZRB_LLM_SPEECH_PLAYER=auto` (and speech can then not pause); empty picks `afplay`, `paplay`, `aplay` or `ffplay` | (none) |
 | `ZRB_LLM_SPEECH_LOCK_FILE` | File locked while speech plays, so sessions take turns and dictation ignores zrb's own voice | `<tmp>/<root group name>-speech.lock` |
 | `ZRB_LLM_SPEECH_LOCK_TIMEOUT` | Seconds to wait for another session to finish before dropping an utterance | `30` |
 | `ZRB_LLM_SPEECH_DRAIN_TIMEOUT` | Seconds queued speech may still play after zrb exits | `30` |

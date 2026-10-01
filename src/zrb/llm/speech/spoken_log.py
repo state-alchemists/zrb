@@ -1,13 +1,13 @@
 """What zrb said aloud lately, and when.
 
-Echo cancellation never removes all of zrb's voice: laptop speakers distort
-it at volume, and a room changes. What is left can be loud enough to be
-heard as the user, and transcribed into zrb's own words, which then reach
-the model as a turn — zrb talking to itself. Dictation reads this log to
-drop a transcript that only repeats what zrb was saying when it was heard.
+On speakers, with barge-in on, the microphone hears zrb's own voice. Now
+and then it is loud enough to get past the bar over it, and is transcribed
+into zrb's own words, which would reach the model as a turn — zrb talking to
+itself. Dictation reads this log to drop a transcript that only repeats what
+zrb was saying when it was heard.
 
-One process-wide instance, `spoken_log`, as for `echo_reference`: the
-speakers and the microphone are one room. Times are `time.monotonic()`.
+One process-wide instance, `spoken_log`: the speakers and the microphone are
+one room. Times are `time.monotonic()`.
 """
 
 from __future__ import annotations

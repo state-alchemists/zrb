@@ -21,6 +21,7 @@ restored.
 """
 
 import os
+import tempfile
 
 import pytest
 
@@ -52,6 +53,12 @@ _TEST_ENV = {
     # runs next. Tests exercising the judge re-enable it explicitly
     # (test/llm/hook/test_journal_compliance.py).
     "ZRB_LLM_JOURNAL_ENABLED": "off",
+    # The speech lock file is shared by every zrb process, so a developer's
+    # own `zrb chat` speaking (or holding it paused) would make every
+    # `is_speaking()` check in the suite read true. One per test run.
+    "ZRB_LLM_SPEECH_LOCK_FILE": os.path.join(
+        tempfile.gettempdir(), f"zrb-test-speech-{os.getpid()}.lock"
+    ),
 }
 
 

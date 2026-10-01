@@ -7,7 +7,6 @@ import contextlib
 import pytest
 
 from zrb.llm.dictation import AnyDictationBackend, DictationConfig
-from zrb.llm.dictation.echo import EchoCancellation
 from zrb.llm.dictation.feature import DictationSession
 from zrb.llm.dictation.listen import Utterance
 from zrb.llm.speech.spoken_log import SpokenLog
@@ -113,8 +112,8 @@ async def test_words_without_the_wake_word_let_zrb_carry_on(monkeypatch, speech)
 async def test_the_wake_word_heard_while_still_speaking_stops_zrb_early(
     monkeypatch, speech
 ):
-    _listen(monkeypatch, "hey zed wait", partials=["", "hey zed"])
-    assert await _replies(_session(wake_words=["hey zed"]), 1) == ["wait"]
+    _listen(monkeypatch, "hey zed wait there", partials=["", "hey zed"])
+    assert await _replies(_session(wake_words=["hey zed"]), 1) == ["wait there"]
     # Stopped by the partial words; the transcript finds nothing to add.
     assert speech == ["pause", "interrupt"]
 
@@ -160,8 +159,8 @@ async def test_stop_said_too_briefly_to_pause_zrb_still_stops_it(monkeypatch, sp
 
 @pytest.mark.asyncio
 async def test_a_dropped_barge_in_lets_zrb_carry_on(monkeypatch, speech):
-    _listen(monkeypatch, "hello", drop_first=True)
-    assert await _replies(_session(), 1) == ["hello"]
+    _listen(monkeypatch, "hello there", drop_first=True)
+    assert await _replies(_session(), 1) == ["hello there"]
     assert speech == ["pause", "resume", "pause", "interrupt"]
 
 
@@ -185,29 +184,6 @@ async def test_closing_mid_pause_resumes(monkeypatch, speech):
     # Closed here, not by the garbage collector during a later test.
     await stream.aclose()
     assert speech[:2] == ["pause", "resume"]
-
-
-@pytest.mark.asyncio
-async def test_the_echo_cancellation_is_built_once_with_barge_in_on(
-    monkeypatch, speech
-):
-    seen = _listen(monkeypatch, "first")
-    session = _session(barge_in_enabled=True, echo_canceller="none")
-    await _replies(session, 1)
-    echo = seen["echo"]
-    assert isinstance(echo, EchoCancellation)
-    assert echo.canceller.name == "none"
-
-    seen2 = _listen(monkeypatch, "second")
-    await _replies(session, 1)
-    assert seen2["echo"] is echo
-
-
-@pytest.mark.asyncio
-async def test_no_echo_cancellation_with_barge_in_off(monkeypatch, speech):
-    seen = _listen(monkeypatch, "first")
-    await _replies(_session(barge_in_enabled=False), 1)
-    assert seen["echo"] is None
 
 
 @pytest.mark.asyncio
@@ -281,6 +257,6 @@ async def test_words_zrb_did_not_say_are_not_taken_for_its_voice(monkeypatch, sp
     log = SpokenLog()
     log.finish(log.start("Goodnight. Sleep well.", -10.0), -9.0)  # long done
     monkeypatch.setattr("zrb.llm.dictation.feature.spoken_log", log)
-    _listen(monkeypatch, "sleep")
+    _listen(monkeypatch, "sleep now")
 
-    assert await _replies(_session(), 1) == ["sleep"]
+    assert await _replies(_session(), 1) == ["sleep now"]

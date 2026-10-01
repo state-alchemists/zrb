@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 from zrb.llm.util.feature_config import resolve_from_cfg
 
 if TYPE_CHECKING:
-    from zrb.llm.dictation.echo.any_echo_canceller import AnyEchoCanceller
     from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 
 
@@ -35,8 +34,9 @@ class DictationConfig:
     pre_roll: float | None = None
     echo_cooldown: float | None = None
     barge_in_enabled: bool | None = None
-    echo_canceller: "str | AnyEchoCanceller | None" = None
     barge_in_min_speech: float | None = None
+    barge_in_margin: float | None = None
+    barge_in_min_words: int | None = None
     barge_in_action: str | None = None
     self_echo_match: float | None = None
     self_echo_tail: float | None = None
@@ -48,24 +48,6 @@ class DictationConfig:
     block_duration: float | None = None
     turn_end_timeout: float | None = None
     transcribe_prompt: str | None = None
-    echo_lead: float | None = None
-    echo_min_delay: float | None = None
-    echo_max_delay: float | None = None
-    echo_delay_window: float | None = None
-    echo_delay_interval: float | None = None
-    echo_min_peak: float | None = None
-    echo_min_peak_ratio: float | None = None
-    echo_delay_agreement: float | None = None
-    echo_relock: float | None = None
-    echo_min_reference_level: float | None = None
-    echo_ready_blocks: int | None = None
-    echo_max_loud_leftovers: int | None = None
-    echo_playing_level: float | None = None
-    echo_frame: float | None = None
-    echo_filter_length: float | None = None
-    echo_step: float | None = None
-    echo_suppress_residual: bool | None = None
-    echo_converge_after: float | None = None
     openai_model: str | None = None
     openai_base_url: str | None = None
     google_model: str | None = None
