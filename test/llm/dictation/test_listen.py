@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from zrb.llm.dictation.config import DictationConfig
-from zrb.llm.dictation.listen import MicState, listen, record
+from zrb.llm.dictation.listen import MicState, UtteranceCutter, listen, record
 
 np = pytest.importorskip("numpy")
 
@@ -394,3 +394,26 @@ async def test_speech_is_never_joined_across_dropped_audio():
         utterances = await task
 
     assert [u.audio for u in utterances] == [_pcm(0.75, 0.75, 0.75, 0.75)]
+
+
+def test_the_block_duration_is_what_every_duration_is_counted_in():
+    # 0.2 s blocks: 0.4 s of silence is two quiet blocks.
+    cutter = UtteranceCutter(
+        DictationConfig(
+            block_duration=0.2,
+            threshold=0.1,
+            silence=0.4,
+            min_speech=0.2,
+            pre_roll=0,
+            echo_cooldown=0,
+        ).resolve()
+    )
+    finished = [cutter.feed(i, level, i * 0.2, False) for i, level in enumerate([1, 0])]
+    assert finished == [None, None]
+    assert cutter.quiet_seconds == pytest.approx(0.2)
+    assert cutter.feed(2, 0, 0.4, False) is not None
+
+
+def test_a_block_duration_that_is_not_positive_is_refused():
+    with pytest.raises(ValueError, match="BLOCK_DURATION"):
+        UtteranceCutter(DictationConfig(block_duration=0).resolve())

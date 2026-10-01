@@ -13,6 +13,7 @@ from collections.abc import AsyncGenerator, Awaitable, Callable
 from enum import Enum
 from typing import TYPE_CHECKING, Any, NamedTuple
 
+from zrb.config.config import CFG
 from zrb.llm.dictation.backend.any_transcription_stream import AnyTranscriptionStream
 from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.words import is_finished_phrase
@@ -23,7 +24,8 @@ if TYPE_CHECKING:
     from zrb.llm.dictation.echo.cancellation import EchoCancellation
 
 SAMPLE_RATE = 16000  # what the transcribers expect
-BLOCK_SECONDS = 0.1
+# How often a push-to-talk recording checks whether to stop.
+_RECORD_POLL_SECONDS = 0.1
 
 
 class Utterance(NamedTuple):
@@ -70,14 +72,15 @@ class UtteranceCutter:
 
     def __init__(self, config: DictationConfig) -> None:
         self._config = config
-        self._pre_roll: deque[Any] = deque(maxlen=_to_blocks(config.pre_roll or 0))
+        self._block_seconds = get_block_seconds(config)
+        self._pre_roll: deque[Any] = deque(maxlen=self._to_blocks(config.pre_roll))
         self._speech: list[Any] = []
         self._pre_roll_blocks = 0
         self._silent_blocks = 0
         self._started_at = 0.0
         self._cooldown_blocks = 0
         self._is_barge_in_enabled = (config.barge_in or "off").strip().lower() == "on"
-        self._barge_in_blocks = max(1, _to_blocks(config.barge_in_min_speech or 0))
+        self._barge_in_blocks = max(1, self._to_blocks(config.barge_in_min_speech))
         self._loud_echo_blocks = 0
         self._is_finished_barge_in = False
         self._is_finished_over_speech = False
@@ -122,7 +125,7 @@ class UtteranceCutter:
             is_echo_heard = self._is_barge_in_enabled
         if is_echo and not is_echo_heard:
             self.reset()
-            self._cooldown_blocks = _to_blocks(self._config.echo_cooldown or 0)
+            self._cooldown_blocks = self._to_blocks(self._config.echo_cooldown)
             return None
         if self._cooldown_blocks:
             self._cooldown_blocks -= 1
@@ -136,7 +139,7 @@ class UtteranceCutter:
             self._speech = [*self._pre_roll, block]
             self._pre_roll_blocks = len(self._pre_roll)
             # The block's first sample, heard one block before it arrived.
-            self._started_at = captured_at - BLOCK_SECONDS
+            self._started_at = captured_at - self._block_seconds
             self._pre_roll.clear()
             return None
         return self._continue_speech(block, loud, captured_at, is_echo)
@@ -151,10 +154,10 @@ class UtteranceCutter:
         if loud and is_echo:
             self._loud_echo_blocks += 1
         config = self._config
-        max_blocks = _to_blocks(config.max_utterance or 0)
+        max_blocks = self._to_blocks(config.max_utterance)
         is_too_long = bool(max_blocks) and len(self._speech) >= max_blocks
         # At least one quiet block, or speech would end at its next block.
-        silence_blocks = max(1, _to_blocks(config.silence or 0))
+        silence_blocks = max(1, self._to_blocks(config.silence))
         if self._silent_blocks < silence_blocks and not is_too_long:
             return None
         return self._finish(captured_at)
@@ -172,7 +175,7 @@ class UtteranceCutter:
     @property
     def quiet_seconds(self) -> float:
         """How long the utterance in progress has been quiet."""
-        return self._silent_blocks * BLOCK_SECONDS
+        return self._silent_blocks * self._block_seconds
 
     @property
     def is_cooling_down(self) -> bool:
@@ -194,7 +197,7 @@ class UtteranceCutter:
         self._is_finished_barge_in = False
         self._is_finished_over_speech = False
         self.reset()
-        if not blocks or spoken_blocks < _to_blocks(self._config.min_speech or 0):
+        if not blocks or spoken_blocks < self._to_blocks(self._config.min_speech):
             return None
         self._is_finished_barge_in = is_barge_in
         self._is_finished_over_speech = is_over_speech
@@ -204,6 +207,9 @@ class UtteranceCutter:
         """From the first loud block to the last: pre-roll and trailing
         silence are not speech."""
         return len(self._speech) - self._pre_roll_blocks - self._silent_blocks
+
+    def _to_blocks(self, seconds: float | None) -> int:
+        return to_blocks(seconds, self._block_seconds)
 
     def reset(self) -> None:
         """Forget the utterance in progress, its barge-in count, and the
@@ -257,7 +263,8 @@ async def listen(
     """
     np, sd = import_audio()
     loop = asyncio.get_running_loop()
-    backlog = _Backlog(_to_blocks(config.max_backlog or 0))
+    block_seconds = get_block_seconds(config)
+    backlog = _Backlog(to_blocks(config.max_backlog, block_seconds))
 
     def on_audio(indata: Any, frames: int, time_info: Any, status: Any) -> None:
         # Checked at capture: blocks queue up during transcription, so
@@ -281,11 +288,11 @@ async def listen(
         _UtteranceStreamer(np, create_stream, on_partial),
         echo if config.barge_in and config.barge_in.strip().lower() == "on" else None,
     )
-    stream = _open_microphone(sd, on_audio, blocksize=int(SAMPLE_RATE * BLOCK_SECONDS))
+    stream = _open_microphone(sd, on_audio, blocksize=int(SAMPLE_RATE * block_seconds))
     try:
         with stream:
             while should_listen():
-                item = await backlog.get(timeout=BLOCK_SECONDS * 5)
+                item = await backlog.get(timeout=block_seconds * 5)
                 if item is None:
                     continue
                 utterance = await blocks.handle(*item)
@@ -498,7 +505,7 @@ class _UtteranceStreamer:
             return False
         if cutter.quiet_seconds < min_silence:
             return False
-        return is_finished_phrase(self._stream.partial)
+        return is_finished_phrase(self._stream.partial, config.trailing_words)
 
     async def take(self, blocks: list[Any]) -> "AnyTranscriptionStream | None":
         """Hand over the stream of an utterance that ended with *blocks*."""
@@ -612,9 +619,23 @@ def _open_microphone(sd: Any, on_audio: Callable[..., None], **options: Any) -> 
         ) from e
 
 
-def _to_blocks(seconds: float) -> int:
-    """*seconds* as whole blocks; a negative duration is none."""
-    return max(0, round(seconds / BLOCK_SECONDS))
+def get_block_seconds(config: DictationConfig) -> float:
+    """``config.block_duration``, the seconds in each microphone block;
+    unset, `CFG.LLM_DICTATION_BLOCK_DURATION`."""
+    seconds = config.block_duration
+    if seconds is None:
+        seconds = CFG.LLM_DICTATION_BLOCK_DURATION
+    if seconds is None or seconds <= 0:
+        raise ValueError(
+            f"block_duration must be a positive number of seconds, got {seconds!r}; "
+            "set ZRB_LLM_DICTATION_BLOCK_DURATION (default 0.1)."
+        )
+    return seconds
+
+
+def to_blocks(seconds: float | None, block_seconds: float) -> int:
+    """*seconds* as whole blocks of *block_seconds*; none or negative is 0."""
+    return max(0, round((seconds or 0) / block_seconds))
 
 
 async def record(should_record: Callable[[], bool]) -> bytes:
@@ -631,7 +652,9 @@ async def record(should_record: Callable[[], bool]) -> bytes:
     with _open_microphone(sd, on_audio):
         while should_record():
             try:
-                recorded.append(await asyncio.wait_for(blocks.get(), BLOCK_SECONDS))
+                recorded.append(
+                    await asyncio.wait_for(blocks.get(), _RECORD_POLL_SECONDS)
+                )
             except asyncio.TimeoutError:
                 continue
     if not recorded:

@@ -17,6 +17,7 @@ import time
 from collections import deque
 from typing import Any
 
+from zrb.config.config import CFG
 from zrb.llm.speech.backend.audio import SpeechAudio
 from zrb.llm.speech.backend.utterance import Utterance
 from zrb.llm.speech.echo_reference import (
@@ -26,8 +27,6 @@ from zrb.llm.speech.echo_reference import (
     get_monotonic_time,
 )
 
-_BLOCK_FRAMES = 1024
-_MAX_BUFFERED = 32
 # How long playback waits for the source reader to see it has ended.
 _READER_JOIN_SECONDS = 1.0
 _BUFFER_POLL_SECONDS = 0.005
@@ -47,10 +46,25 @@ def is_available() -> bool:
 
 
 class PcmUtterance(Utterance):
-    """`SpeechAudio` played through a sounddevice output stream."""
+    """`SpeechAudio` played through a sounddevice output stream, in blocks of
+    *block_frames* samples, reading *read_ahead* chunks ahead of playback;
+    left ``None``, `CFG.LLM_SPEECH_PLAYER_BLOCK_FRAMES` and
+    `CFG.LLM_SPEECH_PLAYER_READ_AHEAD`."""
 
-    def __init__(self, audio: SpeechAudio, reference: EchoReference | None = None):
+    def __init__(
+        self,
+        audio: SpeechAudio,
+        reference: EchoReference | None = None,
+        block_frames: int | None = None,
+        read_ahead: int | None = None,
+    ):
         super().__init__([])
+        if block_frames is None:
+            block_frames = CFG.LLM_SPEECH_PLAYER_BLOCK_FRAMES
+        if read_ahead is None:
+            read_ahead = CFG.LLM_SPEECH_PLAYER_READ_AHEAD
+        self._block_frames = max(1, block_frames)
+        self._read_ahead = max(1, read_ahead)
         self._audio = audio
         self._reference = reference or echo_reference
         self._buffer: deque[bytes] = deque()
@@ -91,7 +105,7 @@ class PcmUtterance(Utterance):
                 samplerate=self._audio.sample_rate,
                 channels=1,
                 dtype="int16",
-                blocksize=_BLOCK_FRAMES,
+                blocksize=self._block_frames,
                 callback=lambda out, frames, info, status: self._fill(
                     np, sd, out, frames, info
                 ),
@@ -128,7 +142,7 @@ class PcmUtterance(Utterance):
         try:
             for chunk in self._audio.chunks:
                 # Read ahead a little, not the whole download into memory.
-                while len(self._buffer) >= _MAX_BUFFERED and not self.is_stopped:
+                while len(self._buffer) >= self._read_ahead and not self.is_stopped:
                     time.sleep(_BUFFER_POLL_SECONDS)
                 if self.is_stopped:
                     break

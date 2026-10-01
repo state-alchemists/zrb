@@ -35,9 +35,11 @@ def get_dictation_backend(
             config.openai_model or "", base_url=config.openai_base_url or None
         )
     if name == "google":
-        return GoogleDictationBackend(config.google_model or "")
+        return GoogleDictationBackend(
+            config.google_model or "", instruction=config.transcribe_prompt or None
+        )
     if name == "multimodal":
-        return MultimodalDictationBackend()
+        return MultimodalDictationBackend(instruction=config.transcribe_prompt or None)
     raise ValueError(
         f"unknown dictation backend {backend!r}: use vosk, openai, google, "
         "multimodal, or an AnyDictationBackend"

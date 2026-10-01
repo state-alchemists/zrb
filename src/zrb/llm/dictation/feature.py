@@ -22,7 +22,12 @@ from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.echo.builtin import get_echo_canceller
 from zrb.llm.dictation.echo.cancellation import EchoCancellation
 from zrb.llm.dictation.listen import MicState, Utterance, import_audio, listen
-from zrb.llm.dictation.words import split_phrases, strip_wake_word, to_answer
+from zrb.llm.dictation.words import (
+    is_said_alone,
+    split_phrases,
+    strip_wake_word,
+    to_answer,
+)
 from zrb.llm.speech.feature import interrupt_speech, pause_speech, resume_speech
 from zrb.llm.ui.trigger import TriggerReply
 from zrb.llm.util.feature_config import (
@@ -60,7 +65,6 @@ _INTERRUPTED = "✋ interrupted · go on…"
 _PAUSED = "✋ paused · listening…"
 # How long a cancelled turn may take to unwind before what the user said
 # is sent anyway.
-_TURN_END_TIMEOUT = 5.0
 _TURN_END_POLL = 0.05
 _MAX_QUOTED_CHARS = 40
 
@@ -107,6 +111,8 @@ class DictationSession:
         self._wake_words = split_phrases(config.wake_words or [])
         self._approve_words = split_phrases(config.approve_words or [])
         self._deny_words = split_phrases(config.deny_words or [])
+        self._stop_words = split_phrases(config.stop_words or [])
+        self._polite_words = config.polite_words
         # The UI hands-free was last switched on from, for when no UI is bound
         # to the session.
         self._ui: "AnyUI | None" = None
@@ -320,7 +326,12 @@ class DictationSession:
                 self._rest(f"🎤 heard {_quote(command)} · listening")
                 yield TriggerReply(
                     command,
-                    approval=to_answer(command, self._approve_words, self._deny_words),
+                    approval=to_answer(
+                        command,
+                        self._approve_words,
+                        self._deny_words,
+                        self._polite_words,
+                    ),
                     started_at=utterance.started_at,
                 )
 
@@ -330,10 +341,10 @@ class DictationSession:
         if (self._config.barge_in or "off").strip().lower() != "on":
             return None
         if self._echo is None:
-            canceller = get_echo_canceller(self._config.echo_canceller or "numpy")
-            self._echo = EchoCancellation(
-                canceller, threshold=self._config.threshold or 0.01
+            canceller = get_echo_canceller(
+                self._config.echo_canceller or "numpy", self._config
             )
+            self._echo = EchoCancellation(canceller, config=self._config)
         return self._echo
 
     def _handle_barge_in(self) -> None:
@@ -371,21 +382,21 @@ class DictationSession:
 
     async def _should_send_barge_in(self, command: str) -> bool:
         """Act on what the user said over zrb, and say whether it still goes
-        on to be a turn or an answer. A deny word alone stops the turn and is sent
+        on to be a turn or an answer. A stop word alone stops the turn and is sent
         nowhere; with ``barge_in_action`` ``cancel``, anything else stops the
         turn and starts a new one. An answer to the prompt being asked is
         left alone: "no" there denies a tool call, not the turn."""
         ui = get_session_ui() or self._ui
         if ui is None or getattr(ui, "is_waiting_for_answer", False):
             return True
-        if to_answer(command, [], self._deny_words) == "no":
+        if is_said_alone(command, self._stop_words, self._polite_words):
             ui.cancel_current_turn("barge_in")
             self._rest("✋ stopped · listening")
             return False
         action = (self._config.barge_in_action or "steer").strip().lower()
         if action == "cancel" and ui.is_thinking:
             ui.cancel_current_turn("barge_in")
-            await _wait_for_turn_end(ui)
+            await _wait_for_turn_end(ui, self._config.turn_end_timeout or 0)
         return True
 
     def _show_partial(self, partial: str) -> None:
@@ -464,10 +475,10 @@ async def _close_quietly(stream: "AnyTranscriptionStream") -> None:
         logger.warning(f"Closing a transcription stream failed: {exc}")
 
 
-async def _wait_for_turn_end(ui: "AnyUI") -> None:
+async def _wait_for_turn_end(ui: "AnyUI", timeout: float) -> None:
     """Wait for a cancelled turn to unwind, so what the user said starts a
     new turn instead of steering into the one being cancelled."""
-    deadline = asyncio.get_running_loop().time() + _TURN_END_TIMEOUT
+    deadline = asyncio.get_running_loop().time() + timeout
     while ui.is_thinking and asyncio.get_running_loop().time() < deadline:
         await asyncio.sleep(_TURN_END_POLL)
 

@@ -48,6 +48,19 @@ class SpeechConfig:
     lock_timeout: float | None = None
     drain_timeout: float | None = None
     player_timeout: float | None = None
+    question_message: str | None = None
+    approval_message: str | None = None
+    approval_target_keys: list[str] | None = None
+    approval_target_max_chars: int | None = None
+    progress_silent_tools: list[str] | None = None
+    gemini_prompt: str | None = None
+    gemini_style_prompt: str | None = None
+    render_timeout: float | None = None
+    stall_timeout: float | None = None
+    player_block_frames: int | None = None
+    player_read_ahead: int | None = None
+    progress_phrases: dict[str, str] | None = None
+    approval_actions: dict[str, str] | None = None
 
     def resolve(self) -> "SpeechConfig":
         """A copy with every ``None`` field read from `CFG`."""

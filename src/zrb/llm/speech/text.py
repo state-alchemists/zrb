@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from fnmatch import fnmatchcase
 
 _FENCE_RE = re.compile(r"(```|~~~).*?\1", re.DOTALL)
 # A fence opening a line with no close runs to the end: a reply cut mid-code.
@@ -120,3 +121,22 @@ def _cut(text: str, max_chars: int) -> str:
     if ends_mid_word and " " in window:
         window = window[: window.rfind(" ")]
     return window.rstrip(" ,;:") + "."
+
+
+def fill_template(template: str, **values: str) -> str:
+    """*template* with each ``{name}`` in *values* replaced. Other braces
+    are left as written, so a configured phrase needs no escaping."""
+    for name, value in values.items():
+        template = template.replace("{" + name + "}", value)
+    return template
+
+
+def match_tool_phrase(tool: str | None, phrases: dict[str, str]) -> str | None:
+    """The phrase of the first pattern in *phrases* matching *tool* (``*``
+    and ``?`` wildcards; ``""`` matches no tool name), its ``{tool}``
+    filled in; ``None`` when none matches."""
+    name = tool or ""
+    for pattern, phrase in phrases.items():
+        if fnmatchcase(name, pattern):
+            return fill_template(phrase, tool=name)
+    return None

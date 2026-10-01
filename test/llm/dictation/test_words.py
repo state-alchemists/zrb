@@ -1,7 +1,9 @@
 import pytest
 
+from zrb.config.config import CFG
 from zrb.llm.dictation.words import (
     is_finished_phrase,
+    is_said_alone,
     split_phrases,
     strip_wake_word,
     to_answer,
@@ -79,3 +81,32 @@ def test_to_answer(said, answer):
 )
 def test_is_finished_phrase(text, is_finished):
     assert is_finished_phrase(text) is is_finished
+
+
+def test_to_answer_takes_the_polite_words_it_is_given():
+    assert to_answer("yes tolong", APPROVE, DENY, ["tolong"]) == "yes"
+    assert to_answer("yes please", APPROVE, DENY, ["tolong"]) == "yes please"
+
+
+def test_to_answer_reads_the_polite_words_from_cfg_when_called(monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_DICTATION_POLITE_WORDS", ["mohon"])
+    assert to_answer("no mohon", APPROVE, DENY) == "no"
+    assert to_answer("no thanks", APPROVE, DENY) == "no thanks"
+
+
+def test_is_finished_phrase_takes_the_trailing_words_it_is_given():
+    assert not is_finished_phrase("saya mau dan", ["dan"])
+    assert is_finished_phrase("open the", ["dan"])
+
+
+def test_is_finished_phrase_reads_the_trailing_words_from_cfg(monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_DICTATION_TRAILING_WORDS", ["yang"])
+    assert not is_finished_phrase("buka file yang")
+    assert is_finished_phrase("open the")
+
+
+def test_is_said_alone_needs_one_of_the_phrases():
+    stop = split_phrases(["stop", "hold on"])
+    assert is_said_alone("Hold on, please.", stop)
+    assert not is_said_alone("no", stop)
+    assert not is_said_alone("please", stop)

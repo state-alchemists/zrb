@@ -173,3 +173,48 @@ async def test_speech_after_zrb_stopped_is_an_ordinary_turn(
     assert await _replies(session, 1) == ["stop"]
     assert interrupted == []
     assert ui.cancelled == []
+
+
+@pytest.mark.asyncio
+async def test_stop_words_are_their_own_list_not_the_deny_words(
+    monkeypatch, interrupted, ui
+):
+    # "hold on" stops the turn; "no" is a deny word here but no stop word.
+    _fake_listen(monkeypatch, "Hold on, please.", "no", "next")
+    ui.is_thinking = True
+    session = _session(stop_words=["hold on"], deny_words=["no"])
+
+    assert await _replies(session, 2) == ["no", "next"]
+    assert ui.cancelled == ["barge_in"]
+
+
+@pytest.mark.asyncio
+async def test_the_polite_words_a_stop_word_may_carry_are_configured(
+    monkeypatch, interrupted, ui
+):
+    _fake_listen(monkeypatch, "stop tolong", "stop please", "next")
+    ui.is_thinking = True
+    session = _session(polite_words=["tolong"])
+
+    # "please" is no polite word here, so "stop please" is a message.
+    assert await _replies(session, 2) == ["stop please", "next"]
+    assert ui.cancelled == ["barge_in"]
+
+
+@pytest.mark.asyncio
+async def test_cancel_action_gives_up_waiting_after_the_turn_end_timeout(
+    monkeypatch, interrupted
+):
+    class StuckUI(FakeUI):
+        def cancel_current_turn(self, reason):
+            self.cancelled.append(reason)  # the turn never ends
+
+    stuck = StuckUI(is_thinking=True)
+    set_session_ui(stuck)
+    try:
+        _fake_listen(monkeypatch, "start over")
+        session = _session(barge_in_action="cancel", turn_end_timeout=0.05)
+        reply = await asyncio.wait_for(_replies(session, 1), timeout=2)
+        assert reply == ["start over"]
+    finally:
+        reset_session_ui()

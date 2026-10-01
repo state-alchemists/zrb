@@ -58,12 +58,20 @@ def _create_termux(config: "SpeechConfig") -> AnySpeechBackend:
 
 
 def _create_say(config: "SpeechConfig") -> AnySpeechBackend:
-    return LocalCommandBackend("say", "-r", config.voice or "", config.rate or 0)
+    return LocalCommandBackend(
+        "say",
+        "-r",
+        config.voice or "",
+        config.rate or 0,
+        render_timeout=config.render_timeout,
+    )
 
 
 def _create_espeak(config: "SpeechConfig") -> AnySpeechBackend:
     voice = config.voice or "en-us+m3"
-    return LocalCommandBackend("espeak-ng", "-s", voice, config.rate or 0)
+    return LocalCommandBackend(
+        "espeak-ng", "-s", voice, config.rate or 0, render_timeout=config.render_timeout
+    )
 
 
 def _create_openai(config: "SpeechConfig") -> AnySpeechBackend:
@@ -74,6 +82,7 @@ def _create_openai(config: "SpeechConfig") -> AnySpeechBackend:
         timeout=config.timeout or None,
         wav_player=config.wav_player or "",
         style=config.style or "",
+        stall_timeout=config.stall_timeout,
     )
 
 
@@ -84,6 +93,8 @@ def _create_gemini(config: "SpeechConfig") -> AnySpeechBackend:
         timeout=config.timeout or None,
         wav_player=config.wav_player or "",
         style=config.style or "",
+        prompt=config.gemini_prompt,
+        style_prompt=config.gemini_style_prompt,
     )
 
 

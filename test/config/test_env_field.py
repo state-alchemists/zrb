@@ -9,6 +9,8 @@ from zrb.config.env_field import (
     comma_join,
     comma_list,
     expanduser_path_list,
+    json_dump,
+    json_object,
     on_off,
     path_list,
     path_list_join,
@@ -249,3 +251,19 @@ def test_class_access_returns_descriptor():
 
 def test_doc_is_exposed():
     assert _Host.PLAIN.__doc__ == "plain int from DEFAULT_ fallback"
+
+
+def test_json_object_parses_an_object_of_strings_keeping_its_order():
+    assert json_object('{"b": "B", "a": 1}') == {"b": "B", "a": "1"}
+    assert list(json_object('{"z": "", "a": ""}')) == ["z", "a"]
+    assert json_object("  ") == {}
+
+
+def test_json_object_refuses_anything_but_an_object():
+    with pytest.raises(ValueError, match="JSON object"):
+        json_object('["a"]')
+
+
+def test_json_dump_writes_what_json_object_reads():
+    value = {"Read": "Membaca berkas.", "*": "Pakai {tool}."}
+    assert json_object(json_dump(value)) == value

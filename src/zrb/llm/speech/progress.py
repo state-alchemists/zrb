@@ -17,42 +17,27 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from zrb.config.config import CFG
 from zrb.llm.speech.player import IsStale
-
-_TOOL_PROGRESS = {
-    "Read": "Reading a file.",
-    "AnalyzeFile": "Reading a file.",
-    "LS": "Looking through the files.",
-    "Glob": "Looking through the files.",
-    "Grep": "Searching the code.",
-    "AnalyzeCode": "Reading the code.",
-    "Write": "Writing a file.",
-    "Edit": "Editing a file.",
-    "MV": "Moving a file.",
-    "RM": "Removing a file.",
-    "Shell": "Running a command.",
-    "Bash": "Running a command.",
-    "WebSearch": "Searching the web.",
-    "WebFetch": "Reading a web page.",
-    "DelegateToAgent": "Handing this to a sub-agent.",
-    "DelegateToAgentBackground": "Handing this to a sub-agent.",
-}
-# Bookkeeping tools that are over too fast to be worth a word.
-_SILENT_TOOLS = {"TodoRead", "TodoWrite", "ActivateSkill", "SearchSkill"}
+from zrb.llm.speech.text import match_tool_phrase
 
 
-def describe_tool_progress(tool: str | None) -> str:
-    """A spoken line saying what a tool call is doing."""
-    if tool in _TOOL_PROGRESS:
-        return _TOOL_PROGRESS[tool]
-    if tool and tool.startswith("Lsp"):
-        return "Checking the code."
-    return f"Using the {tool} tool." if tool else "Working on it."
+def describe_tool_progress(
+    tool: str | None, phrases: dict[str, str] | None = None
+) -> str | None:
+    """A spoken line saying what a tool call is doing, from *phrases*
+    (default: `CFG.LLM_SPEECH_PROGRESS_PHRASES`); ``None`` for a tool no
+    pattern matches, which is not announced."""
+    if phrases is None:
+        phrases = CFG.LLM_SPEECH_PROGRESS_PHRASES
+    return match_tool_phrase(tool, phrases)
 
 
 class ProgressNarrator:
     """Speaks a tool call's progress line when nothing was said for
-    *interval* seconds (``0``: never).
+    *interval* seconds (``0``: never), except for *silent_tools*, in the
+    words of *phrases* (defaults: `CFG.LLM_SPEECH_PROGRESS_SILENT_TOOLS`,
+    `CFG.LLM_SPEECH_PROGRESS_PHRASES`).
 
     *say* queues a line with a staleness check; *seconds_since_said* is how
     long since anything was last queued, by this or anything else speaking
@@ -64,7 +49,13 @@ class ProgressNarrator:
         say: Callable[[str, IsStale], None],
         seconds_since_said: Callable[[], float],
         interval: float,
+        silent_tools: list[str] | None = None,
+        phrases: dict[str, str] | None = None,
     ) -> None:
+        self._phrases = phrases
+        if silent_tools is None:
+            silent_tools = CFG.LLM_SPEECH_PROGRESS_SILENT_TOOLS
+        self._silent_tools = set(silent_tools)
         self._say = say
         self._seconds_since_said = seconds_since_said
         self._interval = max(interval, 0.0)
@@ -82,13 +73,16 @@ class ProgressNarrator:
     def _start(self, part: Any) -> None:
         tool = getattr(part, "tool_name", None)
         call_id = str(getattr(part, "tool_call_id", "") or "")
-        if not self._interval or tool in _SILENT_TOOLS:
+        if not self._interval or tool in self._silent_tools:
             return
         if self._seconds_since_said() < self._interval:
             return
+        line = describe_tool_progress(tool, self._phrases)
+        if not line:
+            return
         with self._lock:
             self._running.add(call_id)
-        self._say(describe_tool_progress(tool), lambda: self._is_finished(call_id))
+        self._say(line, lambda: self._is_finished(call_id))
 
     def _is_finished(self, call_id: str) -> bool:
         with self._lock:

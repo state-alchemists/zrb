@@ -16,25 +16,28 @@ from __future__ import annotations
 
 from typing import Any
 
+from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.echo.any_echo_canceller import AnyEchoCanceller
 
 RATE = 16000
-# Adapted over this much of zrb speaking since it started (or reset).
-_CONVERGED_AFTER_SECONDS = 2.0
 
 
 class NumpyEchoCanceller(AnyEchoCanceller):
-    """*block* samples per step (10 ms at 16 kHz), a filter covering
-    *filter_ms* of echo path (playback delay plus the room's tail)."""
+    """Tuned by *config*'s ``echo_frame`` (seconds per filter step),
+    ``echo_filter_length`` (seconds of echo path covered: playback delay
+    plus the room's tail), ``echo_step``, ``echo_suppress_residual`` and
+    ``echo_converge_after``; one left unset is read from `CFG`."""
 
-    def __init__(
-        self,
-        block: int = 160,
-        filter_ms: float = 320.0,
-        step: float = 0.5,
-        suppress: bool = True,
-    ) -> None:
-        self._options = (block, filter_ms, step, suppress)
+    def __init__(self, config: DictationConfig | None = None) -> None:
+        tuning = (config or DictationConfig()).resolve()
+        block = max(1, int(round(RATE * (tuning.echo_frame or 0))))
+        self._options = (
+            block,
+            (tuning.echo_filter_length or 0) * 1000,
+            tuning.echo_step or 0.0,
+            bool(tuning.echo_suppress_residual),
+        )
+        self._converged_after = tuning.echo_converge_after or 0.0
         self._start(*self._options)
 
     def reset(self) -> None:
@@ -76,7 +79,7 @@ class NumpyEchoCanceller(AnyEchoCanceller):
         """Once it has adapted over a couple of seconds of zrb speaking.
         Whether that removed enough is judged by `EchoCancellation`, from
         what is left."""
-        return self._far_active_samples >= RATE * _CONVERGED_AFTER_SECONDS
+        return self._far_active_samples >= RATE * self._converged_after
 
     def process(self, mic: Any, far: Any) -> Any:
         np = self._np

@@ -24,7 +24,12 @@ from zrb.llm.speech.config import SpeechConfig
 from zrb.llm.speech.player import IsStale, Speaker, is_speaking
 from zrb.llm.speech.progress import ProgressNarrator, SpeechClock
 from zrb.llm.speech.streamed_reply import StreamedReply
-from zrb.llm.speech.text import clean_for_speech, fit_for_speech
+from zrb.llm.speech.text import (
+    clean_for_speech,
+    fill_template,
+    fit_for_speech,
+    match_tool_phrase,
+)
 from zrb.llm.util.feature_config import (
     current_session_key,
     get_session_ui,
@@ -146,7 +151,11 @@ class SpeechSession:
             self._say, config.max_chars or 0, config.on_screen_note or ""
         )
         self.progress = ProgressNarrator(
-            self._say, self._seconds_since_said, config.progress_interval or 0
+            self._say,
+            self._seconds_since_said,
+            config.progress_interval or 0,
+            silent_tools=config.progress_silent_tools,
+            phrases=config.progress_phrases,
         )
         if not CFG.HOOKS_ENABLED:
             logger.warning(
@@ -281,7 +290,14 @@ class SpeechSession:
         """Speak the approval request, unless it is answered first."""
         if self._is_own_session():
             self._say(
-                describe_tool_call(context.tool_name, context.tool_input),
+                describe_tool_call(
+                    context.tool_name,
+                    context.tool_input,
+                    message=self._config.approval_message,
+                    target_keys=self._config.approval_target_keys,
+                    target_max_chars=self._config.approval_target_max_chars,
+                    actions=self._config.approval_actions,
+                ),
                 is_stale=is_answered_since(get_session_ui(), time.monotonic()),
             )
         return HookResult(success=True)
@@ -292,7 +308,7 @@ class SpeechSession:
             and context.notification_type in _QUESTION_NOTIFICATIONS
         ):
             question = self._fit(clean_for_speech(context.message or ""))
-            self._say(question or "A question is waiting for your answer.")
+            self._say(question or self._config.question_message or "")
         return HookResult(success=True)
 
     def _is_own_session(self) -> bool:
@@ -358,28 +374,34 @@ def is_answered_since(ui: Any, asked_at: float) -> Callable[[], bool]:
     return is_answered
 
 
-_TOOL_ACTIONS = {
-    "Write": "write a file",
-    "Edit": "edit a file",
-    "NotebookEdit": "edit a notebook",
-    "Shell": "run a shell command",
-    "Bash": "run a shell command",
-    "DelegateToAgent": "delegate work to a sub-agent",
-    "DelegateToAgentBackground": "delegate background work to a sub-agent",
-}
-_TARGET_KEYS = ("path", "file_path", "command", "notebook_path")
-
-
-def describe_tool_call(tool: str | None, args: dict[str, Any] | None) -> str:
-    """A spoken approval request. A template, not a model call: the user is
-    waiting on it."""
-    action = _TOOL_ACTIONS.get(
-        tool or "", f"use the {tool} tool" if tool else "run a tool"
-    )
+def describe_tool_call(
+    tool: str | None,
+    args: dict[str, Any] | None,
+    message: str | None = None,
+    target_keys: list[str] | None = None,
+    target_max_chars: int | None = None,
+    actions: dict[str, str] | None = None,
+) -> str:
+    """A spoken approval request, from *message* with ``{action}`` (the
+    first of *actions* whose pattern matches *tool*, else the tool's name)
+    and ``{target}`` (the first of *target_keys* among *args*, cut to
+    *target_max_chars*). A template, not a model call: the user is waiting
+    on it. Each left ``None`` is read from `CFG.LLM_SPEECH_APPROVAL_*`."""
+    if message is None:
+        message = CFG.LLM_SPEECH_APPROVAL_MESSAGE
+    if target_keys is None:
+        target_keys = CFG.LLM_SPEECH_APPROVAL_TARGET_KEYS
+    if target_max_chars is None:
+        target_max_chars = CFG.LLM_SPEECH_APPROVAL_TARGET_MAX_CHARS
+    if actions is None:
+        actions = CFG.LLM_SPEECH_APPROVAL_ACTIONS
+    action = match_tool_phrase(tool, actions)
+    if action is None:
+        action = tool or ""
     target = ""
-    for key in _TARGET_KEYS:
+    for key in target_keys if target_max_chars > 0 else []:
         value = (args or {}).get(key)
         if isinstance(value, str) and value.strip():
-            target = " " + value.strip()[:80]
+            target = " " + value.strip()[:target_max_chars]
             break
-    return f"I need to {action}{target}. I need your approval."
+    return fill_template(message, action=action, target=target)

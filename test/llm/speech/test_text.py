@@ -1,6 +1,6 @@
 import pytest
 
-from zrb.llm.speech.text import clean_for_speech, fit_for_speech
+from zrb.llm.speech.text import clean_for_speech, fill_template, fit_for_speech
 
 NOTE = "The full answer is on screen."
 
@@ -132,3 +132,9 @@ def test_a_cut_never_ends_on_a_false_sentence_end(text, max_chars, opening):
 def test_a_cut_may_end_after_a_one_letter_word():
     text = "Should we go on? I. " + "More words follow here. " * 3
     assert fit_for_speech(text, 30, "NOTE") == "Should we go on? I. NOTE"
+
+
+def test_fill_template_replaces_only_the_names_given():
+    template = "I need to {action}{target}. {not_a_name} stays; so does {}."
+    filled = fill_template(template, action="edit a file", target=" a.py")
+    assert filled == "I need to edit a file a.py. {not_a_name} stays; so does {}."

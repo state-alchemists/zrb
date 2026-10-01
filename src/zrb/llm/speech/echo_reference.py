@@ -42,6 +42,19 @@ class EchoReference:
         with self._lock:
             self._active = max(0, self._active + change)
 
+    @property
+    def seconds(self) -> float:
+        """How much played audio is kept."""
+        return self._size / RATE
+
+    def ensure_seconds(self, seconds: float) -> None:
+        """Keep at least *seconds* of played audio from now on; growing the
+        ring forgets what it held."""
+        size = int(RATE * seconds)
+        with self._lock:
+            if size > self._size:
+                self._size, self._ring = size, None
+
     def write(self, start_time: float, samples: Any) -> None:
         """Record 16 kHz float32 *samples* reaching the speakers from
         *start_time* on."""

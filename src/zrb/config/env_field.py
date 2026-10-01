@@ -19,6 +19,7 @@ as hand-written properties (e.g. `LOGGER`, which is `logging.getLogger()`).
 
 from __future__ import annotations
 
+import json
 import os
 from typing import Any, Callable, Generic, Sequence, TypeVar, overload
 
@@ -65,6 +66,23 @@ def path_list_join(value: Sequence[str]) -> str:
 
 def comma_join(value: list[str]) -> str:
     return ",".join(value)
+
+
+def json_object(raw: str) -> dict[str, str]:
+    """Parse a JSON object of strings (``{"Read": "Reading a file."}``);
+    empty is ``{}``. Its order is kept, for settings matched in order."""
+    if not raw.strip():
+        return {}
+    value = json.loads(raw)
+    if not isinstance(value, dict):
+        raise ValueError(
+            f'expected a JSON object of strings like {{"key": "text"}}, got {raw!r}'
+        )
+    return {str(key): str(text) for key, text in value.items()}
+
+
+def json_dump(value: dict[str, str]) -> str:
+    return json.dumps(value, ensure_ascii=False)
 
 
 class EnvField(Generic[T]):

@@ -95,3 +95,45 @@ def test_the_clock_counts_from_the_last_mark():
     assert clock.seconds_since_said() == float("inf")
     clock.mark()
     assert 0 <= clock.seconds_since_said() < 1
+
+
+def test_the_silent_tools_are_configured():
+    said = []
+    narrator = ProgressNarrator(
+        lambda text, is_stale: said.append(text),
+        lambda: 100.0,
+        8.0,
+        silent_tools=["Shell"],
+    )
+    narrator.handle_event(_call("Shell"))
+    narrator.handle_event(_call("TodoWrite", "c2"))
+    assert said == ["Using the TodoWrite tool."]
+
+
+def test_progress_lines_come_from_the_configured_patterns_in_order():
+    phrases = {
+        "Read": "Membaca berkas.",
+        "Lsp*": "Memeriksa kode.",
+        "*": "Pakai {tool}.",
+    }
+    assert describe_tool_progress("Read", phrases) == "Membaca berkas."
+    assert describe_tool_progress("LspHover", phrases) == "Memeriksa kode."
+    assert describe_tool_progress("Grep", phrases) == "Pakai Grep."
+
+
+def test_a_tool_no_pattern_matches_is_not_announced():
+    said = []
+    narrator = ProgressNarrator(
+        lambda text, is_stale: said.append(text),
+        lambda: 100.0,
+        8.0,
+        phrases={"Shell": "Running a command."},
+    )
+    narrator.handle_event(_call("Grep"))
+    narrator.handle_event(_call("Shell", "c2"))
+    assert said == ["Running a command."]
+
+
+def test_progress_lines_are_read_from_cfg_when_left_unset(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_SPEECH_PROGRESS_PHRASES", '{"*": "Sedang {tool}."}')
+    assert describe_tool_progress("Read") == "Sedang Read."

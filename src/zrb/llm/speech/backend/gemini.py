@@ -7,7 +7,9 @@ import os
 from zrb.llm.speech.backend.any_speech_backend import AnySpeechBackend
 from zrb.llm.speech.backend.audio import SpeechAudio
 from zrb.llm.speech.backend.http import get_required_env, pcm_to_wav, post_json
+from zrb.config.config import CFG
 from zrb.llm.speech.backend.utterance import Utterance, create_wav_utterance
+from zrb.llm.speech.text import fill_template
 
 _SAMPLE_RATE = 24000
 
@@ -17,7 +19,10 @@ class GeminiSpeechBackend(AnySpeechBackend):
 
     The key is *api_key*, else ``GEMINI_API_KEY``, else ``GOOGLE_API_KEY``.
     *style* directs how the voice sounds; Gemini takes it as part of the
-    prompt, ahead of the text to read.
+    prompt, ahead of the text to read. *prompt* (no style) and
+    *style_prompt* wrap the text, as ``{text}`` and ``{style}``; left
+    ``None``, `CFG.LLM_SPEECH_GEMINI_PROMPT` and
+    `CFG.LLM_SPEECH_GEMINI_STYLE_PROMPT`.
     """
 
     def __init__(
@@ -28,9 +33,13 @@ class GeminiSpeechBackend(AnySpeechBackend):
         timeout: float | None = None,
         wav_player: str = "",
         style: str = "",
+        prompt: str | None = None,
+        style_prompt: str | None = None,
     ) -> None:
         self._voice = voice
         self._style = style
+        self._prompt = prompt
+        self._style_prompt = style_prompt
         self._model = model
         self._api_key = api_key
         self._timeout = timeout
@@ -83,7 +92,14 @@ class GeminiSpeechBackend(AnySpeechBackend):
         return pcm
 
     def _create_prompt(self, text: str) -> str:
-        # Without "Say:", Gemini may answer a short line instead of reading it.
+        # Without an instruction ("Say:"), Gemini may answer a short line
+        # instead of reading it.
         if not self._style:
-            return f"Say: {text}"
-        return f"{self._style}\n\nSay exactly this, and nothing else: {text}"
+            prompt = self._prompt
+            if prompt is None:
+                prompt = CFG.LLM_SPEECH_GEMINI_PROMPT
+            return fill_template(prompt, text=text)
+        style_prompt = self._style_prompt
+        if style_prompt is None:
+            style_prompt = CFG.LLM_SPEECH_GEMINI_STYLE_PROMPT
+        return fill_template(style_prompt, style=self._style, text=text)

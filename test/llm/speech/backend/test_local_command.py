@@ -121,3 +121,19 @@ def test_a_failing_render_says_why(which, monkeypatch):
 def test_another_binary_cannot_render(which):
     which("festival")
     assert LocalCommandBackend("festival", "-r", "", 1).create_audio("hi") is None
+
+
+def test_rendering_is_bounded_by_the_configured_timeout(which, monkeypatch):
+    which("espeak-ng")
+    timeouts = []
+
+    def run(argv, **kwargs):
+        timeouts.append(kwargs["timeout"])
+        return _Completed(stdout=_wav_bytes(b"\x05\x00", rate=22050))
+
+    monkeypatch.setattr("subprocess.run", run)
+
+    LocalCommandBackend("espeak-ng", "-s", "", 165, render_timeout=7).create_audio("a")
+    LocalCommandBackend("espeak-ng", "-s", "", 165, render_timeout=0).create_audio("a")
+
+    assert timeouts == [7, None]  # 0: no limit

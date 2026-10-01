@@ -42,7 +42,7 @@ By default zrb ignores the microphone while it is speaking, so its own voice is 
 
 **Talking over zrb (barge-in).** With `ZRB_LLM_DICTATION_BARGE_IN=on`, the microphone keeps listening while zrb speaks, on laptop speakers too: zrb removes its own voice from what the microphone hears (echo cancellation, below). About a third of a second of speech over it (`ZRB_LLM_DICTATION_BARGE_IN_MIN_SPEECH`) pauses zrb at once. If what you said turns out to be words, zrb stops and the rest of that reply is not read; if it was a cough or a door, zrb carries on where it paused. Words too brief to pause it (a crisp "stop") stop it as soon as they are transcribed. Then:
 
-- "Stop" or "no" said alone cancels the turn, as Esc does, and is sent nowhere.
+- A stop word said alone ("stop", "cancel", "no"; `ZRB_LLM_DICTATION_STOP_WORDS`) cancels the turn, as Esc does, and is sent nowhere.
 - Anything else steers the running turn: the agent takes it into account at its next step (`ZRB_LLM_DICTATION_BARGE_IN_ACTION=steer`). With `cancel`, the turn stops and what you said starts a new one.
 - While a tool approval is waiting, what you say answers it, as usual: "no" denies the tool call, not the turn.
 
@@ -57,7 +57,7 @@ With wake words, zrb stops only once it has heard one; it pauses for talk in the
 
 Speech a player program plays cannot be cancelled (zrb never sees its samples), so with Termux's own voice (`termux-tts-speak`) or `ZRB_LLM_SPEECH_PLAYER=command`, the `numpy` canceller keeps the microphone deaf while zrb speaks; use `espeak-ng` or a cloud voice on Termux, or `none` with headphones.
 
-**Transcribing while you speak.** vosk transcribes an utterance as you say it, and the status bar shows the last words heard. Once you pause for half a second (`ZRB_LLM_DICTATION_MIN_SILENCE`) after words that sound finished, the utterance ends; after "and", "the" or "um" it waits the full second (`ZRB_LLM_DICTATION_SILENCE`), since you are still thinking. The other backends transcribe the whole utterance after it ends and always wait the full second.
+**Transcribing while you speak.** vosk transcribes an utterance as you say it, and the status bar shows the last words heard. Once you pause for half a second (`ZRB_LLM_DICTATION_MIN_SILENCE`) after words that sound finished, the utterance ends; after "and", "the" or "um" (`ZRB_LLM_DICTATION_TRAILING_WORDS`, English by default) it waits the full second (`ZRB_LLM_DICTATION_SILENCE`), since you are still thinking. The other backends transcribe the whole utterance after it ends and always wait the full second.
 
 A line above the status bar shows what the microphone is doing, while hands-free is on:
 
@@ -130,7 +130,14 @@ os.environ.setdefault(f"{CFG.ENV_PREFIX}_LLM_SPEECH_ENABLED", "on")
 os.environ.setdefault(f"{CFG.ENV_PREFIX}_LLM_DICTATION_WAKE_WORDS", "hey zed")
 ```
 
-`setdefault` leaves a value the user exported alone. The settings are read when the session starts, so setting them after `import zrb` still applies.
+`setdefault` leaves a value the user exported alone. The settings are read when the session starts, so setting them after `import zrb` still applies. `CFG` attributes can also be assigned directly (`CFG.LLM_DICTATION_STOP_WORDS = ["berhenti", "stop"]`).
+
+**Everything is a setting.** Every word zrb listens for and every phrase it says, apart from the status-bar badges, is a variable in [LLM configuration § Voice and Camera](../configuration/llm-config.md#23-voice-and-camera):
+
+- **Words it listens for:** wake words, approve and deny words, stop words, the polite words around them, and the words a sentence rarely ends on. The defaults are English; set them for your language.
+- **What it says:** the approval request and each tool's action in it, every progress line and the tools it keeps quiet about, the question notice, and the note after a cut reply. The two per-tool tables are JSON objects of tool-name patterns (`{"Read": "Membaca berkas.", "*": "Memakai {tool}."}`).
+- **Prompts:** the transcription instruction for `google` and `multimodal`, Gemini's reading prompts, and the prompt files `speech_live`, `speech_summarizer` and `multimodal_audio` (through `ZRB_LLM_PROMPT_DIR`).
+- **Timing:** every listening duration, the microphone block size, playback block and read-ahead, timeouts, and the echo cancellation tuning.
 
 ## Your own backend
 

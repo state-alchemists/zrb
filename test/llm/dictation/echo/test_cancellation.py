@@ -3,6 +3,7 @@ the canceller the reference lined up with each microphone block."""
 
 import pytest
 
+from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.echo import EchoCancellation, NoEchoCanceller, get_echo_canceller
 from zrb.llm.dictation.echo.any_echo_canceller import AnyEchoCanceller
 from zrb.llm.dictation.echo.numpy_canceller import NumpyEchoCanceller
@@ -192,7 +193,7 @@ def test_once_ready_it_stays_ready_while_the_user_talks_over_zrb():
 def test_the_threshold_is_the_level_that_starts_an_utterance():
     reference, far, mic, start = _setup(0.05)
     cancellation = EchoCancellation(
-        QuietCanceller(leftover=0.02), reference, threshold=0.05
+        QuietCanceller(leftover=0.02), reference, DictationConfig(threshold=0.05)
     )
     _feed(cancellation, mic, start)
     assert cancellation.is_ready
@@ -227,3 +228,41 @@ def test_builtin_cancellers_by_name():
     assert get_echo_canceller(own) is own
     with pytest.raises(ValueError, match="unknown echo canceller"):
         get_echo_canceller("webrtc")
+
+
+def test_the_lead_is_configured():
+    reference, far, mic, start = _setup(0.05)
+    canceller = RecordingCanceller()
+    cancellation = EchoCancellation(
+        canceller, reference, DictationConfig(echo_lead=0.1)
+    )
+    _feed(cancellation, mic, start)
+
+    last_mic = mic[-BLOCK - (len(mic) % BLOCK) :][:BLOCK]
+    lead = int(RATE * 0.1)
+    assert np.allclose(0.5 * canceller.fars[-1][:-lead], last_mic[lead:], atol=0.01)
+
+
+def test_a_delay_outside_the_configured_search_is_not_found():
+    reference, far, mic, start = _setup(0.2)
+    config = DictationConfig(echo_min_delay=0.0, echo_max_delay=0.1)
+    cancellation = EchoCancellation(RecordingCanceller(), reference, config)
+    _feed(cancellation, mic, start)
+    assert cancellation.delay is None
+
+
+def test_readiness_judges_the_configured_number_of_blocks():
+    canceller = QuietCanceller(leftover=0.001)
+    reference, far, mic, start = _setup(0.05, seconds=6)
+    config = DictationConfig(echo_ready_blocks=1000)
+    cancellation = EchoCancellation(canceller, reference, config)
+    _feed(cancellation, mic, start)
+    # Six seconds hold far fewer than a thousand blocks of zrb speaking.
+    assert not cancellation.is_ready
+
+
+def test_the_reference_keeps_enough_audio_for_the_widest_search():
+    reference = EchoReference(origin=0.0, seconds=1)
+    config = DictationConfig(echo_delay_window=3, echo_min_delay=-1, echo_max_delay=2)
+    EchoCancellation(RecordingCanceller(), reference, config)
+    assert reference.seconds >= 3 + 2 + 1

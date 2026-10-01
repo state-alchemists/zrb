@@ -270,7 +270,11 @@ class Speaker:
                 )
                 audio = None
             if audio is not None:
-                return PcmUtterance(audio)
+                return PcmUtterance(
+                    audio,
+                    block_frames=self._config.player_block_frames,
+                    read_ahead=self._config.player_read_ahead,
+                )
         return backend.create_utterance(text)
 
     def _get_backends(self) -> list[AnySpeechBackend]:

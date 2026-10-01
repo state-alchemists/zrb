@@ -3,6 +3,7 @@ zrb played, plus microphone noise."""
 
 import pytest
 
+from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.echo.numpy_canceller import NumpyEchoCanceller
 
 np = pytest.importorskip("numpy")
@@ -68,7 +69,7 @@ def test_output_is_as_long_as_input_whatever_the_chunks():
 
 
 def test_with_nothing_played_the_microphone_passes_through():
-    canceller = NumpyEchoCanceller(suppress=False)
+    canceller = NumpyEchoCanceller(DictationConfig(echo_suppress_residual=False))
     mic = np.random.default_rng(4).normal(0, 0.01, RATE).astype(np.float32)
     out = _run(canceller, mic, np.zeros(RATE, np.float32), chunk=160)
     assert np.allclose(out, mic, atol=1e-6)
@@ -100,3 +101,21 @@ def test_reset_forgets_what_it_learned():
 
     assert not canceller.is_converged
     assert canceller.name == "numpy"
+
+
+def test_it_converges_after_the_configured_seconds_of_zrb_speaking():
+    far = _speechlike(2)
+    quick = NumpyEchoCanceller(DictationConfig(echo_converge_after=0.5))
+    slow = NumpyEchoCanceller(DictationConfig(echo_converge_after=5))
+    _run(quick, _echo(far), far)
+    _run(slow, _echo(far), far)
+    assert quick.is_converged and not slow.is_converged
+
+
+def test_the_frame_is_configured():
+    canceller = NumpyEchoCanceller(DictationConfig(echo_frame=0.02))
+    # Output lags by one frame of the residual suppressor: 320 samples.
+    impulse = np.zeros(1000, np.float32)
+    impulse[0] = 1.0
+    out = canceller.process(impulse, np.zeros(1000, np.float32))
+    assert not out[:320].any() and out[320:].any()

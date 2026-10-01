@@ -7,17 +7,20 @@ from zrb.config.config import CFG
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.wav import pcm16_to_wav_bytes
 
-TRANSCRIBE_INSTRUCTION = "Transcribe this audio to text. Return only the transcription."
-
 
 class GoogleDictationBackend(AnyDictationBackend):
-    """Google Gemini, asked to transcribe."""
+    """Google Gemini, asked to transcribe with *instruction* (default:
+    `CFG.LLM_DICTATION_TRANSCRIBE_PROMPT`)."""
 
     def __init__(
-        self, model: str = "gemini-2.5-flash", api_key: str | None = None
+        self,
+        model: str = "gemini-2.5-flash",
+        api_key: str | None = None,
+        instruction: str | None = None,
     ) -> None:
         self._model = model
         self._api_key = api_key
+        self._instruction = instruction
         self._client = None
 
     @property
@@ -36,7 +39,7 @@ class GoogleDictationBackend(AnyDictationBackend):
                 types.Part.from_bytes(
                     data=pcm16_to_wav_bytes(audio), mime_type="audio/wav"
                 ),
-                TRANSCRIBE_INSTRUCTION,
+                self._instruction or CFG.LLM_DICTATION_TRANSCRIBE_PROMPT,
             ],
         )
         return response.text.strip() if response.text else ""

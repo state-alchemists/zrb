@@ -11,16 +11,23 @@ from zrb.llm.speech.backend.any_speech_backend import AnySpeechBackend
 from zrb.llm.speech.backend.audio import SpeechAudio, create_streamed_wav_audio
 from zrb.llm.speech.backend.utterance import Utterance
 
-# A local engine renders a sentence in well under a second; this only bounds
-# one that hangs.
-_RENDER_TIMEOUT = 60.0
-
 
 class LocalCommandBackend(AnySpeechBackend):
     """A local engine that speaks its argument: ``say`` (``-r`` rate) or
-    ``espeak-ng`` (``-s`` rate)."""
+    ``espeak-ng`` (``-s`` rate). Rendering audio for zrb to play may take
+    *render_timeout* seconds (default: `CFG.LLM_SPEECH_RENDER_TIMEOUT`); a
+    sentence takes well under one, so this only bounds an engine that
+    hangs."""
 
-    def __init__(self, binary: str, rate_flag: str, voice: str, rate: int) -> None:
+    def __init__(
+        self,
+        binary: str,
+        rate_flag: str,
+        voice: str,
+        rate: int,
+        render_timeout: float | None = None,
+    ) -> None:
+        self._render_timeout = render_timeout
         self._binary = binary
         self._rate_flag = rate_flag
         self._voice = voice
@@ -66,8 +73,11 @@ class LocalCommandBackend(AnySpeechBackend):
         return argv
 
     def _run(self, argv: list[str]) -> bytes:
+        timeout = self._render_timeout
+        if timeout is None:
+            timeout = CFG.LLM_SPEECH_RENDER_TIMEOUT
         result = subprocess.run(
-            argv, capture_output=True, timeout=_RENDER_TIMEOUT, check=False
+            argv, capture_output=True, timeout=timeout or None, check=False
         )
         if result.returncode != 0:
             raise RuntimeError(

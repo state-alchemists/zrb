@@ -70,8 +70,16 @@ def test_openai_built_from_config():
 
 def test_google_built_from_config():
     with patch(f"{MODULE}.GoogleDictationBackend") as google:
-        get_dictation_backend("google", _config(google_model="gemini-x"))
-    google.assert_called_once_with("gemini-x")
+        get_dictation_backend(
+            "google", _config(google_model="gemini-x", transcribe_prompt="Write it.")
+        )
+    google.assert_called_once_with("gemini-x", instruction="Write it.")
+
+
+def test_multimodal_built_with_the_configured_prompt():
+    with patch(f"{MODULE}.MultimodalDictationBackend") as multimodal:
+        get_dictation_backend("multimodal", _config(transcribe_prompt="Write it."))
+    multimodal.assert_called_once_with(instruction="Write it.")
 
 
 def test_default_backend_name_is_class_name():

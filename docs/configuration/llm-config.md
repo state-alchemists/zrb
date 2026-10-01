@@ -884,7 +884,7 @@ Three optional features of `zrb llm chat`, each added with one call and read fro
 | `ZRB_LLM_DICTATION_WAKE_WORDS` | Comma-separated; in hands-free mode only utterances starting with one count. Said alone, one accepts the next utterance within `ZRB_LLM_DICTATION_WAKE_WINDOW` seconds | (none) |
 | `ZRB_LLM_DICTATION_WAKE_WINDOW` | Seconds a lone wake word keeps listening | `8.0` |
 | `ZRB_LLM_DICTATION_THRESHOLD` | RMS microphone level that counts as speech (`zrb voice mic-test` in `examples/voice-interaction` measures yours) | `0.01` |
-| `ZRB_LLM_DICTATION_SILENCE` | Seconds of silence that end an utterance; at least one 0.1 s block | `1.0` |
+| `ZRB_LLM_DICTATION_SILENCE` | Seconds of silence that end an utterance; at least one block (`ZRB_LLM_DICTATION_BLOCK_DURATION`) | `1.0` |
 | `ZRB_LLM_DICTATION_MIN_SILENCE` | With a backend that transcribes while you speak (`vosk`), seconds of silence that end an utterance whose words sound finished, not trailing off on "and" or "the"; `0` always waits `ZRB_LLM_DICTATION_SILENCE` | `0.5` |
 | `ZRB_LLM_DICTATION_MIN_SPEECH` | Shortest speech kept, in seconds; shorter is a cough or a click | `0.25` |
 | `ZRB_LLM_DICTATION_MAX_UTTERANCE` | Longest utterance, in seconds; `0` means no limit | `30.0` |
@@ -894,9 +894,37 @@ Three optional features of `zrb llm chat`, each added with one call and read fro
 | `ZRB_LLM_DICTATION_BARGE_IN` | `on` lets hands-free hear you while zrb speaks, on speakers too: zrb pauses at once, stops if what you said has words, and carries on if not. Its own voice is removed by `ZRB_LLM_DICTATION_ECHO_CANCELLER`, which learns the room over a few seconds of zrb speaking; until then the microphone stays deaf while zrb speaks | `off` |
 | `ZRB_LLM_DICTATION_ECHO_CANCELLER` | `numpy`: remove zrb's voice from the microphone, from the audio zrb plays (needs `ZRB_LLM_SPEECH_PLAYER=auto` and a backend that renders audio). `none`: trust the microphone (headphones, or system echo cancellation) | `numpy` |
 | `ZRB_LLM_DICTATION_BARGE_IN_MIN_SPEECH` | Seconds of speech over zrb's voice that pause it, so a click does not; it then stops only if what was said has words. Shorter words over zrb (a crisp "stop") do not pause it, but still stop it once transcribed | `0.3` |
-| `ZRB_LLM_DICTATION_BARGE_IN_ACTION` | What talking over a running turn does with what you said: `steer` (the turn takes it into account) or `cancel` (the turn stops and it starts a new one). A deny word said alone ("stop") cancels the turn either way | `steer` |
+| `ZRB_LLM_DICTATION_BARGE_IN_ACTION` | What talking over a running turn does with what you said: `steer` (the turn takes it into account) or `cancel` (the turn stops and it starts a new one). A stop word said alone (`ZRB_LLM_DICTATION_STOP_WORDS`) cancels the turn either way | `steer` |
 | `ZRB_LLM_DICTATION_APPROVE_WORDS` | Phrases that approve a tool approval when a hands-free answer is made only of them and polite words ("yes please"). Any other answer denies it, with what was said as the reason | `yes, yeah, yep, ok, okay, sure, approve, accept, go ahead, do it` |
 | `ZRB_LLM_DICTATION_DENY_WORDS` | Phrases that deny a tool approval when a hands-free answer is made only of them and polite words ("no thanks") | `no, nope, deny, cancel, stop, don't` |
+| `ZRB_LLM_DICTATION_STOP_WORDS` | Phrases that, said alone (polite words allowed) over zrb or while a turn runs with barge-in on, stop zrb speaking and cancel the turn instead of reaching the model. A list of their own, so "no" can deny an approval without stopping anything | `stop, cancel, no, nope, deny, don't` |
+| `ZRB_LLM_DICTATION_POLITE_WORDS` | Words a yes, a no or a stop word may carry without changing it ("yes please", "no thanks") | `please, thanks, thank, you` |
+| `ZRB_LLM_DICTATION_TRAILING_WORDS` | Words a sentence rarely ends on: an utterance whose words so far end on one waits the full `ZRB_LLM_DICTATION_SILENCE` rather than `ZRB_LLM_DICTATION_MIN_SILENCE`, since you are thinking, not done. English by default; set it for your language | `a, an, the, ..., and, but, or, ..., to, of, for, ..., um, uh, hmm, like, maybe, let's` |
+| `ZRB_LLM_DICTATION_BLOCK_DURATION` | Seconds of audio per microphone block: the step every other listening duration is counted in, and how often speech is checked | `0.1` |
+| `ZRB_LLM_DICTATION_TURN_END_TIMEOUT` | With `ZRB_LLM_DICTATION_BARGE_IN_ACTION=cancel`, seconds to wait for the cancelled turn to end before what you said starts the next one | `5` |
+
+**Echo cancellation tuning.** With `ZRB_LLM_DICTATION_BARGE_IN=on`, these tune how zrb's voice is removed from the microphone ([ADR-0105](../adr/adr-0105.md)). The defaults were measured on real laptops; change them only for unusual hardware, such as Bluetooth speakers whose delay exceeds a second.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_DICTATION_ECHO_LEAD` | Seconds the reference (what zrb played) is read ahead of the measured echo delay, so it never arrives after its echo | `0.04` |
+| `ZRB_LLM_DICTATION_ECHO_MIN_DELAY` | Shortest echo delay searched, in seconds; negative because drivers misreport latency | `-0.5` |
+| `ZRB_LLM_DICTATION_ECHO_MAX_DELAY` | Longest echo delay searched, in seconds | `1.0` |
+| `ZRB_LLM_DICTATION_ECHO_DELAY_WINDOW` | Seconds of microphone audio each delay estimate correlates with what zrb played | `2.0` |
+| `ZRB_LLM_DICTATION_ECHO_DELAY_INTERVAL` | Seconds between delay estimates | `1.0` |
+| `ZRB_LLM_DICTATION_ECHO_MIN_PEAK` | Weakest correlation peak taken as the echo rather than chance | `0.05` |
+| `ZRB_LLM_DICTATION_ECHO_MIN_PEAK_RATIO` | How many times above the typical correlation the peak must stand | `6.0` |
+| `ZRB_LLM_DICTATION_ECHO_DELAY_AGREEMENT` | Seconds within which two estimates in a row agree, which locks the delay | `0.003` |
+| `ZRB_LLM_DICTATION_ECHO_RELOCK` | Once locked, a move of more than this many seconds (another output device) re-locks and restarts the canceller; less is drift it follows | `0.025` |
+| `ZRB_LLM_DICTATION_ECHO_MIN_REFERENCE_LEVEL` | RMS level of what zrb played below which no delay is estimated | `0.01` |
+| `ZRB_LLM_DICTATION_ECHO_READY_BLOCKS` | Recent blocks of zrb speaking judged to decide whether cancellation is ready | `20` |
+| `ZRB_LLM_DICTATION_ECHO_MAX_LOUD_LEFTOVERS` | Of those, how many may stay at or over `ZRB_LLM_DICTATION_THRESHOLD` after cancelling for it to count as ready | `1` |
+| `ZRB_LLM_DICTATION_ECHO_PLAYING_LEVEL` | RMS level of what zrb played above which a block counts as zrb speaking | `0.005` |
+| `ZRB_LLM_DICTATION_ECHO_FRAME` | `numpy` canceller: seconds of audio per filter step | `0.01` |
+| `ZRB_LLM_DICTATION_ECHO_FILTER_LENGTH` | `numpy` canceller: seconds of echo path the filter covers (the lead plus the room's tail) | `0.32` |
+| `ZRB_LLM_DICTATION_ECHO_STEP` | `numpy` canceller: adaptation step, 0 to 1; larger learns faster, settles less | `0.5` |
+| `ZRB_LLM_DICTATION_ECHO_SUPPRESS_RESIDUAL` | `numpy` canceller: damp what the filter leaves of zrb's voice | `on` |
+| `ZRB_LLM_DICTATION_ECHO_CONVERGE_AFTER` | `numpy` canceller: seconds of zrb speaking it adapts over before it may count as converged | `2.0` |
 
 Each backend uses only its own variables:
 
@@ -905,9 +933,16 @@ Each backend uses only its own variables:
 | `openai` | `ZRB_LLM_DICTATION_OPENAI_MODEL` | Transcription model, e.g. `gpt-4o-transcribe` | `whisper-1` |
 | `openai` | `ZRB_LLM_DICTATION_OPENAI_BASE_URL` | An OpenAI-compatible transcription server; empty is OpenAI's | (none) |
 | `google` | `ZRB_LLM_DICTATION_GOOGLE_MODEL` | Gemini model | `gemini-2.5-flash` |
+| `google`, `multimodal` | `ZRB_LLM_DICTATION_TRANSCRIBE_PROMPT` | Instruction sent with the audio | `Transcribe this audio to text. Return only the transcription.` |
 | `vosk` | `ZRB_LLM_DICTATION_VOSK_MODEL_NAME` | Model directory name (without `.zip`), downloaded from `<VOSK_MODEL_URL>/<name>.zip` | `vosk-model-small-en-us-0.15` |
 | `vosk` | `ZRB_LLM_DICTATION_VOSK_MODEL_URL` | Base URL for the model zip (extracted to `~/.cache/vosk/`) | `https://alphacephei.com/vosk/models` |
 | `vosk` | `ZRB_LLM_DICTATION_VOSK_DOWNLOAD_TIMEOUT` | Seconds to wait for the model server to answer; `0` means no limit | `120` |
+| `vosk` | `ZRB_LLM_DICTATION_VOSK_MAX_DOWNLOAD_MB` | Megabytes of model zip accepted; `0` means no limit | `4096` |
+| `vosk` | `ZRB_LLM_DICTATION_VOSK_MAX_UNCOMPRESSED_MB` | Megabytes the model may take once extracted, every file summed (bounds a decompression bomb); `0` means no limit | `8192` |
+| `vosk` | `ZRB_LLM_DICTATION_VOSK_MAX_FILE_MB` | Megabytes for any one file in the archive; `0` means no limit | `4096` |
+| `vosk` | `ZRB_LLM_DICTATION_VOSK_MAX_FILES` | Files the archive may hold; `0` means no limit | `10000` |
+
+The `multimodal` backend's system prompt is the `multimodal_audio` prompt file, overridable like any prompt through `ZRB_LLM_PROMPT_DIR`.
 
 ### Speech (text-to-speech)
 
@@ -944,6 +979,21 @@ Reads the reply a sentence at a time as it streams, tool approvals, questions, a
 | `ZRB_LLM_SPEECH_LOCK_TIMEOUT` | Seconds to wait for another session to finish before dropping an utterance | `30` |
 | `ZRB_LLM_SPEECH_DRAIN_TIMEOUT` | Seconds queued speech may still play after zrb exits | `30` |
 | `ZRB_LLM_SPEECH_PLAYER_TIMEOUT` | Seconds one utterance may play; `0` means no limit | `120` |
+| `ZRB_LLM_SPEECH_PLAYER_BLOCK_FRAMES` | Samples per block when zrb plays speech itself; smaller pauses and stops sooner, larger is kinder to a slow machine | `1024` |
+| `ZRB_LLM_SPEECH_PLAYER_READ_AHEAD` | Chunks of downloaded or rendered speech read ahead of playback | `32` |
+| `ZRB_LLM_SPEECH_RENDER_TIMEOUT` | Seconds `say` or `espeak-ng` may take to render a sentence for zrb to play; `0` means no limit | `60` |
+| `ZRB_LLM_SPEECH_STALL_TIMEOUT` | With `ZRB_LLM_SPEECH_TIMEOUT` at `0`, seconds `openai` audio may stop arriving before it is given up on | `30` |
+| `ZRB_LLM_SPEECH_QUESTION_MESSAGE` | Said when the model asks a question with no text of its own | `A question is waiting for your answer.` |
+| `ZRB_LLM_SPEECH_APPROVAL_MESSAGE` | Said when a tool call waits for approval: `{action}` is what the tool does, `{target}` a space and the file or command, or empty | `I need to {action}{target}. I need your approval.` |
+| `ZRB_LLM_SPEECH_APPROVAL_TARGET_KEYS` | Tool arguments tried, in order, for `{target}` | `path, file_path, command, notebook_path` |
+| `ZRB_LLM_SPEECH_APPROVAL_TARGET_MAX_CHARS` | Longest `{target}` read out; `0` leaves it out | `80` |
+| `ZRB_LLM_SPEECH_PROGRESS_PHRASES` | JSON object of what progress narration says when a tool call starts: tool-name patterns (`*` and `?` wildcards, tried in order, the first match wins; `""` matches a call with no tool name) to a line, `{tool}` being the tool's name. A tool no pattern matches is not announced | English lines for the built-in tools, then `"Lsp*": "Checking the code."`, `"": "Working on it."`, `"*": "Using the {tool} tool."` |
+| `ZRB_LLM_SPEECH_APPROVAL_ACTIONS` | JSON object of the `{action}` in `ZRB_LLM_SPEECH_APPROVAL_MESSAGE`: tool-name patterns, as above, to what the tool does. A tool no pattern matches is named as it is | English actions for the built-in tools that ask, then `"": "run a tool"`, `"*": "use the {tool} tool"` |
+| `ZRB_LLM_SPEECH_PROGRESS_SILENT_TOOLS` | Tools never announced by progress narration | `TodoRead, TodoWrite, ActivateSkill, SearchSkill` |
+| `ZRB_LLM_SPEECH_GEMINI_PROMPT` | What `gemini` is sent with no style: `{text}` is what to read. Without an instruction, Gemini may answer a short line instead of reading it | `Say: {text}` |
+| `ZRB_LLM_SPEECH_GEMINI_STYLE_PROMPT` | What `gemini` is sent with `ZRB_LLM_SPEECH_STYLE` set: `{style}` and `{text}` | `{style}`, a blank line, `Say exactly this, and nothing else: {text}` |
+
+A placeholder is replaced only where written; any other brace stays as it is. The prompts behind speech are prompt files, overridable like any prompt through `ZRB_LLM_PROMPT_DIR`: `speech_live` (while speech is on, asks the model to open with a spoken answer) and `speech_summarizer`.
 
 The cloud backends read `OPENAI_API_KEY`, and `GEMINI_API_KEY` or `GOOGLE_API_KEY`.
 
@@ -965,6 +1015,27 @@ export ZRB_LLM_DICTATION_BACKEND=openai
 export ZRB_LLM_DICTATION_OPENAI_MODEL=gpt-4o-transcribe
 export ZRB_LLM_DICTATION_WAKE_WORDS="hi,hai,hey,嗨"   # every spelling the transcriber writes
 export ZRB_LLM_SPEECH_ENABLED=on
+```
+
+Every variable above can be set from `zrb_init.py` instead, since each is read when a session starts, not when zrb is imported:
+
+```python
+from zrb import CFG
+
+# Indonesian: words to stop zrb, the polite words around them, and the words
+# a sentence rarely ends on, so a pause after "dan" is waited out.
+CFG.LLM_DICTATION_STOP_WORDS = ["berhenti", "stop", "tunggu", "sudah"]
+CFG.LLM_DICTATION_POLITE_WORDS = ["tolong", "terima", "kasih", "please"]
+CFG.LLM_DICTATION_TRAILING_WORDS = ["dan", "atau", "yang", "di", "ke", "untuk"]
+CFG.LLM_SPEECH_APPROVAL_MESSAGE = "Boleh saya {action}{target}?"
+CFG.LLM_SPEECH_APPROVAL_ACTIONS = {"Write": "menulis berkas", "*": "memakai {tool}"}
+CFG.LLM_SPEECH_PROGRESS_PHRASES = {"Read": "Membaca berkas.", "*": "Memakai {tool}."}
+```
+
+From a shell, the two phrase tables are JSON:
+
+```bash
+export ZRB_LLM_SPEECH_PROGRESS_PHRASES='{"Read": "Membaca berkas.", "Shell": "Menjalankan perintah.", "*": "Memakai {tool}."}'
 ```
 
 ---

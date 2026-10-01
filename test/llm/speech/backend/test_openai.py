@@ -151,3 +151,16 @@ def test_openai_closes_a_response_that_is_not_audio(requests, monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     with pytest.raises(RuntimeError, match="not a WAV"):
         OpenAISpeechBackend().create_audio("hi")
+
+
+def test_openai_bounds_a_stalled_download_by_the_configured_stall_timeout(
+    requests, which, monkeypatch
+):
+    sent, replies = requests
+    replies.append(b"RIFF-wav")
+    which("afplay")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+
+    OpenAISpeechBackend(stall_timeout=4).create_utterance("hello").cleanup()
+
+    assert sent[0][1] == 4
