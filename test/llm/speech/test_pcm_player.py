@@ -296,3 +296,60 @@ def test_stopping_during_the_fallback_stops_the_player_program():
         player.join(1)
 
     assert "stopped" in events
+
+
+def _failing_source(chunks_first=()):
+    def chunks():
+        yield from chunks_first
+        raise ConnectionError("connection reset")
+
+    return chunks()
+
+
+def test_audio_failing_before_any_of_it_played_goes_to_the_player_program(sd):
+    events = []
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, _failing_source()),
+        EchoReference(),
+        fallback=lambda: ProgramUtterance(events),
+    )
+
+    utterance.play(timeout=5)
+
+    assert events == ["played", "cleaned"]
+
+
+def test_audio_failing_part_way_is_played_as_far_as_it_came_and_logged(sd, caplog):
+    events = []
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, _failing_source([_pcm([7] * 512)])),
+        EchoReference(),
+        fallback=lambda: ProgramUtterance(events),
+    )
+
+    utterance.play(timeout=5)
+
+    [stream] = FakeOutputStream.instances
+    assert _played(stream)[:512].tolist() == [7] * 512
+    assert events == []  # replaying it would say the start twice
+    assert "cut off" in caplog.text and "connection reset" in caplog.text
+
+
+def test_audio_cut_off_by_stop_is_no_failure(sd, caplog):
+    events = []
+
+    def chunks():
+        yield _pcm([1] * 256)
+        utterance.stop()
+        raise ConnectionError("closed by stop")
+
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, chunks()),
+        EchoReference(),
+        fallback=lambda: ProgramUtterance(events),
+    )
+
+    utterance.play(timeout=5)
+
+    assert events == []
+    assert "closed by stop" not in caplog.text

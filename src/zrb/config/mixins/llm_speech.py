@@ -155,7 +155,9 @@ class LLMSpeechMixin:
         fallback=400,
         doc=(
             "Longest reply spoken in full, in characters; 0 means no limit. "
-            "Default: 400."
+            "A longer one is cut at a sentence end and followed by "
+            "{ENV_PREFIX}_LLM_SPEECH_ON_SCREEN_NOTE, only when something was "
+            "left unsaid. Default: 400."
         ),
     )
 

@@ -55,9 +55,12 @@ class PcmUtterance(Utterance):
     left ``None``, `CFG.LLM_SPEECH_PLAYER_BLOCK_FRAMES` and
     `CFG.LLM_SPEECH_PLAYER_READ_AHEAD`.
 
-    When the output device cannot be opened (none, or busy), *fallback*
-    makes the same speech for a player program to play instead, so it is
-    not lost; without one, the error is raised."""
+    When the output device cannot be opened (none, or busy), or the audio
+    fails before any of it was heard (a download cut off, a broken stream),
+    *fallback* makes the same speech for a player program to play instead,
+    so it is not lost; without one, a device error is raised and a source
+    error logged. Audio that fails part-way is played as far as it came,
+    and logged as cut off."""
 
     def __init__(
         self,
@@ -76,6 +79,9 @@ class PcmUtterance(Utterance):
         # Set when the device failed: ends the source reader without
         # counting as `stop`, which would also skip the fallback.
         self._is_abandoned = False
+        # What made the source stop early, unless `stop` did.
+        self._source_error: Exception | None = None
+        self._has_played_audio = False
         if block_frames is None:
             block_frames = CFG.LLM_SPEECH_PLAYER_BLOCK_FRAMES
         if read_ahead is None:
@@ -125,6 +131,21 @@ class PcmUtterance(Utterance):
                 f"({exc}); a player program plays it instead"
             )
             self._play_fallback(self._fallback, timeout)
+            return
+        self._handle_source_error()
+
+    def _handle_source_error(self) -> None:
+        error = self._source_error
+        if error is None or self.is_stopped:
+            return
+        if not self._has_played_audio and self._fallback is not None:
+            logger.warning(
+                f"Speech audio failed before any of it played ({error}); a "
+                "player program plays it instead"
+            )
+            self._play_fallback(self._fallback, None)
+            return
+        logger.warning(f"Speech was cut off: its audio stopped arriving ({error})")
 
     def _play_fallback(
         self, fallback: Callable[[], Utterance], timeout: float | None
@@ -194,8 +215,11 @@ class PcmUtterance(Utterance):
                 if self._is_done:
                     break
                 self._buffer.append(chunk)
-        except Exception:
-            pass  # a download cut off by `stop`, or failing: play what came
+        except Exception as exc:
+            # A download cut off by `stop` is no failure; any other is, and
+            # what came is still played.
+            if not self._is_done:
+                self._source_error = exc
         finally:
             self._is_source_done = True
 
@@ -229,6 +253,7 @@ class PcmUtterance(Utterance):
         out[: len(samples), 0] = samples
         out[len(samples) :, 0] = 0
         if len(samples):
+            self._has_played_audio = True
             self._write_reference(np, samples, start)
         if not samples.size and self._is_source_done and not self._buffer:
             raise sd.CallbackStop

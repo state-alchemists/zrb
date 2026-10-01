@@ -116,6 +116,18 @@ async def test_a_streamed_turn_stops_speaking_at_max_chars_with_one_note():
 
 
 @pytest.mark.asyncio
+async def test_a_reply_ending_on_the_sentence_crossing_max_chars_gets_no_note():
+    session = _session(stream=True, max_chars=40)
+    sentence = "This sentence is about forty characters. "
+
+    session.handle_stream_event(_text_delta(sentence))
+    await session.handle_stop(_stop(sentence))
+
+    # Nothing was cut, so there is nothing on screen to point to.
+    assert session.speaker.said == [sentence.strip()]
+
+
+@pytest.mark.asyncio
 async def test_a_turn_that_streamed_nothing_is_spoken_at_stop():
     session = _session(stream=True)
 

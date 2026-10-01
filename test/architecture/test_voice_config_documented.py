@@ -33,7 +33,7 @@ def test_every_knob_is_a_config_field_and_every_field_a_knob(prefix, config):
 
 @pytest.mark.parametrize("prefix", [prefix for prefix, _ in _FEATURES])
 def test_every_knob_is_documented(prefix):
-    doc = _DOC.read_text()
+    doc = _DOC.read_text(encoding="utf-8")
     missing = sorted(name for name in _knobs(prefix) if f"`ZRB_{name}`" not in doc)
     assert missing == [], f"add these to {_DOC.name}: {missing}"
 

@@ -23,7 +23,10 @@ class StreamedReply:
     """The part of one turn's reply already spoken, and what is left to cut.
 
     *max_chars* caps what one turn speaks (``0``: no cap): the sentence that
-    crosses it is spoken whole, then *note* once, then nothing more that turn.
+    crosses it is spoken whole, then nothing more that turn. *note* ("the
+    rest is on screen") is said once the next sentence arrives, since only
+    then is something known to be cut; a reply ending on the crossing
+    sentence lost nothing, so it gets no note.
     Events arrive on the event loop and the turn ends on a hook thread, so
     every method holds a lock.
     """
