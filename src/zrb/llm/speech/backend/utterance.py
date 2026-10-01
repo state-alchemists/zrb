@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+from collections.abc import Callable
 from typing import BinaryIO
 
 from zrb.config.config import CFG
@@ -33,7 +34,8 @@ class Utterance:
     """Speech ready to play: the player command, plus a temp file to delete.
 
     A backend that plays audio some other way returns a subclass overriding
-    `play` (and `cleanup`, if it has something to release).
+    `play` (and `cleanup`, if it has something to release); its `play`
+    calls `report_started` once sound starts.
     """
 
     def __init__(self, argv: list[str], temp_path: str | None = None):
@@ -42,6 +44,7 @@ class Utterance:
         self._lock = threading.Lock()
         self._process: subprocess.Popen[bytes] | None = None
         self._is_stopped = False
+        self._on_start: Callable[[], None] | None = None
 
     def play(self, timeout: float | None) -> None:
         """Play to the end, or until *timeout* seconds or `stop`."""
@@ -49,6 +52,7 @@ class Utterance:
             if self._is_stopped:
                 return
             process = self._process = self.open_player()
+        self.report_started()
         try:
             self.feed_player(process)
             returncode = process.wait(timeout)
@@ -60,6 +64,17 @@ class Utterance:
             raise
         if returncode != 0 and not self._is_stopped:
             logger.warning(f"Speech player {self.argv[0]} exited with {returncode}")
+
+    def set_on_start(self, on_start: Callable[[], None] | None) -> None:
+        """Call *on_start* once, when playback starts: the player started, or
+        the audio device opened. Never for speech that does not play."""
+        self._on_start = on_start
+
+    def report_started(self) -> None:
+        """Playback has started: call the `set_on_start` callback, once."""
+        on_start, self._on_start = self._on_start, None
+        if on_start is not None:
+            on_start()
 
     def open_player(self) -> "subprocess.Popen[bytes]":
         return subprocess.Popen(

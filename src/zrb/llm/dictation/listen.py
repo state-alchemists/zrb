@@ -72,7 +72,8 @@ class UtteranceCutter:
     microphone hears zrb's own voice there, so a block is loud only at
     ``barge_in_margin`` times the typical level zrb's voice reaches it (the
     median over its last few seconds, robust to the user talking over it
-    for a moment), and never below ``threshold``. Until that is measured the bar is ``barge_in_margin``
+    for a moment, and not counting an utterance once it is a barge-in, when
+    zrb is paused), and never below ``threshold``. Until that is measured the bar is ``barge_in_margin``
     times ``threshold``. It follows the volume and the room, and stays at
     ``threshold`` on headphones, where the microphone hears no zrb. An
     utterance with ``barge_in_min_speech`` of loud blocks over zrb
@@ -146,7 +147,9 @@ class UtteranceCutter:
         # measured as zrb's while they talk over it, must not cut them off.
         bar = self._utterance_bar if self._speech else self._get_bar(is_over_zrb)
         loud = level >= bar
-        if is_over_zrb:
+        # Once the utterance is a barge-in, zrb is paused: what follows is
+        # the user, not zrb's level.
+        if is_over_zrb and not self.is_barge_in:
             self._zrb_levels.append(level)
         if not self._speech:
             if not loud:

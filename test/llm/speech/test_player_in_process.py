@@ -17,6 +17,7 @@ class RecordingUtterance(Utterance):
         self.text, self.played, self.done = text, played, done
 
     def play(self, timeout):
+        self.report_started()
         self.played.append(self.text)
         self.done.set()
 
@@ -38,6 +39,7 @@ class HangingUtterance(Utterance):
         self.stopped = threading.Event()
 
     def play(self, timeout):
+        self.report_started()
         self.started.set()
         self.stopped.wait(5)
 
@@ -441,3 +443,24 @@ def test_a_paused_sentence_is_not_logged_as_said_while_it_is_held(
     assert said_while_held == ""
     assert log.get_text_said(resumed, resumed) == "run the tests"
     speaker.close()
+
+
+def test_speech_that_never_starts_playing_is_not_logged_as_said(lock_file, monkeypatch):
+    """A sentence whose device fails with nothing to fall back on was not
+    heard, though zrb held the audio device for it."""
+    log = SpokenLog()
+    monkeypatch.setattr("zrb.llm.speech.player.spoken_log", log)
+
+    class SilentUtterance(Utterance):
+        def play(self, timeout):
+            raise OSError("no default output device")
+
+    class SilentBackend(AnySpeechBackend):
+        def create_utterance(self, text):
+            return SilentUtterance([])
+
+    before = time.monotonic()
+
+    Speaker(_config(SilentBackend(), lock_file)).speak("Sleep well.")
+
+    assert log.get_text_said(before, time.monotonic()) == ""

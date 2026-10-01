@@ -158,6 +158,7 @@ class PcmUtterance(Utterance):
         self, fallback: Callable[[], Utterance], timeout: float | None
     ) -> None:
         utterance = fallback()
+        utterance.set_on_start(self.report_started)
         with self._fallback_lock:
             self._fallback_playing = utterance
             # `stop` or `pause` may have come meanwhile: a program cannot
@@ -167,6 +168,9 @@ class PcmUtterance(Utterance):
             if not is_held:
                 utterance.play(timeout)
         finally:
+            with self._fallback_lock:
+                if self._fallback_playing is utterance:
+                    self._fallback_playing = None
             utterance.cleanup()
 
     def _play_in_process(self, timeout: float | None) -> None:
@@ -206,6 +210,7 @@ class PcmUtterance(Utterance):
             raise
         try:
             self._has_opened = True
+            self.report_started()
             if not self._is_finished_in_time(timeout):
                 self.stop()
         finally:

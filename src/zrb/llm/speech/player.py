@@ -288,7 +288,8 @@ class Speaker:
                 daemon=True,
             ).start()
         try:
-            play(utterance, self._config, on_start=lambda: self._start_said(text))
+            utterance.set_on_start(lambda: self._start_said(text))
+            play(utterance, self._config)
         finally:
             played.set()
             with self._lock:
@@ -299,9 +300,8 @@ class Speaker:
 
     def _start_said(self, text: str) -> None:
         """Log *text* as said from now, so dictation can tell zrb's own
-        voice, heard back through the microphone, from the user's. Called once
-        the audio device is held: a sentence dropped waiting for it, or
-        paused before it starts, was never heard."""
+        voice from the user's. Called when playback starts: a sentence that
+        never plays, or is paused before it starts, was never heard."""
         with self._lock:
             self._playing_text = text
             if not self._is_paused:
@@ -446,17 +446,11 @@ def _resolve_player(player: str | None) -> str:
     return "auto"
 
 
-def play(
-    utterance: Utterance,
-    config: SpeechConfig,
-    on_start: "Callable[[], None] | None" = None,
-) -> None:
+def play(utterance: Utterance, config: SpeechConfig) -> None:
     """Play *utterance* while holding the resolved *config*'s audio lock.
 
     Dropped, not queued, when another session holds the lock for more than
-    ``lock_timeout``: falling behind would speak stale replies. *on_start*
-    is called once the lock is held, just before playback starts, and never
-    for an utterance dropped this way.
+    ``lock_timeout``: falling behind would speak stale replies.
     """
     try:
         with hold_file_lock(
@@ -464,8 +458,6 @@ def play(
         ):
             _set_playing(+1)
             try:
-                if on_start is not None:
-                    on_start()
                 utterance.play(config.player_timeout or None)
             finally:
                 _set_playing(-1)

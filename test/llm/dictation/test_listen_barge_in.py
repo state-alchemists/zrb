@@ -256,6 +256,16 @@ def test_talking_over_zrb_for_long_does_not_raise_the_bar_on_yourself():
     assert heard == [[0.5] * 25]
 
 
+def test_a_long_barge_in_does_not_raise_the_bar_for_the_next_one():
+    """Once an utterance is a barge-in, zrb is paused and what the
+    microphone hears is the user: learning it as zrb's level would set the
+    bar over the user's own voice next time."""
+    heard = _over_zrb(
+        ECHO + [0.5] * 25 + [0.12] * 5 + [0.5] * 3 + [0.12] * 3, max_utterance=10
+    )
+    assert heard == [[0.5] * 25, [0.5] * 3]
+
+
 def test_the_bar_holds_for_the_echo_tail_after_zrb_stops():
     cutter = _cutter(
         barge_in_enabled=True, barge_in_margin=3.0, pre_roll=0, echo_cooldown=0.3
