@@ -22,6 +22,12 @@ class AnyDictationBackend(ABC):
     async def transcribe(self, audio: bytes) -> str:
         """The text spoken in *audio*: 16 kHz mono 16-bit PCM."""
 
+    async def transcribe_speech(self, audio: bytes) -> str:
+        """As `transcribe`, without text the backend scores as made up from
+        noise. Used by hands-free; push-to-talk uses `transcribe`. Defaults
+        to `transcribe`."""
+        return await self.transcribe(audio)
+
     async def create_stream(self) -> AnyTranscriptionStream | None:
         """A stream transcribing one utterance while it is spoken, or ``None``
         for a backend that only transcribes a finished utterance (the

@@ -286,7 +286,53 @@ async def test_a_single_word_over_zrb_is_not_taken_for_the_user(
     session = _session()
 
     assert await _replies(session, 1) == ["use pytest"]
-    assert any("too few words over zrb" in str(badge) for badge in ui.badges)
+    assert any("too few words to interrupt" in str(badge) for badge in ui.badges)
+
+
+@pytest.mark.asyncio
+async def test_a_single_word_while_a_turn_runs_does_not_steer_it(
+    monkeypatch, interrupted, ui
+):
+    """With barge-in on, talking while a turn runs interrupts it as talking
+    over zrb does, so the same two-word minimum keeps noise out."""
+    _fake_listen(monkeypatch, "sleep", "use pytest", is_barge_in=False)
+    ui.is_thinking = True
+    session = _session(barge_in_enabled=True)
+
+    assert await _replies(session, 1) == ["use pytest"]
+    assert any("too few words to interrupt" in str(badge) for badge in ui.badges)
+    assert ui.cancelled == []
+
+
+@pytest.mark.asyncio
+async def test_a_single_word_while_a_turn_runs_is_sent_with_barge_in_off(
+    monkeypatch, interrupted, ui
+):
+    _fake_listen(monkeypatch, "sleep", is_barge_in=False)
+    ui.is_thinking = True
+    session = _session(barge_in_enabled=False)
+
+    assert await _replies(session, 1) == ["sleep"]
+
+
+@pytest.mark.asyncio
+async def test_a_single_word_with_no_turn_running_is_sent(monkeypatch, interrupted, ui):
+    _fake_listen(monkeypatch, "hello", is_barge_in=False)
+    session = _session(barge_in_enabled=True)
+
+    assert await _replies(session, 1) == ["hello"]
+
+
+@pytest.mark.asyncio
+async def test_a_single_word_answers_a_prompt_while_a_turn_runs(
+    monkeypatch, interrupted, ui
+):
+    _fake_listen(monkeypatch, "later", is_barge_in=False)
+    ui.is_thinking = True
+    ui.is_waiting_for_answer = True
+    session = _session(barge_in_enabled=True)
+
+    assert await _replies(session, 1) == ["later"]
 
 
 @pytest.mark.asyncio

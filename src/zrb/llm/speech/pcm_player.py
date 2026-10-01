@@ -134,7 +134,7 @@ class PcmUtterance(Utterance):
                 self._on_device_error(exc)
             else:
                 logger.warning(
-                    f"zrb could not open the audio device to play speech itself "
+                    f"Could not open the audio device to play speech in process "
                     f"({exc}); a player program plays it instead"
                 )
             self._play_fallback(self._fallback, timeout)

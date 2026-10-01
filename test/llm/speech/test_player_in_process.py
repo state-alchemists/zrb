@@ -372,7 +372,7 @@ def test_an_output_device_that_cannot_open_is_not_tried_again(
 
     assert rendered == ["one"]
     assert backend.played == ["one", "two"]
-    assert caplog.text.count("could not open the audio device") == 1
+    assert caplog.text.count("Could not open the audio device") == 1
 
 
 def test_an_unknown_player_is_logged_and_read_as_auto(lock_file, monkeypatch, caplog):

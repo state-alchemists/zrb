@@ -15,6 +15,7 @@ from collections.abc import AsyncGenerator, Callable
 from contextlib import aclosing
 from typing import TYPE_CHECKING
 
+from zrb.config.config import CFG
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.builtin import get_dictation_backend
@@ -320,9 +321,9 @@ class DictationSession:
             self._rest(f"🎤 ignored {_quote(text)} ({why_not})")
             return None
         command = self._get_command(utterance, text)
-        if command and self._is_too_short_over_zrb(utterance, command):
+        if command and self._is_too_short_to_interrupt(utterance, command):
             self._release_barge_in()
-            self._rest(f"🎤 ignored {_quote(command)} (too few words over zrb)")
+            self._rest(f"🎤 ignored {_quote(command)} (too few words to interrupt)")
             return None
         self._settle_barge_in(utterance, command is not None)
         if not command:
@@ -337,27 +338,27 @@ class DictationSession:
         return command
 
     def _get_why_not_the_user(self, utterance: Utterance, text: str) -> str:
-        """Why *text* is not words the user said, or ``""`` when it may be:
-        the transcriber guessing at noise, or zrb's own voice heard back.
-        A stop word or a yes/no is never set aside: "no no" is meant."""
+        """Why hands-free *text* is not the user's words, or ``""``. Own
+        voice is checked only over zrb's voice: otherwise the mic was deaf to
+        zrb, and a reply in zrb's words is the user's. A stop word or yes/no
+        is never set aside ("no no" is meant)."""
         if not text or self._is_answer_or_stop(text):
             return ""
         if is_transcriber_guess(text):
             return "the transcriber guessing at noise"
-        if self._is_own_voice(utterance, text):
-            return "zrb's own voice"
+        if utterance.is_over_speech and self._is_own_voice(utterance, text):
+            return f"{CFG.LLM_ASSISTANT_NAME}'s own voice"
         return ""
 
     def _is_answer_or_stop(self, text: str) -> bool:
         phrases = self._stop_words + self._approve_words + self._deny_words
         return is_said_alone(text, phrases, self._polite_words)
 
-    def _is_too_short_over_zrb(self, utterance: Utterance, command: str) -> bool:
-        """Whether *command*, said over zrb's voice, has too few words to be
-        the user's: zrb's voice and noise come through as a word or two
-        ("sleep", "yeah"). A stop word, or an answer to the prompt being
-        asked, is meant however short."""
-        if not utterance.is_over_speech:
+    def _is_too_short_to_interrupt(self, utterance: Utterance, command: str) -> bool:
+        """Whether *command*, interrupting zrb (`_is_interrupting`), has
+        fewer than `barge_in_min_words` words: zrb's voice and noise come
+        through as a word or two. Stop words and answers are exempt."""
+        if not self._is_interrupting(utterance):
             return False
         if self._is_answer_or_stop(command):
             return False
@@ -520,7 +521,7 @@ class DictationSession:
         if utterance.stream is not None:
             coroutine = utterance.stream.finish()
         else:
-            coroutine = self.backend.transcribe(utterance.audio)
+            coroutine = self.backend.transcribe_speech(utterance.audio)
         transcribing = asyncio.ensure_future(coroutine)
         switched_off = asyncio.ensure_future(self._hands_free_off.wait())
         is_finished = False

@@ -245,13 +245,32 @@ async def test_zrbs_own_voice_heard_back_is_dropped_and_zrb_carries_on(
     log = SpokenLog()
     log.start("Goodnight. Sleep well.", -1.0)  # still being said
     monkeypatch.setattr("zrb.llm.dictation.feature.spoken_log", log)
+    monkeypatch.setenv("ZRB_LLM_ASSISTANT_NAME", "Jarvis")
     _listen(monkeypatch, "Sleep well.", "what time is it")
     ui = FakeUI()
     set_session_ui(ui)
 
     assert await _replies(_session(), 1) == ["what time is it"]
     assert speech[:2] == ["pause", "resume"]
-    assert any("zrb's own voice" in str(badge) for badge in ui.badges)
+    assert any("Jarvis's own voice" in str(badge) for badge in ui.badges)
+
+
+@pytest.mark.asyncio
+async def test_a_reply_in_zrbs_words_while_zrb_is_silent_is_the_users(
+    monkeypatch, speech
+):
+    """With the microphone deaf to zrb, what follows its question is the
+    user's even in its words, though within the self-echo tail."""
+    log = SpokenLog()
+    log.finish(log.start("Should I run the tests?", -1.0), -0.2)
+    monkeypatch.setattr("zrb.llm.dictation.feature.spoken_log", log)
+
+    async def listen(config, should_listen, **kwargs):
+        yield Utterance(b"run the tests", 0.0, 0.5)
+
+    monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
+
+    assert await _replies(_session(), 1) == ["run the tests"]
 
 
 @pytest.mark.asyncio

@@ -48,14 +48,14 @@ By default zrb ignores the microphone while it is speaking, so its own voice is 
 
 With wake words, zrb stops only once it has heard one; it pauses for talk in the room and carries on.
 
-**zrb's own voice.** On speakers the microphone hears zrb too, and zrb does not try to subtract it: no echo canceller removes all of it on laptop speakers, and what is left, transcribed, would become turns zrb answers itself. Instead, what is heard over zrb has to pass four checks before it reaches the model ([ADR-0105](../adr/adr-0105.md)):
+**zrb's own voice.** On speakers the microphone hears zrb too, and zrb does not try to subtract it: no echo canceller removes all of it on laptop speakers, and what is left, transcribed, would become turns zrb answers itself. Instead, what hands-free hears has to pass four checks before it reaches the model ([ADR-0105](../adr/adr-0105.md)). Push-to-talk keeps every word: its transcript lands in the input box for you to edit.
 
 | Check | What it keeps out | Setting |
 |---|---|---|
 | Louder than zrb: speech over zrb, and for `ZRB_LLM_DICTATION_ECHO_COOLDOWN` after, must be several times louder than zrb's voice reaches the microphone (measured as it speaks, so it follows the volume and the room) | zrb's voice and room noise starting an utterance at all | `ZRB_LLM_DICTATION_BARGE_IN_MARGIN` (3) |
-| Not the transcriber guessing: Whisper's own scores for a segment that is likely silence or repeating itself, phrases Whisper writes for silence ("Thank you for watching."), and one phrase over and over ("and this and this") | Words made up from noise | — |
-| Not zrb's own words: mostly words zrb was saying while it was heard | zrb's voice that got through, transcribed | `ZRB_LLM_DICTATION_SELF_ECHO_MATCH`, `_SELF_ECHO_TAIL` |
-| At least two words over zrb, unless a stop word or an answer to the prompt being asked | One-word leftovers ("sleep", "well") | `ZRB_LLM_DICTATION_BARGE_IN_MIN_WORDS` (2) |
+| Not the transcriber guessing, in anything heard hands-free: Whisper's own scores for a segment that is likely silence or repeating itself, phrases Whisper writes for silence ("Thank you for watching."), and one phrase over and over ("and this and this") | Words made up from noise | — |
+| Not zrb's own words: over zrb's voice, mostly words zrb was saying while it was heard; what you say while zrb is silent is never taken for it | zrb's voice that got through, transcribed | `ZRB_LLM_DICTATION_SELF_ECHO_MATCH`, `_SELF_ECHO_TAIL` |
+| At least two words over zrb, or (with barge-in on) while a turn runs, unless a stop word or an answer to the prompt being asked | One-word leftovers ("sleep", "well") | `ZRB_LLM_DICTATION_BARGE_IN_MIN_WORDS` (2) |
 
 On headphones the microphone hears no zrb, so the bar stays at `ZRB_LLM_DICTATION_THRESHOLD`. Speak up a little over laptop speakers. zrb plays its speech itself when it can (`ZRB_LLM_SPEECH_PLAYER=auto`, the default with the `zrb[voice]` extra), so it can pause while you talk; speech a player program plays cannot pause, and only the sentence playing is stopped.
 
@@ -75,9 +75,9 @@ A line above the status bar shows what the microphone is doing, while hands-free
 | `✋ interrupted · go on…` | It was words: zrb stopped (barge-in) |
 | `✋ stopped · listening` | You said "stop" over it; the turn was cancelled |
 | `🎤 ignored "…" (no wake word)` | Heard, but it did not start with a wake word |
-| `🎤 ignored "…" (zrb's own voice)` | It was zrb, heard back through the speakers; zrb carries on |
+| `🎤 ignored "…" (Zrb's own voice)` | It was zrb, heard back through the speakers; zrb carries on. The name is `ZRB_LLM_ASSISTANT_NAME` |
 | `🎤 ignored "…" (the transcriber guessing at noise)` | Words the transcriber made up from noise |
-| `🎤 ignored "…" (too few words over zrb)` | One word over zrb that was not a stop word or an answer |
+| `🎤 ignored "…" (too few words to interrupt)` | One word over zrb, or over a running turn, that was not a stop word or an answer |
 
 Push-to-talk shows `🔴 recording…` and `📝 transcribing…` the same way.
 

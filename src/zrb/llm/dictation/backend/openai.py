@@ -27,17 +27,19 @@ class OpenAIDictationBackend(AnyDictationBackend):
         return "openai"
 
     async def transcribe(self, audio: bytes) -> str:
-        """*audio*'s words. A Whisper model also says how sure it is of each
-        segment, and a segment that is likely no speech, or one phrase over
-        and over, is left out: Whisper writes words for noise."""
-        wav_buffer = io.BytesIO(pcm16_to_wav_bytes(audio))
-        wav_buffer.name = "audio.wav"
+        """*audio*'s words, unfiltered."""
         transcriptions = self._get_client().audio.transcriptions
+        result = await transcriptions.create(model=self._model, file=_to_wav(audio))
+        return result.text
+
+    async def transcribe_speech(self, audio: bytes) -> str:
+        """*audio*'s words, without the segments a Whisper model scores as
+        likely no speech or repetitive. Other models give no scores."""
         if not self._model.startswith("whisper"):
-            result = await transcriptions.create(model=self._model, file=wav_buffer)
-            return result.text
+            return await self.transcribe(audio)
+        transcriptions = self._get_client().audio.transcriptions
         result = await transcriptions.create(
-            model=self._model, file=wav_buffer, response_format="verbose_json"
+            model=self._model, file=_to_wav(audio), response_format="verbose_json"
         )
         segments = getattr(result, "segments", None)
         # A compatible server may leave the segments out.
@@ -63,6 +65,12 @@ class OpenAIDictationBackend(AnyDictationBackend):
             )
         self._client = AsyncOpenAI(api_key=api_key, base_url=self._base_url)
         return self._client
+
+
+def _to_wav(audio: bytes) -> io.BytesIO:
+    wav_buffer = io.BytesIO(pcm16_to_wav_bytes(audio))
+    wav_buffer.name = "audio.wav"
+    return wav_buffer
 
 
 # Whisper's own signs that a segment is not speech, as the Whisper project

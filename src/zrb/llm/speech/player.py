@@ -330,8 +330,8 @@ class Speaker:
                 audio = backend.create_audio(text)
             except Exception as exc:
                 logger.warning(
-                    f"Speech backend {backend.name} could not render audio for "
-                    f"zrb to play ({exc}); a player program plays it instead"
+                    f"Speech backend {backend.name} could not render audio to "
+                    f"play in process ({exc}); a player program plays it instead"
                 )
                 audio = None
             if audio is not None:
@@ -357,7 +357,7 @@ class Speaker:
             self._is_device_unavailable = True
         if is_first:
             logger.warning(
-                f"zrb could not open the audio device to play speech itself "
+                f"Could not open the audio device to play speech in process "
                 f"({exc}); a player program plays it for the rest of the session"
             )
 

@@ -275,11 +275,10 @@ class LLMDictationMixin:
         float,
         fallback=0.8,
         doc=(
-            "Share (0-1) of what hands-free heard that must be words zrb was "
-            "saying then for it to be taken as zrb's own voice coming back "
-            "through the microphone, and dropped instead of becoming a turn. "
-            "Echo cancellation never removes all of it. 0 turns this off. "
-            "Default: 0.8."
+            "Share (0-1) of what hands-free heard over zrb's voice that must be "
+            "words zrb was saying then for it to be taken as zrb's own voice "
+            "coming back through the microphone, and dropped instead of "
+            "becoming a turn. 0 turns this off. Default: 0.8."
         ),
     )
 
