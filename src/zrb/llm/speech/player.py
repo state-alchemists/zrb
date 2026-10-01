@@ -22,6 +22,7 @@ from zrb.llm.speech.backend.utterance import Utterance
 from zrb.llm.speech.config import SpeechConfig
 from zrb.llm.speech.pcm_player import PcmUtterance
 from zrb.llm.speech.pcm_player import is_available as is_in_process_available
+from zrb.llm.speech.spoken_log import spoken_log
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 
 logger = logging.getLogger(__name__)
@@ -107,8 +108,8 @@ class Speaker:
             queue.Queue()
         )
         # Made but not yet played: what the player thread takes next.
-        self._ready: "queue.Queue[tuple[Utterance, IsStale, int] | None]" = queue.Queue(
-            maxsize=1
+        self._ready: "queue.Queue[tuple[Utterance, str, IsStale, int] | None]" = (
+            queue.Queue(maxsize=1)
         )
         self._worker: threading.Thread | None = None
         self._player: threading.Thread | None = None
@@ -240,7 +241,7 @@ class Speaker:
     def _speak(self, text: str, is_stale: "IsStale", generation: int) -> None:
         utterance = self._prepare(text, is_stale)
         if utterance is not None:
-            self._play_prepared(utterance, is_stale, generation)
+            self._play_prepared(utterance, text, is_stale, generation)
 
     def _prepare(self, text: str, is_stale: "IsStale") -> Utterance | None:
         if not text.strip() or (is_stale is not None and is_stale()):
@@ -248,7 +249,7 @@ class Speaker:
         return self._create_with_fallback(text)
 
     def _play_prepared(
-        self, utterance: Utterance, is_stale: "IsStale", generation: int
+        self, utterance: Utterance, text: str, is_stale: "IsStale", generation: int
     ) -> None:
         with self._lock:
             # Paused: wait to start until resumed, or until this utterance is
@@ -277,9 +278,13 @@ class Speaker:
                 args=(utterance, is_stale, played),
                 daemon=True,
             ).start()
+        # Logged as said for its whole playback, so dictation can tell zrb's
+        # own voice, heard back through the microphone, from the user's.
+        said = spoken_log.start(text, time.monotonic())
         try:
             play(utterance, self._config)
         finally:
+            spoken_log.finish(said, time.monotonic())
             played.set()
             with self._lock:
                 self._playing = None
@@ -347,12 +352,13 @@ class Speaker:
             item, is_stale = entry
             generation = self._generation
             try:
-                utterance = self._prepare(item() if callable(item) else item, is_stale)
+                text = item() if callable(item) else item
+                utterance = self._prepare(text, is_stale)
             except Exception as exc:
                 logger.warning(f"Speech failed: {exc}")
                 continue
             if utterance is not None:
-                self._ready.put((utterance, is_stale, generation))
+                self._ready.put((utterance, text, is_stale, generation))
         self._ready.put(None)
 
     def _play_ready(self) -> None:

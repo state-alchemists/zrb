@@ -41,6 +41,8 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_ECHO_CANCELLER: str = "numpy"
         self.DEFAULT_LLM_DICTATION_BARGE_IN_MIN_SPEECH: str = "0.3"
         self.DEFAULT_LLM_DICTATION_BARGE_IN_ACTION: str = "steer"
+        self.DEFAULT_LLM_DICTATION_SELF_ECHO_MATCH: str = "0.8"
+        self.DEFAULT_LLM_DICTATION_SELF_ECHO_TAIL: str = "1.0"
         self.DEFAULT_LLM_DICTATION_APPROVE_WORDS: str = (
             "yes, yeah, yep, ok, okay, sure, approve, accept, go ahead, do it"
         )
@@ -263,6 +265,29 @@ class LLMDictationMixin:
             "- 'steer' (default): the turn goes on and takes it into account.\n"
             "- 'cancel': the turn stops and what you said starts a new one.\n"
             "A stop word said alone ({ENV_PREFIX}_LLM_DICTATION_STOP_WORDS) cancels the turn either way."
+        ),
+    )
+
+    LLM_DICTATION_SELF_ECHO_MATCH = EnvField(
+        float,
+        fallback=0.8,
+        doc=(
+            "Share (0-1) of what hands-free heard that must be words zrb was "
+            "saying then for it to be taken as zrb's own voice coming back "
+            "through the microphone, and dropped instead of becoming a turn. "
+            "Echo cancellation never removes all of it. 0 turns this off. "
+            "Default: 0.8."
+        ),
+    )
+
+    LLM_DICTATION_SELF_ECHO_TAIL = EnvField(
+        float,
+        fallback=1.0,
+        doc=(
+            "Seconds after zrb says a sentence that hearing its words still "
+            "counts as its echo ({ENV_PREFIX}_LLM_DICTATION_SELF_ECHO_MATCH): "
+            "the room, and audio still on its way out of the speakers. "
+            "Default: 1."
         ),
     )
 

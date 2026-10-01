@@ -7,6 +7,7 @@ import pytest
 
 from zrb.llm.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
 from zrb.llm.speech.backend.audio import SpeechAudio
+from zrb.llm.speech.spoken_log import SpokenLog
 
 
 class RecordingUtterance(Utterance):
@@ -381,3 +382,14 @@ def test_an_unknown_player_is_logged_and_read_as_auto(lock_file, monkeypatch, ca
 
     assert "Unknown speech player 'commands'" in caplog.text
     assert made == ["hello"]
+
+
+def test_what_zrb_plays_is_logged_as_said_while_it_plays(lock_file, monkeypatch):
+    log = SpokenLog()
+    monkeypatch.setattr("zrb.llm.speech.player.spoken_log", log)
+    backend = FakeBackend()
+    before = time.monotonic()
+
+    Speaker(_config(backend, lock_file)).speak("Sleep well.")
+
+    assert log.get_text_said(before, time.monotonic()) == "Sleep well."

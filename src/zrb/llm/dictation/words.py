@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import difflib
 import re
 from collections.abc import Collection
 
@@ -9,6 +10,8 @@ from zrb.config.config import CFG
 
 _WORD_RE = re.compile(r"[\w']+")
 _STRIPPED_AFTER_WAKE_WORD = " ,.!?;:，。"
+# How alike two words must be (difflib ratio) for a misheard one to match.
+_NEAR_WORD = 0.75
 
 
 def split_phrases(phrases: list[str]) -> list[list[str]]:
@@ -72,6 +75,25 @@ def to_answer(
     if _is_made_of(heard, deny_words, polite):
         return "no"
     return text
+
+
+def is_said_back(heard: str, said: str, min_share: float) -> bool:
+    """Whether *heard* is mostly words of *said*: at least *min_share* of
+    its words are, each spelled the same or nearly ("sleep" for "Sleep",
+    "meen" for "mean", as a transcriber mishears zrb's own voice). Nothing
+    heard, nothing said, or a *min_share* of 0 is never said back."""
+    heard_words = _WORD_RE.findall(heard.lower())
+    said_words = set(_WORD_RE.findall(said.lower()))
+    if not heard_words or not said_words or min_share <= 0:
+        return False
+    matched = sum(1 for word in heard_words if _is_near_any(word, said_words))
+    return matched / len(heard_words) >= min_share
+
+
+def _is_near_any(word: str, words: set[str]) -> bool:
+    if word in words:
+        return True
+    return bool(difflib.get_close_matches(word, words, n=1, cutoff=_NEAR_WORD))
 
 
 def is_said_alone(

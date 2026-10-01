@@ -38,6 +38,8 @@ class DictationConfig:
     echo_canceller: "str | AnyEchoCanceller | None" = None
     barge_in_min_speech: float | None = None
     barge_in_action: str | None = None
+    self_echo_match: float | None = None
+    self_echo_tail: float | None = None
     approve_words: list[str] | None = None
     deny_words: list[str] | None = None
     stop_words: list[str] | None = None

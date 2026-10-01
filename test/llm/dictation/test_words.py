@@ -4,6 +4,7 @@ from zrb.config.config import CFG
 from zrb.llm.dictation.words import (
     is_finished_phrase,
     is_said_alone,
+    is_said_back,
     split_phrases,
     strip_wake_word,
     to_answer,
@@ -110,3 +111,32 @@ def test_is_said_alone_needs_one_of_the_phrases():
     assert is_said_alone("Hold on, please.", stop)
     assert not is_said_alone("no", stop)
     assert not is_said_alone("please", stop)
+
+
+@pytest.mark.parametrize(
+    "heard, said",
+    [
+        # Taken from a session where zrb answered its own voice.
+        ("sleep", "Goodnight. Sleep well."),
+        ("well", "Rest well. I'm here when you need me."),
+        ("did you mean", 'Did you mean "stop," "speak," or something else?'),
+        ("Which one?", 'Which one — "stop" or "speak"?'),
+        ("did you meen", "Did you mean stop or speak?"),  # misheard
+    ],
+)
+def test_is_said_back_spots_zrbs_own_words(heard, said):
+    assert is_said_back(heard, said, 0.8)
+
+
+@pytest.mark.parametrize(
+    "heard, said, min_share",
+    [
+        ("what time is it", "Did you mean stop or speak?", 0.8),
+        ("use pytest instead of unittest", "Running the tests now.", 0.8),
+        ("sleep", "", 0.8),  # zrb said nothing
+        ("", "Sleep well.", 0.8),
+        ("sleep", "Sleep well.", 0),  # switched off
+    ],
+)
+def test_is_said_back_leaves_the_users_own_words(heard, said, min_share):
+    assert not is_said_back(heard, said, min_share)

@@ -24,11 +24,13 @@ from zrb.llm.dictation.echo.cancellation import EchoCancellation
 from zrb.llm.dictation.listen import MicState, Utterance, import_audio, listen
 from zrb.llm.dictation.words import (
     is_said_alone,
+    is_said_back,
     split_phrases,
     strip_wake_word,
     to_answer,
 )
 from zrb.llm.speech.feature import interrupt_speech, pause_speech, resume_speech
+from zrb.llm.speech.spoken_log import spoken_log
 from zrb.llm.ui.trigger import TriggerReply
 from zrb.llm.util.feature_config import (
     current_session_key,
@@ -320,6 +322,11 @@ class DictationSession:
     async def _to_command(self, utterance: Utterance, text: str) -> str | None:
         """What *utterance*, transcribed as *text*, asks zrb, or ``None``
         when there is nothing to send; the badge says which."""
+        if self._is_own_voice(utterance, text):
+            # zrb heard itself: not the user's, so zrb carries on.
+            self._release_barge_in()
+            self._rest(f"🔁 ignored {_quote(text)} (zrb's own voice)")
+            return None
         command = self._get_command(utterance, text)
         self._settle_barge_in(utterance, command is not None)
         if not command:
@@ -332,6 +339,16 @@ class DictationSession:
             return None
         self._rest(f"🎤 heard {_quote(command)} · listening")
         return command
+
+    def _is_own_voice(self, utterance: Utterance, text: str) -> bool:
+        """Whether *text* only repeats what zrb was saying while *utterance*
+        was heard: what echo cancellation left of its voice, transcribed."""
+        said = spoken_log.get_text_said(
+            utterance.started_at,
+            utterance.ended_at,
+            tail=self._config.self_echo_tail or 0,
+        )
+        return is_said_back(text, said, self._config.self_echo_match or 0)
 
     def _get_command(self, utterance: Utterance, text: str) -> str | None:
         """*text* past its wake word; ``""`` for the wake word alone, and

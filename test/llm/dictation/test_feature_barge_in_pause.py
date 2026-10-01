@@ -10,6 +10,7 @@ from zrb.llm.dictation import AnyDictationBackend, DictationConfig
 from zrb.llm.dictation.echo import EchoCancellation
 from zrb.llm.dictation.feature import DictationSession
 from zrb.llm.dictation.listen import Utterance
+from zrb.llm.speech.spoken_log import SpokenLog
 from zrb.llm.util.feature_config import reset_session_ui, set_session_ui
 
 
@@ -255,3 +256,31 @@ async def test_a_broken_microphone_mid_barge_in_resumes_speech(monkeypatch, spee
 
     assert speech[:2] == ["pause", "resume"]
     assert not session.is_hands_free
+
+
+@pytest.mark.asyncio
+async def test_zrbs_own_voice_heard_back_is_dropped_and_zrb_carries_on(
+    monkeypatch, speech
+):
+    """What echo cancellation left of zrb's voice, transcribed into its own
+    words, must not become a turn: zrb would answer itself."""
+    log = SpokenLog()
+    log.start("Goodnight. Sleep well.", -1.0)  # still being said
+    monkeypatch.setattr("zrb.llm.dictation.feature.spoken_log", log)
+    _listen(monkeypatch, "Sleep well.", "what time is it")
+    ui = FakeUI()
+    set_session_ui(ui)
+
+    assert await _replies(_session(), 1) == ["what time is it"]
+    assert speech[:2] == ["pause", "resume"]
+    assert any("zrb's own voice" in str(badge) for badge in ui.badges)
+
+
+@pytest.mark.asyncio
+async def test_words_zrb_did_not_say_are_not_taken_for_its_voice(monkeypatch, speech):
+    log = SpokenLog()
+    log.finish(log.start("Goodnight. Sleep well.", -10.0), -9.0)  # long done
+    monkeypatch.setattr("zrb.llm.dictation.feature.spoken_log", log)
+    _listen(monkeypatch, "sleep")
+
+    assert await _replies(_session(), 1) == ["sleep"]
