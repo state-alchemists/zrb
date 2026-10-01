@@ -349,15 +349,15 @@ class _BlockHandler:
         is_deaf = is_echo and not self._is_echo_heard(has_reference)
         level = float(self._np.sqrt(self._np.mean(block**2)))
         finished = cutter.feed(block, level, captured_at, is_echo, not is_deaf)
-        self._reports.update(cutter, is_deaf, is_ending=finished is not None)
         if finished is None:
+            self._reports.update(cutter, is_deaf)
             await self._streamer.update(cutter)
             if self._streamer.should_end(cutter, self._config):
                 finished = cutter.flush(captured_at)
-                self._reports.update(cutter, is_deaf, is_ending=finished is not None)
         if finished is None:
+            self._reports.update(cutter, is_deaf)
             return None
-        return await self._to_utterance(finished)
+        return await self._to_utterance(finished, is_deaf)
 
     def _cancel_echo(
         self,
@@ -399,7 +399,7 @@ class _BlockHandler:
         finished = self._cutter.flush(ended_at)
         if finished is None:
             return None
-        return await self._to_utterance(finished)
+        return await self._to_utterance(finished, is_deaf=False)
 
     async def close(self) -> None:
         """The microphone is closing: an utterance still in progress is
@@ -409,8 +409,13 @@ class _BlockHandler:
         await self._streamer.abandon()
 
     async def _to_utterance(
-        self, finished: "tuple[list[Any], float, float]"
+        self, finished: "tuple[list[Any], float, float]", is_deaf: bool
     ) -> Utterance:
+        """The finished utterance, handed to the caller. A barge-in it
+        reported goes with it, never reported dropped: the caller settles it
+        once the transcript says whether it was words."""
+        self._reports.hand_over()
+        self._reports.update(self._cutter, is_deaf)
         stream = await self._streamer.take(finished[0])
         cutter = self._cutter
         return _to_utterance(
@@ -444,16 +449,20 @@ class _BlockReports:
             self._is_barge_in_reported = False
             _call(self._on_barge_in_dropped)
 
-    def update(self, cutter: UtteranceCutter, is_deaf: bool, is_ending: bool) -> None:
-        """After a block: *is_ending* when the block finished an utterance
-        that is about to be yielded."""
+    def hand_over(self) -> None:
+        """The utterance in progress is being yielded: a barge-in it
+        reported is the caller's to settle now, not dropped."""
+        self._is_barge_in_reported = False
+
+    def update(self, cutter: UtteranceCutter, is_deaf: bool) -> None:
+        """After a block. An utterance that stops being heard without being
+        handed over (too short, or cut by zrb's voice) drops its barge-in."""
         if cutter.is_barge_in and not self._is_barge_in_reported:
             self._is_barge_in_reported = True
             _call(self._on_barge_in)
         if not cutter.is_hearing and self._is_barge_in_reported:
             self._is_barge_in_reported = False
-            if not is_ending:
-                _call(self._on_barge_in_dropped)
+            _call(self._on_barge_in_dropped)
         state = _get_mic_state(cutter, is_deaf)
         if self._on_state is not None and state != self._state:
             self._on_state(state)

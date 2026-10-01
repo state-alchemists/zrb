@@ -294,6 +294,7 @@ class Speaker:
                     audio,
                     block_frames=self._config.player_block_frames,
                     read_ahead=self._config.player_read_ahead,
+                    fallback=lambda: backend.create_utterance(text),
                 )
         return backend.create_utterance(text)
 

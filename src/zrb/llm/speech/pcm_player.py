@@ -12,9 +12,11 @@ whether they import, and speech falls back to player programs when not.
 
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from collections import deque
+from collections.abc import Callable
 from typing import Any
 
 from zrb.config.config import CFG
@@ -31,6 +33,8 @@ from zrb.llm.speech.echo_reference import (
 _READER_JOIN_SECONDS = 1.0
 _BUFFER_POLL_SECONDS = 0.005
 _available: bool | None = None
+
+logger = logging.getLogger(__name__)
 
 
 def is_available() -> bool:
@@ -49,7 +53,11 @@ class PcmUtterance(Utterance):
     """`SpeechAudio` played through a sounddevice output stream, in blocks of
     *block_frames* samples, reading *read_ahead* chunks ahead of playback;
     left ``None``, `CFG.LLM_SPEECH_PLAYER_BLOCK_FRAMES` and
-    `CFG.LLM_SPEECH_PLAYER_READ_AHEAD`."""
+    `CFG.LLM_SPEECH_PLAYER_READ_AHEAD`.
+
+    When the output device cannot be opened (none, or busy), *fallback*
+    makes the same speech for a player program to play instead, so it is
+    not lost; without one, the error is raised."""
 
     def __init__(
         self,
@@ -57,8 +65,17 @@ class PcmUtterance(Utterance):
         reference: EchoReference | None = None,
         block_frames: int | None = None,
         read_ahead: int | None = None,
+        fallback: Callable[[], Utterance] | None = None,
     ):
         super().__init__([])
+        self._fallback = fallback
+        self._fallback_playing: Utterance | None = None
+        # Set once the device opened: a failure after that is not retried,
+        # or the sentence would be heard twice.
+        self._has_opened = False
+        # Set when the device failed: ends the source reader without
+        # counting as `stop`, which would also skip the fallback.
+        self._is_abandoned = False
         if block_frames is None:
             block_frames = CFG.LLM_SPEECH_PLAYER_BLOCK_FRAMES
         if read_ahead is None:
@@ -83,7 +100,8 @@ class PcmUtterance(Utterance):
 
     @property
     def is_pausable(self) -> bool:
-        return True
+        """True, unless a player program took over (the fallback)."""
+        return self._fallback_playing is None
 
     def pause(self) -> None:
         """Hold playback where it is; silence until `resume`."""
@@ -93,9 +111,33 @@ class PcmUtterance(Utterance):
         self._is_paused = False
 
     def play(self, timeout: float | None) -> None:
-        """Play to the end, or until *timeout* seconds or `stop`."""
+        """Play to the end, or until *timeout* seconds or `stop`; through
+        the fallback when the device cannot be opened."""
         if self.is_stopped:
             return
+        try:
+            self._play_in_process(timeout)
+        except Exception as exc:
+            if self._has_opened or self._fallback is None or self.is_stopped:
+                raise
+            logger.warning(
+                f"zrb could not open the audio device to play speech itself "
+                f"({exc}); a player program plays it instead"
+            )
+            self._play_fallback(self._fallback, timeout)
+
+    def _play_fallback(
+        self, fallback: Callable[[], Utterance], timeout: float | None
+    ) -> None:
+        utterance = fallback()
+        self._fallback_playing = utterance
+        try:
+            if not self.is_stopped:  # `stop` may have come meanwhile
+                utterance.play(timeout)
+        finally:
+            utterance.cleanup()
+
+    def _play_in_process(self, timeout: float | None) -> None:
         np, sd = _import_audio()
         reader = threading.Thread(target=self._read_source, daemon=True)
         self._reference.add_player(+1)
@@ -118,6 +160,7 @@ class PcmUtterance(Utterance):
             # open must not leave a download running.
             reader.start()
             with stream:
+                self._has_opened = True
                 if not self._finished.wait(timeout):
                     self.stop()
             is_played = True
@@ -126,7 +169,8 @@ class PcmUtterance(Utterance):
             self._finished.set()
             if not is_played:
                 # The device failed: close the source, which ends the read.
-                self.stop()
+                self._is_abandoned = True
+                self._audio.close()
             if reader.is_alive():
                 reader.join(_READER_JOIN_SECONDS)
 
@@ -134,6 +178,9 @@ class PcmUtterance(Utterance):
         super().stop()
         self._finished.set()
         self._audio.close()
+        fallback_playing = self._fallback_playing
+        if fallback_playing is not None:
+            fallback_playing.stop()
 
     def cleanup(self) -> None:
         self._audio.close()
@@ -142,15 +189,19 @@ class PcmUtterance(Utterance):
         try:
             for chunk in self._audio.chunks:
                 # Read ahead a little, not the whole download into memory.
-                while len(self._buffer) >= self._read_ahead and not self.is_stopped:
+                while len(self._buffer) >= self._read_ahead and not self._is_done:
                     time.sleep(_BUFFER_POLL_SECONDS)
-                if self.is_stopped:
+                if self._is_done:
                     break
                 self._buffer.append(chunk)
         except Exception:
             pass  # a download cut off by `stop`, or failing: play what came
         finally:
             self._is_source_done = True
+
+    @property
+    def _is_done(self) -> bool:
+        return self.is_stopped or self._is_abandoned
 
     def _fill(self, np: Any, sd: Any, out: Any, frames: int, info: Any = None) -> None:
         """The stream's callback: the next *frames* samples, or silence

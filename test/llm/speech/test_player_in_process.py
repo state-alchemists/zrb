@@ -78,14 +78,16 @@ class AudioBackend(FakeBackend):
         return SpeechAudio(16000, [text.encode()])
 
 
-def _in_process(monkeypatch, available=True, options=None):
+def _in_process(monkeypatch, available=True, options=None, fallbacks=None):
     made = []
     options = [] if options is None else options
+    fallbacks = [] if fallbacks is None else fallbacks
 
     class FakePcm(RecordingUtterance):
-        def __init__(self, audio, block_frames=None, read_ahead=None):
+        def __init__(self, audio, block_frames=None, read_ahead=None, fallback=None):
             super().__init__(b"".join(audio.chunks).decode(), made, threading.Event())
             options.append((block_frames, read_ahead))
+            fallbacks.append(fallback)
 
     monkeypatch.setattr(
         "zrb.llm.speech.player.is_in_process_available", lambda: available
@@ -280,3 +282,16 @@ def test_closing_a_paused_speaker_does_not_hang(lock_file):
     speaker.close()
     assert not backend.done.wait(0.3)
     assert backend.played == []
+
+
+def test_in_process_speech_falls_back_to_the_backends_own_utterance(
+    lock_file, monkeypatch
+):
+    fallbacks = []
+    _in_process(monkeypatch, fallbacks=fallbacks)
+    backend = AudioBackend()
+    Speaker(_config(backend, lock_file, player="auto")).speak("hello")
+
+    # What plays if the device cannot open: the backend's own way.
+    fallbacks[0]().play(None)
+    assert backend.played == ["hello"]

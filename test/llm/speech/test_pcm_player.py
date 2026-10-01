@@ -203,6 +203,96 @@ def test_a_device_that_fails_closes_the_source_and_reads_nothing(monkeypatch, fa
         with pytest.raises(OSError):
             utterance.play(timeout=1)
 
-    assert closed and utterance.is_stopped
+    assert closed
     if fails_on == "open":
         assert read == []  # the reader never started
+
+
+class ProgramUtterance:
+    """Stands in for a player program's utterance."""
+
+    def __init__(self, events):
+        self.events = events
+
+    def play(self, timeout):
+        self.events.append("played")
+
+    def stop(self):
+        self.events.append("stopped")
+
+    def cleanup(self):
+        self.events.append("cleaned")
+
+
+def _broken_device(fails_on="open", after_opening=False):
+    class BrokenStream(FakeOutputStream):
+        def __init__(self, *args, **kwargs):
+            if fails_on == "open":
+                raise OSError("no default output device")
+            super().__init__(*args, **kwargs)
+
+        def __enter__(self):
+            if after_opening:
+                return self
+            raise OSError("device busy")
+
+        def __exit__(self, *exc):
+            if after_opening:
+                raise OSError("device lost")
+
+    return types.SimpleNamespace(OutputStream=BrokenStream, CallbackStop=CallbackStop)
+
+
+@pytest.mark.parametrize("fails_on", ["open", "start"])
+def test_a_device_that_cannot_open_hands_the_speech_to_a_player_program(fails_on):
+    events, closed = [], []
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, [_pcm([1] * 256)], lambda: closed.append(True)),
+        EchoReference(),
+        fallback=lambda: ProgramUtterance(events),
+    )
+    with patch.dict("sys.modules", {"sounddevice": _broken_device(fails_on)}):
+        utterance.play(timeout=1)
+
+    assert events == ["played", "cleaned"]
+    assert closed  # the in-process source is released
+
+
+def test_a_device_failing_after_it_opened_is_not_played_twice():
+    events = []
+    device = _broken_device("start", after_opening=True)
+    fresh = PcmUtterance(
+        SpeechAudio(RATE, [_pcm([1] * 256)]),
+        EchoReference(),
+        fallback=lambda: ProgramUtterance(events),
+    )
+    with patch.dict("sys.modules", {"sounddevice": device}):
+        with pytest.raises(OSError, match="device lost"):
+            fresh.play(timeout=0.05)
+
+    assert events == []
+
+
+def test_stopping_during_the_fallback_stops_the_player_program():
+    events = []
+    started = threading.Event()
+
+    class Hanging(ProgramUtterance):
+        def play(self, timeout):
+            started.set()
+            time.sleep(0.2)
+
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, [_pcm([1] * 256)]),
+        EchoReference(),
+        fallback=lambda: Hanging(events),
+    )
+    with patch.dict("sys.modules", {"sounddevice": _broken_device()}):
+        player = threading.Thread(target=utterance.play, args=(1,))
+        player.start()
+        assert started.wait(1)
+        assert not utterance.is_pausable  # a program cannot pause
+        utterance.stop()
+        player.join(1)
+
+    assert "stopped" in events
