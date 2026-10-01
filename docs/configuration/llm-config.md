@@ -871,13 +871,28 @@ ANSI colors for plain terminal output (outside the TUI). Each `_COLOR_*` value i
 
 Three optional features of `zrb llm chat`, each added with one call and read from these variables **when a session starts**, so `zrb_init.py` may change them after importing zrb. A setting passed to `CameraConfig`, `DictationConfig` or `SpeechConfig` in code wins over its variable; see [Voice and camera](../llm/voice-camera.md) for that, and for plugging in your own backend. Audio dependencies (sounddevice, numpy, vosk) load only when the microphone first opens, costing nothing at startup.
 
+### Voice preset
+
+Most sessions need only one setting. `ZRB_LLM_VOICE` sets how a session talks with you by moving the defaults of the three settings that decide it; any of the three set on its own still wins.
+
+| `ZRB_LLM_VOICE` | Replies read aloud (`ZRB_LLM_SPEECH_ENABLED`) | Always listening (`ZRB_LLM_DICTATION_MODE`) | Talk over zrb (`ZRB_LLM_DICTATION_BARGE_IN_ENABLED`) |
+|---|---|---|---|
+| `off` (default) | `off` | `ptt` | `off` |
+| `speak` | `on` | `ptt` | `off` |
+| `turns` | `on` | `hands_free` | `off` |
+| `conversation` | `on` | `hands_free` | `on` |
+
+```bash
+export ZRB_LLM_VOICE=conversation   # talk with zrb, and interrupt it
+```
+
 ### Dictation (speech-to-text)
 
 `/voice` starts recording; a pause or `/voice` again stops it, and the transcript lands in the input box. `/handsfree` switches to always listening: each utterance is submitted as a turn, or answers the tool approval or question being asked. With speech on too (`/speech`), that is a voice conversation (see [Voice and camera § Talking with zrb](../llm/voice-camera.md#talking-with-zrb)).
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_DICTATION_MODE` | Mode a session starts in: `ptt` or `hands_free` | `ptt` |
+| `ZRB_LLM_DICTATION_MODE` | Mode a session starts in: `ptt` or `hands_free` | `ptt`, or as `ZRB_LLM_VOICE` sets it |
 | `ZRB_LLM_DICTATION_COMMANDS` | Aliases that start and stop a push-to-talk recording | `/voice, /v` |
 | `ZRB_LLM_DICTATION_HANDS_FREE_COMMANDS` | Aliases that switch hands-free on and off | `/handsfree` |
 | `ZRB_LLM_DICTATION_BACKEND` | `vosk` (offline), `openai`, `google`, or `multimodal` (uses `ZRB_LLM_MULTIMODAL_MODEL`) | `vosk` |
@@ -891,7 +906,7 @@ Three optional features of `zrb llm chat`, each added with one call and read fro
 | `ZRB_LLM_DICTATION_MAX_BACKLOG` | Seconds of hands-free audio kept while an utterance is being transcribed, so what you say meanwhile is not lost; older audio is dropped. `0` means no limit | `30.0` |
 | `ZRB_LLM_DICTATION_PRE_ROLL` | Seconds kept from before speech is detected, so the first word is not clipped; `0` keeps none | `0.3` |
 | `ZRB_LLM_DICTATION_ECHO_COOLDOWN` | Seconds the microphone stays deaf after zrb stops speaking, since room echo outlives playback; with barge-in on, it hears them against the bar over zrb's voice instead | `0.4` |
-| `ZRB_LLM_DICTATION_BARGE_IN_ENABLED` | `on` lets hands-free hear you while zrb speaks, on speakers too: zrb pauses at once, stops if what you said is words meant for it, and carries on if not. Speech over zrb must be `ZRB_LLM_DICTATION_BARGE_IN_MARGIN` times louder than zrb's voice reaches the microphone and at least `ZRB_LLM_DICTATION_BARGE_IN_MIN_WORDS` words. `off`: the microphone stays deaf while zrb speaks, and you take turns | `off` |
+| `ZRB_LLM_DICTATION_BARGE_IN_ENABLED` | `on` lets hands-free hear you while zrb speaks, on speakers too: zrb pauses at once, stops if what you said is words meant for it, and carries on if not. Speech over zrb must be `ZRB_LLM_DICTATION_BARGE_IN_MARGIN` times louder than zrb's voice reaches the microphone and at least `ZRB_LLM_DICTATION_BARGE_IN_MIN_WORDS` words. `off`: the microphone stays deaf while zrb speaks, and you take turns | `off`, or as `ZRB_LLM_VOICE` sets it |
 | `ZRB_LLM_DICTATION_BARGE_IN_MARGIN` | With barge-in on, how many times louder than zrb's own voice, as the microphone hears it (the median over its last few seconds), speech over zrb must be (3 is about 10 dB). It follows the volume and the room; on headphones zrb is not heard and `ZRB_LLM_DICTATION_THRESHOLD` applies | `3.0` |
 | `ZRB_LLM_DICTATION_BARGE_IN_MIN_WORDS` | With barge-in on, the fewest words said over zrb that reach it; fewer are taken for zrb's own voice or noise, and zrb carries on. A stop word, or an answer to the prompt being asked, always counts | `2` |
 | `ZRB_LLM_DICTATION_BARGE_IN_MIN_SPEECH` | Seconds of speech over zrb's voice that pause it, so a click does not; it then stops only if what was said has words. Shorter words over zrb (a crisp "stop") do not pause it, but still stop it once transcribed | `0.3` |
@@ -930,7 +945,7 @@ Reads the reply a sentence at a time as it streams, tool approvals, questions, a
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_SPEECH_ENABLED` | Speak from the start of a session; `/speech` switches it either way | `off` |
+| `ZRB_LLM_SPEECH_ENABLED` | Speak from the start of a session; `/speech` switches it either way | `off`, or as `ZRB_LLM_VOICE` sets it |
 | `ZRB_LLM_SPEECH_COMMANDS` | Aliases that switch speech off and on | `/speech` |
 | `ZRB_LLM_SPEECH_EVENTS` | What to speak: `reply`, `approval`, `question`, `progress` (a tool call starting after a silence: "Running a command.") | `reply, approval, question, progress` |
 | `ZRB_LLM_SPEECH_BACKEND` | `auto` (`termux` on Termux, `say` on macOS, else `espeak-ng`), `termux`, `say`, `espeak-ng`, `openai`, `gemini`. A failing backend falls back to the local engine | `auto` |

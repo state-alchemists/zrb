@@ -220,6 +220,24 @@ def test_add_credential_hint_keeps_the_vendor_message_and_adds_zrb_key_scoping()
     assert "ZRB_LLM_PROVIDER" in str(hinted)
 
 
+def test_add_credential_hint_covers_the_openai_sdks_own_missing_key_error():
+    from openai import OpenAIError
+
+    from zrb.llm.agent.run.error_classifier import add_credential_hint
+
+    message = (
+        "Missing credentials. Please pass an `api_key`, or set the "
+        "`OPENAI_API_KEY` environment variable."
+    )
+    original = OpenAIError(message)
+    hinted = add_credential_hint(original)
+
+    assert isinstance(hinted, OpenAIError)
+    assert hinted.__cause__ is original
+    assert str(hinted).startswith(message)
+    assert "ZRB_LLM_API_KEY" in str(hinted)
+
+
 def test_add_credential_hint_spells_the_active_env_prefix(monkeypatch):
     from pydantic_ai.exceptions import UserError
 

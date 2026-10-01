@@ -362,9 +362,7 @@ class SpeechSession:
         )
 
 
-def is_answered_since(
-    ui: "AnyUI | None", asked_at: float
-) -> Callable[[], bool]:
+def is_answered_since(ui: "AnyUI | None", asked_at: float) -> Callable[[], bool]:
     """Whether a prompt *ui* showed at or after *asked_at* has been answered.
     The hook fires just before its prompt appears, so an older prompt
     answered meanwhile does not count; no UI, or one that cannot say when its

@@ -7,8 +7,8 @@ import pytest
 
 from zrb.llm.hook.interface import HookContext
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.speech import SpeechConfig, enable_speech
 from zrb.llm.speech.feature import SpeechSession
 from zrb.llm.util.feature_config import close_feature_sessions

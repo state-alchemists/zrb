@@ -16,6 +16,7 @@ duration counts as 0.
 from __future__ import annotations
 
 from zrb.config.env_field import EnvField, comma_join, comma_list, on_off
+from zrb.config.mixins.llm_voice import get_voice_default
 from zrb.util.string.conversion import to_boolean
 
 
@@ -78,9 +79,11 @@ class LLMDictationMixin:
 
     LLM_DICTATION_MODE = EnvField(
         str,
+        default_factory=lambda c: get_voice_default(c, "LLM_DICTATION_MODE"),
         doc=(
             "Mode a session starts in: 'ptt' (push-to-talk via the dictation "
-            "command) or 'hands_free' (always listening). Default: ptt."
+            "command) or 'hands_free' (always listening). Default: ptt, or as "
+            "{ENV_PREFIX}_LLM_VOICE sets it."
         ),
     )
 
@@ -207,6 +210,9 @@ class LLMDictationMixin:
     LLM_DICTATION_BARGE_IN_ENABLED = EnvField(
         to_boolean,
         serialize=on_off,
+        default_factory=lambda c: get_voice_default(
+            c, "LLM_DICTATION_BARGE_IN_ENABLED"
+        ),
         doc=(
             "'on' lets hands-free hear you while zrb speaks, so you can talk "
             "over it: zrb pauses at once, and stops if what you said is "
@@ -216,10 +222,9 @@ class LLMDictationMixin:
             "zrb's voice reaches the microphone, and at least "
             "{ENV_PREFIX}_LLM_DICTATION_BARGE_IN_MIN_WORDS words. 'off' "
             "keeps the microphone deaf while zrb speaks: zrb and you take "
-            "turns. Default: off."
+            "turns. Default: off, or as {ENV_PREFIX}_LLM_VOICE sets it."
         ),
     )
-
 
     LLM_DICTATION_BARGE_IN_MARGIN = EnvField(
         float,
@@ -375,24 +380,6 @@ class LLMDictationMixin:
             "Return only the transcription."
         ),
     )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     LLM_DICTATION_OPENAI_MODEL = EnvField(
         str,

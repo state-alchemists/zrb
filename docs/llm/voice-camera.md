@@ -10,7 +10,7 @@
 | Dictation | `/voice`, `/handsfree` | `pip install 'zrb[voice]'` |
 | Speech | `/speech` | nothing on macOS; Termux:API on Android; `espeak-ng` on Linux and Windows; or a cloud key |
 
-Every setting is an environment variable, listed in [LLM Configuration § 23](../configuration/llm-config.md#23-voice-and-camera). Platform problems are covered in [Voice & Photo Troubleshooting](voice-photo-troubleshooting.md).
+To talk with zrb, `export ZRB_LLM_VOICE=conversation` (or `turns` to take turns without interrupting, `speak` to only hear replies). Every setting is an environment variable, listed in [LLM Configuration § 23](../configuration/llm-config.md#23-voice-and-camera). Platform problems are covered in [Voice & Photo Troubleshooting](voice-photo-troubleshooting.md).
 
 ## Table of Contents
 

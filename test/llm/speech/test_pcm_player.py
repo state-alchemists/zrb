@@ -111,8 +111,7 @@ def test_stop_ends_playback_and_closes_the_download(sd):
         while True:
             yield _pcm([1] * 256)
 
-    utterance = PcmUtterance(
-        SpeechAudio(RATE, endless(), lambda: closed.append(True)))
+    utterance = PcmUtterance(SpeechAudio(RATE, endless(), lambda: closed.append(True)))
     threading.Timer(0.05, utterance.stop).start()
 
     utterance.play(timeout=5)
@@ -182,8 +181,7 @@ def test_a_device_that_fails_closes_the_source_and_reads_nothing(monkeypatch, fa
 
     closed = []
     fake = types.SimpleNamespace(OutputStream=BrokenStream, CallbackStop=CallbackStop)
-    utterance = PcmUtterance(
-        SpeechAudio(RATE, chunks(), lambda: closed.append(True)))
+    utterance = PcmUtterance(SpeechAudio(RATE, chunks(), lambda: closed.append(True)))
     with patch.dict("sys.modules", {"sounddevice": fake}):
         with pytest.raises(OSError):
             utterance.play(timeout=1)

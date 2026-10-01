@@ -192,3 +192,39 @@ def test_strict_init_auto_can_be_requested_explicitly(monkeypatch):
     monkeypatch.setenv("ZRB_INIT_STRICT", "auto")
     monkeypatch.setattr(sys, "stderr", _FakeStderr(True))
     assert CFG.INIT_STRICT is False
+
+
+def test_a_mistyped_setting_variable_is_named_with_the_setting_it_meant(
+    tmp_path, capsys, monkeypatch
+):
+    monkeypatch.setenv("ZRB_LLM_MODELL", "openai:gpt-4o")
+    _run_failing_task(tmp_path, monkeypatch, "typocheck")
+    captured = capsys.readouterr()
+    assert (
+        "ZRB_LLM_MODELL is not a setting and is ignored. Did you mean ZRB_LLM_MODEL?"
+        in captured.err
+    )
+
+
+def test_a_retired_setting_variable_is_named_with_its_replacement(
+    tmp_path, capsys, monkeypatch
+):
+    monkeypatch.setenv("ZRB_LLM_UI_COMMAND_PHOTO", "/snap")
+    _run_failing_task(tmp_path, monkeypatch, "retiredcheck")
+    captured = capsys.readouterr()
+    assert (
+        "ZRB_LLM_UI_COMMAND_PHOTO is no longer read and is ignored. "
+        "Set ZRB_LLM_CAMERA_COMMANDS instead." in captured.err
+    )
+
+
+def test_a_retired_setting_with_no_replacement_is_named_with_why(
+    tmp_path, capsys, monkeypatch
+):
+    monkeypatch.setenv("ZRB_LLM_VOICE_ENABLED", "on")
+    _run_failing_task(tmp_path, monkeypatch, "retiredwhy")
+    captured = capsys.readouterr()
+    assert (
+        "ZRB_LLM_VOICE_ENABLED is no longer read and is ignored: "
+        "/voice is always offered." in captured.err
+    )

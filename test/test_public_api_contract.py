@@ -227,3 +227,11 @@ def test_unknown_attribute_still_raises_attribute_error():
     except AttributeError:
         return
     raise AssertionError("a bogus attribute did not raise AttributeError")
+
+
+@pytest.mark.parametrize("name", ["LLMConfig", "llm_config", "UICommands", "fstring"])
+def test_a_retired_export_fails_with_what_to_use_instead(name):
+    with pytest.raises(ImportError, match="removed in 3.0.0") as excinfo:
+        exec(f"from zrb import {name}", {})
+    assert "upgrading-guide.md" in str(excinfo.value)
+    assert not isinstance(excinfo.value, AttributeError)

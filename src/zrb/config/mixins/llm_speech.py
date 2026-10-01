@@ -24,6 +24,7 @@ from zrb.config.env_field import (
     json_object,
     on_off,
 )
+from zrb.config.mixins.llm_voice import get_voice_default
 from zrb.util.string.conversion import to_boolean
 
 
@@ -96,9 +97,11 @@ class LLMSpeechMixin:
     LLM_SPEECH_ENABLED = EnvField(
         to_boolean,
         serialize=on_off,
+        default_factory=lambda c: get_voice_default(c, "LLM_SPEECH_ENABLED"),
         doc=(
             "Read replies, approvals and questions aloud from the start of a "
-            "session; the speech command switches it during one. Default: false."
+            "session; the speech command switches it during one. Default: "
+            "false, or as {ENV_PREFIX}_LLM_VOICE sets it."
         ),
     )
 

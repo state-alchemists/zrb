@@ -112,7 +112,9 @@ def is_said_back(heard: str, said: str, min_share: float) -> bool:
     matched = sum(1 for word in heard_words if _is_near_any(word, said_words))
     if matched / len(heard_words) >= min_share:
         return True
-    return _is_like_a_stretch_of(" ".join(heard_words), " ".join(_WORD_RE.findall(said.lower())))
+    return _is_like_a_stretch_of(
+        " ".join(heard_words), " ".join(_WORD_RE.findall(said.lower()))
+    )
 
 
 def _is_like_a_stretch_of(heard: str, said: str) -> bool:
