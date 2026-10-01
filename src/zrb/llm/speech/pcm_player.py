@@ -1,0 +1,276 @@
+"""Playing speech in zrb's own process, through sounddevice.
+
+A `PcmUtterance` plays `SpeechAudio` through an output stream instead of a
+player program. zrb then knows every sample it plays: each is written to
+`echo_reference` as it reaches the speakers, so dictation can cancel zrb's
+voice out of the microphone, and playback can pause and resume, so a cough
+heard over zrb only stalls it for a moment.
+
+It needs sounddevice and numpy (the zrb[voice] extra); `is_available` says
+whether they import, and speech falls back to player programs when not.
+"""
+
+from __future__ import annotations
+
+import logging
+import threading
+import time
+from collections import deque
+from collections.abc import Callable
+from typing import Any
+
+from zrb.config.config import CFG
+from zrb.llm.speech.backend.audio import SpeechAudio
+from zrb.llm.speech.backend.utterance import Utterance
+from zrb.llm.speech.echo_reference import (
+    RATE,
+    EchoReference,
+    echo_reference,
+    get_monotonic_time,
+)
+
+# How long playback waits for the source reader to see it has ended.
+_READER_JOIN_SECONDS = 1.0
+_BUFFER_POLL_SECONDS = 0.005
+_available: bool | None = None
+
+logger = logging.getLogger(__name__)
+
+
+def is_available() -> bool:
+    """Whether sounddevice and numpy import, so speech can play in process."""
+    global _available
+    if _available is None:
+        try:
+            _import_audio()
+            _available = True
+        except (ImportError, OSError):
+            _available = False
+    return _available
+
+
+class PcmUtterance(Utterance):
+    """`SpeechAudio` played through a sounddevice output stream, in blocks of
+    *block_frames* samples, reading *read_ahead* chunks ahead of playback;
+    left ``None``, `CFG.LLM_SPEECH_PLAYER_BLOCK_FRAMES` and
+    `CFG.LLM_SPEECH_PLAYER_READ_AHEAD`.
+
+    When the output device cannot be opened (none, or busy), or the audio
+    fails before any of it was heard (a download cut off, a broken stream),
+    *fallback* makes the same speech for a player program to play instead,
+    so it is not lost; without one, a device error is raised and a source
+    error logged. Audio that fails part-way is played as far as it came,
+    and logged as cut off."""
+
+    def __init__(
+        self,
+        audio: SpeechAudio,
+        reference: EchoReference | None = None,
+        block_frames: int | None = None,
+        read_ahead: int | None = None,
+        fallback: Callable[[], Utterance] | None = None,
+    ):
+        super().__init__([])
+        self._fallback = fallback
+        self._fallback_playing: Utterance | None = None
+        # Set once the device opened: a failure after that is not retried,
+        # or the sentence would be heard twice.
+        self._has_opened = False
+        # Set when the device failed: ends the source reader without
+        # counting as `stop`, which would also skip the fallback.
+        self._is_abandoned = False
+        # What made the source stop early, unless `stop` did.
+        self._source_error: Exception | None = None
+        self._has_played_audio = False
+        if block_frames is None:
+            block_frames = CFG.LLM_SPEECH_PLAYER_BLOCK_FRAMES
+        if read_ahead is None:
+            read_ahead = CFG.LLM_SPEECH_PLAYER_READ_AHEAD
+        self._block_frames = max(1, block_frames)
+        self._read_ahead = max(1, read_ahead)
+        self._audio = audio
+        self._reference = reference or echo_reference
+        self._buffer: deque[bytes] = deque()
+        self._pending = b""
+        self._is_source_done = False
+        self._is_paused = False
+        self._finished = threading.Event()
+        # Every frame the stream has asked for, silence included, so a
+        # sample's time stays true across pauses and download stalls.
+        self._frames_elapsed = 0
+        self._started_at = 0.0
+
+    @property
+    def is_paused(self) -> bool:
+        return self._is_paused
+
+    @property
+    def is_pausable(self) -> bool:
+        """True, unless a player program took over (the fallback)."""
+        return self._fallback_playing is None
+
+    def pause(self) -> None:
+        """Hold playback where it is; silence until `resume`."""
+        self._is_paused = True
+
+    def resume(self) -> None:
+        self._is_paused = False
+
+    def play(self, timeout: float | None) -> None:
+        """Play to the end, or until *timeout* seconds or `stop`; through
+        the fallback when the device cannot be opened."""
+        if self.is_stopped:
+            return
+        try:
+            self._play_in_process(timeout)
+        except Exception as exc:
+            if self._has_opened or self._fallback is None or self.is_stopped:
+                raise
+            logger.warning(
+                f"zrb could not open the audio device to play speech itself "
+                f"({exc}); a player program plays it instead"
+            )
+            self._play_fallback(self._fallback, timeout)
+            return
+        self._handle_source_error()
+
+    def _handle_source_error(self) -> None:
+        error = self._source_error
+        if error is None or self.is_stopped:
+            return
+        if not self._has_played_audio and self._fallback is not None:
+            logger.warning(
+                f"Speech audio failed before any of it played ({error}); a "
+                "player program plays it instead"
+            )
+            self._play_fallback(self._fallback, None)
+            return
+        logger.warning(f"Speech was cut off: its audio stopped arriving ({error})")
+
+    def _play_fallback(
+        self, fallback: Callable[[], Utterance], timeout: float | None
+    ) -> None:
+        utterance = fallback()
+        self._fallback_playing = utterance
+        try:
+            if not self.is_stopped:  # `stop` may have come meanwhile
+                utterance.play(timeout)
+        finally:
+            utterance.cleanup()
+
+    def _play_in_process(self, timeout: float | None) -> None:
+        np, sd = _import_audio()
+        reader = threading.Thread(target=self._read_source, daemon=True)
+        self._reference.add_player(+1)
+        is_played = False
+        try:
+            stream = sd.OutputStream(
+                samplerate=self._audio.sample_rate,
+                channels=1,
+                dtype="int16",
+                blocksize=self._block_frames,
+                callback=lambda out, frames, info, status: self._fill(
+                    np, sd, out, frames, info
+                ),
+                finished_callback=self._finished.set,
+            )
+            # Before the stream starts, so its first callback sees it; only
+            # used when the host gives no timestamps.
+            self._started_at = time.monotonic() + float(stream.latency)
+            # Only once there is a stream to play into: a device that cannot
+            # open must not leave a download running.
+            reader.start()
+            with stream:
+                self._has_opened = True
+                if not self._finished.wait(timeout):
+                    self.stop()
+            is_played = True
+        finally:
+            self._reference.add_player(-1)
+            self._finished.set()
+            if not is_played:
+                # The device failed: close the source, which ends the read.
+                self._is_abandoned = True
+                self._audio.close()
+            if reader.is_alive():
+                reader.join(_READER_JOIN_SECONDS)
+
+    def stop(self) -> None:
+        super().stop()
+        self._finished.set()
+        self._audio.close()
+        fallback_playing = self._fallback_playing
+        if fallback_playing is not None:
+            fallback_playing.stop()
+
+    def cleanup(self) -> None:
+        self._audio.close()
+
+    def _read_source(self) -> None:
+        try:
+            for chunk in self._audio.chunks:
+                # Read ahead a little, not the whole download into memory.
+                while len(self._buffer) >= self._read_ahead and not self._is_done:
+                    time.sleep(_BUFFER_POLL_SECONDS)
+                if self._is_done:
+                    break
+                self._buffer.append(chunk)
+        except Exception as exc:
+            # A download cut off by `stop` is no failure; any other is, and
+            # what came is still played.
+            if not self._is_done:
+                self._source_error = exc
+        finally:
+            self._is_source_done = True
+
+    @property
+    def _is_done(self) -> bool:
+        return self.is_stopped or self._is_abandoned
+
+    def _fill(self, np: Any, sd: Any, out: Any, frames: int, info: Any = None) -> None:
+        """The stream's callback: the next *frames* samples, or silence
+        while paused or waiting for the download. They reach the speakers
+        when the host says (``outputBufferDacTime``); a stream's start time
+        drifts from its reported latency by tens of milliseconds from one
+        utterance to the next, which would move the echo delay each time."""
+        start = get_monotonic_time(
+            getattr(info, "outputBufferDacTime", 0.0), getattr(info, "currentTime", 0.0)
+        )
+        if start is None:
+            start = self._started_at + self._frames_elapsed / self._audio.sample_rate
+        self._frames_elapsed += frames
+        if self.is_stopped:
+            out.fill(0)
+            raise sd.CallbackStop
+        if self._is_paused:
+            out.fill(0)
+            return
+        wanted = frames * 2
+        while len(self._pending) < wanted and self._buffer:
+            self._pending += self._buffer.popleft()
+        data, self._pending = self._pending[:wanted], self._pending[wanted:]
+        samples = np.frombuffer(data, np.int16)
+        out[: len(samples), 0] = samples
+        out[len(samples) :, 0] = 0
+        if len(samples):
+            self._has_played_audio = True
+            self._write_reference(np, samples, start)
+        if not samples.size and self._is_source_done and not self._buffer:
+            raise sd.CallbackStop
+
+    def _write_reference(self, np: Any, samples: Any, start: float) -> None:
+        rate = self._audio.sample_rate
+        audio = samples.astype(np.float32) / 32768
+        if rate != RATE:
+            count = max(1, int(round(len(audio) * RATE / rate)))
+            positions = np.linspace(0, len(audio) - 1, count)
+            audio = np.interp(positions, np.arange(len(audio)), audio)
+        self._reference.write(start, audio.astype(np.float32))
+
+
+def _import_audio() -> tuple[Any, Any]:
+    # lazy: heavy third-party (numpy/sounddevice are zrb[voice] extras)
+    import numpy as np
+    import sounddevice as sd
+
+    return np, sd

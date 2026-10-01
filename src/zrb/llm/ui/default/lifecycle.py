@@ -235,10 +235,10 @@ def _make_snapshot_progress_handler(
         elif stage == "up-to-date":
             message = "\n  📸 Workspace snapshot up-to-date\n"
         elif stage == "error" and _is_rewind_off(ui):
-            message = f"\n  ⚠️  Rewind is off for this session: {reason}.\n"
+            message = f"\n  ❗ Rewind is off for this session: {reason}.\n"
         elif stage == "error":
             message = (
-                f"\n  ⚠️  Initial workspace snapshot failed: {reason}\n"
+                f"\n  ❗ Initial workspace snapshot failed: {reason}\n"
                 "     /rewind starts from the next turn's snapshot.\n"
             )
         else:

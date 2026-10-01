@@ -100,3 +100,53 @@ def test_gemini_without_a_key_raises(monkeypatch):
     monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
     with pytest.raises(RuntimeError, match="GOOGLE_API_KEY"):
         GeminiSpeechBackend().create_utterance("hello")
+
+
+def test_gemini_puts_the_style_ahead_of_the_text_to_read(requests, monkeypatch):
+    sent, replies = requests
+    part = {"inlineData": {"data": base64.b64encode(b"\x00\x01").decode()}}
+    replies.append(
+        json.dumps({"candidates": [{"content": {"parts": [part]}}]}).encode()
+    )
+    monkeypatch.setenv("GEMINI_API_KEY", "g-key")
+
+    # create_audio: the prompt is the point, and it needs no WAV player.
+    GeminiSpeechBackend(style="Warm and clear.").create_audio("hello")
+
+    text = json.loads(sent[0][0].data)["contents"][0]["parts"][0]["text"]
+    assert text == "Warm and clear.\n\nSay exactly this, and nothing else: hello"
+
+
+def test_gemini_renders_its_pcm_as_24_khz_audio(requests, monkeypatch):
+    sent, replies = requests
+    part = {"inlineData": {"data": base64.b64encode(b"\x03\x00").decode()}}
+    replies.append(
+        json.dumps({"candidates": [{"content": {"parts": [part]}}]}).encode()
+    )
+    monkeypatch.setenv("GEMINI_API_KEY", "g-key")
+
+    audio = GeminiSpeechBackend().create_audio("hi")
+
+    assert audio.sample_rate == 24000
+    assert list(audio.chunks) == [b"\x03\x00"]
+
+
+@pytest.mark.parametrize(
+    "style, expected",
+    [("", "Bacakan: hello"), ("Ceria.", "Ceria. | hello")],
+)
+def test_gemini_prompts_are_configured(requests, monkeypatch, style, expected):
+    sent, replies = requests
+    part = {"inlineData": {"data": base64.b64encode(b"\x00\x01").decode()}}
+    replies.append(
+        json.dumps({"candidates": [{"content": {"parts": [part]}}]}).encode()
+    )
+    monkeypatch.setenv("GEMINI_API_KEY", "g-key")
+    backend = GeminiSpeechBackend(
+        style=style, prompt="Bacakan: {text}", style_prompt="{style} | {text}"
+    )
+
+    backend.create_audio("hello")
+
+    text = json.loads(sent[0][0].data)["contents"][0]["parts"][0]["text"]
+    assert text == expected

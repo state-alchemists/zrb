@@ -323,7 +323,7 @@ class ChatExecution:
             ctx, history_manager, interactive, resolved_tools
         )
 
-        return LLMTask(
+        llm_task = LLMTask(
             name=f"{llm_chat_task.name}-process",
             # One `async_run` is one conversation turn, which is not safely
             # repeatable: tools have already run and been checkpointed to
@@ -365,6 +365,8 @@ class ChatExecution:
             model_renderer=llm_chat_task.model_renderer,
             summarize_commands=summarize_commands,
         )
+        llm_task.stream_observers = list(llm_chat_task.stream_observers)
+        return llm_task
 
     def _resolve_inner_task_config(
         self,

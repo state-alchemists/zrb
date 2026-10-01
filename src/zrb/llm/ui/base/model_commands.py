@@ -29,8 +29,8 @@ if TYPE_CHECKING:
 _AUTO_EDIT_TOOLS = frozenset({"Write", "Edit"})
 _MODE_CYCLE = ("normal", "accept_edits", "plan")
 _MODE_BANNERS = {
-    "normal": "🛠️  NORMAL MODE: tool approvals on",
-    "accept_edits": "✏️  AUTO-ACCEPT EDITS: Write/Edit auto-approved, other tools ask",
+    "normal": "🔧 NORMAL MODE: tool approvals on",
+    "accept_edits": "📝 AUTO-ACCEPT EDITS: Write/Edit auto-approved, other tools ask",
     "plan": "📋 PLAN MODE: read-only discovery",
 }
 

@@ -162,7 +162,7 @@ class BaseUIConversationCommands:
         for cmd in commands:
             if text.lower() == cmd.lower():
                 self._base_ui.append_to_output(
-                    stylize_warning(f"\n  ⚠️  {message} — usage: {cmd} {arg_hint}\n")
+                    stylize_warning(f"\n  ❗ {message} — usage: {cmd} {arg_hint}\n")
                 )
                 return True
         return False
@@ -189,7 +189,7 @@ class BaseUIConversationCommands:
         if definition is None or definition.agent_instance or definition.agent_factory:
             self._base_ui.append_to_output(
                 stylize_error(
-                    f"\n  ⚠️  Cannot resume as sub-agent '{agent_name}': its "
+                    f"\n  ❗ Cannot resume as sub-agent '{agent_name}': its "
                     "definition no longer exists, or it was built from a "
                     "pre-built agent instance that cannot be resumed this "
                     "way. Continuing as the main agent.\n"
@@ -601,7 +601,7 @@ def _describe_restore(sha: str, left_behind: tuple[str, ...]) -> str:
         return stylize_muted(f"\n  ✅ Snapshot {sha[:8]} restored.\n")
     listing = "".join(f"\n     - {path}" for path in left_behind)
     return stylize_warning(
-        f"\n  ⚠️  Snapshot {sha[:8]} restored, except these files, which may "
+        f"\n  ❗ Snapshot {sha[:8]} restored, except these files, which may "
         f"not have been written:{listing}\n"
         "     Close programs holding them or fix their permissions, then run the "
         "same /rewind again.\n"

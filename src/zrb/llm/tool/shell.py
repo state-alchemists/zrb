@@ -346,7 +346,7 @@ def _finish_shell_output(
         if not full:
             return
         char_count = len(full.strip())
-        collapsed = _format_live_shell_output(f"🖥️ Output ({char_count} chars)")
+        collapsed = _format_live_shell_output(f"💻 Output ({char_count} chars)")
         ui.finish_shell_output(key, collapsed, _format_live_shell_output(full))
     except Exception as e:  # noqa: BLE001
         CFG.LOGGER.debug(f"Final shell output capture failed: {e}")

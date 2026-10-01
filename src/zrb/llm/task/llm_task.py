@@ -28,6 +28,7 @@ from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.permission import PermissionPolicyInput, resolve_policy
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.sandbox import SandboxInput, coerce_sandbox
+from zrb.llm.stream_observer import StreamObserver
 from zrb.llm.summarizer import summarize_history
 from zrb.llm.task.building import LLMTaskBuilding
 from zrb.llm.task.history import LLMTaskHistory
@@ -199,6 +200,7 @@ class LLMTask(BaseTask):
         self._message = message
         self._attachment = attachment
         self._history_processors = history_processors or []
+        self._stream_observers: list[StreamObserver] = []
         self._capabilities = capabilities or []
         self._model = model
         self._model_settings = model_settings
@@ -423,6 +425,29 @@ class LLMTask(BaseTask):
     def history_processors(self, value: "list[HistoryProcessor]") -> None:
         """Replace the history processors."""
         self._history_processors = value
+
+    @property
+    def stream_observers(self) -> "list[StreamObserver]":
+        """Callables seeing every event the run streams."""
+        return self._stream_observers
+
+    @stream_observers.setter
+    def stream_observers(self, value: "list[StreamObserver]") -> None:
+        """Replace the stream observers."""
+        self._stream_observers = value
+
+    def append_stream_observer(self, *observer: "StreamObserver") -> None:
+        """Add observers after those already registered."""
+        self._stream_observers += list(observer)
+
+    def prepend_stream_observer(self, *observer: "StreamObserver") -> None:
+        """Add observers before those already registered."""
+        self._stream_observers[0:0] = observer
+
+    def remove_stream_observer(self, observer: "StreamObserver") -> None:
+        """Drop *observer*. A no-op if it is not registered."""
+        if observer in self._stream_observers:
+            self._stream_observers.remove(observer)
 
     @property
     def model_attr(self) -> Any:
@@ -688,6 +713,7 @@ class LLMTask(BaseTask):
                 # Stable across turns, so read-before-overwrite tracking
                 # (file_observation.py) survives between messages.
                 run_scope=conversation_name,
+                stream_observers=self._stream_observers,
             )
         except asyncio.CancelledError as ce:
             partial_run = getattr(ce, "zrb_partial_run", None)

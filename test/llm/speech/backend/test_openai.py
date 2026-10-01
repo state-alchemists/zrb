@@ -3,6 +3,7 @@
 import io
 import json
 import os
+import struct
 
 import pytest
 
@@ -101,3 +102,65 @@ def test_openai_without_a_timeout_still_bounds_a_stalled_download(
 
     _, timeout = sent[0]
     assert timeout is not None
+
+
+@pytest.mark.parametrize(
+    "model, style, instructions",
+    [
+        ("gpt-4o-mini-tts", "Warm and clear.", "Warm and clear."),
+        ("gpt-4o-mini-tts", "", None),
+        ("tts-1-hd", "Warm and clear.", None),
+    ],
+)
+def test_openai_sends_the_style_as_instructions_to_a_model_that_takes_them(
+    requests, which, monkeypatch, model, style, instructions
+):
+    sent, replies = requests
+    replies.append(b"RIFF-wav")
+    which("afplay")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+
+    OpenAISpeechBackend(model=model, style=style).create_utterance("hi").cleanup()
+
+    body = json.loads(sent[0][0].data)
+    assert body.get("instructions") == instructions
+
+
+def _streamed_wav(pcm: bytes, rate: int = 24000) -> bytes:
+    fmt = struct.pack("<HHIIHH", 1, 1, rate, rate * 2, 2, 16)
+    header = b"RIFF\xff\xff\xff\xffWAVEfmt " + struct.pack("<I", 16) + fmt
+    return header + b"data\xff\xff\xff\xff" + pcm
+
+
+def test_openai_renders_the_streamed_wav_as_audio(requests, monkeypatch):
+    sent, replies = requests
+    replies.append(_streamed_wav(b"\x01\x00" * 3))
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+
+    audio = OpenAISpeechBackend().create_audio("hi")
+
+    assert audio.sample_rate == 24000
+    assert b"".join(audio.chunks) == b"\x01\x00" * 3
+    audio.close()
+    assert json.loads(sent[0][0].data)["response_format"] == "wav"
+
+
+def test_openai_closes_a_response_that_is_not_audio(requests, monkeypatch):
+    sent, replies = requests
+    replies.append(b"not a wav at all")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    with pytest.raises(RuntimeError, match="not a WAV"):
+        OpenAISpeechBackend().create_audio("hi")
+
+
+def test_openai_bounds_a_stalled_download_by_the_configured_stall_timeout(
+    requests, which, monkeypatch
+):
+    sent, replies = requests
+    replies.append(b"RIFF-wav")
+    which("afplay")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+
+    OpenAISpeechBackend(stall_timeout=4).create_utterance("hello").cleanup()
+
+    assert sent[0][1] == 4

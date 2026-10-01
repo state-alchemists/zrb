@@ -19,9 +19,17 @@ from zrb.config.config import CFG
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.speech.config import SpeechConfig
-from zrb.llm.speech.player import Speaker
-from zrb.llm.speech.text import clean_for_speech, fit_for_speech
+from zrb.llm.speech.player import IsStale, Speaker, is_speaking
+from zrb.llm.speech.progress import ProgressNarrator, SpeechClock
+from zrb.llm.speech.streamed_reply import StreamedReply
+from zrb.llm.speech.text import (
+    clean_for_speech,
+    fill_template,
+    fit_for_speech,
+    match_tool_phrase,
+)
 from zrb.llm.util.feature_config import (
     current_session_key,
     get_session_ui,
@@ -67,10 +75,57 @@ def enable_speech(
     def create_commands() -> "list[AnyCustomCommand]":
         return sessions.get().create_commands()
 
+    def observe_stream(event: Any) -> None:
+        sessions.get().handle_stream_event(event)
+
     registrations: list[tuple[str, Any]] = [("append_hook_factory", register_hooks)]
+    if callable(getattr(task, "append_stream_observer", None)):
+        registrations.append(("append_stream_observer", observe_stream))
     if callable(getattr(task, "append_custom_command", None)):
         registrations.append(("append_custom_command", create_commands))
     replace_registration(task, "speech", registrations)
+    prompt_manager = getattr(task, "prompt_manager", None)
+    if prompt_manager is not None:
+        # Keyed by name, so enabling speech again replaces it.
+        prompt_manager.add_live_context(
+            "speech", lambda ctx: sessions.get().create_live_context()
+        )
+
+
+# Every live `SpeechSession`, by the chat session it speaks for, so dictation
+# can silence the right one when the user talks over it.
+_speech_sessions: "dict[str, weakref.WeakSet[SpeechSession]]" = {}
+
+
+def pause_speech(session_key: str | None = None) -> None:
+    """Hold what the chat session *session_key* (default: the one asking) is
+    saying, for a user who may have started talking over it: `resume_speech`
+    carries on, `interrupt_speech` drops it. Speech that cannot pause (a
+    player program) is interrupted."""
+    _for_each_session(session_key, lambda session: session.speaker.pause())
+
+
+def resume_speech(session_key: str | None = None) -> None:
+    """Carry on after `pause_speech`: what was heard was not the user."""
+    _for_each_session(session_key, lambda session: session.speaker.resume())
+
+
+def _for_each_session(
+    session_key: str | None, act: Callable[["SpeechSession"], None]
+) -> None:
+    key = current_session_key() if session_key is None else session_key
+    for session in list(_speech_sessions.get(key, ())):
+        try:
+            act(session)
+        except Exception as exc:
+            logger.warning(f"Speech control failed: {exc}")
+
+
+def interrupt_speech(session_key: str | None = None) -> None:
+    """Stop what the chat session *session_key* (default: the one asking) is
+    saying and drop what it has queued, for a user who started talking over
+    it. Speech after this is spoken as usual."""
+    _for_each_session(session_key, lambda session: session.interrupt())
 
 
 class SpeechSession:
@@ -82,6 +137,7 @@ class SpeechSession:
         # A task given a `hook_manager` shares it between sessions; each
         # session's hooks then see every session's events.
         self._session_key = current_session_key()
+        _speech_sessions.setdefault(self._session_key, weakref.WeakSet()).add(self)
         # The bound methods handed to each manager, so they can be taken back
         # out: `remove_hook` matches on identity, and a bound method is a new
         # object on every attribute read.
@@ -90,6 +146,17 @@ class SpeechSession:
         ) = weakref.WeakKeyDictionary()
         self.speaker = Speaker(config)
         self.speaker.is_enabled = bool(config.enabled)
+        self._clock = SpeechClock()
+        self.streamed_reply = StreamedReply(
+            self._say, config.max_chars or 0, config.on_screen_note or ""
+        )
+        self.progress = ProgressNarrator(
+            self._say,
+            self._seconds_since_said,
+            config.progress_interval or 0,
+            silent_tools=config.progress_silent_tools,
+            phrases=config.progress_phrases,
+        )
         if not CFG.HOOKS_ENABLED:
             logger.warning(
                 "Speech is delivered by the hook subsystem, which is off "
@@ -134,6 +201,17 @@ class SpeechSession:
         for manager in list(self._hooks):
             self.unregister_hooks(manager)
         self.speaker.close()
+        sessions = _speech_sessions.get(self._session_key)
+        if sessions is not None:
+            sessions.discard(self)
+            if not sessions:
+                _speech_sessions.pop(self._session_key, None)
+
+    def interrupt(self) -> None:
+        """Stop speaking now and say nothing more of the response being
+        written; `interrupt_speech`."""
+        self.speaker.interrupt()
+        self.streamed_reply.mute_response()
 
     def create_commands(self) -> "list[AnyCustomCommand]":
         return [
@@ -150,25 +228,76 @@ class SpeechSession:
         self.speaker.is_enabled = not self.speaker.is_enabled
         if not self.speaker.is_enabled:
             self.speaker.clear()
+            self.streamed_reply.reset()
         return f"🔊 Speech {'on' if self.speaker.is_enabled else 'off'}"
+
+    def create_live_context(self) -> str:
+        """Tell the model its reply is heard, while it is: a reply written to
+        be read aloud opens with the answer instead of a table."""
+        if self.speaker.is_enabled and "reply" in self._events:
+            return get_prompt("speech_live")
+        return ""
+
+    def handle_stream_event(self, event: Any) -> None:
+        """Speak the reply's sentences as they stream, when ``stream`` is on,
+        and announce a tool call that starts after a silence, with
+        ``progress``. Only the main run's events arrive: a sub-agent's run
+        has no stream observers."""
+        if not self.speaker.is_enabled:
+            return
+        # The reply first: text flushed at a tool call's start counts as
+        # speech, so the call is not announced on top of it.
+        if self._config.stream and "reply" in self._events:
+            self.streamed_reply.handle_event(event)
+        if "progress" in self._events:
+            self.progress.handle_event(event)
+
+    def _say(self, text: str, is_stale: IsStale = None) -> None:
+        # Through `self.speaker` at call time, so a speaker replaced later is
+        # the one that speaks.
+        self._clock.mark()
+        self.speaker.say(text, is_stale=is_stale)
+
+    def _seconds_since_said(self) -> float:
+        if is_speaking(self._config.lock_file or None):
+            return 0.0
+        return self._clock.seconds_since_said()
 
     async def handle_stop(self, context: HookContext) -> HookResult:
         """Speak the reply, but not a sub-agent's: only the main turn is for
-        the user."""
+        the user. A streamed reply only needs its last words spoken; one
+        cancelled (Esc, a barge-in: the payload names a ``reason``) is not
+        finished at all."""
         event_data = context.event_data if isinstance(context.event_data, dict) else {}
-        if (
-            self._is_own_session()
-            and not event_data.get("nested_run")
-            and context.last_assistant_message
-        ):
+        if not self._is_own_session() or event_data.get("nested_run"):
+            return HookResult(success=True)
+        if event_data.get("reason"):
+            # Cancelled: stop the sentence playing too, not only the queue.
+            self.streamed_reply.reset()
+            self.speaker.interrupt()
+            return HookResult(success=True)
+        if self._config.stream:
+            self.streamed_reply.flush()
+            has_claimed_turn = self.streamed_reply.has_claimed_turn
+            self.streamed_reply.reset()
+            if has_claimed_turn:
+                return HookResult(success=True)
+        if context.last_assistant_message:
             self.say_reply(context.last_assistant_message)
         return HookResult(success=True)
 
     async def handle_permission_request(self, context: HookContext) -> HookResult:
         """Speak the approval request, unless it is answered first."""
         if self._is_own_session():
-            self.speaker.say(
-                describe_tool_call(context.tool_name, context.tool_input),
+            self._say(
+                describe_tool_call(
+                    context.tool_name,
+                    context.tool_input,
+                    message=self._config.approval_message,
+                    target_keys=self._config.approval_target_keys,
+                    target_max_chars=self._config.approval_target_max_chars,
+                    actions=self._config.approval_actions,
+                ),
                 is_stale=is_answered_since(get_session_ui(), time.monotonic()),
             )
         return HookResult(success=True)
@@ -179,7 +308,7 @@ class SpeechSession:
             and context.notification_type in _QUESTION_NOTIFICATIONS
         ):
             question = self._fit(clean_for_speech(context.message or ""))
-            self.speaker.say(question or "A question is waiting for your answer.")
+            self._say(question or self._config.question_message or "")
         return HookResult(success=True)
 
     def _is_own_session(self) -> bool:
@@ -191,7 +320,7 @@ class SpeechSession:
         spoken = clean_for_speech(reply)
         max_chars = self._config.max_chars or 0
         if max_chars <= 0 or len(spoken) <= max_chars or not self._config.summarize:
-            self.speaker.say(self._fit(spoken))
+            self._say(self._fit(spoken))
             return
         # On the speaker's thread, not as a task on the running loop: a hook
         # runs on a loop of its own that is closed once the hook returns,
@@ -217,7 +346,6 @@ class SpeechSession:
     async def _summarize(self, reply: str) -> str:
         # lazy: heavy transitive (pydantic_ai) via zrb.llm.agent.summarizer
         from zrb.llm.agent.summarizer import create_summarizer_agent
-        from zrb.llm.prompt.prompt import get_prompt
 
         agent = create_summarizer_agent(
             model=self._config.summary_model or None,
@@ -246,28 +374,34 @@ def is_answered_since(ui: Any, asked_at: float) -> Callable[[], bool]:
     return is_answered
 
 
-_TOOL_ACTIONS = {
-    "Write": "write a file",
-    "Edit": "edit a file",
-    "NotebookEdit": "edit a notebook",
-    "Shell": "run a shell command",
-    "Bash": "run a shell command",
-    "DelegateToAgent": "delegate work to a sub-agent",
-    "DelegateToAgentBackground": "delegate background work to a sub-agent",
-}
-_TARGET_KEYS = ("path", "file_path", "command", "notebook_path")
-
-
-def describe_tool_call(tool: str | None, args: dict[str, Any] | None) -> str:
-    """A spoken approval request. A template, not a model call: the user is
-    waiting on it."""
-    action = _TOOL_ACTIONS.get(
-        tool or "", f"use the {tool} tool" if tool else "run a tool"
-    )
+def describe_tool_call(
+    tool: str | None,
+    args: dict[str, Any] | None,
+    message: str | None = None,
+    target_keys: list[str] | None = None,
+    target_max_chars: int | None = None,
+    actions: dict[str, str] | None = None,
+) -> str:
+    """A spoken approval request, from *message* with ``{action}`` (the
+    first of *actions* whose pattern matches *tool*, else the tool's name)
+    and ``{target}`` (the first of *target_keys* among *args*, cut to
+    *target_max_chars*). A template, not a model call: the user is waiting
+    on it. Each left ``None`` is read from `CFG.LLM_SPEECH_APPROVAL_*`."""
+    if message is None:
+        message = CFG.LLM_SPEECH_APPROVAL_MESSAGE
+    if target_keys is None:
+        target_keys = CFG.LLM_SPEECH_APPROVAL_TARGET_KEYS
+    if target_max_chars is None:
+        target_max_chars = CFG.LLM_SPEECH_APPROVAL_TARGET_MAX_CHARS
+    if actions is None:
+        actions = CFG.LLM_SPEECH_APPROVAL_ACTIONS
+    action = match_tool_phrase(tool, actions)
+    if action is None:
+        action = tool or ""
     target = ""
-    for key in _TARGET_KEYS:
+    for key in target_keys if target_max_chars > 0 else []:
         value = (args or {}).get(key)
         if isinstance(value, str) and value.strip():
-            target = " " + value.strip()[:80]
+            target = " " + value.strip()[:target_max_chars]
             break
-    return f"I need to {action}{target}. I need your approval."
+    return fill_template(message, action=action, target=target)

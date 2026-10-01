@@ -673,6 +673,11 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         finally:
             self._pending_input_tasks = []
 
+    def cancel_current_turn(self, reason: str) -> None:
+        """Cancel the turn in every child: whichever runs it stops it."""
+        for ui in self._uis:
+            ui.cancel_current_turn(reason)
+
     def clear_pending_confirmations_except(self, except_index: int):
         """Cancel pending confirmation futures in all UIs except the winner.
 

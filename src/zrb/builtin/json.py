@@ -45,7 +45,7 @@ def format_json(ctx: AnyContext) -> str:
 
 @make_task(
     name="minify-json",
-    description="🗜️ Minify JSON (strip whitespace)",
+    description="📦 Minify JSON (strip whitespace)",
     input=StrInput(name="json", description="JSON text", prompt="JSON to minify"),
     retries=0,
     group=json_group,

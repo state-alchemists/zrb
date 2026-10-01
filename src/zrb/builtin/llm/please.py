@@ -63,7 +63,7 @@ async def please(ctx: AnyContext) -> str:
     else:
         ctx.print(
             stylize_red(
-                "⚠️ Could not access clipboard, please copy the command manually"
+                "❗ Could not access clipboard, please copy the command manually"
             )
         )
     return command

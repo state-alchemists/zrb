@@ -132,7 +132,7 @@ class TerminalApprovalChannel(AnyApprovalChannel):
             )
 
         if new_args == current_args:
-            self._ui.append_to_output("  ℹ️ No changes made, approving original.\n")
+            self._ui.append_to_output("  🔹 No changes made, approving original.\n")
             return ApprovalResult(approved=True)
 
         self._ui.append_to_output("  ✅ Approved with edited arguments.\n")

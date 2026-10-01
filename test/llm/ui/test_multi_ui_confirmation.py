@@ -267,3 +267,13 @@ async def test_multi_ui_ask_user_race(multi_ui, child_ui_1, child_ui_2):
 
     res = await multi_ui.ask_user("prompt")
     assert res == "input 2"
+
+
+def test_cancel_current_turn_reaches_every_child():
+    children = [MagicMock(), MagicMock()]
+    multi_ui = MultiUI(children)
+
+    multi_ui.cancel_current_turn("barge_in")
+
+    for child in children:
+        child.cancel_current_turn.assert_called_once_with("barge_in")

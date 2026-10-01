@@ -369,7 +369,8 @@ Return `True` when consumed, `False` to let the next handler (and finally the LL
 | Method | Default | Purpose |
 |--------|---------|---------|
 | `invalidate_ui()` | No-op | Redraw/refresh UI |
-| `set_status_badge(key, text)` | Stores it in `status_badges` and calls `invalidate_ui()` | Show a feature's one-line state (the microphone's, under `"dictation"`); `None` removes it. The default TUI draws `status_badges` in its status bar |
+| `set_status_badge(key, text)` | Stores it in `status_badges` and calls `invalidate_ui()` | Show a feature's one-line state (the microphone's, under `"dictation"`); `None` removes it. The default TUI draws `status_badges` on a line of their own above its status bar |
+| `cancel_current_turn(reason)` | Releases a pending confirmation, cancels `running_llm_task` and fires `Stop` with `reason` | Stop the running turn, as Esc does; hands-free dictation calls it when the user says "stop" over zrb. A class implementing `AnyUI` directly must define it |
 | `on_exit()` | No-op | Cleanup on shutdown |
 | `ask_user_choice(spec)` | Formats the spec as numbered text and delegates to `ask_user` | Override for an arrow-key-selectable widget |
 | `stream_to_parent()` | Calls `append_to_output` | For multiplexed UIs |

@@ -4,11 +4,12 @@ import time
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.llm.hook.interface import HookContext
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.speech import SpeechConfig
-from zrb.llm.speech.feature import SpeechSession, is_answered_since
+from zrb.llm.speech.feature import SpeechSession, describe_tool_call, is_answered_since
 from zrb.llm.util.feature_config import reset_session_ui, set_session_ui
 
 
@@ -105,3 +106,81 @@ def test_a_ui_that_cannot_time_its_prompt_never_reads_as_answered():
     is_answered = is_answered_since(None, time.monotonic())
 
     assert not is_answered()
+
+
+class TextSpeaker:
+    def __init__(self):
+        self.said: list[str] = []
+
+    def say(self, text, is_stale=None):
+        self.said.append(text)
+
+    def close(self):
+        pass
+
+
+def _text_session(**config) -> tuple[SpeechSession, TextSpeaker]:
+    session = SpeechSession(SpeechConfig(enabled=True, **config).resolve())
+    speaker = TextSpeaker()
+    session.speaker = speaker  # type: ignore[assignment]
+    return session, speaker
+
+
+@pytest.mark.asyncio
+async def test_the_approval_request_follows_the_configured_template():
+    session, speaker = _text_session(
+        approval_message="Boleh saya {action}{target}?",
+        approval_target_keys=["url"],
+        approval_target_max_chars=5,
+    )
+    await session.handle_permission_request(
+        HookContext(
+            event=HookEvent.PERMISSION_REQUEST,
+            event_data={},
+            tool_name="WebFetch",
+            tool_input={"path": "/tmp/a.py", "url": "https://x.io"},
+        )
+    )
+    assert speaker.said == ["Boleh saya use the WebFetch tool https?"]
+
+
+def test_a_zero_target_length_leaves_the_target_out():
+    spoken = describe_tool_call(
+        "Bash", {"command": "ls"}, message="{action}{target}.", target_max_chars=0
+    )
+    assert spoken == "run a shell command."
+
+
+def test_the_approval_template_is_read_from_cfg_when_left_unset(monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_SPEECH_APPROVAL_MESSAGE", "OK to {action}?")
+    assert describe_tool_call("Bash", {}) == "OK to run a shell command?"
+
+
+@pytest.mark.asyncio
+async def test_a_question_with_no_text_says_the_configured_message():
+    session, speaker = _text_session(question_message="Ada pertanyaan.")
+    await session.handle_notification(
+        HookContext(
+            event=HookEvent.NOTIFICATION,
+            event_data={},
+            notification_type="elicitation_dialog",
+            message="",
+        )
+    )
+    assert speaker.said == ["Ada pertanyaan."]
+
+
+def test_the_approval_action_comes_from_the_configured_patterns():
+    actions = {"Write": "menulis berkas", "Mcp*": "memakai {tool}"}
+    message = "{action}"
+    assert describe_tool_call("Write", {}, message, actions=actions) == "menulis berkas"
+    assert (
+        describe_tool_call("McpGit", {}, message, actions=actions) == "memakai McpGit"
+    )
+    # No pattern matches: the tool's own name.
+    assert describe_tool_call("Grep", {}, message, actions=actions) == "Grep"
+
+
+def test_the_approval_actions_are_read_from_cfg_when_left_unset(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_SPEECH_APPROVAL_ACTIONS", '{"*": "memakai {tool}"}')
+    assert describe_tool_call("Bash", {}, "{action}") == "memakai Bash"

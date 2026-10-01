@@ -162,3 +162,41 @@ class TestGetVoskModelDir:
             patch.dict(os.environ, {}, clear=True),
         ):
             assert get_vosk_model_dir("missing") is None
+
+
+class FakeRecognizer:
+    """Finishes a phrase on each chunk of b"." and hears the rest as partial."""
+
+    def __init__(self):
+        self.heard = b""
+
+    def AcceptWaveform(self, audio):
+        self.heard += audio
+        return audio == b"."
+
+    def Result(self):
+        phrase, self.heard = self.heard.rstrip(b".").decode(), b""
+        return f'{{"text": "{phrase}"}}'
+
+    def PartialResult(self):
+        return f'{{"partial": "{self.heard.decode()}"}}'
+
+    def FinalResult(self):
+        phrase, self.heard = self.heard.decode(), b""
+        return f'{{"text": "{phrase}"}}'
+
+
+@pytest.mark.asyncio
+async def test_a_vosk_stream_transcribes_while_fed():
+    fake_vosk = MagicMock()
+    fake_vosk.KaldiRecognizer = MagicMock(return_value=FakeRecognizer())
+    backend = VoskDictationBackend("m", "http://host")
+    with patch.dict("sys.modules", {"vosk": fake_vosk}), _local_model():
+        stream = await backend.create_stream()
+
+    await stream.feed(b"open")
+    assert stream.partial == "open"
+    await stream.feed(b".")
+    await stream.feed(b"the file")
+    assert stream.partial == "open the file"
+    assert await stream.finish() == "open the file"

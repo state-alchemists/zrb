@@ -3,6 +3,7 @@ hands-free voice input."""
 
 from zrb.llm.dictation.backend import (
     AnyDictationBackend,
+    AnyTranscriptionStream,
     GoogleDictationBackend,
     MultimodalDictationBackend,
     OpenAIDictationBackend,
@@ -14,6 +15,7 @@ from zrb.llm.dictation.listen import MicState, listen, record
 
 __all__ = [
     "AnyDictationBackend",
+    "AnyTranscriptionStream",
     "DictationConfig",
     "GoogleDictationBackend",
     "MicState",

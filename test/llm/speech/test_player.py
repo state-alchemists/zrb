@@ -47,6 +47,9 @@ def lock_file(tmp_path):
 
 
 def _config(backend, lock_file, **fields):
+    # Played by a program unless a test says otherwise: these tests are about
+    # queueing, locking and stopping, not where the audio goes.
+    fields.setdefault("player", "command")
     return SpeechConfig(
         backend=backend, lock_file=lock_file, lock_timeout=0.05, **fields
     ).resolve()
@@ -220,8 +223,10 @@ class HangingUtterance(Utterance):
         super().__init__([])
         self.started = started
         self.stopped = threading.Event()
+        self.is_played = False
 
     def play(self, timeout):
+        self.is_played = True
         self.started.set()
         self.stopped.wait(5)
 
@@ -352,4 +357,60 @@ def test_text_going_stale_while_playing_is_cut_off(lock_file):
     answered.set()
 
     assert backend.utterances[0].stopped.wait(1)
+    speaker.close()
+
+
+def test_interrupt_stops_what_is_playing_and_drops_the_queue(lock_file):
+    backend = HangingBackend()
+    speaker = Speaker(_config(backend, lock_file, drain_timeout=1))
+    speaker.say("a long reply")
+    speaker.say("queued behind it")
+    assert backend.started.wait(1)
+
+    speaker.interrupt()
+    speaker.drain()
+
+    assert backend.utterances[0].stopped.is_set()
+    # Made ahead while the first played, but never played.
+    assert [u.is_played for u in backend.utterances] in ([True], [True, False])
+
+
+def test_speech_being_made_when_interrupted_is_dropped(lock_file):
+    created = threading.Event()
+    release = threading.Event()
+
+    class SlowBackend(FakeBackend):
+        def create_utterance(self, text):
+            if text == "slow":
+                created.set()
+                release.wait(5)
+            return super().create_utterance(text)
+
+    backend = SlowBackend()
+    speaker = Speaker(_config(backend, lock_file))
+    speaker.say("slow")
+    assert created.wait(1)
+
+    speaker.interrupt()
+    release.set()
+    speaker.say("after")
+    speaker.drain()
+
+    assert backend.played == ["after"]
+    assert backend.utterances[0].cleaned
+
+
+def test_the_next_sentence_is_made_while_the_current_one_plays(lock_file):
+    backend = HangingBackend()
+    speaker = Speaker(_config(backend, lock_file, drain_timeout=0.2))
+    speaker.say("first")
+    speaker.say("second")
+    assert backend.started.wait(1)
+
+    deadline = time.monotonic() + 1
+    while len(backend.utterances) < 2 and time.monotonic() < deadline:
+        time.sleep(0.01)
+
+    assert len(backend.utterances) == 2
+    assert not backend.utterances[1].is_played
     speaker.close()

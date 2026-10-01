@@ -56,7 +56,14 @@ def _fake_listen(monkeypatch, *said: tuple[str, float, float]):
     not what these tests are about."""
     heard = []
 
-    async def listen(config, should_listen, keep_partial=False, on_state=None):
+    async def listen(
+        config,
+        should_listen,
+        keep_partial=False,
+        on_state=None,
+        on_barge_in=None,
+        **kwargs,
+    ):
         heard.append(keep_partial)
         for text, started_at, ended_at in said:
             if not should_listen():
@@ -173,7 +180,14 @@ async def test_a_failed_transcription_is_skipped(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_a_broken_microphone_switches_hands_free_off(monkeypatch):
-    async def listen(config, should_listen, keep_partial=False, on_state=None):
+    async def listen(
+        config,
+        should_listen,
+        keep_partial=False,
+        on_state=None,
+        on_barge_in=None,
+        **kwargs,
+    ):
         raise OSError("no input device")
         yield  # pragma: no cover
 
@@ -232,7 +246,14 @@ async def test_an_utterance_being_transcribed_at_switch_off_is_dropped(monkeypat
             await release.wait()
             return audio.decode()
 
-    async def listen(config, should_listen, keep_partial=False, on_state=None):
+    async def listen(
+        config,
+        should_listen,
+        keep_partial=False,
+        on_state=None,
+        on_barge_in=None,
+        **kwargs,
+    ):
         try:
             yield Utterance(b"run the tests", 0.0, 1.0)
             await asyncio.Event().wait()
@@ -276,7 +297,14 @@ async def test_hands_free_prepares_the_backend_and_reports_to_the_ui(monkeypatch
 
 @pytest.mark.asyncio
 async def test_a_broken_microphone_is_reported_to_the_ui(monkeypatch):
-    async def listen(config, should_listen, keep_partial=False, on_state=None):
+    async def listen(
+        config,
+        should_listen,
+        keep_partial=False,
+        on_state=None,
+        on_barge_in=None,
+        **kwargs,
+    ):
         raise OSError("no input device")
         yield  # pragma: no cover
 
@@ -300,7 +328,14 @@ async def test_a_broken_microphone_is_reported_to_the_ui(monkeypatch):
 async def test_closing_the_listener_closes_the_microphone_at_once(monkeypatch):
     closed = asyncio.Event()
 
-    async def listen(config, should_listen, keep_partial=False, on_state=None):
+    async def listen(
+        config,
+        should_listen,
+        keep_partial=False,
+        on_state=None,
+        on_barge_in=None,
+        **kwargs,
+    ):
         try:
             yield Utterance(b"run the tests", 0.0, 1.0)
             await asyncio.Event().wait()
@@ -338,9 +373,9 @@ async def test_hands_free_shows_what_the_mic_is_doing(monkeypatch, session_ui):
 
     assert _badges(session_ui) == [
         "🎤 listening",
-        "🎙️ hearing you…",
+        "👂 hearing you…",
         "🎤 listening",
-        "✍️ transcribing…",
+        "📝 transcribing…",
         '🎤 heard "Yes." · listening',
         None,
     ]
@@ -368,7 +403,7 @@ async def test_hands_free_says_what_an_utterance_came_to(monkeypatch, session_ui
 
     badges = _badges(session_ui)
     assert "🎤 didn't catch that · listening" in badges
-    assert "⚠️ transcription failed · listening" in badges
+    assert "❗ transcription failed · listening" in badges
     assert '🎤 ignored "hello there" (no wake word)' in badges
     assert "🎤 go ahead…" in badges
     assert f'🎤 heard "{"x" * 39}…" · listening' in badges
@@ -383,3 +418,18 @@ def test_switching_hands_free_off_clears_the_badge(monkeypatch, session_ui):
     command.handle({}, None)
 
     assert _badges(session_ui) == [None]
+
+
+@pytest.mark.asyncio
+async def test_a_streamed_utterance_is_finished_by_its_stream(monkeypatch):
+    class DoneStream:
+        async def finish(self):
+            return "from the stream"
+
+    async def listen(config, should_listen, **kwargs):
+        yield Utterance(b"from the backend", 0, 1, False, DoneStream())
+
+    monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
+    session = _session(mode="hands_free")
+
+    assert await _replies(session, 1) == ["from the stream"]

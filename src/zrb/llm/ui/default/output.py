@@ -668,7 +668,6 @@ class UIOutput:
                     CFG.LLM_UI_STYLE_CONFIRMATION,
                     f" 👋 {assistant_name} is waiting for confirmation{dot_str} ",
                 ),
-                *self._get_badge_fragments(),
             ]
         if self.is_thinking:
             dots = getattr(self, "_thinking_dots", 0)
@@ -681,7 +680,6 @@ class UIOutput:
                     CFG.LLM_UI_STYLE_THINKING,
                     f" ⏳ {self._ui.assistant_name} is working{dot_str} ",
                 ),
-                *self._get_badge_fragments(),
                 *(
                     [(CFG.LLM_UI_STYLE_STATUS, f" 📥 {queued} queued ")]
                     if queued
@@ -696,7 +694,6 @@ class UIOutput:
         mode = cast(str, get_mode()) if callable(get_mode) else "normal"
         result: list = [
             (CFG.LLM_UI_STYLE_STATUS, " 🚀 Ready "),
-            *self._get_badge_fragments(),
             (
                 _get_mode_status_style(mode),
                 f" {_MODE_STATUS_LABELS.get(mode, mode)} ",
@@ -706,10 +703,15 @@ class UIOutput:
         result.extend(self._get_token_usage_fragments())
         return result
 
-    def _get_badge_fragments(self) -> list[tuple[str, str]]:
-        return [
-            (CFG.LLM_UI_STYLE_STATUS, f" {badge} ") for badge in self._ui.status_badges
-        ]
+    def get_badge_bar_text(self) -> "AnyFormattedText":
+        """The status badges — a feature's one-line state, such as the
+        microphone's — on a line of their own above the status bar, so they
+        stay put while the status bar changes; empty (the line hidden) when
+        there are none."""
+        badges = self._ui.status_badges
+        if not badges:
+            return []
+        return [(CFG.LLM_UI_STYLE_STATUS, f" {'  ·  '.join(badges)} ")]
 
     def _get_token_usage_fragments(self) -> list[tuple[str, str]]:
         """Session token totals as status-bar fragments; empty until first run."""

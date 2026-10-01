@@ -72,15 +72,15 @@ shell_group = _maybe_add_group(
     Group(name="shell", description="💬 Shell related commands")
 )
 shell_autocomplete_group = shell_group.add_group(
-    Group(name="autocomplete", description="⌨️ Shell autocomplete related commands")
+    Group(name="autocomplete", description="🔤 Shell autocomplete related commands")
 )
 
 setup_group = _maybe_add_group(Group(name="setup", description="🔧 Setup"))
 setup_latex_group = setup_group.add_group(
-    Group(name="latex", description="✍️ Setup LaTeX")
+    Group(name="latex", description="📝 Setup LaTeX")
 )
 
 searxng_group = _maybe_add_group(
     Group(name="searxng", description="🔎 Searxng related command")
 )
-config_group = _maybe_add_group(Group(name="config", description="⚙️ Configuration"))
+config_group = _maybe_add_group(Group(name="config", description="🔧 Configuration"))

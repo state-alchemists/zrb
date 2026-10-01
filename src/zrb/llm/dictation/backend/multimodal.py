@@ -8,8 +8,6 @@ from zrb.config.config import CFG
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.wav import pcm16_to_wav_bytes
 
-TRANSCRIBE_INSTRUCTION = "Transcribe this audio to text. Return only the transcription."
-
 
 class MultimodalDictationBackend(AnyDictationBackend):
     """A chat model that takes audio, `CFG.LLM_MULTIMODAL_MODEL` by default.
@@ -17,11 +15,13 @@ class MultimodalDictationBackend(AnyDictationBackend):
     Works with providers whose pydantic-ai implementation accepts audio as a
     content block (e.g. Google Gemini). OpenAI chat models are rejected: the
     chat completions API does not accept audio content blocks, so the
-    ``openai`` backend is the one to use there.
+    ``openai`` backend is the one to use there. It is asked to transcribe
+    with *instruction* (default: `CFG.LLM_DICTATION_TRANSCRIBE_PROMPT`).
     """
 
-    def __init__(self, model: Any = None) -> None:
+    def __init__(self, model: Any = None, instruction: str | None = None) -> None:
         self._model = model
+        self._instruction = instruction
         self._checked_model: Any = None
 
     @property
@@ -45,7 +45,7 @@ class MultimodalDictationBackend(AnyDictationBackend):
         )
         result, _ = await run_agent(
             agent=agent,
-            message=TRANSCRIBE_INSTRUCTION,
+            message=self._instruction or CFG.LLM_DICTATION_TRANSCRIBE_PROMPT,
             message_history=[],
             limiter=llm_limiter,
             attachments=[

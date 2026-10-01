@@ -108,6 +108,27 @@ class TestLLMTaskExecution:
             assert kwargs["ui"] == [ui]
 
     @pytest.mark.asyncio
+    async def test_llm_task_passes_stream_observers_to_run_agent(self, session):
+        first, second, dropped = MagicMock(), MagicMock(), MagicMock()
+        task = LLMTask(name="test-task", message="hello")
+        task.append_stream_observer(second, dropped)
+        task.prepend_stream_observer(first)
+        task.remove_stream_observer(dropped)
+        task.remove_stream_observer(dropped)  # absent: a no-op
+
+        with (
+            patch("zrb.llm.task.llm_task.create_agent"),
+            patch(
+                "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+            ) as mock_run_agent,
+        ):
+            mock_run_agent.return_value = ("Response", [])
+            await task.async_run(session)
+
+            _args, kwargs = mock_run_agent.call_args
+            assert kwargs["stream_observers"] == [first, second]
+
+    @pytest.mark.asyncio
     async def test_model_getter_is_called_with_base_model(self, session):
         # Arrange: getter receives the base model and returns a different one
         received = []

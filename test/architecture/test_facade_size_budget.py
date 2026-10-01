@@ -24,15 +24,26 @@ FACADE_BUDGETS = {
     # badge `AnyUI` declares (ADR-0102) -- new surface, not a delegator.
     # +9 (1211->1220): `is_prompt_answered_since`, beside `pending_answer_since`,
     # so speech can tell a prompt answered between two checks -- new surface.
-    "llm/ui/base/ui.py": 1220,
+    # +12 (1220->1232): `cancel_current_turn`, the turn cancel `AnyUI` now
+    # declares so Esc and a spoken barge-in stop a turn the same way -- new
+    # surface.
+    # +15 (1232->1247): `execute_hook` takes the hook manager to dispatch
+    # through, and `cancel_current_turn` picks the one the turn ran with (a
+    # chat task's active manager, else the task's own) -- new surface.
+    "llm/ui/base/ui.py": 1247,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):
     # `is_application_built` predicate and the hoisted `_application`
     # init it reads during UIOutput construction.
     "llm/ui/default/ui.py": 671,
-    "llm/task/chat/task.py": 1068,
-    "llm/task/llm_task.py": 783,
+    # +10 (1068->1078): the `stream_observers` collection (append/prepend/
+    # set/remove plus its property), the seam speech streams through --
+    # new surface.
+    "llm/task/chat/task.py": 1078,
+    # +26 (783->809): `stream_observers` with its setter and append/prepend/
+    # remove, handed to `run_agent` -- new surface.
+    "llm/task/llm_task.py": 809,
     "llm/agent/subagent/manager.py": 299,
 }
 

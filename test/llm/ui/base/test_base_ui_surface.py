@@ -13,6 +13,8 @@ import pytest
 
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
+from zrb.llm.hook.manager import HookManager
+from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.llm.ui.base.ui import BaseUI
 
@@ -210,3 +212,90 @@ def test_status_badges_are_set_replaced_and_removed_by_key(surface_ui):
     surface_ui.set_status_badge("gone", None)
     assert surface_ui.status_badges == ("📷 on",)
     assert surface_ui.invalidate_ui.call_count == 5
+
+
+def test_cancel_current_turn_cancels_the_running_turn_and_fires_stop(surface_ui):
+    running = MagicMock()
+    running.done.return_value = False
+    surface_ui.running_llm_task = running
+    surface_ui.conversation_session_name = "s1"
+
+    with (
+        patch.object(surface_ui, "cancel_pending_confirmations") as release,
+        patch.object(surface_ui, "execute_hook") as execute_hook,
+    ):
+        surface_ui.cancel_current_turn("barge_in")
+
+    release.assert_called_once()
+    running.cancel.assert_called_once()
+    [(event, data), _] = execute_hook.call_args
+    assert event.value == "Stop"
+    assert data == {"reason": "barge_in", "session": "s1"}
+
+
+@pytest.mark.parametrize("done", [None, True])
+def test_cancel_current_turn_with_no_turn_running_only_releases(surface_ui, done):
+    running = None
+    if done:
+        running = MagicMock()
+        running.done.return_value = True
+    surface_ui.running_llm_task = running
+
+    with (
+        patch.object(surface_ui, "cancel_pending_confirmations") as release,
+        patch.object(surface_ui, "execute_hook") as execute_hook,
+    ):
+        surface_ui.cancel_current_turn("escape")
+
+    release.assert_called_once()
+    execute_hook.assert_not_called()
+
+
+def test_cancel_current_turn_fires_stop_on_the_turns_own_hook_manager():
+    """An interactive chat's UI holds the inner LLMTask, built with the
+    manager the turn runs with: that is where Stop must go, not the
+    process-wide manager."""
+    turn_manager = HookManager(search_dirs=[])
+    turn_manager.execute_hooks = AsyncMock(return_value=[])
+    ui = _SurfaceUI(
+        ctx=Context(SharedContext(), "test", 0, ""),
+        llm_task=LLMTask(name="inner", hook_manager=turn_manager),
+        history_manager=MagicMock(),
+    )
+    running = MagicMock()
+    running.done.return_value = False
+    ui.running_llm_task = running
+
+    async def cancel_and_settle():
+        ui.cancel_current_turn("barge_in")
+        await asyncio.sleep(0)
+
+    asyncio.run(cancel_and_settle())
+
+    [call] = turn_manager.execute_hooks.call_args_list
+    assert call.args[0].value == "Stop"
+    assert call.args[1]["reason"] == "barge_in"
+
+
+def test_cancel_current_turn_prefers_a_chat_tasks_active_hook_manager():
+    """A UI handed the outer chat task: its per-run manager, not its
+    configured one (None when each run builds its own)."""
+    active = HookManager(search_dirs=[])
+    active.execute_hooks = AsyncMock(return_value=[])
+    chat_task = MagicMock(active_hook_manager=active, hook_manager=None)
+    ui = _SurfaceUI(
+        ctx=Context(SharedContext(), "test", 0, ""),
+        llm_task=chat_task,
+        history_manager=MagicMock(),
+    )
+    running = MagicMock()
+    running.done.return_value = False
+    ui.running_llm_task = running
+
+    async def cancel_and_settle():
+        ui.cancel_current_turn("escape")
+        await asyncio.sleep(0)
+
+    asyncio.run(cancel_and_settle())
+
+    assert active.execute_hooks.call_args.args[1]["reason"] == "escape"

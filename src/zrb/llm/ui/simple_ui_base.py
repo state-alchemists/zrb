@@ -178,7 +178,7 @@ class SimpleUI(BaseUI):
     async def run_interactive_command(self, cmd: str | list[str], shell: bool = False):
         """Default implementation - not supported in SimpleUI."""
         await self.print(
-            "\n⚠️ Interactive commands not supported in this UI\n", kind="text"
+            "\n❗ Interactive commands not supported in this UI\n", kind="text"
         )
         return 1
 

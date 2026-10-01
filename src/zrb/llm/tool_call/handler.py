@@ -152,7 +152,7 @@ class ToolCallHandler:
                 args_section = new_args_section
 
         instruction = (
-            approval_instruction or "  ❓ Allow tool Execution? (✅ Y | 🛑 n | ✏️ e)? "
+            approval_instruction or "  ❓ Allow tool Execution? (✅ Y | 🛑 n | 📝 e)? "
         )
 
         return (

@@ -1,6 +1,8 @@
 """`get_speech_backend`: names to built-in backends."""
 
+import base64
 import io
+import json
 
 import pytest
 
@@ -106,3 +108,23 @@ def test_termux_settings_reach_the_backend(monkeypatch):
         "--",
         "halo",
     ]
+
+
+def test_the_style_reaches_the_cloud_backends(requests, which, monkeypatch):
+    sent, replies = requests
+    part = {"inlineData": {"data": base64.b64encode(b"\x00\x01").decode()}}
+    replies += [
+        b"RIFF-wav",
+        json.dumps({"candidates": [{"content": {"parts": [part]}}]}).encode(),
+    ]
+    which("afplay")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("GEMINI_API_KEY", "g-key")
+    config = SpeechConfig(style="Calm.", openai_model="gpt-4o-mini-tts").resolve()
+
+    get_speech_backend("openai", config).create_utterance("hi").cleanup()
+    get_speech_backend("gemini", config).create_utterance("hi").cleanup()
+
+    assert json.loads(sent[0][0].data)["instructions"] == "Calm."
+    gemini_text = json.loads(sent[1][0].data)["contents"][0]["parts"][0]["text"]
+    assert gemini_text.startswith("Calm.")

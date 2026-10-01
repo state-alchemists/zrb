@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from fnmatch import fnmatchcase
 
 _FENCE_RE = re.compile(r"(```|~~~).*?\1", re.DOTALL)
 # A fence opening a line with no close runs to the end: a reply cut mid-code.
@@ -33,8 +34,9 @@ _NON_SPEECH_RE = re.compile(
     "[\U0001f300-\U0001faff\U00002600-\U000027bf\U0001f1e6-\U0001f1ff]"
 )
 # A sentence ends at punctuation followed by space, so the dot in "main.py"
-# does not count, nor one after a lone letter ("e.g.").
-_SENTENCE_END_RE = re.compile(r"(?<!\b[a-zA-Z])[.!?](?=\s)")
+# does not count, nor the last dot of a dotted abbreviation ("e.g.", "U.S.").
+# A one-letter word may still end a sentence: "I." does.
+_SENTENCE_END_RE = re.compile(r"(?<!\.[a-zA-Z])[.!?](?=\s)")
 _CLAUSE_END_RE = re.compile(r"[,;:](?=\s)")
 
 
@@ -119,3 +121,22 @@ def _cut(text: str, max_chars: int) -> str:
     if ends_mid_word and " " in window:
         window = window[: window.rfind(" ")]
     return window.rstrip(" ,;:") + "."
+
+
+def fill_template(template: str, **values: str) -> str:
+    """*template* with each ``{name}`` in *values* replaced. Other braces
+    are left as written, so a configured phrase needs no escaping."""
+    for name, value in values.items():
+        template = template.replace("{" + name + "}", value)
+    return template
+
+
+def match_tool_phrase(tool: str | None, phrases: dict[str, str]) -> str | None:
+    """The phrase of the first pattern in *phrases* matching *tool* (``*``
+    and ``?`` wildcards; ``""`` matches no tool name), its ``{tool}``
+    filled in; ``None`` when none matches."""
+    name = tool or ""
+    for pattern, phrase in phrases.items():
+        if fnmatchcase(name, pattern):
+            return fill_template(phrase, tool=name)
+    return None

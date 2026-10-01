@@ -182,7 +182,7 @@ async def _replace_one_attachment(
         return f"[{tag} attachment ({media_type}) description: {described}]"
     reason = _reason_for_drop(modality, multimodal_model)
     notify(
-        f"\n  ⚠️  Dropped {modality} attachment ({media_type}): "
+        f"\n  ❗ Dropped {modality} attachment ({media_type}): "
         f"main model is text-only and {reason}.\n"
     )
     return None

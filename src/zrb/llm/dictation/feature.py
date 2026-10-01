@@ -19,10 +19,19 @@ from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.builtin import get_dictation_backend
 from zrb.llm.dictation.config import DictationConfig
-from zrb.llm.dictation.listen import MicState, import_audio, listen
-from zrb.llm.dictation.words import split_phrases, strip_wake_word, to_answer
+from zrb.llm.dictation.echo.builtin import get_echo_canceller
+from zrb.llm.dictation.echo.cancellation import EchoCancellation
+from zrb.llm.dictation.listen import MicState, Utterance, import_audio, listen
+from zrb.llm.dictation.words import (
+    is_said_alone,
+    split_phrases,
+    strip_wake_word,
+    to_answer,
+)
+from zrb.llm.speech.feature import interrupt_speech, pause_speech, resume_speech
 from zrb.llm.ui.trigger import TriggerReply
 from zrb.llm.util.feature_config import (
+    current_session_key,
     get_session_ui,
     replace_feature_sessions,
     replace_registration,
@@ -31,6 +40,9 @@ from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
+    from zrb.llm.dictation.backend.any_transcription_stream import (
+        AnyTranscriptionStream,
+    )
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.ui.base.ui import BaseUI
@@ -38,13 +50,22 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 HANDS_FREE = "hands_free"
+# Badge emoji are all wide by default (Emoji_Presentation). One made an emoji
+# by a variation selector (U+FE0F after the writing hand or the studio
+# microphone) is drawn one column wide by many terminals but counted as two
+# by prompt_toolkit, so it overlaps the next letter ("trenscribing").
 BADGE_KEY = "dictation"
 _LISTENING = "🎤 listening"
 _MIC_STATE_BADGES = {
-    MicState.HEARING: "🎙️ hearing you…",
+    MicState.HEARING: "👂 hearing you…",
     MicState.PAUSED: "🔇 mic paused while speaking",
 }
-_TRANSCRIBING = "✍️ transcribing…"
+_TRANSCRIBING = "📝 transcribing…"
+_INTERRUPTED = "✋ interrupted · go on…"
+_PAUSED = "✋ paused · listening…"
+# How long a cancelled turn may take to unwind before what the user said
+# is sent anyway.
+_TURN_END_POLL = 0.05
 _MAX_QUOTED_CHARS = 40
 
 
@@ -90,12 +111,21 @@ class DictationSession:
         self._wake_words = split_phrases(config.wake_words or [])
         self._approve_words = split_phrases(config.approve_words or [])
         self._deny_words = split_phrases(config.deny_words or [])
+        self._stop_words = split_phrases(config.stop_words or [])
+        self._polite_words = config.polite_words
         # The UI hands-free was last switched on from, for when no UI is bound
         # to the session.
         self._ui: "AnyUI | None" = None
         # The badge shown while the mic is listening, which says what the last
         # utterance came to.
         self._resting_badge = _LISTENING
+        # The chat session this belongs to, whose speech a barge-in silences.
+        self._session_key = current_session_key()
+        # zrb's voice is held because the user may be talking over it, until
+        # what they said is known to be words (stop) or not (resume).
+        self._is_paused_by_barge_in = False
+        # One per session: it keeps what it learned of the room.
+        self._echo: "EchoCancellation | None" = None
         self.is_hands_free = (config.mode or "").strip().lower() == HANDS_FREE
 
     @property
@@ -121,6 +151,7 @@ class DictationSession:
 
     def close(self) -> None:
         """Switch hands-free off and release a recording in progress."""
+        self._release_barge_in()
         self.is_hands_free = False
         self._hands_free_off.set()
         if self._stop_recording is not None:
@@ -188,6 +219,7 @@ class DictationSession:
             self._hands_free_off.clear()
         else:
             self._hands_free_off.set()
+            self._release_barge_in()
             self._show(None)
         if self._stop_recording is not None:
             self._stop_recording.set()
@@ -197,7 +229,7 @@ class DictationSession:
         await self.backend.prepare(_to_output(ui))
         commands = ", ".join(self._config.commands or [])
         try:
-            self._show(f"🎙️ recording… ({commands} or a pause to stop)", ui)
+            self._show(f"🔴 recording… ({commands} or a pause to stop)", ui)
             audio = await self._record_one(stop)
             self._show(_TRANSCRIBING, ui)
             text = (await self.backend.transcribe(audio)).strip() if audio else ""
@@ -236,6 +268,7 @@ class DictationSession:
                         yield reply
             except Exception as exc:
                 # Stop rather than retry a broken microphone forever.
+                self._release_barge_in()
                 self._report(f"Hands-free dictation stopped: {exc}")
                 self.is_hands_free = False
             finally:
@@ -246,27 +279,37 @@ class DictationSession:
         # aclosing so switching hands-free off closes the microphone as soon as
         # the utterance in flight is dropped, not at finalization.
         mic_listen = listen(
-            self._config, lambda: self.is_hands_free, on_state=self._show_mic_state
+            self._config,
+            lambda: self.is_hands_free,
+            on_state=self._show_mic_state,
+            on_barge_in=self._handle_barge_in,
+            create_stream=self.backend.create_stream,
+            on_partial=self._show_partial,
+            echo=self._get_echo(),
+            on_barge_in_dropped=self._release_barge_in,
         )
         async with aclosing(mic_listen) as mic:
             async for utterance in mic:
                 self._show(_TRANSCRIBING)
                 try:
-                    text = await self._transcribe_or_drop(utterance.audio)
+                    text = await self._transcribe_or_drop(utterance)
                 except Exception as exc:
-                    self._rest("⚠️ transcription failed · listening")
+                    self._release_barge_in()
+                    self._rest("❗ transcription failed · listening")
                     self._report(f"Hands-free transcription failed: {exc}")
                     continue
                 if text is None:
+                    self._release_barge_in()
                     return
+                command = strip_wake_word(text, self._wake_words) if text else None
+                # Against when the utterance was spoken, not when transcription
+                # finished: transcription alone can take seconds.
+                if command is None and text and utterance.started_at < armed_until:
+                    command = text
+                self._settle_barge_in(utterance, command is not None)
                 if not text:
                     self._rest("🎤 didn't catch that · listening")
                     continue
-                command = strip_wake_word(text, self._wake_words)
-                # Against when the utterance was spoken, not when transcription
-                # finished: transcription alone can take seconds.
-                if command is None and utterance.started_at < armed_until:
-                    command = text
                 if command is None:
                     self._rest(f"🎤 ignored {_quote(text)} (no wake word)")
                     continue
@@ -276,12 +319,96 @@ class DictationSession:
                     self._rest("🎤 go ahead…")
                     continue
                 armed_until = 0.0
+                if _is_over_speech(utterance) and not await self._should_send_barge_in(
+                    command
+                ):
+                    continue
                 self._rest(f"🎤 heard {_quote(command)} · listening")
                 yield TriggerReply(
                     command,
-                    approval=to_answer(command, self._approve_words, self._deny_words),
+                    approval=to_answer(
+                        command,
+                        self._approve_words,
+                        self._deny_words,
+                        self._polite_words,
+                    ),
                     started_at=utterance.started_at,
                 )
+
+    def _get_echo(self) -> "EchoCancellation | None":
+        """The session's echo cancellation, built on first use with barge-in
+        on; it keeps what it learned of the room across microphone reopens."""
+        if (self._config.barge_in or "off").strip().lower() != "on":
+            return None
+        if self._echo is None:
+            canceller = get_echo_canceller(
+                self._config.echo_canceller or "numpy", self._config
+            )
+            self._echo = EchoCancellation(canceller, config=self._config)
+        return self._echo
+
+    def _handle_barge_in(self) -> None:
+        """The user may be talking over zrb: hold its voice at once, until
+        what they said turns out to be words or not."""
+        self._is_paused_by_barge_in = True
+        pause_speech(self._session_key)
+        self._rest(_PAUSED)
+
+    def _settle_barge_in(self, utterance: Utterance, is_meant_for_zrb: bool) -> None:
+        """For *utterance* said over zrb: stop zrb for words meant for it
+        (with wake words: starting with one); carry on after anything else
+        (a cough, leftover echo). Words too brief to have paused zrb (a
+        crisp "stop" is shorter than ``barge_in_min_speech``) stop it too."""
+        if not _is_over_speech(utterance):
+            return
+        if not is_meant_for_zrb:
+            self._release_barge_in()
+        elif self._is_paused_by_barge_in or not utterance.is_barge_in:
+            self._stop_speech()
+
+    def _confirm_barge_in(self) -> None:
+        if self._is_paused_by_barge_in:
+            self._stop_speech()
+
+    def _stop_speech(self) -> None:
+        self._is_paused_by_barge_in = False
+        interrupt_speech(self._session_key)
+        self._rest(_INTERRUPTED)
+
+    def _release_barge_in(self) -> None:
+        if self._is_paused_by_barge_in:
+            self._is_paused_by_barge_in = False
+            resume_speech(self._session_key)
+
+    async def _should_send_barge_in(self, command: str) -> bool:
+        """Act on what the user said over zrb, and say whether it still goes
+        on to be a turn or an answer. A stop word alone stops the turn and is sent
+        nowhere; with ``barge_in_action`` ``cancel``, anything else stops the
+        turn and starts a new one. An answer to the prompt being asked is
+        left alone: "no" there denies a tool call, not the turn."""
+        ui = get_session_ui() or self._ui
+        if ui is None or getattr(ui, "is_waiting_for_answer", False):
+            return True
+        if is_said_alone(command, self._stop_words, self._polite_words):
+            ui.cancel_current_turn("barge_in")
+            self._rest("✋ stopped · listening")
+            return False
+        action = (self._config.barge_in_action or "steer").strip().lower()
+        if action == "cancel" and ui.is_thinking:
+            ui.cancel_current_turn("barge_in")
+            await _wait_for_turn_end(ui, self._config.turn_end_timeout or 0)
+        return True
+
+    def _show_partial(self, partial: str) -> None:
+        """Show the end of what is being heard, while it is said; words
+        heard over zrb stop it without waiting for the utterance to end."""
+        if not partial:
+            return
+        self._show(f"👂 …{partial[-_MAX_QUOTED_CHARS:]}")
+        if self._is_paused_by_barge_in and (
+            strip_wake_word(partial, self._wake_words) is not None
+        ):
+            self._confirm_barge_in()
 
     def _show_mic_state(self, state: MicState) -> None:
         self._show(_MIC_STATE_BADGES.get(state, self._resting_badge))
@@ -304,23 +431,56 @@ class DictationSession:
             return
         _to_output(ui)(message)
 
-    async def _transcribe_or_drop(self, audio: bytes) -> str | None:
-        """*audio*'s transcript, or ``None`` when hands-free was switched off
-        while it was being transcribed — the user said stop, so that utterance
-        is theirs, not the model's."""
-        transcribing = asyncio.ensure_future(self.backend.transcribe(audio))
+    async def _transcribe_or_drop(self, utterance: Utterance) -> str | None:
+        """*utterance*'s transcript, finished by its stream when it has one,
+        or ``None`` when hands-free was switched off while it was being
+        transcribed — the user said stop, so that utterance is theirs, not the
+        model's."""
+        if utterance.stream is not None:
+            coroutine = utterance.stream.finish()
+        else:
+            coroutine = self.backend.transcribe(utterance.audio)
+        transcribing = asyncio.ensure_future(coroutine)
         switched_off = asyncio.ensure_future(self._hands_free_off.wait())
+        is_finished = False
         try:
             await asyncio.wait(
                 {transcribing, switched_off}, return_when=asyncio.FIRST_COMPLETED
             )
             if not transcribing.done():
                 return None
-            return (await transcribing).strip()
+            text = (await transcribing).strip()
+            is_finished = True
+            return text
         finally:
             for task in (transcribing, switched_off):
                 if not task.done():
                     task.cancel()
+            # A stream that did not finish (hands-free switched off, `finish`
+            # failed, this task cancelled) is abandoned, and an abandoned
+            # stream is closed: it may hold a connection or a decoder.
+            if utterance.stream is not None and not is_finished:
+                await _close_quietly(utterance.stream)
+
+
+def _is_over_speech(utterance: Utterance) -> bool:
+    """Whether any of *utterance* was said over zrb's voice."""
+    return utterance.is_barge_in or utterance.is_over_speech
+
+
+async def _close_quietly(stream: "AnyTranscriptionStream") -> None:
+    try:
+        await stream.close()
+    except Exception as exc:
+        logger.warning(f"Closing a transcription stream failed: {exc}")
+
+
+async def _wait_for_turn_end(ui: "AnyUI", timeout: float) -> None:
+    """Wait for a cancelled turn to unwind, so what the user said starts a
+    new turn instead of steering into the one being cancelled."""
+    deadline = asyncio.get_running_loop().time() + timeout
+    while ui.is_thinking and asyncio.get_running_loop().time() < deadline:
+        await asyncio.sleep(_TURN_END_POLL)
 
 
 def _quote(text: str) -> str:

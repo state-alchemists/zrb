@@ -352,16 +352,13 @@ def test_collapse_thinking_block_without_full_text_is_a_noop():
     assert ui.collapse_thinking_block("🧠 Thought\n", "") is False
 
 
-def test_status_badges_show_in_every_status_bar_state():
+def test_status_badges_have_a_line_of_their_own():
     ui = MockOutputUI()
-    ui.status_badges = ("🎤 listening",)
+    assert ui.get_badge_bar_text() == []
 
-    def shown() -> str:
-        return "".join(fragment[1] for fragment in ui.get_status_bar_text())
+    ui.status_badges = ("🎤 listening", "📷 ready")
 
-    assert "Ready" in shown() and "🎤 listening" in shown()
-    ui.set_thinking(True)
-    assert "working" in shown() and "🎤 listening" in shown()
-    ui.set_thinking(False)
-    ui.confirmation.current = MagicMock()
-    assert "confirmation" in shown() and "🎤 listening" in shown()
+    badge_line = "".join(fragment[1] for fragment in ui.get_badge_bar_text())
+    status_line = "".join(fragment[1] for fragment in ui.get_status_bar_text())
+    assert badge_line == " 🎤 listening  ·  📷 ready "
+    assert "🎤" not in status_line

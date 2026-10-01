@@ -285,10 +285,10 @@ def test_multi_ui_finish_shell_output_forwards_to_supporting_children(
     child_ui_1.finish_shell_output = MagicMock()
     del child_ui_2.finish_shell_output
 
-    multi_ui.finish_shell_output("cmd_1", "🖥️ Output", "the full output")
+    multi_ui.finish_shell_output("cmd_1", "💻 Output", "the full output")
 
     child_ui_1.finish_shell_output.assert_called_once_with(
-        "cmd_1", "🖥️ Output", "the full output"
+        "cmd_1", "💻 Output", "the full output"
     )
 
 

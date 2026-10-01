@@ -74,6 +74,17 @@ class Utterance:
     def is_stopped(self) -> bool:
         return self._is_stopped
 
+    @property
+    def is_pausable(self) -> bool:
+        """Whether `pause` holds playback; a player program cannot."""
+        return False
+
+    def pause(self) -> None:
+        """Hold playback where it is, when `is_pausable`; else nothing."""
+
+    def resume(self) -> None:
+        """Carry on after `pause`."""
+
     def stop(self) -> None:
         """End playback now, from any thread; a later `play` does nothing."""
         with self._lock:
@@ -141,7 +152,7 @@ class StreamedUtterance(Utterance):
 
     def stop(self) -> None:
         super().stop()
-        _shut_down_socket(self._source)
+        shut_down_socket(self._source)
 
     def cleanup(self) -> None:
         pump = self._pump
@@ -157,7 +168,7 @@ class StreamedUtterance(Utterance):
 _PUMP_JOIN_SECONDS = 1.0
 
 
-def _shut_down_socket(source: BinaryIO) -> None:
+def shut_down_socket(source: BinaryIO) -> None:
     """End a read blocked on *source*'s socket, from another thread. Closing
     the reader itself would wait for the read, which holds its lock; a source
     not backed by a socket is left alone.

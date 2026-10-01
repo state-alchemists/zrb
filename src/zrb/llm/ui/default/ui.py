@@ -184,6 +184,7 @@ class UI(BaseUI):
             output_field=self._output_field,
             info_bar_text=self._output.get_info_bar_text,
             status_bar_text=self._output.get_status_bar_text,
+            badge_bar_text=self._output.get_badge_bar_text,
             extra_floats=[choice_float, agent_picker_float],
             agent_activity_text=self._output.get_agent_activity_text,
         )

@@ -1,9 +1,11 @@
 """Speech config mixin: text-to-speech output for `enable_speech`.
 
-When enabled, the reply at the end of each turn, tool approvals and questions
-are read aloud. A reply longer than `LLM_SPEECH_MAX_CHARS` is cut at a
-sentence end, or summarized by the small model with `LLM_SPEECH_SUMMARIZE`,
-and followed by a note that the full answer is on screen.
+When enabled, replies are read aloud a sentence at a time as they stream
+(`LLM_SPEECH_STREAM`), along with tool approvals, questions, and a tool call
+that starts after a silence. With streaming off, the reply is read at the end
+of the turn: one longer than `LLM_SPEECH_MAX_CHARS` is cut at a sentence end,
+or summarized by the small model with `LLM_SPEECH_SUMMARIZE`, and followed by
+a note that the full answer is on screen.
 
 Read when a chat session starts, not at import, so `zrb_init.py` may change
 any of these after importing zrb.
@@ -14,7 +16,14 @@ from __future__ import annotations
 import os
 import tempfile
 
-from zrb.config.env_field import EnvField, comma_join, comma_list, on_off
+from zrb.config.env_field import (
+    EnvField,
+    comma_join,
+    comma_list,
+    json_dump,
+    json_object,
+    on_off,
+)
 from zrb.util.string.conversion import to_boolean
 
 
@@ -26,9 +35,17 @@ class LLMSpeechMixin:
         self.DEFAULT_LLM_SPEECH_COMMANDS: str = "/speech"
         self.DEFAULT_LLM_SPEECH_BACKEND: str = "auto"
         self.DEFAULT_LLM_SPEECH_VOICE: str = ""
+        self.DEFAULT_LLM_SPEECH_STYLE: str = (
+            "Speak like a capable colleague talking a teammate through their "
+            "work: warm, clear and natural, at a relaxed conversational pace, "
+            "with the rise and fall of real speech. Sound engaged, not "
+            "theatrical."
+        )
         self.DEFAULT_LLM_SPEECH_RATE: str = "165"
         self.DEFAULT_LLM_SPEECH_MAX_CHARS: str = "400"
         self.DEFAULT_LLM_SPEECH_SUMMARIZE: str = "false"
+        self.DEFAULT_LLM_SPEECH_STREAM: str = "true"
+        self.DEFAULT_LLM_SPEECH_PROGRESS_INTERVAL: str = "8"
         self.DEFAULT_LLM_SPEECH_OPENAI_MODEL: str = "gpt-4o-mini-tts"
         self.DEFAULT_LLM_SPEECH_OPENAI_BASE_URL: str = "https://api.openai.com/v1"
         self.DEFAULT_LLM_SPEECH_GEMINI_MODEL: str = "gemini-2.5-flash-preview-tts"
@@ -41,11 +58,39 @@ class LLMSpeechMixin:
         self.DEFAULT_LLM_SPEECH_TERMUX_STREAM: str = ""
         self.DEFAULT_LLM_SPEECH_SUMMARY_MODEL: str = ""
         self.DEFAULT_LLM_SPEECH_ON_SCREEN_NOTE: str = "The full answer is on screen."
-        self.DEFAULT_LLM_SPEECH_EVENTS: str = "reply, approval, question"
+        self.DEFAULT_LLM_SPEECH_EVENTS: str = "reply, approval, question, progress"
         self.DEFAULT_LLM_SPEECH_WAV_PLAYER: str = ""
+        self.DEFAULT_LLM_SPEECH_PLAYER: str = "auto"
         self.DEFAULT_LLM_SPEECH_LOCK_TIMEOUT: str = "30"
         self.DEFAULT_LLM_SPEECH_DRAIN_TIMEOUT: str = "30"
         self.DEFAULT_LLM_SPEECH_PLAYER_TIMEOUT: str = "120"
+        self.DEFAULT_LLM_SPEECH_QUESTION_MESSAGE: str = (
+            "A question is waiting for your answer."
+        )
+        self.DEFAULT_LLM_SPEECH_APPROVAL_MESSAGE: str = (
+            "I need to {action}{target}. I need your approval."
+        )
+        self.DEFAULT_LLM_SPEECH_APPROVAL_TARGET_KEYS: str = (
+            "path, file_path, command, notebook_path"
+        )
+        self.DEFAULT_LLM_SPEECH_APPROVAL_TARGET_MAX_CHARS: str = "80"
+        self.DEFAULT_LLM_SPEECH_PROGRESS_SILENT_TOOLS: str = (
+            "TodoRead, TodoWrite, ActivateSkill, SearchSkill"
+        )
+        self.DEFAULT_LLM_SPEECH_GEMINI_PROMPT: str = "Say: {text}"
+        self.DEFAULT_LLM_SPEECH_GEMINI_STYLE_PROMPT: str = (
+            "{style}\n\nSay exactly this, and nothing else: {text}"
+        )
+        self.DEFAULT_LLM_SPEECH_RENDER_TIMEOUT: str = "60"
+        self.DEFAULT_LLM_SPEECH_STALL_TIMEOUT: str = "30"
+        self.DEFAULT_LLM_SPEECH_PLAYER_BLOCK_FRAMES: str = "1024"
+        self.DEFAULT_LLM_SPEECH_PLAYER_READ_AHEAD: str = "32"
+        self.DEFAULT_LLM_SPEECH_PROGRESS_PHRASES: str = (
+            '{"Read": "Reading a file.", "AnalyzeFile": "Reading a file.", "LS": "Looking through the files.", "Glob": "Looking through the files.", "Grep": "Searching the code.", "AnalyzeCode": "Reading the code.", "Write": "Writing a file.", "Edit": "Editing a file.", "MV": "Moving a file.", "RM": "Removing a file.", "Shell": "Running a command.", "Bash": "Running a command.", "WebSearch": "Searching the web.", "WebFetch": "Reading a web page.", "DelegateToAgent": "Handing this to a sub-agent.", "DelegateToAgentBackground": "Handing this to a sub-agent.", "Lsp*": "Checking the code.", "": "Working on it.", "*": "Using the {tool} tool."}'
+        )
+        self.DEFAULT_LLM_SPEECH_APPROVAL_ACTIONS: str = (
+            '{"Write": "write a file", "Edit": "edit a file", "NotebookEdit": "edit a notebook", "Shell": "run a shell command", "Bash": "run a shell command", "DelegateToAgent": "delegate work to a sub-agent", "DelegateToAgentBackground": "delegate background work to a sub-agent", "": "run a tool", "*": "use the {tool} tool"}'
+        )
         super().__init__()
 
     LLM_SPEECH_ENABLED = EnvField(
@@ -89,6 +134,16 @@ class LLMSpeechMixin:
         ),
     )
 
+    LLM_SPEECH_STYLE = EnvField(
+        str,
+        doc=(
+            "How the 'openai' and 'gemini' backends should sound: a direction "
+            "in plain words (tone, pace, warmth), not read aloud. Empty reads "
+            "in the voice's default manner. The local engines ignore it. "
+            "Default: a warm, clear, conversational colleague."
+        ),
+    )
+
     LLM_SPEECH_RATE = EnvField(
         int,
         fallback=165,
@@ -100,7 +155,9 @@ class LLMSpeechMixin:
         fallback=400,
         doc=(
             "Longest reply spoken in full, in characters; 0 means no limit. "
-            "Default: 400."
+            "A longer one is cut at a sentence end and followed by "
+            "{ENV_PREFIX}_LLM_SPEECH_ON_SCREEN_NOTE, only when something was "
+            "left unsaid. Default: 400."
         ),
     )
 
@@ -111,6 +168,28 @@ class LLMSpeechMixin:
             "Speak a small-model summary of a reply longer than "
             "{ENV_PREFIX}_LLM_SPEECH_MAX_CHARS instead of its opening. Costs a "
             "model call per long reply. Default: false."
+        ),
+    )
+
+    LLM_SPEECH_STREAM = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Speak a reply a sentence at a time while it is written, and the "
+            "text before a tool call when the call starts, instead of the "
+            "whole reply once the turn ends. {ENV_PREFIX}_LLM_SPEECH_MAX_CHARS "
+            "then caps what one turn speaks, and "
+            "{ENV_PREFIX}_LLM_SPEECH_SUMMARIZE does not apply. Default: true."
+        ),
+    )
+
+    LLM_SPEECH_PROGRESS_INTERVAL = EnvField(
+        float,
+        fallback=8.0,
+        doc=(
+            "With 'progress' in {ENV_PREFIX}_LLM_SPEECH_EVENTS, the seconds of "
+            'silence after which a tool call starting is announced ("Running '
+            'a command."); 0 announces nothing. Default: 8.'
         ),
     )
 
@@ -183,13 +262,162 @@ class LLMSpeechMixin:
         ),
     )
 
+    LLM_SPEECH_QUESTION_MESSAGE = EnvField(
+        str,
+        doc=(
+            "Said when the model asks a question with no text of its own to "
+            "read. Default: A question is waiting for your answer."
+        ),
+    )
+
+    LLM_SPEECH_APPROVAL_MESSAGE = EnvField(
+        str,
+        doc=(
+            "Said when a tool call waits for approval. {action} is what the "
+            "tool does (see {ENV_PREFIX}_LLM_SPEECH_APPROVAL_ACTIONS); "
+            "{target} is a space and the file or command it acts on, or "
+            "empty. Default: I need to {action}{target}. I need your "
+            "approval."
+        ),
+    )
+
+    LLM_SPEECH_APPROVAL_TARGET_KEYS = EnvField(
+        comma_list,
+        serialize=comma_join,
+        doc=(
+            "Comma-separated tool arguments tried, in order, for the "
+            "{target} of an approval request. Default: path, file_path, "
+            "command, notebook_path."
+        ),
+    )
+
+    LLM_SPEECH_APPROVAL_TARGET_MAX_CHARS = EnvField(
+        int,
+        fallback=80,
+        doc=(
+            "Longest {target} read out in an approval request; longer is "
+            "cut. 0 leaves the target out. Default: 80."
+        ),
+    )
+
+    LLM_SPEECH_PROGRESS_SILENT_TOOLS = EnvField(
+        comma_list,
+        serialize=comma_join,
+        doc=(
+            "Comma-separated tools never announced by progress narration, "
+            "being over too fast to be worth a word. Default: TodoRead, "
+            "TodoWrite, ActivateSkill, SearchSkill."
+        ),
+    )
+
+    LLM_SPEECH_GEMINI_PROMPT = EnvField(
+        str,
+        doc=(
+            "Prompt the 'gemini' backend reads {text} from when no style is "
+            "set; without an instruction Gemini may answer a short line "
+            "instead of reading it. Default: Say: {text}"
+        ),
+    )
+
+    LLM_SPEECH_GEMINI_STYLE_PROMPT = EnvField(
+        str,
+        doc=(
+            "Prompt the 'gemini' backend uses with "
+            "{ENV_PREFIX}_LLM_SPEECH_STYLE set: {style} is the style, "
+            "{text} what to read. Default: {style}, a blank line, then: Say "
+            "exactly this, and nothing else: {text}"
+        ),
+    )
+
+    LLM_SPEECH_RENDER_TIMEOUT = EnvField(
+        float,
+        fallback=60.0,
+        doc=(
+            "Seconds 'say' or 'espeak-ng' may take to render a sentence for "
+            "zrb to play; it only bounds one that hangs. 0 means no limit. Default: 60."
+        ),
+    )
+
+    LLM_SPEECH_STALL_TIMEOUT = EnvField(
+        float,
+        fallback=30.0,
+        doc=(
+            "With {ENV_PREFIX}_LLM_SPEECH_TIMEOUT at 0 (no limit), seconds "
+            "the 'openai' backend's audio may stop arriving before playback "
+            "gives up on it. Default: 30."
+        ),
+    )
+
+    LLM_SPEECH_PLAYER_BLOCK_FRAMES = EnvField(
+        int,
+        fallback=1024,
+        doc=(
+            "Samples per block when zrb plays speech itself; smaller pauses "
+            "and stops sooner, larger is kinder to a slow machine. Default: "
+            "1024."
+        ),
+    )
+
+    LLM_SPEECH_PLAYER_READ_AHEAD = EnvField(
+        int,
+        fallback=32,
+        doc=(
+            "Chunks of downloaded or rendered speech read ahead of "
+            "playback. Default: 32."
+        ),
+    )
+
+    LLM_SPEECH_PROGRESS_PHRASES = EnvField(
+        json_object,
+        serialize=json_dump,
+        doc=(
+            "JSON object of what progress narration says when a tool call "
+            "starts: tool-name patterns (* and ? wildcards, matched in "
+            'order, the first match wins; "" matches a call with no tool '
+            "name) to a line, where {tool} is the tool's name. Default: "
+            'English lines for the built-in tools, then "Lsp*": "Checking '
+            'the code.", "": "Working on it.", and "*": "Using the {tool} '
+            'tool."'
+        ),
+    )
+
+    LLM_SPEECH_APPROVAL_ACTIONS = EnvField(
+        json_object,
+        serialize=json_dump,
+        doc=(
+            "JSON object of the {action} in "
+            "{ENV_PREFIX}_LLM_SPEECH_APPROVAL_MESSAGE: tool-name patterns "
+            '(* and ? wildcards, matched in order, the first match wins; "" '
+            "matches a call with no tool name) to what the tool does, where "
+            "{tool} is the tool's name. Default: English actions for the "
+            'built-in tools that ask, then "": "run a tool" and "*": "use '
+            'the {tool} tool"'
+        ),
+    )
+
     LLM_SPEECH_EVENTS = EnvField(
         comma_list,
         serialize=comma_join,
         doc=(
             "Comma-separated moments to speak: 'reply' (end of a turn), "
             "'approval' (a tool call waits for approval), 'question' (the "
-            "agent asks something). Default: reply, approval, question."
+            "agent asks something), 'progress' (a tool call starts after a "
+            "silence, see {ENV_PREFIX}_LLM_SPEECH_PROGRESS_INTERVAL). Default: "
+            "reply, approval, question, progress."
+        ),
+    )
+
+    LLM_SPEECH_PLAYER = EnvField(
+        str,
+        doc=(
+            "How speech is played. One of:\n"
+            "- 'auto' (default): by zrb itself through sounddevice when the "
+            "zrb[voice] extra is installed and the backend can render audio "
+            "('say', 'espeak-ng', 'openai', 'gemini'), so dictation can cancel "
+            "zrb's voice out of the microphone and pause it; else by a player "
+            "program.\n"
+            "- 'command': always by a player program (say, espeak-ng, "
+            "termux-tts-speak, a WAV player)."
         ),
     )
 

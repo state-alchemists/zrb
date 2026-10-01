@@ -23,9 +23,12 @@ class SpeechConfig:
     commands: list[str] | None = None
     backend: "str | AnySpeechBackend | None" = None
     voice: str | None = None
+    style: str | None = None
     rate: int | None = None
     max_chars: int | None = None
     summarize: bool | None = None
+    stream: bool | None = None
+    progress_interval: float | None = None
     summary_model: str | None = None
     on_screen_note: str | None = None
     events: list[str] | None = None
@@ -40,10 +43,24 @@ class SpeechConfig:
     termux_stream: str | None = None
     timeout: float | None = None
     wav_player: str | None = None
+    player: str | None = None
     lock_file: str | None = None
     lock_timeout: float | None = None
     drain_timeout: float | None = None
     player_timeout: float | None = None
+    question_message: str | None = None
+    approval_message: str | None = None
+    approval_target_keys: list[str] | None = None
+    approval_target_max_chars: int | None = None
+    progress_silent_tools: list[str] | None = None
+    gemini_prompt: str | None = None
+    gemini_style_prompt: str | None = None
+    render_timeout: float | None = None
+    stall_timeout: float | None = None
+    player_block_frames: int | None = None
+    player_read_ahead: int | None = None
+    progress_phrases: dict[str, str] | None = None
+    approval_actions: dict[str, str] | None = None
 
     def resolve(self) -> "SpeechConfig":
         """A copy with every ``None`` field read from `CFG`."""

@@ -10,6 +10,7 @@ import (R3), so `zrb_init.py` may change the knobs after importing zrb.
 
 from __future__ import annotations
 
+import logging
 import weakref
 from collections.abc import Callable
 from dataclasses import fields, replace
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import AnyUI
 
 T = TypeVar("T")
+logger = logging.getLogger(__name__)
 
 
 def resolve_from_cfg(config: T, prefix: str) -> T:
@@ -108,9 +110,16 @@ def close_feature_sessions(session_key: str) -> None:
     """Close *session_key*'s value in every feature that holds one; called
     where a chat session ends — the interactive CLI's teardown and the web
     runner's session removal."""
-    for sessions in list(_every_feature_sessions):
-        sessions.close_session(session_key)
-    _session_uis.pop(session_key, None)
+    try:
+        for sessions in list(_every_feature_sessions):
+            try:
+                sessions.close_session(session_key)
+            except Exception as exc:
+                # One feature failing to close must not keep the others (or
+                # the session's UI) alive.
+                logger.warning(f"Closing a feature session failed: {exc}")
+    finally:
+        _session_uis.pop(session_key, None)
 
 
 # The UI serving each chat session. Hooks run on a pool thread with the
