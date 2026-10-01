@@ -226,8 +226,8 @@ def create_layout(
             )
         )
 
-    # The status badges (the microphone's state) on a line of their own,
-    # shown only while a feature has one.
+    # The status badges (each a feature's one-line state) on a line of their
+    # own, shown only while a feature has one.
     if badge_bar_text is not None:
         extra_children.append(
             ConditionalContainer(

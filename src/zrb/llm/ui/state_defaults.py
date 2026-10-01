@@ -165,6 +165,11 @@ class UIStateDefaultsMixin:
         return self._uidefaults_background_tasks
 
     @property
+    def is_turn_running(self) -> bool:
+        """No turn of its own to run."""
+        return False
+
+    @property
     def is_waiting_for_answer(self) -> bool:
         """No prompt of its own to wait on."""
         return False

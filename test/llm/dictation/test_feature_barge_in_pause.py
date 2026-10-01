@@ -68,7 +68,7 @@ def _listen(monkeypatch, *heard, partials=(), drop_first=False):
             if index == 0:
                 for partial in partials:
                     kwargs["on_partial"](partial)
-            yield Utterance(text.encode(), index, index + 0.5, True)
+            yield Utterance(text.encode(), index, index + 0.5, True, is_over_speech=True)
 
     monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
     return seen
@@ -109,11 +109,34 @@ async def test_words_without_the_wake_word_let_zrb_carry_on(monkeypatch, speech)
 
 
 @pytest.mark.asyncio
-async def test_words_heard_while_still_speaking_stop_zrb_early(monkeypatch, speech):
-    _listen(monkeypatch, "wait a moment", partials=["", "wait"])
-    assert await _replies(_session(), 1) == ["wait a moment"]
+async def test_the_wake_word_heard_while_still_speaking_stops_zrb_early(
+    monkeypatch, speech
+):
+    _listen(monkeypatch, "hey zed wait", partials=["", "hey zed"])
+    assert await _replies(_session(wake_words=["hey zed"]), 1) == ["wait"]
     # Stopped by the partial words; the transcript finds nothing to add.
     assert speech == ["pause", "interrupt"]
+
+
+@pytest.mark.asyncio
+async def test_a_partial_guess_for_a_cough_does_not_stop_zrb(monkeypatch, speech):
+    """Without wake words the transcript decides: a streaming recognizer
+    guesses "the" for a cough, and zrb, paused meanwhile, carries on."""
+    _listen(monkeypatch, "", "go on", partials=["the"])
+    assert await _replies(_session(), 1) == ["go on"]
+    assert speech == ["pause", "resume", "pause", "interrupt"]
+
+
+@pytest.mark.asyncio
+async def test_the_badge_comes_back_when_zrb_carries_on(monkeypatch, speech):
+    _listen(monkeypatch, "", "go on")
+    ui = FakeUI()
+    set_session_ui(ui)
+
+    await _replies(_session(), 1)
+
+    paused = ui.badges.index("✋ paused · listening…")
+    assert "🎤 listening" in ui.badges[paused:]
 
 
 @pytest.mark.asyncio
@@ -168,7 +191,7 @@ async def test_the_echo_cancellation_is_built_once_with_barge_in_on(
     monkeypatch, speech
 ):
     seen = _listen(monkeypatch, "first")
-    session = _session(barge_in="on", echo_canceller="none")
+    session = _session(barge_in_enabled=True, echo_canceller="none")
     await _replies(session, 1)
     echo = seen["echo"]
     assert isinstance(echo, EchoCancellation)
@@ -182,7 +205,7 @@ async def test_the_echo_cancellation_is_built_once_with_barge_in_on(
 @pytest.mark.asyncio
 async def test_no_echo_cancellation_with_barge_in_off(monkeypatch, speech):
     seen = _listen(monkeypatch, "first")
-    await _replies(_session(barge_in="off"), 1)
+    await _replies(_session(barge_in_enabled=False), 1)
     assert seen["echo"] is None
 
 

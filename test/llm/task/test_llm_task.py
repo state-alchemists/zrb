@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.context.shared_context import SharedContext
+from zrb.llm.task.chat.task import LLMChatTask
 from zrb.llm.task.llm_task import LLMTask
 from zrb.session.session import Session
 
@@ -267,3 +268,23 @@ class TestLLMTaskExecution:
 
             # Factory should have been called with context
             factory.assert_called_once()
+
+
+@pytest.mark.parametrize("task_class", [LLMTask, LLMChatTask])
+def test_stream_observer_surface_matches_and_copies_the_given_list(task_class):
+    """Both tasks expose the same stream-observer surface (ADR-0104), and
+    neither keeps a reference to the list `set_stream_observers` is handed."""
+    task = task_class(name="t")
+    first, second = MagicMock(), MagicMock()
+
+    given = [first]
+    task.set_stream_observers(given)
+    given.append(second)
+    assert task.stream_observers == [first]
+
+    task.set_stream_observers([second])
+
+    task.append_stream_observer(first)
+    task.prepend_stream_observer(first)
+    task.remove_stream_observer(first)
+    assert task.stream_observers == [second, first]

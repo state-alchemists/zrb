@@ -26,6 +26,9 @@ class MockUI:
         self.pending_attachments = []
         self.conversation_session_name = "test_session"
         self.running_llm_task = None
+        # True while a `MultiUI` parent runs the turn for this UI, whose own
+        # `running_llm_task` then stays None.
+        self.parent_runs_turn = False
         self.is_thinking = False
 
         self.input_field = MagicMock()
@@ -77,6 +80,12 @@ class MockUI:
     @property
     def effective_message_queue(self):
         return self._message_queue
+
+    @property
+    def is_turn_running(self):
+        running = self.running_llm_task
+        own = running is not None and not running.done()
+        return own or self.parent_runs_turn
 
     @property
     def output_text(self):
@@ -301,6 +310,28 @@ def test_escape_binding(mock_ui, setup_bindings):
     mock_ui.cancel_pending_confirmations.assert_called_once()
     mock_ui.cancel_current_turn.assert_called_once_with("escape")
     assert "\n<Esc> Canceled" in mock_ui.outputs
+
+
+def test_escape_cancels_a_turn_the_multi_ui_parent_runs(mock_ui, setup_bindings):
+    """Under a MultiUI the parent runs the turn, so this UI's own task slot
+    is empty; Esc must still cancel."""
+    event = create_mock_event()
+    mock_ui.parent_runs_turn = True
+
+    trigger_binding(setup_bindings, "escape", event)
+
+    mock_ui.cancel_current_turn.assert_called_once_with("escape")
+    assert "\n<Esc> Canceled" in mock_ui.outputs
+
+
+def test_escape_with_no_turn_running_cancels_nothing(mock_ui, setup_bindings):
+    event = create_mock_event()
+
+    trigger_binding(setup_bindings, "escape", event)
+
+    mock_ui.cancel_pending_confirmations.assert_called_once()
+    mock_ui.cancel_current_turn.assert_not_called()
+    assert "\n<Esc> Canceled" not in mock_ui.outputs
 
 
 def test_escape_while_viewing_sub_agent_cancels_it(mock_ui, setup_bindings):

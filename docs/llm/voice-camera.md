@@ -40,7 +40,7 @@ Set `ZRB_LLM_DICTATION_MODE=hands_free` to start every session this way. Set `ZR
 
 By default zrb ignores the microphone while it is speaking, so its own voice is not taken as yours, and anything you say over it is lost.
 
-**Talking over zrb (barge-in).** With `ZRB_LLM_DICTATION_BARGE_IN=on`, the microphone keeps listening while zrb speaks, on laptop speakers too: zrb removes its own voice from what the microphone hears (echo cancellation, below). About a third of a second of speech over it (`ZRB_LLM_DICTATION_BARGE_IN_MIN_SPEECH`) pauses zrb at once. If what you said turns out to be words, zrb stops and the rest of that reply is not read; if it was a cough or a door, zrb carries on where it paused. Words too brief to pause it (a crisp "stop") stop it as soon as they are transcribed. Then:
+**Talking over zrb (barge-in).** With `ZRB_LLM_DICTATION_BARGE_IN_ENABLED=on`, the microphone keeps listening while zrb speaks, on laptop speakers too: zrb removes its own voice from what the microphone hears (echo cancellation, below). About a third of a second of speech over it (`ZRB_LLM_DICTATION_BARGE_IN_MIN_SPEECH`) pauses zrb at once. If what you said turns out to be words, zrb stops and the rest of that reply is not read; if it was a cough or a door, zrb carries on where it paused. Words too brief to pause it (a crisp "stop") stop it as soon as they are transcribed. Then:
 
 - A stop word said alone ("stop", "cancel", "no"; `ZRB_LLM_DICTATION_STOP_WORDS`) cancels the turn, as Esc does, and is sent nowhere.
 - Anything else steers the running turn: the agent takes it into account at its next step (`ZRB_LLM_DICTATION_BARGE_IN_ACTION=steer`). With `cancel`, the turn stops and what you said starts a new one.
@@ -113,7 +113,7 @@ Speech rides on the hook subsystem, so it needs hooks on: with `ZRB_HOOKS_ENABLE
 ZRB_LLM_SPEECH_ENABLED=on ZRB_LLM_DICTATION_MODE=hands_free zrb llm chat
 ```
 
-Add `ZRB_LLM_DICTATION_BARGE_IN=on` to talk over it, on speakers or headphones (see barge-in under [Dictation](#dictation)).
+Add `ZRB_LLM_DICTATION_BARGE_IN_ENABLED=on` to talk over it, on speakers or headphones (see barge-in under [Dictation](#dictation)).
 
 For the quickest replies, use vosk for dictation (it transcribes while you speak and ends an utterance half a second after you finish) and a fast model. Each part's delay can be tuned with the variables above.
 

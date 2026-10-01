@@ -59,6 +59,9 @@ _LISTENING = "🎤 listening"
 _MIC_STATE_BADGES = {
     MicState.HEARING: "👂 hearing you…",
     MicState.PAUSED: "🔇 mic paused while speaking",
+    # Barge-in is on, but zrb's voice cannot be told from the user yet.
+    MicState.LEARNING: "🔇 learning the room…",
+    MicState.NO_ECHO_REFERENCE: "🔇 mic paused (speech not played by zrb)",
 }
 _TRANSCRIBING = "📝 transcribing…"
 _INTERRUPTED = "✋ interrupted · go on…"
@@ -124,6 +127,10 @@ class DictationSession:
         # zrb's voice is held because the user may be talking over it, until
         # what they said is known to be words (stop) or not (resume).
         self._is_paused_by_barge_in = False
+        # The resting badge a barge-in replaced, back once zrb resumes.
+        self._badge_before_pause = _LISTENING
+        # A wake word said alone arms the utterances started before this.
+        self._armed_until = 0.0
         # One per session: it keeps what it learned of the room.
         self._echo: "EchoCancellation | None" = None
         self.is_hands_free = (config.mode or "").strip().lower() == HANDS_FREE
@@ -278,20 +285,10 @@ class DictationSession:
                 self._show(None)
 
     async def _replies(self) -> AsyncGenerator[TriggerReply, None]:
-        armed_until = 0.0
+        self._armed_until = 0.0
         # aclosing so switching hands-free off closes the microphone as soon as
         # the utterance in flight is dropped, not at finalization.
-        mic_listen = listen(
-            self._config,
-            lambda: self.is_hands_free,
-            on_state=self._show_mic_state,
-            on_barge_in=self._handle_barge_in,
-            create_stream=self.backend.create_stream,
-            on_partial=self._show_partial,
-            echo=self._get_echo(),
-            on_barge_in_dropped=self._release_barge_in,
-        )
-        async with aclosing(mic_listen) as mic:
+        async with aclosing(self._listen()) as mic:
             async for utterance in mic:
                 self._show(_TRANSCRIBING)
                 try:
@@ -304,39 +301,70 @@ class DictationSession:
                 if text is None:
                     self._release_barge_in()
                     return
-                command = strip_wake_word(text, self._wake_words) if text else None
-                # Against when the utterance was spoken, not when transcription
-                # finished: transcription alone can take seconds.
-                if command is None and text and utterance.started_at < armed_until:
-                    command = text
-                self._settle_barge_in(utterance, command is not None)
-                if not text:
-                    self._rest("🎤 didn't catch that · listening")
-                    continue
-                if command is None:
-                    self._rest(f"🎤 ignored {_quote(text)} (no wake word)")
-                    continue
-                if not command:
-                    # The wake word alone: people pause after it.
-                    armed_until = utterance.ended_at + (self._config.wake_window or 0)
-                    self._rest("🎤 go ahead…")
-                    continue
-                armed_until = 0.0
-                if self._is_interrupting(
-                    utterance
-                ) and not await self._should_send_barge_in(command):
-                    continue
-                self._rest(f"🎤 heard {_quote(command)} · listening")
-                yield TriggerReply(
-                    command,
-                    approval=to_answer(
-                        command,
-                        self._approve_words,
-                        self._deny_words,
-                        self._polite_words,
-                    ),
-                    started_at=utterance.started_at,
-                )
+                command = await self._to_command(utterance, text)
+                if command is not None:
+                    yield self._to_reply(command, utterance)
+
+    def _listen(self) -> AsyncGenerator[Utterance, None]:
+        return listen(
+            self._config,
+            lambda: self.is_hands_free,
+            on_state=self._show_mic_state,
+            on_barge_in=self._handle_barge_in,
+            create_stream=self.backend.create_stream,
+            on_partial=self._show_partial,
+            echo=self._get_echo(),
+            on_barge_in_dropped=self._release_barge_in,
+        )
+
+    async def _to_command(self, utterance: Utterance, text: str) -> str | None:
+        """What *utterance*, transcribed as *text*, asks zrb, or ``None``
+        when there is nothing to send; the badge says which."""
+        command = self._get_command(utterance, text)
+        self._settle_barge_in(utterance, command is not None)
+        if not command:
+            self._rest_without_command(utterance, text, command)
+            return None
+        self._armed_until = 0.0
+        if self._is_interrupting(utterance) and not await self._should_send_barge_in(
+            command
+        ):
+            return None
+        self._rest(f"🎤 heard {_quote(command)} · listening")
+        return command
+
+    def _get_command(self, utterance: Utterance, text: str) -> str | None:
+        """*text* past its wake word; ``""`` for the wake word alone, and
+        ``None`` for no words or none meant for zrb."""
+        if not text:
+            return None
+        command = strip_wake_word(text, self._wake_words)
+        # Against when the utterance was spoken, not when transcription
+        # finished: transcription alone can take seconds.
+        if command is None and utterance.started_at < self._armed_until:
+            command = text
+        return command
+
+    def _rest_without_command(
+        self, utterance: Utterance, text: str, command: str | None
+    ) -> None:
+        if not text:
+            self._rest("🎤 didn't catch that · listening")
+        elif command is None:
+            self._rest(f"🎤 ignored {_quote(text)} (no wake word)")
+        else:
+            # The wake word alone: people pause after it.
+            self._armed_until = utterance.ended_at + (self._config.wake_window or 0)
+            self._rest("🎤 go ahead…")
+
+    def _to_reply(self, command: str, utterance: Utterance) -> TriggerReply:
+        return TriggerReply(
+            command,
+            approval=to_answer(
+                command, self._approve_words, self._deny_words, self._polite_words
+            ),
+            started_at=utterance.started_at,
+        )
 
     def _get_echo(self) -> "EchoCancellation | None":
         """The session's echo cancellation, built on first use with barge-in
@@ -353,6 +381,8 @@ class DictationSession:
     def _handle_barge_in(self) -> None:
         """The user may be talking over zrb: hold its voice at once, until
         what they said turns out to be words or not."""
+        if not self._is_paused_by_barge_in:
+            self._badge_before_pause = self._resting_badge
         self._is_paused_by_barge_in = True
         pause_speech(self._session_key)
         self._rest(_PAUSED)
@@ -362,7 +392,7 @@ class DictationSession:
         (with wake words: starting with one); carry on after anything else
         (a cough, leftover echo). Words too brief to have paused zrb (a
         crisp "stop" is shorter than ``barge_in_min_speech``) stop it too."""
-        if not _is_over_speech(utterance):
+        if not utterance.is_over_speech:
             return
         if not is_meant_for_zrb:
             self._release_barge_in()
@@ -379,14 +409,16 @@ class DictationSession:
         self._rest(_INTERRUPTED)
 
     def _release_barge_in(self) -> None:
+        """zrb carries on: resume its voice and the badge it paused."""
         if self._is_paused_by_barge_in:
             self._is_paused_by_barge_in = False
             resume_speech(self._session_key)
+            self._rest(self._badge_before_pause)
 
     def _is_interrupting(self, utterance: Utterance) -> bool:
         """Whether *utterance* talks over zrb: over its voice, or, with
         barge-in on, while a turn runs and zrb is not yet speaking."""
-        if _is_over_speech(utterance):
+        if utterance.is_over_speech:
             return True
         if not self._config.is_barge_in_enabled:
             return False
@@ -413,13 +445,18 @@ class DictationSession:
         return True
 
     def _show_partial(self, partial: str) -> None:
-        """Show the end of what is being heard, while it is said; words
-        heard over zrb stop it without waiting for the utterance to end."""
+        """Show the end of what is being heard, while it is said. With wake
+        words, words heard over zrb that start with one stop it without
+        waiting for the utterance to end. Without, the transcript decides:
+        a streaming recognizer guesses a word ("the") for a cough, and zrb
+        is already paused, so waiting costs nothing."""
         if not partial:
             return
         self._show(f"👂 …{partial[-_MAX_QUOTED_CHARS:]}")
-        if self._is_paused_by_barge_in and (
-            strip_wake_word(partial, self._wake_words) is not None
+        if (
+            self._wake_words
+            and self._is_paused_by_barge_in
+            and strip_wake_word(partial, self._wake_words) is not None
         ):
             self._confirm_barge_in()
 
@@ -474,11 +511,6 @@ class DictationSession:
             # stream is closed: it may hold a connection or a decoder.
             if utterance.stream is not None and not is_finished:
                 await _close_quietly(utterance.stream)
-
-
-def _is_over_speech(utterance: Utterance) -> bool:
-    """Whether any of *utterance* was said over zrb's voice."""
-    return utterance.is_barge_in or utterance.is_over_speech
 
 
 async def _close_quietly(stream: "AnyTranscriptionStream") -> None:

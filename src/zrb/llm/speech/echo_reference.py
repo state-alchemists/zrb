@@ -49,11 +49,25 @@ class EchoReference:
 
     def ensure_seconds(self, seconds: float) -> None:
         """Keep at least *seconds* of played audio from now on; growing the
-        ring forgets what it held."""
+        ring keeps what it held."""
         size = int(RATE * seconds)
         with self._lock:
-            if size > self._size:
-                self._size, self._ring = size, None
+            if size <= self._size:
+                return
+            old_ring, old_size, self._size = self._ring, self._size, size
+            if old_ring is None:
+                return
+            np = _numpy()
+            indexes = np.arange(self._written_until - old_size, self._written_until)
+            self._ring = np.zeros(size, np.float32)
+            self._ring[indexes % size] = old_ring[indexes % old_size]
+
+    def is_covering(self, start_time: float) -> bool:
+        """Whether what was played from *start_time* on is still kept, so
+        `read` gives it as played: silence there is silence, not audio too
+        old to keep. Later than the newest write is silence, so covered."""
+        with self._lock:
+            return self._to_index(start_time) >= self._written_until - self._size
 
     def write(self, start_time: float, samples: Any) -> None:
         """Record 16 kHz float32 *samples* reaching the speakers from

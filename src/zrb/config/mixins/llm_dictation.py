@@ -37,7 +37,7 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_MAX_BACKLOG: str = "30.0"
         self.DEFAULT_LLM_DICTATION_PRE_ROLL: str = "0.3"
         self.DEFAULT_LLM_DICTATION_ECHO_COOLDOWN: str = "0.4"
-        self.DEFAULT_LLM_DICTATION_BARGE_IN: str = "off"
+        self.DEFAULT_LLM_DICTATION_BARGE_IN_ENABLED: str = "off"
         self.DEFAULT_LLM_DICTATION_ECHO_CANCELLER: str = "numpy"
         self.DEFAULT_LLM_DICTATION_BARGE_IN_MIN_SPEECH: str = "0.3"
         self.DEFAULT_LLM_DICTATION_BARGE_IN_ACTION: str = "steer"
@@ -218,8 +218,9 @@ class LLMDictationMixin:
         ),
     )
 
-    LLM_DICTATION_BARGE_IN = EnvField(
-        str,
+    LLM_DICTATION_BARGE_IN_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
         doc=(
             "'on' lets hands-free hear you while zrb speaks, so you can talk "
             "over it: zrb pauses at once, and stops if what you said has "
@@ -292,7 +293,8 @@ class LLMDictationMixin:
         serialize=comma_join,
         doc=(
             "Comma-separated phrases that, said alone (polite words "
-            "allowed) over zrb or while a turn runs with barge-in on, stop "
+            "allowed) over zrb or while a turn runs with "
+            "{ENV_PREFIX}_LLM_DICTATION_BARGE_IN_ENABLED=on, stop "
             "zrb speaking and cancel the turn instead of reaching the "
             "model. Default: stop, cancel, no, nope, deny, don't."
         ),

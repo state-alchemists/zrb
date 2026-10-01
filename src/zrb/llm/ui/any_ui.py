@@ -139,6 +139,12 @@ class AnyUI(ABC):
 
     @property
     @abstractmethod
+    def is_turn_running(self) -> bool:
+        """Whether a turn is running that `cancel_current_turn` would stop:
+        this UI's own, or the one its `MultiUI` parent runs for it."""
+
+    @property
+    @abstractmethod
     def is_waiting_for_answer(self) -> bool:
         """Whether a tool approval or a question is waiting for the user."""
 
@@ -264,8 +270,8 @@ class AnyUI(ABC):
     @abstractmethod
     def set_status_badge(self, key: str, text: str | None) -> None:
         """Show *text* in the status bar under *key*, replacing what *key*
-        showed before; ``None`` takes it away. For a feature's one-line state,
-        such as the microphone's. A no-op for UIs with no status bar.
+        showed before; ``None`` takes it away. For a feature's one-line state.
+        A no-op for UIs with no status bar.
         """
 
     @abstractmethod
@@ -280,8 +286,9 @@ class AnyUI(ABC):
     def cancel_current_turn(self, reason: str) -> None:
         """Stop the turn the assistant is taking, as Esc does: release a
         pending confirmation, cancel the running turn and fire `Stop` with
-        *reason* (``"escape"``, ``"barge_in"``). A no-op when no turn is
-        running, and for UIs that never run one.
+        *reason* (who asked, e.g. ``"escape"``). With no turn running only
+        the confirmation is released; a UI that never runs a turn and holds
+        no confirmation does nothing.
         """
 
     @abstractmethod

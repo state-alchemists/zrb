@@ -242,7 +242,9 @@ class UIKeybindings:
         if getattr(ui, "viewing_agent_id", None) is not None:
             ui.cancel_viewed_agent()
             return
-        if ui.running_llm_task and not ui.running_llm_task.done():
+        # `is_turn_running`, not `running_llm_task`: under a MultiUI the
+        # parent runs the turn, and this UI's own task slot stays empty.
+        if ui.is_turn_running:
             ui.cancel_current_turn("escape")
             ui.append_to_output("\n<Esc> Canceled")
 

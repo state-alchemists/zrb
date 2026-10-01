@@ -10,9 +10,10 @@ played, and reads the reference that far back, plus a small lead so the
 reference is never late (an echo that arrives before its reference cannot be
 subtracted).
 
-Microphone blocks are timed by counting samples from the stream's start, not
-by when each callback ran: callback timing wobbles by milliseconds, which the
-canceller would take for a room that keeps changing.
+Microphone blocks are timed by when the host says their first sample was
+captured (``inputBufferAdcTime``), or, where it gives no times, by counting
+samples on from the previous block: when each callback ran wobbles by
+milliseconds, which the canceller would take for a room that keeps changing.
 """
 
 from __future__ import annotations
@@ -47,13 +48,15 @@ class EchoCancellation:
         self._leftovers: list[bool] = []  # per block of zrb speaking: loud?
         self._is_ready = False
         self._reference = reference or echo_reference
-        # Enough played audio for the widest estimate: the window plus every
-        # delay searched.
+        # Enough played audio for the widest estimate (the window plus every
+        # delay searched) of the oldest block the microphone's backlog holds.
+        # An unbounded backlog cannot be covered; `can_cancel` tells.
         self._reference.ensure_seconds(
             _to_float(tuning.echo_delay_window)
             + _to_float(tuning.echo_max_delay)
             - _to_float(tuning.echo_min_delay)
             + _REFERENCE_MARGIN_SECONDS
+            + max(0.0, _to_float(tuning.max_backlog))
         )
         self._np = _numpy()
         self._mic_history = self._np.zeros(
@@ -85,6 +88,17 @@ class EchoCancellation:
             return True
         return self._is_ready
 
+    def can_cancel(self, start_time: float) -> bool:
+        """Whether zrb's voice can be cancelled out of a block captured from
+        *start_time* on: it `is_ready`, and what zrb played then is still
+        kept. A block read late (a backlog behind a slow transcription) may
+        need audio the reference has already let go of."""
+        if not self._canceller.needs_reference:
+            return True
+        if not self._is_ready or self._delay is None:
+            return False
+        return self._reference.is_covering(self._get_far_start(start_time))
+
     def process(self, mic: Any, start_time: float) -> Any:
         """*mic* (float32, 16 kHz), captured from *start_time* on, with zrb's
         echo removed."""
@@ -95,13 +109,15 @@ class EchoCancellation:
         if self._delay is None:
             far = np.zeros(len(mic), np.float32)
         else:
-            far = self._reference.read(
-                start_time - self._delay + _to_float(self._tuning.echo_lead),
-                len(mic),
-            )
+            far = self._reference.read(self._get_far_start(start_time), len(mic))
         out = self._canceller.process(mic, far)
         self._judge_leftover(far, out)
         return out
+
+    def _get_far_start(self, start_time: float) -> float:
+        """When zrb played what a block captured from *start_time* on heard,
+        led a little so the reference is never late."""
+        return start_time - (self._delay or 0.0) + _to_float(self._tuning.echo_lead)
 
     def _judge_leftover(self, far: Any, out: Any) -> None:
         np = self._np

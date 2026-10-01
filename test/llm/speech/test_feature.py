@@ -11,6 +11,7 @@ from zrb.config.config import CFG
 from zrb.contextvars import current_chat_session_id
 from zrb.llm.hook.interface import HookContext
 from zrb.llm.hook.manager import HookManager
+from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.speech import SpeechConfig, enable_speech
 from zrb.llm.speech.feature import SpeechSession, describe_tool_call, is_answered_since
@@ -25,8 +26,10 @@ class PersistentHookTask:
 
     def __init__(self):
         self.hook_manager = HookManager()
+        self.prompt_manager = PromptManager(include_sections=[])
         self.hook_factories: list = []
         self.custom_commands: list = []
+        self.stream_observers: list = []
 
     def append_hook_factory(self, factory):
         self.hook_factories.append(factory)
@@ -40,6 +43,12 @@ class PersistentHookTask:
 
     def remove_custom_command(self, command):
         self.custom_commands.remove(command)
+
+    def append_stream_observer(self, observer):
+        self.stream_observers.append(observer)
+
+    def remove_stream_observer(self, observer):
+        self.stream_observers.remove(observer)
 
 
 def _hook_count(manager: HookManager) -> int:
@@ -282,18 +291,27 @@ def test_enable_speech_reads_cfg_when_a_session_starts(monkeypatch, enabled):
 
 
 def test_enable_speech_on_a_task_without_commands_adds_only_hooks():
-    class HooksOnly:
+    """`LLMTask` takes no custom commands: speech adds its hooks, stream
+    observer and live context, and no command."""
+
+    class NoCommands:
         def __init__(self):
             self.factories = []
+            self.stream_observers = []
+            self.prompt_manager = PromptManager(include_sections=[])
 
         def append_hook_factory(self, factory):
             self.factories.append(factory)
 
-    task = HooksOnly()
+        def append_stream_observer(self, observer):
+            self.stream_observers.append(observer)
+
+    task = NoCommands()
 
     enable_speech(task)
 
     assert len(task.factories) == 1
+    assert len(task.stream_observers) == 1
 
 
 def test_two_sessions_get_a_speaker_each():

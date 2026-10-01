@@ -6,7 +6,7 @@ import pytest
 
 from zrb.llm.dictation import AnyDictationBackend, DictationConfig
 from zrb.llm.dictation.feature import DictationSession
-from zrb.llm.dictation.listen import Utterance
+from zrb.llm.dictation.listen import MicState, Utterance
 from zrb.llm.util.feature_config import reset_session_ui, set_session_ui
 
 
@@ -62,7 +62,9 @@ def _fake_listen(monkeypatch, *said: str, is_barge_in=True):
         for index, text in enumerate(said):
             if is_barge_in and on_barge_in is not None:
                 on_barge_in()
-            yield Utterance(text.encode(), index, index + 0.5, is_barge_in)
+            yield Utterance(
+                text.encode(), index, index + 0.5, is_barge_in, is_over_speech=is_barge_in
+            )
 
     monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
     monkeypatch.setattr("zrb.llm.dictation.feature.import_audio", lambda: (None, None))
@@ -228,7 +230,7 @@ async def test_a_stop_word_while_the_turn_thinks_cancels_it_before_zrb_speaks(
     "stop" still cancels it instead of steering the model."""
     _fake_listen(monkeypatch, "stop", "what now", is_barge_in=False)
     ui.is_thinking = True
-    session = _session(barge_in="on")
+    session = _session(barge_in_enabled=True)
 
     assert await _replies(session, 1) == ["what now"]
     assert ui.cancelled == ["barge_in"]
@@ -241,7 +243,7 @@ async def test_a_stop_word_while_the_turn_thinks_is_sent_with_barge_in_off(
 ):
     _fake_listen(monkeypatch, "stop", is_barge_in=False)
     ui.is_thinking = True
-    session = _session(barge_in="off")
+    session = _session(barge_in_enabled=False)
 
     assert await _replies(session, 1) == ["stop"]
     assert ui.cancelled == []
@@ -250,7 +252,7 @@ async def test_a_stop_word_while_the_turn_thinks_is_sent_with_barge_in_off(
 @pytest.mark.asyncio
 async def test_a_stop_word_with_no_turn_running_is_sent(monkeypatch, interrupted, ui):
     _fake_listen(monkeypatch, "stop", is_barge_in=False)
-    session = _session(barge_in="on")
+    session = _session(barge_in_enabled=True)
 
     assert await _replies(session, 1) == ["stop"]
     assert ui.cancelled == []
@@ -280,7 +282,7 @@ async def test_push_to_talk_cancels_zrbs_voice_out_like_hands_free(monkeypatch):
     recording_ui = RecordingUI()
     session = DictationSession(
         DictationConfig(
-            backend=FakeBackend(), mode="ptt", barge_in="on", echo_canceller="none"
+            backend=FakeBackend(), mode="ptt", barge_in_enabled=True, echo_canceller="none"
         ).resolve()
     )
 
@@ -289,3 +291,31 @@ async def test_push_to_talk_cancels_zrbs_voice_out_like_hands_free(monkeypatch):
     assert recording_ui.inserted == ["run the tests"]
     [echo] = echoes
     assert echo is not None
+
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "state, badge",
+    [
+        (MicState.LEARNING, "🔇 learning the room…"),
+        (MicState.NO_ECHO_REFERENCE, "🔇 mic paused (speech not played by zrb)"),
+        (MicState.PAUSED, "🔇 mic paused while speaking"),
+    ],
+)
+async def test_the_badge_says_why_the_mic_is_deaf_over_zrb(
+    monkeypatch, ui, state, badge
+):
+    """With barge-in on yet nothing heard over zrb, the badge tells the room
+    still being learned from speech zrb cannot cancel at all."""
+
+    async def listen(config, should_listen, on_state=None, **kwargs):
+        on_state(state)
+        yield Utterance(b"hello", 0, 0.5)
+
+    monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
+    monkeypatch.setattr("zrb.llm.dictation.feature.import_audio", lambda: (None, None))
+
+    await _replies(_session(barge_in_enabled=True), 1)
+
+    assert badge in ui.badges

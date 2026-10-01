@@ -675,6 +675,12 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         finally:
             self._pending_input_tasks = []
 
+    @property
+    def is_turn_running(self) -> bool:
+        """Whether this MultiUI is running a turn (its children run none)."""
+        running = self._running_llm_task
+        return running is not None and not running.done()
+
     def cancel_current_turn(self, reason: str) -> None:
         """Release every child's pending confirmation, cancel the turn this
         MultiUI runs (its children run none) and fire `Stop` with *reason*

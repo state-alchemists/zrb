@@ -654,13 +654,30 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._pending_attachments.clear()
         return attachments
 
+    @property
+    def is_turn_running(self) -> bool:
+        """Whether this UI runs a turn, or its `MultiUI` parent runs one for
+        it; `AnyUI.is_turn_running`."""
+        running = self._running_llm_task
+        if running is not None and not running.done():
+            return True
+        parent = self.multi_ui_parent
+        return parent is not None and parent.is_turn_running
+
     def cancel_current_turn(self, reason: str) -> None:
         """Release a pending confirmation, cancel the running turn and fire
-        `Stop` with *reason*; `AnyUI.cancel_current_turn`."""
-        self.cancel_pending_confirmations()
+        `Stop` with *reason*; `AnyUI.cancel_current_turn`. A child of a
+        `MultiUI` runs no turn of its own, so the parent cancels the one it
+        runs (releasing this UI's confirmation with its siblings')."""
         running = self._running_llm_task
         if running is None or running.done():
+            parent = self.multi_ui_parent
+            if parent is not None:
+                parent.cancel_current_turn(reason)
+            else:
+                self.cancel_pending_confirmations()
             return
+        self.cancel_pending_confirmations()
         running.cancel()
         self.execute_hook(
             HookEvent.STOP,

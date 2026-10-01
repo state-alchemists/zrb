@@ -17,6 +17,7 @@ from zrb.llm.hook.manager import HookManager
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.llm.ui.base.ui import BaseUI
+from zrb.llm.ui.multi_ui import MultiUI
 
 
 class _SurfaceUI(BaseUI):
@@ -299,3 +300,75 @@ def test_cancel_current_turn_prefers_a_chat_tasks_active_hook_manager():
     asyncio.run(cancel_and_settle())
 
     assert active.execute_hooks.call_args.args[1]["reason"] == "escape"
+
+
+def _create_child_ui() -> _SurfaceUI:
+    return _SurfaceUI(
+        ctx=Context(SharedContext(), "test", 0, ""),
+        llm_task=MagicMock(),
+        history_manager=MagicMock(),
+    )
+
+
+@pytest.mark.parametrize("done", [None, False, True])
+def test_is_turn_running_follows_the_ui_own_turn(surface_ui, done):
+    running = None
+    if done is not None:
+        running = MagicMock()
+        running.done.return_value = done
+    surface_ui.running_llm_task = running
+
+    assert surface_ui.is_turn_running is (done is False)
+
+
+@pytest.mark.asyncio
+async def test_a_multi_ui_child_cancels_the_turn_its_parent_runs():
+    """A child of a MultiUI runs no turn itself: Esc on it must reach the
+    turn the parent runs, and fire Stop once."""
+    child, sibling = _create_child_ui(), MagicMock()
+    multi_ui = MultiUI([child, sibling])
+    turn_manager = HookManager(search_dirs=[])
+    turn_manager.execute_hooks = AsyncMock(return_value=[])
+    multi_ui.set_llm_task(MagicMock(active_hook_manager=turn_manager))
+    started, cancelled = asyncio.Event(), asyncio.Event()
+
+    async def run():
+        started.set()
+        try:
+            await asyncio.sleep(10)
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    assert child.is_turn_running is False
+    await multi_ui.message_queue.put(
+        QueuedMessage(text="hi", attachments=[], kind="message", run=run)
+    )
+    loop_task = asyncio.create_task(multi_ui.process_messages_loop())
+    await asyncio.wait_for(started.wait(), 1)
+    assert child.is_turn_running is True
+
+    child.cancel_current_turn("escape")
+    await asyncio.wait_for(cancelled.wait(), 1)
+    await asyncio.sleep(0)
+    loop_task.cancel()
+
+    sibling.cancel_pending_confirmations.assert_called_once()
+    [call] = turn_manager.execute_hooks.call_args_list
+    assert call.args[0].value == "Stop"
+    assert call.args[1]["reason"] == "escape"
+
+
+def test_a_multi_ui_child_with_no_turn_running_only_releases():
+    child, sibling = _create_child_ui(), MagicMock()
+    multi_ui = MultiUI([child, sibling])
+    turn_manager = HookManager(search_dirs=[])
+    turn_manager.execute_hooks = AsyncMock(return_value=[])
+    multi_ui.set_llm_task(MagicMock(active_hook_manager=turn_manager))
+
+    with patch.object(child, "cancel_pending_confirmations") as release:
+        child.cancel_current_turn("escape")
+
+    release.assert_called_once()
+    sibling.cancel_pending_confirmations.assert_called_once()
+    turn_manager.execute_hooks.assert_not_called()

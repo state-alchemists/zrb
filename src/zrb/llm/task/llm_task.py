@@ -431,11 +431,6 @@ class LLMTask(BaseTask):
         """Callables seeing every event the run streams."""
         return self._stream_observers
 
-    @stream_observers.setter
-    def stream_observers(self, value: "list[StreamObserver]") -> None:
-        """Replace the stream observers."""
-        self._stream_observers = value
-
     def append_stream_observer(self, *observer: "StreamObserver") -> None:
         """Add observers after those already registered."""
         self._stream_observers += list(observer)
@@ -443,6 +438,11 @@ class LLMTask(BaseTask):
     def prepend_stream_observer(self, *observer: "StreamObserver") -> None:
         """Add observers before those already registered."""
         self._stream_observers[0:0] = observer
+
+    def set_stream_observers(self, observers: "list[StreamObserver]") -> None:
+        """Replace the stream-observer list wholesale, with a copy of
+        *observers*, so the caller's list stays its own."""
+        self._stream_observers = list(observers)
 
     def remove_stream_observer(self, observer: "StreamObserver") -> None:
         """Drop *observer*. A no-op if it is not registered."""

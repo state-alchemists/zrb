@@ -34,7 +34,7 @@ class DictationConfig:
     max_backlog: float | None = None
     pre_roll: float | None = None
     echo_cooldown: float | None = None
-    barge_in: str | None = None
+    barge_in_enabled: bool | None = None
     echo_canceller: "str | AnyEchoCanceller | None" = None
     barge_in_min_speech: float | None = None
     barge_in_action: str | None = None
@@ -77,9 +77,9 @@ class DictationConfig:
 
     @property
     def is_barge_in_enabled(self) -> bool:
-        """Whether *barge_in* is ``on``: hands-free hears the user while zrb
-        speaks, and a stop word cancels a running turn."""
-        return (self.barge_in or "off").strip().lower() == "on"
+        """Whether *barge_in_enabled* is set: hands-free hears the user
+        while zrb speaks, and a stop word cancels a running turn."""
+        return bool(self.barge_in_enabled)
 
     def resolve(self) -> "DictationConfig":
         """A copy with every ``None`` field read from `CFG`."""

@@ -56,3 +56,24 @@ def test_a_write_long_after_the_last_clears_the_ring_without_filling_the_gap():
     assert time.perf_counter() - started < 0.5
     assert reference.read(1.0, 4).tolist() == [0.0] * 4
     assert reference.read(1_000_000.0, 4).tolist() == [2.0] * 4
+
+
+def test_growing_the_ring_keeps_what_it_held():
+    """Echo cancellation grows the ring once it knows the backlog: audio
+    already played must still be there to cancel."""
+    reference = EchoReference(seconds=1.0)
+    reference.write(0.5, np.full(1600, 0.25, np.float32))
+
+    reference.ensure_seconds(3.0)
+
+    assert reference.seconds == 3.0
+    assert np.allclose(reference.read(0.5, 1600), 0.25)
+
+
+def test_is_covering_says_whether_played_audio_is_still_kept():
+    reference = EchoReference(seconds=1.0)
+    reference.write(0.0, np.full(RATE * 3, 0.1, np.float32))
+
+    assert reference.is_covering(2.5)
+    assert reference.is_covering(4.0)  # later than any write: silence
+    assert not reference.is_covering(0.5)  # let go of

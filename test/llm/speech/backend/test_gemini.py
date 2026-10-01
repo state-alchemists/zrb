@@ -150,3 +150,10 @@ def test_gemini_prompts_are_configured(requests, monkeypatch, style, expected):
 
     text = json.loads(sent[0][0].data)["contents"][0]["parts"][0]["text"]
     assert text == expected
+
+
+def test_gemini_with_a_wav_player_leaves_playing_to_it(requests):
+    sent, _ = requests
+
+    assert GeminiSpeechBackend(wav_player="mpv").create_audio("hi") is None
+    assert sent == []

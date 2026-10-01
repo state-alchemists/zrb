@@ -574,7 +574,7 @@ class LLMChatTask(BaseTask):
         self._stream_observers[0:0] = observer
 
     def set_stream_observers(self, observers: list[StreamObserver]) -> None:
-        """Replace the stream-observer list wholesale."""
+        """Replace the stream observers with a copy of *observers*."""
         self._stream_observers = list(observers)
 
     def remove_stream_observer(self, observer: StreamObserver) -> None:

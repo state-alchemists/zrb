@@ -33,16 +33,18 @@ class FakeOutputStream:
         self._running = False
         FakeOutputStream.instances.append(self)
 
-    def __enter__(self):
+    def start(self):
         self._running = True
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
-        return self
 
-    def __exit__(self, *exc):
+    def stop(self):
         self._running = False
-        self._thread.join(1)
-        return False
+        if getattr(self, "_thread", None) is not None:
+            self._thread.join(1)
+
+    def close(self):
+        self.is_closed = True
 
     def _run(self):
         while self._running:
@@ -168,24 +170,30 @@ def test_a_failing_download_plays_what_came(sd):
     utterance.cleanup()
 
 
-def test_is_available_says_whether_the_audio_packages_import(monkeypatch):
-    monkeypatch.setattr(pcm_player, "_available", None)
-    with patch.dict("sys.modules", {"sounddevice": None}):
-        assert pcm_player.is_available() is False
-    monkeypatch.setattr(pcm_player, "_available", None)
-    with patch.dict("sys.modules", {"sounddevice": types.SimpleNamespace()}):
-        assert pcm_player.is_available() is True
+def test_is_available_says_whether_the_audio_packages_import():
+    pcm_player.is_available.cache_clear()
+    try:
+        with patch.dict("sys.modules", {"sounddevice": None}):
+            assert pcm_player.is_available() is False
+        pcm_player.is_available.cache_clear()
+        with patch.dict("sys.modules", {"sounddevice": types.SimpleNamespace()}):
+            assert pcm_player.is_available() is True
+    finally:
+        pcm_player.is_available.cache_clear()
 
 
 @pytest.mark.parametrize("fails_on", ["open", "start"])
 def test_a_device_that_fails_closes_the_source_and_reads_nothing(monkeypatch, fails_on):
+    opened = []
+
     class BrokenStream(FakeOutputStream):
         def __init__(self, *args, **kwargs):
             if fails_on == "open":
                 raise OSError("no default output device")
             super().__init__(*args, **kwargs)
+            opened.append(self)
 
-        def __enter__(self):
+        def start(self):
             raise OSError("device busy")
 
     read = []
@@ -206,6 +214,9 @@ def test_a_device_that_fails_closes_the_source_and_reads_nothing(monkeypatch, fa
     assert closed
     if fails_on == "open":
         assert read == []  # the reader never started
+    else:
+        # Opened but never started: closed all the same, not leaked.
+        assert [stream.is_closed for stream in opened] == [True]
 
 
 class ProgramUtterance:
@@ -231,12 +242,13 @@ def _broken_device(fails_on="open", after_opening=False):
                 raise OSError("no default output device")
             super().__init__(*args, **kwargs)
 
-        def __enter__(self):
+        def start(self):
             if after_opening:
-                return self
+                return super().start()
             raise OSError("device busy")
 
-        def __exit__(self, *exc):
+        def stop(self):
+            super().stop()
             if after_opening:
                 raise OSError("device lost")
 
@@ -353,3 +365,50 @@ def test_audio_cut_off_by_stop_is_no_failure(sd, caplog):
 
     assert events == []
     assert "closed by stop" not in caplog.text
+
+
+def test_paused_time_does_not_use_up_the_timeout(sd):
+    """A user talking over zrb for longer than the timeout must not end the
+    sentence they paused: only playing time counts."""
+    chunks = [_pcm([5] * 256)] * 2
+    utterance = PcmUtterance(SpeechAudio(RATE, chunks), EchoReference())
+    utterance.pause()
+    threading.Timer(0.3, utterance.resume).start()
+
+    utterance.play(timeout=0.2)
+
+    assert not utterance.is_stopped
+    assert int(np.count_nonzero(_played(FakeOutputStream.instances[0]))) == 512
+
+
+class TimedProgramUtterance(ProgramUtterance):
+    def play(self, timeout):
+        self.events.append(("played", timeout))
+
+
+def test_the_fallback_after_failing_audio_keeps_the_timeout(sd):
+    events = []
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, _failing_source()),
+        EchoReference(),
+        fallback=lambda: TimedProgramUtterance(events),
+    )
+
+    utterance.play(timeout=7)
+
+    assert ("played", 7) in events
+
+
+def test_a_fallback_paused_before_it_starts_is_not_played():
+    """A program cannot hold speech: one paused before it starts would play
+    over the user, so it is dropped."""
+    events = []
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, [_pcm([1] * 256)]),
+        EchoReference(),
+        fallback=lambda: utterance.pause() or ProgramUtterance(events),
+    )
+    with patch.dict("sys.modules", {"sounddevice": _broken_device()}):
+        utterance.play(timeout=1)
+
+    assert events == ["cleaned"]

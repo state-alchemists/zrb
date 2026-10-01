@@ -79,18 +79,18 @@ def enable_speech(
     def observe_stream(event: Any) -> None:
         sessions.get().handle_stream_event(event)
 
-    registrations: list[tuple[str, Any]] = [("append_hook_factory", register_hooks)]
-    if callable(getattr(task, "append_stream_observer", None)):
-        registrations.append(("append_stream_observer", observe_stream))
+    registrations: list[tuple[str, Any]] = [
+        ("append_hook_factory", register_hooks),
+        ("append_stream_observer", observe_stream),
+    ]
+    # Only `LLMChatTask` takes custom commands; `LLMTask` has none.
     if callable(getattr(task, "append_custom_command", None)):
         registrations.append(("append_custom_command", create_commands))
     replace_registration(task, "speech", registrations)
-    prompt_manager = getattr(task, "prompt_manager", None)
-    if prompt_manager is not None:
-        # Keyed by name, so enabling speech again replaces it.
-        prompt_manager.add_live_context(
-            "speech", lambda ctx: sessions.get().create_live_context()
-        )
+    # Keyed by name, so enabling speech again replaces it.
+    task.prompt_manager.add_live_context(
+        "speech", lambda ctx: sessions.get().create_live_context()
+    )
 
 
 # Every live `SpeechSession`, by the chat session it speaks for, so dictation
@@ -101,8 +101,9 @@ _speech_sessions: "dict[str, weakref.WeakSet[SpeechSession]]" = {}
 def pause_speech(session_key: str | None = None) -> None:
     """Hold what the chat session *session_key* (default: the one asking) is
     saying, for a user who may have started talking over it: `resume_speech`
-    carries on, `interrupt_speech` drops it. Speech that cannot pause (a
-    player program) is interrupted."""
+    carries on, `interrupt_speech` drops it. A sentence that cannot pause
+    (a player program plays it) is stopped, and the rest held as usual, so
+    `resume_speech` carries on with the next sentence."""
     _for_each_session(session_key, lambda session: session.speaker.pause())
 
 

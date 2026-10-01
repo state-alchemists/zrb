@@ -12,6 +12,7 @@ whether they import, and speech falls back to player programs when not.
 
 from __future__ import annotations
 
+import functools
 import logging
 import threading
 import time
@@ -32,21 +33,22 @@ from zrb.llm.speech.echo_reference import (
 # How long playback waits for the source reader to see it has ended.
 _READER_JOIN_SECONDS = 1.0
 _BUFFER_POLL_SECONDS = 0.005
-_available: bool | None = None
+# How often playback checks whether it is paused, to leave paused time out
+# of the timeout.
+_TIMEOUT_POLL_SECONDS = 0.02
 
 logger = logging.getLogger(__name__)
 
 
+@functools.cache
 def is_available() -> bool:
-    """Whether sounddevice and numpy import, so speech can play in process."""
-    global _available
-    if _available is None:
-        try:
-            _import_audio()
-            _available = True
-        except (ImportError, OSError):
-            _available = False
-    return _available
+    """Whether sounddevice and numpy import, so speech can play in process.
+    Asked once per process; `is_available.cache_clear()` asks again."""
+    try:
+        _import_audio()
+    except (ImportError, OSError):
+        return False
+    return True
 
 
 class PcmUtterance(Utterance):
@@ -60,7 +62,12 @@ class PcmUtterance(Utterance):
     *fallback* makes the same speech for a player program to play instead,
     so it is not lost; without one, a device error is raised and a source
     error logged. Audio that fails part-way is played as far as it came,
-    and logged as cut off."""
+    and logged as cut off. *on_device_error*, when given, is told of a
+    device that cannot open instead of it being logged, so a caller can
+    stop trying the device and say so once.
+
+    The play timeout counts playing time only: a pause does not use it up.
+    """
 
     def __init__(
         self,
@@ -69,9 +76,14 @@ class PcmUtterance(Utterance):
         block_frames: int | None = None,
         read_ahead: int | None = None,
         fallback: Callable[[], Utterance] | None = None,
+        on_device_error: Callable[[Exception], None] | None = None,
     ):
         super().__init__([])
         self._fallback = fallback
+        self._on_device_error = on_device_error
+        # Guards `_fallback_playing` against `pause` and `stop`, which may
+        # come from another thread while the fallback starts.
+        self._fallback_lock = threading.Lock()
         self._fallback_playing: Utterance | None = None
         # Set once the device opened: a failure after that is not retried,
         # or the sentence would be heard twice.
@@ -110,8 +122,14 @@ class PcmUtterance(Utterance):
         return self._fallback_playing is None
 
     def pause(self) -> None:
-        """Hold playback where it is; silence until `resume`."""
-        self._is_paused = True
+        """Hold playback where it is; silence until `resume`. A player program
+        playing the fallback cannot hold, so it is stopped, and a fallback
+        not yet started is not played."""
+        with self._fallback_lock:
+            self._is_paused = True
+            fallback_playing = self._fallback_playing
+        if fallback_playing is not None:
+            fallback_playing.stop()
 
     def resume(self) -> None:
         self._is_paused = False
@@ -126,15 +144,18 @@ class PcmUtterance(Utterance):
         except Exception as exc:
             if self._has_opened or self._fallback is None or self.is_stopped:
                 raise
-            logger.warning(
-                f"zrb could not open the audio device to play speech itself "
-                f"({exc}); a player program plays it instead"
-            )
+            if self._on_device_error is not None:
+                self._on_device_error(exc)
+            else:
+                logger.warning(
+                    f"zrb could not open the audio device to play speech itself "
+                    f"({exc}); a player program plays it instead"
+                )
             self._play_fallback(self._fallback, timeout)
             return
-        self._handle_source_error()
+        self._handle_source_error(timeout)
 
-    def _handle_source_error(self) -> None:
+    def _handle_source_error(self, timeout: float | None) -> None:
         error = self._source_error
         if error is None or self.is_stopped:
             return
@@ -143,7 +164,7 @@ class PcmUtterance(Utterance):
                 f"Speech audio failed before any of it played ({error}); a "
                 "player program plays it instead"
             )
-            self._play_fallback(self._fallback, None)
+            self._play_fallback(self._fallback, timeout)
             return
         logger.warning(f"Speech was cut off: its audio stopped arriving ({error})")
 
@@ -151,9 +172,13 @@ class PcmUtterance(Utterance):
         self, fallback: Callable[[], Utterance], timeout: float | None
     ) -> None:
         utterance = fallback()
-        self._fallback_playing = utterance
+        with self._fallback_lock:
+            self._fallback_playing = utterance
+            # `stop` or `pause` may have come meanwhile: a program cannot
+            # hold the speech, so a paused one is not started.
+            is_held = self.is_stopped or self._is_paused
         try:
-            if not self.is_stopped:  # `stop` may have come meanwhile
+            if not is_held:
                 utterance.play(timeout)
         finally:
             utterance.cleanup()
@@ -180,10 +205,7 @@ class PcmUtterance(Utterance):
             # Only once there is a stream to play into: a device that cannot
             # open must not leave a download running.
             reader.start()
-            with stream:
-                self._has_opened = True
-                if not self._finished.wait(timeout):
-                    self.stop()
+            self._play_stream(stream, timeout)
             is_played = True
         finally:
             self._reference.add_player(-1)
@@ -195,11 +217,45 @@ class PcmUtterance(Utterance):
             if reader.is_alive():
                 reader.join(_READER_JOIN_SECONDS)
 
+    def _play_stream(self, stream: Any, timeout: float | None) -> None:
+        try:
+            stream.start()
+        except BaseException:
+            stream.close()  # opened, never started: close it all the same
+            raise
+        try:
+            self._has_opened = True
+            if not self._is_finished_in_time(timeout):
+                self.stop()
+        finally:
+            try:
+                stream.stop()
+            finally:
+                stream.close()
+
+    def _is_finished_in_time(self, timeout: float | None) -> bool:
+        """Whether playback finished before *timeout* seconds of playing;
+        paused time is not counted."""
+        if timeout is None:
+            self._finished.wait()
+            return True
+        played = 0.0
+        last = time.monotonic()
+        while not self._finished.wait(_TIMEOUT_POLL_SECONDS):
+            now = time.monotonic()
+            if not self._is_paused:
+                played += now - last
+            last = now
+            if played >= timeout:
+                return False
+        return True
+
     def stop(self) -> None:
         super().stop()
         self._finished.set()
         self._audio.close()
-        fallback_playing = self._fallback_playing
+        with self._fallback_lock:
+            fallback_playing = self._fallback_playing
         if fallback_playing is not None:
             fallback_playing.stop()
 

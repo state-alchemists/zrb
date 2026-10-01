@@ -164,3 +164,12 @@ def test_openai_bounds_a_stalled_download_by_the_configured_stall_timeout(
     OpenAISpeechBackend(stall_timeout=4).create_utterance("hello").cleanup()
 
     assert sent[0][1] == 4
+
+
+def test_openai_with_a_wav_player_leaves_playing_to_it(requests):
+    """A WAV player the user named plays every sentence, so zrb renders
+    nothing to play itself, and asks the API for nothing."""
+    sent, _ = requests
+
+    assert OpenAISpeechBackend(wav_player="mpv").create_audio("hi") is None
+    assert sent == []

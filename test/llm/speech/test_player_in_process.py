@@ -1,6 +1,7 @@
 """`Speaker`: playing in process when it can, and pausing."""
 
 import threading
+import time
 
 import pytest
 
@@ -84,7 +85,14 @@ def _in_process(monkeypatch, available=True, options=None, fallbacks=None):
     fallbacks = [] if fallbacks is None else fallbacks
 
     class FakePcm(RecordingUtterance):
-        def __init__(self, audio, block_frames=None, read_ahead=None, fallback=None):
+        def __init__(
+            self,
+            audio,
+            block_frames=None,
+            read_ahead=None,
+            fallback=None,
+            on_device_error=None,
+        ):
             super().__init__(b"".join(audio.chunks).decode(), made, threading.Event())
             options.append((block_frames, read_ahead))
             fallbacks.append(fallback)
@@ -175,16 +183,30 @@ def test_pause_holds_a_pausable_utterance_and_resume_carries_on(lock_file):
     speaker.close()
 
 
-def test_pause_interrupts_speech_that_cannot_pause(lock_file):
-    backend = HangingBackend()
-    speaker = Speaker(_config(backend, lock_file))
+def test_pause_stops_only_the_sentence_that_cannot_pause(lock_file):
+    """A player program cannot hold, so its sentence stops; what follows is
+    held, not dropped, so a false alarm resumes with the next sentence."""
+    started, release = threading.Event(), threading.Event()
+    played: list[str] = []
+
+    class Backend(AnySpeechBackend):
+        def create_utterance(self, text):
+            if text == "first":
+                return HangingUtterance(started)
+            return RecordingUtterance(text, played, release)
+
+    speaker = Speaker(_config(Backend(), lock_file))
     speaker.resume()  # nothing playing: nothing to do
-    speaker.say("long")
-    assert backend.started.wait(1)
+    speaker.say("first")
+    speaker.say("second")
+    assert started.wait(1)
 
     speaker.pause()
+    assert not release.wait(0.3)  # held while paused
 
-    assert backend.utterances[0].stopped.is_set()
+    speaker.resume()
+    assert release.wait(1)
+    assert played == ["second"]
     speaker.close()
 
 
@@ -295,3 +317,67 @@ def test_in_process_speech_falls_back_to_the_backends_own_utterance(
     # What plays if the device cannot open: the backend's own way.
     fallbacks[0]().play(None)
     assert backend.played == ["hello"]
+
+
+def test_drain_does_not_wait_for_speech_a_pause_holds(lock_file):
+    backend = SignallingBackend()
+    config = SpeechConfig(
+        backend=backend,
+        lock_file=lock_file,
+        lock_timeout=0.05,
+        player="command",
+        drain_timeout=5,
+    ).resolve()
+    speaker = Speaker(config)
+    speaker.pause()
+    speaker.say("held")
+
+    started = time.monotonic()
+    speaker.drain()
+
+    assert time.monotonic() - started < 2
+    assert backend.played == []
+
+
+def test_an_output_device_that_cannot_open_is_not_tried_again(
+    lock_file, monkeypatch, caplog
+):
+    """Each try would ask a cloud backend for the sentence twice: once for
+    zrb to play, once for the player program."""
+    rendered: list[str] = []
+
+    class FailingPcm(Utterance):
+        def __init__(self, audio, fallback=None, on_device_error=None, **kwargs):
+            super().__init__([])
+            self.fallback, self.on_device_error = fallback, on_device_error
+
+        def play(self, timeout):
+            self.on_device_error(OSError("no default output device"))
+            self.fallback().play(timeout)
+
+    class CountingBackend(AudioBackend):
+        def create_audio(self, text):
+            rendered.append(text)
+            return super().create_audio(text)
+
+    monkeypatch.setattr("zrb.llm.speech.player.is_in_process_available", lambda: True)
+    monkeypatch.setattr("zrb.llm.speech.player.PcmUtterance", FailingPcm)
+    backend = CountingBackend()
+    speaker = Speaker(_config(backend, lock_file, player="auto"))
+
+    speaker.speak("one")
+    speaker.speak("two")
+
+    assert rendered == ["one"]
+    assert backend.played == ["one", "two"]
+    assert caplog.text.count("could not open the audio device") == 1
+
+
+def test_an_unknown_player_is_logged_and_read_as_auto(lock_file, monkeypatch, caplog):
+    made = _in_process(monkeypatch)
+    backend = AudioBackend()
+
+    Speaker(_config(backend, lock_file, player="commands")).speak("hello")
+
+    assert "Unknown speech player 'commands'" in caplog.text
+    assert made == ["hello"]
