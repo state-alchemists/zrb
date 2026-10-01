@@ -8,6 +8,7 @@ import pytest
 from zrb.llm.hook.interface import HookContext
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.speech import SpeechConfig, enable_speech
 from zrb.llm.speech.feature import SpeechSession
 from zrb.llm.util.feature_config import close_feature_sessions
@@ -38,9 +39,14 @@ class FakeSpeaker:
 class PersistentHookTask:
     def __init__(self):
         self.hook_manager = HookManager()
+        self.prompt_manager = PromptManager(include_sections=[])
+        self.stream_observers = []
 
     def append_hook_factory(self, factory):
         factory(self.hook_manager)
+
+    def append_stream_observer(self, observer):
+        self.stream_observers.append(observer)
 
 
 def _session(**config) -> SpeechSession:
@@ -159,16 +165,8 @@ async def test_a_turn_cancelled_with_escape_is_not_finished_aloud():
     assert session.speaker.interrupted == 1
 
 
-def test_enable_speech_registers_a_stream_observer_on_a_task_that_takes_one():
-    class Observed(PersistentHookTask):
-        def __init__(self):
-            super().__init__()
-            self.stream_observers = []
-
-        def append_stream_observer(self, observer):
-            self.stream_observers.append(observer)
-
-    task = Observed()
+def test_enable_speech_registers_a_stream_observer():
+    task = PersistentHookTask()
     enable_speech(task, SpeechConfig(enabled=True, stream=True))
     try:
         assert len(task.stream_observers) == 1
@@ -187,14 +185,7 @@ def test_the_live_context_says_the_reply_is_heard_only_while_it_is():
 
 
 def test_enable_speech_adds_a_live_context_to_the_tasks_prompt_manager():
-    from zrb.llm.prompt.manager import PromptManager
-
-    class Prompted(PersistentHookTask):
-        def __init__(self):
-            super().__init__()
-            self.prompt_manager = PromptManager(include_sections=[])
-
-    task = Prompted()
+    task = PersistentHookTask()
     enable_speech(task, SpeechConfig(enabled=True, events=["reply"]))
     enable_speech(task, SpeechConfig(enabled=True, events=["reply"]))
     try:

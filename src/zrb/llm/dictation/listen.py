@@ -7,23 +7,27 @@ it is testable without a microphone; `listen` feeds it from `sounddevice`.
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from collections import deque
 from collections.abc import AsyncGenerator, Awaitable, Callable
+from dataclasses import dataclass, replace
 from enum import Enum
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import Any, NamedTuple
 
 from zrb.config.config import CFG
 from zrb.llm.dictation.backend.any_transcription_stream import AnyTranscriptionStream
 from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.words import is_finished_phrase
-from zrb.llm.speech.echo_reference import echo_reference, get_monotonic_time
 from zrb.llm.speech.player import is_speaking
 
-if TYPE_CHECKING:
-    from zrb.llm.dictation.echo.cancellation import EchoCancellation
+logger = logging.getLogger(__name__)
 
 SAMPLE_RATE = 16000  # what the transcribers expect
+# How much of zrb's recent speech the bar over its voice is measured from,
+# and how much of it there must be before the measure is trusted.
+_ZRB_LEVEL_SECONDS = 3.0
+_ZRB_LEVEL_MIN_SECONDS = 0.5
 # How often a push-to-talk recording checks whether to stop.
 _RECORD_POLL_SECONDS = 0.1
 
@@ -32,7 +36,8 @@ class Utterance(NamedTuple):
     """One utterance: 16-bit PCM, when its speech started and ended
     (`time.monotonic()`), whether it talked over zrb long enough to pause it
     (barge-in), the stream transcribing it, if any, and whether any of it
-    was said over zrb's voice at all (a short "stop" is, without pausing)."""
+    was said over zrb's voice at all (a short "stop" is, without pausing;
+    a barge-in always is)."""
 
     audio: bytes
     started_at: float
@@ -62,12 +67,19 @@ class UtteranceCutter:
     is speaking, and for ``echo_cooldown`` after, blocks are ignored. A
     negative duration counts as ``0``.
 
-    With ``barge_in`` ``on``, blocks captured while zrb speaks are heard
-    too, when the caller says they can be (zrb's voice is cancelled out of
-    them), and an utterance with ``barge_in_min_speech`` of loud blocks over
-    zrb's voice `is_barge_in`; once `feed` or `flush` returns it,
-    `is_finished_barge_in` says so, and `is_finished_over_speech` whether
-    any of it was loud over zrb's voice.
+    With ``barge_in_enabled``, blocks captured while zrb speaks, and for
+    ``echo_cooldown`` after, are heard too, against a higher bar: the
+    microphone hears zrb's own voice there, so a block is loud only at
+    ``barge_in_margin`` times the typical level zrb's voice reaches it (the
+    median over its last few seconds, robust to the user talking over it
+    for a moment, and not counting an utterance once it is a barge-in, when
+    zrb is paused), and never below ``threshold``. Until that is measured the bar is ``barge_in_margin``
+    times ``threshold``. It follows the volume and the room, and stays at
+    ``threshold`` on headphones, where the microphone hears no zrb. An
+    utterance with ``barge_in_min_speech`` of loud blocks over zrb
+    `is_barge_in`; once `feed` or `flush` returns it, `is_finished_barge_in`
+    says so, and `is_finished_over_speech` whether any of it was loud over
+    zrb.
     """
 
     def __init__(self, config: DictationConfig) -> None:
@@ -79,11 +91,19 @@ class UtteranceCutter:
         self._silent_blocks = 0
         self._started_at = 0.0
         self._cooldown_blocks = 0
-        self._is_barge_in_enabled = (config.barge_in or "off").strip().lower() == "on"
+        self._is_barge_in_enabled = config.is_barge_in_enabled
         self._barge_in_blocks = max(1, self._to_blocks(config.barge_in_min_speech))
         self._loud_echo_blocks = 0
         self._is_finished_barge_in = False
         self._is_finished_over_speech = False
+        self._utterance_count = 0
+        # Blocks still counted as over zrb's voice after it stopped: the
+        # room's echo, and audio still on its way out of the speakers.
+        self._tail_blocks = 0
+        self._zrb_levels: deque[float] = deque(
+            maxlen=max(1, self._to_blocks(_ZRB_LEVEL_SECONDS))
+        )
+        self._utterance_bar = 0.0
 
     @property
     def is_barge_in_enabled(self) -> bool:
@@ -109,40 +129,63 @@ class UtteranceCutter:
         return self._is_finished_over_speech
 
     def feed(
-        self,
-        block: Any,
-        level: float,
-        captured_at: float,
-        is_echo: bool,
-        is_echo_heard: bool | None = None,
+        self, block: Any, level: float, captured_at: float, is_echo: bool
     ) -> "tuple[list[Any], float, float] | None":
         """Add one block, captured by *captured_at*; return ``(blocks,
         started_at, ended_at)`` when it finishes an utterance. A block
-        captured while zrb spoke (*is_echo*) is heard only when
-        *is_echo_heard* (default: barge-in is on); the caller says it is not
-        while zrb's voice cannot yet be cancelled out of it."""
-        if is_echo_heard is None:
-            is_echo_heard = self._is_barge_in_enabled
-        if is_echo and not is_echo_heard:
+        captured while zrb spoke (*is_echo*) is ignored with barge-in off,
+        and held to the bar over zrb's voice with it on."""
+        if is_echo and not self._is_barge_in_enabled:
             self.reset()
             self._cooldown_blocks = self._to_blocks(self._config.echo_cooldown)
             return None
         if self._cooldown_blocks:
             self._cooldown_blocks -= 1
             return None
-        loud = level >= (self._config.threshold or 0)
+        is_over_zrb = self._is_over_zrb(is_echo)
+        # An utterance keeps the bar it started with: the user's own voice,
+        # measured as zrb's while they talk over it, must not cut them off.
+        bar = self._utterance_bar if self._speech else self._get_bar(is_over_zrb)
+        loud = level >= bar
+        # Once the utterance is a barge-in, zrb is paused: what follows is
+        # the user, not zrb's level.
+        if is_over_zrb and not self.is_barge_in:
+            self._zrb_levels.append(level)
         if not self._speech:
             if not loud:
                 self._pre_roll.append(block)
                 return None
-            self._loud_echo_blocks = int(is_echo)
+            self._loud_echo_blocks = int(is_over_zrb)
+            self._utterance_bar = bar
+            self._utterance_count += 1
             self._speech = [*self._pre_roll, block]
             self._pre_roll_blocks = len(self._pre_roll)
             # The block's first sample, heard one block before it arrived.
             self._started_at = captured_at - self._block_seconds
             self._pre_roll.clear()
             return None
-        return self._continue_speech(block, loud, captured_at, is_echo)
+        return self._continue_speech(block, loud, captured_at, is_over_zrb)
+
+    def _is_over_zrb(self, is_echo: bool) -> bool:
+        """Whether a block may hold zrb's voice: captured while it spoke, or
+        within ``echo_cooldown`` after."""
+        if is_echo:
+            self._tail_blocks = self._to_blocks(self._config.echo_cooldown)
+            return True
+        if self._tail_blocks:
+            self._tail_blocks -= 1
+            return True
+        return False
+
+    def _get_bar(self, is_over_zrb: bool) -> float:
+        threshold = self._config.threshold or 0
+        if not is_over_zrb:
+            return threshold
+        margin = self._config.barge_in_margin or 1
+        levels = sorted(self._zrb_levels)
+        if len(levels) < max(1, self._to_blocks(_ZRB_LEVEL_MIN_SECONDS)):
+            return margin * threshold
+        return max(threshold, margin * levels[len(levels) // 2])
 
     def _continue_speech(
         self, block: Any, loud: bool, captured_at: float, is_echo: bool
@@ -166,6 +209,12 @@ class UtteranceCutter:
     def is_hearing(self) -> bool:
         """Whether an utterance is in progress."""
         return bool(self._speech)
+
+    @property
+    def utterance_count(self) -> int:
+        """How many utterances have started: tells the one in progress from
+        the one before it."""
+        return self._utterance_count
 
     @property
     def speech_blocks(self) -> list[Any]:
@@ -227,7 +276,6 @@ async def listen(
     on_barge_in: Callable[[], None] | None = None,
     create_stream: "CreateStream | None" = None,
     on_partial: Callable[[str], None] | None = None,
-    echo: "EchoCancellation | None" = None,
     on_barge_in_dropped: Callable[[], None] | None = None,
 ) -> AsyncGenerator[Utterance, None]:
     """Yield utterances from the default microphone while *should_listen*
@@ -244,13 +292,10 @@ async def listen(
     utterance ends after ``min_silence`` quiet seconds, rather than
     ``silence``, once its transcript does not trail off on a word like "and".
 
-    With barge-in on, *echo* removes zrb's voice from every block before it
-    is measured (`EchoCancellation`); a block captured while zrb spoke is
-    heard only once that works, and only while zrb plays its speech itself,
-    since speech a player program plays leaves nothing to cancel it with.
-    Without *echo*, such blocks are trusted. *on_barge_in_dropped* is called
-    when an utterance reported to *on_barge_in* ends without being yielded
-    (too short to keep), so what it paused can resume.
+    With barge-in on, blocks captured while zrb speaks are held to the bar
+    over its voice (`UtteranceCutter`). *on_barge_in_dropped* is called when
+    an utterance reported to *on_barge_in* ends without being yielded (too
+    short to keep), so what it paused can resume.
 
     Audio keeps arriving while the caller handles an utterance (a slow
     transcription), and is kept, since the user may already be saying the
@@ -269,16 +314,7 @@ async def listen(
     def on_audio(indata: Any, frames: int, time_info: Any, status: Any) -> None:
         # Checked at capture: blocks queue up during transcription, so
         # checking later would let zrb's own voice through.
-        captured = (
-            indata.copy(),
-            is_speaking(),
-            time.monotonic(),
-            echo_reference.is_active,
-            get_monotonic_time(
-                getattr(time_info, "inputBufferAdcTime", 0.0),
-                getattr(time_info, "currentTime", 0.0),
-            ),
-        )
+        captured = _CapturedBlock(indata.copy(), is_speaking(), time.monotonic())
         loop.call_soon_threadsafe(backlog.append, captured)
 
     blocks = _BlockHandler(
@@ -286,7 +322,6 @@ async def listen(
         config,
         _BlockReports(on_state, on_barge_in, on_barge_in_dropped),
         _UtteranceStreamer(np, create_stream, on_partial),
-        echo if config.barge_in and config.barge_in.strip().lower() == "on" else None,
     )
     stream = _open_microphone(sd, on_audio, blocksize=int(SAMPLE_RATE * block_seconds))
     try:
@@ -295,7 +330,7 @@ async def listen(
                 item = await backlog.get(timeout=block_seconds * 5)
                 if item is None:
                     continue
-                utterance = await blocks.handle(*item)
+                utterance = await blocks.handle(item)
                 if utterance is not None:
                     yield utterance
         if keep_partial:
@@ -310,6 +345,18 @@ async def listen(
 CreateStream = Callable[[], Awaitable["AnyTranscriptionStream | None"]]
 
 
+@dataclass(frozen=True)
+class _CapturedBlock:
+    """One microphone block, captured by *captured_at*, while zrb was
+    speaking (*is_echo*) or not. A block *follows_gap* when older blocks
+    before it were dropped."""
+
+    block: Any
+    is_echo: bool
+    captured_at: float
+    follows_gap: bool = False
+
+
 class _BlockHandler:
     """Runs each captured block through the `UtteranceCutter`, reports the
     microphone's state and a barge-in, and feeds the utterance's stream."""
@@ -320,79 +367,44 @@ class _BlockHandler:
         config: DictationConfig,
         reports: "_BlockReports",
         streamer: "_UtteranceStreamer",
-        echo: "EchoCancellation | None" = None,
     ) -> None:
         self._np = np
         self._config = config
         self._cutter = UtteranceCutter(config)
         self._reports = reports
         self._streamer = streamer
-        self._echo = echo
-        # When the next block's first sample was captured: counted in
-        # samples from the stream's start, not read off each callback, whose
-        # timing wobbles by milliseconds.
-        self._next_start: float | None = None
 
-    async def handle(
-        self,
-        block: Any,
-        is_echo: bool,
-        captured_at: float,
-        has_reference: bool,
-        capture_start: float | None,
-        follows_gap: bool,
-    ) -> Utterance | None:
+    async def handle(self, captured: _CapturedBlock) -> Utterance | None:
         cutter = self._cutter
-        if follows_gap:
+        if captured.follows_gap:
             cutter.reset()
-        block = self._cancel_echo(block, captured_at, capture_start, follows_gap)
-        is_deaf = is_echo and not self._is_echo_heard(has_reference)
+        block = captured.block
+        # Deaf over zrb's voice with barge-in off; heard, against a higher
+        # bar, with it on.
+        is_deaf = captured.is_echo and not cutter.is_barge_in_enabled
         level = float(self._np.sqrt(self._np.mean(block**2)))
-        finished = cutter.feed(block, level, captured_at, is_echo, not is_deaf)
+        finished = cutter.feed(block, level, captured.captured_at, captured.is_echo)
         if finished is None:
-            self._reports.update(cutter, is_deaf)
-            await self._streamer.update(cutter)
-            if self._streamer.should_end(cutter, self._config):
-                finished = cutter.flush(captured_at)
+            finished = await self._continue(captured.captured_at, is_deaf)
         if finished is None:
-            self._reports.update(cutter, is_deaf)
             return None
         return await self._to_utterance(finished, is_deaf)
 
-    def _cancel_echo(
-        self,
-        block: Any,
-        captured_at: float,
-        capture_start: float | None,
-        follows_gap: bool,
-    ) -> Any:
-        """*block* with zrb's echo removed. It was captured from
-        *capture_start* on, as the host says (``inputBufferAdcTime``); without
-        that, from where the previous block ended, counting samples."""
-        if capture_start is not None:
-            self._next_start = capture_start
-        elif self._next_start is None or follows_gap:
-            self._next_start = captured_at - len(block) / SAMPLE_RATE
-        start, self._next_start = (
-            self._next_start,
-            self._next_start + len(block) / SAMPLE_RATE,
-        )
-        if self._echo is None:
-            return block
-        mono = self._np.asarray(block, self._np.float32).reshape(-1)
-        return self._echo.process(mono, start).reshape(-1, 1)
-
-    def _is_echo_heard(self, has_reference: bool) -> bool:
-        """Whether a block captured while zrb spoke is heard: barge-in is
-        on, and zrb's voice can be cancelled out of it (or needs not be)."""
-        if not self._cutter.is_barge_in_enabled:
-            return False
-        echo = self._echo
-        if echo is None:
-            return True
-        if not echo.canceller.needs_reference:
-            return True
-        return has_reference and echo.is_ready
+    async def _continue(
+        self, captured_at: float, is_deaf: bool
+    ) -> "tuple[list[Any], float, float] | None":
+        """After a block that did not finish an utterance: report it, stream
+        it, and end the utterance early if it sounds finished."""
+        cutter = self._cutter
+        self._reports.update(cutter, is_deaf)
+        await self._streamer.update(cutter)
+        if not self._streamer.should_end(cutter, self._config):
+            return None
+        finished = cutter.flush(captured_at)
+        if finished is None:
+            # Too short to keep: a barge-in it reported is dropped.
+            self._reports.update(cutter, is_deaf)
+        return finished
 
     async def flush(self, ended_at: float) -> Utterance | None:
         """The utterance in progress, for a recording stopped mid-sentence."""
@@ -455,8 +467,9 @@ class _BlockReports:
         self._is_barge_in_reported = False
 
     def update(self, cutter: UtteranceCutter, is_deaf: bool) -> None:
-        """After a block. An utterance that stops being heard without being
-        handed over (too short, or cut by zrb's voice) drops its barge-in."""
+        """After a block, deaf to zrb's voice (*is_deaf*) or not. An
+        utterance that stops being heard without being handed over (too
+        short, or cut by zrb's voice) drops its barge-in."""
         if cutter.is_barge_in and not self._is_barge_in_reported:
             self._is_barge_in_reported = True
             _call(self._on_barge_in)
@@ -476,7 +489,9 @@ def _call(callback: Callable[[], None] | None) -> None:
 
 class _UtteranceStreamer:
     """Feeds the utterance in progress to a transcription stream, block by
-    block, so its transcript is mostly done when it ends."""
+    block, so its transcript is mostly done when it ends. A stream that
+    fails is given up on, for this and every later utterance: they are then
+    transcribed whole once they end, as a backend without streams does."""
 
     def __init__(
         self,
@@ -489,13 +504,25 @@ class _UtteranceStreamer:
         self._on_partial = on_partial
         self._stream: "AnyTranscriptionStream | None" = None
         self._fed = 0
+        # `UtteranceCutter.utterance_count` of the utterance being fed.
+        self._utterance = 0
 
     async def update(self, cutter: UtteranceCutter) -> None:
-        """Feed the blocks the utterance gained; abandon a dropped one."""
+        """Feed the blocks the utterance gained; abandon a dropped one, or
+        one a new utterance replaced (after a gap) before it ended."""
         blocks = cutter.speech_blocks
-        if not blocks or len(blocks) < self._fed:
+        if not blocks or cutter.utterance_count != self._utterance:
             await self.abandon()
         if not blocks or self._create_stream is None:
+            return
+        self._utterance = cutter.utterance_count
+        try:
+            await self._stream_blocks(blocks)
+        except Exception as exc:
+            await self._give_up(exc)
+
+    async def _stream_blocks(self, blocks: list[Any]) -> None:
+        if self._create_stream is None:
             return
         if self._stream is None:
             self._stream = await self._create_stream()
@@ -520,7 +547,11 @@ class _UtteranceStreamer:
         """Hand over the stream of an utterance that ended with *blocks*."""
         stream = self._stream
         if stream is not None:
-            await self._feed(blocks)
+            try:
+                await self._feed(blocks)
+            except Exception as exc:
+                await self._give_up(exc)
+                return None
         self._stream, self._fed = None, 0
         return stream
 
@@ -528,6 +559,17 @@ class _UtteranceStreamer:
         stream, self._stream, self._fed = self._stream, None, 0
         if stream is not None:
             await stream.close()
+
+    async def _give_up(self, exc: Exception) -> None:
+        logger.warning(
+            f"Streaming transcription failed ({exc}); utterances are "
+            "transcribed once they end instead"
+        )
+        self._create_stream = None
+        try:
+            await self.abandon()
+        except Exception as close_exc:
+            logger.warning(f"Closing a transcription stream failed: {close_exc}")
 
     async def _feed(self, blocks: list[Any]) -> None:
         new_blocks, self._fed = blocks[self._fed :], len(blocks)
@@ -552,21 +594,20 @@ class _Backlog:
 
     def __init__(self, max_blocks: int) -> None:
         self._max_blocks = max_blocks
-        self._blocks: deque[tuple[Any, ...]] = deque()
+        self._blocks: deque[_CapturedBlock] = deque()
         self._arrived = asyncio.Event()
 
-    def append(self, captured: "tuple[Any, ...]") -> None:
-        follows_gap = False
+    def append(self, captured: _CapturedBlock) -> None:
         if self._max_blocks and len(self._blocks) >= self._max_blocks:
             self._blocks.popleft()
             if self._blocks:
-                self._blocks[0] = (*self._blocks[0][:-1], True)
+                self._blocks[0] = replace(self._blocks[0], follows_gap=True)
             else:
-                follows_gap = True
-        self._blocks.append((*captured, follows_gap))
+                captured = replace(captured, follows_gap=True)
+        self._blocks.append(captured)
         self._arrived.set()
 
-    async def get(self, timeout: float) -> "tuple[Any, ...] | None":
+    async def get(self, timeout: float) -> _CapturedBlock | None:
         """The oldest block, or ``None`` if none arrives within *timeout*."""
         while not self._blocks:
             self._arrived.clear()

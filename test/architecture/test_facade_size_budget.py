@@ -30,7 +30,10 @@ FACADE_BUDGETS = {
     # +15 (1232->1247): `execute_hook` takes the hook manager to dispatch
     # through, and `cancel_current_turn` picks the one the turn ran with (a
     # chat task's active manager, else the task's own) -- new surface.
-    "llm/ui/base/ui.py": 1247,
+    # +12 (1247->1259): `is_turn_running`, which `AnyUI` now declares, and a
+    # `cancel_current_turn` that hands a child's cancel to its `MultiUI`
+    # parent, so Esc stops the turn the parent runs -- new surface.
+    "llm/ui/base/ui.py": 1259,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):
@@ -41,7 +44,7 @@ FACADE_BUDGETS = {
     # set/remove plus its property), the seam speech streams through --
     # new surface.
     "llm/task/chat/task.py": 1078,
-    # +26 (783->809): `stream_observers` with its setter and append/prepend/
+    # +26 (783->809): `stream_observers` with `set_stream_observers` and append/prepend/
     # remove, handed to `run_agent` -- new surface.
     "llm/task/llm_task.py": 809,
     "llm/agent/subagent/manager.py": 299,

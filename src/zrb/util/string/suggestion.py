@@ -8,13 +8,16 @@ instead of only saying no.
 from difflib import get_close_matches
 
 
-def suggest_name(typo: str, candidates: list[str], limit: int = 3) -> list[str]:
+def suggest_name(
+    typo: str, candidates: list[str], limit: int = 3, cutoff: float = 0.6
+) -> list[str]:
     """Return the candidates closest to `typo`, best match first.
 
     Args:
         typo: What the user typed.
         candidates: Names that would have been accepted.
         limit: Maximum number of suggestions to return.
+        cutoff: How alike (0 to 1) a candidate must be to be suggested.
 
     Returns:
         Up to `limit` close matches, or an empty list when nothing is close
@@ -24,7 +27,7 @@ def suggest_name(typo: str, candidates: list[str], limit: int = 3) -> list[str]:
         return []
     # 0.6 is difflib's default and errs toward silence: a suggestion the user
     # has to squint at is worse than none.
-    return get_close_matches(typo, candidates, n=limit, cutoff=0.6)
+    return get_close_matches(typo, candidates, n=limit, cutoff=cutoff)
 
 
 def format_suggestion(typo: str, candidates: list[str]) -> str:

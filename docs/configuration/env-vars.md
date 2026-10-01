@@ -15,6 +15,8 @@ Zrb can be heavily customized using environment variables. These control everyth
 - Assigning a name `CFG` doesn't define (`CFG.LLM_MODELL = "..."`, a typo) raises `AttributeError` naming the closest real knob.
 - Assigning a value the setting can't accept (`CFG.LLM_MAX_REQUEST_PER_MINUTE = "not-a-number"`) raises `ValueError` right there, not on the next unrelated read.
 
+A mistyped *environment variable* is caught too, as a warning when zrb starts: `ZRB_LLM_MODELL is not a setting and is ignored. Did you mean ZRB_LLM_MODEL?`. Only a near miss of a real setting is reported, since a project's own `ZRB_*` variables read by its `zrb_init.py` are not typos.
+
 ---
 
 ## Table of Contents

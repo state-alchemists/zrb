@@ -365,7 +365,7 @@ class ChatExecution:
             model_renderer=llm_chat_task.model_renderer,
             summarize_commands=summarize_commands,
         )
-        llm_task.stream_observers = list(llm_chat_task.stream_observers)
+        llm_task.set_stream_observers(llm_chat_task.stream_observers)
         return llm_task
 
     def _resolve_inner_task_config(

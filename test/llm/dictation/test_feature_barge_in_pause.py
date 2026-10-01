@@ -7,9 +7,9 @@ import contextlib
 import pytest
 
 from zrb.llm.dictation import AnyDictationBackend, DictationConfig
-from zrb.llm.dictation.echo import EchoCancellation
 from zrb.llm.dictation.feature import DictationSession
 from zrb.llm.dictation.listen import Utterance
+from zrb.llm.speech.spoken_log import SpokenLog
 from zrb.llm.util.feature_config import reset_session_ui, set_session_ui
 
 
@@ -68,7 +68,9 @@ def _listen(monkeypatch, *heard, partials=(), drop_first=False):
             if index == 0:
                 for partial in partials:
                     kwargs["on_partial"](partial)
-            yield Utterance(text.encode(), index, index + 0.5, True)
+            yield Utterance(
+                text.encode(), index, index + 0.5, True, is_over_speech=True
+            )
 
     monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
     return seen
@@ -109,11 +111,34 @@ async def test_words_without_the_wake_word_let_zrb_carry_on(monkeypatch, speech)
 
 
 @pytest.mark.asyncio
-async def test_words_heard_while_still_speaking_stop_zrb_early(monkeypatch, speech):
-    _listen(monkeypatch, "wait a moment", partials=["", "wait"])
-    assert await _replies(_session(), 1) == ["wait a moment"]
+async def test_the_wake_word_heard_while_still_speaking_stops_zrb_early(
+    monkeypatch, speech
+):
+    _listen(monkeypatch, "hey zed wait there", partials=["", "hey zed"])
+    assert await _replies(_session(wake_words=["hey zed"]), 1) == ["wait there"]
     # Stopped by the partial words; the transcript finds nothing to add.
     assert speech == ["pause", "interrupt"]
+
+
+@pytest.mark.asyncio
+async def test_a_partial_guess_for_a_cough_does_not_stop_zrb(monkeypatch, speech):
+    """Without wake words the transcript decides: a streaming recognizer
+    guesses "the" for a cough, and zrb, paused meanwhile, carries on."""
+    _listen(monkeypatch, "", "go on", partials=["the"])
+    assert await _replies(_session(), 1) == ["go on"]
+    assert speech == ["pause", "resume", "pause", "interrupt"]
+
+
+@pytest.mark.asyncio
+async def test_the_badge_comes_back_when_zrb_carries_on(monkeypatch, speech):
+    _listen(monkeypatch, "", "go on")
+    ui = FakeUI()
+    set_session_ui(ui)
+
+    await _replies(_session(), 1)
+
+    paused = ui.badges.index("✋ paused · listening…")
+    assert "🎤 listening" in ui.badges[paused:]
 
 
 @pytest.mark.asyncio
@@ -136,8 +161,8 @@ async def test_stop_said_too_briefly_to_pause_zrb_still_stops_it(monkeypatch, sp
 
 @pytest.mark.asyncio
 async def test_a_dropped_barge_in_lets_zrb_carry_on(monkeypatch, speech):
-    _listen(monkeypatch, "hello", drop_first=True)
-    assert await _replies(_session(), 1) == ["hello"]
+    _listen(monkeypatch, "hello there", drop_first=True)
+    assert await _replies(_session(), 1) == ["hello there"]
     assert speech == ["pause", "resume", "pause", "interrupt"]
 
 
@@ -161,29 +186,6 @@ async def test_closing_mid_pause_resumes(monkeypatch, speech):
     # Closed here, not by the garbage collector during a later test.
     await stream.aclose()
     assert speech[:2] == ["pause", "resume"]
-
-
-@pytest.mark.asyncio
-async def test_the_echo_cancellation_is_built_once_with_barge_in_on(
-    monkeypatch, speech
-):
-    seen = _listen(monkeypatch, "first")
-    session = _session(barge_in="on", echo_canceller="none")
-    await _replies(session, 1)
-    echo = seen["echo"]
-    assert isinstance(echo, EchoCancellation)
-    assert echo.canceller.name == "none"
-
-    seen2 = _listen(monkeypatch, "second")
-    await _replies(session, 1)
-    assert seen2["echo"] is echo
-
-
-@pytest.mark.asyncio
-async def test_no_echo_cancellation_with_barge_in_off(monkeypatch, speech):
-    seen = _listen(monkeypatch, "first")
-    await _replies(_session(barge_in="off"), 1)
-    assert seen["echo"] is None
 
 
 @pytest.mark.asyncio
@@ -232,3 +234,50 @@ async def test_a_broken_microphone_mid_barge_in_resumes_speech(monkeypatch, spee
 
     assert speech[:2] == ["pause", "resume"]
     assert not session.is_hands_free
+
+
+@pytest.mark.asyncio
+async def test_zrbs_own_voice_heard_back_is_dropped_and_zrb_carries_on(
+    monkeypatch, speech
+):
+    """What echo cancellation left of zrb's voice, transcribed into its own
+    words, must not become a turn: zrb would answer itself."""
+    log = SpokenLog()
+    log.start("Goodnight. Sleep well.", -1.0)  # still being said
+    monkeypatch.setattr("zrb.llm.dictation.feature.spoken_log", log)
+    monkeypatch.setenv("ZRB_LLM_ASSISTANT_NAME", "Jarvis")
+    _listen(monkeypatch, "Sleep well.", "what time is it")
+    ui = FakeUI()
+    set_session_ui(ui)
+
+    assert await _replies(_session(), 1) == ["what time is it"]
+    assert speech[:2] == ["pause", "resume"]
+    assert any("Jarvis's own voice" in str(badge) for badge in ui.badges)
+
+
+@pytest.mark.asyncio
+async def test_a_reply_in_zrbs_words_while_zrb_is_silent_is_the_users(
+    monkeypatch, speech
+):
+    """With the microphone deaf to zrb, what follows its question is the
+    user's even in its words, though within the self-echo tail."""
+    log = SpokenLog()
+    log.finish(log.start("Should I run the tests?", -1.0), -0.2)
+    monkeypatch.setattr("zrb.llm.dictation.feature.spoken_log", log)
+
+    async def listen(config, should_listen, **kwargs):
+        yield Utterance(b"run the tests", 0.0, 0.5)
+
+    monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
+
+    assert await _replies(_session(), 1) == ["run the tests"]
+
+
+@pytest.mark.asyncio
+async def test_words_zrb_did_not_say_are_not_taken_for_its_voice(monkeypatch, speech):
+    log = SpokenLog()
+    log.finish(log.start("Goodnight. Sleep well.", -10.0), -9.0)  # long done
+    monkeypatch.setattr("zrb.llm.dictation.feature.spoken_log", log)
+    _listen(monkeypatch, "sleep now")
+
+    assert await _replies(_session(), 1) == ["sleep now"]

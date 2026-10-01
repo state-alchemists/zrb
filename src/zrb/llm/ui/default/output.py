@@ -704,10 +704,9 @@ class UIOutput:
         return result
 
     def get_badge_bar_text(self) -> "AnyFormattedText":
-        """The status badges — a feature's one-line state, such as the
-        microphone's — on a line of their own above the status bar, so they
-        stay put while the status bar changes; empty (the line hidden) when
-        there are none."""
+        """The status badges — each a feature's one-line state — on a line of
+        their own above the status bar, so they stay put while the status bar
+        changes; empty (the line hidden) when there are none."""
         badges = self._ui.status_badges
         if not badges:
             return []

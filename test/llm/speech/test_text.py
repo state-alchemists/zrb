@@ -138,3 +138,10 @@ def test_fill_template_replaces_only_the_names_given():
     template = "I need to {action}{target}. {not_a_name} stays; so does {}."
     filled = fill_template(template, action="edit a file", target=" a.py")
     assert filled == "I need to edit a file a.py. {not_a_name} stays; so does {}."
+
+
+def test_fill_template_fills_each_name_once():
+    """A value that holds a placeholder is not filled in again."""
+    filled = fill_template("{style}: {text}", style="say {text} warmly", text="hi")
+
+    assert filled == "say {text} warmly: hi"

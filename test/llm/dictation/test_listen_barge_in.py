@@ -5,7 +5,6 @@ to the test, which then plays blocks into it.
 """
 
 import asyncio
-import types
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -85,7 +84,7 @@ def test_without_barge_in_speech_over_zrb_is_never_heard():
 
 
 def test_with_barge_in_speech_over_zrb_is_heard_and_marked():
-    cutter = _cutter(barge_in="on", barge_in_min_speech=0.2, pre_roll=0)
+    cutter = _cutter(barge_in_enabled=True, barge_in_min_speech=0.2, pre_roll=0)
 
     finished = _feed(cutter, [1, 1, 1, 0, 0, 0], echo_at={0, 1, 2, 3, 4, 5})
 
@@ -96,7 +95,7 @@ def test_with_barge_in_speech_over_zrb_is_heard_and_marked():
 
 
 def test_a_cough_over_zrb_is_not_a_barge_in():
-    cutter = _cutter(barge_in="on", barge_in_min_speech=0.3, pre_roll=0)
+    cutter = _cutter(barge_in_enabled=True, barge_in_min_speech=0.3, pre_roll=0)
 
     _feed(cutter, [1, 1, 0, 0, 0], echo_at={0, 1, 2, 3, 4})
 
@@ -107,7 +106,7 @@ def test_a_cough_over_zrb_is_not_a_barge_in():
 
 
 def test_speech_after_zrb_stopped_is_not_a_barge_in():
-    cutter = _cutter(barge_in="on", barge_in_min_speech=0.1, pre_roll=0)
+    cutter = _cutter(barge_in_enabled=True, barge_in_min_speech=0.1, pre_roll=0)
 
     finished = _feed(cutter, [1, 1, 0, 0, 0, 1, 1, 0, 0], echo_at={0, 1})
 
@@ -127,7 +126,7 @@ async def test_listen_reports_a_barge_in_once_before_the_utterance_ends():
         max_utterance=10,
         pre_roll=0,
         echo_cooldown=0,
-        barge_in="on",
+        barge_in_enabled=True,
         barge_in_min_speech=0.1,
     ).resolve()
     blocks = [_block(0.5), _block(0.5), _block(0.5), _block(0.0), _block(0.0)]
@@ -155,7 +154,7 @@ async def test_listen_reports_a_barge_in_once_before_the_utterance_ends():
 
 
 def test_a_barge_in_is_forgotten_when_its_utterance_is_dropped():
-    cutter = _cutter(barge_in="on", barge_in_min_speech=0.1, pre_roll=0)
+    cutter = _cutter(barge_in_enabled=True, barge_in_min_speech=0.1, pre_roll=0)
     _feed(cutter, [1, 1, 1], echo_at={0, 1, 2})
     assert cutter.is_barge_in
 
@@ -175,7 +174,7 @@ async def test_a_barge_in_is_reported_once_and_does_not_mark_the_next_utterance(
         max_utterance=10,
         pre_roll=0,
         echo_cooldown=0,
-        barge_in="on",
+        barge_in_enabled=True,
         barge_in_min_speech=0.1,
     ).resolve()
     # Talked over zrb, then idle blocks, then an ordinary utterance after it
@@ -207,31 +206,79 @@ async def test_a_barge_in_is_reported_once_and_does_not_mark_the_next_utterance(
     assert [u.is_barge_in for u in utterances] == [True, False]
 
 
-# --- echo cancellation in listen ---------------------------------------------
+# --- the bar over zrb's voice -------------------------------------------------
 
 
-class FakeEcho:
-    """Stands in for `EchoCancellation`: records the start time of each block
-    and passes it through."""
-
-    def __init__(self, is_ready=True, needs_reference=True):
-        self.is_ready = is_ready
-        self.canceller = types.SimpleNamespace(needs_reference=needs_reference)
-        self.starts: list[float] = []
-
-    def process(self, mic, start):
-        self.starts.append(start)
-        return mic
+def _over_zrb(levels, **config):
+    """Feed *levels*, every block captured while zrb speaks; the levels of
+    the utterances found, without the two quiet blocks that end each."""
+    fields = dict(barge_in_enabled=True, barge_in_margin=3.0, pre_roll=0, silence=0.2)
+    cutter = _cutter(**{**fields, **config})
+    finished = _feed(cutter, levels, echo_at=set(range(len(levels))))
+    return [[levels[block] for block in blocks[:-2]] for blocks, _, _ in finished]
 
 
-async def _listen_with_echo(
-    blocks,
-    echo,
-    speaking=True,
-    has_reference=True,
-    barge_in="on",
-    barge_in_min_speech=0.1,
-    **callbacks,
+ECHO = [0.12] * 10  # zrb's voice at the microphone, over the 0.1 threshold
+
+
+def test_zrbs_own_voice_at_its_usual_level_starts_nothing():
+    """Laptop speakers: zrb is heard above the usual threshold the whole
+    time it speaks, and must not count as the user."""
+    assert _over_zrb(ECHO + [0.12] * 20) == []
+
+
+def test_speech_clearly_louder_than_zrbs_voice_is_heard():
+    heard = _over_zrb(ECHO + [0.5, 0.5, 0.5, 0.12, 0.12, 0.12])
+    assert heard == [[0.5, 0.5, 0.5]]
+
+
+def test_speech_only_as_loud_as_zrbs_voice_is_not():
+    assert _over_zrb(ECHO + [0.3, 0.3, 0.3, 0.12, 0.12, 0.12]) == []
+
+
+def test_on_headphones_the_bar_is_the_usual_threshold():
+    """zrb is not heard: its measured level is noise, so the bar falls back
+    to the threshold and ordinary speech gets through."""
+    quiet_room = [0.005] * 10
+    assert _over_zrb(quiet_room + [0.2, 0.2, 0.2, 0.0, 0.0]) == [[0.2, 0.2, 0.2]]
+
+
+def test_before_zrbs_level_is_measured_the_bar_is_strict():
+    """The first blocks of zrb speaking: margin times the threshold."""
+    assert _over_zrb([0.2, 0.2, 0.2, 0.0, 0.0]) == []
+    assert _over_zrb([0.4, 0.4, 0.4, 0.0, 0.0]) == [[0.4, 0.4, 0.4]]
+
+
+def test_talking_over_zrb_for_long_does_not_raise_the_bar_on_yourself():
+    """The user's voice, measured as zrb's while they talk, must not cut
+    the utterance they are in."""
+    heard = _over_zrb(ECHO + [0.5] * 25 + [0.12, 0.12, 0.12], max_utterance=10)
+    assert heard == [[0.5] * 25]
+
+
+def test_a_long_barge_in_does_not_raise_the_bar_for_the_next_one():
+    """Once an utterance is a barge-in, zrb is paused and what the
+    microphone hears is the user: learning it as zrb's level would set the
+    bar over the user's own voice next time."""
+    heard = _over_zrb(
+        ECHO + [0.5] * 25 + [0.12] * 5 + [0.5] * 3 + [0.12] * 3, max_utterance=10
+    )
+    assert heard == [[0.5] * 25, [0.5] * 3]
+
+
+def test_the_bar_holds_for_the_echo_tail_after_zrb_stops():
+    cutter = _cutter(
+        barge_in_enabled=True, barge_in_margin=3.0, pre_roll=0, echo_cooldown=0.3
+    )
+    levels = ECHO + [0.2, 0.2, 0.2, 0.0, 0.0, 0.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.0]
+    finished = _feed(cutter, levels, echo_at=set(range(10)))
+    # Right after zrb stops, 0.2 is still under three times its voice; once
+    # the tail is over, it is ordinary speech again.
+    assert [blocks for blocks, _, _ in finished] == [[16, 17, 18, 19, 20]]
+
+
+async def _listen_over_zrb(
+    blocks, barge_in_enabled=True, barge_in_min_speech=0.1, **callbacks
 ):
     captured = {}
     config = DictationConfig(
@@ -241,21 +288,18 @@ async def _listen_with_echo(
         max_utterance=10,
         pre_roll=0,
         echo_cooldown=0,
-        barge_in=barge_in,
+        barge_in_enabled=barge_in_enabled,
         barge_in_min_speech=barge_in_min_speech,
+        barge_in_margin=1.0,
     ).resolve()
 
     async def consume():
-        stream = listen(config, _holds_for(len(blocks)), echo=echo, **callbacks)
+        stream = listen(config, _holds_for(len(blocks)), **callbacks)
         return [utterance async for utterance in stream]
 
     with (
         patch.dict("sys.modules", {"sounddevice": _fake_sounddevice(captured)}),
-        patch("zrb.llm.dictation.listen.is_speaking", return_value=speaking),
-        patch(
-            "zrb.llm.dictation.listen.echo_reference",
-            types.SimpleNamespace(is_active=has_reference),
-        ),
+        patch("zrb.llm.dictation.listen.is_speaking", return_value=True),
     ):
         task = asyncio.create_task(consume())
         await _play(captured, blocks)
@@ -266,36 +310,20 @@ LOUD_THEN_QUIET = [_block(0.5)] * 3 + [_block(0.0)] * 3
 
 
 @pytest.mark.asyncio
-async def test_speech_over_zrb_is_heard_once_its_echo_can_be_cancelled():
-    echo = FakeEcho(is_ready=True)
-    [utterance] = await _listen_with_echo(LOUD_THEN_QUIET, echo)
-    assert utterance.is_barge_in
-    # Timed by counting samples: exactly one block (2 samples here) apart.
-    gaps = {round(b - a, 9) for a, b in zip(echo.starts, echo.starts[1:])}
-    assert gaps == {round(2 / 16000, 9)}
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("is_ready, has_reference", [(False, True), (True, False)])
-async def test_speech_over_zrb_is_not_heard_while_its_echo_cannot_be_cancelled(
-    is_ready, has_reference
-):
+async def test_speech_over_zrb_with_barge_in_off_is_plainly_paused():
     states = []
-    echo = FakeEcho(is_ready=is_ready)
-    utterances = await _listen_with_echo(
-        LOUD_THEN_QUIET, echo, has_reference=has_reference, on_state=states.append
+    utterances = await _listen_over_zrb(
+        LOUD_THEN_QUIET, barge_in_enabled=False, on_state=states.append
     )
-    assert utterances == []
-    assert MicState.PAUSED in states
+    assert utterances == [] and states[0] == MicState.PAUSED
 
 
 @pytest.mark.asyncio
 async def test_a_short_word_over_zrb_is_marked_said_over_it_without_pausing_it():
     barge_ins = []
-    [utterance] = await _listen_with_echo(
-        LOUD_THEN_QUIET,
-        FakeEcho(is_ready=True),
-        barge_in_min_speech=0.5,
+    [utterance] = await _listen_over_zrb(
+        [_block(0.5)] + [_block(0.0)] * 4,
+        barge_in_min_speech=0.3,
         on_barge_in=lambda: barge_ins.append(True),
     )
     assert utterance.is_over_speech and not utterance.is_barge_in
@@ -303,24 +331,8 @@ async def test_a_short_word_over_zrb_is_marked_said_over_it_without_pausing_it()
 
 
 @pytest.mark.asyncio
-async def test_a_canceller_needing_no_reference_trusts_the_microphone():
-    echo = FakeEcho(is_ready=True, needs_reference=False)
-    [utterance] = await _listen_with_echo(LOUD_THEN_QUIET, echo, has_reference=False)
-    assert utterance.is_barge_in
-
-
-@pytest.mark.asyncio
-async def test_with_barge_in_off_the_echo_is_not_used():
-    echo = FakeEcho()
-    assert await _listen_with_echo(LOUD_THEN_QUIET, echo, barge_in="off") == []
-    assert echo.starts == []
-
-
-@pytest.mark.asyncio
 async def test_a_barge_in_too_short_to_keep_is_reported_dropped():
-    dropped = []
-    config_blocks = [_block(0.5)] + [_block(0.0)] * 4
-
+    events = []
     captured = {}
     config = DictationConfig(
         threshold=0.1,
@@ -329,42 +341,38 @@ async def test_a_barge_in_too_short_to_keep_is_reported_dropped():
         max_utterance=10,
         pre_roll=0,
         echo_cooldown=0,
-        barge_in="on",
+        barge_in_enabled=True,
         barge_in_min_speech=0.1,
+        barge_in_margin=1.0,
     ).resolve()
-    barge_ins = []
+    blocks = [_block(0.5)] + [_block(0.0)] * 4
 
     async def consume():
         stream = listen(
             config,
-            _holds_for(len(config_blocks)),
-            echo=FakeEcho(),
-            on_barge_in=lambda: barge_ins.append(True),
-            on_barge_in_dropped=lambda: dropped.append(True),
+            _holds_for(len(blocks)),
+            on_barge_in=lambda: events.append("barge_in"),
+            on_barge_in_dropped=lambda: events.append("dropped"),
         )
         return [u async for u in stream]
 
     with (
         patch.dict("sys.modules", {"sounddevice": _fake_sounddevice(captured)}),
         patch("zrb.llm.dictation.listen.is_speaking", return_value=True),
-        patch(
-            "zrb.llm.dictation.listen.echo_reference",
-            types.SimpleNamespace(is_active=True),
-        ),
     ):
         task = asyncio.create_task(consume())
-        await _play(captured, config_blocks)
+        await _play(captured, blocks)
         assert await task == []
 
-    assert barge_ins == [True] and dropped == [True]
+    assert events == ["barge_in", "dropped"]
 
 
 @pytest.mark.asyncio
 async def test_a_yielded_barge_in_is_not_reported_dropped():
     dropped = []
     blocks = LOUD_THEN_QUIET + [_block(0.0)] * 4
-    [utterance] = await _listen_with_echo(
-        blocks, FakeEcho(), on_barge_in_dropped=lambda: dropped.append(True)
+    [utterance] = await _listen_over_zrb(
+        blocks, on_barge_in_dropped=lambda: dropped.append(True)
     )
     assert utterance.is_barge_in and dropped == []
 
@@ -373,9 +381,8 @@ async def test_a_yielded_barge_in_is_not_reported_dropped():
 async def test_closing_the_microphone_mid_barge_in_reports_it_dropped():
     events = []
     # Loud to the end: the utterance is still in progress when listening stops.
-    await _listen_with_echo(
+    await _listen_over_zrb(
         [_block(0.5)] * 4,
-        FakeEcho(),
         on_barge_in=lambda: events.append("barge_in"),
         on_barge_in_dropped=lambda: events.append("dropped"),
     )

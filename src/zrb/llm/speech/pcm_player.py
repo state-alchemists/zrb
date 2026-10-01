@@ -1,10 +1,8 @@
 """Playing speech in zrb's own process, through sounddevice.
 
 A `PcmUtterance` plays `SpeechAudio` through an output stream instead of a
-player program. zrb then knows every sample it plays: each is written to
-`echo_reference` as it reaches the speakers, so dictation can cancel zrb's
-voice out of the microphone, and playback can pause and resume, so a cough
-heard over zrb only stalls it for a moment.
+player program, so playback can pause and resume: a cough heard over zrb
+only stalls it for a moment.
 
 It needs sounddevice and numpy (the zrb[voice] extra); `is_available` says
 whether they import, and speech falls back to player programs when not.
@@ -12,6 +10,7 @@ whether they import, and speech falls back to player programs when not.
 
 from __future__ import annotations
 
+import functools
 import logging
 import threading
 import time
@@ -22,31 +21,26 @@ from typing import Any
 from zrb.config.config import CFG
 from zrb.llm.speech.backend.audio import SpeechAudio
 from zrb.llm.speech.backend.utterance import Utterance
-from zrb.llm.speech.echo_reference import (
-    RATE,
-    EchoReference,
-    echo_reference,
-    get_monotonic_time,
-)
 
 # How long playback waits for the source reader to see it has ended.
 _READER_JOIN_SECONDS = 1.0
 _BUFFER_POLL_SECONDS = 0.005
-_available: bool | None = None
+# How often playback checks whether it is paused, to leave paused time out
+# of the timeout.
+_TIMEOUT_POLL_SECONDS = 0.02
 
 logger = logging.getLogger(__name__)
 
 
+@functools.cache
 def is_available() -> bool:
-    """Whether sounddevice and numpy import, so speech can play in process."""
-    global _available
-    if _available is None:
-        try:
-            _import_audio()
-            _available = True
-        except (ImportError, OSError):
-            _available = False
-    return _available
+    """Whether sounddevice and numpy import, so speech can play in process.
+    Asked once per process; `is_available.cache_clear()` asks again."""
+    try:
+        _import_audio()
+    except (ImportError, OSError):
+        return False
+    return True
 
 
 class PcmUtterance(Utterance):
@@ -60,18 +54,27 @@ class PcmUtterance(Utterance):
     *fallback* makes the same speech for a player program to play instead,
     so it is not lost; without one, a device error is raised and a source
     error logged. Audio that fails part-way is played as far as it came,
-    and logged as cut off."""
+    and logged as cut off. *on_device_error*, when given, is told of a
+    device that cannot open instead of it being logged, so a caller can
+    stop trying the device and say so once.
+
+    The play timeout counts playing time only: a pause does not use it up.
+    """
 
     def __init__(
         self,
         audio: SpeechAudio,
-        reference: EchoReference | None = None,
         block_frames: int | None = None,
         read_ahead: int | None = None,
         fallback: Callable[[], Utterance] | None = None,
+        on_device_error: Callable[[Exception], None] | None = None,
     ):
         super().__init__([])
         self._fallback = fallback
+        self._on_device_error = on_device_error
+        # Guards `_fallback_playing` against `pause` and `stop`, which may
+        # come from another thread while the fallback starts.
+        self._fallback_lock = threading.Lock()
         self._fallback_playing: Utterance | None = None
         # Set once the device opened: a failure after that is not retried,
         # or the sentence would be heard twice.
@@ -89,16 +92,11 @@ class PcmUtterance(Utterance):
         self._block_frames = max(1, block_frames)
         self._read_ahead = max(1, read_ahead)
         self._audio = audio
-        self._reference = reference or echo_reference
         self._buffer: deque[bytes] = deque()
         self._pending = b""
         self._is_source_done = False
         self._is_paused = False
         self._finished = threading.Event()
-        # Every frame the stream has asked for, silence included, so a
-        # sample's time stays true across pauses and download stalls.
-        self._frames_elapsed = 0
-        self._started_at = 0.0
 
     @property
     def is_paused(self) -> bool:
@@ -110,8 +108,14 @@ class PcmUtterance(Utterance):
         return self._fallback_playing is None
 
     def pause(self) -> None:
-        """Hold playback where it is; silence until `resume`."""
-        self._is_paused = True
+        """Hold playback where it is; silence until `resume`. A player program
+        playing the fallback cannot hold, so it is stopped, and a fallback
+        not yet started is not played."""
+        with self._fallback_lock:
+            self._is_paused = True
+            fallback_playing = self._fallback_playing
+        if fallback_playing is not None:
+            fallback_playing.stop()
 
     def resume(self) -> None:
         self._is_paused = False
@@ -126,15 +130,18 @@ class PcmUtterance(Utterance):
         except Exception as exc:
             if self._has_opened or self._fallback is None or self.is_stopped:
                 raise
-            logger.warning(
-                f"zrb could not open the audio device to play speech itself "
-                f"({exc}); a player program plays it instead"
-            )
+            if self._on_device_error is not None:
+                self._on_device_error(exc)
+            else:
+                logger.warning(
+                    f"Could not open the audio device to play speech in process "
+                    f"({exc}); a player program plays it instead"
+                )
             self._play_fallback(self._fallback, timeout)
             return
-        self._handle_source_error()
+        self._handle_source_error(timeout)
 
-    def _handle_source_error(self) -> None:
+    def _handle_source_error(self, timeout: float | None) -> None:
         error = self._source_error
         if error is None or self.is_stopped:
             return
@@ -143,7 +150,7 @@ class PcmUtterance(Utterance):
                 f"Speech audio failed before any of it played ({error}); a "
                 "player program plays it instead"
             )
-            self._play_fallback(self._fallback, None)
+            self._play_fallback(self._fallback, timeout)
             return
         logger.warning(f"Speech was cut off: its audio stopped arriving ({error})")
 
@@ -151,17 +158,24 @@ class PcmUtterance(Utterance):
         self, fallback: Callable[[], Utterance], timeout: float | None
     ) -> None:
         utterance = fallback()
-        self._fallback_playing = utterance
+        utterance.set_on_start(self.report_started)
+        with self._fallback_lock:
+            self._fallback_playing = utterance
+            # `stop` or `pause` may have come meanwhile: a program cannot
+            # hold the speech, so a paused one is not started.
+            is_held = self.is_stopped or self._is_paused
         try:
-            if not self.is_stopped:  # `stop` may have come meanwhile
+            if not is_held:
                 utterance.play(timeout)
         finally:
+            with self._fallback_lock:
+                if self._fallback_playing is utterance:
+                    self._fallback_playing = None
             utterance.cleanup()
 
     def _play_in_process(self, timeout: float | None) -> None:
         np, sd = _import_audio()
         reader = threading.Thread(target=self._read_source, daemon=True)
-        self._reference.add_player(+1)
         is_played = False
         try:
             stream = sd.OutputStream(
@@ -170,23 +184,16 @@ class PcmUtterance(Utterance):
                 dtype="int16",
                 blocksize=self._block_frames,
                 callback=lambda out, frames, info, status: self._fill(
-                    np, sd, out, frames, info
+                    np, sd, out, frames
                 ),
                 finished_callback=self._finished.set,
             )
-            # Before the stream starts, so its first callback sees it; only
-            # used when the host gives no timestamps.
-            self._started_at = time.monotonic() + float(stream.latency)
             # Only once there is a stream to play into: a device that cannot
             # open must not leave a download running.
             reader.start()
-            with stream:
-                self._has_opened = True
-                if not self._finished.wait(timeout):
-                    self.stop()
+            self._play_stream(stream, timeout)
             is_played = True
         finally:
-            self._reference.add_player(-1)
             self._finished.set()
             if not is_played:
                 # The device failed: close the source, which ends the read.
@@ -195,11 +202,46 @@ class PcmUtterance(Utterance):
             if reader.is_alive():
                 reader.join(_READER_JOIN_SECONDS)
 
+    def _play_stream(self, stream: Any, timeout: float | None) -> None:
+        try:
+            stream.start()
+        except BaseException:
+            stream.close()  # opened, never started: close it all the same
+            raise
+        try:
+            self._has_opened = True
+            self.report_started()
+            if not self._is_finished_in_time(timeout):
+                self.stop()
+        finally:
+            try:
+                stream.stop()
+            finally:
+                stream.close()
+
+    def _is_finished_in_time(self, timeout: float | None) -> bool:
+        """Whether playback finished before *timeout* seconds of playing;
+        paused time is not counted."""
+        if timeout is None:
+            self._finished.wait()
+            return True
+        played = 0.0
+        last = time.monotonic()
+        while not self._finished.wait(_TIMEOUT_POLL_SECONDS):
+            now = time.monotonic()
+            if not self._is_paused:
+                played += now - last
+            last = now
+            if played >= timeout:
+                return False
+        return True
+
     def stop(self) -> None:
         super().stop()
         self._finished.set()
         self._audio.close()
-        fallback_playing = self._fallback_playing
+        with self._fallback_lock:
+            fallback_playing = self._fallback_playing
         if fallback_playing is not None:
             fallback_playing.stop()
 
@@ -227,18 +269,9 @@ class PcmUtterance(Utterance):
     def _is_done(self) -> bool:
         return self.is_stopped or self._is_abandoned
 
-    def _fill(self, np: Any, sd: Any, out: Any, frames: int, info: Any = None) -> None:
+    def _fill(self, np: Any, sd: Any, out: Any, frames: int) -> None:
         """The stream's callback: the next *frames* samples, or silence
-        while paused or waiting for the download. They reach the speakers
-        when the host says (``outputBufferDacTime``); a stream's start time
-        drifts from its reported latency by tens of milliseconds from one
-        utterance to the next, which would move the echo delay each time."""
-        start = get_monotonic_time(
-            getattr(info, "outputBufferDacTime", 0.0), getattr(info, "currentTime", 0.0)
-        )
-        if start is None:
-            start = self._started_at + self._frames_elapsed / self._audio.sample_rate
-        self._frames_elapsed += frames
+        while paused or waiting for the download."""
         if self.is_stopped:
             out.fill(0)
             raise sd.CallbackStop
@@ -254,18 +287,8 @@ class PcmUtterance(Utterance):
         out[len(samples) :, 0] = 0
         if len(samples):
             self._has_played_audio = True
-            self._write_reference(np, samples, start)
         if not samples.size and self._is_source_done and not self._buffer:
             raise sd.CallbackStop
-
-    def _write_reference(self, np: Any, samples: Any, start: float) -> None:
-        rate = self._audio.sample_rate
-        audio = samples.astype(np.float32) / 32768
-        if rate != RATE:
-            count = max(1, int(round(len(audio) * RATE / rate)))
-            positions = np.linspace(0, len(audio) - 1, count)
-            audio = np.interp(positions, np.arange(len(audio)), audio)
-        self._reference.write(start, audio.astype(np.float32))
 
 
 def _import_audio() -> tuple[Any, Any]:

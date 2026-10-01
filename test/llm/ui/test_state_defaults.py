@@ -43,6 +43,7 @@ def test_a_ui_implementing_only_the_behavioral_half_is_instantiable():
 def test_defaults_report_absence_rather_than_a_fake_value():
     ui = _MinimalUI()
     assert ui.is_thinking is False
+    assert ui.is_turn_running is False
     assert ui.llm_task is None
     assert ui.model is None
     assert ui.multi_ui_parent is None

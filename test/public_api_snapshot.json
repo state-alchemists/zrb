@@ -245,7 +245,10 @@
         "flush_to_parent",
         "history_manager",
         "invalidate_ui",
+        "is_prompt_answered_since",
         "is_thinking",
+        "is_turn_running",
+        "is_waiting_for_answer",
         "last_output",
         "llm_task",
         "model",
@@ -545,6 +548,8 @@
       "init": [],
       "members": [
         "LOGGER",
+        "get_mistyped_env_keys",
+        "get_retired_env_keys",
         "is_env_set"
       ]
     },
@@ -1170,6 +1175,7 @@
         "run",
         "sandbox",
         "save_cancelled_history",
+        "set_stream_observers",
         "set_ui",
         "stream_observers",
         "successors",

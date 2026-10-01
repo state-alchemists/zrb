@@ -22,6 +22,7 @@ from zrb.llm.speech.backend.utterance import Utterance
 from zrb.llm.speech.config import SpeechConfig
 from zrb.llm.speech.pcm_player import PcmUtterance
 from zrb.llm.speech.pcm_player import is_available as is_in_process_available
+from zrb.llm.speech.spoken_log import SpokenEntry, spoken_log
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ _playing_count = 0
 # path here on every captured audio block.
 _lock_files: dict[str, int] = {}
 _STALE_POLL_SECONDS = 0.1
+_PLAYERS = ("auto", "command")
 IsStale = Callable[[], bool] | None
 
 
@@ -84,11 +86,20 @@ class Speaker:
     synthesized while the current one plays and follows it without a gap;
     at most one waits ready. The threads start on the first `say`. At exit, queued speech gets the
     config's ``drain_timeout`` to finish, since `zrb chat --message` exits
-    right after its reply. *config* is a resolved `SpeechConfig`.
+    right after its reply. *config* is a resolved `SpeechConfig`; an
+    unknown ``player`` is logged and read as ``auto``.
+
+    An output device that cannot open is not tried again by this speaker:
+    the rest of its speech goes to a player program, so a cloud backend is
+    not asked for every sentence twice.
     """
 
     def __init__(self, config: SpeechConfig) -> None:
         self._config = config
+        self._player_mode = _resolve_player(config.player)
+        # Set when the output device would not open: sounddevice is not
+        # tried again, and the failure is logged once.
+        self._is_device_unavailable = False
         self._lock_file = config.lock_file or ""
         self._lock_file_held = bool(self._lock_file)
         if self._lock_file_held:
@@ -97,8 +108,8 @@ class Speaker:
             queue.Queue()
         )
         # Made but not yet played: what the player thread takes next.
-        self._ready: "queue.Queue[tuple[Utterance, IsStale, int] | None]" = queue.Queue(
-            maxsize=1
+        self._ready: "queue.Queue[tuple[Utterance, str, IsStale, int] | None]" = (
+            queue.Queue(maxsize=1)
         )
         self._worker: threading.Thread | None = None
         self._player: threading.Thread | None = None
@@ -106,6 +117,12 @@ class Speaker:
         # tracking what it is playing, is guarded.
         self._lock = threading.Lock()
         self._playing: Utterance | None = None
+        # What `_playing` says, once it has the audio device, and its entry in
+        # `spoken_log` while it is heard: a pause ends the entry, a resume
+        # starts another, so dictation never takes the user, talking while
+        # zrb is silent, for zrb.
+        self._playing_text = ""
+        self._said: SpokenEntry | None = None
         # Set by `pause`, cleared by `resume` and `interrupt`: while set, the
         # next utterance waits to start, even one still being synthesized
         # when the pause came. Waiters are woken through `_unpaused`.
@@ -166,7 +183,10 @@ class Speaker:
             self._unpaused.notify_all()
         try:
             while True:
-                self._queue.get_nowait()
+                if self._queue.get_nowait() is None:
+                    # The worker's stop signal is not ours to drop either.
+                    self._queue.put_nowait(None)
+                    break
         except queue.Empty:
             pass
         try:
@@ -183,26 +203,31 @@ class Speaker:
     def pause(self) -> None:
         """Hold what is playing, for a user who may be talking over it; what
         is queued or still being synthesized waits to start until `resume`
-        or `interrupt`. Speech a player program is playing cannot pause, so
-        it is interrupted instead."""
+        or `interrupt`. Speech a player program is playing cannot hold, so
+        that one sentence is stopped; `resume` carries on with the next.
+
+        Applied under the speaker's lock, so a `resume` racing it never
+        leaves the sentence held while the speaker is not."""
         with self._lock:
             self._is_paused = True
+            self._finish_said()
             playing = self._playing
-        if playing is None:
-            return
-        if playing.is_pausable:
-            playing.pause()
-        else:
-            self.interrupt()
+            if playing is None:
+                return
+            if playing.is_pausable:
+                playing.pause()
+            else:
+                playing.stop()
 
     def resume(self) -> None:
         """Carry on after `pause`."""
         with self._lock:
             self._is_paused = False
             self._unpaused.notify_all()
-            playing = self._playing
-        if playing is not None:
-            playing.resume()
+            if self._playing is not None:
+                self._playing.resume()
+            if self._playing_text and self._said is None:
+                self._said = spoken_log.start(self._playing_text, time.monotonic())
 
     def interrupt(self) -> None:
         """Drop queued speech and stop what is playing, for a user who started
@@ -225,7 +250,7 @@ class Speaker:
     def _speak(self, text: str, is_stale: "IsStale", generation: int) -> None:
         utterance = self._prepare(text, is_stale)
         if utterance is not None:
-            self._play_prepared(utterance, is_stale, generation)
+            self._play_prepared(utterance, text, is_stale, generation)
 
     def _prepare(self, text: str, is_stale: "IsStale") -> Utterance | None:
         if not text.strip() or (is_stale is not None and is_stale()):
@@ -233,19 +258,21 @@ class Speaker:
         return self._create_with_fallback(text)
 
     def _play_prepared(
-        self, utterance: Utterance, is_stale: "IsStale", generation: int
+        self, utterance: Utterance, text: str, is_stale: "IsStale", generation: int
     ) -> None:
         with self._lock:
             # Paused: wait to start until resumed, or until this utterance is
-            # dropped (interrupted, cleared, cut off).
+            # dropped (interrupted, cleared, cut off). A speaker closing for
+            # good drops it too: no resume comes after the session ends.
             while (
                 self._is_paused
-                and not self._is_cut_off
+                and not self._is_closed
                 and generation == self._generation
             ):
                 self._unpaused.wait()
             if (
                 self._is_cut_off
+                or (self._is_paused and self._is_closed)
                 or not self.is_enabled
                 or generation != self._generation
                 or (is_stale is not None and is_stale())
@@ -261,12 +288,31 @@ class Speaker:
                 daemon=True,
             ).start()
         try:
+            utterance.set_on_start(lambda: self._start_said(text))
             play(utterance, self._config)
         finally:
             played.set()
             with self._lock:
+                self._finish_said()
+                self._playing_text = ""
                 self._playing = None
             utterance.cleanup()
+
+    def _start_said(self, text: str) -> None:
+        """Log *text* as said from now, so dictation can tell zrb's own
+        voice from the user's. Called when playback starts: a sentence that
+        never plays, or is paused before it starts, was never heard."""
+        with self._lock:
+            self._playing_text = text
+            if not self._is_paused:
+                self._said = spoken_log.start(text, time.monotonic())
+
+    def _finish_said(self) -> None:
+        """End the spoken-log entry of what is playing; the caller holds
+        `_lock`."""
+        if self._said is not None:
+            spoken_log.finish(self._said, time.monotonic())
+            self._said = None
 
     def _create_with_fallback(self, text: str) -> Utterance | None:
         for backend in self._get_backends():
@@ -279,14 +325,13 @@ class Speaker:
     def _create_utterance(self, backend: AnySpeechBackend, text: str) -> Utterance:
         """Played by zrb itself when it can be, else by a player program:
         audio *backend* fails to render is still spoken its usual way."""
-        player = (self._config.player or "auto").strip().lower()
-        if player != "command" and is_in_process_available():
+        if self._is_in_process_wanted():
             try:
                 audio = backend.create_audio(text)
             except Exception as exc:
                 logger.warning(
-                    f"Speech backend {backend.name} could not render audio for "
-                    f"zrb to play ({exc}); a player program plays it instead"
+                    f"Speech backend {backend.name} could not render audio to "
+                    f"play in process ({exc}); a player program plays it instead"
                 )
                 audio = None
             if audio is not None:
@@ -295,8 +340,26 @@ class Speaker:
                     block_frames=self._config.player_block_frames,
                     read_ahead=self._config.player_read_ahead,
                     fallback=lambda: backend.create_utterance(text),
+                    on_device_error=self._handle_device_error,
                 )
         return backend.create_utterance(text)
+
+    def _is_in_process_wanted(self) -> bool:
+        return (
+            self._player_mode != "command"
+            and not self._is_device_unavailable
+            and is_in_process_available()
+        )
+
+    def _handle_device_error(self, exc: Exception) -> None:
+        with self._lock:
+            is_first = not self._is_device_unavailable
+            self._is_device_unavailable = True
+        if is_first:
+            logger.warning(
+                f"Could not open the audio device to play speech in process "
+                f"({exc}); a player program plays it for the rest of the session"
+            )
 
     def _get_backends(self) -> list[AnySpeechBackend]:
         config = self._config
@@ -313,12 +376,13 @@ class Speaker:
             item, is_stale = entry
             generation = self._generation
             try:
-                utterance = self._prepare(item() if callable(item) else item, is_stale)
+                text = item() if callable(item) else item
+                utterance = self._prepare(text, is_stale)
             except Exception as exc:
                 logger.warning(f"Speech failed: {exc}")
                 continue
             if utterance is not None:
-                self._ready.put((utterance, is_stale, generation))
+                self._ready.put((utterance, text, is_stale, generation))
         self._ready.put(None)
 
     def _play_ready(self) -> None:
@@ -339,9 +403,11 @@ class Speaker:
     def drain(self) -> None:
         """Let queued speech finish, for up to the config's
         ``drain_timeout``, then stop the thread and cut off anything still
-        playing, so no player outlives zrb."""
+        playing, so no player outlives zrb. Speech a `pause` holds is
+        dropped rather than waited for: no `resume` comes after this."""
         with self._lock:
             self._is_closed = True
+            self._unpaused.notify_all()
         self._stop(self._config.drain_timeout)
         self._cut_off()
 
@@ -370,6 +436,14 @@ class Speaker:
         if player is not None:
             remaining = None if deadline is None else deadline - time.monotonic()
             player.join(None if remaining is None else max(remaining, 0))
+
+
+def _resolve_player(player: str | None) -> str:
+    mode = (player or "auto").strip().lower()
+    if mode in _PLAYERS:
+        return mode
+    logger.warning(f"Unknown speech player {player!r}: use auto or command; auto it is")
+    return "auto"
 
 
 def play(utterance: Utterance, config: SpeechConfig) -> None:

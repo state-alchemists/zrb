@@ -118,6 +118,48 @@ async def test_push_to_talk_puts_the_transcript_in_the_input_box(monkeypatch):
     ]
 
 
+@pytest.mark.parametrize("said", ["Thank you.", "test test test", "you"])
+@pytest.mark.asyncio
+async def test_push_to_talk_keeps_what_hands_free_takes_for_noise(monkeypatch, said):
+    """Push-to-talk transcribes in full (`transcribe`, not
+    `transcribe_speech`) and skips the hands-free guards: the user chose to
+    speak, and edits the text before sending it."""
+
+    class ScoringBackend(FakeBackend):
+        async def transcribe_speech(self, audio: bytes) -> str:
+            return ""
+
+    _fake_listen(monkeypatch, (said, 0.0, 1.0))
+    session = DictationSession(
+        DictationConfig(backend=ScoringBackend(), commands=["/voice"]).resolve()
+    )
+    ui = FakeUI()
+
+    session.create_commands()[0].handle({}, ui)
+    await asyncio.gather(*ui.background_tasks)
+    await asyncio.sleep(0)
+
+    assert ui.inserted == [said]
+
+
+@pytest.mark.asyncio
+async def test_hands_free_transcribes_without_what_the_backend_scores_as_noise(
+    monkeypatch,
+):
+    class ScoringBackend(FakeBackend):
+        async def transcribe_speech(self, audio: bytes) -> str:
+            return audio.decode().replace("um ", "")
+
+    _fake_listen(monkeypatch, ("um run the tests", 0.0, 1.0))
+    session = DictationSession(
+        DictationConfig(backend=ScoringBackend(), mode="hands_free").resolve()
+    )
+
+    replies = await _trigger_replies(session, 1)
+
+    assert [reply.text for reply in replies] == ["run the tests"]
+
+
 @pytest.mark.asyncio
 async def test_push_to_talk_says_so_when_nothing_was_heard(monkeypatch):
     _fake_listen(monkeypatch)

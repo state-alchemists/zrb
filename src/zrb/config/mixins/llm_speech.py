@@ -24,6 +24,7 @@ from zrb.config.env_field import (
     json_object,
     on_off,
 )
+from zrb.config.mixins.llm_voice import get_voice_default
 from zrb.util.string.conversion import to_boolean
 
 
@@ -96,9 +97,11 @@ class LLMSpeechMixin:
     LLM_SPEECH_ENABLED = EnvField(
         to_boolean,
         serialize=on_off,
+        default_factory=lambda c: get_voice_default(c, "LLM_SPEECH_ENABLED"),
         doc=(
             "Read replies, approvals and questions aloud from the start of a "
-            "session; the speech command switches it during one. Default: false."
+            "session; the speech command switches it during one. Default: "
+            "false, or as {ENV_PREFIX}_LLM_VOICE sets it."
         ),
     )
 
@@ -415,9 +418,12 @@ class LLMSpeechMixin:
             "zrb[voice] extra is installed and the backend can render audio "
             "('say', 'espeak-ng', 'openai', 'gemini'), so dictation can cancel "
             "zrb's voice out of the microphone and pause it; else by a player "
-            "program.\n"
+            "program. A cloud backend with LLM_SPEECH_WAV_PLAYER set plays "
+            "through that player, and an output device that cannot open "
+            "sends the rest of the session to a player program.\n"
             "- 'command': always by a player program (say, espeak-ng, "
-            "termux-tts-speak, a WAV player)."
+            "termux-tts-speak, a WAV player).\n"
+            "Any other value is logged and read as 'auto'."
         ),
     )
 
@@ -425,7 +431,9 @@ class LLMSpeechMixin:
         str,
         doc=(
             "Command that plays a WAV file for the cloud backends, the file "
-            "path appended, e.g. 'mpv --really-quiet'. Empty picks the first of "
+            "path appended, e.g. 'mpv --really-quiet'. Set, it plays every "
+            "sentence, even under LLM_SPEECH_PLAYER 'auto' (so barge-in's echo "
+            "cancellation does not see it). Empty picks the first of "
             "afplay, paplay, aplay, ffplay on PATH."
         ),
     )

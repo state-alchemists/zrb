@@ -20,7 +20,8 @@ class OpenAISpeechBackend(AnySpeechBackend):
     voice sounds (the API's ``instructions``); the ``tts-1`` models do not
     take one, so it is left out for them. With no *timeout*, audio that
     stops arriving for *stall_timeout* seconds (default:
-    `CFG.LLM_SPEECH_STALL_TIMEOUT`) is given up on.
+    `CFG.LLM_SPEECH_STALL_TIMEOUT`) is given up on. With a *wav_player*,
+    `create_audio` gives ``None``: the named player plays every sentence.
     """
 
     def __init__(
@@ -50,7 +51,10 @@ class OpenAISpeechBackend(AnySpeechBackend):
     def create_utterance(self, text: str) -> Utterance:
         return create_streamed_wav_utterance(self._request(text), self._wav_player)
 
-    def create_audio(self, text: str) -> SpeechAudio:
+    def create_audio(self, text: str) -> SpeechAudio | None:
+        # A WAV player the user named is theirs to keep: zrb leaves it be.
+        if self._wav_player:
+            return None
         response = self._request(text)
         try:
             return create_streamed_wav_audio(response, lambda: _close(response))

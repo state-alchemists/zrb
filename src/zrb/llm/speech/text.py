@@ -125,10 +125,14 @@ def _cut(text: str, max_chars: int) -> str:
 
 def fill_template(template: str, **values: str) -> str:
     """*template* with each ``{name}`` in *values* replaced. Other braces
-    are left as written, so a configured phrase needs no escaping."""
-    for name, value in values.items():
-        template = template.replace("{" + name + "}", value)
-    return template
+    are left as written, so a configured phrase needs no escaping. One pass:
+    a value that itself holds ``{name}`` is not filled in again."""
+    if not values:
+        return template
+    names = "|".join(re.escape(name) for name in values)
+    return re.sub(
+        "\\{(" + names + ")\\}", lambda match: values[match.group(1)], template
+    )
 
 
 def match_tool_phrase(tool: str | None, phrases: dict[str, str]) -> str | None:

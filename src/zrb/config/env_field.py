@@ -180,6 +180,12 @@ class EnvField(Generic[T]):
             return self._write_name
         return f"{prefix}_{self._write_name}"
 
+    def get_read_keys(self, prefix: str) -> list[str]:
+        """Every environment variable name this field reads, aliases included."""
+        return [
+            name if self._no_prefix else f"{prefix}_{name}" for name in self._read_names
+        ]
+
     def is_set(self, prefix: str) -> bool:
         """Whether any env var this field *reads* is present.
 
@@ -188,10 +194,7 @@ class EnvField(Generic[T]):
         its default when unset, so the value alone cannot tell a caller whether
         the user chose it. Reach it through ``CFG.is_env_set(name)``.
         """
-        return any(
-            (name if self._no_prefix else f"{prefix}_{name}") in os.environ
-            for name in self._read_names
-        )
+        return any(key in os.environ for key in self.get_read_keys(prefix))
 
     def serialize(self, value: Any) -> str:
         """Render *value* the way this field writes it to the environment."""

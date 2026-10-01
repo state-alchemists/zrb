@@ -4,10 +4,10 @@ import base64
 import json
 import os
 
+from zrb.config.config import CFG
 from zrb.llm.speech.backend.any_speech_backend import AnySpeechBackend
 from zrb.llm.speech.backend.audio import SpeechAudio
 from zrb.llm.speech.backend.http import get_required_env, pcm_to_wav, post_json
-from zrb.config.config import CFG
 from zrb.llm.speech.backend.utterance import Utterance, create_wav_utterance
 from zrb.llm.speech.text import fill_template
 
@@ -22,7 +22,8 @@ class GeminiSpeechBackend(AnySpeechBackend):
     prompt, ahead of the text to read. *prompt* (no style) and
     *style_prompt* wrap the text, as ``{text}`` and ``{style}``; left
     ``None``, `CFG.LLM_SPEECH_GEMINI_PROMPT` and
-    `CFG.LLM_SPEECH_GEMINI_STYLE_PROMPT`.
+    `CFG.LLM_SPEECH_GEMINI_STYLE_PROMPT`. With a *wav_player*,
+    `create_audio` gives ``None``: the named player plays every sentence.
     """
 
     def __init__(
@@ -54,7 +55,10 @@ class GeminiSpeechBackend(AnySpeechBackend):
             pcm_to_wav(self._synthesize(text)), self._wav_player
         )
 
-    def create_audio(self, text: str) -> SpeechAudio:
+    def create_audio(self, text: str) -> SpeechAudio | None:
+        # A WAV player the user named is theirs to keep: zrb leaves it be.
+        if self._wav_player:
+            return None
         return SpeechAudio(_SAMPLE_RATE, [self._synthesize(text)])
 
     def _synthesize(self, text: str) -> bytes:

@@ -23,9 +23,9 @@ from __future__ import annotations
 import asyncio
 import os
 import uuid
+from collections.abc import Sequence
 from contextlib import ExitStack
 from dataclasses import replace
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine, cast
 
 from zrb.config.config import CFG

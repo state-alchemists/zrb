@@ -104,6 +104,28 @@ def test_a_stopped_utterance_never_starts_its_player(popen):
     assert popen.started == []
 
 
+def test_the_start_is_reported_once_the_player_runs(popen):
+    started = []
+    utterance = Utterance(["say", "hi"])
+    utterance.set_on_start(lambda: started.append(len(popen.started)))
+
+    utterance.play(timeout=5)
+    utterance.report_started()
+
+    assert started == [1]  # after the player launched, and only once
+
+
+def test_a_stopped_utterance_reports_no_start(popen):
+    started = []
+    utterance = Utterance(["say", "hi"])
+    utterance.set_on_start(lambda: started.append(True))
+    utterance.stop()
+
+    utterance.play(timeout=5)
+
+    assert started == []
+
+
 def test_a_failing_player_is_logged(monkeypatch, popen, caplog):
     monkeypatch.setattr(
         "zrb.llm.speech.backend.utterance.subprocess.Popen",

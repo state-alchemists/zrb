@@ -164,6 +164,20 @@ class UIStateDefaultsMixin:
             self._uidefaults_background_tasks = set()
         return self._uidefaults_background_tasks
 
+    @property
+    def is_turn_running(self) -> bool:
+        """No turn of its own to run."""
+        return False
+
+    @property
+    def is_waiting_for_answer(self) -> bool:
+        """No prompt of its own to wait on."""
+        return False
+
+    def is_prompt_answered_since(self, asked_at: float) -> bool:
+        """No prompt of its own to have answered."""
+        return False
+
     def invalidate_ui(self) -> None:
         """Repaint hook. A UI with no addressable surface has nothing to do."""
 

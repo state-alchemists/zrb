@@ -3,6 +3,8 @@ from unittest.mock import AsyncMock, MagicMock, PropertyMock
 
 import pytest
 
+from zrb.llm.hook.manager import HookManager
+from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.llm.ui.multi_ui import MultiUI
 
 
@@ -269,11 +271,75 @@ async def test_multi_ui_ask_user_race(multi_ui, child_ui_1, child_ui_2):
     assert res == "input 2"
 
 
-def test_cancel_current_turn_reaches_every_child():
-    children = [MagicMock(), MagicMock()]
+def _create_stop_recording_task(turn_manager: HookManager) -> MagicMock:
+    turn_manager.execute_hooks = AsyncMock(return_value=[])
+    return MagicMock(active_hook_manager=turn_manager, hook_manager=None)
+
+
+@pytest.mark.asyncio
+async def test_cancel_current_turn_cancels_the_turn_multi_ui_runs():
+    """Children run no turn under a MultiUI, so it must cancel its own and
+    fire Stop once, on the manager the turn runs with."""
+    children = [MagicMock(conversation_session_name="s1"), MagicMock()]
     multi_ui = MultiUI(children)
+    turn_manager = HookManager(search_dirs=[])
+    multi_ui.set_llm_task(_create_stop_recording_task(turn_manager))
+    started, cancelled = asyncio.Event(), asyncio.Event()
+
+    async def run():
+        started.set()
+        try:
+            await asyncio.sleep(10)
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    await multi_ui.message_queue.put(
+        QueuedMessage(text="hi", attachments=[], kind="message", run=run)
+    )
+    loop_task = asyncio.create_task(multi_ui.process_messages_loop())
+    await asyncio.wait_for(started.wait(), 1)
 
     multi_ui.cancel_current_turn("barge_in")
+    await asyncio.wait_for(cancelled.wait(), 1)
+    await asyncio.sleep(0)
+    loop_task.cancel()
 
     for child in children:
-        child.cancel_current_turn.assert_called_once_with("barge_in")
+        child.cancel_pending_confirmations.assert_called_once()
+        child.cancel_current_turn.assert_not_called()
+    [call] = turn_manager.execute_hooks.call_args_list
+    assert call.args[0].value == "Stop"
+    assert call.args[1] == {"reason": "barge_in", "session": "s1"}
+
+
+def test_cancel_current_turn_with_no_turn_only_releases_confirmations():
+    children = [MagicMock(), MagicMock()]
+    multi_ui = MultiUI(children)
+    turn_manager = HookManager(search_dirs=[])
+    multi_ui.set_llm_task(_create_stop_recording_task(turn_manager))
+
+    multi_ui.cancel_current_turn("escape")
+
+    for child in children:
+        child.cancel_pending_confirmations.assert_called_once()
+    turn_manager.execute_hooks.assert_not_called()
+
+
+@pytest.mark.parametrize("waiting", [(False, False), (False, True)])
+def test_is_waiting_for_answer_when_any_child_waits(waiting):
+    children = [MagicMock(is_waiting_for_answer=w) for w in waiting]
+
+    assert MultiUI(children).is_waiting_for_answer is any(waiting)
+
+
+@pytest.mark.parametrize("answered", [(False, False), (True, False)])
+def test_is_prompt_answered_since_when_any_child_answered(answered):
+    children = [MagicMock() for _ in answered]
+    for child, is_answered in zip(children, answered):
+        child.is_prompt_answered_since.return_value = is_answered
+
+    assert MultiUI(children).is_prompt_answered_since(1.5) is any(answered)
+    for child in children:
+        if child.is_prompt_answered_since.called:
+            child.is_prompt_answered_since.assert_called_with(1.5)

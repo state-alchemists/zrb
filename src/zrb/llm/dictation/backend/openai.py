@@ -27,12 +27,27 @@ class OpenAIDictationBackend(AnyDictationBackend):
         return "openai"
 
     async def transcribe(self, audio: bytes) -> str:
-        wav_buffer = io.BytesIO(pcm16_to_wav_bytes(audio))
-        wav_buffer.name = "audio.wav"
-        result = await self._get_client().audio.transcriptions.create(
-            model=self._model, file=wav_buffer
-        )
+        """*audio*'s words, unfiltered."""
+        transcriptions = self._get_client().audio.transcriptions
+        result = await transcriptions.create(model=self._model, file=_to_wav(audio))
         return result.text
+
+    async def transcribe_speech(self, audio: bytes) -> str:
+        """*audio*'s words, without the segments a Whisper model scores as
+        likely no speech or repetitive. Other models give no scores."""
+        if not self._model.startswith("whisper"):
+            return await self.transcribe(audio)
+        transcriptions = self._get_client().audio.transcriptions
+        result = await transcriptions.create(
+            model=self._model, file=_to_wav(audio), response_format="verbose_json"
+        )
+        segments = getattr(result, "segments", None)
+        # A compatible server may leave the segments out.
+        if not isinstance(segments, list) or not segments:
+            return result.text
+        return " ".join(
+            segment.text.strip() for segment in segments if _is_speech(segment)
+        ).strip()
 
     def _get_client(self):
         if self._client is not None:
@@ -50,3 +65,26 @@ class OpenAIDictationBackend(AnyDictationBackend):
             )
         self._client = AsyncOpenAI(api_key=api_key, base_url=self._base_url)
         return self._client
+
+
+def _to_wav(audio: bytes) -> io.BytesIO:
+    wav_buffer = io.BytesIO(pcm16_to_wav_bytes(audio))
+    wav_buffer.name = "audio.wav"
+    return wav_buffer
+
+
+# Whisper's own signs that a segment is not speech, as the Whisper project
+# uses them: likely silence the model is unsure of, or text so repetitive it
+# compresses well.
+_NO_SPEECH_PROB = 0.6
+_LOW_LOGPROB = -1.0
+_REPETITIVE_COMPRESSION = 2.4
+
+
+def _is_speech(segment: object) -> bool:
+    no_speech = float(getattr(segment, "no_speech_prob", 0.0) or 0.0)
+    logprob = float(getattr(segment, "avg_logprob", 0.0) or 0.0)
+    compression = float(getattr(segment, "compression_ratio", 0.0) or 0.0)
+    if no_speech > _NO_SPEECH_PROB and logprob < _LOW_LOGPROB:
+        return False
+    return compression <= _REPETITIVE_COMPRESSION
