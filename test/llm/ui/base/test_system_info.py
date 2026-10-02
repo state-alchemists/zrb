@@ -57,6 +57,12 @@ def test_get_cwd_display_abbreviates_home(ui, monkeypatch):
     assert ui.system_info.get_cwd_display() == "~/projects/zrb"
 
 
+def test_get_cwd_display_keeps_a_sibling_of_home(ui, monkeypatch):
+    monkeypatch.setattr("os.getcwd", lambda: "/home/tester2/project")
+    monkeypatch.setattr("os.path.expanduser", lambda _: "/home/tester")
+    assert ui.system_info.get_cwd_display() == "/home/tester2/project"
+
+
 def test_get_cwd_display_keeps_non_home_path(ui, monkeypatch):
     monkeypatch.setattr("os.getcwd", lambda: "/var/log")
     monkeypatch.setattr("os.path.expanduser", lambda _: "/home/tester")

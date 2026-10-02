@@ -325,6 +325,19 @@ async def test_handle_exec_command(ui):
         assert "successfully" in "".join(ui.outputs)
 
 
+def test_handle_exec_command_queues_on_the_multi_ui_shared_queue(ui):
+    """Under a MultiUI the exec waits its turn behind LLM turns on the shared
+    queue, not on the child's own queue."""
+    from zrb.llm.ui.multi_ui import MultiUI
+
+    multi_ui = MultiUI([ui])
+
+    assert ui.handle_exec_command("/exec echo hello") is True
+
+    assert multi_ui.message_queue.qsize() == 1
+    assert ui.message_queue.qsize() == 0
+
+
 def test_handle_exec_command_ignored_while_thinking(ui):
     ui.is_thinking = True
     assert ui.handle_exec_command("/exec echo hello") is False

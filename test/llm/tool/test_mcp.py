@@ -221,3 +221,21 @@ def test_mcp_toolset_factory_overrides(mock_fs):
         transport = toolsets[0].client.transport
         assert isinstance(transport, StdioTransport)
         assert transport.command == "cmd2"
+
+
+def test_mcp_config_skips_home_when_cwd_is_a_sibling_of_home(tmp_path):
+    home_dir = tmp_path / "alice"
+    sibling = tmp_path / "alice2" / "project"
+    home_dir.mkdir()
+    sibling.mkdir(parents=True)
+    (home_dir / "mcp-config.json").write_text(
+        json.dumps({"mcpServers": {"home_server": {"command": "cmd"}}})
+    )
+
+    with (
+        patch("os.path.expanduser", return_value=str(home_dir)),
+        patch("os.getcwd", return_value=str(sibling)),
+    ):
+        toolsets = load_mcp_config()
+
+    assert toolsets == []

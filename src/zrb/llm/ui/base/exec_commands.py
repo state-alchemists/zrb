@@ -50,7 +50,7 @@ class BaseUIExecCommands:
                     kind="exec",
                     run=lambda: self.run_shell_command(entry.text),
                 )
-                self._base_ui.message_queue.put_nowait(entry)
+                self._base_ui.effective_message_queue.put_nowait(entry)
                 return True
         return False
 
