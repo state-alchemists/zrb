@@ -18,6 +18,7 @@ from zrb.llm.custom_command.resolver import get_custom_command_match, run_custom
 from zrb.llm.task.shared_getters import apply_model_hooks
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.util.cli.style import stylize_error, stylize_muted
+from zrb.util.cmd.command import wait_for_exit_and_drain
 from zrb.util.exception import exception_summary
 
 if TYPE_CHECKING:
@@ -83,12 +84,11 @@ class BaseUIExecCommands:
 
             # Fail-fast fan-out: a broken reader should abort immediately, not
             # be masked by return_exceptions.
-            await asyncio.gather(
+            readers = asyncio.gather(
                 read_stream(process.stdout),
                 read_stream(process.stderr),
             )
-
-            return_code = await process.wait()
+            return_code = await wait_for_exit_and_drain(process, readers)
 
             if return_code == 0:
                 self._base_ui.append_to_output(

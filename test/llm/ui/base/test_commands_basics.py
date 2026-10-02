@@ -317,7 +317,7 @@ async def test_handle_exec_command(ui):
         mock_proc = AsyncMock()
         mock_proc.stdout.readline.side_effect = [b"hello\n", b""]
         mock_proc.stderr.readline.return_value = b""
-        mock_proc.wait.return_value = 0
+        mock_proc.returncode = 0
         mock_sub.return_value = mock_proc
 
         await ui.run_shell_command("echo hello")

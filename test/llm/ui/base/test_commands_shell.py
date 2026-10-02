@@ -1,5 +1,7 @@
 import asyncio
 import os
+import re
+import signal
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -30,6 +32,17 @@ async def test_run_shell_command_reports_nonzero_exit(ui, tmp_path):
     await ui.run_shell_command(f"exit 3")
     assert "Command failed with exit code 3" in "".join(ui.outputs)
     assert ui.is_thinking is False
+
+
+@pytest.mark.skipif(os.name != "posix", reason="`&` and `$!` are POSIX shell syntax")
+@pytest.mark.asyncio
+async def test_run_shell_command_finishes_when_a_background_child_holds_the_pipes(ui):
+    """`/exec server &` ends with the shell, though the child keeps its pipes."""
+    await asyncio.wait_for(ui.run_shell_command("sleep 30 & echo $!"), timeout=3)
+    output = "".join(ui.outputs)
+    child = int(re.search(r"^(\d+)$", output, re.MULTILINE).group(1))
+    os.kill(child, signal.SIGKILL)
+    assert "Command finished successfully" in output
 
 
 @pytest.mark.asyncio
