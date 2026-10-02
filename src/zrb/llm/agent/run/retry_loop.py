@@ -262,11 +262,17 @@ def _retry_with_tool_call_correction(
     )
     print_fn("\n[SYSTEM] Invalid tool call detected, asking model to retry...")
     CFG.LOGGER.debug(f"Invalid tool call error: {exc}. Injecting corrective message.")
-    if current_message is not None and isinstance(current_message, str):
+    if isinstance(current_message, str):
         return RetryOutcome(
             should_retry=True,
             new_history=current_history,
             new_message=current_message + "\n\n" + corrective,
+        )
+    if isinstance(current_message, (list, tuple)):
+        return RetryOutcome(
+            should_retry=True,
+            new_history=current_history,
+            new_message=[*current_message, corrective],
         )
     return RetryOutcome(
         should_retry=True,

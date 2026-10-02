@@ -382,3 +382,54 @@ async def test_stop_event_keeps_earlier_rounds_after_empty_completion_retry():
     assert captured[0]["wrote_files"] is True
     assert captured[0]["changed_paths"] == ["a.txt"]
     assert captured[0]["journal_worthy"] is True
+
+
+@pytest.mark.asyncio
+async def test_invalid_tool_call_retry_keeps_multimodal_prompt():
+    """The corrective retry of a turn with an attachment still carries the
+    user's request and the attachment."""
+    from pydantic_ai import Agent, BinaryContent
+    from pydantic_ai.exceptions import ModelHTTPError
+    from pydantic_ai.messages import UserPromptPart
+    from pydantic_ai.models.function import FunctionModel
+
+    retried_with: list = []
+
+    async def stream_fn(messages, info):
+        if not retried_with and not any(
+            "BROKEN" in str(p.content)
+            for m in messages
+            for p in m.parts
+            if isinstance(p, UserPromptPart)
+        ):
+            raise ModelHTTPError(
+                status_code=400,
+                model_name="m",
+                body={"message": "unknown tool: ReadRead"},
+            )
+        retried_with.extend(
+            item
+            for m in messages
+            for p in m.parts
+            if isinstance(p, UserPromptPart)
+            for item in (p.content if isinstance(p.content, list) else [p.content])
+        )
+        yield "ok"
+
+    attachment = BinaryContent(data=b"hello", media_type="text/plain")
+    result, _ = await run_agent(
+        agent=Agent(FunctionModel(stream_function=stream_fn)),
+        message="SUMMARIZE THE REPORT",
+        message_history=[],
+        attachments=[attachment],
+        limiter=LLMLimiter(),
+    )
+
+    assert result == "ok"
+    texts = [item for item in retried_with if isinstance(item, str)]
+    assert any("SUMMARIZE THE REPORT" in text for text in texts)
+    assert any("BROKEN" in text for text in texts)
+    assert any(
+        isinstance(item, BinaryContent) and item.data == b"hello"
+        for item in retried_with
+    )
