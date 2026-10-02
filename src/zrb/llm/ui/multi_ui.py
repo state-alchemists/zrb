@@ -662,8 +662,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
     ) -> str:
         """Race all UIs for input and return the first response.
 
-        When one UI wins, cancel and clear pending confirmations in other UIs.
-        This ensures Terminal's confirmation queue doesn't get out of sync.
+        The losers' prompts are cancelled once one UI answers.
         """
         return await self._race_children(
             lambda ui: ui.ask_user(
@@ -676,7 +675,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         self, spec: "ChoiceSpec", agent_id: str | None = None
     ) -> str:
         """Race all UIs for a multiple-choice answer and return the first,
-        with the same cancel-and-clear rules as `ask_user`."""
+        with the same rules as `ask_user`."""
         return await self._race_children(
             lambda ui: ui.ask_user_choice(spec, agent_id=agent_id), "ask_user_choice"
         )
@@ -684,8 +683,15 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
     async def _race_children(
         self, ask: Callable[[Any], Coroutine[Any, Any, str]], label: str
     ) -> str:
+        """Return the first answer any child gives.
+
+        A child that fails drops out of the race rather than winning it: an
+        empty answer approves a tool call, so a broken channel must never
+        stand in for the human. With no child left to answer, the race raises
+        — the same fail-closed rule as `MultiplexApprovalChannel`.
+        """
         if is_shutdown_requested():
-            return ""
+            raise RuntimeError(f"Shutdown requested; {label} has no answer")
         loop = asyncio.get_running_loop()
         pending_tasks: dict[asyncio.Task, tuple[int, Any]] = {}
         for i, ui in enumerate(self._uis):
@@ -694,33 +700,39 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             except Exception as e:
                 CFG.LOGGER.debug(f"Child UI {label} setup failed: {e}")
         if not pending_tasks:
-            return ""
-        self._pending_input_tasks = list(pending_tasks.keys())
+            raise RuntimeError(f"No child UI could take {label}")
+        # Concurrent races (parallel sub-agents) share this list, so each one
+        # adds and removes only its own tasks.
+        self._pending_input_tasks.extend(pending_tasks)
+        waiting: set[asyncio.Task] = set(pending_tasks)
+        last_error: BaseException | None = None
         try:
-            done, pending = await asyncio.wait(
-                pending_tasks.keys(), return_when=asyncio.FIRST_COMPLETED
-            )
-            # Several UIs may finish in the same wait round; the lowest index
-            # wins so the result never depends on set iteration order.
-            completed_task = min(done, key=lambda t: pending_tasks[t][0])
-            winning_ui_index, winning_ui = pending_tasks[completed_task]
-            self._last_winning_ui = winning_ui
-            for task in done:
-                if task is not completed_task:
-                    task.cancel()
-            for task in pending:
-                task.cancel()
-            try:
-                result = completed_task.result()
-            except Exception as e:
-                CFG.LOGGER.debug(f"Winning UI {label} failed: {e}")
-                result = ""
-            # Sync sibling confirmation queues even on failure: no input race
-            # is in flight anymore, so stale confirmations must not linger.
-            self.clear_pending_confirmations_except(winning_ui_index)
-            return result
+            while waiting:
+                done, waiting = await asyncio.wait(
+                    waiting, return_when=asyncio.FIRST_COMPLETED
+                )
+                # Several UIs may finish in the same wait round; the lowest
+                # index wins so the result never depends on set iteration order.
+                for task in sorted(done, key=lambda t: pending_tasks[t][0]):
+                    if task.cancelled():
+                        continue
+                    error = task.exception()
+                    if error is not None:
+                        CFG.LOGGER.debug(f"Child UI {label} failed: {error}")
+                        last_error = error
+                        continue
+                    self._last_winning_ui = pending_tasks[task][1]
+                    return task.result()
+            raise RuntimeError(f"Every child UI failed {label}") from last_error
         finally:
-            self._pending_input_tasks = []
+            # Cancelling a loser releases its own prompt (the TUI drops it from
+            # its confirmation queue), leaving other races' prompts in place.
+            for task in pending_tasks:
+                task.cancel()
+            await asyncio.gather(*pending_tasks, return_exceptions=True)
+            for task in pending_tasks:
+                if task in self._pending_input_tasks:
+                    self._pending_input_tasks.remove(task)
 
     @property
     def is_turn_running(self) -> bool:
@@ -759,20 +771,6 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         """Whether any child has answered the first prompt asked at or after
         *asked_at*: an answer from any of them settles it."""
         return any(ui.is_prompt_answered_since(asked_at) for ui in self._uis)
-
-    def clear_pending_confirmations_except(self, except_index: int):
-        """Cancel pending confirmation futures in all UIs except the winner.
-
-        This prevents Terminal's confirmation queue from getting out of sync
-        when another UI wins the input race.
-        """
-        for i, ui in enumerate(self._uis):
-            if i == except_index:
-                continue
-            try:
-                ui.cancel_pending_confirmations()
-            except Exception as e:
-                CFG.LOGGER.debug(f"Child UI cancel_pending_confirmations failed: {e}")
 
     def stream_to_parent(
         self,

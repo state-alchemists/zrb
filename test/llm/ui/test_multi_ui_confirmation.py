@@ -174,81 +174,86 @@ async def test_multi_ui_confirm_tool_execution(multi_ui, child_ui_1):
     assert res3 == "Approved Channel"
 
 
-def test_clear_pending_confirmations_except(mock_child_ui):
-    """Test _clear_pending_confirmations_except cancels non-winning UIs."""
-    other_ui = MagicMock()
-    other_ui.cancel_pending_confirmations = MagicMock()
-    multi_ui = MultiUI([mock_child_ui, other_ui])
-
-    multi_ui.clear_pending_confirmations_except(0)
-
-    other_ui.cancel_pending_confirmations.assert_called_once()
-
-
-def test_clear_pending_confirmations_skips_exception():
-    """Test _clear_pending_confirmations_except handles exceptions."""
-    mock_ui1 = MagicMock()
-    mock_ui1.cancel_pending_confirmations = MagicMock(side_effect=Exception("Test"))
-    mock_ui2 = MagicMock()
-    mock_ui2.cancel_pending_confirmations = MagicMock()
-    multi_ui = MultiUI([mock_ui1, mock_ui2])
-
-    # Should not raise when skipping index 0
-    multi_ui.clear_pending_confirmations_except(0)
-
-    # ui2 (index 1) should be called
-    mock_ui2.cancel_pending_confirmations.assert_called_once()
-    # ui1 (index 0) should NOT be called because we're skipping it
-    mock_ui1.cancel_pending_confirmations.assert_not_called()
-
-
 @pytest.mark.asyncio
-async def test_ask_user_returns_empty_when_shutdown():
-    """Test ask_user returns empty string when shutdown is requested."""
-    multi_ui = MultiUI([MagicMock()])
-
-    # Patch is_shutdown_requested to return True
+async def test_ask_user_raises_when_shutdown(monkeypatch):
+    """No answer during shutdown: raising fails closed, "" would approve."""
     import zrb.llm.ui.multi_ui as multi_ui_module
 
-    original_func = multi_ui_module.is_shutdown_requested
-    multi_ui_module.is_shutdown_requested = lambda: True
+    monkeypatch.setattr(multi_ui_module, "is_shutdown_requested", lambda: True)
+    multi_ui = MultiUI([MagicMock()])
 
-    try:
-        result = await multi_ui.ask_user("test prompt")
-        assert result == ""
-    finally:
-        multi_ui_module.is_shutdown_requested = original_func
+    with pytest.raises(RuntimeError):
+        await multi_ui.ask_user("test prompt")
 
 
 @pytest.mark.asyncio
-async def test_ask_user_returns_empty_when_no_pending_tasks(mock_child_ui):
-    """Test ask_user returns empty when no UIs have ask_user method."""
+async def test_ask_user_raises_when_no_child_can_be_asked(mock_child_ui):
+    del mock_child_ui.ask_user
     multi_ui = MultiUI([mock_child_ui])
 
-    # Remove ask_user from mock
-    del mock_child_ui.ask_user
-
-    result = await multi_ui.ask_user("test prompt")
-    assert result == ""
+    with pytest.raises(RuntimeError):
+        await multi_ui.ask_user("test prompt")
 
 
 @pytest.mark.asyncio
-async def test_ask_user_returns_empty_on_exception():
-    """Test ask_user returns empty when completed task raises exception."""
+async def test_ask_user_raises_when_every_child_fails():
     mock_ui = MagicMock()
-
-    async def error_response(prompt, **kwargs):
-        await asyncio.sleep(0.1)
-        raise Exception("Test error")
-
-    mock_ui.ask_user = error_response
-
+    mock_ui.ask_user = AsyncMock(side_effect=Exception("Test error"))
     multi_ui = MultiUI([mock_ui])
 
-    result = await multi_ui.ask_user("test prompt")
+    with pytest.raises(RuntimeError):
+        await multi_ui.ask_user("test prompt")
 
-    # Should return empty when exception occurs
-    assert result == ""
+
+@pytest.mark.asyncio
+async def test_failing_child_does_not_win_the_race():
+    """A channel that errors first must not answer for the human."""
+    broken = MagicMock()
+    broken.ask_user = AsyncMock(side_effect=ConnectionError("network down"))
+    human = MagicMock()
+
+    async def human_answers(*args, **kwargs):
+        await asyncio.sleep(0.02)
+        return "n"
+
+    human.ask_user = human_answers
+    multi_ui = MultiUI([broken, human])
+
+    assert await multi_ui.ask_user("Approve rm?") == "n"
+    assert multi_ui.pending_input_tasks == []
+
+
+@pytest.mark.asyncio
+async def test_answering_one_race_leaves_a_concurrent_race_waiting():
+    """Parallel sub-agents each wait on their own prompt: answering A on one
+    child must not cancel B's prompt queued on the other."""
+
+    class QueueChild(MagicMock):
+        def __init__(self):
+            super().__init__()
+            self.queue: dict[str, asyncio.Future[str]] = {}
+
+        async def ask_user(self, prompt, **kwargs):
+            self.queue[prompt] = asyncio.get_running_loop().create_future()
+            return await self.queue[prompt]
+
+        def cancel_pending_confirmations(self, flush: bool = True):
+            for future in self.queue.values():
+                future.cancel()
+
+    terminal, telegram = QueueChild(), QueueChild()
+    multi_ui = MultiUI([terminal, telegram])
+    race_a = asyncio.create_task(multi_ui.ask_user("A"))
+    race_b = asyncio.create_task(multi_ui.ask_user("B"))
+    await asyncio.sleep(0.01)
+
+    telegram.queue["A"].set_result("y")
+    assert await race_a == "y"
+    await asyncio.sleep(0.01)
+    assert not race_b.done()
+
+    terminal.queue["B"].set_result("n")
+    assert await race_b == "n"
 
 
 @pytest.mark.asyncio
