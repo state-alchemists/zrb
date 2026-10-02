@@ -7,7 +7,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, TextIO
 
 if TYPE_CHECKING:
+    from pydantic_ai.models import Model
+
     from zrb.llm.agent.types import RequestUsage, RunUsage
+    from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+    from zrb.llm.snapshot.manager import SnapshotManager
 
     from zrb.llm.ui.any_ui import ChoiceSpec
 
@@ -151,31 +155,74 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
     def last_output(self, value: str) -> None:
         self._last_output = value
 
+    # State the primary child owns. Callers that hold the MultiUI itself
+    # (`LLMTask` setting `ui.model`, the session name reported at exit, the
+    # sub-agent yolo fallback) must see the primary's values, not the inert
+    # `UIStateDefaultsMixin` ones.
     @property
-    def small_model(self):
-        """The main child's `/model small ...` override (delegated so the agent
-        runner's `run_agent` binds `current_small_model` from the MultiUI itself
-        rather than seeing `None` and falling back to CFG)."""
+    def model(self) -> "str | Model | None":
+        return self.main_ui.model if self.main_ui is not None else None
+
+    @model.setter
+    def model(self, value: "str | Model | None") -> None:
+        if self.main_ui is not None:
+            self.main_ui.model = value
+
+    @property
+    def small_model(self) -> "str | Model | None":
         return self.main_ui.small_model if self.main_ui is not None else None
 
     @small_model.setter
-    def small_model(self, value: Any) -> None:
-        """Write through to the main child, so a `/model small ...` applied to
-        the MultiUI lands where `small_model` is read back from."""
+    def small_model(self, value: "str | Model | None") -> None:
         if self.main_ui is not None:
             self.main_ui.small_model = value
 
     @property
-    def multimodal_model(self):
-        """The main child's `/model multimodal ...` override — same delegation
-        rationale as `small_model`."""
+    def multimodal_model(self) -> "str | Model | None":
         return self.main_ui.multimodal_model if self.main_ui is not None else None
 
     @multimodal_model.setter
-    def multimodal_model(self, value: Any) -> None:
-        """Write through to the main child — same rationale as `small_model`."""
+    def multimodal_model(self, value: "str | Model | None") -> None:
         if self.main_ui is not None:
             self.main_ui.multimodal_model = value
+
+    @property
+    def conversation_session_name(self) -> str:
+        return self.main_ui.conversation_session_name if self.main_ui is not None else ""
+
+    @conversation_session_name.setter
+    def conversation_session_name(self, value: str) -> None:
+        if self.main_ui is not None:
+            self.main_ui.conversation_session_name = value
+
+    @property
+    def plan_mode_active(self) -> bool:
+        return self.main_ui.plan_mode_active if self.main_ui is not None else False
+
+    @plan_mode_active.setter
+    def plan_mode_active(self, value: bool) -> None:
+        if self.main_ui is not None:
+            self.main_ui.plan_mode_active = value
+
+    @property
+    def yolo(self) -> bool | frozenset:
+        return self.main_ui.yolo if self.main_ui is not None else False
+
+    @property
+    def snapshot_manager(self) -> "SnapshotManager | None":
+        return self.main_ui.snapshot_manager if self.main_ui is not None else None
+
+    @property
+    def history_manager(self) -> "AnyHistoryManager | None":
+        return self.main_ui.history_manager if self.main_ui is not None else None
+
+    @property
+    def llm_task(self) -> Any:
+        return self._llm_task
+
+    @llm_task.setter
+    def llm_task(self, value: Any) -> None:
+        self.set_llm_task(value)
 
     @property
     def message_queue(self) -> "MessageQueue":

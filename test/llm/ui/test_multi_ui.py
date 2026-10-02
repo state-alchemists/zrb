@@ -333,3 +333,39 @@ def test_model_overrides_read_and_write_through_to_the_primary_child():
     assert primary.small_model == "small-new"
     assert primary.multimodal_model == "mm-new"
     assert first.small_model != "small-new"
+
+
+def test_conversation_session_name_reads_through_to_main_ui(mock_child_ui):
+    mock_child_ui.conversation_session_name = "my-session"
+    multi_ui = MultiUI([mock_child_ui])
+
+    assert multi_ui.conversation_session_name == "my-session"
+
+
+def test_conversation_session_name_writes_through_to_main_ui(mock_child_ui):
+    multi_ui = MultiUI([mock_child_ui])
+
+    multi_ui.conversation_session_name = "renamed"
+
+    assert mock_child_ui.conversation_session_name == "renamed"
+
+
+def test_primary_owned_state_reads_through_to_main_ui(mock_child_ui):
+    mock_child_ui.yolo = True
+    mock_child_ui.model = "main-model"
+    mock_child_ui.plan_mode_active = True
+    multi_ui = MultiUI([mock_child_ui])
+
+    assert multi_ui.yolo is True
+    assert multi_ui.model == "main-model"
+    assert multi_ui.plan_mode_active is True
+    assert multi_ui.history_manager is mock_child_ui.history_manager
+
+
+def test_llm_task_reports_what_set_llm_task_stored(mock_child_ui):
+    multi_ui = MultiUI([mock_child_ui])
+    task = MagicMock()
+
+    multi_ui.set_llm_task(task)
+
+    assert multi_ui.llm_task is task

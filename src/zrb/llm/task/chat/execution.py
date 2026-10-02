@@ -40,12 +40,10 @@ from zrb.llm.task.shared_getters import (
 )
 from zrb.llm.tool.ambient_state import get_session_ownership_key
 from zrb.llm.tool_call.handler import ToolCallHandler
-from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.std_ui import StdUI
 from zrb.llm.util.attachment import get_attachments
 from zrb.llm.util.feature_config import close_feature_sessions
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
-from zrb.util.cli.style import stylize_highlight, stylize_muted
 from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
@@ -473,13 +471,6 @@ class ChatExecution:
             should_skip_approval=_should_skip_approval,
         )
 
-    def _print_conversation_name(self, ctx: AnyContext, conversation_name: str):
-        stylized_label = stylize_muted("Session")
-        stylized_conversation_name = stylize_highlight(conversation_name)
-        ctx.print(
-            stylize_muted(f"{stylized_label}: {stylized_conversation_name}"), plain=True
-        )
-
     def _get_initial_conversation_name(self, ctx: AnyContext) -> str:
         return resolve_conversation_name(ctx, self._llm_chat_task.conversation_name)
 
@@ -487,9 +478,7 @@ class ChatExecution:
         self, ui: "AnyUI", initial_conversation_name: str
     ) -> str:
         """Get the current conversation name from UI or fallback to initial name."""
-        if isinstance(ui, BaseUI):
-            return ui.conversation_session_name
-        return getattr(ui, "conversation_session_name", initial_conversation_name)
+        return ui.conversation_session_name or initial_conversation_name
 
     def get_model(self, ctx: AnyContext) -> str | Model:
         """Resolve the model to use for this run.
