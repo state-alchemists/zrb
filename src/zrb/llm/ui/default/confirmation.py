@@ -129,14 +129,17 @@ class UIConfirmation:
 
     def resolve_current(self, text: str, echo: str | None) -> bool:
         """Resolve the active request with `text`; optionally echo to output."""
-        if self._ui.confirmation.current is None:
+        current = self._ui.confirmation.current
+        if current is None:
             return False
+        # Cleared before the echo, so the echo is not held behind the
+        # main-agent output buffered while this request was pending.
+        self._ui.confirmation.current = None
         if echo:
             # Callers bake the trailing newline into `echo`.
             self._ui.append_to_output(echo, end="")
-        if not self._ui.confirmation.current.done():
-            self._ui.confirmation.current.set_result(text)
-        self._ui.confirmation.current = None
+        if not current.done():
+            current.set_result(text)
         self._ui.end_choice()
         self._activate_next_confirmation()
         return True
