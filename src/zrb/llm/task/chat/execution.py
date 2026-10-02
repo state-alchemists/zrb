@@ -206,51 +206,52 @@ class ChatExecution:
         Gated to the interactive session on purpose: the non-interactive path is
         reused per-message by the web/SSE runner, where tearing servers down
         would restart them on every message. Each step is guarded so teardown
-        never raises; a second ``KeyboardInterrupt`` still propagates.
+        never raises a step's own failure.
 
-        A cancellation (the Ctrl+C that ended the session) arriving at any
-        awaited step is held, not propagated, until every later step has
-        released its resources — then re-raised, so the caller still sees it.
+        A Ctrl+C — the cancellation or ``KeyboardInterrupt`` that ended the
+        session — arriving at any awaited step is held, not propagated, until
+        every later step has released its resources, then re-raised so the
+        caller still sees it.
         """
-        cancellations: list[asyncio.CancelledError] = []
+        interrupts: list[BaseException] = []
         # SESSION_END fires once per session, like Claude Code's SessionEnd
         # (run_agent fires only STOP per turn). Every exit cause funnels through
         # one `finally`, so `source` is Claude's catch-all "other".
         if self._llm_chat_task.active_hook_manager is not None:
-            await _hold_cancellation(
+            await _hold_interrupt(
                 self._llm_chat_task.active_hook_manager.execute_hooks(
                     HookEvent.SESSION_END,
                     {"reason": "exit"},
                     source="other",
                 ),
                 "SESSION_END hook raised at teardown",
-                cancellations,
+                interrupts,
             )
         # A speaker left open makes the exit wait out its drain.
         try:
             close_feature_sessions(get_session_ownership_key())
         except Exception:
             CFG.LOGGER.debug("Closing feature sessions failed", exc_info=True)
-        await _hold_cancellation(
+        await _hold_interrupt(
             lsp_manager.shutdown_all(),
             "LSP shutdown at session end failed",
-            cancellations,
+            interrupts,
         )
         # Settle detached hooks before releasing the worker pool, so their
         # cancellation handlers can kill process trees that sit in their own
         # process group and never see the terminal's Ctrl+C.
-        await _hold_cancellation(
+        await _hold_interrupt(
             self.teardown_background_hooks(),
             "Background-hook shutdown at session end failed",
-            cancellations,
+            interrupts,
         )
         # Reap background shell / delegation subprocesses while the loop is
         # alive; otherwise their exit logs "Loop <...> that handles pid N is
         # closed".
-        await _hold_cancellation(
+        await _hold_interrupt(
             _cancel_background_shells(),
             "Background-shell teardown at session end failed",
-            cancellations,
+            interrupts,
         )
         try:
             from zrb.llm.tool.delegate_background import get_background_registry
@@ -268,8 +269,8 @@ class ChatExecution:
             shutdown_hook_executor(wait=False)
         except Exception as e:
             CFG.LOGGER.debug(f"Hook-executor shutdown at session end failed: {e}")
-        if cancellations:
-            raise cancellations[0]
+        if interrupts:
+            raise interrupts[0]
 
     async def teardown_background_hooks(self) -> None:
         """Settle this run's detached (``async: true``) hooks.
@@ -530,17 +531,18 @@ def _yolo_skip_decision(ctx, llm_chat_task, tool_def) -> bool:
     return False
 
 
-async def _hold_cancellation(
+async def _hold_interrupt(
     step: Awaitable[object],
     failure_message: str,
-    cancellations: list[asyncio.CancelledError],
+    interrupts: list[BaseException],
 ) -> None:
-    """Await one teardown *step*: log a failure, and record a cancellation in
-    *cancellations* instead of letting it skip the steps after this one."""
+    """Await one teardown *step*: log a failure, and record a cancellation or
+    Ctrl+C in *interrupts* instead of letting it skip the steps after this
+    one."""
     try:
         await step
-    except asyncio.CancelledError as exc:
-        cancellations.append(exc)
+    except (asyncio.CancelledError, KeyboardInterrupt) as exc:
+        interrupts.append(exc)
     except Exception:
         CFG.LOGGER.debug(failure_message, exc_info=True)
 

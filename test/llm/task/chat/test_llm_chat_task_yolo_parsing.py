@@ -1,3 +1,4 @@
+import asyncio
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -181,12 +182,12 @@ async def test_interactive_teardown_shuts_down_the_session_hook_manager():
 
 
 @pytest.mark.asyncio
-async def test_interactive_teardown_finishes_before_reraising_a_cancellation():
-    """A Ctrl+C that cancels SESSION_END must not skip the rest of teardown:
-    a speaker left open makes the exit wait out its drain, and hooks,
-    subprocesses and executors would outlive the session."""
-    import asyncio
-
+@pytest.mark.parametrize("interrupt", [asyncio.CancelledError, KeyboardInterrupt])
+async def test_interactive_teardown_finishes_before_reraising_an_interrupt(interrupt):
+    """A Ctrl+C that interrupts SESSION_END — as a cancellation or as a
+    KeyboardInterrupt — must not skip the rest of teardown: a speaker left
+    open makes the exit wait out its drain, and hooks, subprocesses and
+    executors would outlive the session."""
     from zrb.llm.util.feature_config import FeatureSessions
 
     closed: list[str] = []
@@ -194,13 +195,14 @@ async def test_interactive_teardown_finishes_before_reraising_a_cancellation():
     sessions.get("default")
 
     manager = MagicMock()
-    manager.execute_hooks = AsyncMock(side_effect=asyncio.CancelledError)
-    task = LLMChatTask(name="teardown-task-cancelled")
+    manager.execute_hooks = AsyncMock(side_effect=interrupt)
+    manager.shutdown = AsyncMock()
+    task = LLMChatTask(name="teardown-task-interrupted")
     task.active_hook_manager = manager
 
     with (
         patch("zrb.llm.hook.executor.shutdown_hook_executor") as shutdown_executor,
-        pytest.raises(asyncio.CancelledError),
+        pytest.raises(interrupt),
     ):
         await task.teardown_interactive_resources()
 
