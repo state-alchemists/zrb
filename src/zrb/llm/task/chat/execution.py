@@ -209,20 +209,25 @@ class ChatExecution:
         # SESSION_END fires once per session, like Claude Code's SessionEnd
         # (run_agent fires only STOP per turn). Every exit cause funnels through
         # one `finally`, so `source` is Claude's catch-all "other".
-        if self._llm_chat_task.active_hook_manager is not None:
-            try:
-                await self._llm_chat_task.active_hook_manager.execute_hooks(
-                    HookEvent.SESSION_END,
-                    {"reason": "exit"},
-                    source="other",
-                )
-            except Exception:
-                CFG.LOGGER.debug("SESSION_END hook raised at teardown", exc_info=True)
-
         try:
-            close_feature_sessions(get_session_ownership_key())
-        except Exception:
-            CFG.LOGGER.debug("Closing feature sessions failed", exc_info=True)
+            if self._llm_chat_task.active_hook_manager is not None:
+                try:
+                    await self._llm_chat_task.active_hook_manager.execute_hooks(
+                        HookEvent.SESSION_END,
+                        {"reason": "exit"},
+                        source="other",
+                    )
+                except Exception:
+                    CFG.LOGGER.debug(
+                        "SESSION_END hook raised at teardown", exc_info=True
+                    )
+        finally:
+            # Even when a Ctrl+C cancels the hook above: a speaker left open
+            # makes the exit wait out its drain.
+            try:
+                close_feature_sessions(get_session_ownership_key())
+            except Exception:
+                CFG.LOGGER.debug("Closing feature sessions failed", exc_info=True)
 
         try:
             await lsp_manager.shutdown_all()

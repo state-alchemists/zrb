@@ -267,6 +267,21 @@ def test_drain_cuts_off_what_outlives_its_timeout(lock_file):
     assert backend.utterances[0].stopped.is_set()
 
 
+def test_ctrl_c_during_drain_still_cuts_off_what_is_playing(lock_file, monkeypatch):
+    backend = HangingBackend()
+    speaker = Speaker(_config(backend, lock_file, drain_timeout=5))
+    speaker.say("a long reply")
+    assert backend.started.wait(1)
+
+    def interrupted_join(self, timeout=None):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(threading.Thread, "join", interrupted_join)
+    speaker.drain()
+
+    assert backend.utterances[0].stopped.is_set()
+
+
 def test_a_closed_speaker_says_nothing(lock_file):
     backend = FakeBackend()
     speaker = Speaker(_config(backend, lock_file))

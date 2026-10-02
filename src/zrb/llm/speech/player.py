@@ -404,12 +404,18 @@ class Speaker:
         """Let queued speech finish, for up to the config's
         ``drain_timeout``, then stop the thread and cut off anything still
         playing, so no player outlives zrb. Speech a `pause` holds is
-        dropped rather than waited for: no `resume` comes after this."""
+        dropped rather than waited for: no `resume` comes after this.
+        A Ctrl+C during the wait ends it: the user would rather not hear the
+        rest, and an audio stream left open stalls the interpreter's exit."""
         with self._lock:
             self._is_closed = True
             self._unpaused.notify_all()
-        self._stop(self._config.drain_timeout)
-        self._cut_off()
+        try:
+            self._stop(self._config.drain_timeout)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            self._cut_off()
 
     def _cut_off(self) -> None:
         with self._lock:

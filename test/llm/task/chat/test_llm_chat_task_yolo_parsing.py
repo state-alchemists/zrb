@@ -181,6 +181,29 @@ async def test_interactive_teardown_shuts_down_the_session_hook_manager():
 
 
 @pytest.mark.asyncio
+async def test_interactive_teardown_closes_feature_sessions_when_cancelled():
+    """A Ctrl+C that cancels SESSION_END must not leave a speaker open, or the
+    exit waits out its drain."""
+    import asyncio
+
+    from zrb.llm.util.feature_config import FeatureSessions
+
+    closed: list[str] = []
+    sessions = FeatureSessions(lambda: "speaker", closed.append)
+    sessions.get("default")
+
+    manager = MagicMock()
+    manager.execute_hooks = AsyncMock(side_effect=asyncio.CancelledError)
+    task = LLMChatTask(name="teardown-task-cancelled")
+    task.active_hook_manager = manager
+
+    with pytest.raises(asyncio.CancelledError):
+        await task.teardown_interactive_resources()
+
+    assert closed == ["speaker"]
+
+
+@pytest.mark.asyncio
 async def test_interactive_teardown_without_hook_manager_is_safe():
     """Teardown must not raise when no hook manager was set (e.g. session never
     reached _create_llm_task_core)."""
