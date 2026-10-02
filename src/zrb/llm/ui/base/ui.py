@@ -833,10 +833,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     ) -> Any:
         """Execute an interactive shell command, handing it the real terminal.
 
-        Called by the diff and argument editors on a tool approval's "edit"
-        answer. A UI without a terminal to hand over keeps this default, which
-        raises `NotImplementedError`, so an "edit" answer fails rather than
-        edits.
+        Called by the diff and argument editors on an "edit" approval answer.
+        The default raises `NotImplementedError`: a UI with no terminal to
+        hand over fails that answer rather than editing.
 
         Args:
             cmd: Command to execute (string or list of arguments)

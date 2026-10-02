@@ -226,7 +226,9 @@ asyncio_default_fixture_loop_scope = "function"
 # A deadlock detector, not a performance budget: the slowest honest tests wait
 # on real process termination, so the ceiling is generous.
 timeout = 60
-norecursedirs = "playground examples"
+# Setting this replaces pytest's defaults, so `.*` is restated: without it the
+# run collects the copies in `.zrb/worktree/` and other hidden directories.
+norecursedirs = ".* playground examples build dist node_modules"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
