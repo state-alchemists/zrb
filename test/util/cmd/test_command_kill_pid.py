@@ -441,3 +441,23 @@ class TestBackgroundChildren:
             assert await _wait_until_gone(child)
         finally:
             _kill_if_alive(child)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="process groups are POSIX-only")
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "pid_reused, signalled", [(True, False), (False, True)], ids=["reused", "free"]
+)
+async def test_terminate_process_skips_a_reaped_leaders_group_once_its_pid_is_reused(
+    pid_reused, signalled
+):
+    proc = await asyncio.create_subprocess_exec("true", start_new_session=True)
+    await proc.wait()
+
+    with (
+        patch("zrb.util.cmd.command.psutil.pid_exists", return_value=pid_reused),
+        patch("zrb.util.cmd.command.os.killpg") as killpg,
+    ):
+        await terminate_process(proc, grace_seconds=0)
+
+    assert killpg.called is signalled

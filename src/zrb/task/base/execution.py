@@ -142,7 +142,7 @@ class BaseTaskExecution:
                 async with asyncio.timeout(
                     readiness_timeout if readiness_timeout > 0 else None
                 ):
-                    action_failed = await _has_action_failed_before_checks(
+                    action_failed = await _has_action_failed_by_readiness(
                         readiness_check_coros, action_coro
                     )
                 if action_failed:
@@ -311,8 +311,7 @@ class BaseTaskExecution:
                 await run_async(self.execute_fallbacks(session))
                 raise e
             else:
-                # Outside the `try`: a failing successor is the successor's
-                # failure, not another attempt of this task's action.
+                # Outside the try: a failing successor must not retry this action.
                 await run_async(self.execute_successors(session))
                 return result
 
@@ -379,31 +378,33 @@ class BaseTaskExecution:
         self._skip_task_group(session, self._task.fallbacks, "fallback")
 
 
-async def _has_action_failed_before_checks(
+async def _has_action_failed_by_readiness(
     readiness_check_coros: "Sequence[Awaitable[object]]",
     action_coro: "asyncio.Task[object]",
 ) -> bool:
-    """Await the readiness checks; return True if the action failed first.
+    """Await the readiness checks; True if the action has failed by then.
 
-    The checks fail fast among themselves: a check polls until it succeeds
-    (HttpCheck/TcpCheck never return on their own), so waiting for siblings
-    after one fails would hang. For the same reason an action that has
-    already failed permanently ends the wait instead of letting the checks
-    poll on to the readiness timeout. An action that finishes successfully
-    before its checks pass leaves them running. A check's own failure is
-    raised; the checks are cancelled whenever this returns or raises early.
+    A failed action ends the wait and overrides the checks. The checks fail
+    fast among themselves, since HttpCheck/TcpCheck poll until they pass. A
+    check's own failure is raised, and the checks never outlive this call.
     """
     checks = asyncio.ensure_future(gather_fail_fast(*readiness_check_coros))
     try:
-        done, _ = await asyncio.wait(
-            [checks, action_coro], return_when=asyncio.FIRST_COMPLETED
-        )
-        if checks not in done:
-            if not action_coro.cancelled() and action_coro.exception() is not None:
+        await asyncio.wait([checks, action_coro], return_when=asyncio.FIRST_COMPLETED)
+        if _has_failed(action_coro):
+            return True
+        try:
+            await checks
+        except Exception:
+            if _has_failed(action_coro):
                 return True
-        await checks
-        return False
+            raise
+        return _has_failed(action_coro)
     finally:
         if not checks.done():
             checks.cancel()
             await asyncio.wait({checks})
+
+
+def _has_failed(task: "asyncio.Task[object]") -> bool:
+    return task.done() and not task.cancelled() and task.exception() is not None

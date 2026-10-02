@@ -16,8 +16,6 @@ from zrb.config.helper import get_shell_name, get_windows_posix_shell
 
 _T = TypeVar("_T")
 
-# How long output readers may keep draining after the process itself exits;
-# see `wait_for_exit_and_drain`.
 PIPE_DRAIN_GRACE_SECONDS = 0.5
 _EXIT_POLL_MAX_SECONDS = 0.05
 
@@ -146,14 +144,14 @@ async def terminate_process(
     if not is_running and group is None:
         return
     pids = _process_tree_pids(process.pid) if is_running else []
-    _signal_process_group(group, signal.SIGTERM)
+    _signal_process_group(group, "SIGTERM")
     if is_running:
         terminate_pid(process.pid, print_method=print_method)
     await _wait_for_tree_exit(process, group, grace_seconds)
     for pid in pids:
         if psutil.pid_exists(pid):
             kill_pid(pid, print_method=print_method)
-    _signal_process_group(group, signal.SIGKILL)
+    _signal_process_group(group, "SIGKILL")
     # Reap the child while the loop is alive; otherwise the child watcher logs
     # "Loop <...> that handles pid N is closed" at asyncio.run teardown.
     if process.returncode is None:
@@ -166,11 +164,8 @@ async def terminate_process(
 async def wait_for_exit(process: asyncio.subprocess.Process) -> int:
     """Wait for *process* itself to exit and return its exit code.
 
-    ``Process.wait()`` resolves only once stdout/stderr are closed as well, so
-    a backgrounded child that inherited them (``server &``) stalls it long
-    after *process* exited. The exit code is set as soon as *process* is
-    reaped, so this polls that instead, backing off to
-    ``_EXIT_POLL_MAX_SECONDS``.
+    Unlike ``Process.wait()``, which also waits for its pipes to close, so a
+    background child holding them (``server &``) stalls it.
     """
     interval = 0.001
     while (returncode := process.returncode) is None:
@@ -184,19 +179,12 @@ async def wait_for_exit_and_drain(
     readers: "asyncio.Future[_T]",
     drain_grace: float = PIPE_DRAIN_GRACE_SECONDS,
 ) -> int:
-    """Wait for *process* to exit and *readers* to drain its output.
+    """Wait for *process* to exit, then up to *drain_grace* for *readers*.
 
-    *readers* reaching EOF before *process* exits is the ordinary case. When
-    *process* exits first, *readers* get *drain_grace* more seconds; after
-    that, whatever still holds the pipes open is a background child *process*
-    left behind. Reading then stops and the pipes are closed, and the child
-    is left running — that is what ``&`` asks for. Its later writes to those
-    pipes fail (EPIPE/SIGPIPE), so a child meant to keep running should have
-    its output redirected. A reader's own failure is raised as soon as it
-    happens. *readers* never outlive this call.
-
-    Returns:
-        int: The exit code of *process*.
+    Returns the exit code. Readers still going after the grace are reading a
+    background child's output: they are cancelled and the pipes closed, so
+    that child gets EPIPE on its next write unless its output is redirected.
+    A reader's failure is raised at once.
     """
     exit_task = asyncio.ensure_future(wait_for_exit(process))
     try:
@@ -239,31 +227,35 @@ def _close_transport(process: asyncio.subprocess.Process) -> None:
 
 
 def _get_session_group(process: asyncio.subprocess.Process) -> int | None:
-    """The process group *process* leads, or None where there is none to signal.
+    """The group a ``start_new_session=True`` *process* leads, or None.
 
-    A ``start_new_session=True`` child's group id is its own pid, and the
-    group outlives the child for as long as any member is alive. While the
-    child runs this is confirmed against the OS; once it has been reaped
-    there is nothing left to ask. Never our own group.
+    Verified with the OS while *process* runs. Once it is reaped, POSIX never
+    reuses a live group's id as a pid, so a process holding that pid means
+    the group has ended. Never our own group.
     """
-    if not hasattr(os, "killpg"):
+    if not (hasattr(os, "killpg") and hasattr(os, "getpgid")):
         return None
     group = process.pid
     try:
         if group == os.getpgid(0):
             return None
-        if process.returncode is None and os.getpgid(group) != group:
+        if process.returncode is None:
+            if os.getpgid(group) != group:
+                return None
+        elif psutil.pid_exists(group):
             return None
     except OSError:
         return None
     return group
 
 
-def _signal_process_group(group: int | None, sig: int) -> None:
+def _signal_process_group(group: int | None, sig_name: str) -> None:
+    """Send ``signal.<sig_name>`` to *group*, if any. By name because
+    ``signal.SIGKILL`` does not exist on Windows."""
     if group is None:
         return
     try:
-        os.killpg(group, sig)
+        os.killpg(group, getattr(signal, sig_name))
     except OSError:
         pass
 
@@ -304,9 +296,10 @@ def terminate_pid(pid: int, print_method: Callable[..., None] | None = None) -> 
     actual_print_method = print_method if print_method is not None else print
     try:
         parent = psutil.Process(pid)
+        tree = parent.children(recursive=True) + [parent]
     except psutil.NoSuchProcess:
         return
-    for proc in parent.children(recursive=True) + [parent]:
+    for proc in tree:
         try:
             proc.terminate()
         except psutil.NoSuchProcess:
@@ -357,10 +350,8 @@ async def run_command(
     )
     try:
         async with asyncio.timeout(timeout if timeout and timeout > 0 else None):
-            # A command's output ends when every process holding its pipes
-            # closes them, as with `subprocess.run` and `$(...)`: a background
-            # child left writing to them keeps the command running. On timeout
-            # `__terminate_on_cancel` reaches that child through the group.
+            # Like `subprocess.run`, wait until every holder of the pipes
+            # closes them; on timeout the group kill reaches a background one.
             await streams_task
             return_code = await wait_for_exit(cmd_process)
         stdout = "\r\n".join(states["stdout"].captured)
@@ -446,9 +437,9 @@ async def __terminate_on_cancel(
     except Exception:
         pass
     if _is_group_alive(group):
-        _signal_process_group(group, signal.SIGTERM)
+        _signal_process_group(group, "SIGTERM")
         await _wait_for_tree_exit(cmd_process, group, cleanup_seconds)
-        _signal_process_group(group, signal.SIGKILL)
+        _signal_process_group(group, "SIGKILL")
 
 
 def __get_cmd_stdin(is_interactive: bool) -> int | TextIO:
