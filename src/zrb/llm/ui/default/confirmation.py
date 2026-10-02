@@ -146,14 +146,16 @@ class UIConfirmation:
 
     def _flush_confirmation_buffer(self):
         """Flush buffered main-agent output to the output window."""
-        if not self._ui.confirmation.output_buffer:
+        held = self._ui.confirmation.output_buffer
+        if not held:
             return
-        content = "".join(self._ui.confirmation.output_buffer)
-        self._ui.confirmation.output_buffer.clear()
+        chunks = list(held)
+        held.clear()
         # Clear the slot so append_to_output's buffer guard lets this through.
         saved = self._ui.confirmation.current
         self._ui.confirmation.current = None
-        self._ui.append_to_output(content)
+        for content, kind in chunks:
+            self._ui.append_to_output(content, end="", kind=kind)
         self._ui.confirmation.current = saved
 
     def _activate_next_confirmation(self):

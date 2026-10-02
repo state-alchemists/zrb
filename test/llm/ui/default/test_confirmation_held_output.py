@@ -12,6 +12,7 @@ import pytest
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.default.confirmation import UIConfirmation
 from zrb.llm.ui.default.output import UIOutput
+from zrb.util.cli.style import stylize_muted
 
 
 class TextBuffer:
@@ -84,3 +85,35 @@ async def test_answer_echo_lands_before_output_held_during_the_confirmation():
         assert await task == "y"
 
     assert ui.output_text.startswith("The answer is\nApprove? y\n")
+
+
+@pytest.mark.asyncio
+async def test_held_output_replays_as_written_into_the_open_block(monkeypatch):
+    """Held chunks replay with their own `end` and `kind`: a streamed chunk
+    rejoins its open response block (and collapses with it), a tool line
+    keeps its muted style, and no newline is inserted between chunks."""
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    ui = StreamingConfirmationUI()
+
+    with patch("prompt_toolkit.application.get_app"):
+        ui.output_part.mark_text_block_start()
+        ui.append_to_output("The answer is", end="", kind="streaming")
+        task = asyncio.create_task(ui.confirmation_part.ask_user("\nApprove? "))
+        await asyncio.sleep(0)
+        ui.append_to_output(" forty", end="", kind="streaming")
+        ui.append_to_output("Read a.txt", kind="tool_call")
+        ui.confirmation_part.submit_user_answer("y")
+        assert await task == "y"
+    ui.append_to_output("-two.", end="", kind="streaming")
+    collapsed = ui.output_part.collapse_text_block(
+        "[Response]", "The answer is forty-two."
+    )
+
+    assert collapsed is True
+    assert ui.output_text == (
+        stylize_muted("[Response]")
+        + "\nApprove? "
+        + "y\n"
+        + stylize_muted("Read a.txt\n")
+    )

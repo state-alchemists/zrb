@@ -168,7 +168,7 @@ class UIOutput:
         # Buffer main-agent output while a confirmation is pending during
         # streaming, so the confirmation prompt is not interleaved with tokens.
         if self._ui.confirmation.current is not None and self._ui.is_thinking:
-            self._ui.confirmation.output_buffer.append(content)
+            self._ui.confirmation.output_buffer.append((content, kind))
             self.schedule_invalidate()
             return
 
