@@ -11,6 +11,7 @@ state through `self._llm_chat_task`. The session runners live in the sibling
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, fields, replace
 from typing import TYPE_CHECKING, Any, Callable, cast
 
@@ -204,8 +205,26 @@ class ChatExecution:
         Gated to the interactive session on purpose: the non-interactive path is
         reused per-message by the web/SSE runner, where tearing servers down
         would restart them on every message. Each step is guarded so teardown
-        never raises; a second ``KeyboardInterrupt`` still propagates.
+        never raises a step's own failure.
+
+        A cancellation (``asyncio.run``'s answer to a first Ctrl+C) cannot cut
+        teardown short: it runs to the end, then the cancellation is re-raised.
+        A second Ctrl+C is a ``KeyboardInterrupt`` that still propagates;
+        ``asyncio.run`` then cancels what is left and the ``atexit`` backstops
+        reap the rest.
         """
+        release = asyncio.ensure_future(self._release_interactive_resources())
+        cancellation: asyncio.CancelledError | None = None
+        while not release.done():
+            try:
+                await asyncio.shield(release)
+            except asyncio.CancelledError as exc:
+                cancellation = exc
+        release.result()
+        if cancellation is not None:
+            raise cancellation
+
+    async def _release_interactive_resources(self) -> None:
         # SESSION_END fires once per session, like Claude Code's SessionEnd
         # (run_agent fires only STOP per turn). Every exit cause funnels through
         # one `finally`, so `source` is Claude's catch-all "other".

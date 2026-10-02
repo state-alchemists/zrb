@@ -172,7 +172,7 @@ class Speaker:
                 )
                 self._worker.start()
                 self._player.start()
-                atexit.register(self.drain)
+                atexit.register(self._drain_at_exit)
             self._queue.put((item, is_stale))
 
     def clear(self) -> None:
@@ -404,12 +404,24 @@ class Speaker:
         """Let queued speech finish, for up to the config's
         ``drain_timeout``, then stop the thread and cut off anything still
         playing, so no player outlives zrb. Speech a `pause` holds is
-        dropped rather than waited for: no `resume` comes after this."""
+        dropped rather than waited for: no `resume` comes after this.
+        A Ctrl+C during the wait still cuts off what is playing, then
+        propagates: an audio stream left open stalls the interpreter's exit."""
         with self._lock:
             self._is_closed = True
             self._unpaused.notify_all()
-        self._stop(self._config.drain_timeout)
-        self._cut_off()
+        try:
+            self._stop(self._config.drain_timeout)
+        finally:
+            self._cut_off()
+
+    def _drain_at_exit(self) -> None:
+        # A Ctrl+C here means the user would rather not hear the rest; the
+        # interpreter is exiting anyway, so it only adds a traceback.
+        try:
+            self.drain()
+        except KeyboardInterrupt:
+            pass
 
     def _cut_off(self) -> None:
         with self._lock:
@@ -429,7 +441,7 @@ class Speaker:
             player, self._player = self._player, None
         if worker is None:
             return
-        atexit.unregister(self.drain)
+        atexit.unregister(self._drain_at_exit)
         self._queue.put(None)
         deadline = None if join_timeout is None else time.monotonic() + join_timeout
         worker.join(join_timeout)
