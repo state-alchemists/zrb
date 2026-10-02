@@ -280,10 +280,11 @@ class UIOutput:
         The one way a block enters `rendered_blocks`, because two invariants
         hold over that list and neither survives a plain `append`:
 
-        * **Position order.** `rewrap_output` walks the list accumulating the
-          length delta of each re-render, and `toggle_collapsible_block_at_cursor`
-          stops at the first block past the cursor. A record appended out of
-          order makes every later offset in that walk address the wrong text.
+        * **Position order.** `rewrap_output` walks the list back to front so
+          each splice leaves the earlier offsets valid, and
+          `toggle_collapsible_block_at_cursor` stops at the first block past
+          the cursor. A record appended out of order makes either walk address
+          the wrong text.
           Appending is only in order when the block is at the buffer tail,
           which a collapsed thinking/text block or `finish_shell_output`
           and a re-registered echo are not — so the record is inserted at the
@@ -417,14 +418,16 @@ class UIOutput:
         # the transcript inside a tracked span (only the trailing status line
         # is ever rewritten, via \r). If that stops holding, store the rendered
         # text per block and rebuild the whole buffer from the block list.
+        #
+        # Last block first, so each splice leaves the offsets of the blocks
+        # before it valid; `shift` moves everything tracked past it.
         text = self.output_text
-        shift = 0
-        for block in self._ui.rendered_blocks:
-            start, end = block[0] + shift, block[1] + shift
+        for block in reversed(self._ui.rendered_blocks):
+            start, end = block[0], block[1]
             rendered = block[3](block[2], width)
             text = text[:start] + rendered + text[end:]
+            self._spans.shift(end, len(rendered) - (end - start))
             block[0], block[1] = start, start + len(rendered)
-            shift += len(rendered) - (end - start)
         self.set_output_text(text)
 
     def _render_markdown_block(self, markdown_text: str, width: int | None) -> str:
