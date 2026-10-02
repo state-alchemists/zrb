@@ -80,13 +80,8 @@ class TrackedSpans:
         return True
 
     def shift(self, after: int, delta: int) -> None:
-        """Shift every tracked offset at or past `after` by `delta`, the open
-        collapsible block included.
-
-        For an edit that is not the open block growing — `replace`, and the
-        owner re-rendering its blocks on resize. A foreign edit above an open
-        block moves the whole block.
-        """
+        """`rebase`, moving the open block too: for any edit other than the
+        open block growing."""
         self.rebase(after, delta)
         block = self.open_block
         if delta and block is not None and block.start >= after:

@@ -127,8 +127,8 @@ class UIOutput:
         return self.output_field.text
 
     def _get_main_text(self) -> str:
-        """The main transcript: parked while a sub-agent's view is shown,
-        else the output pane's text. Every tracked offset indexes this."""
+        """The main transcript, which every tracked offset indexes: parked
+        while a sub-agent's view is shown, else the output pane's text."""
         parked = self._parked_main_output()
         return self.output_text if parked is None else parked
 
@@ -436,8 +436,7 @@ class UIOutput:
         # is ever rewritten, via \r). If that stops holding, store the rendered
         # text per block and rebuild the whole buffer from the block list.
         #
-        # Last block first, so each splice leaves the offsets of the blocks
-        # before it valid; `shift` moves everything tracked past it.
+        # Last block first, so a splice never moves an unprocessed block.
         text = self._get_main_text()
         for block in reversed(self._ui.rendered_blocks):
             start, end = block[0], block[1]

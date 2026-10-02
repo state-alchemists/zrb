@@ -394,10 +394,7 @@ async def _summarize_info(
     base_overhead = 100
 
     for info in extracted_infos:
-        if (
-            limiter.count_tokens(content_buffer + info) + base_overhead
-            > token_limit
-        ):
+        if limiter.count_tokens(content_buffer + info) + base_overhead > token_limit:
             if content_buffer:
                 await run_repo_agent(
                     agent, query, content_buffer, "extracted_info", summarized_infos

@@ -465,9 +465,5 @@ llm_limiter = LLMLimiter()
 
 
 def get_run_llm_limiter() -> LLMLimiter:
-    """The limiter of the agent run in progress, else the process-wide one.
-
-    A task built with its own `llm_limiter` binds it for the run, so a tool's
-    model calls made inside that run are throttled and budgeted with it.
-    """
+    """The current run's limiter, else the process-wide one."""
     return get_current_llm_limiter() or llm_limiter

@@ -36,9 +36,8 @@ class BaseUIConfirmationState:
         # other threads.
         self._asked: "list[tuple[float, asyncio.Future[str]]]" = []
         self._asked_lock = threading.Lock()
-        # Main-agent output held during confirmation (avoids interleaving):
-        # each chunk's final text and its `append_to_output` kind, unstyled,
-        # so it replays exactly as it would have been appended.
+        # Main-agent output held while a confirmation is pending, as
+        # unstyled (text, kind) pairs replayed through `append_to_output`.
         self.output_buffer: list[tuple[str, str]] = []
 
     @property

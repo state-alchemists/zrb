@@ -712,9 +712,8 @@ async def _recover_from_stream_error(
     effective_hook_manager: HookManager,
 ) -> None:
     """Prepare `cursor` for a retry, or raise when the error is unrecoverable."""
-    # Taken while the results are still pending: once they are committed, the
-    # turn holding them carries the approved tool's return, which a prune must
-    # not discard either.
+    # Read before the commit below clears the results: the committed turn
+    # holds the approved tool's return and must stay unprunable.
     min_turns = cursor.prune_floor
     _commit_executed_deferred_results(cursor, partial_run)
     outcome = await handle_stream_error(
@@ -749,12 +748,10 @@ async def _recover_from_stream_error(
 def _commit_executed_deferred_results(
     cursor: TurnCursor, partial_run: PartialRunAccumulator
 ) -> None:
-    """Settle a resumed round that failed after its approved tools ran.
+    """Commit a resumed round through its tool returns and drop the results.
 
-    pydantic-ai executes the deferred results before its next model call, so
-    a failure in that call leaves the tools already run. Resending the same
-    results would run them again (ADR-0040); instead the round is committed
-    up to the tool returns and carried forward with the results dropped.
+    pydantic-ai runs approved tools before the model call that failed, so
+    resending the results would run them again (ADR-0040).
     """
     if cursor.results is None or partial_run.latest_history is None:
         return

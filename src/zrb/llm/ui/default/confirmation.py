@@ -132,8 +132,7 @@ class UIConfirmation:
         current = self._ui.confirmation.current
         if current is None:
             return False
-        # Cleared before the echo, so the echo is not held behind the
-        # main-agent output buffered while this request was pending.
+        # Cleared first, or the echo is held behind the buffered output.
         self._ui.confirmation.current = None
         if echo:
             # Callers bake the trailing newline into `echo`.

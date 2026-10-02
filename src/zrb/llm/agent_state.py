@@ -87,9 +87,7 @@ current_multimodal_model: ContextVar["str | Model | None"] = ContextVar(
 current_model: ContextVar["str | Model | None"] = ContextVar(
     "current_model", default=None
 )
-# The rate/token limiter of the current run, so a tool that makes model calls
-# of its own (delegation, web/file/code analysis) is throttled with the run
-# that made it, not with the process-wide `llm_limiter`.
+# The current run's limiter, for tools that make model calls of their own.
 current_llm_limiter: ContextVar["LLMLimiter | None"] = ContextVar(
     "current_llm_limiter", default=None
 )

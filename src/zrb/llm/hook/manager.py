@@ -611,10 +611,9 @@ hook_manager = HookManager(registry=hook_registry)
 
 
 def get_run_hook_manager() -> HookManager:
-    """The hook manager of the agent run in progress, else the process-wide one.
+    """The current run's hook manager, else the process-wide one.
 
-    A task with its own hooks (`append_hook_factory`) binds its manager for the
-    run. Firing an in-run event on the singleton instead skips that task's
-    hooks — its PreToolUse denials included.
+    In-run events must use this: the singleton skips a task's own hooks,
+    PreToolUse denials included.
     """
     return get_current_hook_manager() or hook_manager

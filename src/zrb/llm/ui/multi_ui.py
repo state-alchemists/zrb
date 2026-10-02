@@ -155,10 +155,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
     def last_output(self, value: str) -> None:
         self._last_output = value
 
-    # State the primary child owns. Callers that hold the MultiUI itself
-    # (`LLMTask` setting `ui.model`, the session name reported at exit, the
-    # sub-agent yolo fallback) must see the primary's values, not the inert
-    # `UIStateDefaultsMixin` ones.
+    # State the main child owns, read and written there.
     @property
     def model(self) -> "str | Model | None":
         return self.main_ui.model if self.main_ui is not None else None
@@ -188,7 +185,9 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
 
     @property
     def conversation_session_name(self) -> str:
-        return self.main_ui.conversation_session_name if self.main_ui is not None else ""
+        return (
+            self.main_ui.conversation_session_name if self.main_ui is not None else ""
+        )
 
     @conversation_session_name.setter
     def conversation_session_name(self, value: str) -> None:
@@ -685,10 +684,9 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
     ) -> str:
         """Return the first answer any child gives.
 
-        A child that fails drops out of the race rather than winning it: an
-        empty answer approves a tool call, so a broken channel must never
-        stand in for the human. With no child left to answer, the race raises
-        — the same fail-closed rule as `MultiplexApprovalChannel`.
+        A failed child drops out rather than winning: an empty answer approves
+        a tool call. With no child left to answer this raises, as
+        `MultiplexApprovalChannel` denies.
         """
         if is_shutdown_requested():
             raise RuntimeError(f"Shutdown requested; {label} has no answer")
@@ -701,8 +699,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
                 CFG.LOGGER.debug(f"Child UI {label} setup failed: {e}")
         if not pending_tasks:
             raise RuntimeError(f"No child UI could take {label}")
-        # Concurrent races (parallel sub-agents) share this list, so each one
-        # adds and removes only its own tasks.
+        # Shared by concurrent races; each removes only its own tasks.
         self._pending_input_tasks.extend(pending_tasks)
         waiting: set[asyncio.Task] = set(pending_tasks)
         last_error: BaseException | None = None
@@ -725,8 +722,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
                     return task.result()
             raise RuntimeError(f"Every child UI failed {label}") from last_error
         finally:
-            # Cancelling a loser releases its own prompt (the TUI drops it from
-            # its confirmation queue), leaving other races' prompts in place.
+            # Cancelling a loser releases that loser's prompt and no other.
             for task in pending_tasks:
                 task.cancel()
             await asyncio.gather(*pending_tasks, return_exceptions=True)
