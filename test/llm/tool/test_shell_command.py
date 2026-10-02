@@ -1,8 +1,13 @@
+import os
+import re
 import shlex
+import signal
 import sys
+import time
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
+import psutil
 import pytest
 
 from zrb.config.config import CFG
@@ -141,13 +146,26 @@ async def test_empty_command_is_a_no_op_not_a_syntax_error():
     assert "Exit Code: 0" in res
 
 
+@pytest.mark.skipif(os.name != "posix", reason="PID tracking is POSIX-only")
 @pytest.mark.asyncio
 async def test_run_shell_command_reports_background_pids():
     # A backgrounded process that outlives the shell is reported so the agent
-    # can track it. Uses the default (POSIX) shell where PID tracking applies.
-    res = await run_shell_command("sleep 3 & echo started")
-    assert "started" in res
-    assert "Background PIDs:" in res
+    # can track it, and left running. It holds the output pipes open, yet the
+    # call returns once the shell exits instead of running into the timeout.
+    # Uses the default (POSIX) shell where PID tracking applies.
+    start = time.monotonic()
+    res = await run_shell_command("sleep 30 & echo started", timeout=4)
+    elapsed = time.monotonic() - start
+    pids = [
+        int(p) for p in re.findall(r"Background PIDs: ([\d, ]+)", res)[0].split(",")
+    ]
+    try:
+        assert "started" in res and "Exit Code: 0" in res
+        assert elapsed < 3
+        assert all(psutil.pid_exists(pid) for pid in pids)
+    finally:
+        for pid in pids:
+            os.kill(pid, signal.SIGKILL)
 
 
 @pytest.mark.asyncio

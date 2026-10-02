@@ -16,7 +16,11 @@ from zrb.llm.sandbox.os_sandbox import (
 )
 from zrb.llm.tool.stream_capture import StreamCapture
 from zrb.util.cli.ansi import strip_ansi
-from zrb.util.cmd.command import resolve_shell, terminate_process
+from zrb.util.cmd.command import (
+    resolve_shell,
+    terminate_process,
+    wait_for_exit_and_drain,
+)
 
 # Minimum seconds between live shell-output repaints; see
 # `_make_live_shell_output_pusher`.
@@ -150,16 +154,14 @@ async def run_shell_command(
         timed_out = False
         try:
             try:
-                # Fail-fast fan-out: a broken reader/wait should abort
+                # Fail-fast fan-out: a broken reader should abort
                 # immediately, not be masked by return_exceptions.
-                await asyncio.wait_for(
-                    asyncio.gather(
-                        _read_stream(process.stdout, stdout_cap, on_chunk),
-                        _read_stream(process.stderr, stderr_cap, on_chunk),
-                        process.wait(),
-                    ),
-                    timeout=timeout,
+                readers = asyncio.gather(
+                    _read_stream(process.stdout, stdout_cap, on_chunk),
+                    _read_stream(process.stderr, stderr_cap, on_chunk),
                 )
+                async with asyncio.timeout(timeout):
+                    await wait_for_exit_and_drain(process, readers)
             except asyncio.TimeoutError:
                 timed_out = True
                 await terminate_process(

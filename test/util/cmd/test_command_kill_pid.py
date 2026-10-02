@@ -102,6 +102,8 @@ class TestTerminateProcessTree:
             ),
             patch("zrb.util.cmd.command.psutil.pid_exists", return_value=False),
             patch("zrb.util.cmd.command.terminate_pid") as term,
+            # The fake pid must not reach a real process group.
+            patch("zrb.util.cmd.command.os.killpg", create=True),
         ):
             await terminate_process(
                 proc, grace_seconds=0.1, print_method=printed.append
@@ -130,6 +132,8 @@ class TestTerminateProcessTree:
             patch("zrb.util.cmd.command.psutil.pid_exists", return_value=True),
             patch("zrb.util.cmd.command.terminate_pid"),
             patch("zrb.util.cmd.command.kill_pid") as kill,
+            # The fake pid must not reach a real process group.
+            patch("zrb.util.cmd.command.os.killpg", create=True),
         ):
             await terminate_process(proc, grace_seconds=0.01)
         # The snapshotted pid was still alive after grace, so kill_pid ran.
@@ -360,3 +364,77 @@ class TestReadStreamErrorBranches:
 
         assert any("a" * 20 in m for m in printed)
         assert "a" * 20 in result.output
+
+
+def _is_gone(pid: int) -> bool:
+    try:
+        return psutil.Process(pid).status() == psutil.STATUS_ZOMBIE
+    except psutil.NoSuchProcess:
+        return True
+
+
+async def _wait_until_gone(pid: int, timeout: float = 3.0) -> bool:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while not _is_gone(pid) and asyncio.get_running_loop().time() < deadline:
+        await asyncio.sleep(0.05)
+    return _is_gone(pid)
+
+
+def _kill_if_alive(pid: int | None) -> None:
+    if pid is not None and not _is_gone(pid):
+        os.kill(pid, 9)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="process groups are POSIX-only")
+class TestBackgroundChildren:
+    """A backgrounded child inherits the output pipes and outlives the shell."""
+
+    @pytest.mark.asyncio
+    async def test_run_command_returns_when_the_shell_exits(self):
+        """The shell's exit, not pipe EOF, ends the command; `&` keeps the child."""
+        result, return_code = await run_command(
+            [_BASH, "-c", "sleep 30 & echo $!"],
+            print_method=lambda *a, **k: None,
+            timeout=2,
+        )
+        child = int(result.output.strip())
+        try:
+            assert return_code == 0
+            assert not _is_gone(child)
+        finally:
+            _kill_if_alive(child)
+
+    @pytest.mark.asyncio
+    async def test_run_command_timeout_kills_a_child_that_ignores_sigint(self):
+        """An async command of a non-interactive shell ignores SIGINT, and is
+        no longer reachable through the shell's pid once the shell is gone."""
+        printed = []
+        with pytest.raises(asyncio.TimeoutError):
+            await run_command(
+                [_BASH, "-c", "sleep 30 & echo $!; sleep 30"],
+                print_method=lambda line, **k: printed.append(line),
+                timeout=0.5,
+            )
+        child = int(printed[0])
+        try:
+            assert await _wait_until_gone(child)
+        finally:
+            _kill_if_alive(child)
+
+    @pytest.mark.asyncio
+    async def test_terminate_process_reaches_the_group_after_the_leader_exits(self):
+        proc = await asyncio.create_subprocess_exec(
+            _BASH,
+            "-c",
+            "sleep 30 & echo $!",
+            stdout=asyncio.subprocess.PIPE,
+            start_new_session=True,
+        )
+        child = int(await proc.stdout.readline())
+        try:
+            while proc.returncode is None:
+                await asyncio.sleep(0.01)
+            await terminate_process(proc, grace_seconds=1)
+            assert await _wait_until_gone(child)
+        finally:
+            _kill_if_alive(child)
