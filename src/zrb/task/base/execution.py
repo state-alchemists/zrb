@@ -401,9 +401,10 @@ async def _has_action_failed_by_readiness(
             raise
         return _has_failed(action_coro)
     finally:
-        if not checks.done():
-            checks.cancel()
-            await asyncio.wait({checks})
+        # Also consumes a failure the checks finished with, which the action's
+        # failure took precedence over.
+        checks.cancel()
+        await asyncio.gather(checks, return_exceptions=True)
 
 
 def _has_failed(task: "asyncio.Task[object]") -> bool:

@@ -118,3 +118,56 @@ async def test_action_failing_as_its_checks_pass_is_never_marked_ready():
 
     task_status.mark_as_ready.assert_not_called()
     session.defer_action.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ticks", range(8))
+async def test_a_check_failing_with_the_action_leaves_no_unretrieved_exception(
+    ticks,
+):
+    """The action's failure wins, and the check's own failure is still
+    consumed instead of surfacing as "Task exception was never retrieved".
+
+    `ticks` sweeps when the action fails relative to the check, covering both
+    finishing in the same round and the check failing as it is cancelled."""
+    import gc
+
+    async def failing_check(_session):
+        raise RuntimeError("check broke")
+
+    async def failing_action(_session):
+        for _ in range(ticks):
+            await asyncio.sleep(0)
+        raise RuntimeError("crashed on start")
+
+    check = BaseTask(name="failing_check", retries=0)
+    check.exec_chain = failing_check
+    task = BaseTask(
+        name="task",
+        readiness_check=check,
+        readiness_check_delay=0,
+        readiness_timeout=30,
+    )
+    execution = BaseTaskExecution(task)
+    session = MagicMock(spec=AnySession)
+    session.is_terminated = False
+    task_status = MagicMock(spec=TaskStatus)
+    task_status.is_permanently_failed = True
+    session.get_task_status.return_value = task_status
+
+    unretrieved = []
+    loop = asyncio.get_running_loop()
+    loop.set_exception_handler(lambda _loop, context: unretrieved.append(context))
+    try:
+        with patch.object(task, "get_ctx", return_value=MagicMock(spec=AnyContext)):
+            with patch.object(
+                execution, "execute_action_with_retry", new=failing_action
+            ):
+                with pytest.raises(RuntimeError):
+                    await execution.execute_action_until_ready(session)
+        gc.collect()
+        await asyncio.sleep(0)
+    finally:
+        loop.set_exception_handler(None)
+
+    assert unretrieved == []
