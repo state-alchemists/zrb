@@ -8,7 +8,7 @@ from pydantic import Field
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.llm.agent import create_agent, run_agent
-from zrb.llm.config.limiter import llm_limiter
+from zrb.llm.config.limiter import get_run_llm_limiter
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.lsp.manager import lsp_manager
 from zrb.llm.prompt.prompt import get_prompt
@@ -364,16 +364,17 @@ def _fit_file_payload(payload: dict, budget: int) -> tuple[str, int]:
     receives valid JSON rather than a string cut mid-value. The token count is
     returned because counting is the expensive part and already happens here.
     """
+    limiter = get_run_llm_limiter()
     content = json.dumps(payload)
-    tokens = llm_limiter.count_tokens(content)
+    tokens = limiter.count_tokens(content)
     if tokens <= budget:
         return content, tokens
     key = "content" if "content" in payload else "symbols"
     text = payload[key] if isinstance(payload[key], str) else json.dumps(payload[key])
-    envelope = llm_limiter.count_tokens(json.dumps({**payload, key: ""}))
-    text = llm_limiter.truncate_text(text, max(budget - envelope, 1))
+    envelope = limiter.count_tokens(json.dumps({**payload, key: ""}))
+    text = limiter.truncate_text(text, max(budget - envelope, 1))
     content = json.dumps({**payload, key: text + "\n...[TRUNCATED]"})
-    return content, llm_limiter.count_tokens(content)
+    return content, limiter.count_tokens(content)
 
 
 async def _summarize_info(
@@ -387,13 +388,14 @@ async def _summarize_info(
         resolve_model=False,
     )
 
+    limiter = get_run_llm_limiter()
     summarized_infos = []
     content_buffer = ""
     base_overhead = 100
 
     for info in extracted_infos:
         if (
-            llm_limiter.count_tokens(content_buffer + info) + base_overhead
+            limiter.count_tokens(content_buffer + info) + base_overhead
             > token_limit
         ):
             if content_buffer:
@@ -424,7 +426,7 @@ async def run_repo_agent(agent, query, content, content_key, output_list):
         agent=agent,
         message=message,
         message_history=[],
-        limiter=llm_limiter,
+        limiter=get_run_llm_limiter(),
     )
     output_list.append(str(result))
 

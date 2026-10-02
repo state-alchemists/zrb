@@ -24,7 +24,7 @@ from zrb.llm.agent.subagent.manager import (
     sub_agent_manager as default_sub_agent_manager,
 )
 from zrb.llm.agent_state import get_current_ui
-from zrb.llm.config.limiter import llm_limiter
+from zrb.llm.config.limiter import get_run_llm_limiter
 from zrb.llm.hook.manager import get_run_hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission import Capability, tag
@@ -150,7 +150,7 @@ async def run_agent_task(
             agent=sub_agent,
             message=full_message,
             message_history=[],
-            limiter=llm_limiter,
+            limiter=get_run_llm_limiter(),
             ui=ui,
             yolo=bool(yolo) if yolo is not None else yolo,
             # A fresh scope so file_observation.py's read-before-overwrite

@@ -21,7 +21,7 @@ async def analyze_file(
     # imports inside the function preserves cold-start latency for callers
     # that import this module but never invoke analyze_file.
     from zrb.llm.agent import create_agent, run_agent
-    from zrb.llm.config.limiter import llm_limiter
+    from zrb.llm.config.limiter import get_run_llm_limiter
     from zrb.llm.config.model_resolver import resolve_configured_model
     from zrb.llm.prompt.prompt import get_prompt
 
@@ -69,7 +69,7 @@ async def analyze_file(
         agent=agent,
         message=user_message,
         message_history=[],
-        limiter=llm_limiter,
+        limiter=get_run_llm_limiter(),
     )
 
     return str(result)

@@ -10,7 +10,7 @@ from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.agent_state import get_current_ui
-from zrb.llm.config.limiter import llm_limiter
+from zrb.llm.config.limiter import get_run_llm_limiter
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.tool.search.http_errors import BROWSER_USER_AGENT
@@ -436,7 +436,7 @@ async def _summarize_web_content(markdown_content: str, url: str) -> str:
         agent=agent,
         message=message,
         message_history=[],  # Stateless
-        limiter=llm_limiter,
+        limiter=get_run_llm_limiter(),
     )
 
     return str(result)

@@ -70,6 +70,7 @@ from zrb.llm.agent_state import (
     AnyToolConfirmation,
     current_agent_run_scope,
     current_hook_manager,
+    current_llm_limiter,
     current_model,
     current_multimodal_model,
     current_small_model,
@@ -225,6 +226,7 @@ async def run_agent(
         # rather than to `CFG.LLM_MODEL` — which after a `/model` switch is a
         # different model, often on a provider whose credentials are unset.
         bind_contextvar(stack, current_model, getattr(agent, "model", None))
+        bind_contextvar(stack, current_llm_limiter, limiter)
         bind_contextvar(stack, current_agent_run_scope, run_scope or uuid.uuid4().hex)
         bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         bind_contextvar(stack, current_permission_policy, effective_policy)

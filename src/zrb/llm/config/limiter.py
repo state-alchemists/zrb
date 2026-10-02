@@ -4,6 +4,7 @@ from collections import deque
 from typing import Any, Callable
 
 from zrb.config.config import CFG
+from zrb.llm.agent_state import get_current_llm_limiter
 from zrb.llm.util.capabilities import model_capabilities
 from zrb.util.cli.style import stylize_info
 
@@ -461,3 +462,12 @@ class LLMLimiter:
 
 
 llm_limiter = LLMLimiter()
+
+
+def get_run_llm_limiter() -> LLMLimiter:
+    """The limiter of the agent run in progress, else the process-wide one.
+
+    A task built with its own `llm_limiter` binds it for the run, so a tool's
+    model calls made inside that run are throttled and budgeted with it.
+    """
+    return get_current_llm_limiter() or llm_limiter

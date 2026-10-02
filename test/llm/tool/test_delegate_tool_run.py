@@ -212,3 +212,32 @@ async def test_delegate_human_cancel_returns_gracefully(mock_sub_agent_manager):
         live_subagent_session_registry.clear()
 
     assert "Cancelled by user" in result
+
+
+@pytest.mark.asyncio
+async def test_delegate_runs_the_sub_agent_under_the_parent_run_limiter(
+    mock_sub_agent_manager,
+):
+    from zrb.llm.agent_state import current_llm_limiter
+    from zrb.llm.config.limiter import LLMLimiter
+
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+    run_limiter = LLMLimiter()
+    token = current_llm_limiter.set(run_limiter)
+    try:
+        with patch(
+            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent:
+            mock_run_agent.return_value = ("Agent Result", [])
+            await tool(
+                agent_name="test-agent",
+                deliverable="d",
+                task="t",
+                non_goals=[],
+                additional_context="",
+            )
+    finally:
+        current_llm_limiter.reset(token)
+
+    assert mock_run_agent.call_args.kwargs["limiter"] is run_limiter
