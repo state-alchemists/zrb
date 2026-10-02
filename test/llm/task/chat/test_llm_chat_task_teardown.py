@@ -66,66 +66,45 @@ async def test_interactive_teardown_shuts_down_the_session_hook_manager():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("interrupt", [asyncio.CancelledError, KeyboardInterrupt])
-async def test_interactive_teardown_finishes_before_reraising_an_interrupt(interrupt):
-    """A Ctrl+C that interrupts SESSION_END — as a cancellation or as a
-    KeyboardInterrupt — must not skip the rest of teardown: a speaker left
-    open makes the exit wait out its drain, and hooks, subprocesses and
-    executors would outlive the session."""
+async def test_a_cancelled_interactive_teardown_still_runs_to_the_end():
+    """A Ctrl+C under ``asyncio.run`` cancels teardown mid-step. The step it
+    interrupts must finish, not be abandoned, and every later step must still
+    run: a speaker left open makes the exit wait out its drain, and hooks,
+    subprocesses and executors would outlive the session."""
     from zrb.llm.util.feature_config import FeatureSessions
 
     closed: list[str] = []
     sessions = FeatureSessions(lambda: "speaker", closed.append)
     sessions.get("default")
 
+    session_end_started = asyncio.Event()
+    finish_session_end = asyncio.Event()
+    finished: list[str] = []
+
+    async def session_end(*_args: object, **_kwargs: object) -> None:
+        session_end_started.set()
+        await finish_session_end.wait()
+        finished.append("SessionEnd")
+
     manager = MagicMock()
-    manager.execute_hooks = AsyncMock(side_effect=interrupt)
+    manager.execute_hooks = AsyncMock(side_effect=session_end)
     manager.shutdown = AsyncMock()
-    task = LLMChatTask(name="teardown-task-interrupted")
+    task = LLMChatTask(name="teardown-task-cancelled")
     task.active_hook_manager = manager
 
-    with (
-        patch("zrb.llm.hook.executor.shutdown_hook_executor") as shutdown_executor,
-        pytest.raises(interrupt),
-    ):
-        await task.teardown_interactive_resources()
+    with patch("zrb.llm.hook.executor.shutdown_hook_executor") as shutdown_executor:
+        teardown = asyncio.create_task(task.teardown_interactive_resources())
+        await session_end_started.wait()
+        teardown.cancel()
+        await asyncio.sleep(0)
+        teardown.cancel()
+        await asyncio.sleep(0)
+        finish_session_end.set()
+        with pytest.raises(asyncio.CancelledError):
+            await teardown
 
+    assert finished == ["SessionEnd"]
     assert closed == ["speaker"]
-    # The steps after SESSION_END still release their resources.
-    manager.shutdown.assert_awaited_once_with(drain=True)
-    shutdown_executor.assert_called_once_with(wait=False)
-
-
-@pytest.mark.asyncio
-async def test_interactive_teardown_holds_a_ctrl_c_while_closing_features():
-    """A Ctrl+C landing while one feature closes must not leave the other
-    features open, nor skip the teardown steps after them."""
-    from zrb.llm.util.feature_config import FeatureSessions
-
-    closed: list[str] = []
-
-    def close(value: str) -> None:
-        closed.append(value)
-        raise KeyboardInterrupt
-
-    speaker = FeatureSessions(lambda: "speaker", close)
-    speaker.get("default")
-    microphone = FeatureSessions(lambda: "microphone", close)
-    microphone.get("default")
-
-    manager = MagicMock()
-    manager.execute_hooks = AsyncMock()
-    manager.shutdown = AsyncMock()
-    task = LLMChatTask(name="teardown-task-feature-interrupted")
-    task.active_hook_manager = manager
-
-    with (
-        patch("zrb.llm.hook.executor.shutdown_hook_executor") as shutdown_executor,
-        pytest.raises(KeyboardInterrupt),
-    ):
-        await task.teardown_interactive_resources()
-
-    assert sorted(closed) == ["microphone", "speaker"]
     manager.shutdown.assert_awaited_once_with(drain=True)
     shutdown_executor.assert_called_once_with(wait=False)
 

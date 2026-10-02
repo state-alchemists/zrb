@@ -12,7 +12,6 @@ state through `self._llm_chat_task`. The session runners live in the sibling
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable
 from dataclasses import dataclass, fields, replace
 from typing import TYPE_CHECKING, Any, Callable, cast
 
@@ -208,64 +207,74 @@ class ChatExecution:
         would restart them on every message. Each step is guarded so teardown
         never raises a step's own failure.
 
-        A Ctrl+C — the cancellation or ``KeyboardInterrupt`` that ended the
-        session — arriving at any awaited step is held, not propagated, until
-        every later step has released its resources, then re-raised so the
-        caller still sees it.
+        A cancellation (``asyncio.run``'s answer to a first Ctrl+C) cannot cut
+        teardown short: it runs to the end, then the cancellation is re-raised.
+        A second Ctrl+C is a ``KeyboardInterrupt`` that still propagates;
+        ``asyncio.run`` then cancels what is left and the ``atexit`` backstops
+        reap the rest.
         """
-        interrupts: list[BaseException] = []
+        release = asyncio.ensure_future(self._release_interactive_resources())
+        cancellation: asyncio.CancelledError | None = None
+        while not release.done():
+            try:
+                await asyncio.shield(release)
+            except asyncio.CancelledError as exc:
+                cancellation = exc
+        if cancellation is not None:
+            raise cancellation
+
+    async def _release_interactive_resources(self) -> None:
         # SESSION_END fires once per session, like Claude Code's SessionEnd
         # (run_agent fires only STOP per turn). Every exit cause funnels through
         # one `finally`, so `source` is Claude's catch-all "other".
         if self._llm_chat_task.active_hook_manager is not None:
-            await _hold_interrupt(
-                self._llm_chat_task.active_hook_manager.execute_hooks(
+            try:
+                await self._llm_chat_task.active_hook_manager.execute_hooks(
                     HookEvent.SESSION_END,
                     {"reason": "exit"},
                     source="other",
-                ),
-                "SESSION_END hook raised at teardown",
-                interrupts,
-            )
-        # A speaker left open makes the exit wait out its drain.
-        _hold_interrupt_sync(
-            lambda: close_feature_sessions(get_session_ownership_key()),
-            "Closing feature sessions failed",
-            interrupts,
-        )
-        await _hold_interrupt(
-            lsp_manager.shutdown_all(),
-            "LSP shutdown at session end failed",
-            interrupts,
-        )
+                )
+            except Exception:
+                CFG.LOGGER.debug("SESSION_END hook raised at teardown", exc_info=True)
+
+        try:
+            close_feature_sessions(get_session_ownership_key())
+        except Exception:
+            CFG.LOGGER.debug("Closing feature sessions failed", exc_info=True)
+
+        try:
+            await lsp_manager.shutdown_all()
+        except Exception as e:
+            CFG.LOGGER.debug(f"LSP shutdown at session end failed: {e}")
         # Settle detached hooks before releasing the worker pool, so their
         # cancellation handlers can kill process trees that sit in their own
         # process group and never see the terminal's Ctrl+C.
-        await _hold_interrupt(
-            self.teardown_background_hooks(),
-            "Background-hook shutdown at session end failed",
-            interrupts,
-        )
+        await self.teardown_background_hooks()
         # Reap background shell / delegation subprocesses while the loop is
         # alive; otherwise their exit logs "Loop <...> that handles pid N is
         # closed".
-        await _hold_interrupt(
-            _cancel_background_shells(),
-            "Background-shell teardown at session end failed",
-            interrupts,
-        )
-        _hold_interrupt_sync(
-            _cancel_background_delegations,
-            "Background-delegation teardown at session end failed",
-            interrupts,
-        )
-        _hold_interrupt_sync(
-            _shutdown_hook_executor,
-            "Hook-executor shutdown at session end failed",
-            interrupts,
-        )
-        if interrupts:
-            raise interrupts[0]
+        try:
+            from zrb.llm.tool.shell_background import get_shell_background_registry
+
+            await get_shell_background_registry().cancel_all()
+        except Exception as e:
+            CFG.LOGGER.debug(f"Background-shell teardown at session end failed: {e}")
+        try:
+            from zrb.llm.tool.delegate_background import get_background_registry
+
+            get_background_registry().cancel_all()
+        except Exception as e:
+            CFG.LOGGER.debug(
+                f"Background-delegation teardown at session end failed: {e}"
+            )
+        # lazy: zrb internal — only needed at teardown; keeps this import
+        # off the hot path every other turn takes.
+        try:
+            from zrb.llm.hook.executor import shutdown_hook_executor
+
+            shutdown_hook_executor(wait=False)
+        except Exception as e:
+            CFG.LOGGER.debug(f"Hook-executor shutdown at session end failed: {e}")
 
     async def teardown_background_hooks(self) -> None:
         """Settle this run's detached (``async: true``) hooks.
@@ -524,57 +533,3 @@ def _yolo_skip_decision(ctx, llm_chat_task, tool_def) -> bool:
     if isinstance(yolo_value, frozenset) and tool_def is not None:
         return getattr(tool_def, "name", str(tool_def)) in yolo_value
     return False
-
-
-async def _hold_interrupt(
-    step: Awaitable[object],
-    failure_message: str,
-    interrupts: list[BaseException],
-) -> None:
-    """Await one teardown *step*: log a failure, and record a cancellation or
-    Ctrl+C in *interrupts* instead of letting it skip the steps after this
-    one."""
-    try:
-        await step
-    except (asyncio.CancelledError, KeyboardInterrupt) as exc:
-        interrupts.append(exc)
-    except Exception:
-        CFG.LOGGER.debug(failure_message, exc_info=True)
-
-
-def _hold_interrupt_sync(
-    step: Callable[[], object],
-    failure_message: str,
-    interrupts: list[BaseException],
-) -> None:
-    """`_hold_interrupt` for a synchronous teardown *step*."""
-    try:
-        step()
-    except (asyncio.CancelledError, KeyboardInterrupt) as exc:
-        interrupts.append(exc)
-    except Exception:
-        CFG.LOGGER.debug(failure_message, exc_info=True)
-
-
-def _cancel_background_delegations() -> None:
-    # lazy: zrb internal — only needed at teardown; keeps this import off the
-    # hot path every other turn takes.
-    from zrb.llm.tool.delegate_background import get_background_registry
-
-    get_background_registry().cancel_all()
-
-
-def _shutdown_hook_executor() -> None:
-    # lazy: tests patch zrb.llm.hook.executor.shutdown_hook_executor; hoisting
-    # bypasses the mock
-    from zrb.llm.hook.executor import shutdown_hook_executor
-
-    shutdown_hook_executor(wait=False)
-
-
-async def _cancel_background_shells() -> None:
-    # lazy: zrb internal — only needed at teardown; keeps this import off the
-    # hot path every other turn takes.
-    from zrb.llm.tool.shell_background import get_shell_background_registry
-
-    await get_shell_background_registry().cancel_all()

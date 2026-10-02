@@ -109,23 +109,17 @@ _every_feature_sessions: "weakref.WeakSet[FeatureSessions[Any]]" = weakref.WeakS
 def close_feature_sessions(session_key: str) -> None:
     """Close *session_key*'s value in every feature that holds one; called
     where a chat session ends — the interactive CLI's teardown and the web
-    runner's session removal. A Ctrl+C during one feature's close is
-    re-raised once every feature has been closed."""
-    interrupt: KeyboardInterrupt | None = None
+    runner's session removal."""
     try:
         for sessions in list(_every_feature_sessions):
             try:
                 sessions.close_session(session_key)
-            except KeyboardInterrupt as exc:
-                interrupt = interrupt or exc
             except Exception as exc:
                 # One feature failing to close must not keep the others (or
                 # the session's UI) alive.
                 logger.warning(f"Closing a feature session failed: {exc}")
     finally:
         _session_uis.pop(session_key, None)
-    if interrupt is not None:
-        raise interrupt
 
 
 # The UI serving each chat session. Hooks run on a pool thread with the
