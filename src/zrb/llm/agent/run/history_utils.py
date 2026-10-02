@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from dataclasses import is_dataclass, replace
 from enum import IntEnum
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.config.config import CFG
 from zrb.llm.config.limiter import is_turn_start
@@ -28,6 +28,10 @@ from zrb.llm.message import (
     validate_tool_pair_integrity,
 )
 from zrb.util.truncate import truncate_display
+
+if TYPE_CHECKING:
+    from pydantic_ai import DeferredToolResults
+    from pydantic_ai.messages import ModelMessage
 
 _TOOL_RESULT_MAX_CHARS = 500
 
@@ -534,6 +538,36 @@ def close_dangling_tool_calls(history: list[Any], reason: str) -> list[Any]:
     if not tool_returns:
         return history
     return [*history, ModelRequest(parts=tool_returns)]
+
+
+def history_through_deferred_returns(
+    messages: "list[ModelMessage]", results: "DeferredToolResults"
+) -> "list[ModelMessage] | None":
+    """`messages` cut after its last `ModelRequest`, when it already holds a
+    tool return for one of `results`' deferred calls.
+
+    That is how far a resumed round got once pydantic-ai ran the approved
+    tools, whatever failed after. `None` when the round never ran them.
+    """
+    from pydantic_ai.messages import (  # lazy: heavy third-party
+        ModelRequest,
+        RetryPromptPart,
+        ToolReturnPart,
+    )
+
+    deferred_ids = {*results.approvals, *results.calls}
+    request_indexes = [
+        i for i, msg in enumerate(messages) if isinstance(msg, ModelRequest)
+    ]
+    has_deferred_return = any(
+        isinstance(part, (ToolReturnPart, RetryPromptPart))
+        and part.tool_call_id in deferred_ids
+        for i in request_indexes
+        for part in messages[i].parts
+    )
+    if not has_deferred_return:
+        return None
+    return list(messages[: request_indexes[-1] + 1])
 
 
 def history_without_trailing_response(run_history: list[Any]) -> list[Any]:

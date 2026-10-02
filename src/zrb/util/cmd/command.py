@@ -6,13 +6,18 @@ import signal
 import sys
 from collections import deque
 from collections.abc import Callable
-from typing import Any, TextIO
+from typing import Any, TextIO, TypeVar
 
 import psutil
 
 from zrb.cmd.cmd_result import CmdResult
 from zrb.config.config import CFG
 from zrb.config.helper import get_shell_name, get_windows_posix_shell
+
+_T = TypeVar("_T")
+
+PIPE_DRAIN_GRACE_SECONDS = 0.5
+_EXIT_POLL_MAX_SECONDS = 0.05
 
 
 def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
@@ -120,34 +125,161 @@ async def terminate_process(
 ) -> None:
     """Gracefully terminate an asyncio subprocess tree, then force-kill survivors.
 
-    The tree is snapshotted *before* signalling, because once the shell exits its
-    children are reparented and can no longer be reached via the shell PID. After
-    a SIGTERM-equivalent and a grace window, any snapshotted PID still alive is
-    force-killed. Cross-platform via ``psutil``.
+    *process* must have been started with ``start_new_session=True``. On POSIX
+    its pid is then also its process-group id, and the group is signalled
+    along with the tree — the only handle left on a backgrounded child once
+    *process* itself has exited, since that child is reparented away from it.
+    The tree is snapshotted *before* signalling for the same reason. After a
+    SIGTERM-equivalent and a grace window, any snapshotted PID or group member
+    still alive is force-killed. Cross-platform via ``psutil``; the group
+    signal applies where ``os.killpg`` exists.
 
     Args:
         process (asyncio.subprocess.Process): The process to terminate.
         grace_seconds (float): How long to wait for graceful exit before forcing.
         print_method (Callable[..., None] | None): Status printer for kills.
     """
-    if process.returncode is not None:
+    group = _get_session_group(process)
+    is_running = process.returncode is None
+    if not is_running and group is None:
         return
-    pids = _process_tree_pids(process.pid)
-    terminate_pid(process.pid, print_method=print_method)
-    try:
-        await asyncio.wait_for(process.wait(), timeout=grace_seconds)
-    except asyncio.TimeoutError:
-        pass
+    pids = _process_tree_pids(process.pid) if is_running else []
+    _signal_process_group(group, "SIGTERM")
+    if is_running:
+        terminate_pid(process.pid, print_method=print_method)
+    await _wait_for_tree_exit(process, group, grace_seconds)
     for pid in pids:
         if psutil.pid_exists(pid):
             kill_pid(pid, print_method=print_method)
+    _signal_process_group(group, "SIGKILL")
     # Reap the child while the loop is alive; otherwise the child watcher logs
     # "Loop <...> that handles pid N is closed" at asyncio.run teardown.
     if process.returncode is None:
         try:
-            await asyncio.wait_for(process.wait(), timeout=grace_seconds)
+            await asyncio.wait_for(wait_for_exit(process), timeout=grace_seconds)
         except asyncio.TimeoutError:
             pass
+
+
+async def wait_for_exit(process: asyncio.subprocess.Process) -> int:
+    """Wait for *process* itself to exit and return its exit code.
+
+    Unlike ``Process.wait()``, which also waits for its pipes to close, so a
+    background child holding them (``server &``) stalls it.
+    """
+    interval = 0.001
+    while (returncode := process.returncode) is None:
+        await asyncio.sleep(interval)
+        interval = min(interval * 2, _EXIT_POLL_MAX_SECONDS)
+    return returncode
+
+
+async def wait_for_exit_and_drain(
+    process: asyncio.subprocess.Process,
+    readers: "asyncio.Future[_T]",
+    drain_grace: float = PIPE_DRAIN_GRACE_SECONDS,
+) -> int:
+    """Wait for *process* to exit, then up to *drain_grace* for *readers*.
+
+    Returns the exit code. Readers still going after the grace are reading a
+    background child's output: they are cancelled and the pipes closed, so
+    that child gets EPIPE on its next write unless its output is redirected.
+    A reader's failure is raised at once.
+    """
+    exit_task = asyncio.ensure_future(wait_for_exit(process))
+    try:
+        done, _ = await asyncio.wait(
+            [exit_task, readers], return_when=asyncio.FIRST_COMPLETED
+        )
+        if readers not in done:
+            await asyncio.wait([readers], timeout=drain_grace)
+        if readers.done():
+            readers.result()
+        else:
+            await _cancel_and_wait(readers)
+            _close_transport(process)
+        return await exit_task
+    finally:
+        await _cancel_and_wait(exit_task)
+        await _cancel_and_wait(readers)
+
+
+async def _cancel_and_wait(future: "asyncio.Future[_T]") -> None:
+    if future.done():
+        return
+    future.cancel()
+    await asyncio.wait([future])
+    # A cancelled `gather` can finish holding its children's CancelledError as
+    # an exception; retrieving it keeps asyncio from logging it as unhandled.
+    if not future.cancelled():
+        future.exception()
+
+
+def _close_transport(process: asyncio.subprocess.Process) -> None:
+    """Close *process*'s pipes while the loop is alive.
+
+    Left to GC, the transport's ``__del__`` can run after the loop is gone and
+    raise "Event loop is closed". It does not kill a process that has exited.
+    """
+    transport = getattr(process, "_transport", None)
+    if transport is not None:
+        transport.close()
+
+
+def _get_session_group(process: asyncio.subprocess.Process) -> int | None:
+    """The group a ``start_new_session=True`` *process* leads, or None.
+
+    Verified with the OS while *process* runs. Once it is reaped, POSIX never
+    reuses a live group's id as a pid, so a process holding that pid means
+    the group has ended. Never our own group.
+    """
+    if not (hasattr(os, "killpg") and hasattr(os, "getpgid")):
+        return None
+    group = process.pid
+    try:
+        if group == os.getpgid(0):
+            return None
+        if process.returncode is None:
+            if os.getpgid(group) != group:
+                return None
+        elif psutil.pid_exists(group):
+            return None
+    except OSError:
+        return None
+    return group
+
+
+def _signal_process_group(group: int | None, sig_name: str) -> None:
+    """Send ``signal.<sig_name>`` to *group*, if any. By name because
+    ``signal.SIGKILL`` does not exist on Windows."""
+    if group is None:
+        return
+    try:
+        os.killpg(group, getattr(signal, sig_name))
+    except OSError:
+        pass
+
+
+def _is_group_alive(group: int | None) -> bool:
+    if group is None:
+        return False
+    try:
+        os.killpg(group, 0)
+    except OSError:
+        return False
+    return True
+
+
+async def _wait_for_tree_exit(
+    process: asyncio.subprocess.Process, group: int | None, timeout: float
+) -> None:
+    """Wait up to *timeout* for *process* and every member of *group* to exit."""
+    deadline = asyncio.get_running_loop().time() + timeout
+    while process.returncode is None or _is_group_alive(group):
+        remaining = deadline - asyncio.get_running_loop().time()
+        if remaining <= 0:
+            return
+        await asyncio.sleep(min(_EXIT_POLL_MAX_SECONDS, remaining))
 
 
 def terminate_pid(pid: int, print_method: Callable[..., None] | None = None) -> None:
@@ -164,9 +296,10 @@ def terminate_pid(pid: int, print_method: Callable[..., None] | None = None) -> 
     actual_print_method = print_method if print_method is not None else print
     try:
         parent = psutil.Process(pid)
+        tree = parent.children(recursive=True) + [parent]
     except psutil.NoSuchProcess:
         return
-    for proc in parent.children(recursive=True) + [parent]:
+    for proc in tree:
         try:
             proc.terminate()
         except psutil.NoSuchProcess:
@@ -202,38 +335,34 @@ async def run_command(
         register_pid_method(cmd_process.pid)
     assert cmd_process.stdout is not None and cmd_process.stderr is not None
     display_lines = deque(maxlen=max_display_line if max_display_line > 0 else 0)
+    states = {
+        "stdout": __StreamState(max_output_line),
+        "stderr": __StreamState(max_error_line),
+    }
     streams_task = asyncio.create_task(
         __read_streams(
             cmd_process.stdout,
             cmd_process.stderr,
+            states,
             actual_print_method,
-            max_output_line,
-            max_error_line,
             display_lines,
         )
     )
-    timeout_task = (
-        asyncio.create_task(asyncio.sleep(timeout)) if timeout and timeout > 0 else None
-    )
-    wait_task = asyncio.create_task(cmd_process.wait())
     try:
-        done, _ = await asyncio.wait(
-            {wait_task, timeout_task} if timeout_task else {wait_task},
-            return_when=asyncio.FIRST_COMPLETED,
-        )
-        if timeout_task and timeout_task in done:
-            raise asyncio.TimeoutError()
-        return_code = wait_task.result()
-        stdout, stderr = await streams_task
+        async with asyncio.timeout(timeout if timeout and timeout > 0 else None):
+            # Like `subprocess.run`, wait until every holder of the pipes
+            # closes them; on timeout the group kill reaches a background one.
+            await streams_task
+            return_code = await wait_for_exit(cmd_process)
+        stdout = "\r\n".join(states["stdout"].captured)
+        stderr = "\r\n".join(states["stderr"].captured)
         display = "\r\n".join(display_lines)
         return CmdResult(stdout, stderr, display=display), return_code
     except (KeyboardInterrupt, asyncio.CancelledError, asyncio.TimeoutError):
-        await __terminate_on_cancel(cmd_process, actual_print_method)
+        await __terminate_on_cancel(cmd_process, is_interactive, actual_print_method)
         raise
     finally:
-        await __release_process(
-            cmd_process, [t for t in (timeout_task, wait_task, streams_task) if t]
-        )
+        await __release_process(cmd_process, [streams_task])
 
 
 async def __spawn(
@@ -273,29 +402,33 @@ async def __release_process(
     for task in helper_tasks:
         task.cancel()
     await asyncio.gather(*helper_tasks, return_exceptions=True)
-    transport = getattr(cmd_process, "_transport", None)
-    if transport is not None:
-        transport.close()
+    _close_transport(cmd_process)
 
 
 async def __terminate_on_cancel(
-    cmd_process: "asyncio.subprocess.Process", print_method: Callable[..., None]
+    cmd_process: "asyncio.subprocess.Process",
+    is_interactive: bool,
+    print_method: Callable[..., None],
 ) -> None:
     """Best-effort termination of *cmd_process* on interrupt/cancel/timeout.
 
     Escalates to a forceful kill if graceful termination doesn't land within
     `CFG.CMD_CLEANUP_TIMEOUT`, and swallows any secondary error so the
     original interrupt/cancel/timeout always propagates from the caller.
+
+    A backgrounded child outlives the shell and, as an asynchronous command of
+    a non-interactive shell, ignores SIGINT; the process group is the one
+    handle left on it, so the group is killed once the shell is gone.
     """
+    cleanup_seconds = CFG.CMD_CLEANUP_TIMEOUT / 1000
+    group = None if is_interactive else _get_session_group(cmd_process)
     try:
-        if hasattr(os, "killpg"):
-            os.killpg(cmd_process.pid, signal.SIGINT)
+        if group is not None:
+            os.killpg(group, signal.SIGINT)
         else:
             # No POSIX process groups on Windows; psutil hard-kills the tree.
             terminate_pid(cmd_process.pid, print_method=print_method)
-        await asyncio.wait_for(
-            cmd_process.wait(), timeout=CFG.CMD_CLEANUP_TIMEOUT / 1000
-        )
+        await asyncio.wait_for(wait_for_exit(cmd_process), timeout=cleanup_seconds)
     except asyncio.TimeoutError:
         print_method(
             f"Process {cmd_process.pid} did not terminate gracefully, killing."
@@ -303,6 +436,10 @@ async def __terminate_on_cancel(
         kill_pid(cmd_process.pid, print_method=print_method)
     except Exception:
         pass
+    if _is_group_alive(group):
+        _signal_process_group(group, "SIGTERM")
+        await _wait_for_tree_exit(cmd_process, group, cleanup_seconds)
+        _signal_process_group(group, "SIGKILL")
 
 
 def __get_cmd_stdin(is_interactive: bool) -> int | TextIO:
@@ -314,26 +451,23 @@ def __get_cmd_stdin(is_interactive: bool) -> int | TextIO:
 async def __read_streams(
     stdout_stream: asyncio.StreamReader,
     stderr_stream: asyncio.StreamReader,
+    states: "dict[str, __StreamState]",
     print_method: Callable[..., None],
-    max_output_line: int,
-    max_error_line: int,
     display_queue: deque[Any],
-) -> tuple[str, str]:
-    """Read stdout and stderr from one multiplexed loop.
+) -> None:
+    """Read stdout and stderr from one multiplexed loop into *states*.
 
     One loop reacting to whichever stream has data keeps interleaved output
     close to write order; two reader tasks could each drain a buffered burst
     before yielding. Raw `read()` rather than `readline()` shows `\r`-driven
     progress live and cannot raise on a chunk over the stream's buffer limit.
     A line with no `\r`/`\n` is force-flushed past `CFG.CMD_BUFFER_LIMIT`.
+    A stream still open when reading is cancelled has its partial last line
+    flushed, so *states* holds everything read either way.
 
     Writes to both pipes at the same instant have no recoverable order.
     """
     streams = {"stdout": stdout_stream, "stderr": stderr_stream}
-    states = {
-        "stdout": __StreamState(max_output_line),
-        "stderr": __StreamState(max_error_line),
-    }
     pending = {
         name: asyncio.ensure_future(stream.read(65536))
         for name, stream in streams.items()
@@ -353,12 +487,9 @@ async def __read_streams(
                 __feed_stream(states[name], chunk, print_method, display_queue)
                 pending[name] = asyncio.ensure_future(streams[name].read(65536))
     finally:
-        for future in pending.values():
+        for name, future in pending.items():
             future.cancel()
-    return (
-        "\r\n".join(states["stdout"].captured),
-        "\r\n".join(states["stderr"].captured),
-    )
+            __finalize_stream(states[name], print_method, display_queue)
 
 
 class __StreamState:

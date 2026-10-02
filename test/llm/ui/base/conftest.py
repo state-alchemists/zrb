@@ -52,6 +52,7 @@ class MockUI:
         self.snapshot_manager = MagicMock()
         self.snapshot_manager.unavailable_reason = ""
         self.message_queue = asyncio.Queue()
+        self.multi_ui_parent = None
         self.pending_attachments = []
         self.is_thinking = False
         self.running_llm_task = None
@@ -82,6 +83,11 @@ class MockUI:
             if hasattr(holder, name):
                 return getattr(holder, name)
         raise AttributeError(name)
+
+    @property
+    def effective_message_queue(self):
+        parent = self.multi_ui_parent
+        return parent.message_queue if parent is not None else self.message_queue
 
     def append_to_output(self, text, end="\n"):
         self.outputs.append(str(text) + end)

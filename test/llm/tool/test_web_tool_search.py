@@ -436,3 +436,23 @@ async def test_open_web_page_with_summarization():
         assert "links_on_page" in result
         mock_create_agent.assert_called_once()
         mock_run_agent.assert_called_once()
+
+
+def test_fetch_page_fallback_decodes_a_meta_declared_utf8_page():
+    import io
+
+    import requests
+
+    from zrb.llm.tool.web import fetch_page_fallback
+
+    body = '<html><head><meta charset="utf-8"></head><body>Café 日本語</body></html>'
+    response = requests.Response()
+    response.status_code = 200
+    response.headers["Content-Type"] = "text/html"
+    response.raw = io.BytesIO(body.encode("utf-8"))
+    response.encoding = requests.utils.get_encoding_from_headers(response.headers)
+
+    with patch("requests.get", return_value=response):
+        content, _, _ = fetch_page_fallback("https://example.com", "agent")
+
+    assert "Café 日本語" in content

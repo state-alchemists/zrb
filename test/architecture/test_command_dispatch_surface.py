@@ -45,7 +45,7 @@ class _ProbeUI(SimpleUI):
 def ui():
     return _ProbeUI(
         ctx=Context(SharedContext(), "probe", 0, ""),
-        llm_task=MagicMock(),
+        llm_task=MagicMock(hook_manager=None, active_hook_manager=None),
         history_manager=MagicMock(),
         config=UIConfig.default(),
     )

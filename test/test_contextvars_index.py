@@ -33,6 +33,8 @@ def test_index_exports_all_wrappers():
         "set_current_tool_session",
         "current_hook_manager",
         "get_current_hook_manager",
+        "current_llm_limiter",
+        "get_current_llm_limiter",
         "current_agent_run_scope",
         "get_current_agent_run_scope",
         "current_small_model",

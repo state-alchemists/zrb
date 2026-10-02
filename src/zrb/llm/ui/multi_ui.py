@@ -7,7 +7,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, TextIO
 
 if TYPE_CHECKING:
+    from pydantic_ai.models import Model
+
     from zrb.llm.agent.types import RequestUsage, RunUsage
+    from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+    from zrb.llm.snapshot.manager import SnapshotManager
 
     from zrb.llm.ui.any_ui import ChoiceSpec
 
@@ -151,31 +155,73 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
     def last_output(self, value: str) -> None:
         self._last_output = value
 
+    # State the main child owns, read and written there.
     @property
-    def small_model(self):
-        """The main child's `/model small ...` override (delegated so the agent
-        runner's `run_agent` binds `current_small_model` from the MultiUI itself
-        rather than seeing `None` and falling back to CFG)."""
+    def model(self) -> "str | Model | None":
+        return self.main_ui.model if self.main_ui is not None else None
+
+    @model.setter
+    def model(self, value: "str | Model | None") -> None:
+        if self.main_ui is not None:
+            self.main_ui.model = value
+
+    @property
+    def small_model(self) -> "str | Model | None":
         return self.main_ui.small_model if self.main_ui is not None else None
 
     @small_model.setter
-    def small_model(self, value: Any) -> None:
-        """Write through to the main child, so a `/model small ...` applied to
-        the MultiUI lands where `small_model` is read back from."""
+    def small_model(self, value: "str | Model | None") -> None:
         if self.main_ui is not None:
             self.main_ui.small_model = value
 
     @property
-    def multimodal_model(self):
-        """The main child's `/model multimodal ...` override — same delegation
-        rationale as `small_model`."""
+    def multimodal_model(self) -> "str | Model | None":
         return self.main_ui.multimodal_model if self.main_ui is not None else None
 
     @multimodal_model.setter
-    def multimodal_model(self, value: Any) -> None:
-        """Write through to the main child — same rationale as `small_model`."""
+    def multimodal_model(self, value: "str | Model | None") -> None:
         if self.main_ui is not None:
             self.main_ui.multimodal_model = value
+
+    @property
+    def conversation_session_name(self) -> str:
+        return (
+            self.main_ui.conversation_session_name if self.main_ui is not None else ""
+        )
+
+    @conversation_session_name.setter
+    def conversation_session_name(self, value: str) -> None:
+        if self.main_ui is not None:
+            self.main_ui.conversation_session_name = value
+
+    @property
+    def plan_mode_active(self) -> bool:
+        return self.main_ui.plan_mode_active if self.main_ui is not None else False
+
+    @plan_mode_active.setter
+    def plan_mode_active(self, value: bool) -> None:
+        if self.main_ui is not None:
+            self.main_ui.plan_mode_active = value
+
+    @property
+    def yolo(self) -> bool | frozenset:
+        return self.main_ui.yolo if self.main_ui is not None else False
+
+    @property
+    def snapshot_manager(self) -> "SnapshotManager | None":
+        return self.main_ui.snapshot_manager if self.main_ui is not None else None
+
+    @property
+    def history_manager(self) -> "AnyHistoryManager | None":
+        return self.main_ui.history_manager if self.main_ui is not None else None
+
+    @property
+    def llm_task(self) -> Any:
+        return self._llm_task
+
+    @llm_task.setter
+    def llm_task(self, value: Any) -> None:
+        self.set_llm_task(value)
 
     @property
     def message_queue(self) -> "MessageQueue":
@@ -440,7 +486,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
                         await update_info()
                     except Exception as e:
                         CFG.LOGGER.debug(f"Child UI system info update failed: {e}")
-            self.invalidate_all_uis()
+            self.invalidate_ui()
 
     def set_thinking(self, value: bool, repaint: bool = True) -> None:
         """Mirror the thinking flag to every child UI, then repaint.
@@ -454,10 +500,10 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         for ui in self._uis:
             ui.is_thinking = value
         if repaint:
-            self.invalidate_all_uis()
+            self.invalidate_ui()
 
-    def invalidate_all_uis(self):
-        """Invalidate all child UIs."""
+    def invalidate_ui(self) -> None:
+        """Ask every child UI to repaint."""
         for ui in self._uis:
             try:
                 ui.invalidate_ui()
@@ -615,8 +661,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
     ) -> str:
         """Race all UIs for input and return the first response.
 
-        When one UI wins, cancel and clear pending confirmations in other UIs.
-        This ensures Terminal's confirmation queue doesn't get out of sync.
+        The losers' prompts are cancelled once one UI answers.
         """
         return await self._race_children(
             lambda ui: ui.ask_user(
@@ -629,7 +674,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         self, spec: "ChoiceSpec", agent_id: str | None = None
     ) -> str:
         """Race all UIs for a multiple-choice answer and return the first,
-        with the same cancel-and-clear rules as `ask_user`."""
+        with the same rules as `ask_user`."""
         return await self._race_children(
             lambda ui: ui.ask_user_choice(spec, agent_id=agent_id), "ask_user_choice"
         )
@@ -637,8 +682,14 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
     async def _race_children(
         self, ask: Callable[[Any], Coroutine[Any, Any, str]], label: str
     ) -> str:
+        """Return the first answer any child gives.
+
+        A failed child drops out rather than winning: an empty answer approves
+        a tool call. With no child left to answer this raises, as
+        `MultiplexApprovalChannel` denies.
+        """
         if is_shutdown_requested():
-            return ""
+            raise RuntimeError(f"Shutdown requested; {label} has no answer")
         loop = asyncio.get_running_loop()
         pending_tasks: dict[asyncio.Task, tuple[int, Any]] = {}
         for i, ui in enumerate(self._uis):
@@ -647,33 +698,37 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             except Exception as e:
                 CFG.LOGGER.debug(f"Child UI {label} setup failed: {e}")
         if not pending_tasks:
-            return ""
-        self._pending_input_tasks = list(pending_tasks.keys())
+            raise RuntimeError(f"No child UI could take {label}")
+        # Shared by concurrent races; each removes only its own tasks.
+        self._pending_input_tasks.extend(pending_tasks)
+        waiting: set[asyncio.Task] = set(pending_tasks)
+        last_error: BaseException | None = None
         try:
-            done, pending = await asyncio.wait(
-                pending_tasks.keys(), return_when=asyncio.FIRST_COMPLETED
-            )
-            # Several UIs may finish in the same wait round; the lowest index
-            # wins so the result never depends on set iteration order.
-            completed_task = min(done, key=lambda t: pending_tasks[t][0])
-            winning_ui_index, winning_ui = pending_tasks[completed_task]
-            self._last_winning_ui = winning_ui
-            for task in done:
-                if task is not completed_task:
-                    task.cancel()
-            for task in pending:
-                task.cancel()
-            try:
-                result = completed_task.result()
-            except Exception as e:
-                CFG.LOGGER.debug(f"Winning UI {label} failed: {e}")
-                result = ""
-            # Sync sibling confirmation queues even on failure: no input race
-            # is in flight anymore, so stale confirmations must not linger.
-            self.clear_pending_confirmations_except(winning_ui_index)
-            return result
+            while waiting:
+                done, waiting = await asyncio.wait(
+                    waiting, return_when=asyncio.FIRST_COMPLETED
+                )
+                # Several UIs may finish in the same wait round; the lowest
+                # index wins so the result never depends on set iteration order.
+                for task in sorted(done, key=lambda t: pending_tasks[t][0]):
+                    if task.cancelled():
+                        continue
+                    error = task.exception()
+                    if error is not None:
+                        CFG.LOGGER.debug(f"Child UI {label} failed: {error}")
+                        last_error = error
+                        continue
+                    self._last_winning_ui = pending_tasks[task][1]
+                    return task.result()
+            raise RuntimeError(f"Every child UI failed {label}") from last_error
         finally:
-            self._pending_input_tasks = []
+            # Cancelling a loser releases that loser's prompt and no other.
+            for task in pending_tasks:
+                task.cancel()
+            await asyncio.gather(*pending_tasks, return_exceptions=True)
+            for task in pending_tasks:
+                if task in self._pending_input_tasks:
+                    self._pending_input_tasks.remove(task)
 
     @property
     def is_turn_running(self) -> bool:
@@ -681,12 +736,16 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         running = self._running_llm_task
         return running is not None and not running.done()
 
+    def cancel_pending_confirmations(self, flush: bool = True) -> None:
+        """Release every child's pending confirmation."""
+        for ui in self._uis:
+            ui.cancel_pending_confirmations(flush)
+
     def cancel_current_turn(self, reason: str) -> None:
         """Release every child's pending confirmation, cancel the turn this
         MultiUI runs (its children run none) and fire `Stop` with *reason*
         once; `AnyUI.cancel_current_turn`."""
-        for ui in self._uis:
-            ui.cancel_pending_confirmations()
+        self.cancel_pending_confirmations()
         running = self._running_llm_task
         if running is None or running.done():
             return
@@ -712,20 +771,6 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         """Whether any child has answered the first prompt asked at or after
         *asked_at*: an answer from any of them settles it."""
         return any(ui.is_prompt_answered_since(asked_at) for ui in self._uis)
-
-    def clear_pending_confirmations_except(self, except_index: int):
-        """Cancel pending confirmation futures in all UIs except the winner.
-
-        This prevents Terminal's confirmation queue from getting out of sync
-        when another UI wins the input race.
-        """
-        for i, ui in enumerate(self._uis):
-            if i == except_index:
-                continue
-            try:
-                ui.cancel_pending_confirmations()
-            except Exception as e:
-                CFG.LOGGER.debug(f"Child UI cancel_pending_confirmations failed: {e}")
 
     def stream_to_parent(
         self,

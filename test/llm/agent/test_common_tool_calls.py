@@ -247,3 +247,42 @@ async def test_call_tool_appends_override_note_when_args_were_edited():
     assert "ok" in res.return_value
     assert "[SYSTEM NOTE]" in res.return_value
     assert "b.txt" in res.return_value
+
+
+@pytest.mark.asyncio
+async def test_call_tool_pretooluse_fires_on_the_run_hook_manager():
+    """A task with its own hooks binds its manager for the run; a deny on that
+    manager blocks the tool even though the process-wide one allows it."""
+    from pydantic_ai import ToolReturn
+    from pydantic_ai.toolsets import FunctionToolset
+
+    from zrb.llm.agent.common import wrap_toolset
+    from zrb.llm.agent_state import current_hook_manager
+    from zrb.llm.hook.executor import HookExecutionResult
+    from zrb.llm.hook.types import HookEvent
+
+    wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
+    deny = HookExecutionResult(
+        success=True, permission_decision="deny", permission_decision_reason="nope"
+    )
+    run_manager = MagicMock()
+    run_manager.execute_hooks = _route_hooks({HookEvent.PRE_TOOL_USE: [deny]})
+    token = current_hook_manager.set(run_manager)
+    try:
+        with (
+            patch(
+                "zrb.llm.hook.manager.hook_manager.execute_hooks",
+                _route_hooks({}),
+            ),
+            patch(
+                "pydantic_ai.toolsets.WrapperToolset.call_tool",
+                new_callable=AsyncMock,
+            ) as mock_super,
+        ):
+            res = await wrapped_ts.call_tool("t", {"a": 1}, None, None)
+    finally:
+        current_hook_manager.reset(token)
+
+    assert isinstance(res, ToolReturn)
+    assert res.metadata.get("blocked") is True
+    mock_super.assert_not_called()

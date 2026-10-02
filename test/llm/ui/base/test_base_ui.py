@@ -42,7 +42,7 @@ class ConcreteUI(BaseUI):
 @pytest.fixture
 def base_ui():
     ctx = Context(SharedContext(), "test", 0, "")
-    llm_task = MagicMock()
+    llm_task = MagicMock(hook_manager=None, active_hook_manager=None)
     history_manager = MagicMock()
     return ConcreteUI(
         ctx=ctx,
@@ -347,3 +347,16 @@ async def test_edit_queued_message_refused_after_turn_started_in_multi_ui():
     assert entry.text == "original"
     assert child_a.redrawn == []
     assert child_b.redrawn == []
+
+
+@pytest.mark.asyncio
+async def test_execute_hook_blocking_uses_the_task_hook_manager(base_ui):
+    """A PreCommand hook registered on the task's own manager can block."""
+    from zrb.llm.hook.types import HookEvent
+
+    base_ui.llm_task.hook_manager = MagicMock()
+    base_ui.llm_task.hook_manager.execute_hooks = AsyncMock(return_value=["mine"])
+
+    result = await base_ui.execute_hook_blocking(HookEvent.PRE_COMMAND, {})
+
+    assert result == ["mine"]

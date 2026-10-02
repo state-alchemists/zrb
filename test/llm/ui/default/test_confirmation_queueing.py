@@ -98,10 +98,10 @@ class GuardedConfirmationUI(_ForwardsToConfirmation):
         self.rendered = []
         self._confirmation = UIConfirmation(self)
 
-    def append_to_output(self, *values, end="\n", **kwargs):
+    def append_to_output(self, *values, end="\n", kind="text", **kwargs):
         content = " ".join(str(v) for v in values) + end
         if self.confirmation.current is not None and self._is_thinking:
-            self.confirmation.output_buffer.append(content)
+            self.confirmation.output_buffer.append((content, kind))
             return
         self.rendered.append(content)
 

@@ -31,7 +31,7 @@ from zrb.context.shared_context import SharedContext
 from zrb.llm.agent_state import get_current_ui
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-from zrb.llm.hook.manager import HookManager, hook_manager
+from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission.state import (
     AgentMode,
@@ -682,7 +682,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self.execute_hook(
             HookEvent.STOP,
             {"reason": reason, "session": self.conversation_session_name},
-            manager=get_turn_hook_manager(self.llm_task),
         )
 
     def execute_hook(
@@ -694,10 +693,10 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     ) -> None:
         """
         Safely execute hooks from either sync or async context, through
-        *manager* (default: the process-wide one).
+        *manager* (default: the one this UI's turns run with).
         Maintains strong references to tasks to prevent garbage collection.
         """
-        effective: HookManager = manager or hook_manager
+        effective = manager or get_turn_hook_manager(self.llm_task)
         try:
             loop = asyncio.get_running_loop()
             task = loop.create_task(
@@ -723,7 +722,8 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         so callers can inspect results for a blocking decision — used by the
         PreCommand path to cancel a command before it runs.
         """
-        return await hook_manager.execute_hooks(event, event_data, **kwargs)
+        manager = get_turn_hook_manager(self.llm_task)
+        return await manager.execute_hooks(event, event_data, **kwargs)
 
     @property
     def yolo(self) -> bool | frozenset:
@@ -831,11 +831,11 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
     ) -> Any:
-        """[REQUIRED] Execute an interactive shell command.
+        """Execute an interactive shell command, handing it the real terminal.
 
-        This method must be implemented by UI subclasses that support
-        running shell commands from within the chat (e.g., via /exec command).
-        For UIs that don't support this, raise NotImplementedError or return None.
+        Called by the diff and argument editors on an "edit" approval answer.
+        The default raises `NotImplementedError`: a UI with no terminal to
+        hand over fails that answer rather than editing.
 
         Args:
             cmd: Command to execute (string or list of arguments)

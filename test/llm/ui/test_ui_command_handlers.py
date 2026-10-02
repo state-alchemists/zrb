@@ -23,7 +23,7 @@ class TestBaseUICommandHandlers:
         ctx = Context(SharedContext(), "test", 0, "")
         return TestSimpleUI(
             ctx=ctx,
-            llm_task=MagicMock(),
+            llm_task=MagicMock(hook_manager=None, active_hook_manager=None),
             history_manager=MagicMock(),
             config=UIConfig.default(),
         )

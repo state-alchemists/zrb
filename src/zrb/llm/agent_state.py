@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 
     from zrb.llm.agent.types import ToolApproved, ToolCallPart, ToolDenied
     from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.config.limiter import LLMLimiter
     from zrb.llm.hook.manager import HookManager
     from zrb.llm.tool_call.handler import ToolCallHandler
     from zrb.llm.ui.any_ui import AnyUI
@@ -86,6 +87,10 @@ current_multimodal_model: ContextVar["str | Model | None"] = ContextVar(
 current_model: ContextVar["str | Model | None"] = ContextVar(
     "current_model", default=None
 )
+# The current run's limiter, for tools that make model calls of their own.
+current_llm_limiter: ContextVar["LLMLimiter | None"] = ContextVar(
+    "current_llm_limiter", default=None
+)
 
 
 def get_current_ui() -> "AnyUI | None":
@@ -106,6 +111,11 @@ def get_current_yolo() -> bool:
 def get_current_approval_channel() -> "AnyApprovalChannel | None":
     """Return the approval channel active for the current agent run, or None."""
     return current_approval_channel.get()
+
+
+def get_current_llm_limiter() -> "LLMLimiter | None":
+    """Return the limiter active for the current agent run, or None."""
+    return current_llm_limiter.get()
 
 
 def get_current_hook_manager() -> "HookManager | None":
@@ -143,6 +153,7 @@ __all__ = [
     "current_yolo",
     "current_approval_channel",
     "current_hook_manager",
+    "current_llm_limiter",
     "current_agent_run_scope",
     "current_small_model",
     "current_multimodal_model",
@@ -152,6 +163,7 @@ __all__ = [
     "get_current_yolo",
     "get_current_approval_channel",
     "get_current_hook_manager",
+    "get_current_llm_limiter",
     "get_current_agent_run_scope",
     "get_current_small_model",
     "get_current_model",

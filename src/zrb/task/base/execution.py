@@ -9,6 +9,7 @@ the pair cannot both be wired through their constructors).
 
 import asyncio
 import traceback
+from collections.abc import Awaitable, Sequence
 from typing import TYPE_CHECKING, Any
 
 from zrb.context.any_context import AnyContext, current_ctx
@@ -136,22 +137,20 @@ class BaseTaskExecution:
             readiness_error: BaseException | None = None
             readiness_timeout = task.readiness_timeout
             try:
-                # Fail fast here only: a check polls until it succeeds
-                # (HttpCheck/TcpCheck never return on their own), so waiting for
-                # siblings after one fails would hang. Successors, fallbacks and
-                # deferred actions use gather_isolated.
-                gather_coro = gather_fail_fast(*readiness_check_coros)
                 # Aggregate cap (defaults to CFG.TASK_READINESS_TIMEOUT); the same
                 # knob bounds each monitoring round. Non-positive disables it.
-                if readiness_timeout > 0:
-                    await asyncio.wait_for(gather_coro, timeout=readiness_timeout)
-                else:
-                    await gather_coro
-                all_readiness_completed = all(
+                async with asyncio.timeout(
+                    readiness_timeout if readiness_timeout > 0 else None
+                ):
+                    action_failed = await _has_action_failed_by_readiness(
+                        readiness_check_coros, action_coro
+                    )
+                if action_failed:
+                    ctx.log_error("Action failed before readiness checks passed")
+                elif all(
                     session.get_task_status(check).is_completed
                     for check in readiness_checks
-                )
-                if all_readiness_completed:
+                ):
                     ctx.log_info("Readiness checks completed successfully")
                     readiness_passed = True
                     # Gate on permanent failure only: `is_failed` is transient
@@ -276,9 +275,6 @@ class BaseTaskExecution:
                     task_xcom.push(result)
 
                 self.skip_fallbacks(session)
-                await run_async(self.execute_successors(session))
-                return result
-
             except (
                 asyncio.CancelledError,
                 KeyboardInterrupt,
@@ -314,6 +310,10 @@ class BaseTaskExecution:
                 self.skip_successors(session)
                 await run_async(self.execute_fallbacks(session))
                 raise e
+            else:
+                # Outside the try: a failing successor must not retry this action.
+                await run_async(self.execute_successors(session))
+                return result
 
     async def run_default_action(self, ctx: AnyContext) -> Any:
         """Run `task.action`: the default `BaseTask.exec_action` body."""
@@ -376,3 +376,36 @@ class BaseTaskExecution:
     def skip_fallbacks(self, session: AnySession):
         """Marks all fallback tasks as skipped."""
         self._skip_task_group(session, self._task.fallbacks, "fallback")
+
+
+async def _has_action_failed_by_readiness(
+    readiness_check_coros: "Sequence[Awaitable[object]]",
+    action_coro: "asyncio.Task[object]",
+) -> bool:
+    """Await the readiness checks; True if the action has failed by then.
+
+    A failed action ends the wait and overrides the checks. The checks fail
+    fast among themselves, since HttpCheck/TcpCheck poll until they pass. A
+    check's own failure is raised, and the checks never outlive this call.
+    """
+    checks = asyncio.ensure_future(gather_fail_fast(*readiness_check_coros))
+    try:
+        await asyncio.wait([checks, action_coro], return_when=asyncio.FIRST_COMPLETED)
+        if _has_failed(action_coro):
+            return True
+        try:
+            await checks
+        except Exception:
+            if _has_failed(action_coro):
+                return True
+            raise
+        return _has_failed(action_coro)
+    finally:
+        # Also consumes a failure the checks finished with, which the action's
+        # failure took precedence over.
+        checks.cancel()
+        await asyncio.gather(checks, return_exceptions=True)
+
+
+def _has_failed(task: "asyncio.Task[object]") -> bool:
+    return task.done() and not task.cancelled() and task.exception() is not None

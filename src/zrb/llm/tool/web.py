@@ -10,7 +10,7 @@ from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.agent_state import get_current_ui
-from zrb.llm.config.limiter import llm_limiter
+from zrb.llm.config.limiter import get_run_llm_limiter
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.tool.search.http_errors import BROWSER_USER_AGENT
@@ -361,8 +361,13 @@ def fetch_page_fallback(url: str, user_agent: str) -> tuple:
         timeout=CFG.LLM_WEB_HTTP_TIMEOUT / 1000,
     )
     response.raise_for_status()
-    if "application/pdf" in response.headers.get("Content-Type", "").lower():
+    content_type = response.headers.get("Content-Type", "").lower()
+    if "application/pdf" in content_type:
         return _extract_pdf_text(response.content), [], True
+    if "charset" not in content_type:
+        # requests decodes text/* with no header charset as ISO-8859-1, which
+        # garbles a UTF-8 page that declares its charset only in <meta>.
+        response.encoding = response.apparent_encoding
     soup = BeautifulSoup(response.text, "html.parser")
     links = [
         urljoin(url, str(a["href"]))
@@ -431,7 +436,7 @@ async def _summarize_web_content(markdown_content: str, url: str) -> str:
         agent=agent,
         message=message,
         message_history=[],  # Stateless
-        limiter=llm_limiter,
+        limiter=get_run_llm_limiter(),
     )
 
     return str(result)

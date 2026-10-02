@@ -4,6 +4,7 @@ from collections import deque
 from typing import Any, Callable
 
 from zrb.config.config import CFG
+from zrb.llm.agent_state import get_current_llm_limiter
 from zrb.llm.util.capabilities import model_capabilities
 from zrb.util.cli.style import stylize_info
 
@@ -461,3 +462,8 @@ class LLMLimiter:
 
 
 llm_limiter = LLMLimiter()
+
+
+def get_run_llm_limiter() -> LLMLimiter:
+    """The current run's limiter, else the process-wide one."""
+    return get_current_llm_limiter() or llm_limiter

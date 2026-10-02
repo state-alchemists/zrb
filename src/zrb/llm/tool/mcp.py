@@ -32,7 +32,7 @@ def _get_config_files(config_file_name: str) -> list[str]:
 
     config_files: list[str] = []
 
-    if cwd.startswith(home):
+    if cwd == home or cwd.startswith(home + os.sep):
         # Traverse from home down to cwd
         rel_path = os.path.relpath(cwd, home)
         current = home

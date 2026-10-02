@@ -129,28 +129,32 @@ class UIConfirmation:
 
     def resolve_current(self, text: str, echo: str | None) -> bool:
         """Resolve the active request with `text`; optionally echo to output."""
-        if self._ui.confirmation.current is None:
+        current = self._ui.confirmation.current
+        if current is None:
             return False
+        # Cleared first, or the echo is held behind the buffered output.
+        self._ui.confirmation.current = None
         if echo:
             # Callers bake the trailing newline into `echo`.
             self._ui.append_to_output(echo, end="")
-        if not self._ui.confirmation.current.done():
-            self._ui.confirmation.current.set_result(text)
-        self._ui.confirmation.current = None
+        if not current.done():
+            current.set_result(text)
         self._ui.end_choice()
         self._activate_next_confirmation()
         return True
 
     def _flush_confirmation_buffer(self):
         """Flush buffered main-agent output to the output window."""
-        if not self._ui.confirmation.output_buffer:
+        held = self._ui.confirmation.output_buffer
+        if not held:
             return
-        content = "".join(self._ui.confirmation.output_buffer)
-        self._ui.confirmation.output_buffer.clear()
+        chunks = list(held)
+        held.clear()
         # Clear the slot so append_to_output's buffer guard lets this through.
         saved = self._ui.confirmation.current
         self._ui.confirmation.current = None
-        self._ui.append_to_output(content)
+        for content, kind in chunks:
+            self._ui.append_to_output(content, end="", kind=kind)
         self._ui.confirmation.current = saved
 
     def _activate_next_confirmation(self):

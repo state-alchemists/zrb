@@ -38,6 +38,7 @@ from zrb.llm.agent.run.error_classifier import (
     classify_error_type,
 )
 from zrb.llm.agent.run.history_utils import (
+    history_through_deferred_returns,
     history_without_trailing_response,
     is_empty_completion,
     merge_consecutive_messages,
@@ -69,6 +70,7 @@ from zrb.llm.agent_state import (
     AnyToolConfirmation,
     current_agent_run_scope,
     current_hook_manager,
+    current_llm_limiter,
     current_model,
     current_multimodal_model,
     current_small_model,
@@ -224,6 +226,7 @@ async def run_agent(
         # rather than to `CFG.LLM_MODEL` — which after a `/model` switch is a
         # different model, often on a provider whose credentials are unset.
         bind_contextvar(stack, current_model, getattr(agent, "model", None))
+        bind_contextvar(stack, current_llm_limiter, limiter)
         bind_contextvar(stack, current_agent_run_scope, run_scope or uuid.uuid4().hex)
         bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         bind_contextvar(stack, current_permission_policy, effective_policy)
@@ -588,7 +591,12 @@ async def _execution_loop(
 
             if stream_error is not None:
                 await _recover_from_stream_error(
-                    stream_error, retry_state, cursor, print_fn, effective_hook_manager
+                    stream_error,
+                    retry_state,
+                    cursor,
+                    partial_run,
+                    print_fn,
+                    effective_hook_manager,
                 )
                 continue
 
@@ -699,10 +707,15 @@ async def _recover_from_stream_error(
     stream_error: Exception,
     retry_state: RetryState,
     cursor: TurnCursor,
+    partial_run: PartialRunAccumulator,
     print_fn: Callable[[str], Any],
     effective_hook_manager: HookManager,
 ) -> None:
     """Prepare `cursor` for a retry, or raise when the error is unrecoverable."""
+    # Read before the commit below clears the results: the committed turn
+    # holds the approved tool's return and must stay unprunable.
+    min_turns = cursor.prune_floor
+    _commit_executed_deferred_results(cursor, partial_run)
     outcome = await handle_stream_error(
         retry_state,
         stream_error,
@@ -710,7 +723,7 @@ async def _recover_from_stream_error(
         cursor.message,
         cursor.run_history,
         print_fn,
-        min_turns=cursor.prune_floor,
+        min_turns=min_turns,
     )
     if not outcome.should_retry:
         # StopFailure: the turn is ending on an unrecoverable API
@@ -730,6 +743,27 @@ async def _recover_from_stream_error(
     cursor.message = outcome.new_message
     if outcome.clear_results:
         cursor.results = None
+
+
+def _commit_executed_deferred_results(
+    cursor: TurnCursor, partial_run: PartialRunAccumulator
+) -> None:
+    """Commit a resumed round through its tool returns and drop the results.
+
+    pydantic-ai runs approved tools before the model call that failed, so
+    resending the results would run them again (ADR-0040).
+    """
+    if cursor.results is None or partial_run.latest_history is None:
+        return
+    executed = history_through_deferred_returns(
+        partial_run.latest_history, cursor.results
+    )
+    if executed is None:
+        return
+    cursor.run_history = executed
+    cursor.commit_round()
+    cursor.carry_forward()
+    cursor.results = None
 
 
 async def _resolve_deferred_requests(
@@ -795,7 +829,9 @@ def _retry_empty_completion(
         f"Empty completion (output={cursor.output!r}); "
         "dropping the empty turn and regenerating"
     )
-    cursor.history = history_without_trailing_response(cursor.run_history)
+    cursor.run_history = history_without_trailing_response(cursor.run_history)
+    cursor.commit_round()
+    cursor.carry_forward()
     cursor.message = None
     cursor.results = None
     cursor.output = None

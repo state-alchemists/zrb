@@ -262,11 +262,17 @@ def _retry_with_tool_call_correction(
     )
     print_fn("\n[SYSTEM] Invalid tool call detected, asking model to retry...")
     CFG.LOGGER.debug(f"Invalid tool call error: {exc}. Injecting corrective message.")
-    if current_message is not None and isinstance(current_message, str):
+    if isinstance(current_message, str):
         return RetryOutcome(
             should_retry=True,
             new_history=current_history,
             new_message=current_message + "\n\n" + corrective,
+        )
+    if isinstance(current_message, (list, tuple)):
+        return RetryOutcome(
+            should_retry=True,
+            new_history=current_history,
+            new_message=[*current_message, corrective],
         )
     return RetryOutcome(
         should_retry=True,
@@ -293,7 +299,8 @@ def _retry_with_text_only_history(
     provider accepts. An explainer `UserPromptPart` is always appended after
     the strip so the model knows the `(sanitized-history)` markers are a
     record, not a tool-calling format to imitate — and that tool use is still
-    expected on the next turn.
+    expected on the next turn. Pending deferred results are dropped: the
+    stripped history has no tool call left for them to answer.
     """
     # lazy: heavy third-party — pydantic_ai pulls in OpenAI/Anthropic SDKs.
     from pydantic_ai.messages import ModelRequest, UserPromptPart
@@ -320,7 +327,10 @@ def _retry_with_text_only_history(
     )
     CFG.LOGGER.debug(f"Opaque 400 error: {exc}. Falling back to text-only history.")
     return RetryOutcome(
-        should_retry=True, new_history=sanitized, new_message=current_message
+        should_retry=True,
+        new_history=sanitized,
+        new_message=current_message,
+        clear_results=True,
     )
 
 

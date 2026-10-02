@@ -313,16 +313,24 @@ def test_handle_yolo_selective_tools(ui):
 async def test_handle_exec_command(ui):
     assert ui.handle_exec_command("/exec echo hello") is True
     ui.message_queue.get_nowait()  # drain the enqueued job
-    with patch("asyncio.create_subprocess_shell") as mock_sub:
-        mock_proc = AsyncMock()
-        mock_proc.stdout.readline.side_effect = [b"hello\n", b""]
-        mock_proc.stderr.readline.return_value = b""
-        mock_proc.wait.return_value = 0
-        mock_sub.return_value = mock_proc
 
-        await ui.run_shell_command("echo hello")
-        assert "hello" in "".join(ui.outputs)
-        assert "successfully" in "".join(ui.outputs)
+    await ui.run_shell_command("echo hello")
+
+    assert "hello" in "".join(ui.outputs)
+    assert "successfully" in "".join(ui.outputs)
+
+
+def test_handle_exec_command_queues_on_the_multi_ui_shared_queue(ui):
+    """Under a MultiUI the exec waits its turn behind LLM turns on the shared
+    queue, not on the child's own queue."""
+    from zrb.llm.ui.multi_ui import MultiUI
+
+    multi_ui = MultiUI([ui])
+
+    assert ui.handle_exec_command("/exec echo hello") is True
+
+    assert multi_ui.message_queue.qsize() == 1
+    assert ui.message_queue.qsize() == 0
 
 
 def test_handle_exec_command_ignored_while_thinking(ui):

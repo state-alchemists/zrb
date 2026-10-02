@@ -1,5 +1,7 @@
 import asyncio
 import os
+import re
+import signal
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -30,6 +32,18 @@ async def test_run_shell_command_reports_nonzero_exit(ui, tmp_path):
     await ui.run_shell_command(f"exit 3")
     assert "Command failed with exit code 3" in "".join(ui.outputs)
     assert ui.is_thinking is False
+
+
+@pytest.mark.skipif(os.name != "posix", reason="`&` and `$!` are POSIX shell syntax")
+@pytest.mark.asyncio
+async def test_run_shell_command_ends_with_everything_it_started(ui):
+    """`/exec server &` returns once the shell exits, though the child holds
+    the pipes, and stops that child rather than leaving it running."""
+    await asyncio.wait_for(ui.run_shell_command("sleep 30 & echo $!"), timeout=5)
+    output = "".join(ui.outputs)
+    child = int(re.search(r"^(\d+)$", output, re.MULTILINE).group(1))
+    assert "Command finished successfully" in output
+    assert await _wait_until_gone(child)
 
 
 @pytest.mark.asyncio
@@ -386,3 +400,35 @@ async def test_command_dispatch_exception_is_logged(ui):
     ui.schedule_command("/help")
     assert len(ui.background_tasks) == 1
     await list(ui.background_tasks)[0]
+
+
+@pytest.mark.skipif(os.name != "posix", reason="`$$` and `exec` are POSIX shell syntax")
+@pytest.mark.asyncio
+async def test_run_shell_command_stops_the_command_when_output_fails(ui):
+    """A failing output write ends the read, and must end the command too."""
+    pids = []
+    write_output = ui.append_to_output
+
+    def failing_append(text, end="\n"):
+        if text.strip().isdigit():
+            pids.append(int(text))
+            raise RuntimeError("output broke")
+        write_output(text, end=end)
+
+    ui.append_to_output = failing_append
+    await asyncio.wait_for(ui.run_shell_command("echo $$; exec sleep 30"), timeout=5)
+
+    assert "output broke" in "".join(ui.outputs)
+    assert await _wait_until_gone(pids[0])
+
+
+async def _wait_until_gone(pid: int, timeout: float = 3) -> bool:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while asyncio.get_running_loop().time() < deadline:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return True
+        await asyncio.sleep(0.05)
+    os.kill(pid, signal.SIGKILL)
+    return False

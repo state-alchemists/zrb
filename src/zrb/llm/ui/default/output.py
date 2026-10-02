@@ -17,7 +17,6 @@ from zrb.llm.tool.ambient_state import get_session_ownership_key
 from zrb.llm.ui.output_chunk import (
     CollapsibleBlockSource,
     merge_into_block,
-    merge_output_chunk,
 )
 from zrb.llm.ui.tracked_spans import TrackedSpans
 from zrb.util.cli.help_panel import render_help_panel
@@ -106,8 +105,8 @@ class UIOutput:
     def __init__(self, ui: "UI") -> None:
         self._ui = ui
         self._spans = TrackedSpans(
-            get_text=lambda: self.output_text,
-            set_text=self.set_output_text,
+            get_text=self._get_main_text,
+            set_text=self._set_main_text,
             get_blocks=lambda: self._ui.rendered_blocks,
             register_block=self._register_collapsed_block,
             append=self._append_progress_line,
@@ -126,6 +125,24 @@ class UIOutput:
     def output_text(self) -> str:
         """Get the current text in the output field."""
         return self.output_field.text
+
+    def _get_main_text(self) -> str:
+        """The main transcript, which every tracked offset indexes: parked
+        while a sub-agent's view is shown, else the output pane's text."""
+        parked = self._parked_main_output()
+        return self.output_text if parked is None else parked
+
+    def _set_main_text(self, text: str) -> None:
+        if self._parked_main_output() is None:
+            self.set_output_text(text)
+            return
+        self._ui.saved_main_output = text
+        self.schedule_invalidate()
+
+    def _parked_main_output(self) -> str | None:
+        if getattr(self._ui, "viewing_agent_id", None) is None:
+            return None
+        return getattr(self._ui, "saved_main_output", None)
 
     @property
     def output_field(self) -> Any:
@@ -146,6 +163,47 @@ class UIOutput:
         flush: bool = False,
         kind: str = "text",
     ):
+        content = sep.join([str(value) for value in values]) + end
+
+        # Buffer main-agent output while a confirmation is pending during
+        # streaming, so the confirmation prompt is not interleaved with tokens.
+        if self._ui.confirmation.current is not None and self._ui.is_thinking:
+            self._ui.confirmation.output_buffer.append((content, kind))
+            self.schedule_invalidate()
+            return
+
+        if kind not in ("text", "todo_progress"):
+            content = stylize_muted(content)
+
+        # Handle carriage returns (\r) for status updates. A chunk of an
+        # open thinking/final-text block merges at that block's own end,
+        # not the buffer tail, so a concurrent writer's line stays outside
+        # it — see `merge_into_block`.
+        current_text = self._get_main_text()
+        new_text, rebase_from = merge_into_block(
+            current_text, content, self._spans.open_block, kind
+        )
+        if rebase_from >= 0:
+            # Absorbing the chunk rewrote the buffer before whatever a
+            # concurrent writer had already put after the block, so every span
+            # tracked past that point moved with it.
+            self._spans.rebase(rebase_from, len(new_text) - len(current_text))
+
+        # No Notification hook per chunk: that event means "the agent needs
+        # your attention", and a subprocess per streamed chunk exhausts file
+        # descriptors under a real command hook.
+
+        # While viewing a sub-agent the output pane shows that sub-agent's
+        # buffer; main-transcript appends accumulate into the parked snapshot
+        # and reappear when the user exits the view (Left).
+        if self._parked_main_output() is not None:
+            self._set_main_text(new_text)
+            return
+        self._show_appended_text(new_text)
+
+    def _show_appended_text(self, new_text: str) -> None:
+        """Write `new_text` to the output pane, keeping the view on the tail
+        when it was there."""
         # lazy: heavy third-party
         from prompt_toolkit.document import Document
 
@@ -168,47 +226,6 @@ class UIOutput:
             # buffer isn't queryable rather than logging on every token.
             pass
         should_scroll_to_end = is_at_last_line
-
-        content = sep.join([str(value) for value in values]) + end
-
-        # Buffer main-agent output while a confirmation is pending during
-        # streaming, so the confirmation prompt is not interleaved with tokens.
-        if self._ui.confirmation.current is not None and self._ui.is_thinking:
-            self._ui.confirmation.output_buffer.append(content)
-            self.schedule_invalidate()
-            return
-
-        # While viewing a sub-agent the output pane shows that sub-agent's
-        # buffer; main-transcript appends accumulate into the parked snapshot
-        # and reappear when the user exits the view (Left).
-        saved_main_output = getattr(self._ui, "saved_main_output", None)
-        if (
-            getattr(self._ui, "viewing_agent_id", None) is not None
-            and saved_main_output is not None
-        ):
-            self._ui.saved_main_output = merge_output_chunk(saved_main_output, content)
-            self.schedule_invalidate()
-            return
-
-        if kind not in ("text", "todo_progress"):
-            content = stylize_muted(content)
-
-        # Handle carriage returns (\r) for status updates. A chunk of an
-        # open thinking/final-text block merges at that block's own end,
-        # not the buffer tail, so a concurrent writer's line stays outside
-        # it — see `merge_into_block`.
-        new_text, rebase_from = merge_into_block(
-            current_text, content, self._spans.open_block, kind
-        )
-        if rebase_from >= 0:
-            # Absorbing the chunk rewrote the buffer before whatever a
-            # concurrent writer had already put after the block, so every span
-            # tracked past that point moved with it.
-            self._spans.rebase(rebase_from, len(new_text) - len(current_text))
-
-        # No Notification hook per chunk: that event means "the agent needs
-        # your attention", and a subprocess per streamed chunk exhausts file
-        # descriptors under a real command hook.
 
         new_cursor_position = (
             len(new_text)
@@ -259,9 +276,9 @@ class UIOutput:
         newline is appended separately so it stays outside the span.
         """
         rendered = renderer(source, self.output_field_width)
-        start = len(self.output_text)
+        start = len(self._get_main_text())
         self.append_to_output(rendered, end="")
-        end = len(self.output_text)
+        end = len(self._get_main_text())
         self.append_to_output("")
         # Only track what landed verbatim — a pending confirmation buffers the
         # content instead of inserting it, which would make the span a lie.
@@ -280,10 +297,11 @@ class UIOutput:
         The one way a block enters `rendered_blocks`, because two invariants
         hold over that list and neither survives a plain `append`:
 
-        * **Position order.** `rewrap_output` walks the list accumulating the
-          length delta of each re-render, and `toggle_collapsible_block_at_cursor`
-          stops at the first block past the cursor. A record appended out of
-          order makes every later offset in that walk address the wrong text.
+        * **Position order.** `rewrap_output` walks the list back to front so
+          each splice leaves the earlier offsets valid, and
+          `toggle_collapsible_block_at_cursor` stops at the first block past
+          the cursor. A record appended out of order makes either walk address
+          the wrong text.
           Appending is only in order when the block is at the buffer tail,
           which a collapsed thinking/text block or `finish_shell_output`
           and a re-registered echo are not — so the record is inserted at the
@@ -417,15 +435,16 @@ class UIOutput:
         # the transcript inside a tracked span (only the trailing status line
         # is ever rewritten, via \r). If that stops holding, store the rendered
         # text per block and rebuild the whole buffer from the block list.
-        text = self.output_text
-        shift = 0
-        for block in self._ui.rendered_blocks:
-            start, end = block[0] + shift, block[1] + shift
+        #
+        # Last block first, so a splice never moves an unprocessed block.
+        text = self._get_main_text()
+        for block in reversed(self._ui.rendered_blocks):
+            start, end = block[0], block[1]
             rendered = block[3](block[2], width)
             text = text[:start] + rendered + text[end:]
+            self._spans.shift(end, len(rendered) - (end - start))
             block[0], block[1] = start, start + len(rendered)
-            shift += len(rendered) - (end - start)
-        self.set_output_text(text)
+        self._set_main_text(text)
 
     def _render_markdown_block(self, markdown_text: str, width: int | None) -> str:
         return render_markdown(

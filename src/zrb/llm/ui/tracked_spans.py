@@ -75,14 +75,18 @@ class TrackedSpans:
             return False
         delta = len(replacement) - (end - start)
         new_text = text[:start] + replacement + text[end:]
-        self.rebase(end, delta)
-        block = self.open_block
-        if delta and block is not None and block.start >= end:
-            # A foreign edit above an open block moves the whole block.
-            block.start += delta
-            block.end += delta
+        self.shift(end, delta)
         self._set_text(new_text)
         return True
+
+    def shift(self, after: int, delta: int) -> None:
+        """`rebase`, moving the open block too: for any edit other than the
+        open block growing."""
+        self.rebase(after, delta)
+        block = self.open_block
+        if delta and block is not None and block.start >= after:
+            block.start += delta
+            block.end += delta
 
     def rebase(self, after: int, delta: int) -> None:
         """Shift every tracked offset at or past `after` by `delta`.
@@ -94,8 +98,8 @@ class TrackedSpans:
 
         The open collapsible block is deliberately NOT shifted here: the
         insert path is that block growing, and `merge_into_block` has already
-        advanced its `end`. A foreign edit that does move it shifts it itself,
-        in `replace`.
+        advanced its `end`. A foreign edit that does move it goes through
+        `shift`.
         """
         rebase_tracked_spans(
             self._get_blocks(),

@@ -97,3 +97,17 @@ async def test_http_check_exception(mock_session):
                 await asyncio.wait_for(http_check.exec(mock_session), timeout=0.1)
 
             assert mock_request.call_count > 0
+
+
+@pytest.mark.asyncio
+async def test_http_check_probe_timeout_has_a_floor_for_a_zero_interval(mock_session):
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+
+    with patch("requests.request", return_value=mock_response) as mock_request:
+        http_check = HttpCheck(name="test_http_check", interval=0)
+        mock_session.register_task(http_check)
+
+        await http_check.exec(mock_session)
+
+        assert mock_request.call_args.kwargs["timeout"] > 0

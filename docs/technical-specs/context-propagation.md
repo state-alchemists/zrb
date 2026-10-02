@@ -2,7 +2,7 @@
 
 # Context Propagation (Technical Specification)
 
-Zrb threads execution state through async coroutines with `contextvars.ContextVar` instead of explicit parameters. Seventeen `ContextVar`s are indexed in `src/zrb/contextvars.py`, split into five layers. Update this page whenever you add, remove, or rename one.
+Zrb threads execution state through async coroutines with `contextvars.ContextVar` instead of explicit parameters. Eighteen `ContextVar`s are indexed in `src/zrb/contextvars.py`, split into five layers. Update this page whenever you add, remove, or rename one.
 
 For the design rationale in brief, see [Implicit State via ContextVars](../contributing/architecture.md#implicit-state-via-contextvars); for where the agent-run variables are bound during a chat request, see [LLM Chat Request Lifecycle](../llm/llm-chat-lifecycle.md).
 
@@ -40,6 +40,7 @@ The active `Context` for the executing task. Set at the start of `execute_task_a
 | `current_yolo` | `bool` | Auto-approve all tool calls |
 | `current_approval_channel` | `AnyApprovalChannel \| None` | Remote approval handler |
 | `current_hook_manager` | `HookManager \| None` | Hook manager for the run; nested tools (e.g. delegate) fire SubagentStart/Stop on it |
+| `current_llm_limiter` | `LLMLimiter \| None` | Rate/token limiter for the run; tools that call a model themselves (delegate, web/file/code analysis) reach it through `get_run_llm_limiter()` |
 | `current_agent_run_scope` | `str` | Identifies this agent run to nested tools needing per-conversation state (e.g. `file_observation.py`'s read-before-overwrite tracking) — the session name for a top-level run, a fresh per-delegation id for a sub-agent, so a sub-agent never inherits what its parent or siblings observed |
 | `current_small_model` | `str \| Model \| None` | The UI's own `small_model` (set by `/model small ...`), so `journal_compliance.py`'s judge model and other small-tier consumers resolve per-session instead of leaking one process-wide value across concurrent chat sessions |
 | `current_multimodal_model` | `str \| Model \| None` | The UI's own `multimodal_model` (set by `/model multimodal ...`), read by the attachment-description pipeline and the multimodal dictation backend, per-session for the same reason |

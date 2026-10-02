@@ -173,24 +173,24 @@ class TestMultiUI:
         assert result == 0
         mock_child_ui.run_interactive_command.assert_called_once_with("ls", shell=False)
 
-    def test_invalidate_all_uis(self, mock_child_ui):
-        """Test invalidate_all_uis calls invalidate_ui on all children."""
+    def test_invalidate_ui(self, mock_child_ui):
+        """Test invalidate_ui calls invalidate_ui on all children."""
         other_ui = MagicMock()
         multi_ui = MultiUI([mock_child_ui, other_ui])
 
-        multi_ui.invalidate_all_uis()
+        multi_ui.invalidate_ui()
 
         assert hasattr(mock_child_ui, "invalidate_ui")
         assert hasattr(other_ui, "invalidate_ui")
 
-    def test_invalidate_all_uis_handles_exception(self, mock_child_ui):
-        """Test invalidate_all_uis handles exceptions from child UIs."""
+    def test_invalidate_ui_handles_exception(self, mock_child_ui):
+        """Test invalidate_ui handles exceptions from child UIs."""
         other_ui = MagicMock()
         del other_ui.invalidate_ui  # Remove the method to trigger exception
         multi_ui = MultiUI([mock_child_ui, other_ui])
 
         # Should not raise
-        multi_ui.invalidate_all_uis()
+        multi_ui.invalidate_ui()
 
     def test_on_exit_cancels_tasks(self, mock_child_ui):
         """Test on_exit cancels all child tasks."""
@@ -222,7 +222,7 @@ def test_multi_ui_init(multi_ui, child_ui_1, child_ui_2):
 
 
 def test_multi_ui_invalidate_all(multi_ui, child_ui_1, child_ui_2):
-    multi_ui.invalidate_all_uis()
+    multi_ui.invalidate_ui()
     child_ui_1.invalidate_ui.assert_called_once()
     child_ui_2.invalidate_ui.assert_called_once()
 
@@ -333,3 +333,75 @@ def test_model_overrides_read_and_write_through_to_the_primary_child():
     assert primary.small_model == "small-new"
     assert primary.multimodal_model == "mm-new"
     assert first.small_model != "small-new"
+
+
+def test_conversation_session_name_reads_through_to_main_ui(mock_child_ui):
+    mock_child_ui.conversation_session_name = "my-session"
+    multi_ui = MultiUI([mock_child_ui])
+
+    assert multi_ui.conversation_session_name == "my-session"
+
+
+def test_conversation_session_name_writes_through_to_main_ui(mock_child_ui):
+    multi_ui = MultiUI([mock_child_ui])
+
+    multi_ui.conversation_session_name = "renamed"
+
+    assert mock_child_ui.conversation_session_name == "renamed"
+
+
+def test_primary_owned_state_reads_through_to_main_ui(mock_child_ui):
+    mock_child_ui.yolo = True
+    mock_child_ui.model = "main-model"
+    mock_child_ui.plan_mode_active = True
+    multi_ui = MultiUI([mock_child_ui])
+
+    assert multi_ui.yolo is True
+    assert multi_ui.model == "main-model"
+    assert multi_ui.plan_mode_active is True
+    assert multi_ui.history_manager is mock_child_ui.history_manager
+
+
+def test_llm_task_reports_what_set_llm_task_stored(mock_child_ui):
+    multi_ui = MultiUI([mock_child_ui])
+    task = MagicMock()
+
+    multi_ui.set_llm_task(task)
+
+    assert multi_ui.llm_task is task
+
+
+def test_cancel_pending_confirmations_reaches_every_child(mock_child_ui):
+    other_ui = MagicMock()
+    multi_ui = MultiUI([mock_child_ui, other_ui])
+
+    multi_ui.cancel_pending_confirmations(flush=False)
+
+    mock_child_ui.cancel_pending_confirmations.assert_called_once_with(False)
+    other_ui.cancel_pending_confirmations.assert_called_once_with(False)
+
+
+def test_multi_ui_takes_only_genuinely_inert_members_from_the_defaults():
+    """MultiUI wraps children that keep real state, so each AnyUI member it
+    leaves to `UIStateDefaultsMixin` must be one it truly has none of — an
+    inherited no-op silently swallows what a caller meant for the children."""
+    from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
+
+    inherited = {
+        name
+        for name in vars(UIStateDefaultsMixin)
+        if not name.startswith("_")
+        and next(k for k in MultiUI.__mro__ if name in vars(k)) is UIStateDefaultsMixin
+    }
+
+    assert inherited == {
+        # MultiUI is never itself a child of another MultiUI.
+        "multi_ui_parent",
+        # Its own per-instance set, exactly what the mixin provides.
+        "background_tasks",
+        # Echo spans live in each child's buffer; MultiUI has no buffer.
+        "track_echo_span",
+        "redraw_echo",
+        # MultiUI is the top of the tree, with no parent to flush to.
+        "flush_to_parent",
+    }

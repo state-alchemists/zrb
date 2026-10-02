@@ -244,6 +244,32 @@ async def test_handle_stream_error_opaque_400():
 
 
 @pytest.mark.asyncio
+async def test_handle_stream_error_opaque_400_clears_pending_deferred_results():
+    """The text-only history has no tool calls left for pending deferred
+    results to answer, so the retry drops them."""
+    from pydantic_ai.messages import ModelRequest, ModelResponse, ToolCallPart
+
+    exc = Exception("Bad request")
+    exc.status_code = 400
+    history = [
+        ModelRequest.user_text_prompt("deploy"),
+        ModelResponse(parts=[ToolCallPart(tool_name="Deploy", tool_call_id="c1")]),
+    ]
+
+    outcome = await handle_stream_error(
+        RetryState(), exc, history, None, history, MagicMock()
+    )
+
+    assert outcome.should_retry is True
+    assert outcome.clear_results is True
+    assert not any(
+        isinstance(part, ToolCallPart)
+        for msg in outcome.new_history
+        for part in msg.parts
+    )
+
+
+@pytest.mark.asyncio
 async def test_handle_stream_error_opaque_400_only_once():
     """Second unclassified 400 with same state does NOT retry."""
     state = RetryState(opaque_retry_done=True)

@@ -145,9 +145,9 @@ async def test_run_agent_empty_completion_retry_trims_trailing_response():
 @pytest.mark.asyncio
 async def test_stop_event_turn_slice_correct_after_empty_completion_retry():
     """After an empty-completion retry re-bases `current_history`, the Stop
-    hook's `turn` slice and `wrote_files` gate must reflect only the
-    *successful* retry's new messages — not the discarded empty attempt, and
-    not the whole conversation."""
+    hook's `turn` slice and `wrote_files` gate must reflect the turn's prompt
+    and the *successful* retry's new messages — not the discarded empty
+    attempt, and not the whole conversation."""
     from pydantic_ai.messages import (
         ModelRequest,
         ModelResponse,
@@ -208,10 +208,21 @@ async def test_stop_event_turn_slice_correct_after_empty_completion_retry():
     assert result == "Recovered"
     assert call_count == 2
     assert len(captured) == 1  # Stop only fires once, on the successful retry
-    # Just the retry's own new messages: the tool call, its return, and the
-    # final text — not the original UserPromptPart request already counted in
-    # current_history before this iteration.
-    assert len(captured[0]["turn"]) == 3
+    # The turn's prompt, then the retry's tool call, its return, and the final
+    # text — the discarded empty response is not part of it.
+    turn = captured[0]["turn"]
+    assert [type(m).__name__ for m in turn] == [
+        "ModelRequest",
+        "ModelResponse",
+        "ModelRequest",
+        "ModelResponse",
+    ]
+    assert isinstance(turn[0].parts[0], UserPromptPart)
+    assert all(
+        not (isinstance(p, TextPart) and p.content == "")
+        for m in turn
+        for p in m.parts
+    )
     assert captured[0]["wrote_files"] is True
 
 
@@ -315,3 +326,118 @@ async def test_api_max_retries_caps_total_provider_calls(
         )
 
     assert len(calls) == expected_calls
+
+
+@pytest.mark.asyncio
+async def test_stop_event_keeps_earlier_rounds_after_empty_completion_retry():
+    """A turn that wrote a file, then produced an empty completion, still
+    reports the write — and the prompt — to the Stop hook after the retry."""
+    from pydantic_ai import Agent
+    from pydantic_ai.models.function import DeltaToolCall, FunctionModel
+
+    model_calls = 0
+
+    async def stream_fn(messages, info):
+        nonlocal model_calls
+        model_calls += 1
+        if model_calls == 1:
+            yield {
+                0: DeltaToolCall(
+                    name="Write",
+                    json_args='{"path": "a.txt", "content": "x"}',
+                    tool_call_id="c1",
+                )
+            }
+        elif model_calls == 2:
+            yield " "
+        else:
+            yield "done"
+
+    agent = Agent(FunctionModel(stream_function=stream_fn))
+
+    @agent.tool_plain(name="Write")
+    def write(path: str, content: str) -> str:
+        return "ok"
+
+    captured: list = []
+
+    async def record(context: HookContext) -> HookResult:
+        captured.append(context.event_data)
+        return HookResult(success=True)
+
+    manager = HookManager(search_dirs=[])
+    manager.add_hook(record, events=[HookEvent.STOP])
+
+    result, _ = await run_agent(
+        agent=agent,
+        message="from now on always use tabs. write a.txt",
+        message_history=[],
+        limiter=LLMLimiter(),
+        hook_manager=manager,
+    )
+
+    assert result == "done"
+    assert model_calls == 3
+    assert len(captured) == 1
+    assert captured[0]["wrote_files"] is True
+    assert captured[0]["changed_paths"] == ["a.txt"]
+    assert captured[0]["journal_worthy"] is True
+    turn = captured[0]["turn"]
+    assert len(turn) == len({id(message) for message in turn})
+    assert [type(message).__name__ for message in turn] == [
+        "ModelRequest",
+        "ModelResponse",
+        "ModelRequest",
+        "ModelResponse",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_invalid_tool_call_retry_keeps_multimodal_prompt():
+    """The corrective retry of a turn with an attachment still carries the
+    user's request and the attachment."""
+    from pydantic_ai import Agent, BinaryContent
+    from pydantic_ai.exceptions import ModelHTTPError
+    from pydantic_ai.messages import UserPromptPart
+    from pydantic_ai.models.function import FunctionModel
+
+    retried_with: list = []
+
+    async def stream_fn(messages, info):
+        if not retried_with and not any(
+            "BROKEN" in str(p.content)
+            for m in messages
+            for p in m.parts
+            if isinstance(p, UserPromptPart)
+        ):
+            raise ModelHTTPError(
+                status_code=400,
+                model_name="m",
+                body={"message": "unknown tool: ReadRead"},
+            )
+        retried_with.extend(
+            item
+            for m in messages
+            for p in m.parts
+            if isinstance(p, UserPromptPart)
+            for item in (p.content if isinstance(p.content, list) else [p.content])
+        )
+        yield "ok"
+
+    attachment = BinaryContent(data=b"hello", media_type="text/plain")
+    result, _ = await run_agent(
+        agent=Agent(FunctionModel(stream_function=stream_fn)),
+        message="SUMMARIZE THE REPORT",
+        message_history=[],
+        attachments=[attachment],
+        limiter=LLMLimiter(),
+    )
+
+    assert result == "ok"
+    texts = [item for item in retried_with if isinstance(item, str)]
+    assert any("SUMMARIZE THE REPORT" in text for text in texts)
+    assert any("BROKEN" in text for text in texts)
+    assert any(
+        isinstance(item, BinaryContent) and item.data == b"hello"
+        for item in retried_with
+    )

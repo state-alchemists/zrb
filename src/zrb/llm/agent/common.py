@@ -19,7 +19,7 @@ from zrb.llm.agent.spill import maybe_spill
 from zrb.llm.agent.truncate import truncate_tool_content
 from zrb.llm.agent_tool_result import has_multimodal, tool_return
 from zrb.llm.config.model_resolver import resolve_configured_model
-from zrb.llm.hook.manager import hook_manager
+from zrb.llm.hook.manager import get_run_hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.util.capabilities import model_capabilities
 from zrb.llm.util.prompt import expand_prompt
@@ -301,7 +301,7 @@ async def _fire_pre_tool_use(name: str, tool_args: dict[str, Any], ctx: Any) -> 
     """
     if getattr(ctx, "tool_call_approved", False):
         return tool_args
-    results = await hook_manager.execute_hooks(
+    results = await get_run_hook_manager().execute_hooks(
         HookEvent.PRE_TOOL_USE,
         {
             "tool": name,
@@ -365,7 +365,7 @@ async def _fire_post_tool_use(name: str, tool_args: dict[str, Any], result: Any)
     # lazy: heavy third-party deferral
     from pydantic_ai import ToolReturn
 
-    results = await hook_manager.execute_hooks(
+    results = await get_run_hook_manager().execute_hooks(
         HookEvent.POST_TOOL_USE,
         {"tool": name, "args": tool_args, "result": result},
         # Claude-standard context fields (see _fire_pre_tool_use). PostToolUse
@@ -435,7 +435,7 @@ async def _fire_post_tool_use_failure(
 ) -> None:
     """Fire PostToolUseFailure after a tool raised (observe-only, never raises)."""
     try:
-        await hook_manager.execute_hooks(
+        await get_run_hook_manager().execute_hooks(
             HookEvent.POST_TOOL_USE_FAILURE,
             {"tool": name, "args": tool_args, "error": str(error)},
             # Claude-standard context fields so tool-name matchers and stdin

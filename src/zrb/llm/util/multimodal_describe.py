@@ -62,7 +62,7 @@ async def describe_binary_attachment(
     # (verified empirically), but would if the runner's own lazy import of
     # this module were ever hoisted too, so both stay deferred.
     from zrb.llm.agent import create_agent, run_agent
-    from zrb.llm.config.limiter import llm_limiter
+    from zrb.llm.config.limiter import get_run_llm_limiter
     from zrb.llm.config.model_resolver import resolve_configured_model
 
     system_prompt = (
@@ -89,7 +89,7 @@ async def describe_binary_attachment(
             agent=agent,
             message=instruction,
             message_history=[],
-            limiter=llm_limiter,
+            limiter=get_run_llm_limiter(),
             attachments=[binary],
         )
         text = str(result).strip()

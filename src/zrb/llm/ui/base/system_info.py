@@ -61,7 +61,7 @@ class BaseUISystemInfo:
     def get_cwd_display(self) -> str:
         cwd = os.getcwd()
         home = os.path.expanduser("~")
-        if cwd.startswith(home):
+        if cwd == home or cwd.startswith(home + os.sep):
             return "~" + cwd[len(home) :]
         return cwd
 

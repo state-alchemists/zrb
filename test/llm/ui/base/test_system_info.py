@@ -51,10 +51,19 @@ def _init_repo(tmp_path, dirty=False):
 
 
 def test_get_cwd_display_abbreviates_home(ui, monkeypatch):
-    home = "/home/tester"
-    monkeypatch.setattr("os.getcwd", lambda: f"{home}/projects/zrb")
+    home = os.path.join(os.sep, "home", "tester")
+    monkeypatch.setattr("os.getcwd", lambda: os.path.join(home, "projects", "zrb"))
     monkeypatch.setattr("os.path.expanduser", lambda _: home)
-    assert ui.system_info.get_cwd_display() == "~/projects/zrb"
+    assert ui.system_info.get_cwd_display() == os.path.join("~", "projects", "zrb")
+
+
+def test_get_cwd_display_keeps_a_sibling_of_home(ui, monkeypatch):
+    sibling = os.path.join(os.sep, "home", "tester2", "project")
+    monkeypatch.setattr("os.getcwd", lambda: sibling)
+    monkeypatch.setattr(
+        "os.path.expanduser", lambda _: os.path.join(os.sep, "home", "tester")
+    )
+    assert ui.system_info.get_cwd_display() == sibling
 
 
 def test_get_cwd_display_keeps_non_home_path(ui, monkeypatch):

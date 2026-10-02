@@ -12,6 +12,9 @@ if TYPE_CHECKING:
     from requests import Response
 
 
+_MIN_PROBE_TIMEOUT = 1.0
+
+
 class HttpCheck(BaseTask):
     def __init__(
         self,
@@ -71,8 +74,12 @@ class HttpCheck(BaseTask):
             try:
                 # to_thread cannot cancel a blocking request, so bound each probe
                 # by the interval; a timeout is retried like any other error.
+                # requests rejects a timeout <= 0, so the bound has a floor.
                 response = await asyncio.to_thread(
-                    requests.request, http_method, url, timeout=interval
+                    requests.request,
+                    http_method,
+                    url,
+                    timeout=max(interval, _MIN_PROBE_TIMEOUT),
                 )
                 if response.status_code == 200:
                     return response

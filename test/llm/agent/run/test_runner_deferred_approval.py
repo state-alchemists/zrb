@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic_ai import AgentRunResultEvent
@@ -199,3 +199,72 @@ async def test_run_agent_denied_tool_call_reaches_history_without_running():
     ]
     assert len(returns) == 1
     assert "Denied" in returns[0].content
+
+
+def _approved_deploy_agent(error: Exception, resumed_marker: str):
+    """An agent whose model calls the approval-gated `Deploy`, then raises
+    `error` on every later call until its request contains `resumed_marker`.
+    Returns the agent and its counters."""
+    from pydantic_ai import Agent, DeferredToolRequests
+    from pydantic_ai.models.function import DeltaToolCall, FunctionModel
+
+    state = {"model_calls": 0, "deploys": 0}
+
+    async def stream_fn(messages, info):
+        state["model_calls"] += 1
+        if state["model_calls"] == 1:
+            yield {0: DeltaToolCall(name="Deploy", json_args="{}", tool_call_id="c1")}
+            return
+        if state["model_calls"] > 2 and resumed_marker in repr(messages):
+            yield "done"
+            return
+        raise error
+
+    agent = Agent(
+        FunctionModel(stream_function=stream_fn),
+        output_type=[str, DeferredToolRequests],
+    )
+
+    @agent.tool_plain(requires_approval=True)
+    def Deploy() -> str:
+        state["deploys"] += 1
+        return "deployed"
+
+    return agent, state
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "status_code,body_message,resumed_marker",
+    [
+        (503, "overloaded", "deployed"),
+        (400, "unknown tool: ReadRead", "is NOT a real tool"),
+        (400, "bad thing", "sanitized-history"),
+    ],
+    ids=["transient", "invalid-tool-call", "opaque-400"],
+)
+async def test_retry_after_approved_tool_ran_does_not_run_it_again(
+    status_code, body_message, resumed_marker
+):
+    """When the model call that follows an approved tool fails, the retry
+    resumes from the tool's result instead of executing the tool again, and
+    still reaches the model with that retry's own recovery applied."""
+    from pydantic_ai.exceptions import ModelHTTPError
+
+    error = ModelHTTPError(
+        status_code=status_code, model_name="m", body={"message": body_message}
+    )
+    agent, state = _approved_deploy_agent(error, resumed_marker)
+
+    with patch("zrb.llm.agent.run.retry_loop.get_retry_wait", return_value=0):
+        result, _ = await run_agent(
+            agent=agent,
+            message="deploy",
+            message_history=[],
+            limiter=LLMLimiter(),
+            yolo=True,
+        )
+
+    assert result == "done"
+    assert state["deploys"] == 1
+    assert state["model_calls"] == 3
