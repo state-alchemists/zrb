@@ -70,9 +70,9 @@ class TurnCursor:
         self.accumulated.extend(self.run_history[self.round_baseline :])
 
     def carry_forward(self) -> None:
-        """After a resolved deferred-tool round: `history` becomes
-        `run_history` unconditionally, so the summarizer is never reapplied
-        mid-deferral. `process_deferred_requests` already
+        """After a resolved deferred-tool round, or a committed round that is
+        regenerated from where it stopped: `history` becomes `run_history`
+        unconditionally, so the summarizer is never reapplied mid-turn. `process_deferred_requests` already
         populated every resolved call's approval, so there is nothing left
         for a processor to do — reapplying one risks dropping the very turn
         holding the approved call.

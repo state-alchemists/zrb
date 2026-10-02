@@ -795,7 +795,9 @@ def _retry_empty_completion(
         f"Empty completion (output={cursor.output!r}); "
         "dropping the empty turn and regenerating"
     )
-    cursor.history = history_without_trailing_response(cursor.run_history)
+    cursor.run_history = history_without_trailing_response(cursor.run_history)
+    cursor.commit_round()
+    cursor.carry_forward()
     cursor.message = None
     cursor.results = None
     cursor.output = None
