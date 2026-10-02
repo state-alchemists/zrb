@@ -399,3 +399,35 @@ async def test_command_dispatch_exception_is_logged(ui):
     ui.schedule_command("/help")
     assert len(ui.background_tasks) == 1
     await list(ui.background_tasks)[0]
+
+
+@pytest.mark.skipif(os.name != "posix", reason="`$$` and `exec` are POSIX shell syntax")
+@pytest.mark.asyncio
+async def test_run_shell_command_stops_the_command_when_output_fails(ui):
+    """A failing output write ends the read, and must end the command too."""
+    pids = []
+    write_output = ui.append_to_output
+
+    def failing_append(text, end="\n"):
+        if text.strip().isdigit():
+            pids.append(int(text))
+            raise RuntimeError("output broke")
+        write_output(text, end=end)
+
+    ui.append_to_output = failing_append
+    await asyncio.wait_for(ui.run_shell_command("echo $$; exec sleep 30"), timeout=5)
+
+    assert "output broke" in "".join(ui.outputs)
+    assert await _wait_until_gone(pids[0])
+
+
+async def _wait_until_gone(pid: int, timeout: float = 3) -> bool:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while asyncio.get_running_loop().time() < deadline:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return True
+        await asyncio.sleep(0.05)
+    os.kill(pid, signal.SIGKILL)
+    return False

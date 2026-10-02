@@ -18,7 +18,7 @@ from zrb.llm.custom_command.resolver import get_custom_command_match, run_custom
 from zrb.llm.task.shared_getters import apply_model_hooks
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.util.cli.style import stylize_error, stylize_muted
-from zrb.util.cmd.command import wait_for_exit_and_drain
+from zrb.util.cmd.command import wait_for_exit, wait_for_exit_and_drain
 from zrb.util.exception import exception_summary
 
 if TYPE_CHECKING:
@@ -104,24 +104,11 @@ class BaseUIExecCommands:
         except asyncio.CancelledError:
             # Reap the child before touching the UI, so an output failure
             # during teardown cannot orphan the process.
-            if process is not None and process.returncode is None:
-                try:
-                    process.terminate()
-                    await asyncio.wait_for(process.wait(), timeout=1.0)
-                except BaseException:
-                    # BaseException: a second cancel on the await above must
-                    # still reach the kill.
-                    try:
-                        process.kill()
-                    except Exception:
-                        pass
-                    try:
-                        await asyncio.wait_for(process.wait(), timeout=1.0)
-                    except BaseException:
-                        pass
+            await _stop_process(process)
             self._base_ui.append_to_output("\n[Cancelled]\n")
             raise
         except Exception as e:
+            await _stop_process(process)
             self._base_ui.append_to_output(f"\n[Error: {exception_summary(e)}]\n")
         finally:
             self._base_ui.is_thinking = False
@@ -242,3 +229,27 @@ class BaseUIExecCommands:
         elif outcome.reply:
             self._base_ui.append_to_output(stylize_muted(f"\n  {outcome.reply}\n"))
         return True
+
+
+async def _stop_process(process: "asyncio.subprocess.Process | None") -> None:
+    """Terminate *process* if it still runs, escalating to a kill, and reap it.
+
+    Waits on the shell itself, not on its pipes, which a background child
+    may hold open.
+    """
+    if process is None or process.returncode is not None:
+        return
+    try:
+        process.terminate()
+        await asyncio.wait_for(wait_for_exit(process), timeout=1.0)
+    except BaseException:
+        # BaseException: a second cancel on the await above must still reach
+        # the kill.
+        try:
+            process.kill()
+        except ProcessLookupError:
+            pass
+        try:
+            await asyncio.wait_for(wait_for_exit(process), timeout=1.0)
+        except BaseException:
+            pass
