@@ -21,7 +21,7 @@ SRC = REPO_ROOT / "src" / "zrb"
 
 _BROAD = {"Exception", "BaseException"}
 
-SWALLOWED_BROAD_EXCEPTS = 324
+SWALLOWED_BROAD_EXCEPTS = 322
 
 
 def _is_broad(handler: ast.ExceptHandler) -> bool:

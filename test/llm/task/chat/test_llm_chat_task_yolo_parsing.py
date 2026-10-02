@@ -181,9 +181,10 @@ async def test_interactive_teardown_shuts_down_the_session_hook_manager():
 
 
 @pytest.mark.asyncio
-async def test_interactive_teardown_closes_feature_sessions_when_cancelled():
-    """A Ctrl+C that cancels SESSION_END must not leave a speaker open, or the
-    exit waits out its drain."""
+async def test_interactive_teardown_finishes_before_reraising_a_cancellation():
+    """A Ctrl+C that cancels SESSION_END must not skip the rest of teardown:
+    a speaker left open makes the exit wait out its drain, and hooks,
+    subprocesses and executors would outlive the session."""
     import asyncio
 
     from zrb.llm.util.feature_config import FeatureSessions
@@ -197,10 +198,16 @@ async def test_interactive_teardown_closes_feature_sessions_when_cancelled():
     task = LLMChatTask(name="teardown-task-cancelled")
     task.active_hook_manager = manager
 
-    with pytest.raises(asyncio.CancelledError):
+    with (
+        patch("zrb.llm.hook.executor.shutdown_hook_executor") as shutdown_executor,
+        pytest.raises(asyncio.CancelledError),
+    ):
         await task.teardown_interactive_resources()
 
     assert closed == ["speaker"]
+    # The steps after SESSION_END still release their resources.
+    manager.shutdown.assert_awaited_once_with(drain=True)
+    shutdown_executor.assert_called_once_with(wait=False)
 
 
 @pytest.mark.asyncio
