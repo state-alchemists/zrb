@@ -1,5 +1,7 @@
 """Tests for run-setup dependency resolution (yolo inheritance semantics)."""
 
+import pytest
+
 from zrb.llm.agent.run.setup import resolve_context_dependencies
 from zrb.llm.agent_state import current_yolo
 
@@ -39,3 +41,30 @@ def test_yolo_defaults_to_false_without_context():
         None, None, None, None, None
     )
     assert effective_yolo is False
+
+
+@pytest.mark.asyncio
+async def test_terminal_approval_asks_the_multi_ui_primary_child():
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+
+    from zrb.llm.approval.any_approval_channel import ApprovalContext
+    from zrb.llm.ui.multi_ui import MultiUI
+
+    first, primary = MagicMock(), MagicMock()
+    for child in (first, primary):
+        child.tool_call_handler = None
+        child.ask_user = AsyncMock(return_value="n")
+    remote = MagicMock()
+    remote.request_approval = AsyncMock(side_effect=lambda _: asyncio.Future())
+
+    _, _, _, channel, _ = resolve_context_dependencies(
+        MultiUI([first, primary], main_ui_index=1), None, None, remote, None
+    )
+    result = await channel.request_approval(
+        ApprovalContext(tool_name="Write", tool_args={}, tool_call_id="1")
+    )
+
+    assert result.approved is False
+    primary.ask_user.assert_awaited_once()
+    first.ask_user.assert_not_awaited()

@@ -22,7 +22,7 @@ from zrb.llm.approval.approval_channel import current_approval_channel
 from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
 from zrb.llm.approval.terminal_approval_channel import TerminalApprovalChannel
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
-from zrb.llm.ui.multi_ui import create_combined_ui
+from zrb.llm.ui.multi_ui import MultiUI, create_combined_ui
 from zrb.llm.ui.std_ui import StdUI
 from zrb.util.contextvar_scope import scoped
 
@@ -54,9 +54,8 @@ def resolve_context_dependencies(
     if effective_approval_channel is not None and effective_ui is not None:
         if not isinstance(effective_approval_channel, MultiplexApprovalChannel):
             ui_for_terminal = effective_ui
-            children = getattr(effective_ui, "children", None)
-            if children:
-                ui_for_terminal = children[0]
+            if isinstance(effective_ui, MultiUI) and effective_ui.main_ui is not None:
+                ui_for_terminal = effective_ui.main_ui
             CFG.LOGGER.debug(
                 f"Creating TerminalApprovalChannel with UI: {ui_for_terminal}"
             )
