@@ -276,9 +276,6 @@ class BaseTaskExecution:
                     task_xcom.push(result)
 
                 self.skip_fallbacks(session)
-                await run_async(self.execute_successors(session))
-                return result
-
             except (
                 asyncio.CancelledError,
                 KeyboardInterrupt,
@@ -314,6 +311,11 @@ class BaseTaskExecution:
                 self.skip_successors(session)
                 await run_async(self.execute_fallbacks(session))
                 raise e
+            else:
+                # Outside the `try`: a failing successor is the successor's
+                # failure, not another attempt of this task's action.
+                await run_async(self.execute_successors(session))
+                return result
 
     async def run_default_action(self, ctx: AnyContext) -> Any:
         """Run `task.action`: the default `BaseTask.exec_action` body."""
