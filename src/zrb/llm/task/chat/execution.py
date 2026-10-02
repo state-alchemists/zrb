@@ -228,10 +228,11 @@ class ChatExecution:
                 interrupts,
             )
         # A speaker left open makes the exit wait out its drain.
-        try:
-            close_feature_sessions(get_session_ownership_key())
-        except Exception:
-            CFG.LOGGER.debug("Closing feature sessions failed", exc_info=True)
+        _hold_interrupt_sync(
+            lambda: close_feature_sessions(get_session_ownership_key()),
+            "Closing feature sessions failed",
+            interrupts,
+        )
         await _hold_interrupt(
             lsp_manager.shutdown_all(),
             "LSP shutdown at session end failed",
@@ -253,22 +254,16 @@ class ChatExecution:
             "Background-shell teardown at session end failed",
             interrupts,
         )
-        try:
-            from zrb.llm.tool.delegate_background import get_background_registry
-
-            get_background_registry().cancel_all()
-        except Exception as e:
-            CFG.LOGGER.debug(
-                f"Background-delegation teardown at session end failed: {e}"
-            )
-        # lazy: zrb internal — only needed at teardown; keeps this import
-        # off the hot path every other turn takes.
-        try:
-            from zrb.llm.hook.executor import shutdown_hook_executor
-
-            shutdown_hook_executor(wait=False)
-        except Exception as e:
-            CFG.LOGGER.debug(f"Hook-executor shutdown at session end failed: {e}")
+        _hold_interrupt_sync(
+            _cancel_background_delegations,
+            "Background-delegation teardown at session end failed",
+            interrupts,
+        )
+        _hold_interrupt_sync(
+            _shutdown_hook_executor,
+            "Hook-executor shutdown at session end failed",
+            interrupts,
+        )
         if interrupts:
             raise interrupts[0]
 
@@ -545,6 +540,36 @@ async def _hold_interrupt(
         interrupts.append(exc)
     except Exception:
         CFG.LOGGER.debug(failure_message, exc_info=True)
+
+
+def _hold_interrupt_sync(
+    step: Callable[[], object],
+    failure_message: str,
+    interrupts: list[BaseException],
+) -> None:
+    """`_hold_interrupt` for a synchronous teardown *step*."""
+    try:
+        step()
+    except (asyncio.CancelledError, KeyboardInterrupt) as exc:
+        interrupts.append(exc)
+    except Exception:
+        CFG.LOGGER.debug(failure_message, exc_info=True)
+
+
+def _cancel_background_delegations() -> None:
+    # lazy: zrb internal — only needed at teardown; keeps this import off the
+    # hot path every other turn takes.
+    from zrb.llm.tool.delegate_background import get_background_registry
+
+    get_background_registry().cancel_all()
+
+
+def _shutdown_hook_executor() -> None:
+    # lazy: tests patch zrb.llm.hook.executor.shutdown_hook_executor; hoisting
+    # bypasses the mock
+    from zrb.llm.hook.executor import shutdown_hook_executor
+
+    shutdown_hook_executor(wait=False)
 
 
 async def _cancel_background_shells() -> None:
