@@ -299,7 +299,8 @@ def _retry_with_text_only_history(
     provider accepts. An explainer `UserPromptPart` is always appended after
     the strip so the model knows the `(sanitized-history)` markers are a
     record, not a tool-calling format to imitate — and that tool use is still
-    expected on the next turn.
+    expected on the next turn. Pending deferred results are dropped: the
+    stripped history has no tool call left for them to answer.
     """
     # lazy: heavy third-party — pydantic_ai pulls in OpenAI/Anthropic SDKs.
     from pydantic_ai.messages import ModelRequest, UserPromptPart
@@ -326,7 +327,10 @@ def _retry_with_text_only_history(
     )
     CFG.LOGGER.debug(f"Opaque 400 error: {exc}. Falling back to text-only history.")
     return RetryOutcome(
-        should_retry=True, new_history=sanitized, new_message=current_message
+        should_retry=True,
+        new_history=sanitized,
+        new_message=current_message,
+        clear_results=True,
     )
 
 

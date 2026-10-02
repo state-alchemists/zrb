@@ -38,6 +38,7 @@ from zrb.llm.agent.run.error_classifier import (
     classify_error_type,
 )
 from zrb.llm.agent.run.history_utils import (
+    history_through_deferred_returns,
     history_without_trailing_response,
     is_empty_completion,
     merge_consecutive_messages,
@@ -588,7 +589,12 @@ async def _execution_loop(
 
             if stream_error is not None:
                 await _recover_from_stream_error(
-                    stream_error, retry_state, cursor, print_fn, effective_hook_manager
+                    stream_error,
+                    retry_state,
+                    cursor,
+                    partial_run,
+                    print_fn,
+                    effective_hook_manager,
                 )
                 continue
 
@@ -699,10 +705,16 @@ async def _recover_from_stream_error(
     stream_error: Exception,
     retry_state: RetryState,
     cursor: TurnCursor,
+    partial_run: PartialRunAccumulator,
     print_fn: Callable[[str], Any],
     effective_hook_manager: HookManager,
 ) -> None:
     """Prepare `cursor` for a retry, or raise when the error is unrecoverable."""
+    # Taken while the results are still pending: once they are committed, the
+    # turn holding them carries the approved tool's return, which a prune must
+    # not discard either.
+    min_turns = cursor.prune_floor
+    _commit_executed_deferred_results(cursor, partial_run)
     outcome = await handle_stream_error(
         retry_state,
         stream_error,
@@ -710,7 +722,7 @@ async def _recover_from_stream_error(
         cursor.message,
         cursor.run_history,
         print_fn,
-        min_turns=cursor.prune_floor,
+        min_turns=min_turns,
     )
     if not outcome.should_retry:
         # StopFailure: the turn is ending on an unrecoverable API
@@ -730,6 +742,29 @@ async def _recover_from_stream_error(
     cursor.message = outcome.new_message
     if outcome.clear_results:
         cursor.results = None
+
+
+def _commit_executed_deferred_results(
+    cursor: TurnCursor, partial_run: PartialRunAccumulator
+) -> None:
+    """Settle a resumed round that failed after its approved tools ran.
+
+    pydantic-ai executes the deferred results before its next model call, so
+    a failure in that call leaves the tools already run. Resending the same
+    results would run them again (ADR-0040); instead the round is committed
+    up to the tool returns and carried forward with the results dropped.
+    """
+    if cursor.results is None or partial_run.latest_history is None:
+        return
+    executed = history_through_deferred_returns(
+        partial_run.latest_history, cursor.results
+    )
+    if executed is None:
+        return
+    cursor.run_history = executed
+    cursor.commit_round()
+    cursor.carry_forward()
+    cursor.results = None
 
 
 async def _resolve_deferred_requests(
