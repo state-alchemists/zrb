@@ -220,6 +220,7 @@ class ChatExecution:
                 await asyncio.shield(release)
             except asyncio.CancelledError as exc:
                 cancellation = exc
+        release.result()
         if cancellation is not None:
             raise cancellation
 
