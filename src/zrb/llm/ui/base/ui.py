@@ -831,11 +831,12 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
     ) -> Any:
-        """[REQUIRED] Execute an interactive shell command.
+        """Execute an interactive shell command, handing it the real terminal.
 
-        This method must be implemented by UI subclasses that support
-        running shell commands from within the chat (e.g., via /exec command).
-        For UIs that don't support this, raise NotImplementedError or return None.
+        Called by the diff and argument editors on a tool approval's "edit"
+        answer. A UI without a terminal to hand over keeps this default, which
+        raises `NotImplementedError`, so an "edit" answer fails rather than
+        edits.
 
         Args:
             cmd: Command to execute (string or list of arguments)
