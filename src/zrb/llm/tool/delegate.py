@@ -23,9 +23,9 @@ from zrb.llm.agent.subagent.manager import (
 from zrb.llm.agent.subagent.manager import (
     sub_agent_manager as default_sub_agent_manager,
 )
-from zrb.llm.agent_state import get_current_hook_manager, get_current_ui
+from zrb.llm.agent_state import get_current_ui
 from zrb.llm.config.limiter import llm_limiter
-from zrb.llm.hook.manager import hook_manager as default_hook_manager
+from zrb.llm.hook.manager import get_run_hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.ambient_state import (
@@ -374,7 +374,7 @@ def _prune_old_subagent_history() -> None:
 async def fire_subagent_hook(event: HookEvent, agent_name: str, agent_id: str) -> None:
     """Fire SubagentStart/Stop (observe-only) on the parent run's hook manager,
     falling back to the module singleton. Never raises."""
-    manager = get_current_hook_manager() or default_hook_manager
+    manager = get_run_hook_manager()
     try:
         await manager.execute_hooks(
             event,

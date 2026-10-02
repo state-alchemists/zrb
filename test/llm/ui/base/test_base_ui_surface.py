@@ -42,7 +42,7 @@ class _SurfaceUI(BaseUI):
 def surface_ui():
     return _SurfaceUI(
         ctx=Context(SharedContext(), "test", 0, ""),
-        llm_task=MagicMock(),
+        llm_task=MagicMock(hook_manager=None, active_hook_manager=None),
         history_manager=MagicMock(),
     )
 
@@ -148,7 +148,7 @@ def test_edit_queued_message_logs_child_redraw_failure(surface_ui):
 
     child = _BombRedrawUI(
         ctx=Context(SharedContext(), "test", 0, ""),
-        llm_task=MagicMock(),
+        llm_task=MagicMock(hook_manager=None, active_hook_manager=None),
         history_manager=MagicMock(),
     )
     parent = MagicMock()
@@ -171,7 +171,7 @@ async def test_drain_hook_tasks_lets_a_hook_finish(surface_ui):
         await asyncio.sleep(0.05)
         finished.set()
 
-    with patch("zrb.llm.ui.base.ui.hook_manager.execute_hooks", new=slow_hook):
+    with patch("zrb.llm.hook.manager.hook_manager.execute_hooks", new=slow_hook):
         surface_ui.execute_hook(HookEvent.STOP, {})
         assert len(surface_ui.hook_tasks) == 1
         await surface_ui.drain_hook_tasks(timeout=5)
@@ -193,7 +193,7 @@ async def test_drain_hook_tasks_cancels_a_hook_past_its_timeout(surface_ui):
             cancelled.set()
             raise
 
-    with patch("zrb.llm.ui.base.ui.hook_manager.execute_hooks", new=stuck_hook):
+    with patch("zrb.llm.hook.manager.hook_manager.execute_hooks", new=stuck_hook):
         surface_ui.execute_hook(HookEvent.STOP, {})
         await surface_ui.drain_hook_tasks(timeout=0.05)
         await asyncio.sleep(0)
@@ -305,7 +305,7 @@ def test_cancel_current_turn_prefers_a_chat_tasks_active_hook_manager():
 def _create_child_ui() -> _SurfaceUI:
     return _SurfaceUI(
         ctx=Context(SharedContext(), "test", 0, ""),
-        llm_task=MagicMock(),
+        llm_task=MagicMock(hook_manager=None, active_hook_manager=None),
         history_manager=MagicMock(),
     )
 

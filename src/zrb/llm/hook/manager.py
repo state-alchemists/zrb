@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Callable, cast
 
 from zrb.config.config import CFG
+from zrb.llm.agent_state import get_current_hook_manager
 from zrb.llm.hook.agent_hook_registry import get_agent_hook_builder
 from zrb.llm.hook.executor import (
     HookExecutionResult,
@@ -607,3 +608,13 @@ class HookManager(HookManagerLoading):
 
 # Module-level singleton - lightweight, hooks loaded on first execute_hooks() call
 hook_manager = HookManager(registry=hook_registry)
+
+
+def get_run_hook_manager() -> HookManager:
+    """The hook manager of the agent run in progress, else the process-wide one.
+
+    A task with its own hooks (`append_hook_factory`) binds its manager for the
+    run. Firing an in-run event on the singleton instead skips that task's
+    hooks — its PreToolUse denials included.
+    """
+    return get_current_hook_manager() or hook_manager

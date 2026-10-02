@@ -18,6 +18,6 @@ def mock_ui_deps():
             jargon="Jargon",
         ),
         "output_lexer": MagicMock(),
-        "llm_task": MagicMock(),
+        "llm_task": MagicMock(hook_manager=None, active_hook_manager=None),
         "history_manager": MagicMock(),
     }
