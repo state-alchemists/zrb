@@ -313,16 +313,11 @@ def test_handle_yolo_selective_tools(ui):
 async def test_handle_exec_command(ui):
     assert ui.handle_exec_command("/exec echo hello") is True
     ui.message_queue.get_nowait()  # drain the enqueued job
-    with patch("asyncio.create_subprocess_shell") as mock_sub:
-        mock_proc = AsyncMock()
-        mock_proc.stdout.readline.side_effect = [b"hello\n", b""]
-        mock_proc.stderr.readline.return_value = b""
-        mock_proc.returncode = 0
-        mock_sub.return_value = mock_proc
 
-        await ui.run_shell_command("echo hello")
-        assert "hello" in "".join(ui.outputs)
-        assert "successfully" in "".join(ui.outputs)
+    await ui.run_shell_command("echo hello")
+
+    assert "hello" in "".join(ui.outputs)
+    assert "successfully" in "".join(ui.outputs)
 
 
 def test_handle_exec_command_queues_on_the_multi_ui_shared_queue(ui):

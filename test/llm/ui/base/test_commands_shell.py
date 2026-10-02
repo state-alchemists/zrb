@@ -36,13 +36,14 @@ async def test_run_shell_command_reports_nonzero_exit(ui, tmp_path):
 
 @pytest.mark.skipif(os.name != "posix", reason="`&` and `$!` are POSIX shell syntax")
 @pytest.mark.asyncio
-async def test_run_shell_command_finishes_when_a_background_child_holds_the_pipes(ui):
-    """`/exec server &` ends with the shell, though the child keeps its pipes."""
-    await asyncio.wait_for(ui.run_shell_command("sleep 30 & echo $!"), timeout=3)
+async def test_run_shell_command_ends_with_everything_it_started(ui):
+    """`/exec server &` returns once the shell exits, though the child holds
+    the pipes, and stops that child rather than leaving it running."""
+    await asyncio.wait_for(ui.run_shell_command("sleep 30 & echo $!"), timeout=5)
     output = "".join(ui.outputs)
     child = int(re.search(r"^(\d+)$", output, re.MULTILINE).group(1))
-    os.kill(child, signal.SIGKILL)
     assert "Command finished successfully" in output
+    assert await _wait_until_gone(child)
 
 
 @pytest.mark.asyncio
