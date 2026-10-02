@@ -487,7 +487,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
                         await update_info()
                     except Exception as e:
                         CFG.LOGGER.debug(f"Child UI system info update failed: {e}")
-            self.invalidate_all_uis()
+            self.invalidate_ui()
 
     def set_thinking(self, value: bool, repaint: bool = True) -> None:
         """Mirror the thinking flag to every child UI, then repaint.
@@ -501,10 +501,10 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         for ui in self._uis:
             ui.is_thinking = value
         if repaint:
-            self.invalidate_all_uis()
+            self.invalidate_ui()
 
-    def invalidate_all_uis(self):
-        """Invalidate all child UIs."""
+    def invalidate_ui(self) -> None:
+        """Ask every child UI to repaint."""
         for ui in self._uis:
             try:
                 ui.invalidate_ui()
@@ -740,12 +740,16 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         running = self._running_llm_task
         return running is not None and not running.done()
 
+    def cancel_pending_confirmations(self, flush: bool = True) -> None:
+        """Release every child's pending confirmation."""
+        for ui in self._uis:
+            ui.cancel_pending_confirmations(flush)
+
     def cancel_current_turn(self, reason: str) -> None:
         """Release every child's pending confirmation, cancel the turn this
         MultiUI runs (its children run none) and fire `Stop` with *reason*
         once; `AnyUI.cancel_current_turn`."""
-        for ui in self._uis:
-            ui.cancel_pending_confirmations()
+        self.cancel_pending_confirmations()
         running = self._running_llm_task
         if running is None or running.done():
             return
