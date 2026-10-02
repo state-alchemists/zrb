@@ -390,17 +390,20 @@ class TestBackgroundChildren:
     """A backgrounded child inherits the output pipes and outlives the shell."""
 
     @pytest.mark.asyncio
-    async def test_run_command_returns_when_the_shell_exits(self):
-        """The shell's exit, not pipe EOF, ends the command; `&` keeps the child."""
-        result, return_code = await run_command(
-            [_BASH, "-c", "sleep 30 & echo $!"],
-            print_method=lambda *a, **k: None,
-            timeout=2,
-        )
-        child = int(result.output.strip())
+    async def test_run_command_timeout_kills_a_child_holding_the_pipes(self):
+        """The shell exits at once, but its background child keeps the output
+        open, so the command runs until its timeout; that child must not
+        outlive it, although the shell's pid no longer leads anything alive."""
+        printed = []
+        with pytest.raises(asyncio.TimeoutError):
+            await run_command(
+                [_BASH, "-c", "sleep 30 & echo $!"],
+                print_method=lambda line, **k: printed.append(line),
+                timeout=0.5,
+            )
+        child = int(printed[0])
         try:
-            assert return_code == 0
-            assert not _is_gone(child)
+            assert await _wait_until_gone(child)
         finally:
             _kill_if_alive(child)
 

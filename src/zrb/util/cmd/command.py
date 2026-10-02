@@ -357,7 +357,12 @@ async def run_command(
     )
     try:
         async with asyncio.timeout(timeout if timeout and timeout > 0 else None):
-            return_code = await wait_for_exit_and_drain(cmd_process, streams_task)
+            # A command's output ends when every process holding its pipes
+            # closes them, as with `subprocess.run` and `$(...)`: a background
+            # child left writing to them keeps the command running. On timeout
+            # `__terminate_on_cancel` reaches that child through the group.
+            await streams_task
+            return_code = await wait_for_exit(cmd_process)
         stdout = "\r\n".join(states["stdout"].captured)
         stderr = "\r\n".join(states["stderr"].captured)
         display = "\r\n".join(display_lines)
