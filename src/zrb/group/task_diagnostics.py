@@ -60,15 +60,25 @@ def collect_declared_tasks(
     return declared
 
 
-def capture_builtin_task_ids(root: AnyGroup) -> frozenset[int]:
-    """Ids of the tasks present before any init source ran.
+_builtin_task_ids: frozenset[int] = frozenset()
 
-    A replacement whose victim is one of these is a project shadowing a
-    built-in — the documented override — so it stays quiet. Captured before
-    `reset_task_replacements`, and before init, so the two facts are read from
-    the same unchanging tree.
+
+def snapshot_builtin_task_ids(root: AnyGroup) -> None:
+    """Freeze the built-in task identities once, as the built-ins register.
+
+    Read once at `zrb` package import, when the built-ins have registered but
+    no init source has run, rather than on every `serve_cli`. `cli` is a
+    process-wide tree that keeps what each run registers on it, so reading it
+    later would count a previous run's project tasks as built-ins and silence
+    a collision that should warn.
     """
-    return frozenset(id(task) for task in root.get_all_subtasks())
+    global _builtin_task_ids
+    _builtin_task_ids = frozenset(id(task) for task in root.get_all_subtasks())
+
+
+def get_builtin_task_ids() -> frozenset[int]:
+    """The identities frozen by `snapshot_builtin_task_ids` (empty before it)."""
+    return _builtin_task_ids
 
 
 def reset_task_replacements(root: Group) -> None:
@@ -91,8 +101,8 @@ def find_task_diagnostics(
     Args:
         declared: `(origin, symbol, task)` triples from `collect_declared_tasks`.
         root: The group tree as it stands after every init source loaded.
-        builtin_task_ids: Ids captured by `capture_builtin_task_ids`; a task
-            replacing one of these is a built-in shadow, not a collision.
+        builtin_task_ids: Ids from `get_builtin_task_ids`; a task replacing one
+            of these is a built-in shadow, not a collision.
     """
     builtin_ids = frozenset(builtin_task_ids)
     reachable = _reachable_tasks(root)

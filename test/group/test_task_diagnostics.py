@@ -12,7 +12,6 @@ from types import ModuleType
 from zrb.group.group import Group
 from zrb.group.task_diagnostics import (
     TaskDiagnostic,
-    capture_builtin_task_ids,
     collect_declared_tasks,
     find_task_diagnostics,
     format_diagnostic,
@@ -75,12 +74,6 @@ class TestReplacementLog:
         root.add_task(task)
 
         assert root.replacements == []
-
-    def test_capture_builtin_task_ids_reads_the_tree_before_init(self):
-        builtin = BaseTask(name="test")
-        root = _root_with(builtin)
-
-        assert capture_builtin_task_ids(root) == frozenset({id(builtin)})
 
     def test_reset_clears_a_previous_runs_log(self):
         root = _root_with(BaseTask(name="build"))
@@ -197,7 +190,7 @@ class TestAliasCollisionDiagnostics:
         path, so the override must stay quiet."""
         builtin = BaseTask(name="test")
         root = _root_with(builtin)
-        builtin_ids = capture_builtin_task_ids(root)
+        builtin_ids = frozenset({id(builtin)})
         shadow = BaseTask(name="test")
         root.add_task(shadow)
 
@@ -213,7 +206,7 @@ class TestAliasCollisionDiagnostics:
         a real collision and must warn."""
         builtin = BaseTask(name="test")
         root = _root_with(builtin)
-        builtin_ids = capture_builtin_task_ids(root)
+        builtin_ids = frozenset({id(builtin)})
         tools = Group(name="tools")
         root.add_group(tools)
         first = BaseTask(name="test")

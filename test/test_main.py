@@ -213,6 +213,57 @@ def test_an_unregistered_task_in_init_is_named_at_startup(
     assert "not registered" in captured.err
 
 
+def test_a_task_declared_before_a_failing_init_line_is_still_named(
+    tmp_path, capsys, monkeypatch
+):
+    """Declarations before a failing line are already live in the CLI tree, so
+    the diagnostics must see the partially executed module, not lose it with
+    the error that ended the source."""
+    monkeypatch.setenv("ZRB_INIT_STRICT", "off")
+    init = tmp_path / "zrb_init.py"
+    init.write_text(
+        "from zrb import CmdTask\n"
+        "orphan = CmdTask(name='declared-before-failure', cmd='echo hi', retries=0)\n"
+        "raise RuntimeError('init failed after declaring the task')\n"
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["zrb"])
+    serve_cli()
+    captured = capsys.readouterr()
+    assert "RuntimeError: init failed after declaring the task" in captured.err
+    assert "declared-before-failure" in captured.err
+    assert "not registered" in captured.err
+
+
+def test_a_project_task_from_an_earlier_run_is_not_treated_as_a_builtin(
+    tmp_path, capsys, monkeypatch
+):
+    """`cli` outlives a run. A task an earlier run registered must not be
+    frozen into the built-in set, or replacing it on the next run would be
+    silenced as an intended shadow instead of warned as a collision."""
+    init = tmp_path / "zrb_init.py"
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["zrb"])
+
+    init.write_text(
+        "from zrb import CmdTask, cli\n"
+        "first = CmdTask(name='repeat-run-task', cmd='echo one', retries=0)\n"
+        "cli.add_task(first)\n"
+    )
+    serve_cli()
+    capsys.readouterr()
+
+    init.write_text(
+        "from zrb import CmdTask, cli\n"
+        "second = CmdTask(name='repeat-run-task', cmd='echo two', retries=0)\n"
+        "cli.add_task(second)\n"
+    )
+    serve_cli()
+    captured = capsys.readouterr()
+    assert "repeat-run-task" in captured.err
+    assert "more than one task" in captured.err
+
+
 def test_a_mistyped_setting_variable_is_named_with_the_setting_it_meant(
     tmp_path, capsys, monkeypatch
 ):

@@ -9,16 +9,16 @@ from typing import Any, Callable
 from zrb.config.config import CFG
 from zrb.group.any_group import NodeNotFoundError
 from zrb.group.task_diagnostics import (
-    capture_builtin_task_ids,
     collect_declared_tasks,
     find_task_diagnostics,
     format_diagnostic,
+    get_builtin_task_ids,
     reset_task_replacements,
 )
 from zrb.runner.cli import cli
 from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
 from zrb.util.init_path import get_init_path_list
-from zrb.util.load import load_file, load_module
+from zrb.util.load import load_file_with_result, load_module_with_result
 
 
 class FaintFormatter(logging.Formatter):
@@ -56,46 +56,46 @@ def _install_sigterm_handler() -> list[int]:
 
 
 def _load_or_warn(
-    label: str, load: "Callable[[], Any]", loaded_sources: list[tuple[str, ModuleType]]
+    label: str,
+    load: Callable[[], tuple[ModuleType | None, Exception | None]],
+    loaded_sources: list[tuple[str, ModuleType]],
 ) -> bool:
     """Load one init module/script, or report it precisely and move on.
 
     The error is never hidden — file, line, and exception type always print
-    to stderr — but it is not fatal. A broken init source only ran up to its
-    own failure point; whatever it already did (a `CFG` assignment, a task
-    registration) before raising stays in effect, and whatever comes after
-    that point in the same source is skipped. Startup continues with the
-    next init source and then the CLI itself, since a user who can see the
-    error and still run zrb can fix it and rerun, while a user who can't run
-    zrb at all has a strictly worse time diagnosing the same error.
-
-    Each source that loads is appended to `loaded_sources` as
-    `(label, module)`, because the task diagnostics need to read the tasks a
-    source declared. `sys.modules` cannot serve that: every `zrb_init.py`
-    registers under the same module name, so it holds only the last one.
+    to stderr — but it is not fatal: startup continues with the next source
+    and then the CLI itself. Whatever the broken source did before raising (a
+    `CFG` assignment, a task registration) stays in effect, so its module is
+    still appended to `loaded_sources` for the task diagnostics even when it
+    failed partway. `sys.modules` cannot serve that: every `zrb_init.py`
+    registers under the same name, so it holds only the last one.
 
     Returns:
         True when the source loaded cleanly. `serve_cli` collects these and,
         under `CFG.INIT_STRICT`, exits non-zero instead of continuing.
     """
-    try:
-        module = load()
+    module, error = load()
+    if error is not None:
+        _report_load_failure(label, error)
         if module is not None:
             loaded_sources.append((label, module))
-        return True
-    except (KeyboardInterrupt, SystemExit):
-        raise
-    except Exception as error:
-        frame = traceback.extract_tb(error.__traceback__)[-1]
-        print(
-            stylize_error(
-                f"Failed to load {label}\n"
-                f"  {frame.filename}:{frame.lineno}\n"
-                f"  {type(error).__name__}: {error}"
-            ),
-            file=sys.stderr,
-        )
         return False
+    if module is not None:
+        loaded_sources.append((label, module))
+    return True
+
+
+def _report_load_failure(label: str, error: Exception) -> None:
+    """Print file, line, and exception type for an init source that failed."""
+    frame = traceback.extract_tb(error.__traceback__)[-1]
+    print(
+        stylize_error(
+            f"Failed to load {label}\n"
+            f"  {frame.filename}:{frame.lineno}\n"
+            f"  {type(error).__name__}: {error}"
+        ),
+        file=sys.stderr,
+    )
 
 
 def serve_cli():
@@ -110,22 +110,18 @@ def serve_cli():
     try:
         loaded_cleanly = True
         loaded_sources: list[tuple[str, ModuleType]] = []
-        # Captured before any init runs: the task *objects* the built-ins
-        # occupy, so the diagnostics can tell a project shadowing a built-in
-        # (documented, intended) from two of the project's own tasks
-        # colliding. Object identity, not alias: an alias is a per-group word,
-        # and a project task named like a built-in in an unrelated group is a
-        # collision worth warning about, not a shadow.
-        builtin_task_ids = capture_builtin_task_ids(cli)
-        # The tree outlives `serve_cli` (`cli` is a process-wide singleton), so
-        # this run clears the previous run's replacement log before init adds
-        # to it.
+        # Frozen at import, before any run could register a project task on the
+        # process-wide `cli` tree, so a later run cannot mistake one for a
+        # built-in and stay silent about the collision it should report.
+        builtin_task_ids = get_builtin_task_ids()
+        # `cli` outlives `serve_cli`, so this run clears the previous run's
+        # replacement log before init adds to it.
         reset_task_replacements(cli)
         for init_module in CFG.INIT_MODULES:
             CFG.LOGGER.info(f"Loading {init_module}")
             loaded_cleanly &= _load_or_warn(
                 f"init module {init_module}",
-                lambda m=init_module: load_module(m),
+                lambda m=init_module: load_module_with_result(m),
                 loaded_sources,
             )
         zrb_init_path_list = get_init_path_list()
@@ -135,14 +131,14 @@ def serve_cli():
                 CFG.LOGGER.info(f"Loading {abs_init_script}")
                 loaded_cleanly &= _load_or_warn(
                     f"init script {abs_init_script}",
-                    lambda p=abs_init_script: load_file(p, raise_on_error=True),
+                    lambda p=abs_init_script: load_file_with_result(p),
                     loaded_sources,
                 )
         for zrb_init_path in zrb_init_path_list:
             CFG.LOGGER.info(f"Loading {zrb_init_path}")
             loaded_cleanly &= _load_or_warn(
                 f"{zrb_init_path}",
-                lambda p=zrb_init_path: load_file(p, raise_on_error=True),
+                lambda p=zrb_init_path: load_file_with_result(p),
                 loaded_sources,
             )
         # Every init source is attempted before this check, so one run
@@ -186,8 +182,6 @@ def _warn_task_diagnostics(
     call to fix rather than a reason to refuse to start.
     """
     declared = collect_declared_tasks(loaded_sources)
-    if not declared:
-        return
     for diagnostic in find_task_diagnostics(declared, cli, builtin_task_ids):
         print(
             stylize_warning(format_diagnostic(diagnostic)),
