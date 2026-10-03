@@ -2,7 +2,7 @@
 
 # Zrb Architecture, Philosophy, & Conventions
 
-This document is aimed at maintainers, contributors, and curious power users who want to understand the *why* and *how* behind Zrb's codebase. Zrb is a complex, asynchronous task execution framework masquerading as a simple automation tool. Navigating its internals requires understanding its core design philosophies.
+This document is aimed at maintainers, contributors, and curious power users who want to understand the *why* and *how* behind Zrb's codebase. Zrb is a complex, asynchronous task execution framework masquerading as a simple automation tool. Navigating its internals requires understanding its core design philosophies. **This page is the philosophy. [Architecture: The Design of Zrb](../architecture/README.md) breaks it down part by part, with principles linked to ADRs and invariants linked to tests.**
 
 ---
 
@@ -34,6 +34,8 @@ Execution is highly abstracted and deeply nested to handle DAG (Directed Acyclic
 3. `exec_chain()`: Concurrently runs a task and, upon success, its `successors`.
 4. `execute_action_until_ready()`: Evaluates `execute_condition` and runs `readiness_checks` concurrently before executing the main action.
 5. `execute_action_with_retry()`: Contains the core try/catch, retry loop, XCom pushing, and triggers `fallbacks` on failure.
+
+For the design behind this flow and a diagram of it, see [Architecture → Task Execution](../architecture/task-execution.md).
 
 ### Implicit State via `ContextVars`
 Instead of threading `session`, `logger`, or `env` through every single function signature, Zrb relies on `contextvars` (specifically `current_ctx`).

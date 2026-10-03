@@ -327,6 +327,7 @@ All task types available in Zrb, from basic to advanced.
 ### V. Contributing
 - [Which pattern do I reach for?](docs/contributing/which-pattern.md) — lookup table for the pattern zrb expects when adding new code
 - [Architecture & Conventions](docs/contributing/architecture.md) — for maintainers and contributors
+- [Architecture: The Design of Zrb](docs/architecture/README.md) — each part's problem, principles and invariants, then where they live in the code
 - [Framework Conventions](docs/contributing/framework-conventions.md) — the enforced R1–R12 rules
 - [Maintainer Guide](docs/contributing/maintainer-guide.md) — start here to contribute code
 - [Technical Spec: Context Propagation](docs/technical-specs/context-propagation.md) — the `ContextVar` layers and their scoping rules
