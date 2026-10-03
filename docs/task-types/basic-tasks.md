@@ -143,7 +143,7 @@ start_server = CmdTask(
 |---------|--------|-----------|
 | **Purpose** | Python code | Shell commands |
 | **Syntax** | `action=lambda ctx: ...` | `cmd="shell command"` |
-| **Templating** | Python string formatting | Zrb's own f-string-style substitution `{ctx.input.x}` (single braces, evaluated with a restricted set of builtins) |
+| **Templating** | Python string formatting | Zrb's own f-string-style substitution, wrapped in `Tpl` (single braces, evaluated with a restricted set of builtins) |
 | **Return value** | Explicit `return` | A `CmdResult` pushed to XCom: `.output` (stdout), `.error` (stderr); renders as stdout in templates |
 | **Environment** | Via `ctx.env` | Auto-injected into shell (and on `ctx.env`) |
 | **Best for** | Complex logic, APIs | External tools, scripts |
