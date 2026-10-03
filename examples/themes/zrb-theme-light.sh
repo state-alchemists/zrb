@@ -9,6 +9,10 @@
 #
 # Designed for terminals with a light/white background. Dark text on
 # light backgrounds, with muted borders and subtle highlights.
+#
+# These exports are explicit ZRB_* env vars, so they override any ZRB_THEME
+# palette. For the built-in palettes, `export ZRB_THEME=dark` (or `light`) is
+# the simpler route; see examples/themes/monokai for registering your own.
 
 zrb_theme_light() {
   # --- Frame & bars ---

@@ -24,9 +24,9 @@ The journal is a directory of Markdown files organized hierarchically by topic o
 | Property | Value |
 |----------|-------|
 | Storage | Directory of Markdown files |
-| Organization | Hierarchical, by topic or project |
+| Organization | Four note categories plus a dated activity log |
 | Entry point | `index.md`, the only file injected into a session |
-| Written by | `LogActivity` and `WriteJournalNote`, which own the on-disk format |
+| Written by | `LogActivity`, `WriteJournalNote` and `DeleteJournalNote`, which own the on-disk format |
 
 ---
 
@@ -36,41 +36,44 @@ Journal entries are stored in a directory structure with a central index file.
 
 Every journal knob (directory, index file, injection cap, HUD cap, first-turn auto-search, git backing) is listed in [LLM Configuration → Journal & Context Storage](../configuration/llm-config.md#5-journal--context-storage); the directory defaults to `~/.zrb/llm-notes/` and the index file to `index.md`.
 
-`ZRB_LLM_JOURNAL_ENABLED=false` turns the whole subsystem off. There is no journal prompt section to suppress — the journal *is* its three tools (`SearchJournal`, `LogActivity`, `WriteJournalNote`), so the flag unregisters them in `apply_common_tools`, and `render_journal_index` checks the same flag for the `<journal-index>` injection. The model is then never told a journal exists (ADR-0055).
+`ZRB_LLM_JOURNAL_ENABLED=false` turns the whole subsystem off. There is no journal prompt section to suppress — the journal *is* its four tools (`SearchJournal`, `LogActivity`, `WriteJournalNote`, `DeleteJournalNote`), so the flag drops them from the per-run tool factories in `common_tools.py`, and `render_journal_index` checks the same flag for the `<journal-index>` injection. The model is then never told a journal exists (ADR-0055).
 
 `ZRB_LLM_JOURNAL_DIR` is **not** an off switch: clearing it falls back to `~/.zrb/llm-notes/` rather than disabling journaling.
 
 ### Directory Organization
 
+The writers create a fixed layout (`ensure_journal_tree` in `src/zrb/llm/tool/journal_write.py`): four note categories and an activity log, each with its own `index.md`.
+
 ```mermaid
 flowchart LR
-    Root["~/.zrb/llm-notes/"] --> Index["index.md — main index, auto-injected"]
-    Root --> PA["project-a/"]
-    Root --> PB["project-b/"]
-    Root --> Prefs["user-preferences.md — global preferences"]
-    PA --> PAD["design.md — design decisions"]
-    PA --> PAM["meeting-notes.md — meeting notes"]
-    PA --> PAA["api-spec.md — API specs"]
-    PB --> PBR["requirements.md — requirements"]
-    PB --> PBA["architecture.md — architecture"]
+    Root["~/.zrb/llm-notes/"] --> Index["index.md — root index, auto-injected"]
+    Root --> U["user/ — notes + index.md"]
+    Root --> P["preferences/ — notes + index.md"]
+    Root --> PR["projects/ — notes + index.md"]
+    Root --> T["technical/ — notes + index.md"]
+    Root --> A["activity-log/ — YYYY/YYYY-MM/YYYY-MM-DD.md"]
 ```
+
+`WriteJournalNote` writes `<category>/<slug>.md`; `LogActivity` appends to the day file under `activity-log/`. With `ZRB_LLM_JOURNAL_GIT_ENABLED` on (the default) and `git` installed, the journal root is also a git repository and each write or delete is a commit.
 
 ### Index File Structure
 
+The root index is created with this skeleton; `WriteJournalNote` adds a one-line summary of each note under `User`, `Preferences` or `Active Constraints` (for `projects` and `technical` notes):
+
 ```markdown
-# Journal Index
+# Journal
 
-## Project A
-- [Design Decisions](project-a/design.md)
-- [Meeting Notes](project-a/meeting-notes.md)
-- [API Specifications](project-a/api-spec.md)
+## User
 
-## Project B  
-- [Requirements](project-b/requirements.md)
-- [Architecture](project-b/architecture.md)
+## Preferences
 
-## Global Preferences
-- [User Preferences](user-preferences.md)
+## Active Constraints
+
+## Directories
+
+- [user](user/index.md) · [preferences](preferences/index.md) · [projects](projects/index.md) · [technical](technical/index.md) · [activity-log](activity-log/index.md)
+
+## Recent Insights
 ```
 
 ---
@@ -90,8 +93,9 @@ When present, the block is wrapped as its own tag inside the live-context payloa
 
 ```
 <journal-index>
-Your persistent memory (index file: /abs/path/to/index.md). Use SearchJournal for full entries.
+Your persistent memory (index file: /abs/path/to/index.md). Use SearchJournal for full entries; a category's index.md (e.g. technical/index.md) lists every note ever written in it, uncapped. Change the journal only through LogActivity, WriteJournalNote, or DeleteJournalNote — ...
 [content of index.md, capped at ZRB_LLM_JOURNAL_INDEX_MAX_CHARS]
+[on the first turn, notes possibly related to the opening message, when ZRB_LLM_JOURNAL_AUTO_SEARCH_ENABLED is on]
 </journal-index>
 ```
 
@@ -100,7 +104,7 @@ The header carries the **absolute path** of the index file, so the agent can `Re
 When the content exceeds the cap it is cut **on a line boundary** and ` (...more)` is appended, and the block marks the truncation:
 
 ```
-Your persistent memory (index file: /abs/path/to/index.md). Truncated at `(...more)`. Use SearchJournal for full entries.
+Your persistent memory (index file: /abs/path/to/index.md). Truncated at `(...more)`. Use SearchJournal for full entries; ...
 ```
 
 Cutting on a line boundary matters because the entries are facts about the user — half a sentence is worse than none. Overflow is dropped from the **end**, so the index should be written most-durable-first. `WriteJournalNote` enforces that order when it creates the root index: identity and standing preferences first, unbounded "Recent Insights" last, so growth only ever evicts itself.
@@ -115,7 +119,7 @@ Nothing is injected at all when the index file is missing, unreadable, or empty;
 
 That behaviour is deliberate. Reporting a missing directory as an error made the whole memory layer read as unavailable, and the agent responded by declaring it could not journal rather than by writing its first note. An unwritten journal is *empty*, not broken.
 
-**The rest of the tree is created by the writers, not by the agent.** `LogActivity` and `WriteJournalNote` (`src/zrb/llm/tool/journal_write.py`) derive every path and timestamp themselves, create the root index and the five directory indexes on first write, and maintain the link graph — each note registered in its directory index, each forward link matched by a reciprocal backlink. The agent supplies content; the structure is code (ADR-0055).
+**The rest of the tree is created by the writers, not by the agent.** `LogActivity` and `WriteJournalNote` (`src/zrb/llm/tool/journal_write.py`) derive every path and timestamp themselves, create the root index and the five directory indexes (four categories plus `activity-log`) on first write, and maintain the link graph — each note registered in its directory index, each forward link matched by a reciprocal backlink. The agent supplies content; the structure is code (ADR-0055).
 
 ---
 

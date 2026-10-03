@@ -33,6 +33,7 @@ Each folder is a self-contained `zrb_init.py` you can copy into your own project
 | [`live-context`](live-context) | Injecting live, per-turn runtime state into the prompt |
 | [`lsp-config`](lsp-config) | Registering a custom Language Server for code intelligence |
 | [`chat-gpio-ptt`](chat-gpio-ptt) | Driving a chat session from hardware buttons with `append_trigger` |
+| [`voice-interaction`](voice-interaction) | Spoken replies and voice (push-to-talk / hands-free) input via `enable_speech`/`enable_dictation` |
 
 ## Custom Chat UIs
 
@@ -46,7 +47,7 @@ Each folder is a self-contained `zrb_init.py` you can copy into your own project
 
 | Example | What it demonstrates |
 |---|---|
-| [`themes`](themes) | Shell scripts for curated `zrb llm chat` color palettes |
+| [`themes`](themes) | Shell scripts for curated `zrb llm chat` color palettes, plus [`themes/monokai`](themes/monokai) registering a custom theme with `register_theme` |
 
 ---
 

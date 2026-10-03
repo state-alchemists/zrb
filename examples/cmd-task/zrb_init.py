@@ -4,6 +4,8 @@ Command Task Example
 Shows how to run shell commands with CmdTask.
 """
 
+import os
+
 from zrb import CmdTask, Env, StrInput, Tpl, cli
 
 # =============================================================================
@@ -26,7 +28,7 @@ hello = cli.add_task(
 greet = cli.add_task(
     CmdTask(
         name="greet",
-        description="Greet someone using figlet (if installed)",
+        description="Greet someone",
         input=[StrInput(name="name", default="World")],
         cmd=Tpl('echo "Hello, {ctx.input.name}!"'),
     )
@@ -54,8 +56,8 @@ ls_task = cli.add_task(
     CmdTask(
         name="ls-home",
         description="List home directory",
-        cmd="ls -la",
-        cwd="~",  # Run in home directory
+        cmd="find . -maxdepth 1",
+        cwd=os.path.expanduser("~"),  # cwd is not tilde-expanded, so expand it here
     )
 )
 
@@ -81,7 +83,7 @@ flaky_task = cli.add_task(
         name="flaky",
         description="A command that might fail",
         cmd="exit 1",  # Always fails
-        retries=3,  # Retry 3 times
+        retries=3,  # Retry 3 times (4 attempts in total)
         retry_period=1,  # Wait 1 second between retries
     )
 )

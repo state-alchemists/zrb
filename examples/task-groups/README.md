@@ -54,7 +54,8 @@ zrb
 │   └── geometry
 │       ├── perimeter
 │       ├── area
-│       └── square-area
+│       ├── square-area
+│       └── calc-area   (alias of square-area)
 ```
 
 ## Key Concepts
@@ -65,4 +66,4 @@ zrb
 | `cli.add_group()` | Add group to root CLI |
 | `group.add_group()` | Create nested group |
 | `group.add_task()` | Add task to group |
-| `alias` | Alternative name for a task |
+| `alias` | CLI word to register a task under (replaces its name; add the task twice to keep both) |

@@ -60,6 +60,8 @@ def produce(ctx):
 For `CmdTask`, the action returns a `CmdResult` object (capturing stdout, stderr, and exit code), and that object is pushed as-is:
 
 ```python
+from zrb import CmdTask, cli
+
 producer = cli.add_task(CmdTask(name="producer", cmd="echo 'Hello from shell'"))
 # ctx.xcom["producer"].pop() returns a CmdResult, not a plain string.
 # CmdResult stringifies to the command's stdout, so f"{result}" or str(result)
@@ -73,29 +75,33 @@ producer = cli.add_task(CmdTask(name="producer", cmd="echo 'Hello from shell'"))
 ### Pushing Data
 
 ```python
+from zrb import cli, make_task
+
 @make_task(name="worker", group=cli)
 def work(ctx):
     # Push multiple values
     ctx.xcom["worker"].push("first")
     ctx.xcom["worker"].push("second")
-    # Queue now contains: ["first", "second"] (FIFO)
+    # The implicit `return None` is auto-pushed after the function ends,
+    # so the queue ends up as: ["first", "second", None] (FIFO)
 ```
 
 ### Popping Data
 
 ```python
-@make_task(name="consumer", upstream=["worker"], group=cli)
+@make_task(name="consumer", upstream=[work], group=cli)
 def consume(ctx):
     first = ctx.xcom["worker"].pop()    # "first"
     second = ctx.xcom["worker"].pop()   # "second"
+    returned = ctx.xcom["worker"].pop() # None (worker's return value)
     empty = ctx.xcom["worker"].get()    # None (queue is empty)
-    # ctx.xcom["worker"].pop() would raise IndexError
+    # ctx.xcom["worker"].pop() would now raise IndexError
 ```
 
 ### Peeking Without Removal
 
 ```python
-@make_task(name="inspector", upstream=["producer"], group=cli)
+@make_task(name="inspector", upstream=[producer], group=cli)
 def inspect(ctx):
     value = ctx.xcom["producer"].peek()  # View without removing
     ctx.print(f"About to process: {value}")
@@ -132,7 +138,7 @@ consumer = cli.add_task(
 XCom values can be used in any `{ }` expression within task parameters, not just `CmdTask` commands:
 
 ```python
-from zrb import Scaffolder, StrInput, Tpl, cli
+from zrb import CmdTask, Scaffolder, Tpl, cli
 
 creator = cli.add_task(CmdTask(name="creator", cmd="echo 'my-app'"))
 
@@ -189,7 +195,7 @@ stage_3 = cli.add_task(CmdTask(
 
 ### Broadcasting: One Producer, Many Consumers
 
-Each consumer calls `.pop()` independently, so you must push multiple copies or use `.peek()` for read-only access:
+Each consumer calls `.pop()` independently, so you must push multiple copies or use `.peek()` for read-only access. Below, the two manual pushes plus the auto-pushed return value leave three copies on the queue:
 
 ```python
 @make_task(name="broadcaster", group=cli)
@@ -207,16 +213,29 @@ def broadcast(ctx):
 XCom is the foundation of trigger-callback patterns:
 
 ```python
-from zrb import BaseTrigger, Callback, Tpl
+from zrb import BaseTrigger, Callback, CmdTask, StrInput, Tpl, cli
 
 my_callback = Callback(
-    task=CmdTask(name="on-event", cmd=Tpl("echo '{ctx.input.message}'")),
+    task=CmdTask(
+        name="on-event",
+        input=StrInput(name="message"),
+        cmd=Tpl("echo '{ctx.input.message}'"),
+    ),
     input_mapping={"message": Tpl("{ctx.xcom.event_queue.pop()}")}
 )
 
-# Inside the trigger action:
-# ctx.xcom.event_queue.push(event_data)
-# → pushes to "event_queue" → fires callback → maps to input.message
+def watch(ctx):
+    # → pushes to "event_queue" → fires callback → maps to input.message
+    ctx.xcom.event_queue.push("event-data")
+
+cli.add_task(
+    BaseTrigger(
+        name="watch-events",
+        queue_name="event_queue",
+        callback=my_callback,
+        action=watch,
+    )
+)
 ```
 
 ---
@@ -227,6 +246,7 @@ my_callback = Callback(
 |-------|----------|------------|
 | **Pop from empty queue** | `pop()` raises `IndexError` | Use `.get()` which returns `None` |
 | **Reading a task that hasn't run yet** | `ctx.xcom["other"]` raises `KeyError` if that task hasn't executed in this session at all; `.pop()`/`.peek()` raise `IndexError` if the task ran but hasn't pushed a value yet (or the value was already popped) | `ctx.xcom` is one shared, session-wide dict — `upstream` only controls execution *order*, it does not restrict xcom visibility. Make sure the producing task has actually run and pushed before you read from it |
+| **Action returns nothing** | The implicit `None` is still pushed, after anything the action pushed manually | Account for the trailing `None` when popping, or return the value instead of pushing it |
 | **Multiple pops** | Each `.pop()` removes one item | Push once per consumer, or use `.peek()` for read-only |
 | **Task name with hyphens** | `ctx.xcom.my-task` is invalid Python | Use bracket notation: `ctx.xcom["my-task"]` |
 | **Large data** | XCom is in-memory (`deque`) | Not designed for large payloads (>1 MB) |

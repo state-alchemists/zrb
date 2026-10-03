@@ -1,6 +1,6 @@
 # Model Tiering Example
 
-This example demonstrates `custom_model_names`, `model_getter`, and `model_renderer` to implement automatic model downgrading based on cumulative request count.
+This example demonstrates `custom_model_names`, `model_getter`, and `model_renderer` to implement automatic model downgrading based on how many turns the chat has run.
 
 ## How It Works
 
@@ -8,19 +8,19 @@ Three features work together:
 
 | Feature | Purpose |
 |---|---|
-| `custom_model_names` | Registers tier names for `/model` autocomplete and UI display |
-| `model_getter` | Called before each LLM request — returns the active tier name |
+| `custom_model_names` | Offers the tier names in `/model` autocomplete |
+| `model_getter` | Called once per turn, when the agent is built — returns the active tier name |
 | `model_renderer` | Translates a tier name into the real model sent to the API |
 
 ### Tier Schedule
 
 ```
-Requests 1–3  → zrb:model-pro        (highest quality)
-Requests 4–6  → zrb:model-flash      (balanced)
-Requests 7+   → zrb:model-flash-lite  (most efficient)
+Turns 1–3  → zrb:model-pro        (highest quality)
+Turns 4–6  → zrb:model-flash      (balanced)
+Turns 7+   → zrb:model-flash-lite  (most efficient)
 ```
 
-All three tier names resolve to `CFG.LLM_MODEL` at runtime, so only one API key / endpoint is needed. The tier name is what appears in the UI info bar after each call.
+All three tier names resolve to `CFG.LLM_MODEL` at runtime, so only one API key / endpoint is needed. A "turn" is one agent run: every model request inside it (including tool-call round-trips) uses the same tier. A `/btw` side question also builds an agent, so it advances the count too.
 
 ### Pipeline per Request
 
@@ -29,10 +29,10 @@ user model input
       │
       ▼
 model_getter(user_model)   ← ignores user input, picks tier by count
-      │ active tier name   ← shown in UI info bar
+      │ active tier name
       ▼
 model_renderer(tier_name)  ← maps tier → CFG.LLM_MODEL
-      │ real model
+      │ real model         ← shown in UI info bar
       ▼
 pydantic_ai Agent
 ```
@@ -44,7 +44,7 @@ cd examples/model-tiering
 zrb llm chat
 ```
 
-Send a few messages and watch the model name in the info bar cycle through the tiers.
+Send a few messages. The info bar shows the *rendered* model, so with every tier mapped to `CFG.LLM_MODEL` it stays the same; map each tier to a different real model (see Customization) to watch it change.
 
 ## Code
 
@@ -97,7 +97,7 @@ llm_chat.model_renderer = render_model
 
 **Reset the counter per session** — hook into `SESSION_START` to reset `tracker._count = 0` (see `examples/llm-hooks/`).
 
-**Override via `/model`** — the user can always type `/model zrb:model-pro` to force a specific tier, or any other model name to bypass tiering entirely (the renderer passes unknown names through unchanged).
+**Honor `/model`** — this getter ignores `user_model`, so `/model` has no effect on the main agent while it is installed. Return `user_model` from the getter when you want an explicit choice to win; the renderer already passes non-tier names through unchanged.
 
 ## See Also
 

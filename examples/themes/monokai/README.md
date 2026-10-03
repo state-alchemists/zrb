@@ -8,8 +8,8 @@ env var, using zrb's `ZRB_THEME` system (ADR-0027).
 `zrb_init.py` calls `register_theme("monokai", {...})`. Registered themes are a
 **partial palette merged onto the built-in `dark` theme** — you only list the
 knobs you want to change, and every omitted knob keeps its `dark` value. This
-example omits `LLM_UI_STYLE_BOTTOM_TOOLBAR` and all the `CLI_STYLE_*` knobs on
-purpose to show the inheritance.
+example omits `LLM_UI_STYLE_BOTTOM_TOOLBAR`, `CLI_COLOR_MUTED`, and all the
+`CLI_STYLE_*` knobs on purpose to show the inheritance.
 
 Knob names are `CFG` attribute names without the `ZRB_` prefix. Values are
 prompt_toolkit style strings for the LLM UI, and Rich style strings for the

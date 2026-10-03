@@ -16,7 +16,7 @@ web_auth_config.add_user(
     User(
         username="boss",
         password="secret",
-        accessible_tasks=["*"],  # All tasks
+        is_super_admin=True,  # All tasks
     )
 )
 
@@ -44,7 +44,7 @@ ZRB_WEB_HTTP_PORT=8000 zrb server start
 User(
     username="boss",
     password="boss123",
-    accessible_tasks=["*"],  # All tasks
+    is_super_admin=True,  # All tasks
 )
 ```
 
@@ -71,7 +71,8 @@ web_auth_config.guest_accessible_tasks = ["hello"]
 |------|-------|
 | Guest | `hello` |
 | `jack` | `hello`, `greet` |
-| `boss` | ALL (`*`) |
+| `boss` | ALL (`is_super_admin=True`) |
+| `admin` (built-in super-admin, password `admin` unless `ZRB_WEB_SUPER_ADMIN_PASSWORD` is set) | ALL |
 
 ## Authentication Flow
 
@@ -89,8 +90,8 @@ flowchart TB
 |---------|-------------|
 | `enable_auth` | Turn on authentication |
 | `add_user()` | Add a user |
-| `accessible_tasks` | Tasks user can run |
-| `*` | Wildcard for all tasks |
+| `accessible_tasks` | Tasks user can run, by task name or task object (no wildcard) |
+| `is_super_admin` | Grant access to all tasks |
 | `guest_accessible_tasks` | Public tasks |
 
 ## Security Notes
@@ -106,7 +107,7 @@ web_auth_config.add_user(
     User(
         username="boss",
         password=os.environ.get("BOSS_PASSWORD", "change-me"),
-        accessible_tasks=["*"],
+        is_super_admin=True,
     )
 )
 ```
@@ -120,3 +121,6 @@ web_auth_config.add_user(
    accepted solely at the refresh endpoint. Passwords are compared in constant
    time, but are stored as configured (plaintext) — keep them in env vars / a
    secret store, never in source.
+6. **Change the defaults.** The built-in super-admin is `admin` / `admin`, and
+   tokens are signed with the secret key `zrb`. Set `ZRB_WEB_SUPER_ADMIN_PASSWORD`
+   and a long random `ZRB_WEB_SECRET_KEY` before exposing the server.

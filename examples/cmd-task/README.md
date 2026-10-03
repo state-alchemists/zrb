@@ -42,7 +42,7 @@ zrb ls-home
 # Environment variables
 zrb env-check
 
-# Retry example
+# Retry example (always fails, to show 4 attempts)
 zrb flaky
 
 ```
@@ -52,7 +52,7 @@ zrb flaky
 | Option | Description |
 |--------|-------------|
 | `cmd` | Command to run |
-| `cwd` | Working directory |
+| `cwd` | Working directory (no `~` expansion; use `os.path.expanduser`) |
 | `env` | Environment variables |
 | `retries` | Number of retries on failure |
 | `retry_period` | Seconds between retries |

@@ -41,7 +41,7 @@ There are no aliases: an old variable is ignored, and from 3.12.0 zrb says so wh
 | `ActionCommand("/x", lambda kwargs: ...)` | `ActionCommand("/x", lambda kwargs, ui: ...)` — the action also gets the chat UI, or `None` |
 | `AnyCustomCommand.handle(self, kwargs)` | `handle(self, kwargs, ui)` |
 | `run_custom_command(message, commands)` | `run_custom_command(message, commands, ui)` |
-| `from zrb.llm.voice import VoiceEngine` | `zrb.llm.dictation`: `record(should_record)` / `listen(config, should_listen)` for audio, `get_dictation_backend(...).transcribe(audio)` for text |
+| `from zrb.llm.voice import VoiceEngine` | `zrb.llm.dictation`: `record(should_record)` / `listen(config, should_listen)` for audio, `zrb.llm.dictation.backend.get_dictation_backend(...).transcribe(audio)` for text |
 | `from zrb.llm.util.camera import get_camera_photo` | `from zrb.llm.camera import AutoCameraBackend`; `await AutoCameraBackend().capture(device)` |
 | `missing_tool_hint()` (camera) | `backend.get_failure_hint()` on the backend that captured |
 | `ui.voice`, `ui.voice_commands`, `ui.photo_commands`, `ui.handle_toggle_voice`, `ui.handle_photo_command`, `ui.submit_photo` | (removed) |
@@ -77,7 +77,9 @@ guide](../llm/llm-custom-ui.md) recommends. Every removal fails loudly with
 
 Each was a getter (and often a setter) whose whole body reached one field on
 one part, so the part is the shorter name for the same state. Reads and writes
-both move — `ui.usage.context_tokens = 0` replaces `ui.context_tokens = 0`.
+both move with it — `ui.confirmation.current = future` replaces
+`ui.current_confirmation = future`. The token counters under `ui.usage` are
+read-only and updated through `ui.usage.accumulate(...)`.
 
 `accumulate_usage` is deliberately not in the table. It stays a method on
 `BaseUI` because the custom UI guide lists it as an enrichment hook and
@@ -129,6 +131,8 @@ A task's own `model_getter`/`model_renderer`, when set, still applies on top of 
 LLMChatTask(ui_commands=UICommands(exit="/quit"))
 
 # After
+from zrb.llm.ui import UIConfig
+
 LLMChatTask(ui_config=UIConfig(exit_commands=["/quit"]))
 ```
 
@@ -190,13 +194,13 @@ If you only use the built-in `llm_chat` task and never subclassed these directly
 ### Worth knowing (no action needed)
 
 - **`CFG` assignments now fail fast.** An unknown `CFG.UPPERCASE` name raises `AttributeError` naming the closest real knob; a value the field can't accept raises `ValueError` at the assignment site. This only surfaces bugs that were previously silent no-ops.
-- **A broken `zrb_init.py` is reported precisely, not hidden — and still not fatal.** The file, line, and exception type now print to stderr; the CLI still starts with whatever partial state resulted, same as before.
+- **A broken `zrb_init.py` is reported precisely, not hidden — and still not fatal by default at a terminal.** The file, line, and exception type now print to stderr; the CLI still starts with whatever partial state resulted, same as before. `ZRB_INIT_STRICT` makes it fatal instead, and since 3.5.0 it defaults to `auto`, which is on wherever stderr is not a terminal (CI, cron, piped runs) — see [CI/CD Integration](ci-cd.md#zrb_init_strict-already-covers-you-here).
 - **13 internal `raise Exception(...)` sites now raise typed errors** (`SearchToolError`, `RuntimeError`, `ValueError`) — a bare `except Exception` still catches them.
 - **6 config mixin classes were renamed** (`ConfigLLMContent` → `LLMContentMixin`, etc.) — only relevant if you imported one directly from `zrb.config.mixins`.
 
+### Coming from before 2.58.0
 
-
-Three changes need action. All fail loudly — `AttributeError`, `TypeError`, or `ImportError` — rather than silently doing the wrong thing, so a green test run means you are done. Env vars and prompt files are unaffected.
+These changes first shipped in 2.58.0; skip to [Rendering is opt-in](#rendering-is-opt-in-300b5) if you are already on 2.58.0 or later. Three changes need action. All fail loudly — `AttributeError`, `TypeError`, or `ImportError` — rather than silently doing the wrong thing, so a green test run means you are done. Env vars and prompt files are unaffected.
 
 ### `add_X` on ordered collections is `append_X` or `prepend_X`
 
@@ -255,7 +259,7 @@ Every `render_*` / `auto_render` parameter is gone — they existed only to opt 
 
 - **`py.typed` ships**, so `mypy`/`pyright` now actually check your zrb usage. Expect to see real errors the first time — they were always there, just invisible.
 - **Collections accept any `Sequence`.** `upstream=(a, b)` and `a >> (b, c)` used to store the tuple as if it were a task and fail later with `'tuple' object has no attribute 'name'`. Both work now.
-- **15 new top-level exports**, including `Skill`, `SubAgentDefinition`, `HookResult`, `PermissionPolicy` and `StrListAttr`. Deep imports still work; the short paths are just no longer missing.
+- **18 new top-level exports**, including `Skill`, `SubAgentDefinition`, `HookResult`, `PermissionPolicy` and `StrListAttr`. Deep imports still work; the short paths are just no longer missing.
 
 ---
 
@@ -314,13 +318,13 @@ A pinned `ZRB_LLM_INCLUDE_SECTIONS` or sub-agent `inherit_sections` naming any o
 - **No override file** — the section composes to `""` and logs a warning at compose time. Nothing crashes; the entry just contributes nothing.
 - **You have an override** (`mandate.md` in `ZRB_LLM_PROMPT_DIR`, or `ZRB_LLM_PROMPT_MANDATE`) — it is still emitted, at that position, as a file-backed custom section. Your customization survives untouched.
 
-Either way, update the list to the new defaults:
+Either way, update the list to the current defaults:
 
 ```bash
-export ZRB_LLM_INCLUDE_SECTIONS="persona,workflow,example,system_context,project_context"
+export ZRB_LLM_INCLUDE_SECTIONS="persona,principle,workflow,example,profile,system_context,project_context"
 ```
 
-`ZRB_LLM_INCLUDE_JOURNAL_REMINDER` is removed along with its hook; the journal tools make the reminder unnecessary. `ZRB_LLM_JOURNAL_ENABLED` still works and now unregisters the three journal tools instead of dropping a prompt section.
+`ZRB_LLM_INCLUDE_JOURNAL_REMINDER` is removed along with its hook; the journal tools make the reminder unnecessary. `ZRB_LLM_JOURNAL_ENABLED` still works and now unregisters the journal tools instead of dropping a prompt section.
 
 **Careful with overrides.** If you overrode a retired prompt file (`mandate.md`, `git_mandate.md`, `journal_mandate.md`) *and* you rely on the default section list, your override silently stops being read — the name is no longer in the defaults, so nothing resolves it. Either keep the name in an explicit `ZRB_LLM_INCLUDE_SECTIONS` (it then works as a custom section, see above) or move the content into a `workflow.md` override.
 
@@ -342,7 +346,7 @@ The UI classes were moved from `zrb.llm.app` to `zrb.llm.ui`.
 |---|---|
 | `from zrb.llm.app import SimpleUI` | `from zrb.llm.ui import SimpleUI` |
 | `from zrb.llm.app import EventDrivenUI` | `from zrb.llm.ui import EventDrivenUI` |
-| `from zrb.llm.app import PollingUI` | `from zrb.llm.ui import PollingUI` |
+| `from zrb.llm.app import PollingUI` | `from zrb.llm.ui import PollingUI` (removed in 3.0.0 — use `EventDrivenUI`) |
 
 If you only interact with the built-in `llm_chat` task (i.e. you don't subclass or import UI classes directly), no change is needed.
 

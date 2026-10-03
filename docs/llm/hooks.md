@@ -39,7 +39,7 @@ Create a hook file in `~/.zrb/hooks.json` or `./.zrb/hooks.json`:
     "events": ["SessionStart"],
     "type": "command",
     "config": {
-      "command": "echo 'Session started at $(date)' >> /tmp/zrb-hooks.log",
+      "command": "echo \"Session started at $(date)\" >> /tmp/zrb-hooks.log",
       "shell": true
     }
   }
@@ -52,24 +52,18 @@ More examples are in [Examples](#examples) and `examples/llm-hooks/.zrb/hooks.js
 
 ## Hook Locations
 
-Hooks are discovered automatically in these locations (in order of precedence, highest first):
+Hooks are discovered automatically in these locations, loaded in this order. Nothing overrides anything — every hook found is registered — and load order only breaks ties between hooks of equal [priority](#priority-system):
 
 | Location | Purpose |
 |----------|---------|
-| Plugin `hooks/` dirs | The bundled `llm_plugin` hooks, plus entries under `ZRB_LLM_PLUGIN_DIRS` |
-| `~/.zrb/hooks.json` | User-level hooks (single file) |
-| `~/.zrb/hooks/*.json` | User-level hooks directory |
-| `~/.claude/hooks.json` | Claude Code compatibility (single file) |
-| `~/.claude/hooks/*.json` | Claude Code compatibility (directory) |
-| `~/.claude/settings.json` | Claude Code compatibility — the nested `hooks` block |
-| `~/.claude/settings.local.json` | Claude Code compatibility — the nested `hooks` block |
-| `./.zrb/hooks.json` | Project-specific hooks (single file) |
-| `./.zrb/hooks/*.json` | Project-specific hooks directory |
-| `./.claude/hooks.json` | Claude Code compatibility, project (single file) |
-| `./.claude/hooks/*.json` | Claude Code compatibility, project (directory) |
-| `./.claude/settings.json` | Claude Code compatibility, project — the nested `hooks` block |
-| `./.claude/settings.local.json` | Claude Code compatibility, project — the nested `hooks` block |
-| `CFG.HOOKS_DIRS` | Additional colon-separated (semicolon on Windows) custom directories |
+| Plugin dirs: `hooks.json` and `hooks/` | Under each `ZRB_LLM_PLUGIN_DIRS` entry (the bundled `llm_plugin` is checked too, but ships no hooks) |
+| `~/.claude/hooks.json`, `~/.claude/hooks/` | Claude Code compatibility, user level |
+| `~/.claude/settings.json`, `~/.claude/settings.local.json` | Claude Code compatibility — the nested `hooks` block |
+| `~/.zrb/hooks.json`, `~/.zrb/hooks/` | User-level hooks |
+| The same six locations in every directory from the filesystem root down to the current directory | Project-specific hooks (`./.claude/...`, `./.zrb/hooks.json`, `./.zrb/hooks/`) |
+| `ZRB_HOOKS_DIRS` | Additional colon-separated (semicolon on Windows) custom directories |
+
+A directory location is scanned for `.json`, `.yaml`/`.yml`, and `*.hook.py` files. A `*.hook.py` module defines `register(manager)` (or `register_hooks(manager)`), which is called with the `HookManager` so it can `manager.add_hook(...)` Python hooks — see `examples/llm-hooks/.zrb/hooks/custom_hook.hook.py` for the shape.
 
 Hooks Claude Code (and drop-in tools like peon-ping) register inside `settings.json`/`settings.local.json` are picked up automatically — only the nested `hooks` block is read; other settings keys are ignored. To hear replies and approval prompts, zrb's own [speech](voice-camera.md#speech) reads them aloud without an external tool.
 
@@ -84,7 +78,7 @@ Five `CFG`/env knobs control the subsystem as a whole, independent of each hook'
 | Event | When it fires / what it can do | Can Block? |
 |-------|-------------------------------|------------|
 | `SessionStart` | Chat session begins. `source` is `startup` (fresh history) or `resume` (continued). Can inject `additionalContext` | No |
-| `SessionEnd` | **Terminal** — fires once when the chat session ends (`/exit`, EOF, Ctrl+C), not per turn; use `Stop` for per-turn work. Matches on `source`; carries `reason` | No |
+| `SessionEnd` | **Terminal** — fires once when the chat session ends (`/exit`, EOF, Ctrl+C), not per turn; use `Stop` for per-turn work. Matches on `source` (always `other`); `event_data.reason` is `exit` | No |
 | `UserPromptSubmit` | Before the LLM processes text. Matches on the `prompt` field. Can inject `additionalContext`; can halt the turn (`continue: false`) | **Yes** |
 | `PreCommand` | Before a UI command runs (chat TUI). A block cancels the command; can rewrite its argument via `command_args` | **Yes** |
 | `PostCommand` | After a recognized UI command runs. Carries `command_handled` | No |
@@ -156,7 +150,7 @@ Hooks are defined in JSON or YAML:
 | `config` | object | Yes | Type-specific configuration |
 | `description` | string | No | Human-readable description |
 | `matchers` | array | No | Conditions to filter when hook runs |
-| `async` | boolean | No | Fire-and-forget in the background without blocking the event (default: false). Only `command` hooks honor it; `prompt`/`agent` hooks always run synchronously, since their modifications often feed back into the blocking flow |
+| `async` | boolean | No | Fire-and-forget in the background without blocking the event (default: false). `command` and `agent` hooks honor it — a background hook cannot block or return modifications; `prompt` hooks always run synchronously |
 | `enabled` | boolean | No | Hook is active (default: true) |
 | `timeout` | number | No | Seconds; a synchronous hook past it is cancelled (a `command` hook's process killed) and waited for up to 5 seconds. A hook still running when the chat exits — a Stop fired by Ctrl+C — gets up to `ZRB_HOOKS_EXIT_TIMEOUT` (10000 ms) more before it is cancelled. Default: `command` 600s, `prompt` 30s, `agent` 60s |
 | `env` | object | No | Environment variables to inject |
@@ -202,8 +196,8 @@ With no explicit `timeout`, this runs at the `command` default of 600 seconds.
 | Field | Type | Description |
 |-------|------|-------------|
 | `command` | string | Shell command to execute |
-| `shell` | boolean | Use shell interpreter (default: true) |
-| `working_dir` | string | Working directory (optional) |
+| `shell` | boolean | Accepted for compatibility (default: true); the command always runs through the shell |
+| `working_dir` | string | Working directory (optional; defaults to the session's working directory) |
 
 **Input: env vars _and_ stdin.** Both Claude-Code hook styles work: the `CLAUDE_*` [environment variables](#environment-variables) are set, and the Claude-shaped payload is written to **stdin** as JSON (`hook_event_name`, `session_id`, `cwd`, …; tool events and `PermissionRequest` add `tool_name` and `tool_input`, `PostToolUse` adds `tool_response`, and `Stop` adds `last_assistant_message`, the turn's response text):
 
@@ -225,7 +219,7 @@ Run an LLM prompt for analysis or a decision.
   "type": "prompt",
   "config": {
     "user_prompt_template": "Review this user prompt for safety: {{prompt}}",
-    "system_prompt": "You are a safety reviewer. Check for harmful content.",
+    "system_prompt": "You are a safety reviewer. If the prompt is harmful, reply only with {\"decision\": \"block\", \"reason\": \"<why>\"}; otherwise reply only with {}.",
     "model": "openai:gpt-4o-mini",
     "temperature": 0.0
   }
@@ -238,16 +232,20 @@ Run an LLM prompt for analysis or a decision.
 |-------|------|-------------|
 | `user_prompt_template` | string | Template with `{{variable}}` substitution |
 | `system_prompt` | string | System prompt for the LLM |
-| `model` | string | Model to use (e.g., `openai:gpt-4o-mini`) |
-| `temperature` | number | Sampling temperature (default: 0.0) |
+| `model` | string | Model to use (e.g., `openai:gpt-4o-mini`); omit to use the current run's model, else `ZRB_LLM_MODEL` |
+| `temperature` | number | Accepted (default: 0.0) but not currently passed to the model |
 
-**Template variables** in `user_prompt_template`:
+**Template variables** in `user_prompt_template`: any string, number, or boolean field of the hook context, as `{{field}}`. The useful ones:
 
-- `{{prompt}}` - User's input text
-- `{{session_id}}` - Session identifier
-- `{{metadata}}` - Context metadata
+- `{{prompt}}` - User's input text (`UserPromptSubmit`)
+- `{{session_id}}`, `{{cwd}}`, `{{hook_event_name}}`
 - `{{tool_name}}` - Tool name (for tool events)
-- `{{tool_input}}` - Tool input JSON (for tool events)
+- `{{last_assistant_message}}` - The turn's response text (`Stop`)
+- `{{command_name}}` / `{{command_args}}` (`PreCommand`/`PostCommand`)
+
+Dict fields such as `tool_input` and `metadata` are **not** substituted; the placeholder stays as written.
+
+**Output:** the hook's effect comes from the model's reply. When the reply is a JSON object, it is read as the hook's decision (`{"decision": "block", "reason": "..."}`, `{"systemMessage": "..."}`, …), exactly like a command hook's stdout; any other reply has no effect.
 
 ### 3. Agent Hooks
 
@@ -272,7 +270,9 @@ Run a tool-using agent for complex analysis.
 |-------|------|-------------|
 | `system_prompt` | string | System prompt for the agent |
 | `tools` | array | Tool names, Claude-compatible aliases honored (`"Bash"` → `Shell`), resolved against zrb's own tool set — including config-gated tools such as the journal ones (`LogActivity`, `WriteJournalNote`, `SearchJournal`) that exist only while their feature is enabled. A tool's `[SYSTEM SUGGESTION]` error comes back as a tool result the hook's model can react to, as for the main agent, rather than aborting the hook run |
-| `model` | string | Model to use (e.g., `openai:gpt-4o`); omit to fall back to `ZRB_LLM_MODEL` |
+| `model` | string | Model to use (e.g., `openai:gpt-4o`); omit to use the current run's model, else `ZRB_LLM_MODEL` |
+
+The agent's user turn is the event payload: for `Stop`, the turn's transcript; otherwise the event data as text. Its reply is read like a prompt hook's — a JSON object is the hook's decision, anything else has no effect.
 
 If every name in `tools` fails to resolve — usually because their feature is off (e.g. journal tools while `LLM_JOURNAL_ENABLED` is `false`) — the hook skips its LLM call. A hook that wants no tools leaves `tools` empty and is unaffected.
 
@@ -286,10 +286,10 @@ Two hooks ship with zrb. Both are Python hooks registered on the default `hook_m
 
 ### Built-in example: the journal-compliance judge
 
-A small sub-agent that reviews a completed turn, decides — using `LogActivity`/`WriteJournalNote`'s own documented criteria — whether it needs a journal entry, and writes one if so. The `event_data.wrote_files` matcher (computed in plain Python at the `Stop` call site) limits the LLM call to turns that changed a file, and `async: true` keeps it from blocking the response.
+A small sub-agent that reviews a completed turn, decides — using `LogActivity`/`WriteJournalNote`'s own documented criteria — whether it needs a journal entry, and writes one if so. The `event_data.journal_worthy` matcher (computed in plain Python at the `Stop` call site: the turn changed a file, or looks like it stated a preference) limits the LLM call to turns where an entry is plausible, and `async: true` keeps it from blocking the response.
 
 - **Built-in and active** (`llm/hook/journal_compliance.py`, registered as a hook factory on the default `hook_manager` singleton), with no `enabled` flag of its own: it follows `LLM_JOURNAL_ENABLED` (default on). With journaling off, `tools` resolves to nothing and the hook is a no-op.
-- **Model:** `CFG.LLM_SMALL_MODEL` (via `resolve_configured_small_model()`). Set `ZRB_LLM_SMALL_MODEL` — an unset small model falls back to your main one, which defeats the point of a cheap judge.
+- **Model:** the small model — a `/model small ...` override in the current session, else `CFG.LLM_SMALL_MODEL` (via `resolve_configured_small_model()`). Set `ZRB_LLM_SMALL_MODEL` — an unset small model falls back to your main one, which defeats the point of a cheap judge.
 - **Prompt:** `llm/prompt/markdown/journal_compliance.md`, overridable through the normal chain — a `journal_compliance.md` under your project's `LLM_PROMPT_DIR`, or `ZRB_LLM_PROMPT_JOURNAL_COMPLIANCE`.
 
 Its `HookConfig`, for reference (built in Python by `build_journal_compliance_hook_config()`, not JSON):
@@ -300,14 +300,15 @@ Its `HookConfig`, for reference (built in Python by `build_journal_compliance_ho
   "events": ["Stop"],
   "type": "agent",
   "config": {
-    "system_prompt": "You are a journal-compliance judge, not the main assistant. You will be shown one completed turn's transcript. Decide, using exactly the criteria in LogActivity's and WriteJournalNote's own tool descriptions, whether this turn produced something worth recording. If so, call the appropriate tool now. If not, do nothing and reply: skip.",
+    "system_prompt": "<contents of llm/prompt/markdown/journal_compliance.md>",
     "tools": ["LogActivity", "WriteJournalNote", "SearchJournal"],
     "model": "<ZRB_LLM_SMALL_MODEL, or your main model if unset>"
   },
   "matchers": [
-    { "field": "event_data.wrote_files", "operator": "equals", "value": true }
+    { "field": "event_data.journal_worthy", "operator": "equals", "value": true }
   ],
-  "async": true
+  "async": true,
+  "timeout": 60
 }
 ```
 
@@ -319,7 +320,7 @@ Off by default; `ZRB_LLM_SELF_REVIEW_ENABLED=on` turns it on (ADR-0100). At the 
 
 A repository that appears during the turn — a worktree, a clone — is diffed against the commit it started from, so the review shows what the turn changed in it rather than its whole checkout.
 
-Paths the file tools named that the diff does not cover — ignored, or outside the working directory — are listed for the reviewer to read. Without a snapshot — it failed, or the directory holds more than 5,000 files or 200 MB outside any repository, which is reported once per session — the reviewer gets those paths with no diff, never `git diff HEAD`, which would include your earlier uncommitted work. A file git cannot read at Stop is listed as unreadable instead of showing as deleted.
+Paths the file tools named that the diff does not cover — ignored, or outside the working directory — are listed for the reviewer to read. Without a snapshot — it failed, or the directory holds more than 5,000 files or 200 MB outside any repository (`ZRB_LLM_SNAPSHOT_LOOSE_MAX_FILES` / `ZRB_LLM_SNAPSHOT_LOOSE_MAX_MB`), which is reported once per session — the reviewer gets those paths with no diff, never `git diff HEAD`, which would include your earlier uncommitted work. A file git cannot read at Stop is listed as unreadable instead of showing as deleted.
 
 A delegated sub-agent's turn is not reviewed on its own: its changes land in your working directory, or in a worktree under it, so they are part of the parent turn's diff, which is. A live sub-agent continuation you message after the parent turn has ended is the exception — no parent review covers it, so it is reviewed on its own.
 
@@ -356,15 +357,15 @@ Matchers restrict when a hook runs.
 
 ### Matcher Fields
 
-`field` uses dot notation for nested context (e.g. `event_data.file_path`):
+`field` is any hook-context field, with dot notation into nested values (e.g. `tool_input.path`). A field that does not exist resolves to nothing, so the matcher fails:
 
 | Field | Description |
 |-------|-------------|
 | `tool_name` | Name of the tool being called |
-| `tool_input` | Tool input data |
-| `metadata.project` | Project name from metadata |
-| `metadata.environment` | Environment (e.g., production) |
-| `event_data.file_path` | File path from event data |
+| `tool_input.<arg>` | One tool argument, e.g. `tool_input.path` for `Read`/`Write`/`Edit` |
+| `prompt`, `source`, `trigger`, `notification_type`, `agent_type`, `error_type`, `command_name` | The per-event fields named in the [lifecycle table](#lifecycle-events) |
+| `metadata.<key>` | A key of the `metadata` dict — empty in zrb's own runs; set only when you call `execute_hooks(metadata=...)` yourself |
+| `event_data.<key>` | A key of the raw event payload, e.g. `event_data.wrote_files` on `Stop` |
 
 ### Tool names (Claude-compatible)
 
@@ -400,12 +401,12 @@ Multiple matchers use AND logic (all must match):
     {
       "field": "tool_name",
       "operator": "equals",
-      "value": "delete_files"
+      "value": "Write"
     },
     {
-      "field": "metadata.environment",
-      "operator": "equals",
-      "value": "production"
+      "field": "tool_input.path",
+      "operator": "starts_with",
+      "value": "/etc/"
     }
   ]
 }
@@ -498,7 +499,7 @@ A `Stop` hook can return a `systemMessage` to trigger more LLM work when a turn 
 
 ### Two Modes
 
-| Mode | `replace_response` | Behavior |
+| Mode | `replaceResponse` | Behavior |
 |------|-------------------|----------|
 | **Side Effects** | `False` (default) | Extended turn runs, original response returned to user |
 | **Transform** | `True` | Extended turn's response becomes the final response |
@@ -508,20 +509,32 @@ A `Stop` hook can return a `systemMessage` to trigger more LLM work when a turn 
 Use for actions that should happen invisibly to the user:
 
 ```python
+from zrb.llm.hook.interface import HookContext, HookResult
+from zrb.llm.hook.types import HookEvent
+
+_extended_turns: set[str] = set()
+
+
 async def journal_hook(context: HookContext) -> HookResult:
     """Remind LLM to journal - user sees original response."""
-    if context.event == HookEvent.STOP:
-        # Extended turn runs for journaling
-        # User receives the ORIGINAL response, not the journal acknowledgment
-        return HookResult(
-            success=True,
-            modifications={
-                "systemMessage": "Review the turn for learnings worth documenting.",
-                # replace_response=False is the default
-            },
-        )
-    return HookResult()
+    if context.event != HookEvent.STOP:
+        return HookResult()
+    # Stop fires again when the extended turn ends; extend only once per turn.
+    turn_id = context.event_data.get("turn_id")
+    if turn_id in _extended_turns:
+        return HookResult()
+    _extended_turns.add(turn_id)
+    # User receives the ORIGINAL response, not the journal acknowledgment
+    return HookResult(
+        success=True,
+        modifications={
+            "systemMessage": "Review the turn for learnings worth documenting.",
+            # "replaceResponse": False is the default
+        },
+    )
 ```
+
+`Stop` fires again when the extended turn finishes, so a hook that returns a `systemMessage` every time re-extends the turn until the cap of 8 consecutive extensions. `event_data["turn_id"]` stays the same across one turn's extensions, which makes it the guard.
 
 **Use cases:** Logging, journaling, notifications, background tasks
 
@@ -556,20 +569,19 @@ A `Stop` command hook can also force another turn the Claude way — exit 2 (or 
 
 1. At `Stop`, a hook returns `systemMessage` (or `decision: "block"` + `reason`).
 2. The turn extends with that message as a new user prompt, and the LLM acts on it.
-3. The user gets the original response if `replace_response=False`, or the extended one if `replace_response=True` (always, for block-to-continue).
+3. The user gets the original response if `replaceResponse` is false (the default), or the extended one if it is true (always, for block-to-continue).
 
 ### JSON Configuration
+
+A JSON hook returns the same keys: a command hook prints `{"systemMessage": "...", "replaceResponse": true}` on stdout, and a prompt or agent hook's model replies with that object. A JSON hook has no per-turn state to guard with, though, so it re-extends every `Stop` up to the cap. For a JSON hook, block-to-continue is the better fit — `stop_hook_active` in the stdin payload tells it a continuation is already running:
 
 ```json
 {
   "name": "turn-summary",
   "events": ["Stop"],
-  "type": "prompt",
+  "type": "command",
   "config": {
-    "user_prompt_template": "Summarize the key points from: {{output}}",
-    "modifications": {
-      "replaceResponse": true
-    }
+    "command": "jq -e '.stop_hook_active' >/dev/null || { echo 'Summarize your last answer in three bullet points.' >&2; exit 2; }"
   }
 }
 ```
@@ -582,11 +594,12 @@ Command hooks receive these environment variables automatically:
 
 | Variable | Description |
 |----------|-------------|
-| `CLAUDE_HOOK_EVENT` | The hook event name (e.g., `PreToolUse`) |
+| `CLAUDE_HOOK_EVENT`, `CLAUDE_HOOK_EVENT_NAME` | The hook event name (e.g., `PreToolUse`) |
 | `CLAUDE_CWD` | Current working directory |
 | `CLAUDE_TRANSCRIPT_PATH` | Path to transcript file |
 | `CLAUDE_PERMISSION_MODE` | Current permission mode |
-| `CLAUDE_PROJECT_DIR` | Best-guess project root directory |
+| `CLAUDE_PROJECT_DIR` | Best-guess project root directory (the session's working directory) |
+| `CLAUDE_PLUGIN_ROOT` | The plugin directory the hook was loaded from; empty for non-plugin hooks |
 | `CLAUDE_EVENT_DATA` | Full event data as JSON string. Dropped when over 16 KiB, which a `Stop` payload (it carries the history) usually is; read `last_assistant_message` instead |
 | `CLAUDE_LAST_ASSISTANT_MESSAGE` | The turn's response text (for `Stop`) |
 | `CLAUDE_TOOL_NAME` | Tool name (for tool events) |
@@ -594,6 +607,11 @@ Command hooks receive these environment variables automatically:
 | `CLAUDE_PROMPT` | User prompt (for prompt events) |
 | `CLAUDE_COMMAND_NAME` | Command token, e.g. `/save` or `>` (for `PreCommand`/`PostCommand`) |
 | `CLAUDE_COMMAND_ARGS` | Text after the command token (for `PreCommand`/`PostCommand`) |
+| `CLAUDE_COMMAND_HANDLED` | Whether a handler consumed the command (for `PostCommand`) |
+| `CLAUDE_MESSAGE`, `CLAUDE_TITLE`, `CLAUDE_NOTIFICATION_TYPE` | Notification fields (for `Notification`) |
+| `CLAUDE_AGENT_ID` | Sub-agent id (for `SubagentStart`/`SubagentStop`) |
+
+Every value is capped at 16 KiB; a longer one is left unset rather than truncated. Event-specific variables are set only when the event carries that field.
 
 The session identifier is available in the stdin JSON payload (`session_id`) but is not exposed as an environment variable.
 
@@ -602,7 +620,7 @@ The session identifier is available in the stdin JSON payload (`session_id`) but
 ```json
 {
   "config": {
-    "command": "echo 'Tool $CLAUDE_TOOL_NAME called with: $CLAUDE_TOOL_INPUT' >> /tmp/audit.log"
+    "command": "echo \"Tool $CLAUDE_TOOL_NAME called with: $CLAUDE_TOOL_INPUT\" >> /tmp/audit.log"
   }
 }
 ```
@@ -613,21 +631,35 @@ The session identifier is available in the stdin JSON payload (`session_id`) but
 
 ### Scoped to one task: `append_hook_factory`
 
-Registering on `hook_manager` (below) affects every agent in the process. To scope hooks to one `LLMTask`/`LLMChatTask`, use its `append_hook_factory(*factory)` method, where each factory is `Callable[[HookManager], None]`:
+To attach hooks to one `LLMTask`/`LLMChatTask`, use its `append_hook_factory(*factory)` method, where each factory is `Callable[[HookManager], None]`. For the built-in `zrb llm chat`, that task is `llm_chat`:
 
 ```python
+from zrb.builtin.llm.chat import llm_chat
+from zrb.llm.hook.interface import HookContext, HookResult
+from zrb.llm.hook.manager import HookManager
+from zrb.llm.hook.types import HookEvent
+
+
+async def my_hook(context: HookContext) -> HookResult:
+    print(f"Session {context.source}")
+    return HookResult()
+
+
 def register_my_hooks(hm: HookManager) -> None:
     hm.add_hook(my_hook, events=[HookEvent.SESSION_START])
 
-chat.append_hook_factory(register_my_hooks)
+
+llm_chat.append_hook_factory(register_my_hooks)
 ```
 
 The two task classes isolate differently (ADR-0072):
 
 - **`LLMChatTask`** builds a **fresh** `HookManager` per execution and replays every registered factory onto it each time, so one chat session's hooks never leak into the next.
-- **`LLMTask`** holds a **persistent** manager. The *first* `append_hook_factory` call swaps the process-wide default for a fresh task-local manager (later calls apply to that same manager) — unless a manager was passed explicitly to the constructor's `hook_manager=` argument, which is never swapped. This keeps per-task hooks from silently mutating global state, at the cost that such a task no longer participates in the global filesystem hook set unless it was explicitly constructed with the global manager.
+- **`LLMTask`** holds a **persistent** manager. The *first* `append_hook_factory` call swaps the process-wide default for a fresh task-local manager (later calls apply to that same manager) — unless a different manager was passed to the constructor's `hook_manager=` argument, which is never swapped. This keeps per-task hooks from silently mutating global state. The task-local manager still loads the filesystem hooks (every manager scans the [hook locations](#hook-locations)), but no longer sees hooks registered in code on the global `hook_manager`.
 
-### Process-wide: `hook_manager` in `zrb_init.py`
+### Shared: the global `hook_manager`
+
+The `hook_manager` singleton is the default manager of every `LLMTask` that has no task-local one. It is **not** used by `LLMChatTask` — `zrb llm chat` included — which builds a fresh manager per session unless given `hook_manager=`. To reach every chat session and task alike, put the hook in a `*.hook.py` file under a [hook location](#hook-locations) instead, since every manager loads those.
 
 ```python
 from zrb.llm.hook.manager import hook_manager
@@ -698,12 +730,14 @@ More JSON hooks are in `examples/llm-hooks/.zrb/hooks.json`. For a simple loggin
       }
     ],
     "config": {
-      "command": "if [[ \"$CLAUDE_TOOL_INPUT\" == *\"rm -rf\"* ]]; then echo '{\"decision\": \"block\", \"reason\": \"Destructive command blocked\"}'; exit 2; fi",
+      "command": "case \"$CLAUDE_TOOL_INPUT\" in *'rm -rf'*) echo '{\"decision\": \"block\", \"reason\": \"Destructive command blocked\"}'; exit 2;; esac",
       "shell": true
     }
   }
 ]
 ```
+
+Commands run under `/bin/sh`, which is often not bash, so stick to POSIX syntax (`case`, `[ ]`) rather than `[[ ]]`.
 
 ---
 

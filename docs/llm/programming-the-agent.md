@@ -25,7 +25,7 @@ For "chat with my codebase," you never touch any of it. You reach for Python whe
 | Lifecycle hooks | `task.append_hook_factory(...)` — fire on tool calls, prompts, session start/end | [Hook System](hooks.md) |
 | Permission policy | `permissions=PermissionPolicy(...)` — allow / ask / deny per tool | [Permission Policy](permission-policy.md) |
 | Filesystem sandbox | `sandbox=SandboxPolicy(...)` (or `True`/`False`) — contain file/shell access | [Sandbox](sandbox.md) |
-| Approval channel | `task.append_approval_channel(...)` — async approval over any transport | [Permission Policy](permission-policy.md) |
+| Approval channel | `approval_channel=...` / `chat_task.append_approval_channel(...)` — async approval over any transport | [LLMChatTask API Reference](../task-types/llmchat-task.md) |
 | Model routing | `model=lambda ctx: ...` — pick the model per request | [`examples/model-tiering`](../../examples/model-tiering) |
 | Prompt (string → template → callable → sections) | `message=`, `system_prompt=`, `prompt_manager=` | [Programming the Prompt](programming-the-prompt.md) |
 | History processors | `history_processors=[fn]` — prune / redact / summarize | ↓ below |
@@ -34,6 +34,8 @@ For "chat with my codebase," you never touch any of it. You reach for Python whe
 A custom tool is just a typed function — its signature and docstring are the spec the model sees:
 
 ```python
+from zrb import LLMChatTask
+
 async def get_open_incidents(team: str) -> str:
     """Return the current open incidents for a given team."""
     return my_oncall_db.query(team)  # your code, in-process
@@ -62,7 +64,9 @@ pm.add_live_context("sprint", lambda ctx: f"Active sprint: {load_current_sprint(
 
 ## History processors
 
-A history processor is an async callable that receives the running message history and returns a (possibly modified) one. They run between tool-call iterations — use them to keep the context window affordable, strip sensitive data, or inject retrieved context.
+A history processor is an async callable that receives the conversation history and returns a (possibly modified) one. They run once per run, before the request is sent (and are skipped when a `PreCompact` hook blocks compaction) — use them to keep the context window affordable, strip sensitive data, or inject retrieved context.
+
+Each processor is called as `processor(messages, reserved_tokens)`, where `reserved_tokens` is the system prompt's token count, so accept that second argument even if you ignore it.
 
 ```python
 HistoryProcessor = Callable[..., Awaitable[list[ModelMessage]]]
@@ -71,7 +75,7 @@ HistoryProcessor = Callable[..., Awaitable[list[ModelMessage]]]
 Register one or more — they run in sequence:
 
 ```python
-async def redact_secrets(messages):
+async def redact_secrets(messages, reserved_tokens=0):
     for m in messages:
         ...  # scrub tokens / keys from message parts
     return messages
@@ -87,12 +91,12 @@ from zrb.llm.summarizer.history_summarizer import create_summarizer_history_proc
 
 summarizer = create_summarizer_history_processor(
     conversational_token_threshold=40_000,  # summarize older turns past this
-    summary_window=6,                        # keep this many recent turns verbatim
+    summary_window=6,                        # keep about this many recent messages verbatim
 )
 LLMTask(name="long-chat", history_processors=[summarizer])
 ```
 
-A processor that raises is logged and skipped — a broken processor degrades gracefully rather than killing the run.
+Processors are not wrapped: an exception raised by your processor fails the run, so catch what you can recover from inside it. (The built-in summarizer does this itself: if summarization fails, it leaves the history unchanged.)
 
 ## The agent as a pipeline node
 

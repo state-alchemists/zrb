@@ -16,7 +16,7 @@ Zrb provides specialized tasks for manipulating and synchronizing the filesystem
 
 ## 1. `Scaffolder`
 
-The `Scaffolder` task is a powerful templating engine. It copies an entire directory structure from a source to a destination, performing find-and-replace text transformations on the file contents **and even the filenames themselves**.
+The `Scaffolder` task is a powerful templating engine. It copies an entire directory structure from a source to a destination, performing find-and-replace text transformations on the file contents (`transform_content`) **and even the file and directory names themselves** (`transform_path`).
 
 ### When to Use
 
@@ -47,12 +47,17 @@ create_project = cli.add_task(
         # A dictionary of strings to find and replace in the copied files
         transform_content={
             "APP_NAME_PLACEHOLDER": Tpl("{ctx.input.project_name}")
-        }
+        },
+
+        # The same, applied to copied file and directory names
+        transform_path={
+            "APP_NAME_PLACEHOLDER": Tpl("{ctx.input.project_name}")
+        },
     )
 )
 ```
 
-When a user runs `zrb create-project --project-name my-cool-app`, Zrb creates the new directory and injects `my-cool-app` wherever the placeholder existed in the templates.
+When a user runs `zrb create-project --project_name my-cool-app`, Zrb creates the new directory and injects `my-cool-app` wherever the placeholder existed in the templates — inside files, and in names such as `APP_NAME_PLACEHOLDER.py`, which becomes `my-cool-app.py`.
 
 ### Per-File Transforms with `ContentTransformer`
 
@@ -80,18 +85,22 @@ create_project = cli.add_task(
 )
 ```
 
-`match` accepts a glob, a list of globs, or a predicate `(ctx, file_path) -> bool`.
-By default (`match_mode="auto"`) a string pattern is tried as a regex first and
-falls back to a glob — so a glob-shaped pattern that also happens to parse as a
-valid regex is matched with regex semantics (e.g. `"config.json"` also matches
-`"configXjson"`, since `.` is a regex wildcard). Pass `match_mode="glob"` to
-force plain glob matching, or `match_mode="regex"` to force regex-only.
+`match` accepts a glob, a list of globs, or a predicate `(ctx, file_path) -> bool`
+(`file_path` is the copied file's absolute path). By default (`match_mode="auto"`)
+a string pattern is first tried as a regex against the **whole absolute path**
+(`re.fullmatch`), then falls back to a glob — matched against the basename when the
+pattern has no path separator, otherwise against the full path. So `"*.py"` and
+`"config.json"` behave as globs in practice, while a regex must span the path
+(`r".*/src/.*\.py"`). Because regex is tried first, a pattern such as
+`".*config.json"` also matches `configXjson` (`.` is a regex wildcard). Pass
+`match_mode="glob"` to force plain glob matching, or `match_mode="regex"` to force
+regex-only.
 
 ---
 
 ## 2. `RsyncTask`
 
-The `RsyncTask` provides a strongly-typed Python interface over the battle-tested `rsync` command-line utility. It handles complex synchronization between local folders or remote servers via SSH.
+The `RsyncTask` provides a strongly-typed Python interface over the battle-tested `rsync` command-line utility. It handles complex synchronization between local folders or remote servers via SSH. The `rsync` binary must be installed (plus `sshpass` if you use password authentication).
 
 ### When to Use
 
@@ -120,7 +129,7 @@ sync_local = cli.add_task(
 You can sync files directly to a remote server. While SSH keys are the recommended authentication method, `RsyncTask` also supports password authentication.
 
 ```python
-from zrb import RsyncTask, cli
+from zrb import RsyncTask, Tpl, cli
 
 deploy_remote = cli.add_task(
     RsyncTask(
@@ -137,8 +146,9 @@ deploy_remote = cli.add_task(
         # Password auth: read the real secret from an env var via zrb's
         # templating, and pass it through the `remote_password` kwarg.
         # Zrb injects it as the `SSHPASS` env var and shells out via
-        # `sshpass -e` under the hood.
-        remote_password="{env.MY_SSH_PASSWORD}"
+        # `sshpass -e` under the hood. A bare string is a literal, so the
+        # placeholder must be wrapped in `Tpl` to be rendered.
+        remote_password=Tpl("{ctx.env.MY_SSH_PASSWORD}")
     )
 )
 ```
@@ -150,7 +160,7 @@ deploy_remote = cli.add_task(
 | Feature | `Scaffolder` | `RsyncTask` |
 |---------|--------------|-------------|
 | **Purpose** | Template generation | File synchronization |
-| **Direction** | Source → Destination (one-way) | Bidirectional or one-way |
+| **Direction** | Source → Destination (one-way) | Source → Destination (one-way; upload or download, chosen by which side is remote) |
 | **Transformations** | Yes (find/replace) | No (exact copy) |
 | **Remote support** | No | Yes (via SSH) |
 | **Best for** | New projects, boilerplate | Backups, deployments |

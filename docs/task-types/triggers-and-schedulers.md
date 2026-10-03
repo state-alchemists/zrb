@@ -40,7 +40,11 @@ my_callback = Callback(
 | Callback Parameter | Description |
 |-------------------|-------------|
 | `task` | The task to execute when triggered |
-| `input_mapping` | Map XCom data to task inputs |
+| `input_mapping` | Map of input name to value (a bare string is a literal; use `Tpl` to read the trigger's queue) |
+| `xcom_mapping` | Map of parent-session XCom names to names in the callback's session |
+| `result_queue` / `error_queue` / `session_name_queue` | XCom queues in the trigger's session that receive the task's result, error, or session name |
+
+The callback's task does not need to be registered with `cli.add_task`. Zrb currently warns at load time that such a task "is not registered and no task references it"; the warning is harmless here.
 
 ---
 
@@ -115,7 +119,7 @@ The `Scheduler` is a specialized trigger with a built-in time loop. It acts like
 ### Example: A Daily Cron Job
 
 ```python
-from zrb import cli, CmdTask, Scheduler, Callback, Tpl
+from zrb import cli, CmdTask, Scheduler, Callback, StrInput, Tpl
 
 # The job to run
 generate_report = CmdTask(
@@ -176,6 +180,10 @@ The `Scheduler` accepts standard cron expressions or preset keywords.
 | `@daily` | Every day at midnight | `0 0 * * *` |
 | `@weekly` | Every Monday at midnight | `0 0 * * 1` |
 | `@monthly` | 1st of month at midnight | `0 0 1 * *` |
+| `@yearly` / `@annually` | January 1st at midnight | `0 0 1 1 *` |
+| `@midnight` | Same as `@daily` | `0 0 * * *` |
+
+When `schedule` is omitted, it defaults to `@minutely`.
 
 ### Standard Cron Format
 
@@ -247,7 +255,7 @@ file_watcher = cli.add_task(
 
 ### Multiple Callbacks on One Trigger
 
-Chain multiple tasks from a single trigger using `successor` on the callback's task:
+`callback` also accepts a list — `callback=[callback_a, callback_b]` — and every callback runs concurrently for each event. To run tasks in sequence instead, chain them with `successor` on the callback's task:
 
 ```python
 notify = CmdTask(name="notify", cmd="echo 'Event detected!'")
@@ -262,6 +270,8 @@ my_callback = Callback(
 ### Scheduler with Conditional Execution
 
 ```python
+from zrb import Callback, CmdTask, Env, Scheduler, StrInput, Tpl, cli
+
 daily_backup = cli.add_task(
     Scheduler(
         name="backup-scheduler",
@@ -270,8 +280,11 @@ daily_backup = cli.add_task(
         callback=Callback(
             task=CmdTask(
                 name="run-backup",
+                input=StrInput(name="timestamp"),
+                env=Env(name="ENABLE_BACKUP", default="false"),
                 execute_condition=lambda ctx: ctx.env.ENABLE_BACKUP == "true",
-                cmd=Tpl("echo 'Running backup at {ctx.xcom.backup_queue.pop()}'"),
+                # The input_mapping below already popped the queue's only item
+                cmd=Tpl("echo 'Running backup at {ctx.input.timestamp}'"),
             ),
             input_mapping={"timestamp": Tpl("{ctx.xcom.backup_queue.pop()}")}
         )

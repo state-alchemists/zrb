@@ -22,7 +22,7 @@ A provider is `Callable[[AnyContext], str]`. It runs once per turn; return `""` 
 This example registers two providers on the built-in `llm_chat`:
 
 1. **`wall_clock`** — the current local time, proving the block is recomputed each turn.
-2. **`deploy_freeze`** — reads the `ZRB_DEPLOY_FROZEN` env var *every turn*, so flipping it mid-session changes the agent's behavior with no restart.
+2. **`deploy_freeze`** — checks for a `.deploy-freeze` file in the working directory *every turn*, so creating or deleting it mid-session changes the agent's behavior with no restart. (A file, not an env var: an `export` in another shell never reaches the running chat process.)
 
 ## Quick Start
 
@@ -36,8 +36,8 @@ Ask about the time, then toggle the freeze flag from another shell and ask again
 ```
 > What time is it according to your live context?
 
-# in another terminal:
-export ZRB_DEPLOY_FROZEN=true
+# in another terminal, in the same directory:
+touch .deploy-freeze
 
 > Can you deploy right now?
 ```
@@ -57,7 +57,7 @@ def render_wall_clock(ctx) -> str:
 
 
 def render_deploy_freeze(ctx) -> str:
-    frozen = os.environ.get("ZRB_DEPLOY_FROZEN", "").lower() in ("1", "true", "yes")
+    frozen = os.path.exists(".deploy-freeze")
     if frozen:
         return "- ⚠️ DEPLOY FREEZE ACTIVE: do not run or suggest any deployment."
     return "- Deploys: allowed."
@@ -81,11 +81,11 @@ llm_chat.prompt_manager.add_live_context(
 
 **Use the context** — the `ctx` argument is the active `AnyContext`; read `ctx.env.*` or inputs to tailor the line.
 
-**Prefer the system prompt instead?** For content that's stable within a session, use `prompt_manager.append_prompt(...)` so it joins the cached prefix — see [Programming the Agent](../../docs/llm/programming-the-agent.md#dynamic-event-driven-prompts).
+**Prefer the system prompt instead?** For content that's stable within a session, use `prompt_manager.append_prompt(...)` so it joins the cached prefix — see [Programming the Prompt](../../docs/llm/programming-the-prompt.md#rung-6--sections-that-reflect-live-state).
 
 ## See Also
 
-- [`docs/llm/programming-the-agent.md`](../../docs/llm/programming-the-agent.md#per-turn-live-context-providers) — Per-turn live context providers
+- [`docs/llm/programming-the-prompt.md`](../../docs/llm/programming-the-prompt.md#rung-6--sections-that-reflect-live-state) — Per-turn live context providers
 - `src/zrb/llm/prompt/live_context.py` — the built-in live-context rendering
 - `src/zrb/llm/prompt/manager.py` — `add_live_context` / `append_prompt` / `create_live_context`
 - `examples/model-tiering/` — another `model_getter` / `model_renderer` / prompt-manager customization

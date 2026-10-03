@@ -44,8 +44,8 @@ The built-in catalogue (`LSP_SERVER_CONFIGS` in `src/zrb/llm/lsp/configs.py`) co
 | **Lua** | `lua-language-server` | `.lua` | `brew install lua-language-server` |
 | **YAML** | `yaml-language-server` | `.yaml`, `.yml` | `npm install -g yaml-language-server` |
 | **JSON** | `json-language-server` (vscode-json-languageserver) | `.json`, `.jsonc` | `npm install -g vscode-json-languageserver` |
-| **HTML** | `html-language-server` (html-languageserver) | `.html`, `.htm` | `npm install -g html-languageserver` |
-| **CSS** | `css-language-server` (css-languageserver) | `.css`, `.scss`, `.less` | `npm install -g css-languageserver` |
+| **HTML** | `html-language-server` (html-languageserver) | `.html`, `.htm` | `npm install -g vscode-html-languageserver-bin` |
+| **CSS** | `css-language-server` (css-languageserver) | `.css`, `.scss`, `.less` | `npm install -g vscode-css-languageserver-bin` |
 
 Rows are in registry order, which decides [which server wins](#multiple-lsp-servers-conflict) when several are installed.
 
@@ -230,7 +230,7 @@ which typescript-language-server
 # Add to PATH if needed
 export PATH="$HOME/.local/bin:$PATH"  # for pip-installed
 export PATH="$HOME/go/bin:$PATH"        # for Go
-export PATH="$(npm bin -g):$PATH"       # for npm -g
+export PATH="$(npm prefix -g)/bin:$PATH" # for npm -g
 ```
 
 ### LSP Server Start Failure

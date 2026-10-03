@@ -18,7 +18,7 @@ Built-in tools, how to write your own, sub-agent delegation, per-model capabilit
 
 ## Built-in LLM Tools
 
-Every `LLMTask` and `LLMChatTask` gets these unless you override the tool list.
+The built-in `zrb llm chat` task and its sub-agents get these. An `LLMTask` or `LLMChatTask` you construct yourself starts with no tools — give it this set with [`apply_common_tools(host)`](#equipping-a-custom-host-with-the-shipped-tool-surface), or pass your own. Some tools register only under a condition (noted below), and the rarely used ones are deferred (see [Deferred-loading tools](#deferred-loading-tools)).
 
 ### Shell & Execution
 
@@ -37,6 +37,8 @@ Every `LLMTask` and `LLMChatTask` gets these unless you override the tool list.
 | `Read` | `read_file` | Read a UTF-8 text file from `start_line` to `end_line` (1-indexed, inclusive; default: whole file). Lines are numbered `cat -n`-style (six right-aligned columns, then a tab); strip through the first tab before passing text to `Edit`, which also strips it if one slips through. PDF text comes back unnumbered. Output past the char cap (measured before numbering) is truncated at the end — narrow the range or `Grep` first. Issue parallel `Read` calls to load several files in one turn. |
 | `Write` | `write_file` | Write a file. Overwriting an existing file with `mode="w"` requires that this session has already Read it (or Written/Edited it to its current content) — otherwise the call is refused with a pointer back to `Read` (ADR-0084). Appends (`mode="a"`) need no prior read. Binary (non-UTF-8) files are refused in every mode. |
 | `Edit` | `replace_in_file` | Make targeted string replacements in a single file. |
+| `RM` | `remove_file` | Delete a file or directory (irreversible). Refused unless this session has already `Read` the file or listed (`LS`/`Glob`) its parent directory. |
+| `MV` | `move_file` | Move or rename a file or directory. |
 
 ### Web
 
@@ -49,14 +51,14 @@ Every `LLMTask` and `LLMChatTask` gets these unless you override the tool list.
 
 | Tool | Function | Description |
 |------|----------|-------------|
-| `AskUserQuestion` | `ask_user_question` | Ask the user one or more structured multiple-choice questions mid-turn and return their answers. Interactive sessions only — in non-interactive runs (`--interactive false`) it short-circuits with a `[SYSTEM SUGGESTION]` instead of blocking on stdin. |
+| `AskUserQuestion` | `ask_user_question` | Ask the user one or more structured multiple-choice questions mid-turn and return their answers. Interactive sessions only — it is not registered in non-interactive runs (`--interactive false`), and if called there anyway it short-circuits with a `[SYSTEM SUGGESTION]` instead of blocking on stdin. |
 
 ### Code Intelligence
 
 | Tool | Function | Description |
 |------|----------|-------------|
 | `AnalyzeFile` | `analyze_file` | Semantic analysis of a single file via LLM sub-agent. Use for architecture/intent questions, not raw content retrieval. |
-| `AnalyzeCode` | `analyze_code` | Deep code analysis for an entire directory. Requires LSP to be configured. See [LSP Support](lsp-support.md). |
+| `AnalyzeCode` | `analyze_code` | Deep code analysis for an entire directory via an LLM sub-agent. Uses an installed language server for cheaper semantic pre-analysis when one is available (`use_lsp=True` by default), and falls back to reading the files otherwise. See [LSP Support](lsp-support.md). |
 | `LspFindDefinition` | — | Jump to the canonical definition of a symbol. |
 | `LspFindReferences` | — | Find all call sites and usages of a symbol across the project. |
 | `LspGetDiagnostics` | — | Get type errors, warnings, and lint issues for a file. |
@@ -66,18 +68,22 @@ Every `LLMTask` and `LLMChatTask` gets these unless you override the tool list.
 | `LspRenameSymbol` | — | Rename a symbol safely across the codebase (dry_run=True by default to preview before applying). |
 | `LspListServers` | — | List active Language Server Protocol servers. |
 
+The `Lsp*` tools are registered only when a supported language server is installed on `PATH`.
+
 ### Planning & Task Tracking
 
 | Tool | Function | Description |
 |------|----------|-------------|
 | `TodoWrite` | `write_todos` | Create or replace the session todo list (persisted to `~/.zrb/todos/<session>.json`). Replacing the full list subsumes per-item status updates and clearing. |
 | `TodoRead` | `get_todos` | Get the current todo list and progress summary. |
+| `EnterPlanMode` | `enter_plan_mode` | Switch to read-only plan mode: edits, shell commands and delegation are blocked; reading, searching and web research stay available. Interactive sessions only. |
+| `ExitPlanMode` | `exit_plan_mode` | Present the plan to the user for approval before any edits are made. Interactive sessions only. |
 
 ### Knowledge Base (RAG)
 
 | Tool factory | Description |
 |---|---|
-| `create_rag_from_directory` | Creates a semantic search tool over a local directory of documents (ChromaDB + OpenAI embeddings). Returns a callable tool you register with `append_tool()`. Requires `chromadb` and `openai` packages. |
+| `create_rag_from_directory` | Creates a semantic search tool over a local directory of documents (ChromaDB + OpenAI embeddings). Returns a callable tool you register with `append_tool()`. Requires the `rag` extra (`pip install "zrb[rag]"`, which adds `chromadb`; `openai` is already a core dependency). |
 
 ```python
 from zrb.llm.tool.rag import create_rag_from_directory
@@ -104,8 +110,14 @@ The assistant can connect to external MCP servers defined in `mcp-config.json`. 
 | `SearchAgent` | Find sub-agents by name or description keywords. The `DelegateToAgent` roster only lists the first `LLM_MAX_AGENTS_IN_ROSTER` agents, so use this when the agent you need is not on it. |
 | `ActivateSkill` | Load a named skill (a set of prompts and tools) into the current session. |
 | `SearchSkill` | Find skills by name or description keywords. The skill catalogue in the `workflow` prompt section only lists the first `LLM_MAX_SKILLS_IN_CATALOG` skills, so use this when the skill you need is not listed. |
+| `DelegateToAgentBackground` | Start a delegation in the background and return a handle immediately. |
+| `GetDelegationResult` | Poll a background delegation's handle for its result. |
+
+The four delegation tools belong to the built-in `zrb llm chat` task only — sub-agents never get them, the `minimal` prompt profile drops them, and `apply_common_tools` does not add them. `ActivateSkill` and `SearchSkill` are part of the common set.
 
 ### Git Worktrees
+
+Registered only when zrb starts inside a git repository.
 
 | Tool | Function | Description |
 |------|----------|-------------|
@@ -216,13 +228,13 @@ apply_common_tools(my_task)   # register shipped tools + guidance, lazily
 my_task.append_tool(get_weather) # then layer on your own
 ```
 
-**It stays import-cheap.** `apply_common_tools` only appends per-run providers through the host's public append API; nothing resolves until the first agent build, so the `pydantic_ai` import (~1.7s) stays off the `import zrb` path that every CLI invocation takes. Call it once, when you construct the host. Hosts with an approval channel also get the shell-safety policy; programmatic hosts get the tools without it.
+**It stays import-cheap.** `apply_common_tools` only appends per-run providers through the host's public append API; nothing resolves until the first agent build, so the `pydantic_ai` import (~1.7s) stays off the `import zrb` path that every CLI invocation takes. Call it once, when you construct the host. An `LLMChatTask` also gets the shell-safety policy (read-only commands auto-approve); `LLMTask` and `SubAgentManager` have no `prepend_tool_policy`, so they get the tools without it.
 
 `apply_common_tools` works on `LLMChatTask`, `LLMTask`, and `SubAgentManager`. A `SubAgentManager` resolves tools *by name* from agent definitions (read-only agents are name-gated), so its `get_tool_registry` includes the shipped static set lazily and manual registrations win name collisions. Its factory/toolset providers are resolved by the names requested in each agent definition. The built-in `chat` agent and `sub_agent_manager` already have it applied — you only need this for hosts you construct yourself.
 
 ### Sub-agents
 
-Zrb discovers sub-agents defined in Claude-compatible `AGENT.md` or `*.agent.md` files; the main assistant delegates to them with `DelegateToAgent`.
+Zrb discovers sub-agents defined in Claude-compatible `AGENT.md` or `*.agent.md` files (plus any non-README `.md` directly inside an `agents/` directory, and Python `AGENT.py` / `*.agent.py` files); the main assistant delegates to them with `DelegateToAgent`.
 
 Sub-agent files are discovered from (in priority order):
 1. `~/.zrb/agents/`, `~/.claude/agents/` — user-global agents
@@ -265,6 +277,8 @@ model_capabilities.register(
 | `supports_audio_input` | `bool` | Model accepts audio attachments |
 | `supports_video_input` | `bool` | Model accepts video attachments |
 | `supports_document_input` | `bool` | Model accepts document attachments (PDF/docx/xlsx/doc/xls as opaque binary — plain-text formats always pass through regardless of this flag) |
+| `context_window` | `int \| None` | Model's token window when known; the rate limiter caps the per-request budget at the smaller of this and `LLM_MAX_TOKEN_PER_REQUEST`. `None` keeps the configured budget |
+| `supports_thinking_summary` | `bool` | Model always reasons but returns a readable summary only when asked (e.g. Gemini 2.5/3); makes `thinking` default to `True` when `LLM_THINKING` is unset |
 | `supports_parallel_tool_calls` | `bool \| None` | Tri-state: `True` known-good, `False` known-malforms parallel calls (zrb sets `parallel_tool_calls=False` at the provider level), `None` unknown — pass through |
 
 Field names mirror LiteLLM's `supports_*` conventions.

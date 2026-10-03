@@ -6,6 +6,8 @@ Zrb can be heavily customized using environment variables. These control everyth
 
 > This page is about Zrb's *own* config knobs (read via the `CFG` singleton). Looking for how to define environment variables for *your own tasks* instead? See [Core Concepts: Environments (Envs)](../core-concepts/environments.md).
 
+> This page covers the general knobs; the LLM, TUI, voice and task-runtime ones are in [LLM & Rate Limiter Configuration](./llm-config.md). `zrb config explain` (optionally `--keyword <text>`) prints every setting with its current value and description.
+
 > **Note on White-labeling:** If you have customized `_ZRB_ENV_PREFIX` (e.g., in `__main__.py` for a custom CLI), remember to replace `ZRB_` with your custom prefix (e.g., `ACME_LOGGING_LEVEL`).
 
 ## Mistakes fail fast
@@ -16,6 +18,8 @@ Zrb can be heavily customized using environment variables. These control everyth
 - Assigning a value the setting can't accept (`CFG.LLM_MAX_REQUEST_PER_MINUTE = "not-a-number"`) raises `ValueError` right there, not on the next unrelated read.
 
 A mistyped *environment variable* is caught too, as a warning when zrb starts: `ZRB_LLM_MODELL is not a setting and is ignored. Did you mean ZRB_LLM_MODEL?`. Only a near miss of a real setting is reported, since a project's own `ZRB_*` variables read by its `zrb_init.py` are not typos.
+
+A *retired* setting still in your environment is named at startup too, with what replaces it: `ZRB_LLM_VOICE_MODE is no longer read and is ignored. Set ZRB_LLM_DICTATION_BACKEND instead.` The full list is in `src/zrb/config/retired.py`; the [Upgrading Guide](../advanced-topics/upgrading-guide.md) explains each change.
 
 ---
 
@@ -33,7 +37,7 @@ A mistyped *environment variable* is caught too, as a warning when zrb starts: `
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_SHELL` | Shell used by `CmdTask` | Auto-detected (`zsh`, `bash`, `PowerShell`) |
+| `ZRB_SHELL` | Shell used by `CmdTask` | Auto-detected: `zsh` when it is your `$SHELL`, else `bash`, else `sh`; on Windows a POSIX shell such as Git Bash, else PowerShell, else `cmd` |
 | `ZRB_EDITOR` | Default text editor for interactive prompts | `nano` |
 | `ZRB_IS_TERMUX` | Whether zrb runs under Termux (auto-detected; override for Termux-specific keybindings) | Auto-detected |
 | [`ZRB_LOGGING_LEVEL`](../advanced-topics/logging.md) | Verbosity of Zrb's internal logs | `WARNING` |
@@ -42,7 +46,7 @@ A mistyped *environment variable* is caught too, as a warning when zrb starts: `
 | `ZRB_ROOT_GROUP_DESCRIPTION` | Description for root command group | `A coding agent with a built-in task DAG` |
 | `_ZRB_CUSTOM_VERSION` | Overrides displayed version string (internal) | — |
 
-> 💡 **Logging Levels:** See the [Logging Guide](../advanced-topics/logging.md) for details. `CRITICAL`, `ERROR`, `WARN`, `WARNING`, `INFO`, `DEBUG`, `NOTSET`
+> 💡 **Logging Levels:** See the [Logging Guide](../advanced-topics/logging.md) for details. `CRITICAL`, `FATAL`, `ERROR`, `WARN`, `WARNING`, `INFO`, `DEBUG`, `NOTSET` (an unknown value means `WARNING`)
 
 > 💡 **Banner Formatting:** Supports f-string formatting with `{VERSION}`
 
@@ -57,7 +61,7 @@ A mistyped *environment variable* is caught too, as a warning when zrb starts: `
 | `ZRB_INIT_MODULES` | Comma-separated importable module names zrb imports on startup so their task definitions register (colon-separated still accepted) | — |
 | `ZRB_INIT_STRICT` | Exit non-zero when any init module or script fails to load, instead of reporting it and starting anyway. `auto` resolves to off at a terminal and on everywhere else | `auto` |
 | `ZRB_ENABLE_BUILTIN_TASKS` | Whether to load pre-packaged tasks (Git, UUID, base64, etc.) | `on` |
-| `ZRB_SHOW_UNRECOMMENDED_COMMAND_WARNING` | Show warnings for potentially unsafe shell commands | `on` (true) |
+| `ZRB_SHOW_UNRECOMMENDED_COMMAND_WARNING` | Have `CmdTask` warn about non-portable or unsafe shell constructs in a `bash`/`zsh` script (`which`, `source`, `eval`, `echo -e`, …) | `on` (true) |
 | `ZRB_SECRET_ENV_PATTERNS` | Comma-separated name fragments marking an env var as secret. Matched case-insensitively as a substring, so `KEY` covers `OPENAI_API_KEY`. Matching values are shown as `***` in `CmdTask`'s DEBUG environment dump. Empty string redacts nothing | `KEY,SECRET,TOKEN,PASSWORD,PASSWD,CREDENTIAL,AUTH,PRIVATE,SIGNATURE,SALT` |
 | `ZRB_MCP_CONFIG_FILE` | Path to the MCP server config file | `mcp-config.json` |
 
@@ -138,7 +142,7 @@ Zrb's experimental Web UI has dedicated configuration options.
 | `ZRB_WEB_FAVICON_PATH` | Path to custom favicon | `/static/favicon-32x32.png` |
 | `ZRB_WEB_CSS_PATH` | Colon-separated (semicolon on Windows) list of custom CSS file paths | — |
 | `ZRB_WEB_JS_PATH` | Colon-separated (semicolon on Windows) list of custom JavaScript file paths | — |
-| `ZRB_WEB_COLOR` | Pico CSS theme color (`amber`, `red`, `blue`, etc.) | — |
+| `ZRB_WEB_COLOR` | Pico CSS theme color name (`amber`, `red`, `blue`, etc.) — selects a bundled `pico.<color>.min.css`, so it is a name, not a CSS color value | — |
 
 > 💡 **Theme Colors:** See [Pico CSS docs](https://picocss.com/docs/version-picker) for available color options.
 
@@ -154,7 +158,7 @@ Zrb's experimental Web UI has dedicated configuration options.
 > - `{old}` — Path to temporary file with original content
 > - `{new}` — Path to temporary file with new content
 
-> 💡 **Supported Editors:** `code` (VSCode), `cursor`, `zed`, `emacs`, `nvim`/`vim`, falling back to `vimdiff`
+> 💡 **Supported Editors:** `code`/`vscode`, `vscodium`, `windsurf`, `cursor`, `zed`/`zeditor`, `agy`, `emacs`, `nvim`/`vim`, falling back to `vimdiff`
 
 ---
 

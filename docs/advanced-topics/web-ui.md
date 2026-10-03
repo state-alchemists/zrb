@@ -52,7 +52,7 @@ zrb server start
 > | `ZRB_WEB_SUPER_ADMIN_PASSWORD` is non-empty, not the default, ≥ 12 characters | It is the only thing standing between the internet and your shell |
 > | `ZRB_WEB_SECRET_KEY` is non-empty, not the default, ≥ 32 characters | It signs the session JWTs; a short key is forgeable |
 >
-> Every failing requirement is listed at once. "Not the default" is not sufficient on its own — an explicitly empty or one-character value is rejected too. Any loopback address is exempt (`127.0.0.1`, `127.0.0.2`, `::1`, its expanded `0:0:0:0:0:0:0:1` form, and `localhost`); a hostname that cannot be proven loopback-only is treated as exposed. There is no override flag — the alternative to meeting these requirements is to keep the loopback bind and put your own proxy in front.
+> With auth enabled, every failing credential is listed at once. "Not the default" is not sufficient on its own — an explicitly empty or one-character value is rejected too. Any loopback address is exempt (`127.0.0.1`, `127.0.0.2`, `::1`, its expanded `0:0:0:0:0:0:0:1` form, and `localhost`); a hostname that cannot be proven loopback-only is treated as exposed. There is no override flag — the alternative to meeting these requirements is to keep the loopback bind and put your own proxy in front.
 
 ---
 
@@ -88,8 +88,8 @@ zrb server start
 
 | User Type | Username | Password | Access |
 |-----------|----------|----------|--------|
-| Guest | `user` (configurable) | Prompted | Limited tasks |
-| Super Admin | `admin` (configurable) | `admin` (change me!) | Full access |
+| Guest | `user` (`ZRB_WEB_GUEST_USERNAME`) | None — anyone not logged in | Only `guest_accessible_tasks` |
+| Super Admin | `admin` (`ZRB_WEB_SUPER_ADMIN_USERNAME`) | `admin` (`ZRB_WEB_SUPER_ADMIN_PASSWORD` — change me!) | Full access |
 
 > ⚠️ **Warning:** Change the default admin password before deploying to production!
 

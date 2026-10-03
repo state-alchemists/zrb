@@ -2,7 +2,7 @@
 
 # Built-in Helper Tasks
 
-Zrb comes with a suite of pre-packaged, ready-to-use tasks for common developer operations. You don't need to write these from scratch — by default (`CFG.ENABLE_BUILTIN_TASKS` is `"on"`), simply `import zrb` and every built-in group is auto-registered and ready to run with zero extra code. You can still import individual tasks and bind them to your own `cli` group if you want custom grouping.
+Zrb comes with a suite of pre-packaged, ready-to-use tasks for common developer operations. You don't need to write these from scratch — by default (`CFG.ENABLE_BUILTIN_TASKS`, env var `ZRB_ENABLE_BUILTIN_TASKS`, is `on`), simply `import zrb` and every built-in group is auto-registered and ready to run with zero extra code. You can still import individual tasks and bind them to your own `cli` group if you want custom grouping.
 
 These are organized into conceptual modules within `zrb.builtin`.
 
@@ -36,7 +36,7 @@ Inspect runtime configuration.
 
 | Command | Description |
 |---------|-------------|
-| `zrb config explain` | Render all `EnvField`-backed config knobs as a formatted terminal table (rich's `Table`, not markdown — env var, current value, description). Accepts optional `--keyword` to filter. |
+| `zrb config explain` | Render all `EnvField`-backed config knobs as a definition list — one knob per block with its env var, current value, and description. A definition list rather than a table, because knob names run to 52 characters. Accepts optional `--keyword` to filter. |
 
 ### 🌱 Git (`git`)
 
@@ -44,7 +44,7 @@ Standard git operations wrapped as Zrb tasks.
 
 | Command | Description |
 |---------|-------------|
-| `zrb git diff` | Show git diff between two branches/commits |
+| `zrb git diff` | List files created/removed/updated between two branches, tags, or commits (`--source`, `--current`) |
 | `zrb git commit` | Stage all changes and create a commit |
 | `zrb git pull` | Pull from remote |
 | `zrb git push` | Push to remote |
@@ -53,7 +53,7 @@ Standard git operations wrapped as Zrb tasks.
 
 | Command | Description |
 |---------|-------------|
-| `zrb git branch prune` | Clean up merged/deleted local branches |
+| `zrb git branch prune` | Delete local branches already merged into `HEAD` (skips the current branch and any listed in `--preserved-branch`) |
 
 ### 📝 Git Changelog (`git changelog`)
 
@@ -97,6 +97,7 @@ AI assistant integration.
 | Command | Description |
 |---------|-------------|
 | `zrb llm chat` (also available directly as `zrb chat`) | Start an interactive chat session with the configured LLM assistant |
+| `zrb llm please` (also available directly as `zrb please`) | Translate a natural-language request into a single shell command and copy it to the clipboard |
 
 ### 🔑 MD5 (`util md5`)
 
@@ -179,7 +180,7 @@ Convert between Unix epoch timestamps and ISO 8601. `--timezone` accepts `utc` (
 
 | Command | Description |
 |---------|-------------|
-| `zrb python format` | Format code using `isort` and `black` (internal task name: `format-code`) |
+| `zrb python format` | Format code in the current directory using `isort` and `black` (internal task name: `format-code`). Requires the `python` extra: `pip install "zrb[python]"` |
 
 ### 🎲 Random (`util random`)
 
@@ -239,12 +240,12 @@ Todo.txt-compatible task management.
 
 ### 🆔 UUID (`util uuid`)
 
-Identifier generation and validation. The top-level `uuid generate`/`uuid validate` default to UUID v4; each version also has its own nested subgroup.
+Identifier generation and validation. The top-level `uuid generate` produces a UUID v4 and `uuid validate` accepts a UUID of any version; each version also has its own nested subgroup.
 
 | Command | Description |
 |---------|-------------|
 | `zrb util uuid generate` | Generate a UUID v4 (random) |
-| `zrb util uuid validate` | Check UUID v4 validity |
+| `zrb util uuid validate` | Check that a string is a well-formed UUID (any version) |
 | `zrb util uuid v1 generate` / `zrb util uuid v1 validate` | UUID v1 (time-based) generate/validate |
 | `zrb util uuid v3 generate` / `zrb util uuid v3 validate` | UUID v3 (namespace + MD5) generate/validate |
 | `zrb util uuid v4 generate` / `zrb util uuid v4 validate` | UUID v4 (random) generate/validate |
@@ -265,7 +266,7 @@ Universally Unique Lexicographically Sortable Identifier generation and validati
 
 To use a built-in task, import it from `zrb.builtin` and add it to your CLI or a specific group.
 
-> **Note:** since these tasks are already auto-registered by default (see the [Available Modules](#available-modules) commands above), you'd normally only do this to set `CFG.ENABLE_BUILTIN_TASKS=off` and cherry-pick specific tasks, or to re-group them under your own custom group/alias. Adding a task directly with `add_task(task)` and no explicit `alias=` uses the task's internal name (e.g. `git-commit`), which is a different, additional command path from the one it already has in its default group (e.g. `zrb git commit`) — both work simultaneously once you've added it this way.
+> **Note:** since these tasks are already auto-registered by default (see the [Available Modules](#available-modules) commands above), you'd normally only do this to set `ZRB_ENABLE_BUILTIN_TASKS=off` (which drops every built-in group; the root-level `chat` and `please` stay) and cherry-pick specific tasks, or to re-group them under your own custom group/alias. Adding a task directly with `add_task(task)` and no explicit `alias=` uses the task's internal name (e.g. `git-commit`), which is a different, additional command path from the one it already has in its default group (e.g. `zrb git commit`) — both work simultaneously once you've added it this way.
 
 ```python
 from zrb import cli, Group

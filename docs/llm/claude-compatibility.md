@@ -21,7 +21,7 @@ Zrb is designed to be highly compatible with **Claude Code** configurations. Thi
 
 ## 1. Project Instructions (CLAUDE.md)
 
-Zrb automatically detects and includes instructions from `CLAUDE.md` and `AGENTS.md` files. It searches from the filesystem root down to your current working directory, ensuring that all relevant project context is loaded into the LLM's system prompt.
+Zrb automatically detects `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and `README.md` files in `~/.claude/` and in every directory from the filesystem root down to your current working directory. The system prompt lists the paths it found, not their contents, and tells the model to read the project ones that bear on the work before editing. Files in your home directory or `~/.claude/` are listed separately as user-level guidance, to read only when relevant.
 
 > 💡 **Tip:** Use `AGENTS.md` for technical project documentation and `CLAUDE.md` for Claude-specific instructions.
 
@@ -29,7 +29,7 @@ Zrb automatically detects and includes instructions from `CLAUDE.md` and `AGENTS
 
 ## 2. Skills (SKILL.md)
 
-Zrb supports Claude-style skills. A skill is defined by a `SKILL.md` (or `*.skill.md`) file.
+Zrb supports Claude-style skills. A skill is defined by a `SKILL.md` (or `*.skill.md`) file; zrb also accepts Python skills as `SKILL.py` / `*.skill.py`.
 
 ### Discovery Paths
 
@@ -37,9 +37,9 @@ Zrb supports Claude-style skills. A skill is defined by a `SKILL.md` (or `*.skil
 |----------|------|
 | `~/.claude/skills/` | User-level (Claude) |
 | `~/.zrb/skills/` | User-level (Zrb) |
-| `./.claude/skills/` | Project-level (Claude) |
-| `./.zrb/skills/` | Project-level (Zrb) |
-| `ZRB_LLM_PLUGIN_DIRS` | Plugin directories |
+| `.claude/skills/`, `.zrb/skills/` in every directory from the filesystem root down to the current directory | Project-level |
+| `<config dir>/plugins/<plugin>/skills/` | Plugins inside any of the config dirs above |
+| `ZRB_LLM_PLUGIN_DIRS` | Plugin directories (see [Plugins](#5-plugins)) |
 
 ### Skill Format
 
@@ -58,9 +58,12 @@ Detailed instructions for the LLM on how to perform this skill.
 
 | Field | Description |
 |-------|-------------|
-| `name` | Skill identifier (becomes `/name` command) |
+| `name` | Skill identifier (the `/name` command) |
 | `description` | Brief description |
-| `user-invocable` | If `true`, becomes slash command in TUI |
+| `user-invocable` | Default `true`; `false` hides it from the `/` menu |
+| `disable-model-invocation` | `true` stops the model from activating it on its own (user-invocable only) |
+| `argument-hint` | Shown in autocomplete, e.g. `[filename]` |
+| `allowed-tools` | Tools usable without a permission prompt while the skill is active (list or comma-separated string) |
 
 ### Companion Files
 
@@ -88,7 +91,7 @@ The `ActivateSkill` tool also returns the skill directory path and companion fil
 
 ## 3. Agents and Subagents (AGENT.md)
 
-Zrb can spawn subagents defined in Claude-style `AGENT.md` (or `*.agent.md`) files. Zrb's built-in agents are split into two groups: `core_agents/` is always available, while the optional `agents/` directory is controlled by `ZRB_LLM_ENABLE_BUILTIN_AGENTS`. Core agents are listed before optional agents when Zrb advertises available delegates.
+Zrb can spawn subagents defined in Claude-style `AGENT.md` (or `*.agent.md`) files — or, as in Claude Code, any plain `*.md` file inside an `agents/` directory. Python agents (`AGENT.py` / `*.agent.py`) are accepted too. Zrb's built-in agents are split into two groups: `core_agents/` is always available, while the optional `agents/` directory is controlled by `ZRB_LLM_ENABLE_BUILTIN_AGENTS`. Core agents are listed before optional agents when Zrb advertises available delegates.
 
 ### Discovery Paths
 
@@ -96,9 +99,9 @@ Zrb can spawn subagents defined in Claude-style `AGENT.md` (or `*.agent.md`) fil
 |----------|------|
 | `~/.claude/agents/` | User-level (Claude) |
 | `~/.zrb/agents/` | User-level (Zrb) |
-| `./.claude/agents/` | Project-level (Claude) |
-| `./.zrb/agents/` | Project-level (Zrb) |
-| `ZRB_LLM_PLUGIN_DIRS` | Plugin directories |
+| `.claude/agents/`, `.zrb/agents/` in every directory from the filesystem root down to the current directory | Project-level |
+| `<config dir>/plugins/<plugin>/agents/` | Plugins inside any of the config dirs above |
+| `ZRB_LLM_PLUGIN_DIRS` | Plugin directories (see [Plugins](#5-plugins)) |
 | `src/zrb/llm_plugin/core_agents/` | Zrb built-in core agents (always available) |
 | `src/zrb/llm_plugin/agents/` | Zrb optional built-in agents (toggleable) |
 
@@ -111,14 +114,14 @@ Agents use YAML frontmatter to define their identity and capabilities:
 name: specialized-coder
 description: Expert in a specific domain
 model: openai:gpt-4o
-tools: [read_file, search_files]
+tools: [Read, Grep]
 ---
 # Specialized Coder Prompt
 
 You are an expert coder specializing in...
 ```
 
-Both YAML list (`[Read, Glob]`) and comma-separated string (`Read, Glob, Grep`) formats are accepted for `tools` and `disallowedTools`, matching the [Claude Code sub-agent spec](https://code.claude.com/docs/en/sub-agents#supported-frontmatter-fields).
+Tool names are zrb's tool names (`Read`, `Write`, `Edit`, `Grep`, `Glob`, `Shell`, …); Claude's `Bash` is accepted as an alias for `Shell`, and a name that matches no tool is silently dropped. Both YAML list (`[Read, Glob]`) and comma-separated string (`Read, Glob, Grep`) formats are accepted for `tools` and `disallowedTools`, matching the [Claude Code sub-agent spec](https://code.claude.com/docs/en/sub-agents#supported-frontmatter-fields).
 
 | Field | Description |
 |-------|-------------|
@@ -132,17 +135,29 @@ Both YAML list (`[Read, Glob]`) and comma-separated string (`Read, Glob, Grep`) 
 
 ## 4. Hooks (hooks.json)
 
-Zrb supports Claude-compatible lifecycle hooks, read from `hooks.json` and `hooks/*.json` under `~/.zrb/`, `~/.claude/`, `./.zrb/`, and `./.claude/`, plus the `hooks` block of Claude's `settings.json`/`settings.local.json`. See the [Hooks Guide](./hooks.md) for the full [discovery order](./hooks.md#hook-locations), configuration, and [differences from Claude Code](./hooks.md#differences-from-claude-code).
+Zrb supports Claude-compatible lifecycle hooks, read from `hooks.json` and `hooks/` under `~/.zrb/`, `~/.claude/`, and the `.zrb/`/`.claude/` directories from the filesystem root down to the current directory, plus the `hooks` block of Claude's `settings.json`/`settings.local.json`. See the [Hooks Guide](./hooks.md) for the full [discovery order](./hooks.md#hook-locations), configuration, and [differences from Claude Code](./hooks.md#differences-from-claude-code).
 
 ---
 
 ## 5. Plugins
 
-Zrb's plugin system is built on top of these compatibility layers. By setting `ZRB_LLM_PLUGIN_DIRS` to a colon-separated list of paths, you can distribute and share collections of agents and skills that follow the Claude standard.
+Zrb's plugin system is built on top of these compatibility layers. By setting `ZRB_LLM_PLUGIN_DIRS` to a colon-separated (semicolon on Windows) list of paths, you can distribute and share collections of agents and skills that follow the Claude standard.
 
 ```bash
 export ZRB_LLM_PLUGIN_DIRS="/opt/zrb-plugins:/home/user/my-plugins"
 ```
+
+Each listed path is a directory **of** plugins. A plugin is a subdirectory carrying a `.claude-plugin/plugin.json` manifest; its `skills/` and `agents/` are loaded:
+
+```
+/opt/zrb-plugins/
+└── my-plugin/
+    ├── .claude-plugin/plugin.json
+    ├── skills/
+    └── agents/
+```
+
+Hooks are the exception: they are read from `hooks.json` and `hooks/` directly under each listed path, not from inside each plugin (see [Hook Locations](./hooks.md#hook-locations)).
 
 ---
 
@@ -150,10 +165,10 @@ export ZRB_LLM_PLUGIN_DIRS="/opt/zrb-plugins:/home/user/my-plugins"
 
 | Feature | File Pattern | Discovery Path |
 |---------|--------------|----------------|
-| Project Instructions | `CLAUDE.md`, `AGENTS.md` | Current dir → root |
-| Skills | `SKILL.md`, `*.skill.md` | `skills/` directories |
-| Agents | `AGENT.md`, `*.agent.md` | `core_agents/` and `agents/` directories |
-| Hooks | `hooks.json`, `*.json` | `hooks/` directories |
+| Project Instructions | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `README.md` | `~/.claude/`, then root → current dir (listed, not loaded) |
+| Skills | `SKILL.md`, `*.skill.md`, `SKILL.py`, `*.skill.py` | `skills/` directories |
+| Agents | `AGENT.md`, `*.agent.md`, `*.md` in `agents/`, `AGENT.py`, `*.agent.py` | `agents/` directories (plus zrb's built-in `core_agents/`) |
+| Hooks | `hooks.json`, `*.json`/`*.yaml`/`*.hook.py`, `settings.json` `hooks` block | `.claude/`, `.zrb/`, `hooks/` directories |
 
 ---
 

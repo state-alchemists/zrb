@@ -49,8 +49,9 @@ lsp_manager.register_lsp_server(
 )
 
 # =============================================================================
-# Override a built-in: force a custom Python LSP binary under the "pyright"
-# name. Registering an existing name replaces the built-in config for it.
+# Override a built-in: registering an existing name ("pyright") replaces the
+# built-in config for it. The values below mirror the built-in; point `command`
+# at your own binary to customize it.
 # =============================================================================
 
 lsp_manager.register_lsp_server(

@@ -38,18 +38,19 @@ zrb hello
 
 ```python
 @make_task(
-    name="my-task",
+    name: str,               # positional or keyword; everything else is keyword-only
     color: int | None = None,
     icon: str | None = None,
     description: str | None = None,
     cli_only: bool = False,
     input: list[AnyInput] | AnyInput | None = None,
     env: list[AnyEnv] | AnyEnv | None = None,
-    execute_condition: bool | str | Callable = True,
+    execute_condition: bool | Tpl | Callable = True,
     retries: int = 2,
+    retry_if: Callable[[BaseException], bool] | None = None,
     retry_period: float = 0,
     readiness_check: list[AnyTask] | AnyTask | None = None,
-    readiness_check_delay: float = 0.5,
+    readiness_check_delay: float | None = None,
     readiness_check_period: float = 5,
     readiness_failure_threshold: int = 1,
     readiness_timeout: float | None = None,
@@ -90,8 +91,9 @@ def my_function(ctx):
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `execute_condition` | `True` | Boolean, f-string, or callable. If `False`/falsy, task is skipped |
+| `execute_condition` | `True` | Boolean, `Tpl` template (rendered, then read as a boolean), or callable taking `ctx`. If `False`/falsy, task is skipped. A bare string is a literal, not a template |
 | `retries` | `2` | Number of additional attempts on failure (3 total) |
+| `retry_if` | `None` | Predicate called with the exception; a falsy result fails the task immediately instead of retrying. `None` retries every failure |
 | `retry_period` | `0` | Seconds to wait between retries |
 
 ### Readiness Checks
@@ -99,11 +101,11 @@ def my_function(ctx):
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `readiness_check` | `None` | Task(s) that probe readiness (e.g., HTTP check) |
-| `readiness_check_delay` | `0.5` | Initial delay before first check |
-| `readiness_check_period` | `5` | Interval between checks (seconds) |
-| `readiness_failure_threshold` | `1` | Consecutive failures before declaring unready |
+| `readiness_check_delay` | `None` → 0.5s | Seconds to wait after starting the action before the first check. Unset, it comes from `ZRB_TASK_READINESS_DELAY` (milliseconds, default `500`) |
+| `readiness_check_period` | `5` | Seconds between checks while monitoring (`monitor_readiness=True`) |
+| `readiness_failure_threshold` | `1` | Consecutive check failures tolerated before the task is declared failed |
 | `readiness_timeout` | `None` → 60s | Seconds the readiness checks may take before the task fails. Caps the initial wait **and** each re-check round — see note below |
-| `monitor_readiness` | `False` | Keep checking periodically *after* ready |
+| `monitor_readiness` | `False` | Keep checking periodically *after* ready, and restart the action if the checks start failing |
 
 > **`readiness_timeout` caps both waits.** Left unset (`None`), it takes its value from the `ZRB_TASK_READINESS_TIMEOUT` environment variable (milliseconds), which defaults to `60000` — so a readiness check that never completes fails the task after 60s instead of hanging the run. Set the parameter per task, or the environment variable to change the default for every task. An explicit `0` (or a negative value) removes the cap, and a check that never returns then waits forever.
 
@@ -131,13 +133,19 @@ def my_function(ctx):
 ### Using `input`, `env`, and `upstream` Together
 
 ```python
-from zrb import make_task, cli, StrInput, Env
+from zrb import make_task, cli, CmdTask, StrInput, Env
+
+build_task = CmdTask(name="build", cmd="echo build")
+test_task = CmdTask(name="test", cmd="echo test")
 
 @make_task(
     name="deploy",
     group=cli,
     input=StrInput(name="version", description="Release version"),
-    env=Env(name="DEPLOY_KEY", default=""),
+    env=[
+        Env(name="DEPLOY_KEY", default=""),
+        Env(name="ENVIRONMENT", default="dev"),
+    ],
     upstream=[build_task, test_task],
     execute_condition=lambda ctx: ctx.env.ENVIRONMENT == "staging",
     retries=1,
@@ -148,12 +156,13 @@ def do_deploy(ctx):
 
 ### Conditional Execution with Callable
 
-The `execute_condition` parameter accepts a lambda or function that receives `ctx`:
+The `execute_condition` parameter accepts a lambda or function that receives `ctx`. Declare any variable it reads as an `Env` with a default — `ctx.env` also exposes the OS environment, but reading a variable that is set nowhere raises `AttributeError`:
 
 ```python
 @make_task(
     name="cleanup",
     group=cli,
+    env=Env(name="SKIP_CLEANUP", default="false"),
     execute_condition=lambda ctx: ctx.env.SKIP_CLEANUP.lower() != "true"
 )
 def do_cleanup(ctx):
@@ -165,7 +174,7 @@ def do_cleanup(ctx):
 Useful when a task starts a server and needs to wait for it:
 
 ```python
-from zrb import make_task, HttpCheck
+from zrb import make_task, cli, HttpCheck
 
 @make_task(
     name="start-app",
@@ -190,7 +199,7 @@ ZRB_TASK_READINESS_TIMEOUT=120000 zrb start-app
 def compute_value(ctx):
     result = 42
     ctx.print(f"Computed: {result}")
-    return result  # Automatically available via ctx.xcom['compute'].pop()
+    return result  # Downstream tasks read it via ctx.xcom['compute'].pop()
 ```
 
 ---

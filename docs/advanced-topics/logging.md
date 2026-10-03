@@ -34,7 +34,7 @@ export ZRB_LOGGING_LEVEL=ERROR   # Only errors
 export ZRB_LOGGING_LEVEL=CRITICAL # Only critical errors
 ```
 
-Valid values: `CRITICAL`, `ERROR`, `WARN`, `WARNING`, `INFO`, `DEBUG`, `NOTSET`.
+Valid values: `CRITICAL`, `FATAL`, `ERROR`, `WARN`, `WARNING`, `INFO`, `DEBUG`, `NOTSET` (case-insensitive; anything else falls back to `WARNING`).
 
 ### Log Output Format
 
@@ -86,11 +86,11 @@ The agent runner and approval channels use `CFG.LOGGER.debug()` extensively. Set
 
 ## Task-Level Context Logging
 
-Zrb tasks have built-in logging methods on the `Context` object, independent of the Python logging module. These print formatted messages to stderr during task execution:
+Zrb tasks have built-in logging methods on the `Context` object, independent of the Python logging module. These print formatted messages to stderr during task execution. Like `print`, they take any number of values and join them with spaces (no `%`-style formatting):
 
 ```python
 ctx.log_debug("Starting task")
-ctx.log_info("Processing item %d", item_id)
+ctx.log_info(f"Processing item {item_id}")
 ctx.log_warning("Disk space low")
 ctx.log_error("Failed to connect")
 ctx.log_critical("Fatal error")
@@ -100,7 +100,7 @@ ctx.log_critical("Fatal error")
 |---|---|---|
 | `log_debug(msg)` | `<= DEBUG` | `[DEBUG]` in faint style |
 | `log_info(msg)` | `<= INFO` | `[INFO]` in faint style |
-| `log_warning(msg)` | `<= INFO` | `[WARNING]` in bold yellow |
+| `log_warning(msg)` | `<= WARNING` | `[WARNING]` in bold yellow |
 | `log_error(msg)` | `<= ERROR` | `[ERROR]` in bold red |
 | `log_critical(msg)` | `<= CRITICAL` | `[CRITICAL]` in bold red |
 

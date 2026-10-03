@@ -2,7 +2,7 @@
 
 # LLMChatTask API Reference
 
-`LLMChatTask` is Zrb's interactive conversational AI task. Unlike `LLMTask` (single-shot), `LLMChatTask` maintains persistent conversation history, supports a full TUI, and provides a rich post-construction builder API for adding tools, hooks, and custom commands.
+`LLMChatTask` is Zrb's interactive conversational AI task. Unlike `LLMTask` (single-shot), `LLMChatTask` runs a multi-turn conversation, supports a full TUI, and provides a rich post-construction builder API for adding tools, hooks, and custom commands.
 
 ---
 
@@ -136,8 +136,6 @@ chat = cli.add_task(
         # No `message` → the TUI opens and waits for the user.
     )
 )
-
-status >> chat
 ```
 
 > **Note:** a plain string is a literal for both `system_prompt` and `message` — `{ ... }` stays untouched. To substitute, pass a callable (as above) or wrap the string in `Tpl`.
@@ -153,7 +151,9 @@ After construction, `LLMChatTask` provides a fluent builder API for incremental 
 Every ordered collection below (tools, toolsets, factories, processors, policies,
 handlers, formatters, triggers, custom commands, UIs) exposes the full R5 verb
 set: `append_X`, `prepend_X`, `set_X`s, `remove_X` — see
-[Framework Conventions](../contributing/framework-conventions.md). The
+[Framework Conventions](../contributing/framework-conventions.md). UI factories
+and approval channels are replaced by assigning their property
+(`ui_factories`, `approval_channels`) instead of a `set_X`s method. The
 snippets below show one or two verbs per collection for brevity, not the
 complete set.
 
@@ -166,6 +166,7 @@ from `zrb_init.py`:
 ```python
 from zrb.builtin import llm_chat
 from zrb.llm.prompt.manager import PromptManager
+from zrb.llm.ui import UIConfig
 
 llm_chat.prompt_manager = PromptManager(prompts=["Just this one bot."])
 llm_chat.hook_manager = my_hook_manager      # or None to go back to "fresh per run"
@@ -188,7 +189,8 @@ chat.prepend_ui(another_ui)
 chat.set_uis([my_ui, another_ui])
 # Factories are invoked with 8 kwargs (ctx, llm_task, history_manager,
 # ui_commands, initial_message, initial_conversation_name, initial_yolo,
-# initial_attachments) — accept **kwargs, or use create_ui_factory to wire them.
+# initial_attachments), plus custom_commands in an interactive session —
+# accept **kwargs, or use create_ui_factory to wire them.
 chat.ui_factories = [lambda **kw: MyUI(**kw)]   # settable property
 chat.append_ui_factory(lambda **kw: OtherUI(**kw))
 ```
@@ -250,7 +252,7 @@ See [Permission Policy](../llm/permission-policy.md) and [Sandbox](../llm/sandbo
 ### Triggers & Custom Commands
 
 ```python
-chat.append_trigger(my_async_iterator)
+chat.append_trigger(my_trigger)  # a callable returning an async iterable
 chat.append_custom_command(my_command)
 ```
 
@@ -296,8 +298,16 @@ An action may also:
 A `/photo` command, simplified from the built-in one (`zrb.llm.camera.feature`):
 
 ```python
+from zrb.llm.agent.types import BinaryContent
+from zrb.llm.camera import AutoCameraBackend
+from zrb.llm.custom_command import ActionCommand
+
+camera = AutoCameraBackend()
+
 async def attach_photo(kwargs, ui):
     photo = await camera.capture(kwargs.get("device") or None)
+    if photo is None:
+        return f"❌ Camera capture failed.\n{camera.get_failure_hint()}"
     ui.pending_attachments.append(BinaryContent(data=photo, media_type="image/jpeg"))
     return "📷 Photo attached"
 
@@ -332,6 +342,8 @@ Camera, dictation and speech are added with one call each — see
 ### History Manager
 
 ```python
+from zrb.llm.history_manager import FileHistoryManager
+
 chat.history_manager = FileHistoryManager(history_dir="./my-history/")
 ```
 
@@ -351,10 +363,10 @@ Same property, same fields, on both `LLMTask` and `LLMChatTask` (ADR-0072).
 | Feature | `LLMChatTask` | `LLMTask` |
 |---------|---------------|-----------|
 | **Use case** | Interactive conversation | Single-shot processing |
-| **Conversation history** | Persistent across turns | None (one request) |
+| **Conversation history** | Persistent across turns and runs | One turn per run; history persists across runs under `conversation_name` |
 | **TUI** | Full-screen terminal UI | No TUI (programmatic only) |
 | **Custom commands** | Yes | No |
-| **Triggers (async iterables)** | Yes | No |
+| **Triggers (callables returning async iterables)** | Yes | No |
 | **Response handlers** | Yes | No |
 | **Tool policies** | Yes | No |
 | **Permission policy** | `permissions=` (arg + property) | Same |

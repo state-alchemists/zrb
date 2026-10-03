@@ -27,10 +27,10 @@ flowchart LR
     T --> B["builtin/"]
     T --> L["llm/"]
     T --> K["task/"]
-    B --> BG["test_git.py"]
+    B --> BG["test_git_commands.py"]
     L --> LP["prompt/"]
     LP --> LPM["test_manager.py"]
-    K --> KB["test_base_task.py"]
+    K --> KB["base/test_base_task.py"]
 ```
 
 ### Basic Fixture (`conftest.py`)
@@ -51,11 +51,9 @@ def clean_cli():
 
 ### Approach 1: Call the Function Directly
 
-The simplest approach — your task action is just a Python function. Import and call it:
+The simplest approach — your task action is just a Python function. Import the task and run its action against a mock context. The async tests on this page need [`pytest-asyncio`](https://pypi.org/project/pytest-asyncio/) (`pip install pytest-asyncio`) for the `@pytest.mark.asyncio` marker:
 
 ```python
-from zrb.context.any_context import AnyContext
-
 # my_tasks.py
 from zrb import make_task, cli
 
@@ -70,37 +68,41 @@ def add_task(ctx):
 
 ```python
 # test_my_tasks.py
+import pytest
 from unittest.mock import MagicMock
 from my_tasks import add_task
 
+@pytest.mark.asyncio
 async def test_add_task():
     # Create a mock context
     ctx = MagicMock()
     ctx.input.a = 3
     ctx.input.b = 4
     
-    # Import and call the underlying function directly
-    from my_tasks import add_task
-    result = await add_task._exec_action(ctx)
+    # `@make_task` rebinds `add_task` to a Task; `exec_action` runs its action
+    result = await add_task.exec_action(ctx)
     
     assert result == 7
 ```
 
 ### Approach 2: Mock the Context
 
-For more control, use the test utilities from `zrb.context`:
+For more control, give the mock `spec=AnyContext`, so reading an attribute a real context does not have fails instead of silently returning another mock:
 
 ```python
+import pytest
 from unittest.mock import MagicMock
 from zrb.context.any_context import AnyContext
+from my_tasks import my_task  # your task
 
+@pytest.mark.asyncio
 async def test_complex_logic():
     ctx = MagicMock(spec=AnyContext)
     ctx.input.name = "test"
     ctx.input.count = 5
     ctx.env.MODE = "testing"
     
-    result = await my_task._exec_action(ctx)
+    result = await my_task.exec_action(ctx)
     assert result is not None
 ```
 
@@ -128,7 +130,7 @@ async def test_cmd_task_execution():
     ctx = MagicMock(spec=AnyContext)
     
     # Execute the task
-    result = await task._exec_action(ctx)
+    result = await task.exec_action(ctx)
     assert result is not None
 ```
 
@@ -195,7 +197,7 @@ async def test_with_realistic_context():
     task = group.add_task(Task(name="greet", action=my_action))
     ctx = create_test_context(task, inputs={"name": "Alice"})
     
-    result = await task._exec_action(ctx)
+    result = await task.exec_action(ctx)
     assert result == "Processed: Alice"
     ctx.print.assert_called_once_with("Hello, Alice!")
 ```
@@ -207,6 +209,8 @@ async def test_with_realistic_context():
 To test task chains, create tasks and verify their upstream relationships:
 
 ```python
+from zrb import CmdTask, Group
+
 def test_task_dependencies():
     group = Group(name="test")
     
@@ -226,28 +230,28 @@ def test_task_dependencies():
 
 ## Running Tests
 
-The recommended way to run tests in this repo is the project's `zrb-test.sh` script from the project root. It runs the full suite through `pytest`, additionally runs `flake8 src/zrb --select=F` (which fails on unused or duplicate imports), and enforces a minimum coverage gate of 94%:
+The recommended way to run tests in this repo is the project's `zrb-test.sh` script from the project root. It runs the full suite through `pytest` and additionally runs `flake8 src/zrb --select=F` (which fails on unused or duplicate imports). A full run (no path arguments) also type-checks with `pyright src/zrb` and enforces a minimum coverage gate of 95%; a scoped run skips those two:
 
 ```bash
 # Activate virtual environment first
 source .venv/bin/activate
 
-# Run all tests (pytest + flake8 F-checks + coverage gate)
+# Run all tests (pytest + flake8 F-checks + pyright + coverage gate)
 ./zrb-test.sh
 
 # Scope to a file, directory, or a single test function
-./zrb-test.sh test/task/test_base_task.py
-./zrb-test.sh test/task/test_base_task.py::test_some_function
+./zrb-test.sh test/task/base/test_base_task.py
+./zrb-test.sh test/task/base/test_base_task.py::test_some_function
 ```
 
-For a quicker, narrower check without the flake8/coverage gate, you can invoke `pytest` directly:
+For a quicker, narrower check without the flake8/pyright/coverage gates, you can invoke `pytest` directly:
 
 ```bash
 # Run all tests
 poetry run pytest
 
 # Run specific test file
-poetry run pytest test/task/test_base_task.py
+poetry run pytest test/task/base/test_base_task.py
 
 # Run with verbose output
 poetry run pytest -v
@@ -264,7 +268,7 @@ poetry run pytest --cov=src/zrb
 # Test a Python task via mock context
 ctx = MagicMock()
 ctx.input.foo = "bar"
-result = await task._exec_action(ctx)
+result = await task.exec_action(ctx)
 
 # Test task dependencies
 def test_pipeline(): 
