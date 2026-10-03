@@ -9,6 +9,34 @@ class ConcreteInput(BaseInput):
         return "<input>"
 
 
+class RejectingInput(BaseInput):
+    """An input whose type rejects some values, as `IntInput` and `BoolInput` do."""
+
+    def to_html(self, shared_ctx) -> str:
+        return "<input>"
+
+    def _parse_str_value(self, str_value: str) -> int:
+        return int(str_value)
+
+    def _expected_value_description(self) -> str:
+        return "a whole number, e.g. 7"
+
+
+class UndescribedInput(BaseInput):
+    """A subclass that adds a type without saying what it accepts.
+
+    Overriding `_parse_str_value` is the documented way to add a type; the
+    description beside it is easy to forget, so the fallback has to carry the
+    part that matters — which flag was rejected.
+    """
+
+    def to_html(self, shared_ctx) -> str:
+        return "<input>"
+
+    def _parse_str_value(self, str_value: str) -> int:
+        return int(str_value)
+
+
 def test_base_input_basic():
     inp = ConcreteInput("my-input", "Desc", prompt="Prompt", default="val")
     shared_ctx = SharedContext()
@@ -159,6 +187,60 @@ def test_base_input_update_shared_context_same_name_no_duplicate():
     assert "simple" in shared_ctx.input
     # Check that my_input was NOT added (since my-input -> my_input, but simple -> simple)
     assert len([k for k in shared_ctx.input.keys() if k == "simple"]) == 1
+
+
+def test_base_input_rejected_value_names_the_flag_and_the_accepted_shape():
+    """A cast's own error names neither the flag the user typed nor a value that works.
+
+    `int("abc")` reports "invalid literal for int() with base 10: 'abc'": the user
+    learns their answer was rejected, not which `--flag` to retype or what would
+    be accepted. The wrapping lives in `update_shared_context`, so every input
+    that adds a type through `_parse_str_value` gets the naming for free instead
+    of each subclass having to remember it.
+    """
+    inp = RejectingInput("ticket-count")
+    with pytest.raises(ValueError) as excinfo:
+        inp.update_shared_context(SharedContext(), str_value="abc")
+    message = str(excinfo.value)
+    assert "ticket-count" in message
+    assert "'abc'" in message
+    assert "a whole number, e.g. 7" in message
+    # The cast's own text is replaced, not appended: it is true and useless.
+    assert "invalid literal" not in message
+
+
+def test_base_input_rejected_value_is_not_stored():
+    """A rejected value must not reach the context, or the task runs on garbage."""
+    inp = RejectingInput("ticket-count")
+    shared_ctx = SharedContext()
+    with pytest.raises(ValueError):
+        inp.update_shared_context(shared_ctx, str_value="abc")
+    assert "ticket-count" not in shared_ctx.input
+
+
+def test_base_input_a_forgotten_description_still_names_the_flag():
+    """The second override is optional, so the message must not depend on it.
+
+    Deliberately silent on the wording of the type description: that phrase is
+    `BaseInput`'s business, and this asserts only the half that has to hold for
+    any subclass — the user is told which flag was rejected, and is not shown the
+    cast's own text.
+    """
+    inp = UndescribedInput("ticket-count")
+    with pytest.raises(ValueError) as excinfo:
+        inp.update_shared_context(SharedContext(), str_value="abc")
+    message = str(excinfo.value)
+    assert "'ticket-count'" in message
+    assert "'abc'" in message
+    assert "invalid literal" not in message
+
+
+def test_base_input_accepts_a_value_without_parsing_it():
+    """A typed value skips `_parse_str_value`, so it is never re-parsed or rejected."""
+    inp = RejectingInput("ticket-count")
+    shared_ctx = SharedContext()
+    inp.update_shared_context(shared_ctx, value=12)
+    assert shared_ctx.input["ticket-count"] == 12
 
 
 def test_base_input_to_html():

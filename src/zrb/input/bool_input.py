@@ -4,7 +4,7 @@ from zrb.attr.type import BoolAttr
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.base_input import BaseInput
 from zrb.util.attr import get_bool_attr
-from zrb.util.string.conversion import to_boolean
+from zrb.util.string.conversion import FALSE_STRS, TRUE_STRS, to_boolean
 
 
 class BoolInput(BaseInput):
@@ -51,3 +51,9 @@ class BoolInput(BaseInput):
 
     def _parse_str_value(self, str_value: str) -> bool:
         return to_boolean(str_value)
+
+    def _expected_value_description(self) -> str:
+        # Derived from the lists `to_boolean` actually accepts, so the message
+        # cannot promise a spelling the parser rejects or hide one it takes.
+        accepted = ", ".join(TRUE_STRS + FALSE_STRS)
+        return f"a boolean, one of: {accepted}"

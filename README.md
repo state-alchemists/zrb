@@ -143,7 +143,7 @@ make_mermaid_script = mermaid_group.add_task(
             StrInput(name="dir", default="./"),
             StrInput(name="diagram", default="state-diagram"),
         ],
-        message=(
+        message=Tpl(
             "Read all necessary files in {ctx.input.dir}, "
             "make a {ctx.input.diagram} in mermaid format. "
             "Write the script into `{ctx.input.dir}/{ctx.input.diagram}.mmd`"

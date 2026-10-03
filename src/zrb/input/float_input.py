@@ -39,3 +39,6 @@ class FloatInput(BaseInput):
 
     def _parse_str_value(self, str_value: str) -> float:
         return float(str_value)
+
+    def _expected_value_description(self) -> str:
+        return "a number, e.g. 4.2"

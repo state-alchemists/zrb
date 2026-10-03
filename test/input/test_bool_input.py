@@ -6,6 +6,7 @@ import pytest
 
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.bool_input import BoolInput
+from zrb.util.string.conversion import FALSE_STRS, TRUE_STRS
 
 
 def test_bool_input_init():
@@ -151,3 +152,21 @@ def test_bool_input_default_resolution():
         result = inp.get_default_str(shared_ctx)
         assert result == "true"
         mock_get_bool_attr.assert_called_once()
+
+
+def test_bool_input_rejected_value_lists_every_spelling_it_takes():
+    """The message is derived from `TRUE_STRS`/`FALSE_STRS`, so it can neither
+    promise a spelling `to_boolean` rejects nor hide one it accepts."""
+    inp = BoolInput(name="flag")
+    shared_ctx = MagicMock(spec=AnySharedContext)
+    shared_ctx.input = {}
+
+    with pytest.raises(ValueError) as excinfo:
+        inp.update_shared_context(shared_ctx, str_value="maybe")
+
+    message = str(excinfo.value)
+    assert "'flag'" in message
+    assert "'maybe'" in message
+    for accepted in [*TRUE_STRS, *FALSE_STRS]:
+        assert accepted in message
+    assert "Cannot infer boolean value" not in message

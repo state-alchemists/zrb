@@ -1,13 +1,16 @@
-"""Running a task with stdin closed — the shape CI, cron and `< /dev/null` have.
+"""How a non-interactive `zrb` run resolves its inputs — closed stdin, piped stdin, and a value that does not parse.
 
 These drive the real `zrb` CLI as a subprocess instead of calling
-``prompt_cli_str`` directly, because the bug they pin lives in the gap between
-the two. On a closed stdin ``input()`` *raises* ``EOFError``; it never returns
-``""``. A unit test that patches ``builtins.input`` therefore asserts a state
-that cannot occur, and stays green while the real CLI exits non-zero — which is
-exactly what happened before this file existed.
+``prompt_cli_str`` or ``update_shared_context`` directly, because the bugs they
+pin live in the gap between the unit and the real run. On a closed stdin
+``input()`` *raises* ``EOFError``; it never returns ``""``. A unit test that
+patches ``builtins.input`` therefore asserts a state that cannot occur, and
+stays green while the real CLI exits non-zero — which is exactly what happened
+before this file existed. The same gap hid a rejected `--flag` value behind the
+cast's own message: `BaseInput.update_shared_context` is reached through
+``runner/common_util.py``, one layer above any unit test of an input.
 
-Every case is bounded by a timeout: the first attempt at this fix returned
+Every case is bounded by a timeout: the first attempt at the stdin fix returned
 ``""`` from the reader, which fed the empty-answer retry loop in
 ``BaseInput.prompt_cli_str`` and spun, re-printing the prompt without end. A
 hang here is a regression, not a slow machine.
@@ -32,7 +35,16 @@ _SRC_DIR = str(pathlib.Path(zrb.__file__).resolve().parent.parent)
 _TIMEOUT_SECONDS = 60.0
 
 _ZRB_INIT = """
-from zrb import cli, Group, OptionInput, StrInput, make_task
+from zrb import (
+    BoolInput,
+    FloatInput,
+    Group,
+    IntInput,
+    OptionInput,
+    StrInput,
+    cli,
+    make_task,
+)
 
 group = cli.add_group(Group(name="ci", description="non-interactive fixtures"))
 
@@ -53,6 +65,9 @@ _register("str-empty-ok", StrInput("v", allow_empty=True))
 _register("str-required", StrInput("v"))
 _register("option-default", OptionInput("v", options=["a", "b"], default="a"))
 _register("option-required", OptionInput("v", options=["a", "b"]))
+_register("int", IntInput("v", default=1))
+_register("float", FloatInput("v", default=1.0))
+_register("bool", BoolInput("v", default=False))
 """
 
 
@@ -105,6 +120,40 @@ def test_closed_stdin_resolves_to_a_value(project, task, expected):
     result = _run(project, "ci", task)
     assert result.returncode == 0, result.stdout + result.stderr
     assert expected in result.stdout + result.stderr
+
+
+@pytest.mark.parametrize(
+    "task, accepted",
+    [
+        # The phrase each type reports as what it would have taken instead.
+        ("int", "an integer"),
+        ("float", "a number"),
+        ("bool", "a boolean"),
+    ],
+)
+def test_a_value_that_does_not_parse_names_the_flag_and_the_accepted_shape(
+    project, task, accepted
+):
+    """A rejected value must say which flag and what would have worked.
+
+    Before this, `--v abc` reported the cast's own text — "invalid literal for
+    int() with base 10: 'abc'" — which is true, and no help at all: it names
+    neither the option the user typed nor a value they could retype. A unit test
+    cannot catch it, because the wrapping happens a layer up, in
+    `BaseInput.update_shared_context` reached via `runner/common_util.py`.
+    """
+    result = _run(project, "ci", task, "--v", "abc")
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, output
+    assert "Invalid value for input 'v'" in output
+    assert "'abc'" in output
+    assert accepted in output
+    # The cast's text is replaced, not appended onto.
+    assert "invalid literal" not in output
+    assert "could not convert" not in output
+    assert "Cannot infer boolean value" not in output
+    # The task must not have run on a value that never parsed.
+    assert "RESULT[" not in output
 
 
 @pytest.mark.parametrize("task", ["str-required", "option-required"])
