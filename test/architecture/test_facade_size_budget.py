@@ -46,7 +46,14 @@ FACADE_BUDGETS = {
     "llm/task/chat/task.py": 1078,
     # +26 (783->809): `stream_observers` with `set_stream_observers` and append/prepend/
     # remove, handed to `run_agent` -- new surface.
-    "llm/task/llm_task.py": 809,
+    # +4 (809->813): the `dynamic_yolo` docstring names the arguments a
+    # per-call callable is handed, which an `arg_pattern` rule needs to be
+    # judged at all -- documented contract, no new surface.
+    # +7 (813->820): `/compress` publishes the session's model overrides before
+    # the summarizer resolves a model. A run only publishes them once it starts,
+    # and this command is handled before that -- new behavior, and the reason
+    # `/model small` was being ignored.
+    "llm/task/llm_task.py": 820,
     "llm/agent/subagent/manager.py": 299,
 }
 

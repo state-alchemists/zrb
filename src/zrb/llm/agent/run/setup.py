@@ -8,12 +8,14 @@ run loop itself stays focused on driving ``pydantic_ai.Agent``.
 
 from __future__ import annotations
 
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 from contextvars import ContextVar
-from typing import Any
+from typing import TYPE_CHECKING, Any, Iterator
 
 from zrb.config.config import CFG
 from zrb.llm.agent_state import (
+    current_model,
+    current_small_model,
     current_tool_confirmation,
     current_ui,
     current_yolo,
@@ -26,6 +28,9 @@ from zrb.llm.ui.multi_ui import MultiUI, create_combined_ui
 from zrb.llm.ui.std_ui import StdUI
 from zrb.util.contextvar_scope import scoped
 
+if TYPE_CHECKING:
+    from zrb.llm.ui.any_ui import AnyUI
+
 
 def bind_contextvar(stack: ExitStack, var: ContextVar, value: Any) -> None:
     """Bind `var` to `value` for the life of `stack` (via `scoped()`).
@@ -33,6 +38,35 @@ def bind_contextvar(stack: ExitStack, var: ContextVar, value: Any) -> None:
     Keeps ContextVar set/reset symmetric and exception-safe across the run.
     """
     stack.enter_context(scoped(var, value))
+
+
+@contextmanager
+def session_model_scope(ui: "AnyUI | list[AnyUI] | None") -> "Iterator[None]":
+    """Bind a session's model overrides — `/model small` and `/model` — as a run does.
+
+    A run binds these while it runs (`runner.py`), which is what makes
+    `/model small <name>` reach the model resolver's precedence chain. A path
+    that resolves a model *outside* a run has to bind them itself or it falls
+    through to `CFG` — `/compress` is handled by the task before `run_agent`
+    exists, and the summarizer is the consumer users most expect `/model small`
+    to reach.
+
+    *ui* is the session's UI, or the list of UIs a task holds; a list is
+    combined exactly as `resolve_context_dependencies` combines it, so both
+    paths see the same UI.
+
+    Only non-`None` values are bound, so an enclosing run's binding is never
+    replaced by nothing.
+    """
+    effective_ui = None if ui is None else create_combined_ui(ui, fallback=StdUI())
+    with ExitStack() as stack:
+        small_model = getattr(effective_ui, "small_model", None)
+        if small_model is not None:
+            bind_contextvar(stack, current_small_model, small_model)
+        model = getattr(effective_ui, "model", None)
+        if model is not None:
+            bind_contextvar(stack, current_model, model)
+        yield
 
 
 def resolve_context_dependencies(

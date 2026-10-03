@@ -282,13 +282,13 @@ A runnable version of this snippet is `security-review-agent-example` in `exampl
 
 ## Built-in Hooks
 
-Two hooks ship with zrb. Both are Python hooks registered on the default `hook_manager`, not JSON files, so they appear in no `hooks.json`.
+Two hooks ship with zrb. Both are Python hooks seeded as factories onto **every** `HookManager` — not JSON files, so they appear in no `hooks.json`. A skill's frontmatter `hooks:` block is registered the same way, which is why it reaches a fresh per-session manager too.
 
 ### Built-in example: the journal-compliance judge
 
 A small sub-agent that reviews a completed turn, decides — using `LogActivity`/`WriteJournalNote`'s own documented criteria — whether it needs a journal entry, and writes one if so. The `event_data.journal_worthy` matcher (computed in plain Python at the `Stop` call site: the turn changed a file, or looks like it stated a preference) limits the LLM call to turns where an entry is plausible, and `async: true` keeps it from blocking the response.
 
-- **Built-in and active** (`llm/hook/journal_compliance.py`, registered as a hook factory on the default `hook_manager` singleton), with no `enabled` flag of its own: it follows `LLM_JOURNAL_ENABLED` (default on). With journaling off, `tools` resolves to nothing and the hook is a no-op.
+- **Built-in and active** (`llm/hook/journal_compliance.py`, seeded as a hook factory on every `HookManager`), with no `enabled` flag of its own: it follows `LLM_JOURNAL_ENABLED` (default on). With journaling off, `tools` resolves to nothing and the hook is a no-op.
 - **Model:** the small model — a `/model small ...` override in the current session, else `CFG.LLM_SMALL_MODEL` (via `resolve_configured_small_model()`). Set `ZRB_LLM_SMALL_MODEL` — an unset small model falls back to your main one, which defeats the point of a cheap judge.
 - **Prompt:** `llm/prompt/markdown/journal_compliance.md`, overridable through the normal chain — a `journal_compliance.md` under your project's `LLM_PROMPT_DIR`, or `ZRB_LLM_PROMPT_JOURNAL_COMPLIANCE`.
 
@@ -659,7 +659,7 @@ The two task classes isolate differently (ADR-0072):
 
 ### Shared: the global `hook_manager`
 
-The `hook_manager` singleton is the default manager of every `LLMTask` that has no task-local one. It is **not** used by `LLMChatTask` — `zrb llm chat` included — which builds a fresh manager per session unless given `hook_manager=`. To reach every chat session and task alike, put the hook in a `*.hook.py` file under a [hook location](#hook-locations) instead, since every manager loads those.
+The `hook_manager` singleton is the default manager of every `LLMTask` that has no task-local one. It is **not** used by `LLMChatTask` — `zrb llm chat` included — which builds a fresh manager per session unless given `hook_manager=`. To reach every chat session and task alike, put the hook in a `*.hook.py` file under a [hook location](#hook-locations), since every manager loads those, or in a skill's frontmatter `hooks:` block, which every manager replays. A hook registered in code on the singleton (`hook_manager.add_hook(...)`) reaches the `LLMTask` runs that use it, and no chat session.
 
 ```python
 from zrb.llm.hook.manager import hook_manager

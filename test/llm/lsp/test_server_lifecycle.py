@@ -105,6 +105,45 @@ async def test_initialize_null_result_leaves_server_uninitialized(lsp_server):
 
 
 @pytest.mark.asyncio
+async def test_initialize_sends_config_initialization_options(lsp_server):
+    """`LSPServerConfig.initialization_options` must reach the `initialize`
+    request — a config field nothing reads is a lie."""
+    options = {"python": {"analysis": {"typeCheckingMode": "strict"}}}
+    lsp_server.config.initialization_options = options
+    queue = asyncio.Queue()
+    queue.put_nowait(
+        _frame({"jsonrpc": "2.0", "id": 1, "result": {"capabilities": {}}})
+    )
+    proc = _queued_subprocess(queue)
+    with patch("asyncio.create_subprocess_exec", return_value=proc):
+        assert await lsp_server.start() is True
+    initialize = next(
+        m for m in _sent_requests(proc) if m.get("method") == "initialize"
+    )
+    assert initialize["params"]["initializationOptions"] == options
+    await lsp_server.stop()
+
+
+@pytest.mark.asyncio
+async def test_initialize_omits_initialization_options_when_unset(lsp_server):
+    """No options configured means no key at all: an explicit null is rejected
+    by servers that validate the field's shape."""
+    assert lsp_server.config.initialization_options is None
+    queue = asyncio.Queue()
+    queue.put_nowait(
+        _frame({"jsonrpc": "2.0", "id": 1, "result": {"capabilities": {}}})
+    )
+    proc = _queued_subprocess(queue)
+    with patch("asyncio.create_subprocess_exec", return_value=proc):
+        assert await lsp_server.start() is True
+    initialize = next(
+        m for m in _sent_requests(proc) if m.get("method") == "initialize"
+    )
+    assert "initializationOptions" not in initialize["params"]
+    await lsp_server.stop()
+
+
+@pytest.mark.asyncio
 async def test_read_loop_exits_without_stdout(lsp_server):
     lsp_server.config.timeout = 1
     proc = MagicMock()
@@ -205,6 +244,17 @@ async def test_error_response_raises_server_error(lsp_server):
 def _frame(payload):
     body = json.dumps(payload)
     return f"Content-Length: {len(body)}\r\n\r\n{body}".encode()
+
+
+def _sent_requests(proc) -> list:
+    """Every JSON-RPC message written to the server's stdin."""
+    messages = []
+    for call in proc.stdin.write.call_args_list:
+        raw = call.args[0]
+        if isinstance(raw, bytes):
+            raw = raw.decode()
+        messages.append(json.loads(raw.partition("\r\n\r\n")[2]))
+    return messages
 
 
 def _queued_subprocess(queue):

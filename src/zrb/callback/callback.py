@@ -55,6 +55,13 @@ class Callback(AnyCallback):
         self._error_queue = error_queue
         self._session_name_queue = session_name_queue
 
+    @property
+    def task(self) -> AnyTask:
+        """The task this callback runs — what a caller needs to follow the
+        reference it holds (startup diagnostics do, to see that a task reached
+        only through a trigger's callback is not orphaned)."""
+        return self._task
+
     async def async_run(self, parent_session: AnySession, session: AnySession) -> Any:
         self._maybe_publish_session_name_to_parent_session(
             parent_session=parent_session, session=session

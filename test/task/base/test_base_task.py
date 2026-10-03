@@ -1,4 +1,5 @@
 import asyncio
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -111,6 +112,32 @@ def test_base_task_inputs_property():
 def test_base_task_fallbacks_property():
     task = BaseTask(name="test_task")
     assert task.fallbacks == []
+
+
+def test_base_task_rejects_a_task_name_where_a_task_belongs():
+    """`upstream=["build"]` used to survive construction and blow up later,
+    inside the dependency walk, as `AttributeError: 'str' object has no
+    attribute 'upstreams'`."""
+    # `Any`: a name string is what a hand-written `zrb_init.py` may pass, and
+    # what the type checker already forbids — the runtime has to refuse it too.
+    name_strings: Any = ["build"]
+    builders = (
+        lambda: BaseTask(name="t", upstream=name_strings),
+        lambda: BaseTask(name="t", fallback=name_strings),
+        lambda: BaseTask(name="t", successor=name_strings),
+        lambda: BaseTask(name="t", readiness_check=name_strings),
+    )
+    for build in builders:
+        with pytest.raises(TypeError) as exc_info:
+            build()
+        assert "expected a task object" in str(exc_info.value)
+        assert "not ['build']" in str(exc_info.value)
+    # The single-value form is rejected too, and so is a bare name on append.
+    single_name: Any = "build"
+    with pytest.raises(TypeError):
+        BaseTask(name="t", upstream=single_name)
+    with pytest.raises(TypeError):
+        BaseTask(name="t").append_upstream(name_strings)
 
 
 def test_base_task_append_fallback():

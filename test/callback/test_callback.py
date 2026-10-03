@@ -37,6 +37,13 @@ def mock_parent_session():
 class TestCallbackBehavior:
     """Test Callback using only public methods and verifying behavior."""
 
+    def test_callback_exposes_the_task_it_runs(self, mock_task):
+        """Startup diagnostics follow this reference to see that a task reached
+        only through a trigger's callback is not orphaned."""
+        callback = Callback(mock_task, input_mapping={})
+
+        assert callback.task is mock_task
+
     @pytest.mark.asyncio
     async def test_callback_executes_task_and_maps_input(
         self, mock_task, mock_session, mock_parent_session

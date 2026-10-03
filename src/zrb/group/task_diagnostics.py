@@ -21,11 +21,14 @@ object the pre-init tree already held is left quiet.
 from __future__ import annotations
 
 from types import ModuleType
-from typing import Iterable, Iterator, NamedTuple
+from typing import TYPE_CHECKING, Iterable, Iterator, NamedTuple, cast
 
 from zrb.group.any_group import AnyGroup
 from zrb.group.group import Group, TaskReplacement
 from zrb.task.any_task import AnyTask
+
+if TYPE_CHECKING:
+    from zrb.callback.any_callback import AnyCallback
 
 # The edges through which one task pulls in another. A task referenced here is
 # reachable even with no CLI word of its own: that is how a readiness check or
@@ -125,7 +128,8 @@ def find_task_diagnostics(
                     f"task {task.name!r} (declared as {symbol!r}) is not registered "
                     f"and no task references it, so `zrb {task.name}` cannot reach "
                     f"it. Register it with cli.add_task(...), or make it an "
-                    f"upstream, fallback, successor, or readiness check."
+                    f"upstream, fallback, successor, readiness check, or a "
+                    f"trigger's callback."
                 ),
             )
         )
@@ -239,7 +243,25 @@ def _reachable_tasks(root: AnyGroup) -> set[int]:
         ids.add(id(task))
         for edge in _TASK_EDGES:
             pending.extend(getattr(task, edge, None) or [])
+        pending.extend(_callback_tasks(task))
     return ids
+
+
+def _callback_tasks(task: AnyTask) -> Iterator[AnyTask]:
+    """The tasks *task* runs through its callbacks.
+
+    A trigger fires its `Callback`s on every event, so a task reached only that
+    way runs without a CLI word or an edge of its own — it must not be
+    reported as unreachable.
+    """
+    # `callbacks` belongs to `BaseTrigger`, and `task` to `Callback`: neither is
+    # on `AnyTask`, so both are read off the object, as the edge walk does. A
+    # third-party callback with no `task` simply has nothing to follow.
+    callbacks = cast("list[AnyCallback]", getattr(task, "callbacks", None) or [])
+    for callback in callbacks:
+        wrapped = cast("AnyTask | None", getattr(callback, "task", None))
+        if wrapped is not None:
+            yield wrapped
 
 
 def format_diagnostic(diagnostic: TaskDiagnostic) -> str:

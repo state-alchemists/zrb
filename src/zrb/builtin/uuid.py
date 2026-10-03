@@ -20,6 +20,20 @@ _NAMESPACES = {
 }
 
 
+def _is_valid_uuid(id_value: str, version: int | None = None) -> bool:
+    """Whether *id_value* is a well-formed UUID, optionally of *version*.
+
+    The version has to be compared, not handed to the parser:
+    `uuid.UUID(value, version=N)` *sets* the version bits of whatever it reads,
+    so it accepted a v4 string as a v1 one. Omit *version* to accept any.
+    """
+    try:
+        parsed = uuid.UUID(id_value)
+    except (AttributeError, TypeError, ValueError):
+        return False
+    return version is None or parsed.version == version
+
+
 @make_task(
     name="generate-uuid-v1",
     description="🔨 Generate UUID V1",
@@ -126,13 +140,11 @@ def generate_uuid_v5(ctx: AnyContext) -> str:
     alias="validate",
 )
 def validate_uuid(ctx: AnyContext) -> bool:
-    try:
-        uuid.UUID(ctx.input.id, version=1)
+    if _is_valid_uuid(ctx.input.id):
         ctx.print("Valid UUID")
         return True
-    except Exception:
-        ctx.print("Invalid UUID")
-        return False
+    ctx.print("Invalid UUID")
+    return False
 
 
 @make_task(
@@ -143,13 +155,11 @@ def validate_uuid(ctx: AnyContext) -> bool:
     alias="validate",
 )
 def validate_uuid_v1(ctx: AnyContext) -> bool:
-    try:
-        uuid.UUID(ctx.input.id, version=1)
+    if _is_valid_uuid(ctx.input.id, 1):
         ctx.print("Valid UUID V1")
         return True
-    except Exception:
-        ctx.print("Invalid UUID V1")
-        return False
+    ctx.print("Invalid UUID V1")
+    return False
 
 
 @make_task(
@@ -160,13 +170,11 @@ def validate_uuid_v1(ctx: AnyContext) -> bool:
     alias="validate",
 )
 def validate_uuid_v3(ctx: AnyContext) -> bool:
-    try:
-        uuid.UUID(ctx.input.id, version=3)
+    if _is_valid_uuid(ctx.input.id, 3):
         ctx.print("Valid UUID V3")
         return True
-    except Exception:
-        ctx.print("Invalid UUID V3")
-        return False
+    ctx.print("Invalid UUID V3")
+    return False
 
 
 @make_task(
@@ -177,13 +185,11 @@ def validate_uuid_v3(ctx: AnyContext) -> bool:
     alias="validate",
 )
 def validate_uuid_v4(ctx: AnyContext) -> bool:
-    try:
-        uuid.UUID(ctx.input.id, version=4)
+    if _is_valid_uuid(ctx.input.id, 4):
         ctx.print("Valid UUID V4")
         return True
-    except Exception:
-        ctx.print("Invalid UUID V4")
-        return False
+    ctx.print("Invalid UUID V4")
+    return False
 
 
 @make_task(
@@ -194,10 +200,8 @@ def validate_uuid_v4(ctx: AnyContext) -> bool:
     alias="validate",
 )
 def validate_uuid_v5(ctx: AnyContext) -> bool:
-    try:
-        uuid.UUID(ctx.input.id, version=5)
+    if _is_valid_uuid(ctx.input.id, 5):
         ctx.print("Valid UUID V5")
         return True
-    except Exception:
-        ctx.print("Invalid UUID V5")
-        return False
+    ctx.print("Invalid UUID V5")
+    return False

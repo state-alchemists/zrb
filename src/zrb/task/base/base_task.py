@@ -174,15 +174,33 @@ class BaseTask(AnyTask):
 
         Tests for `Sequence` (so tuples work) rather than for `AnyTask` (so a
         duck-typed task or `MagicMock` still counts as one task). `str`/`bytes`
-        are rejected: they satisfy `Sequence` and would spread into characters.
+        are rejected: they satisfy `Sequence` and would spread into characters,
+        and a task *name* is not a task — see `_reject_task_names`.
         """
         if tasks is None:
             return []
         if isinstance(tasks, (str, bytes)):
             raise TypeError(f"Expected a task or a sequence of tasks, got {tasks!r}")
         if isinstance(tasks, Sequence):
+            self._reject_task_names(tasks)
             return list(tasks)
         return [tasks]
+
+    def _reject_task_names(self, tasks: Sequence[AnyTask]) -> None:
+        """Refuse a name string where a task belongs.
+
+        `upstream=["build"]` is the natural wrong guess. Left alone it survives
+        construction and fails much later, inside the dependency walk
+        (`AttributeError: 'str' object has no attribute 'upstreams'`), naming no
+        line of user code.
+        """
+        for task in tasks:
+            if isinstance(task, (str, bytes)):
+                raise TypeError(
+                    f"{self._name}: expected a task object, got the name {task!r}. "
+                    "A task is referenced by object, not by name: write [build], "
+                    "not ['build']."
+                )
 
     def __repr__(self):
         return f"<{self.__class__.__name__} name={self.name}>"

@@ -330,7 +330,14 @@ class BaseUICommands:
 
 _KEYBOARD_SHORTCUTS: list[tuple[str, str]] = [
     ("Ctrl+J", "Insert a newline (multi-line input)"),
-    ("Ctrl+V / Alt+V", "Paste text or image from clipboard"),
+    # Both keys are bound to the same paste path: Ctrl+V where the terminal
+    # delivers it, Alt+V always. A terminal that claims Ctrl+V for its own
+    # text-only paste never delivers it, so Alt+V is named as the fallback
+    # rather than letting a missing image read as a zrb defect.
+    (
+        "Ctrl+V / Alt+V",
+        "Paste text or image from clipboard (Alt+V if your terminal captures Ctrl+V)",
+    ),
     ("Shift+Tab", "Cycle mode: normal -> accept-edits -> plan"),
     ("Ctrl+K", "Toggle focus between input and output"),
     ("Esc", "Cancel running task or clear input"),

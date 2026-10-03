@@ -17,7 +17,7 @@ import pathlib
 REPO_ROOT = pathlib.Path(__file__).parents[2]
 SRC = REPO_ROOT / "src" / "zrb"
 
-ANY_ANNOTATIONS = 1097
+ANY_ANNOTATIONS = 1096
 
 
 def _count_any(annotation: ast.expr | None) -> int:

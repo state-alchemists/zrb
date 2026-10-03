@@ -9,7 +9,17 @@ import pytest
 
 from zrb.llm.agent.run.turn_snapshot import TurnSnapshot
 from zrb.llm.hook.interface import HookResult
+from zrb.llm.hook.skill_frontmatter import reset_skill_hook_configs
 from zrb.llm.hook.types import HookEvent
+
+
+@pytest.fixture(autouse=True)
+def _clean_skill_hook_configs():
+    """Skill frontmatter hooks are process-wide state: a test that scans a skill
+    records them for every later manager, so each test starts and ends clean."""
+    reset_skill_hook_configs()
+    yield
+    reset_skill_hook_configs()
 
 
 @pytest.fixture

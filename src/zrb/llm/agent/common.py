@@ -6,6 +6,7 @@ import inspect
 import json
 from collections.abc import Callable
 from functools import wraps
+from inspect import Parameter
 from typing import TYPE_CHECKING, Any, cast
 
 from zrb.config.config import CFG
@@ -449,7 +450,7 @@ async def _fire_post_tool_use_failure(
 
 
 def _assemble_toolsets(
-    tools: Any, toolsets: Any, yolo: "bool | Callable[[Any], bool]"
+    tools: Any, toolsets: Any, yolo: "bool | Callable[..., bool]"
 ) -> list:
     """Every toolset the agent runs with, wrapped and approval-gated.
 
@@ -475,12 +476,48 @@ def _assemble_toolsets(
     if callable(yolo):
         # Bound to its own name so the narrowing survives into the lambda,
         # which is type-checked without the enclosing `callable()` guard.
-        decide = yolo
+        decide = _with_tool_args(yolo)
         return [
-            ts.approval_required(lambda ctx, tool_def, args: not decide(tool_def))
+            ts.approval_required(lambda ctx, tool_def, args: not decide(tool_def, args))
             for ts in effective
         ]
     return [ts.approval_required() for ts in effective]
+
+
+def _with_tool_args(decide: "Callable[..., bool]") -> "Callable[..., bool]":
+    """Adapt a per-call `yolo` callable to the `(tool_def, args)` the gate has.
+
+    A callable that accepts the call's arguments receives them, which is what
+    lets an `arg_pattern` permission rule be judged here rather than falling
+    through to yolo. A single-argument callable — the shape published before
+    this — keeps working: it is wrapped, never called with what it cannot take.
+    """
+    if _can_take_tool_args(decide):
+        return decide
+    return lambda tool_def, args: decide(tool_def)
+
+
+def _can_take_tool_args(decide: "Callable[..., bool]") -> bool:
+    """Whether *decide* accepts the tool call's arguments as a second argument.
+
+    Read from the signature rather than discovered from a `TypeError`, which a
+    real failure inside the callable looks exactly like — the same reasoning as
+    `custom_command/resolver.py`'s `_can_take_ui`, on the same kind of published
+    extension point.
+    """
+    try:
+        parameters = inspect.signature(decide).parameters
+    except (TypeError, ValueError):
+        # Not introspectable (a builtin, say): call it the way it shipped.
+        return False
+    if any(p.kind is Parameter.VAR_POSITIONAL for p in parameters.values()):
+        return True
+    positional = [
+        p
+        for p in parameters.values()
+        if p.kind in (Parameter.POSITIONAL_ONLY, Parameter.POSITIONAL_OR_KEYWORD)
+    ]
+    return len(positional) >= 2
 
 
 def create_agent(
@@ -493,7 +530,7 @@ def create_agent(
     capabilities: "list[AbstractCapability[Any]] | None" = None,
     output_type: "OutputSpec[OutputDataT]" = str,
     retries: int | None = None,
-    yolo: bool | Callable[[Any], bool] = False,
+    yolo: bool | Callable[..., bool] = False,
     resolve_model: bool = True,
 ) -> "Agent[None, Any]":
     # lazy: heavy third-party

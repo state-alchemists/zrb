@@ -5,6 +5,11 @@ from pathlib import Path
 
 from zrb.config.config import CFG
 from zrb.llm.hook.manager import hook_manager
+from zrb.llm.hook.skill_frontmatter import (
+    apply_skill_frontmatter_hooks,
+    finish_skill_scan,
+    start_skill_scan,
+)
 from zrb.llm.skill.registry import SkillRegistry, skill_registry
 from zrb.llm.skill.util import discover_companion_files
 from zrb.util.asset_scanner import IGNORE_DIRS, scan_files
@@ -176,9 +181,14 @@ class SkillManager:
         target_search_dirs = (
             search_dirs if search_dirs is not None else self.search_dirs
         )
+        # Bound the pass, so a skill frontmatter hook whose file this scan did
+        # not find is dropped rather than left firing (see
+        # `zrb.llm.hook.skill_frontmatter`).
+        start_skill_scan()
         # Later directories override earlier ones on a name collision.
         for search_dir in target_search_dirs:
             self._scan_dir(Path(search_dir), max_depth=self._max_depth)
+        finish_skill_scan(hook_manager)
         self._registry.set_discovered(list(self._scan_results.values()))
         self._scanned = True
         return self.get_skills()
@@ -464,7 +474,7 @@ def _parse_skill_frontmatter(content: str, full_path: str) -> dict:
         fields["allowed_tools"] = _parse_allowed_tools(frontmatter.get("allowed-tools"))
         for key in ("model", "context", "agent"):
             fields[key] = frontmatter.get(key)
-        _register_frontmatter_hooks(frontmatter.get("hooks"), full_path)
+        apply_skill_frontmatter_hooks(hook_manager, frontmatter.get("hooks"), full_path)
     except Exception:
         CFG.LOGGER.warning(
             f"Failed to parse YAML frontmatter in {full_path}", exc_info=True
@@ -479,13 +489,3 @@ def _parse_allowed_tools(raw: "str | list[str] | None") -> list[str]:
     if isinstance(raw, list):
         return raw
     return []
-
-
-def _register_frontmatter_hooks(hooks_data: object, full_path: str) -> None:
-    """Register a skill's `hooks:` block, in either supported shape."""
-    if isinstance(hooks_data, dict):
-        hook_manager.parse_claude_format({"hooks": hooks_data}, full_path)
-    elif isinstance(hooks_data, list):
-        # Zrb flat format
-        for hook_item in hooks_data:
-            hook_manager.parse_and_register(hook_item, full_path)

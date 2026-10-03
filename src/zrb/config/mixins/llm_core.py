@@ -50,7 +50,7 @@ class LLMCoreMixin:
     LLM_MULTIMODAL_MODEL = EnvField(
         str,
         nullable=True,
-        doc="Multimodal model for image/file tasks. Falls back to LLM_MODEL when unset.",
+        doc="Multimodal model for image/file tasks. Unset means no multimodal model — the main model is never substituted.",
     )
 
     LLM_BASE_URL = EnvField(

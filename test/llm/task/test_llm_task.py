@@ -10,8 +10,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.context.shared_context import SharedContext
+from zrb.llm.agent_state import get_current_small_model
 from zrb.llm.task.chat.task import LLMChatTask
 from zrb.llm.task.llm_task import LLMTask
+from zrb.llm.ui.std_ui import StdUI
 from zrb.session.session import Session
 
 
@@ -288,3 +290,50 @@ def test_stream_observer_surface_matches_and_copies_the_given_list(task_class):
     task.prepend_stream_observer(first)
     task.remove_stream_observer(first)
     assert task.stream_observers == [second, first]
+
+
+@pytest.mark.asyncio
+async def test_compress_publishes_the_sessions_small_model(session):
+    """`/compress` is handled before the task starts an agent, so it publishes
+    the session's model overrides itself; without that the summarizer resolved
+    against `CFG` and a `/model small <name>` was silently ignored."""
+    ui = StdUI()
+    ui.small_model = "openai:session-small"
+    task = LLMTask(
+        name="compress-task",
+        message="/compress",
+        summarize_commands=["/compress"],
+        ui=ui,
+    )
+    seen: list = []
+
+    async def fake_summarize(messages, **kwargs):
+        seen.append(get_current_small_model())
+        return messages
+
+    with patch("zrb.llm.task.llm_task.summarize_history", new=fake_summarize):
+        await task.async_run(session)
+
+    assert seen == ["openai:session-small"]
+
+
+@pytest.mark.asyncio
+async def test_compress_publishes_nothing_without_a_session_choice(session):
+    """No `/model small` in the session: nothing is bound, so the resolver's own
+    chain — and its `CFG` fallback — is left to decide."""
+    task = LLMTask(
+        name="compress-task",
+        message="/compress",
+        summarize_commands=["/compress"],
+        ui=StdUI(),
+    )
+    seen: list = []
+
+    async def fake_summarize(messages, **kwargs):
+        seen.append(get_current_small_model())
+        return messages
+
+    with patch("zrb.llm.task.llm_task.summarize_history", new=fake_summarize):
+        await task.async_run(session)
+
+    assert seen == [None]

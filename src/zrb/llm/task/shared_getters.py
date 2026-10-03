@@ -98,20 +98,27 @@ def resolve_conversation_name(
 
 
 def get_policy_skip_decision(
-    tool_def: Any, cap_by_name: "dict[str, Capability] | None" = None
+    tool_def: Any,
+    cap_by_name: "dict[str, Capability] | None" = None,
+    args: dict | None = None,
 ) -> bool | None:
     """Whether the effective permission policy skips approval for *tool_def*.
 
     ALLOW and DENY skip it (the gate blocks a DENY at execution); an explicit
     ASK is a hard ask. `None` means no policy or no matching rule, leaving the
     decision to yolo.
+
+    *args* is the call's own arguments, when the caller has them. A rule
+    carrying an `arg_pattern` can only match against those: judged with none,
+    such a rule reads as no rule at all and yolo decides what the rule meant to
+    decide — which is how an `arg_pattern` ASK was auto-approved under yolo.
     """
     policy = get_effective_policy()
     if policy is None:
         return None
     tool_name = getattr(tool_def, "name", str(tool_def)) if tool_def is not None else ""
     cap = (cap_by_name or {}).get(tool_name, Capability.UNKNOWN)
-    result = policy.decide(tool_name, cap, {})
+    result = policy.decide(tool_name, cap, args or {})
     if result in (ALLOW, DENY):
         return True
     if result == ASK:
