@@ -87,6 +87,52 @@ async def test_llm_chat_task_forwards_permissions_to_run_agent():
 
 
 @pytest.mark.asyncio
+async def test_llm_chat_task_judges_an_arg_pattern_rule_with_the_calls_arguments():
+    """The chat path's dynamic yolo must hand the call's arguments to the
+    permission policy. Judged with none, an `arg_pattern` ASK looks like no
+    rule at all, and yolo then auto-approves the very call the rule was written
+    to stop."""
+    from zrb.llm.permission import ASK, PermissionPolicy, Rule
+    from zrb.llm.permission.state import permission_policy
+
+    policy = PermissionPolicy((Rule("Bash", ASK, arg_pattern="rm -rf*"),))
+    task = LLMChatTask(
+        name="arg-pattern-task",
+        message="Hello",
+        permissions=policy,
+        yolo=True,
+        interactive=False,
+    )
+    captured: dict = {}
+
+    def capture_create_agent(**kwargs):
+        captured.update(kwargs)
+        return MagicMock()
+
+    with (
+        patch("zrb.llm.task.llm_task.create_agent", side_effect=capture_create_agent),
+        patch(
+            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+    ):
+        mock_run_agent.return_value = ("Done", [])
+        session = Session(SharedContext(), state_logger=MagicMock())
+        await task.async_run(session)
+
+    decide = captured["yolo"]
+    tool_def = MagicMock()
+    tool_def.name = "Bash"
+    # `run_agent` is what binds the in-force policy during a real run; it is
+    # patched here, so the policy is scoped explicitly instead.
+    with permission_policy(policy):
+        # The rule matches this call: a hard ask, not auto-approved — even
+        # though YOLO is on.
+        assert decide(tool_def, {"command": "rm -rf /tmp/x"}) is False
+        # The pattern does not match, so YOLO covers it, as before.
+        assert decide(tool_def, {"command": "ls -la"}) is True
+
+
+@pytest.mark.asyncio
 async def test_llm_chat_task_forwards_stream_observers_to_run_agent():
     observer = MagicMock()
     task = LLMChatTask(name="observer-task", message="Hello", interactive=False)

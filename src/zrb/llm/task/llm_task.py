@@ -158,7 +158,11 @@ class LLMTask(BaseTask):
             yolo: Skip tool confirmation. True for all tools, or a comma-separated
                 string or set naming the tools to auto-approve.
             dynamic_yolo: Callable re-evaluating `yolo` per tool call, for a
-                decision that depends on run-time state.
+                decision that depends on run-time state. Called with the tool
+                definition, plus the call's arguments when it accepts them
+                (`(tool_def, args)`) — a one-argument callable keeps working.
+                An `arg_pattern` permission rule needs those arguments to be
+                judged at all.
             conversation_name: Name the conversation is stored under.
             history_manager: Store persisting conversation history across runs.
                 Without one, a default file-backed store under LLM_HISTORY_DIR
@@ -771,8 +775,8 @@ class LLMTask(BaseTask):
             # BoolAttr, not LLMChatTask's live xcom.
             should_skip_approval_bool = get_bool_attr(ctx, self._yolo, False)
 
-            def _should_skip_approval(tool_def=None):
-                decision = get_policy_skip_decision(tool_def)
+            def _should_skip_approval(tool_def=None, args=None):
+                decision = get_policy_skip_decision(tool_def, args=args)
                 if decision is not None:
                     return decision
                 return should_skip_approval_bool

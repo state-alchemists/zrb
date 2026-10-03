@@ -1,5 +1,6 @@
 """Tests for agent common utilities."""
 
+from collections.abc import Callable
 from unittest.mock import MagicMock, patch
 
 from zrb.config.config import CFG
@@ -23,6 +24,50 @@ def _reasoning_defaults() -> dict:
         "openai_prompt_cache_retention": "24h",
         "anthropic_cache": "5m",
     }
+
+
+def _approval_func(yolo, tools) -> "Callable[..., bool]":
+    """The per-call approval callback `create_agent` installs on its toolsets."""
+    mock_agent_class = MagicMock()
+    with patch("pydantic_ai.Agent", mock_agent_class):
+        create_agent(model="openai:gpt-4o", system_prompt="test", tools=tools, yolo=yolo)
+    (toolset,) = mock_agent_class.call_args.kwargs["toolsets"]
+    return toolset.approval_required_func
+
+
+def _a_tool() -> str:
+    """Some tool, so `create_agent` has a toolset to gate."""
+    return "x"
+
+
+def test_create_agent_hands_the_tool_arguments_to_a_two_argument_yolo():
+    """The gate has the call's arguments, so a predicate that asks for them
+    gets them — an `arg_pattern` rule cannot be judged without them."""
+    seen = []
+
+    def decide(tool_def, args=None):
+        seen.append(args)
+        return True
+
+    approval = _approval_func(decide, [_a_tool])
+
+    assert approval(None, "Bash", {"command": "ls"}) is False
+    assert seen == [{"command": "ls"}]
+
+
+def test_create_agent_still_calls_a_single_argument_yolo_with_one_argument():
+    """The single-argument callable is the shape published before arguments
+    were passed through; it keeps working rather than raising a `TypeError`."""
+    seen = []
+
+    def decide(tool_def):
+        seen.append(tool_def)
+        return True
+
+    approval = _approval_func(decide, [_a_tool])
+
+    assert approval(None, "Bash", {"command": "ls"}) is False
+    assert seen == ["Bash"]
 
 
 def test_create_agent_leaves_unknown_models_unchanged():

@@ -37,7 +37,7 @@ def make_yolo_inheritance_checker() -> (
     # would bind the name at this module's load time and bypass the mock.
     from zrb.llm.permission import get_effective_policy
 
-    def check_yolo_inheritance(tool_def: Any = None) -> bool:
+    def check_yolo_inheritance(tool_def: Any = None, args: dict | None = None) -> bool:
         # Approval precedence (matches chat/task.py check_yolo):
         #   perm_policy: allow→auto-approve, deny→auto-approve (gate blocks),
         #                ask→defer to tool-policy / yolo cascade
@@ -48,7 +48,7 @@ def make_yolo_inheritance_checker() -> (
             tool_name = (
                 getattr(tool_def, "name", str(tool_def)) if tool_def is not None else ""
             )
-            result = policy.decide(tool_name, Capability.UNKNOWN, {})
+            result = policy.decide(tool_name, Capability.UNKNOWN, args or {})
             if result is not None:
                 if result == ALLOW:
                     return True

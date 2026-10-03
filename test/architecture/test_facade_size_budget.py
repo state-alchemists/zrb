@@ -46,7 +46,10 @@ FACADE_BUDGETS = {
     "llm/task/chat/task.py": 1078,
     # +26 (783->809): `stream_observers` with `set_stream_observers` and append/prepend/
     # remove, handed to `run_agent` -- new surface.
-    "llm/task/llm_task.py": 809,
+    # +4 (809->813): the `dynamic_yolo` docstring names the arguments a
+    # per-call callable is handed, which an `arg_pattern` rule needs to be
+    # judged at all -- documented contract, no new surface.
+    "llm/task/llm_task.py": 813,
     "llm/agent/subagent/manager.py": 299,
 }
 

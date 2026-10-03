@@ -499,8 +499,8 @@ def _make_should_skip_approval(ctx, llm_chat_task, cap_by_name):
       yolo:        handled in _resolve_approval (deferred_calls.py)
     """
 
-    def _should_skip_approval(tool_def=None):
-        decision = get_policy_skip_decision(tool_def, cap_by_name)
+    def _should_skip_approval(tool_def=None, args=None):
+        decision = get_policy_skip_decision(tool_def, cap_by_name, args)
         if decision is not None:
             return decision
         return _yolo_skip_decision(ctx, llm_chat_task, tool_def)

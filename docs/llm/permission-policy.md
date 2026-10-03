@@ -89,7 +89,7 @@ Rules can match on:
 1.  **Exact Tool Name:** e.g., `"Shell"`, `"Read"`, `"Write"`.
 2.  **Capability:** e.g., `Capability.EDIT`.
 3.  **Wildcard:** `"*"` matches everything.
-4.  **Arg Pattern:** An optional `fnmatch` glob matched against salient arguments (`path`, `file_path`, `command`, `url`, `agent_name`, and a few others). `*` also matches `/`, so `**/.env` matches `/repo/.env` but not a bare relative `.env`.
+4.  **Arg Pattern:** An optional `fnmatch` glob matched against salient arguments (`path`, `file_path`, `command`, `url`, `agent_name`, and a few others). `*` also matches `/`, so `**/.env` matches `/repo/.env` but not a bare relative `.env`. The pattern is matched against the arguments of the call being decided, at every point the policy is consulted — so an `arg_pattern` `ASK` is a [Strict ASK](#strict-ask-yolo-override) for the calls it matches, and a call it does not match falls through to the later rules.
 
 ---
 
