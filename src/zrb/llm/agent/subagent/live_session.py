@@ -261,6 +261,7 @@ async def _continue_live_session(entry: LiveSubAgentSession) -> None:
                     ),
                     yolo=authority.yolo if authority else None,
                     sandbox_policy=authority.sandbox_policy if authority else None,
+                    hook_manager=authority.hook_manager if authority else None,
                 )
                 entry.history = history
             except Exception as e:  # noqa: BLE001

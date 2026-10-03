@@ -3,7 +3,8 @@
 import pytest
 
 from zrb.llm.agent.run.setup import resolve_context_dependencies
-from zrb.llm.agent_state import current_yolo
+from zrb.llm.agent_state import current_hook_manager, current_yolo
+from zrb.llm.hook.manager import HookManager
 
 
 def test_yolo_none_inherits_parent_context():
@@ -68,3 +69,40 @@ async def test_terminal_approval_asks_the_multi_ui_primary_child():
     assert result.approved is False
     primary.ask_user.assert_awaited_once()
     first.ask_user.assert_not_awaited()
+
+
+def test_hook_manager_none_inherits_parent_context():
+    """A nested run uses the manager its parent runs on, the way it already
+    inherits the UI and the authorization state. Falling through to the
+    singleton instead meant a deny rule a task registered with
+    `append_hook_factory` did not bind a delegated sub-agent's tools."""
+    parent = HookManager(search_dirs=[])
+    token = current_hook_manager.set(parent)
+    try:
+        *_, effective_hook_manager = resolve_context_dependencies(
+            None, None, None, None, None
+        )
+        assert effective_hook_manager is parent
+    finally:
+        current_hook_manager.reset(token)
+
+
+def test_hook_manager_explicit_wins_over_inherited_context():
+    parent, explicit = HookManager(search_dirs=[]), HookManager(search_dirs=[])
+    token = current_hook_manager.set(parent)
+    try:
+        *_, effective_hook_manager = resolve_context_dependencies(
+            None, None, None, None, explicit
+        )
+        assert effective_hook_manager is explicit
+    finally:
+        current_hook_manager.reset(token)
+
+
+def test_hook_manager_falls_back_to_the_singleton_without_context():
+    from zrb.llm.agent.run import setup
+
+    *_, effective_hook_manager = resolve_context_dependencies(
+        None, None, None, None, None
+    )
+    assert effective_hook_manager is setup.default_hook_manager
