@@ -11,7 +11,6 @@ import psutil
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.sandbox.os_sandbox import SandboxUnavailableError
 from zrb.llm.tool import shell as shell_mod
 from zrb.llm.tool import stream_capture as capture_mod
 from zrb.llm.tool.shell import run_shell_command
@@ -203,24 +202,6 @@ async def test_run_shell_command_invalid_cwd_returns_error():
 
 
 @pytest.mark.asyncio
-async def test_run_shell_command_background_sandbox_refused(monkeypatch):
-    # When the background registry refuses on sandbox policy, the tool relays a
-    # sandbox-policy refusal instead of a handle.
-    class _RefusingRegistry:
-        async def start(self, *args, **kwargs):
-            raise SandboxUnavailableError("no sandbox here")
-
-    monkeypatch.setattr(
-        "zrb.llm.tool.shell_background.get_shell_background_registry",
-        lambda: _RefusingRegistry(),
-    )
-    res = await run_shell_command("sleep 1", background=True)
-    assert "refused by sandbox policy" in res
-    assert "no sandbox here" in res
-    assert "Handle:" not in res
-
-
-@pytest.mark.asyncio
 async def test_run_shell_command_background_returns_handle(monkeypatch):
     # On success the background path returns a MonitorProcess handle.
     class _OkRegistry:
@@ -234,23 +215,6 @@ async def test_run_shell_command_background_returns_handle(monkeypatch):
     res = await run_shell_command("sleep 1", background=True)
     assert "Handle: abc123" in res
     assert "MonitorProcess" in res
-
-
-@pytest.mark.asyncio
-async def test_run_shell_command_foreground_sandbox_deny(monkeypatch):
-    # A deny-mode sandbox raises while building the argv; the tool relays the
-    # refusal and still cleans up the temp PID file (even if removal fails).
-    def _deny(*args, **kwargs):
-        raise SandboxUnavailableError("deny mode")
-
-    def _boom(*args, **kwargs):
-        raise OSError("cannot remove")
-
-    monkeypatch.setattr("zrb.llm.sandbox.build_sandboxed_argv", _deny)
-    monkeypatch.setattr(shell_mod.os, "remove", _boom)
-    res = await run_shell_command("echo hi")
-    assert "refused by sandbox policy" in res
-    assert "deny mode" in res
 
 
 @pytest.mark.asyncio

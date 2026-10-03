@@ -87,8 +87,12 @@ def resolve_real(path: str) -> str:
     return os.path.realpath(os.path.abspath(os.path.expanduser(path)))
 
 
-def resolved_writable_roots(policy: SandboxPolicy, cwd: str = "") -> tuple[str, ...]:
+def resolved_writable_roots(policy: SandboxPolicy) -> tuple[str, ...]:
     """Realpath'd roots a tool call may write under.
+
+    The automatic root is the process working directory, never a directory a
+    tool call names: a per-call ``cwd`` would let the model pick its own
+    boundary (``cwd="/"``).
 
     Roots are realpath'd because both enforcement layers compare against real
     paths (Seatbelt matches real paths; the FS gate realpaths the target).
@@ -103,7 +107,7 @@ def resolved_writable_roots(policy: SandboxPolicy, cwd: str = "") -> tuple[str, 
     if policy.writable_paths:
         roots = [resolve_real(p) for p in policy.writable_paths]
     else:
-        roots = [resolve_real(cwd or os.getcwd())]
+        roots = [resolve_real(os.getcwd())]
     roots.append(resolve_real(tempfile.gettempdir()))
     if os.name == "posix":
         roots.append(resolve_real("/tmp"))

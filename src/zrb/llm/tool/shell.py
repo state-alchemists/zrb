@@ -119,7 +119,6 @@ async def run_shell_command(
             resolved_shell,
             shell_flag,
             wrapper_command,
-            cwd,
             dangerously_skip_sandbox,
         )
     except SandboxUnavailableError as e:
@@ -395,7 +394,7 @@ def _prepare_command(command: str, use_pid_tracking: bool) -> tuple[str, str | N
 
 
 def _build_sandboxed_shell_argv(
-    shell: str, shell_flag: str, command: str, cwd: str, skip: bool
+    shell: str, shell_flag: str, command: str, skip: bool
 ) -> tuple[list[str], str | None]:
     """Wrap the shell invocation per the in-force sandbox policy.
 
@@ -407,7 +406,7 @@ def _build_sandboxed_shell_argv(
     from zrb.llm.sandbox import build_sandboxed_argv
 
     policy = get_effective_sandbox_policy()
-    return build_sandboxed_argv([shell, shell_flag, command], cwd, policy, skip=skip)
+    return build_sandboxed_argv([shell, shell_flag, command], policy, skip=skip)
 
 
 async def start_process(argv: list[str], cwd: str) -> asyncio.subprocess.Process:

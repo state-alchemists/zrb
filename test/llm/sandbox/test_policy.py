@@ -111,9 +111,9 @@ def test_auto_writable_roots_are_cwd_and_tempdir():
     assert os.path.realpath(tempfile.gettempdir()) in roots
 
 
-def test_auto_writable_roots_use_explicit_cwd(tmp_path):
-    policy = SandboxPolicy(enabled=True)
-    roots = resolved_writable_roots(policy, cwd=str(tmp_path))
+def test_auto_writable_roots_follow_the_process_cwd(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    roots = resolved_writable_roots(SandboxPolicy(enabled=True))
     assert os.path.realpath(str(tmp_path)) in roots
 
 

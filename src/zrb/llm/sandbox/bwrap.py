@@ -22,9 +22,7 @@ from zrb.llm.sandbox.policy import (
 )
 
 
-def build_bwrap_argv(
-    bwrap_path: str, policy: SandboxPolicy, cwd: str = ""
-) -> list[str]:
+def build_bwrap_argv(bwrap_path: str, policy: SandboxPolicy) -> list[str]:
     """Build the bwrap argv prefix (ends with ``--``; append the shell argv)."""
     argv = [
         bwrap_path,
@@ -38,7 +36,7 @@ def build_bwrap_argv(
         "--proc",
         "/proc",
     ]
-    for root in resolved_writable_roots(policy, cwd):
+    for root in resolved_writable_roots(policy):
         argv += ["--bind", root, root]
     for path in resolved_deny_read_roots(policy):
         if os.path.isdir(path):

@@ -40,9 +40,9 @@ def sbpl_quote(path: str) -> str:
     return f'"{escaped}"'
 
 
-def build_sbpl(policy: SandboxPolicy, cwd: str = "") -> str:
+def build_sbpl(policy: SandboxPolicy) -> str:
     """Generate the SBPL profile implementing the sandbox policy."""
-    writable = resolved_writable_roots(policy, cwd)
+    writable = resolved_writable_roots(policy)
     deny_read = resolved_deny_read_roots(policy)
 
     lines = [
