@@ -5,7 +5,11 @@ from typing import Annotated
 from pydantic import Field
 
 from zrb.config.config import CFG
-from zrb.llm.sandbox import build_sandboxed_argv, get_effective_sandbox_policy
+from zrb.llm.sandbox import (
+    build_sandboxed_argv,
+    check_write,
+    get_effective_sandbox_policy,
+)
 from zrb.llm.sandbox.os_sandbox import (
     SandboxUnavailableError,
     format_sandbox_denied_message,
@@ -56,15 +60,27 @@ async def enter_worktree(
         branch_name = f"worktree-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
     worktree_dir = os.path.join(git_root, f".{CFG.ROOT_GROUP_NAME}", "worktree")
-    os.makedirs(worktree_dir, exist_ok=True)
     worktree_path = os.path.join(worktree_dir, branch_name)
+    # `cwd` and `branch_name` are the model's choice, so everything this tool
+    # writes must be inside the sandbox before anything is created.
+    policy = get_effective_sandbox_policy()
+    if policy.enabled:
+        error = check_write(
+            os.path.join(git_root, ".gitignore"), policy
+        ) or check_write(worktree_path, policy)
+        if error is not None:
+            return _prepend_notes(
+                notes,
+                f"Blocked by sandbox policy: {error}. "
+                "[SYSTEM SUGGESTION]: create the worktree in the current project, "
+                "or ask the user to add this repository to "
+                f"{CFG.ENV_PREFIX}_LLM_SANDBOX_WRITABLE_PATHS.",
+            )
+    os.makedirs(worktree_dir, exist_ok=True)
 
     try:
-        # sandbox_cwd=git_root: that's where the worktree is actually created.
         add_rc, _, add_err, note = await _run_git(
-            ["git", "worktree", "add", "-b", branch_name, worktree_path],
-            cwd,
-            sandbox_cwd=git_root,
+            ["git", "worktree", "add", "-b", branch_name, worktree_path], cwd
         )
     except SandboxUnavailableError as e:
         return _prepend_notes(notes, format_sandbox_denied_message(e))
@@ -132,15 +148,8 @@ async def exit_worktree(
     branch_name = branch_out.decode().strip() if branch_rc == 0 else None
 
     try:
-        git_root = await _resolve_git_root(worktree_path, cwd, notes)
-    except SandboxUnavailableError as e:
-        return _prepend_notes(notes, format_sandbox_denied_message(e))
-
-    try:
         rm_rc, _, rm_err, note = await _run_git(
-            ["git", "worktree", "remove", "--force", worktree_path],
-            cwd,
-            sandbox_cwd=git_root,
+            ["git", "worktree", "remove", "--force", worktree_path], cwd
         )
     except SandboxUnavailableError as e:
         return _prepend_notes(notes, format_sandbox_denied_message(e))
@@ -161,41 +170,14 @@ async def exit_worktree(
     lines = [f"Worktree removed: {worktree_path}"]
 
     if branch_name:
-        lines.append(
-            await _delete_branch_line(branch_name, keep_branch, cwd, git_root, notes)
-        )
+        lines.append(await _delete_branch_line(branch_name, keep_branch, cwd, notes))
     return _prepend_notes(notes, "\n".join(lines))
-
-
-async def _resolve_git_root(
-    worktree_path: str, cwd: str, notes: "list[str | None]"
-) -> str:
-    """The main repo's root, which worktree-admin and branch commands anchor to.
-
-    `--git-common-dir` names the main repo's `.git` dir, where `worktree
-    remove` updates worktree-admin metadata and `branch -D` updates refs.
-    Neither necessarily lives under `cwd` (the caller may be anywhere) or under
-    `worktree_path` itself, so — mirroring `enter_worktree`'s
-    `sandbox_cwd=git_root` for its `worktree add` — both anchor to its parent
-    rather than the bare process cwd. Falls back to `cwd` when git cannot say.
-    """
-    common_rc, common_out, _, note = await _run_git(
-        ["git", "-C", worktree_path, "rev-parse", "--git-common-dir"], cwd
-    )
-    notes.append(note)
-    git_common_dir = common_out.decode().strip()
-    if common_rc != 0 or not git_common_dir:
-        return cwd
-    if not os.path.isabs(git_common_dir):
-        git_common_dir = os.path.normpath(os.path.join(worktree_path, git_common_dir))
-    return os.path.dirname(git_common_dir)
 
 
 async def _delete_branch_line(
     branch_name: str,
     keep_branch: bool,
     cwd: str,
-    git_root: str,
     notes: "list[str | None]",
 ) -> str:
     """Delete the worktree's branch if asked, and report what happened.
@@ -207,7 +189,7 @@ async def _delete_branch_line(
         return f"Branch kept: {branch_name}"
     try:
         del_rc, _, del_err, note = await _run_git(
-            ["git", "branch", "-D", branch_name], cwd, sandbox_cwd=git_root
+            ["git", "branch", "-D", branch_name], cwd
         )
     except SandboxUnavailableError as e:
         refused = format_sandbox_denied_message(e)
@@ -244,19 +226,17 @@ async def list_worktrees() -> str:
 
 
 async def _run_git(
-    argv: list[str], cwd: str, sandbox_cwd: str | None = None
+    argv: list[str], cwd: str
 ) -> tuple[int | None, bytes, bytes, str | None]:
     """Run a git command through the same OS-level sandbox `Shell` uses.
 
     Discrete argv, not a shell string, so branch/path values never need
-    quoting. `sandbox_cwd` overrides `cwd` as the sandbox's writable-root
-    anchor when the real write target differs (e.g. `worktree add` writes
-    under `git_root`). Raises `SandboxUnavailableError` in fallback="deny"
-    mode; callers turn it into a `[SYSTEM SUGGESTION]`.
+    quoting. The writable boundary is the sandbox policy's, never `cwd`: the
+    model chooses `cwd`, so it must not choose what git may write. Raises
+    `SandboxUnavailableError` in fallback="deny" mode; callers turn it into a
+    `[SYSTEM SUGGESTION]`.
     """
-    sandboxed_argv, note = build_sandboxed_argv(
-        argv, sandbox_cwd or cwd, get_effective_sandbox_policy()
-    )
+    sandboxed_argv, note = build_sandboxed_argv(argv, get_effective_sandbox_policy())
     proc = await start_process(sandboxed_argv, cwd)
     stdout, stderr = await proc.communicate()
     return proc.returncode, stdout, stderr, note

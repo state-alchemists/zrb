@@ -46,7 +46,6 @@ def format_sandbox_denied_message(e: SandboxUnavailableError) -> str:
 
 def build_sandboxed_argv(
     argv: list[str],
-    cwd: str,
     policy: SandboxPolicy,
     skip: bool = False,
 ) -> tuple[list[str], str | None]:
@@ -86,7 +85,7 @@ def build_sandboxed_argv(
         if not sandbox_exec:
             return _fallback(plain, policy, "sandbox-exec not found")
         try:
-            profile = build_sbpl(policy, cwd)
+            profile = build_sbpl(policy)
         except ValueError as e:
             return _fallback(plain, policy, f"cannot generate sandbox profile: {e}")
         return [sandbox_exec, "-p", profile, *plain], None
@@ -94,7 +93,7 @@ def build_sandboxed_argv(
         bwrap = shutil.which("bwrap")
         if not bwrap:
             return _fallback(plain, policy, "bwrap (bubblewrap) is not installed")
-        return [*build_bwrap_argv(bwrap, policy, cwd), *plain], None
+        return [*build_bwrap_argv(bwrap, policy), *plain], None
     return _fallback(plain, policy, f"no OS sandbox mechanism exists on {system}")
 
 

@@ -46,14 +46,11 @@ def check_read(path: str, policy: SandboxPolicy) -> str | None:
     return None
 
 
-def check_write(path: str, policy: SandboxPolicy, cwd: str = "") -> str | None:
+def check_write(path: str, policy: SandboxPolicy) -> str | None:
     """Return an error message if writing ``path`` is blocked, else ``None``.
 
     A path inside a deny-read root is also unwritable (a secret you cannot
     read you also cannot overwrite or plant — e.g. ``~/.ssh/authorized_keys``).
-    ``cwd`` only seeds the *automatic* writable roots when the policy doesn't
-    pin ``writable_paths``; a per-call ``cwd`` tool argument must NOT be passed
-    here (the model could escape by passing ``cwd="/"``).
     """
     real = resolve_real(path)
     for root in resolved_deny_read_roots(policy):
@@ -62,7 +59,7 @@ def check_write(path: str, policy: SandboxPolicy, cwd: str = "") -> str | None:
                 f"'{path}' resolves into the protected directory '{root}' "
                 "and may not be written"
             )
-    roots = resolved_writable_roots(policy, cwd)
+    roots = resolved_writable_roots(policy)
     if not any(is_within(real, root) for root in roots):
         readable_roots = ", ".join(f"'{r}'" for r in roots)
         return f"'{path}' is outside the sandbox writable roots " f"({readable_roots})"
