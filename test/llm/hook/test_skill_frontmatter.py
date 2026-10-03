@@ -3,6 +3,8 @@ an `LLMChatTask` builds, not only on the process-wide singleton it used to be
 registered on — and it must survive a reload, and must not pile up across
 scans."""
 
+import gc
+import weakref
 from pathlib import Path
 from unittest.mock import patch
 
@@ -222,3 +224,89 @@ def test_the_store_replays_onto_a_manager_over_its_own_registry(tmp_path):
     assert _stop_hook_names(other) == []
     register_skill_frontmatter_hooks(other)
     assert _stop_hook_names(other) == ["skill-flat-hook"]
+
+
+def test_a_scan_on_another_manager_retires_the_first_managers_hooks(tmp_path):
+    """Registering is the job of the manager a scan targets, but retiring the
+    previous parse has to reach the manager that holds it: `remove_hook` on the
+    new target is a silent no-op, which left the earlier manager firing a rule
+    its skill file no longer declares."""
+    first, second = HookManager(search_dirs=[]), HookManager(search_dirs=[])
+    skill_dir = tmp_path / "skill"
+    _write_skill(
+        skill_dir,
+        _SKILL_FLAT_SHAPE.format(name="skill-flat-hook", marker=tmp_path / "m"),
+    )
+
+    _scan(skill_dir, first)
+    assert "skill-flat-hook" in _stop_hook_names(first)
+
+    _scan(skill_dir, second)
+    assert "skill-flat-hook" in _stop_hook_names(second)
+    assert "skill-flat-hook" not in _stop_hook_names(first), (
+        "the manager holding the previous parse still fires it"
+    )
+
+
+def test_reload_replay_updates_the_recorded_callables(tmp_path):
+    """`reload()` clears the registry and the factory registers the stored
+    configs again — as *new* callables. If the ownership record keeps naming the
+    cleared ones, the next scan's removal is a silent no-op and the live replay
+    keeps firing alongside the freshly parsed hook."""
+    canonical = HookManager(search_dirs=[])
+    skill_dir = tmp_path / "skill"
+    _write_skill(
+        skill_dir,
+        _SKILL_FLAT_SHAPE.format(name="skill-flat-hook", marker=tmp_path / "m"),
+    )
+    _scan(skill_dir, canonical)
+    assert _stop_hook_names(canonical).count("skill-flat-hook") == 1
+
+    canonical.reload()
+    assert _stop_hook_names(canonical).count("skill-flat-hook") == 1
+
+    _scan(skill_dir, canonical)
+    assert _stop_hook_names(canonical).count("skill-flat-hook") == 1, (
+        "the reload's replay survived the re-scan — the rule now fires twice"
+    )
+
+
+def test_a_manager_that_replayed_the_source_is_swept_too(tmp_path):
+    """The factory installs a skill's hooks on every `HookManager`, so retiring a
+    source has to reach all of them — not only the manager a scan targeted."""
+    skill_dir = tmp_path / "skill"
+    _write_skill(
+        skill_dir,
+        _SKILL_FLAT_SHAPE.format(name="skill-flat-hook", marker=tmp_path / "m"),
+    )
+    _scan(skill_dir, HookManager(search_dirs=[]))
+
+    replayed = HookManager(search_dirs=[])
+    replayed.reload()  # runs the factory: the stored source lands here too
+    assert "skill-flat-hook" in _stop_hook_names(replayed)
+
+    _write_skill(skill_dir, _SKILL_WITHOUT_HOOKS)
+    _scan(skill_dir, HookManager(search_dirs=[]))
+
+    assert "skill-flat-hook" not in _stop_hook_names(replayed), (
+        "a manager that replayed the source kept firing the dropped rule"
+    )
+
+
+def test_the_record_does_not_keep_a_scanned_manager_alive(tmp_path):
+    """A scan can target a manager the caller then releases — a per-run manager
+    does. The process-wide record must not be what keeps it alive."""
+    skill_dir = tmp_path / "skill"
+    _write_skill(
+        skill_dir,
+        _SKILL_FLAT_SHAPE.format(name="skill-flat-hook", marker=tmp_path / "m"),
+    )
+    transient = HookManager(search_dirs=[])
+    _scan(skill_dir, transient)
+    assert "skill-flat-hook" in _stop_hook_names(transient)
+
+    ref = weakref.ref(transient)
+    del transient
+    gc.collect()
+
+    assert ref() is None, "the record still holds a manager the caller released"

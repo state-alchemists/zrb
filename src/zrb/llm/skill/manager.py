@@ -188,7 +188,7 @@ class SkillManager:
         # Later directories override earlier ones on a name collision.
         for search_dir in target_search_dirs:
             self._scan_dir(Path(search_dir), max_depth=self._max_depth)
-        finish_skill_scan(hook_manager)
+        finish_skill_scan()
         self._registry.set_discovered(list(self._scan_results.values()))
         self._scanned = True
         return self.get_skills()

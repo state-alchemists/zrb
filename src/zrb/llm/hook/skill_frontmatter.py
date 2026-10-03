@@ -9,7 +9,7 @@ singleton alone, as the scan used to, put them out of reach of the fresh
 per-run manager an `LLMChatTask` builds, so they never fired under
 `zrb llm chat`.
 
-Two rules this store has to keep, each one a defect it used to have:
+Three rules this store has to keep, each one a defect it used to have:
 
 * **A source replaces its entry, and an unseen source is dropped.** A re-scan
   re-parses the same file and mints fresh configs (a Claude-format hook gets a
@@ -21,6 +21,12 @@ Two rules this store has to keep, each one a defect it used to have:
   registry that is empty because `HookManager.reload()` just cleared it still
   needs the replay; skipping on `manager.registry is hook_registry` skipped it
   there too, so a reload silently dropped every skill hook.
+* **A source is retired from every manager holding it, and no manager is kept
+  alive by the record.** The factory installs a skill's hooks on *every*
+  `HookManager`, so removal has to reach all of them; sweeping only the manager a
+  scan last targeted left the rest firing a rule its skill file no longer
+  declares. The record is keyed by manager and held weakly, so a per-run manager
+  is swept while it lives and costs nothing once the caller lets it go.
 
 The canonical manager is *passed in* rather than imported: `hook.manager`
 imports this module for the factory seed, so a module-level import of it here
@@ -29,7 +35,9 @@ would be a cycle.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import weakref
+
+from typing import TYPE_CHECKING, TypeAlias
 
 if TYPE_CHECKING:
     from zrb.llm.hook.interface import HookCallable
@@ -44,11 +52,18 @@ _skill_hook_configs: dict[str, "list[HookConfig]"] = {}
 # Sources seen by the scan pass in progress; `finish_skill_scan` drops the rest.
 _scanned_sources: set[str] = set()
 
-# What the scan registered on the manager it writes to, by source, so a re-scan
-# can take the previous parse's hooks back out. Only that one manager is
-# tracked: it is the one a scan touches directly, and the per-run managers the
-# factory serves are short-lived.
-_scan_manager_hooks: dict[str, "list[HookCallable]"] = {}
+# Callables one manager holds for one source: `{source: [callable, ...]}`.
+_SourceHooks: TypeAlias = "dict[str, list[HookCallable]]"
+
+# What every live manager holds, by source. Keyed by manager, and held weakly:
+# the factory installs a skill's hooks on every `HookManager`, so retiring one
+# has to sweep all of them — while a per-run manager must not be kept alive by
+# this record. A hydrated callable does not reference the manager it came from
+# (`_wrap_with_matchers` closes over the config alone), so the weak key is what
+# lets that manager be collected.
+_scan_manager_hooks: "weakref.WeakKeyDictionary[HookManager, _SourceHooks]" = (
+    weakref.WeakKeyDictionary()
+)
 
 
 def start_skill_scan() -> None:
@@ -86,7 +101,7 @@ def apply_skill_hook_configs(
     parse firing alongside the new one.
     """
     _scanned_sources.add(source)
-    _unregister(manager, source)
+    _unregister(source)
     if not configs:
         # A skill that dropped its `hooks:` block, or never had one.
         _skill_hook_configs.pop(source, None)
@@ -95,14 +110,14 @@ def apply_skill_hook_configs(
     _register(manager, source, configs)
 
 
-def finish_skill_scan(manager: "HookManager") -> list[str]:
+def finish_skill_scan() -> list[str]:
     """Close a scan pass, dropping hooks whose skill it did not find.
 
     Returns the dropped sources, for diagnostics and tests.
     """
     dropped = [source for source in _skill_hook_configs if source not in _scanned_sources]
     for source in dropped:
-        _unregister(manager, source)
+        _unregister(source)
         del _skill_hook_configs[source]
     _scanned_sources.clear()
     return dropped
@@ -129,24 +144,31 @@ def register_skill_frontmatter_hooks(manager: "HookManager") -> None:
 
     A config the manager's registry already holds is skipped by identity: the
     scan registers that one directly, and this factory would otherwise add a
-    second callable for the same rule.
+    second callable for the same rule. What it does register is recorded against
+    *manager* when that manager already owns the source, so a `reload()` — which
+    clears the registry and re-registers fresh callables — leaves the record
+    pointing at the live ones (see `_record`).
     """
     for source, configs in _skill_hook_configs.items():
-        label = f"skill frontmatter ({source})"
-        for config in configs:
-            if manager.registry.has_hook_config(config):
-                continue
-            manager.register_hook_config(config, source=label)
+        registered = _register_configs(manager, source, configs)
+        _record(manager, source, registered)
 
 
 def _register(
     manager: "HookManager", source: str, configs: "list[HookConfig]"
 ) -> None:
-    """Register *configs* on *manager*, remembering the callables.
+    """Register *configs* on *manager*, remembering the callables."""
+    _record(manager, source, _register_configs(manager, source, configs))
 
-    A config the registry already holds is skipped, the same guard the factory
-    applies: both paths can meet, and neither may add a second callable for one
-    rule.
+
+def _register_configs(
+    manager: "HookManager", source: str, configs: "list[HookConfig]"
+) -> "list[HookCallable]":
+    """Register *configs* on *manager*, returning the callables that landed.
+
+    A config the registry already holds is skipped, the guard both callers need:
+    the scan and the factory can meet on the same rule, and neither may add a
+    second callable for it.
     """
     label = f"skill frontmatter ({source})"
     registered: "list[HookCallable]" = []
@@ -156,14 +178,36 @@ def _register(
         hook = manager.register_hook_config(config, source=label)
         if hook is not None:
             registered.append(hook)
-    if registered:
-        _scan_manager_hooks[source] = registered
+    return registered
 
 
-def _unregister(manager: "HookManager", source: str) -> None:
-    """Take *source*'s previously-registered hooks back out of *manager*."""
-    hooks = _scan_manager_hooks.pop(source, None)
-    if not hooks:
+def _record(
+    manager: "HookManager", source: str, registered: "list[HookCallable]"
+) -> None:
+    """Remember *registered* as *source*'s hooks on *manager*.
+
+    Every manager that ends up holding a source is recorded, not just the one a
+    scan targeted: the factory installs the same configs on all of them, so a
+    retirement that swept only the scan target left the others firing a rule the
+    skill file no longer declares. Overwriting is what keeps the record honest
+    across a `reload()`, whose replay registers the stored configs again as new
+    callables — the cleared ones it used to name would remove nothing.
+    """
+    if not registered:
         return
-    for hook in hooks:
-        manager.remove_hook(hook)
+    _scan_manager_hooks.setdefault(manager, {})[source] = registered
+
+
+def _unregister(source: str) -> None:
+    """Take *source*'s hooks out of every manager that holds them.
+
+    All of them, not just the manager a later scan targets: the factory installs
+    a skill's hooks on every `HookManager`, and a manager that is no longer
+    scanned still holds its callables. It is dropped from the record once it
+    holds nothing, so the bookkeeping does not outlive the hooks.
+    """
+    for manager, held in list(_scan_manager_hooks.items()):
+        for hook in held.pop(source, []):
+            manager.remove_hook(hook)
+        if not held:
+            del _scan_manager_hooks[manager]
