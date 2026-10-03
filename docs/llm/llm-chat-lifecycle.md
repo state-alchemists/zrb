@@ -97,7 +97,7 @@ flowchart TD
     Sanitize --> Stream["agent.run(event_stream_handler=...) — pydantic_ai"]
     Stream --> Collect["collect events and tool calls"]
     Collect -->|exception| Retry["retry_loop.py — retry, strip thinking, or give up"]
-    Collect -->|result.output / result.all_messages()| Post["sanitize_history(result) — history_utils.py"]
+    Collect -->|"result.output / result.all_messages()"| Post["sanitize_history(result) — history_utils.py"]
     Retry --> Sanitize
     Post -->|"deferred tool approvals, empty completion, Stop-hook continuation"| Sanitize
 ```
