@@ -190,12 +190,7 @@ class LSPServer(LSPServerOperations):
         """Send initialize request to the server."""
         params = JSONRPCMessage.create_request(
             "initialize",
-            {
-                "processId": None,
-                "rootUri": self.path_to_uri(self.root_path),
-                "capabilities": LSPProtocol.CAPABILITIES,
-                "clientInfo": LSPProtocol.CLIENT_INFO,
-            },
+            self._initialize_params(),
             self._next_id(),
         )
 
@@ -206,6 +201,22 @@ class LSPServer(LSPServerOperations):
             self.initialized = True
             return True
         return False
+
+    def _initialize_params(self) -> dict:
+        """The `initialize` params, carrying the config's `initializationOptions`.
+
+        Omitted when the config sets none, rather than sent as an explicit
+        null: servers that validate the field's shape reject null.
+        """
+        params: dict = {
+            "processId": None,
+            "rootUri": self.path_to_uri(self.root_path),
+            "capabilities": LSPProtocol.CAPABILITIES,
+            "clientInfo": LSPProtocol.CLIENT_INFO,
+        }
+        if self.config.initialization_options is not None:
+            params["initializationOptions"] = self.config.initialization_options
+        return params
 
     def _next_id(self) -> int:
         """Get next request ID."""
