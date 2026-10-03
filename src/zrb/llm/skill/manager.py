@@ -5,6 +5,7 @@ from pathlib import Path
 
 from zrb.config.config import CFG
 from zrb.llm.hook.manager import hook_manager
+from zrb.llm.hook.skill_frontmatter import add_skill_hook_configs
 from zrb.llm.skill.registry import SkillRegistry, skill_registry
 from zrb.llm.skill.util import discover_companion_files
 from zrb.util.asset_scanner import IGNORE_DIRS, scan_files
@@ -482,10 +483,22 @@ def _parse_allowed_tools(raw: "str | list[str] | None") -> list[str]:
 
 
 def _register_frontmatter_hooks(hooks_data: object, full_path: str) -> None:
-    """Register a skill's `hooks:` block, in either supported shape."""
+    """Register a skill's `hooks:` block, in either supported shape.
+
+    Registered on the module `hook_manager` — the manager the scan has always
+    registered into — and recorded for replay, so the fresh per-run manager an
+    `LLMChatTask` builds per session fires them too. See
+    `zrb.llm.hook.skill_frontmatter`.
+    """
     if isinstance(hooks_data, dict):
-        hook_manager.parse_claude_format({"hooks": hooks_data}, full_path)
+        configs = hook_manager.build_claude_format_configs(
+            {"hooks": hooks_data}, full_path
+        )
     elif isinstance(hooks_data, list):
         # Zrb flat format
-        for hook_item in hooks_data:
-            hook_manager.parse_and_register(hook_item, full_path)
+        configs = hook_manager.build_hook_configs(hooks_data, full_path)
+    else:
+        return
+    for config in configs:
+        hook_manager.register_hook_config(config, source=full_path)
+    add_skill_hook_configs(configs)

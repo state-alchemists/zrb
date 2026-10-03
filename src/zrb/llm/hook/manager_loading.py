@@ -136,8 +136,27 @@ class HookManagerLoading:
         """Public: parse one flat (Zrb-format) hook entry and register it."""
         self._parse_and_register(data, source)
 
-    def _parse_claude_format(self, data: dict, source: str) -> None:
-        """Parse Claude Code's nested hook format.
+    def build_hook_configs(self, data: object, source: str) -> list[HookConfig]:
+        """Public: parse hook declarations into `HookConfig`s, registering nothing.
+
+        Accepts the shapes the file loader does: a Claude-nested mapping under
+        `hooks`, a flat list of entries, or one flat entry. Nothing is
+        registered, so the caller decides where the parsed hooks go — skill
+        frontmatter hands the same configs to every manager (see
+        `zrb.llm.hook.skill_frontmatter`).
+        """
+        if isinstance(data, dict):
+            if isinstance(data.get("hooks"), dict):
+                return self.build_claude_format_configs(data, source)
+            if "events" in data and "type" in data:
+                return self._build_flat_configs(data, source)
+            return []
+        if isinstance(data, list):
+            return self._build_flat_configs(data, source)
+        return []
+
+    def build_claude_format_configs(self, data: dict, source: str) -> list[HookConfig]:
+        """Public: the `HookConfig`s a Claude-nested hook block declares.
 
         Shape::
 
@@ -148,9 +167,12 @@ class HookManagerLoading:
                 ]
               }
             }
+
+        An event zrb does not emit, or a hook entry that fails to parse, is
+        logged and skipped — the same tolerance the registering path has.
         """
-        hooks_map = data.get("hooks", {})
-        for event_name, matcher_groups in hooks_map.items():
+        configs: list[HookConfig] = []
+        for event_name, matcher_groups in data.get("hooks", {}).items():
             try:
                 event = HookEvent.from_claude_string(event_name)
             except ValueError:
@@ -163,69 +185,36 @@ class HookManagerLoading:
                     f"Skipping unsupported event in Claude config: {event_name}"
                 )
                 continue
-
             if not isinstance(matcher_groups, list):
                 continue
-
             for group in matcher_groups:
-                pattern = group.get("matcher")
-                hooks_list = group.get("hooks", [])
+                configs.extend(_build_claude_group_configs(event, group, source))
+        return configs
 
-                matchers: list[MatcherConfig] = []
-                if pattern:
-                    field = CLAUDE_EVENT_MATCHER_FIELDS.get(event)
-                    if field:
-                        matchers.append(
-                            MatcherConfig(
-                                field=field,
-                                operator=MatcherOperator.REGEX,
-                                value=pattern,
-                            )
-                        )
+    def _parse_claude_format(self, data: dict, source: str) -> None:
+        """Parse a Claude-nested hook block and register its hooks."""
+        for config in self.build_claude_format_configs(data, source):
+            hook_callable = self._hydrate_hook(config)
+            self.add_hook(hook_callable, config.events, config)
+            logger.debug(f"Registered Claude hook '{config.name}' from {source}")
 
-                for hook_def in hooks_list:
-                    try:
-                        hook_name = f"claude_{event.value}_{uuid.uuid4().hex[:8]}"
-
-                        hook_type_str = hook_def.get("type", "command")
-                        if hook_type_str == "command":
-                            zrb_type = HookType.COMMAND
-                            config = CommandHookConfig(
-                                command=hook_def.get("command", ""),
-                                shell=True,
-                                working_dir=None,
-                                plugin_root=get_plugin_root_for_path(source),
-                            )
-                        else:
-                            # Unsupported type in this pass
-                            continue
-
-                        hook_config = HookConfig(
-                            name=hook_name,
-                            events=[event],
-                            type=zrb_type,
-                            config=config,
-                            matchers=matchers,
-                            is_async=hook_def.get("async", False),
-                            timeout=hook_def.get("timeout"),
-                            priority=0,
-                        )
-
-                        hook_callable = self._hydrate_hook(hook_config)
-                        self.add_hook(hook_callable, hook_config.events, hook_config)
-                        logger.debug(
-                            f"Registered Claude hook '{hook_name}' for {event.value}"
-                        )
-
-                    except Exception as e:
-                        logger.error(f"Error parsing Claude hook in {source}: {e}")
+    def _build_flat_configs(self, data: object, source: str) -> list[HookConfig]:
+        """Parse one flat entry or a list of them, logging and skipping a bad one."""
+        items: list = data if isinstance(data, list) else [data]
+        configs: list[HookConfig] = []
+        for item in items:
+            try:
+                configs.append(self._create_hook_config(item, source))
+            except Exception as e:
+                logger.error(
+                    f"Error registering hook from {source}: {e}", exc_info=True
+                )
+        return configs
 
     def _parse_and_register(self, data: dict, source: str) -> None:
-        try:
-            config = self._create_hook_config(data, source)
+        """Parse one flat entry and register it; a malformed one is logged."""
+        for config in self._build_flat_configs(data, source):
             self.register_hook_config(config, source=source)
-        except Exception as e:
-            logger.error(f"Error registering hook from {source}: {e}", exc_info=True)
 
     def register_hook_config(
         self, config: "HookConfig", source: str = "python"
@@ -302,3 +291,53 @@ class HookManagerLoading:
             env=data.get("env"),
             priority=data.get("priority", 0),
         )
+
+
+def _build_claude_group_configs(
+    event: HookEvent, group: dict, source: str
+) -> list[HookConfig]:
+    """The configs one `{matcher, hooks}` group of a Claude block declares."""
+    matchers: list[MatcherConfig] = []
+    pattern = group.get("matcher")
+    if pattern:
+        field = CLAUDE_EVENT_MATCHER_FIELDS.get(event)
+        if field:
+            matchers.append(
+                MatcherConfig(field=field, operator=MatcherOperator.REGEX, value=pattern)
+            )
+    configs: list[HookConfig] = []
+    for hook_def in group.get("hooks", []):
+        try:
+            config = _build_claude_hook_config(event, hook_def, matchers, source)
+        except Exception as e:
+            logger.error(f"Error parsing Claude hook in {source}: {e}")
+            continue
+        if config is not None:
+            configs.append(config)
+    return configs
+
+
+def _build_claude_hook_config(
+    event: HookEvent, hook_def: dict, matchers: list[MatcherConfig], source: str
+) -> HookConfig | None:
+    """The config one hook definition declares, or None for an unsupported type.
+
+    `command` is the only type this format carries so far.
+    """
+    if hook_def.get("type", "command") != "command":
+        return None
+    return HookConfig(
+        name=f"claude_{event.value}_{uuid.uuid4().hex[:8]}",
+        events=[event],
+        type=HookType.COMMAND,
+        config=CommandHookConfig(
+            command=hook_def.get("command", ""),
+            shell=True,
+            working_dir=None,
+            plugin_root=get_plugin_root_for_path(source),
+        ),
+        matchers=matchers,
+        is_async=hook_def.get("async", False),
+        timeout=hook_def.get("timeout"),
+        priority=0,
+    )

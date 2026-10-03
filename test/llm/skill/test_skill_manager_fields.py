@@ -2,6 +2,8 @@ from unittest.mock import patch
 
 import pytest
 
+from zrb.llm.hook.manager import HookManager
+from zrb.llm.hook.types import HookEvent
 from zrb.llm.skill.manager import Skill, SkillManager
 from zrb.llm.skill.manager import skill_manager as skill_manager_singleton
 
@@ -221,9 +223,10 @@ hooks:
 """,
         encoding="utf-8",
     )
-    with patch("zrb.llm.skill.manager.hook_manager") as mock_hooks:
+    target = HookManager(search_dirs=[])
+    with patch("zrb.llm.skill.manager.hook_manager", target):
         manager.scan(search_dirs=[tmp_path])
-        mock_hooks.parse_claude_format.assert_called_once()
+    assert len(target.registry.get_hooks(HookEvent.PRE_TOOL_USE)) == 1
 
 
 def test_scan_markdown_hooks_zrb_list_format(manager, tmp_path):
@@ -231,16 +234,20 @@ def test_scan_markdown_hooks_zrb_list_format(manager, tmp_path):
         """---
 name: hooked
 hooks:
-  - event: PreToolUse
-    command: echo hi
+  - name: skill-flat-hook
+    events: [PreToolUse]
+    type: command
+    config:
+      command: echo hi
 ---
 # body
 """,
         encoding="utf-8",
     )
-    with patch("zrb.llm.skill.manager.hook_manager") as mock_hooks:
+    target = HookManager(search_dirs=[])
+    with patch("zrb.llm.skill.manager.hook_manager", target):
         manager.scan(search_dirs=[tmp_path])
-        mock_hooks.parse_and_register.assert_called_once()
+    assert len(target.registry.get_hooks(HookEvent.PRE_TOOL_USE)) == 1
 
 
 def test_scan_markdown_read_error_logged(manager, tmp_path):
