@@ -113,7 +113,7 @@ class LLMLimitsMixin:
     LLM_TOOL_MAX_RETRIES = EnvField(int, doc="Maximum retries for tool calls.")
 
     LLM_MCP_MAX_RETRIES = EnvField(
-        int, doc="Maximum retries for MCP server connections."
+        int, doc="Maximum retries for a failing MCP tool call."
     )
 
     LLM_API_MAX_RETRIES = EnvField(

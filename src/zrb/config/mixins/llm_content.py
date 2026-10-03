@@ -326,7 +326,7 @@ class LLMContentMixin:
     LLM_HISTORY_SUMMARIZATION_WINDOW = EnvField(
         int,
         fallback=0,
-        doc="Number of turns before summarization is triggered.",
+        doc="Messages kept verbatim before older history is summarized.",
     )
 
     LLM_HISTORY_MAX_DISPLAY_CHARS = EnvField(
