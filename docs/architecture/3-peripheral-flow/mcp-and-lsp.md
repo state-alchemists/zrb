@@ -1,8 +1,8 @@
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > MCP & LSP Servers
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > MCP & LSP Servers
 
 # MCP & LSP Servers
 
-> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/tool/mcp.py`, `src/zrb/llm/lsp/` · Read first: [Tools](tools.md)
+> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/tool/mcp.py`, `src/zrb/llm/lsp/` · Read first: [Tools](../2-extension-surface/tools.md)
 
 Both protocols let the agent use an outside program as a tool. MCP brings in third-party tools: a GitHub server, a database server, anything in the MCP ecosystem. LSP brings in code intelligence from the language servers already on the machine: go to definition, find references, rename a symbol. The one idea to take away: MCP tools are someone else's code and are trusted least, while LSP tools are zrb's own thin wrappers and carry real capability tags.
 
@@ -31,13 +31,13 @@ Both protocols let the agent use an outside program as a tool. MCP brings in thi
 
 ### Principles
 
-1. **MCP servers are first-class tool sources.** zrb reads the Claude Desktop config format and wraps MCP tools in the same checkpoint as built-in tools, so hooks, permission rules and the sandbox all apply. → [ADR-0067](../adr/adr-0067.md)
+1. **MCP servers are first-class tool sources.** zrb reads the Claude Desktop config format and wraps MCP tools in the same checkpoint as built-in tools, so hooks, permission rules and the sandbox all apply. → [ADR-0067](../../adr/adr-0067.md)
 
-2. **An unknown tool is trusted least.** zrb never guesses an MCP tool's capability from its name. It carries no tag, so it counts as `UNKNOWN`: denied in plan mode and write-checked by the sandbox. LSP wrappers are zrb's own and are tagged: `READ`, except rename, which is `EDIT`. → [ADR-0060](../adr/adr-0060.md)
+2. **An unknown tool is trusted least.** zrb never guesses an MCP tool's capability from its name. It carries no tag, so it counts as `UNKNOWN`: denied in plan mode and write-checked by the sandbox. LSP wrappers are zrb's own and are tagged: `READ`, except rename, which is `EDIT`. → [ADR-0060](../../adr/adr-0060.md)
 
-3. **Third-party output is bounded, then framed as data.** Every MCP result is capped against one shared character budget, then marked "data, not instructions" before the model sees it. Images and other binary parts pass through untouched. → [ADR-0048](../adr/adr-0048.md)
+3. **Third-party output is bounded, then framed as data.** Every MCP result is capped against one shared character budget, then marked "data, not instructions" before the model sees it. Images and other binary parts pass through untouched. → [ADR-0048](../../adr/adr-0048.md)
 
-4. **Pay only for tools the session can use.** LSP tools are registered only when a language server is installed. MCP toolsets and LSP tools are deferred: the model sees their names, and their schemas load only when it asks. → [ADR-0058](../adr/adr-0058.md)
+4. **Pay only for tools the session can use.** LSP tools are registered only when a language server is installed. MCP toolsets and LSP tools are deferred: the model sees their names, and their schemas load only when it asks. → [ADR-0058](../../adr/adr-0058.md)
 
 ### Invariants
 
@@ -140,10 +140,10 @@ The chat task calls `lsp_manager.shutdown_all` when its session ends. The `atexi
 
 ## See Also
 
-- [Tools](tools.md) — the registry and the checkpoint these tools join
+- [Tools](../2-extension-surface/tools.md) — the registry and the checkpoint these tools join
 - [Tool Call & Approval](tool-call-approval.md) — how an `UNKNOWN` tool is approved
 - [Sandbox Enforcement](sandbox-enforcement.md) — the write check an untagged tool gets
-- [MCP Support](../llm/mcp-support.md) — setting up MCP servers
-- [LSP Support](../llm/lsp-support.md) — installing and choosing language servers
+- [MCP Support](../../llm/mcp-support.md) — setting up MCP servers
+- [LSP Support](../../llm/lsp-support.md) — installing and choosing language servers
 
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > MCP & LSP Servers
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > MCP & LSP Servers

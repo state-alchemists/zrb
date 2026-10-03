@@ -1,8 +1,8 @@
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > Sub-agents
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Sub-agents
 
 # Sub-agents
 
-> **Tier 2 · Extension surface** · Code: `src/zrb/llm/agent/subagent/` · Read first: [The LLM Turn](llm-turn.md)
+> **Tier 2 · Extension surface** · Code: `src/zrb/llm/agent/subagent/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
 
 A sub-agent is a second agent the main agent hands a piece of work to: a research sweep, a review, a batch of edits. It runs its own loop with its own context and reports back one result, which keeps the main agent's context clean. The one idea to take away: a sub-agent gets a fresh mind but never more authority than its parent, even when a human keeps talking to it after the parent's turn is over.
 
@@ -31,22 +31,22 @@ A sub-agent is a second agent the main agent hands a piece of work to: a researc
 
 ### Principles
 
-1. **A delegation is a tight brief to a fresh mind.** The parent sends a structured envelope: deliverable, non-goals, task, context, and a self-check before returning. The child starts with an empty history and returns one result. Fan-out is a parameter of the same tool, not a separate one. → [ADR-0068](../adr/adr-0068.md)
+1. **A delegation is a tight brief to a fresh mind.** The parent sends a structured envelope: deliverable, non-goals, task, context, and a self-check before returning. The child starts with an empty history and returns one result. Fan-out is a parameter of the same tool, not a separate one. → [ADR-0068](../../adr/adr-0068.md)
 
-2. **A child never exceeds its parent, even later.** While the parent's run is active, the child inherits its permission policy, sandbox, approval channel and hooks through the ambient context. A follow-up that runs after the parent's run is over uses the authority captured when the delegation started, never whatever is ambient at that later moment. → [ADR-0069](../adr/adr-0069.md)
+2. **A child never exceeds its parent, even later.** While the parent's run is active, the child inherits its permission policy, sandbox, approval channel and hooks through the ambient context. A follow-up that runs after the parent's run is over uses the authority captured when the delegation started, never whatever is ambient at that later moment. → [ADR-0069](../../adr/adr-0069.md)
 
-3. **Concurrent children share one screen through a buffer.** Each child writes to its own buffered view, and its approval requests queue behind the parent UI's current prompt. Output appears at flush, approval and completion points rather than strictly live. → [ADR-0070](../adr/adr-0070.md)
+3. **Concurrent children share one screen through a buffer.** Each child writes to its own buffered view, and its approval requests queue behind the parent UI's current prompt. Output appears at flush, approval and completion points rather than strictly live. → [ADR-0070](../../adr/adr-0070.md)
 
-4. **A child's file observations are its own.** Each delegation runs under its own run scope, so a read the parent or a sibling made never counts as this child having read the file before overwriting it. → [ADR-0084](../adr/adr-0084.md)
+4. **A child's file observations are its own.** Each delegation runs under its own run scope, so a read the parent or a sibling made never counts as this child having read the file before overwriting it. → [ADR-0084](../../adr/adr-0084.md)
 
-5. **Every finished delegation leaves a transcript.** The child's history is saved under a derived name, apart from main conversations and pruned by count. It can be listed and resumed as that sub-agent, not as the main agent. → [ADR-0083](../adr/adr-0083.md)
+5. **Every finished delegation leaves a transcript.** The child's history is saved under a derived name, apart from main conversations and pruned by count. It can be listed and resumed as that sub-agent, not as the main agent. → [ADR-0083](../../adr/adr-0083.md)
 
 ### Invariants
 
 | Must stay true | If it breaks | Pinned by |
 | --- | --- | --- |
 | A follow-up to a finished sub-agent runs with the authority captured at delegation | A later message runs the child under a broader grant than the parent gave | `test/llm/agent/subagent/test_live_session_registry.py::test_continue_live_session_uses_captured_authority_not_ambient` |
-| A sub-agent can never be given a delegate tool | Sub-agents delegate recursively | `test/llm/agent/subagent/test_tool_resolver.py::test_excludes_delegate_tools_from_registry` |
+| A sub-agent can never be given a delegate tool | Sub-agents delegate recursively | `test/llm/agent/subagent/test_tool_resolver.py::TestResolveToolsByName::test_excludes_delegate_tools_from_registry` |
 | A sub-agent gets only the shared tools its definition names | A read-only agent quietly gains `Write` and `Shell` | `test/llm/agent/subagent/test_manager_building.py::test_common_tools_are_name_gated_for_sub_agents` |
 | Each delegation runs under its own run scope | A child overwrites a file it never read, credited with the parent's read | `test/llm/tool/test_delegate_tool_run.py::test_delegate_passes_live_sessions_run_scope_to_run_agent` |
 | A child starts with no parent history | The child sees the parent's whole conversation, so it is neither a fresh view nor cheap | **unpinned** |
@@ -151,10 +151,10 @@ sequenceDiagram
 
 ## See Also
 
-- [The LLM Turn](llm-turn.md) — the loop each child runs
+- [The LLM Turn](../1-spine/llm-turn.md) — the loop each child runs
 - [Tools](tools.md) — the shared providers a child's tools come from
-- [Tool Call & Approval](tool-call-approval.md) — how a child's approvals reach the user
-- [Context Propagation](../technical-specs/context-propagation.md) — `ContextVar` scoping and `AuthoritySnapshot`
-- [Programming the Agent](../llm/programming-the-agent.md) — how to write an agent definition
+- [Tool Call & Approval](../3-peripheral-flow/tool-call-approval.md) — how a child's approvals reach the user
+- [Context Propagation](../../technical-specs/context-propagation.md) — `ContextVar` scoping and `AuthoritySnapshot`
+- [Programming the Agent](../../llm/programming-the-agent.md) — how to write an agent definition
 
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > Sub-agents
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Sub-agents

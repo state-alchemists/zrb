@@ -1,14 +1,15 @@
 """Guards the architecture section: its shape, and that what it names is real.
 
-THE SHAPE. Every page below `README.md` declares one tier in a header line:
+THE SHAPE. Each tier is a directory under `docs/architecture/`, and every page
+in it repeats its tier in a header line:
 
-    > **Tier 2 · Extension surface** · Code: `src/zrb/llm/tool/` · Read first: [The LLM Turn](llm-turn.md)
+    > **Tier 2 · Extension surface** · Code: `src/zrb/llm/tool/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
 
-- **Tier 0 — System.** The parts, the objects that own state, the invariants.
-- **Tier 1 — Spine.** The two runtimes: deterministic work, and the agentic turn.
-- **Tier 2 — Extension surface.** Where maintenance happens: tools, UI, prompts,
+- **`0-system/`** — the parts, the objects that own state, the invariants.
+- **`1-spine/`** — the two runtimes: deterministic work, and the agentic turn.
+- **`2-extension-surface/`** — where maintenance happens: tools, UI, prompts,
   hooks, config, sub-agents.
-- **Tier 3 — Peripheral flow.** On demand, off the reading path.
+- **`3-peripheral-flow/`** — on demand, off the reading path.
 
 Within a tier, a page earns its place by how often its code changes.
 
@@ -24,11 +25,14 @@ backticked identifier must still appear somewhere under `src/` or `test/`. A
 rename that leaves a page stale fails here, so the cost of updating the page
 falls on whoever made the rename.
 
-`README.md` and `change-map.md` are navigation and are exempt from the shape
-rules, but not from the truth check.
+`README.md` and `change-map.md` sit at the section root. They are navigation,
+exempt from the shape rules but not from the truth check.
 """
 
+import ast
+import functools
 import re
+import tokenize
 from pathlib import Path
 
 from termaid import render
@@ -40,6 +44,13 @@ INDEX = ARCHITECTURE / "README.md"
 # subsystem. `README.md` is the tier index; `change-map.md` routes an intent to
 # the file that decides it. Neither owns a flow, so neither declares a tier.
 NAVIGATION = {"README.md", "change-map.md"}
+# Each tier is a directory, numbered so a listing reads in tier order.
+TIER_DIRS = {
+    "0-system": 0,
+    "1-spine": 1,
+    "2-extension-surface": 2,
+    "3-peripheral-flow": 3,
+}
 
 # How much depth each tier may carry. Measured, not estimated: past 120 columns
 # zrb's own renderer compacts a diagram and then word-wraps it, which corrupts
@@ -63,7 +74,7 @@ REQUIRED_SECTIONS = (
 )
 _TICK = re.compile(r"`([^`\n]+)`")
 _IDENT = re.compile(r"[A-Za-z_][\w.]*(?:\(\))?")
-_ADR_LINK = re.compile(r"\(\.\./adr/adr-\d{4}\.md\)")
+_ADR_LINK = re.compile(r"\(\.\./\.\./adr/adr-\d{4}\.md\)")
 
 # The only labels allowed to name no symbol: the boundary of the system, where
 # the reader is outside the codebase entirely.
@@ -72,14 +83,16 @@ _BOUNDARY = {"Caller", "User", "browser", "shell", "terminal", "client"}
 
 def _pages() -> list[Path]:
     """The tiered content pages — everything except the two navigation files."""
-    return sorted(
-        p for p in ARCHITECTURE.glob("*.md") if p.name not in NAVIGATION
-    )
+    return sorted(p for d in TIER_DIRS for p in (ARCHITECTURE / d).glob("*.md"))
 
 
 def _files() -> list[Path]:
     """Every markdown file in the section, navigation included."""
-    return sorted(ARCHITECTURE.glob("*.md"))
+    return sorted(ARCHITECTURE.rglob("*.md"))
+
+
+def _name(path: Path) -> str:
+    return path.relative_to(ARCHITECTURE).as_posix()
 
 
 def _blocks(path: Path) -> list[tuple[int, str]]:
@@ -91,38 +104,6 @@ def _blocks(path: Path) -> list[tuple[int, str]]:
     ]
 
 
-def _symbols() -> set[str]:
-    """Every name zrb itself uses for something a reader can go and open.
-
-    Three sources, because a lifeline may legitimately be any of them:
-
-    - a class or function defined under `src/`;
-    - a name a module under `src/` re-exports from a third-party package — this
-      is how `Tool`, `ToolApproved` and `ToolDenied` exist in zrb at all (see
-      `src/zrb/llm/agent/types.py`);
-    - a name a tool is registered under, which is how `DelegateToAgent` and
-      `DelegateToAgentBackground` exist — real callables, named by assignment.
-
-    A name that is none of these is a role invented for the drawing, and the
-    whole point of the check is that the reader cannot go and open it.
-    """
-    names: set[str] = set()
-    for path in (REPO_ROOT / "src").rglob("*.py"):
-        text = path.read_text(encoding="utf-8", errors="ignore")
-        names |= set(re.findall(r"^\s*class (\w+)", text, re.MULTILINE))
-        names |= set(re.findall(r"^\s*(?:async )?def (\w+)", text, re.MULTILINE))
-        # Re-exports: a whole import clause, split into identifiers below.
-        clauses = re.findall(
-            r"^\s*from [\w.]+ import \(?([^)\n]+)", text, re.MULTILINE
-        )
-        names |= set(part for clause in clauses for part in clause.split(","))
-        # Tool registration: only the tool package names things this way, and
-        # scoping it there keeps a stray quoted word from blessing a role-noun.
-        if "llm/tool" in path.as_posix():
-            names |= set(re.findall(r'"(\w+)"', text))
-    return set(re.findall(r"[A-Za-z_]\w*", " ".join(names)))
-
-
 def _lifelines(source: str) -> list[str]:
     return [label.strip() for label in _PARTICIPANT.findall(source)]
 
@@ -130,25 +111,37 @@ def _lifelines(source: str) -> list[str]:
 def test_every_architecture_page_is_linked_from_the_index():
     """A flow page the section index does not name is unreachable."""
     index = INDEX.read_text(encoding="utf-8")
-    orphans = [path.name for path in _pages() if f"({path.name})" not in index]
+    orphans = [_name(p) for p in _pages() if f"({_name(p)})" not in index]
     assert not orphans, (
         "Architecture page(s) not linked from docs/architecture/README.md — "
         f"add each to its tier list: {orphans}"
     )
 
 
-def test_every_page_declares_its_tier():
-    """A page with no tier is a page with no place in the reading order."""
-    offenders = [
-        path.name
-        for path in _pages()
-        if not TIER_HEADER.search(path.read_text(encoding="utf-8"))
+def test_every_file_lives_in_a_tier_directory():
+    """A page outside the tier directories escapes every check below."""
+    stray = [
+        _name(p)
+        for p in _files()
+        if _name(p) not in NAVIGATION and p.parent.name not in TIER_DIRS
     ]
+    assert not stray, (
+        "Architecture file(s) outside the tier directories. Move each into "
+        f"one of {sorted(TIER_DIRS)}: {stray}"
+    )
+
+
+def test_every_page_declares_the_tier_of_its_directory():
+    """The header tells a reader the tier; the directory must agree with it."""
+    offenders = []
+    for path in _pages():
+        match = TIER_HEADER.search(path.read_text(encoding="utf-8"))
+        expected = TIER_DIRS[path.parent.name]
+        if not match or int(match.group(1)) != expected:
+            offenders.append(f"{_name(path)} (expected Tier {expected})")
     assert not offenders, (
-        "Page(s) with no `> **Tier N · …**` header. The tier is what makes the "
-        "section general-to-specific instead of a flat pile; add the header "
-        f"line naming the tier, the owning directory, and the page to read "
-        f"first: {offenders}"
+        "Page(s) whose `> **Tier N · …**` header is missing or names a "
+        f"different tier from its directory: {offenders}"
     )
 
 
@@ -194,7 +187,7 @@ def test_every_principle_links_its_adr():
                 offenders.append(f"{path.name}: {line[:60]}")
     assert not offenders, (
         "Principle(s) with no ADR link. End each numbered principle with "
-        f"`→ [ADR-NNNN](../adr/adr-NNNN.md)`: {offenders}"
+        f"`→ [ADR-NNNN](../../adr/adr-NNNN.md)`: {offenders}"
     )
 
 
@@ -233,15 +226,79 @@ def test_design_names_no_private_symbol():
     )
 
 
-def _corpus() -> tuple[set[str], dict[Path, str]]:
-    """Every word under `src/` and `test/`, and the text of each file by path."""
-    texts = {
-        path: path.read_text(encoding="utf-8", errors="ignore")
-        for root in ("src", "test")
-        for path in (REPO_ROOT / root).rglob("*.py")
-    }
-    words = set(re.findall(r"\w+", " ".join(texts.values())))
-    return words, texts
+@functools.cache
+def _code_names() -> frozenset[str]:
+    """Every name the code itself uses — never a word that survives only in prose.
+
+    Read from the token stream, so comments and docstrings do not count: a
+    renamed symbol whose old name lingers in a comment is still reported. A
+    string literal counts only when it is a bare identifier, because that is
+    how a name is registered rather than mentioned (`"DelegateToAgent"`, a
+    `CFG` key, a patch target).
+    """
+    names: set[str] = set()
+    for root in ("src", "test"):
+        for path in (REPO_ROOT / root).rglob("*.py"):
+            with path.open("rb") as source:
+                for token in tokenize.tokenize(source.readline):
+                    if token.type == tokenize.NAME:
+                        names.add(token.string)
+                    elif token.type == tokenize.STRING:
+                        value = token.string.strip("rbuRBUfF").strip("\"'")
+                        if re.fullmatch(r"[A-Za-z_]\w*", value):
+                            names.add(value)
+    return frozenset(names)
+
+
+@functools.cache
+def _defined_names() -> frozenset[str]:
+    """Every name zrb defines for something a reader can go and open.
+
+    Narrower than `_code_names`: a lifeline must be a thing, not any word the
+    code happens to use, so a local variable named `config` does not count.
+    Three sources, because a lifeline may legitimately be any of them:
+
+    - a class or function defined under `src/`;
+    - a name a module under `src/` imports by name, which is how third-party
+      types such as `Tool` exist in zrb (`src/zrb/llm/agent/types.py`);
+    - a name a tool is registered under (`"DelegateToAgent"`) — scoped to the
+      tool package, so a stray quoted word elsewhere cannot bless a role-noun.
+    """
+    names: set[str] = set()
+    for path in (REPO_ROOT / "src").rglob("*.py"):
+        is_tool = "llm/tool" in path.as_posix()
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                names.add(node.name)
+            elif isinstance(node, ast.ImportFrom):
+                names |= {alias.asname or alias.name for alias in node.names}
+            elif (
+                is_tool
+                and isinstance(node, ast.Constant)
+                and isinstance(node.value, str)
+                and re.fullmatch(r"[A-Za-z_]\w*", node.value)
+            ):
+                names.add(node.value)
+    return frozenset(names)
+
+
+def _defines(tree: ast.Module, dotted: list[str]) -> bool:
+    """Whether `Class.method` (or a bare name) is defined at that nesting in the module."""
+    body: list[ast.stmt] = tree.body
+    for part in dotted:
+        found = next(
+            (
+                node
+                for node in body
+                if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name == part
+            ),
+            None,
+        )
+        if found is None:
+            return False
+        body = found.body
+    return True
 
 
 def _references(path: Path) -> list[str]:
@@ -249,8 +306,12 @@ def _references(path: Path) -> list[str]:
 
 
 def test_every_named_path_exists():
-    """A path the reader cannot open is a broken promise."""
-    _, texts = _corpus()
+    """A path the reader cannot open is a broken promise.
+
+    `file.py::name` must be defined in that file. Nesting is written either
+    way pytest and Python write it: `test_x.py::TestClass::test_y` or
+    `module.py::Class.method`.
+    """
     offenders = []
     for path in _files():
         for token in _references(path):
@@ -259,17 +320,13 @@ def test_every_named_path_exists():
             file_part, _, name = token.partition("::")
             target = REPO_ROOT / file_part.rstrip("/")
             if not target.exists():
-                offenders.append(f"{path.name}: `{token}` (no such path)")
+                offenders.append(f"{_name(path)}: `{token}` (no such path)")
                 continue
             if name:
-                leaf = name.split("::")[-1]
-                defined = re.search(
-                    rf"^\s*(?:async )?(?:def|class) {re.escape(leaf)}\b",
-                    texts.get(target, ""),
-                    re.MULTILINE,
-                )
-                if not defined:
-                    offenders.append(f"{path.name}: `{token}` (no {leaf} there)")
+                dotted = re.split(r"::|\.", name)
+                tree = ast.parse(target.read_text(encoding="utf-8"))
+                if not _defines(tree, dotted):
+                    offenders.append(f"{_name(path)}: `{token}` (no {name} there)")
     assert not offenders, (
         "Page(s) naming a path or test that does not exist. Update the page "
         f"to the new location: {offenders}"
@@ -278,13 +335,16 @@ def test_every_named_path_exists():
 
 def test_every_named_identifier_still_exists():
     """A renamed symbol leaves its old name nowhere in the code; the page must follow."""
-    words, _ = _corpus()
+    words = _code_names()
     offenders = []
     for path in _files():
         for token in set(_references(path)):
             if not _IDENT.fullmatch(token):
                 continue
             name = token.removesuffix("()")
+            # A file name (`AGENTS.md`) is not an identifier.
+            if re.search(r"\.(?:md|py|toml|json|ya?ml|txt|sh)$", name):
+                continue
             # Plain words (`Shell`, `READ`) cannot be told apart from English;
             # only names shaped like code are checked.
             if "_" not in name and "." not in name and not re.search(r"[a-z][A-Z]", name):
@@ -293,8 +353,8 @@ def test_every_named_identifier_still_exists():
             if missing:
                 offenders.append(f"{path.name}: `{token}`")
     assert not offenders, (
-        "Page(s) naming an identifier that no longer appears under src/ or "
-        f"test/. It was renamed or removed; update the page: {offenders}"
+        "Page(s) naming an identifier that no longer appears in the code under "
+        f"src/ or test/ (comments and docstrings do not count). It was renamed or removed; update the page: {offenders}"
     )
 
 
@@ -371,8 +431,8 @@ def test_no_sequence_diagram_has_too_many_lifelines():
 
 def test_every_lifeline_names_a_real_symbol():
     """A lifeline is an object or callable, not a role-noun or a value type."""
-    symbols = _symbols()
-    words, _ = _corpus()
+    symbols = _defined_names()
+    words = _code_names()
     offenders = []
     for path in _files():
         for line, source in _blocks(path):

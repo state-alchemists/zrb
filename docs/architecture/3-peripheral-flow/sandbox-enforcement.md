@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > Sandbox Enforcement
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Sandbox Enforcement
 
 # Sandbox Enforcement
 
@@ -31,11 +31,11 @@ The sandbox limits which files a tool call can touch, even after the call was ap
 
 ### Principles
 
-1. **Off by default, and limiting reach rather than intent.** With the sandbox off, every tool behaves exactly as if it did not exist. With it on, it does not ask anyone anything; it only narrows where an already-allowed call can write and what it can read. → [ADR-0065](../adr/adr-0065.md)
-2. **One policy, two layers.** A path check guards the in-process file tools, and an OS wrapper guards every subprocess. Each covers what the other cannot reach, and both read the same policy value, so they cannot drift apart. → [ADR-0065](../adr/adr-0065.md)
-3. **A tool that does not say what it does is checked as a writer.** An untagged tool's capability is unknown, so its path arguments get the write check. An MCP tool works, but it cannot write outside the boundary. → [ADR-0060](../adr/adr-0060.md)
-4. **Never a silent passthrough.** Where no OS mechanism exists, the policy either runs the command with a visible warning or refuses it. The same policy never quietly means less on one machine. → [ADR-0065](../adr/adr-0065.md)
-5. **A denial is a message the model can act on.** A blocked call returns text that says what was refused and carries a `[SYSTEM SUGGESTION]`, so the model can pick another path. It cannot widen the boundary itself. → [ADR-0057](../adr/adr-0057.md)
+1. **Off by default, and limiting reach rather than intent.** With the sandbox off, every tool behaves exactly as if it did not exist. With it on, it does not ask anyone anything; it only narrows where an already-allowed call can write and what it can read. → [ADR-0065](../../adr/adr-0065.md)
+2. **One policy, two layers.** A path check guards the in-process file tools, and an OS wrapper guards every subprocess. Each covers what the other cannot reach, and both read the same policy value, so they cannot drift apart. → [ADR-0065](../../adr/adr-0065.md)
+3. **A tool that does not say what it does is checked as a writer.** An untagged tool's capability is unknown, so its path arguments get the write check. An MCP tool works, but it cannot write outside the boundary. → [ADR-0060](../../adr/adr-0060.md)
+4. **Never a silent passthrough.** Where no OS mechanism exists, the policy either runs the command with a visible warning or refuses it. The same policy never quietly means less on one machine. → [ADR-0065](../../adr/adr-0065.md)
+5. **A denial is a message the model can act on.** A blocked call returns text that says what was refused and carries a `[SYSTEM SUGGESTION]`, so the model can pick another path. It cannot widen the boundary itself. → [ADR-0057](../../adr/adr-0057.md)
 
 ### Invariants
 
@@ -124,7 +124,7 @@ Neither wrapper unshares the network or the process IDs, so the command runs in 
 | `dangerously_skip_sandbox` | `build_sandboxed_argv`, `sandbox_gate` | Shell tools only. Runs unwrapped with a note in the output. No tool policy auto-approves it, but yolo or an `allow` rule will |
 | Worktree tools | `src/zrb/llm/tool/worktree.py` | Pass their own `git` argv through the same wrapper, no shell string involved |
 | Background shell | `src/zrb/llm/tool/shell_background.py` | Same wrapper as `Shell`, applied when the process starts |
-| Sub-agent, or a live session resumed later | the run context; `AuthoritySnapshot` | A child inherits the parent's policy. A continuation that starts after the parent's run ended gets it passed explicitly ([ADR-0069](../adr/adr-0069.md)) |
+| Sub-agent, or a live session resumed later | the run context; `AuthoritySnapshot` | A child inherits the parent's policy. A continuation that starts after the parent's run ended gets it passed explicitly ([ADR-0069](../../adr/adr-0069.md)) |
 | Oversized tool results | `src/zrb/llm/agent/spill.py` | The spill store checks its own directory with `check_read` and `check_write` |
 
 ### Change it here
@@ -140,8 +140,8 @@ Neither wrapper unshares the network or the process IDs, so the command runs in 
 ## See Also
 
 - [Tool Call & Approval](tool-call-approval.md) — the decision before a call reaches the sandbox
-- [Tools](tools.md) — the execution checkpoint where `sandbox_gate` runs
-- [Sandbox](../llm/sandbox.md) — configuring it, the user-facing guide
-- [ADR-0101](../adr/adr-0101.md) — snapshots and rewind, the way to undo what an allowed call changed
+- [Tools](../2-extension-surface/tools.md) — the execution checkpoint where `sandbox_gate` runs
+- [Sandbox](../../llm/sandbox.md) — configuring it, the user-facing guide
+- [ADR-0101](../../adr/adr-0101.md) — snapshots and rewind, the way to undo what an allowed call changed
 
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > Sandbox Enforcement
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Sandbox Enforcement

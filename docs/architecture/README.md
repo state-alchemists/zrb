@@ -17,7 +17,7 @@ The design is the source. The [ADRs](../adr/README.md) record each decision in d
 
 ## Where to start
 
-Read [The System](system.md) first. It's one page with one map and the rules that hold everywhere. Then read [Task Execution](task-execution.md) and [The LLM Turn](llm-turn.md). That's about thirty minutes, and everything else in this section builds on it.
+Read [The System](0-system/system.md) first. It's one page with one map and the rules that hold everywhere. Then read [Task Execution](1-spine/task-execution.md) and [The LLM Turn](1-spine/llm-turn.md). That's about thirty minutes, and everything else in this section builds on it.
 
 ## How each page reads
 
@@ -40,14 +40,14 @@ Read Design to understand a part. Read Realization when you're about to change i
 
 ## The four tiers
 
-The pages go from general to specific. Each tier is useful on its own.
+The pages go from general to specific. Each tier is useful on its own, and each is a directory, numbered so a listing reads in order.
 
 | Tier | The question it answers | Pages |
 | --- | --- | --- |
-| **0 · System** | What are the parts, and what must never break? | [The System](system.md) |
-| **1 · Spine** | How does work flow, end to end? | [Task Execution](task-execution.md), [The LLM Turn](llm-turn.md) |
-| **2 · Extension surface** | How do I add or change behaviour? | [Tools](tools.md), [UI](ui.md), [Prompts](prompts.md), [Hooks](hooks.md), [Config](config.md), [Sub-agents](sub-agents.md) |
-| **3 · Peripheral flow** | How does this one feature work? | [Web Requests](web-requests.md), [Tool Call & Approval](tool-call-approval.md), [Sandbox Enforcement](sandbox-enforcement.md), [History & Compaction](history-and-compaction.md), [MCP & LSP Servers](mcp-and-lsp.md), [Dictation & Barge-in](dictation-barge-in.md) |
+| **0 · System** `0-system/` | What are the parts, and what must never break? | [The System](0-system/system.md) |
+| **1 · Spine** `1-spine/` | How does work flow, end to end? | [Task Execution](1-spine/task-execution.md), [The LLM Turn](1-spine/llm-turn.md) |
+| **2 · Extension surface** `2-extension-surface/` | How do I add or change behaviour? | [Tools](2-extension-surface/tools.md), [UI](2-extension-surface/ui.md), [Prompts](2-extension-surface/prompts.md), [Hooks](2-extension-surface/hooks.md), [Config](2-extension-surface/config.md), [Sub-agents](2-extension-surface/sub-agents.md) |
+| **3 · Peripheral flow** `3-peripheral-flow/` | How does this one feature work? | [Web Requests](3-peripheral-flow/web-requests.md), [Tool Call & Approval](3-peripheral-flow/tool-call-approval.md), [Sandbox Enforcement](3-peripheral-flow/sandbox-enforcement.md), [History & Compaction](3-peripheral-flow/history-and-compaction.md), [MCP & LSP Servers](3-peripheral-flow/mcp-and-lsp.md), [Dictation & Barge-in](3-peripheral-flow/dictation-barge-in.md) |
 
 Tier 2 holds the parts that change most often. If you have one hour, spend it there.
 
@@ -55,7 +55,7 @@ Tier 2 holds the parts that change most often. If you have one hour, spend it th
 
 | If you are… | Read |
 | --- | --- |
-| New, with half an hour | [The System](system.md) → [Task Execution](task-execution.md) → [The LLM Turn](llm-turn.md) |
+| New, with half an hour | [The System](0-system/system.md) → [Task Execution](1-spine/task-execution.md) → [The LLM Turn](1-spine/llm-turn.md) |
 | Chasing a bug | [Change Map](change-map.md), which goes from a symptom to the file that causes it |
 | About to own an area | that area's page: Design first, then the code its Realization names |
 | Reviewing a design change | the page's Principles, then the ADRs they link |
@@ -63,7 +63,7 @@ Tier 2 holds the parts that change most often. If you have one hour, spend it th
 
 ## Editing these pages
 
-The two halves follow different rules.
+A new page goes in the directory of its tier and gets a row in the table above. The two halves follow different rules.
 
 - **Design** uses words that would survive a refactor. It names no private symbols. Every principle links its ADR, and every invariant names its test or is marked **unpinned**.
 - **Realization** names real symbols, so it changes along with the code. Every backticked path and identifier is checked against `src/` and `test/`. If you rename something a page mentions, the build fails until you update the page.

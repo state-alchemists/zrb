@@ -15,18 +15,18 @@ For when you already know what you want. The [tier pages](README.md) teach the s
 
 | I want to… | Open | Then read |
 | --- | --- | --- |
-| Add a task type | `src/zrb/task/base/` | [Task Execution](task-execution.md) |
-| Change retries, timeout or readiness | `src/zrb/task/base/execution.py` | [Task Execution](task-execution.md) |
-| Add or rename a tool | `src/zrb/llm/tool/` | [Tools](tools.md) |
-| Change what the terminal shows | `src/zrb/llm/ui/base/ui.py` | [UI](ui.md) |
-| Change the system prompt or a mandate | `src/zrb/llm/prompt/manager.py` | [Prompts](prompts.md) |
-| Add a hook point, or change matching | `src/zrb/llm/hook/manager.py` | [Hooks](hooks.md) |
-| Add a config knob | `src/zrb/config/mixins/` | [Config](config.md) |
-| Change what a sub-agent inherits | `src/zrb/llm/agent/run/authority_snapshot.py` | [Sub-agents](sub-agents.md) |
-| Add an HTTP route or a page | `src/zrb/runner/web_route/` | [Web Requests](web-requests.md) |
-| Change what the model may touch | `src/zrb/llm/permission/`, `src/zrb/llm/sandbox/` | [Sandbox Enforcement](sandbox-enforcement.md) |
-| Change the agent loop itself | `src/zrb/llm/agent/run/runner.py` | [The LLM Turn](llm-turn.md) |
-| Change history persistence or summarization | `src/zrb/llm/history_manager/` | [History & Compaction](history-and-compaction.md) |
+| Add a task type | `src/zrb/task/base/` | [Task Execution](1-spine/task-execution.md) |
+| Change retries, timeout or readiness | `src/zrb/task/base/execution.py` | [Task Execution](1-spine/task-execution.md) |
+| Add or rename a tool | `src/zrb/llm/tool/` | [Tools](2-extension-surface/tools.md) |
+| Change what the terminal shows | `src/zrb/llm/ui/base/ui.py` | [UI](2-extension-surface/ui.md) |
+| Change the system prompt or a mandate | `src/zrb/llm/prompt/manager.py` | [Prompts](2-extension-surface/prompts.md) |
+| Add a hook point, or change matching | `src/zrb/llm/hook/manager.py` | [Hooks](2-extension-surface/hooks.md) |
+| Add a config knob | `src/zrb/config/mixins/` | [Config](2-extension-surface/config.md) |
+| Change what a sub-agent inherits | `src/zrb/llm/agent/run/authority_snapshot.py` | [Sub-agents](2-extension-surface/sub-agents.md) |
+| Add an HTTP route or a page | `src/zrb/runner/web_route/` | [Web Requests](3-peripheral-flow/web-requests.md) |
+| Change what the model may touch | `src/zrb/llm/permission/`, `src/zrb/llm/sandbox/` | [Sandbox Enforcement](3-peripheral-flow/sandbox-enforcement.md) |
+| Change the agent loop itself | `src/zrb/llm/agent/run/runner.py` | [The LLM Turn](1-spine/llm-turn.md) |
+| Change history persistence or summarization | `src/zrb/llm/history_manager/` | [History & Compaction](3-peripheral-flow/history-and-compaction.md) |
 
 ## By symptom
 
@@ -34,18 +34,18 @@ These are the ones whose cause is not where the symptom appears.
 
 | The symptom | What is usually happening | Start at |
 | --- | --- | --- |
-| A task's action "returns" `None` although it did work | The task has readiness checks, so the action was deferred; the result arrives through `wait_deferred`, not the return value | [Task Execution](task-execution.md) |
+| A task's action "returns" `None` although it did work | The task has readiness checks, so the action was deferred; the result arrives through `wait_deferred`, not the return value | [Task Execution](1-spine/task-execution.md) |
 | Two upstreams ran the same action twice | `mark_as_started` did not precede the first suspension point, so both passed the `is_started` gate | `src/zrb/task/base/execution.py` |
-| A successor never runs although the task finished | The successor waits for *ready*, not *completed*, and a readiness check did not pass | [Task Execution](task-execution.md) |
-| A tool ran without asking | The ruleset answered `allow`, or a higher-priority auto-approve policy did — the approval channel is never consulted for `allow` | [Tool Call & Approval](tool-call-approval.md) |
-| A tool was denied with no prompt shown | A non-interactive run denies an approval-gated call rather than blocking for input | [Tool Call & Approval](tool-call-approval.md) |
-| The model cannot see a file it should | `sandbox_gate` blocked it at the execution chokepoint, which is a separate check from approval | [Sandbox Enforcement](sandbox-enforcement.md) |
-| A tool the model called is not in the tool list | The name resolved differently: check `canonical_tool_name` and `resolve_tools_by_name`, and whether the tool loads eagerly or by name | [Tools](tools.md) |
-| Nothing appears in the terminal | The run has no UI, or a child run inherited one that buffers instead of printing | [UI](ui.md) |
-| A hook never fires | The event type did not match, or the hook came from a skill whose frontmatter was not picked up | [Hooks](hooks.md) |
-| An edited mandate has no effect | The prompt was resolved from a different layer — local prompt dir before packaged files | [Prompts](prompts.md) |
-| A config value is ignored | The value was read before it was set, or the resolution order picked a different layer | [Config](config.md) |
-| A sub-agent kept permissions it should not have had | Its authority was snapshotted at delegation time, so a later change does not reach it | [Sub-agents](sub-agents.md) |
+| A successor never runs although the task finished | The successor waits for *ready*, not *completed*, and a readiness check did not pass | [Task Execution](1-spine/task-execution.md) |
+| A tool ran without asking | The ruleset answered `allow`, or a higher-priority auto-approve policy did — the approval channel is never consulted for `allow` | [Tool Call & Approval](3-peripheral-flow/tool-call-approval.md) |
+| A tool was denied with no prompt shown | A non-interactive run denies an approval-gated call rather than blocking for input | [Tool Call & Approval](3-peripheral-flow/tool-call-approval.md) |
+| The model cannot see a file it should | `sandbox_gate` blocked it at the execution chokepoint, which is a separate check from approval | [Sandbox Enforcement](3-peripheral-flow/sandbox-enforcement.md) |
+| A tool the model called is not in the tool list | The name resolved differently: check `canonical_tool_name` and `resolve_tools_by_name`, and whether the tool loads eagerly or by name | [Tools](2-extension-surface/tools.md) |
+| Nothing appears in the terminal | The run has no UI, or a child run inherited one that buffers instead of printing | [UI](2-extension-surface/ui.md) |
+| A hook never fires | The event type did not match, or the hook came from a skill whose frontmatter was not picked up | [Hooks](2-extension-surface/hooks.md) |
+| An edited mandate has no effect | The prompt was resolved from a different layer — local prompt dir before packaged files | [Prompts](2-extension-surface/prompts.md) |
+| A config value is ignored | The value was read before it was set, or the resolution order picked a different layer | [Config](2-extension-surface/config.md) |
+| A sub-agent kept permissions it should not have had | Its authority was snapshotted at delegation time, so a later change does not reach it | [Sub-agents](2-extension-surface/sub-agents.md) |
 | A diagram renders as broken boxes in the terminal | It is wider than 120 columns, so the renderer compacted it and then word-wrapped it mid-line | [Architecture](README.md) → *Editing these pages* |
 
 ## How to locate anything else
@@ -77,7 +77,7 @@ Read the test before changing an area; it is the precise statement of what the c
 ## See Also
 
 - [Architecture](README.md) — the tier index and the reading paths
-- [The System](system.md) — the parts and the rules that hold everywhere
+- [The System](0-system/system.md) — the parts and the rules that hold everywhere
 - [Architecture, Philosophy & Conventions](../contributing/architecture.md) — why the shape is this shape
 - [Framework Conventions](../contributing/framework-conventions.md) — the enforced code rules
 - [Where the code lives](../../AGENTS.md) — the repository map

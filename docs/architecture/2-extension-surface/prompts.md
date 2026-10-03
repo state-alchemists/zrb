@@ -1,8 +1,8 @@
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > Prompts
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Prompts
 
 # Prompts
 
-> **Tier 2 · Extension surface** · Code: `src/zrb/llm/prompt/` · Read first: [The LLM Turn](llm-turn.md)
+> **Tier 2 · Extension surface** · Code: `src/zrb/llm/prompt/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
 
 The system prompt tells the model who it is, how to work, and what machine and project it is working in. This page covers how zrb builds that prompt from a few markdown files and two pieces of code. The one idea to take away: the system prompt stays the same from turn to turn, and anything that changes each turn goes into the user's message instead.
 
@@ -32,15 +32,15 @@ The prompt is read by the model on every request, so small mistakes here cost on
 
 ### Principles
 
-1. **Seven fixed sections: rules in files, facts in code.** `persona`, `principle`, `workflow`, `example` and `profile` are markdown files. `system_context` and `project_context` are built in Python from the real environment. There is no registry of arbitrary sections, so the whole prompt can be read from five files and two functions. → [ADR-0044](../adr/adr-0044.md)
+1. **Seven fixed sections: rules in files, facts in code.** `persona`, `principle`, `workflow`, `example` and `profile` are markdown files. `system_context` and `project_context` are built in Python from the real environment. There is no registry of arbitrary sections, so the whole prompt can be read from five files and two functions. → [ADR-0044](../../adr/adr-0044.md)
 
-2. **The cached prefix stays byte-stable.** The system prompt carries only facts that hold for the whole session. Time, git state, todos, mode and the journal index go into a `<live-context>` block appended to the user's turn, so the system prompt and all earlier turns stay cacheable. → [ADR-0042](../adr/adr-0042.md)
+2. **The cached prefix stays byte-stable.** The system prompt carries only facts that hold for the whole session. Time, git state, todos, mode and the journal index go into a `<live-context>` block appended to the user's turn, so the system prompt and all earlier turns stay cacheable. → [ADR-0042](../../adr/adr-0042.md)
 
-3. **Only the profile section varies by model.** `LLM_PROFILE` picks one of three files, `profile.minimal.md`, `profile.standard.md` or `profile.capable.md`. The other sections are shared plain markdown with no conditional markers, so every model gets the same safety baseline. → [ADR-0049](../adr/adr-0049.md), [ADR-0046](../adr/adr-0046.md)
+3. **Only the profile section varies by model.** `LLM_PROFILE` picks one of three files, `profile.minimal.md`, `profile.standard.md` or `profile.capable.md`. The other sections are shared plain markdown with no conditional markers, so every model gets the same safety baseline. → [ADR-0049](../../adr/adr-0049.md), [ADR-0046](../../adr/adr-0046.md)
 
-4. **A rule lives where it can be enforced.** Permissions and tools enforce actions; a tool's docstring explains that tool; skills carry domain method. The prompt keeps only general judgment. A new prompt rule must say why it cannot live lower down. → [ADR-0045](../adr/adr-0045.md)
+4. **A rule lives where it can be enforced.** Permissions and tools enforce actions; a tool's docstring explains that tool; skills carry domain method. The prompt keeps only general judgment. A new prompt rule must say why it cannot live lower down. → [ADR-0045](../../adr/adr-0045.md)
 
-5. **Resolve at compose time, and layer additions.** Section list, file overrides and extra prompts are read each time the prompt is composed, not when the manager is built. Extra prompts are deltas over a shared registry, so a later change to config or the registry still shows up. → [ADR-0090](../adr/adr-0090.md)
+5. **Resolve at compose time, and layer additions.** Section list, file overrides and extra prompts are read each time the prompt is composed, not when the manager is built. Extra prompts are deltas over a shared registry, so a later change to config or the registry still shows up. → [ADR-0090](../../adr/adr-0090.md)
 
 ### Invariants
 
@@ -137,10 +137,10 @@ Separately, before each turn `LLMTask` asks the manager for the live-context blo
 
 ## See Also
 
-- [The LLM Turn](llm-turn.md) — where the composed prompt enters the run
-- [History & Compaction](history-and-compaction.md) — how the journal index survives summarization
+- [The LLM Turn](../1-spine/llm-turn.md) — where the composed prompt enters the run
+- [History & Compaction](../3-peripheral-flow/history-and-compaction.md) — how the journal index survives summarization
 - [Sub-agents](sub-agents.md) — inherited sections and a child's own prompt
-- [Programming the Prompt](../llm/programming-the-prompt.md) — the user-facing guide to overriding and extending
-- [LLM Configuration](../configuration/llm-config.md) — section, directory and profile settings
+- [Programming the Prompt](../../llm/programming-the-prompt.md) — the user-facing guide to overriding and extending
+- [LLM Configuration](../../configuration/llm-config.md) — section, directory and profile settings
 
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > Prompts
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Prompts

@@ -1,8 +1,8 @@
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > Hooks
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Hooks
 
 # Hooks
 
-> **Tier 2 · Extension surface** · Code: `src/zrb/llm/hook/` · Read first: [The LLM Turn](llm-turn.md)
+> **Tier 2 · Extension surface** · Code: `src/zrb/llm/hook/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
 
 A hook is a small program the user plugs into the agent's lifecycle: run a linter after every edit, deny a dangerous command, play a sound when the agent needs attention. This page covers how zrb finds hooks, picks the ones that apply to an event, runs them, and hands their verdict back to the turn. The one idea to take away: hooks follow Claude Code's format and control rules, so an existing Claude hook works in zrb unchanged.
 
@@ -31,15 +31,15 @@ A hook is a small program the user plugs into the agent's lifecycle: run a linte
 
 ### Principles
 
-1. **Claude-compatible, control included.** zrb fires Claude's events, reads hooks from Claude's files, sends the event as JSON on stdin, and honours Claude's verdict fields: `permissionDecision`, `updatedInput`, `decision: "block"`, `continue: false`. Hook types are a shell `command`, a one-shot LLM `prompt`, and a multi-step `agent`. → [ADR-0071](../adr/adr-0071.md)
+1. **Claude-compatible, control included.** zrb fires Claude's events, reads hooks from Claude's files, sends the event as JSON on stdin, and honours Claude's verdict fields: `permissionDecision`, `updatedInput`, `decision: "block"`, `continue: false`. Hook types are a shell `command`, a one-shot LLM `prompt`, and a multi-step `agent`. → [ADR-0071](../../adr/adr-0071.md)
 
-2. **Every tool call passes one checkpoint.** `PreToolUse`, `PostToolUse` and `PostToolUseFailure` fire from the one wrapper every tool call goes through, so no route to a tool skips them. A call that needs approval fires `PreToolUse` before the user is asked, so a hook can deny it first. → [ADR-0071](../adr/adr-0071.md)
+2. **Every tool call passes one checkpoint.** `PreToolUse`, `PostToolUse` and `PostToolUseFailure` fire from the one wrapper every tool call goes through, so no route to a tool skips them. A call that needs approval fires `PreToolUse` before the user is asked, so a hook can deny it first. → [ADR-0071](../../adr/adr-0071.md)
 
-3. **Run in order; a block stops only what can be stopped; a failure is a result.** Hooks run one at a time, highest priority first. A block ends the chain only on events where stopping makes sense; `continue: false` ends it everywhere. A hook that crashes or times out becomes a failed result, never an exception in the turn. `async` hooks run in the background, capped, and cannot block. → [ADR-0071](../adr/adr-0071.md)
+3. **Run in order; a block stops only what can be stopped; a failure is a result.** Hooks run one at a time, highest priority first. A block ends the chain only on events where stopping makes sense; `continue: false` ends it everywhere. A hook that crashes or times out becomes a failed result, never an exception in the turn. `async` hooks run in the background, capped, and cannot block. → [ADR-0071](../../adr/adr-0071.md)
 
-4. **One canonical registry; each run binds the manager it uses.** A registry holds the hooks. A run binds its task's manager (by default a fresh one per execution for the chat task, a persistent one for a plain LLM task), and every event inside that run goes to it. A task's own hooks, including its denials, therefore reach every tool call and sub-agent in the run. → [ADR-0090](../adr/adr-0090.md), [ADR-0072](../adr/adr-0072.md)
+4. **One canonical registry; each run binds the manager it uses.** A registry holds the hooks. A run binds its task's manager (by default a fresh one per execution for the chat task, a persistent one for a plain LLM task), and every event inside that run goes to it. A task's own hooks, including its denials, therefore reach every tool call and sub-agent in the run. → [ADR-0090](../../adr/adr-0090.md), [ADR-0072](../../adr/adr-0072.md)
 
-5. **The hook package never imports the agent package.** The agent package installs the agent-type hook builder into a small registry, and the hook manager reads it from there. The loop between the two packages stays visible in the import graph. → [ADR-0086](../adr/adr-0086.md), [ADR-0096](../adr/adr-0096.md)
+5. **The hook package never imports the agent package.** The agent package installs the agent-type hook builder into a small registry, and the hook manager reads it from there. The loop between the two packages stays visible in the import graph. → [ADR-0086](../../adr/adr-0086.md), [ADR-0096](../../adr/adr-0096.md)
 
 ### Invariants
 
@@ -131,10 +131,10 @@ sequenceDiagram
 
 ## See Also
 
-- [The LLM Turn](llm-turn.md) — where `UserPromptSubmit`, `Stop` and the compaction events fire
+- [The LLM Turn](../1-spine/llm-turn.md) — where `UserPromptSubmit`, `Stop` and the compaction events fire
 - [Tools](tools.md) — the checkpoint that fires the tool-call events
-- [Tool Call & Approval](tool-call-approval.md) — `PermissionRequest` and the pre-approval `PreToolUse`
-- [Hook System](../llm/hooks.md) — how to write and configure a hook
-- [Claude Compatibility](../llm/claude-compatibility.md) — the external format in detail
+- [Tool Call & Approval](../3-peripheral-flow/tool-call-approval.md) — `PermissionRequest` and the pre-approval `PreToolUse`
+- [Hook System](../../llm/hooks.md) — how to write and configure a hook
+- [Claude Compatibility](../../llm/claude-compatibility.md) — the external format in detail
 
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > Hooks
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Hooks

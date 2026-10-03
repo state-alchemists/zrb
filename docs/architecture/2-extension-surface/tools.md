@@ -1,8 +1,8 @@
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > Tools
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Tools
 
 # Tools
 
-> **Tier 2 · Extension surface** · Code: `src/zrb/llm/tool/` · Read first: [The LLM Turn](llm-turn.md)
+> **Tier 2 · Extension surface** · Code: `src/zrb/llm/tool/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
 
 A tool is how the model acts on the world: reading a file, running a command, asking a sub-agent for help. This page covers how a Python function becomes something the model can call, and why every one of those calls ends up passing through the same checkpoint.
 
@@ -32,15 +32,15 @@ The tool set has to work for very different readers at the same time:
 
 ### Principles
 
-1. **A tool is a plain function.** No base class and no decorator protocol. The name the model sees is the function's `__name__`, reassigned to PascalCase (`Shell`, `Read`, `Edit`). A tool is therefore written, tested and called like any other function. → [ADR-0056](../adr/adr-0056.md)
+1. **A tool is a plain function.** No base class and no decorator protocol. The name the model sees is the function's `__name__`, reassigned to PascalCase (`Shell`, `Read`, `Edit`). A tool is therefore written, tested and called like any other function. → [ADR-0056](../../adr/adr-0056.md)
 
-2. **A tool says what it does; it is never guessed.** Every built-in tool carries a capability tag (`READ`, `EDIT`, `EXECUTE`, `NETWORK`, ...). A tool without a tag is `UNKNOWN`, and `UNKNOWN` is treated as the most dangerous case. An unaudited MCP tool still works; it just doesn't get trusted. → [ADR-0060](../adr/adr-0060.md)
+2. **A tool says what it does; it is never guessed.** Every built-in tool carries a capability tag (`READ`, `EDIT`, `EXECUTE`, `NETWORK`, ...). A tool without a tag is `UNKNOWN`, and `UNKNOWN` is treated as the most dangerous case. An unaudited MCP tool still works; it just doesn't get trusted. → [ADR-0060](../../adr/adr-0060.md)
 
-3. **Permission is checked where the tool runs, not where it is approved.** Approval decides whether a call may go ahead. The permission and sandbox checks run again right before execution, in one wrapper that every call passes through. A new route to a tool cannot accidentally skip the checks. → [ADR-0062](../adr/adr-0062.md), [ADR-0065](../adr/adr-0065.md)
+3. **Permission is checked where the tool runs, not where it is approved.** Approval decides whether a call may go ahead. The permission and sandbox checks run again right before execution, in one wrapper that every call passes through. A new route to a tool cannot accidentally skip the checks. → [ADR-0062](../../adr/adr-0062.md), [ADR-0065](../../adr/adr-0065.md)
 
-4. **Fewer tools over longer descriptions.** The cost of the tool list is managed by how many tools are visible, not by trimming prose. Rarely used tools stay discoverable by name, and their schema loads only when asked for. → [ADR-0058](../adr/adr-0058.md)
+4. **Fewer tools over longer descriptions.** The cost of the tool list is managed by how many tools are visible, not by trimming prose. Rarely used tools stay discoverable by name, and their schema loads only when asked for. → [ADR-0058](../../adr/adr-0058.md)
 
-5. **Decide late.** Tools are collected when a task is built but resolved when a run starts, so per-run facts are read fresh each time: interactivity, the journal toggle, the `LLM_TOOLS` allowlist, the active permission policy. → [ADR-0064](../adr/adr-0064.md), [ADR-0033](../adr/adr-0033.md)
+5. **Decide late.** Tools are collected when a task is built but resolved when a run starts, so per-run facts are read fresh each time: interactivity, the journal toggle, the `LLM_TOOLS` allowlist, the active permission policy. → [ADR-0064](../../adr/adr-0064.md), [ADR-0033](../../adr/adr-0033.md)
 
 ### Invariants
 
@@ -53,7 +53,7 @@ Each one fails silently if broken: the code keeps running and does the wrong thi
 | The sandbox checks a tool even if it has no tag | An MCP tool writes outside the writable roots | `test/llm/sandbox/test_gate.py::test_gate_write_checks_untagged_tools` |
 | Collecting tools does not resolve them | Per-run gates are frozen when the task is built | `test/llm/test_common_tools.py::test_apply_stores_providers_without_resolving_anything` |
 | Tool order is preserved | The model sees a different tool list from one run to the next, and the prompt cache stops hitting | `test/llm/tool/test_registry.py::test_append_prepend_preserve_order` |
-| A sub-agent cannot pick up a delegate tool | Sub-agents delegate recursively | `test/llm/agent/subagent/test_tool_resolver.py::test_excludes_delegate_tools_from_registry` |
+| A sub-agent cannot pick up a delegate tool | Sub-agents delegate recursively | `test/llm/agent/subagent/test_tool_resolver.py::TestResolveToolsByName::test_excludes_delegate_tools_from_registry` |
 
 ## Realization
 
@@ -112,7 +112,7 @@ sequenceDiagram
 3. the function itself;
 4. the `PostToolUse` hook, then the result-size cap.
 
-Approval, covered in [Tool Call & Approval](tool-call-approval.md), happens before all of this, and it only lets the call reach the wrapper.
+Approval, covered in [Tool Call & Approval](../3-peripheral-flow/tool-call-approval.md), happens before all of this, and it only lets the call reach the wrapper.
 
 ### Variations
 
@@ -120,9 +120,9 @@ Approval, covered in [Tool Call & Approval](tool-call-approval.md), happens befo
 | --- | --- | --- |
 | A tool that depends on config or context | A factory in `src/zrb/llm/common_tools.py` | Created fresh for each run, so its gate is read again every time |
 | A rarely used tool | `Tool(..., defer_loading=True)` in `src/zrb/llm/common_tools.py` | The model sees its name; the schema loads only when requested |
-| MCP or another external toolset | `src/zrb/llm/tool/mcp.py` | Arrives untagged, so it counts as `UNKNOWN` — see [MCP & LSP Servers](mcp-and-lsp.md) |
+| MCP or another external toolset | `src/zrb/llm/tool/mcp.py` | Arrives untagged, so it counts as `UNKNOWN` — see [MCP & LSP Servers](../3-peripheral-flow/mcp-and-lsp.md) |
 | A sub-agent's `tools:` list | `resolve_tools_by_name` | Names are looked up, not invented; a name that matches nothing is silently dropped, and delegate tools are always excluded |
-| A Claude-style `Bash` name | `canonical_tool_name` | Maps to the one `Shell` tool; zrb never registers a second shell tool ([ADR-0066](../adr/adr-0066.md)) |
+| A Claude-style `Bash` name | `canonical_tool_name` | Maps to the one `Shell` tool; zrb never registers a second shell tool ([ADR-0066](../../adr/adr-0066.md)) |
 | Delegation | `src/zrb/llm/tool/delegate.py` | Loads eagerly, because its schema lists the available agents — see [Sub-agents](sub-agents.md) |
 
 ### Change it here
@@ -139,10 +139,10 @@ Approval, covered in [Tool Call & Approval](tool-call-approval.md), happens befo
 
 ## See Also
 
-- [The LLM Turn](llm-turn.md) — where resolved tools enter the run
-- [Tool Call & Approval](tool-call-approval.md) — the decision before a call reaches the checkpoint
-- [Sandbox Enforcement](sandbox-enforcement.md) — what `sandbox_gate` checks
+- [The LLM Turn](../1-spine/llm-turn.md) — where resolved tools enter the run
+- [Tool Call & Approval](../3-peripheral-flow/tool-call-approval.md) — the decision before a call reaches the checkpoint
+- [Sandbox Enforcement](../3-peripheral-flow/sandbox-enforcement.md) — what `sandbox_gate` checks
 - [Sub-agents](sub-agents.md) — delegation and the tools a child gets
-- [Permission Policy](../llm/permission-policy.md) — the user-facing guide
+- [Permission Policy](../../llm/permission-policy.md) — the user-facing guide
 
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > Tools
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Tools

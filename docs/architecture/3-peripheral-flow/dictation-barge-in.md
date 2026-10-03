@@ -1,8 +1,8 @@
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > Dictation & Barge-in
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Dictation & Barge-in
 
 # Dictation & Barge-in
 
-> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/dictation/` · Read first: [UI](ui.md)
+> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/dictation/` · Read first: [UI](../2-extension-surface/ui.md)
 
 Hands-free dictation lets the user talk to zrb, and speech lets zrb talk back. Barge-in is where the two meet: the user starts talking while zrb is still speaking. This page covers what happens between the microphone hearing that and zrb either stopping or carrying on. The idea to take away: zrb pauses first and decides later, because a cough, an echo of its own voice and a real "stop" all sound alike until they are transcribed.
 
@@ -31,15 +31,15 @@ Hands-free dictation lets the user talk to zrb, and speech lets zrb talk back. B
 
 ### Principles
 
-1. **Optional features stay out of the UI.** Dictation and speech each install with one `enable_*` call that registers commands, triggers, hooks and observers on the chat task. Their config is read when a chat session starts, and the UI has no code for either. → [ADR-0102](../adr/adr-0102.md)
+1. **Optional features stay out of the UI.** Dictation and speech each install with one `enable_*` call that registers commands, triggers, hooks and observers on the chat task. Their config is read when a chat session starts, and the UI has no code for either. → [ADR-0102](../../adr/adr-0102.md)
 
-2. **One feature reaches another only by chat session.** Dictation never holds a speaker. It calls speech's pause, resume and interrupt functions with the chat session's key, which act on whatever speech that session has, including none. → [ADR-0102](../adr/adr-0102.md)
+2. **One feature reaches another only by chat session.** Dictation never holds a speaker. It calls speech's pause, resume and interrupt functions with the chat session's key, which act on whatever speech that session has, including none. → [ADR-0102](../../adr/adr-0102.md)
 
-3. **Pause first, decide on the words.** As soon as the microphone hears loud speech over zrb, zrb's voice is paused. The transcript then decides: words meant for zrb stop it, anything else resumes it. Every way the listener can end releases a pause it made. → [ADR-0076](../adr/adr-0076.md), [ADR-0103](../adr/adr-0103.md)
+3. **Pause first, decide on the words.** As soon as the microphone hears loud speech over zrb, zrb's voice is paused. The transcript then decides: words meant for zrb stop it, anything else resumes it. Every way the listener can end releases a pause it made. → [ADR-0076](../../adr/adr-0076.md), [ADR-0103](../../adr/adr-0103.md)
 
-4. **Guard against zrb's own voice instead of cancelling it.** zrb does not subtract its voice from the microphone. Cheap guards do the work: a higher loudness bar while zrb speaks, dropping known transcriber guesses, dropping text that only repeats what zrb was saying, and a minimum word count to interrupt. → [ADR-0105](../adr/adr-0105.md)
+4. **Guard against zrb's own voice instead of cancelling it.** zrb does not subtract its voice from the microphone. Cheap guards do the work: a higher loudness bar while zrb speaks, dropping known transcriber guesses, dropping text that only repeats what zrb was saying, and a minimum word count to interrupt. → [ADR-0105](../../adr/adr-0105.md)
 
-5. **Speech listens to the stream beside the UI.** Speech reads a reply as it streams by observing the run's events next to the UI, not through it. An observer that fails is logged and skipped, so speech can never break a run. → [ADR-0104](../adr/adr-0104.md)
+5. **Speech listens to the stream beside the UI.** Speech reads a reply as it streams by observing the run's events next to the UI, not through it. An observer that fails is logged and skipped, so speech can never break a run. → [ADR-0104](../../adr/adr-0104.md)
 
 ### Invariants
 
@@ -152,10 +152,10 @@ The `Speaker` writes to `spoken_log` only while a sentence is really playing, ne
 
 ## See Also
 
-- [UI](ui.md) — the generic hooks these features use
-- [Config](config.md) — how feature config is read at session start
-- [The LLM Turn](llm-turn.md) — the turn a barge-in steers or cancels
-- [Voice and camera](../llm/voice-camera.md) — setting the features up
-- [Voice and photo troubleshooting](../llm/voice-photo-troubleshooting.md) — microphone and speaker problems
+- [UI](../2-extension-surface/ui.md) — the generic hooks these features use
+- [Config](../2-extension-surface/config.md) — how feature config is read at session start
+- [The LLM Turn](../1-spine/llm-turn.md) — the turn a barge-in steers or cancels
+- [Voice and camera](../../llm/voice-camera.md) — setting the features up
+- [Voice and photo troubleshooting](../../llm/voice-photo-troubleshooting.md) — microphone and speaker problems
 
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > Dictation & Barge-in
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Dictation & Barge-in

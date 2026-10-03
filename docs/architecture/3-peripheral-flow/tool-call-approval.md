@@ -1,8 +1,8 @@
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > Tool Call & Approval
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Tool Call & Approval
 
 # Tool Call & Approval
 
-> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/agent/run/deferred_calls.py` · Read first: [Tools](tools.md)
+> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/agent/run/deferred_calls.py` · Read first: [Tools](../2-extension-surface/tools.md)
 
 Before the model's tool call runs, zrb decides whether it may run: allow it quietly, ask a person, or refuse. This page covers how that decision is made and who gets asked. The idea to take away: approval only lets a call *reach* the execution checkpoint. It is never the last check.
 
@@ -31,11 +31,11 @@ Before the model's tool call runs, zrb decides whether it may run: allow it quie
 
 ### Principles
 
-1. **Permission is an ordered list of rules, and the first match wins.** A rule names a tool, a capability or `*`, can narrow itself with a glob on an argument, and says `allow`, `ask` or `deny`. One ordered list is easy to read top to bottom and easy to test. → [ADR-0061](../adr/adr-0061.md)
-2. **One cascade decides every call that needs approval, on every route.** Each level either decides or passes the call to the next, in a fixed order. The main agent, sub-agents and the web runner all call the same function, so a rule cannot hold on one route and leak on another. → [ADR-0062](../adr/adr-0062.md)
-3. **A rule that says `ask` is a hard ask.** Nothing lower in the cascade (a tool policy's auto-approve, yolo) may approve it on the user's behalf. If no one can answer, the call is refused rather than left waiting or quietly run. → [ADR-0062](../adr/adr-0062.md)
-4. **A deny never prompts, and it is enforced again at the tool.** A call the rules deny skips the approval step entirely and is blocked at the execution checkpoint. So a deny holds whatever an earlier level decided. → [ADR-0061](../adr/adr-0061.md)
-5. **An edited call tells the model what ran.** When a person changes the arguments before approving, the result the model gets back carries a note listing the changed keys. Otherwise the model would read its own request next to a result made from different arguments. → [ADR-0085](../adr/adr-0085.md)
+1. **Permission is an ordered list of rules, and the first match wins.** A rule names a tool, a capability or `*`, can narrow itself with a glob on an argument, and says `allow`, `ask` or `deny`. One ordered list is easy to read top to bottom and easy to test. → [ADR-0061](../../adr/adr-0061.md)
+2. **One cascade decides every call that needs approval, on every route.** Each level either decides or passes the call to the next, in a fixed order. The main agent, sub-agents and the web runner all call the same function, so a rule cannot hold on one route and leak on another. → [ADR-0062](../../adr/adr-0062.md)
+3. **A rule that says `ask` is a hard ask.** Nothing lower in the cascade (a tool policy's auto-approve, yolo) may approve it on the user's behalf. If no one can answer, the call is refused rather than left waiting or quietly run. → [ADR-0062](../../adr/adr-0062.md)
+4. **A deny never prompts, and it is enforced again at the tool.** A call the rules deny skips the approval step entirely and is blocked at the execution checkpoint. So a deny holds whatever an earlier level decided. → [ADR-0061](../../adr/adr-0061.md)
+5. **An edited call tells the model what ran.** When a person changes the arguments before approving, the result the model gets back carries a note listing the changed keys. Otherwise the model would read its own request next to a result made from different arguments. → [ADR-0085](../../adr/adr-0085.md)
 
 ### Invariants
 
@@ -46,7 +46,7 @@ Before the model's tool call runs, zrb decides whether it may run: allow it quie
 | A call denied during approval reaches history as a denial, and does not run | The model believes a refused call happened, or it runs anyway | `test/llm/agent/run/test_runner_deferred_approval.py::test_run_agent_denied_tool_call_reaches_history_without_running` |
 | An `ask` rule with an argument pattern still forces approval under yolo | Yolo runs the exact call the rule was written to stop | `test/llm/task/test_shared_getters.py::test_arg_pattern_ask_is_a_hard_ask_not_a_silent_fallthrough` |
 | With no human, a hard ask is refused instead of waiting | Unattended runs hang on stdin until timeout | `test/llm/agent/run/test_deferred_calls_denials.py::test_noninteractive_other_ask_tool_is_denied` |
-| A broken approval channel cannot answer for the user | A failing remote bot denies before the human at the terminal can reply | `test/llm/approval/test_approval_channel_multiplex.py::test_multiplex_failing_channel_does_not_win_race` |
+| A broken approval channel cannot answer for the user | A failing remote bot denies before the human at the terminal can reply | `test/llm/approval/test_approval_channel_multiplex.py::TestMultiplexApprovalChannel::test_multiplex_failing_channel_does_not_win_race` |
 | An edited call's note reaches the model exactly once, even on error | The model reasons from arguments that never ran | `test/llm/agent/test_common_tool_overrides.py::test_call_tool_override_note_is_one_shot_and_reaches_error_results` |
 
 ## Realization
@@ -73,7 +73,7 @@ flowchart TD
 | `AnyApprovalChannel`, `ApprovalResult` | `src/zrb/llm/approval/` | Carries a question to a person and their answer back, including edited arguments |
 | `resolve_context_dependencies` | `src/zrb/llm/agent/run/setup.py` | Picks the run's channel, and races the terminal alongside any channel you configure |
 | `record_override`, `pop_override_note` | `src/zrb/llm/tool_call/override_registry.py` | Remembers an edit at approval time and attaches the note at execution time |
-| `permission_gate` | `src/zrb/llm/agent/gates.py` | Blocks a denied call at the checkpoint, covered in [Tools](tools.md) |
+| `permission_gate` | `src/zrb/llm/agent/gates.py` | Blocks a denied call at the checkpoint, covered in [Tools](../2-extension-surface/tools.md) |
 
 ### How it runs
 
@@ -114,11 +114,11 @@ An approved call then goes through `SafeToolsetWrapper.call_tool` like any other
 | Case | Where it is decided | What is different |
 | --- | --- | --- |
 | Yolo is exactly `True` | `create_agent` in `src/zrb/llm/agent/common.py` | No call is held, so the cascade never runs. `permission_gate` still blocks a deny |
-| Plan mode | `get_effective_policy` | `PLAN_MODE_POLICY` replaces the configured rules; `ExitPlanMode` is a hard ask so the user sees the plan ([ADR-0063](../adr/adr-0063.md)) |
+| Plan mode | `get_effective_policy` | `PLAN_MODE_POLICY` replaces the configured rules; `ExitPlanMode` is a hard ask so the user sees the plan ([ADR-0063](../../adr/adr-0063.md)) |
 | Non-interactive run | step 5 of the cascade | A hard ask is denied with a hint to re-run interactively |
 | A remote channel is configured | `resolve_context_dependencies` | Wrapped with a `TerminalApprovalChannel` in a `MultiplexApprovalChannel`. The first real answer wins and the others are cancelled |
 | No channel at all | step 9 of the cascade | `ToolCallHandler.handle` prompts in the terminal; response handlers registered on it can let the user edit the call |
-| Sub-agent or background agent | the run's context, inherited | Same rules, yolo and channel as the parent. Prompts queue through `BufferedUI` to the parent's UI ([ADR-0070](../adr/adr-0070.md)) |
+| Sub-agent or background agent | the run's context, inherited | Same rules, yolo and channel as the parent. Prompts queue through `BufferedUI` to the parent's UI ([ADR-0070](../../adr/adr-0070.md)) |
 | A tool asks to run outside the sandbox | `bash_safe_command_policy` and `auto_approve` | No tool policy auto-approves a call with `dangerously_skip_sandbox` set |
 
 ### Change it here
@@ -135,11 +135,11 @@ An approved call then goes through `SafeToolsetWrapper.call_tool` like any other
 
 ## See Also
 
-- [Tools](tools.md) — the execution checkpoint an approved call goes through
+- [Tools](../2-extension-surface/tools.md) — the execution checkpoint an approved call goes through
 - [Sandbox Enforcement](sandbox-enforcement.md) — the limit on what an approved call can touch
-- [Sub-agents](sub-agents.md) — how a child inherits rules and routes prompts
-- [Permission Policy](../llm/permission-policy.md) — writing rules, the user-facing guide
-- [Plan Mode](../llm/plan-mode.md) — the read-only preset
-- [Hooks](../llm/hooks.md) — `PreToolUse` and `PermissionRequest`
+- [Sub-agents](../2-extension-surface/sub-agents.md) — how a child inherits rules and routes prompts
+- [Permission Policy](../../llm/permission-policy.md) — writing rules, the user-facing guide
+- [Plan Mode](../../llm/plan-mode.md) — the read-only preset
+- [Hooks](../../llm/hooks.md) — `PreToolUse` and `PermissionRequest`
 
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > Tool Call & Approval
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Tool Call & Approval

@@ -1,8 +1,8 @@
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > Config
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Config
 
 # Config
 
-> **Tier 2 · Extension surface** · Code: `src/zrb/config/` · Read first: [The System](system.md)
+> **Tier 2 · Extension surface** · Code: `src/zrb/config/` · Read first: [The System](../0-system/system.md)
 
 Config is every setting zrb reads that is not part of a task: the model, the web port, the size caps, the theme. All of it sits behind one object, `CFG`, which reads the process environment each time a value is asked for. The one idea to take away: the environment *is* the store, so an `export` and a `CFG.X = ...` in `zrb_init.py` always agree.
 
@@ -31,15 +31,15 @@ Config is every setting zrb reads that is not part of a task: the model, the web
 
 ### Principles
 
-1. **One singleton, read flat.** Settings are grouped into small domain mixins, but every caller writes `CFG.NAME` without knowing which mixin owns it. A setting can move between mixins without touching a single caller. → [ADR-0021](../adr/adr-0021.md)
+1. **One singleton, read flat.** Settings are grouped into small domain mixins, but every caller writes `CFG.NAME` without knowing which mixin owns it. A setting can move between mixins without touching a single caller. → [ADR-0021](../../adr/adr-0021.md)
 
-2. **One descriptor per setting, and the environment is the only store.** Each setting is a single `EnvField` line that knows how to read, cast and write it. Writing a value sets the environment variable, so no second copy can disagree with another reader. Nothing else is read either: no config file and no `.env`, which is a task's job, so global config never depends on the working directory. → [ADR-0022](../adr/adr-0022.md), [ADR-0024](../adr/adr-0024.md)
+2. **One descriptor per setting, and the environment is the only store.** Each setting is a single `EnvField` line that knows how to read, cast and write it. Writing a value sets the environment variable, so no second copy can disagree with another reader. Nothing else is read either: no config file and no `.env`, which is a task's job, so global config never depends on the working directory. → [ADR-0022](../../adr/adr-0022.md), [ADR-0024](../../adr/adr-0024.md)
 
-3. **Resolve on every read, in one fixed order.** The environment variable or an alias wins; then a computed default; then the mixin's static `DEFAULT_<NAME>`. Nothing is cached, so a later assignment or theme switch is visible to the next reader. → [ADR-0023](../adr/adr-0023.md)
+3. **Resolve on every read, in one fixed order.** The environment variable or an alias wins; then a computed default; then the mixin's static `DEFAULT_<NAME>`. Nothing is cached, so a later assignment or theme switch is visible to the next reader. → [ADR-0023](../../adr/adr-0023.md)
 
-4. **Read where the value is used, never at import.** `zrb_init.py` runs after zrb's modules are imported, so a value captured at import time ignores the user's assignment. Code reads `CFG` inside the function that needs it, and optional chat features take their config when a session starts. → [ADR-0090](../adr/adr-0090.md), [ADR-0102](../adr/adr-0102.md)
+4. **Read where the value is used, never at import.** `zrb_init.py` runs after zrb's modules are imported, so a value captured at import time ignores the user's assignment. Code reads `CFG` inside the function that needs it, and optional chat features take their config when a session starts. → [ADR-0090](../../adr/adr-0090.md), [ADR-0102](../../adr/adr-0102.md)
 
-5. **A released name never breaks silently.** A renamed setting keeps reading its old key while writing only the new one. A removed setting is listed as retired, and zrb names it at startup along with any near-miss typo of a real setting. → [ADR-0026](../adr/adr-0026.md)
+5. **A released name never breaks silently.** A renamed setting keeps reading its old key while writing only the new one. A removed setting is listed as retired, and zrb names it at startup along with any near-miss typo of a real setting. → [ADR-0026](../../adr/adr-0026.md)
 
 ### Invariants
 
@@ -102,7 +102,7 @@ Callers read `CFG` where the value is used, not at import. The tool-result cap i
 
 **Writing a value.** `CFG.NAME = value` serializes the value, casts it back to check it round-trips, and writes `os.environ` under the field's write key. `None` deletes the variable for a nullable field and is rejected otherwise. `Config.__setattr__` runs first and refuses an uppercase name no setting defines.
 
-**Adding a setting.** In the owning mixin, set `self.DEFAULT_<NAME>` in `__init__` and declare `<NAME> = EnvField(cast, doc=...)` next to its siblings. With no `aliases` and no `no_prefix`, the environment key is the prefix plus the name — for this example, ZRB_LLM_MAX_TOOL_RESULT_CHARS. Then read `CFG.<NAME>` in the code that owns the behaviour, and document it in `docs/configuration/`. A boolean follows the naming rule in [ADR-0026](../adr/adr-0026.md).
+**Adding a setting.** In the owning mixin, set `self.DEFAULT_<NAME>` in `__init__` and declare `<NAME> = EnvField(cast, doc=...)` next to its siblings. With no `aliases` and no `no_prefix`, the environment key is the prefix plus the name — for this example, ZRB_LLM_MAX_TOOL_RESULT_CHARS. Then read `CFG.<NAME>` in the code that owns the behaviour, and document it in `docs/configuration/`. A boolean follows the naming rule in [ADR-0026](../../adr/adr-0026.md).
 
 ### Variations
 
@@ -132,10 +132,10 @@ Callers read `CFG` where the value is used, not at import. The tool-result cap i
 
 ## See Also
 
-- [The System](system.md) — where config sits among the other parts
-- [Environment variables](../configuration/env-vars.md) — the user-facing list of settings
-- [LLM Configuration](../configuration/llm-config.md) — model and LLM settings for users
+- [The System](../0-system/system.md) — where config sits among the other parts
+- [Environment variables](../../configuration/env-vars.md) — the user-facing list of settings
+- [LLM Configuration](../../configuration/llm-config.md) — model and LLM settings for users
 - [Sub-agents](sub-agents.md) — what a child run inherits besides config
-- [Dictation & Barge-in](dictation-barge-in.md) — an optional feature that reads config at session start
+- [Dictation & Barge-in](../3-peripheral-flow/dictation-barge-in.md) — an optional feature that reads config at session start
 
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > Config
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Config

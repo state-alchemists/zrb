@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > The LLM Turn
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > The LLM Turn
 
 # The LLM Turn
 
@@ -33,15 +33,15 @@ One turn is several model calls, and each one can go wrong in a different way:
 
 ### Principles
 
-1. **Wrap the agent framework thinly.** pydantic-ai streams the model and calls the tools; zrb builds the agent in one place and drives the loop around it. zrb can then override history and retries where the library's defaults do not fit. → [ADR-0036](../adr/adr-0036.md)
+1. **Wrap the agent framework thinly.** pydantic-ai streams the model and calls the tools; zrb builds the agent in one place and drives the loop around it. zrb can then override history and retries where the library's defaults do not fit. → [ADR-0036](../../adr/adr-0036.md)
 
-2. **zrb owns the history.** History processors (summarization) run once, before the first model call of a turn, by zrb rather than by the framework. Between the rounds of one turn the history is carried forward untouched, so compaction can never drop the message holding an approved tool call. → [ADR-0041](../adr/adr-0041.md), [ADR-0040](../adr/adr-0040.md)
+2. **zrb owns the history.** History processors (summarization) run once, before the first model call of a turn, by zrb rather than by the framework. Between the rounds of one turn the history is carried forward untouched, so compaction can never drop the message holding an approved tool call. → [ADR-0041](../../adr/adr-0041.md), [ADR-0040](../../adr/adr-0040.md)
 
-3. **Each kind of failure gets its own one-shot fix.** A stream error is classified first: back off on 429, drop the oldest turn on prompt-too-long, correct a bad tool call once, fall back to text-only history last. A tool that already ran is committed to history before any retry, never resent. → [ADR-0039](../adr/adr-0039.md)
+3. **Each kind of failure gets its own one-shot fix.** A stream error is classified first: back off on 429, drop the oldest turn on prompt-too-long, correct a bad tool call once, fall back to text-only history last. A tool that already ran is committed to history before any retry, never resent. → [ADR-0039](../../adr/adr-0039.md)
 
-4. **Per-run facts are ambient and scoped.** The run binds the UI, policies, model and limiter as context variables for its whole life and resets them all when it returns. An explicit argument always beats the inherited value, which is how a sub-agent inherits from its parent without being handed everything. → [ADR-0004](../adr/adr-0004.md)
+4. **Per-run facts are ambient and scoped.** The run binds the UI, policies, model and limiter as context variables for its whole life and resets them all when it returns. An explicit argument always beats the inherited value, which is how a sub-agent inherits from its parent without being handed everything. → [ADR-0004](../../adr/adr-0004.md)
 
-5. **Keep the cached prefix byte-stable.** The system prompt holds only facts that do not change during a session. The per-turn state goes into a live-context block at the end of the user's message, where it is frozen into history. → [ADR-0042](../adr/adr-0042.md)
+5. **Keep the cached prefix byte-stable.** The system prompt holds only facts that do not change during a session. The per-turn state goes into a live-context block at the end of the user's message, where it is frozen into history. → [ADR-0042](../../adr/adr-0042.md)
 
 ### Invariants
 
@@ -114,7 +114,7 @@ Inside `run_agent`, each round of the loop does the same steps:
 3. The round ends one of four ways. A stream error goes to `handle_stream_error`. Tool calls that need approval go to `process_deferred_requests`, and the loop goes round again with their results. An empty answer is regenerated, at most twice. A real answer goes to the `Stop` hook.
 4. `Stop` either ends the turn or, when a hook blocks it, starts one more round with the hook's reason as the message.
 
-When the run returns, `LLMTask` saves the new history. On an error or a cancel, it saves what actually happened instead (see [History & Compaction](history-and-compaction.md)).
+When the run returns, `LLMTask` saves the new history. On an error or a cancel, it saves what actually happened instead (see [History & Compaction](../3-peripheral-flow/history-and-compaction.md)).
 
 ### Variations
 
@@ -125,8 +125,8 @@ When the run returns, `LLMTask` saves the new history. On an error or a cancel, 
 | A `UserPromptSubmit` hook blocks | `run_agent` startup hooks | The turn ends before the model runs; the block reason is the output |
 | Approval arrives later through a channel | `process_deferred_requests` returns nothing | The turn suspends: the pending requests and history return, and `Stop` does not fire |
 | A `Stop` hook blocks | `apply_turn_end_extension` in `src/zrb/llm/agent/run/session_extension.py` | Another round runs with the reason injected, up to `STOP_HOOK_BLOCK_CAP` (8) times in a row |
-| A sub-agent's run | `run_agent(nested=...)` | No turn snapshot is taken, and the `Stop` payload marks `nested_run` — see [Sub-agents](sub-agents.md) |
-| A message typed mid-turn | `steer_into_live_run` | Steers into the live run instead of queuing ([ADR-0078](../adr/adr-0078.md)) |
+| A sub-agent's run | `run_agent(nested=...)` | No turn snapshot is taken, and the `Stop` payload marks `nested_run` — see [Sub-agents](../2-extension-surface/sub-agents.md) |
+| A message typed mid-turn | `steer_into_live_run` | Steers into the live run instead of queuing ([ADR-0078](../../adr/adr-0078.md)) |
 
 ### Change it here
 
@@ -142,10 +142,10 @@ When the run returns, `LLMTask` saves the new history. On an error or a cancel, 
 
 ## See Also
 
-- [LLM Chat Request Lifecycle](../llm/llm-chat-lifecycle.md) — the tour from the CLI to the saved history
-- [History & Compaction](history-and-compaction.md) — load, summarize, repair and save
-- [Tools](tools.md) — how tools reach the agent
-- [Tool Call & Approval](tool-call-approval.md) — what `process_deferred_requests` decides
-- [Hooks](../llm/hooks.md) — `Stop`, `PreCompact` and the other lifecycle events
+- [LLM Chat Request Lifecycle](../../llm/llm-chat-lifecycle.md) — the tour from the CLI to the saved history
+- [History & Compaction](../3-peripheral-flow/history-and-compaction.md) — load, summarize, repair and save
+- [Tools](../2-extension-surface/tools.md) — how tools reach the agent
+- [Tool Call & Approval](../3-peripheral-flow/tool-call-approval.md) — what `process_deferred_requests` decides
+- [Hooks](../../llm/hooks.md) — `Stop`, `PreCompact` and the other lifecycle events
 
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > The LLM Turn
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > The LLM Turn

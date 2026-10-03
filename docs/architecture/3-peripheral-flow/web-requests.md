@@ -1,8 +1,8 @@
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > Web Requests
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Web Requests
 
 # Web Requests
 
-> **Tier 3 · Peripheral flow** · Code: `src/zrb/runner/` · Read first: [Task Execution](task-execution.md)
+> **Tier 3 · Peripheral flow** · Code: `src/zrb/runner/` · Read first: [Task Execution](../1-spine/task-execution.md)
 
 `zrb server start` puts the same task tree you use on the command line behind a browser: a page per group and task, an API that starts a run, and a chat that streams the agent's replies. The one idea to take away: the web layer only admits requests and moves bytes; every run is an ordinary task run on the same engine.
 
@@ -31,15 +31,15 @@
 
 ### Principles
 
-1. **The web is another caller, not another engine.** A route resolves a URL to a task in the same group tree the CLI uses and calls the task's own `async_run`. The task, its session and its XCom are identical whichever runner started it. → [ADR-0028](../adr/adr-0028.md)
+1. **The web is another caller, not another engine.** A route resolves a URL to a task in the same group tree the CLI uses and calls the task's own `async_run`. The task, its session and its XCom are identical whichever runner started it. → [ADR-0028](../../adr/adr-0028.md)
 
-2. **Loopback by default; exposed means secured.** The server binds to `127.0.0.1` unless told otherwise. Any other bind refuses to start without authentication and real credentials, and there is no override flag. → [ADR-0087](../adr/adr-0087.md)
+2. **Loopback by default; exposed means secured.** The server binds to `127.0.0.1` unless told otherwise. Any other bind refuses to start without authentication and real credentials, and there is no override flag. → [ADR-0087](../../adr/adr-0087.md)
 
-3. **The web stack loads only when the server starts.** FastAPI, Uvicorn and the route tree are imported inside the `start-server` task, so `zrb <anything else>` never pays for them. → [ADR-0029](../adr/adr-0029.md)
+3. **The web stack loads only when the server starts.** FastAPI, Uvicorn and the route tree are imported inside the `start-server` task, so `zrb <anything else>` never pays for them. → [ADR-0029](../../adr/adr-0029.md)
 
-4. **One shared chat task, rewired per message.** A chat session does not get its own agent. For each message the runner takes a global lock, points the shared task at that session's UI, approval channel and history, runs, and restores the previous wiring. → [ADR-0083](../adr/adr-0083.md)
+4. **One shared chat task, rewired per message.** A chat session does not get its own agent. For each message the runner takes a global lock, points the shared task at that session's UI, approval channel and history, runs, and restores the previous wiring. → [ADR-0083](../../adr/adr-0083.md)
 
-5. **Web chat runs non-interactively and renders in the browser.** Each message is one non-interactive turn; the raw markdown is streamed and the browser renders it, instead of the terminal's Unicode pipeline. → [ADR-0081](../adr/adr-0081.md)
+5. **Web chat runs non-interactively and renders in the browser.** Each message is one non-interactive turn; the raw markdown is streamed and the browser renders it, instead of the terminal's Unicode pipeline. → [ADR-0081](../../adr/adr-0081.md)
 
 ### Invariants
 
@@ -100,7 +100,7 @@ sequenceDiagram
     T->>T: run graph, write state log
 ```
 
-The run gets a fresh `Session` with a web-mode `SharedContext`. Its asyncio task goes into a list the app owns, and is removed when it finishes. The browser then polls `GET` on the same path plus the session name, which reads the state log the engine has been writing ([Task Execution](task-execution.md)). The response maps inputs back to their original names.
+The run gets a fresh `Session` with a web-mode `SharedContext`. Its asyncio task goes into a list the app owns, and is removed when it finishes. The browser then polls `GET` on the same path plus the session name, which reads the state log the engine has been writing ([Task Execution](../1-spine/task-execution.md)). The response maps inputs back to their original names.
 
 **Chat.** Opening `/api/v1/chat/sessions/<id>/streaming` creates the session if needed, gives it an `HTTPChatApprovalChannel`, starts `run_chat_session` as a background task, and returns an `SSEStreamResponse`. Messages arrive separately:
 
@@ -147,10 +147,10 @@ The browser reads replies from the output queue through the open SSE stream. A P
 
 ## See Also
 
-- [Task Execution](task-execution.md) — the engine every web run calls into
+- [Task Execution](../1-spine/task-execution.md) — the engine every web run calls into
 - [Tool Call & Approval](tool-call-approval.md) — what the HTTP approval channel plugs into
-- [Web UI](../advanced-topics/web-ui.md) — using and configuring the web UI
-- [Custom LLM UI](../llm/llm-custom-ui.md) — writing a UI like `HTTPUI`
-- [LLM Chat Lifecycle](../llm/llm-chat-lifecycle.md) — what one chat message does inside the task
+- [Web UI](../../advanced-topics/web-ui.md) — using and configuring the web UI
+- [Custom LLM UI](../../llm/llm-custom-ui.md) — writing a UI like `HTTPUI`
+- [LLM Chat Lifecycle](../../llm/llm-chat-lifecycle.md) — what one chat message does inside the task
 
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > Web Requests
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Web Requests

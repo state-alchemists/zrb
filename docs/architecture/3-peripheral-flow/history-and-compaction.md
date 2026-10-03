@@ -1,8 +1,8 @@
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > History & Compaction
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > History & Compaction
 
 # History & Compaction
 
-> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/history_manager/` · Read first: [The LLM Turn](llm-turn.md)
+> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/history_manager/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
 
 History is what lets a conversation continue: the next turn, a resumed session, or a retry after a crash all start from the saved message list. This page covers how that list is loaded, shrunk when it outgrows the model's window, repaired before it is sent, and saved. The one idea to take away: the summary is not a side channel; it is a message inside the list, and that list is exactly what gets saved.
 
@@ -30,15 +30,15 @@ History is what lets a conversation continue: the next turn, a resumed session, 
 
 ### Principles
 
-1. **The summary is part of the history, not beside it.** Compaction replaces the old part of the list with one restoration message, keeps the opening user goal and the recent tail word for word, and that new list is what gets saved. The next turn loads it like any other history. → [ADR-0041](../adr/adr-0041.md)
+1. **The summary is part of the history, not beside it.** Compaction replaces the old part of the list with one restoration message, keeps the opening user goal and the recent tail word for word, and that new list is what gets saved. The next turn loads it like any other history. → [ADR-0041](../../adr/adr-0041.md)
 
-2. **Shrink the cheapest thing first, and fail open.** First, an oversized tool result is summarized on its own. Only when the whole conversation is still over the threshold is the old part condensed into a state snapshot. If summarizing fails, the history goes through unchanged rather than failing the turn. → [ADR-0041](../adr/adr-0041.md)
+2. **Shrink the cheapest thing first, and fail open.** First, an oversized tool result is summarized on its own. Only when the whole conversation is still over the threshold is the old part condensed into a state snapshot. If summarizing fails, the history goes through unchanged rather than failing the turn. → [ADR-0041](../../adr/adr-0041.md)
 
-3. **Compact once per turn, before the first model call.** Between the rounds of one turn the list is carried forward as it is. Compacting again mid-turn could drop the message that holds an approved tool call. → [ADR-0040](../adr/adr-0040.md)
+3. **Compact once per turn, before the first model call.** Between the rounds of one turn the list is carried forward as it is. Compacting again mid-turn could drop the message that holds an approved tool call. → [ADR-0040](../../adr/adr-0040.md)
 
-4. **Repair at the provider boundary, in a fixed order.** Right before each model call, and again on each result, the list passes one repair pipeline: fill empty content, drop orphaned tool calls, merge same-role neighbours. The order is data, not a sequence of statements, so reordering it is a visible edit. → [ADR-0040](../adr/adr-0040.md)
+4. **Repair at the provider boundary, in a fixed order.** Right before each model call, and again on each result, the list passes one repair pipeline: fill empty content, drop orphaned tool calls, merge same-role neighbours. The order is data, not a sequence of statements, so reordering it is a visible edit. → [ADR-0040](../../adr/adr-0040.md)
 
-5. **Re-seed what compaction would lose.** The journal index is injected on a session's first turn and baked into every summary, so it survives compaction without any per-turn detection. → [ADR-0042](../adr/adr-0042.md)
+5. **Re-seed what compaction would lose.** The journal index is injected on a session's first turn and baked into every summary, so it survives compaction without any per-turn detection. → [ADR-0042](../../adr/adr-0042.md)
 
 ### Invariants
 
@@ -50,7 +50,7 @@ History is what lets a conversation continue: the next turn, a resumed session, 
 | Repair keeps a tool call whose approved result is pending | The approved call is deleted and its result has nothing to answer | `test/llm/agent/run/test_history_utils_strip_to_text.py::test_sanitize_history_allow_orphaned_tool_calls_keeps_pending_call` |
 | A failed write leaves the conversation marked unsaved | The cache evicts the only copy of the turn | `test/llm/history_manager/test_file_history_manager_parts.py::test_save_handles_os_error` |
 | An unsaved in-memory update wins over a newer file on load | An external write between update and save discards the turn | **unpinned** |
-| A context-length failure saves the history without growing it | Every retry is longer than the last and fails the same way | `test/llm/task/test_history.py::test_skips_partial_summary_on_context_length` |
+| A context-length failure saves the history without growing it | Every retry is longer than the last and fails the same way | `test/llm/task/test_history.py::TestHandleRunError::test_skips_partial_summary_on_context_length` |
 
 ## Realization
 
@@ -120,7 +120,7 @@ sequenceDiagram
 | The user cancels | `LLMTaskHistory.save_cancelled_history` | Saves the live messages, closes dangling calls, adds an "interrupted" reply |
 | `/compress` | `LLMTask`, before any agent is built | Runs `summarize_history` with `force=True`, even under the threshold |
 | A `PreCompact` hook blocks | `run_agent` history preparation | Summarization is skipped; the emergency prune to the last message still runs if the list does not fit |
-| A delegated sub-agent's transcript | `src/zrb/llm/util/subagent_session_naming.py` | Saved under `subagent/{agent}/` with no backup, and pruned by count — see [Sub-agents](sub-agents.md) |
+| A delegated sub-agent's transcript | `src/zrb/llm/util/subagent_session_naming.py` | Saved under `subagent/{agent}/` with no backup, and pruned by count — see [Sub-agents](../2-extension-surface/sub-agents.md) |
 | An old auto-named conversation | `FileHistoryManager` on its first save | Deleted once it is older than `LLM_HISTORY_RETENTION`; a name someone chose is never pruned |
 
 ### Change it here
@@ -136,9 +136,9 @@ sequenceDiagram
 
 ## See Also
 
-- [The LLM Turn](llm-turn.md) — the loop this history feeds
-- [LLM History Sanitization](../technical-specs/llm-history-sanitization.md) — the provider quirks the repair pipeline handles
-- [LLM Context](../technical-specs/llm-context.md) — how the context window is budgeted
-- [Sub-agents](sub-agents.md) — where delegated transcripts go
+- [The LLM Turn](../1-spine/llm-turn.md) — the loop this history feeds
+- [LLM History Sanitization](../../technical-specs/llm-history-sanitization.md) — the provider quirks the repair pipeline handles
+- [LLM Context](../../technical-specs/llm-context.md) — how the context window is budgeted
+- [Sub-agents](../2-extension-surface/sub-agents.md) — where delegated transcripts go
 
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > History & Compaction
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > History & Compaction

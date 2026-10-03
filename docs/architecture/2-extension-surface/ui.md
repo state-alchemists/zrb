@@ -1,8 +1,8 @@
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > UI
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > UI
 
 # UI
 
-> **Tier 2 · Extension surface** · Code: `src/zrb/llm/ui/` · Read first: [The LLM Turn](llm-turn.md)
+> **Tier 2 · Extension surface** · Code: `src/zrb/llm/ui/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
 
 The UI is whatever shows the agent's output and brings back the user's answers: the full-screen terminal, plain stdin/stdout, the web chat, a chat bot, or several of them at once. This page covers how one agent run talks to any of them through the same small contract. The idea to take away: the agent never knows which screen it is on.
 
@@ -30,15 +30,15 @@ The UI is whatever shows the agent's output and brings back the user's answers: 
 
 ### Principles
 
-1. **The run talks to one contract, never to a screen.** The agent loop, tools and approval channel only call the abstract UI methods: append output, ask the user, run a command. Terminal, web and bot are interchangeable implementations, so a task runs the same everywhere. → [ADR-0002](../adr/adr-0002.md), [ADR-0028](../adr/adr-0028.md)
+1. **The run talks to one contract, never to a screen.** The agent loop, tools and approval channel only call the abstract UI methods: append output, ask the user, run a command. Terminal, web and bot are interchangeable implementations, so a task runs the same everywhere. → [ADR-0002](../../adr/adr-0002.md), [ADR-0028](../../adr/adr-0028.md)
 
-2. **The UI is ambient for the length of a run.** The active UI is bound in a context variable when a run starts and reset when it ends. A nested run, such as a tool or a sub-agent, inherits it without every signature passing it along, unless the caller hands it a different one. → [ADR-0004](../adr/adr-0004.md)
+2. **The UI is ambient for the length of a run.** The active UI is bound in a context variable when a run starts and reset when it ends. A nested run, such as a tool or a sub-agent, inherits it without every signature passing it along, unless the caller hands it a different one. → [ADR-0004](../../adr/adr-0004.md)
 
-3. **A question returns a string, and richer input is optional.** Asking the user always resolves to text. Arrow-key choice is an extra method with a text fallback built into the shared base, so a backend that only knows text still answers every question and approval. → [ADR-0074](../adr/adr-0074.md)
+3. **A question returns a string, and richer input is optional.** Asking the user always resolves to text. Arrow-key choice is an extra method with a text fallback built into the shared base, so a backend that only knows text still answers every question and approval. → [ADR-0074](../../adr/adr-0074.md)
 
-4. **Sub-agents buffer their output; only the parent talks to the human.** Each child writes into its own buffer and forwards its questions to the parent UI. The screen stays readable, and parallel children queue their approvals instead of fighting over the input line. → [ADR-0070](../adr/adr-0070.md)
+4. **Sub-agents buffer their output; only the parent talks to the human.** Each child writes into its own buffer and forwards its questions to the parent UI. The screen stays readable, and parallel children queue their approvals instead of fighting over the input line. → [ADR-0070](../../adr/adr-0070.md)
 
-5. **Each surface renders in its own way, and the UI knows no features.** The web receives raw markdown and renders it in the browser; the terminal renders it itself. Optional features such as dictation and speech reach the UI only through generic hooks (status badges, triggers, turn cancellation), so no UI class imports them. → [ADR-0081](../adr/adr-0081.md), [ADR-0102](../adr/adr-0102.md)
+5. **Each surface renders in its own way, and the UI knows no features.** The web receives raw markdown and renders it in the browser; the terminal renders it itself. Optional features such as dictation and speech reach the UI only through generic hooks (status badges, triggers, turn cancellation), so no UI class imports them. → [ADR-0081](../../adr/adr-0081.md), [ADR-0102](../../adr/adr-0102.md)
 
 ### Invariants
 
@@ -114,7 +114,7 @@ sequenceDiagram
 
 `run_agent` resolves the UI in `resolve_context_dependencies` (`src/zrb/llm/agent/run/setup.py`): the explicit argument, else the ambient `current_ui`, else a new `StdUI`, normalized by `create_combined_ui`. It binds the result to `current_ui` on an `ExitStack` and resets it when the run ends.
 
-**Asking the user.** An approval goes through `TerminalApprovalChannel`, which writes the prompt with `append_to_output` and waits on `ask_user`. In a `MultiUI` it asks the primary child. The turn is suspended at that `await`; the UI's own event loop keeps running and delivers the answer. In the terminal, `UIConfirmation` queues concurrent prompts and shows one at a time. See [Tool Call & Approval](tool-call-approval.md) for what happens to the answer.
+**Asking the user.** An approval goes through `TerminalApprovalChannel`, which writes the prompt with `append_to_output` and waits on `ask_user`. In a `MultiUI` it asks the primary child. The turn is suspended at that `await`; the UI's own event loop keeps running and delivers the answer. In the terminal, `UIConfirmation` queues concurrent prompts and shows one at a time. See [Tool Call & Approval](../3-peripheral-flow/tool-call-approval.md) for what happens to the answer.
 
 ### Variations
 
@@ -125,7 +125,7 @@ sequenceDiagram
 | A sub-agent | `BufferedUI`, created in `src/zrb/llm/tool/delegate.py` | Output stays in the child's buffer until flushed; the lock covers only the write to the parent, not the wait for the answer |
 | A choice question | `ask_user_choice` | The terminals show an arrow-key picker; every other UI gets numbered text from `BaseUI` |
 | A shell command from the UI | `UI.run_interactive_command` | Hands the real terminal to the subprocess, then takes the screen back |
-| A custom backend | `create_ui_factory` | Pick a level (`SimpleUI`, `EventDrivenUI` or `BaseUI`) and write only that level's methods — see [Custom UI](../llm/llm-custom-ui.md) |
+| A custom backend | `create_ui_factory` | Pick a level (`SimpleUI`, `EventDrivenUI` or `BaseUI`) and write only that level's methods — see [Custom UI](../../llm/llm-custom-ui.md) |
 
 ### Change it here
 
@@ -141,11 +141,11 @@ sequenceDiagram
 
 ## See Also
 
-- [The LLM Turn](llm-turn.md) — the run that calls the UI
-- [Tool Call & Approval](tool-call-approval.md) — what an approval decides
+- [The LLM Turn](../1-spine/llm-turn.md) — the run that calls the UI
+- [Tool Call & Approval](../3-peripheral-flow/tool-call-approval.md) — what an approval decides
 - [Sub-agents](sub-agents.md) — where `BufferedUI` is created
-- [Web Requests](web-requests.md) — the web runner behind `HTTPUI`
-- [Dictation & Barge-in](dictation-barge-in.md) — an optional feature that reaches the UI only through generic hooks
-- [Custom UI](../llm/llm-custom-ui.md) — how to build and register a backend
+- [Web Requests](../3-peripheral-flow/web-requests.md) — the web runner behind `HTTPUI`
+- [Dictation & Barge-in](../3-peripheral-flow/dictation-barge-in.md) — an optional feature that reaches the UI only through generic hooks
+- [Custom UI](../../llm/llm-custom-ui.md) — how to build and register a backend
 
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > UI
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > UI

@@ -35,7 +35,7 @@ Execution is highly abstracted and deeply nested to handle DAG (Directed Acyclic
 4. `execute_action_until_ready()`: Evaluates `execute_condition` and runs `readiness_checks` concurrently before executing the main action.
 5. `execute_action_with_retry()`: Contains the core try/catch, retry loop, XCom pushing, and triggers `fallbacks` on failure.
 
-For the design behind this flow and a diagram of it, see [Architecture → Task Execution](../architecture/task-execution.md).
+For the design behind this flow and a diagram of it, see [Architecture → Task Execution](../architecture/1-spine/task-execution.md).
 
 ### Implicit State via `ContextVars`
 Instead of threading `session`, `logger`, or `env` through every single function signature, Zrb relies on `contextvars` (specifically `current_ctx`).

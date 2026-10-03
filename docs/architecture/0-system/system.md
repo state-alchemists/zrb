@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > The System
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > The System
 
 # The System
 
@@ -31,15 +31,15 @@ Zrb runs tasks you write in Python, from a terminal or from a browser, and one o
 
 ### Principles
 
-1. **One task definition, several runners.** A task does not know who started it. The CLI and the web server both resolve a path in the same group tree and call the same run method, so they share one engine and one set of state objects. → [ADR-0028](../adr/adr-0028.md)
+1. **One task definition, several runners.** A task does not know who started it. The CLI and the web server both resolve a path in the same group tree and call the same run method, so they share one engine and one set of state objects. → [ADR-0028](../../adr/adr-0028.md)
 
-2. **Async all the way down.** The engine is built on `asyncio`, so independent tasks, streams and tool calls run concurrently and Ctrl+C unwinds through cancellation. → [ADR-0003](../adr/adr-0003.md)
+2. **Async all the way down.** The engine is built on `asyncio`, so independent tasks, streams and tool calls run concurrently and Ctrl+C unwinds through cancellation. → [ADR-0003](../../adr/adr-0003.md)
 
-3. **Three tiers of state.** A run has shared data (inputs, envs, XCom), a session (the graph and every task's status), and a per-task context. Each object has one owner and one lifetime. → [ADR-0018](../adr/adr-0018.md)
+3. **Three tiers of state.** A run has shared data (inputs, envs, XCom), a session (the graph and every task's status), and a per-task context. Each object has one owner and one lifetime. → [ADR-0018](../../adr/adr-0018.md)
 
-4. **Ambient state travels in context variables.** The current task context, UI, permission policy and the like are set once and read where needed, instead of being threaded through every signature. A sub-agent inherits them for free. → [ADR-0004](../adr/adr-0004.md)
+4. **Ambient state travels in context variables.** The current task context, UI, permission policy and the like are set once and read where needed, instead of being threaded through every signature. A sub-agent inherits them for free. → [ADR-0004](../../adr/adr-0004.md)
 
-5. **Heavy dependencies load only when used.** The agent framework, the web framework and other extras are imported lazily, and every deferred import states why. → [ADR-0033](../adr/adr-0033.md)
+5. **Heavy dependencies load only when used.** The agent framework, the web framework and other extras are imported lazily, and every deferred import states why. → [ADR-0033](../../adr/adr-0033.md)
 
 ### Invariants
 
@@ -76,10 +76,10 @@ flowchart TD
 | `serve_cli` | `src/zrb/__main__.py` | The `zrb` console script: loads every `zrb_init.py`, then hands `argv` to the CLI |
 | `Cli` | `src/zrb/runner/cli.py` | The root group: resolves `argv` to a task or group and runs it |
 | `create_web_app` | `src/zrb/runner/web_app.py` | The web runner: pages, the task-run API and the chat API |
-| `BaseTask` | `src/zrb/task/base/` | The engine: graph walk, readiness, retries, fallbacks — see [Task Execution](task-execution.md) |
+| `BaseTask` | `src/zrb/task/base/` | The engine: graph walk, readiness, retries, fallbacks — see [Task Execution](../1-spine/task-execution.md) |
 | `SharedContext`, `Session`, `Context` | `src/zrb/context/`, `src/zrb/session/` | The three tiers of state for one run |
 | `LLMTask`, `LLMChatTask` | `src/zrb/llm/task/` | Tasks that build and drive an agent |
-| `run_agent` | `src/zrb/llm/agent/run/runner.py` | One agent turn: model, tool calls, history — see [The LLM Turn](llm-turn.md) |
+| `run_agent` | `src/zrb/llm/agent/run/runner.py` | One agent turn: model, tool calls, history — see [The LLM Turn](../1-spine/llm-turn.md) |
 | `create_agent` | `src/zrb/llm/agent/common.py` | The only place a `pydantic_ai.Agent` is built, wrapping every tool call in the safety checks |
 | `CFG` | `src/zrb/config/` | Every setting, read from the environment when used |
 
@@ -87,11 +87,11 @@ flowchart TD
 
 **From the shell.** `serve_cli` loads your `zrb_init.py` files, which register tasks on the `Cli` group tree. `Cli.run` splits `argv` into a path and options, finds the task, creates a `Session`, and calls `task.run`. If the path ends at a group, it prints the group's help instead.
 
-**Inside the engine.** `run` starts an event loop, finds the root tasks the target depends on, and runs each chain. A task runs when every upstream is ready or skipped; its result goes into XCom under its name; then its downstreams get their turn. [Task Execution](task-execution.md) walks through it.
+**Inside the engine.** `run` starts an event loop, finds the root tasks the target depends on, and runs each chain. A task runs when every upstream is ready or skipped; its result goes into XCom under its name; then its downstreams get their turn. [Task Execution](../1-spine/task-execution.md) walks through it.
 
-**When the task is the agent.** `zrb llm chat` is an `LLMChatTask`. For each message it runs an inner `LLMTask`, which builds an agent through `create_agent` and calls `run_agent`. The agent reaches the world only through tools, every tool call passes the permission and sandbox checks, and the UI, prompt and hooks are extension points around that loop. [The LLM Turn](llm-turn.md) walks through it.
+**When the task is the agent.** `zrb llm chat` is an `LLMChatTask`. For each message it runs an inner `LLMTask`, which builds an agent through `create_agent` and calls `run_agent`. The agent reaches the world only through tools, every tool call passes the permission and sandbox checks, and the UI, prompt and hooks are extension points around that loop. [The LLM Turn](../1-spine/llm-turn.md) walks through it.
 
-**From the browser.** `zrb server start` is itself a task. It serves `create_web_app`, whose routes resolve a URL in the same group tree and call `async_run` on the task — see [Web Requests](web-requests.md).
+**From the browser.** `zrb server start` is itself a task. It serves `create_web_app`, whose routes resolve a URL in the same group tree and call `async_run` on the task — see [Web Requests](../3-peripheral-flow/web-requests.md).
 
 ### Variations
 
@@ -100,7 +100,7 @@ flowchart TD
 | A task called from Python | `BaseTask.run` / `BaseTask.async_run` | No runner at all; a new `Session` is created when none is passed |
 | A task started from the web | `serve_task_session_api` | Scheduled in the background; the request returns a session name at once |
 | A one-shot LLM call inside a pipeline | `LLMTask` | Same agent loop with no interactive UI |
-| A sub-agent | `src/zrb/llm/agent/subagent/` | A child agent run that inherits the parent's ambient state — see [Sub-agents](sub-agents.md) |
+| A sub-agent | `src/zrb/llm/agent/subagent/` | A child agent run that inherits the parent's ambient state — see [Sub-agents](../2-extension-surface/sub-agents.md) |
 | Built-in tasks switched off | `CFG.ENABLE_BUILTIN_TASKS` | Only your own tasks appear under `zrb` |
 
 ### Change it here
@@ -109,22 +109,22 @@ Most changes land on one of the Tier 2 pages:
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Add or change a tool — [Tools](tools.md) | `src/zrb/llm/tool/`, `src/zrb/llm/common_tools.py` | `test/llm/tool/` |
-| Change what the terminal shows — [UI](ui.md) | `src/zrb/llm/ui/` | `test/llm/ui/` |
-| Change the system prompt — [Prompts](prompts.md) | `src/zrb/llm/prompt/` | `test/llm/prompt/` |
-| Add or change a hook — [Hooks](hooks.md) | `src/zrb/llm/hook/` | `test/llm/hook/` |
-| Add a setting — [Config](config.md) | `src/zrb/config/mixins/` | `test/config/` |
-| Change delegation — [Sub-agents](sub-agents.md) | `src/zrb/llm/agent/subagent/` | `test/llm/agent/subagent/` |
+| Add or change a tool — [Tools](../2-extension-surface/tools.md) | `src/zrb/llm/tool/`, `src/zrb/llm/common_tools.py` | `test/llm/tool/` |
+| Change what the terminal shows — [UI](../2-extension-surface/ui.md) | `src/zrb/llm/ui/` | `test/llm/ui/` |
+| Change the system prompt — [Prompts](../2-extension-surface/prompts.md) | `src/zrb/llm/prompt/` | `test/llm/prompt/` |
+| Add or change a hook — [Hooks](../2-extension-surface/hooks.md) | `src/zrb/llm/hook/` | `test/llm/hook/` |
+| Add a setting — [Config](../2-extension-surface/config.md) | `src/zrb/config/mixins/` | `test/config/` |
+| Change delegation — [Sub-agents](../2-extension-surface/sub-agents.md) | `src/zrb/llm/agent/subagent/` | `test/llm/agent/subagent/` |
 
-For anything else — the engine, the web, history, the sandbox — or when you start from a symptom, use the [Change Map](change-map.md).
+For anything else — the engine, the web, history, the sandbox — or when you start from a symptom, use the [Change Map](../change-map.md).
 
 ## See Also
 
-- [Task Execution](task-execution.md) — the deterministic runtime, end to end
-- [The LLM Turn](llm-turn.md) — the agentic runtime, end to end
-- [Change Map](change-map.md) — an intent or a symptom to the file that decides it
-- [Context Propagation](../technical-specs/context-propagation.md) — the context-variable layers
-- [Architecture, Philosophy & Conventions](../contributing/architecture.md) — the why behind the shape
-- [Framework Conventions](../contributing/framework-conventions.md) — the enforced code rules (R1–R12)
+- [Task Execution](../1-spine/task-execution.md) — the deterministic runtime, end to end
+- [The LLM Turn](../1-spine/llm-turn.md) — the agentic runtime, end to end
+- [Change Map](../change-map.md) — an intent or a symptom to the file that decides it
+- [Context Propagation](../../technical-specs/context-propagation.md) — the context-variable layers
+- [Architecture, Philosophy & Conventions](../../contributing/architecture.md) — the why behind the shape
+- [Framework Conventions](../../contributing/framework-conventions.md) — the enforced code rules (R1–R12)
 
-🔖 [Documentation Home](../../README.md) > [Architecture](README.md) > The System
+🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > The System
