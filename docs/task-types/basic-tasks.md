@@ -61,6 +61,38 @@ calculate = cli.add_task(
 )
 ```
 
+### Blocking Code Stalls Sibling Tasks
+
+An `action` runs on the event loop, so a plain `def` that blocks holds every other task in the pipeline behind it. Nothing fails — the work still finishes correctly, it just stops overlapping.
+
+```python
+import asyncio
+
+from zrb import Task, cli
+
+async def fetch(ctx):
+    await asyncio.sleep(1)          # yields: siblings keep running
+
+def fetch_blocking(ctx):
+    import requests
+    requests.get("https://example.com")   # holds the loop: siblings wait
+```
+
+Ten sibling tasks that each wait for a second finish in about a second when the action is `async`, and about ten when it blocks. Make the action `async` and `await` your I/O, or hand blocking work to `asyncio.to_thread` so the loop stays free:
+
+```python
+import asyncio
+
+def fetch_blocking(ctx):
+    import requests
+    return requests.get("https://example.com").text
+
+async def fetch(ctx):
+    return await asyncio.to_thread(fetch_blocking, ctx)
+```
+
+The same applies to `_exec_action` in a `BaseTask` subclass — see [Custom Tasks](./custom-tasks.md).
+
 ---
 
 ## 2. `CmdTask`
