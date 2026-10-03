@@ -7,11 +7,13 @@ from types import ModuleType
 from typing import Any, Callable
 
 from zrb.config.config import CFG
-from zrb.group.any_group import AnyGroup, NodeNotFoundError
+from zrb.group.any_group import NodeNotFoundError
 from zrb.group.task_diagnostics import (
+    capture_builtin_task_ids,
     collect_declared_tasks,
     find_task_diagnostics,
     format_diagnostic,
+    reset_task_replacements,
 )
 from zrb.runner.cli import cli
 from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
@@ -108,10 +110,17 @@ def serve_cli():
     try:
         loaded_cleanly = True
         loaded_sources: list[tuple[str, ModuleType]] = []
-        # Captured before any init runs: the aliases the built-ins occupy, so
-        # the diagnostics can tell a project shadowing a built-in (documented,
-        # intended) from two of the project's own tasks colliding.
-        builtin_aliases = _collect_aliases(cli)
+        # Captured before any init runs: the task *objects* the built-ins
+        # occupy, so the diagnostics can tell a project shadowing a built-in
+        # (documented, intended) from two of the project's own tasks
+        # colliding. Object identity, not alias: an alias is a per-group word,
+        # and a project task named like a built-in in an unrelated group is a
+        # collision worth warning about, not a shadow.
+        builtin_task_ids = capture_builtin_task_ids(cli)
+        # The tree outlives `serve_cli` (`cli` is a process-wide singleton), so
+        # this run clears the previous run's replacement log before init adds
+        # to it.
+        reset_task_replacements(cli)
         for init_module in CFG.INIT_MODULES:
             CFG.LOGGER.info(f"Loading {init_module}")
             loaded_cleanly &= _load_or_warn(
@@ -148,7 +157,7 @@ def serve_cli():
             )
             sys.exit(1)
         _warn_mistyped_env_keys()
-        _warn_task_diagnostics(loaded_sources, builtin_aliases)
+        _warn_task_diagnostics(loaded_sources, builtin_task_ids)
         cli.run(sys.argv[1:])
     except KeyboardInterrupt:
         print(stylize_warning("\nStopped"), file=sys.stderr)
@@ -165,16 +174,8 @@ def serve_cli():
         _handle_uncaught(e)
 
 
-def _collect_aliases(group: AnyGroup) -> set[str]:
-    """Every task alias in a group tree, nested groups included."""
-    aliases = set(group.subtasks.keys())
-    for subgroup in group.subgroups.values():
-        aliases |= _collect_aliases(subgroup)
-    return aliases
-
-
 def _warn_task_diagnostics(
-    loaded_sources: list[tuple[str, ModuleType]], builtin_aliases: set[str]
+    loaded_sources: list[tuple[str, ModuleType]], builtin_task_ids: frozenset[int]
 ) -> None:
     """Name each declared task the CLI will not offer as the author expected.
 
@@ -187,7 +188,7 @@ def _warn_task_diagnostics(
     declared = collect_declared_tasks(loaded_sources)
     if not declared:
         return
-    for diagnostic in find_task_diagnostics(declared, cli, builtin_aliases):
+    for diagnostic in find_task_diagnostics(declared, cli, builtin_task_ids):
         print(
             stylize_warning(format_diagnostic(diagnostic)),
             file=sys.stderr,

@@ -1,11 +1,11 @@
 """Inert implementations of `AnyUI`'s state members and side-effect hooks.
 
 `AnyUI` splits in two: eight behavioral methods every UI performs, and
-eighteen members describing what a *full* UI keeps — the model it talks to,
+twenty-two members describing what a *full* UI keeps — the model it talks to,
 whether the assistant is mid-turn, which background tasks it owns, what the
-primary child exposes to `MultiUI`. `BaseUI` implements all eighteen;
+primary child exposes to `MultiUI`. `BaseUI` implements all twenty-two;
 `StdUI`, `BufferedUI` and `MultiUI` track almost none of it, so they mix this
-in instead of each writing eighteen stubs. The mixin also carries the two
+in instead of each writing twenty-two stubs. The mixin also carries the two
 echo hooks (`track_echo_span`/`redraw_echo`) as inert defaults — those three
 wrappers have no output buffer to record a span against or splice into.
 

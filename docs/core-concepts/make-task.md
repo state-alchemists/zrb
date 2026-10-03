@@ -52,7 +52,7 @@ zrb hello
     readiness_check_delay: float = 0.5,
     readiness_check_period: float = 5,
     readiness_failure_threshold: int = 1,
-    readiness_timeout: int | None = None,
+    readiness_timeout: float | None = None,
     monitor_readiness: bool = False,
     upstream: list[AnyTask] | AnyTask | None = None,
     fallback: list[AnyTask] | AnyTask | None = None,

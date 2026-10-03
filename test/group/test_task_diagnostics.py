@@ -1,9 +1,10 @@
 """Tests for the startup diagnostics that catch unreachable tasks.
 
 The two problems are a task declared but never wired into the CLI, and two of
-the project's own tasks sharing a name (the later registration silently wins).
-Both are read off the init sources' namespaces and the finished tree, so the
-tests drive the public functions directly with plain module objects.
+the project's own tasks registered under the same alias in the same group (the
+later registration silently wins). Collisions are read from the replacement log
+`Group.add_task` keeps, so the tests drive the public functions with a real
+group tree and plain module objects.
 """
 
 from types import ModuleType
@@ -11,9 +12,11 @@ from types import ModuleType
 from zrb.group.group import Group
 from zrb.group.task_diagnostics import (
     TaskDiagnostic,
+    capture_builtin_task_ids,
     collect_declared_tasks,
     find_task_diagnostics,
     format_diagnostic,
+    reset_task_replacements,
 )
 from zrb.task.base.base_task import BaseTask
 
@@ -50,6 +53,43 @@ class TestCollectDeclaredTasks:
         declared = collect_declared_tasks([("init", module)])
 
         assert declared == []
+
+
+class TestReplacementLog:
+    def test_add_task_records_what_it_replaced(self):
+        first = BaseTask(name="build")
+        second = BaseTask(name="build")
+        root = _root_with(first)
+
+        root.add_task(second)
+
+        (replacement,) = root.replacements
+        assert replacement.alias == "build"
+        assert replacement.replaced is first
+        assert replacement.replacement is second
+
+    def test_registering_the_same_object_twice_records_nothing(self):
+        task = BaseTask(name="build")
+        root = _root_with(task)
+
+        root.add_task(task)
+
+        assert root.replacements == []
+
+    def test_capture_builtin_task_ids_reads_the_tree_before_init(self):
+        builtin = BaseTask(name="test")
+        root = _root_with(builtin)
+
+        assert capture_builtin_task_ids(root) == frozenset({id(builtin)})
+
+    def test_reset_clears_a_previous_runs_log(self):
+        root = _root_with(BaseTask(name="build"))
+        root.add_task(BaseTask(name="build"))
+        assert root.replacements != []
+
+        reset_task_replacements(root)
+
+        assert root.replacements == []
 
 
 class TestUnregisteredDiagnostics:
@@ -104,16 +144,8 @@ class TestUnregisteredDiagnostics:
         assert diagnostics == []
 
 
-class TestDuplicateNameDiagnostics:
-    def test_the_same_task_object_is_not_a_collision(self):
-        task = BaseTask(name="deploy")
-        declared = [("init", "first", task), ("init", "second", task)]
-
-        diagnostics = find_task_diagnostics(declared, _root_with(task), [])
-
-        assert diagnostics == []
-
-    def test_two_tasks_with_one_name_report_a_single_line(self):
+class TestAliasCollisionDiagnostics:
+    def test_two_tasks_under_one_alias_report_a_single_line(self):
         first = BaseTask(name="build")
         second = BaseTask(name="build")
         root = _root_with(first)
@@ -125,14 +157,14 @@ class TestDuplicateNameDiagnostics:
 
         assert len(diagnostics) == 1
         (diagnostic,) = diagnostics
-        assert diagnostic.problem == "duplicate-name"
-        assert "2 tasks are named 'build'" in diagnostic.detail
+        assert diagnostic.problem == "duplicate-alias"
+        assert "'build'" in diagnostic.detail
         assert "'first'" in diagnostic.detail
         assert "'second'" in diagnostic.detail
         assert "alias" in diagnostic.detail
 
-    def test_a_duplicate_is_not_also_reported_as_unregistered(self):
-        """The shadowed task is gone from the tree, but the duplicate line
+    def test_a_collision_is_not_also_reported_as_unregistered(self):
+        """The shadowed task is gone from the tree, but the collision line
         already names it; a second 'unreachable' line would only restate it."""
         first = BaseTask(name="build")
         second = BaseTask(name="build")
@@ -143,19 +175,75 @@ class TestDuplicateNameDiagnostics:
             [("init", "first", first), ("init", "second", second)], root, []
         )
 
-        assert {d.problem for d in diagnostics} == {"duplicate-name"}
+        assert {d.problem for d in diagnostics} == {"duplicate-alias"}
 
-    def test_shadowing_a_builtin_alias_is_not_a_duplicate(self):
-        """Registering over a built-in alias is the documented shadowing path,
-        so a single override must stay quiet."""
-        shadow = BaseTask(name="test")
-        root = _root_with(shadow)
+    def test_one_name_under_distinct_aliases_is_not_a_collision(self):
+        """An alias is a per-group word: exposing two same-named tasks under
+        different aliases is a valid configuration, so it must stay quiet."""
+        first = BaseTask(name="build")
+        second = BaseTask(name="build")
+        root = _root_with()
+        root.add_task(first, alias="build-backend")
+        root.add_task(second, alias="build-frontend")
 
         diagnostics = find_task_diagnostics(
-            [("init", "test", shadow)], root, builtin_aliases=["test"]
+            [("init", "first", first), ("init", "second", second)], root, []
         )
 
         assert diagnostics == []
+
+    def test_shadowing_a_builtin_task_is_not_a_collision(self):
+        """Registering over a built-in task object is the documented shadowing
+        path, so the override must stay quiet."""
+        builtin = BaseTask(name="test")
+        root = _root_with(builtin)
+        builtin_ids = capture_builtin_task_ids(root)
+        shadow = BaseTask(name="test")
+        root.add_task(shadow)
+
+        diagnostics = find_task_diagnostics(
+            [("init", "test", shadow)], root, builtin_ids
+        )
+
+        assert diagnostics == []
+
+    def test_a_builtin_alias_in_an_unrelated_group_still_collides(self):
+        """Built-in detection is by task identity in the same group tree, not
+        by alias: a project task sharing a built-in's name in its own group is
+        a real collision and must warn."""
+        builtin = BaseTask(name="test")
+        root = _root_with(builtin)
+        builtin_ids = capture_builtin_task_ids(root)
+        tools = Group(name="tools")
+        root.add_group(tools)
+        first = BaseTask(name="test")
+        second = BaseTask(name="test")
+        tools.add_task(first)
+        tools.add_task(second)
+
+        diagnostics = find_task_diagnostics(
+            [("init", "first", first), ("init", "second", second)],
+            root,
+            builtin_ids,
+        )
+
+        assert [d.problem for d in diagnostics] == ["duplicate-alias"]
+        assert diagnostics[0].origin == "group tools"
+
+    def test_a_collision_in_a_subgroup_names_that_group(self):
+        first = BaseTask(name="build")
+        second = BaseTask(name="build")
+        root = _root_with()
+        tools = Group(name="tools")
+        root.add_group(tools)
+        tools.add_task(first)
+        tools.add_task(second)
+
+        (diagnostic,) = find_task_diagnostics(
+            [("init", "first", first), ("init", "second", second)], root, []
+        )
+
+        assert diagnostic.origin == "group tools"
 
     def test_duplicates_across_sources_name_each_origin(self):
         first = BaseTask(name="build")
