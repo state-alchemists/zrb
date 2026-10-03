@@ -9,6 +9,7 @@ group tree and plain module objects.
 
 from types import ModuleType
 
+from zrb.callback.callback import Callback
 from zrb.group.group import Group
 from zrb.group.task_diagnostics import (
     TaskDiagnostic,
@@ -18,6 +19,7 @@ from zrb.group.task_diagnostics import (
     reset_task_replacements,
 )
 from zrb.task.base.base_task import BaseTask
+from zrb.task.base_trigger import BaseTrigger
 
 
 def _module(**attributes) -> ModuleType:
@@ -124,6 +126,21 @@ class TestUnregisteredDiagnostics:
 
         diagnostics = find_task_diagnostics(
             [("init", "deep", deep)], _root_with(main), []
+        )
+
+        assert diagnostics == []
+
+    def test_task_reached_only_through_a_trigger_callback_is_not_reported(self):
+        """A trigger runs its callbacks' tasks on every event, so such a task
+        is reachable with no CLI word and no edge naming it."""
+        watched = BaseTask(name="process-event")
+        trigger = BaseTrigger(
+            name="watch",
+            callback=Callback(watched, input_mapping={}),
+        )
+
+        diagnostics = find_task_diagnostics(
+            [("init", "process-event", watched)], _root_with(trigger), []
         )
 
         assert diagnostics == []
