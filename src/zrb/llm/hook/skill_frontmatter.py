@@ -21,11 +21,12 @@ Three rules this store has to keep, each one a defect it used to have:
   registry that is empty because `HookManager.reload()` just cleared it still
   needs the replay; skipping on `manager.registry is hook_registry` skipped it
   there too, so a reload silently dropped every skill hook.
-* **A source is retired from the manager that actually holds its hooks.**
-  Registering is the job of the manager a scan targets, but removal has to go to
-  the manager the previous parse was registered on. `remove_hook` on any other
-  manager is a silent no-op, so assuming the scan target left the earlier
-  manager firing a rule its skill file no longer declares.
+* **A source is retired from every manager holding it, and no manager is kept
+  alive by the record.** The factory installs a skill's hooks on *every*
+  `HookManager`, so removal has to reach all of them; sweeping only the manager a
+  scan last targeted left the rest firing a rule its skill file no longer
+  declares. The record is keyed by manager and held weakly, so a per-run manager
+  is swept while it lives and costs nothing once the caller lets it go.
 
 The canonical manager is *passed in* rather than imported: `hook.manager`
 imports this module for the factory seed, so a module-level import of it here
@@ -34,7 +35,9 @@ would be a cycle.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import weakref
+
+from typing import TYPE_CHECKING, TypeAlias
 
 if TYPE_CHECKING:
     from zrb.llm.hook.interface import HookCallable
@@ -49,13 +52,18 @@ _skill_hook_configs: dict[str, "list[HookConfig]"] = {}
 # Sources seen by the scan pass in progress; `finish_skill_scan` drops the rest.
 _scanned_sources: set[str] = set()
 
-# What the scan registered, by source, with the manager it registered them on.
-# The owner is recorded rather than assumed: registering is the job of the
-# manager a scan targets, but retiring a previous parse has to happen on
-# whichever manager actually holds it — `remove_hook` on any other manager is a
-# silent no-op, which would leave that manager firing a rule the skill file no
-# longer declares.
-_scan_manager_hooks: dict[str, "tuple[HookManager, list[HookCallable]]"] = {}
+# Callables one manager holds for one source: `{source: [callable, ...]}`.
+_SourceHooks: TypeAlias = "dict[str, list[HookCallable]]"
+
+# What every live manager holds, by source. Keyed by manager, and held weakly:
+# the factory installs a skill's hooks on every `HookManager`, so retiring one
+# has to sweep all of them — while a per-run manager must not be kept alive by
+# this record. A hydrated callable does not reference the manager it came from
+# (`_wrap_with_matchers` closes over the config alone), so the weak key is what
+# lets that manager be collected.
+_scan_manager_hooks: "weakref.WeakKeyDictionary[HookManager, _SourceHooks]" = (
+    weakref.WeakKeyDictionary()
+)
 
 
 def start_skill_scan() -> None:
@@ -139,20 +147,18 @@ def register_skill_frontmatter_hooks(manager: "HookManager") -> None:
     second callable for the same rule. What it does register is recorded against
     *manager* when that manager already owns the source, so a `reload()` — which
     clears the registry and re-registers fresh callables — leaves the record
-    pointing at the live ones (see `_record_replay`).
+    pointing at the live ones (see `_record`).
     """
     for source, configs in _skill_hook_configs.items():
         registered = _register_configs(manager, source, configs)
-        _record_replay(manager, source, registered)
+        _record(manager, source, registered)
 
 
 def _register(
     manager: "HookManager", source: str, configs: "list[HookConfig]"
 ) -> None:
     """Register *configs* on *manager*, remembering the callables."""
-    registered = _register_configs(manager, source, configs)
-    if registered:
-        _scan_manager_hooks[source] = (manager, registered)
+    _record(manager, source, _register_configs(manager, source, configs))
 
 
 def _register_configs(
@@ -175,35 +181,33 @@ def _register_configs(
     return registered
 
 
-def _record_replay(
+def _record(
     manager: "HookManager", source: str, registered: "list[HookCallable]"
 ) -> None:
-    """Re-point *source*'s record at the callables a replay registered.
+    """Remember *registered* as *source*'s hooks on *manager*.
 
-    `reload()` clears a registry, and the factory then registers the stored
-    configs again — as *new* callables. The record still named the cleared ones,
-    so removing it did nothing and the live replay survived, firing alongside
-    whatever a later scan parsed. Only the manager already recorded as *source*'s
-    owner updates the record: every manager runs this factory, and a per-run one
-    must not take ownership of hooks it will not outlive.
+    Every manager that ends up holding a source is recorded, not just the one a
+    scan targeted: the factory installs the same configs on all of them, so a
+    retirement that swept only the scan target left the others firing a rule the
+    skill file no longer declares. Overwriting is what keeps the record honest
+    across a `reload()`, whose replay registers the stored configs again as new
+    callables — the cleared ones it used to name would remove nothing.
     """
     if not registered:
         return
-    recorded = _scan_manager_hooks.get(source)
-    if recorded is not None and recorded[0] is manager:
-        _scan_manager_hooks[source] = (manager, registered)
+    _scan_manager_hooks.setdefault(manager, {})[source] = registered
 
 
 def _unregister(source: str) -> None:
-    """Take *source*'s previously-registered hooks back out of their owner.
+    """Take *source*'s hooks out of every manager that holds them.
 
-    The owner is the manager they were registered on, not whichever manager a
-    later scan targets: only that manager holds these callables, and asking any
-    other one to forget them does nothing at all.
+    All of them, not just the manager a later scan targets: the factory installs
+    a skill's hooks on every `HookManager`, and a manager that is no longer
+    scanned still holds its callables. It is dropped from the record once it
+    holds nothing, so the bookkeeping does not outlive the hooks.
     """
-    recorded = _scan_manager_hooks.pop(source, None)
-    if not recorded:
-        return
-    owner, hooks = recorded
-    for hook in hooks:
-        owner.remove_hook(hook)
+    for manager, held in list(_scan_manager_hooks.items()):
+        for hook in held.pop(source, []):
+            manager.remove_hook(hook)
+        if not held:
+            del _scan_manager_hooks[manager]
