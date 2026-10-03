@@ -320,6 +320,31 @@ class TestBaseTaskToFunction:
         assert "param1" in param_names
         assert "my_param" in param_names
 
+    def test_to_function_signature_is_keyword_only(self):
+        """The signature must match the wrapper, which accepts no positional.
+
+        `task_runner_fn(**kwargs)` is keyword-only; advertising the parameters
+        as `POSITIONAL_OR_KEYWORD` told `help()`, IDEs, and CLI builders that
+        `fn(value)` works, and it raises `TypeError` at the call.
+        """
+        import inspect
+
+        from zrb.input.str_input import StrInput
+
+        task = BaseTask(name="test_task", input=[StrInput(name="target_env")])
+        fn = task.to_function()
+        (parameter,) = fn.__signature__.parameters.values()
+        assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+
+    def test_to_function_rejects_a_positional_call(self):
+        """A positional call fails, exactly as the signature now advertises."""
+        from zrb.input.str_input import StrInput
+
+        task = BaseTask(name="test_task", input=[StrInput(name="target_env")])
+        fn = task.to_function()
+        with pytest.raises(TypeError):
+            fn("prod")
+
     def test_to_function_signature_empty(self):
         """Test to_function signature with no inputs."""
         import inspect

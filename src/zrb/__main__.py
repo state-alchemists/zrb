@@ -3,10 +3,16 @@ import os
 import signal
 import sys
 import traceback
+from types import ModuleType
 from typing import Any, Callable
 
 from zrb.config.config import CFG
-from zrb.group.any_group import NodeNotFoundError
+from zrb.group.any_group import AnyGroup, NodeNotFoundError
+from zrb.group.task_diagnostics import (
+    collect_declared_tasks,
+    find_task_diagnostics,
+    format_diagnostic,
+)
 from zrb.runner.cli import cli
 from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
 from zrb.util.init_path import get_init_path_list
@@ -47,7 +53,9 @@ def _install_sigterm_handler() -> list[int]:
     return received
 
 
-def _load_or_warn(label: str, load: "Callable[[], Any]") -> bool:
+def _load_or_warn(
+    label: str, load: "Callable[[], Any]", loaded_sources: list[tuple[str, ModuleType]]
+) -> bool:
     """Load one init module/script, or report it precisely and move on.
 
     The error is never hidden — file, line, and exception type always print
@@ -59,12 +67,19 @@ def _load_or_warn(label: str, load: "Callable[[], Any]") -> bool:
     error and still run zrb can fix it and rerun, while a user who can't run
     zrb at all has a strictly worse time diagnosing the same error.
 
+    Each source that loads is appended to `loaded_sources` as
+    `(label, module)`, because the task diagnostics need to read the tasks a
+    source declared. `sys.modules` cannot serve that: every `zrb_init.py`
+    registers under the same module name, so it holds only the last one.
+
     Returns:
         True when the source loaded cleanly. `serve_cli` collects these and,
         under `CFG.INIT_STRICT`, exits non-zero instead of continuing.
     """
     try:
-        load()
+        module = load()
+        if module is not None:
+            loaded_sources.append((label, module))
         return True
     except (KeyboardInterrupt, SystemExit):
         raise
@@ -92,10 +107,17 @@ def serve_cli():
     stop_signals = _install_sigterm_handler()
     try:
         loaded_cleanly = True
+        loaded_sources: list[tuple[str, ModuleType]] = []
+        # Captured before any init runs: the aliases the built-ins occupy, so
+        # the diagnostics can tell a project shadowing a built-in (documented,
+        # intended) from two of the project's own tasks colliding.
+        builtin_aliases = _collect_aliases(cli)
         for init_module in CFG.INIT_MODULES:
             CFG.LOGGER.info(f"Loading {init_module}")
             loaded_cleanly &= _load_or_warn(
-                f"init module {init_module}", lambda m=init_module: load_module(m)
+                f"init module {init_module}",
+                lambda m=init_module: load_module(m),
+                loaded_sources,
             )
         zrb_init_path_list = get_init_path_list()
         for init_script in CFG.INIT_SCRIPTS:
@@ -105,12 +127,14 @@ def serve_cli():
                 loaded_cleanly &= _load_or_warn(
                     f"init script {abs_init_script}",
                     lambda p=abs_init_script: load_file(p, raise_on_error=True),
+                    loaded_sources,
                 )
         for zrb_init_path in zrb_init_path_list:
             CFG.LOGGER.info(f"Loading {zrb_init_path}")
             loaded_cleanly &= _load_or_warn(
                 f"{zrb_init_path}",
                 lambda p=zrb_init_path: load_file(p, raise_on_error=True),
+                loaded_sources,
             )
         # Every init source is attempted before this check, so one run
         # reports every failure rather than only the first.
@@ -124,6 +148,7 @@ def serve_cli():
             )
             sys.exit(1)
         _warn_mistyped_env_keys()
+        _warn_task_diagnostics(loaded_sources, builtin_aliases)
         cli.run(sys.argv[1:])
     except KeyboardInterrupt:
         print(stylize_warning("\nStopped"), file=sys.stderr)
@@ -138,6 +163,35 @@ def serve_cli():
         sys.exit(1)
     except Exception as e:
         _handle_uncaught(e)
+
+
+def _collect_aliases(group: AnyGroup) -> set[str]:
+    """Every task alias in a group tree, nested groups included."""
+    aliases = set(group.subtasks.keys())
+    for subgroup in group.subgroups.values():
+        aliases |= _collect_aliases(subgroup)
+    return aliases
+
+
+def _warn_task_diagnostics(
+    loaded_sources: list[tuple[str, ModuleType]], builtin_aliases: set[str]
+) -> None:
+    """Name each declared task the CLI will not offer as the author expected.
+
+    Runs after every init source loaded and before dispatch, because that is
+    the only moment when both halves are known: the tasks the sources
+    declared, and the tree they built. A warning, never fatal — the tasks
+    that *are* registered still run, and an unreachable task is the author's
+    call to fix rather than a reason to refuse to start.
+    """
+    declared = collect_declared_tasks(loaded_sources)
+    if not declared:
+        return
+    for diagnostic in find_task_diagnostics(declared, cli, builtin_aliases):
+        print(
+            stylize_warning(format_diagnostic(diagnostic)),
+            file=sys.stderr,
+        )
 
 
 def _warn_mistyped_env_keys() -> None:

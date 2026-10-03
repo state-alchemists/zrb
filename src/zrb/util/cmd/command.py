@@ -326,6 +326,11 @@ async def run_command(
     is shown live). `is_interactive` (off by default) skips the new session and
     shares the parent's stdin, which can race; use it only for commands that
     need user input.
+
+    `max_output_line` / `max_error_line` cap how many *trailing* lines the
+    result retains; 0 (or any non-positive value) keeps every line. Dropping
+    lines is reported once the run ends rather than silently — see
+    `__report_dropped`.
     """
     actual_print_method = print_method if print_method is not None else print
     if max_display_line is None:
@@ -334,7 +339,7 @@ async def run_command(
     if register_pid_method is not None:
         register_pid_method(cmd_process.pid)
     assert cmd_process.stdout is not None and cmd_process.stderr is not None
-    display_lines = deque(maxlen=max_display_line if max_display_line > 0 else 0)
+    display_lines = deque(maxlen=max_display_line if max_display_line > 0 else None)
     states = {
         "stdout": __StreamState(max_output_line),
         "stderr": __StreamState(max_error_line),
@@ -354,6 +359,7 @@ async def run_command(
             # closes them; on timeout the group kill reaches a background one.
             await streams_task
             return_code = await wait_for_exit(cmd_process)
+        __report_dropped(states, actual_print_method)
         stdout = "\r\n".join(states["stdout"].captured)
         stderr = "\r\n".join(states["stderr"].captured)
         display = "\r\n".join(display_lines)
@@ -493,13 +499,25 @@ async def __read_streams(
 
 
 class __StreamState:
-    """Decode/line-buffer state for one subprocess stream."""
+    """Decode/line-buffer state for one subprocess stream.
+
+    `max_line` is how many *trailing* lines to retain. A non-positive value
+    means retain every line, which is the same convention
+    `BaseTask.readiness_timeout` and every other numeric cap in the framework
+    uses ("a non-positive value disables the cap"). It needs `maxlen=None`,
+    not `maxlen=0`: `collections.deque` treats `maxlen=0` as a zero-length
+    deque that discards every append, and rejects a negative one outright.
+    Counting dropped lines as they are dropped is what lets
+    `__finalize_stream` report the truncation instead of silently losing the
+    head of a long build log.
+    """
 
     def __init__(self, max_line: int) -> None:
         self.max_line = max_line
         self.decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
         self.buffer = ""
-        self.captured: deque[str] = deque(maxlen=max_line if max_line > 0 else 0)
+        self.captured: deque[str] = deque(maxlen=max_line if max_line > 0 else None)
+        self.dropped = 0
 
 
 def __resolve_chunk(future: "asyncio.Future[bytes]") -> bytes:
@@ -524,9 +542,14 @@ def __emit_line(
         print_method(clean_part, end="\r\n")
     except Exception:
         print_method(clean_part)
-    if state.max_line > 0:
-        state.captured.append(clean_part)
-        display_queue.append(clean_part)
+    # Unconditional: a non-positive `max_line` means "keep everything", and
+    # `captured` is already unbounded in that case. Guarding this on
+    # `max_line > 0` made `max_output_line=0` capture *nothing* — an empty
+    # result, silently, under the one value documented to mean "no limit".
+    if state.max_line > 0 and len(state.captured) == state.max_line:
+        state.dropped += 1
+    state.captured.append(clean_part)
+    display_queue.append(clean_part)
 
 
 def __feed_stream(
@@ -554,6 +577,33 @@ def __finalize_stream(
 ) -> None:
     state.buffer += state.decoder.decode(b"", final=True)
     __emit_line(state, state.buffer, print_method, display_queue)
+
+
+def __report_dropped(
+    states: "dict[str, __StreamState]",
+    print_method: Callable[..., None],
+) -> None:
+    """Say how many lines the capture cap dropped, once the run is over.
+
+    A cap that silently discards output turns `zrb deploy > deploy.log` into
+    a confidently-successful, quietly-incomplete artifact: the exit code
+    says the command passed, and the log is missing the beginning — which is
+    the part that says what went wrong. One line per stream, on the same
+    stream the reader was printing to, and never fatal: the command's own
+    exit code stays the answer to "did this work?".
+
+    The stream names are mapped to the keyword that caps them rather than
+    interpolated, because `max_stdout_line` is not a parameter anything
+    accepts.
+    """
+    for stream, keyword in (("stdout", "max_output_line"), ("stderr", "max_error_line")):
+        dropped = states[stream].dropped
+        if dropped <= 0:
+            continue
+        print_method(
+            f"[zrb] dropped {dropped} {stream} line(s), keeping the last "
+            f"{states[stream].max_line}. Pass {keyword}=0 to keep every line."
+        )
 
 
 def kill_pid(pid: int, print_method: Callable[..., None] | None = None):

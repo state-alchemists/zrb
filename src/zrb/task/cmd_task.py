@@ -82,9 +82,13 @@ class CmdTask(BaseTask):
             warn_unrecommended_command: Whether to warn about patterns that are
                 risky in a non-interactive shell. Defaults to the config setting.
             max_output_line: How many trailing stdout lines to retain in the
-                result.
+                result. 0 (or any non-positive value) keeps every line —
+                the usual choice for CI, where a truncated log is worse than
+                a long one. Lines the cap drops are reported when the command
+                finishes, so the result is never quietly short.
             max_error_line: How many trailing stderr lines to retain in the
-                result.
+                result. Same 0-means-unlimited convention as
+                `max_output_line`.
             execution_timeout: Seconds before the command is killed.
             is_interactive: When True, attach the command to the terminal so it can
                 prompt. Requires a TTY.

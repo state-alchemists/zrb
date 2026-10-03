@@ -194,6 +194,25 @@ def test_strict_init_auto_can_be_requested_explicitly(monkeypatch):
     assert CFG.INIT_STRICT is False
 
 
+def test_an_unregistered_task_in_init_is_named_at_startup(
+    tmp_path, capsys, monkeypatch
+):
+    """A task declared in `zrb_init.py` but never registered is a live object
+    with a name and no CLI word. Startup names it rather than letting
+    `zrb <name>` fall through to the "did you mean" listing."""
+    init = tmp_path / "zrb_init.py"
+    init.write_text(
+        "from zrb import CmdTask\n"
+        "orphan = CmdTask(name='detached-orphan', cmd='echo hi', retries=0)\n"
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["zrb"])
+    serve_cli()
+    captured = capsys.readouterr()
+    assert "detached-orphan" in captured.err
+    assert "not registered" in captured.err
+
+
 def test_a_mistyped_setting_variable_is_named_with_the_setting_it_meant(
     tmp_path, capsys, monkeypatch
 ):

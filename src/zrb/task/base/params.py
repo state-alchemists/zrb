@@ -69,7 +69,7 @@ class BaseTaskParams(CheckTaskParams, total=False):
     readiness_check_delay: float | None
     readiness_check_period: float | None
     readiness_failure_threshold: int | None
-    readiness_timeout: int | None
+    readiness_timeout: float | None
     monitor_readiness: bool
 
 

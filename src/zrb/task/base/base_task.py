@@ -55,7 +55,7 @@ class BaseTask(AnyTask):
         readiness_check_delay: float | None = None,
         readiness_check_period: float | None = 5,
         readiness_failure_threshold: int | None = 1,
-        readiness_timeout: int | None = None,
+        readiness_timeout: float | None = None,
         monitor_readiness: bool = False,
         upstream: Sequence[AnyTask] | AnyTask | None = None,
         fallback: Sequence[AnyTask] | AnyTask | None = None,
@@ -540,11 +540,16 @@ class BaseTask(AnyTask):
         return doc
 
     def _create_fn_signature(self) -> inspect.Signature:
+        # KEYWORD_ONLY because that is what the wrapper accepts:
+        # `task_runner_fn(**kwargs)` takes no positional argument at all.
+        # Advertising POSITIONAL_OR_KEYWORD told every consumer that reads
+        # `__signature__` — `help()`, an IDE, a CLI builder built on it — that
+        # `fn("value")` works, and it raises TypeError.
         return inspect.Signature(
             [
                 inspect.Parameter(
                     name=to_snake_case(inp.name),
-                    kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    kind=inspect.Parameter.KEYWORD_ONLY,
                 )
                 for inp in self.inputs
             ]
