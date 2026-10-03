@@ -136,24 +136,33 @@ def register_skill_frontmatter_hooks(manager: "HookManager") -> None:
 
     A config the manager's registry already holds is skipped by identity: the
     scan registers that one directly, and this factory would otherwise add a
-    second callable for the same rule.
+    second callable for the same rule. What it does register is recorded against
+    *manager* when that manager already owns the source, so a `reload()` — which
+    clears the registry and re-registers fresh callables — leaves the record
+    pointing at the live ones (see `_record_replay`).
     """
     for source, configs in _skill_hook_configs.items():
-        label = f"skill frontmatter ({source})"
-        for config in configs:
-            if manager.registry.has_hook_config(config):
-                continue
-            manager.register_hook_config(config, source=label)
+        registered = _register_configs(manager, source, configs)
+        _record_replay(manager, source, registered)
 
 
 def _register(
     manager: "HookManager", source: str, configs: "list[HookConfig]"
 ) -> None:
-    """Register *configs* on *manager*, remembering the callables.
+    """Register *configs* on *manager*, remembering the callables."""
+    registered = _register_configs(manager, source, configs)
+    if registered:
+        _scan_manager_hooks[source] = (manager, registered)
 
-    A config the registry already holds is skipped, the same guard the factory
-    applies: both paths can meet, and neither may add a second callable for one
-    rule.
+
+def _register_configs(
+    manager: "HookManager", source: str, configs: "list[HookConfig]"
+) -> "list[HookCallable]":
+    """Register *configs* on *manager*, returning the callables that landed.
+
+    A config the registry already holds is skipped, the guard both callers need:
+    the scan and the factory can meet on the same rule, and neither may add a
+    second callable for it.
     """
     label = f"skill frontmatter ({source})"
     registered: "list[HookCallable]" = []
@@ -163,7 +172,25 @@ def _register(
         hook = manager.register_hook_config(config, source=label)
         if hook is not None:
             registered.append(hook)
-    if registered:
+    return registered
+
+
+def _record_replay(
+    manager: "HookManager", source: str, registered: "list[HookCallable]"
+) -> None:
+    """Re-point *source*'s record at the callables a replay registered.
+
+    `reload()` clears a registry, and the factory then registers the stored
+    configs again — as *new* callables. The record still named the cleared ones,
+    so removing it did nothing and the live replay survived, firing alongside
+    whatever a later scan parsed. Only the manager already recorded as *source*'s
+    owner updates the record: every manager runs this factory, and a per-run one
+    must not take ownership of hooks it will not outlive.
+    """
+    if not registered:
+        return
+    recorded = _scan_manager_hooks.get(source)
+    if recorded is not None and recorded[0] is manager:
         _scan_manager_hooks[source] = (manager, registered)
 
 

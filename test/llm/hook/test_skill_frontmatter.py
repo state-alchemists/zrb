@@ -244,3 +244,26 @@ def test_a_scan_on_another_manager_retires_the_first_managers_hooks(tmp_path):
     assert "skill-flat-hook" not in _stop_hook_names(first), (
         "the manager holding the previous parse still fires it"
     )
+
+
+def test_reload_replay_updates_the_recorded_callables(tmp_path):
+    """`reload()` clears the registry and the factory registers the stored
+    configs again — as *new* callables. If the ownership record keeps naming the
+    cleared ones, the next scan's removal is a silent no-op and the live replay
+    keeps firing alongside the freshly parsed hook."""
+    canonical = HookManager(search_dirs=[])
+    skill_dir = tmp_path / "skill"
+    _write_skill(
+        skill_dir,
+        _SKILL_FLAT_SHAPE.format(name="skill-flat-hook", marker=tmp_path / "m"),
+    )
+    _scan(skill_dir, canonical)
+    assert _stop_hook_names(canonical).count("skill-flat-hook") == 1
+
+    canonical.reload()
+    assert _stop_hook_names(canonical).count("skill-flat-hook") == 1
+
+    _scan(skill_dir, canonical)
+    assert _stop_hook_names(canonical).count("skill-flat-hook") == 1, (
+        "the reload's replay survived the re-scan — the rule now fires twice"
+    )
