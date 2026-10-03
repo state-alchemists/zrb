@@ -114,6 +114,46 @@ async def test_validate_uuid_v5():
 
 
 @pytest.mark.asyncio
+async def test_validate_uuid_version_is_checked_not_rewritten():
+    """A versioned validator must reject another version's UUID.
+
+    `uuid.UUID(value, version=N)` *sets* the version bits, so before this the
+    version-bearing check passed for every version.
+    """
+    u1 = str(uuid.uuid1())
+    u3 = str(uuid.uuid3(uuid.NAMESPACE_DNS, "example.com"))
+    u4 = str(uuid.uuid4())
+    u5 = str(uuid.uuid5(uuid.NAMESPACE_DNS, "example.com"))
+    versions = [
+        (validate_uuid_v1, u1),
+        (validate_uuid_v3, u3),
+        (validate_uuid_v4, u4),
+        (validate_uuid_v5, u5),
+    ]
+    for task, own in versions:
+        assert await task.async_run(session=get_session(), kwargs={"id": own}) is True
+        for other in (u1, u3, u4, u5):
+            if other == own:
+                continue
+            assert (
+                await task.async_run(session=get_session(), kwargs={"id": other})
+                is False
+            ), f"{task.name} accepted {other}"
+
+
+@pytest.mark.asyncio
+async def test_validate_uuid_accepts_any_version():
+    """The unversioned validator is the "is this a UUID" one: every version."""
+    for value in (
+        str(uuid.uuid1()),
+        str(uuid.uuid3(uuid.NAMESPACE_DNS, "example.com")),
+        str(uuid.uuid4()),
+        str(uuid.uuid5(uuid.NAMESPACE_DNS, "example.com")),
+    ):
+        assert await validate_uuid.async_run(session=get_session(), kwargs={"id": value})
+
+
+@pytest.mark.asyncio
 async def test_generate_uuid_v1_with_params():
     """Test generate_uuid_v1 with custom node and clock_seq."""
     res = await generate_uuid_v1.async_run(
