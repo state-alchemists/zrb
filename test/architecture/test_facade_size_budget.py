@@ -49,7 +49,11 @@ FACADE_BUDGETS = {
     # +4 (809->813): the `dynamic_yolo` docstring names the arguments a
     # per-call callable is handed, which an `arg_pattern` rule needs to be
     # judged at all -- documented contract, no new surface.
-    "llm/task/llm_task.py": 813,
+    # +7 (813->820): `/compress` publishes the session's model overrides before
+    # the summarizer resolves a model. A run only publishes them once it starts,
+    # and this command is handled before that -- new behavior, and the reason
+    # `/model small` was being ignored.
+    "llm/task/llm_task.py": 820,
     "llm/agent/subagent/manager.py": 299,
 }
 

@@ -774,6 +774,7 @@
         "get_global_hooks",
         "get_hook_config",
         "get_hooks",
+        "has_hook_config",
         "record_config",
         "remove_event_hooks",
         "remove_hook",

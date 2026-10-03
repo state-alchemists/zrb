@@ -757,7 +757,14 @@ class LLMTask(BaseTask):
         ):
             return False
         ctx.print("Compressing conversation history...", plain=True)
-        new_history = await summarize_history(message_history, force=True)
+        # lazy: heavy third-party (via zrb.llm.ui)
+        from zrb.llm.agent.run.setup import session_model_scope
+
+        # `/compress` is handled before this task starts an agent, so the model
+        # bindings a run publishes do not exist yet; without them the summarizer
+        # resolves against `CFG` and ignores `/model small`.
+        with session_model_scope(self._uis):
+            new_history = await summarize_history(message_history, force=True)
         history_manager.update(conversation_name, new_history)
         await asyncio.to_thread(history_manager.save, conversation_name)
         return True

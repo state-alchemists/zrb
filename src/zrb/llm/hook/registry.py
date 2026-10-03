@@ -170,5 +170,16 @@ class HookRegistry:
         """All registered configs by hook name, for debugging."""
         return dict(self._hook_configs)
 
+    def has_hook_config(self, config: HookConfig) -> bool:
+        """Whether *config* itself is already registered on a hook here.
+
+        By identity, not equality: a re-parse mints a fresh `HookConfig` for the
+        same rule, and that one has to be registered rather than mistaken for
+        the copy already in place. Lets a replayer tell "this manager already has
+        it" from "this manager's registry was just cleared", which name-keyed
+        bookkeeping cannot: the generated names differ per parse.
+        """
+        return any(existing is config for existing in self._hook_to_config.values())
+
 
 hook_registry = HookRegistry()

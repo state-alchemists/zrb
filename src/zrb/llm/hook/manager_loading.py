@@ -218,17 +218,24 @@ class HookManagerLoading:
 
     def register_hook_config(
         self, config: "HookConfig", source: str = "python"
-    ) -> None:
+    ) -> "HookCallable | None":
         """Hydrate and register an already-built `HookConfig` — the same last
         step `_parse_and_register` takes after parsing JSON, exposed directly
         for hook factories (`add_hook_factory`) that build a `HookConfig` in
         Python rather than from a file. A no-op if `config.enabled` is False,
-        matching the JSON-loading path."""
+        matching the JSON-loading path.
+
+        Returns the hydrated hook callable, or `None` when the config was
+        disabled and nothing was registered. A caller that has to be able to
+        take a registration back later — a re-scan replacing a source's hooks —
+        needs the callable to hand to `remove_hook`.
+        """
         if not config.enabled:
-            return
+            return None
         hook_callable = self._hydrate_hook(config)
         self.add_hook(hook_callable, config.events, config)
         logger.info(f"Registered hook '{config.name}' from {source}")
+        return hook_callable
 
     def _create_hook_config(self, data: dict, source: str | None = None) -> HookConfig:
         # Manual parsing because we are not using Pydantic BaseModel

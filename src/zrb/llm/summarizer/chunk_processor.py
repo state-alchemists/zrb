@@ -6,6 +6,7 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.summarizer.message_converter import message_to_text
 from zrb.llm.summarizer.text_summarizer import summarize_text_plain
+from zrb.llm.util.capabilities import model_capabilities
 from zrb.util.cli.style import stylize_error, stylize_warning
 
 
@@ -27,11 +28,22 @@ async def chunk_and_summarize(
             )
             history_texts.append(str(m))
 
-    # Build chunks up-front so we know total count before launching tasks
+    # Build chunks up-front so we know total count before launching tasks. The
+    # budget is *token_threshold* — the conversational one, derived from
+    # `LLM_MAX_TOKEN_PER_REQUEST`, which is a global request cap — reduced to
+    # the summarization model's own window when that is known, as
+    # `LLMLimiter.fit_context_window` does for the main model. Sizing a chunk by
+    # the global cap alone and sending it to a model with a smaller window is
+    # what made `/compress` fail with a provider `context_length_exceeded` on a
+    # single 422-message chunk.
+    window = model_capabilities.get(getattr(agent, "model", None)).context_window
+    chunk_budget = token_threshold
+    if window is not None and window > 0:
+        chunk_budget = min(chunk_budget, window)
     chunks: list[list[str]] = []
     current_chunk: list[str] = []
     current_chunk_tokens = 0
-    chunk_token_limit = max(1, int(token_threshold * 0.9))
+    chunk_token_limit = max(1, int(chunk_budget * 0.9))
 
     for text in history_texts:
         text_tokens = limiter.count_tokens(text)

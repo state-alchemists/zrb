@@ -160,7 +160,10 @@ class TestBaseUICommandHandlers:
         assert "/attach" in help_text
         assert "Keyboard Shortcuts:" in help_text
         assert "Ctrl+J" in help_text
+        # Both keys reach the same paste path — Ctrl+V unless the terminal
+        # claims it for its own text-only paste, which Alt+V sidesteps.
         assert "Ctrl+V / Alt+V" in help_text
+        assert "Paste text or image from clipboard" in help_text
         assert "Ctrl+K" in help_text
         assert "Shift+Tab" in help_text
 
