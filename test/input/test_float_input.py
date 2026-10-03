@@ -1,3 +1,5 @@
+import pytest
+
 from zrb.context.shared_context import SharedContext
 from zrb.input.float_input import FloatInput
 
@@ -31,3 +33,14 @@ def test_float_input_parse_str_value():
     value = shared_ctx.input.my_float
     assert value == 7.89
     assert isinstance(value, float)
+
+
+def test_float_input_rejected_value_names_the_flag_and_the_accepted_shape():
+    float_input = FloatInput(name="ratio")
+    with pytest.raises(ValueError) as excinfo:
+        float_input.update_shared_context(SharedContext(), str_value="abc")
+    message = str(excinfo.value)
+    assert "'ratio'" in message
+    assert "'abc'" in message
+    assert "a number" in message
+    assert "could not convert" not in message

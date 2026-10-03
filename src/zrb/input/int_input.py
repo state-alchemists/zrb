@@ -36,6 +36,9 @@ class IntInput(BaseInput):
     def _parse_str_value(self, str_value: str) -> int:
         return int(str_value)
 
+    def _expected_value_description(self) -> str:
+        return "an integer, e.g. 42"
+
     def get_default_str(self, shared_ctx: AnySharedContext) -> str:
         default_value = get_int_attr(shared_ctx, self._default_value)
         return f"{default_value}"
