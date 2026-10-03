@@ -43,9 +43,9 @@ class AnyUI(ABC):
     zrb's own docs show implementing this class directly.
 
     The contract is in two halves: the eight behavioral methods below, which
-    every UI performs, and the eighteen state members and side-effect hooks
+    every UI performs, and the twenty-two state members and side-effect hooks
     after them, which describe what a *full* UI keeps. `BaseUI` implements all
-    eighteen; a UI that keeps none of it mixes in `UIStateDefaultsMixin`
+    twenty-two; a UI that keeps none of it mixes in `UIStateDefaultsMixin`
     (`llm/ui/state_defaults.py`). `track_echo_span`/`redraw_echo` are declared
     in the mixin too, with inert defaults, so a UI that never splices an echo
     (any of the wrappers) constructs unchanged.

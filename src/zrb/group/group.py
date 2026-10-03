@@ -6,13 +6,28 @@ A `Group` is one word in a command line. Nesting groups nests the words, so
 the same task object can appear under two names without being redefined.
 """
 
-from typing import Any, TypeVar
+from typing import Any, NamedTuple, TypeVar
 
 from zrb.group.any_group import AnyGroup, NodeNotFoundError
 from zrb.task.any_task import AnyTask
 from zrb.util.string.suggestion import format_suggestion
 
 _T = TypeVar("_T", bound=AnyTask)
+
+
+class TaskReplacement(NamedTuple):
+    """A registration that overwrote an earlier task under the same alias.
+
+    `Group.add_task` records one of these per replacement. Registering over an
+    alias is silent by design (see `add_task`); the record exists so a startup
+    diagnostic can tell a project shadowing a built-in (intended) from two of
+    the project's own tasks colliding (a mistake), without `add_task` itself
+    having to decide which it is.
+    """
+
+    alias: str
+    replaced: AnyTask
+    replacement: AnyTask
 
 
 class Group(AnyGroup):
@@ -46,6 +61,11 @@ class Group(AnyGroup):
         self._description = description
         self._groups: dict[str, AnyGroup] = {}
         self._tasks: dict[str, AnyTask] = {}
+        # Append-only log of the aliases this group's add_task overwrote, so
+        # startup diagnostics can explain a silent replacement. Never read by
+        # dispatch; `reset_task_replacements` clears it at the top of each
+        # startup.
+        self.replacements: list[TaskReplacement] = []
 
     def __repr__(self):
         return f"<{self.__class__.__name__} name={self._name}>"
@@ -120,9 +140,11 @@ class Group(AnyGroup):
         the first, silently and by design: it is how a project shadows a
         built-in, as [CI/CD](../../docs/advanced-topics/ci-cd.md) describes for
         `zrb test` and `zrb lint`. The flip side is that two of your own tasks
-        sharing a name means the later one wins with no warning — if a task
-        seems to have vanished, look for a duplicate `name=` before anything
-        else.
+        under one alias mean the later one wins with no warning — if a task
+        seems to have vanished, look for a duplicate name before anything
+        else. Each replacement is logged on `replacements`, which startup
+        reads to warn about exactly that case while leaving a built-in shadow
+        quiet.
 
         Args:
             task: The task to expose.
@@ -141,6 +163,9 @@ class Group(AnyGroup):
         ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise TypeError(_wrong_task_type_message(task))
         alias = alias if alias is not None else task.name
+        replaced = self._tasks.get(alias)
+        if replaced is not None and replaced is not task:
+            self.replacements.append(TaskReplacement(alias, replaced, task))
         self._tasks[alias] = task
         return task
 

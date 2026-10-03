@@ -101,6 +101,9 @@ from zrb.llm.ui.trigger import TriggerMessage, TriggerReply
 from zrb.llm.util.capabilities import model_capabilities
 
 # --- Runner (CLI + web schemas) ------------------------------------------
+from zrb.group.task_diagnostics import (
+    snapshot_builtin_task_ids as _snapshot_builtin_task_ids,
+)
 from zrb.runner.cli import Cli, cli
 
 # --- Session --------------------------------------------------------------
@@ -138,6 +141,12 @@ hook_manager: HookManager = hook_manager
 hook_registry: HookRegistry = hook_registry
 skill_manager: SkillManager = skill_manager
 skill_registry: SkillRegistry = skill_registry
+
+# The built-ins have all registered by now, and no init source could have run
+# yet (that happens in `serve_cli`). Freeze their identities once, so a later
+# run cannot mistake a project task an earlier run registered on the same
+# process-wide `cli` tree for a built-in and stay silent about its collision.
+_snapshot_builtin_task_ids(cli)
 
 __all__ = [
     "builtin",

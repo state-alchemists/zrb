@@ -4,7 +4,13 @@ import tempfile
 
 import pytest
 
-from zrb.util.load import load_file, load_module, load_module_from_path
+from zrb.util.load import (
+    load_file,
+    load_file_with_result,
+    load_module,
+    load_module_from_path,
+    load_module_with_result,
+)
 
 
 @pytest.fixture
@@ -75,6 +81,52 @@ def test_load_file_broken_script_raises_when_raise_on_error():
             load_file(path, raise_on_error=True)
     finally:
         os.remove(path)
+
+
+def test_load_file_with_result_returns_declarations_with_the_error():
+    """A source that fails after declaring a name still yields that name with
+    the error: the declaration is already live in the CLI tree."""
+    with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+        f.write("value = 'declared'\nraise RuntimeError('boom')")
+        path = f.name
+    try:
+        module, error = load_file_with_result(path)
+        assert isinstance(error, RuntimeError)
+        assert module is not None
+        assert module.value == "declared"
+    finally:
+        os.remove(path)
+
+
+def test_load_file_with_result_success_has_no_error():
+    with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+        f.write("def hello(): return 'world'")
+        path = f.name
+    try:
+        module, error = load_file_with_result(path)
+        assert error is None
+        assert module is not None
+        assert module.hello() == "world"
+    finally:
+        os.remove(path)
+
+
+def test_load_file_with_result_missing_file_has_no_error():
+    module, error = load_file_with_result("/non/existent/path.py")
+    assert module is None
+    assert error is None
+
+
+def test_load_module_with_result_returns_the_import_error():
+    module, error = load_module_with_result("non_existent_module_xyz")
+    assert isinstance(error, ImportError)
+    assert module is None
+
+
+def test_load_module_with_result_success_has_no_error():
+    module, error = load_module_with_result("os")
+    assert module is os
+    assert error is None
 
 
 def test_load_module_from_path_success(temp_script):
