@@ -435,7 +435,8 @@
         "session_name_queue:POSITIONAL_OR_KEYWORD:1"
       ],
       "members": [
-        "async_run"
+        "async_run",
+        "task"
       ]
     },
     "Cli": {
@@ -746,6 +747,8 @@
         "add_hook",
         "add_hook_factory",
         "background_tasks",
+        "build_claude_format_configs",
+        "build_hook_configs",
         "execute_hooks",
         "execute_hooks_simple",
         "has_pending_background_hooks",
