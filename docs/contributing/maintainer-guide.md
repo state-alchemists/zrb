@@ -223,22 +223,24 @@ To reproduce a suspected order dependence, run the two tests together in one pro
 
 ## Evaluating and Improving the LLM Agent
 
-Agent quality is measured with evaluation challenges in a separate repository, [github.com/state-alchemists/llm-challenges](https://github.com/state-alchemists/llm-challenges); its README has the full protocol. The loop: run challenges for all model combinations → review `REPORT.md` for failures → refactor prompts or tools → re-run to confirm.
+Agent quality is measured with evaluation challenges in a separate repository, [github.com/state-alchemists/llm-challenges](https://github.com/state-alchemists/llm-challenges), run by the [`zrb-llm-evaluator`](https://github.com/state-alchemists/zrb-llm-evaluator) test runner (`pipx install zrb-llm-evaluator`); the challenges repo's README has the full protocol. The loop: run challenges for all model combinations → review `experiment/report.md` for failures → refactor prompts or tools → re-run to confirm.
 
 ```bash
 git clone https://github.com/state-alchemists/llm-challenges.git
 cd llm-challenges/
 
-# Quick verification test
-python runner.py --models openai:gpt-4o google-gla:gemini-1.5-pro --timeout 120 --verbose
+# Quick smoke test (single model, single challenge, one trial)
+zrb-llm-evaluator run --models openai:gpt-4o --test-cases ./challenges/bug-fix \
+  --trials 1 --parallelism 1 --timeout 120 --output-dir ./experiment
 
-# Full test suite
-python runner.py --timeout 3600 --parallelism 12 --verbose --models <model-list>
+# Full grid
+zrb-llm-evaluator run --models <model-list> --test-cases <challenge-dirs> \
+  --trials 3 --parallelism 8 --timeout 600 --output-dir ./experiment
 ```
 
 | What | Location |
 |------|----------|
-| Report | `experiment/REPORT.md` |
+| Report | `experiment/report.md` |
 | Results | `experiment/results.json` |
 | Prompts to optimize | `src/zrb/llm/prompt/markdown/` |
 | Tools to optimize | `src/zrb/llm/tool/` |
@@ -280,7 +282,7 @@ Moved to [LLM History Sanitization (Technical Specification)](../technical-specs
 | Generate profile | `python -m cProfile -o .cprofile.prof -m zrb --help` |
 | Visualize (snakeviz) | `snakeviz .cprofile.prof` |
 | Visualize (flame) | `flameprof .cprofile.prof > flamegraph.svg` |
-| Clone + run LLM challenges | `git clone https://github.com/state-alchemists/llm-challenges && cd llm-challenges && python runner.py --models <list> --verbose` |
+| Clone + run LLM challenges | `git clone https://github.com/state-alchemists/llm-challenges && cd llm-challenges && zrb-llm-evaluator run --models <list> --test-cases <dirs> --output-dir ./experiment` |
 | Run one-on-one LLM session | `zrb chat "What is your honest analysis about your current system prompt..."` |
 
 ---

@@ -217,7 +217,7 @@ Rate limits and token budgets guard against runaway loops, cost, and provider li
 | `ZRB_LLM_MAX_TOKEN_PER_REQUEST` | Hard context window limit. The effective per-request budget is the **lower** of this and the model's known context window (`gpt-4o` 128k, `gpt-4.1` 1M, Claude 3/4 200k, Gemini 1.5/2/3 1M); models zrb doesn't recognise keep this cap. | `128000` |
 | `ZRB_LLM_THROTTLE_SLEEP` | Seconds to pause when rate-limited | `1.0` |
 | `ZRB_ENABLE_TIKTOKEN` | Use tiktoken for accurate counting | `off` (false) |
-| `ZRB_TIKTOKEN_ENCODING` | Tiktoken encoding scheme | `cl100k_base` |
+| `ZRB_TIKTOKEN_ENCODING_NAME` | Tiktoken encoding scheme (`ZRB_TIKTOKEN_ENCODING` is still read) | `cl100k_base` |
 
 ---
 
@@ -231,7 +231,7 @@ Zrb summarizes in the background when history or a single message grows too larg
 | `ZRB_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD` | Token count triggering individual message summarization | 50% of conversational threshold |
 | `ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW` | Recent messages to keep verbatim | `100` |
 
-The same mechanism keeps one large repo or file read from blowing the context window; each threshold is clamped to a fraction of `MAX_TOKEN_PER_REQUEST`:
+The same mechanism keeps one large repo or file read from blowing the context window; like the two above, each threshold is clamped to a fraction of the smaller of `MAX_TOKEN_PER_MINUTE` and `MAX_TOKEN_PER_REQUEST` (60% for the two above, 40% here):
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -485,16 +485,16 @@ Free; reads the Google News RSS feed. No API key, Docker, or configuration neede
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `SERPAPI_KEY` | API key | (required) |
-| `SERPAPI_LANG` | Language | `en` |
-| `SERPAPI_SAFE` | Safe search | `off` |
+| `ZRB_SERPAPI_LANG` | Language | `en` |
+| `ZRB_SERPAPI_SAFE` | Safe search | `off` |
 
 ### Brave Search
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `BRAVE_API_KEY` | API key | (required) |
-| `BRAVE_API_LANG` | Language | `en` |
-| `BRAVE_API_SAFE` | Safe search | `off` |
+| `ZRB_BRAVE_API_LANG` | Language | `en` |
+| `ZRB_BRAVE_API_SAFE` | Safe search | `off` |
 
 ### SearXNG (Self-hosted)
 
@@ -590,6 +590,7 @@ Values are in **milliseconds** unless the row says otherwise.
 | `ZRB_LLM_WEB_HTTP_TIMEOUT` | HTTP request timeout for web tools and search (ms) | `30000` |
 | `ZRB_LLM_MODEL_FETCH_TIMEOUT` | Timeout for fetching Ollama model list (ms) | `5000` |
 | `ZRB_CMD_CLEANUP_TIMEOUT` | Time to wait for a process to exit after interrupt before killing (ms) | `2000` |
+| `ZRB_TASK_READINESS_TIMEOUT` | Default readiness-wait timeout for any task that does not set `readiness_timeout` itself; bounds the initial wait and each monitoring re-check round. `0` disables the cap, so a check that never returns hangs the run (ms) | `60000` |
 | `ZRB_LLM_GIT_CMD_TIMEOUT` | Timeout for the git commands that build live/system context — branch, status, log, and the is-a-git-dir probe (ms). Does not apply to agent-invoked git work (snapshots, worktrees). | `5000` |
 
 ---
@@ -669,7 +670,7 @@ Customize the tokens that trigger built-in UI commands. Each value is a **comma-
 | `ZRB_LLM_UI_COMMAND_SUMMARIZE` | Compact the conversation history | `/compress, /compact` |
 | `ZRB_LLM_UI_COMMAND_YOLO_TOGGLE` | Toggle auto-approval of tool calls | `/yolo` |
 
-> ⚠️ **Don't guess the variable from the command.** Several differ: `/yolo` → `YOLO_TOGGLE`, `/plan` → `PLAN_TOGGLE`, `/model` → `SET_MODEL`, `/compress` → `SUMMARIZE`, `>` → `REDIRECT_OUTPUT`. A wrong name is silently ignored.
+> ⚠️ **Don't guess the variable from the command.** Several differ: `/yolo` → `YOLO_TOGGLE`, `/plan` → `PLAN_TOGGLE`, `/model` → `SET_MODEL`, `/compress` → `SUMMARIZE`, `>` → `REDIRECT_OUTPUT`. A wrong name is ignored; zrb warns about it at startup, but the "did you mean" it suggests can be the wrong knob (`ZRB_LLM_UI_COMMAND_YOLO` suggests `..._LOAD`).
 >
 > `/photo`, `/voice`, `/handsfree` and `/speech` belong to the camera, dictation and speech features; their aliases are `ZRB_LLM_CAMERA_COMMANDS`, `ZRB_LLM_DICTATION_COMMANDS`, `ZRB_LLM_DICTATION_HANDS_FREE_COMMANDS` and `ZRB_LLM_SPEECH_COMMANDS` (§ 23).
 
@@ -800,7 +801,7 @@ See `examples/themes/monokai/` for a complete worked example.
 
 ### Theme Examples
 
-`examples/themes/` also ships shell scripts that export curated palettes. Source one in your shell rc:
+`examples/themes/` also ships shell scripts that export curated palettes as individual `ZRB_*` color variables. Those exports override `ZRB_THEME`, so for the plain dark or light palette `export ZRB_THEME=dark` (or `light`) is simpler. Source one in your shell rc:
 
 ```bash
 # ~/.zshrc or ~/.bashrc

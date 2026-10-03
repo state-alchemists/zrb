@@ -56,11 +56,11 @@ async def countdown(ctx: AnyContext):
 async def process_items(ctx: AnyContext):
     """Process items one by one with async delay."""
     results = []
-    for i in range(ctx.input.get("items", [])):
+    for i in range(ctx.input["items"]):
         # Simulate async work
         await asyncio.sleep(0.2)
         results.append(f"item-{i}")
-        ctx.print(f"Processed {i + 1}/{ctx.input.items}")
+        ctx.print(f"Processed {i + 1}/{ctx.input['items']}")
 
     ctx.print(f"✅ All done! Processed {len(results)} items")
     return results

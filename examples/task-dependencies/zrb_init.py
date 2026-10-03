@@ -2,8 +2,8 @@
 Task Dependencies Example
 
 Shows how to chain tasks with:
-- Upstream dependencies (<<)
-- Downstream dependencies (>>)
+- `>>` (the left task runs first)
+- `<<` (the right task runs first)
 - Fallback tasks
 - Successor tasks
 """
@@ -13,11 +13,11 @@ import asyncio
 from zrb import AnyContext, CmdTask, FloatInput, Task, cli, make_task
 
 # =============================================================================
-# Upstream Dependencies (<<) - Data Flows From Right to Left
+# ">>" - Data Flows From Left to Right
 # =============================================================================
 
-# "task_a << task_b" means: task_b runs first, then task_a
-# Data from task_b is available in task_a's xcom
+# "task_a >> task_b" means: task_a runs first, then task_b
+# Data from task_a is available in task_b's xcom
 
 
 async def create_natrium(ctx: AnyContext):
@@ -58,7 +58,7 @@ assert task_chlorine >> task_salt
 # Now running "create-salt" will automatically run create-natrium and create-chlorine first
 
 # =============================================================================
-# Alternative: Downstream Dependencies (<<)
+# Alternative: "<<" - The Same Relationship, Written the Other Way
 # =============================================================================
 
 # You can also express the same relationship the other way:

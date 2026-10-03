@@ -10,9 +10,9 @@ The sandbox is **opt-in and off by default** (the same default-off invariant as 
 
 One `SandboxPolicy` (`zrb/llm/sandbox/`) drives two enforcement layers:
 
-1. **Python-level filesystem gate** (all platforms). `_sandbox_gate` in `agent/common.py` runs next to the permission gate for every tool call. It realpaths path-like arguments (`path`, `file_path`, `src`, `dst`, …) and blocks:
+1. **Python-level filesystem gate** (all platforms). `sandbox_gate` (`agent/gates.py`) runs right after the permission gate for every tool call. It realpaths path-like arguments (`path`, `file_path`, `src`, `dst`, …) and blocks:
    - **writes** outside the writable roots for `EDIT` and `UNKNOWN`-capability tools (`Write`, `Edit`, `RM`, `MV`, unvetted MCP tools) — including `worktree_path`, `ExitWorktree`'s deletion target (`EnterWorktree` computes its own destination internally, so it needs no caller-supplied path check),
-   - **reads** inside the deny-read list (credential directories such as `~/.ssh`, `~/.aws`, `~/.kube`) for every tool. A blocked call returns a `ToolReturn` with `metadata={"blocked": True}` and a `[SYSTEM SUGGESTION]`, so the model can adapt instead of crashing.
+   - **reads** inside the deny-read list (credential directories such as `~/.ssh`, `~/.aws`, `~/.kube`) for every tool except `EXECUTE` ones (`Shell` is contained by the OS layer below, not by argument inspection). A blocked call returns a `ToolReturn` with `metadata={"blocked": True}` and a `[SYSTEM SUGGESTION]`, so the model can adapt instead of crashing.
 2. **OS-level subprocess wrapper** (macOS, Linux). Every subprocess a tool spawns is wrapped through `build_sandboxed_argv`, which takes any discrete `argv` and prepends only the sandbox-dispatch prefix — immune to `cd`, symlink tricks, and check-then-use races. The `Shell` tool passes its `[shell, shell_flag, command]` (foreground or `background=True`); the worktree tools pass their discrete `git` argv directly:
    - **macOS** — `sandbox-exec -p <generated SBPL profile>` (Seatbelt). Deprecated-but-functional; Chrome, Bazel, and Codex still ship on it.
    - **Linux** — `bwrap` (bubblewrap): read-only root bind, read-write binds for the writable roots, `tmpfs`/`/dev/null` masks over the deny-read paths. No PID/network unsharing, so process-group handling, timeout kill, and background-PID tracking keep working.

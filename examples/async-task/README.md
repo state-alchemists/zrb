@@ -63,8 +63,8 @@ async def fetch_all(ctx: AnyContext):
 ### With Retry
 
 ```python
-@make_task(name="flaky", retries=3)
-async def flaky_task(ctx: AnyContext):
+@make_task(name="retry-task", retries=3)  # up to 4 attempts
+async def retry_task(ctx: AnyContext):
     if random.random() < 0.7:
         raise ValueError("Random failure!")
     return "success"

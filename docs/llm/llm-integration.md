@@ -38,24 +38,24 @@ This launches a full-screen chat application where you can have a conversation w
 
 | Command | Description |
 |---------|-------------|
-| `/q`, `/bye`, `/quit`, `/exit` | Exit the application |
+| `/q`, `:q`, `/bye`, `/quit`, `/exit` | Exit the application |
 | `/info`, `/help` | Show all available commands |
 | `/compress`, `/compact` | Summarize conversation to free context |
 | `/model <name>` | Switch LLM model (e.g., `/model openai:gpt-4o`) |
 | `/yolo` or `/yolo <tools>` | Toggle auto-execute mode. With tool names (e.g., `/yolo Write,Edit`), selectively auto-approve only those tools |
-| `/load <name>` | Load a named session |
+| `/load <name>`, `/resume <name>` | Load a named session |
 | `/save <name>` | Save current session |
 | `/attach <file_path>` | Attach a file to next message (capped by `LLM_MAX_ATTACHMENT_BYTES`, default 20MB; content is sniffed against its extension) |
-| `/photo [device]` | Capture a photo from the camera and attach it to the next message (device is optional and tab-completes; auto-detected per platform) |
+| `/photo [device]`, `/p [device]` | Capture a photo from the camera and attach it to the next message (device is optional and tab-completes; auto-detected per platform) |
 | `>` or `/redirect` (bare) | Copy last AI response to clipboard |
 | `>` or `/redirect <file_path>` | Save last AI response to a file |
 | `/copy` (bare) | Copy full conversation transcript to clipboard |
 | `/copy <file_path>` | Save full conversation transcript to file |
 | `!` or `/exec <shell_cmd>` | Execute shell command |
-| `/btw <text>` | Inject a side note for the next turn without sending it as a message (runs while the assistant is thinking) |
+| `/btw <question>` | Ask a side question answered by a separate, independent agent; the exchange is not saved to history. Works while the assistant is thinking |
 | `/plan` | Toggle [Plan Mode](./plan-mode.md) (read-only discovery) |
 | `/rewind [n\|sha]` | List or restore filesystem + history [snapshots](../configuration/llm-config.md#6-rewind--snapshots) (on by default; `ZRB_LLM_ENABLE_REWIND`) |
-| `/voice` | Record speech: a pause or `/voice` again stops, and the transcript lands in the input box. Needs `zrb[voice]` |
+| `/voice`, `/v` | Record speech: a pause or `/voice` again stops, and the transcript lands in the input box. Needs `zrb[voice]` |
 | `/handsfree` | Switch hands-free voice input on or off: every utterance becomes a turn, or answers the pending approval |
 | `/speech` | Switch reading replies aloud on or off |
 
@@ -71,6 +71,8 @@ The TUI status bar tracks accumulated LLM token usage across all requests in a s
 💸 1.5k in · 34 out
 ```
 
+When the provider reports them, cached input tokens (`· 1.2k cached`) and the current context size (`· 🧠 3.4k ctx`) are appended.
+
 The counters reset whenever you switch conversations via `/load`, since past sessions' spend is not persisted. Tokens are tracked per-UI instance — in a `MultiUI` setup each child UI maintains its own totals.
 
 There are no configuration knobs for this feature; it always appears (non-zero after the first request) and uses the theme's `FAINT` style.
@@ -81,7 +83,7 @@ By default, Zrb prompts for confirmation before executing most tools. This is co
 
 | Mode | Behavior |
 |------|----------|
-| **YOLO off** | All tools require confirmation |
+| **YOLO off** | Tools require confirmation unless a tool policy auto-approves them (the built-in chat auto-approves, e.g., `Read`/`LS`/`Glob`/`Grep` inside the current directory, `WebSearch`/`WebFetch`, and safe shell commands) |
 | **YOLO on** | All tools auto-approved |
 | **Selective YOLO** | Only specified tools auto-approved (e.g., `/yolo Write,Edit`) |
 | **Permission Policy** | Fine-grained `ALLOW`/`DENY`/`ASK` rules that can override YOLO |
@@ -104,12 +106,13 @@ You can also integrate the LLM directly into your automated workflows using two 
 Use `LLMTask` for single-shot requests where you need the LLM to process input and return a result without conversational history.
 
 ```python
-from zrb import LLMTask, Tpl, cli
+from zrb import LLMTask, StrInput, Tpl, cli
 
 summarize_task = cli.add_task(
     LLMTask(
         name="summarize",
         system_prompt="You are an expert summarizer.",
+        input=StrInput(name="text"),
         message=Tpl("Please summarize the following text: {ctx.input.text}")
     )
 )
@@ -127,7 +130,7 @@ custom_chat = cli.add_task(
     LLMChatTask(
         name="custom-chat",
         ui_config=UIConfig(greeting="Hello from your custom assistant!"),
-        input=[StrInput(name="user_message", ...)],
+        input=[StrInput(name="user_message", description="Your message")],
         message=Tpl("{ctx.input.user_message}")
     )
 )

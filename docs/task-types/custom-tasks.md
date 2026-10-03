@@ -123,7 +123,7 @@ class FlakyTask(BaseTask):
 ### Example: Custom Task with Init-Time Setup
 
 ```python
-from zrb import BaseTask, cli
+from zrb import BaseTask, Task, cli
 from zrb.context.any_context import AnyContext
 
 class DatabaseTask(BaseTask):
@@ -138,6 +138,7 @@ class DatabaseTask(BaseTask):
         # ... database logic ...
 
 # Usage
+prepare_task = Task(name="prepare", action=lambda ctx: ctx.print("Preparing..."))
 db_job = DatabaseTask(
     name="migrate",
     connection_string="postgresql://localhost/mydb",
@@ -154,7 +155,7 @@ cli.add_task(db_job)
 For task types you'll use across many projects, encapsulate inputs and envs:
 
 ```python
-from zrb import BaseTask, StrInput, Env
+from zrb import BaseTask, Env, StrInput, cli
 
 class ApiCallTask(BaseTask):
     def __init__(

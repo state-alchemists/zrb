@@ -66,7 +66,7 @@ zrb hello Edward Mr.
 
 ### 3. Interactive Prompt
 
-If you run the task without providing the required inputs, Zrb uses `prompt_toolkit` to automatically prompt you for them.
+If you run the task without providing its inputs on the command line, Zrb uses `prompt_toolkit` to prompt you for each missing one — including inputs that have a default, unless you set `always_prompt=False` on them (then the default is used silently).
 
 ```bash
 $ zrb hello
@@ -91,6 +91,7 @@ Zrb provides concrete input classes for different data types. Always use these s
 | `BoolInput` | Boolean flags | Enable/disable options |
 | `PasswordInput` | Hidden input | Passwords, secrets, API keys |
 | `OptionInput` | Selection from list | Predefined choices |
+| `TextInput` | Multi-line text, edited in your editor | Commit messages, long prompts |
 
 ---
 
@@ -139,14 +140,15 @@ task = cli.add_task(
 
 ## Quick Reference
 
-| Input Type | Required Parameters | Optional Parameters |
-|------------|-------------------|---------------------|
-| `StrInput` | `name` | `description`, `default`, `prompt` |
-| `IntInput` | `name` | `description`, `default`, `prompt` |
-| `FloatInput` | `name` | `description`, `default`, `prompt` |
-| `BoolInput` | `name` | `description`, `default` |
-| `PasswordInput` | `name` | `description` |
-| `OptionInput` | `name`, `options` | `description`, `default` |
+Every input takes `name` (required) plus `description`, `prompt`, `default`, `allow_empty`, `allow_positional_parsing`, and `always_prompt`. Type-specific extras:
+
+| Input Type | Extra Parameters |
+|------------|------------------|
+| `StrInput`, `IntInput`, `FloatInput`, `BoolInput`, `PasswordInput` | — |
+| `OptionInput` | `options` (the allowed values) |
+| `TextInput` | `editor`, `extension`, `comment_start`, `comment_end` |
+
+An input name with dashes is also readable in snake_case: `is-admin` is `ctx.input.is_admin`.
 
 ---
 

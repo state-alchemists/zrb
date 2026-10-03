@@ -24,7 +24,7 @@
 | Hands-free switched itself off | The microphone failed while listening; the reason is in zrb's log |
 | Recording starts but no audio is captured | Check OS microphone permissions for your terminal app; on Linux, check that PulseAudio/PipeWire is running |
 | No sound on WSL | WSL2 needs WSLg (Windows 11) or a PulseAudio server bridged from Windows for audio passthrough |
-| Termux: no microphone access | Install `termux-api` (`pkg install termux-api`) and the Termux:API app from F-Droid; grant microphone permission to Termux:API in Android settings |
+| Termux: no microphone access | Dictation records through `sounddevice` (PortAudio), not Termux:API, so the microphone has to be reachable through PortAudio in your Termux environment; Termux:API is used only by `/photo` and the `termux` speech backend |
 
 ## Photo (`/photo`)
 
@@ -81,7 +81,7 @@
 
 **Gotcha:** `wsl --shutdown` force-powers-off the VM without flushing disk cache first — it is not a clean guest shutdown. If a `make modules_install` hasn't been `sync`ed to disk yet, ext4's journal replay silently rolls it back on the next boot, and `/dev/video0` goes missing again with `modprobe uvcvideo` failing as if the module was never built. Always run `sync` right after `modules_install`/`depmod`, before triggering any `wsl --shutdown`.
 
-**Even after the driver works:** ffmpeg's default v4l2 negotiation requests raw YUYV at the camera's max resolution (often 1080p, ~165 Mbps uncompressed), which usbipd-win's USB/IP tunnel can't sustain — the capture hangs indefinitely with the camera light stuck on and no frame ever delivered. zrb works around this automatically by requesting MJPEG (compressed on-camera) at 640x480 first, falling back to the raw negotiation for cameras that don't support MJPEG; a 15-second capture timeout is the backstop if a given camera/setup hangs regardless. If `/photo` still times out at that point, try an external USB webcam — integrated ones are consistently less reliable over USB/IP.
+**Even after the driver works:** ffmpeg's default v4l2 negotiation requests raw YUYV at the camera's max resolution (often 1080p, ~165 Mbps uncompressed), which usbipd-win's USB/IP tunnel can't sustain — the capture hangs indefinitely with the camera light stuck on and no frame ever delivered. zrb works around this automatically by requesting MJPEG (compressed on-camera) at 640x480 first, falling back to the raw negotiation for cameras that don't support MJPEG; a 15-second capture timeout (`ZRB_LLM_CAMERA_TIMEOUT`) is the backstop if a given camera/setup hangs regardless. If `/photo` still times out at that point, try an external USB webcam — integrated ones are consistently less reliable over USB/IP.
 
 ---
 

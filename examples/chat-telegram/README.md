@@ -22,7 +22,7 @@ Both Telegram and terminal receive all messages and can respond.
 
 ```bash
 pip install zrb
-pip install python-telegram-bot>=20.0
+pip install "python-telegram-bot>=20.0"
 ```
 
 ### 4. Set Environment Variables
@@ -39,7 +39,7 @@ cd examples/chat-telegram
 zrb llm chat "Hello!"
 ```
 
-**Note:** Both environment variables **must** be set. If not, the example will exit with an error.
+**Note:** Both environment variables **must** be set. If either is missing, the example prints a setup reminder and registers nothing, so `zrb llm chat` runs with the terminal UI only.
 
 Output:
 ```

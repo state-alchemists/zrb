@@ -29,7 +29,7 @@ Find available tags on [Docker Hub](https://hub.docker.com/r/stalchmst/zrb/tags)
 
 ### Define Your Tasks First
 
-The `zrb test` and `zrb lint` commands used throughout this guide are not built into Zrb — they're your own project's tasks. Define them once in your project's `zrb_init.py`, naming them exactly `test` and `lint` so each shadows the group of the same name (Zrb ships a built-in `test` group with its own `run` subtask; a top-level task you add under the same name takes over `zrb test` directly, no subtask needed):
+The `zrb test` and `zrb lint` commands used throughout this guide are not built into Zrb — they're your own project's tasks. Define them once in your project's `zrb_init.py`, naming them exactly `test` and `lint`:
 
 ```python
 from zrb import cli, CmdTask
@@ -38,7 +38,7 @@ cli.add_task(CmdTask(name="test", cmd="pytest"))
 cli.add_task(CmdTask(name="lint", cmd="flake8 ."))
 ```
 
-Swap `pytest` / `flake8 .` for whatever your project actually uses. Skip this file and `zrb test` falls through to Zrb's own built-in `test` group instead of your project's tests — it prints the group's help and exits 0, so a CI step built on it would silently never fail — and `zrb lint` fails outright, since there's no built-in `lint` command at all.
+Swap `pytest` / `flake8 .` for whatever your project actually uses. Skip this file and both `zrb test` and `zrb lint` fail with an unknown-subcommand error and exit non-zero, so the CI step goes red instead of silently passing.
 
 ### `ZRB_INIT_STRICT` Already Covers You Here
 
@@ -51,11 +51,9 @@ config = yaml.safe_load(open("ci.yaml"))   # raises: file missing on this runner
 cli.add_task(CmdTask(name="test", cmd=config["test_cmd"]))
 ```
 
-`deploy` was registered before the exception, so `zrb deploy` runs and exits `0`. `test` never was, so `zrb test` falls through to the built-in group and also exits `0`. The pipeline is green and nothing was tested.
+`deploy` was registered before the exception, so `zrb deploy` runs and exits `0` even though the rest of the file never loaded, leaving the error only in the log. `test` was never registered, so `zrb test` fails with an unknown-subcommand error. A pipeline that runs only the tasks that happened to register before the failure can stay green while the init file is broken — which is what `ZRB_INIT_STRICT` closes.
 
-Set the variable once, at the job level, and both become hard failures:
-
-Zrb still attempts every init source and prints every failure, so one run tells you about all of them — then exits `1` before running your command. Pin it explicitly if you would rather not depend on the stderr reading:
+With `ZRB_INIT_STRICT` on, startup fails hard instead: Zrb still attempts every init source and prints every failure, so one run tells you about all of them — then exits `1` before running your command. Pin it explicitly at the job level if you would rather not depend on the stderr reading:
 
 ```yaml
 env:

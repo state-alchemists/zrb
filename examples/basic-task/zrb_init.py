@@ -71,7 +71,7 @@ def multiply(ctx):
 
 
 # =============================================================================
-# Task with Dynamic Default Value
+# Task with Float Inputs
 # =============================================================================
 
 from zrb import FloatInput
@@ -87,11 +87,11 @@ calculate_total = cli.add_task(
                 default=100,
             ),
             FloatInput(
-                name="tax_rate",
+                name="tax-rate",
                 prompt="Tax rate (%)",
                 default=12,
             ),
         ],
-        action=lambda ctx: ctx.input.price * (1 + ctx.input.tax_rate / 100),
+        action=lambda ctx: round(ctx.input.price * (1 + ctx.input.tax_rate / 100), 2),
     )
 )

@@ -38,7 +38,7 @@ zrb create-salt
 # Runs prepare-ingredients first, then cook-meal
 zrb cook-meal
 
-# Fallback example (fails if paid < price)
+# Fallback example (fails if paid < price; after the default 2 retries the fallback runs)
 zrb calculate-change --price 100 --paid 80
 
 # Successor example (runs receipt after processing)

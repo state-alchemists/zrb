@@ -10,6 +10,10 @@
 # Uses pure black/white and bright ANSI colors for maximum readability.
 # Suitable for projectors, low-quality displays, or users with visual
 # impairments.
+#
+# These exports are explicit ZRB_* env vars, so they override any ZRB_THEME
+# palette. For the built-in palettes, `export ZRB_THEME=dark` (or `light`) is
+# the simpler route; see examples/themes/monokai for registering your own.
 
 zrb_theme_high_contrast() {
   # --- Frame & bars ---

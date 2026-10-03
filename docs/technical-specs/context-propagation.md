@@ -31,7 +31,7 @@ current_ctx: ContextVar[AnyContext | None] = ContextVar("current_ctx", default=N
 
 The active `Context` for the executing task. Set at the start of `execute_task_action()`, reset in its `finally` block.
 
-**Layer 2 — LLM agent execution** (`src/zrb/llm/agent_state.py`, `src/zrb/llm/approval/approval_channel.py`). All nine are set at the start of `run_agent()` and reset in its `finally` block:
+**Layer 2 — LLM agent execution** (`src/zrb/llm/agent_state.py`, `src/zrb/llm/approval/approval_channel.py`). All ten are set at the start of `run_agent()` and reset in its `finally` block:
 
 | Variable | Type | Purpose |
 |---|---|---|
@@ -51,15 +51,15 @@ The active `Context` for the executing task. Set at the start of `execute_task_a
 | Variable | Type | Purpose |
 |---|---|---|
 | `current_permission_policy` | `PermissionPolicy \| None` | In-force tool ruleset (`None` = legacy yolo behavior). Set by `run_agent()` from the explicit arg or inherited from a parent run; reset in its `finally` block. |
-| `current_agent_mode` | `AgentModeState` | Mutable holder whose `.mode` is `AgentMode.BUILD` or `AgentMode.PLAN`. Set by the `EnterPlanMode` / `ExitPlanMode` tools; `PLAN` makes `get_effective_policy()` return the read-only `PLAN_MODE_POLICY`. |
+| `current_agent_mode` | `AgentModeState` | Mutable holder whose `.mode` is `AgentMode.BUILD` or `AgentMode.PLAN`. `run_agent()` binds a fresh run-local holder (`enter_agent_mode_scope`) and writes the final mode back to the caller's on exit; the mode itself is switched by the `EnterPlanMode` / `ExitPlanMode` tools and by the UI's `/plan` and Shift+Tab; `PLAN` makes `get_effective_policy()` return the read-only `PLAN_MODE_POLICY`. |
 
 **Layer 4 — Sandbox state** (`src/zrb/llm/sandbox/state.py`):
 
 | Variable | Type | Purpose |
 |---|---|---|
-| `current_sandbox_policy` | `SandboxPolicy \| None` | In-force filesystem-containment policy (`None` = resolve from `CFG.LLM_SANDBOX_*`, disabled unless the deployment opted in). Set by `run_agent()` from the explicit arg or inherited from a parent run; reset in its `finally` block. Consumed by the `_sandbox_gate` in `agent/common.py` and the shell tools' OS-sandbox wrapper. |
+| `current_sandbox_policy` | `SandboxPolicy \| None` | In-force filesystem-containment policy (`None` = resolve from `CFG.LLM_SANDBOX_*`, disabled unless the deployment opted in). Set by `run_agent()` from the explicit arg or inherited from a parent run; reset in its `finally` block. Consumed by the `sandbox_gate` in `agent/gates.py` (which reads the policy `run_agent()` passes as `deps`, falling back to this var) and the shell tools' OS-sandbox wrapper. |
 
-**Layer 5 — Tool ambient state** (`src/zrb/llm/tool/ambient_state.py`). Set and cleared by their owning tools (`src/zrb/llm/tool/worktree.py`, `src/zrb/llm/tool/ask.py`), not at a single entry point:
+**Layer 5 — Tool ambient state** (`src/zrb/llm/tool/ambient_state.py`). Set at several points rather than a single entry point — the worktree tools (`src/zrb/llm/tool/worktree.py`), the per-turn live-context wiring (`src/zrb/llm/prompt/live_context.py`, which sets the session name and interactive mode), and the chat session runner:
 
 | Variable | Type | Purpose |
 |---|---|---|
@@ -87,9 +87,9 @@ finally:
 Agent context variables fall back to the ambient value, so a child agent without an explicit argument inherits its parent's — this is how YOLO mode, approval channels, and UI handles flow through nested agent calls:
 
 ```python
-# run_agent.py — resolve effective value
-effective_ui = ui_arg or current_ui.get()
-effective_yolo = yolo or current_yolo.get()
+# agent/run/setup.py::resolve_context_dependencies — resolve effective value
+ui_arg = ui if ui is not None else current_ui.get()
+effective_yolo = yolo if yolo is not None else current_yolo.get()
 ```
 
 A delayed live-sub-agent continuation starts *after* the original run's scope has ended. `AuthoritySnapshot` captures the original run's effective permission and sandbox authority while the scope is still active, and the continuation explicitly rebinds it, so a later, unrelated ambient context cannot broaden the continuation's authority.
@@ -120,7 +120,7 @@ Zrb is fully asyncio-based, and thread-locals don't work with coroutines (many s
 
 ## Known Inefficiency: `env` Dict Copy
 
-Every task `Context` (`context.py:25`) copies the whole shared env dictionary:
+Every task `Context` (`context/context.py`, in `__init__`) copies the whole shared env dictionary:
 
 ```python
 self._env = shared_ctx.env.copy()
@@ -130,13 +130,13 @@ This is O(n) in env vars, once per task execution — not a bottleneck for typic
 
 ## Gotcha: `asyncio.create_task()` and Context Timing
 
-`execution.py:97` creates a new asyncio task for action execution:
+`task/base/execution.py` (`execute_action_until_ready`) creates a new asyncio task for action execution:
 
 ```python
-action_coro = asyncio.create_task(run_async(execute_action_with_retry(task, session)))
+action_coro = asyncio.create_task(run_async(self.execute_action_with_retry(session)))
 ```
 
-Python copies the context at `create_task()` time, so if the parent resets `current_ctx` before the task is scheduled, the task still sees the creation-time value. This is safe because `execute_action_with_retry` re-establishes its own `current_ctx` scope — keep it in mind if the execution model changes.
+Python copies the context at `create_task()` time, so if the parent resets `current_ctx` before the task is scheduled, the task still sees the creation-time value. This is safe because the task is created inside `execute_task_action()`'s `current_ctx` scope, so the copied value is the right `Context`; `execute_action_with_retry` does not set `current_ctx` itself — keep this in mind if the execution model changes.
 
 ## Gotcha: `ThreadPoolExecutor` Does Not Copy the Context
 

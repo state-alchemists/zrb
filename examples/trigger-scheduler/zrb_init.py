@@ -76,7 +76,7 @@ cli.add_task(
         queue_name="minute-queue",
         callback=Callback(
             task=print_task,
-            input_mapping={"message": "{str(ctx.xcom['minute-queue'].pop())}"},
+            input_mapping={"message": Tpl("{str(ctx.xcom['minute-queue'].pop())}")},
         ),
     )
 )
@@ -110,7 +110,7 @@ cli.add_task(
 )
 
 # =============================================================================
-# Trigger with Multiple Callbacks
+# Trigger with Multiple Queue Items
 # =============================================================================
 
 
@@ -140,16 +140,16 @@ cli.add_task(
         action=multi_trigger,
         callback=Callback(
             task=multi_print,
-            input_mapping={"data": "{str(ctx.xcom['multi-queue'].pop())}"},
+            input_mapping={"data": Tpl("{str(ctx.xcom['multi-queue'].pop())}")},
         ),
     )
 )
 
 # =============================================================================
-# Manual Trigger Example
+# Plain Task
 # =============================================================================
 
-# You can also manually push to queues
+# A plain task you run on demand, for contrast with the triggers above
 
 
 manual_trigger = cli.add_task(

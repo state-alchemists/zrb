@@ -7,7 +7,12 @@
 # Or call the function directly:
 #   zrb_theme_dark
 #
-# This is the default theme — these values match the built-in defaults.
+# This is the default theme — these values match the built-in `dark` defaults
+# for the LLM UI knobs it sets.
+#
+# These exports are explicit ZRB_* env vars, so they override any ZRB_THEME
+# palette. For the built-in palettes, `export ZRB_THEME=dark` (or `light`) is
+# the simpler route; see examples/themes/monokai for registering your own.
 
 zrb_theme_dark() {
   # --- Frame & bars ---

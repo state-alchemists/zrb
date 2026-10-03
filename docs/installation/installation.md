@@ -84,13 +84,37 @@ pipx install --pip-args='--pre' zrb
 PIP_PRE=1 pipx install zrb
 ```
 
+#### Optional extras
+
+The core install covers the task engine, the web UI, and `zrb llm chat` with OpenAI and every OpenAI-compatible provider (Ollama, DeepSeek, OpenRouter, …). Everything else is an extra:
+
+| Extra | Adds |
+|-------|------|
+| `anthropic`, `google`, `groq`, `mistral`, `xai`, `cohere`, `bedrock`, `huggingface` | That LLM provider's SDK (see [Supported Providers](../configuration/llm-config.md#supported-providers)) |
+| `vertexai` | Google Vertex auth (`google-auth`); use with `google` |
+| `voyageai` | Voyage AI SDK (Python < 3.14 only) |
+| `rag` | ChromaDB, for the RAG tool ([RAG configuration](../configuration/llm-config.md#9-rag-retrieval-augmented-generation-configuration)) |
+| `playwright` | Headless Chromium for `WebFetch`, so JavaScript-rendered pages load. Also download the browser with the zrb venv's `playwright install chromium`; without it, `WebFetch` falls back to plain HTTP |
+| `voice` | `vosk`, `sounddevice`, `numpy` for dictation and local speech playback |
+| `python` | `black` and `isort` |
+
+```bash
+pipx install "zrb[anthropic,voice]"            # pick extras at install time
+pipx inject zrb "zrb[anthropic]"               # or add one to an existing install
+pipx install "zrb[rag,playwright,cohere,vertexai,google,anthropic,groq,mistral,xai,bedrock,huggingface,voyageai,voice,python]"   # everything
+```
+
+The installation scripts below offer to install every extra for you.
+
 ### Using the Installation Script - Bash (Recommended for New Python/System Setups)
 
 `install.sh` installs Zrb plus its prerequisites, asking for consent before each change:
 
--   **Python:** installs `pyenv` and sets Python 3.13.0 globally. Legacy `~/.local-venv` installs are migrated to `pipx`: zrb is uninstalled from the old venv, but the venv directory and its rc-file activation block are left for you to remove (`rm -rf ~/.local-venv`).
+-   **Python:** uses an existing Python 3.13 (or a pyenv 3.13.x); otherwise offers to install `pyenv` and set Python 3.13.0 globally, falling back to any Python 3.11–3.14 already on the system. Legacy `~/.local-venv` installs are migrated to `pipx`: zrb is uninstalled from the old venv, but the venv directory and its rc-file activation block are left for you to remove (`rm -rf ~/.local-venv`).
 -   **System prerequisites:** build tools and libraries (`build-essential`, `libssl-dev`, etc.) via your package manager (`brew` on macOS; `apt`, `yum`, `dnf`, `pacman`, `apk` on Linux).
--   **Zrb:** via `pipx`, into an isolated venv.
+-   **Zrb:** via `pipx`, into an isolated venv, optionally with every [extra](#optional-extras).
+-   **Shell autocomplete:** registered in `~/.bashrc`, `~/.zshrc` and fish's `config.fish` when present.
+-   **LSP servers (optional):** `python-lsp-server`, plus `typescript-language-server`, `gopls` and `rust-analyzer` when their toolchains are found.
 -   **Termux (Android):** detected and handled automatically.
 
 **Run from GitHub (recommended):**
@@ -133,8 +157,11 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/mai
 | `install_pyenv` | Install pyenv via `curl https://pyenv.run \| bash` |
 | `install_python_on_pyenv` | Install Python 3.13.0 and set as global |
 | `install_pyenv_dependencies` | Install pyenv build dependencies |
+| `ensure_python` | Find Python 3.13, or offer to install it via pyenv |
+| `confirm_extras` | Ask whether to install every optional extra |
 | `pipx_install_zrb` | Install Zrb via `pipx install --python ... zrb` (adds `--pip-args='--pre'` when `--pre` is given) |
 | `register_autocomplete` | Register shell autocomplete |
+| `install_lsps` | Install LSP servers for the toolchains found |
 
 </details>
 
@@ -191,7 +218,7 @@ python -m pipx install zrb
 
 ### Running Zrb in a Docker Container
 
-Container images give a sandboxed, reproducible environment — ideal for CI/CD (see [CI/CD Integration](../advanced-topics/ci-cd.md)).
+Container images give a sandboxed, reproducible environment — ideal for CI/CD (see [CI/CD Integration](../advanced-topics/ci-cd.md)). The images include no optional extras, and run `zrb server start` when no command is given.
 
 **Standard Image** (general-purpose automation):
 

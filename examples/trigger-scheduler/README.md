@@ -39,7 +39,7 @@ cd examples/trigger-scheduler
 # Run trigger (fires callbacks for each queue item)
 zrb queue-trigger
 
-# Run scheduler (runs on schedule)
+# Run scheduler (keeps running and fires every minute; Ctrl+C to stop)
 zrb minutely
 
 # Run trigger with multiple items

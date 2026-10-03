@@ -2,14 +2,14 @@
 
 # Framework Conventions (R1–R12)
 
-These are the rules a zrb component must follow to be predictable. Each is enforced by a test in `test/architecture/`; the table names which. Cite the rule number in review.
+These are the rules a zrb component must follow to be predictable. Each is enforced by a test (most in `test/architecture/`); the table names which. Cite the rule number in review.
 
 | # | Rule | Enforced by (paths relative to `test/`) |
 | --- | --- | --- |
 | **R1** | Assigning an unknown `CFG.UPPERCASE` name raises `AttributeError` naming the closest real knob. | `config/test_config_assignment_safety.py::test_assigning_an_unknown_uppercase_knob_raises_and_suggests` |
 | **R2** | Assigning a value `CFG` cannot cast back raises `ValueError` at the assignment, not at the next read. | `config/test_config_assignment_safety.py::test_assigning_an_uncastable_value_raises_at_the_assignment` |
 | **R3** | No `CFG.X` read happens at import time. A config value consumed by a component defined at import time is wrapped in a callable. | `architecture/test_deferred_config_reads.py` |
-| **R4** | A failure loading `zrb_init.py` prints the file, line and exception type to stderr, and startup continues — the error is never swallowed, but a broken init source does not stop the user from running (and fixing) anything. | `test_main.py::test_a_broken_init_script_reports_file_line_and_type_but_still_runs` |
+| **R4** | A failure loading `zrb_init.py` prints the file, line and exception type to stderr, and startup continues — the error is never swallowed, but a broken init source does not stop the user from running (and fixing) anything. The exception is `ZRB_INIT_STRICT`: when on, every source is still attempted and reported, then startup exits `1`. Its default, `auto`, is on whenever stderr is not a terminal (CI, cron, piped runs). | `test_main.py::test_a_broken_init_script_reports_file_line_and_type_but_still_runs` |
 | **R5** | **Ordered** collections (prompts, tools, policies, formatters, processors, UIs) expose exactly `append_X`, `prepend_X`, `set_X`, `remove_X`. No `add_X`. | `architecture/test_mutation_surface.py::test_every_ordered_collection_has_the_full_verb_set` |
 | **R6** | **Name-keyed** collections (skills, agents) and the **event-keyed** hook collection expose exactly `add_X`, `set_X` (wholesale), `remove_X(key)`. No `append_X`. A query pair (`get_X(key)`/`get_Xs()`) is expected too, using a disambiguated stem where the plain one would collide with another concept the same host exposes (`SubAgentManager.get_agent_definition` — `create_agent` already returns a runtime agent, so `get_agent` would be ambiguous) or has no natural per-key lookup (hooks are keyed by event, not name — there is no `get_hook(name)`). | `architecture/test_mutation_surface.py::test_every_keyed_collection_has_the_minimum_verb_set` |
 | **R7** | A concept is reachable by exactly one name. No `set_history_manager()` *and* a settable `history_manager` property. No `search_dirs` property *and* `get_search_directories()`. | `architecture/test_mutation_surface.py::test_no_concept_is_reachable_by_two_names` |

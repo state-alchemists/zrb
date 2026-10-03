@@ -20,6 +20,7 @@ Server-Sent Events provide real-time streaming:
 ══════════════════════════════════════════════════════════════════════════════
 
 Usage:
+    pip install aiohttp            # not installed by a plain `pip install zrb`
     export OPENAI_API_KEY="your-key"
     cd /path/to/zrb/examples/chat-sse
     zrb llm chat
@@ -53,7 +54,7 @@ Usage:
     # Edit tool call args (when prompted)
     curl -X POST http://localhost:8000/chat \
         -H "Content-Type: application/json" \
-        -d '{"message": {"file_path": "/new/path/file.txt"}}'
+        -d '{"message": {"path": "/new/path/file.txt"}}'
 """
 
 import asyncio

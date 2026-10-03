@@ -6,14 +6,14 @@ Plan Mode is a read-only discovery state that restricts LLM agents to safe opera
 
 ## How it works
 
-In this example, we apply a custom permission policy to the built-in `llm_chat` task (via `llm_chat.permissions`) that explicitly denies editing `.env` files — layered on top of Plan Mode's built-in restrictions.
+In this example, we apply a custom permission policy to the built-in `llm_chat` task (via `llm_chat.permissions`) that denies editing `.env` files and allows reads. That policy governs normal mode only: while Plan Mode is active, its built-in read-only preset **replaces** your policy (it is not merged with it), and the custom policy applies again once you exit.
 
 Plan Mode can be toggled via:
 - **Slash command:** `/plan` — type once to enter, again to exit
 - **Keyboard shortcut:** `Shift+Tab` (cycles normal → accept-edits → plan)
 - **Tool call:** The LLM can call `EnterPlanMode` / `ExitPlanMode` programmatically
 
-When Plan Mode is active, the info bar displays `PLAN MODE: On` (blue).
+When Plan Mode is active, the info bar displays `Plan Mode: On` (blue in the default theme).
 
 ## Running the example
 

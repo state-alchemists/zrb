@@ -67,7 +67,7 @@ export ZRB_LLM_PROMPT="Always answer in British English.,Prefer git over GUI."
 
 An **empty** twin (the default) means **everything**: all built-in and discovered skills/agents/hooks/tools. Set it to list only what you want. The twin restricts only the *discovered/default* layer: something you `add_*`/`set_*` in `zrb_init.py` is manual content and always visible for skills and agents (env sets the baseline, code builds on it). Hooks form a single-layer registry, so `LLM_HOOKS` governs the whole hook registry.
 
-`LLM_TOOLS` is narrower — it filters the registry's **static** tools only. Per-run tools (`EnterPlanMode` / `AskUserQuestion` on interactive runs, the journal tools, `RunZrbTask`, `ActivateSkill`, `MonitorProcess`, and every MCP toolset) are not statically named and keep their own gates (interactive, journal, spill, MCP config) regardless of the allowlist; restricting *those* needs `tool_registry.remove_tool(...)` / `set_tools()` in `zrb_init.py`.
+`LLM_TOOLS` is narrower — it filters the registry's **static** tools only. Per-run tools (`EnterPlanMode` / `AskUserQuestion` on interactive runs, the journal tools, `RunZrbTask`, `ActivateSkill`, `MonitorProcess`, and every MCP toolset) are not statically named and keep their own gates (interactive, journal, spill, MCP config) regardless of the allowlist; they come from per-run factories, which `remove_tool`/`set_tools` (static tools only) don't touch, so restricting *those* needs `tool_registry.set_tool_factories(...)` / `set_toolset_factories(...)` in `zrb_init.py`.
 
 `LLM_TOOLS` and the rosters still honor their independent toggles — `LLM_ENABLE_BUILTIN_AGENTS`, `LLM_ENABLE_BUILTIN_SKILLS`, `HOOKS_ENABLED` — which gate the built-in bulk independently of the allowlist.
 
@@ -86,7 +86,9 @@ from zrb.llm.skill.manager import Skill
 # Skills and sub-agents — add to what discovery found.
 skill_registry.add_skill(Skill(name="my-skill", path=".", description="..."))
 sub_agent_registry.add_agent(
-    SubAgentDefinition(name="my-agent", path=".", description="...")
+    SubAgentDefinition(
+        name="my-agent", path=".", description="...", system_prompt="..."
+    )
 )
 
 # A hook — attach to a lifecycle event; empty events = global.
@@ -116,7 +118,7 @@ tool_registry.append_tool(my_special_tool)   # after the built-ins
 tool_registry.remove_tool("EnterWorktree")   # or drop a shipped one by name
 ```
 
-> `zrb_init.py` is the *only* place user code runs at CLI startup. Customizing a family there means every `zrb llm chat` / `LLMTask` in the project sees it — exactly like registering a Zrb task in `zrb_init.py`.
+> `zrb_init.py` (or a `ZRB_INIT_SCRIPTS` / `ZRB_INIT_MODULES` entry) is where user code runs at CLI startup. Customizing a family there means every `zrb llm chat` / `LLMTask` in the project sees it — exactly like registering a Zrb task in `zrb_init.py`.
 
 ### 3. Per-task / instance arguments — *override one host*
 
@@ -124,12 +126,13 @@ A manager or host constructor argument overrides the registry for that instance 
 
 ```python
 from zrb import LLMChatTask
+from zrb.llm.prompt.manager import PromptManager
 
 task = LLMChatTask(
     name="chat",
     prompt_manager=PromptManager(prompts=["Just this one bot."]),
 )
-task.append_tool(my_special_tool)   # this task only
+task.append_tool(my_special_tool)   # this task only (defined in the snippet above)
 ```
 
 Per-instance mutations (`task.append_tool`, `task.prompt_manager.append_prompt`) affect **that** manager's resolved list and never reach the shared registry.
@@ -212,8 +215,8 @@ export ZRB_LLM_PROMPT="Never quote stock without a warehouse."
 
 Two lookalikes with one letter of difference, resolved differently:
 
-- `PromptManager.get_prompt(name)` — the **section resolver**: finds a *markdown file* (persona, principle, workflow, …) by name on the prompt lookup path (`ZRB_LLM_PROMPT_DIR` → env → base dir → package). Used by composition; sections are fixed (ADR-0044).
-- `.get_prompts()` (plural) on `PromptRegistry`/`PromptManager` — the **registry accessor**: returns the ordered *extra middleware list* configured via the registry or `set_prompts`/`append_prompt`.
+- `zrb.llm.prompt.prompt.get_prompt(name)` — the **section resolver**: finds a *markdown file* (persona, principle, workflow, …) by name on the prompt lookup path (`ZRB_LLM_PROMPT_DIR` → env → base dir → package). Used by composition; sections are fixed (ADR-0044).
+- `.get_prompts()` (plural) on `PromptRegistry` — the **registry accessor**: returns the ordered *extra middleware list* configured via `set_prompts`/`append_prompt`.
 
 `get_prompt` answers "what does the *persona* *section* read?"; `get_prompts` answers "what *extra* content is appended after the sections?". Plural spells the registry question.
 

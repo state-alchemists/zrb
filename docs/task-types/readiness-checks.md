@@ -43,7 +43,7 @@ from zrb import CmdTask, HttpCheck, cli
 start_server = cli.add_task(
     CmdTask(
         name="start-server",
-        cmd="python -m http.server 8000 &",  # Run in background
+        cmd="python -m http.server 8000",  # Long-running; the check decides when it is ready
         readiness_check=HttpCheck(
             name="check-server-status",
             url="http://localhost:8000",
@@ -115,7 +115,7 @@ You can instruct Zrb to continuously monitor the service and restart the main ta
 reliable_server = cli.add_task(
     CmdTask(
         name="start-server",
-        cmd="python -m http.server 8000 &",
+        cmd="python -m http.server 8000",
         readiness_check=HttpCheck(name="check", url="http://localhost:8000"),
         
         # Advanced Monitoring
@@ -129,8 +129,9 @@ reliable_server = cli.add_task(
 | Parameter | Description |
 |-----------|-------------|
 | `monitor_readiness` | Continue monitoring after initial success |
-| `readiness_check_period` | Seconds between checks |
-| `readiness_failure_threshold` | Failures before restart/cancel |
+| `readiness_check_period` | Seconds between checks while monitoring (default `5`) |
+| `readiness_failure_threshold` | Consecutive failures before restart (default `1`) |
+| `readiness_timeout` | Seconds the checks may take before the task fails (default `ZRB_TASK_READINESS_TIMEOUT`, 60s; `0` removes the cap) |
 
 ---
 
@@ -147,7 +148,7 @@ reliable_server = cli.add_task(
 |-----------|-------------|---------|
 | `url` | URL to check | `http://localhost` |
 | `http_method` | HTTP method | `GET` |
-| `interval` | Seconds between retries | `5` |
+| `interval` | Seconds between polls | `5` (`ZRB_HTTP_CHECK_INTERVAL`, in ms) |
 
 ### TcpCheck Parameters
 
@@ -155,7 +156,7 @@ reliable_server = cli.add_task(
 |-----------|-------------|---------|
 | `host` | Hostname | `localhost` |
 | `port` | Port number | `80` |
-| `interval` | Seconds between retries | `5` |
+| `interval` | Seconds between polls | `5` (`ZRB_TCP_CHECK_INTERVAL`, in ms) |
 
 ---
 

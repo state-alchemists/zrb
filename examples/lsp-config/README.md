@@ -4,7 +4,7 @@ This example demonstrates `lsp_manager.register_lsp_server()` — teaching zrb a
 
 ## Why
 
-Zrb ships configs for 21+ servers (Python, Go, Rust, TypeScript, …), but plenty of languages aren't covered out of the box — **Zig, Nim**, Haskell, Elixir, Bash, Terraform, and many more. Rather than wait for a built-in, you register the server yourself from `zrb_init.py`.
+Zrb ships configs for 21 servers (Python, Go, Rust, TypeScript, …), but plenty of languages aren't covered out of the box — **Zig, Nim**, Haskell, Elixir, Bash, Terraform, and many more. Rather than wait for a built-in, you register the server yourself from `zrb_init.py`.
 
 ## How It Works
 
@@ -60,6 +60,7 @@ lsp_manager.register_lsp_server(
 | `command` | How to launch the server; `command[0]` is what `which` looks for |
 | `language_ids` | LSP language identifiers advertised to the server |
 | `file_extensions` | Extensions (with leading dot) this server handles |
+| `timeout` | Seconds to wait for each LSP request (default `30`) |
 
 ## Customization
 

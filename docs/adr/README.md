@@ -83,7 +83,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0098** — [A fixed action vocabulary, and boolean names that read as questions](adr-0098.md)
 - **ADR-0035** — [Compose large classes from parts via explicit collaborators, not multiple inheritance](adr-0035.md)
 - **ADR-0088** — [A shared leaf module lives outside the package that happens to write it, not nested inside it](adr-0088.md)
-- **ADR-0087** — [Web server binds to loopback by default; non-loopback is an explicit, warned-about choice](adr-0087.md)
+- **ADR-0087** — [Web server binds to loopback by default; a non-loopback bind must be secured or the server refuses to start](adr-0087.md)
 
 ### LLM runtime
 
@@ -101,7 +101,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 
 - **ADR-0044** — [Seven fixed prompt sections](adr-0044.md)
 - **ADR-0045** — [A rule lives where it is enforced](adr-0045.md)
-- **ADR-0046** — [Every section reads whole on its own; one Priority Order](adr-0046.md)
+- **ADR-0046** — [Prompt files are plain markdown](adr-0046.md)
 - **ADR-0047** — [Home-level docs are user guidance, not project rules](adr-0047.md)
 - **ADR-0048** — [Untrusted-data framing travels with the tool result](adr-0048.md)
 - **ADR-0049** — [Three explicit profiles, one optional auto ladder](adr-0049.md)

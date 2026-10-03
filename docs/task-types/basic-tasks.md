@@ -121,14 +121,17 @@ api_call_task = cli.add_task(
 )
 ```
 
-### Background Processes
+### Long-Running Processes
 
-If you are running a long-lived server, you can background it in bash using `&`, but it's often better to pair it with a [Readiness Check](./readiness-checks.md).
+Appending `&` does not make a `CmdTask` finish early: the backgrounded process keeps the task's output pipe open, so the task (and `zrb`) waits for it anyway. Run a long-lived server in the foreground and attach a [Readiness Check](./readiness-checks.md), which marks the task ready — and unblocks downstream tasks — as soon as the server responds, while the server keeps running.
 
 ```python
+from zrb import CmdTask, HttpCheck
+
 start_server = CmdTask(
     name="start-server",
-    cmd="python -m http.server 8000 &"  # Runs in background
+    cmd="python -m http.server 8000",  # Foreground; keeps running until you stop zrb (Ctrl+C)
+    readiness_check=HttpCheck(name="check-server", url="http://localhost:8000"),
 )
 ```
 
@@ -142,7 +145,7 @@ start_server = CmdTask(
 | **Syntax** | `action=lambda ctx: ...` | `cmd="shell command"` |
 | **Templating** | Python string formatting | Zrb's own f-string-style substitution `{ctx.input.x}` (single braces, evaluated with a restricted set of builtins) |
 | **Return value** | Explicit `return` | A `CmdResult` pushed to XCom: `.output` (stdout), `.error` (stderr); renders as stdout in templates |
-| **Environment** | Via `os.environ` | Auto-injected into shell |
+| **Environment** | Via `ctx.env` | Auto-injected into shell (and on `ctx.env`) |
 | **Best for** | Complex logic, APIs | External tools, scripts |
 
 ---

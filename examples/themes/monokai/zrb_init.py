@@ -6,8 +6,8 @@ selecting it with `ZRB_THEME`.
 
 The key idea: a registered theme is a *partial* palette — it is merged onto the
 built-in `dark` theme, so you only list the knobs you want to change. Every knob
-you omit (here: the bottom-toolbar reset and the CLI_STYLE_* bold/faint
-attributes) keeps its `dark` value instead of blanking out.
+you omit (here: the bottom-toolbar reset, CLI_COLOR_MUTED, and the CLI_STYLE_*
+bold/faint attributes) keeps its `dark` value instead of blanking out.
 
 Knob names are the `CFG` attribute names without the `ZRB_` prefix. Values are
 whatever the knob's consumer expects:
@@ -73,7 +73,8 @@ register_theme(
         "CLI_COLOR_TODO_PROJECT": "#e6db74",
         "CLI_COLOR_TODO_CONTEXT": "#66d9ef",
         "CLI_COLOR_TODO_KEYVAL": "#ae81ff",
-        # Note: LLM_UI_STYLE_BOTTOM_TOOLBAR and every CLI_STYLE_* knob are
-        # deliberately omitted — they inherit their `dark` values via the merge.
+        # Note: LLM_UI_STYLE_BOTTOM_TOOLBAR, CLI_COLOR_MUTED, and every
+        # CLI_STYLE_* knob are deliberately omitted — they inherit their `dark`
+        # values via the merge.
     },
 )

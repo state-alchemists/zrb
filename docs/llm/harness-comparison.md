@@ -51,9 +51,9 @@ How much of the agent can you change, and at what resolution? The four harnesses
 **Zrb is the most granular.** The system prompt is seven named sections — five file-backed rule sections (`persona`, `principle`, `workflow`, `example`, `profile`) and two runtime-fact sections (`system_context`, `project_context`) — each overridable on its own:
 
 - **Per-section wording** — drop a same-named `.md` file onto the override chain (project `LLM_PROMPT_DIR` → env → base prompt dir → packaged `markdown/`).
-- **Section set and order** — `ZRB_LLM_INCLUDE_SECTIONS` / `include_sections=`.
-- **Standing extra content** — `system_prompt=` / `append_prompt()`.
-- **Per-turn volatile state** — `add_live_context()`.
+- **Section set and order** — `ZRB_LLM_INCLUDE_SECTIONS` / `PromptManager(include_sections=...)`.
+- **Standing extra content** — `system_prompt=` / `prompt_manager.append_prompt()`.
+- **Per-turn volatile state** — `prompt_manager.add_live_context()`.
 - **Model-class phrasing** — `ZRB_LLM_PROFILE` (`minimal` / `standard` / `capable` / `auto`).
 - **The whole prompt** — a full middleware can still rewrite everything.
 

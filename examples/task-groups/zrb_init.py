@@ -75,14 +75,15 @@ geometry.add_task(
 # Task Alias
 # =============================================================================
 
-# You can add an alias for easier access
-geometry.add_task(
+# An alias is the CLI word a task is registered under (it replaces the name).
+# Register the same task twice to expose it under both words.
+square_area = geometry.add_task(
     Task(
         name="square-area",
         description="Calculate area of a square",
         input=[IntInput(name="side", description="Side length", default=5)],
         action=lambda ctx: ctx.input.side**2,
-    ),
-    # This creates an alias "calculate-area" pointing to this task
-    alias="calc-area",
+    )
 )
+# This also exposes the task as "calc-area"
+geometry.add_task(square_area, alias="calc-area")

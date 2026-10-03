@@ -14,14 +14,15 @@ incident, queue depth, etc.
 Here we add two providers to the built-in `llm_chat` task:
 
 1. `wall_clock`     — the current local time (proves the block changes per turn).
-2. `deploy_freeze`  — reads the ZRB_DEPLOY_FROZEN env var EACH turn, so flipping
-                      it mid-session changes the agent's behavior with no restart.
+2. `deploy_freeze`  — checks for a `.deploy-freeze` file EACH turn, so creating or
+                      deleting it mid-session changes the agent's behavior with
+                      no restart.
 
 Usage:
     cd examples/live-context
     zrb llm chat
     > What time is it according to your live context?
-    # in another shell: export ZRB_DEPLOY_FROZEN=true   (then ask again)
+    # in another shell, same directory: touch .deploy-freeze   (then ask again)
     > Are deploys allowed right now?
 """
 
@@ -46,18 +47,19 @@ def render_wall_clock(ctx) -> str:
 
 
 # =============================================================================
-# Provider 2: deploy-freeze flag — read from the environment each turn.
+# Provider 2: deploy-freeze flag — read from the filesystem each turn.
 # =============================================================================
 
 
 def render_deploy_freeze(ctx) -> str:
     """Reflect a runtime flag the agent should respect on every turn.
 
-    Because this runs per turn, toggling ZRB_DEPLOY_FROZEN in the environment
-    takes effect on the very next message — no restart, and the cached system
-    prompt prefix is untouched.
+    Because this runs per turn, creating or deleting `.deploy-freeze` takes
+    effect on the very next message — no restart, and the cached system prompt
+    prefix is untouched. (An environment variable would not work here: an
+    `export` in another shell never reaches the running chat process.)
     """
-    frozen = os.environ.get("ZRB_DEPLOY_FROZEN", "").lower() in ("1", "true", "yes")
+    frozen = os.path.exists(".deploy-freeze")
     if frozen:
         return "- ⚠️ DEPLOY FREEZE ACTIVE: do not run or suggest any deployment."
     return "- Deploys: allowed."

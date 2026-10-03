@@ -3,8 +3,8 @@
 `SimpleUI` runs the message loop, slash-command dispatch and tool approvals;
 a subclass supplies the two ends of the conversation — `print()` to show
 output and `get_input()` to read a line. `create_ui_factory` wires the class
-into the built-in `llm_chat` task, so `zrb llm chat` uses it in place of the
-default terminal UI.
+into the built-in `llm_chat` task, and `include_default_ui = False` makes
+`zrb llm chat` use it in place of the default terminal UI.
 
 Usage:
     zrb llm chat                              # Start chat with this UI
@@ -82,6 +82,8 @@ class MinimalUI(SimpleUI):
 
 # The simplest way: use create_ui_factory
 llm_chat.ui_factories = [create_ui_factory(MinimalUI, log_file=LOG_FILE)]
+# Without this, the default terminal UI runs alongside MinimalUI (dual mode).
+llm_chat.include_default_ui = False
 
 # That's it! When user runs `zrb llm chat`, it uses MinimalUI.
 # No need to handle the factory parameters - create_ui_factory does it for you.

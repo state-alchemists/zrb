@@ -33,8 +33,9 @@ flowchart TB
 
 ## How It Works
 
-The key idea: we **set our own UI factory** on the built-in `llm_chat` task. When
-the user runs `zrb llm chat`, it uses our UI instead of the default terminal one.
+The key idea: we **set our own UI factory** on the built-in `llm_chat` task and
+turn off its default terminal UI (`include_default_ui = False`). When the user
+runs `zrb llm chat`, it uses our UI instead of the default terminal one.
 
 ```python
 import asyncio
@@ -61,6 +62,8 @@ class MinimalUI(SimpleUI):
 
 # create_ui_factory wires the factory parameters for you — one line.
 llm_chat.ui_factories = [create_ui_factory(MinimalUI)]
+# Replace the default terminal UI instead of running alongside it.
+llm_chat.include_default_ui = False
 
 # User runs: zrb llm chat
 ```
@@ -107,8 +110,10 @@ ZRB_CHAT_LOG_FILE=chat.log zrb llm chat
   `handle_incoming_message()` from your request handler instead of a bot
   callback. See [`examples/chat-sse/`](../chat-sse/) and
   `zrb.runner.chat.http_ui.create_http_ui_factory` for the built-in example.
-- **Dual mode** (CLI *and* an external channel) — use
-  `llm_chat.append_ui_factory(...)` to broadcast to multiple channels at once.
+- **Dual mode** (CLI *and* an external channel) — keep `include_default_ui`
+  at its default (`True`) and add your factory with
+  `llm_chat.append_ui_factory(...)`; the terminal UI and yours then share one
+  session.
 
 ## Related Files
 

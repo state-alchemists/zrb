@@ -115,11 +115,9 @@ async def audit_log_hook(context: HookContext) -> HookResult:
         entry["tool"] = context.tool_name
 
     if context.tool_input:
-        # Sanitize sensitive data
-        safe_input = dict(context.tool_input)
-        if "content" in safe_input and len(str(safe_input.get("content", ""))) > 100:
-            safe_input["content"] = str(safe_input["content"])[:100] + "..."
-        entry["tool_input"] = safe_input
+        # Argument names only: values can hold secrets (tokens, passwords,
+        # file contents) and this log persists on disk.
+        entry["tool_input_keys"] = sorted(context.tool_input)
 
     if context.prompt:
         entry["prompt_length"] = len(context.prompt)
@@ -152,9 +150,9 @@ def register(manager):
     rate_limiter = RateLimitHook(max_per_minute=60)
 
     # Register hooks
-    manager.register(notify_on_file_write, events=[HookEvent.POST_TOOL_USE])
-    manager.register(rate_limiter, events=[HookEvent.PRE_TOOL_USE])
-    manager.register(audit_log_hook, events=None)  # Global - all events
+    manager.add_hook(notify_on_file_write, events=[HookEvent.POST_TOOL_USE])
+    manager.add_hook(rate_limiter, events=[HookEvent.PRE_TOOL_USE])
+    manager.add_hook(audit_log_hook, events=None)  # Global - all events
 
 
 # =============================================================================

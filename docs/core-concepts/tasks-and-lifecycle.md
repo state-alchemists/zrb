@@ -99,7 +99,7 @@ build = cli.add_task(
 )
 ```
 
-`color` accepts standard SGR color codes. Common values: `31` red, `32` green, `33` yellow, `34` blue, `35` magenta, `36` cyan (plus `90`-`97` for bright variants). Values outside this set are silently ignored (no color applied). When `None` (default), Zrb assigns a color automatically based on the task's position in the pipeline.
+`color` accepts standard SGR color codes. Common values: `31` red, `32` green, `33` yellow, `34` blue, `35` magenta, `36` cyan (plus `90`-`97` for bright variants). Values outside this set are silently ignored (no color applied). When `None` (default), Zrb assigns one automatically from a rotating palette.
 
 ---
 
@@ -161,7 +161,7 @@ from zrb import Env, cli, make_task
     name="deploy",
     group=cli,
     env=Env(name="ENVIRONMENT", default="development"),
-    # Can be a boolean, f-string, or callable
+    # Can be a boolean, a Tpl template, or a callable taking ctx
     execute_condition=lambda ctx: ctx.env.ENVIRONMENT == "production"
 )
 def deploy_app(ctx): ...
@@ -172,6 +172,8 @@ def deploy_app(ctx): ...
 Tasks that execute *only if* the main task completes successfully.
 
 ```python
+from zrb import cli, CmdTask, Task
+
 notify_success = Task(name="notify", action=lambda ctx: print("Success!"))
 
 main_job = cli.add_task(
@@ -184,6 +186,8 @@ main_job = cli.add_task(
 Tasks that execute *only if* the main task fails permanently.
 
 ```python
+from zrb import cli, CmdTask
+
 alert = CmdTask(name="alert", cmd="echo 'CRITICAL FAILURE'")
 
 flaky_job = cli.add_task(

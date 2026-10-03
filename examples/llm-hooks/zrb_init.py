@@ -14,7 +14,10 @@ Hook Events:
 - PERMISSION_REQUEST: Tool reaches interactive approval (can auto-resolve)
 - NOTIFICATION: System notifications
 - STOP: Turn finishes — per-turn extension and block-to-continue point
+- STOP_FAILURE: Turn ends on an unrecoverable API error (observe-only)
 - PRE_COMPACT: Before history summarization (can inject context OR block compaction)
+- POST_COMPACT: After history summarization (can inject context)
+- SUBAGENT_START / SUBAGENT_STOP: Around a sub-agent delegation (observe-only)
 - SESSION_END: Terminal — fires once when chat session ends (matches on `source`)
 
 Any event can also request `continue: false` to halt the whole run (distinct
@@ -114,6 +117,16 @@ async def permission_hook(context: HookContext) -> HookResult:
         tool_input = context.tool_input or {}
         command = str(tool_input.get("command", tool_input.get("cmd", "")))
 
+        # Deny dangerous patterns first, so `cat x > file` is not let through
+        # by the read-only allow-list below
+        dangerous_patterns = ["rm ", "rmdir", "sudo", "chmod", "chown", ">"]
+        if any(pat in command for pat in dangerous_patterns):
+            print(f"[PERMISSION] Blocking dangerous Shell command: {command[:50]}")
+            return HookResult(
+                success=True,
+                modifications={"permissionDecision": "deny"},
+            )
+
         # Allow read-only commands
         safe_patterns = ["ls", "cat", "grep", "find", "git status", "git log"]
         if any(cmd in command for cmd in safe_patterns):
@@ -121,15 +134,6 @@ async def permission_hook(context: HookContext) -> HookResult:
             return HookResult(
                 success=True,
                 modifications={"permissionDecision": "allow"},
-            )
-
-        # Deny dangerous patterns
-        dangerous_patterns = ["rm ", "rmdir", "sudo", "chmod", "chown", ">"]
-        if any(pat in command for pat in dangerous_patterns):
-            print(f"[PERMISSION] Blocking dangerous Shell command: {command[:50]}")
-            return HookResult(
-                success=True,
-                modifications={"permissionDecision": "deny"},
             )
 
         # Medium-risk commands: force a prompt even if a tool policy or YOLO
@@ -285,7 +289,9 @@ async def tool_result_hook(context: HookContext) -> HookResult:
     """
     if context.event == HookEvent.POST_TOOL_USE:
         tool_name = context.tool_name or ""
-        tool_result = context.event_data.get("result", {})
+        # tool_response is the tool's output as a dict; a non-dict result
+        # (the usual case) sits under "content".
+        tool_result = context.tool_response or {}
 
         # Block empty search results — let the model know
         if tool_name in {"Grep"}:
@@ -416,14 +422,14 @@ async def command_rewrite_hook(context: HookContext) -> HookResult:
 async def command_audit_hook(context: HookContext) -> HookResult:
     """Audit UI command execution.
 
-    PostCommand fires after a command completes. command_handled
-    indicates whether zrb processed it or passed it to the model.
+    PostCommand fires after a recognized command was handled by zrb;
+    command_handled carries that flag.
     """
     if context.event != HookEvent.POST_COMMAND:
         return HookResult()
 
     cmd_name = context.command_name or ""
-    cmd_handled = context.event_data.get("command_handled", False)
+    cmd_handled = bool(context.command_handled)
 
     print(f"[AUDIT] Command: {cmd_name}, handled: {cmd_handled}")
 
@@ -467,11 +473,11 @@ async def auto_approve_hook(context: HookContext) -> HookResult:
         return HookResult()
 
     tool_name = context.tool_name or ""
-    suggestions = context.event_data.get("permission_suggestions", "")
+    command = str((context.tool_input or {}).get("command", ""))
 
-    # Auto-approve known safe operations
+    # Auto-approve known safe Shell commands
     SAFE_PATTERNS = ["git status", "git log", "ls -la"]
-    if any(p in suggestions for p in SAFE_PATTERNS):
+    if tool_name == "Shell" and any(p in command for p in SAFE_PATTERNS):
         print(f"[APPROVE] Auto-approving: {tool_name}")
         return HookResult(
             success=True,
@@ -500,9 +506,9 @@ async def notification_handler_hook(context: HookContext) -> HookResult:
     if context.event != HookEvent.NOTIFICATION:
         return HookResult()
 
-    msg = context.event_data.get("message", "")
-    title = context.event_data.get("title", "")
-    ntype = context.event_data.get("notification_type", "")
+    msg = context.message or ""
+    title = context.title or ""
+    ntype = context.notification_type or ""
     print(f"[NOTIFY] {title} ({ntype}): {msg}")
 
     return HookResult()
@@ -552,7 +558,7 @@ def register_hooks(manager):
     Called automatically by append_hook_factory().
     """
     # Session tracker — observe multiple events
-    manager.register(
+    manager.add_hook(
         session_tracker,
         events=[
             HookEvent.SESSION_START,
@@ -563,13 +569,13 @@ def register_hooks(manager):
     )
 
     # Permission gate — PreToolUse only
-    manager.register(permission_hook, events=[HookEvent.PRE_TOOL_USE])
+    manager.add_hook(permission_hook, events=[HookEvent.PRE_TOOL_USE])
 
     # Arg rewriting — PreToolUse only
-    manager.register(arg_rewrite_hook, events=[HookEvent.PRE_TOOL_USE])
+    manager.add_hook(arg_rewrite_hook, events=[HookEvent.PRE_TOOL_USE])
 
     # Journal reminder — uses Stop (per-turn), not SessionEnd (terminal)
-    manager.register(
+    manager.add_hook(
         journal_reminder,
         events=[
             HookEvent.POST_TOOL_USE,
@@ -579,37 +585,37 @@ def register_hooks(manager):
 
     # Response transformer — uses Stop
     # Uncomment to enable:
-    # manager.register(
+    # manager.add_hook(
     #     response_transformer,
     #     events=[HookEvent.STOP],
     # )
 
     # Tool result blocking/redaction — PostToolUse
-    manager.register(tool_result_hook, events=[HookEvent.POST_TOOL_USE])
+    manager.add_hook(tool_result_hook, events=[HookEvent.POST_TOOL_USE])
 
     # Prompt gate — UserPromptSubmit
-    manager.register(prompt_gate_hook, events=[HookEvent.USER_PROMPT_SUBMIT])
+    manager.add_hook(prompt_gate_hook, events=[HookEvent.USER_PROMPT_SUBMIT])
 
     # Killswitch — UserPromptSubmit (continue=false halts the whole run)
-    manager.register(killswitch_hook, events=[HookEvent.USER_PROMPT_SUBMIT])
+    manager.add_hook(killswitch_hook, events=[HookEvent.USER_PROMPT_SUBMIT])
 
     # Pre-compact context injection
-    manager.register(precompact_hook, events=[HookEvent.PRE_COMPACT])
+    manager.add_hook(precompact_hook, events=[HookEvent.PRE_COMPACT])
 
     # Command rewriting — PreCommand only
-    manager.register(command_rewrite_hook, events=[HookEvent.PRE_COMMAND])
+    manager.add_hook(command_rewrite_hook, events=[HookEvent.PRE_COMMAND])
 
     # Command auditing — PostCommand only
-    manager.register(command_audit_hook, events=[HookEvent.POST_COMMAND])
+    manager.add_hook(command_audit_hook, events=[HookEvent.POST_COMMAND])
 
     # Error logging — PostToolUseFailure only
-    manager.register(error_log_hook, events=[HookEvent.POST_TOOL_USE_FAILURE])
+    manager.add_hook(error_log_hook, events=[HookEvent.POST_TOOL_USE_FAILURE])
 
     # Auto-approval — PermissionRequest only
-    manager.register(auto_approve_hook, events=[HookEvent.PERMISSION_REQUEST])
+    manager.add_hook(auto_approve_hook, events=[HookEvent.PERMISSION_REQUEST])
 
     # Notification handling — Notification only
-    manager.register(notification_handler_hook, events=[HookEvent.NOTIFICATION])
+    manager.add_hook(notification_handler_hook, events=[HookEvent.NOTIFICATION])
 
 
 # Register hooks with llm_chat task
@@ -620,12 +626,15 @@ llm_chat.append_hook_factory(register_hooks)
 # Alternatively: Direct Registration
 # =============================================================================
 
-# You can also register hooks directly without a factory:
+# `zrb.llm.hook.manager.hook_manager` is the process-wide singleton:
 #
 # from zrb.llm.hook.manager import hook_manager
 #
-# hook_manager.register(logging_hook, events=None)  # Global hook (all events)
-# hook_manager.register(my_hook, events=[HookEvent.STOP])
+# hook_manager.add_hook(logging_hook, events=None)  # Global hook (all events)
+#
+# A chat run builds its own HookManager, which does not read the singleton's
+# registrations, so for `zrb llm chat` use append_hook_factory (above) or a
+# hook file instead.
 
 # =============================================================================
 # Notes
@@ -634,8 +643,9 @@ llm_chat.append_hook_factory(register_hooks)
 # Hook Execution Order:
 # 1. Hooks are sorted by priority (higher first)
 # 2. Hooks run sequentially (not parallel)
-# 3. If a hook returns should_stop=True, remaining hooks are skipped
-# 4. If a hook returns block(), execution is blocked
+# 3. If a hook blocks (block() / decision "block") on an event that can block,
+#    the remaining hooks for that event are skipped and the action is blocked;
+#    on other events the block is ignored
 
 # Hook Results quick reference:
 # - HookResult()                                           Continue
@@ -682,5 +692,5 @@ llm_chat.append_hook_factory(register_hooks)
 
 # See also:
 # - .zrb/hooks.json for JSON-based command hooks
-# - .zrb/hooks.yaml for YAML-based command hooks
-# - custom_hook.hook.py for Python hook modules
+# - .zrb/hooks/custom_hook.hook.py for Python hook modules
+# - YAML hook files (*.yaml/*.yml) are read from a .zrb/hooks/ directory

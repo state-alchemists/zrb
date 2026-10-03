@@ -25,6 +25,12 @@ flowchart LR
 
 ## Quick Start
 
+The server uses `aiohttp`, which a plain `pip install zrb` does not pull in:
+
+```bash
+pip install aiohttp
+```
+
 ```bash
 # Terminal 1: Start the server (requires a terminal for CLI mode)
 export OPENAI_API_KEY="your-key"
@@ -83,19 +89,21 @@ Send a message to the LLM or respond to tool approval prompts.
 
 Server-Sent Events endpoint. Connect and receive all LLM output in real-time.
 
-**Response Format:**
+**Response Format:** after the `connected` event, each `data:` line is a JSON
+object carrying the output `type` (the UI's print kind — `text`, `streaming`,
+`thinking`, `tool_call`, `usage`, ...) and its `text`:
 ```
 event: connected
 data: {"status": "connected"}
 
-data: "AI: Hello! How can I help you?"
+data: {"type": "streaming", "text": "The answer"}
 
-data: "I'm thinking..."
-
-data: "The answer is 42."
+data: {"type": "streaming", "text": "is 42."}
 ```
 
 **Keep Connected:** The connection stays open. Keepalive comments (`: keepalive`) are sent every 30 seconds.
+
+**One client at a time:** output is queued until a client reads it (so nothing is lost before you connect), but all clients read from that one queue — with several `/stream` connections open, each event reaches only one of them.
 
 ### GET /status
 
@@ -144,23 +152,17 @@ Get pending tool approvals that require user action.
 When the LLM wants to use a tool, the SSE stream shows:
 
 ```
-data: "🎰 Tool 'LS'"
-data: "Args:"
-data: "```json"
-data: "{"
-data: "  \"path\": \"/tmp\""
-data: "}"
-data: "```"
-data: "❓ Approve? (y/yes = approve, n/no = deny, e/edit = edit args)"
+data: {"type": "text", "text": "🎰 Tool 'LS'\nArgs:\n```json\n{\n  \"path\": \"/tmp\"\n}\n```\n❓ Approve? (y/yes = approve, n/no = deny, e/edit = edit args)"}
 ```
 
 ### Quick Reference
 
 | Response | Action |
 |----------|--------|
-| `y` or `yes` or `ok` or empty | Approve and execute |
-| `n` or `no` or `deny` | Deny, tool not executed |
+| `y`, `yes`, `ok` or `okay` | Approve and execute |
+| `n`, `no`, `deny` or `cancel` | Deny, tool not executed |
 | `e` or `edit` | Enter edit mode |
+| anything else | Deny, with your text as the reason |
 
 ### Approve Tool
 
@@ -271,14 +273,7 @@ curl -X POST http://localhost:8000/chat \
 
 **2. SSE shows approval request:**
 ```
-data: "🎰 Tool 'LS'"
-data: "Args:"
-data: "```json"
-data: "{"
-data: "  \"path\": \"/tmp\""
-data: "}"
-data: "```"
-data: "❓ Approve? (y/yes = approve, n/no = deny, e/edit = edit args)"
+data: {"type": "text", "text": "🎰 Tool 'LS'\nArgs:\n```json\n{\n  \"path\": \"/tmp\"\n}\n```\n❓ Approve? (y/yes = approve, n/no = deny, e/edit = edit args)"}
 ```
 
 **3. Approve:**
@@ -349,22 +344,22 @@ curl http://localhost:8000/pending
 ### EventDrivenUI + SSE Pattern
 
 ```python
-class SSEUI(EventDrivenUI, BufferedOutputMixin):
+class SSEUI(EventDrivenUI):
     def __init__(self, server: SSEServer, **kwargs):
         super().__init__(**kwargs)
-        BufferedOutputMixin.__init__(self, flush_interval=0.3)
         self.server = server
         server.set_ui(self)
-    
-    async def _send_buffered(self, text: str) -> None:
-        await self.server.broadcast(text)
-    
+
     async def print(self, text: str, kind: str = "text") -> None:
-        self.buffer_output(text)
-    
+        # Broadcast each event immediately, tagged with its kind
+        # (the full zrb_init.py also drops a final "text" that repeats
+        # an answer already streamed).
+        clean = remove_style(text).strip()
+        if clean:
+            await self.server.broadcast(clean, kind=kind)
+
     async def start_event_loop(self) -> None:
         await self.server.start()
-        await self.start_flush_loop()
         while True:
             await asyncio.sleep(3600)
 ```
@@ -426,8 +421,8 @@ ui.handle_incoming_message(message)
 const eventSource = new EventSource('http://localhost:8000/stream');
 
 eventSource.onmessage = (event) => {
-    const text = JSON.parse(event.data);
-    console.log('Received:', text);
+    const {type, text} = JSON.parse(event.data);
+    console.log('Received:', type, text);
     
     // Check for approval requests
     if (text.includes('Approve?')) {

@@ -4,7 +4,7 @@
 
 Zrb includes a robust, first-match-wins permission system designed to provide fine-grained control over which tools an LLM agent can call. This system acts as a security gate, ensuring that agents operate within safe boundaries even when YOLO mode is enabled.
 
-> **Permission vs. sandbox.** The permission policy controls *intent* — which tool calls the user agrees to. The opt-in [sandbox](sandbox.md) controls *blast radius* — what an approved call can actually touch on the filesystem. At execution time the two gates run back-to-back in `agent/common.py`: `_permission_gate` first, then `_sandbox_gate`.
+> **Permission vs. sandbox.** The permission policy controls *intent* — which tool calls the user agrees to. The opt-in [sandbox](sandbox.md) controls *blast radius* — what an approved call can actually touch on the filesystem. At execution time the two gates (defined in `agent/gates.py`) run back-to-back in the tool wrappers in `agent/common.py`: `permission_gate` first, then `sandbox_gate`.
 
 ---
 
@@ -46,7 +46,7 @@ graph TD
 
 ### Capabilities
 
-Tools are tagged with capabilities in `src/zrb/llm/permission/capability.py`:
+The `Capability` enum lives in `src/zrb/llm/permission/capability.py`; the built-in tools are tagged in `src/zrb/llm/common_tools.py`:
 
 | Capability | Description | Example Tools |
 |------------|-------------|---------------|
@@ -56,6 +56,7 @@ Tools are tagged with capabilities in `src/zrb/llm/permission/capability.py`:
 | `NETWORK` | Outbound network access | `WebSearch`, `WebFetch` |
 | `DELEGATE` | Spawning sub-agents | `DelegateToAgent` |
 | `META` | Harness control | `TodoWrite`, `AskUserQuestion` |
+| `UNKNOWN` | Untagged (e.g. third-party or MCP tools) | — |
 
 ---
 
@@ -68,7 +69,7 @@ from zrb.llm.permission import PermissionPolicy, Rule, ALLOW, DENY, ASK, Capabil
 
 my_policy = PermissionPolicy((
     # Deny editing any .env or .git files
-    Rule("Edit", DENY, arg_pattern="**/.env"),
+    Rule("Edit", DENY, arg_pattern="*.env"),
     Rule("Edit", DENY, arg_pattern="**/.git/**"),
     
     # Allow all reads
@@ -88,7 +89,7 @@ Rules can match on:
 1.  **Exact Tool Name:** e.g., `"Shell"`, `"Read"`, `"Write"`.
 2.  **Capability:** e.g., `Capability.EDIT`.
 3.  **Wildcard:** `"*"` matches everything.
-4.  **Arg Pattern:** An optional glob pattern matched against salient arguments (like `path` or `command`).
+4.  **Arg Pattern:** An optional `fnmatch` glob matched against salient arguments (`path`, `file_path`, `command`, `url`, `agent_name`, and a few others). `*` also matches `/`, so `**/.env` matches `/repo/.env` but not a bare relative `.env`.
 
 ---
 
@@ -99,9 +100,11 @@ When pydantic-ai requests a tool call, Zrb resolves the outcome using this prior
 0.  **Always-Approve:** Tools that *are* the user interaction (e.g. `AskUserQuestion`) are auto-approved unconditionally — gating them behind a prompt is meaningless, since approval would render *before* the question itself. A tool opts in by self-registering via `register_always_auto_approve(...)`, so the guarantee travels with the tool and holds in every path (main agent, sub-agents, web), independent of any policy list below.
 1.  **Tool Policy:** Argument-level rules registered in code (`auto_approve("Read")`, command validators). A match is final.
 2.  **Permission Policy:** If a rule matches, its action is final — `ALLOW` approves, `DENY` blocks, and `ASK` is a *hard* ask: it does not prompt here, it removes the YOLO shortcut below so the call must reach a human.
+    In a non-interactive run (`--interactive false`) a hard `ASK` cannot reach a human, so it is settled here: `ExitPlanMode` is approved and any other `ASK`ed tool is denied.
 3.  **YOLO Toggle:** If YOLO is ON, the call is approved.
-4.  **Approval Channel:** Remote/multi-channel handlers.
-5.  **CLI Fallback:** User is prompted in the terminal.
+4.  **`PermissionRequest` hook:** fires now that the call will prompt; a [hook](hooks.md) may allow or deny it.
+5.  **Approval Channel:** Remote/multi-channel handlers.
+6.  **CLI Fallback:** User is prompted in the terminal.
 
 A permission-policy `DENY` is additionally enforced at execution time, so it holds even for a call that an earlier level approved.
 
