@@ -6,6 +6,8 @@ from unittest.mock import patch
 
 from zrb.llm.agent.run.authority_snapshot import capture_current_authority
 from zrb.llm.agent.run.runner import current_yolo
+from zrb.llm.agent_state import current_hook_manager
+from zrb.llm.hook.manager import HookManager
 from zrb.llm.permission.policy import PLAN_MODE_POLICY, PermissionPolicy, Rule
 from zrb.llm.permission.state import (
     AgentMode,
@@ -72,3 +74,17 @@ def test_capture_yolo_override_none_falls_back_to_ambient():
         snapshot = capture_current_authority(yolo_override=None)
 
     assert snapshot.yolo is True
+
+
+def test_capture_reads_bound_hook_manager():
+    """A continuation starts after the parent's scope has exited, so the
+    manager has to be captured here rather than inherited later."""
+    manager = HookManager(search_dirs=[])
+    with scoped(current_hook_manager, manager):
+        snapshot = capture_current_authority()
+
+    assert snapshot.hook_manager is manager
+
+
+def test_capture_hook_manager_is_none_when_no_run_is_bound():
+    assert capture_current_authority().hook_manager is None

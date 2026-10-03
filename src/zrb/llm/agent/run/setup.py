@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, Iterator
 
 from zrb.config.config import CFG
 from zrb.llm.agent_state import (
+    current_hook_manager,
     current_model,
     current_small_model,
     current_tool_confirmation,
@@ -78,7 +79,15 @@ def resolve_context_dependencies(
     effective_ui = create_combined_ui(ui_arg, fallback=StdUI())
 
     effective_tool_confirmation = tool_confirmation or current_tool_confirmation.get()
-    effective_hook_manager = hook_manager or default_hook_manager
+    # A nested run inherits the manager its parent is running on, the way it
+    # already inherits the UI, the confirmation mode and the approval channel.
+    # Falling straight through to the singleton made a sub-agent's own
+    # PreToolUse/Stop fire on the process-wide manager, so a deny rule a task
+    # registered with `append_hook_factory` did not bind a delegated
+    # sub-agent's tools.
+    effective_hook_manager = (
+        hook_manager or current_hook_manager.get() or default_hook_manager
+    )
     # None = inherit the parent run's YOLO state; an explicit False must stay
     # False (a nested run opting out) — `yolo or current_yolo.get()` would
     # coerce that False back into inheritance instead.

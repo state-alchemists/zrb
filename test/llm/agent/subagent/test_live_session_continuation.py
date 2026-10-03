@@ -359,3 +359,40 @@ async def test_a_continuation_runs_as_a_nested_sub_agent_turn(
         await entry.active_task
 
     assert seen[0]["nested"] is True
+
+
+@pytest.mark.asyncio
+async def test_a_continuation_carries_the_parent_runs_hook_manager(
+    registry, buffered_ui, sub_agent_manager
+):
+    """The continuation is started from a key handler, long after the parent's
+    scope exited, so the hook manager travels with the rest of the captured
+    authority — otherwise the turn fires on the program-wide singleton."""
+    from zrb.llm.agent_state import current_hook_manager
+    from zrb.llm.hook.manager import HookManager
+    from zrb.util.contextvar_scope import scoped
+
+    parent_manager = HookManager(search_dirs=[])
+    with scoped(current_hook_manager, parent_manager):
+        entry = registry.add_session(
+            "sess1", "a", "researcher", sub_agent_manager, buffered_ui
+        )
+    seen: list = []
+
+    async def fake_run_agent(**kwargs):
+        seen.append(kwargs)
+        return "ok", []
+
+    with (
+        patch(
+            "zrb.llm.agent.subagent.live_session.steer_into_live_run",
+            return_value=False,
+        ),
+        patch(
+            "zrb.llm.agent.subagent.live_session.run_agent", side_effect=fake_run_agent
+        ),
+    ):
+        await registry.send_message("sess1", "a", "hello")
+        await entry.active_task
+
+    assert seen[0]["hook_manager"] is parent_manager
