@@ -222,3 +222,25 @@ def test_the_store_replays_onto_a_manager_over_its_own_registry(tmp_path):
     assert _stop_hook_names(other) == []
     register_skill_frontmatter_hooks(other)
     assert _stop_hook_names(other) == ["skill-flat-hook"]
+
+
+def test_a_scan_on_another_manager_retires_the_first_managers_hooks(tmp_path):
+    """Registering is the job of the manager a scan targets, but retiring the
+    previous parse has to reach the manager that holds it: `remove_hook` on the
+    new target is a silent no-op, which left the earlier manager firing a rule
+    its skill file no longer declares."""
+    first, second = HookManager(search_dirs=[]), HookManager(search_dirs=[])
+    skill_dir = tmp_path / "skill"
+    _write_skill(
+        skill_dir,
+        _SKILL_FLAT_SHAPE.format(name="skill-flat-hook", marker=tmp_path / "m"),
+    )
+
+    _scan(skill_dir, first)
+    assert "skill-flat-hook" in _stop_hook_names(first)
+
+    _scan(skill_dir, second)
+    assert "skill-flat-hook" in _stop_hook_names(second)
+    assert "skill-flat-hook" not in _stop_hook_names(first), (
+        "the manager holding the previous parse still fires it"
+    )

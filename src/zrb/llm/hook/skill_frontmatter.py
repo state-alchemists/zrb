@@ -9,7 +9,7 @@ singleton alone, as the scan used to, put them out of reach of the fresh
 per-run manager an `LLMChatTask` builds, so they never fired under
 `zrb llm chat`.
 
-Two rules this store has to keep, each one a defect it used to have:
+Three rules this store has to keep, each one a defect it used to have:
 
 * **A source replaces its entry, and an unseen source is dropped.** A re-scan
   re-parses the same file and mints fresh configs (a Claude-format hook gets a
@@ -21,6 +21,11 @@ Two rules this store has to keep, each one a defect it used to have:
   registry that is empty because `HookManager.reload()` just cleared it still
   needs the replay; skipping on `manager.registry is hook_registry` skipped it
   there too, so a reload silently dropped every skill hook.
+* **A source is retired from the manager that actually holds its hooks.**
+  Registering is the job of the manager a scan targets, but removal has to go to
+  the manager the previous parse was registered on. `remove_hook` on any other
+  manager is a silent no-op, so assuming the scan target left the earlier
+  manager firing a rule its skill file no longer declares.
 
 The canonical manager is *passed in* rather than imported: `hook.manager`
 imports this module for the factory seed, so a module-level import of it here
@@ -44,11 +49,13 @@ _skill_hook_configs: dict[str, "list[HookConfig]"] = {}
 # Sources seen by the scan pass in progress; `finish_skill_scan` drops the rest.
 _scanned_sources: set[str] = set()
 
-# What the scan registered on the manager it writes to, by source, so a re-scan
-# can take the previous parse's hooks back out. Only that one manager is
-# tracked: it is the one a scan touches directly, and the per-run managers the
-# factory serves are short-lived.
-_scan_manager_hooks: dict[str, "list[HookCallable]"] = {}
+# What the scan registered, by source, with the manager it registered them on.
+# The owner is recorded rather than assumed: registering is the job of the
+# manager a scan targets, but retiring a previous parse has to happen on
+# whichever manager actually holds it — `remove_hook` on any other manager is a
+# silent no-op, which would leave that manager firing a rule the skill file no
+# longer declares.
+_scan_manager_hooks: dict[str, "tuple[HookManager, list[HookCallable]]"] = {}
 
 
 def start_skill_scan() -> None:
@@ -86,7 +93,7 @@ def apply_skill_hook_configs(
     parse firing alongside the new one.
     """
     _scanned_sources.add(source)
-    _unregister(manager, source)
+    _unregister(source)
     if not configs:
         # A skill that dropped its `hooks:` block, or never had one.
         _skill_hook_configs.pop(source, None)
@@ -95,14 +102,14 @@ def apply_skill_hook_configs(
     _register(manager, source, configs)
 
 
-def finish_skill_scan(manager: "HookManager") -> list[str]:
+def finish_skill_scan() -> list[str]:
     """Close a scan pass, dropping hooks whose skill it did not find.
 
     Returns the dropped sources, for diagnostics and tests.
     """
     dropped = [source for source in _skill_hook_configs if source not in _scanned_sources]
     for source in dropped:
-        _unregister(manager, source)
+        _unregister(source)
         del _skill_hook_configs[source]
     _scanned_sources.clear()
     return dropped
@@ -157,13 +164,19 @@ def _register(
         if hook is not None:
             registered.append(hook)
     if registered:
-        _scan_manager_hooks[source] = registered
+        _scan_manager_hooks[source] = (manager, registered)
 
 
-def _unregister(manager: "HookManager", source: str) -> None:
-    """Take *source*'s previously-registered hooks back out of *manager*."""
-    hooks = _scan_manager_hooks.pop(source, None)
-    if not hooks:
+def _unregister(source: str) -> None:
+    """Take *source*'s previously-registered hooks back out of their owner.
+
+    The owner is the manager they were registered on, not whichever manager a
+    later scan targets: only that manager holds these callables, and asking any
+    other one to forget them does nothing at all.
+    """
+    recorded = _scan_manager_hooks.pop(source, None)
+    if not recorded:
         return
+    owner, hooks = recorded
     for hook in hooks:
-        manager.remove_hook(hook)
+        owner.remove_hook(hook)
