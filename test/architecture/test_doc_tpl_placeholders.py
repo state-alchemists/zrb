@@ -16,7 +16,9 @@ The rule is not "no placeholder in a plain string" but "a placeholder has to
 reach something that renders it". Two things do: `Tpl(...)`, the marker that
 asks for rendering, and an explicit `ctx.render(...)` call, which is the
 documented way to render on demand (`docs/core-concepts/session-and-context.md`).
-A literal handed to either is correct and is not reported.
+A literal handed to either is correct and is not reported — directly, or through
+a name it was bound to (`template = "..."; Tpl(template)`), because reporting that
+would be reporting working code.
 
 Two sources are read, because they are the two places a user copies code from:
 every `.py` under `examples/`, and the python-fenced blocks of `README.md` and
@@ -75,13 +77,66 @@ def _is_renderer(call: ast.Call) -> bool:
     )
 
 
-def _rendered_values(tree: ast.AST) -> set[int]:
-    """Ids of every node handed to a renderer, and so rendered rather than literal."""
+def _names_reaching_a_renderer(tree: ast.AST) -> set[str]:
+    """Names whose value a renderer receives, closing over `x = y` aliases.
+
+    `Tpl(template)` hands the renderer whatever `template` holds, so the name has
+    to be followed *back* to what it was bound from: the renderer receives `b`, so
+    `b = a` puts `a` in reach too. The closure is what makes
+    `a = "..."; b = a; Tpl(b)` come out rendered rather than reported.
+    """
+    names = {
+        argument.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and _is_renderer(node)
+        for argument in (*node.args, *(keyword.value for keyword in node.keywords))
+        if isinstance(argument, ast.Name)
+    }
+    grew = True
+    while grew:
+        grew = False
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Name):
+                continue
+            if node.value.id in names:
+                continue
+            if any(
+                isinstance(target, ast.Name) and target.id in names
+                for target in node.targets
+            ):
+                names.add(node.value.id)
+                grew = True
+    return names
+
+
+def _rendered_literals(tree: ast.AST) -> set[int]:
+    """Ids of the string constants a renderer renders.
+
+    Two spellings are both correct and both have to be recognised: the literal
+    handed over directly (`Tpl("...")`), and the literal bound to a name the
+    renderer is handed (`template = "..."; Tpl(template)`). Recognising only the
+    first reports working code, which is how a guard gets deleted instead of
+    obeyed.
+    """
+    rendering_names = _names_reaching_a_renderer(tree)
     rendered: set[int] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Call) and _is_renderer(node):
-            rendered.update(id(argument) for argument in node.args)
-            rendered.update(id(keyword.value) for keyword in node.keywords)
+            arguments = (*node.args, *(keyword.value for keyword in node.keywords))
+            rendered.update(
+                id(argument)
+                for argument in arguments
+                if isinstance(argument, ast.Constant)
+            )
+        elif isinstance(node, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id in rendering_names
+            for target in node.targets
+        ):
+            rendered.update(
+                id(inner)
+                for inner in ast.walk(node.value)
+                if isinstance(inner, ast.Constant)
+            )
     return rendered
 
 
@@ -95,7 +150,7 @@ def _offending_literals(source: str, first_line: int) -> list[tuple[int, str]]:
         tree = ast.parse(source)
     except SyntaxError:
         return []  # a doc fragment, not a module
-    rendered = _rendered_values(tree)
+    rendered = _rendered_literals(tree)
     offenders = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
@@ -172,8 +227,29 @@ def test_the_check_leaves_an_explicit_render_call_alone():
     assert _offending_literals(source, 1) == []
 
 
+def test_the_check_leaves_a_template_bound_to_a_name_alone():
+    """`Tpl(template)` renders whatever `template` holds, so both spellings are right.
+
+    The bot review of #555 caught the first draft reporting these: it compared AST
+    node identity, and the literal bound to a name is a different node from the
+    `Name` the renderer receives. A guard that reports working code is worse than
+    no guard — it gets an exception added, or gets deleted.
+    """
+    bound = 'from zrb import LLMTask, Tpl\nTEMPLATE = "Read {ctx.input.dir}"\nLLMTask(message=Tpl(TEMPLATE))\n'
+    assert _offending_literals(bound, 1) == []
+
+    # The alias chain closes too, so `b = a` does not resurrect the report.
+    aliased = 'from zrb import LLMTask, Tpl\na = "Read {ctx.input.dir}"\nb = a\nLLMTask(message=Tpl(b))\n'
+    assert _offending_literals(aliased, 1) == []
+
+    # And a name the renderer never receives keeps the literal reported: this one
+    # is the same shape as the case above and is genuinely broken.
+    unreached = 'from zrb import LLMTask\nTEMPLATE = "Read {ctx.input.dir}"\nLLMTask(message=TEMPLATE)\n'
+    assert _offending_literals(unreached, 1) == [(2, "Read {ctx.input.dir}")]
+
+
 def test_the_check_is_not_satisfied_by_marking_every_literal_rendered():
-    """A `_rendered_values` that returned every id would pass the guard vacuously."""
+    """A `_rendered_literals` that returned every id would pass the guard vacuously."""
     literal = 'from zrb import Tpl\ncmd = "echo {ctx.input.who}"\nmessage = Tpl("{ctx.input.dir}")\n'
     assert _offending_literals(literal, 1) == [(2, "echo {ctx.input.who}")]
 
