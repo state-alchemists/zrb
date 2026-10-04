@@ -219,11 +219,18 @@ class UtteranceCutter:
 
         The quietest block, not the typical one: a low estimate can only ever
         lower the bar, so the user's own speech in the window cannot cut off
-        what they say next, where a median or a high percentile could."""
+        what they say next, where a median or a high percentile could. A block
+        that heard nothing at all is not the room being quiet — a dropped
+        buffer reads ``0`` — and is left out of the measure, since a single one
+        would put the floor at ``0`` and hand the whole window back to
+        ``threshold``."""
         margin = self._config.noise_margin or 0
-        if margin <= 0 or len(self._background_levels) < self._noise_floor_blocks:
+        if margin <= 0:
             return 0.0
-        return margin * min(self._background_levels)
+        heard = [level for level in self._background_levels if level > 0]
+        if len(heard) < self._noise_floor_blocks:
+            return 0.0
+        return margin * min(heard)
 
     def _continue_speech(
         self, block: Any, loud: bool, captured_at: float, is_echo: bool

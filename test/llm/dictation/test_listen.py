@@ -296,6 +296,12 @@ def test_a_room_loud_enough_to_lift_the_bar_opens_no_turn():
     assert _heard(ROOM + [0.15] * 3 + [0.0] * 3) == []
 
 
+def test_a_block_that_heard_nothing_does_not_floor_the_room_at_zero():
+    """A dropped buffer reads 0, which is not the room being quiet: one of them
+    must not hand the whole window back to the threshold."""
+    assert _heard(ROOM + [0.0] + [0.15] * 3 + [0.0] * 3) == []
+
+
 def test_speech_over_the_room_is_still_heard():
     assert _heard(ROOM + [0.5, 0.5, 0.5, 0.0, 0.0]) == [
         [0.08, 0.08, 0.5, 0.5, 0.5, 0.0, 0.0]
