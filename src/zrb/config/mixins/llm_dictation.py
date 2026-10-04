@@ -69,6 +69,7 @@ class LLMDictationMixin:
         )
         self.DEFAULT_LLM_DICTATION_POLITE_WORDS: str = "please, thanks, thank, you"
         self.DEFAULT_LLM_DICTATION_BLOCK_DURATION: str = "0.1"
+        self.DEFAULT_LLM_DICTATION_PIPECAT_ENABLED: str = "off"
         self.DEFAULT_LLM_DICTATION_TRANSCRIBE_PROMPT: str = (
             "Transcribe this audio to text. Return only the transcription."
         )
@@ -356,6 +357,19 @@ class LLMDictationMixin:
             "Seconds of audio in each microphone block: the step every "
             "other listening duration is counted in, and how often speech "
             "is checked. Default: 0.1."
+        ),
+    )
+
+    LLM_DICTATION_PIPECAT_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "'on' hands the microphone blocks to a Pipecat pipeline as well, "
+            "beside the hand-rolled one that still decides everything: the "
+            "pipeline ends at a counter, so nothing zrb hears or says changes. "
+            "Stage 1 of the migration (ADR-0106), and it wants the zrb[voice] "
+            "extra; without it the setting says so and listening goes on. "
+            "'off' (default): the capture goes nowhere else."
         ),
     )
 

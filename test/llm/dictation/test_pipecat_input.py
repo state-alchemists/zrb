@@ -8,15 +8,15 @@ the precondition for every later stage (ADR-0106).
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
 import pytest
 
 pytest.importorskip("pipecat", reason="pipecat ships with the `voice` extra")
 
 from zrb.llm.dictation.pipecat_input import (  # noqa: E402
-    create_audio_counter,
-    create_input_transport,
-    push_audio,
+    AudioPipeline,
+    is_pipecat_available,
 )
 
 # 32 ms of 16 kHz mono 16-bit PCM: what a single captured block is.
@@ -25,36 +25,15 @@ CHUNK = b"\x00\x01" * (CHUNK_BYTES // 2)
 CHUNK_COUNT = 50
 
 
-def _build_pipeline():
-    """`transport -> counter`, running, plus the pieces the test needs.
+def _sink(pipeline: AudioPipeline) -> Any:
+    """The pipeline's sink, with the count it keeps.
 
-    `PipelineWorker`, not the `PipelineTask` alias: the alias is deprecated since
-    pipecat 1.3.0 and removed in 2.0.0, and this is new code (ADR-0106).
-
-    A worker does not start itself — `run` is the coroutine that drives the
-    pipeline — so the session owns that task, exactly as the migration will have
-    to.
+    `AudioPipeline.counter` can only be typed as pipecat's `FrameProcessor`,
+    because the sink's own class is built inside the factory — importing this
+    module must not import pipecat. Its `frame_count`, `bytes_received` and
+    `audio_frames` are what stage 1 counts on, and what this file asserts.
     """
-    from pipecat.frames.frames import StartFrame
-    from pipecat.pipeline.pipeline import Pipeline
-    from pipecat.pipeline.task import PipelineWorker
-    from pipecat.utils.asyncio.task_manager import TaskManager
-    from pipecat.workers.base_worker import WorkerParams
-
-    transport = create_input_transport()
-    counter = create_audio_counter()
-    worker = PipelineWorker(Pipeline([transport, counter]))
-    runner = asyncio.create_task(worker.run(WorkerParams(TaskManager())))
-    return worker, runner, transport, counter, StartFrame
-
-
-async def _shutdown(worker, runner) -> None:
-    """Stop the pipeline and wait for its task to unwind."""
-    await worker.cancel()
-    try:
-        await asyncio.wait_for(runner, timeout=5)
-    except (asyncio.CancelledError, asyncio.TimeoutError, Exception):
-        pass
+    return pipeline.counter
 
 
 async def _settle(predicate, timeout: float = 5.0) -> bool:
@@ -72,21 +51,17 @@ async def _settle(predicate, timeout: float = 5.0) -> bool:
 async def test_audio_pushed_from_outside_reaches_the_sink():
     """Every block pushed in comes out the far end, in order and intact.
 
-    This is the count stage 1 exits on, and it exercises the subclass's whole
+    This is the count stage 1 exits on, and it exercises the transport's whole
     reason to exist: pipecat's base `start` never calls `set_transport_ready`,
     which is the call that creates the queue a pushed block is read from, so
-    without the override this count is zero.
+    without it the push has nowhere to go and this count is zero.
     """
-    worker, runner, transport, counter, StartFrame = _build_pipeline()
+    pipeline = await AudioPipeline.start()
     try:
-        await worker.queue_frames([StartFrame()])
-        assert await _settle(lambda: counter.frame_count >= 1), (
-            "the pipeline never came up: no frame reached the sink"
-        )
-
         for _ in range(CHUNK_COUNT):
-            await push_audio(transport, CHUNK)
+            await pipeline.push(CHUNK)
 
+        counter = _sink(pipeline)
         assert await _settle(lambda: len(counter.audio_frames) >= CHUNK_COUNT), (
             f"only {len(counter.audio_frames)} of {CHUNK_COUNT} pushed blocks "
             "reached the sink"
@@ -94,7 +69,21 @@ async def test_audio_pushed_from_outside_reaches_the_sink():
         assert counter.bytes_received == CHUNK_COUNT * CHUNK_BYTES
         assert [frame.audio for frame in counter.audio_frames] == [CHUNK] * CHUNK_COUNT
     finally:
-        await _shutdown(worker, runner)
+        await pipeline.close()
+
+
+@pytest.mark.asyncio
+async def test_closing_the_pipeline_leaves_no_task_running():
+    """`start` and `close` leave the loop as they found it.
+
+    A session opens the pipeline for its listening and closes it after, so a
+    worker left running would outlive the microphone it was fed from.
+    """
+    pipeline = await AudioPipeline.start()
+
+    await pipeline.close()
+
+    assert pipeline.runner.done()
 
 
 @pytest.mark.asyncio
@@ -105,7 +94,7 @@ async def test_the_pipeline_shares_the_already_running_loop():
     than a drop-in. A coroutine ticking alongside the pipeline proves the loop is
     shared: it keeps advancing while the pipeline is alive and draining audio.
     """
-    worker, runner, transport, counter, StartFrame = _build_pipeline()
+    pipeline = await AudioPipeline.start()
     ticks = 0
     ticking = True
 
@@ -117,13 +106,22 @@ async def test_the_pipeline_shares_the_already_running_loop():
 
     ticker = asyncio.create_task(tick())
     try:
-        await worker.queue_frames([StartFrame()])
-        assert await _settle(lambda: counter.frame_count >= 1)
         for _ in range(5):
-            await push_audio(transport, CHUNK)
-        assert await _settle(lambda: len(counter.audio_frames) >= 5)
+            await pipeline.push(CHUNK)
+        assert await _settle(lambda: len(_sink(pipeline).audio_frames) >= 5)
         assert ticks > 0, "the pipeline starved the loop it was started in"
     finally:
         ticking = False
         await ticker
-        await _shutdown(worker, runner)
+        await pipeline.close()
+
+
+def test_pipecat_availability_follows_the_installed_extra(monkeypatch):
+    """The capture path asks this before it builds a pipeline, so an install
+    without the extra must not pay for the voice stack: it is answered without
+    importing pipecat."""
+    assert is_pipecat_available()
+
+    monkeypatch.setattr("importlib.util.find_spec", lambda name: None)
+
+    assert not is_pipecat_available()

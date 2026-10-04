@@ -919,6 +919,7 @@ export ZRB_LLM_VOICE=conversation   # talk with zrb, and interrupt it
 | `ZRB_LLM_DICTATION_STOP_WORDS` | Phrases that, said alone over zrb or while a turn runs with barge-in on, stop zrb speaking and cancel the turn instead of reaching the model. A list of their own, so "no" can deny an approval without stopping anything. Anything else said over zrb is put to the small model when it reads as a stop | `stop, wait, hold on, cancel, no, nope, deny, don't` |
 | `ZRB_LLM_DICTATION_POLITE_WORDS` | Words a yes or a no may carry without changing it ("yes please", "no thanks"). Approvals only: a stop word is taken as one only when it is said alone, so "stop please" goes to the small model | `please, thanks, thank, you` |
 | `ZRB_LLM_DICTATION_BLOCK_DURATION` | Seconds of audio per microphone block: the step every other listening duration is counted in, and how often speech is checked | `0.1` |
+| `ZRB_LLM_DICTATION_PIPECAT_ENABLED` | `on` hands each captured block to a Pipecat pipeline as well, beside the hand-rolled path that still decides everything: the pipeline ends at a counter, so nothing zrb hears or says changes and turning it on cannot break the voice. Stage 1 of the voice migration ([ADR-0106](../adr/adr-0106.md)), and it wants `zrb[voice]`; without it the setting says so and listening goes on. `off`: the capture goes nowhere else | `off` |
 
 Each backend uses only its own variables:
 

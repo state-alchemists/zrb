@@ -56,19 +56,28 @@ The framework names below are Pipecat's, not zrb's, and none of them is defined 
 | zrb speech | zrb's speech backends behind a TTS service | the speech backends |
 | Output transport | A BaseOutputTransport subclass overriding write_audio_frame to play through `PcmUtterance` | `Speaker`'s playback loop |
 
-Only the input transport exists today, in `src/zrb/llm/dictation/pipecat_input.py`:
+Stage 1 has landed, in `src/zrb/llm/dictation/pipecat_input.py`:
 `create_input_transport` is the subclass, `push_audio` hands one captured block
-over, and `create_audio_counter` is the sink stage 1 counts on. Nothing calls any
-of them, and the dictation and speech paths are untouched.
-`test/llm/dictation/test_pipecat_input.py` is what holds it up: fifty blocks
-pushed from outside arrive at the sink in order and intact, while the loop the
-pipeline was started on keeps ticking.
+over, `create_audio_counter` is the sink stage 1 counts on, and `AudioPipeline`
+(`start`, `push`, `close`) owns the pipeline and its worker task for as long as a
+listening lasts.
+
+It is off unless `ZRB_LLM_DICTATION_PIPECAT_ENABLED=on`, and nothing downstream
+of the transport acts on the audio yet: what the flag proves is the transport,
+not a new voice, and the dictation and speech paths are untouched either way.
+
+Two tests hold it up. `test/llm/dictation/test_pipecat_input.py` covers the
+transport: fifty blocks pushed from outside arrive at the sink in order and
+intact, while the loop the pipeline was started on keeps ticking.
+`test/llm/dictation/test_feature_pipecat.py` covers the hand-off: a session with
+the flag on feeds the pipeline from the same capture and closes it when the
+listening stops, and an install without the extra listens on and says so.
 
 ### Change it here
 
 | Stage | What comes out | Order |
 | --- | --- | --- |
-| 1 | Input only, behind a flag: zrb pushes audio into a pipeline that ends at a sink. Output untouched, `Speaker` plays as now. Exit: the existing dictation and speech suites pass with the flag off, and a test pushes a known number of chunks and sees the same count reach the sink with it on. The transport half has landed; the flag, and the hand-off from `listen`, have not | First, because it can run beside what exists |
+| 1 | Input only, behind a flag: zrb pushes audio into a pipeline that ends at a sink. Output untouched, `Speaker` plays as now. Exit: the existing dictation and speech suites pass with the flag off, and a test pushes a known number of chunks and sees the same count reach the sink with it on. **Landed**: the flag is ZRB_LLM_DICTATION_PIPECAT_ENABLED, `listen` hands every captured block over through `on_captured`, and `AudioPipeline` owns the pipeline for the listening | First, because it can run beside what exists |
 | 2 | `UtteranceCutter` and its loudness bars. VAD and the turn-start strategies take over; the wake-word gate stays. Exit: the pinned rows above still pass on the VAD path, and a test feeds a mid-sentence pause and gets the boundaries the cutter produced | Second, because it needs stage 1 |
 | 3 | The silence-based end of a turn, replaced by a turn analyzer over the smart-turn model. Exit: a turn does not end at a mid-sentence pause, and a slow transcript still ends inside the latency budget | Third, because it needs VAD driving turn starts |
 | 4 | Output, through a BaseOutputTransport subclass. **Unverified**: nothing yet shows a pipeline interruption reaches zrb's pause fast enough, so this stage has no exit criterion that can be met today | Last, because it is the least measured, and the one that must not break a pause |

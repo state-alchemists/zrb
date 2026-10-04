@@ -21,6 +21,7 @@ from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.builtin import get_dictation_backend
 from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.listen import MicState, Utterance, import_audio, listen
+from zrb.llm.dictation.pipecat_input import AudioPipeline, is_pipecat_available
 from zrb.llm.dictation.words import (
     count_words,
     is_said_alone,
@@ -297,16 +298,51 @@ class DictationSession:
                 if command is not None:
                     yield self._to_reply(command, utterance)
 
-    def _listen(self) -> AsyncGenerator[Utterance, None]:
-        return listen(
-            self._config,
-            lambda: self.is_hands_free,
-            on_state=self._show_mic_state,
-            on_barge_in=self._handle_barge_in,
-            create_stream=self.backend.create_stream,
-            on_partial=self._show_partial,
-            on_barge_in_dropped=self._release_barge_in,
-        )
+    async def _listen(self) -> AsyncGenerator[Utterance, None]:
+        """`listen` while hands-free holds, with the Pipecat pipeline fed from
+        the same capture when it is on.
+
+        The pipeline lives exactly as long as the listening: it decides nothing
+        yet (ADR-0106, stage 1), so what it proves is that zrb's own blocks
+        reach it, and what zrb hears and says is the same either way.
+        """
+        pipeline = await self._open_audio_pipeline()
+        try:
+            async with aclosing(
+                listen(
+                    self._config,
+                    lambda: self.is_hands_free,
+                    on_state=self._show_mic_state,
+                    on_barge_in=self._handle_barge_in,
+                    create_stream=self.backend.create_stream,
+                    on_partial=self._show_partial,
+                    on_barge_in_dropped=self._release_barge_in,
+                    on_captured=pipeline.push if pipeline is not None else None,
+                )
+            ) as mic:
+                async for utterance in mic:
+                    yield utterance
+        finally:
+            if pipeline is not None:
+                await pipeline.close()
+
+    async def _open_audio_pipeline(self) -> AudioPipeline | None:
+        """A Pipecat pipeline to hand the capture to, or ``None`` when the
+        setting is off, or Pipecat is not installed.
+
+        Not installed is a setting that cannot work rather than a broken run:
+        it is said once and the listening goes on, since the hand-rolled path
+        decides everything anyway (ADR-0106, stage 1).
+        """
+        if not self._config.is_pipecat_enabled:
+            return None
+        if not is_pipecat_available():
+            self._report(
+                "Pipecat is not installed, so the input pipeline stays off "
+                "(pip install 'zrb[voice]')"
+            )
+            return None
+        return await AudioPipeline.start()
 
     async def _to_command(self, utterance: Utterance, text: str) -> str | None:
         """What *utterance*, transcribed as *text*, asks zrb, or ``None``

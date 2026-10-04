@@ -303,6 +303,7 @@ async def listen(
     create_stream: "CreateStream | None" = None,
     on_partial: Callable[[str], None] | None = None,
     on_barge_in_dropped: Callable[[], None] | None = None,
+    on_captured: Callable[[bytes], Awaitable[None]] | None = None,
 ) -> AsyncGenerator[Utterance, None]:
     """Yield utterances from the default microphone while *should_listen*
     holds; the microphone closes once it stops holding. With *keep_partial*,
@@ -328,6 +329,12 @@ async def listen(
     next thing; but only the newest ``max_backlog`` seconds of it (``0``: no
     limit). When older audio is dropped, any utterance in progress is
     dropped with it rather than spliced across the gap.
+
+    *on_captured* is handed every block as it is read, as 16 kHz mono 16-bit
+    PCM, before it is cut into an utterance: this is the capture the Pipecat
+    pipeline is fed from (ADR-0106, stage 1). It is awaited, so it must not be
+    slow, and it sees the blocks of an utterance that is dropped or never
+    yielded too, since the capture is zrb's either way.
 
     A caller that stops early must close this — `contextlib.aclosing` — or the
     microphone stays open until the generator is finalized.
@@ -356,6 +363,8 @@ async def listen(
                 item = await backlog.get(timeout=block_seconds * 5)
                 if item is None:
                     continue
+                if on_captured is not None:
+                    await on_captured(_to_pcm(np, [item.block]))
                 utterance = await blocks.handle(item)
                 if utterance is not None:
                     yield utterance
