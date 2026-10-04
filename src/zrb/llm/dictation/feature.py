@@ -16,6 +16,7 @@ from contextlib import aclosing
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
+from zrb.llm.input_source import DICTATION_INPUT
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.builtin import get_dictation_backend
@@ -402,13 +403,15 @@ class DictationSession:
             self._rest("🎤 go ahead…")
 
     def _to_reply(self, command: str, utterance: Utterance) -> TriggerReply:
-        return TriggerReply(
+        reply = TriggerReply(
             command,
             approval=to_answer(
                 command, self._approve_words, self._deny_words, self._polite_words
             ),
             started_at=utterance.started_at,
         )
+        object.__setattr__(reply, "source", DICTATION_INPUT)
+        return reply
 
     def _handle_barge_in(self) -> None:
         """The user may be talking over zrb: hold its voice at once, until

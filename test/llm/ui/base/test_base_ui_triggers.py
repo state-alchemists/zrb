@@ -7,8 +7,9 @@ import pytest
 
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
+from zrb.llm.input_source import InputProvenance
 from zrb.llm.ui.base.ui import BaseUI
-from zrb.llm.ui.trigger import TriggerMessage, TriggerReply
+from zrb.llm.ui.trigger import TriggerInput, TriggerMessage, TriggerReply
 
 
 class ConcreteUI(BaseUI):
@@ -102,6 +103,23 @@ async def test_trigger_loop_attaches_trigger_message_attachments(base_ui, monkey
     )
 
     assert submitted == [("what is this?", [photo])]
+
+
+@pytest.mark.asyncio
+async def test_trigger_message_preserves_input_provenance(base_ui, monkeypatch):
+    submitted = []
+
+    def submit(*args):
+        submitted.append(args)
+
+    monkeypatch.setattr(base_ui, "submit_user_message", submit)
+    source = InputProvenance("Telegram")
+
+    await base_ui.trigger_loop(
+        trigger_yielding(TriggerInput(text="hello", source=source))
+    )
+
+    assert submitted == [(base_ui.llm_task, "hello", source)]
 
 
 @pytest.mark.asyncio

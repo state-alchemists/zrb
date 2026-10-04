@@ -19,12 +19,14 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
-from collections.abc import Callable, Coroutine
+from collections.abc import Awaitable, Callable, Coroutine
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Sequence
 
 from zrb.config.config import CFG
+from zrb.llm.input_source import InputProvenance, KEYBOARD_INPUT
+from zrb.llm.tool.ambient_state import input_provenance
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.base.user_echo import (
     AppendOutputFunc,
@@ -67,11 +69,13 @@ class QueuedMessage:
         attachments: list["UserContent"],
         kind: str,
         run: Callable[[], Coroutine[Any, Any, None]],
+        source: InputProvenance | None = None,
     ):
         self.text = text
         self.attachments = attachments
         self.kind = kind  # "message" | "exec"
         self.run = run
+        self.source = source
         # When submission reached the queue, so a paste whose lines arrived as
         # separate Enter keystrokes can be coalesced back into one message.
         # None for entries that never passed through `submit_user_message_via_queue`
@@ -166,11 +170,23 @@ class MessageQueue(asyncio.Queue):
             self._finished.set()
 
 
+async def _run_queued_message(
+    stream_ai_response: Callable[[object, str, list], Awaitable[None]],
+    llm_task: object,
+    entry: QueuedMessage,
+) -> None:
+    token = input_provenance.set(entry.source)
+    try:
+        await stream_ai_response(llm_task, entry.text, entry.attachments)
+    finally:
+        input_provenance.reset(token)
+
+
 def submit_user_message_via_queue(
     *,
     append_to_output: AppendOutputFunc,
     active_run_context: Any,
-    stream_ai_response: Callable[[Any, str, list], Any],
+    stream_ai_response: Callable[[object, str, list], Awaitable[None]],
     queue: MessageQueue,
     attachment_sources: list[Any],
     echo_targets: Sequence[AnyUI],
@@ -178,6 +194,7 @@ def submit_user_message_via_queue(
     user_message: str,
     marker: str,
     append_markdown: Callable[[str], Any] | None = None,
+    source: InputProvenance | None = None,
 ) -> None:
     """Shared mechanics behind `BaseUI.submit_user_message` and
     `MultiUI.submit_user_message`: echo, collect attachments, then steer into a
@@ -215,13 +232,19 @@ def submit_user_message_via_queue(
     if previous is None:
         echo = emit_echo()
         attachments = _collect_attachments(attachment_sources)
-        if steer_into_live_run(active_run_context, user_message, attachments):
+        if (
+            source in (None, KEYBOARD_INPUT)
+            and steer_into_live_run(active_run_context, user_message, attachments)
+        ):
             return
         entry = QueuedMessage(
             text=user_message,
             attachments=attachments,
             kind="message",
-            run=lambda: stream_ai_response(llm_task, entry.text, entry.attachments),
+            run=lambda: _run_queued_message(
+                stream_ai_response, llm_task, entry
+            ),
+            source=source,
         )
         entry.echo_marker = marker
         entry.echo_timestamp = timestamp
@@ -239,7 +262,10 @@ def submit_user_message_via_queue(
     except Exception:
         emit_echo()
         raise
-    if steer_into_live_run(active_run_context, user_message, attachments):
+    if (
+        source in (None, KEYBOARD_INPUT)
+        and steer_into_live_run(active_run_context, user_message, attachments)
+    ):
         emit_echo()
         return
     _merge_into(

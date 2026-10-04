@@ -12,13 +12,15 @@ import asyncio
 from typing import Any
 
 from zrb.llm.approval.any_approval_channel import ApprovalContext
+from zrb.llm.input_source import InputProvenance
 from zrb.llm.ui import EventDrivenUI, UIConfig
 from zrb.runner.chat.chat_session_manager import ChatSessionManager
 from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 from zrb.util.cli.style import remove_style
 
 
-def create_http_ui_factory(  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
+# noqa: C901 -- registration/factory function; nested handlers are trivial.
+def create_http_ui_factory(
     session_manager: ChatSessionManager,
     session_id: str,
     session_name: str,
@@ -55,8 +57,15 @@ def create_http_ui_factory(  # noqa: C901 -- registration/factory fn; mccabe sum
             """
             self.append_to_output(markdown_text, kind="markdown")
 
-        def handle_incoming_message(self, text: str) -> None:
-            """Put an incoming message into the input queue."""
+        def handle_incoming_message(
+            self, text: str, source: InputProvenance | None = None
+        ) -> None:
+            """Put an incoming answer into the input queue.
+
+            The HTTP chat route submits ordinary user turns through the shared
+            chat-session queue; this method is only the ask-user answer seam.
+            """
+            del source
             self._input_queue.put_nowait(text)
 
         async def get_input(self, prompt: str) -> str:

@@ -19,6 +19,7 @@ from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
 from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.input_source import InputProvenance, KEYBOARD_INPUT
 from zrb.llm.permission.state import (
     AgentMode,
     get_current_agent_mode,
@@ -578,7 +579,12 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             "call set_approval_channel(...) before running."
         )
 
-    def submit_user_message(self, llm_task: Any, user_message: str):
+    def submit_user_message(
+        self,
+        llm_task: Any,
+        user_message: str,
+        source: InputProvenance | None = KEYBOARD_INPUT,
+    ):
         """Submit user message to shared queue.
 
         This is called by child UIs when they receive user input.
@@ -598,14 +604,22 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             user_message=user_message,
             marker="💬",
             append_markdown=self.append_markdown,
+            source=source,
         )
 
-    def submit_message(self, user_message: str) -> None:
+    def submit_message(
+        self,
+        user_message: str,
+        source: InputProvenance | None = None,
+    ) -> None:
         """Queue *user_message* for the shared agent turn (steer into the live
         run when one is in flight). Uses the shared queue's own task
         — sub-agent continuation code calls this to hand the main agent a
         synthesized report."""
-        self.submit_user_message(self._llm_task, user_message)
+        if source is None:
+            self.submit_user_message(self._llm_task, user_message)
+        else:
+            self.submit_user_message(self._llm_task, user_message, source)
 
     async def process_messages_loop(self):
         """Process jobs from shared queue sequentially."""

@@ -17,7 +17,8 @@ import pathlib
 REPO_ROOT = pathlib.Path(__file__).parents[2]
 SRC = REPO_ROOT / "src" / "zrb"
 
-ANY_ANNOTATIONS = 1096
+# -2: message-queue provenance forwarding now uses object/Awaitable types.
+ANY_ANNOTATIONS = 1094
 
 
 def _count_any(annotation: ast.expr | None) -> int:

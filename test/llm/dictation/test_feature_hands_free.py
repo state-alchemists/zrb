@@ -111,7 +111,11 @@ async def test_hands_free_turns_each_utterance_into_a_reply(monkeypatch):
     session = _session(mode="hands_free")
 
     assert await _trigger_replies(session, 2) == [
-        TriggerReply("open the file", approval="open the file", started_at=0),
+        TriggerReply(
+            "open the file",
+            approval="open the file",
+            started_at=0,
+        ),
         TriggerReply("Yes.", approval="yes", started_at=2),
     ]
 
@@ -122,8 +126,16 @@ async def test_a_command_opening_with_an_approve_word_is_sent_as_said(monkeypatc
     session = _session(mode="hands_free")
 
     assert await _trigger_replies(session, 2) == [
-        TriggerReply("ok run the tests", approval="ok run the tests", started_at=0),
-        TriggerReply("Okay, no, stop.", approval="Okay, no, stop.", started_at=2),
+        TriggerReply(
+            "ok run the tests",
+            approval="ok run the tests",
+            started_at=0,
+        ),
+        TriggerReply(
+            "Okay, no, stop.",
+            approval="Okay, no, stop.",
+            started_at=2,
+        ),
     ]
 
 

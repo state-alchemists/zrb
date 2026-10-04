@@ -12,6 +12,7 @@ import time
 from typing import TYPE_CHECKING
 
 from zrb.llm.custom_command.resolver import run_custom_command
+from zrb.llm.input_source import InputProvenance
 
 if TYPE_CHECKING:
     from zrb.llm.ui.simple_ui_base import SimpleUI
@@ -78,9 +79,16 @@ class QueueBasedInput:
         finally:
             self.waiting_for_input = False
 
-    def handle_incoming_message(self, text: str):
-        """Call this when a message arrives from your backend.
+    def _submit_message(self, text: str, source: InputProvenance | None) -> None:
+        if source is None:
+            self._simple_ui.submit_message(text)
+        else:
+            self._simple_ui.submit_message(text, source)
 
+    def handle_incoming_message(
+        self, text: str, source: InputProvenance | None = None
+    ):
+        """Call this when a message arrives from your backend.
         Routes the message to the appropriate handler:
         - If waiting for input (ask_user blocked), it goes to the queue
         - If it matches a custom slash command, the resolved prompt is sent,
@@ -96,8 +104,8 @@ class QueueBasedInput:
             else None
         )
         if outcome is None:
-            self._simple_ui.submit_message(text)
+            self._submit_message(text, source)
         elif outcome.prompt is not None:
-            self._simple_ui.submit_message(outcome.prompt)
+            self._submit_message(outcome.prompt, source)
         elif outcome.reply:
             asyncio.ensure_future(self._simple_ui.print(outcome.reply, kind="text"))

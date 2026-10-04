@@ -45,6 +45,7 @@ from zrb.context.any_context import AnyContext
 from zrb.llm.permission.state import AgentMode, get_current_agent_mode
 from zrb.llm.tool.ambient_state import (
     get_active_worktree,
+    get_input_provenance,
     set_active_worktree,
     set_current_tool_session,
     set_interactive_mode,
@@ -128,6 +129,43 @@ def _admits(model: "Any", tool: str) -> bool:
     return True
 
 
+def _collect_worktree_lines(timeout: float) -> list[str]:
+    """Render linked worktrees from the current repository, best effort."""
+    try:
+        result = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if result.returncode != 0:
+        return []
+    entries: list[tuple[str, str]] = []
+    path = branch = ""
+    prunable = False
+    for line in (*result.stdout.splitlines(), ""):
+        if line.startswith("worktree "):
+            path = line.removeprefix("worktree ")
+        elif line.startswith("branch "):
+            branch = line.removeprefix("branch refs/heads/")
+        elif line.startswith("prunable "):
+            prunable = True
+        elif not line and path:
+            if not prunable:
+                entries.append((path, branch or "(detached)"))
+            path, branch, prunable = "", "", False
+    if not entries:
+        return []
+    current = os.path.realpath(os.getcwd())
+    lines = ["- Worktrees:"]
+    for path, branch in entries:
+        marker = ", current" if os.path.realpath(path) == current else ""
+        lines.append(f"  - {branch} @ {path}{marker}")
+    return lines
+
+
 def _collect_git_info(
     todo_manager, session_name: str
 ) -> tuple[list[str], "dict[str, Any] | None"]:
@@ -167,6 +205,7 @@ def _collect_git_info(
             text=True,
             timeout=git_timeout,
         )
+        f_worktrees = ex.submit(_collect_worktree_lines, git_timeout)
         f_todos = ex.submit(_safe_get_todos, todo_manager, session_name)
 
         try:
@@ -185,6 +224,7 @@ def _collect_git_info(
                 git_lines.append(f"- Recent commits:\n{log_lines}")
         except Exception as e:
             CFG.LOGGER.debug(f"Failed to read git log for live context: {e}")
+        git_lines.extend(f_worktrees.result())
         todos_data = f_todos.result()
 
     return git_lines, todos_data
@@ -457,8 +497,18 @@ def _render_parts(
     parts.extend(git_lines)
     if active_wt:
         parts.append(
-            f"- Active worktree: {active_wt} (pass as cwd to Shell; use absolute paths for Read/Write/Edit/Grep)"
+            "- Active worktree: "
+            f"{active_wt} (pass as cwd to Shell; use absolute paths for "
+            "Read/Write/Edit/Grep)"
         )
+    provenance = get_input_provenance()
+    if provenance:
+        parts.append(f"- Input: user via {provenance.render()}")
+        if provenance.transcription:
+            parts.append(
+                "  STT transcript may be inaccurate; verify names, paths, symbols, "
+                "and commands before acting."
+            )
     mode_line = _format_mode_line()
     if mode_line:
         parts.append(mode_line)

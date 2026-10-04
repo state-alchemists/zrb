@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from contextvars import ContextVar
 
+from zrb.llm.input_source import InputProvenance
+
 # `ask.py` and `worktree.py` set these, but neither owns them: both declare
 # tool signatures and so import `pydantic`, while `live_context.py` reads this
 # state on the eager `import zrb` path. Storing them in this module — which
@@ -21,6 +23,10 @@ from contextvars import ContextVar
 active_worktree: ContextVar[str] = ContextVar("zrb_active_worktree", default="")
 
 interactive_mode: ContextVar[bool] = ContextVar("zrb_interactive_mode", default=True)
+
+input_provenance: ContextVar[InputProvenance | None] = ContextVar(
+    "zrb_input_provenance", default=None
+)
 
 
 def get_interactive_mode() -> bool:
@@ -31,6 +37,16 @@ def get_interactive_mode() -> bool:
 def set_interactive_mode(value: bool) -> None:
     """Set the interactive flag for the current chat session."""
     interactive_mode.set(value)
+
+
+def get_input_provenance() -> InputProvenance | None:
+    """Return the source of the current user turn, when one is known."""
+    return input_provenance.get()
+
+
+def set_input_provenance(value: InputProvenance | None) -> None:
+    """Set the source of the current user turn."""
+    input_provenance.set(value)
 
 
 _current_session: ContextVar[str] = ContextVar("zrb_current_session", default="default")
@@ -104,6 +120,8 @@ __all__ = [
     "set_current_session",
     "get_interactive_mode",
     "set_interactive_mode",
+    "get_input_provenance",
+    "set_input_provenance",
     "current_chat_session_id",
     "get_current_chat_session_id",
     "get_session_ownership_key",

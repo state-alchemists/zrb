@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+from zrb.llm.input_source import InputProvenance
 from zrb.llm.ui.queue_based_input import QueueBasedInput
 from zrb.llm.ui.simple_ui_base import SimpleUI
 from zrb.llm.ui.ui_config import UIConfig
@@ -80,8 +81,10 @@ class EventDrivenUI(SimpleUI):
     async def get_input(self, prompt: str) -> str:
         return await self._input_handling.get_input(prompt)
 
-    def handle_incoming_message(self, text: str) -> None:
-        self._input_handling.handle_incoming_message(text)
+    def handle_incoming_message(
+        self, text: str, source: InputProvenance | None = None
+    ) -> None:
+        self._input_handling.handle_incoming_message(text, source)
 
     @property
     def is_waiting_for_answer(self) -> bool:

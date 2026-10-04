@@ -14,7 +14,8 @@ import logging
 from collections.abc import AsyncIterable, Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
-from zrb.llm.ui.trigger import TriggerReply
+from zrb.llm.input_source import InputProvenance
+from zrb.llm.ui.trigger import TriggerInput, TriggerMessage, TriggerReply
 from zrb.util.cli.style import stylize_error
 from zrb.util.exception import exception_summary
 
@@ -89,7 +90,7 @@ class BaseUITriggers:
             self._reply(item)
             return
         owner = self._owner
-        text, attachments = self._split(item)
+        text, attachments, source = self._split(item)
         if not text and not attachments:
             return
         # Drained by the `submit_user_message` below (a `MultiUI` parent
@@ -99,7 +100,10 @@ class BaseUITriggers:
         # otherwise leave these staged for whatever turn comes next.
         owner.pending_attachments.extend(attachments)
         try:
-            owner.submit_user_message(owner.llm_task, text)
+            if source is None:
+                owner.submit_user_message(owner.llm_task, text)
+            else:
+                owner.submit_user_message(owner.llm_task, text, source)
         except BaseException:
             _unstage(owner.pending_attachments, attachments)
             raise
@@ -116,7 +120,10 @@ class BaseUITriggers:
                 owner.submit_answer(answer)
             return
         if reply.text.strip():
-            owner.submit_user_message(owner.llm_task, reply.text)
+            if reply.source is None:
+                owner.submit_user_message(owner.llm_task, reply.text)
+            else:
+                owner.submit_user_message(owner.llm_task, reply.text, reply.source)
 
     def _is_said_to_pending(self, reply: TriggerReply) -> bool:
         if reply.started_at is None:
@@ -125,18 +132,16 @@ class BaseUITriggers:
         # A UI that cannot say when its prompt appeared gets no timed answers.
         return since is not None and since <= reply.started_at
 
-    def _split(self, item: Any) -> "tuple[str, list[UserContent]]":
-        """Split a yielded item into its text and its attachments.
-
-        A tuple must be the `(text, attachments)` shape `TriggerMessage`
-        declares. Anything else raises `ValueError` rather than being
-        reinterpreted: a 3-tuple would lose its third element silently, a
-        bare string in the attachments slot would become a list of its
-        characters, and `None` there would raise `TypeError` from inside
-        `list()`.
-        """
+    def _split(
+        self, item: Any
+    ) -> "tuple[str, list[UserContent], InputProvenance | None]":
+        """Split a yielded item into text, attachments and provenance."""
+        if isinstance(item, TriggerInput):
+            return str(item.text or ""), list(item.attachments), item.source
+        if isinstance(item, TriggerMessage):
+            return str(item.text or ""), list(item.attachments), None
         if not isinstance(item, tuple):
-            return str(item or ""), []
+            return str(item or ""), [], None
         if len(item) != 2:
             raise ValueError(
                 "a trigger tuple must be (text, attachments); "
@@ -153,7 +158,7 @@ class BaseUITriggers:
                 f"{type(attachments).__name__}: {attachments!r}. Wrap a single "
                 "attachment in a list."
             )
-        return str(text or ""), list(attachments)
+        return str(text or ""), list(attachments), None
 
 
 def _unstage(staged: "list[UserContent]", items: "list[UserContent]") -> None:

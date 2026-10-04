@@ -38,11 +38,13 @@ from telegram.ext import (
 
 from zrb.builtin.llm.chat import llm_chat
 from zrb.llm.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
+from zrb.llm.input_source import InputProvenance
 from zrb.llm.ui import BufferedOutputMixin, EventDrivenUI
 from zrb.util.cli.style import remove_style
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
+TELEGRAM_INPUT = InputProvenance("Telegram")
 
 # Which print() kinds never reach Telegram. "streaming" is skipped because
 # the full answer already arrives once as "text" after the run finishes —
@@ -167,7 +169,7 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
             ):
                 self._approval_channel.handle_text_input(text)
             else:
-                self.handle_incoming_message(text)
+                self.handle_incoming_message(text, TELEGRAM_INPUT)
 
         async def handle_photo(update, _context):
             if str(update.message.chat_id) != self.chat_id:
@@ -178,7 +180,9 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
             if await self._download_and_queue_attachment(
                 photo, "photo.jpg", "image/jpeg"
             ):
-                self.handle_incoming_message(update.message.caption or "")
+                self.handle_incoming_message(
+                    update.message.caption or "", TELEGRAM_INPUT
+                )
 
         async def handle_document(update, _context):
             if str(update.message.chat_id) != self.chat_id:
@@ -197,7 +201,9 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
             if await self._download_and_queue_attachment(
                 document, filename, media_type
             ):
-                self.handle_incoming_message(update.message.caption or "")
+                self.handle_incoming_message(
+                    update.message.caption or "", TELEGRAM_INPUT
+                )
 
         if not self._message_handler_registered:
             self.bot.add_handler(MessageHandler(filters.TEXT, handle_message))
