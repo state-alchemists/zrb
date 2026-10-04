@@ -37,7 +37,7 @@ Hands-free dictation lets the user talk to zrb, and speech lets zrb talk back. B
 
 3. **Hold first, decide on the words.** As soon as the microphone hears loud speech over zrb, zrb's voice is paused, before anything about it is known. The words then decide: those meant for zrb stop it, anything else resumes it — a hold taken for zrb's own voice included. Every way the listener can end releases a pause it made. → [ADR-0076](../../adr/adr-0076.md), [ADR-0103](../../adr/adr-0103.md)
 
-4. **Guard against zrb's own voice instead of cancelling it.** zrb does not subtract its voice from the microphone. Cheap guards do the work: a higher loudness bar while zrb speaks, dropping known transcriber guesses, dropping text that only repeats what zrb was saying, and a minimum word count to interrupt. → [ADR-0105](../../adr/adr-0105.md)
+4. **Guard against zrb's own voice instead of cancelling it.** zrb does not subtract its voice from the microphone. Cheap guards do the work: a higher loudness bar while zrb speaks, dropping known transcriber guesses, and a minimum word count to interrupt. → [ADR-0105](../../adr/adr-0105.md)
 
 5. **Speech listens to the stream beside the UI.** Speech reads a reply as it streams by observing the run's events next to the UI, not through it. An observer that fails is logged and skipped, so speech can never break a run. → [ADR-0104](../../adr/adr-0104.md)
 
@@ -111,7 +111,7 @@ sequenceDiagram
 
 What holds zrb's voice is the speech itself, before anything is known about it: `pause_speech` runs first, and `interrupt_speech` follows only when the words were meant for zrb. Anything else — a cough, the room, zrb's own voice — reaches `resume_speech`, which is the price of not waiting to be sure.
 
-The guards run in `DictationSession` in this order. Empty text, a known transcriber guess, or text that only repeats `spoken_log` from the same moments is not the user. A command with fewer than `barge_in_min_words` words (default 2) is too short to interrupt, unless it is a stop word or an answer to a waiting prompt; an utterance that interrupts nothing is held to `min_words` (default 1) instead, so a public place can be made to need more than a single stray word. Anything rejected resumes speech and shows why on the status badge.
+The guards run in `DictationSession` in this order. Empty text, or a known transcriber guess, is not the user. A command with fewer than `barge_in_min_words` words (default 2) is too short to interrupt, unless it is a stop word or an answer to a waiting prompt; an utterance that interrupts nothing is held to `min_words` (default 1) instead, so a public place can be made to need more than a single stray word. Anything rejected resumes speech and shows why on the status badge.
 
 Independent of any utterance, `UtteranceCutter` measures the room: speech heard while zrb is silent must be `noise_margin` (default 2) times the quietest the room was heard at over the last few seconds, so the room's own conversation does not open a turn of its own — a room that never falls quiet is measured at its own level, which is what lifts the bar over it. With the `vosk` backend, a hands-free transcript whose words were heard too faintly on average (`vosk_confidence`) is dropped as well; push-to-talk keeps every word. Neither tells a stranger's request from the user's, which only a wake word does.
 

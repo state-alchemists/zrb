@@ -22,6 +22,7 @@ from zrb.llm.dictation.backend.builtin import get_dictation_backend
 from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.listen import MicState, Utterance, import_audio, listen
 from zrb.llm.dictation.pipecat_input import AudioPipeline, is_pipecat_available
+from zrb.llm.dictation.teardown import close_quietly
 from zrb.llm.dictation.words import (
     count_words,
     is_said_alone,
@@ -43,9 +44,6 @@ from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
-    from zrb.llm.dictation.backend.any_transcription_stream import (
-        AnyTranscriptionStream,
-    )
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.ui.base.ui import BaseUI
@@ -374,10 +372,16 @@ class DictationSession:
         return await AudioPipeline.start()
 
     async def _close_audio_pipeline(self) -> None:
-        """Stop the pipeline this listening was feeding, if it started one."""
+        """Stop the pipeline this listening was feeding, if it started one.
+
+        Contained here as well as inside `AudioPipeline.close` (PR #561 review):
+        the pipeline decides nothing (ADR-0106, stage 1), so no failure in its
+        teardown, however far it got, may end the listening still going on
+        around it.
+        """
         tap, self._tap = self._tap, None
         if tap is not None:
-            await tap.close()
+            await close_quietly(tap.close, "the Pipecat pipeline")
 
     async def _to_command(self, utterance: Utterance, text: str) -> str | None:
         """What *utterance*, transcribed as *text*, asks zrb, or ``None``
@@ -661,14 +665,7 @@ class DictationSession:
             # failed, this task cancelled) is abandoned, and an abandoned
             # stream is closed: it may hold a connection or a decoder.
             if utterance.stream is not None and not is_finished:
-                await _close_quietly(utterance.stream)
-
-
-async def _close_quietly(stream: "AnyTranscriptionStream") -> None:
-    try:
-        await stream.close()
-    except Exception as exc:
-        logger.warning(f"Closing a transcription stream failed: {exc}")
+                await close_quietly(utterance.stream.close, "a transcription stream")
 
 
 def _quote(text: str) -> str:

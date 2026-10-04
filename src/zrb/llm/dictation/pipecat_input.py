@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from zrb.llm.dictation.listen import SAMPLE_RATE
+from zrb.llm.dictation.teardown import close_quietly
 
 if TYPE_CHECKING:
     # No `InputAudioRawFrame`: each factory imports it at call time, and naming
@@ -205,15 +206,22 @@ class AudioPipeline:
     async def close(self) -> None:
         """Stop the pipeline and wait, briefly, for its task to unwind.
 
-        Never raises: a worker that ended in failure has nothing left to stop,
-        and one that will not unwind is left to the event loop rather than waited
-        on forever. `asyncio.wait`, not `wait_for`, so the worker's own failure is
-        not reported a second time here — whoever pushed its last frame has
-        already seen it — and its exception is read off below so the loop does
-        not later log it as one nobody retrieved.
+        Never raises, and does not leave the task running where it can end it
+        (PR #561 review). The ask travels over the worker's own bus, and a
+        pipeline already in trouble can fail it: the failure is contained, and a
+        task still going after the wait below is cancelled outright — this runs
+        in the listening's `finally`, where an escaping failure would end
+        hands-free for the session, and a task left behind would outlive the
+        microphone it was fed from. `asyncio.wait`, not `wait_for`, so the
+        worker's own failure is not reported a second time here — whoever pushed
+        its last frame has already seen it — and its exception is read off below
+        so the loop does not later log it as one nobody retrieved.
         """
-        await self.worker.cancel()
+        await close_quietly(self.worker.cancel, "the Pipecat worker")
         done, _ = await asyncio.wait({self.runner}, timeout=_CLOSE_TIMEOUT_SECONDS)
+        if not done:
+            self.runner.cancel()
+            done, _ = await asyncio.wait({self.runner}, timeout=_CLOSE_TIMEOUT_SECONDS)
         for task in done:
             if not task.cancelled():
                 task.exception()

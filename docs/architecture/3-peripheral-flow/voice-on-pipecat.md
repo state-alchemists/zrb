@@ -26,6 +26,7 @@ zrb's voice moves off its hand-rolled path and onto Pipecat's pipeline, one stag
 | A spoken yes or no still answers a pending approval rather than steering the turn | `test/llm/dictation/test_feature_barge_in.py` |
 | Speech can still be paused and stopped mid-utterance | `test/llm/speech/test_player_in_process.py` |
 | A streamed reply is still spoken sentence by sentence as it is written | `test/llm/speech/test_feature_stream.py` |
+| A pipeline that fails, while it starts or while it is torn down, leaves the listening going | `test/llm/dictation/test_feature_pipecat.py` |
 | A turn ends when the user is done, and a slow transcript does not stall it | **unpinned** — stage 3 has no test yet |
 
 ## Realization
@@ -66,12 +67,15 @@ It is off unless `ZRB_LLM_DICTATION_PIPECAT_ENABLED=on`, and nothing downstream
 of the transport acts on the audio yet: what the flag proves is the transport,
 not a new voice, and the dictation and speech paths are untouched either way.
 
-Two tests hold it up. `test/llm/dictation/test_pipecat_input.py` covers the
+Two suites hold it up. `test/llm/dictation/test_pipecat_input.py` covers the
 transport: fifty blocks pushed from outside arrive at the sink in order and
-intact, while the loop the pipeline was started on keeps ticking.
-`test/llm/dictation/test_feature_pipecat.py` covers the hand-off: a session with
-the flag on feeds the pipeline from the same capture and closes it when the
-listening stops, and an install without the extra listens on and says so.
+intact, while the loop the pipeline was started on keeps ticking — and a start
+that fails, or a cancel the worker will not take, ends its task and raises
+nothing. `test/llm/dictation/test_feature_pipecat.py` covers the hand-off: a
+session with the flag on feeds the pipeline from the same capture and closes it
+when the listening stops, an install without the extra listens on and says so,
+and a start or a close that fails is reported and given up on rather than ending
+hands-free.
 
 ### Change it here
 

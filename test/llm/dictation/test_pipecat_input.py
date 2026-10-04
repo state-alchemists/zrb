@@ -152,3 +152,26 @@ async def test_a_start_that_never_comes_up_leaves_no_task_running(monkeypatch):
     await asyncio.sleep(0)
 
     assert asyncio.all_tasks() <= before
+
+
+@pytest.mark.asyncio
+async def test_a_worker_that_refuses_the_cancel_still_ends_the_pipeline(monkeypatch):
+    """A teardown that fails still ends the pipeline, and raises nothing (PR #561
+    review).
+
+    `close` asks the worker to cancel over the worker's own bus, and a pipeline
+    already in trouble can fail that ask. `close` promises never to raise — its
+    caller is the listening's `finally`, where an escaping failure ends
+    hands-free for the session — so the ask is best-effort and the task driving
+    the pipeline is cancelled outright when it did not go through.
+    """
+    pipeline = await AudioPipeline.start()
+
+    async def refuse(*args, **kwargs):
+        raise RuntimeError("the worker will not take the cancel")
+
+    monkeypatch.setattr(pipeline.worker, "cancel", refuse)
+
+    await pipeline.close()
+
+    assert pipeline.runner.done()

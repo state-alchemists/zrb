@@ -197,3 +197,39 @@ async def test_a_pipeline_that_will_not_start_leaves_the_listening_alone(monkeyp
     assert reply == "hello"
     assert session.is_hands_free
     assert any("Pipecat input pipeline stopped" in text for text in ui.outputs)
+
+
+@pytest.mark.asyncio
+async def test_a_pipeline_that_fails_to_close_leaves_the_listening_alone(
+    monkeypatch, caplog
+):
+    """A failure while the pipeline is torn down is the pipeline's, not the
+    listening's (PR #561 review).
+
+    `_listen` stops the pipeline in its `finally`, and a close that raised would
+    reach the dictation loop's outer handler and switch hands-free off for the
+    session, taking the microphone with it. Stage 1's pipeline decides nothing,
+    so the failure is contained and logged instead.
+    """
+    ui = FakeUI()
+    set_session_ui(ui)
+    try:
+        monkeypatch.setattr(
+            "zrb.llm.dictation.feature.is_pipecat_available", lambda: True
+        )
+        _fakes(monkeypatch, b"hello")
+
+        class ClosingPipeline(FakeAudioPipeline):
+            async def close(self) -> None:
+                raise RuntimeError("the worker will not take the cancel")
+
+        monkeypatch.setattr("zrb.llm.dictation.feature.AudioPipeline", ClosingPipeline)
+        session = _session(pipecat_enabled=True)
+
+        reply = await _first_reply(session)
+    finally:
+        reset_session_ui()
+
+    assert reply == "hello"
+    assert session.is_hands_free
+    assert "the worker will not take the cancel" in caplog.text
