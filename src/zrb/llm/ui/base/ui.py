@@ -21,9 +21,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import time
 from collections.abc import AsyncIterable, Callable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, TextIO, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, TextIO, cast
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
@@ -94,6 +95,20 @@ if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import ChoiceSpec
 
 logger = logging.getLogger(__name__)
+
+
+class RunningTool(NamedTuple):
+    """The tool call currently executing: its name, id, and when it started.
+
+    ``tool_call_id`` ties the timer to the specific call that started it, so a
+    result event for a *different* concurrent call cannot clear it early.
+    ``started_at`` is a ``time.monotonic()`` reading, so wall-clock jumps never
+    distort the elapsed time the status bar shows.
+    """
+
+    tool_name: str
+    tool_call_id: str
+    started_at: float
 
 
 def _default_list(value: "Any") -> list:
@@ -249,6 +264,10 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._active_run_context: Any = None
         self._process_messages_task: asyncio.Task | None = None
         self._last_result_data: str | None = None
+        # Runtime-timer state for the status bar: when this session began and
+        # the tool calls currently executing, keyed by their tool_call_id.
+        self._session_started_at = time.monotonic()
+        self._running_tools: dict[str, RunningTool] = {}
 
         self._cwd = os.getcwd()
         self._git_info = "Checking..."
@@ -470,6 +489,43 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     @git_info.setter
     def git_info(self, value: str):
         self._git_info = value
+
+    @property
+    def session_started_at(self) -> float:
+        """`time.monotonic()` when this chat session was constructed."""
+        return self._session_started_at
+
+    @property
+    def running_tool(self) -> "RunningTool | None":
+        """The most recently started tool call still executing, or None.
+
+        Several tools may run in parallel while the status bar shows one, so
+        this picks the most recent among those still active. When a newer call
+        finishes first, an older one that is still running takes over instead
+        of the bar dropping the timer.
+        """
+        if not self._running_tools:
+            return None
+        return max(self._running_tools.values(), key=lambda item: item.started_at)
+
+    def start_tool_call(self, tool_name: str, tool_call_id: str) -> None:
+        """Record the start of `tool_name`'s execution for the status bar."""
+        self._running_tools[tool_call_id] = RunningTool(
+            tool_name, tool_call_id, time.monotonic()
+        )
+
+    def end_tool_call(self, tool_call_id: str | None = None) -> None:
+        """Forget the tool call `tool_call_id` names once it finishes.
+
+        Each id removes only itself, so a concurrent call finishing early can
+        never clear a sibling that is still running. ``None`` clears every
+        active call — used at run end and turn start, where any leftover timer
+        is stale by definition.
+        """
+        if tool_call_id is None:
+            self._running_tools.clear()
+            return
+        self._running_tools.pop(tool_call_id, None)
 
     @property
     def markdown_theme(self) -> Any:
@@ -1222,6 +1278,10 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         attachments: "list[UserContent] | None" = None,
     ):
         attachments = list(attachments or [])
+        # A cancelled turn can leave a stale running-tool timer behind; each
+        # turn starts clean so the status bar never shows a tool from a prior
+        # turn while this one streams only text.
+        self.end_tool_call()
         self.is_thinking = True
         self.invalidate_ui()
         try:
