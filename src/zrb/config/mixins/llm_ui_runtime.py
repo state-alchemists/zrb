@@ -3,7 +3,8 @@ the paste-burst merge window."""
 
 from __future__ import annotations
 
-from zrb.config.env_field import EnvField
+from zrb.config.env_field import EnvField, on_off
+from zrb.util.string.conversion import to_boolean
 
 
 class LLMUIRuntimeMixin:
@@ -16,6 +17,7 @@ class LLMUIRuntimeMixin:
         self.DEFAULT_LLM_UI_FLUSH_INTERVAL: str = "500"
         self.DEFAULT_LLM_UI_MAX_BUFFER_SIZE: str = "2000"
         self.DEFAULT_LLM_UI_PASTE_MERGE_WINDOW: str = "100"
+        self.DEFAULT_LLM_UI_SHOW_RUNTIME_TIMERS: str = "on"
         super().__init__()
 
     LLM_UI_STATUS_INTERVAL = EnvField(
@@ -42,4 +44,11 @@ class LLMUIRuntimeMixin:
         "previous one into a single queued message — heals multi-line pastes that "
         "a terminal without bracketed paste split into one submit per line. "
         "Set to 0 to disable.",
+    )
+
+    LLM_UI_SHOW_RUNTIME_TIMERS = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc="Show the chat session uptime and the in-flight tool-call duration "
+        "in the status bar.",
     )

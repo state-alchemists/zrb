@@ -21,9 +21,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import time
 from collections.abc import AsyncIterable, Callable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, TextIO, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, TextIO, cast
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
@@ -94,6 +95,17 @@ if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import ChoiceSpec
 
 logger = logging.getLogger(__name__)
+
+
+class RunningTool(NamedTuple):
+    """The tool call currently executing: its name and when it started.
+
+    ``started_at`` is a ``time.monotonic()`` reading, so wall-clock jumps never
+    distort the elapsed time the status bar shows.
+    """
+
+    tool_name: str
+    started_at: float
 
 
 def _default_list(value: "Any") -> list:
@@ -249,6 +261,10 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._active_run_context: Any = None
         self._process_messages_task: asyncio.Task | None = None
         self._last_result_data: str | None = None
+        # Runtime-timer state for the status bar: when this session began and
+        # the tool call currently executing (None between calls).
+        self._session_started_at = time.monotonic()
+        self._running_tool: RunningTool | None = None
 
         self._cwd = os.getcwd()
         self._git_info = "Checking..."
@@ -470,6 +486,28 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     @git_info.setter
     def git_info(self, value: str):
         self._git_info = value
+
+    @property
+    def session_started_at(self) -> float:
+        """`time.monotonic()` when this chat session was constructed."""
+        return self._session_started_at
+
+    @property
+    def running_tool(self) -> "RunningTool | None":
+        """The tool call currently executing, or None between calls.
+
+        A single slot: when tools run in parallel the most recently started one
+        wins, which is exactly what the status bar's "current tool call" shows.
+        """
+        return self._running_tool
+
+    def start_tool_call(self, tool_name: str) -> None:
+        """Record the start of `tool_name`'s execution for the status bar."""
+        self._running_tool = RunningTool(tool_name, time.monotonic())
+
+    def end_tool_call(self) -> None:
+        """Clear the running-tool timer once the tool call finishes."""
+        self._running_tool = None
 
     @property
     def markdown_theme(self) -> Any:
@@ -1222,6 +1260,10 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         attachments: "list[UserContent] | None" = None,
     ):
         attachments = list(attachments or [])
+        # A cancelled turn can leave a stale running-tool timer behind; each
+        # turn starts clean so the status bar never shows a tool from a prior
+        # turn while this one streams only text.
+        self.end_tool_call()
         self.is_thinking = True
         self.invalidate_ui()
         try:

@@ -402,3 +402,33 @@ async def test_execute_hook_blocking_uses_the_task_hook_manager(base_ui):
     result = await base_ui.execute_hook_blocking(HookEvent.PRE_COMMAND, {})
 
     assert result == ["mine"]
+
+
+def test_session_started_at_is_recorded_at_construction():
+    """The status bar's session-uptime timer starts when the session does."""
+    ctx = Context(SharedContext(), "test", 0, "")
+    with patch("zrb.llm.ui.base.ui.time.monotonic", return_value=12345.0):
+        ui = ConcreteUI(ctx=ctx, llm_task=MagicMock(), history_manager=MagicMock())
+
+    assert ui.session_started_at == 12345.0
+
+
+def test_start_tool_call_records_the_running_tool(base_ui):
+    """`start_tool_call` captures the tool name and a monotonic start time."""
+    with patch("zrb.llm.ui.base.ui.time.monotonic", return_value=999.0):
+        base_ui.start_tool_call("Shell")
+
+    running = base_ui.running_tool
+    assert running is not None
+    assert running.tool_name == "Shell"
+    assert running.started_at == 999.0
+
+
+def test_end_tool_call_clears_the_running_tool(base_ui):
+    """`end_tool_call` takes the running-tool timer off the status bar."""
+    base_ui.start_tool_call("Shell")
+    assert base_ui.running_tool is not None
+
+    base_ui.end_tool_call()
+
+    assert base_ui.running_tool is None

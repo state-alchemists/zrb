@@ -39,7 +39,11 @@ FACADE_BUDGETS = {
     # `delete_queued_message` -- new surface (Ctrl+X) -- plus the module-level
     # `_broadcast_echo`, the best-effort child broadcast both it and
     # `edit_queued_message` now share instead of each carrying its own.
-    "llm/ui/base/ui.py": 1300,
+    # +42 (1300->1342): runtime timers for the status bar -- the `RunningTool`
+    # value type, `session_started_at`/`running_tool` accessors, and the
+    # `start_tool_call`/`end_tool_call` lifecycle hooks the agent stream wires
+    # to -- new surface (feature 3).
+    "llm/ui/base/ui.py": 1342,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

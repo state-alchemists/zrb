@@ -669,7 +669,7 @@ All are part of `AnyUI`, with inert `None`/`False`/`""` defaults from `UIStateDe
 
 ### Optional enrichment hooks
 
-`MultiUI` forwards thirteen richer output events to children that implement them, and skips children that don't — which is why a Telegram channel can ignore block-collapsing and still receive everything through `append_to_output`. All but `set_status_badge` are left out of `AnyUI` for the same reason. Implement one only when your channel renders it better than a plain line:
+`MultiUI` forwards fifteen richer output events to children that implement them, and skips children that don't — which is why a Telegram channel can ignore block-collapsing and still receive everything through `append_to_output`. All but `set_status_badge` are left out of `AnyUI` for the same reason. Implement one only when your channel renders it better than a plain line:
 
 | Hook | Fired when |
 | --- | --- |
@@ -680,6 +680,8 @@ All are part of `AnyUI`, with inert `None`/`False`/`""` defaults from `UIStateDe
 | `mark_thinking_block_start()` | The assistant begins a reasoning block |
 | `collapse_thinking_block(collapsed, full)` | That reasoning block ends |
 | `update_tool_prepare(key, text)` | A tool call is being prepared |
+| `start_tool_call(tool_name)` | A tool call is about to execute — a child records the running tool for its status-bar timer |
+| `end_tool_call()` | That tool call finished (and again when the run ends) — a child clears its running-tool timer |
 | `update_shell_output(key, text)` | A running shell command emits output |
 | `finish_shell_output(key, collapsed, full)` | That shell command completes |
 | `record_tool_call_block(collapsed, full)` | A tool call and its result are printed — a child without it gets the collapsed line |
