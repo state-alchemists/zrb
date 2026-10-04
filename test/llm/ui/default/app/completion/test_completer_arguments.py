@@ -352,6 +352,31 @@ def test_refresh_command_aliases_updates_completion_for_the_session(
     assert "LLM_MODEL" in texts
 
 
+def test_set_command_value_completion_survives_a_malformed_config_value(
+    mock_history_manager, complete_event, monkeypatch
+):
+    """A malformed value already in the environment must not crash completion.
+
+    `LLM_MAX_REQUEST_PER_MINUTE` has no fallback, so reading it raises when the
+    environment holds a non-number. Tab after `/set LLM_MAX_REQUEST_PER_MINUTE `
+    used to propagate that instead of simply offering no current value (round-5
+    review).
+    """
+    monkeypatch.setenv("ZRB_LLM_MAX_REQUEST_PER_MINUTE", "not-a-number")
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        ui_config=_config(
+            set_commands=["/set"],
+            show_ollama_models=False,
+            show_pydantic_ai_models=False,
+        ),
+    )
+    text = "/set LLM_MAX_REQUEST_PER_MINUTE "
+    doc = Document(text=text, cursor_position=len(text))
+    completions = list(completer.get_completions(doc, complete_event))
+    assert completions == []
+
+
 class TestCaches:
     """Test cache-bearing IO helpers used by InputCompleter."""
 

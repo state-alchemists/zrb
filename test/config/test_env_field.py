@@ -216,6 +216,26 @@ def test_transform_receives_host_object(host, monkeypatch):
     assert host.TRANSFORMED == 6
 
 
+def test_convert_applies_cast_then_transform(host, monkeypatch):
+    """`convert` is the assignment path's read: cast, then transform.
+
+    A caller converting a string in order to assign it (e.g. `/set`) must get
+    what the next read returns, not the bare cast (round-5 review).
+    """
+    monkeypatch.setenv("TESTCFG_TRANSFORMED", "7")
+    assert _Host.TRANSFORMED.convert("7", host) == 14
+
+
+def test_convert_propagates_a_bad_cast_instead_of_the_fallback(host):
+    """`fallback` is for reads; a caller validating a value must see the error.
+
+    Returning the fallback would let `/set` report success for a value the field
+    never accepted.
+    """
+    with pytest.raises(ValueError):
+        _Host.FALLBACK_INT.convert("not-a-number", host)
+
+
 def test_no_prefix_reads_bare_env_name(host, monkeypatch):
     assert host.BARE == "fallback"
     # Read uses the bare name, NOT the prefixed one.

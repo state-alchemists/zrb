@@ -145,7 +145,13 @@ def complete_set_value_arg(
         yield from _prefix_completions(arg_prefix, ["on", "off"], "Boolean")
 
     if field is None or not field.secret:
-        current = getattr(CFG, normalized_name, None)
+        try:
+            current = getattr(CFG, normalized_name, None)
+        except (ValueError, TypeError):
+            # A value already in the environment that this field cannot read
+            # (e.g. an int setting holding "abc") has no current value to offer.
+            # Reading it here must not crash completion (round-5 review).
+            current = None
         if current is not None and str(current) != "":
             shown = _display_value(field, current)
             if shown.lower().startswith(arg_prefix.lower()):

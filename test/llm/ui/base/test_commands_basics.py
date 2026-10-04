@@ -381,6 +381,18 @@ def test_handle_set_command_refreshes_model_visibility(ui):
     assert ui.ui_config.show_ollama_models is False
 
 
+def test_handle_set_command_confirms_the_effective_value(ui):
+    """A `/set` on a transformed field confirms what a read returns.
+
+    `BANNER`'s transform expands `{VERSION}`, so confirming the raw conversion
+    would report a value different from the one reads return (round-5 review).
+    """
+    assert ui.handle_set_command("/set BANNER hi {VERSION}") is True
+    joined = "".join(ui.outputs)
+    assert "{VERSION}" not in joined
+    assert CFG.BANNER == f"hi {CFG.VERSION}"
+
+
 def test_handle_toggle_plan_command(ui):
     assert ui.handle_toggle_plan("/plan") is True
     assert ui.plan_mode_active is True

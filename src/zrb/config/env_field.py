@@ -96,8 +96,10 @@ class EnvField(Generic[T]):
     transform:
         Optional ``callable(value, host) -> value`` applied after ``cast``.
         Receives the already-cast value and the host config object, enabling
-        post-read transformations that depend on sibling config (e.g. clamping
-        a token threshold against ``LLM_MAX_TOKEN_PER_MINUTE``).
+        transformations that depend on sibling config (e.g. clamping a token
+        threshold against ``LLM_MAX_TOKEN_PER_MINUTE``). Both a read and
+        :meth:`convert` apply it, so a converted-then-assigned value is the
+        value the next read returns.
     serialize:
         Callable applied to the value on write before storing in os.environ
         (e.g. ``on_off``, ``path_list_join``). Defaults to ``str``.
@@ -203,6 +205,20 @@ class EnvField(Generic[T]):
     def cast(self, raw: str) -> T:
         """Convert a raw string to this field's value type (the read-side cast)."""
         return self._cast(raw)
+
+    def convert(self, raw: str, host: object) -> T:
+        """Convert `raw` the way a read does: ``cast``, then ``transform``.
+
+        `cast` alone stops at the raw type, so a caller converting a string in
+        order to *assign* it (e.g. `/set`) would store and report a value the next
+        read silently changes — a token threshold is clamped against the rate
+        limits by its transform. `host` is the config object `transform` receives,
+        so the conversion sees the sibling settings a read sees.
+        """
+        value = self._cast(raw)
+        if self._transform is not None:
+            value = self._transform(value, host)
+        return value
 
     @property
     def cast_name(self) -> str:

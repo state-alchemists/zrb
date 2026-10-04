@@ -176,8 +176,9 @@ class Config(
         Raises `AttributeError` (with the closest-real-knob suggestion) when
         `name` is not settable, and `ValueError` naming the setting, the bad
         value and the accepted values when `raw` cannot be cast to the
-        field's type. A read-write `@property` has no cast, so its string is
-        passed through unchanged.
+        field's type. Conversion follows a read, `transform` included, so the
+        result is the effective value rather than the bare cast. A read-write
+        `@property` has no cast, so its string is passed through unchanged.
         """
         if not _is_assignable_field(type(self), name):
             raise AttributeError(self._unknown_knob_message(name))
@@ -185,7 +186,7 @@ class Config(
         if not isinstance(field, EnvField):
             return raw
         try:
-            return field.cast(raw)
+            return field.convert(raw, self)
         except (ValueError, TypeError) as error:
             raise ValueError(
                 _uncastable_setting_message(name, raw, field, error)

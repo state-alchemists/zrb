@@ -62,3 +62,21 @@ def test_convert_setting_value_uncastable_raises_naming_setting_and_value():
     message = str(excinfo.value)
     assert "LLM_MAX_REQUEST_PER_MINUTE" in message
     assert "nope" in message
+
+
+def test_convert_setting_value_applies_the_transform_a_read_would():
+    """Converting must follow the same cast-then-transform path a read does.
+
+    `BANNER`'s transform expands `{VERSION}`, and each token threshold is clamped
+    against the rate limits by its transform. Converting with `cast` alone would
+    hand `/set` a value the next read silently changes, so the command would
+    store and confirm something other than the effective setting (round-5
+    review).
+    """
+    cfg = Config()
+    assert cfg.convert_setting_value("BANNER", "hi {VERSION}") == f"hi {cfg.VERSION}"
+    threshold = cfg.convert_setting_value(
+        "LLM_FILE_ANALYSIS_TOKEN_THRESHOLD", "999999999"
+    )
+    assert threshold <= cfg.LLM_MAX_TOKEN_PER_MINUTE
+    assert threshold <= cfg.LLM_MAX_TOKEN_PER_REQUEST
