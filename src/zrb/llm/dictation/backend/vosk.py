@@ -122,6 +122,8 @@ class VoskDictationBackend(AnyDictationBackend):
 
         def recognize() -> "dict[str, Any]":
             recognizer = KaldiRecognizer(model, SAMPLE_RATE)
+            # vosk omits per-word `conf` from its payload unless asked for it.
+            recognizer.SetWords(True)
             if recognizer.AcceptWaveform(audio):
                 return json.loads(recognizer.Result())
             return json.loads(recognizer.FinalResult())
@@ -134,9 +136,10 @@ class VoskDictationBackend(AnyDictationBackend):
         # lazy: heavy third-party; after the model, which reports it missing
         from vosk import KaldiRecognizer
 
-        return VoskTranscriptionStream(
-            KaldiRecognizer(model, SAMPLE_RATE), self._confidence
-        )
+        recognizer = KaldiRecognizer(model, SAMPLE_RATE)
+        # vosk omits per-word `conf` from its payload unless asked for it.
+        recognizer.SetWords(True)
+        return VoskTranscriptionStream(recognizer, self._confidence)
 
     async def _get_model(self) -> Any:
         if self._model is not None:

@@ -95,6 +95,28 @@ class TestVoskBackend:
             assert await backend.transcribe_speech(b"audio") == "hello"
 
     @pytest.mark.asyncio
+    async def test_recognizer_is_asked_for_word_confidences(self):
+        """vosk leaves per-word `conf` out of its payload unless `SetWords(True)`
+        is set on the recognizer, so the faint-transcript floor reads nothing
+        without this and never drops a faint transcript."""
+        fake_vosk = _fake_vosk(result=_payload(("hello", 0.9)))
+        recognizer = fake_vosk.KaldiRecognizer.return_value
+        backend = VoskDictationBackend("m", "http://host", confidence=0.5)
+        with patch.dict("sys.modules", {"vosk": fake_vosk}), _local_model():
+            await backend.transcribe_speech(b"audio")
+        recognizer.SetWords.assert_called_once_with(True)
+
+    @pytest.mark.asyncio
+    async def test_a_faint_transcript_is_dropped_with_words_enabled(self):
+        """Vosk's real default: no `result` array, and so no `conf`, until words
+        are enabled — the very case the confidence floor has to still catch."""
+        fake_vosk = MagicMock()
+        fake_vosk.KaldiRecognizer = MagicMock(return_value=WordsAwareRecognizer(0.2))
+        backend = VoskDictationBackend("m", "http://host", confidence=0.5)
+        with patch.dict("sys.modules", {"vosk": fake_vosk}), _local_model():
+            assert await backend.transcribe_speech(b"audio") == ""
+
+    @pytest.mark.asyncio
     async def test_transcribe_decodes_off_the_event_loop_thread(self):
         fake_vosk = _fake_vosk()
         recognizer = fake_vosk.KaldiRecognizer.return_value
@@ -211,6 +233,9 @@ class FakeRecognizer:
         self.heard += audio
         return audio == b"."
 
+    def SetWords(self, enabled):
+        pass
+
     def Result(self):
         phrase, self.heard = self.heard.rstrip(b".").decode(), b""
         return f'{{"text": "{phrase}"}}'
@@ -221,6 +246,32 @@ class FakeRecognizer:
     def FinalResult(self):
         phrase, self.heard = self.heard.decode(), b""
         return f'{{"text": "{phrase}"}}'
+
+
+class WordsAwareRecognizer:
+    """As the real vosk: the payload carries no per-word `result`, and so no
+    `conf`, until `SetWords` is turned on — the default zrb must not rely on."""
+
+    def __init__(self, conf):
+        self._conf = conf
+        self._words = False
+
+    def SetWords(self, enabled):
+        self._words = enabled
+
+    def AcceptWaveform(self, audio):
+        return True
+
+    def Result(self):
+        return self._payload()
+
+    def FinalResult(self):
+        return self._payload()
+
+    def _payload(self):
+        if not self._words:
+            return json.dumps({"text": "hello"})
+        return _payload(("hello", self._conf))
 
 
 @pytest.mark.asyncio
@@ -282,3 +333,27 @@ async def test_a_clearly_heard_stream_reaches_the_end():
     await stream.feed(b"open")
 
     assert await stream.finish() == "open"
+
+
+@pytest.mark.asyncio
+async def test_the_stream_recognizer_is_asked_for_word_confidences():
+    """The stream's floor reads the same per-word `conf`, absent from vosk's
+    payload until `SetWords(True)` is set on the recognizer it was built with."""
+    fake_vosk = _fake_vosk()
+    backend = VoskDictationBackend("m", "http://host", confidence=0.5)
+    with patch.dict("sys.modules", {"vosk": fake_vosk}), _local_model():
+        await backend.create_stream()
+    fake_vosk.KaldiRecognizer.return_value.SetWords.assert_called_once_with(True)
+
+
+@pytest.mark.asyncio
+async def test_a_faint_stream_is_dropped_with_words_enabled():
+    fake_vosk = MagicMock()
+    fake_vosk.KaldiRecognizer = MagicMock(return_value=WordsAwareRecognizer(0.2))
+    backend = VoskDictationBackend("m", "http://host", confidence=0.5)
+    with patch.dict("sys.modules", {"vosk": fake_vosk}), _local_model():
+        stream = await backend.create_stream()
+
+    await stream.feed(b"audio")
+
+    assert await stream.finish() == ""
