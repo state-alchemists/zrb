@@ -224,6 +224,46 @@ class TestStreamEventHandlerToolResult:
         assert not printed.endswith("\n")
 
 
+class TestStreamEventHandlerToolCallTimerCallbacks:
+    def test_start_callback_receives_tool_name_and_id(self):
+        print_fn = MagicMock()
+        on_start = MagicMock()
+        handler = StreamEventHandler(
+            print_fn=print_fn, on_tool_call_start=on_start
+        )
+        from pydantic_ai import ToolCallPart
+
+        event = MagicMock()
+        event.part = ToolCallPart(tool_name="Shell", args={}, tool_call_id="call_1")
+        handler.handle_tool_call(event)
+
+        on_start.assert_called_once_with("Shell", "call_1")
+
+    def test_end_callback_receives_the_completed_call_id(self):
+        print_fn = MagicMock()
+        on_end = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn, on_tool_call_end=on_end)
+
+        mock_event = MagicMock()
+        mock_event.tool_call_id = "call_1"
+        mock_event.part = MagicMock()
+        mock_event.part.content = "success"
+        handler.handle_tool_result(mock_event)
+
+        on_end.assert_called_once_with("call_1")
+
+    def test_run_end_callback_receives_none_to_clear_all(self):
+        print_fn = MagicMock()
+        on_end = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn, on_tool_call_end=on_end)
+
+        mock_event = MagicMock()
+        mock_event.result.usage = MagicMock()
+        handler.handle_run_result(mock_event)
+
+        on_end.assert_called_once_with(None)
+
+
 class TestStreamEventHandlerRunResult:
     def test_handle_run_result(self):
         print_fn = MagicMock()

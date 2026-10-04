@@ -1,7 +1,9 @@
 from unittest.mock import MagicMock, patch
 
+from zrb.config.config import CFG
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
-from zrb.llm.ui.default.output import UIOutput
+from zrb.llm.ui.base.ui import RunningTool
+from zrb.llm.ui.default.output import UIOutput, format_elapsed
 
 
 class MockOutputUI:
@@ -362,3 +364,46 @@ def test_status_badges_have_a_line_of_their_own():
     status_line = "".join(fragment[1] for fragment in ui.get_status_bar_text())
     assert badge_line == " 🎤 listening  ·  📷 ready "
     assert "🎤" not in status_line
+
+
+def test_format_elapsed():
+    assert format_elapsed(0) == "0s"
+    assert format_elapsed(45) == "45s"
+    assert format_elapsed(60) == "1m 0s"
+    assert format_elapsed(754) == "12m 34s"
+    assert format_elapsed(3600) == "1h 0m 0s"
+    assert format_elapsed(3661) == "1h 1m 1s"
+    assert format_elapsed(-3) == "0s"
+
+
+def test_status_bar_includes_session_uptime():
+    ui = MockOutputUI()
+    with patch("zrb.llm.ui.default.output.time.monotonic", return_value=754.0):
+        ui.session_started_at = 0.0
+        text = "".join(fragment[1] for fragment in ui.get_status_bar_text())
+
+    assert "12m 34s" in text
+
+
+def test_status_bar_includes_running_tool_duration():
+    ui = MockOutputUI()
+    ui.set_thinking(True)
+    with patch("zrb.llm.ui.default.output.time.monotonic", return_value=1000.0):
+        ui.running_tool = RunningTool("Shell", "call_1", 995.0)
+        text = "".join(fragment[1] for fragment in ui.get_status_bar_text())
+
+    assert "Shell" in text
+    assert "5s" in text
+
+
+def test_status_bar_hides_runtime_timers_when_disabled(monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_UI_SHOW_RUNTIME_TIMERS", False, raising=False)
+    ui = MockOutputUI()
+    ui.set_thinking(True)
+    with patch("zrb.llm.ui.default.output.time.monotonic", return_value=1000.0):
+        ui.session_started_at = 0.0
+        ui.running_tool = RunningTool("Shell", "call_1", 995.0)
+        text = "".join(fragment[1] for fragment in ui.get_status_bar_text())
+
+    assert "Shell" not in text
+    assert "16m 40s" not in text

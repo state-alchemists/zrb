@@ -402,3 +402,77 @@ async def test_execute_hook_blocking_uses_the_task_hook_manager(base_ui):
     result = await base_ui.execute_hook_blocking(HookEvent.PRE_COMMAND, {})
 
     assert result == ["mine"]
+
+
+def test_session_started_at_is_recorded_at_construction():
+    """The status bar's session-uptime timer starts when the session does."""
+    ctx = Context(SharedContext(), "test", 0, "")
+    with patch("zrb.llm.ui.base.ui.time.monotonic", return_value=12345.0):
+        ui = ConcreteUI(ctx=ctx, llm_task=MagicMock(), history_manager=MagicMock())
+
+    assert ui.session_started_at == 12345.0
+
+
+def test_start_tool_call_records_the_running_tool(base_ui):
+    """`start_tool_call` captures the tool name, id and a monotonic start time."""
+    with patch("zrb.llm.ui.base.ui.time.monotonic", return_value=999.0):
+        base_ui.start_tool_call("Shell", "call_1")
+
+    running = base_ui.running_tool
+    assert running is not None
+    assert running.tool_name == "Shell"
+    assert running.tool_call_id == "call_1"
+    assert running.started_at == 999.0
+
+
+def test_end_tool_call_clears_the_running_tool(base_ui):
+    """`end_tool_call` takes the running-tool timer off the status bar."""
+    base_ui.start_tool_call("Shell", "call_1")
+    assert base_ui.running_tool is not None
+
+    base_ui.end_tool_call("call_1")
+
+    assert base_ui.running_tool is None
+
+
+def test_end_tool_call_keeps_a_still_running_different_call(base_ui):
+    """A completed call clears only its own timer, not a concurrent sibling's.
+
+    Regression: parallel tool calls share one running-tool slot, so the result
+    event for the first call to finish used to clear the still-running second
+    call's timer — the status bar then hid a tool that was still executing.
+    """
+    base_ui.start_tool_call("Shell", "call_1")
+    base_ui.start_tool_call("WebSearch", "call_2")
+
+    base_ui.end_tool_call("call_1")  # call_1 finished first
+
+    running = base_ui.running_tool
+    assert running is not None
+    assert running.tool_name == "WebSearch"
+    assert running.tool_call_id == "call_2"
+
+    base_ui.end_tool_call("call_2")
+    assert base_ui.running_tool is None
+
+
+def test_end_tool_call_keeps_an_older_call_when_a_newer_one_finishes_first(base_ui):
+    """A call that finishes out of order clears only itself, never an older one.
+
+    Regression: the single running-tool slot kept the *most recently started*
+    call, so when the newer call finished first the slot was cleared even
+    though the older call was still running — the status bar then hid a tool
+    that was still executing.
+    """
+    base_ui.start_tool_call("Shell", "call_1")
+    base_ui.start_tool_call("WebSearch", "call_2")
+
+    base_ui.end_tool_call("call_2")  # call_2 finished first
+
+    running = base_ui.running_tool
+    assert running is not None
+    assert running.tool_name == "Shell"
+    assert running.tool_call_id == "call_1"
+
+    base_ui.end_tool_call("call_1")
+    assert base_ui.running_tool is None
