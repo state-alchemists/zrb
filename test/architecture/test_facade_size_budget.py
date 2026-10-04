@@ -46,7 +46,11 @@ FACADE_BUDGETS = {
     # +14 (1342->1356): `RunningTool` gains `tool_call_id` and the two
     # lifecycle hooks take the id, so a concurrent call's result event clears
     # only its own timer -- the PR #564 review fix (no new method surface).
-    "llm/ui/base/ui.py": 1356,
+    # +4 (1356->1360): the single `_running_tool` slot becomes a mapping keyed
+    # by tool_call_id, so a newer call finishing first can't clear an older
+    # still-running sibling -- the PR #564 round-2 review fix (no new method
+    # surface).
+    "llm/ui/base/ui.py": 1360,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

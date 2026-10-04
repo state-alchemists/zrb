@@ -454,3 +454,25 @@ def test_end_tool_call_keeps_a_still_running_different_call(base_ui):
 
     base_ui.end_tool_call("call_2")
     assert base_ui.running_tool is None
+
+
+def test_end_tool_call_keeps_an_older_call_when_a_newer_one_finishes_first(base_ui):
+    """A call that finishes out of order clears only itself, never an older one.
+
+    Regression: the single running-tool slot kept the *most recently started*
+    call, so when the newer call finished first the slot was cleared even
+    though the older call was still running — the status bar then hid a tool
+    that was still executing.
+    """
+    base_ui.start_tool_call("Shell", "call_1")
+    base_ui.start_tool_call("WebSearch", "call_2")
+
+    base_ui.end_tool_call("call_2")  # call_2 finished first
+
+    running = base_ui.running_tool
+    assert running is not None
+    assert running.tool_name == "Shell"
+    assert running.tool_call_id == "call_1"
+
+    base_ui.end_tool_call("call_1")
+    assert base_ui.running_tool is None

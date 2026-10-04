@@ -265,9 +265,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._process_messages_task: asyncio.Task | None = None
         self._last_result_data: str | None = None
         # Runtime-timer state for the status bar: when this session began and
-        # the tool call currently executing (None between calls).
+        # the tool calls currently executing, keyed by their tool_call_id.
         self._session_started_at = time.monotonic()
-        self._running_tool: RunningTool | None = None
+        self._running_tools: dict[str, RunningTool] = {}
 
         self._cwd = os.getcwd()
         self._git_info = "Checking..."
@@ -497,31 +497,35 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
     @property
     def running_tool(self) -> "RunningTool | None":
-        """The tool call currently executing, or None between calls.
+        """The most recently started tool call still executing, or None.
 
-        A single slot: when tools run in parallel the most recently started one
-        wins, which is exactly what the status bar's "current tool call" shows.
+        Several tools may run in parallel while the status bar shows one, so
+        this picks the most recent among those still active. When a newer call
+        finishes first, an older one that is still running takes over instead
+        of the bar dropping the timer.
         """
-        return self._running_tool
+        if not self._running_tools:
+            return None
+        return max(self._running_tools.values(), key=lambda item: item.started_at)
 
     def start_tool_call(self, tool_name: str, tool_call_id: str) -> None:
         """Record the start of `tool_name`'s execution for the status bar."""
-        self._running_tool = RunningTool(tool_name, tool_call_id, time.monotonic())
+        self._running_tools[tool_call_id] = RunningTool(
+            tool_name, tool_call_id, time.monotonic()
+        )
 
     def end_tool_call(self, tool_call_id: str | None = None) -> None:
-        """Clear the running-tool timer once the call it names finishes.
+        """Forget the tool call `tool_call_id` names once it finishes.
 
-        Cleared only when `tool_call_id` matches the call still running, so a
-        concurrent call's result cannot clear a sibling's timer. ``None``
-        clears whatever is running — used at run end and turn start, where any
-        leftover timer is stale by definition.
+        Each id removes only itself, so a concurrent call finishing early can
+        never clear a sibling that is still running. ``None`` clears every
+        active call — used at run end and turn start, where any leftover timer
+        is stale by definition.
         """
         if tool_call_id is None:
-            self._running_tool = None
+            self._running_tools.clear()
             return
-        running = self._running_tool
-        if running is not None and running.tool_call_id == tool_call_id:
-            self._running_tool = None
+        self._running_tools.pop(tool_call_id, None)
 
     @property
     def markdown_theme(self) -> Any:

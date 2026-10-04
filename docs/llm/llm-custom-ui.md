@@ -680,8 +680,8 @@ All are part of `AnyUI`, with inert `None`/`False`/`""` defaults from `UIStateDe
 | `mark_thinking_block_start()` | The assistant begins a reasoning block |
 | `collapse_thinking_block(collapsed, full)` | That reasoning block ends |
 | `update_tool_prepare(key, text)` | A tool call is being prepared |
-| `start_tool_call(tool_name)` | A tool call is about to execute — a child records the running tool for its status-bar timer |
-| `end_tool_call()` | That tool call finished (and again when the run ends) — a child clears its running-tool timer |
+| `start_tool_call(tool_name, tool_call_id)` | A tool call is about to execute — a child records the running tool for its status-bar timer |
+| `end_tool_call(tool_call_id)` | That tool call finished — a child clears its running-tool timer; `tool_call_id` is `None` at run end and turn start, where every active call is cleared |
 | `update_shell_output(key, text)` | A running shell command emits output |
 | `finish_shell_output(key, collapsed, full)` | That shell command completes |
 | `record_tool_call_block(collapsed, full)` | A tool call and its result are printed — a child without it gets the collapsed line |
