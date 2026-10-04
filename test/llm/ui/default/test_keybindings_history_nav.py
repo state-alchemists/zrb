@@ -415,9 +415,34 @@ def test_enter_submit_message(mock_ui, setup_bindings):
     event = create_mock_event("hello world")
     mock_ui.classify_input.return_value = "message"
     trigger_binding(setup_bindings, "c-m", event)
-    event.current_buffer.append_to_history.assert_called_once()
+    # Recording moved to the submit boundary (BaseUI.submit_user_message); the
+    # keybinding must not also append to history, or the message records twice.
+    event.current_buffer.append_to_history.assert_not_called()
     mock_ui.submit_user_message.assert_called_once()
     event.current_buffer.reset.assert_called_once()
+
+
+def test_enter_submit_clears_previous_recall(mock_ui, setup_bindings):
+    """A submitted recall must not leave the recall index set over an empty
+    buffer, or the next Up falls through to prompt-toolkit history instead of
+    starting a fresh previous-message recall (PR #562 round-3)."""
+    mock_ui.classify_input.return_value = "message"
+    reset = MagicMock()
+    mock_ui.reset_previous_recall = reset
+
+    trigger_binding(setup_bindings, "c-m", create_mock_event("recalled"))
+
+    reset.assert_called_once()
+
+
+def test_enter_command_clears_previous_recall(mock_ui, setup_bindings):
+    mock_ui.classify_input.return_value = "command"
+    reset = MagicMock()
+    mock_ui.reset_previous_recall = reset
+
+    trigger_binding(setup_bindings, "c-m", create_mock_event("/some-command"))
+
+    reset.assert_called_once()
 
 
 @pytest.mark.asyncio

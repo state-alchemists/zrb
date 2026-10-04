@@ -21,6 +21,8 @@ class LLMContentMixin:
     def __init__(self) -> None:
         self.DEFAULT_LLM_HISTORY_DIR: str = ""
         self.DEFAULT_LLM_HISTORY_BACKUP_RETAIN: str = "3"
+        self.DEFAULT_LLM_PREVIOUS_MESSAGE_HISTORY_DIR: str = ""
+        self.DEFAULT_LLM_PREVIOUS_MESSAGE_HISTORY_MAX_ENTRIES: str = "1000"
         self.DEFAULT_LLM_ENABLE_REWIND: str = "on"
         self.DEFAULT_LLM_SNAPSHOT_DIR: str = ""
         self.DEFAULT_LLM_SNAPSHOT_RETENTION: str = "30d"
@@ -62,6 +64,33 @@ class LLMContentMixin:
             )
         ),
         doc="Directory for LLM conversation history files.",
+    )
+
+    LLM_PREVIOUS_MESSAGE_HISTORY_DIR = EnvField(
+        str,
+        default_factory=lambda cfg: (
+            cfg.DEFAULT_LLM_PREVIOUS_MESSAGE_HISTORY_DIR
+            if cfg.DEFAULT_LLM_PREVIOUS_MESSAGE_HISTORY_DIR
+            else os.path.expanduser(
+                os.path.join(
+                    "~", f".{cfg.ROOT_GROUP_NAME}", "llm-previous-message-history"
+                )
+            )
+        ),
+        doc=(
+            "Directory for the cross-session previous-message history the chat "
+            "input box recalls with Up/Down. Holds one file of the user "
+            "messages submitted across every session."
+        ),
+    )
+
+    LLM_PREVIOUS_MESSAGE_HISTORY_MAX_ENTRIES = EnvField(
+        int,
+        fallback=0,
+        doc=(
+            "Maximum previous user messages kept in the cross-session input "
+            "history. Older entries are dropped first. 0 keeps every entry."
+        ),
     )
 
     LLM_SNAPSHOT_DIR = EnvField(

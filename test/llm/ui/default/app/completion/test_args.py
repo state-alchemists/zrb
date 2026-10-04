@@ -8,6 +8,7 @@ from zrb.llm.ui.default.app.completion.args import (
     complete_load_arg,
     complete_redirect_arg,
     complete_save_arg,
+    complete_set_value_arg,
 )
 
 
@@ -85,3 +86,33 @@ def test_complete_exec_arg_filters_by_prefix():
     cmd_history = ["echo hi", "ls -la", "grep foo"]
     results = list(complete_exec_arg("ls", cmd_history))
     assert [c.text for c in results] == ["ls -la"]
+
+
+def test_complete_set_value_arg_normalizes_lowercase_name(monkeypatch):
+    """`/set llm_model <tab>` offers model names and the current value,
+    matching the handler's case-insensitive name acceptance."""
+    monkeypatch.setenv("ZRB_LLM_MODEL", "openai:current-model")
+    results = list(
+        complete_set_value_arg(
+            "llm_model", "", ["openai:gpt-4o", "openai:gpt-4o-mini"]
+        )
+    )
+    assert any(c.text == "openai:gpt-4o" for c in results)
+    assert any(c.display_meta_text == "Model Name" for c in results)
+    current = [c.text for c in results if c.display_meta_text == "Current value"]
+    assert current == ["openai:current-model"]
+
+
+def test_complete_set_value_arg_serializes_a_list_value(monkeypatch):
+    """A list-valued setting is offered as the comma-separated text its cast
+    reads back, so selecting it round-trips to the same list -- not Python-list
+    syntax (``['/set']``) that the field would parse as one bracketed entry
+    (round-3 review)."""
+    from zrb.config.config import CFG
+
+    monkeypatch.setenv("ZRB_LLM_UI_COMMAND_SET", "/set, /configure")
+    results = list(complete_set_value_arg("LLM_UI_COMMAND_SET", "", []))
+    current = [c.text for c in results if c.display_meta_text == "Current value"]
+    assert current == ["/set,/configure"]
+    field = CFG.get_settable_field("LLM_UI_COMMAND_SET")
+    assert field.cast(current[0]) == CFG.LLM_UI_COMMAND_SET == ["/set", "/configure"]

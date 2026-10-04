@@ -286,6 +286,113 @@ def test_handle_set_model_command_survives_prompt_manager_error(ui):
     assert ui.model == "gpt-4-turbo"
 
 
+def test_handle_set_command_updates_cfg(ui, monkeypatch):
+    monkeypatch.delenv("ZRB_LLM_MODEL", raising=False)
+    assert ui.handle_set_command("/set LLM_MODEL my-model") is True
+    assert CFG.LLM_MODEL == "my-model"
+    assert "LLM_MODEL" in "".join(ui.outputs)
+
+
+def test_handle_set_command_cfg_name_is_case_insensitive(ui, monkeypatch):
+    monkeypatch.delenv("ZRB_LLM_MODEL", raising=False)
+    assert ui.handle_set_command("/set llm_model my-model") is True
+    assert CFG.LLM_MODEL == "my-model"
+
+
+def test_handle_set_command_uppercase_alias_drives_setting(ui, monkeypatch):
+    """`/SET` is classified as a command case-insensitively, so the handler
+    must match the same alias instead of forwarding the input to the model."""
+    ui.set_commands = ["/SET"]
+    monkeypatch.delenv("ZRB_LLM_MODEL", raising=False)
+    assert ui.handle_set_command("/SET LLM_MODEL my-model") is True
+    assert CFG.LLM_MODEL == "my-model"
+
+
+def test_handle_set_command_unknown_name(ui):
+    assert ui.handle_set_command("/set LLM_MODELL x") is True
+    joined = "".join(ui.outputs)
+    assert "LLM_MODELL" in joined
+    assert "LLM_MODEL" in joined  # the suggestion
+
+
+def test_handle_set_command_uncastable_value(ui):
+    assert ui.handle_set_command("/set LLM_MAX_REQUEST_PER_MINUTE nope") is True
+    assert any("LLM_MAX_REQUEST_PER_MINUTE" in o for o in ui.outputs)
+
+
+def test_handle_set_command_model_switches_live(ui):
+    assert ui.handle_set_command("/set model gpt-4") is True
+    assert ui.model == "gpt-4"
+    assert "Model switched to: gpt-4" in "".join(ui.outputs)
+
+
+def test_handle_set_command_small_model_switches_live(ui):
+    assert ui.handle_set_command("/set small_model gpt-4o-mini") is True
+    assert ui.small_model == "gpt-4o-mini"
+    assert "Small model switched to: gpt-4o-mini" in "".join(ui.outputs)
+
+
+def test_handle_set_command_multimodal_model_switches_live(ui):
+    assert ui.handle_set_command("/set multimodal_model gemini-flash") is True
+    assert ui.multimodal_model == "gemini-flash"
+    assert "Multimodal model switched to: gemini-flash" in "".join(ui.outputs)
+
+
+def test_handle_set_command_requires_value(ui):
+    assert ui.handle_set_command("/set LLM_MODEL") is True
+    assert any("Value required" in o for o in ui.outputs)
+
+
+def test_handle_set_command_bare_warns_usage(ui):
+    assert ui.handle_set_command("/set") is True
+    assert any("name and value required" in o.lower() for o in ui.outputs)
+
+
+def test_handle_set_command_bare_ignored_while_thinking(ui):
+    """`/set` is registered run-while-thinking=False, so the bare form must be
+    unavailable during a turn exactly like `NAME VALUE` -- it must not jump
+    ahead of the thinking guard and consume the input (round-3 review)."""
+    ui.is_thinking = True
+    assert ui.handle_set_command("/set") is False
+
+
+def test_handle_set_command_refreshes_live_command_aliases(ui, monkeypatch):
+    """A `/set` that changes an alias list must reach the running session.
+
+    `UIConfig` snapshots `LLM_UI_COMMAND_*` when the session is built, so without
+    a refresh the command reports success while the session keeps matching the
+    old aliases (round-3 review).
+    """
+    monkeypatch.setenv("ZRB_LLM_UI_COMMAND_SET", "/set")
+    assert ui.handle_set_command("/set LLM_UI_COMMAND_SET /set, /configure") is True
+    assert CFG.LLM_UI_COMMAND_SET == ["/set", "/configure"]
+    assert ui.ui_config.set_commands == ["/set", "/configure"]
+
+
+def test_handle_set_command_refreshes_model_visibility(ui):
+    """A `/set` that flips a model-visibility flag must reach the running session.
+
+    `UIConfig` snapshots both flags when the session is built, so without a
+    refresh the command reports success while `/model` keeps completing a source
+    the user just disabled (round-4 review).
+    """
+    assert ui.handle_set_command("/set LLM_SHOW_OLLAMA_MODELS off") is True
+    assert CFG.LLM_SHOW_OLLAMA_MODELS is False
+    assert ui.ui_config.show_ollama_models is False
+
+
+def test_handle_set_command_confirms_the_effective_value(ui):
+    """A `/set` on a transformed field confirms what a read returns.
+
+    `BANNER`'s transform expands `{VERSION}`, so confirming the raw conversion
+    would report a value different from the one reads return (round-5 review).
+    """
+    assert ui.handle_set_command("/set BANNER hi {VERSION}") is True
+    joined = "".join(ui.outputs)
+    assert "{VERSION}" not in joined
+    assert CFG.BANNER == f"hi {CFG.VERSION}"
+
+
 def test_handle_toggle_plan_command(ui):
     assert ui.handle_toggle_plan("/plan") is True
     assert ui.plan_mode_active is True

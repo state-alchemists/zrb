@@ -263,6 +263,45 @@ def test_show_ollama_models_true_includes_ollama_models(
     assert "custom-model" in completion_texts
 
 
+def test_refresh_model_visibility_updates_completion_for_the_session(
+    mock_history_manager, complete_event
+):
+    """`/set LLM_SHOW_OLLAMA_MODELS off` re-points `UIConfig`; the live completer
+    copies the flag at construction, so it must be refreshed too or `/model`
+    keeps offering a source the user just turned off (round-4 review)."""
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        ui_config=_config(
+            set_model_commands=["/model"],
+            # Off so the known-model list cannot crowd the ollama entry out of
+            # `_get_fuzzy_completions`' 20-item cap; the only thing the refresh
+            # below changes is ollama visibility.
+            show_pydantic_ai_models=False,
+            show_ollama_models=True,
+        ),
+        custom_model_names=["custom-model"],
+    )
+    # Pre-fill the cache to skip the subprocess call.
+    completer.ollama_cache = {
+        "models": ["ollama:llama3"],
+        "time": time.time() + 1000,
+    }
+    doc = Document(text="/model ", cursor_position=7)
+    before = [c.text for c in completer.get_completions(doc, complete_event)]
+    assert "ollama:llama3" in before
+
+    completer.refresh_model_visibility(
+        _config(
+            set_model_commands=["/model"],
+            show_pydantic_ai_models=False,
+            show_ollama_models=False,
+        )
+    )
+    after = [c.text for c in completer.get_completions(doc, complete_event)]
+    assert "ollama:llama3" not in after
+    assert "custom-model" in after
+
+
 def test_show_pydantic_ai_models_false_excludes_known_models(
     mock_history_manager, complete_event
 ):

@@ -393,6 +393,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     )
     yolo_toggle_commands = _command_alias_property("yolo_toggle", "yolo toggle")
     set_model_commands = _command_alias_property("set_model", "set model")
+    set_commands = _command_alias_property("set", "set")
     exec_commands = _command_alias_property("exec", "exec")
 
     @property
@@ -655,6 +656,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
     def handle_set_model_command(self, text: str) -> bool:
         return self.models.handle_set_model_command(text)
+
+    def handle_set_command(self, text: str):
+        return self.models.handle_set_command(text)
 
     # --- exec commands ---
     def handle_exec_command(self, text: str) -> bool:
@@ -1170,6 +1174,15 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         no-op and their edits skip the redraw.
         """
 
+    def record_submitted_message(self, text: str) -> None:
+        """Record a submitted user message for cross-session recall.
+
+        Called from `submit_user_message`, the common boundary every user
+        message passes through (keyboard, initial, and programmatic). The
+        default TUI overrides this to append to its `PreviousMessageHistory`;
+        other UIs have no such history and record nothing.
+        """
+
     def submit_user_message(
         self,
         llm_task: AnyTask,
@@ -1183,9 +1196,10 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         specific task reference that may differ from `self.llm_task` by then."""
         parent_multi_ui = self.multi_ui_parent
         if parent_multi_ui is not None:
-            # The parent broadcasts to every child UI.
-            parent_multi_ui.submit_user_message(llm_task, user_message, source)
-            return
+            # The parent broadcasts to every child UI
+            # and records the message once, on its primary child.
+            return parent_multi_ui.submit_user_message(llm_task, user_message, source)
+        self.record_submitted_message(user_message)
         # Mid-turn the message only joins the queue; the marker says so.
         marker = "⏳" if self.is_thinking else "💬"
         submit_user_message_via_queue(
