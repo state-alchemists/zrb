@@ -19,7 +19,7 @@ from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
 from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.hook.types import HookEvent
-from zrb.llm.input_source import InputProvenance, KEYBOARD_INPUT
+from zrb.llm.input_source import KEYBOARD_INPUT, InputProvenance
 from zrb.llm.permission.state import (
     AgentMode,
     get_current_agent_mode,

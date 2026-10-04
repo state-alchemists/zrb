@@ -36,7 +36,6 @@ would be a cycle.
 from __future__ import annotations
 
 import weakref
-
 from typing import TYPE_CHECKING, TypeAlias
 
 if TYPE_CHECKING:
@@ -115,7 +114,9 @@ def finish_skill_scan() -> list[str]:
 
     Returns the dropped sources, for diagnostics and tests.
     """
-    dropped = [source for source in _skill_hook_configs if source not in _scanned_sources]
+    dropped = [
+        source for source in _skill_hook_configs if source not in _scanned_sources
+    ]
     for source in dropped:
         _unregister(source)
         del _skill_hook_configs[source]
@@ -154,9 +155,7 @@ def register_skill_frontmatter_hooks(manager: "HookManager") -> None:
         _record(manager, source, registered)
 
 
-def _register(
-    manager: "HookManager", source: str, configs: "list[HookConfig]"
-) -> None:
+def _register(manager: "HookManager", source: str, configs: "list[HookConfig]") -> None:
     """Register *configs* on *manager*, remembering the callables."""
     _record(manager, source, _register_configs(manager, source, configs))
 

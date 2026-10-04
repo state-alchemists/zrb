@@ -69,6 +69,4 @@ class TriggerReply:
     text: str
     approval: str | None = None
     started_at: float | None = None
-    source: InputProvenance | None = field(
-        default=None, init=False, compare=False
-    )
+    source: InputProvenance | None = field(default=None, init=False, compare=False)

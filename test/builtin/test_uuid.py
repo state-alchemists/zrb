@@ -150,7 +150,9 @@ async def test_validate_uuid_accepts_any_version():
         str(uuid.uuid4()),
         str(uuid.uuid5(uuid.NAMESPACE_DNS, "example.com")),
     ):
-        assert await validate_uuid.async_run(session=get_session(), kwargs={"id": value})
+        assert await validate_uuid.async_run(
+            session=get_session(), kwargs={"id": value}
+        )
 
 
 @pytest.mark.asyncio

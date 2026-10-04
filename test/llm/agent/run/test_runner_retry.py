@@ -219,9 +219,7 @@ async def test_stop_event_turn_slice_correct_after_empty_completion_retry():
     ]
     assert isinstance(turn[0].parts[0], UserPromptPart)
     assert all(
-        not (isinstance(p, TextPart) and p.content == "")
-        for m in turn
-        for p in m.parts
+        not (isinstance(p, TextPart) and p.content == "") for m in turn for p in m.parts
     )
     assert captured[0]["wrote_files"] is True
 

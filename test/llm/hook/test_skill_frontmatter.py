@@ -122,9 +122,9 @@ def test_reload_keeps_skill_frontmatter_hooks(tmp_path):
     assert _stop_hook_names(canonical).count("skill-flat-hook") == 1
 
     canonical.reload()
-    assert _stop_hook_names(canonical).count("skill-flat-hook") == 1, (
-        "a reload dropped the skill's frontmatter hook"
-    )
+    assert (
+        _stop_hook_names(canonical).count("skill-flat-hook") == 1
+    ), "a reload dropped the skill's frontmatter hook"
 
 
 def test_rescan_replaces_a_claude_shaped_sources_hooks(tmp_path):
@@ -171,9 +171,9 @@ def test_rescan_drops_a_hook_removed_from_the_skill_file(tmp_path):
 
     _write_skill(skill_dir, _SKILL_WITHOUT_HOOKS)
     _scan(skill_dir, canonical)
-    assert "skill-flat-hook" not in _stop_hook_names(canonical), (
-        "a deleted hook is still registered"
-    )
+    assert "skill-flat-hook" not in _stop_hook_names(
+        canonical
+    ), "a deleted hook is still registered"
     assert get_skill_hook_configs() == []
 
 
@@ -243,9 +243,9 @@ def test_a_scan_on_another_manager_retires_the_first_managers_hooks(tmp_path):
 
     _scan(skill_dir, second)
     assert "skill-flat-hook" in _stop_hook_names(second)
-    assert "skill-flat-hook" not in _stop_hook_names(first), (
-        "the manager holding the previous parse still fires it"
-    )
+    assert "skill-flat-hook" not in _stop_hook_names(
+        first
+    ), "the manager holding the previous parse still fires it"
 
 
 def test_reload_replay_updates_the_recorded_callables(tmp_path):
@@ -266,9 +266,9 @@ def test_reload_replay_updates_the_recorded_callables(tmp_path):
     assert _stop_hook_names(canonical).count("skill-flat-hook") == 1
 
     _scan(skill_dir, canonical)
-    assert _stop_hook_names(canonical).count("skill-flat-hook") == 1, (
-        "the reload's replay survived the re-scan — the rule now fires twice"
-    )
+    assert (
+        _stop_hook_names(canonical).count("skill-flat-hook") == 1
+    ), "the reload's replay survived the re-scan — the rule now fires twice"
 
 
 def test_a_manager_that_replayed_the_source_is_swept_too(tmp_path):
@@ -288,9 +288,9 @@ def test_a_manager_that_replayed_the_source_is_swept_too(tmp_path):
     _write_skill(skill_dir, _SKILL_WITHOUT_HOOKS)
     _scan(skill_dir, HookManager(search_dirs=[]))
 
-    assert "skill-flat-hook" not in _stop_hook_names(replayed), (
-        "a manager that replayed the source kept firing the dropped rule"
-    )
+    assert "skill-flat-hook" not in _stop_hook_names(
+        replayed
+    ), "a manager that replayed the source kept firing the dropped rule"
 
 
 def test_the_record_does_not_keep_a_scanned_manager_alive(tmp_path):

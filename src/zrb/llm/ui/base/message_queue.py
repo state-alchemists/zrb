@@ -25,7 +25,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Sequence
 
 from zrb.config.config import CFG
-from zrb.llm.input_source import InputProvenance, KEYBOARD_INPUT
+from zrb.llm.input_source import KEYBOARD_INPUT, InputProvenance
 from zrb.llm.tool.ambient_state import input_provenance
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.base.user_echo import (
@@ -234,18 +234,15 @@ def submit_user_message_via_queue(
     if previous is None:
         echo = emit_echo()
         attachments = _collect_attachments(attachment_sources)
-        if (
-            source in (None, KEYBOARD_INPUT)
-            and steer_into_live_run(active_run_context, user_message, attachments)
+        if source in (None, KEYBOARD_INPUT) and steer_into_live_run(
+            active_run_context, user_message, attachments
         ):
             return
         entry = QueuedMessage(
             text=user_message,
             attachments=attachments,
             kind="message",
-            run=lambda: _run_queued_message(
-                stream_ai_response, llm_task, entry
-            ),
+            run=lambda: _run_queued_message(stream_ai_response, llm_task, entry),
             source=source,
         )
         entry.echo_marker = marker
@@ -264,9 +261,8 @@ def submit_user_message_via_queue(
     except Exception:
         emit_echo()
         raise
-    if (
-        source in (None, KEYBOARD_INPUT)
-        and steer_into_live_run(active_run_context, user_message, attachments)
+    if source in (None, KEYBOARD_INPUT) and steer_into_live_run(
+        active_run_context, user_message, attachments
     ):
         emit_echo()
         return

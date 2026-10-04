@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic_ai.messages import UserContent
 
-from zrb.llm.input_source import InputProvenance, KEYBOARD_INPUT
+from zrb.llm.input_source import KEYBOARD_INPUT, InputProvenance
 from zrb.llm.ui.base.message_queue import (
     MessageQueue,
     QueuedMessage,

@@ -85,9 +85,7 @@ class QueueBasedInput:
         else:
             self._simple_ui.submit_message(text, source)
 
-    def handle_incoming_message(
-        self, text: str, source: InputProvenance | None = None
-    ):
+    def handle_incoming_message(self, text: str, source: InputProvenance | None = None):
         """Call this when a message arrives from your backend.
         Routes the message to the appropriate handler:
         - If waiting for input (ask_user blocked), it goes to the queue

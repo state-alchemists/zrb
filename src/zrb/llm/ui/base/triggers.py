@@ -163,9 +163,7 @@ def _validate_attachments(attachments: object) -> list[UserContent]:
     """Validate and materialize a trigger item's attachments."""
     if attachments is None:
         attachments = ()
-    if isinstance(attachments, (str, bytes)) or not isinstance(
-        attachments, Iterable
-    ):
+    if isinstance(attachments, (str, bytes)) or not isinstance(attachments, Iterable):
         raise ValueError(
             "a trigger item's attachments must be a sequence, not "
             f"{type(attachments).__name__}: {attachments!r}. Wrap a single "

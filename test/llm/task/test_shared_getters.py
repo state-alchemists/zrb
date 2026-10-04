@@ -24,9 +24,7 @@ def test_arg_pattern_allow_matches_on_the_calls_own_arguments():
     policy = PermissionPolicy((Rule("Bash", ALLOW, arg_pattern="ls *"),))
     with _with_policy(policy):
         assert (
-            get_policy_skip_decision(
-                _tool_def("Bash"), None, {"command": "ls -la"}
-            )
+            get_policy_skip_decision(_tool_def("Bash"), None, {"command": "ls -la"})
             is True
         )
         # The pattern does not match, so no rule matched at all.
@@ -48,8 +46,7 @@ def test_arg_pattern_ask_is_a_hard_ask_not_a_silent_fallthrough():
             is False
         )
         assert (
-            get_policy_skip_decision(_tool_def("Bash"), None, {"command": "ls"})
-            is None
+            get_policy_skip_decision(_tool_def("Bash"), None, {"command": "ls"}) is None
         )
 
 

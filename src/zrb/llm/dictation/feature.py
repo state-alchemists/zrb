@@ -16,7 +16,6 @@ from contextlib import aclosing
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.input_source import DICTATION_INPUT
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.builtin import get_dictation_backend
@@ -31,6 +30,7 @@ from zrb.llm.dictation.words import (
     strip_wake_word,
     to_answer,
 )
+from zrb.llm.input_source import DICTATION_INPUT
 from zrb.llm.speech.feature import interrupt_speech, pause_speech, resume_speech
 from zrb.llm.speech.spoken_log import spoken_log
 from zrb.llm.ui.trigger import TriggerReply

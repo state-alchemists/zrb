@@ -10,7 +10,7 @@ from zrb.llm.history_manager.file_history_manager import (
     FileHistoryManager,
     default_history_manager,
 )
-from zrb.llm.input_source import InputProvenance, WEB_INPUT
+from zrb.llm.input_source import WEB_INPUT, InputProvenance
 from zrb.llm.prompt.live_context import split_live_context
 from zrb.llm.util.feature_config import close_feature_sessions
 

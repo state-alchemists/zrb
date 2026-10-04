@@ -30,7 +30,9 @@ def _approval_func(yolo, tools) -> "Callable[..., bool]":
     """The per-call approval callback `create_agent` installs on its toolsets."""
     mock_agent_class = MagicMock()
     with patch("pydantic_ai.Agent", mock_agent_class):
-        create_agent(model="openai:gpt-4o", system_prompt="test", tools=tools, yolo=yolo)
+        create_agent(
+            model="openai:gpt-4o", system_prompt="test", tools=tools, yolo=yolo
+        )
     (toolset,) = mock_agent_class.call_args.kwargs["toolsets"]
     return toolset.approval_required_func
 

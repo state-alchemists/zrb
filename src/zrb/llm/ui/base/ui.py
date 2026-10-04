@@ -33,7 +33,7 @@ from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
-from zrb.llm.input_source import InputProvenance, KEYBOARD_INPUT
+from zrb.llm.input_source import KEYBOARD_INPUT, InputProvenance
 from zrb.llm.permission.state import (
     AgentMode,
     get_current_agent_mode,
@@ -1083,7 +1083,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         """
 
     def submit_user_message(
-        self, llm_task: AnyTask, user_message: str,
+        self,
+        llm_task: AnyTask,
+        user_message: str,
         source: InputSource = KEYBOARD_INPUT,
     ) -> None:
         """Queue *user_message* for `llm_task`, mirroring
@@ -1114,9 +1116,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             source=source,
         )
 
-    def submit_message(
-        self, user_message: str, source: InputSource = None
-    ) -> None:
+    def submit_message(self, user_message: str, source: InputSource = None) -> None:
         """Queue *user_message* for the agent, mirroring `MultiUI.submit_message`:
         steer into the live turn when one is in flight, otherwise
         enqueue it for the next turn. Uses the UI's own task — sub-agent

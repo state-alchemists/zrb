@@ -596,7 +596,10 @@ def __report_dropped(
     interpolated, because `max_stdout_line` is not a parameter anything
     accepts.
     """
-    for stream, keyword in (("stdout", "max_output_line"), ("stderr", "max_error_line")):
+    for stream, keyword in (
+        ("stdout", "max_output_line"),
+        ("stderr", "max_error_line"),
+    ):
         dropped = states[stream].dropped
         if dropped <= 0:
             continue

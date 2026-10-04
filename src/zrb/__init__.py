@@ -60,6 +60,11 @@ from zrb.env.env_map import EnvMap
 from zrb.group.any_group import AnyGroup
 from zrb.group.group import Group
 
+# --- Runner (CLI + web schemas) ------------------------------------------
+from zrb.group.task_diagnostics import (
+    snapshot_builtin_task_ids as _snapshot_builtin_task_ids,
+)
+
 # --- Inputs ---------------------------------------------------------------
 from zrb.input.any_input import AnyInput
 from zrb.input.base_input import BaseInput
@@ -99,11 +104,6 @@ from zrb.llm.tool_call.always_approve import register_always_auto_approve
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.trigger import TriggerMessage, TriggerReply
 from zrb.llm.util.capabilities import model_capabilities
-
-# --- Runner (CLI + web schemas) ------------------------------------------
-from zrb.group.task_diagnostics import (
-    snapshot_builtin_task_ids as _snapshot_builtin_task_ids,
-)
 from zrb.runner.cli import Cli, cli
 
 # --- Session --------------------------------------------------------------

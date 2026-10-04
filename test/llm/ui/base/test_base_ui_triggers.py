@@ -232,9 +232,7 @@ async def test_trigger_loop_reports_malformed_attachments_and_keeps_going(
     "item",
     [("hello", None), TriggerMessage("hello", None), TriggerInput("hello", None)],
 )
-async def test_trigger_loop_reads_none_attachments_as_none(
-    base_ui, monkeypatch, item
-):
+async def test_trigger_loop_reads_none_attachments_as_none(base_ui, monkeypatch, item):
     """`None` means no attachments for every attachment-bearing trigger item."""
     submitted = collect_submitted(base_ui, monkeypatch)
 

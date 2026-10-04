@@ -310,7 +310,9 @@ def _build_claude_group_configs(
         field = CLAUDE_EVENT_MATCHER_FIELDS.get(event)
         if field:
             matchers.append(
-                MatcherConfig(field=field, operator=MatcherOperator.REGEX, value=pattern)
+                MatcherConfig(
+                    field=field, operator=MatcherOperator.REGEX, value=pattern
+                )
             )
     configs: list[HookConfig] = []
     for hook_def in group.get("hooks", []):

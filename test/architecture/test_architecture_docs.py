@@ -290,7 +290,9 @@ def _defines(tree: ast.Module, dotted: list[str]) -> bool:
             (
                 node
                 for node in body
-                if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
+                if isinstance(
+                    node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+                )
                 and node.name == part
             ),
             None,
@@ -347,7 +349,11 @@ def test_every_named_identifier_still_exists():
                 continue
             # Plain words (`Shell`, `READ`) cannot be told apart from English;
             # only names shaped like code are checked.
-            if "_" not in name and "." not in name and not re.search(r"[a-z][A-Z]", name):
+            if (
+                "_" not in name
+                and "." not in name
+                and not re.search(r"[a-z][A-Z]", name)
+            ):
                 continue
             missing = [part for part in name.split(".") if part and part not in words]
             if missing:

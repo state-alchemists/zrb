@@ -80,9 +80,10 @@ async def test_enter_worktree_refuses_a_repo_outside_the_sandbox(
     mock_subprocess, monkeypatch
 ):
     """`cwd` is the model's choice; naming another repo must not let it write there."""
-    with tempfile.TemporaryDirectory() as project, tempfile.TemporaryDirectory(
-        dir=os.path.expanduser("~")
-    ) as other_repo:
+    with (
+        tempfile.TemporaryDirectory() as project,
+        tempfile.TemporaryDirectory(dir=os.path.expanduser("~")) as other_repo,
+    ):
         monkeypatch.setattr(
             "zrb.llm.tool.worktree.get_effective_sandbox_policy",
             lambda: SandboxPolicy(enabled=True, writable_paths=(project,)),
