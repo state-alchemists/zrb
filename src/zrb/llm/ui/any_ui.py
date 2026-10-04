@@ -128,6 +128,17 @@ class AnyUI(ABC):
         path.
         """
 
+    @abstractmethod
+    def remove_echo(self, entry: "QueuedMessage") -> None:
+        """Take `entry`'s echoed line out of this UI's output.
+
+        The delete-side counterpart to `redraw_echo`, called once per target UI
+        when a still-queued message is dropped, so no transcript keeps a line
+        for a message that will never run. A UI with no output buffer to splice
+        leaves the entry alone (`UIStateDefaultsMixin` provides that inert
+        default); the default TUI overrides it through `UIMessageEditing`.
+        """
+
     @property
     @abstractmethod
     def is_thinking(self) -> bool:

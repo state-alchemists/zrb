@@ -161,6 +161,22 @@ async def test_remove_combined_with_task_done_resolves_join():
     assert popped is b
 
 
+@pytest.mark.asyncio
+async def test_remove_frees_a_slot_and_wakes_a_blocked_producer():
+    """A bounded queue whose only free slot came from a removal must not leave
+    a producer blocked in `put()` forever."""
+    queue = MessageQueue(maxsize=1)
+    first, second = make_entry("a"), make_entry("b")
+    queue.put_nowait(first)
+    producer = asyncio.create_task(queue.put(second))
+    await asyncio.sleep(0)  # let the producer block on the full queue
+
+    queue.remove(first)
+
+    await asyncio.wait_for(producer, timeout=1)
+    assert queue.contains(second)
+
+
 # ── steer_into_live_run (ADR-0078) ──────────────────────────────────────────
 
 

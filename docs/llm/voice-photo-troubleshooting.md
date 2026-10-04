@@ -21,6 +21,10 @@
 | `/voice` or `/handsfree` says dictation needs the `zrb[voice]` extra | `pip install 'zrb[voice]'` (sounddevice, numpy, vosk) |
 | An error mentioning `vosk` | vosk is the default backend: install it, or switch `ZRB_LLM_DICTATION_BACKEND` to `openai`/`google`/`multimodal` |
 | Hands-free never submits anything | Run `zrb voice mic-test` from `examples/voice-interaction`; if your speech stays under the threshold, lower `ZRB_LLM_DICTATION_THRESHOLD`. With wake words set, only utterances starting with one count |
+| In a public place, the room's own conversation becomes turns | Set `ZRB_LLM_DICTATION_WAKE_WORDS`: nothing else tells a stranger's request from yours. `ZRB_LLM_DICTATION_NOISE_MARGIN` (raise it; `0` counts the room not at all) and `ZRB_LLM_DICTATION_MIN_WORDS` (2 or more) keep the room's background and a stray word out |
+| Hands-free ignores what you say in a loud room | The bar is over the room: lower `ZRB_LLM_DICTATION_NOISE_MARGIN` (default 2; `0` disables it), lower `ZRB_LLM_DICTATION_MIN_WORDS`, or speak up |
+| Hands-free goes quiet after a long sentence | The bar is measured from everything heard while zrb is silent, your own speech included, so a long uninterrupted sentence can sit above your next words until something about a quarter as loud as your voice — a breath or a sentence break — is heard. Lower `ZRB_LLM_DICTATION_NOISE_MARGIN`, or set it to `0` in a quiet room |
+| With the `vosk` backend, a sentence you said is dropped as too faint | `ZRB_LLM_DICTATION_VOSK_CONFIDENCE` (default 0, off) is the average word confidence required; lower it |
 | Hands-free switched itself off | The microphone failed while listening; the reason is in zrb's log |
 | Recording starts but no audio is captured | Check OS microphone permissions for your terminal app; on Linux, check that PulseAudio/PipeWire is running |
 | No sound on WSL | WSL2 needs WSLg (Windows 11) or a PulseAudio server bridged from Windows for audio passthrough |

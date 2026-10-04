@@ -33,7 +33,7 @@ from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
     from prompt_toolkit import Application
-    from prompt_toolkit.key_binding import KeyBindings
+    from prompt_toolkit.key_binding import KeyBindings, KeyPressEvent
     from prompt_toolkit.layout import Layout
     from prompt_toolkit.lexers import Lexer
     from prompt_toolkit.styles import Style
@@ -41,6 +41,7 @@ if TYPE_CHECKING:
 
     from zrb.llm.agent.types import Model, UserContent
     from zrb.llm.task.llm_task import LLMTask
+    from zrb.llm.ui.base.message_queue import QueuedMessage
 
 logger = logging.getLogger(__name__)
 
@@ -187,6 +188,7 @@ class UI(BaseUI):
             badge_bar_text=self._output.get_badge_bar_text,
             extra_floats=[choice_float, agent_picker_float],
             agent_activity_text=self._output.get_agent_activity_text,
+            queued_messages_text=self._output.get_queued_messages_text,
         )
 
         # lazy: heavy third-party
@@ -439,6 +441,9 @@ class UI(BaseUI):
     def handle_enter_queued_edit(self, event: Any) -> bool:
         return self._message_editing.handle_enter_queued_edit(event)
 
+    def handle_delete_queued(self, event: "KeyPressEvent") -> None:
+        return self._message_editing.handle_delete_queued(event)
+
     def track_echo_span(self, entry: Any, echo: str) -> None:
         """Override hook `BaseUI` invokes polymorphically (see its base no-op)."""
         self._message_editing.track_echo_span(entry, echo)
@@ -450,6 +455,15 @@ class UI(BaseUI):
         redraw — so an edit and a paste merge draw the same thing.
         """
         return self._message_editing.redraw_echo(entry)
+
+    def remove_echo(self, entry: "QueuedMessage") -> None:
+        """Override hook `BaseUI` invokes polymorphically (see its base no-op).
+
+        The delete-side counterpart to `redraw_echo`: the dropped message's
+        echoed line is spliced out of this UI's output buffer, so `Ctrl+X`
+        leaves no line behind for a turn that will never run.
+        """
+        self._message_editing.remove_echo(entry)
 
     # =========================================================================
     # UIOutput delegators

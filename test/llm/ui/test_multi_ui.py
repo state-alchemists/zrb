@@ -402,6 +402,7 @@ def test_multi_ui_takes_only_genuinely_inert_members_from_the_defaults():
         # Echo spans live in each child's buffer; MultiUI has no buffer.
         "track_echo_span",
         "redraw_echo",
+        "remove_echo",
         # MultiUI is the top of the tree, with no parent to flush to.
         "flush_to_parent",
     }

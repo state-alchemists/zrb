@@ -12,6 +12,7 @@ This page covers the end-user surface: the interactive TUI and embedding `LLMTas
 
 - [Interactive Chat](#interactive-chat-zrb-llm-chat)
   - [TUI Commands](#tui-commands)
+  - [Queued Messages](#queued-messages)
   - [Session Token Tracking](#session-token-tracking)
   - [Approval Policies](#approval-policies)
   - [Troubleshooting: Voice & Photo](#troubleshooting-voice--photo)
@@ -62,6 +63,27 @@ This launches a full-screen chat application where you can have a conversation w
 > 💡 **Tip:** Any `/command` that matches a loaded skill will be executed as a skill.
 >
 > The token(s) that trigger each command are configurable — see [Slash Command Aliases](../configuration/llm-config.md#17-slash-command-aliases). `/photo`, `/voice`, `/handsfree` and `/speech` come from [Voice and camera](voice-camera.md) and are configured there.
+
+### Queued Messages
+
+A message submitted while the assistant is thinking does not interrupt the turn. It waits in the queue, and runs when the turn finishes. What is waiting is listed above the input box, oldest first, with the one recalled for editing marked `▸`:
+
+```text
+ 📥 2 queued · ↑ to edit
+  1. fix the parser bug
+ ▸2. and run the tests
+```
+
+| Key | What it does |
+|-----|--------------|
+| `↑` | Recall the newest queued message into the input box. Press it again to walk to older ones |
+| `↓` | Walk back toward the newest, then restore whatever you were typing before the first recall |
+| `Enter` | Replace the queued message with the edited text, in place — rather than submitting a new one |
+| `Ctrl+X` | Drop the recalled message: it leaves the queue and its echoed line is taken out of every transcript. The input goes back to whatever you were typing before the recall |
+
+The echoed `💬` line stays in the transcript above, so the whole of a queued message is always readable; the panel repeats only its first line. A multi-line paste in a terminal without bracketed paste arrives as one submit per Enter keystroke: lines submitted within `ZRB_LLM_UI_PASTE_MERGE_WINDOW` (default 100 ms) of a still-queued message are appended to it, so the model reads one message instead of a turn per line.
+
+`Ctrl+X` reaches every transcript. In a `MultiUI` — the terminal plus a Telegram bot, say — the queue entry is shared but each UI keeps its own echo, so all of them lose the line; if the message's turn started while you had it recalled, it is left running and only the recall is dropped. Either way the input goes back to your pre-recall draft, so a recalled message you dropped cannot be sent again by a later `Enter`.
 
 ### Session Token Tracking
 

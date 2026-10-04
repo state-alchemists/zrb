@@ -5,6 +5,7 @@ from prompt_toolkit.clipboard import ClipboardData
 from prompt_toolkit.key_binding import KeyBindings
 
 from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
+from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.default.agent_picker import UIAgentPicker
 from zrb.llm.ui.default.keybindings import UIKeybindings
 from zrb.llm.ui.default.message_editing import UIMessageEditing
@@ -20,12 +21,18 @@ class MockUI:
     it: through the part's own public property, via `__getattr__` below.
     """
 
+    # The real fan-out (drop from the queue, take the echo out of every target),
+    # which the default `UI` inherits from `BaseUI` unchanged — Ctrl+X's own
+    # behavior is what the tests here cover, so it must not be stubbed out.
+    delete_queued_message = BaseUI.delete_queued_message
+
     def __init__(self):
         self.background_tasks = set()
         self.pending_attachments = []
         self.conversation_session_name = "test_session"
         self.running_llm_task = None
         self.is_thinking = False
+        self.multi_ui_parent = None
 
         self.input_field = MagicMock()
         self.output_field = MagicMock()
@@ -293,6 +300,45 @@ def test_enter_edits_queued_message_after_typing(mock_ui, setup_bindings):
     mock_ui.edit_queued_message.assert_called_once_with(entry, "queued message EDITED")
     event.current_buffer.reset.assert_called_once()
     mock_ui.submit_user_message.assert_not_called()
+
+
+def test_ctrl_x_drops_the_recalled_queued_message(mock_ui, setup_bindings):
+    entry = _queued_entry("queued message")
+    mock_ui.effective_message_queue.put_nowait(entry)
+    mock_ui.queued_edit_entry = entry
+    mock_ui.queued_edit_draft = "saved draft"
+    event = create_mock_event("queued message")
+
+    trigger_binding(setup_bindings, "c-x", event)
+
+    assert mock_ui.effective_message_queue.pending() == ()
+    assert mock_ui.queued_edit_entry is None
+    # The draft that was in the input before the recall comes back.
+    assert event.current_buffer.text == "saved draft"
+
+
+def test_ctrl_x_without_a_recall_drops_nothing(mock_ui, setup_bindings):
+    entry = _queued_entry("queued message")
+    mock_ui.effective_message_queue.put_nowait(entry)
+    event = create_mock_event("")
+
+    trigger_binding(setup_bindings, "c-x", event)
+
+    assert mock_ui.effective_message_queue.pending() == (entry,)
+
+
+def test_ctrl_x_does_nothing_from_the_output_pane(mock_ui, setup_bindings):
+    # A recall left over from before the focus moved must not be deleted
+    # out of sight.
+    entry = _queued_entry("queued message")
+    mock_ui.effective_message_queue.put_nowait(entry)
+    mock_ui.queued_edit_entry = entry
+    event = create_mock_event("queued message")
+    event.app.layout.has_focus = MagicMock(return_value=False)
+
+    trigger_binding(setup_bindings, "c-x", event)
+
+    assert mock_ui.effective_message_queue.pending() == (entry,)
 
 
 def test_recall_navigation_active_for_unmodified_recall(mock_ui):

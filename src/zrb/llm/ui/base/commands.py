@@ -343,8 +343,9 @@ _KEYBOARD_SHORTCUTS: list[tuple[str, str]] = [
     ("Esc", "Cancel running task or clear input"),
     ("Ctrl+Y", "Toggle YOLO mode"),
     ("Ctrl+O", "Expand/collapse tool call/thinking at cursor"),
+    ("Ctrl+X", "Drop the queued message recalled with ↑"),
     ("Ctrl+C", "Copy selection, clear input, or exit"),
-    ("↑ / ↓", "Navigate input history"),
+    ("↑ / ↓", "Navigate input history, or the queued messages it recalls"),
 ]
 
 

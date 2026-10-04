@@ -52,6 +52,7 @@ Each one fails quietly: the chat keeps working, but zrb talks over the user, sta
 | Closing the listener mid-pause resumes speech | zrb's voice stays held forever after hands-free stops | `test/llm/dictation/test_feature_barge_in_pause.py::test_closing_mid_pause_resumes` |
 | zrb's own voice heard back is dropped, and zrb carries on | zrb answers its own reply as a user turn | `test/llm/dictation/test_feature_barge_in_pause.py::test_zrbs_own_voice_heard_back_is_dropped_and_zrb_carries_on` |
 | A single word over zrb does not interrupt it | A stray "yeah" or echoed word cuts the reply short | `test/llm/dictation/test_feature_barge_in.py::test_a_single_word_over_zrb_is_not_taken_for_the_user` |
+| A room heard loudly enough does not open a turn | The room's own conversation becomes turns | `test/llm/dictation/test_listen.py::test_a_room_loud_enough_to_lift_the_bar_opens_no_turn` |
 | "No" to a pending approval denies the tool, not the turn | Answering an approval by voice cancels the whole turn | `test/llm/dictation/test_feature_barge_in.py::test_no_to_a_pending_approval_denies_it_rather_than_the_turn` |
 | Interrupting speech affects only this chat session, and the cut reply is not read again | Talking in one web session silences another, or the reply restarts at turn end | `test/llm/speech/test_feature_stream.py::test_interrupt_speech_silences_this_chat_session_only` |
 
@@ -106,7 +107,9 @@ sequenceDiagram
     D-->>T: TriggerReply, if words were meant for zrb
 ```
 
-The guards run in `DictationSession` in this order. Empty text, a known transcriber guess, or text that only repeats `spoken_log` from the same moments is not the user. A command with fewer than `barge_in_min_words` words (default 2) is too short to interrupt, unless it is a stop word or an answer to a waiting prompt. Anything rejected resumes speech and shows why on the status badge.
+The guards run in `DictationSession` in this order. Empty text, a known transcriber guess, or text that only repeats `spoken_log` from the same moments is not the user. A command with fewer than `barge_in_min_words` words (default 2) is too short to interrupt, unless it is a stop word or an answer to a waiting prompt; an utterance that interrupts nothing is held to `min_words` (default 1) instead, so a public place can be made to need more than a single stray word. Anything rejected resumes speech and shows why on the status badge.
+
+Independent of any utterance, `UtteranceCutter` measures the room: speech heard while zrb is silent must be `noise_margin` (default 2) times the quietest the room was heard at over the last few seconds, so the room's own conversation does not open a turn of its own — a room that never falls quiet is measured at its own level, which is what lifts the bar over it. With the `vosk` backend, a hands-free transcript whose words were heard too faintly on average (`vosk_confidence`) is dropped as well; push-to-talk keeps every word. Neither tells a stranger's request from the user's, which only a wake word does.
 
 **Acting on the words.** A stop word said alone cancels the running turn through `AnyUI.cancel_current_turn` and is sent nowhere. Anything else becomes a `TriggerReply`. `BaseUITriggers` sends it as an answer if a prompt is waiting and the utterance began after the prompt appeared; otherwise it becomes a new message, which steers the running turn by default.
 
@@ -142,7 +145,7 @@ The `Speaker` writes to `spoken_log` only while a sentence is really playing, ne
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Change utterance cutting or the bar over zrb's voice | `src/zrb/llm/dictation/listen.py` | `test/llm/dictation/test_listen_barge_in.py` |
+| Change utterance cutting, the bar over zrb's voice, or the bar under ordinary speech | `src/zrb/llm/dictation/listen.py` | `test/llm/dictation/test_listen_barge_in.py`, `test/llm/dictation/test_listen.py` |
 | Change the transcript guards or command routing | `src/zrb/llm/dictation/feature.py`, `src/zrb/llm/dictation/words.py` | `test/llm/dictation/test_feature_barge_in.py` |
 | Change pause, stop or resume | `src/zrb/llm/dictation/feature.py` | `test/llm/dictation/test_feature_barge_in_pause.py` |
 | Change playback, pausing or the spoken log | `src/zrb/llm/speech/player.py`, `src/zrb/llm/speech/spoken_log.py` | `test/llm/speech/test_player_in_process.py` |

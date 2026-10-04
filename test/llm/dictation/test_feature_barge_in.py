@@ -324,6 +324,35 @@ async def test_a_single_word_with_no_turn_running_is_sent(monkeypatch, interrupt
 
 
 @pytest.mark.asyncio
+async def test_a_stray_word_does_not_open_a_turn_when_more_are_asked_for(
+    monkeypatch, interrupted, ui
+):
+    """A public place: `min_words` keeps a stranger's one word from becoming a
+    turn, while a real request still gets through."""
+    _fake_listen(monkeypatch, "hello", "run the tests", is_barge_in=False)
+    session = _session(min_words=2)
+
+    assert await _replies(session, 1) == ["run the tests"]
+    assert any("too few words" in str(badge) for badge in ui.badges)
+
+
+@pytest.mark.asyncio
+async def test_an_answer_is_never_too_short_to_be_a_message(monkeypatch, interrupted, ui):
+    _fake_listen(monkeypatch, "later", is_barge_in=False)
+    ui.is_waiting_for_answer = True
+
+    assert await _replies(_session(min_words=2), 1) == ["later"]
+
+
+@pytest.mark.asyncio
+async def test_a_stop_word_is_never_too_short_to_be_a_message(monkeypatch, interrupted, ui):
+    _fake_listen(monkeypatch, "wait", is_barge_in=False)
+
+    assert await _replies(_session(min_words=3), 1) == ["wait"]
+    assert ui.cancelled == []
+
+
+@pytest.mark.asyncio
 async def test_a_single_word_answers_a_prompt_while_a_turn_runs(
     monkeypatch, interrupted, ui
 ):

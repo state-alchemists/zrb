@@ -191,6 +191,9 @@ class UIStateDefaultsMixin:
         """No output buffer to splice a rewritten echo into (echo contract)."""
         return None
 
+    def remove_echo(self, entry: "QueuedMessage") -> None:
+        """No output buffer to take a dropped echo out of (echo contract)."""
+
     def cancel_pending_confirmations(self, flush: bool = True) -> None:
         """No confirmations of its own to release."""
 

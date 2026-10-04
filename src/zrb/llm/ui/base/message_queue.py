@@ -107,14 +107,26 @@ class MessageQueue(asyncio.Queue):
 
     def __init__(self, maxsize: int = 0):
         super().__init__(maxsize)
-        # asyncio.Queue's stubs expose neither `_queue` nor `_finished`;
-        # declare them so the operations below type-check.
+        # asyncio.Queue's stubs expose none of `_queue`, `_finished`,
+        # `_putters` or `_wakeup_next`; declare them so the operations below
+        # type-check.
         self._queue: deque[QueuedMessage] = deque()
         self._finished: asyncio.Event
+        self._putters: deque[asyncio.Future[None]] = deque()
+        self._wakeup_next: Callable[[deque[asyncio.Future[None]]], None]
 
     def peek_latest(self) -> "QueuedMessage | None":
         """The newest not-yet-started entry, or None."""
         return self._queue[-1] if self._queue else None
+
+    def pending(self) -> "tuple[QueuedMessage, ...]":
+        """Every not-yet-started entry, oldest first.
+
+        The public read seam for the queue's contents: a display or a test
+        that lists what is waiting would otherwise have to reach for
+        ``_queue``. Nothing is popped, so this cannot race the consumer.
+        """
+        return tuple(self._queue)
 
     def latest_editable(self) -> "QueuedMessage | None":
         """The newest not-yet-started user message (skips `/exec` jobs)."""
@@ -162,12 +174,16 @@ class MessageQueue(asyncio.Queue):
         message whose turn started is not reachable here. The unfinished-task
         counter is decremented alongside the removal — `put_nowait` bumped it
         and the entry will never reach `task_done` — so a `join()` still
-        resolves instead of waiting forever for the removed entry.
+        resolves instead of waiting forever for the removed entry. Freeing a
+        slot also wakes the next producer blocked in `put()`, the way
+        `asyncio.Queue.get_nowait` does; a bounded queue whose only room came
+        from a removal would otherwise leave that producer waiting forever.
         """
         self._queue.remove(entry)
         self._unfinished_tasks -= 1
         if self._unfinished_tasks == 0:
             self._finished.set()
+        self._wakeup_next(self._putters)
 
 
 async def _run_queued_message(

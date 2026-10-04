@@ -278,6 +278,71 @@ def test_blocks_while_zrb_speaks_and_the_cooldown_after_are_ignored():
     assert _feed(_cutter(), levels, echo_at={1}) == []
 
 
+# --- the bar under ordinary speech --------------------------------------------
+
+
+def _heard(levels, **config):
+    """Feed *levels*; the levels of the blocks of each utterance found."""
+    finished = _feed(_cutter(**config), levels)
+    return [[levels[block] for block in blocks] for blocks, _, _ in finished]
+
+
+ROOM = [0.08] * 5  # the room, heard while zrb was silent
+
+
+def test_a_room_loud_enough_to_lift_the_bar_opens_no_turn():
+    """A conversation going on around the microphone is not the user: over
+    enough of a background it stops reaching the threshold at all."""
+    assert _heard(ROOM + [0.15] * 3 + [0.0] * 3) == []
+
+
+def test_a_block_that_heard_nothing_does_not_floor_the_room_at_zero():
+    """A dropped buffer reads 0, which is not the room being quiet: one of them
+    must not hand the whole window back to the threshold."""
+    assert _heard(ROOM + [0.0] + [0.15] * 3 + [0.0] * 3) == []
+
+
+def test_speech_over_the_room_is_still_heard():
+    assert _heard(ROOM + [0.5, 0.5, 0.5, 0.0, 0.0]) == [
+        [0.08, 0.08, 0.5, 0.5, 0.5, 0.0, 0.0]
+    ]
+
+
+def test_a_margin_of_zero_counts_the_room_not_at_all():
+    assert _heard(ROOM + [0.15] * 3 + [0.0] * 3, noise_margin=0) == [
+        [0.08, 0.08, 0.15, 0.15, 0.15, 0.0, 0.0]
+    ]
+
+
+def test_a_quiet_room_leaves_the_bar_at_the_threshold():
+    assert _heard([0.0] * 5 + [0.15, 0.15, 0.15, 0.0, 0.0]) == [
+        [0.0, 0.0, 0.15, 0.15, 0.15, 0.0, 0.0]
+    ]
+
+
+def test_a_room_with_no_quiet_moment_is_measured_at_its_own_level():
+    """Babble that never drops below the threshold: the first utterance is
+    heard against the threshold, and the room it taught is what everything
+    after it has to clear."""
+    finished = _feed(
+        _cutter(pre_roll=0, max_utterance=1.0), [0.15] * 13 + [0.0] * 3
+    )
+
+    assert len(finished) == 1
+    assert len(finished[0][0]) == 10  # cut at max_utterance
+
+
+def test_a_room_with_no_quiet_moment_is_babble_without_the_margin():
+    """The same levels with the room counted not at all: every burst that
+    reaches the threshold is heard."""
+    finished = _feed(
+        _cutter(pre_roll=0, max_utterance=1.0, noise_margin=0),
+        [0.15] * 13 + [0.0] * 3,
+    )
+
+    assert len(finished) == 2
+
+
 def test_flush_returns_speech_cut_off_mid_sentence():
     cutter = _cutter()
     _feed(cutter, [0, 1, 1, 1])

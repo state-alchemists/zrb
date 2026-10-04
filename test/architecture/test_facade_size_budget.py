@@ -35,13 +35,19 @@ FACADE_BUDGETS = {
     # parent, so Esc stops the turn the parent runs -- new surface.
     # +12 (1259->1271): optional input provenance on UI submissions, so
     # integrations can identify Telegram/dictation/web turns in live context.
-    "llm/ui/base/ui.py": 1271,
+    # +29 (1271->1300): `remove_echo`, the delete-side `AnyUI` echo hook, and
+    # `delete_queued_message` -- new surface (Ctrl+X) -- plus the module-level
+    # `_broadcast_echo`, the best-effort child broadcast both it and
+    # `edit_queued_message` now share instead of each carrying its own.
+    "llm/ui/base/ui.py": 1300,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):
     # `is_application_built` predicate and the hoisted `_application`
     # init it reads during UIOutput construction.
-    "llm/ui/default/ui.py": 671,
+    # +10 (671->681): `remove_echo`, the delete-side counterpart to the
+    # `redraw_echo` override already here -- new surface.
+    "llm/ui/default/ui.py": 681,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.

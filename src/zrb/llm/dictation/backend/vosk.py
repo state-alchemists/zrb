@@ -62,7 +62,9 @@ class _TooLarge(RuntimeError):
 
 
 class VoskDictationBackend(AnyDictationBackend):
-    """vosk, offline; *model_name* is downloaded from *model_url* when missing."""
+    """vosk, offline; *model_name* is downloaded from *model_url* when missing.
+    *confidence* is the average word confidence hands-free requires (0-1), 0
+    taking every word vosk heard."""
 
     def __init__(
         self,
@@ -73,6 +75,7 @@ class VoskDictationBackend(AnyDictationBackend):
         max_uncompressed_mb: float | None = None,
         max_file_mb: float | None = None,
         max_files: float | None = None,
+        confidence: float | None = None,
     ) -> None:
         self._model_name = model_name
         self._model_url = model_url
@@ -80,6 +83,7 @@ class VoskDictationBackend(AnyDictationBackend):
         self._limits = VoskDownloadLimits(
             max_download_mb, max_uncompressed_mb, max_file_mb, max_files
         )
+        self._confidence = confidence or 0.0
         self._model: Any = None
 
     @property
@@ -98,26 +102,44 @@ class VoskDictationBackend(AnyDictationBackend):
         report("Voice model ready")
 
     async def transcribe(self, audio: bytes) -> str:
+        """Everything spoken in *audio*: push-to-talk submits this to the input
+        box for the user to edit, so no word of it is dropped as doubtful."""
+        return (await self._recognize(audio)).get("text", "")
+
+    async def transcribe_speech(self, audio: bytes) -> str:
+        """As `transcribe`, with a transcript vosk heard too faintly dropped:
+        hands-free hears the room, and vosk scores what it makes out of noise
+        low (*confidence*)."""
+        result = await self._recognize(audio)
+        if _is_heard_too_faintly(_word_confidences(result), self._confidence):
+            return ""
+        return result.get("text", "")
+
+    async def _recognize(self, audio: bytes) -> "dict[str, Any]":
         model = await self._get_model()
         # lazy: heavy third-party; after the model, which reports it missing
         from vosk import KaldiRecognizer
 
-        def recognize() -> str:
+        def recognize() -> "dict[str, Any]":
             recognizer = KaldiRecognizer(model, SAMPLE_RATE)
+            # vosk omits per-word `conf` from its payload unless asked for it.
+            recognizer.SetWords(True)
             if recognizer.AcceptWaveform(audio):
-                return recognizer.Result()
-            return recognizer.FinalResult()
+                return json.loads(recognizer.Result())
+            return json.loads(recognizer.FinalResult())
 
         # Decoding takes long enough to freeze the chat UI on the event loop.
-        result = json.loads(await asyncio.to_thread(recognize))
-        return result.get("text", "")
+        return await asyncio.to_thread(recognize)
 
     async def create_stream(self) -> AnyTranscriptionStream:
         model = await self._get_model()
         # lazy: heavy third-party; after the model, which reports it missing
         from vosk import KaldiRecognizer
 
-        return VoskTranscriptionStream(KaldiRecognizer(model, SAMPLE_RATE))
+        recognizer = KaldiRecognizer(model, SAMPLE_RATE)
+        # vosk omits per-word `conf` from its payload unless asked for it.
+        recognizer.SetWords(True)
+        return VoskTranscriptionStream(recognizer, self._confidence)
 
     async def _get_model(self) -> Any:
         if self._model is not None:
@@ -152,11 +174,16 @@ class VoskDictationBackend(AnyDictationBackend):
 class VoskTranscriptionStream(AnyTranscriptionStream):
     """A vosk recognizer fed as the user speaks. vosk returns a finished
     phrase whenever it hears a pause inside the utterance; those are kept,
-    and `partial` is them plus the phrase in progress."""
+    and `partial` is them plus the phrase in progress. With *confidence_floor*
+    set, `finish` drops a transcript whose words vosk heard too faintly on
+    average — which is how it scores what it makes out of noise."""
 
-    def __init__(self, recognizer: Any) -> None:
+    def __init__(self, recognizer: Any, confidence_floor: float = 0.0) -> None:
         self._recognizer = recognizer
+        self._confidence_floor = confidence_floor
         self._phrases: list[str] = []
+        # Every word's confidence, over all the phrases heard so far.
+        self._confidences: list[float] = []
         self._in_progress = ""
 
     @property
@@ -170,16 +197,37 @@ class VoskTranscriptionStream(AnyTranscriptionStream):
     async def finish(self) -> str:
         final = await asyncio.to_thread(self._recognizer.FinalResult)
         self._in_progress = ""
-        self._phrases.append(json.loads(final).get("text", ""))
+        payload = json.loads(final)
+        self._phrases.append(payload.get("text", ""))
+        self._confidences.extend(_word_confidences(payload))
+        if _is_heard_too_faintly(self._confidences, self._confidence_floor):
+            return ""
         return " ".join(phrase for phrase in self._phrases if phrase).strip()
 
     def _accept(self, audio: bytes) -> None:
         if self._recognizer.AcceptWaveform(audio):
-            self._phrases.append(json.loads(self._recognizer.Result()).get("text", ""))
+            payload = json.loads(self._recognizer.Result())
+            self._phrases.append(payload.get("text", ""))
+            self._confidences.extend(_word_confidences(payload))
             self._in_progress = ""
         else:
             partial = json.loads(self._recognizer.PartialResult())
             self._in_progress = partial.get("partial", "")
+
+
+def _word_confidences(payload: "dict[str, Any]") -> list[float]:
+    """The confidence vosk reported for each word it heard, 0-1 each; none when
+    it recognized no words at all."""
+    return [float(word.get("conf", 0.0) or 0.0) for word in payload.get("result") or []]
+
+
+def _is_heard_too_faintly(confidences: list[float], floor: float) -> bool:
+    """Whether the words heard average below *floor*: vosk scores what it makes
+    out of noise low, so a transcript can be there and still not be speech. No
+    words at all, or no floor, is never too faint."""
+    if floor <= 0 or not confidences:
+        return False
+    return sum(confidences) / len(confidences) < floor
 
 
 def _missing_vosk_message() -> str:

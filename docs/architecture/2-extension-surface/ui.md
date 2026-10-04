@@ -93,7 +93,7 @@ flowchart TD
 
 A non-interactive run (the web chat posts each message this way) attaches factory UIs to the task instead, and the run falls back to `StdUI` when there is none.
 
-**Running a turn.** The user's message goes through the UI's queue, so turns run one at a time:
+**Running a turn.** The user's message goes through the UI's queue, so turns run one at a time. A message submitted while a turn runs waits there instead of interrupting it; the terminal lists what is waiting in a panel above the input, recalls one with Up/Down for editing (Enter replaces it in place, Ctrl+X drops it from the queue and from every child UI's transcript), and merges a multi-line paste into a single message.
 
 ```mermaid
 sequenceDiagram

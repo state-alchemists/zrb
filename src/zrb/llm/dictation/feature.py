@@ -268,6 +268,7 @@ class DictationSession:
                 await asyncio.sleep(0.2)
             try:
                 await self.backend.prepare(self._report)
+                self._warn_without_wake_words()
                 self._rest(_LISTENING)
                 async with aclosing(self._replies()) as replies:
                     async for reply in replies:
@@ -322,10 +323,12 @@ class DictationSession:
             self._rest(f"🎤 ignored {_quote(text)} ({why_not})")
             return None
         command = self._get_command(utterance, text)
-        if command and self._is_too_short_to_interrupt(utterance, command):
-            self._release_barge_in()
-            self._rest(f"🎤 ignored {_quote(command)} (too few words to interrupt)")
-            return None
+        if command:
+            why_short = self._get_why_too_short(utterance, command)
+            if why_short:
+                self._release_barge_in()
+                self._rest(f"🎤 ignored {_quote(command)} ({why_short})")
+                return None
         self._settle_barge_in(utterance, command is not None)
         if not command:
             self._rest_without_command(utterance, text, command)
@@ -355,18 +358,28 @@ class DictationSession:
         phrases = self._stop_words + self._approve_words + self._deny_words
         return is_said_alone(text, phrases, self._polite_words)
 
-    def _is_too_short_to_interrupt(self, utterance: Utterance, command: str) -> bool:
-        """Whether *command*, interrupting zrb (`_is_interrupting`), has
-        fewer than `barge_in_min_words` words: zrb's voice and noise come
-        through as a word or two. Stop words and answers are exempt."""
-        if not self._is_interrupting(utterance):
-            return False
+    def _get_why_too_short(self, utterance: Utterance, command: str) -> str:
+        """Why *command* has too few words to reach the model, or ``""``.
+
+        `barge_in_min_words` for one interrupting zrb, whose voice and noise
+        come through as a word or two; `min_words` for an ordinary hands-free
+        utterance, which is how a public place is made to need more than a
+        stray word. A stop word, a yes/no, or an answer to the prompt being
+        asked always counts — and the UI is consulted only for words that
+        would otherwise be dropped, so an ordinary utterance never asks it
+        anything."""
         if self._is_answer_or_stop(command):
-            return False
+            return ""
+        if self._is_interrupting(utterance):
+            minimum, why = self._config.barge_in_min_words, "too few words to interrupt"
+        else:
+            minimum, why = self._config.min_words, "too few words"
+        if count_words(command) >= (minimum or 0):
+            return ""
         ui = get_session_ui() or self._ui
         if ui is not None and ui.is_waiting_for_answer:
-            return False
-        return count_words(command) < (self._config.barge_in_min_words or 0)
+            return ""
+        return why
 
     def _is_own_voice(self, utterance: Utterance, text: str) -> bool:
         """Whether *text* only repeats what zrb was saying while *utterance*
@@ -515,6 +528,19 @@ class DictationSession:
             logger.warning(message)
             return
         _to_output(ui)(message)
+
+    def _warn_without_wake_words(self) -> None:
+        """Say, whenever the microphone opens, that without a wake word
+        everything heard is taken for the user — what a noisy place makes
+        obvious and a quiet one hides."""
+        if self._wake_words:
+            return
+        self._report(
+            "Hands-free takes everything it hears: set "
+            f"{CFG.ENV_PREFIX}_LLM_DICTATION_WAKE_WORDS so only speech "
+            "starting with a wake word counts, or a conversation in the room "
+            "becomes a turn."
+        )
 
     async def _transcribe_or_drop(self, utterance: Utterance) -> str | None:
         """*utterance*'s transcript, finished by its stream when it has one,

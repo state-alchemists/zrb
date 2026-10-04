@@ -28,6 +28,10 @@ SAMPLE_RATE = 16000  # what the transcribers expect
 # and how much of it there must be before the measure is trusted.
 _ZRB_LEVEL_SECONDS = 3.0
 _ZRB_LEVEL_MIN_SECONDS = 0.5
+# How much of the room's background the bar under ordinary speech is measured
+# from, and how much of it there must be before the measure is trusted.
+_NOISE_FLOOR_SECONDS = 3.0
+_NOISE_FLOOR_MIN_SECONDS = 0.5
 # How often a push-to-talk recording checks whether to stop.
 _RECORD_POLL_SECONDS = 0.1
 
@@ -59,13 +63,19 @@ class MicState(Enum):
 class UtteranceCutter:
     """Groups audio blocks into utterances.
 
-    A block is loud when its level reaches ``threshold``. Speech starts at the
+    A block is loud when its level reaches ``threshold``, raised to
+    ``noise_margin`` times the quietest the room was heard at over the last
+    ``_NOISE_FLOOR_SECONDS``, so a conversation going on around the microphone
+    does not open a turn of its own. That measure follows the room rather than
+    the utterance: a room with no quiet moment in it is measured at its own
+    level, which is what raises the bar over the noise, and a floor is never
+    measured from the blocks zrb's own voice came back on. Speech starts at the
     first loud block, keeping ``pre_roll`` seconds from before it, and ends
-    after ``silence`` quiet seconds (at least one block) or ``max_utterance``
-    in all (``0``: no limit). Speech shorter than ``min_speech``, from its
-    first loud block to its last, is dropped as a cough or a click. While zrb
-    is speaking, and for ``echo_cooldown`` after, blocks are ignored. A
-    negative duration counts as ``0``.
+    after ``silence`` quiet seconds (at least one block) or ``max_utterance`` in
+    all (``0``: no limit). Speech shorter than ``min_speech``, from its first
+    loud block to its last, is dropped as a cough or a click. While zrb is
+    speaking, and for ``echo_cooldown`` after, blocks are ignored. A negative
+    duration counts as ``0``.
 
     With ``barge_in_enabled``, blocks captured while zrb speaks, and for
     ``echo_cooldown`` after, are heard too, against a higher bar: the
@@ -103,6 +113,13 @@ class UtteranceCutter:
         self._zrb_levels: deque[float] = deque(
             maxlen=max(1, self._to_blocks(_ZRB_LEVEL_SECONDS))
         )
+        self._zrb_level_blocks = max(1, self._to_blocks(_ZRB_LEVEL_MIN_SECONDS))
+        # The room's background: the quiet blocks heard while zrb was silent,
+        # which the bar under ordinary speech is measured from.
+        self._background_levels: deque[float] = deque(
+            maxlen=max(1, self._to_blocks(_NOISE_FLOOR_SECONDS))
+        )
+        self._noise_floor_blocks = max(1, self._to_blocks(_NOISE_FLOOR_MIN_SECONDS))
         self._utterance_bar = 0.0
 
     @property
@@ -147,10 +164,16 @@ class UtteranceCutter:
         # measured as zrb's while they talk over it, must not cut them off.
         bar = self._utterance_bar if self._speech else self._get_bar(is_over_zrb)
         loud = level >= bar
-        # Once the utterance is a barge-in, zrb is paused: what follows is
-        # the user, not zrb's level.
+        # What the two bars are measured from, each fed by what it describes:
+        # zrb's voice by blocks heard over it, the room by the ones heard while
+        # it was silent — the loud ones included, since a room that never drops
+        # below the threshold is the whole reason there is a floor. Once the
+        # utterance is a barge-in, zrb is paused, so what follows is the user,
+        # not zrb's level. A block never measures itself.
         if is_over_zrb and not self.is_barge_in:
             self._zrb_levels.append(level)
+        if not is_over_zrb:
+            self._background_levels.append(level)
         if not self._speech:
             if not loud:
                 self._pre_roll.append(block)
@@ -178,14 +201,36 @@ class UtteranceCutter:
         return False
 
     def _get_bar(self, is_over_zrb: bool) -> float:
+        """The bar a block must reach: over zrb, ``barge_in_margin`` times what
+        its voice reaches the microphone; otherwise the room's own floor."""
         threshold = self._config.threshold or 0
         if not is_over_zrb:
-            return threshold
+            return max(threshold, self._get_noise_bar())
         margin = self._config.barge_in_margin or 1
         levels = sorted(self._zrb_levels)
-        if len(levels) < max(1, self._to_blocks(_ZRB_LEVEL_MIN_SECONDS)):
+        if len(levels) < self._zrb_level_blocks:
             return margin * threshold
         return max(threshold, margin * levels[len(levels) // 2])
+
+    def _get_noise_bar(self) -> float:
+        """The bar the room's background puts under ordinary speech:
+        ``noise_margin`` times its quietest recent level, or ``0`` before
+        enough of it has been heard and with ``noise_margin`` of 0 or less.
+
+        The quietest block, not the typical one: a low estimate can only ever
+        lower the bar, so the user's own speech in the window cannot cut off
+        what they say next, where a median or a high percentile could. A block
+        that heard nothing at all is not the room being quiet — a dropped
+        buffer reads ``0`` — and is left out of the measure, since a single one
+        would put the floor at ``0`` and hand the whole window back to
+        ``threshold``."""
+        margin = self._config.noise_margin or 0
+        if margin <= 0:
+            return 0.0
+        heard = [level for level in self._background_levels if level > 0]
+        if len(heard) < self._noise_floor_blocks:
+            return 0.0
+        return margin * min(heard)
 
     def _continue_speech(
         self, block: Any, loud: bool, captured_at: float, is_echo: bool
@@ -262,7 +307,9 @@ class UtteranceCutter:
 
     def reset(self) -> None:
         """Forget the utterance in progress, its barge-in count, and the
-        pre-roll."""
+        pre-roll. The room's floor is kept: it describes the room, not the
+        utterance, and clearing it would throw away what a loud room taught
+        at the end of every utterance in it."""
         self._speech, self._silent_blocks = [], 0
         self._loud_echo_blocks = 0
         self._pre_roll.clear()
