@@ -121,6 +121,34 @@ async def test_enter_worktree_rejects_main_worktree(mock_subprocess):
 
 
 @pytest.mark.asyncio
+async def test_enter_worktree_rejects_main_worktree_from_a_linked_worktree(
+    mock_subprocess,
+):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        linked_path = os.path.join(tmpdir, "linked")
+        os.makedirs(linked_path)
+        mock_subprocess.side_effect = [
+            create_mock_process(returncode=0, stdout=f"{linked_path}\n".encode()),
+            create_mock_process(
+                returncode=0,
+                stdout=(
+                    f"worktree {tmpdir}\n"
+                    "HEAD 1111111\n"
+                    "branch refs/heads/main\n\n"
+                    f"worktree {linked_path}\n"
+                    "HEAD 2222222\n"
+                    "branch refs/heads/linked\n"
+                ).encode(),
+            ),
+        ]
+
+        res = await enter_worktree(worktree_path=tmpdir, cwd=linked_path)
+
+        assert "main working tree" in res
+        assert "linked worktree" in res
+
+
+@pytest.mark.asyncio
 async def test_enter_worktree_does_not_combine_existing_path_and_new_branch(
     mock_subprocess,
 ):

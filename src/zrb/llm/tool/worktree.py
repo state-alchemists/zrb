@@ -173,7 +173,15 @@ async def _resume_worktree(
             "active worktrees.",
         )
 
-    branch_name = _find_worktree_branch(list_out.decode(), requested_path)
+    worktree_list = list_out.decode()
+    if _find_main_worktree_path(worktree_list) == requested_path:
+        return _prepend_notes(
+            notes,
+            "Error: The main working tree cannot be resumed as a linked worktree. "
+            "Pass a path from ListWorktrees that is a linked worktree.",
+        )
+
+    branch_name = _find_worktree_branch(worktree_list, requested_path)
     if branch_name is None:
         return _prepend_notes(
             notes,
@@ -186,6 +194,14 @@ async def _resume_worktree(
     return _prepend_notes(
         notes, f"Worktree resumed: {requested_path}\nBranch: {branch_name}"
     )
+
+
+def _find_main_worktree_path(worktree_list: str) -> str | None:
+    """Return the main worktree path, the first porcelain entry."""
+    for line in worktree_list.splitlines():
+        if line.startswith("worktree "):
+            return os.path.realpath(line.removeprefix("worktree "))
+    return None
 
 
 def _find_worktree_branch(worktree_list: str, requested_path: str) -> str | None:
