@@ -268,7 +268,7 @@ pm = PromptManager()
 pm.add_live_context("sprint", lambda ctx: f"Active sprint: {load_current_sprint()}")
 ```
 
-The `add_live_context` provider runs every turn, so the injected block always reflects current state. Providers run in registration order, after the built-in live-context lines (time, git, worktree, mode, interactivity, todos); re-registering the same name replaces the previous provider. Siblings: `pm.remove_live_context(name)`, `pm.get_live_contexts()`, `pm.set_live_contexts(pairs)`.
+The `add_live_context` provider runs every turn, so the injected block always reflects current state. Providers run in registration order, after the built-in live-context lines (time, git, worktrees, todos, input provenance, the active worktree, mode, interactivity); re-registering the same name replaces the previous provider. Siblings: `pm.remove_live_context(name)`, `pm.get_live_contexts()`, `pm.set_live_contexts(pairs)`.
 
 👉 Runnable end-to-end example: [`examples/live-context`](../../examples/live-context).
 
