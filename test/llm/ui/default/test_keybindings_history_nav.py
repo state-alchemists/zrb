@@ -295,6 +295,45 @@ def test_enter_edits_queued_message_after_typing(mock_ui, setup_bindings):
     mock_ui.submit_user_message.assert_not_called()
 
 
+def test_ctrl_x_drops_the_recalled_queued_message(mock_ui, setup_bindings):
+    entry = _queued_entry("queued message")
+    mock_ui.effective_message_queue.put_nowait(entry)
+    mock_ui.queued_edit_entry = entry
+    mock_ui.queued_edit_draft = "saved draft"
+    event = create_mock_event("queued message")
+
+    trigger_binding(setup_bindings, "c-x", event)
+
+    assert mock_ui.effective_message_queue.pending() == ()
+    assert mock_ui.queued_edit_entry is None
+    # The draft that was in the input before the recall comes back.
+    assert event.current_buffer.text == "saved draft"
+
+
+def test_ctrl_x_without_a_recall_drops_nothing(mock_ui, setup_bindings):
+    entry = _queued_entry("queued message")
+    mock_ui.effective_message_queue.put_nowait(entry)
+    event = create_mock_event("")
+
+    trigger_binding(setup_bindings, "c-x", event)
+
+    assert mock_ui.effective_message_queue.pending() == (entry,)
+
+
+def test_ctrl_x_does_nothing_from_the_output_pane(mock_ui, setup_bindings):
+    # A recall left over from before the focus moved must not be deleted
+    # out of sight.
+    entry = _queued_entry("queued message")
+    mock_ui.effective_message_queue.put_nowait(entry)
+    mock_ui.queued_edit_entry = entry
+    event = create_mock_event("queued message")
+    event.app.layout.has_focus = MagicMock(return_value=False)
+
+    trigger_binding(setup_bindings, "c-x", event)
+
+    assert mock_ui.effective_message_queue.pending() == (entry,)
+
+
 def test_recall_navigation_active_for_unmodified_recall(mock_ui):
     entry = _queued_entry("queued message")
     mock_ui.queued_edit_entry = entry

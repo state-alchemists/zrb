@@ -205,6 +205,7 @@ def create_layout(
     extra_floats: list[Float] | None = None,
     agent_activity_text: Callable[[], AnyFormattedText] | None = None,
     badge_bar_text: Callable[[], AnyFormattedText] | None = None,
+    queued_messages_text: Callable[[], AnyFormattedText] | None = None,
 ) -> Layout:
     title_bar_text = HTML(
         " <title-text><b> {} </b></title-text> <faint>| {}</faint>"
@@ -240,6 +241,22 @@ def create_layout(
             )
         )
 
+    # The messages waiting for the running turn, docked above the input so what
+    # is still to come reads next to what is being typed. Collapsed while the
+    # queue is empty.
+    queued_panel: list = []
+    if queued_messages_text is not None:
+        queued_panel.append(
+            ConditionalContainer(
+                Window(
+                    content=FormattedTextControl(queued_messages_text),
+                    dont_extend_height=True,
+                    style="class:bottom-toolbar",
+                ),
+                filter=Condition(lambda: bool(queued_messages_text())),
+            )
+        )
+
     return Layout(
         FloatContainer(
             content=HSplit(
@@ -258,6 +275,7 @@ def create_layout(
                     Window(height=1),
                     output_field,
                     Window(height=1),
+                    *queued_panel,
                     Frame(
                         input_field,
                         title="Ctrl+J newline · Ctrl+V/Alt+V paste · ESC cancel",

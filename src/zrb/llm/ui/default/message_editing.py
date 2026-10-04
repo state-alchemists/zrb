@@ -5,7 +5,8 @@ queue (`QueuedMessage`) instead of being processed. `UIMessageEditing` lets
 the user recall one of those still-queued messages with the Up arrow, edit it
 in the input field, and press Enter to replace it in place — the shared entry
 is rewritten (so the turn, when it starts, streams the *edited* text) and the
-echoed line in the output buffer is spliced to match.
+echoed line in the output buffer is spliced to match — or drop it outright with
+Ctrl+X, which takes both the queue entry and its echoed line away.
 
 Where each piece lives:
 
@@ -14,6 +15,9 @@ Where each piece lives:
   they return ``False`` to fall through to prompt-toolkit history recall.
 * `handle_enter_queued_edit` is called from the Enter keybinding before the
   plain-submit path; it turns a queued message in the buffer into an edit.
+* `handle_delete_queued` is called from the Ctrl+X keybinding: it drops the
+  recalled message from the queue and splices its echo away (`remove_echo`,
+  the delete path's counterpart to `redraw_echo`).
 * `track_echo_span` records where a submitted echo landed in the output
   buffer; `redraw_echo` splices the edited line back in. Both are called
   through `UI`'s own `track_echo_span`/`redraw_echo` override hooks (the
@@ -39,6 +43,8 @@ from zrb.llm.ui.base.message_queue import EchoSpan, QueuedMessage
 from zrb.llm.ui.base.user_echo import should_render_user_markdown
 
 if TYPE_CHECKING:
+    from prompt_toolkit.key_binding import KeyPressEvent
+
     from zrb.llm.ui.default.ui import UI
 
 
@@ -216,6 +222,24 @@ class UIMessageEditing:
         # The message already started — fall through and submit as a new one.
         return False
 
+    def handle_delete_queued(self, event: "KeyPressEvent") -> None:
+        """Ctrl+X while a still-queued message is recalled: drop it from the
+        queue, and take its echoed line out of the transcript.
+
+        Nothing when no message is recalled, or the recalled message's turn
+        already started, so the key is harmless to press. The input goes back
+        to the draft saved before the recall.
+        """
+        entry = self._queued_edit_entry
+        if entry is None:
+            return
+        self._queued_edit_entry = None
+        if not self._ui.effective_message_queue.contains(entry):
+            return
+        self._ui.effective_message_queue.remove(entry)
+        self.remove_echo(entry)
+        self._load_edit_text(event.current_buffer, self._queued_edit_draft)
+
     def track_echo_span(self, entry: QueuedMessage, echo: str) -> None:
         """Record where `echo` landed so an edit can rewrite it in place.
 
@@ -348,6 +372,25 @@ class UIMessageEditing:
             text=echo,
         )
         return echo
+
+    def remove_echo(self, entry: QueuedMessage) -> None:
+        """Take `entry`'s echoed line out of this UI's output buffer.
+
+        The delete path's counterpart to `redraw_echo`: the same validated span,
+        spliced empty, and the tracked block dropped so a later re-wrap cannot
+        draw the line back. Nothing happens when there is no valid span for this
+        UI (or a sub-agent view is on screen) — the queue still loses the
+        message, since a stale line in the transcript is a better failure than a
+        corrupted one.
+        """
+        span = self._validated_echo_span(entry)
+        if span is None:
+            return
+        block = self._echo_block(entry)
+        if block is not None:
+            self._ui.rendered_blocks.remove(block)
+        entry.echo_spans.pop(self._ui, None)
+        self._ui.replace_output_span(span.start, span.end, "")
 
     def render_echo(self, source: RenderedEcho, width: int | None) -> str:
         """Render a queued message's whole echo — header, body, separator.

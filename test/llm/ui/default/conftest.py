@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
+from zrb.llm.ui.base.message_queue import MessageQueue
 from zrb.llm.ui.default.message_editing import UIMessageEditing
 from zrb.llm.ui.default.output import UIOutput
 
@@ -33,6 +34,7 @@ class MockEditingUI:
         self.invalidate_task = None
         self.markdown_theme = None
         self.status_badges: tuple[str, ...] = ()
+        self.effective_message_queue = MessageQueue()
         self._is_thinking = False
         self._current_confirmation = None
         self._output = UIOutput(self)

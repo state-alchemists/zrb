@@ -21,7 +21,7 @@ from zrb.util.cli.style import remove_style, stylize_error, stylize_muted
 if TYPE_CHECKING:
     from typing import Any
 
-    from prompt_toolkit.key_binding import KeyBindings
+    from prompt_toolkit.key_binding import KeyBindings, KeyPressEvent
 
     from zrb.llm.ui.default.ui import UI
     from zrb.task.any_task import AnyTask
@@ -118,6 +118,13 @@ class UIKeybindings:
         @app_keybindings.add("c-o")
         def _(event):
             ui.toggle_collapsible_block()
+
+        # Ctrl+X drops the queued message Up Arrow has recalled. The handler
+        # ignores the keypress when nothing is recalled, so it stays free for
+        # whatever else the terminal would do with it.
+        @app_keybindings.add("c-x")
+        def _(event):
+            self._on_delete_queued(event)
 
         if CFG.IS_TERMUX:
             # On Termux, Tab and Shift+Tab are indistinguishable (both byte 0x09),
@@ -233,6 +240,17 @@ class UIKeybindings:
 
                 _get_app().layout.focus(ui.input_field)
                 ui.input_field.buffer.paste_clipboard_data(clipboard.get_data())
+
+    def _on_delete_queued(self, event: "KeyPressEvent") -> None:
+        """Ctrl+X drops the queued message Up Arrow has recalled, if any.
+
+        Only from the input field: with focus in the output pane a leftover
+        recall must not be deleted out of sight.
+        """
+        ui = self._ui
+        if not event.app.layout.has_focus(ui.input_field):
+            return
+        ui.handle_delete_queued(event)
 
     def _on_escape(self, event: Any) -> None:
         ui = self._ui

@@ -116,6 +116,15 @@ class MessageQueue(asyncio.Queue):
         """The newest not-yet-started entry, or None."""
         return self._queue[-1] if self._queue else None
 
+    def pending(self) -> "tuple[QueuedMessage, ...]":
+        """Every not-yet-started entry, oldest first.
+
+        The public read seam for the queue's contents: a display or a test
+        that lists what is waiting would otherwise have to reach for
+        ``_queue``. Nothing is popped, so this cannot race the consumer.
+        """
+        return tuple(self._queue)
+
     def latest_editable(self) -> "QueuedMessage | None":
         """The newest not-yet-started user message (skips `/exec` jobs)."""
         for entry in reversed(self._queue):

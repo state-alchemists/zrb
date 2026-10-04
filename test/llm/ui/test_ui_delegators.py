@@ -76,6 +76,7 @@ def test_message_editing_delegators(mock_ui_deps):
     editing = ui.message_editing_part
     editing.recall_navigation_active = MagicMock(return_value=False)
     editing.handle_enter_queued_edit = MagicMock(return_value=False)
+    editing.handle_delete_queued = MagicMock()
     editing.track_echo_span = MagicMock()
     editing.redraw_echo = MagicMock(return_value="redrawn")
 
@@ -85,6 +86,8 @@ def test_message_editing_delegators(mock_ui_deps):
     editing.recall_navigation_active.assert_called_once()
     assert ui.handle_enter_queued_edit(MagicMock()) is False
     editing.handle_enter_queued_edit.assert_called_once()
+    ui.handle_delete_queued(MagicMock())
+    editing.handle_delete_queued.assert_called_once()
     ui.track_echo_span(entry, "echo")
     editing.track_echo_span.assert_called_once_with(entry, "echo")
     assert ui.redraw_echo(entry) == "redrawn"

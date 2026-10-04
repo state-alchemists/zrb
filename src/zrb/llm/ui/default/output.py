@@ -46,6 +46,11 @@ _MODE_STATUS_LABELS = {
     "custom": "custom-yolo",
 }
 
+# The queued-message panel: how many waiting messages it lists before
+# summarizing the rest, and how much of one message's first line it shows.
+_MAX_QUEUED_LINES = 5
+_QUEUED_LINE_CHARS = 60
+
 
 def _truncate(text: str, limit: int) -> str:
     """First line of `text`, clipped to `limit` chars with an ellipsis."""
@@ -671,6 +676,43 @@ class UIOutput:
             lines.append((CFG.LLM_UI_STYLE_FAINT, " ↓ talk to a sub-agent"))
         frags: list = []
         for style, text in lines:
+            frags.append((style, text))
+            frags.append(("", "\n"))
+        return frags[:-1]  # drop trailing newline so height == line count
+
+    def get_queued_messages_text(self) -> "AnyFormattedText":
+        """The messages waiting for the running turn to finish, oldest first.
+
+        Shown above the input while the queue is not empty, so what is still to
+        come is visible without scrolling the transcript back, and which one Up
+        Arrow has recalled for editing is marked. Empty when nothing is waiting,
+        so the panel collapses to zero height.
+
+        Only the first line of an already-echoed message is repeated here; the
+        transcript holds the whole of it.
+        """
+        queue = getattr(self._ui, "effective_message_queue", None)
+        entries = queue.pending() if queue is not None else ()
+        if not entries:
+            return []
+        recalled = getattr(self._ui, "queued_edit_entry", None)
+        rows: list[tuple[str, str]] = [
+            ("", f" 📥 {len(entries)} queued · ↑ to edit")
+        ]
+        for index, entry in enumerate(entries[:_MAX_QUEUED_LINES], start=1):
+            is_recalled = entry is recalled
+            rows.append(
+                (
+                    CFG.LLM_UI_STYLE_STATUS if is_recalled else CFG.LLM_UI_STYLE_FAINT,
+                    f"{'▸' if is_recalled else ' '}{index}. "
+                    f"{_truncate(entry.text, _QUEUED_LINE_CHARS)}",
+                )
+            )
+        hidden = len(entries) - _MAX_QUEUED_LINES
+        if hidden > 0:
+            rows.append((CFG.LLM_UI_STYLE_FAINT, f"   … and {hidden} more"))
+        frags: list = []
+        for style, text in rows:
             frags.append((style, text))
             frags.append(("", "\n"))
         return frags[:-1]  # drop trailing newline so height == line count
