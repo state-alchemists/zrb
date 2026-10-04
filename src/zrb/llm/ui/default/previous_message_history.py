@@ -9,14 +9,27 @@ persisted under `CFG.LLM_PREVIOUS_MESSAGE_HISTORY_DIR`.
 own `append_to_history` (the submit path) stores each submitted message here
 without extra wiring; recall navigation itself lives in `UIMessageEditing`,
 which reads `recall_strings()`.
+
+Persistence is best-effort and concurrency-safe: each write re-reads the file
+under an OS file lock, merges in the messages submitted this session, trims to
+the configured limit, and atomically replaces the file via a unique temporary
+name — so two concurrent sessions cannot clobber each other, and a missing or
+unwritable history directory never breaks a chat turn.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import tempfile
 
 from prompt_toolkit.history import History
+
+from zrb.util.file_lock import FileLockTimeout, hold_file_lock
+
+# How long a write waits for another process holding the history lock before
+# giving up. Best-effort: a busy history directory must never stall the turn.
+_LOCK_TIMEOUT_SECONDS = 5.0
 
 
 class PreviousMessageHistory(History):
@@ -37,6 +50,13 @@ class PreviousMessageHistory(History):
         self._seed: list[str] = []
         # Every submitted message, newest first, persisted to disk.
         self._persistent: list[str] = self._read_persistent()
+        # Messages this session submitted but has not yet persisted.
+        self._session_new: list[str] = []
+        before = len(self._persistent)
+        self._trim()
+        if len(self._persistent) != before:
+            # A file written under a larger (or no) limit: conform it on load.
+            self._write_persistent()
 
     def seed_conversation(self, messages: list[str]) -> None:
         """Replace the loaded-conversation seed with *messages* (newest first)."""
@@ -57,6 +77,7 @@ class PreviousMessageHistory(History):
     def store_string(self, string: str) -> None:
         """Persist one submitted message at the newest end."""
         self._persistent.insert(0, string)
+        self._session_new.insert(0, string)
         self._trim()
         self._write_persistent()
 
@@ -64,6 +85,9 @@ class PreviousMessageHistory(History):
 
     def _history_file(self) -> str:
         return os.path.join(self._history_dir, "previous-messages.json")
+
+    def _lock_file(self) -> str:
+        return os.path.join(self._history_dir, "previous-messages.json.lock")
 
     def _read_persistent(self) -> list[str]:
         try:
@@ -75,19 +99,53 @@ class PreviousMessageHistory(History):
             return []
         return [str(item) for item in data]
 
+    def _cap(self, entries: list[str]) -> list[str]:
+        """The newest `_max_entries` of *entries* (all of them when unlimited)."""
+        if self._max_entries > 0 and len(entries) > self._max_entries:
+            return entries[: self._max_entries]
+        return entries
+
+    def _trim(self) -> None:
+        """Drop entries past `_max_entries` from the in-memory list."""
+        if self._max_entries > 0 and len(self._persistent) > self._max_entries:
+            del self._persistent[self._max_entries:]
+
     def _write_persistent(self) -> None:
-        os.makedirs(self._history_dir, exist_ok=True)
-        tmp_path = f"{self._history_file()}.tmp"
+        """Persist the history, merging this session's new messages with disk.
+
+        Best-effort: never raises. The directory, lock file, and temporary
+        file are all opened inside the guards, so a missing, unwritable, or
+        busy history directory cannot break the chat turn. The write holds an
+        OS file lock around re-reading the file, merging, and replacing it, so
+        two concurrent sessions cannot clobber each other's entries.
+        """
         try:
-            with open(tmp_path, "w", encoding="utf-8") as f:
-                json.dump(self._persistent, f, ensure_ascii=False)
+            os.makedirs(self._history_dir, exist_ok=True)
+        except OSError:
+            return
+        try:
+            with hold_file_lock(self._lock_file(), timeout=_LOCK_TIMEOUT_SECONDS):
+                disk = self._read_persistent()
+                merged = self._cap(self._session_new + disk)
+                self._write_file(merged)
+                self._persistent = merged
+                self._session_new = []
+        except (OSError, FileLockTimeout):
+            # Keep `_session_new` so the messages are retried on a later write.
+            pass
+
+    def _write_file(self, entries: list[str]) -> None:
+        """Atomically write *entries* through a unique temporary file."""
+        fd, tmp_path = tempfile.mkstemp(
+            dir=self._history_dir, prefix="previous-messages-", suffix=".tmp"
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(entries, f, ensure_ascii=False)
             os.replace(tmp_path, self._history_file())
         except OSError:
             try:
                 os.remove(tmp_path)
             except OSError:
                 pass
-
-    def _trim(self) -> None:
-        if self._max_entries > 0 and len(self._persistent) > self._max_entries:
-            del self._persistent[self._max_entries:]
+            raise

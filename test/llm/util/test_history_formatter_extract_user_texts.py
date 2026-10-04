@@ -48,3 +48,41 @@ def test_skips_blank_user_prompts():
         ModelRequest(parts=[UserPromptPart(content="real")]),
     ]
     assert extract_user_message_texts(messages) == ["real"]
+
+
+def test_strips_trailing_live_context_from_a_string_prompt():
+    messages = [
+        ModelRequest(
+            parts=[
+                UserPromptPart(
+                    content=(
+                        "what changed\n\n"
+                        "<live-context>- Time: 2024-01-01 00:00:00 UTC (+0000)"
+                        "</live-context>"
+                    )
+                )
+            ]
+        ),
+    ]
+    assert extract_user_message_texts(messages) == ["what changed"]
+
+
+def test_strips_trailing_live_context_item_from_a_multimodal_prompt():
+    from pydantic_ai.messages import ImageUrl
+
+    messages = [
+        ModelRequest(
+            parts=[
+                UserPromptPart(
+                    content=[
+                        "look at this",
+                        ImageUrl(url="http://x/y.png"),
+                        "<live-context>- Time: now</live-context>",
+                    ]
+                )
+            ]
+        ),
+    ]
+    assert extract_user_message_texts(messages) == [
+        "look at this [Image URL: http://x/y.png]"
+    ]

@@ -7,6 +7,8 @@ with Up/Down once no still-queued message is left to recall, and `UI` seeds the
 list from `/load` (via `replay_history`).
 """
 
+import json
+
 from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserPromptPart
 
 from zrb.config.config import CFG
@@ -107,6 +109,41 @@ class TestPreviousMessageHistory:
         history = PreviousMessageHistory(history_dir=str(tmp_path))
 
         assert history.recall_strings() == []
+
+    def test_max_entries_trims_oversized_file_on_load(self, tmp_path):
+        (tmp_path / "previous-messages.json").write_text(
+            json.dumps(["newest", "older", "oldest", "ancient"])
+        )
+        history = PreviousMessageHistory(history_dir=str(tmp_path), max_entries=2)
+
+        assert history.recall_strings() == ["newest", "older"]
+        # The on-disk file is conformed too, not just the in-memory copy.
+        reloaded = PreviousMessageHistory(history_dir=str(tmp_path), max_entries=2)
+        assert reloaded.recall_strings() == ["newest", "older"]
+
+    def test_unwritable_history_directory_does_not_break_submission(self, tmp_path):
+        # A regular file where the directory should be makes os.makedirs fail,
+        # standing in for an unwritable directory without relying on
+        # permission bits (which a root container would bypass).
+        blocker = tmp_path / "blocker"
+        blocker.write_text("")
+        history = PreviousMessageHistory(history_dir=str(blocker / "subdir"))
+
+        history.append_string("still remembered")
+
+        assert history.recall_strings() == ["still remembered"]
+
+    def test_two_sessions_do_not_clobber_each_other(self, tmp_path):
+        # Both sessions load the same empty file, then each submits a message —
+        # the second write must merge, not overwrite, the first's entry.
+        first = PreviousMessageHistory(history_dir=str(tmp_path))
+        second = PreviousMessageHistory(history_dir=str(tmp_path))
+
+        first.append_string("from first")
+        second.append_string("from second")
+
+        reloaded = PreviousMessageHistory(history_dir=str(tmp_path))
+        assert set(reloaded.recall_strings()) >= {"from first", "from second"}
 
 
 # --- recall navigation through UIMessageEditing ------------------------------
