@@ -256,7 +256,9 @@ async def test_a_pipeline_that_fails_mid_capture_is_closed_and_not_retried(monke
             async def push(self, chunk: bytes) -> None:
                 raise RuntimeError("the pipeline is gone")
 
-        monkeypatch.setattr("zrb.llm.dictation.feature.AudioPipeline", PushFailsPipeline)
+        monkeypatch.setattr(
+            "zrb.llm.dictation.feature.AudioPipeline", PushFailsPipeline
+        )
         session = _session(pipecat_enabled=True)
 
         stream = session.listen_hands_free()

@@ -64,7 +64,9 @@ async def test_audio_pushed_from_outside_reaches_the_sink():
             await pipeline.push(CHUNK)
 
         counter = _sink(pipeline)
-        assert await _settle(lambda: counter.bytes_received >= CHUNK_COUNT * CHUNK_BYTES), (
+        assert await _settle(
+            lambda: counter.bytes_received >= CHUNK_COUNT * CHUNK_BYTES
+        ), (
             f"only {counter.bytes_received} of the {CHUNK_COUNT * CHUNK_BYTES} "
             "pushed bytes reached the sink"
         )

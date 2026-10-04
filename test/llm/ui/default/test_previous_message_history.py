@@ -16,9 +16,9 @@ from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserProm
 
 from zrb.config.config import CFG
 from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
+from zrb.llm.ui.default.message_editing import UIMessageEditing
 from zrb.llm.ui.default.previous_message_history import PreviousMessageHistory
 from zrb.llm.ui.default.ui import UI
-from zrb.llm.ui.default.message_editing import UIMessageEditing
 from zrb.util.file_lock import hold_file_lock
 
 
@@ -280,7 +280,9 @@ class TestPreviousMessageRecall:
 
 
 class TestReplayHistorySeeding:
-    def test_replay_history_seeds_user_messages(self, mock_ui_deps, tmp_path, monkeypatch):
+    def test_replay_history_seeds_user_messages(
+        self, mock_ui_deps, tmp_path, monkeypatch
+    ):
         monkeypatch.setattr(CFG, "LLM_PREVIOUS_MESSAGE_HISTORY_DIR", str(tmp_path))
         ui = UI(**mock_ui_deps)
 
