@@ -389,7 +389,7 @@ def test_status_bar_includes_running_tool_duration():
     ui = MockOutputUI()
     ui.set_thinking(True)
     with patch("zrb.llm.ui.default.output.time.monotonic", return_value=1000.0):
-        ui.running_tool = RunningTool("Shell", 995.0)
+        ui.running_tool = RunningTool("Shell", "call_1", 995.0)
         text = "".join(fragment[1] for fragment in ui.get_status_bar_text())
 
     assert "Shell" in text
@@ -402,7 +402,7 @@ def test_status_bar_hides_runtime_timers_when_disabled(monkeypatch):
     ui.set_thinking(True)
     with patch("zrb.llm.ui.default.output.time.monotonic", return_value=1000.0):
         ui.session_started_at = 0.0
-        ui.running_tool = RunningTool("Shell", 995.0)
+        ui.running_tool = RunningTool("Shell", "call_1", 995.0)
         text = "".join(fragment[1] for fragment in ui.get_status_bar_text())
 
     assert "Shell" not in text

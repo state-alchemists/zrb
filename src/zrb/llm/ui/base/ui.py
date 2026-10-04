@@ -98,13 +98,16 @@ logger = logging.getLogger(__name__)
 
 
 class RunningTool(NamedTuple):
-    """The tool call currently executing: its name and when it started.
+    """The tool call currently executing: its name, id, and when it started.
 
+    ``tool_call_id`` ties the timer to the specific call that started it, so a
+    result event for a *different* concurrent call cannot clear it early.
     ``started_at`` is a ``time.monotonic()`` reading, so wall-clock jumps never
     distort the elapsed time the status bar shows.
     """
 
     tool_name: str
+    tool_call_id: str
     started_at: float
 
 
@@ -501,13 +504,24 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         """
         return self._running_tool
 
-    def start_tool_call(self, tool_name: str) -> None:
+    def start_tool_call(self, tool_name: str, tool_call_id: str) -> None:
         """Record the start of `tool_name`'s execution for the status bar."""
-        self._running_tool = RunningTool(tool_name, time.monotonic())
+        self._running_tool = RunningTool(tool_name, tool_call_id, time.monotonic())
 
-    def end_tool_call(self) -> None:
-        """Clear the running-tool timer once the tool call finishes."""
-        self._running_tool = None
+    def end_tool_call(self, tool_call_id: str | None = None) -> None:
+        """Clear the running-tool timer once the call it names finishes.
+
+        Cleared only when `tool_call_id` matches the call still running, so a
+        concurrent call's result cannot clear a sibling's timer. ``None``
+        clears whatever is running — used at run end and turn start, where any
+        leftover timer is stale by definition.
+        """
+        if tool_call_id is None:
+            self._running_tool = None
+            return
+        running = self._running_tool
+        if running is not None and running.tool_call_id == tool_call_id:
+            self._running_tool = None
 
     @property
     def markdown_theme(self) -> Any:

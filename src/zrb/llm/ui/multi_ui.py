@@ -384,15 +384,15 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         """Counterpart to `mark_text_block_start` — see its docstring."""
         self._fanout("collapse_text_block", collapsed, full)
 
-    def start_tool_call(self, tool_name: str) -> None:
+    def start_tool_call(self, tool_name: str, tool_call_id: str) -> None:
         """Forward a tool call's execution start to whichever children track
         the running-tool timer for their status bar — same fallback story as
         `mark_thinking_block_start`."""
-        self._fanout("start_tool_call", tool_name)
+        self._fanout("start_tool_call", tool_name, tool_call_id)
 
-    def end_tool_call(self) -> None:
+    def end_tool_call(self, tool_call_id: str | None = None) -> None:
         """Counterpart to `start_tool_call` — see its docstring."""
-        self._fanout("end_tool_call")
+        self._fanout("end_tool_call", tool_call_id)
 
     def update_tool_prepare(self, key: str, text: str) -> None:
         """Forward a tool call's "Prepare tool parameters" update to whichever
