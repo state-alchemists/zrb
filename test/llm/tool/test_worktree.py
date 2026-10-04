@@ -58,6 +58,83 @@ async def test_enter_worktree_not_repo(mock_subprocess):
 
 
 @pytest.mark.asyncio
+async def test_enter_worktree_resumes_existing_linked_worktree(mock_subprocess):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        worktree_path = os.path.join(tmpdir, ".zrb", "worktree", "existing")
+        os.makedirs(worktree_path)
+        mock_subprocess.side_effect = [
+            create_mock_process(returncode=0, stdout=f"{tmpdir}\n".encode()),
+            create_mock_process(
+                returncode=0,
+                stdout=(
+                    f"worktree {tmpdir}\n"
+                    "HEAD 1111111\n"
+                    "branch refs/heads/main\n\n"
+                    f"worktree {worktree_path}\n"
+                    "HEAD 2222222\n"
+                    "branch refs/heads/existing\n"
+                ).encode(),
+            ),
+        ]
+
+        res = await enter_worktree(worktree_path=worktree_path, cwd=tmpdir)
+
+        assert f"Worktree resumed: {worktree_path}" in res
+        assert "Branch: existing" in res
+        assert mock_subprocess.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_enter_worktree_rejects_unregistered_existing_path(mock_subprocess):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        worktree_path = os.path.join(tmpdir, "existing")
+        os.makedirs(worktree_path)
+        mock_subprocess.side_effect = [
+            create_mock_process(returncode=0, stdout=f"{tmpdir}\n".encode()),
+            create_mock_process(
+                returncode=0,
+                stdout=f"worktree {tmpdir}\nHEAD 1111111\nbranch refs/heads/main\n".encode(),
+            ),
+        ]
+
+        res = await enter_worktree(worktree_path=worktree_path, cwd=tmpdir)
+
+        assert "Error: Existing worktree was not found" in res
+        assert "ListWorktrees" in res
+
+
+@pytest.mark.asyncio
+async def test_enter_worktree_rejects_main_worktree(mock_subprocess):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mock_subprocess.side_effect = [
+            create_mock_process(returncode=0, stdout=f"{tmpdir}\n".encode()),
+            create_mock_process(
+                returncode=0,
+                stdout=f"worktree {tmpdir}\nHEAD 1111111\nbranch refs/heads/main\n".encode(),
+            ),
+        ]
+
+        res = await enter_worktree(worktree_path=tmpdir, cwd=tmpdir)
+
+        assert "main working tree" in res
+        assert "linked worktree" in res
+
+
+@pytest.mark.asyncio
+async def test_enter_worktree_does_not_combine_existing_path_and_new_branch(
+    mock_subprocess,
+):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        res = await enter_worktree(
+            branch_name="new-branch", worktree_path=os.path.join(tmpdir, "existing")
+        )
+
+        assert "branch_name" in res
+        assert "worktree_path" in res
+        mock_subprocess.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_enter_worktree_failure(mock_subprocess):
     mock_subprocess.side_effect = [
         create_mock_process(returncode=0),  # check repo
