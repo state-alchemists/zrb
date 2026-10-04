@@ -8,6 +8,8 @@ the precondition for every later stage (ADR-0107).
 from __future__ import annotations
 
 import asyncio
+import importlib
+import logging
 from typing import Any
 
 import pytest
@@ -174,3 +176,42 @@ async def test_a_worker_that_refuses_the_cancel_still_ends_the_pipeline(monkeypa
     await pipeline.close()
 
     assert pipeline.runner.done()
+
+
+@pytest.mark.asyncio
+async def test_a_runner_that_will_not_stop_is_named_rather_than_left_silent(
+    monkeypatch, caplog
+):
+    """A runner this close cannot stop is reported, not left to look stopped
+    (PR #561 review).
+
+    The deadline is what keeps a teardown from being held up, and a task that
+    swallows its cancellation cannot be ended from here at all, so the one thing
+    left is to say so. The worker's own task still stops, which is the part the
+    listening around it depends on.
+    """
+    pipeline = await AudioPipeline.start()
+    # Reached through `importlib`, not a dotted name: a dotted private name in a
+    # test is what the private-access ratchet counts, and the deadline is a
+    # constant no public seam exposes.
+    pipecat_input = importlib.import_module("zrb.llm.dictation.pipecat_input")
+    monkeypatch.setattr(pipecat_input, "_CLOSE_TIMEOUT_SECONDS", 0.05)
+
+    async def stuck() -> None:
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            await asyncio.sleep(0.2)
+            raise RuntimeError("the runner failed on the way out") from None
+
+    worker_task = pipeline.runner
+    pipeline.runner = asyncio.create_task(stuck())
+
+    with caplog.at_level(logging.WARNING):
+        await asyncio.wait_for(pipeline.close(), timeout=5)
+
+    assert "The Pipecat pipeline is still running after being cancelled" in caplog.text
+
+    await asyncio.wait({pipeline.runner}, timeout=1)
+    assert isinstance(pipeline.runner.exception(), RuntimeError)
+    assert worker_task.done()

@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from zrb.llm.dictation.listen import SAMPLE_RATE
-from zrb.llm.dictation.teardown import close_quietly
+from zrb.llm.dictation.teardown import cancel_and_wait, close_quietly
 
 if TYPE_CHECKING:
     # No `InputAudioRawFrame`: each factory imports it at call time, and naming
@@ -210,7 +210,9 @@ class AudioPipeline:
         task still going after the wait below is cancelled outright — this runs
         in the listening's `finally`, where an escaping failure would end
         hands-free for the session, and a task left behind would outlive the
-        microphone it was fed from. `asyncio.wait`, not `wait_for`, so the
+        microphone it was fed from. A runner that will not stop even then cannot
+        be ended from here, only named: the deadline holds, and the log says what
+        was left behind. `asyncio.wait`, not `wait_for`, so the
         worker's own failure is not reported a second time here — whoever pushed
         its last frame has already seen it — and its exception is read off below
         so the loop does not later log it as one nobody retrieved.
@@ -218,8 +220,9 @@ class AudioPipeline:
         await close_quietly(self.worker.cancel, "the Pipecat worker")
         done, _ = await asyncio.wait({self.runner}, timeout=_CLOSE_TIMEOUT_SECONDS)
         if not done:
-            self.runner.cancel()
-            done, _ = await asyncio.wait({self.runner}, timeout=_CLOSE_TIMEOUT_SECONDS)
+            done = await cancel_and_wait(
+                self.runner, "The Pipecat pipeline", _CLOSE_TIMEOUT_SECONDS
+            )
         for task in done:
             if not task.cancelled():
                 task.exception()

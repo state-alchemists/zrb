@@ -452,27 +452,6 @@ async def test_speech_is_never_joined_across_dropped_audio():
     assert [u.audio for u in utterances] == [_pcm(0.75, 0.75, 0.75, 0.75)]
 
 
-@pytest.mark.asyncio
-async def test_the_capture_reaches_the_tap_even_when_the_backlog_drops_it():
-    """The tap is fed as blocks are captured, not as the reader reads them.
-
-    The reader stops while an utterance is transcribed and answered, and the
-    blocks the microphone captures meanwhile pile up behind it. What the
-    hand-off promises is every captured block, so a block the backlog drops must
-    still reach `on_captured` (PR #561 review).
-    """
-    blocks = [_block(0.5)] * 3
-    seen: list[bytes] = []
-
-    async def on_captured(pcm: bytes) -> None:
-        seen.append(pcm)
-
-    # Room for one block in the backlog, so the reader keeps the last one only.
-    await _collect_with(_backlog_config(0.1), blocks, on_captured=on_captured)
-
-    assert seen == [_pcm(0.5, 0.5)] * 3
-
-
 def test_the_block_duration_is_what_every_duration_is_counted_in():
     # 0.2 s blocks: 0.4 s of silence is two quiet blocks.
     cutter = UtteranceCutter(

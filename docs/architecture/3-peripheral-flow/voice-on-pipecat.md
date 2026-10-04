@@ -69,9 +69,12 @@ not a new voice, and the dictation and speech paths are untouched either way.
 
 Two suites hold it up. `test/llm/dictation/test_pipecat_input.py` covers the
 transport: fifty blocks pushed from outside are all counted at the sink, byte for
-byte, while the loop the pipeline was started on keeps ticking — and a start
-that fails, or a cancel the worker will not take, ends its task and raises
-nothing. The sink counts and holds nothing, since a listening lasts for hours.
+byte, while the loop the pipeline was started on keeps ticking. The sink counts
+and holds nothing, since a listening lasts for hours. A start that fails, or a
+cancel the worker will not take, ends its task and raises nothing; a task that
+will not stop even then is named in the log, since a cancellation it swallows
+cannot be forced from here.
+
 `test/llm/dictation/test_feature_pipecat.py` covers the hand-off: a
 session with the flag on feeds the pipeline from the same capture and closes it
 when the listening stops, an install without the extra listens on and says so,

@@ -19,7 +19,7 @@ from typing import Any, NamedTuple
 from zrb.config.config import CFG
 from zrb.llm.dictation.backend.any_transcription_stream import AnyTranscriptionStream
 from zrb.llm.dictation.config import DictationConfig
-from zrb.llm.dictation.teardown import close_quietly
+from zrb.llm.dictation.teardown import cancel_and_wait, close_quietly
 from zrb.llm.dictation.words import count_words
 from zrb.llm.speech.player import is_speaking
 
@@ -744,7 +744,9 @@ class _CaptureTap:
         The listening is over, but the blocks the microphone just captured are
         still the capture, so the queue drains before the tap ends — with a
         deadline, since a hand-over that does not finish must not hold the
-        teardown of the microphone that stopped feeding it.
+        teardown of the microphone that stopped feeding it. The cancel that
+        follows the deadline is bounded the same way, so a hand-over that swallows
+        it is named and left rather than waited on (PR #561 review).
 
         A hand-over that raised ended the tap early: nothing downstream of it
         decides anything yet (ADR-0107, stage 1), so the failure is reported here,
@@ -756,8 +758,9 @@ class _CaptureTap:
         self._arrived.set()
         done, _ = await asyncio.wait({self._task}, timeout=_TAP_CLOSE_SECONDS)
         if not done:
-            self._task.cancel()
-            await asyncio.wait({self._task})
+            done = await cancel_and_wait(
+                self._task, "The capture hand-over", _TAP_CLOSE_SECONDS
+            )
         for task in done:
             if not task.cancelled() and task.exception() is not None:
                 logger.warning(
