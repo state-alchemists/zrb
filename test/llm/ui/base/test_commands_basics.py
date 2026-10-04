@@ -369,6 +369,18 @@ def test_handle_set_command_refreshes_live_command_aliases(ui, monkeypatch):
     assert ui.ui_config.set_commands == ["/set", "/configure"]
 
 
+def test_handle_set_command_refreshes_model_visibility(ui):
+    """A `/set` that flips a model-visibility flag must reach the running session.
+
+    `UIConfig` snapshots both flags when the session is built, so without a
+    refresh the command reports success while `/model` keeps completing a source
+    the user just disabled (round-4 review).
+    """
+    assert ui.handle_set_command("/set LLM_SHOW_OLLAMA_MODELS off") is True
+    assert CFG.LLM_SHOW_OLLAMA_MODELS is False
+    assert ui.ui_config.show_ollama_models is False
+
+
 def test_handle_toggle_plan_command(ui):
     assert ui.handle_toggle_plan("/plan") is True
     assert ui.plan_mode_active is True

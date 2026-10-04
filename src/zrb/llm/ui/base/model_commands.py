@@ -14,11 +14,12 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.permission.state import AgentMode, set_current_agent_mode
-from zrb.llm.ui.ui_config import command_alias_field
+from zrb.llm.ui.ui_config import command_alias_field, model_visibility_field
 from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
 
 if TYPE_CHECKING:
     from zrb.llm.ui.base.ui import BaseUI
+    from zrb.llm.ui.ui_config import UIConfig
 
 # `/set` names that switch the UI's live model slots, exactly as `/model` does.
 _LIVE_MODEL_SLOTS = frozenset({"model", "small_model", "multimodal_model"})
@@ -233,28 +234,43 @@ class BaseUIModelCommands:
             return True
         return False
 
-    def _refresh_live_command_aliases(self, name: str, value: object) -> None:
-        """Apply a changed `LLM_UI_COMMAND_*` alias to the running session.
+    def _refresh_live_session(self, name: str, value: object) -> None:
+        """Apply a changed startup-snapshotted setting to the running session.
 
-        `UIConfig` snapshots the alias lists when the session starts, and the
-        input completer copies them again, so a `/set` that changed one would
-        otherwise report success while the session kept matching and completing
-        the old aliases (round-3 review). Both copies are re-pointed here.
+        `UIConfig` copies the `LLM_UI_COMMAND_*` alias lists and the two
+        model-visibility flags when the session is built, and the completer
+        copies the aliases a second time. A `/set` that changed one would
+        otherwise report success while the session kept matching, completing or
+        offering the old value (round-3 and round-4 review).
         """
         ui_config = self._base_ui.ui_config
-        field_name = command_alias_field(name)
-        if field_name is None:
+        visibility_field = model_visibility_field(name)
+        if visibility_field is not None:
+            setattr(ui_config, visibility_field, bool(value))
+            self._refresh_completer("refresh_model_visibility", ui_config)
+            return
+        alias_field = command_alias_field(name)
+        if alias_field is None:
             return
         # `convert_setting_value` is typed `-> object` because most settings are
         # scalars; a `LLM_UI_COMMAND_*` alias is always a list, so narrow rather
         # than trust the annotation.
         if not isinstance(value, list):
             return
-        setattr(ui_config, field_name, list(value))
+        setattr(ui_config, alias_field, list(value))
+        self._refresh_completer("refresh_command_aliases", ui_config)
+
+    def _refresh_completer(self, method_name: str, ui_config: "UIConfig") -> None:
+        """Call `method_name` on the running input completer, when it has one.
+
+        The completer is reached through the input field rather than held, and
+        another UI's completer may not implement the refresh hook at all, so the
+        capability probe keeps that a no-op instead of an error.
+        """
         completer = getattr(
             getattr(self._base_ui, "input_field", None), "completer", None
         )
-        refresh = getattr(completer, "refresh_command_aliases", None)
+        refresh = getattr(completer, method_name, None)
         if refresh is not None:
             refresh(ui_config)
 
@@ -274,7 +290,7 @@ class BaseUIModelCommands:
             self._base_ui.append_to_output(stylize_error(f"\n  ❌ {error}\n"))
             return
         setattr(CFG, name, converted)
-        self._refresh_live_command_aliases(name, converted)
+        self._refresh_live_session(name, converted)
         shown = "[set]" if field is not None and field.secret else repr(converted)
         self._base_ui.append_to_output(
             stylize_muted(f"\n  🔧 Set {name} = {shown}\n")

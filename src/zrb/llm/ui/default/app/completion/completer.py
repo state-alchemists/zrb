@@ -55,6 +55,18 @@ class InputCompleter(Completer):
         self._plan_commands = list(ui_config.plan_commands)
         self._copy_commands = list(ui_config.copy_commands)
 
+    def refresh_model_visibility(self, ui_config: UIConfig) -> None:
+        """Re-read the model-source visibility flags from `ui_config`.
+
+        `UIConfig` snapshots `LLM_SHOW_OLLAMA_MODELS` and
+        `LLM_SHOW_PYDANTIC_AI_MODELS` when the session is built and this
+        completer copies them again, so a `/set` that changed one must reach
+        both copies — otherwise the command reports success while `/model`
+        keeps offering a source the user just turned off (round-4 review).
+        """
+        self._show_ollama_models = ui_config.show_ollama_models
+        self._show_pydantic_ai_models = ui_config.show_pydantic_ai_models
+
     def __init__(
         self,
         history_manager: AnyHistoryManager,
@@ -69,8 +81,7 @@ class InputCompleter(Completer):
         self.refresh_command_aliases(ui_config)
         self._custom_commands = list(custom_commands or [])
         self._custom_model_names = list(custom_model_names or [])
-        self._show_ollama_models = ui_config.show_ollama_models
-        self._show_pydantic_ai_models = ui_config.show_pydantic_ai_models
+        self.refresh_model_visibility(ui_config)
 
         try:
             self._known_models = list(known_model_names())

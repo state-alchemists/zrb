@@ -151,3 +151,23 @@ def command_alias_field(env_name: str) -> str | None:
         if command_env_name(field_name) == env_name:
             return field_name
     return None
+
+
+# `UIConfig` fields that mirror a plain `CFG` boolean instead of a command list.
+# The two spellings do not follow from the field name, so they are named here.
+_MODEL_VISIBILITY_FIELDS = {
+    "LLM_SHOW_OLLAMA_MODELS": "show_ollama_models",
+    "LLM_SHOW_PYDANTIC_AI_MODELS": "show_pydantic_ai_models",
+}
+
+
+def model_visibility_field(env_name: str) -> str | None:
+    """The `UIConfig` field mirroring the `CFG.<env_name>` boolean, or None.
+
+    None means `env_name` is not a model-visibility setting. `UIConfig` reads
+    both of these once, when the session is built, so a `/set` that changes one
+    must re-point the running session — otherwise the command reports success
+    while `/model` keeps offering, or keeps hiding, a source the user just
+    toggled (round-4 review).
+    """
+    return _MODEL_VISIBILITY_FIELDS.get(env_name)
