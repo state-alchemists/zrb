@@ -328,6 +328,7 @@ class UIKeybindings:
             agent_id = viewing_agent_id
             message = text
             buff.reset()
+            ui.reset_previous_recall()
 
             async def _send_to_sub_agent():
                 # lazy: transitively heavy via internal — live_session.py
@@ -360,10 +361,13 @@ class UIKeybindings:
             if ui.is_thinking:
                 return
             buff.reset()
+            ui.reset_previous_recall()
             ui.schedule_command(text)
             return
 
         # A plain message submitted mid-response is queued for the next turn.
-        buff.append_to_history()
+        # Recording happens at the submit boundary (`submit_user_message`), so
+        # the buffer's own history is left alone here — no double record.
         ui.submit_user_message(llm_task, text)
         buff.reset()
+        ui.reset_previous_recall()

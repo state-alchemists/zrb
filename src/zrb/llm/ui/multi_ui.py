@@ -605,7 +605,15 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         the echo-span redraw fan out to every child (`self._uis`) — `MultiUI`
         holds no attachments or echo buffer of its own, unlike a standalone
         `BaseUI`, which submits on behalf of itself alone.
+        Records the message once, on the primary child: a direct
+        `submit_message`/`submit_user_message` on this `MultiUI` reaches no
+        child's own submit boundary, and every child shares one history file, so
+        recording per child would duplicate the entry.
         """
+        main_ui = self.main_ui
+        recorder = getattr(main_ui, "record_submitted_message", None)
+        if recorder is not None:
+            recorder(user_message)
         submit_user_message_via_queue(
             append_to_output=self.append_to_output,
             active_run_context=self.active_run_context,
