@@ -52,7 +52,7 @@ By default zrb ignores the microphone while it is speaking, so its own voice is 
 
 With wake words, zrb stops only once it has heard one. Talk in the room holds its voice like anything else heard over it, on loudness alone, and the words give that hold back when they turn out not to be the user's.
 
-**zrb's own voice.** On speakers the microphone hears zrb too, and zrb does not try to subtract it: no echo canceller removes all of it on laptop speakers, and what is left, transcribed, would become turns zrb answers itself. Instead, what hands-free hears has to pass the checks below before it reaches the model ([ADR-0105](../adr/adr-0105.md)). None of them compares the words heard against what zrb was saying: that transcript-level check was removed as a patch over the loudness bar, not the problem, so a word of zrb's own reply that clears the bar can open a turn — keep the volume down, or wear headphones. Push-to-talk keeps every word: its transcript lands in the input box for you to edit.
+**zrb's own voice.** On speakers the microphone hears zrb too, and zrb does not try to subtract it: no echo canceller removes all of it on laptop speakers, and what is left, transcribed, would become turns zrb answers itself. Instead, what hands-free hears has to pass the checks below before it reaches the model ([ADR-0105](../adr/adr-0105.md)). None of them compares the words heard against what zrb was saying, so a word of zrb's own reply, loud enough to clear the bar, can still open a turn — keep the volume down, or wear headphones. Push-to-talk keeps every word: its transcript lands in the input box for you to edit.
 
 | Check | What it keeps out | Setting |
 |---|---|---|

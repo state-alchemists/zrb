@@ -70,9 +70,7 @@ flowchart TD
     DS --> Listen[listen + UtteranceCutter]
     ES --> SS[SpeechSession]
     SS --> Speaker[Speaker]
-    Speaker -->|what was audible| Log[spoken_log]
     DS -->|pause / resume / interrupt by session key| SS
-    DS -->|reads| Log
     DS -->|TriggerReply| UI[BaseUI triggers]
 ```
 
@@ -86,7 +84,6 @@ flowchart TD
 | `pause_speech`, `resume_speech`, `interrupt_speech` | `src/zrb/llm/speech/feature.py` | Speech control by chat session key, the only way dictation touches speech |
 | `Speaker` | `src/zrb/llm/speech/player.py` | Queuing, synthesizing and playing speech; pause, resume and interrupt |
 | `StreamedReply` | `src/zrb/llm/speech/streamed_reply.py` | Turning stream events into sentences; muting a reply that was talked over |
-| `spoken_log` | `src/zrb/llm/speech/spoken_log.py` | A process-wide record of what zrb was audibly saying, and when |
 | `TriggerReply` | `src/zrb/llm/ui/trigger.py` | A spoken command, with its approval reading and the time it was said |
 | `BaseUITriggers` | `src/zrb/llm/ui/base/triggers.py` | Delivering a trigger's reply as an answer to a pending prompt, or as a new message |
 | `replace_feature_sessions`, `close_feature_sessions` | `src/zrb/llm/util/feature_config.py` | One feature value per chat session; replaced cleanly on re-enable, closed when the session ends |
@@ -128,10 +125,10 @@ sequenceDiagram
     R->>O: handle_stream_event
     O->>P: handle_event
     P->>S: say(sentence)
-    S->>S: synthesize, play, log to spoken_log
+    S->>S: synthesize, play
 ```
 
-The `Speaker` writes to `spoken_log` only while a sentence is really playing, never while queued or paused. That is what makes the self-echo guard fair: when zrb is silent, a user who repeats zrb's words is still heard. When a barge-in stops zrb, `SpeechSession.interrupt` drops the queue and mutes the rest of the reply, so it is not read again at turn end.
+When a barge-in stops zrb, `SpeechSession.interrupt` drops the queue and mutes the rest of the reply, so it is not read again at turn end.
 
 ### Variations
 
@@ -153,7 +150,7 @@ The `Speaker` writes to `spoken_log` only while a sentence is really playing, ne
 | Change utterance cutting, the bar over zrb's voice, or the bar under ordinary speech | `src/zrb/llm/dictation/listen.py` | `test/llm/dictation/test_listen_barge_in.py`, `test/llm/dictation/test_listen.py` |
 | Change the transcript guards or command routing | `src/zrb/llm/dictation/feature.py`, `src/zrb/llm/dictation/words.py` | `test/llm/dictation/test_feature_barge_in.py` |
 | Change pause, stop or resume | `src/zrb/llm/dictation/feature.py` | `test/llm/dictation/test_feature_barge_in_pause.py` |
-| Change playback, pausing or the spoken log | `src/zrb/llm/speech/player.py`, `src/zrb/llm/speech/spoken_log.py` | `test/llm/speech/test_player_in_process.py` |
+| Change playback or pausing | `src/zrb/llm/speech/player.py` | `test/llm/speech/test_player_in_process.py` |
 | Change how a streamed reply is spoken | `src/zrb/llm/speech/streamed_reply.py`, `src/zrb/llm/speech/feature.py` | `test/llm/speech/test_feature_stream.py` |
 | Change how a spoken reply reaches a prompt | `src/zrb/llm/ui/base/triggers.py` | `test/llm/ui/base/` |
 | Change a dictation setting | `src/zrb/config/mixins/llm_dictation.py`, `src/zrb/llm/dictation/config.py` | `test/architecture/test_voice_config_documented.py` |

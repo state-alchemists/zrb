@@ -17,13 +17,12 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ## Upgrading to 3.14.0
 
-3.14.0 retires six dictation settings, all of them about holding zrb's voice and reading back what was heard over it ([ADR-0105](../adr/adr-0105.md), [ADR-0076](../adr/adr-0076.md)), and four speech settings, which existed to shorten a long reply ([ADR-0103](../adr/adr-0103.md)). Each is reported at startup when it is still set, naming what replaced it; setting one has no other effect.
+3.14.0 retires dictation settings about holding zrb's voice and reading back what was heard over it ([ADR-0105](../adr/adr-0105.md), [ADR-0076](../adr/adr-0076.md)), and four speech settings, which existed to shorten a long reply ([ADR-0103](../adr/adr-0103.md)). Each is reported at startup when it is still set, naming what replaced it; setting one has no other effect.
 
 | Retired | What to do instead |
 |---|---|
 | `ZRB_LLM_DICTATION_BARGE_IN_ACTION` | Nothing: anything said over zrb steers the turn, and a stop cancels it, so there is no `cancel` left to choose. A stop word said alone (`ZRB_LLM_DICTATION_STOP_WORDS`) still cancels the turn. |
 | `ZRB_LLM_DICTATION_TURN_END_TIMEOUT` | Nothing: only `barge_in_action=cancel` waited for a cancelled turn. |
-| `ZRB_LLM_DICTATION_ECHO_COOLDOWN` | Nothing: with barge-in off the microphone still ignores blocks heard while zrb speaks, and nothing is held back after it stops. If zrb's own tail now opens a turn, raise `ZRB_LLM_DICTATION_THRESHOLD`. |
 | `ZRB_LLM_DICTATION_SELF_ECHO_MATCH` | Nothing, and this one is a real loss: the guard that dropped zrb's own words transcribed back is gone. Anything else said over zrb goes to the small model (`ZRB_LLM_DICTATION_INTERRUPT_JUDGE_ENABLED`), which reads what a stop asks but does not drop echo. Lower the playback volume, use headphones, or turn barge-in off. |
 | `ZRB_LLM_DICTATION_SELF_ECHO_TAIL` | Nothing — see `_SELF_ECHO_MATCH`. |
 | `ZRB_LLM_DICTATION_TRAILING_WORDS` | Nothing: an utterance fed to a streaming transcriber now ends after `ZRB_LLM_DICTATION_MIN_SILENCE` once it has words, without waiting for a word a sentence ends on. Raise `ZRB_LLM_DICTATION_MIN_SILENCE` if you are cut off mid-sentence. |

@@ -203,6 +203,58 @@ async def test_a_start_that_fails_is_tried_again():
 
 
 @pytest.mark.asyncio
+async def test_a_failed_stream_that_will_not_close_does_not_end_the_retries(caplog):
+    """A close that fails must not lose the retry, nor the report (PR #561
+    review).
+
+    `_open_microphone` closes the stream that never started before it tries
+    another. sounddevice's `ignore_errors` default swallows PortAudio's own
+    errors, but a close that raises anyway would escape the `except` and take the
+    remaining attempts with it, and the message naming the device — so the close
+    is best-effort and what it failed with is logged instead.
+    """
+    captured = {}
+    started = []
+
+    class UnclosableStream(FakeStream):
+        def start(self):
+            started.append(self)
+            if len(started) == 1:
+                raise RuntimeError("Error starting stream: Wait timed out")
+            super().start()
+
+        def close(self):
+            if not self.is_started:
+                raise RuntimeError("Error closing stream")
+            super().close()
+
+    def make_stream(**kwargs):
+        captured.update(kwargs)
+        return UnclosableStream()
+
+    unclosable_sd = MagicMock()
+    unclosable_sd.InputStream.side_effect = make_stream
+    blocks = [_block(0.0), _block(0.5), _block(0.5), _block(0.0), _block(0.0)]
+
+    async def consume():
+        stream = listen(_listen_config(), _holds_for(len(blocks)), keep_partial=True)
+        return [utterance async for utterance in stream]
+
+    with (
+        patch.dict("sys.modules", {"sounddevice": unclosable_sd}),
+        patch("zrb.llm.dictation.listen.is_speaking", return_value=False),
+    ):
+        task = asyncio.create_task(consume())
+        await _play(captured, blocks)
+        utterances = await task
+
+    assert len(started) == 2
+    assert started[1].is_started
+    assert len(utterances) == 1
+    assert "Error closing stream" in caplog.text
+
+
+@pytest.mark.asyncio
 async def test_a_microphone_that_will_not_start_says_which_device_it_tried():
     """The device is named, because the PortAudio message alone does not say it.
 

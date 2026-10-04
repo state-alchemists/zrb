@@ -86,7 +86,7 @@ hands-free.
 | 3 | The silence-based end of a turn, replaced by a turn analyzer over the smart-turn model. Exit: a turn does not end at a mid-sentence pause, and a slow transcript still ends inside the latency budget | Third, because it needs VAD driving turn starts |
 | 4 | Output, through a BaseOutputTransport subclass. **Unverified**: nothing yet shows a pipeline interruption reaches zrb's pause fast enough, so this stage has no exit criterion that can be met today | Last, because it is the least measured, and the one that must not break a pause |
 
-Two things not to lose on the way: the guard rows above, and `spoken_log`, which records what zrb audibly said.
+The guard rows above must not be lost on the way.
 
 ## See Also
 

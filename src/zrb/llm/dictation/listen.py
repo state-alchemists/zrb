@@ -19,6 +19,7 @@ from typing import Any, NamedTuple
 from zrb.config.config import CFG
 from zrb.llm.dictation.backend.any_transcription_stream import AnyTranscriptionStream
 from zrb.llm.dictation.config import DictationConfig
+from zrb.llm.dictation.teardown import close_quietly
 from zrb.llm.dictation.words import count_words
 from zrb.llm.speech.player import is_speaking
 
@@ -711,9 +712,11 @@ async def _open_microphone(
     ``paTimedOut`` when it misses: a WSL2 VM stalling on I/O misses it, for
     reasons that have nothing to do with zrb, and the stall is over by the time
     the call returns. So a start that fails is tried again, and only the last
-    failure is raised. A stream that never started is closed first — with
-    sounddevice's ``ignore_errors`` default, since its own teardown may fail —
-    or the next try would contend with it for a device it is not using.
+    failure is raised. A stream that never started is closed first, best-effort
+    (PR #561 review): its own teardown may fail — sounddevice's ``ignore_errors``
+    default swallows PortAudio's errors, and this does not depend on that — and a
+    failure there must not lose the retry or the message below. Or the next try
+    would contend with it for a device it is not using.
 
     Constructing is the other failure: a device that does not exist, or PortAudio
     missing. Trying that again cannot help, so it is raised as it always was.
@@ -739,7 +742,7 @@ async def _open_microphone(
             stream.start()
             return stream
         except Exception as e:
-            stream.close()
+            await close_quietly(stream.close, "the microphone that would not start")
             if attempt >= _OPEN_ATTEMPTS:
                 raise RuntimeError(_microphone_failure_message(device, e)) from e
             logger.warning(f"Starting the microphone failed ({e}); trying again")
