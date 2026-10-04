@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.custom_command.resolver import get_custom_command_match, run_custom_command
+from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.task.shared_getters import apply_model_hooks
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.util.cli.style import stylize_error, stylize_muted
@@ -152,6 +153,9 @@ class BaseUIExecCommands:
         Uses a fresh, independent pydantic-ai Agent so there are no race conditions
         with the possibly-running main LLM task (no shared state is mutated).
         The response is never saved to conversation history.
+
+        The side agent runs without tools, so it is prompted with
+        `side_question.md` rather than the main agent's prompt — see ADR-0106.
         """
         try:
             timestamp = datetime.now().strftime("%H:%M")
@@ -180,10 +184,9 @@ class BaseUIExecCommands:
                 else:
                     btw_history.append(msg)
 
-            _sys_prompt = (
-                llm_task.get_system_prompt(self._base_ui.ctx)
-                + "\n\nAnswer the user's question concisely using this information when relevant."
-            )
+            # Never the main agent's prompt: it instructs tool use and carries
+            # the skill catalogue, and this agent has no tools at all.
+            _sys_prompt = get_prompt("side_question")
             # `/model` stores the typed name, so resolve it against the
             # configured credentials (falling back to CFG's model).
             model = resolve_configured_model(self._base_ui.model or None)

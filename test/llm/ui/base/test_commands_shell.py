@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.llm.hook.types import HookEvent  # noqa: E402
+from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.ui.base.commands import BaseUICommands
 
 
@@ -91,6 +92,24 @@ async def test_stream_btw_response_strips_system_prompt_from_history(ui):
     assert all(not isinstance(p, SystemPromptPart) for p in request_entries[0].parts)
     assert "not-a-model-request" in cleaned
     assert "side answer" in "".join(ui.outputs)
+
+
+@pytest.mark.asyncio
+async def test_stream_btw_response_uses_the_tool_less_prompt(ui):
+    """The side agent is told it has no tools, and is never handed the main
+    agent's prompt — whose tool rules describe capabilities it lacks."""
+    ui.history_manager.load.return_value = []
+    ui.llm_task.get_system_prompt.side_effect = AssertionError("main prompt used")
+    fake_agent = MagicMock()
+    fake_agent.run = AsyncMock(return_value=MagicMock(output="side answer"))
+
+    with patch("zrb.llm.agent.create_agent", return_value=fake_agent) as create:
+        await ui.stream_btw_response(ui.llm_task, "quick question")
+
+    kwargs = create.call_args.kwargs
+    assert kwargs["system_prompt"] == get_prompt("side_question")
+    assert not kwargs.get("tools")
+    assert not kwargs.get("toolsets")
 
 
 @pytest.mark.asyncio

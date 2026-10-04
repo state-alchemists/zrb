@@ -45,5 +45,14 @@ def test_each_profile_resolves_its_specific_adjustment(profile):
     assert "# Operating Profile" in prompt
 
 
+def test_side_question_prompt_denies_the_tools_it_does_not_have():
+    prompt = get_prompt("side_question").lower()
+    assert "no tools" in prompt
+    assert "never emit a tool call" in prompt
+    # The main agent's tool rules and skill catalogue never reach the side agent.
+    assert "activeskill" not in prompt
+    assert "batch independent tool calls" not in prompt
+
+
 def test_unknown_prompt_is_empty():
     assert get_prompt("not-a-prompt-section") == ""
