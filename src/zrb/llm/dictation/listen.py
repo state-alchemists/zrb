@@ -11,6 +11,7 @@ import logging
 import time
 from collections import deque
 from collections.abc import AsyncGenerator, Awaitable, Callable
+from contextlib import closing
 from dataclasses import dataclass, replace
 from enum import Enum
 from typing import Any, NamedTuple
@@ -34,6 +35,11 @@ _NOISE_FLOOR_SECONDS = 3.0
 _NOISE_FLOOR_MIN_SECONDS = 0.5
 # How often a push-to-talk recording checks whether to stop.
 _RECORD_POLL_SECONDS = 0.1
+# How many times the microphone is opened before it is given up on, and how
+# long to wait between tries: PortAudio gives the ALSA thread it starts one
+# second to come up, and a machine that stalls misses that deadline.
+_OPEN_ATTEMPTS = 3
+_OPEN_RETRY_SECONDS = 0.5
 
 
 class Utterance(NamedTuple):
@@ -356,9 +362,14 @@ async def listen(
         _BlockReports(on_state, on_barge_in, on_barge_in_dropped),
         _UtteranceStreamer(np, create_stream, on_partial),
     )
-    stream = _open_microphone(sd, on_audio, blocksize=int(SAMPLE_RATE * block_seconds))
+    stream = await _open_microphone(
+        sd,
+        on_audio,
+        device=config.device or None,
+        blocksize=int(SAMPLE_RATE * block_seconds),
+    )
     try:
-        with stream:
+        with closing(stream):
             while should_listen():
                 item = await backlog.get(timeout=block_seconds * 5)
                 if item is None:
@@ -688,20 +699,67 @@ def import_audio() -> tuple[Any, Any]:
     return np, sd
 
 
-def _open_microphone(sd: Any, on_audio: Callable[..., None], **options: Any) -> Any:
-    try:
-        return sd.InputStream(
-            samplerate=SAMPLE_RATE,
-            channels=1,
-            dtype="float32",
-            callback=on_audio,
-            **options,
-        )
-    except Exception as e:
-        raise RuntimeError(
-            f"Cannot open microphone: {e}. Check permissions and that no "
-            "other app is using the mic."
-        ) from e
+async def _open_microphone(
+    sd: Any,
+    on_audio: Callable[..., None],
+    device: "str | None" = None,
+    **options: Any,
+) -> Any:
+    """The microphone, open and running, or a `RuntimeError` saying why.
+
+    PortAudio gives the ALSA thread it starts one second to come up and reports
+    ``paTimedOut`` when it misses: a WSL2 VM stalling on I/O misses it, for
+    reasons that have nothing to do with zrb, and the stall is over by the time
+    the call returns. So a start that fails is tried again, and only the last
+    failure is raised. A stream that never started is closed first — with
+    sounddevice's ``ignore_errors`` default, since its own teardown may fail —
+    or the next try would contend with it for a device it is not using.
+
+    Constructing is the other failure: a device that does not exist, or PortAudio
+    missing. Trying that again cannot help, so it is raised as it always was.
+    """
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            stream = sd.InputStream(
+                samplerate=SAMPLE_RATE,
+                channels=1,
+                dtype="float32",
+                callback=on_audio,
+                device=device,
+                **options,
+            )
+        except Exception as e:
+            raise RuntimeError(
+                f"Cannot open microphone: {e}. Check permissions and that no "
+                "other app is using the mic."
+            ) from e
+        try:
+            stream.start()
+            return stream
+        except Exception as e:
+            stream.close()
+            if attempt >= _OPEN_ATTEMPTS:
+                raise RuntimeError(_microphone_failure_message(device, e)) from e
+            logger.warning(f"Starting the microphone failed ({e}); trying again")
+            await asyncio.sleep(_OPEN_RETRY_SECONDS)
+
+
+def _microphone_failure_message(device: "str | None", error: Exception) -> str:
+    """What to say when the microphone will not start.
+
+    Names the device PortAudio was asked for — ``None`` is its own default, what
+    ``sd.default.device`` resolves to — and the setting that names another,
+    because which device a Linux or WSL machine opens is the usual difference
+    between a microphone that works and one that does not.
+    """
+    return (
+        f"Cannot open microphone: {error}. PortAudio was asked for device "
+        f"{device!r} (None: its own default). Check permissions and that no other "
+        f"app is using the mic, and set {CFG.ENV_PREFIX}_LLM_DICTATION_DEVICE to "
+        "name another one."
+    )
 
 
 def get_block_seconds(config: DictationConfig) -> float:
@@ -734,7 +792,7 @@ async def record(should_record: Callable[[], bool]) -> bytes:
         loop.call_soon_threadsafe(blocks.put_nowait, indata.copy())
 
     recorded: list[Any] = []
-    with _open_microphone(sd, on_audio):
+    with closing(await _open_microphone(sd, on_audio)):
         while should_record():
             try:
                 recorded.append(

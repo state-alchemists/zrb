@@ -69,6 +69,7 @@ class LLMDictationMixin:
         )
         self.DEFAULT_LLM_DICTATION_POLITE_WORDS: str = "please, thanks, thank, you"
         self.DEFAULT_LLM_DICTATION_BLOCK_DURATION: str = "0.1"
+        self.DEFAULT_LLM_DICTATION_DEVICE: str = ""
         self.DEFAULT_LLM_DICTATION_PIPECAT_ENABLED: str = "off"
         self.DEFAULT_LLM_DICTATION_TRANSCRIBE_PROMPT: str = (
             "Transcribe this audio to text. Return only the transcription."
@@ -357,6 +358,17 @@ class LLMDictationMixin:
             "Seconds of audio in each microphone block: the step every "
             "other listening duration is counted in, and how often speech "
             "is checked. Default: 0.1."
+        ),
+    )
+
+    LLM_DICTATION_DEVICE = EnvField(
+        str,
+        doc=(
+            "Microphone PortAudio opens, by its name or index — `pulse` and "
+            "`default` on a Linux or WSL machine, where which of them is opened "
+            "is the usual difference between a microphone that starts and one "
+            "that times out. Empty uses PortAudio's own default "
+            "(`sd.default.device`). Default: empty."
         ),
     )
 

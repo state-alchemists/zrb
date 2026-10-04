@@ -44,6 +44,7 @@ class DictationConfig:
     deny_words: list[str] | None = None
     stop_words: list[str] | None = None
     polite_words: list[str] | None = None
+    device: str | None = None
     block_duration: float | None = None
     pipecat_enabled: bool | None = None
     transcribe_prompt: str | None = None

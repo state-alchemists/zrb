@@ -16,11 +16,18 @@ np = pytest.importorskip("numpy")
 
 
 class FakeStream:
-    def __enter__(self):
-        return self
+    """A `sounddevice.InputStream`: started by `_open_microphone`, closed when
+    the listening stops."""
 
-    def __exit__(self, *exc):
-        return False
+    def __init__(self):
+        self.is_started = False
+        self.is_closed = False
+
+    def start(self):
+        self.is_started = True
+
+    def close(self):
+        self.is_closed = True
 
 
 def _fake_sounddevice(captured):

@@ -1,7 +1,8 @@
 """Tests for `zrb.llm.dictation.listen`.
 
 The microphone is a fake `sounddevice` whose `InputStream` hands its callback
-to the test, which then plays blocks into it.
+to the test, which then plays blocks into it. Opening that microphone, and
+recording from it, are `test_listen_microphone.py`'s.
 """
 
 import asyncio
@@ -10,17 +11,24 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from zrb.llm.dictation.config import DictationConfig
-from zrb.llm.dictation.listen import MicState, UtteranceCutter, listen, record
+from zrb.llm.dictation.listen import MicState, UtteranceCutter, listen
 
 np = pytest.importorskip("numpy")
 
 
 class FakeStream:
-    def __enter__(self):
-        return self
+    """A `sounddevice.InputStream`: started by `_open_microphone`, closed when
+    the listening stops."""
 
-    def __exit__(self, *exc):
-        return False
+    def __init__(self):
+        self.is_started = False
+        self.is_closed = False
+
+    def start(self):
+        self.is_started = True
+
+    def close(self):
+        self.is_closed = True
 
 
 def _fake_sounddevice(captured):
@@ -56,43 +64,6 @@ async def _play(captured, blocks):
     await asyncio.sleep(0)  # let the coroutine open the stream
     for block in blocks:
         captured["callback"](block, len(block), None, None)
-
-
-# --- record -----------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_record_returns_captured_blocks_as_int16_pcm():
-    captured = {}
-    with patch.dict("sys.modules", {"sounddevice": _fake_sounddevice(captured)}):
-        task = asyncio.create_task(record(_holds_for(2)))
-        await _play(captured, [_block(0.5), _block(0.25)])
-        result = await task
-
-    assert result == _pcm(0.5, 0.5, 0.25, 0.25)
-    assert captured["samplerate"] == 16000
-    assert captured["channels"] == 1
-
-
-@pytest.mark.asyncio
-async def test_record_returns_empty_bytes_when_nothing_recorded():
-    with patch.dict("sys.modules", {"sounddevice": _fake_sounddevice({})}):
-        assert await record(lambda: False) == b""
-
-
-@pytest.mark.asyncio
-async def test_record_keeps_waiting_through_a_silent_microphone():
-    with patch.dict("sys.modules", {"sounddevice": _fake_sounddevice({})}):
-        assert await record(_holds_for(2)) == b""
-
-
-@pytest.mark.asyncio
-async def test_record_explains_a_microphone_that_will_not_open():
-    fake_sd = MagicMock()
-    fake_sd.InputStream.side_effect = OSError("no device")
-    with patch.dict("sys.modules", {"sounddevice": fake_sd}):
-        with pytest.raises(RuntimeError, match="Cannot open microphone: no device"):
-            await record(lambda: True)
 
 
 # --- listen -----------------------------------------------------------------

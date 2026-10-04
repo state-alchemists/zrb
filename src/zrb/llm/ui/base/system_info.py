@@ -37,7 +37,9 @@ async def communicate_or_reap(proc) -> tuple[bytes, bytes]:
             except BaseException:
                 try:
                     proc.kill()
-                except Exception:
+                except OSError:
+                    # The child is gone, or the OS refused the kill: either
+                    # way there is nothing left to reap.
                     pass
         raise
 

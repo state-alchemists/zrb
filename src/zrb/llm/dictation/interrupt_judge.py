@@ -71,16 +71,16 @@ async def judge_barge_in(
     """What *command* — what was heard over zrb, past its wake word — asks of
     it, or ``None`` when the judge could not answer in time, is not configured
     to work, or failed. Never raises: an interrupting utterance is not worth
-    ending a session's listening over."""
-    # lazy: heavy third-party — pydantic_ai, and its exceptions with it.
-    from pydantic_ai.exceptions import AgentRunError, UserError
-
+    ending a session's listening over, so every failure at all — a model zrb
+    cannot resolve, a provider that will not answer, a judge that is simply
+    wrong — leaves the word lists deciding."""
     try:
         agent = create_interrupt_judge_agent(model)
-        result = await asyncio.wait_for(
-            agent.run(command), _JUDGE_TIMEOUT_SECONDS
-        )
+        result = await asyncio.wait_for(agent.run(command), _JUDGE_TIMEOUT_SECONDS)
         return result.output
-    except (AgentRunError, UserError, asyncio.TimeoutError, OSError) as exc:
+    except asyncio.CancelledError:
+        # A turn being cancelled is not a judge that failed: let it unwind.
+        raise
+    except Exception as exc:
         logger.warning(f"Deciding what {command!r} asks of zrb failed: {exc}")
         return None
