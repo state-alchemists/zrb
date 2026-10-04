@@ -91,7 +91,7 @@ async def test_stream_ai_response_updates_last_output(base_ui):
 
 @pytest.mark.asyncio
 async def test_confirm_tool_execution_delegation(base_ui):
-    """Test that tool confirmation delegates to the internal handler (observable via handle)."""
+    """Tool confirmation delegates to the internal handler via ``handle``."""
     mock_call = MagicMock()
     # tool_call_handler is public
     base_ui.tool_call_handler.handle = AsyncMock(return_value="Approved")
@@ -404,13 +404,22 @@ async def test_execute_hook_blocking_uses_the_task_hook_manager(base_ui):
     assert result == ["mine"]
 
 
-def test_session_started_at_is_recorded_at_construction():
-    """The status bar's session-uptime timer starts when the session does."""
+def test_working_timer_starts_and_resets_with_thinking_state():
+    """The status bar timer covers only the current working period."""
     ctx = Context(SharedContext(), "test", 0, "")
-    with patch("zrb.llm.ui.base.ui.time.monotonic", return_value=12345.0):
-        ui = ConcreteUI(ctx=ctx, llm_task=MagicMock(), history_manager=MagicMock())
+    ui = ConcreteUI(ctx=ctx, llm_task=MagicMock(), history_manager=MagicMock())
+    assert ui.working_started_at is None
 
-    assert ui.session_started_at == 12345.0
+    with patch("zrb.llm.ui.base.ui.time.monotonic", return_value=12345.0):
+        ui.is_thinking = True
+    assert ui.working_started_at == 12345.0
+
+    with patch("zrb.llm.ui.base.ui.time.monotonic", return_value=99999.0):
+        ui.is_thinking = True
+    assert ui.working_started_at == 12345.0
+
+    ui.is_thinking = False
+    assert ui.working_started_at is None
 
 
 def test_start_tool_call_records_the_running_tool(base_ui):

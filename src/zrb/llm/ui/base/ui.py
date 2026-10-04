@@ -264,9 +264,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._active_run_context: Any = None
         self._process_messages_task: asyncio.Task | None = None
         self._last_result_data: str | None = None
-        # Runtime-timer state for the status bar: when this session began and
-        # the tool calls currently executing, keyed by their tool_call_id.
-        self._session_started_at = time.monotonic()
+        # Runtime-timer state for the status bar: the current working period
+        # and the tool calls currently executing, keyed by their tool_call_id.
+        self._working_started_at: float | None = None
         self._running_tools: dict[str, RunningTool] = {}
 
         self._cwd = os.getcwd()
@@ -492,9 +492,23 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._git_info = value
 
     @property
-    def session_started_at(self) -> float:
-        """`time.monotonic()` when this chat session was constructed."""
-        return self._session_started_at
+    def is_thinking(self) -> bool:
+        """Whether the assistant is currently producing a response."""
+        return self._uidefaults_is_thinking
+
+    @is_thinking.setter
+    def is_thinking(self, value: bool) -> None:
+        was_thinking = self._uidefaults_is_thinking
+        self._uidefaults_is_thinking = value
+        if value and not was_thinking:
+            self._working_started_at = time.monotonic()
+        elif not value:
+            self._working_started_at = None
+
+    @property
+    def working_started_at(self) -> float | None:
+        """`time.monotonic()` when the current working period began."""
+        return self._working_started_at
 
     @property
     def running_tool(self) -> "RunningTool | None":

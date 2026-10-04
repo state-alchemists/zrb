@@ -753,10 +753,13 @@ class UIOutput:
             setattr(self, "_thinking_dots", next_dots)
             dot_str = "." * next_dots + " " * (3 - next_dots)
             queued = cast(int, getattr(self._ui, "queued_message_count", 0))
+            working_duration = self._get_working_duration()
+            duration_suffix = f" ({working_duration})" if working_duration else ""
             return [
                 (
                     CFG.LLM_UI_STYLE_THINKING,
-                    f" ⏳ {self._ui.assistant_name} is working{dot_str} ",
+                    f" ⏳ {self._ui.assistant_name} is working"
+                    f"{duration_suffix}{dot_str} ",
                 ),
                 *self._get_tool_duration_fragment(),
                 *(
@@ -764,7 +767,6 @@ class UIOutput:
                     if queued
                     else []
                 ),
-                *self._get_session_uptime_fragments(),
                 *self._get_token_usage_fragments(),
             ]
         # Persistent Shift+Tab mode indicator (mirrors Claude Code's mode badge
@@ -780,21 +782,17 @@ class UIOutput:
             ),
             (f"fg:{CFG.LLM_UI_STYLE_FAINT}", "shift+tab to cycle "),
         ]
-        result.extend(self._get_session_uptime_fragments())
         result.extend(self._get_token_usage_fragments())
         return result
 
-    def _get_session_uptime_fragments(self) -> list:
-        """Session-uptime status-bar fragment; empty while the timer is off."""
+    def _get_working_duration(self) -> str:
+        """Current working-period duration, or empty when unavailable."""
         if not CFG.LLM_UI_SHOW_RUNTIME_TIMERS:
-            return []
-        started_at = getattr(self._ui, "session_started_at", None)
+            return ""
+        started_at = getattr(self._ui, "working_started_at", None)
         if started_at is None:
-            return []
-        elapsed = time.monotonic() - started_at
-        return [
-            (f"fg:{CFG.LLM_UI_STYLE_FAINT}", f" ⏱ {format_elapsed(elapsed)} ")
-        ]
+            return ""
+        return format_elapsed(time.monotonic() - started_at)
 
     def _get_tool_duration_fragment(self) -> list:
         """Running-tool elapsed fragment; empty when no tool runs or off."""
