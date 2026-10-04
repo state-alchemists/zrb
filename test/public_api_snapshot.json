@@ -256,6 +256,7 @@
         "multimodal_model",
         "plan_mode_active",
         "redraw_echo",
+        "remove_echo",
         "run_async",
         "run_interactive_command",
         "set_status_badge",

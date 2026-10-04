@@ -41,6 +41,7 @@ if TYPE_CHECKING:
 
     from zrb.llm.agent.types import Model, UserContent
     from zrb.llm.task.llm_task import LLMTask
+    from zrb.llm.ui.base.message_queue import QueuedMessage
 
 logger = logging.getLogger(__name__)
 
@@ -454,6 +455,15 @@ class UI(BaseUI):
         redraw — so an edit and a paste merge draw the same thing.
         """
         return self._message_editing.redraw_echo(entry)
+
+    def remove_echo(self, entry: "QueuedMessage") -> None:
+        """Override hook `BaseUI` invokes polymorphically (see its base no-op).
+
+        The delete-side counterpart to `redraw_echo`: the dropped message's
+        echoed line is spliced out of this UI's output buffer, so `Ctrl+X`
+        leaves no line behind for a turn that will never run.
+        """
+        self._message_editing.remove_echo(entry)
 
     # =========================================================================
     # UIOutput delegators

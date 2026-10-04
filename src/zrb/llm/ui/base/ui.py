@@ -21,7 +21,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from collections.abc import AsyncIterable, Callable, Sequence
+from collections.abc import AsyncIterable, Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, TextIO, cast
 
@@ -117,6 +117,23 @@ def _command_alias_property(key: str, label: str) -> property:
 
     getter.__doc__ = f"Get the list of {label} commands."
     return property(getter, setter)
+
+
+def _broadcast_echo(ui: AnyUI, call: Callable[[AnyUI], object]) -> None:
+    """Call `call` on every UI holding its own echo of the same queued message.
+
+    A still-queued message is one shared entry, but every UI that displayed it
+    keeps its own echo span in its own buffer: all the children of a `MultiUI`,
+    or the UI alone. Best-effort — a child that cannot splice (a Telegram
+    channel updates nothing) or that raises must not take the update away from
+    the children after it.
+    """
+    parent = ui.multi_ui_parent
+    for target in parent.children if parent else [ui]:
+        try:
+            call(target)
+        except Exception as e:
+            CFG.LOGGER.debug(f"Child UI echo update failed: {e}")
 
 
 class BaseUI(UIStateDefaultsMixin, AnyUI):
@@ -964,15 +981,24 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         if not queue.contains(entry):
             return False
         entry.text = new_text.strip()
-        targets: Sequence[AnyUI] = (
-            self.multi_ui_parent.children if self.multi_ui_parent else [self]
-        )
-        for ui in targets:
-            try:
-                ui.redraw_echo(entry)
-            except Exception as e:
-                CFG.LOGGER.debug(f"Child UI echo redraw failed: {e}")
+        _broadcast_echo(self, lambda ui: ui.redraw_echo(entry))
         return True
+
+    def delete_queued_message(self, entry: QueuedMessage) -> None:
+        """Drop a still-queued message and take its echoed line from every UI.
+
+        Nothing when the message's turn already started (its entry is no longer
+        queued), the same boundary `edit_queued_message` refuses on. The entry is
+        shared across every child UI in a MultiUI, so it leaves the one queue for
+        all of them and the echo removal is broadcast the way
+        `edit_queued_message` broadcasts the redraw — a sibling transcript that
+        kept its own echo would show a line for a message that never runs.
+        """
+        queue = self.effective_message_queue
+        if not queue.contains(entry):
+            return
+        queue.remove(entry)
+        _broadcast_echo(self, lambda ui: ui.remove_echo(entry))
 
     def redraw_echo(self, entry: QueuedMessage) -> str | None:
         """Rewrite `entry`'s echoed line after an edit; the rewritten line or
@@ -980,6 +1006,12 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         TUI overrides this to splice into its output buffer; other UIs have no
         buffer, so the base no-op returns None."""
         return None
+
+    def remove_echo(self, entry: QueuedMessage) -> None:
+        """Take `entry`'s echoed line out after a delete; the delete-side
+        counterpart to `redraw_echo` — `AnyUI`'s echo contract. The default TUI
+        overrides this to splice into its output buffer; other UIs have no
+        buffer, so the base no-op does nothing."""
 
     def append_markdown(self, markdown_text: str) -> None:
         """Render `markdown_text` at the current output width and append it.

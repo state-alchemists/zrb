@@ -11,6 +11,7 @@ import pytest
 
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.base.message_queue import MessageQueue
+from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.default.message_editing import UIMessageEditing
 from zrb.llm.ui.default.output import UIOutput
 
@@ -21,6 +22,11 @@ class MockEditingUI:
     Holds the state both parts reach via `self._ui` (normally supplied by the
     default `UI`) and forwards everything else to whichever part defines it.
     """
+
+    # The real fan-out (drop from the shared queue, take the echo out of every
+    # target), which the default `UI` inherits from `BaseUI` unchanged — so a
+    # delete behaves here as it does in production.
+    delete_queued_message = BaseUI.delete_queued_message
 
     def __init__(self):
         self._output_field = MagicMock()
@@ -34,11 +40,21 @@ class MockEditingUI:
         self.invalidate_task = None
         self.markdown_theme = None
         self.status_badges: tuple[str, ...] = ()
-        self.effective_message_queue = MessageQueue()
+        self.multi_ui_parent = None
+        self._own_message_queue = MessageQueue()
         self._is_thinking = False
         self._current_confirmation = None
         self._output = UIOutput(self)
         self._message_editing = UIMessageEditing(self)
+
+    @property
+    def effective_message_queue(self):
+        """The queue submissions land on: a `MultiUI` parent's when there is
+        one, else this UI's own — the routing `BaseUI` does for every child."""
+        parent = self.multi_ui_parent
+        if parent is not None:
+            return parent.message_queue
+        return self._own_message_queue
 
     @property
     def output_field(self):
@@ -93,3 +109,13 @@ class _RecordingBuffer:
 @pytest.fixture
 def editing_ui():
     return MockEditingUI()
+
+
+@pytest.fixture
+def editing_multi_ui():
+    """Two real `MockEditingUI`s wired as `MultiUI` wires them: `multi_ui_parent`
+    set on each, so both route to the one shared queue and one delete reaches
+    both transcripts."""
+    from zrb.llm.ui.multi_ui import MultiUI
+
+    return MultiUI([MockEditingUI(), MockEditingUI()])

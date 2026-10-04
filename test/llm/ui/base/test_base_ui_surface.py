@@ -160,6 +160,28 @@ def test_edit_queued_message_logs_child_redraw_failure(surface_ui):
     assert entry.text == "new text"
 
 
+def test_delete_queued_message_logs_child_echo_removal_failure():
+    """One child that cannot splice its echo must not stop the drop, nor the
+    other children — the same best-effort fan-out the redraw uses."""
+
+    class _BombRemoveUI(_SurfaceUI):
+        def remove_echo(self, entry):
+            raise RuntimeError("splice failed")
+
+    child = _BombRemoveUI(
+        ctx=Context(SharedContext(), "test", 0, ""),
+        llm_task=MagicMock(hook_manager=None, active_hook_manager=None),
+        history_manager=MagicMock(),
+    )
+    parent = MultiUI([child])
+    entry = _make_entry("old text")
+    parent.message_queue.put_nowait(entry)
+
+    child.delete_queued_message(entry)
+
+    assert not parent.message_queue.contains(entry)
+
+
 @pytest.mark.asyncio
 async def test_drain_hook_tasks_lets_a_hook_finish(surface_ui):
     """A Stop hook fired as the chat exits gets to finish before teardown."""

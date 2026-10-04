@@ -289,9 +289,13 @@ class RecordingUI(ConcreteUI):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.redrawn = []
+        self.removed = []
 
     def redraw_echo(self, entry):
         self.redrawn.append(entry)
+
+    def remove_echo(self, entry):
+        self.removed.append(entry)
 
 
 def make_ui():
@@ -347,6 +351,44 @@ async def test_edit_queued_message_refused_after_turn_started_in_multi_ui():
     assert entry.text == "original"
     assert child_a.redrawn == []
     assert child_b.redrawn == []
+
+
+def test_delete_queued_message_drops_the_entry_for_every_child():
+    """The entry is shared, but each child's output buffer holds its own echo,
+    so a delete has to reach all of them — a sibling left out would show a line
+    for a message whose turn never runs."""
+    child_a, child_b = make_ui(), make_ui()
+    parent = FakeMultiUIParent(children=[child_a, child_b])
+    child_a.multi_ui_parent = parent
+    child_b.multi_ui_parent = parent
+    entry = make_entry("original")
+    parent.message_queue.put_nowait(entry)
+
+    child_a.delete_queued_message(entry)
+
+    assert not parent.message_queue.contains(entry)
+    assert child_a.removed == [entry]
+    assert child_b.removed == [entry]
+
+
+@pytest.mark.asyncio
+async def test_delete_queued_message_leaves_a_started_message_alone():
+    """A message popped from the shared queue is no longer deletable, and no
+    child is asked to take an echo out for it."""
+    child_a, child_b = make_ui(), make_ui()
+    parent = FakeMultiUIParent(children=[child_a, child_b])
+    child_a.multi_ui_parent = parent
+    child_b.multi_ui_parent = parent
+    entry = make_entry("original")
+    parent.message_queue.put_nowait(entry)
+
+    popped = await parent.message_queue.get()
+    assert popped is entry
+
+    child_a.delete_queued_message(entry)
+
+    assert child_a.removed == []
+    assert child_b.removed == []
 
 
 @pytest.mark.asyncio

@@ -162,16 +162,19 @@ def test_deleting_with_nothing_recalled_leaves_the_queue_alone(editing_ui):
 
 def test_a_message_whose_turn_started_cannot_be_deleted(editing_ui):
     """The queue no longer holds it, so the recall is dropped and no entry is
-    taken out."""
+    taken out — and the recalled text goes with it, rather than staying in the
+    input to be sent again as a new message by a later Enter."""
     entry = make_entry()
     _queue(editing_ui, entry)
-    buffer = _Buffer()
+    buffer = _Buffer("a draft I was writing")
     editing_ui.handle_up_arrow(_event(buffer))
+    assert buffer.text == "original"
     editing_ui.effective_message_queue.remove(entry)
 
     editing_ui.handle_delete_queued(_event(buffer))
 
     assert editing_ui.queued_edit_entry is None
+    assert buffer.text == "a draft I was writing"
 
 
 def test_only_the_recalled_message_is_deleted(editing_ui):
@@ -184,3 +187,59 @@ def test_only_the_recalled_message_is_deleted(editing_ui):
 
     assert editing_ui.effective_message_queue.pending() == (first,)
     assert second not in editing_ui.effective_message_queue.pending()
+
+
+def test_deleting_while_a_sub_agent_view_is_up_clears_the_parked_transcript(
+    editing_ui,
+):
+    """The pane holds the sub-agent's transcript and the main one is parked.
+    The line has to leave the parked copy too: that is the text the view
+    restores when it closes, so a line left there comes back on screen."""
+    echo = "\n💬 10:00 >> original\n"
+    editing_ui.output_field.text = echo
+    entry = make_entry()
+    editing_ui.track_echo_span(entry, echo)
+    # The view opens: the main transcript is parked, the pane swaps to the
+    # sub-agent's own buffer.
+    editing_ui.saved_main_output = editing_ui.output_text
+    editing_ui.viewing_agent_id = "agent-1"
+    editing_ui.output_field.text = "sub-agent output\n"
+    _queue(editing_ui, entry)
+    buffer = _Buffer()
+    editing_ui.handle_up_arrow(_event(buffer))
+
+    editing_ui.handle_delete_queued(_event(buffer))
+
+    assert editing_ui.effective_message_queue.pending() == ()
+    # The sub-agent's own transcript is left exactly as it was...
+    assert editing_ui.output_text == "sub-agent output\n"
+    # ...and the parked main transcript lost the line, so closing the view
+    # cannot bring the deleted message back.
+    assert editing_ui.saved_main_output == ""
+    assert entry.echo_spans == {}
+    assert editing_ui.rendered_blocks == []
+
+
+def test_deleting_from_one_child_of_a_multi_ui_clears_every_transcript(
+    editing_multi_ui,
+):
+    """Each child UI keeps its own echo, so the delete has to reach all of
+    them — a child left out would keep showing a message whose turn never
+    runs."""
+    first, second = editing_multi_ui.children
+    echo = "\n💬 10:00 >> original\n"
+    entry = make_entry()
+    for child in (first, second):
+        child.output_field.text = echo
+        child.track_echo_span(entry, echo)
+    editing_multi_ui.message_queue.put_nowait(entry)
+    buffer = _Buffer()
+    first.handle_up_arrow(_event(buffer))
+    assert first.queued_edit_entry is entry
+
+    first.handle_delete_queued(_event(buffer))
+
+    assert editing_multi_ui.message_queue.pending() == ()
+    assert first.output_text == ""
+    assert second.output_text == ""
+    assert entry.echo_spans == {}

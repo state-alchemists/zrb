@@ -382,6 +382,7 @@ Return `True` when consumed, `False` to let the next handler (and finally the LL
 | `on_exit()` | No-op | Cleanup on shutdown |
 | `ask_user_choice(spec)` | Formats the spec as numbered text and delegates to `ask_user` | Override for an arrow-key-selectable widget |
 | `stream_to_parent()` | Calls `append_to_output` | For multiplexed UIs |
+| `track_echo_span(entry, echo)` / `redraw_echo(entry)` / `remove_echo(entry)` | No-ops (the default TUI splices its own output buffer) | Keep a queued message's echoed line in step with the message: record where it landed on submit, rewrite it after an edit, take it out when `Ctrl+X` drops the message. `BaseUI` fans all three out to every child of a `MultiUI`, since each child holds its own echo. A class implementing `AnyUI` directly must define all three |
 | `_get_output_field_width()` | None | Custom text width for formatting (read by the diff/markdown formatters through the public `output_field_width` property) |
 | `record_tool_call_block(collapsed, full)` | Falls back to `append_to_output(collapsed, end="", kind="tool_call")` | Print a tool-call/result line that a toggle-capable UI can later expand in place |
 | `mark_thinking_block_start()` | No-op | Record where a live thinking block begins, so it can be collapsed once it ends |

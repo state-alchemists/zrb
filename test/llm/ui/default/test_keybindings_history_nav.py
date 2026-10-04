@@ -5,6 +5,7 @@ from prompt_toolkit.clipboard import ClipboardData
 from prompt_toolkit.key_binding import KeyBindings
 
 from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
+from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.default.agent_picker import UIAgentPicker
 from zrb.llm.ui.default.keybindings import UIKeybindings
 from zrb.llm.ui.default.message_editing import UIMessageEditing
@@ -20,12 +21,18 @@ class MockUI:
     it: through the part's own public property, via `__getattr__` below.
     """
 
+    # The real fan-out (drop from the queue, take the echo out of every target),
+    # which the default `UI` inherits from `BaseUI` unchanged — Ctrl+X's own
+    # behavior is what the tests here cover, so it must not be stubbed out.
+    delete_queued_message = BaseUI.delete_queued_message
+
     def __init__(self):
         self.background_tasks = set()
         self.pending_attachments = []
         self.conversation_session_name = "test_session"
         self.running_llm_task = None
         self.is_thinking = False
+        self.multi_ui_parent = None
 
         self.input_field = MagicMock()
         self.output_field = MagicMock()

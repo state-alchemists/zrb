@@ -16,13 +16,14 @@ Where each piece lives:
 * `handle_enter_queued_edit` is called from the Enter keybinding before the
   plain-submit path; it turns a queued message in the buffer into an edit.
 * `handle_delete_queued` is called from the Ctrl+X keybinding: it drops the
-  recalled message from the queue and splices its echo away (`remove_echo`,
-  the delete path's counterpart to `redraw_echo`).
+  recalled message through `delete_queued_message` (below) and splices its echo
+  away (`remove_echo`, the delete path's counterpart to `redraw_echo`).
 * `track_echo_span` records where a submitted echo landed in the output
   buffer; `redraw_echo` splices the edited line back in. Both are called
   through `UI`'s own `track_echo_span`/`redraw_echo` override hooks (the
   `AnyUI` echo contract), which `BaseUI` invokes polymorphically and
-  broadcasts across every child UI of a MultiUI.
+  broadcasts across every child UI of a MultiUI. `remove_echo` is the third
+  hook of that contract, broadcast the same way when a message is dropped.
 * `redraw_echo` is the one splice path behind both callers (an edit and a
   paste merge) and re-decides the body from the entry's current text, so the
   two can never draw the message differently.
@@ -224,20 +225,19 @@ class UIMessageEditing:
 
     def handle_delete_queued(self, event: "KeyPressEvent") -> None:
         """Ctrl+X while a still-queued message is recalled: drop it from the
-        queue, and take its echoed line out of the transcript.
+        queue, and take its echoed line out of every transcript.
 
-        Nothing when no message is recalled, or the recalled message's turn
-        already started, so the key is harmless to press. The input goes back
-        to the draft saved before the recall.
+        Nothing when no message is recalled, so the key is harmless to press.
+        The input always goes back to the draft saved before the recall — also
+        when the message's turn started while it was recalled, where abandoning
+        the recall is all that is left and the recalled text must not be left in
+        the buffer to be submitted again by a later Enter.
         """
         entry = self._queued_edit_entry
         if entry is None:
             return
         self._queued_edit_entry = None
-        if not self._ui.effective_message_queue.contains(entry):
-            return
-        self._ui.effective_message_queue.remove(entry)
-        self.remove_echo(entry)
+        self._ui.delete_queued_message(entry)
         self._load_edit_text(event.current_buffer, self._queued_edit_draft)
 
     def track_echo_span(self, entry: QueuedMessage, echo: str) -> None:
@@ -279,7 +279,7 @@ class UIMessageEditing:
             # The main transcript is parked behind a sub-agent view; the span
             # is kept, since it is still correct for the text that returns.
             return None
-        span = self._refresh_echo_span(entry)
+        span = self._refresh_echo_span(entry, self._ui.output_text)
         if span is None:
             return None
         if span.end > len(self._ui.output_text):
@@ -293,13 +293,30 @@ class UIMessageEditing:
             return None
         return span
 
-    def _refresh_echo_span(self, entry: QueuedMessage) -> EchoSpan | None:
+    def _parked_main_text(self) -> str | None:
+        """The main transcript parked behind a sub-agent view, if one is up.
+
+        ``None`` while the pane holds the main transcript itself, where the echo
+        offsets index `output_text` directly. During a view the offsets address
+        the *parked* text — what `UIOutput._get_main_text` returns, and what
+        `replace_output_span` therefore writes — so a splice validated against it
+        lands where the echo belongs for when the view closes.
+        """
+        if getattr(self._ui, "viewing_agent_id", None) is None:
+            return None
+        return getattr(self._ui, "saved_main_output", None)
+
+    def _refresh_echo_span(
+        self, entry: QueuedMessage, text: str
+    ) -> EchoSpan | None:
         """This UI's recorded span for `entry`, re-read off its tracked block.
 
-        The block's offsets survive resizes and in-place edits above it, but
-        the region is checked against the text the block last drew before
-        being adopted. Falls back to the stored span when there is no block;
-        ``None`` when this UI recorded no span.
+        `text` is the buffer the offsets index — this UI's output, or the main
+        transcript parked behind a sub-agent view (see `_parked_main_text`). The
+        block's offsets survive resizes and in-place edits above it, but the
+        region is checked against the text the block last drew before being
+        adopted. Falls back to the stored span when there is no block; ``None``
+        when this UI recorded no span.
         """
         span = entry.echo_spans.get(self._ui)
         if span is None:
@@ -308,14 +325,13 @@ class UIMessageEditing:
         if block is None:
             return span
         start, end = block[0], block[1]
-        text = self._ui.output_text[start:end]
-        if text != block[2].rendered:
+        if text[start:end] != block[2].rendered:
             # The buffer was replaced or rewound under the block: drop both
             # the span and the block, which would corrupt the next re-wrap.
             self._ui.rendered_blocks.remove(block)
             del entry.echo_spans[self._ui]
             return None
-        span = EchoSpan(start=start, end=end, text=text)
+        span = EchoSpan(start=start, end=end, text=text[start:end])
         entry.echo_spans[self._ui] = span
         return span
 
@@ -379,11 +395,18 @@ class UIMessageEditing:
         The delete path's counterpart to `redraw_echo`: the same validated span,
         spliced empty, and the tracked block dropped so a later re-wrap cannot
         draw the line back. Nothing happens when there is no valid span for this
-        UI (or a sub-agent view is on screen) — the queue still loses the
-        message, since a stale line in the transcript is a better failure than a
-        corrupted one.
+        UI — the queue still loses the message, since a stale line in the
+        transcript is a better failure than a corrupted one.
+
+        A sub-agent view is the one case where leaving the line behind is not
+        acceptable: the pane shows that agent's transcript, so
+        `_validated_echo_span` declines, but the echo also sits in the main
+        transcript parked behind the view — the very text restored, stale line
+        and all, when the view closes. `_parked_echo_span` covers it.
         """
         span = self._validated_echo_span(entry)
+        if span is None:
+            span = self._parked_echo_span(entry)
         if span is None:
             return
         block = self._echo_block(entry)
@@ -391,6 +414,20 @@ class UIMessageEditing:
             self._ui.rendered_blocks.remove(block)
         entry.echo_spans.pop(self._ui, None)
         self._ui.replace_output_span(span.start, span.end, "")
+
+    def _parked_echo_span(self, entry: QueuedMessage) -> EchoSpan | None:
+        """`entry`'s span within the parked main transcript, or ``None``.
+
+        The view-aware half of `remove_echo`: re-read the same way, but validated
+        against the parked text, so the offsets stay correct for the transcript
+        that returns. ``None`` when no main transcript is parked (the pane holds
+        the main text, and `_validated_echo_span` is the right reader) or the
+        parked text no longer holds the echoed line.
+        """
+        parked = self._parked_main_text()
+        if parked is None:
+            return None
+        return self._refresh_echo_span(entry, parked)
 
     def render_echo(self, source: RenderedEcho, width: int | None) -> str:
         """Render a queued message's whole echo — header, body, separator.
