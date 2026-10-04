@@ -68,10 +68,11 @@ of the transport acts on the audio yet: what the flag proves is the transport,
 not a new voice, and the dictation and speech paths are untouched either way.
 
 Two suites hold it up. `test/llm/dictation/test_pipecat_input.py` covers the
-transport: fifty blocks pushed from outside arrive at the sink in order and
-intact, while the loop the pipeline was started on keeps ticking — and a start
+transport: fifty blocks pushed from outside are all counted at the sink, byte for
+byte, while the loop the pipeline was started on keeps ticking — and a start
 that fails, or a cancel the worker will not take, ends its task and raises
-nothing. `test/llm/dictation/test_feature_pipecat.py` covers the hand-off: a
+nothing. The sink counts and holds nothing, since a listening lasts for hours.
+`test/llm/dictation/test_feature_pipecat.py` covers the hand-off: a
 session with the flag on feeds the pipeline from the same capture and closes it
 when the listening stops, an install without the extra listens on and says so,
 and a start or a close that fails is reported and given up on rather than ending
@@ -81,7 +82,7 @@ hands-free.
 
 | Stage | What comes out | Order |
 | --- | --- | --- |
-| 1 | Input only, behind a flag: zrb pushes audio into a pipeline that ends at a sink. Output untouched, `Speaker` plays as now. Exit: the existing dictation and speech suites pass with the flag off, and a test pushes a known number of chunks and sees the same count reach the sink with it on. **Landed**: the flag is ZRB_LLM_DICTATION_PIPECAT_ENABLED, `listen` hands every captured block over through `on_captured`, and `AudioPipeline` owns the pipeline for the listening | First, because it can run beside what exists |
+| 1 | Input only, behind a flag: zrb pushes audio into a pipeline that ends at a sink. Output untouched, `Speaker` plays as now. Exit: the existing dictation and speech suites pass with the flag off, and a test pushes a known number of chunks and sees the same count reach the sink with it on. **Landed**: the flag is ZRB_LLM_DICTATION_PIPECAT_ENABLED, `listen` hands every captured block over through `on_captured` — from a task of its own, so the reading loop stopping to transcribe and answer an utterance neither delays the hand-off nor drops a block behind it — and `AudioPipeline` owns the pipeline for the listening | First, because it can run beside what exists |
 | 2 | `UtteranceCutter` and its loudness bars. VAD and the turn-start strategies take over; the wake-word gate stays. Exit: the pinned rows above still pass on the VAD path, and a test feeds a mid-sentence pause and gets the boundaries the cutter produced | Second, because it needs stage 1 |
 | 3 | The silence-based end of a turn, replaced by a turn analyzer over the smart-turn model. Exit: a turn does not end at a mid-sentence pause, and a slow transcript still ends inside the latency budget | Third, because it needs VAD driving turn starts |
 | 4 | Output, through a BaseOutputTransport subclass. **Unverified**: nothing yet shows a pipeline interruption reaches zrb's pause fast enough, so this stage has no exit criterion that can be met today | Last, because it is the least measured, and the one that must not break a pause |

@@ -134,7 +134,7 @@ async def test_listen_keep_partial_yields_speech_cut_off_by_stop():
 
 @pytest.mark.asyncio
 async def test_listen_hands_every_captured_block_to_on_captured():
-    """The capture is handed over as it is read, before it is cut.
+    """The capture is handed over as it is captured, before it is cut.
 
     This is the hand-off the Pipecat pipeline is fed from (ADR-0106, stage 1):
     every block, the pre-roll and the trailing silence included, as 16 kHz mono
@@ -348,13 +348,18 @@ def test_flush_drops_too_little_speech():
 # --- listen: the backlog ----------------------------------------------------
 
 
-async def _collect_with(config, blocks):
+async def _collect_with(config, blocks, on_captured=None):
     """Feed every block before the listener reads any, as happens while the
     caller is busy transcribing."""
     captured = {}
 
     async def consume():
-        stream = listen(config, _holds_for(len(blocks)), keep_partial=True)
+        stream = listen(
+            config,
+            _holds_for(len(blocks)),
+            keep_partial=True,
+            on_captured=on_captured,
+        )
         return [utterance async for utterance in stream]
 
     with (
@@ -445,6 +450,27 @@ async def test_speech_is_never_joined_across_dropped_audio():
         utterances = await task
 
     assert [u.audio for u in utterances] == [_pcm(0.75, 0.75, 0.75, 0.75)]
+
+
+@pytest.mark.asyncio
+async def test_the_capture_reaches_the_tap_even_when_the_backlog_drops_it():
+    """The tap is fed as blocks are captured, not as the reader reads them.
+
+    The reader stops while an utterance is transcribed and answered, and the
+    blocks the microphone captures meanwhile pile up behind it. What the
+    hand-off promises is every captured block, so a block the backlog drops must
+    still reach `on_captured` (PR #561 review).
+    """
+    blocks = [_block(0.5)] * 3
+    seen: list[bytes] = []
+
+    async def on_captured(pcm: bytes) -> None:
+        seen.append(pcm)
+
+    # Room for one block in the backlog, so the reader keeps the last one only.
+    await _collect_with(_backlog_config(0.1), blocks, on_captured=on_captured)
+
+    assert seen == [_pcm(0.5, 0.5)] * 3
 
 
 def test_the_block_duration_is_what_every_duration_is_counted_in():

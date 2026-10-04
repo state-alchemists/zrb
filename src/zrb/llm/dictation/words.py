@@ -68,15 +68,34 @@ def to_answer(
     "no, use pytest" keeps its reason. *polite_words* default to
     `CFG.LLM_DICTATION_POLITE_WORDS`.
     """
-    if polite_words is None:
-        polite_words = CFG.LLM_DICTATION_POLITE_WORDS
-    polite = {word.lower() for word in polite_words}
-    heard = [word.lower() for word in _WORD_RE.findall(text)]
+    polite = _get_polite_words(polite_words)
+    heard = _words_of(text)
     if _is_made_of(heard, approve_words, polite):
         return "yes"
     if _is_made_of(heard, deny_words, polite):
         return "no"
     return text
+
+
+def is_answer(
+    text: str,
+    approve_words: list[list[str]],
+    deny_words: list[list[str]],
+    polite_words: Collection[str] | None = None,
+) -> bool:
+    """Whether *text* is a yes or a no, as `to_answer` reads one: made only of
+    approve or deny phrases and polite words ("Yes.", "no thanks").
+
+    This is the same reading `to_answer` makes, so a caller that must decide
+    whether a transcript is an answer — rather than which answer it is — agrees
+    with the approval it will carry. *polite_words* default to
+    `CFG.LLM_DICTATION_POLITE_WORDS`, as there.
+    """
+    polite = _get_polite_words(polite_words)
+    heard = _words_of(text)
+    return _is_made_of(heard, approve_words, polite) or _is_made_of(
+        heard, deny_words, polite
+    )
 
 
 def count_words(text: str) -> int:
@@ -89,7 +108,7 @@ def is_transcriber_guess(text: str) -> bool:
     phrase Whisper-like models produce for silence ("Thank you for
     watching."), or one phrase over and over ("and this and this", "you
     you you")."""
-    words = [word.lower() for word in _WORD_RE.findall(text)]
+    words = _words_of(text)
     if not words:
         return False
     if " ".join(words) in _NOISE_GUESSES:
@@ -110,9 +129,20 @@ def _is_one_phrase_repeated(words: list[str]) -> bool:
 def is_said_alone(text: str, phrases: list[list[str]]) -> bool:
     """Whether *text* is made only of *phrases*, at least one of them:
     "Stop!", "stop". A polite word carries a yes or a no, not a stop: a stop
-    is taken as one only when it is said alone."""
-    heard = [word.lower() for word in _WORD_RE.findall(text)]
-    return _is_made_of(heard, phrases, frozenset())
+    is taken as one only when it is said alone, so no polite word stands beside
+    it here — "stop please" is not a phrase said alone (`is_answer` is the
+    reading that allows one)."""
+    return _is_made_of(_words_of(text), phrases, frozenset())
+
+
+def _words_of(text: str) -> list[str]:
+    return [word.lower() for word in _WORD_RE.findall(text)]
+
+
+def _get_polite_words(polite_words: Collection[str] | None) -> set[str]:
+    if polite_words is None:
+        polite_words = CFG.LLM_DICTATION_POLITE_WORDS
+    return {word.lower() for word in polite_words}
 
 
 def _is_made_of(

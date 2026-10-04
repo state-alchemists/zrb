@@ -30,14 +30,14 @@ def _sink(pipeline: AudioPipeline) -> Any:
 
     `AudioPipeline.counter` can only be typed as pipecat's `FrameProcessor`,
     because the sink's own class is built inside the factory — importing this
-    module must not import pipecat. Its `frame_count`, `bytes_received` and
-    `audio_frames` are what stage 1 counts on, and what this file asserts.
+    module must not import pipecat. Its `frame_count` and `bytes_received` are
+    what stage 1 counts on, and what this file asserts.
     """
     return pipeline.counter
 
 
 async def _settle(predicate, timeout: float = 5.0) -> bool:
-    """Wait until `predicate()` holds, or `timeout` elapses."""
+    """Wait until `predicate()` holds, or *timeout* elapses."""
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
     while loop.time() < deadline:
@@ -49,7 +49,7 @@ async def _settle(predicate, timeout: float = 5.0) -> bool:
 
 @pytest.mark.asyncio
 async def test_audio_pushed_from_outside_reaches_the_sink():
-    """Every block pushed in comes out the far end, in order and intact.
+    """Every block pushed in is counted at the far end, byte for byte.
 
     This is the count stage 1 exits on, and it exercises the transport's whole
     reason to exist: pipecat's base `start` never calls `set_transport_ready`,
@@ -62,12 +62,11 @@ async def test_audio_pushed_from_outside_reaches_the_sink():
             await pipeline.push(CHUNK)
 
         counter = _sink(pipeline)
-        assert await _settle(lambda: len(counter.audio_frames) >= CHUNK_COUNT), (
-            f"only {len(counter.audio_frames)} of {CHUNK_COUNT} pushed blocks "
-            "reached the sink"
+        assert await _settle(lambda: counter.bytes_received >= CHUNK_COUNT * CHUNK_BYTES), (
+            f"only {counter.bytes_received} of the {CHUNK_COUNT * CHUNK_BYTES} "
+            "pushed bytes reached the sink"
         )
         assert counter.bytes_received == CHUNK_COUNT * CHUNK_BYTES
-        assert [frame.audio for frame in counter.audio_frames] == [CHUNK] * CHUNK_COUNT
     finally:
         await pipeline.close()
 
@@ -108,7 +107,7 @@ async def test_the_pipeline_shares_the_already_running_loop():
     try:
         for _ in range(5):
             await pipeline.push(CHUNK)
-        assert await _settle(lambda: len(_sink(pipeline).audio_frames) >= 5)
+        assert await _settle(lambda: _sink(pipeline).bytes_received >= 5 * CHUNK_BYTES)
         assert ticks > 0, "the pipeline starved the loop it was started in"
     finally:
         ticking = False

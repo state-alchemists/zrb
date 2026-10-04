@@ -113,33 +113,31 @@ async def push_audio(transport: BaseInputTransport, chunk: bytes) -> None:
 
 
 def create_audio_counter() -> FrameProcessor:
-    """A pipeline sink that keeps every audio frame handed to it.
+    """A pipeline sink that counts the frames and audio handed to it.
 
     Stage 1's exit criterion is a count — as many blocks have to come out as
-    went in — and this is where that count is read from.
+    went in — and this is where that count is read from: `frame_count` is every
+    frame that reached the sink, `bytes_received` the audio among them. Nothing
+    is held: a hands-free session runs for hours, so a sink that kept the frames
+    would grow without bound and take the process with it (PR #561 review).
     """
     # lazy: heavy third-party — pipecat is the `voice` extra.
     from pipecat.frames.frames import InputAudioRawFrame
     from pipecat.processors.frame_processor import FrameProcessor
 
     class AudioCounter(FrameProcessor):
-        """Holds the audio frames it has seen, in arrival order."""
+        """Counts the frames it has seen, and the audio bytes among them."""
 
         def __init__(self) -> None:
             super().__init__()
-            self.audio_frames: list[InputAudioRawFrame] = []
             self.frame_count = 0
-
-        @property
-        def bytes_received(self) -> int:
-            """Total audio bytes that reached this sink."""
-            return sum(len(frame.audio) for frame in self.audio_frames)
+            self.bytes_received = 0
 
         async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
             await super().process_frame(frame, direction)
             self.frame_count += 1
             if isinstance(frame, InputAudioRawFrame):
-                self.audio_frames.append(frame)
+                self.bytes_received += len(frame.audio)
             await self.push_frame(frame, direction)
 
     return AudioCounter()

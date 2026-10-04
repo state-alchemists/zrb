@@ -41,6 +41,13 @@ _RECORD_POLL_SECONDS = 0.1
 # second to come up, and a machine that stalls misses that deadline.
 _OPEN_ATTEMPTS = 3
 _OPEN_RETRY_SECONDS = 0.5
+# How much capture the tap may fall behind by before it drops its oldest block:
+# a pipeline still starting up is given `_START_TIMEOUT_SECONDS` to come up, and
+# the tap outlasts that.
+_TAP_MAX_SECONDS = 10.0
+# How long the blocks still queued for the tap may take to be handed over once
+# the listening has stopped.
+_TAP_CLOSE_SECONDS = 2.0
 
 
 class Utterance(NamedTuple):
@@ -337,11 +344,17 @@ async def listen(
     limit). When older audio is dropped, any utterance in progress is
     dropped with it rather than spliced across the gap.
 
-    *on_captured* is handed every block as it is read, as 16 kHz mono 16-bit
-    PCM, before it is cut into an utterance: this is the capture the Pipecat
-    pipeline is fed from (ADR-0106, stage 1). It is awaited, so it must not be
-    slow, and it sees the blocks of an utterance that is dropped or never
-    yielded too, since the capture is zrb's either way.
+    *on_captured* is handed every block the microphone captures, as 16 kHz mono
+    16-bit PCM, before it is cut into an utterance: this is the capture the
+    Pipecat pipeline is fed from (ADR-0106, stage 1). It is handed over apart
+    from the reading loop, so it sees the blocks of an utterance that is dropped
+    or never yielded too — the capture is zrb's either way — and neither a slow
+    hand-over nor the reading loop stopping while an utterance is transcribed
+    and answered can delay it or let the backlog drop a block before it is handed
+    over (PR #561 review). It is never handed over twice, in order, and dropped
+    oldest-first if the tap itself falls `_TAP_MAX_SECONDS` behind; a hand-over
+    that fails ends the tap for the rest of the listening, since nothing
+    downstream of it decides anything.
 
     A caller that stops early must close this — `contextlib.aclosing` — or the
     microphone stays open until the generator is finalized.
@@ -350,12 +363,19 @@ async def listen(
     loop = asyncio.get_running_loop()
     block_seconds = get_block_seconds(config)
     backlog = _Backlog(to_blocks(config.max_backlog, block_seconds))
+    tap = (
+        None
+        if on_captured is None
+        else _CaptureTap(np, on_captured, to_blocks(_TAP_MAX_SECONDS, block_seconds))
+    )
 
     def on_audio(indata: Any, frames: int, time_info: Any, status: Any) -> None:
         # Checked at capture: blocks queue up during transcription, so
         # checking later would let zrb's own voice through.
         captured = _CapturedBlock(indata.copy(), is_speaking(), time.monotonic())
         loop.call_soon_threadsafe(backlog.append, captured)
+        if tap is not None:
+            loop.call_soon_threadsafe(tap.offer, captured.block)
 
     blocks = _BlockHandler(
         np,
@@ -363,29 +383,33 @@ async def listen(
         _BlockReports(on_state, on_barge_in, on_barge_in_dropped),
         _UtteranceStreamer(np, create_stream, on_partial),
     )
-    stream = await _open_microphone(
-        sd,
-        on_audio,
-        device=config.device or None,
-        blocksize=int(SAMPLE_RATE * block_seconds),
-    )
     try:
-        with closing(stream):
-            while should_listen():
-                item = await backlog.get(timeout=block_seconds * 5)
-                if item is None:
-                    continue
-                if on_captured is not None:
-                    await on_captured(_to_pcm(np, [item.block]))
-                utterance = await blocks.handle(item)
+        stream = await _open_microphone(
+            sd,
+            on_audio,
+            device=config.device or None,
+            blocksize=int(SAMPLE_RATE * block_seconds),
+        )
+        try:
+            with closing(stream):
+                while should_listen():
+                    item = await backlog.get(timeout=block_seconds * 5)
+                    if item is None:
+                        continue
+                    utterance = await blocks.handle(item)
+                    if utterance is not None:
+                        yield utterance
+            if keep_partial:
+                utterance = await blocks.flush(time.monotonic())
                 if utterance is not None:
                     yield utterance
-        if keep_partial:
-            utterance = await blocks.flush(time.monotonic())
-            if utterance is not None:
-                yield utterance
+        finally:
+            await blocks.close()
     finally:
-        await blocks.close()
+        # A microphone that would not open leaves the tap behind otherwise, and
+        # it holds a task.
+        if tap is not None:
+            await tap.close()
 
 
 # Makes a stream for one utterance, or None when the backend has none.
@@ -663,6 +687,83 @@ class _Backlog:
             except asyncio.TimeoutError:
                 return None
         return self._blocks.popleft()
+
+
+class _CaptureTap:
+    """Hands every captured block to *on_captured*, apart from the reading loop.
+
+    The reader stops while an utterance is transcribed and answered, and the
+    microphone keeps filling the backlog; a capture handed over from there
+    arrives a turn late, and a block the backlog drops on the way is never handed
+    over at all — where what `listen` promises is every captured block
+    (PR #561 review). So the tap reads a queue of its own, filled by the audio
+    callback as the backlog is, and it is bounded rather than unbounded: at most
+    *max_blocks*, whose oldest is dropped when the tap is further behind than
+    that, since a hand-over that cannot keep up must not grow into the process.
+
+    Touched only from the event loop's thread: the audio callback hands blocks
+    over with `call_soon_threadsafe`.
+    """
+
+    def __init__(
+        self,
+        np: object,
+        on_captured: Callable[[bytes], Awaitable[None]],
+        max_blocks: int,
+    ) -> None:
+        self._np = np
+        self._on_captured = on_captured
+        self._max_blocks = max_blocks
+        self._blocks: deque[object] = deque()
+        self._arrived = asyncio.Event()
+        self._is_stopped = False
+        self._task = asyncio.create_task(self._deliver())
+
+    def offer(self, block: object) -> None:
+        """Queue one captured block; the oldest goes when the tap is behind."""
+        # A tap that has ended — its hand-over failed, or the listening is over —
+        # takes nothing more, so a queue nothing drains cannot grow.
+        if self._is_stopped or self._task.done():
+            return
+        if self._max_blocks and len(self._blocks) >= self._max_blocks:
+            self._blocks.popleft()
+        self._blocks.append(block)
+        self._arrived.set()
+
+    async def _deliver(self) -> None:
+        while not self._is_stopped or self._blocks:
+            if not self._blocks:
+                self._arrived.clear()
+                await self._arrived.wait()
+                continue
+            await self._on_captured(_to_pcm(self._np, [self._blocks.popleft()]))
+
+    async def close(self) -> None:
+        """Stop the hand-off, delivering what is already queued, briefly.
+
+        The listening is over, but the blocks the microphone just captured are
+        still the capture, so the queue drains before the tap ends — with a
+        deadline, since a hand-over that does not finish must not hold the
+        teardown of the microphone that stopped feeding it.
+
+        A hand-over that raised ended the tap early: nothing downstream of it
+        decides anything yet (ADR-0106, stage 1), so the failure is reported here,
+        once, rather than ending the listening that is still going on around it.
+        Reading the exception off is also what keeps the loop from later logging
+        it as one nobody retrieved.
+        """
+        self._is_stopped = True
+        self._arrived.set()
+        done, _ = await asyncio.wait({self._task}, timeout=_TAP_CLOSE_SECONDS)
+        if not done:
+            self._task.cancel()
+            await asyncio.wait({self._task})
+        for task in done:
+            if not task.cancelled() and task.exception() is not None:
+                logger.warning(
+                    f"Handing the capture over failed ({task.exception()}); "
+                    "it stopped here"
+                )
 
 
 def _to_utterance(

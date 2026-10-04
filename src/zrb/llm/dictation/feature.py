@@ -25,6 +25,7 @@ from zrb.llm.dictation.pipecat_input import AudioPipeline, is_pipecat_available
 from zrb.llm.dictation.teardown import close_quietly
 from zrb.llm.dictation.words import (
     count_words,
+    is_answer,
     is_said_alone,
     is_transcriber_guess,
     split_phrases,
@@ -309,7 +310,10 @@ class DictationSession:
         The pipeline lives exactly as long as the listening: it decides nothing
         yet (ADR-0106, stage 1), so what it proves is that zrb's own blocks reach
         it — and feeding it is best-effort (`_feed_pipecat`), so a pipeline that
-        fails takes itself out of the way rather than the listening with it.
+        fails takes itself out of the way rather than the listening with it. The
+        capture is handed over by `listen`'s tap, apart from the loop that reads
+        the utterances (PR #561 review), so a pipeline that is slow to start or
+        to take a block delays neither the capture behind it nor the listening.
         """
         try:
             async with aclosing(
@@ -337,9 +341,9 @@ class DictationSession:
         Best-effort by construction. The pipeline decides nothing (ADR-0106,
         stage 1) and the hand-rolled path is doing the listening, so a pipeline
         that cannot start, or that fails while a block is handed to it, is
-        reported and given up on for the session instead of ending hands-free —
-        and, since `listen` awaits this, instead of blocking the microphone
-        behind it.
+        reported and given up on for the session instead of ending hands-free.
+        `listen` hands the capture over from a task of its own, so a slow start
+        holds up neither the microphone nor the listening.
         """
         if self._is_pipecat_given_up:
             return
@@ -386,7 +390,7 @@ class DictationSession:
     async def _to_command(self, utterance: Utterance, text: str) -> str | None:
         """What *utterance*, transcribed as *text*, asks zrb, or ``None``
         when there is nothing to send; the badge says which."""
-        why_not = self._get_why_not_the_user(utterance, text)
+        why_not = self._get_why_not_the_user(text)
         if why_not:
             # Not the user's words: zrb carries on, and nothing is sent.
             self._release_barge_in()
@@ -415,12 +419,16 @@ class DictationSession:
         self._rest(f"🎤 heard {_quote(command)} · listening")
         return command
 
-    def _get_why_not_the_user(self, utterance: Utterance, text: str) -> str:
+    def _get_why_not_the_user(self, text: str) -> str:
         """Why hands-free *text* is not the user's words, or ``""``. A stop
         word or yes/no is never set aside ("no no" is meant), and neither is
         anything with a wake word at the front: one phrase said twice reads as
         a transcriber guessing at noise, but saying stop twice is what someone
-        does when the first one went unheard."""
+        does when the first one went unheard.
+
+        Nothing here reads the utterance the words came on: the transcript-level
+        own-voice check that used to (it applied only over zrb's voice) was
+        retired in 3.14.0 (ADR-0105)."""
         if not text or self._is_answer_or_stop(text):
             return ""
         if is_transcriber_guess(text) and not self._is_wake_worded(text):
@@ -435,8 +443,19 @@ class DictationSession:
         )
 
     def _is_answer_or_stop(self, text: str) -> bool:
-        phrases = self._stop_words + self._approve_words + self._deny_words
-        return is_said_alone(text, phrases)
+        """Whether *text* is only a stop, or only a yes or a no.
+
+        A stop is one only when it is said alone (`_get_barge_in_intent`); an
+        approval and a denial carry a polite word, as `_to_reply` reads them,
+        so "yes please" and "no thanks" count as answers here rather than being
+        dropped by the minimum word count before the approval they answer ever
+        sees them (PR #561 review).
+        """
+        if is_said_alone(text, self._stop_words):
+            return True
+        return is_answer(
+            text, self._approve_words, self._deny_words, self._polite_words
+        )
 
     def _get_why_too_short(self, utterance: Utterance, command: str) -> str:
         """Why *command* has too few words to reach the model, or ``""``.
