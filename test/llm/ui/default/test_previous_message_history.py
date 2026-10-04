@@ -8,6 +8,9 @@ list from `/load` (via `replay_history`).
 """
 
 import json
+import threading
+import time
+from unittest.mock import MagicMock
 
 from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserPromptPart
 
@@ -16,6 +19,7 @@ from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
 from zrb.llm.ui.default.previous_message_history import PreviousMessageHistory
 from zrb.llm.ui.default.ui import UI
 from zrb.llm.ui.default.message_editing import UIMessageEditing
+from zrb.util.file_lock import hold_file_lock
 
 
 class _RecallBuffer:
@@ -64,6 +68,22 @@ def _queued_entry(text: str) -> QueuedMessage:
     return QueuedMessage(text=text, attachments=[], kind="message", run=run)
 
 
+def _hold_lock(path: str) -> tuple[threading.Thread, threading.Event]:
+    """Hold `path`'s lock in a background thread until its release event is set."""
+    held = threading.Event()
+    release = threading.Event()
+
+    def holder():
+        with hold_file_lock(path):
+            held.set()
+            release.wait(5)
+
+    thread = threading.Thread(target=holder)
+    thread.start()
+    held.wait(5)
+    return thread, release
+
+
 # --- PreviousMessageHistory --------------------------------------------------
 
 
@@ -110,6 +130,12 @@ class TestPreviousMessageHistory:
 
         assert history.recall_strings() == []
 
+    def test_non_utf8_file_reads_as_empty(self, tmp_path):
+        (tmp_path / "previous-messages.json").write_bytes(b"\xff\xfe\x80")
+        history = PreviousMessageHistory(history_dir=str(tmp_path))
+
+        assert history.recall_strings() == []
+
     def test_max_entries_trims_oversized_file_on_load(self, tmp_path):
         (tmp_path / "previous-messages.json").write_text(
             json.dumps(["newest", "older", "oldest", "ancient"])
@@ -144,6 +170,26 @@ class TestPreviousMessageHistory:
 
         reloaded = PreviousMessageHistory(history_dir=str(tmp_path))
         assert set(reloaded.recall_strings()) >= {"from first", "from second"}
+
+    def test_submit_returns_promptly_when_lock_is_held(self, tmp_path):
+        history = PreviousMessageHistory(history_dir=str(tmp_path))
+        lock_file = str(tmp_path / "previous-messages.json.lock")
+        thread, release = _hold_lock(lock_file)
+        try:
+            started = time.monotonic()
+            history.append_string("held while locked")
+            elapsed = time.monotonic() - started
+        finally:
+            release.set()
+            thread.join()
+
+        assert elapsed < 1.0
+        assert history.recall_strings() == ["held while locked"]
+        # The entry is still pending; a later write persists it once the lock
+        # is free again.
+        history.append_string("later")
+        reloaded = PreviousMessageHistory(history_dir=str(tmp_path))
+        assert set(reloaded.recall_strings()) >= {"held while locked", "later"}
 
 
 # --- recall navigation through UIMessageEditing ------------------------------
@@ -245,3 +291,51 @@ class TestReplayHistorySeeding:
         )
 
         assert ui.previous_messages.recall_strings() == ["second", "first"]
+
+
+# --- submission recording at the common boundary -----------------------------
+
+
+class TestSubmissionRecording:
+    def test_non_utf8_file_does_not_block_ui_construction(
+        self, mock_ui_deps, tmp_path, monkeypatch
+    ):
+        (tmp_path / "previous-messages.json").write_bytes(b"\xff\xfe\x80")
+        monkeypatch.setattr(CFG, "LLM_PREVIOUS_MESSAGE_HISTORY_DIR", str(tmp_path))
+
+        ui = UI(**mock_ui_deps)
+
+        assert ui.previous_messages.recall_strings() == []
+
+    def test_programmatic_submit_message_is_recorded(
+        self, mock_ui_deps, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(CFG, "LLM_PREVIOUS_MESSAGE_HISTORY_DIR", str(tmp_path))
+        ui = UI(**mock_ui_deps)
+
+        ui.submit_message("programmatic")
+
+        assert ui.previous_messages.recall_strings() == ["programmatic"]
+
+    def test_submit_user_message_is_recorded_once(
+        self, mock_ui_deps, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(CFG, "LLM_PREVIOUS_MESSAGE_HISTORY_DIR", str(tmp_path))
+        ui = UI(**mock_ui_deps)
+
+        ui.submit_user_message(ui.llm_task, "keyboard-style")
+
+        assert ui.previous_messages.recall_strings() == ["keyboard-style"]
+
+    def test_initial_message_is_recorded(self, mock_ui_deps, tmp_path, monkeypatch):
+        monkeypatch.setattr(CFG, "LLM_PREVIOUS_MESSAGE_HISTORY_DIR", str(tmp_path))
+        ui = UI(**mock_ui_deps, initial_message="hello")
+        # `on_first_render` reads the deferred application's handler registry;
+        # substitute a stub so the test never builds a real terminal app (and
+        # `is_application_built` stays False, so the echo path asks the
+        # terminal for its width the same way the other tests here do).
+        monkeypatch.setattr(UI, "application", property(lambda self: MagicMock()))
+
+        ui.on_first_render(None)
+
+        assert ui.previous_messages.recall_strings() == ["hello"]

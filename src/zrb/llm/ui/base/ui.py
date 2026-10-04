@@ -1114,6 +1114,15 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         no-op and their edits skip the redraw.
         """
 
+    def record_submitted_message(self, text: str) -> None:
+        """Record a submitted user message for cross-session recall.
+
+        Called from `submit_user_message`, the common boundary every user
+        message passes through (keyboard, initial, and programmatic). The
+        default TUI overrides this to append to its `PreviousMessageHistory`;
+        other UIs have no such history and record nothing.
+        """
+
     def submit_user_message(
         self,
         llm_task: AnyTask,
@@ -1125,6 +1134,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         message is for this UI's own current task; this explicit form exists
         for callers (e.g. keybindings set up before a persona swap) holding a
         specific task reference that may differ from `self.llm_task` by then."""
+        self.record_submitted_message(user_message)
         parent_multi_ui = self.multi_ui_parent
         if parent_multi_ui is not None:
             # The parent broadcasts to every child UI.

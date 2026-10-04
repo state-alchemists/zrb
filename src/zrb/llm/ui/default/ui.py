@@ -244,6 +244,13 @@ class UI(BaseUI):
         self.previous_messages.seed_conversation(extract_user_message_texts(messages))
         self._message_editing.reset_previous_recall()
 
+    def record_submitted_message(self, text: str) -> None:
+        """Override `BaseUI.record_submitted_message`: append `text` to the
+        input box's cross-session history, keeping prompt_toolkit's own
+        buffer-history navigation in sync (`append_string` updates both the
+        loaded strings and the persisted list)."""
+        self.previous_messages.append_string(text)
+
     @property
     def application(self) -> "Application":
         """The prompt_toolkit `Application`, built on first access.

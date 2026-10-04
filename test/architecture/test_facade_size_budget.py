@@ -39,7 +39,11 @@ FACADE_BUDGETS = {
     # `delete_queued_message` -- new surface (Ctrl+X) -- plus the module-level
     # `_broadcast_echo`, the best-effort child broadcast both it and
     # `edit_queued_message` now share instead of each carrying its own.
-    "llm/ui/base/ui.py": 1300,
+    # +10 (1300->1310): `record_submitted_message`, the hook `submit_user_message`
+    # calls so a UI with cross-session recall records every submitted message
+    # (PR #562 round-2: keyboard, initial, and programmatic submissions) -- new
+    # surface, not a delegator.
+    "llm/ui/base/ui.py": 1310,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):
@@ -50,7 +54,9 @@ FACADE_BUDGETS = {
     # +16 (681->697): `replay_history` override seeds the input box's
     # previous-message history from a loaded conversation, and the
     # `PreviousMessageHistory` part is constructed in __init__ -- new surface.
-    "llm/ui/default/ui.py": 697,
+    # +7 (697->704): `record_submitted_message` override appends to the input
+    # box's `PreviousMessageHistory` (PR #562 round-2) -- new surface.
+    "llm/ui/default/ui.py": 704,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.

@@ -364,6 +364,7 @@ class UIKeybindings:
             return
 
         # A plain message submitted mid-response is queued for the next turn.
-        buff.append_to_history()
+        # Recording happens at the submit boundary (`submit_user_message`), so
+        # the buffer's own history is left alone here — no double record.
         ui.submit_user_message(llm_task, text)
         buff.reset()

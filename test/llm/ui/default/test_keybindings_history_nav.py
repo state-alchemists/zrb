@@ -415,7 +415,9 @@ def test_enter_submit_message(mock_ui, setup_bindings):
     event = create_mock_event("hello world")
     mock_ui.classify_input.return_value = "message"
     trigger_binding(setup_bindings, "c-m", event)
-    event.current_buffer.append_to_history.assert_called_once()
+    # Recording moved to the submit boundary (BaseUI.submit_user_message); the
+    # keybinding must not also append to history, or the message records twice.
+    event.current_buffer.append_to_history.assert_not_called()
     mock_ui.submit_user_message.assert_called_once()
     event.current_buffer.reset.assert_called_once()
 

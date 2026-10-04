@@ -5,16 +5,20 @@ messages of the conversation just loaded with `/load` (seeded on load), then
 the cross-session history of every message the user has submitted before,
 persisted under `CFG.LLM_PREVIOUS_MESSAGE_HISTORY_DIR`.
 
-`PreviousMessageHistory` is a prompt_toolkit `History` so the input buffer's
-own `append_to_history` (the submit path) stores each submitted message here
-without extra wiring; recall navigation itself lives in `UIMessageEditing`,
-which reads `recall_strings()`.
+`PreviousMessageHistory` is a prompt_toolkit `History`, so `append_string`
+keeps the input buffer's own bookkeeping in sync while `load_history_strings`
+feeds its Up/Down recall. Recording happens at the common submit boundary
+(`BaseUI.submit_user_message` → the default UI's `record_submitted_message`),
+and recall navigation lives in `UIMessageEditing`, which reads
+`recall_strings()`.
 
-Persistence is best-effort and concurrency-safe: each write re-reads the file
-under an OS file lock, merges in the messages submitted this session, trims to
-the configured limit, and atomically replaces the file via a unique temporary
-name — so two concurrent sessions cannot clobber each other, and a missing or
-unwritable history directory never breaks a chat turn.
+Persistence is best-effort, non-blocking, and concurrency-safe: each write
+re-reads the file under an OS file lock, merges in the messages submitted this
+session, trims to the configured limit, and atomically replaces the file via a
+unique temporary name — so two concurrent sessions cannot clobber each other.
+The lock is taken without waiting: a write that finds it held defers its
+messages to a later submission, and a missing or unwritable history directory
+never breaks a chat turn.
 """
 
 from __future__ import annotations
@@ -27,9 +31,10 @@ from prompt_toolkit.history import History
 
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 
-# How long a write waits for another process holding the history lock before
-# giving up. Best-effort: a busy history directory must never stall the turn.
-_LOCK_TIMEOUT_SECONDS = 5.0
+# A write takes the history lock or gives up at once — it never waits. A busy
+# history directory must never stall the turn, so a write that cannot take the
+# lock immediately leaves its entries in `_session_new` for the next write.
+_LOCK_TIMEOUT_SECONDS = 0.0
 
 
 class PreviousMessageHistory(History):
@@ -75,7 +80,11 @@ class PreviousMessageHistory(History):
         yield from self._persistent
 
     def store_string(self, string: str) -> None:
-        """Persist one submitted message at the newest end."""
+        """Persist one submitted message at the newest end.
+
+        Non-blocking: the write gives up at once if another session holds the
+        lock, leaving the message in `_session_new` to retry on a later write.
+        """
         self._persistent.insert(0, string)
         self._session_new.insert(0, string)
         self._trim()
@@ -93,7 +102,11 @@ class PreviousMessageHistory(History):
         try:
             with open(self._history_file(), encoding="utf-8") as f:
                 data = json.load(f)
-        except (OSError, json.JSONDecodeError):
+        except (OSError, ValueError):
+            # A missing/unreadable file, invalid JSON (`JSONDecodeError`), and
+            # invalid UTF-8 (`UnicodeDecodeError`) are all covered — the two
+            # decode errors are `ValueError` subclasses. A damaged history
+            # reads as empty rather than blocking the UI from starting.
             return []
         if not isinstance(data, list):
             return []
@@ -115,9 +128,12 @@ class PreviousMessageHistory(History):
 
         Best-effort: never raises. The directory, lock file, and temporary
         file are all opened inside the guards, so a missing, unwritable, or
-        busy history directory cannot break the chat turn. The write holds an
-        OS file lock around re-reading the file, merging, and replacing it, so
-        two concurrent sessions cannot clobber each other's entries.
+        busy history directory cannot break the chat turn. The lock wait is
+        non-blocking (zero timeout): when another session holds the lock the
+        write is skipped and `_session_new` keeps the entries for the next
+        write to retry. A write that runs holds the OS file lock around
+        re-reading, merging, and replacing the file, so two concurrent
+        sessions cannot clobber each other's entries.
         """
         try:
             os.makedirs(self._history_dir, exist_ok=True)
