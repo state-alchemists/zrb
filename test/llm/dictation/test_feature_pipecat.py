@@ -1,6 +1,6 @@
 """The Pipecat pipeline the capture is handed to, and the flag that turns it on.
 
-Stage 1 of the migration (ADR-0106): the pipeline ends at a counter and decides
+Stage 1 of the migration (ADR-0107): the pipeline ends at a counter and decides
 nothing, so what is under test is that a session opens one when the flag is set,
 hands it the blocks the microphone captured, and closes it when the listening
 stops — and that with the flag off, or without the extra installed, the listening
@@ -233,3 +233,42 @@ async def test_a_pipeline_that_fails_to_close_leaves_the_listening_alone(
     assert reply == "hello"
     assert session.is_hands_free
     assert "the worker will not take the cancel" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_a_pipeline_that_fails_mid_capture_is_closed_and_not_retried(monkeypatch):
+    """A pipeline whose hand-over fails is closed, and no other is opened
+    (PR #561 review).
+
+    The session can run for hours, so a pipeline left alive after a push failed
+    would hold its worker and its transport for the rest of it while the code
+    says it stopped; and the block after it must not build another one.
+    """
+    ui = FakeUI()
+    set_session_ui(ui)
+    try:
+        monkeypatch.setattr(
+            "zrb.llm.dictation.feature.is_pipecat_available", lambda: True
+        )
+        _fakes(monkeypatch, b"hello", b"world")
+
+        class PushFailsPipeline(FakeAudioPipeline):
+            async def push(self, chunk: bytes) -> None:
+                raise RuntimeError("the pipeline is gone")
+
+        monkeypatch.setattr("zrb.llm.dictation.feature.AudioPipeline", PushFailsPipeline)
+        session = _session(pipecat_enabled=True)
+
+        stream = session.listen_hands_free()
+        first = await anext(stream)
+        second = await anext(stream)
+        await stream.aclose()
+    finally:
+        reset_session_ui()
+
+    assert (first.text, second.text) == ("hello", "world")
+    assert session.is_hands_free
+    # Opened once, closed when the hand-over failed, and never opened again.
+    assert len(PushFailsPipeline.made) == 1
+    assert PushFailsPipeline.made[0].closed == 1
+    assert any("Pipecat input pipeline stopped" in text for text in ui.outputs)

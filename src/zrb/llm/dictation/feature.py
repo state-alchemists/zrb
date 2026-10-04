@@ -128,7 +128,7 @@ class DictationSession:
         # A wake word said alone arms the utterances started before this.
         self._armed_until = 0.0
         # The Pipecat pipeline the capture is handed to while the setting is on
-        # (ADR-0106, stage 1), and whether one has failed and been given up on
+        # (ADR-0107, stage 1), and whether one has failed and been given up on
         # for this session: it decides nothing, so it never takes the listening
         # with it.
         self._tap: AudioPipeline | None = None
@@ -308,7 +308,7 @@ class DictationSession:
         the same capture when it is on.
 
         The pipeline lives exactly as long as the listening: it decides nothing
-        yet (ADR-0106, stage 1), so what it proves is that zrb's own blocks reach
+        yet (ADR-0107, stage 1), so what it proves is that zrb's own blocks reach
         it — and feeding it is best-effort (`_feed_pipecat`), so a pipeline that
         fails takes itself out of the way rather than the listening with it. The
         capture is handed over by `listen`'s tap, apart from the loop that reads
@@ -338,12 +338,17 @@ class DictationSession:
     async def _feed_pipecat(self, pcm: bytes) -> None:
         """Hand one captured block to the Pipecat pipeline, if it has one.
 
-        Best-effort by construction. The pipeline decides nothing (ADR-0106,
+        Best-effort by construction. The pipeline decides nothing (ADR-0107,
         stage 1) and the hand-rolled path is doing the listening, so a pipeline
         that cannot start, or that fails while a block is handed to it, is
         reported and given up on for the session instead of ending hands-free.
-        `listen` hands the capture over from a task of its own, so a slow start
-        holds up neither the microphone nor the listening.
+        A pipeline that failed is closed there and then (PR #561 review): the
+        listening can run for hours, and one left alive would hold its worker and
+        its transport for the rest of it. Closing it here cannot deadlock the
+        hand-over — `_close_audio_pipeline` closes the Pipecat pipeline, never the
+        tap this delivery belongs to. `listen` hands the capture over from a task
+        of its own, so a slow start holds up neither the microphone nor the
+        listening.
         """
         if self._is_pipecat_given_up:
             return
@@ -358,6 +363,7 @@ class DictationSession:
         except Exception as exc:
             self._is_pipecat_given_up = True
             self._report(f"Pipecat input pipeline stopped: {exc}")
+            await self._close_audio_pipeline()
 
     async def _open_audio_pipeline(self) -> AudioPipeline | None:
         """A Pipecat pipeline to hand the capture to, or ``None`` when Pipecat
@@ -365,7 +371,7 @@ class DictationSession:
 
         Not installed is a setting that cannot work rather than a broken run:
         it is said once and the listening goes on, since the hand-rolled path
-        decides everything anyway (ADR-0106, stage 1).
+        decides everything anyway (ADR-0107, stage 1).
         """
         if not is_pipecat_available():
             self._report(
@@ -379,7 +385,7 @@ class DictationSession:
         """Stop the pipeline this listening was feeding, if it started one.
 
         Contained here as well as inside `AudioPipeline.close` (PR #561 review):
-        the pipeline decides nothing (ADR-0106, stage 1), so no failure in its
+        the pipeline decides nothing (ADR-0107, stage 1), so no failure in its
         teardown, however far it got, may end the listening still going on
         around it.
         """

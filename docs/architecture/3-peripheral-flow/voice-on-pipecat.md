@@ -4,14 +4,14 @@
 
 > **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/dictation/`, `src/zrb/llm/speech/` · Read first: [Dictation & Barge-in](dictation-barge-in.md)
 
-zrb's voice moves off its hand-rolled path and onto Pipecat's pipeline, one stage at a time ([ADR-0106](../../adr/adr-0106.md)). This page is the plan: the shape the pipeline has when it is done, and the order the hand-rolled pieces come out. The idea to take away: capture stays zrb's, the pipeline owns turn management, and playback moves last because it is the least measured.
+zrb's voice moves off its hand-rolled path and onto Pipecat's pipeline, one stage at a time ([ADR-0107](../../adr/adr-0107.md)). This page is the plan: the shape the pipeline has when it is done, and the order the hand-rolled pieces come out. The idea to take away: capture stays zrb's, the pipeline owns turn management, and playback moves last because it is the least measured.
 
 ## Design
 
 ### Principles
 
-1. **zrb keeps the microphone.** The pipeline never opens the device. zrb captures as it does today and pushes audio frames in, so `listen` stays the only thing that touches the sound card and a second audio client can never contend for it. → [ADR-0106](../../adr/adr-0106.md)
-2. **A stage lands only when the tree is green with both paths.** Each stage is behind a flag until its replacement is proven, so a half-migrated voice is never the only voice. → [ADR-0106](../../adr/adr-0106.md)
+1. **zrb keeps the microphone.** The pipeline never opens the device. zrb captures as it does today and pushes audio frames in, so `listen` stays the only thing that touches the sound card and a second audio client can never contend for it. → [ADR-0107](../../adr/adr-0107.md)
+2. **A stage lands only when the tree is green with both paths.** Each stage is behind a flag until its replacement is proven, so a half-migrated voice is never the only voice. → [ADR-0107](../../adr/adr-0107.md)
 3. **What the user hears is decided by the words, not by the transport.** The hold-first, decide-on-the-words shape survives the move: the new pipeline supplies better detection, not a different policy. → [ADR-0105](../../adr/adr-0105.md)
 4. **Playback stays in-process and pausable.** Speech is played by zrb so it can be paused and stopped out of the microphone; a transport may not take that away. → [ADR-0103](../../adr/adr-0103.md)
 5. **Features stay unknown to the UI.** The pipeline is installed through the same extension points as today, and config is still read when a session starts. → [ADR-0102](../../adr/adr-0102.md)
@@ -26,7 +26,7 @@ zrb's voice moves off its hand-rolled path and onto Pipecat's pipeline, one stag
 | A spoken yes or no still answers a pending approval rather than steering the turn | `test/llm/dictation/test_feature_barge_in.py` |
 | Speech can still be paused and stopped mid-utterance | `test/llm/speech/test_player_in_process.py` |
 | A streamed reply is still spoken sentence by sentence as it is written | `test/llm/speech/test_feature_stream.py` |
-| A pipeline that fails, while it starts or while it is torn down, leaves the listening going | `test/llm/dictation/test_feature_pipecat.py` |
+| A pipeline that fails, while it starts, while a block is handed to it, or while it is torn down, is closed and leaves the listening going | `test/llm/dictation/test_feature_pipecat.py` |
 | A turn ends when the user is done, and a slow transcript does not stall it | **unpinned** — stage 3 has no test yet |
 
 ## Realization
@@ -75,8 +75,10 @@ nothing. The sink counts and holds nothing, since a listening lasts for hours.
 `test/llm/dictation/test_feature_pipecat.py` covers the hand-off: a
 session with the flag on feeds the pipeline from the same capture and closes it
 when the listening stops, an install without the extra listens on and says so,
-and a start or a close that fails is reported and given up on rather than ending
-hands-free.
+and a start, a hand-over or a close that fails is reported and given up on rather
+than ending hands-free — a hand-over that fails closes the pipeline there and
+then and opens no other, so a failed pipeline is not left running for the rest of
+a long listening.
 
 ### Change it here
 
@@ -92,7 +94,7 @@ The guard rows above must not be lost on the way.
 ## See Also
 
 - [Dictation & Barge-in](dictation-barge-in.md) — the flow this pipeline replaces and must keep
-- [ADR-0106](../../adr/adr-0106.md) — the decision to build on Pipecat
+- [ADR-0107](../../adr/adr-0107.md) — the decision to build on Pipecat
 - [ADR-0102](../../adr/adr-0102.md), [ADR-0103](../../adr/adr-0103.md), [ADR-0105](../../adr/adr-0105.md) — the clauses that survive and the ones that die
 - [UI](../2-extension-surface/ui.md) — the extension points the pipeline installs through
 

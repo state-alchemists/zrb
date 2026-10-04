@@ -69,7 +69,7 @@ class DictationConfig:
     @property
     def is_pipecat_enabled(self) -> bool:
         """Whether *pipecat_enabled* is set: the captured blocks are handed to
-        a Pipecat pipeline as well, which decides nothing yet (ADR-0106)."""
+        a Pipecat pipeline as well, which decides nothing yet (ADR-0107)."""
         return bool(self.pipecat_enabled)
 
     def resolve(self) -> "DictationConfig":

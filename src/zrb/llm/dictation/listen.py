@@ -346,7 +346,7 @@ async def listen(
 
     *on_captured* is handed every block the microphone captures, as 16 kHz mono
     16-bit PCM, before it is cut into an utterance: this is the capture the
-    Pipecat pipeline is fed from (ADR-0106, stage 1). It is handed over apart
+    Pipecat pipeline is fed from (ADR-0107, stage 1). It is handed over apart
     from the reading loop, so it sees the blocks of an utterance that is dropped
     or never yielded too — the capture is zrb's either way — and neither a slow
     hand-over nor the reading loop stopping while an utterance is transcribed
@@ -747,7 +747,7 @@ class _CaptureTap:
         teardown of the microphone that stopped feeding it.
 
         A hand-over that raised ended the tap early: nothing downstream of it
-        decides anything yet (ADR-0106, stage 1), so the failure is reported here,
+        decides anything yet (ADR-0107, stage 1), so the failure is reported here,
         once, rather than ending the listening that is still going on around it.
         Reading the exception off is also what keeps the loop from later logging
         it as one nobody retrieved.
@@ -801,10 +801,27 @@ def import_audio() -> tuple[Any, Any]:
     return np, sd
 
 
+def to_device(device: "str | int | None") -> "int | str | None":
+    """A device setting as `sounddevice` takes it: a digit string is an index.
+
+    `sounddevice` reads an `int` as a device index and a `str` as a name to match
+    among the devices it finds, so the index the setting documents — "2" — was
+    searched for as a name and matched nothing: it could only ever name a device,
+    never point at one (PR #561 review). A non-numeric value passes through as
+    the name it is, and empty or unset is PortAudio's own default.
+    """
+    if device is None or isinstance(device, int):
+        return device
+    text = device.strip()
+    if not text:
+        return None
+    return int(text) if text.isdigit() else text
+
+
 async def _open_microphone(
     sd: Any,
     on_audio: Callable[..., None],
-    device: "str | None" = None,
+    device: "str | int | None" = None,
     **options: Any,
 ) -> Any:
     """The microphone, open and running, or a `RuntimeError` saying why.
@@ -822,6 +839,7 @@ async def _open_microphone(
     Constructing is the other failure: a device that does not exist, or PortAudio
     missing. Trying that again cannot help, so it is raised as it always was.
     """
+    device = to_device(device)
     attempt = 0
     while True:
         attempt += 1
@@ -850,7 +868,7 @@ async def _open_microphone(
             await asyncio.sleep(_OPEN_RETRY_SECONDS)
 
 
-def _microphone_failure_message(device: "str | None", error: Exception) -> str:
+def _microphone_failure_message(device: "int | str | None", error: Exception) -> str:
     """What to say when the microphone will not start.
 
     Names the device PortAudio was asked for — ``None`` is its own default, what

@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from zrb.llm.dictation.config import DictationConfig
-from zrb.llm.dictation.listen import listen, record
+from zrb.llm.dictation.listen import listen, record, to_device
 
 np = pytest.importorskip("numpy")
 
@@ -154,6 +154,44 @@ async def test_the_device_it_was_asked_for_reaches_portaudio():
 
     assert utterances == []
     assert captured["device"] == "pulse"
+
+
+@pytest.mark.parametrize(
+    "setting, expected",
+    [
+        ("2", 2),
+        (" 3 ", 3),
+        ("pulse", "pulse"),
+        ("HDA Intel PCH", "HDA Intel PCH"),
+        ("", None),
+        (None, None),
+    ],
+)
+def test_to_device_reads_an_index_out_of_the_setting(setting, expected):
+    """A digit setting is an index; anything else is a name to match.
+
+    `sounddevice` reads an `int` as an index and a `str` as a name, so the number
+    has to be read out of the setting before it is handed over. Empty or unset
+    stays PortAudio's own default.
+    """
+    assert to_device(setting) == expected
+
+
+@pytest.mark.asyncio
+async def test_a_numeric_device_setting_reaches_portaudio_as_an_index():
+    """The index the setting documents reaches PortAudio as a number (PR #561
+    review).
+
+    The setting is a string, and `sounddevice` reads a string as a name to match
+    among the devices it finds — so "2" was searched for as a name and matched
+    nothing: the documented index selection never opened a device.
+    """
+    utterances, captured = await _captured_stream_options(
+        _listen_config(device="2"), [_block(0.0)]
+    )
+
+    assert utterances == []
+    assert captured["device"] == 2
 
 
 @pytest.mark.asyncio

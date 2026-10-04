@@ -2,7 +2,7 @@
 
 The device is never opened here. What is under test is that zrb can hand its own
 captured blocks to a Pipecat pipeline and see them arrive downstream, which is
-the precondition for every later stage (ADR-0106).
+the precondition for every later stage (ADR-0107).
 """
 
 from __future__ import annotations

@@ -2,7 +2,7 @@
 
 Three teardowns share this: a microphone stream that would not start, an
 utterance's transcription stream given up on instead of finished, and the Pipecat
-pipeline the capture was pushed into (ADR-0106, stage 1) — inside which the worker
+pipeline the capture was pushed into (ADR-0107, stage 1) — inside which the worker
 driving it is asked to stop. None of them has anyone left to report its own
 failure to, and a failure in any of them must not reach the listening going on
 around it. The call is best-effort, here in one place rather than as a copy of the

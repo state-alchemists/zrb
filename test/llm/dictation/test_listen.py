@@ -136,7 +136,7 @@ async def test_listen_keep_partial_yields_speech_cut_off_by_stop():
 async def test_listen_hands_every_captured_block_to_on_captured():
     """The capture is handed over as it is captured, before it is cut.
 
-    This is the hand-off the Pipecat pipeline is fed from (ADR-0106, stage 1):
+    This is the hand-off the Pipecat pipeline is fed from (ADR-0107, stage 1):
     every block, the pre-roll and the trailing silence included, as 16 kHz mono
     16-bit PCM — what `push_audio` takes.
     """

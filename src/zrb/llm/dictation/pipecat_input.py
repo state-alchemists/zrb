@@ -1,6 +1,6 @@
 """Feeding zrb's captured audio into a Pipecat pipeline.
 
-`listen` keeps the microphone (ADR-0106, principle 1): zrb captures as it does
+`listen` keeps the microphone (ADR-0107, principle 1): zrb captures as it does
 today and these frames are pushed in from outside, so a second audio client can
 never contend for the device.
 
@@ -72,7 +72,7 @@ def create_input_transport(
     one gap is `start`, whose base implementation clears its paused flags and
     stops — it never calls `set_transport_ready`, which is the call that creates
     the queue a pushed frame is read from. Without it the pushed audio is never
-    drained, so this subclass adds exactly that call (ADR-0106; measured, not
+    drained, so this subclass adds exactly that call (ADR-0107; measured, not
     assumed). *on_ready* is called once that queue exists, since a frame pushed
     before then has nowhere to go.
     """
@@ -147,7 +147,7 @@ def create_audio_counter() -> FrameProcessor:
 class AudioPipeline:
     """A running Pipecat pipeline that zrb's captured blocks are pushed into.
 
-    Stage 1 of the migration (ADR-0106). It ends at an `AudioCounter`, so nothing
+    Stage 1 of the migration (ADR-0107). It ends at an `AudioCounter`, so nothing
     downstream of the transport acts on the audio and what zrb hears and says is
     still decided by the hand-rolled path; what it proves is that the transport
     carries zrb's own blocks, in order and intact, which is what the turn
@@ -167,7 +167,7 @@ class AudioPipeline:
         A worker does not start itself — `run` is the coroutine that drives it —
         so its session owns that task, and `close` is what ends both. The device
         is never opened, so `TaskManager` binds to the loop the caller already
-        runs in rather than to a second one (ADR-0106; measured, not assumed).
+        runs in rather than to a second one (ADR-0107; measured, not assumed).
         """
         # lazy: heavy third-party — pipecat is the `voice` extra.
         from pipecat.frames.frames import StartFrame

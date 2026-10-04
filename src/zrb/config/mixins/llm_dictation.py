@@ -364,11 +364,11 @@ class LLMDictationMixin:
     LLM_DICTATION_DEVICE = EnvField(
         str,
         doc=(
-            "Microphone PortAudio opens, by its name or index — `pulse` and "
-            "`default` on a Linux or WSL machine, where which of them is opened "
-            "is the usual difference between a microphone that starts and one "
-            "that times out. Empty uses PortAudio's own default "
-            "(`sd.default.device`). Default: empty."
+            "Microphone PortAudio opens: a name, or the number its device list "
+            "shows it under — `pulse` and `default` on a Linux or WSL machine, "
+            "where which of them is opened is the usual difference between a "
+            "microphone that starts and one that times out. Empty uses "
+            "PortAudio's own default (`sd.default.device`). Default: empty."
         ),
     )
 
@@ -379,7 +379,7 @@ class LLMDictationMixin:
             "'on' hands the microphone blocks to a Pipecat pipeline as well, "
             "beside the hand-rolled one that still decides everything: the "
             "pipeline ends at a counter, so nothing zrb hears or says changes. "
-            "Stage 1 of the migration (ADR-0106), and it wants the zrb[voice] "
+            "Stage 1 of the migration (ADR-0107), and it wants the zrb[voice] "
             "extra; without it the setting says so and listening goes on. "
             "'off' (default): the capture goes nowhere else."
         ),
