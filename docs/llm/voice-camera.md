@@ -50,20 +50,19 @@ By default zrb ignores the microphone while it is speaking, so its own voice is 
 - Anything else steers the running turn: the agent takes it into account at its next step (`ZRB_LLM_DICTATION_BARGE_IN_ACTION=steer`). With `cancel`, the turn stops and what you said starts a new one.
 - While a tool approval is waiting, what you say answers it, as usual: "no" denies the tool call, not the turn.
 
-With wake words, zrb's voice is not held on loudness alone. Its own voice reaches the microphone too, and a hold taken for it would be released again the moment the transcript said the words were zrb's — heard as a stutter, with zrb talking on. The words take the hold instead: zrb goes quiet as soon as a wake word is heard while it speaks (a streaming backend, `vosk`), or as soon as the transcript turns out to be meant for it (the rest, a moment later). Talk in the room passes over a speaking zrb untouched, however loud; only a wake word stops it.
+With wake words, zrb stops only once it has heard one. Talk in the room holds its voice like anything else heard over it, on loudness alone, and the words give that hold back when they turn out not to be the user's.
 
 **zrb's own voice.** On speakers the microphone hears zrb too, and zrb does not try to subtract it: no echo canceller removes all of it on laptop speakers, and what is left, transcribed, would become turns zrb answers itself. Instead, what hands-free hears has to pass four checks before it reaches the model ([ADR-0105](../adr/adr-0105.md)). Push-to-talk keeps every word: its transcript lands in the input box for you to edit.
 
 | Check | What it keeps out | Setting |
 |---|---|---|
-| Louder than zrb: speech over zrb, and for `ZRB_LLM_DICTATION_ECHO_COOLDOWN` after, must be several times louder than zrb's voice reaches the microphone (measured as it speaks, so it follows the volume and the room) | zrb's voice and room noise starting an utterance at all | `ZRB_LLM_DICTATION_BARGE_IN_MARGIN` (3) |
+| Louder than zrb: speech over zrb must be several times louder than zrb's voice reaches the microphone (measured as it speaks, so it follows the volume and the room) | zrb's voice and room noise starting an utterance at all | `ZRB_LLM_DICTATION_BARGE_IN_MARGIN` (3) |
 | Not the transcriber guessing, in anything heard hands-free: Whisper's own scores for a segment that is likely silence or repeating itself, phrases Whisper writes for silence ("Thank you for watching."), and one phrase over and over ("and this and this") | Words made up from noise | — |
-| Not zrb's own words: over zrb's voice, mostly words zrb was saying while it was heard; what you say while zrb is silent is never taken for it | zrb's voice that got through, transcribed | `ZRB_LLM_DICTATION_SELF_ECHO_MATCH`, `_SELF_ECHO_TAIL` |
 | At least two words over zrb, or (with barge-in on) while a turn runs, unless a stop word or an answer to the prompt being asked | One-word leftovers ("sleep", "well") | `ZRB_LLM_DICTATION_BARGE_IN_MIN_WORDS` (2) |
 
 On headphones the microphone hears no zrb, so the bar stays at `ZRB_LLM_DICTATION_THRESHOLD`. Speak up a little over laptop speakers. zrb plays its speech itself when it can (`ZRB_LLM_SPEECH_PLAYER=auto`, the default with the `zrb[voice]` extra), so it can pause while you talk; speech a player program plays cannot pause, and only the sentence playing is stopped.
 
-**Transcribing while you speak.** vosk transcribes an utterance as you say it, and the status bar shows the last words heard. Once you pause for half a second (`ZRB_LLM_DICTATION_MIN_SILENCE`) after words that sound finished, the utterance ends; after "and", "the" or "um" (`ZRB_LLM_DICTATION_TRAILING_WORDS`, English by default) it waits the full second (`ZRB_LLM_DICTATION_SILENCE`), since you are still thinking. The other backends transcribe the whole utterance after it ends and always wait the full second.
+**Transcribing while you speak.** vosk transcribes an utterance as you say it, and the status bar shows the last words heard. Once you pause for half a second (`ZRB_LLM_DICTATION_MIN_SILENCE`) once words have been heard, the utterance ends. The other backends transcribe the whole utterance after it ends and always wait the full second.
 
 A line above the status bar shows what the microphone is doing, while hands-free is on:
 

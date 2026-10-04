@@ -18,7 +18,7 @@ from typing import Any, NamedTuple
 from zrb.config.config import CFG
 from zrb.llm.dictation.backend.any_transcription_stream import AnyTranscriptionStream
 from zrb.llm.dictation.config import DictationConfig
-from zrb.llm.dictation.words import is_finished_phrase
+from zrb.llm.dictation.words import count_words
 from zrb.llm.speech.player import is_speaking
 
 logger = logging.getLogger(__name__)
@@ -74,11 +74,10 @@ class UtteranceCutter:
     after ``silence`` quiet seconds (at least one block) or ``max_utterance`` in
     all (``0``: no limit). Speech shorter than ``min_speech``, from its first
     loud block to its last, is dropped as a cough or a click. While zrb is
-    speaking, and for ``echo_cooldown`` after, blocks are ignored. A negative
-    duration counts as ``0``.
+    speaking, blocks are ignored. A negative duration counts as ``0``.
 
-    With ``barge_in_enabled``, blocks captured while zrb speaks, and for
-    ``echo_cooldown`` after, are heard too, against a higher bar: the
+    With ``barge_in_enabled``, blocks captured while zrb speaks are heard
+    too, against a higher bar: the
     microphone hears zrb's own voice there, so a block is loud only at
     ``barge_in_margin`` times the typical level zrb's voice reaches it (the
     median over its last few seconds, robust to the user talking over it
@@ -100,16 +99,12 @@ class UtteranceCutter:
         self._pre_roll_blocks = 0
         self._silent_blocks = 0
         self._started_at = 0.0
-        self._cooldown_blocks = 0
         self._is_barge_in_enabled = config.is_barge_in_enabled
         self._barge_in_blocks = max(1, self._to_blocks(config.barge_in_min_speech))
         self._loud_echo_blocks = 0
         self._is_finished_barge_in = False
         self._is_finished_over_speech = False
         self._utterance_count = 0
-        # Blocks still counted as over zrb's voice after it stopped: the
-        # room's echo, and audio still on its way out of the speakers.
-        self._tail_blocks = 0
         self._zrb_levels: deque[float] = deque(
             maxlen=max(1, self._to_blocks(_ZRB_LEVEL_SECONDS))
         )
@@ -154,10 +149,6 @@ class UtteranceCutter:
         and held to the bar over zrb's voice with it on."""
         if is_echo and not self._is_barge_in_enabled:
             self.reset()
-            self._cooldown_blocks = self._to_blocks(self._config.echo_cooldown)
-            return None
-        if self._cooldown_blocks:
-            self._cooldown_blocks -= 1
             return None
         is_over_zrb = self._is_over_zrb(is_echo)
         # An utterance keeps the bar it started with: the user's own voice,
@@ -190,15 +181,8 @@ class UtteranceCutter:
         return self._continue_speech(block, loud, captured_at, is_over_zrb)
 
     def _is_over_zrb(self, is_echo: bool) -> bool:
-        """Whether a block may hold zrb's voice: captured while it spoke, or
-        within ``echo_cooldown`` after."""
-        if is_echo:
-            self._tail_blocks = self._to_blocks(self._config.echo_cooldown)
-            return True
-        if self._tail_blocks:
-            self._tail_blocks -= 1
-            return True
-        return False
+        """Whether a block may hold zrb's voice: captured while it spoke."""
+        return is_echo
 
     def _get_bar(self, is_over_zrb: bool) -> float:
         """The bar a block must reach: over zrb, ``barge_in_margin`` times what
@@ -270,11 +254,6 @@ class UtteranceCutter:
     def quiet_seconds(self) -> float:
         """How long the utterance in progress has been quiet."""
         return self._silent_blocks * self._block_seconds
-
-    @property
-    def is_cooling_down(self) -> bool:
-        """Whether blocks are still ignored after zrb stopped speaking."""
-        return self._cooldown_blocks > 0
 
     def flush(self, ended_at: float) -> "tuple[list[Any], float, float] | None":
         """The utterance in progress, as `feed` would return it, if it holds
@@ -588,7 +567,7 @@ class _UtteranceStreamer:
             return False
         if cutter.quiet_seconds < min_silence:
             return False
-        return is_finished_phrase(self._stream.partial, config.trailing_words)
+        return count_words(self._stream.partial) > 0
 
     async def take(self, blocks: list[Any]) -> "AnyTranscriptionStream | None":
         """Hand over the stream of an utterance that ended with *blocks*."""
@@ -625,7 +604,7 @@ class _UtteranceStreamer:
 
 
 def _get_mic_state(cutter: UtteranceCutter, is_deaf: bool) -> MicState:
-    if is_deaf or cutter.is_cooling_down:
+    if is_deaf:
         return MicState.PAUSED
     return MicState.HEARING if cutter.is_hearing else MicState.LISTENING
 

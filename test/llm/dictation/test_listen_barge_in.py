@@ -60,7 +60,6 @@ def _cutter(**config):
         min_speech=0.2,
         max_utterance=1.0,
         pre_roll=0.2,
-        echo_cooldown=0.2,
     )
     return UtteranceCutter(DictationConfig(**{**fields, **config}).resolve())
 
@@ -125,7 +124,6 @@ async def test_listen_reports_a_barge_in_once_before_the_utterance_ends():
         min_speech=0.1,
         max_utterance=10,
         pre_roll=0,
-        echo_cooldown=0,
         barge_in_enabled=True,
         barge_in_min_speech=0.1,
     ).resolve()
@@ -173,7 +171,6 @@ async def test_a_barge_in_is_reported_once_and_does_not_mark_the_next_utterance(
         min_speech=0.1,
         max_utterance=10,
         pre_roll=0,
-        echo_cooldown=0,
         barge_in_enabled=True,
         barge_in_min_speech=0.1,
     ).resolve()
@@ -266,17 +263,6 @@ def test_a_long_barge_in_does_not_raise_the_bar_for_the_next_one():
     assert heard == [[0.5] * 25, [0.5] * 3]
 
 
-def test_the_bar_holds_for_the_echo_tail_after_zrb_stops():
-    cutter = _cutter(
-        barge_in_enabled=True, barge_in_margin=3.0, pre_roll=0, echo_cooldown=0.3
-    )
-    levels = ECHO + [0.2, 0.2, 0.2, 0.0, 0.0, 0.0, 0.2, 0.2, 0.2, 0.0, 0.0, 0.0]
-    finished = _feed(cutter, levels, echo_at=set(range(10)))
-    # Right after zrb stops, 0.2 is still under three times its voice; once
-    # the tail is over, it is ordinary speech again.
-    assert [blocks for blocks, _, _ in finished] == [[16, 17, 18, 19, 20]]
-
-
 async def _listen_over_zrb(
     blocks, barge_in_enabled=True, barge_in_min_speech=0.1, **callbacks
 ):
@@ -287,7 +273,6 @@ async def _listen_over_zrb(
         min_speech=0.1,
         max_utterance=10,
         pre_roll=0,
-        echo_cooldown=0,
         barge_in_enabled=barge_in_enabled,
         barge_in_min_speech=barge_in_min_speech,
         barge_in_margin=1.0,
@@ -340,7 +325,6 @@ async def test_a_barge_in_too_short_to_keep_is_reported_dropped():
         min_speech=0.3,
         max_utterance=10,
         pre_roll=0,
-        echo_cooldown=0,
         barge_in_enabled=True,
         barge_in_min_speech=0.1,
         barge_in_margin=1.0,

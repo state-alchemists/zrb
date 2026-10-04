@@ -8,8 +8,8 @@ import pytest
 
 from zrb.llm.dictation import AnyDictationBackend, DictationConfig
 from zrb.llm.dictation.feature import DictationSession
+from zrb.llm.dictation.interrupt_judge import BargeInVerdict
 from zrb.llm.dictation.listen import Utterance
-from zrb.llm.speech.spoken_log import SpokenLog
 from zrb.llm.util.feature_config import reset_session_ui, set_session_ui
 
 
@@ -50,6 +50,20 @@ def speech(monkeypatch):
     set_session_ui(fake)
     yield events
     reset_session_ui()
+
+
+@pytest.fixture(autouse=True)
+def judge(monkeypatch):
+    """The interrupt judge, offline: it could not answer, so the word lists
+    decide — which is what happens with no small model reachable. A test that
+    wants a verdict patches over this."""
+
+    async def could_not_answer(command, model=None):
+        return None
+
+    monkeypatch.setattr(
+        "zrb.llm.dictation.interrupt_judge.judge_barge_in", could_not_answer
+    )
 
 
 def _listen(monkeypatch, *heard, partials=(), drop_first=False):
@@ -107,8 +121,8 @@ async def test_nothing_intelligible_over_zrb_lets_it_carry_on(monkeypatch, speec
 async def test_words_without_the_wake_word_let_zrb_carry_on(monkeypatch, speech):
     _listen(monkeypatch, "just chatting", "hey zed stop now")
     assert await _replies(_session(wake_words=["hey zed"]), 1) == ["stop now"]
-    # "just chatting" held nothing: with wake words, loudness alone does not.
-    assert speech == ["interrupt"]
+    # Talk that is not the user's held zrb, and gave it back.
+    assert speech == ["pause", "resume", "pause", "interrupt"]
 
 
 @pytest.mark.asyncio
@@ -117,23 +131,82 @@ async def test_the_wake_word_heard_while_still_speaking_stops_zrb_early(
 ):
     _listen(monkeypatch, "hey zed wait there", partials=["", "hey zed"])
     assert await _replies(_session(wake_words=["hey zed"]), 1) == ["wait there"]
-    # Stopped by the partial words, with nothing held before them; the
+    # Held on loudness, then stopped by the wake word in the live words; the
     # transcript then finds nothing left to add.
-    assert speech == ["interrupt"]
+    assert speech == ["pause", "interrupt"]
 
 
 @pytest.mark.asyncio
-async def test_with_wake_words_zrbs_own_voice_never_holds_zrb(monkeypatch, speech):
-    """zrb's voice reaches the microphone too. With a wake word deciding what
-    is the user's, a hold taken on loudness alone pauses zrb for its own words
-    and lets them go again — a stutter. Nothing is held for them."""
+async def test_with_wake_words_talk_not_meant_for_zrb_is_held_and_given_back(
+    monkeypatch, speech
+):
+    """Held on loudness before anything is known, because being talked over is
+    worse than a hold taken for zrb's own voice. The words then give that hold
+    back — twice here, once for words meant for nobody and once for the
+    transcriber guessing — so zrb never talks through an interruption."""
     _listen(monkeypatch, "sleep well", "and this and this", "hey zed go on")
     ui = FakeUI()
     set_session_ui(ui)
 
     assert await _replies(_session(wake_words=["hey zed"]), 1) == ["go on"]
-    assert speech == ["interrupt"]
-    assert "✋ paused · listening…" not in ui.badges
+    assert speech == ["pause", "resume", "pause", "resume", "pause", "interrupt"]
+    assert "✋ paused · listening…" in ui.badges
+
+
+@pytest.mark.asyncio
+async def test_words_a_word_list_cannot_read_as_a_stop_stop_zrb_anyway(
+    monkeypatch, speech
+):
+    """A stop word said alone is exact and free; "please fucking stop" is not,
+    and no word list should have to know that. The small model reads it, and
+    the turn is cancelled rather than reaching the model as a message."""
+
+    async def judge_stop(command, model=None):
+        if command == "please fucking stop":
+            return BargeInVerdict(intent="stop", reason="asks zrb to be quiet")
+        return None
+
+    monkeypatch.setattr("zrb.llm.dictation.interrupt_judge.judge_barge_in", judge_stop)
+    ui = FakeUI()
+    set_session_ui(ui)
+    _listen(monkeypatch, "hey zed please fucking stop", "hey zed go on")
+
+    assert await _replies(_session(wake_words=["hey zed"]), 1) == ["go on"]
+    assert ui.cancelled == ["barge_in"]
+    assert speech == ["pause", "interrupt", "pause", "interrupt"]
+
+
+@pytest.mark.asyncio
+async def test_a_stop_word_is_not_put_to_the_model(monkeypatch, speech):
+    """The word lists answer first, for free: the model is asked about what
+    they could not read, and about nothing else."""
+    asked: list[str] = []
+
+    async def judge_spy(command, model=None):
+        asked.append(command)
+        return None
+
+    monkeypatch.setattr("zrb.llm.dictation.interrupt_judge.judge_barge_in", judge_spy)
+    _listen(monkeypatch, "hey zed stop", "hey zed go on")
+
+    assert await _replies(_session(wake_words=["hey zed"]), 1) == ["go on"]
+    assert asked == ["go on"]
+    assert speech == ["pause", "interrupt", "pause", "interrupt"]
+
+
+@pytest.mark.asyncio
+async def test_a_stop_said_twice_with_a_wake_word_is_not_transcriber_noise(
+    monkeypatch, speech
+):
+    """One phrase said twice reads as a transcriber guessing at noise — but a
+    wake word in front of it is someone saying stop again, and saying it again
+    is what someone does when the first went unheard."""
+    _listen(monkeypatch, "hey zed stop, hey zed stop", "hey zed go on")
+
+    assert await _replies(_session(wake_words=["hey zed"]), 2) == [
+        "stop, hey zed stop",
+        "go on",
+    ]
 
 
 @pytest.mark.asyncio
@@ -250,50 +323,3 @@ async def test_a_broken_microphone_mid_barge_in_resumes_speech(monkeypatch, spee
 
     assert speech[:2] == ["pause", "resume"]
     assert not session.is_hands_free
-
-
-@pytest.mark.asyncio
-async def test_zrbs_own_voice_heard_back_is_dropped_and_zrb_carries_on(
-    monkeypatch, speech
-):
-    """What echo cancellation left of zrb's voice, transcribed into its own
-    words, must not become a turn: zrb would answer itself."""
-    log = SpokenLog()
-    log.start("Goodnight. Sleep well.", -1.0)  # still being said
-    monkeypatch.setattr("zrb.llm.dictation.feature.spoken_log", log)
-    monkeypatch.setenv("ZRB_LLM_ASSISTANT_NAME", "Jarvis")
-    _listen(monkeypatch, "Sleep well.", "what time is it")
-    ui = FakeUI()
-    set_session_ui(ui)
-
-    assert await _replies(_session(), 1) == ["what time is it"]
-    assert speech[:2] == ["pause", "resume"]
-    assert any("Jarvis's own voice" in str(badge) for badge in ui.badges)
-
-
-@pytest.mark.asyncio
-async def test_a_reply_in_zrbs_words_while_zrb_is_silent_is_the_users(
-    monkeypatch, speech
-):
-    """With the microphone deaf to zrb, what follows its question is the
-    user's even in its words, though within the self-echo tail."""
-    log = SpokenLog()
-    log.finish(log.start("Should I run the tests?", -1.0), -0.2)
-    monkeypatch.setattr("zrb.llm.dictation.feature.spoken_log", log)
-
-    async def listen(config, should_listen, **kwargs):
-        yield Utterance(b"run the tests", 0.0, 0.5)
-
-    monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
-
-    assert await _replies(_session(), 1) == ["run the tests"]
-
-
-@pytest.mark.asyncio
-async def test_words_zrb_did_not_say_are_not_taken_for_its_voice(monkeypatch, speech):
-    log = SpokenLog()
-    log.finish(log.start("Goodnight. Sleep well.", -10.0), -9.0)  # long done
-    monkeypatch.setattr("zrb.llm.dictation.feature.spoken_log", log)
-    _listen(monkeypatch, "sleep now")
-
-    assert await _replies(_session(), 1) == ["sleep now"]

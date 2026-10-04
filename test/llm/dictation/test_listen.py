@@ -106,7 +106,6 @@ def _listen_config():
         min_speech=0.1,
         max_utterance=10,
         pre_roll=0.1,
-        echo_cooldown=0,
     )
 
 
@@ -199,7 +198,6 @@ def _cutter(**config):
         min_speech=0.2,
         max_utterance=1.0,
         pre_roll=0.2,
-        echo_cooldown=0.2,
     )
     return UtteranceCutter(DictationConfig(**{**fields, **config}).resolve())
 
@@ -256,12 +254,6 @@ def test_zero_silence_ends_speech_at_the_first_quiet_block():
     assert finished == [([0, 1, 2], -0.1, 0.2), ([3, 4, 5], 0.2, 0.5)]
 
 
-def test_negative_echo_cooldown_is_no_cooldown():
-    finished = _feed(_cutter(echo_cooldown=-1), [1, 1, 1, 1, 0, 0], echo_at={0})
-
-    assert finished == [([1, 2, 3, 4, 5], 0.0, 0.5)]
-
-
 def test_a_click_shorter_than_min_speech_is_dropped():
     assert _feed(_cutter(), [0, 1, 0, 0, 0]) == []
 
@@ -272,10 +264,11 @@ def test_speech_is_cut_at_max_utterance():
     assert len(blocks) == 5
 
 
-def test_blocks_while_zrb_speaks_and_the_cooldown_after_are_ignored():
+def test_blocks_while_zrb_speaks_are_ignored():
     levels = [1, 1, 1, 1, 0, 0, 0]
-    # Echo on block 1 resets the speech; blocks 2 and 3 fall in the cooldown.
-    assert _feed(_cutter(), levels, echo_at={1}) == []
+    # Echo on block 1 discards the speech so far; what follows is heard at
+    # once, since nothing is held back after zrb stops any more.
+    assert _feed(_cutter(), levels, echo_at={1}) == [([2, 3, 4, 5], 0.1, 0.5)]
 
 
 # --- the bar under ordinary speech --------------------------------------------
@@ -386,7 +379,6 @@ def _backlog_config(max_backlog):
         min_speech=0.1,
         max_utterance=10,
         pre_roll=0,
-        echo_cooldown=0,
         max_backlog=max_backlog,
     )
 
@@ -470,7 +462,6 @@ def test_the_block_duration_is_what_every_duration_is_counted_in():
             silence=0.4,
             min_speech=0.2,
             pre_roll=0,
-            echo_cooldown=0,
         ).resolve()
     )
     finished = [cutter.feed(i, level, i * 0.2, False) for i, level in enumerate([1, 0])]
