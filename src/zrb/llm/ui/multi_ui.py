@@ -384,6 +384,16 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         """Counterpart to `mark_text_block_start` — see its docstring."""
         self._fanout("collapse_text_block", collapsed, full)
 
+    def start_tool_call(self, tool_name: str, tool_call_id: str) -> None:
+        """Forward a tool call's execution start to whichever children track
+        the running-tool timer for their status bar — same fallback story as
+        `mark_thinking_block_start`."""
+        self._fanout("start_tool_call", tool_name, tool_call_id)
+
+    def end_tool_call(self, tool_call_id: str | None = None) -> None:
+        """Counterpart to `start_tool_call` — see its docstring."""
+        self._fanout("end_tool_call", tool_call_id)
+
     def update_tool_prepare(self, key: str, text: str) -> None:
         """Forward a tool call's "Prepare tool parameters" update to whichever
         children support it — same fallback story as `mark_thinking_block_start`."""
@@ -425,6 +435,9 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         # A fresh turn has no answer yet; a non-string result or an error must
         # not leave last_output carrying the previous turn's answer.
         self._last_result_data = None
+        # Clear any stale running-tool timer left by a cancelled turn before
+        # this one starts streaming (mirrors `BaseUI.stream_ai_response`).
+        self.end_tool_call()
         self.set_thinking(True)
         try:
             timestamp = datetime.now().strftime("%H:%M")
