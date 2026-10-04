@@ -1122,10 +1122,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         enqueue it for the next turn. Uses the UI's own task — sub-agent
         continuation code calls this to hand the main agent a synthesized
         report without reaching into `_llm_task`."""
-        if source is None:
-            self.submit_user_message(self.llm_task, user_message)
-        else:
-            self.submit_user_message(self.llm_task, user_message, source)
+        self.submit_user_message(self.llm_task, user_message, source)
 
     def set_status_badge(self, key: str, text: str | None) -> None:
         if text is None:

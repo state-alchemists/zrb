@@ -247,7 +247,7 @@ def test_submit_message_uses_own_llm_task(base_ui):
     to hand the main agent a synthesized report."""
     with patch.object(base_ui, "submit_user_message") as mock_submit:
         base_ui.submit_message("report text")
-    mock_submit.assert_called_once_with(base_ui.llm_task, "report text")
+    mock_submit.assert_called_once_with(base_ui.llm_task, "report text", None)
 
 
 @pytest.mark.asyncio

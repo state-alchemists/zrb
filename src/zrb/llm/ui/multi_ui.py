@@ -616,10 +616,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         run when one is in flight). Uses the shared queue's own task
         — sub-agent continuation code calls this to hand the main agent a
         synthesized report."""
-        if source is None:
-            self.submit_user_message(self._llm_task, user_message)
-        else:
-            self.submit_user_message(self._llm_task, user_message, source)
+        self.submit_user_message(self._llm_task, user_message, source)
 
     async def process_messages_loop(self):
         """Process jobs from shared queue sequentially."""

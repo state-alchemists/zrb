@@ -12,7 +12,7 @@ import asyncio
 import inspect
 import logging
 from collections.abc import AsyncIterable, Callable, Iterable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from zrb.llm.input_source import InputProvenance
 from zrb.llm.ui.trigger import TriggerInput, TriggerMessage, TriggerReply
@@ -137,9 +137,17 @@ class BaseUITriggers:
     ) -> "tuple[str, list[UserContent], InputProvenance | None]":
         """Split a yielded item into text, attachments and provenance."""
         if isinstance(item, TriggerInput):
-            return str(item.text or ""), list(item.attachments), item.source
+            return (
+                str(item.text or ""),
+                _validate_attachments(item.attachments),
+                item.source,
+            )
         if isinstance(item, TriggerMessage):
-            return str(item.text or ""), list(item.attachments), None
+            return (
+                str(item.text or ""),
+                _validate_attachments(item.attachments),
+                None,
+            )
         if not isinstance(item, tuple):
             return str(item or ""), [], None
         if len(item) != 2:
@@ -148,17 +156,22 @@ class BaseUITriggers:
                 f"got {len(item)} element(s): {item!r}"
             )
         text, attachments = item
-        if attachments is None:
-            attachments = ()
-        if isinstance(attachments, (str, bytes)) or not isinstance(
-            attachments, Iterable
-        ):
-            raise ValueError(
-                "a trigger item's attachments must be a sequence, not "
-                f"{type(attachments).__name__}: {attachments!r}. Wrap a single "
-                "attachment in a list."
-            )
-        return str(text or ""), list(attachments), None
+        return str(text or ""), _validate_attachments(attachments), None
+
+
+def _validate_attachments(attachments: object) -> list[UserContent]:
+    """Validate and materialize a trigger item's attachments."""
+    if attachments is None:
+        attachments = ()
+    if isinstance(attachments, (str, bytes)) or not isinstance(
+        attachments, Iterable
+    ):
+        raise ValueError(
+            "a trigger item's attachments must be a sequence, not "
+            f"{type(attachments).__name__}: {attachments!r}. Wrap a single "
+            "attachment in a list."
+        )
+    return list(cast("Iterable[UserContent]", attachments))
 
 
 def _unstage(staged: "list[UserContent]", items: "list[UserContent]") -> None:

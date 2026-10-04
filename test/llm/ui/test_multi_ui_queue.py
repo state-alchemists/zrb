@@ -190,4 +190,4 @@ def test_multi_ui_submit_message_uses_own_llm_task(multi_ui):
     multi_ui.set_llm_task(llm_task)
     with patch.object(multi_ui, "submit_user_message") as mock_submit:
         multi_ui.submit_message("report text")
-    mock_submit.assert_called_once_with(llm_task, "report text")
+    mock_submit.assert_called_once_with(llm_task, "report text", None)

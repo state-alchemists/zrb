@@ -36,7 +36,7 @@ async def test_handle_incoming_message():
     # Not waiting for input -> submit message
     ui.waiting_for_input = False
     ui.handle_incoming_message("hello")
-    ui.submit_user_message.assert_called_with(ui.llm_task, "hello")
+    ui.submit_user_message.assert_called_with(ui.llm_task, "hello", None)
     assert ui.input_queue.empty()
 
     # Waiting for input -> enqueue
@@ -91,7 +91,7 @@ async def test_handle_incoming_message_resolves_slash_command():
                 custom_commands=custom_commands,
             )
 
-        def submit_user_message(self, llm_task, user_message):
+        def submit_user_message(self, llm_task, user_message, source=None):
             self.submitted.append(user_message)
 
         async def print(self, text, kind="text"):
@@ -132,7 +132,7 @@ async def test_handle_incoming_message_runs_action_command():
                 custom_commands=custom_commands,
             )
 
-        def submit_user_message(self, llm_task, user_message):
+        def submit_user_message(self, llm_task, user_message, source=None):
             self.submitted.append(user_message)
 
         async def print(self, text, kind="text"):
@@ -161,7 +161,7 @@ def test_handle_incoming_message_forwards_non_string_input():
 
     ui.handle_incoming_message(payload)
 
-    ui.submit_user_message.assert_called_with(ui.llm_task, payload)
+    ui.submit_user_message.assert_called_with(ui.llm_task, payload, None)
 
 
 @pytest.mark.asyncio

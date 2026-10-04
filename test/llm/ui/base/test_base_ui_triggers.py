@@ -193,17 +193,25 @@ async def test_trigger_loop_unstages_attachments_when_submission_fails(
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "item",
-    [("text", "one-path.png"), ("text", 3), ("a", ["x"], "extra"), ("only",)],
+    [
+        ("text", "one-path.png"),
+        ("text", 3),
+        ("a", ["x"], "extra"),
+        ("only",),
+        TriggerMessage("text", "one-path.png"),
+        TriggerInput("text", 3),
+    ],
 )
-async def test_trigger_loop_reports_a_malformed_tuple_and_keeps_going(
+async def test_trigger_loop_reports_malformed_attachments_and_keeps_going(
     base_ui, monkeypatch, item
 ):
     """One bad item must not end the loop.
 
     A trigger is a long-lived source — a button, a queue — so aborting on the
     first malformed item silently stops every later one. A bare string in the
-    attachments slot used to become a list of its characters, a 3-tuple lost
-    its third element, and a non-sequence raised out of `list()`.
+    attachments slot must not become a list of its characters, a 3-tuple must
+    not lose its third element, and a non-sequence must receive a controlled
+    validation error.
     """
     submitted = collect_submitted(base_ui, monkeypatch)
     reported: list[str] = []
@@ -220,11 +228,17 @@ async def test_trigger_loop_reports_a_malformed_tuple_and_keeps_going(
 
 
 @pytest.mark.asyncio
-async def test_trigger_loop_reads_none_attachments_as_none(base_ui, monkeypatch):
-    """`(text, None)` is text with no attachments, like `TriggerMessage`'s default."""
+@pytest.mark.parametrize(
+    "item",
+    [("hello", None), TriggerMessage("hello", None), TriggerInput("hello", None)],
+)
+async def test_trigger_loop_reads_none_attachments_as_none(
+    base_ui, monkeypatch, item
+):
+    """`None` means no attachments for every attachment-bearing trigger item."""
     submitted = collect_submitted(base_ui, monkeypatch)
 
-    await base_ui.trigger_loop(trigger_yielding(("hello", None)))
+    await base_ui.trigger_loop(trigger_yielding(item))
 
     assert submitted == [("hello", [])]
 
