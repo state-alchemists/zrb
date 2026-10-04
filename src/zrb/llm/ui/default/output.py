@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import TYPE_CHECKING, TextIO, cast
 
 from zrb.config.config import CFG
@@ -56,6 +57,22 @@ def _truncate(text: str, limit: int) -> str:
     """First line of `text`, clipped to `limit` chars with an ellipsis."""
     text = text.splitlines()[0] if text else ""
     return truncate_display(text, limit)
+
+
+def format_elapsed(seconds: float) -> str:
+    """Format an elapsed-time count as a compact human string.
+
+    ``45s`` under a minute, ``12m 34s`` under an hour, ``2h 5m 3s`` beyond.
+    ``0s`` for zero or negative (the timer has not ticked yet).
+    """
+    total = max(0, int(seconds))
+    if total < 60:
+        return f"{total}s"
+    minutes, secs = divmod(total, 60)
+    if minutes < 60:
+        return f"{minutes}m {secs}s"
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}h {minutes}m {secs}s"
 
 
 def _fmt_tokens(count: int) -> str:
@@ -741,11 +758,13 @@ class UIOutput:
                     CFG.LLM_UI_STYLE_THINKING,
                     f" ⏳ {self._ui.assistant_name} is working{dot_str} ",
                 ),
+                *self._get_tool_duration_fragment(),
                 *(
                     [(CFG.LLM_UI_STYLE_STATUS, f" 📥 {queued} queued ")]
                     if queued
                     else []
                 ),
+                *self._get_session_uptime_fragments(),
                 *self._get_token_usage_fragments(),
             ]
         # Persistent Shift+Tab mode indicator (mirrors Claude Code's mode badge
@@ -761,8 +780,36 @@ class UIOutput:
             ),
             (f"fg:{CFG.LLM_UI_STYLE_FAINT}", "shift+tab to cycle "),
         ]
+        result.extend(self._get_session_uptime_fragments())
         result.extend(self._get_token_usage_fragments())
         return result
+
+    def _get_session_uptime_fragments(self) -> list:
+        """Session-uptime status-bar fragment; empty while the timer is off."""
+        if not CFG.LLM_UI_SHOW_RUNTIME_TIMERS:
+            return []
+        started_at = getattr(self._ui, "session_started_at", None)
+        if started_at is None:
+            return []
+        elapsed = time.monotonic() - started_at
+        return [
+            (f"fg:{CFG.LLM_UI_STYLE_FAINT}", f" ⏱ {format_elapsed(elapsed)} ")
+        ]
+
+    def _get_tool_duration_fragment(self) -> list:
+        """Running-tool elapsed fragment; empty when no tool runs or off."""
+        if not CFG.LLM_UI_SHOW_RUNTIME_TIMERS:
+            return []
+        running = getattr(self._ui, "running_tool", None)
+        if running is None:
+            return []
+        elapsed = time.monotonic() - running.started_at
+        return [
+            (
+                f"fg:{CFG.LLM_UI_STYLE_FAINT}",
+                f" 🧰 {running.tool_name} {format_elapsed(elapsed)} ",
+            )
+        ]
 
     def get_badge_bar_text(self) -> "AnyFormattedText":
         """The status badges — each a feature's one-line state — on a line of

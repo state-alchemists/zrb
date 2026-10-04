@@ -123,6 +123,8 @@ class StreamEventHandler:
         on_text_start: Callable[[], None] | None = None,
         on_text_collapse: Callable[[str, str], None] | None = None,
         on_tool_prepare_update: Callable[[str, str], None] | None = None,
+        on_tool_call_start: Callable[[str, str], None] | None = None,
+        on_tool_call_end: Callable[[str | None], None] | None = None,
     ):
         self._print_fn = print_fn
         self._usage_callback = usage_callback
@@ -131,6 +133,8 @@ class StreamEventHandler:
         self._show_tool_result = show_tool_result
         self._tool_block_recorder = tool_block_recorder
         self._on_tool_prepare_update = on_tool_prepare_update
+        self._on_tool_call_start = on_tool_call_start
+        self._on_tool_call_end = on_tool_call_end
 
         self._progress_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
         self._progress_idx = 0
@@ -452,6 +456,8 @@ class StreamEventHandler:
 
     def handle_tool_call(self, event: "ToolCallEvent"):
         tool_call_id = event.part.tool_call_id
+        if self._on_tool_call_start is not None:
+            self._on_tool_call_start(event.part.tool_name, tool_call_id)
         if self._on_tool_prepare_update is not None:
             # Offset-based: erases only this tool call's span.
             self._update_tool_prepare(tool_call_id, "")
@@ -481,6 +487,8 @@ class StreamEventHandler:
         self._was_tool_call_delta = False
 
     def handle_tool_result(self, event: "ToolResultEvent"):
+        if self._on_tool_call_end is not None:
+            self._on_tool_call_end(event.tool_call_id)
         # No trailing "\n" — see the note in `handle_tool_call`.
         if self._show_tool_result:
             self.fprint(
@@ -498,6 +506,12 @@ class StreamEventHandler:
         self._was_tool_call_delta = False
 
     def handle_run_result(self, event: "AgentRunResultEvent"):
+        # The run is over, so no tool call can still be in flight; clear the
+        # timer here too (idempotent) so a tool that never got a result event
+        # cannot leave the status bar showing it. No specific call completed at
+        # run end, so pass None: "clear whatever is still running."
+        if self._on_tool_call_end is not None:
+            self._on_tool_call_end(None)
         self._thinking.close()
         # The normal case: a turn ends with the final text as the last
         # streamed part, so this is where most text blocks actually collapse.
@@ -541,6 +555,8 @@ def create_event_handler(
     on_text_start: Callable[[], None] | None = None,
     on_text_collapse: Callable[[str, str], None] | None = None,
     on_tool_prepare_update: Callable[[str, str], None] | None = None,
+    on_tool_call_start: Callable[[str, str], None] | None = None,
+    on_tool_call_end: Callable[[str | None], None] | None = None,
 ):
     """Create an event handler for agent stream events.
 
@@ -588,6 +604,15 @@ def create_event_handler(
             that under interleaving. A UI that doesn't support it keeps the
             original single-line `\\r` animation, correct only when tool
             calls don't overlap.
+        on_tool_call_start: Called with the tool's name and its tool-call id
+            once a tool call is about to execute (a `ToolCallEvent`), so a UI
+            can record the running tool for its status-bar timer.
+        on_tool_call_end: Called with the completed call's tool-call id once a
+            tool call finishes (a `ToolResultEvent`), and again with ``None``
+            when the run ends, so the UI can clear its running-tool timer only
+            for the call that actually finished. ``None`` clears whatever is
+            still running — a run-end clear after the last tool result is a
+            no-op, and one with a leftover timer always clears it.
     """
     return StreamEventHandler(
         print_fn=print_fn,
@@ -601,6 +626,8 @@ def create_event_handler(
         on_text_start=on_text_start,
         on_text_collapse=on_text_collapse,
         on_tool_prepare_update=on_tool_prepare_update,
+        on_tool_call_start=on_tool_call_start,
+        on_tool_call_end=on_tool_call_end,
     )
 
 
