@@ -162,6 +162,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0102** — [Optional chat features install through `LLMChatTask`'s extension points, configured when a session starts](adr-0102.md)
 - **ADR-0103** — [Speech reads a reply aloud as it streams or at the end, cut or summarized, and stops when talked over](adr-0103.md)
 - **ADR-0105** — [Barge-in guards against zrb's own voice instead of cancelling it](adr-0105.md)
+- **ADR-0106** — [A side question runs without tools, and its prompt says so](adr-0106.md)
 
 ### Sub-agent sessions
 
