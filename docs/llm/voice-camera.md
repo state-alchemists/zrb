@@ -50,7 +50,7 @@ By default zrb ignores the microphone while it is speaking, so its own voice is 
 - Anything else steers the running turn: the agent takes it into account at its next step (`ZRB_LLM_DICTATION_BARGE_IN_ACTION=steer`). With `cancel`, the turn stops and what you said starts a new one.
 - While a tool approval is waiting, what you say answers it, as usual: "no" denies the tool call, not the turn.
 
-With wake words, zrb stops only once it has heard one; it pauses for talk in the room and carries on.
+With wake words, zrb's voice is not held on loudness alone. Its own voice reaches the microphone too, and a hold taken for it would be released again the moment the transcript said the words were zrb's — heard as a stutter, with zrb talking on. The words take the hold instead: zrb goes quiet as soon as a wake word is heard while it speaks (a streaming backend, `vosk`), or as soon as the transcript turns out to be meant for it (the rest, a moment later). Talk in the room passes over a speaking zrb untouched, however loud; only a wake word stops it.
 
 **zrb's own voice.** On speakers the microphone hears zrb too, and zrb does not try to subtract it: no echo canceller removes all of it on laptop speakers, and what is left, transcribed, would become turns zrb answers itself. Instead, what hands-free hears has to pass four checks before it reaches the model ([ADR-0105](../adr/adr-0105.md)). Push-to-talk keeps every word: its transcript lands in the input box for you to edit.
 

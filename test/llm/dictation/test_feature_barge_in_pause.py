@@ -107,7 +107,8 @@ async def test_nothing_intelligible_over_zrb_lets_it_carry_on(monkeypatch, speec
 async def test_words_without_the_wake_word_let_zrb_carry_on(monkeypatch, speech):
     _listen(monkeypatch, "just chatting", "hey zed stop now")
     assert await _replies(_session(wake_words=["hey zed"]), 1) == ["stop now"]
-    assert speech == ["pause", "resume", "pause", "interrupt"]
+    # "just chatting" held nothing: with wake words, loudness alone does not.
+    assert speech == ["interrupt"]
 
 
 @pytest.mark.asyncio
@@ -116,8 +117,23 @@ async def test_the_wake_word_heard_while_still_speaking_stops_zrb_early(
 ):
     _listen(monkeypatch, "hey zed wait there", partials=["", "hey zed"])
     assert await _replies(_session(wake_words=["hey zed"]), 1) == ["wait there"]
-    # Stopped by the partial words; the transcript finds nothing to add.
-    assert speech == ["pause", "interrupt"]
+    # Stopped by the partial words, with nothing held before them; the
+    # transcript then finds nothing left to add.
+    assert speech == ["interrupt"]
+
+
+@pytest.mark.asyncio
+async def test_with_wake_words_zrbs_own_voice_never_holds_zrb(monkeypatch, speech):
+    """zrb's voice reaches the microphone too. With a wake word deciding what
+    is the user's, a hold taken on loudness alone pauses zrb for its own words
+    and lets them go again — a stutter. Nothing is held for them."""
+    _listen(monkeypatch, "sleep well", "and this and this", "hey zed go on")
+    ui = FakeUI()
+    set_session_ui(ui)
+
+    assert await _replies(_session(wake_words=["hey zed"]), 1) == ["go on"]
+    assert speech == ["interrupt"]
+    assert "✋ paused · listening…" not in ui.badges
 
 
 @pytest.mark.asyncio

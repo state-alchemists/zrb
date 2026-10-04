@@ -128,6 +128,10 @@ class DictationSession:
         # zrb's voice is held because the user may be talking over it, until
         # what they said is known to be words (stop) or not (resume).
         self._is_paused_by_barge_in = False
+        # A barge-in is in flight and nothing holds zrb's voice for it yet:
+        # with wake words, loudness alone never does, so the words take the
+        # hold when they come.
+        self._is_waiting_for_words = False
         # The resting badge a barge-in replaced, back once zrb resumes.
         self._badge_before_pause = _LISTENING
         # A wake word said alone arms the utterances started before this.
@@ -428,7 +432,17 @@ class DictationSession:
 
     def _handle_barge_in(self) -> None:
         """The user may be talking over zrb: hold its voice at once, until
-        what they said turns out to be words or not."""
+        what they said turns out to be words or not.
+
+        With wake words, hold nothing yet. zrb's own voice reaches the
+        microphone too, and a hold taken on loudness alone turns out to be
+        zrb's own words as often as the user's, which is a stutter rather
+        than a barge-in. The words take the hold instead: a wake word heard
+        while zrb speaks (`_show_partial`), or a transcript meant for it
+        (`_settle_barge_in`)."""
+        if self._wake_words:
+            self._is_waiting_for_words = True
+            return
         if not self._is_paused_by_barge_in:
             self._badge_before_pause = self._resting_badge
         self._is_paused_by_barge_in = True
@@ -438,26 +452,31 @@ class DictationSession:
     def _settle_barge_in(self, utterance: Utterance, is_meant_for_zrb: bool) -> None:
         """For *utterance* said over zrb: stop zrb for words meant for it
         (with wake words: starting with one); carry on after anything else
-        (a cough, leftover echo). Words too brief to have paused zrb (a
-        crisp "stop" is shorter than ``barge_in_min_speech``) stop it too."""
+        (a cough, leftover echo). Words that held nothing of zrb's stop it
+        too: one too brief to have paused it (a crisp "stop" is shorter than
+        ``barge_in_min_speech``), and with wake words anything meant for it,
+        since loudness never held it."""
         if not utterance.is_over_speech:
+            self._is_waiting_for_words = False
             return
         if not is_meant_for_zrb:
             self._release_barge_in()
-        elif self._is_paused_by_barge_in or not utterance.is_barge_in:
-            self._stop_speech()
-
-    def _confirm_barge_in(self) -> None:
-        if self._is_paused_by_barge_in:
+        elif (
+            self._is_paused_by_barge_in
+            or self._is_waiting_for_words
+            or not utterance.is_barge_in
+        ):
             self._stop_speech()
 
     def _stop_speech(self) -> None:
+        self._is_waiting_for_words = False
         self._is_paused_by_barge_in = False
         interrupt_speech(self._session_key)
         self._rest(_INTERRUPTED)
 
     def _release_barge_in(self) -> None:
         """zrb carries on: resume its voice and the badge it paused."""
+        self._is_waiting_for_words = False
         if self._is_paused_by_barge_in:
             self._is_paused_by_barge_in = False
             resume_speech(self._session_key)
@@ -503,10 +522,11 @@ class DictationSession:
         self._show(f"👂 …{partial[-_MAX_QUOTED_CHARS:]}")
         if (
             self._wake_words
-            and self._is_paused_by_barge_in
+            and self._is_waiting_for_words
             and strip_wake_word(partial, self._wake_words) is not None
         ):
-            self._confirm_barge_in()
+            # Words meant for zrb: nothing was held, so nothing is let go of.
+            self._stop_speech()
 
     def _show_mic_state(self, state: MicState) -> None:
         self._show(_MIC_STATE_BADGES.get(state, self._resting_badge))
