@@ -29,6 +29,7 @@
 | With the `vosk` backend, a sentence you said is dropped as too faint | `ZRB_LLM_DICTATION_VOSK_CONFIDENCE` (default 0, off) is the average word confidence required; lower it |
 | Hands-free switched itself off | The microphone failed while listening; the reason is in zrb's log |
 | Recording starts but no audio is captured | Check OS microphone permissions for your terminal app; on Linux, check that PulseAudio/PipeWire is running |
+| Hands-free says "Error starting stream: Wait timed out" (PortAudio `paTimedOut`, `-9987`) | PortAudio never got the device in time — its ALSA thread has a one-second deadline, which WSLg's PulseAudio can miss under load or just after the VM wakes. It starts the stream before zrb reads anything, so no zrb setting is involved: retry, and if it keeps failing check the device with `python -c "import sounddevice; sounddevice.query_devices()"` and that the server is up (`pactl info`) |
 | No sound on WSL | WSL2 needs WSLg (Windows 11) or a PulseAudio server bridged from Windows for audio passthrough |
 | Termux: no microphone access | Dictation records through `sounddevice` (PortAudio), not Termux:API, so the microphone has to be reachable through PortAudio in your Termux environment; Termux:API is used only by `/photo` and the `termux` speech backend |
 

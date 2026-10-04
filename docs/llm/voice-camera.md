@@ -47,12 +47,12 @@ By default zrb ignores the microphone while it is speaking, so its own voice is 
 **Talking over zrb (barge-in).** With `ZRB_LLM_DICTATION_BARGE_IN_ENABLED=on`, the microphone keeps listening while zrb speaks. About a third of a second of speech over it (`ZRB_LLM_DICTATION_BARGE_IN_MIN_SPEECH`) pauses zrb at once. If what you said turns out to be words meant for zrb, it stops and the rest of that reply is not read; if not, zrb carries on where it paused. Words too brief to pause it (a crisp "stop") stop it as soon as they are transcribed. Then:
 
 - A stop word said alone ("stop", "wait", "hold on", "cancel", "no"; `ZRB_LLM_DICTATION_STOP_WORDS`) cancels the turn, as Esc does, and is sent nowhere.
-- Anything else steers the running turn: the agent takes it into account at its next step (`ZRB_LLM_DICTATION_BARGE_IN_ACTION=steer`). With `cancel`, the turn stops and what you said starts a new one.
+- Anything else is put to the small model (`ZRB_LLM_DICTATION_INTERRUPT_JUDGE_ENABLED`), which reads what it asks: a stop in other words ("please stop", "shut up", a stop in another language) cancels the turn like a stop word, and anything else steers the running turn — the agent takes it into account at its next step. With the judge off, only the stop words cancel it and everything else steers.
 - While a tool approval is waiting, what you say answers it, as usual: "no" denies the tool call, not the turn.
 
 With wake words, zrb stops only once it has heard one. Talk in the room holds its voice like anything else heard over it, on loudness alone, and the words give that hold back when they turn out not to be the user's.
 
-**zrb's own voice.** On speakers the microphone hears zrb too, and zrb does not try to subtract it: no echo canceller removes all of it on laptop speakers, and what is left, transcribed, would become turns zrb answers itself. Instead, what hands-free hears has to pass four checks before it reaches the model ([ADR-0105](../adr/adr-0105.md)). Push-to-talk keeps every word: its transcript lands in the input box for you to edit.
+**zrb's own voice.** On speakers the microphone hears zrb too, and zrb does not try to subtract it: no echo canceller removes all of it on laptop speakers, and what is left, transcribed, would become turns zrb answers itself. Instead, what hands-free hears has to pass three checks before it reaches the model ([ADR-0105](../adr/adr-0105.md)). Push-to-talk keeps every word: its transcript lands in the input box for you to edit.
 
 | Check | What it keeps out | Setting |
 |---|---|---|
@@ -142,7 +142,7 @@ os.environ.setdefault(f"{CFG.ENV_PREFIX}_LLM_DICTATION_WAKE_WORDS", "hey zed")
 
 **Everything is a setting.** Every word zrb listens for and every phrase it says, apart from the status-bar badges, is a variable in [LLM configuration § Voice and Camera](../configuration/llm-config.md#23-voice-and-camera):
 
-- **Words it listens for:** wake words, approve and deny words, stop words, the polite words around them, and the words a sentence rarely ends on. The defaults are English; set them for your language.
+- **Words it listens for:** wake words, approve and deny words, stop words, and the polite words a yes or a no may carry. The defaults are English; set them for your language.
 - **What it says:** the approval request and each tool's action in it, every progress line and the tools it keeps quiet about, the question notice, and the note after a cut reply. The two per-tool tables are JSON objects of tool-name patterns (`{"Read": "Membaca berkas.", "*": "Memakai {tool}."}`).
 - **Prompts:** the transcription instruction for `google` and `multimodal`, Gemini's reading prompts, and the prompt files `speech_live`, `speech_summarizer` and `multimodal_audio` (through `ZRB_LLM_PROMPT_DIR`).
 - **Timing:** every listening duration, the microphone block size, playback block and read-ahead, and timeouts.
