@@ -7,7 +7,6 @@ import pytest
 
 from zrb.llm.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
 from zrb.llm.speech.backend.audio import SpeechAudio
-from zrb.llm.speech.spoken_log import SpokenLog
 from zrb.util.file_lock import hold_file_lock
 
 
@@ -386,81 +385,3 @@ def test_an_unknown_player_is_logged_and_read_as_auto(lock_file, monkeypatch, ca
     assert "Unknown speech player 'commands'" in caplog.text
     assert made == ["hello"]
 
-
-def test_what_zrb_plays_is_logged_as_said_while_it_plays(lock_file, monkeypatch):
-    log = SpokenLog()
-    monkeypatch.setattr("zrb.llm.speech.player.spoken_log", log)
-    backend = FakeBackend()
-    before = time.monotonic()
-
-    Speaker(_config(backend, lock_file)).speak("Sleep well.")
-
-    assert log.get_text_said(before, time.monotonic()) == "Sleep well."
-
-
-def test_speech_dropped_waiting_for_the_audio_device_is_not_logged_as_said(
-    lock_file, monkeypatch
-):
-    """Another session holding the device past the lock timeout drops the
-    sentence unheard; logging it anyway would have dictation drop the user
-    saying the same words as zrb's echo."""
-    log = SpokenLog()
-    monkeypatch.setattr("zrb.llm.speech.player.spoken_log", log)
-    backend = FakeBackend()
-    before = time.monotonic()
-
-    with hold_file_lock(lock_file):
-        Speaker(_config(backend, lock_file)).speak("Sleep well.")
-
-    assert backend.played == []
-    assert log.get_text_said(before, time.monotonic()) == ""
-
-
-def test_a_paused_sentence_is_not_logged_as_said_while_it_is_held(
-    lock_file, monkeypatch
-):
-    """zrb is silent while paused, so what the user says then, even zrb's
-    own words ("run the tests"), is theirs; the log resumes with zrb."""
-    log = SpokenLog()
-    monkeypatch.setattr("zrb.llm.speech.player.spoken_log", log)
-    backend = HangingBackend()
-    backend.create_utterance = (
-        lambda text: backend.utterances.append(PausableUtterance(backend.started))
-        or backend.utterances[-1]
-    )
-    speaker = Speaker(_config(backend, lock_file))
-    speaker.say("run the tests")
-    assert backend.started.wait(1)
-
-    speaker.pause()
-    held_from = time.monotonic()
-    time.sleep(0.02)
-    held_until = time.monotonic()
-    said_while_held = log.get_text_said(held_from, held_until)
-    speaker.resume()
-    resumed = time.monotonic()
-
-    assert said_while_held == ""
-    assert log.get_text_said(resumed, resumed) == "run the tests"
-    speaker.close()
-
-
-def test_speech_that_never_starts_playing_is_not_logged_as_said(lock_file, monkeypatch):
-    """A sentence whose device fails with nothing to fall back on was not
-    heard, though zrb held the audio device for it."""
-    log = SpokenLog()
-    monkeypatch.setattr("zrb.llm.speech.player.spoken_log", log)
-
-    class SilentUtterance(Utterance):
-        def play(self, timeout):
-            raise OSError("no default output device")
-
-    class SilentBackend(AnySpeechBackend):
-        def create_utterance(self, text):
-            return SilentUtterance([])
-
-    before = time.monotonic()
-
-    Speaker(_config(SilentBackend(), lock_file)).speak("Sleep well.")
-
-    assert log.get_text_said(before, time.monotonic()) == ""

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import difflib
 import re
 from collections.abc import Collection
 
@@ -10,13 +9,6 @@ from zrb.config.config import CFG
 
 _WORD_RE = re.compile(r"[\w']+")
 _STRIPPED_AFTER_WAKE_WORD = " ,.!?;:，。"
-# How alike two words must be (difflib ratio) for a misheard one to match.
-_NEAR_WORD = 0.75
-# How alike a transcript and a stretch of what zrb said must be, letter by
-# letter, to be zrb's voice heard back; shorter transcripts are left to the
-# word match, since a short reply ("yes") is often inside zrb's own words.
-_SIMILAR_TEXT = 0.6
-_MIN_SIMILAR_CHARS = 10
 # What Whisper-like transcribers write for silence or noise. Lowercase, with
 # end punctuation left off.
 _NOISE_GUESSES = frozenset(
@@ -60,18 +52,6 @@ def strip_wake_word(text: str, wake_words: list[list[str]]) -> str | None:
     return None
 
 
-def is_finished_phrase(
-    text: str, trailing_words: Collection[str] | None = None
-) -> bool:
-    """Whether *text* could be a whole request: it has words and does not
-    trail off on one a sentence rarely ends with ("and", "the", "um").
-    *trailing_words* default to `CFG.LLM_DICTATION_TRAILING_WORDS`."""
-    if trailing_words is None:
-        trailing_words = CFG.LLM_DICTATION_TRAILING_WORDS
-    words = _WORD_RE.findall(text.lower())
-    return bool(words) and words[-1] not in {w.lower() for w in trailing_words}
-
-
 def to_answer(
     text: str,
     approve_words: list[list[str]],
@@ -88,10 +68,8 @@ def to_answer(
     "no, use pytest" keeps its reason. *polite_words* default to
     `CFG.LLM_DICTATION_POLITE_WORDS`.
     """
-    if polite_words is None:
-        polite_words = CFG.LLM_DICTATION_POLITE_WORDS
-    polite = {word.lower() for word in polite_words}
-    heard = [word.lower() for word in _WORD_RE.findall(text)]
+    polite = _get_polite_words(polite_words)
+    heard = _words_of(text)
     if _is_made_of(heard, approve_words, polite):
         return "yes"
     if _is_made_of(heard, deny_words, polite):
@@ -99,31 +77,24 @@ def to_answer(
     return text
 
 
-def is_said_back(heard: str, said: str, min_share: float) -> bool:
-    """Whether *heard* is mostly words of *said*: at least *min_share* of
-    its words are, each spelled the same or nearly ("sleep" for "Sleep",
-    "meen" for "mean", as a transcriber mishears zrb's own voice), or, for
-    ten letters or more, it reads like a stretch of *said* letter by letter.
-    Nothing heard, nothing said, or a *min_share* of 0 is never said back."""
-    heard_words = _WORD_RE.findall(heard.lower())
-    said_words = set(_WORD_RE.findall(said.lower()))
-    if not heard_words or not said_words or min_share <= 0:
-        return False
-    matched = sum(1 for word in heard_words if _is_near_any(word, said_words))
-    if matched / len(heard_words) >= min_share:
-        return True
-    return _is_like_a_stretch_of(
-        " ".join(heard_words), " ".join(_WORD_RE.findall(said.lower()))
-    )
+def is_answer(
+    text: str,
+    approve_words: list[list[str]],
+    deny_words: list[list[str]],
+    polite_words: Collection[str] | None = None,
+) -> bool:
+    """Whether *text* is a yes or a no, as `to_answer` reads one: made only of
+    approve or deny phrases and polite words ("Yes.", "no thanks").
 
-
-def _is_like_a_stretch_of(heard: str, said: str) -> bool:
-    if len(heard) < _MIN_SIMILAR_CHARS or len(heard) > len(said):
-        return False
-    return any(
-        difflib.SequenceMatcher(None, heard, said[start : start + len(heard)]).ratio()
-        >= _SIMILAR_TEXT
-        for start in range(len(said) - len(heard) + 1)
+    This is the same reading `to_answer` makes, so a caller that must decide
+    whether a transcript is an answer — rather than which answer it is — agrees
+    with the approval it will carry. *polite_words* default to
+    `CFG.LLM_DICTATION_POLITE_WORDS`, as there.
+    """
+    polite = _get_polite_words(polite_words)
+    heard = _words_of(text)
+    return _is_made_of(heard, approve_words, polite) or _is_made_of(
+        heard, deny_words, polite
     )
 
 
@@ -137,7 +108,7 @@ def is_transcriber_guess(text: str) -> bool:
     phrase Whisper-like models produce for silence ("Thank you for
     watching."), or one phrase over and over ("and this and this", "you
     you you")."""
-    words = [word.lower() for word in _WORD_RE.findall(text)]
+    words = _words_of(text)
     if not words:
         return False
     if " ".join(words) in _NOISE_GUESSES:
@@ -155,22 +126,23 @@ def _is_one_phrase_repeated(words: list[str]) -> bool:
     return False
 
 
-def _is_near_any(word: str, words: set[str]) -> bool:
-    if word in words:
-        return True
-    return bool(difflib.get_close_matches(word, words, n=1, cutoff=_NEAR_WORD))
+def is_said_alone(text: str, phrases: list[list[str]]) -> bool:
+    """Whether *text* is made only of *phrases*, at least one of them:
+    "Stop!", "stop". A polite word carries a yes or a no, not a stop: a stop
+    is taken as one only when it is said alone, so no polite word stands beside
+    it here — "stop please" is not a phrase said alone (`is_answer` is the
+    reading that allows one)."""
+    return _is_made_of(_words_of(text), phrases, frozenset())
 
 
-def is_said_alone(
-    text: str, phrases: list[list[str]], polite_words: Collection[str] | None = None
-) -> bool:
-    """Whether *text* is made only of *phrases* and *polite_words* (default:
-    `CFG.LLM_DICTATION_POLITE_WORDS`), at least one phrase among them:
-    "Stop!", "stop please"."""
+def _words_of(text: str) -> list[str]:
+    return [word.lower() for word in _WORD_RE.findall(text)]
+
+
+def _get_polite_words(polite_words: Collection[str] | None) -> set[str]:
     if polite_words is None:
         polite_words = CFG.LLM_DICTATION_POLITE_WORDS
-    heard = [word.lower() for word in _WORD_RE.findall(text)]
-    return _is_made_of(heard, phrases, {word.lower() for word in polite_words})
+    return {word.lower() for word in polite_words}
 
 
 def _is_made_of(

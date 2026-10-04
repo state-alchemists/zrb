@@ -34,21 +34,19 @@ class DictationConfig:
     max_utterance: float | None = None
     max_backlog: float | None = None
     pre_roll: float | None = None
-    echo_cooldown: float | None = None
     barge_in_enabled: bool | None = None
     barge_in_min_speech: float | None = None
     barge_in_margin: float | None = None
     barge_in_min_words: int | None = None
-    barge_in_action: str | None = None
-    self_echo_match: float | None = None
-    self_echo_tail: float | None = None
+    interrupt_judge_enabled: bool | None = None
+    interrupt_judge_model: str | None = None
     approve_words: list[str] | None = None
     deny_words: list[str] | None = None
     stop_words: list[str] | None = None
     polite_words: list[str] | None = None
-    trailing_words: list[str] | None = None
+    device: str | None = None
     block_duration: float | None = None
-    turn_end_timeout: float | None = None
+    pipecat_enabled: bool | None = None
     transcribe_prompt: str | None = None
     openai_model: str | None = None
     openai_base_url: str | None = None
@@ -67,6 +65,12 @@ class DictationConfig:
         """Whether *barge_in_enabled* is set: hands-free hears the user
         while zrb speaks, and a stop word cancels a running turn."""
         return bool(self.barge_in_enabled)
+
+    @property
+    def is_pipecat_enabled(self) -> bool:
+        """Whether *pipecat_enabled* is set: the captured blocks are handed to
+        a Pipecat pipeline as well, which decides nothing yet (ADR-0107)."""
+        return bool(self.pipecat_enabled)
 
     def resolve(self) -> "DictationConfig":
         """A copy with every ``None`` field read from `CFG`."""

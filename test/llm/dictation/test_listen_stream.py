@@ -14,11 +14,18 @@ np = pytest.importorskip("numpy")
 
 
 class FakeStream:
-    def __enter__(self):
-        return self
+    """A `sounddevice.InputStream`: started by `_open_microphone`, closed when
+    the listening stops."""
 
-    def __exit__(self, *exc):
-        return False
+    def __init__(self):
+        self.is_started = False
+        self.is_closed = False
+
+    def start(self):
+        self.is_started = True
+
+    def close(self):
+        self.is_closed = True
 
 
 class RecordingStream(AnyTranscriptionStream):
@@ -56,7 +63,6 @@ def _config(**fields):
         min_speech=0.1,
         max_utterance=10,
         pre_roll=0,
-        echo_cooldown=0,
     )
     return DictationConfig(**{**base, **fields}).resolve()
 
@@ -114,18 +120,8 @@ async def test_an_utterance_is_fed_to_its_stream_as_it_is_spoken():
 
 
 @pytest.mark.asyncio
-async def test_an_utterance_that_sounds_finished_ends_after_min_silence():
+async def test_an_utterance_ends_after_min_silence_once_it_has_words():
     blocks = [_block(0.5)] * 2 + [_block(0.0)] * 2
-    [utterance] = await _collect(blocks, [RecordingStream(["open", "it"])])
-    assert utterance.stream.partial == "open it"
-
-
-@pytest.mark.asyncio
-async def test_an_utterance_trailing_off_waits_for_the_full_silence():
-    blocks = [_block(0.5)] * 2 + [_block(0.0)] * 2
-    assert await _collect(blocks, [RecordingStream(["open", "the"])]) == []
-
-    blocks = [_block(0.5)] * 2 + [_block(0.0)] * 5
     [utterance] = await _collect(blocks, [RecordingStream(["open", "the"])])
     assert utterance.stream.partial == "open the"
 

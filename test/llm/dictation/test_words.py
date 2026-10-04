@@ -3,9 +3,8 @@ import pytest
 from zrb.config.config import CFG
 from zrb.llm.dictation.words import (
     count_words,
-    is_finished_phrase,
+    is_answer,
     is_said_alone,
-    is_said_back,
     is_transcriber_guess,
     split_phrases,
     strip_wake_word,
@@ -71,21 +70,6 @@ def test_to_answer(said, answer):
     assert to_answer(said, APPROVE, DENY) == answer
 
 
-@pytest.mark.parametrize(
-    "text, is_finished",
-    [
-        ("run the tests", True),
-        ("run the tests and", False),
-        ("open the", False),
-        ("um", False),
-        ("", False),
-        ("Yes.", True),
-    ],
-)
-def test_is_finished_phrase(text, is_finished):
-    assert is_finished_phrase(text) is is_finished
-
-
 def test_to_answer_takes_the_polite_words_it_is_given():
     assert to_answer("yes tolong", APPROVE, DENY, ["tolong"]) == "yes"
     assert to_answer("yes please", APPROVE, DENY, ["tolong"]) == "yes please"
@@ -97,51 +81,43 @@ def test_to_answer_reads_the_polite_words_from_cfg_when_called(monkeypatch):
     assert to_answer("no thanks", APPROVE, DENY) == "no thanks"
 
 
-def test_is_finished_phrase_takes_the_trailing_words_it_is_given():
-    assert not is_finished_phrase("saya mau dan", ["dan"])
-    assert is_finished_phrase("open the", ["dan"])
-
-
-def test_is_finished_phrase_reads_the_trailing_words_from_cfg(monkeypatch):
-    monkeypatch.setattr(CFG, "LLM_DICTATION_TRAILING_WORDS", ["yang"])
-    assert not is_finished_phrase("buka file yang")
-    assert is_finished_phrase("open the")
-
-
 def test_is_said_alone_needs_one_of_the_phrases():
     stop = split_phrases(["stop", "hold on"])
-    assert is_said_alone("Hold on, please.", stop)
+    assert is_said_alone("Hold on.", stop)
+    # A polite word carries a yes or a no, not a stop: "please" is not a stop
+    # word, so this is a message for the model, which reads it as one.
+    assert not is_said_alone("Hold on, please.", stop)
     assert not is_said_alone("no", stop)
     assert not is_said_alone("please", stop)
 
 
 @pytest.mark.parametrize(
-    "heard, said",
+    "said, answer",
     [
-        # Taken from a session where zrb answered its own voice.
-        ("sleep", "Goodnight. Sleep well."),
-        ("well", "Rest well. I'm here when you need me."),
-        ("did you mean", 'Did you mean "stop," "speak," or something else?'),
-        ("Which one?", 'Which one — "stop" or "speak"?'),
-        ("did you meen", "Did you mean stop or speak?"),  # misheard
+        ("Yes.", True),
+        ("yes please", True),
+        ("Go ahead!", True),
+        ("No thanks.", True),
+        ("Okay, go ahead, thanks", True),
+        ("", False),
+        ("open the file", False),
+        ("do it later", False),
+        ("run the tests", False),
     ],
 )
-def test_is_said_back_spots_zrbs_own_words(heard, said):
-    assert is_said_back(heard, said, 0.8)
+def test_is_answer_reads_a_polite_yes_or_no_as_an_answer(said, answer):
+    """Whether a transcript is an answer at all, not which one it is — the
+    reading `_is_answer_or_stop` needs (PR #561 review)."""
+    assert is_answer(said, APPROVE, DENY) == answer
 
 
-@pytest.mark.parametrize(
-    "heard, said, min_share",
-    [
-        ("what time is it", "Did you mean stop or speak?", 0.8),
-        ("use pytest instead of unittest", "Running the tests now.", 0.8),
-        ("sleep", "", 0.8),  # zrb said nothing
-        ("", "Sleep well.", 0.8),
-        ("sleep", "Sleep well.", 0),  # switched off
-    ],
-)
-def test_is_said_back_leaves_the_users_own_words(heard, said, min_share):
-    assert not is_said_back(heard, said, min_share)
+def test_is_answer_asks_the_question_to_answer_answers_with():
+    """Both read a transcript as a yes, a no, or neither, so a caller deciding
+    only whether something is an answer (`_is_answer_or_stop`) cannot disagree
+    with the approval that answer will carry. "Okay, no, stop" is neither: a
+    hedge of both families at once is a message, and stays one."""
+    assert not is_answer("Okay, no, stop.", APPROVE, DENY)
+    assert to_answer("Okay, no, stop.", APPROVE, DENY) == "Okay, no, stop."
 
 
 @pytest.mark.parametrize(
@@ -168,9 +144,3 @@ def test_is_transcriber_guess_leaves_speech(text):
 def test_count_words():
     assert count_words("Don't stop, please!") == 3
     assert count_words("") == 0
-
-
-def test_is_said_back_reads_a_longer_transcript_letter_by_letter():
-    """Misheard past the word match: still zrb's sentence, near enough."""
-    said = "so blue comes at you from every direction and the sky looks blue"
-    assert is_said_back("from every directions and the skies", said, 0.8)

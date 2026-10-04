@@ -25,12 +25,8 @@ class SpeechConfig:
     voice: str | None = None
     style: str | None = None
     rate: int | None = None
-    max_chars: int | None = None
-    summarize: bool | None = None
     stream: bool | None = None
     progress_interval: float | None = None
-    summary_model: str | None = None
-    on_screen_note: str | None = None
     events: list[str] | None = None
     openai_model: str | None = None
     openai_base_url: str | None = None

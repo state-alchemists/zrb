@@ -39,14 +39,12 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_MAX_UTTERANCE: str = "30.0"
         self.DEFAULT_LLM_DICTATION_MAX_BACKLOG: str = "30.0"
         self.DEFAULT_LLM_DICTATION_PRE_ROLL: str = "0.3"
-        self.DEFAULT_LLM_DICTATION_ECHO_COOLDOWN: str = "0.4"
         self.DEFAULT_LLM_DICTATION_BARGE_IN_ENABLED: str = "off"
         self.DEFAULT_LLM_DICTATION_BARGE_IN_MIN_SPEECH: str = "0.3"
         self.DEFAULT_LLM_DICTATION_BARGE_IN_MARGIN: str = "3.0"
         self.DEFAULT_LLM_DICTATION_BARGE_IN_MIN_WORDS: str = "2"
-        self.DEFAULT_LLM_DICTATION_BARGE_IN_ACTION: str = "steer"
-        self.DEFAULT_LLM_DICTATION_SELF_ECHO_MATCH: str = "0.8"
-        self.DEFAULT_LLM_DICTATION_SELF_ECHO_TAIL: str = "1.0"
+        self.DEFAULT_LLM_DICTATION_INTERRUPT_JUDGE_ENABLED: str = "on"
+        self.DEFAULT_LLM_DICTATION_INTERRUPT_JUDGE_MODEL: str = ""
         self.DEFAULT_LLM_DICTATION_APPROVE_WORDS: str = (
             "yes, yeah, yep, ok, okay, sure, approve, accept, go ahead, do it"
         )
@@ -70,11 +68,9 @@ class LLMDictationMixin:
             "stop, wait, hold on, cancel, no, nope, deny, don't"
         )
         self.DEFAULT_LLM_DICTATION_POLITE_WORDS: str = "please, thanks, thank, you"
-        self.DEFAULT_LLM_DICTATION_TRAILING_WORDS: str = (
-            "a, an, the, my, your, our, this, that, these, those, and, but, or, so, because, if, then, than, when, while, which, who, where, whether, although, unless, to, of, for, with, in, on, at, from, into, about, by, as, is, are, was, be, can, could, should, would, will, um, uh, er, erm, hmm, like, also, maybe, let's"
-        )
         self.DEFAULT_LLM_DICTATION_BLOCK_DURATION: str = "0.1"
-        self.DEFAULT_LLM_DICTATION_TURN_END_TIMEOUT: str = "5.0"
+        self.DEFAULT_LLM_DICTATION_DEVICE: str = ""
+        self.DEFAULT_LLM_DICTATION_PIPECAT_ENABLED: str = "off"
         self.DEFAULT_LLM_DICTATION_TRANSCRIBE_PROMPT: str = (
             "Transcribe this audio to text. Return only the transcription."
         )
@@ -230,16 +226,6 @@ class LLMDictationMixin:
         ),
     )
 
-    LLM_DICTATION_ECHO_COOLDOWN = EnvField(
-        float,
-        fallback=0.4,
-        doc=(
-            "Seconds the microphone stays deaf after zrb stops speaking, "
-            "since room echo outlives playback; with barge-in on, it hears "
-            "them against the bar over zrb's voice instead. Default: 0.4."
-        ),
-    )
-
     LLM_DICTATION_BARGE_IN_ENABLED = EnvField(
         to_boolean,
         serialize=on_off,
@@ -293,36 +279,30 @@ class LLMDictationMixin:
         ),
     )
 
-    LLM_DICTATION_BARGE_IN_ACTION = EnvField(
+    LLM_DICTATION_INTERRUPT_JUDGE_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "'on' asks the small model "
+            "({ENV_PREFIX}_LLM_DICTATION_INTERRUPT_JUDGE_MODEL) what the words "
+            "said over zrb ask of it, so 'please fucking stop', the same stop "
+            "said twice, or a stop in another language stops zrb, not only a "
+            "stop word ({ENV_PREFIX}_LLM_DICTATION_STOP_WORDS) said alone. It "
+            "never decides alone: the word lists answer first and stand when "
+            "the model is slow, unconfigured or unsure. 'off': the word lists "
+            "decide alone. Default: on."
+        ),
+    )
+
+    LLM_DICTATION_INTERRUPT_JUDGE_MODEL = EnvField(
         str,
         doc=(
-            "What talking over a running turn does with what you said. One "
-            "of:\n"
-            "- 'steer' (default): the turn goes on and takes it into account.\n"
-            "- 'cancel': the turn stops and what you said starts a new one.\n"
-            "A stop word said alone ({ENV_PREFIX}_LLM_DICTATION_STOP_WORDS) cancels the turn either way."
-        ),
-    )
-
-    LLM_DICTATION_SELF_ECHO_MATCH = EnvField(
-        float,
-        fallback=0.8,
-        doc=(
-            "Share (0-1) of what hands-free heard over zrb's voice that must be "
-            "words zrb was saying then for it to be taken as zrb's own voice "
-            "coming back through the microphone, and dropped instead of "
-            "becoming a turn. 0 turns this off. Default: 0.8."
-        ),
-    )
-
-    LLM_DICTATION_SELF_ECHO_TAIL = EnvField(
-        float,
-        fallback=1.0,
-        doc=(
-            "Seconds after zrb says a sentence that hearing its words still "
-            "counts as its echo ({ENV_PREFIX}_LLM_DICTATION_SELF_ECHO_MATCH): "
-            "the room, and audio still on its way out of the speakers. "
-            "Default: 1."
+            "Model that decides what the words said over zrb ask of it. Empty "
+            "uses the small model ({ENV_PREFIX}_LLM_SMALL_MODEL, else the main "
+            "model). A cloud model costs a round trip on the words that stop "
+            "zrb, so a fast local one answers sooner. "
+            "{ENV_PREFIX}_LLM_DICTATION_INTERRUPT_JUDGE_ENABLED=off turns the "
+            "judge off."
         ),
     )
 
@@ -352,8 +332,8 @@ class LLMDictationMixin:
         comma_list,
         serialize=comma_join,
         doc=(
-            "Comma-separated phrases that, said alone (polite words "
-            "allowed) over zrb or while a turn runs with "
+            "Comma-separated phrases that, said alone over zrb or while a "
+            "turn runs with "
             "{ENV_PREFIX}_LLM_DICTATION_BARGE_IN_ENABLED=on, stop "
             "zrb speaking and cancel the turn instead of reaching the "
             "model. Default: stop, wait, hold on, cancel, no, nope, deny, don't."
@@ -364,23 +344,10 @@ class LLMDictationMixin:
         comma_list,
         serialize=comma_join,
         doc=(
-            "Comma-separated words a yes, a no or a stop word may carry "
-            "without changing it, as in 'yes please' or 'no thanks'. "
+            "Comma-separated words a yes or a no may carry without changing "
+            "it, as in 'yes please' or 'no thanks'. Approvals only: a stop "
+            "word is taken as one only when it is said alone. "
             "Default: please, thanks, thank, you."
-        ),
-    )
-
-    LLM_DICTATION_TRAILING_WORDS = EnvField(
-        comma_list,
-        serialize=comma_join,
-        doc=(
-            "Comma-separated words a sentence rarely ends on: with "
-            "{ENV_PREFIX}_LLM_DICTATION_MIN_SILENCE, an utterance whose "
-            "words so far end on one is waited on for the full "
-            "{ENV_PREFIX}_LLM_DICTATION_SILENCE, since the speaker is "
-            "thinking, not done. Set it for your language. Default: English "
-            "articles, conjunctions, prepositions and fillers (a, the, and, "
-            "to, um, ...)."
         ),
     )
 
@@ -394,13 +361,27 @@ class LLMDictationMixin:
         ),
     )
 
-    LLM_DICTATION_TURN_END_TIMEOUT = EnvField(
-        float,
-        fallback=5.0,
+    LLM_DICTATION_DEVICE = EnvField(
+        str,
         doc=(
-            "With {ENV_PREFIX}_LLM_DICTATION_BARGE_IN_ACTION=cancel, "
-            "seconds to wait for a cancelled turn to end before what was "
-            "said starts the next one. Default: 5."
+            "Microphone PortAudio opens: a name, or the number its device list "
+            "shows it under — `pulse` and `default` on a Linux or WSL machine, "
+            "where which of them is opened is the usual difference between a "
+            "microphone that starts and one that times out. Empty uses "
+            "PortAudio's own default (`sd.default.device`). Default: empty."
+        ),
+    )
+
+    LLM_DICTATION_PIPECAT_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "'on' hands the microphone blocks to a Pipecat pipeline as well, "
+            "beside the hand-rolled one that still decides everything: the "
+            "pipeline ends at a counter, so nothing zrb hears or says changes. "
+            "Stage 1 of the migration (ADR-0107), and it wants the zrb[voice] "
+            "extra; without it the setting says so and listening goes on. "
+            "'off' (default): the capture goes nowhere else."
         ),
     )
 

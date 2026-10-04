@@ -175,6 +175,12 @@ voice = [
     "vosk>=0.3.45; sys_platform != 'darwin'",
     "sounddevice>=0.5.1",
     "numpy>=1.26.0",
+    # The pipeline zrb's voice is moving onto (ADR-0107). Pinned to the minor:
+    # pipecat is pre-2.0 and moving under its users — `PipelineTask` is
+    # deprecated in favour of `PipelineWorker`, which no longer starts itself,
+    # and `WakeCheckFilter` goes away in 2.0.0 — so a minor bump is a migration
+    # rather than an upgrade. Note it also caps `onnxruntime` below 1.25.
+    "pipecat-ai>=1.12.0,<1.13.0",
 ]
 
 [project.scripts]
@@ -213,7 +219,7 @@ autopep8 = "^2.3.2"
 flake8 = "^7.2.0"
 # Pinned exact: pyright ships frequent releases that add diagnostics; a caret
 # range could break the CI type-gate on an unrelated auto-upgrade.
-pyright = "1.1.411"
+pyright = "1.1.414"
 # Security fix: CVE-2025-71176 - Local privilege escalation via /tmp/pytest-of-{user} directories.
 pytest = ">=9.0.3"
 pytest-cov = "^6.1.0"

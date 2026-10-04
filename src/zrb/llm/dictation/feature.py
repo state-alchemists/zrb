@@ -21,10 +21,12 @@ from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.builtin import get_dictation_backend
 from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.listen import MicState, Utterance, import_audio, listen
+from zrb.llm.dictation.pipecat_input import AudioPipeline, is_pipecat_available
+from zrb.llm.dictation.teardown import close_quietly
 from zrb.llm.dictation.words import (
     count_words,
+    is_answer,
     is_said_alone,
-    is_said_back,
     is_transcriber_guess,
     split_phrases,
     strip_wake_word,
@@ -32,7 +34,6 @@ from zrb.llm.dictation.words import (
 )
 from zrb.llm.input_source import DICTATION_INPUT
 from zrb.llm.speech.feature import interrupt_speech, pause_speech, resume_speech
-from zrb.llm.speech.spoken_log import spoken_log
 from zrb.llm.ui.trigger import TriggerReply
 from zrb.llm.util.feature_config import (
     current_session_key,
@@ -44,9 +45,6 @@ from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
-    from zrb.llm.dictation.backend.any_transcription_stream import (
-        AnyTranscriptionStream,
-    )
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.ui.base.ui import BaseUI
@@ -67,9 +65,6 @@ _MIC_STATE_BADGES = {
 _TRANSCRIBING = "📝 transcribing…"
 _INTERRUPTED = "✋ interrupted · go on…"
 _PAUSED = "✋ paused · listening…"
-# How long a cancelled turn may take to unwind before what the user said
-# is sent anyway.
-_TURN_END_POLL = 0.05
 _MAX_QUOTED_CHARS = 40
 
 
@@ -132,6 +127,12 @@ class DictationSession:
         self._badge_before_pause = _LISTENING
         # A wake word said alone arms the utterances started before this.
         self._armed_until = 0.0
+        # The Pipecat pipeline the capture is handed to while the setting is on
+        # (ADR-0107, stage 1), and whether one has failed and been given up on
+        # for this session: it decides nothing, so it never takes the listening
+        # with it.
+        self._tap: AudioPipeline | None = None
+        self._is_pipecat_given_up = False
         self.is_hands_free = (config.mode or "").strip().lower() == HANDS_FREE
 
     @property
@@ -302,27 +303,114 @@ class DictationSession:
                 if command is not None:
                     yield self._to_reply(command, utterance)
 
-    def _listen(self) -> AsyncGenerator[Utterance, None]:
-        return listen(
-            self._config,
-            lambda: self.is_hands_free,
-            on_state=self._show_mic_state,
-            on_barge_in=self._handle_barge_in,
-            create_stream=self.backend.create_stream,
-            on_partial=self._show_partial,
-            on_barge_in_dropped=self._release_barge_in,
-        )
+    async def _listen(self) -> AsyncGenerator[Utterance, None]:
+        """`listen` while hands-free holds, with the Pipecat pipeline fed from
+        the same capture when it is on.
+
+        The pipeline lives exactly as long as the listening: it decides nothing
+        yet (ADR-0107, stage 1), so what it proves is that zrb's own blocks reach
+        it — and feeding it is best-effort (`_feed_pipecat`), so a pipeline that
+        fails takes itself out of the way rather than the listening with it. The
+        capture is handed over by `listen`'s tap, apart from the loop that reads
+        the utterances (PR #561 review), so a pipeline that is slow to start or
+        to take a block delays neither the capture behind it nor the listening.
+        """
+        try:
+            async with aclosing(
+                listen(
+                    self._config,
+                    lambda: self.is_hands_free,
+                    on_state=self._show_mic_state,
+                    on_barge_in=self._handle_barge_in,
+                    create_stream=self.backend.create_stream,
+                    on_partial=self._show_partial,
+                    on_barge_in_dropped=self._release_barge_in,
+                    on_captured=(
+                        self._feed_pipecat if self._config.is_pipecat_enabled else None
+                    ),
+                )
+            ) as mic:
+                async for utterance in mic:
+                    yield utterance
+        finally:
+            await self._close_audio_pipeline()
+
+    async def _feed_pipecat(self, pcm: bytes) -> None:
+        """Hand one captured block to the Pipecat pipeline, if it has one.
+
+        Best-effort by construction. The pipeline decides nothing (ADR-0107,
+        stage 1) and the hand-rolled path is doing the listening, so a pipeline
+        that cannot start, or that fails while a block is handed to it, is
+        reported and given up on for the session instead of ending hands-free.
+        A pipeline that failed is closed there and then (PR #561 review): the
+        listening can run for hours, and one left alive would hold its worker and
+        its transport for the rest of it. Closing it here cannot deadlock the
+        hand-over — `_close_audio_pipeline` closes the Pipecat pipeline, never the
+        tap this delivery belongs to. `listen` hands the capture over from a task
+        of its own, so a slow start holds up neither the microphone nor the
+        listening.
+        """
+        if self._is_pipecat_given_up:
+            return
+        try:
+            if self._tap is None:
+                self._tap = await self._open_audio_pipeline()
+            if self._tap is None:
+                # No pipeline to build: said once, and never asked again.
+                self._is_pipecat_given_up = True
+                return
+            await self._tap.push(pcm)
+        except Exception as exc:
+            self._is_pipecat_given_up = True
+            self._report(f"Pipecat input pipeline stopped: {exc}")
+            await self._close_audio_pipeline()
+
+    async def _open_audio_pipeline(self) -> AudioPipeline | None:
+        """A Pipecat pipeline to hand the capture to, or ``None`` when Pipecat
+        is not installed.
+
+        Not installed is a setting that cannot work rather than a broken run:
+        it is said once and the listening goes on, since the hand-rolled path
+        decides everything anyway (ADR-0107, stage 1).
+        """
+        if not is_pipecat_available():
+            self._report(
+                "Pipecat is not installed, so the input pipeline stays off "
+                "(pip install 'zrb[voice]')"
+            )
+            return None
+        return await AudioPipeline.start()
+
+    async def _close_audio_pipeline(self) -> None:
+        """Stop the pipeline this listening was feeding, if it started one.
+
+        Contained here as well as inside `AudioPipeline.close` (PR #561 review):
+        the pipeline decides nothing (ADR-0107, stage 1), so no failure in its
+        teardown, however far it got, may end the listening still going on
+        around it.
+        """
+        tap, self._tap = self._tap, None
+        if tap is not None:
+            await close_quietly(tap.close, "the Pipecat pipeline")
 
     async def _to_command(self, utterance: Utterance, text: str) -> str | None:
         """What *utterance*, transcribed as *text*, asks zrb, or ``None``
         when there is nothing to send; the badge says which."""
-        why_not = self._get_why_not_the_user(utterance, text)
+        why_not = self._get_why_not_the_user(text)
         if why_not:
             # Not the user's words: zrb carries on, and nothing is sent.
             self._release_barge_in()
             self._rest(f"🎤 ignored {_quote(text)} ({why_not})")
             return None
         command = self._get_command(utterance, text)
+        if command and self._is_interrupting(utterance):
+            # Asked before the minimum word count, not after it: a one-word stop
+            # the word lists do not know ("berhenti") is exactly what the judge
+            # is for, and the count would drop it before the judge ever saw it.
+            # A stop cancels the turn here; anything else leaves the count
+            # standing, and an ordinary short utterance is never asked at all.
+            if not await self._should_send_barge_in(utterance, command):
+                return None
         if command:
             why_short = self._get_why_too_short(utterance, command)
             if why_short:
@@ -334,29 +422,46 @@ class DictationSession:
             self._rest_without_command(utterance, text, command)
             return None
         self._armed_until = 0.0
-        if self._is_interrupting(utterance) and not await self._should_send_barge_in(
-            command
-        ):
-            return None
         self._rest(f"🎤 heard {_quote(command)} · listening")
         return command
 
-    def _get_why_not_the_user(self, utterance: Utterance, text: str) -> str:
-        """Why hands-free *text* is not the user's words, or ``""``. Own
-        voice is checked only over zrb's voice: otherwise the mic was deaf to
-        zrb, and a reply in zrb's words is the user's. A stop word or yes/no
-        is never set aside ("no no" is meant)."""
+    def _get_why_not_the_user(self, text: str) -> str:
+        """Why hands-free *text* is not the user's words, or ``""``. A stop
+        word or yes/no is never set aside ("no no" is meant), and neither is
+        anything with a wake word at the front: one phrase said twice reads as
+        a transcriber guessing at noise, but saying stop twice is what someone
+        does when the first one went unheard.
+
+        Nothing here reads the utterance the words came on: the transcript-level
+        own-voice check that used to (it applied only over zrb's voice) was
+        retired in 3.14.0 (ADR-0105)."""
         if not text or self._is_answer_or_stop(text):
             return ""
-        if is_transcriber_guess(text):
+        if is_transcriber_guess(text) and not self._is_wake_worded(text):
             return "the transcriber guessing at noise"
-        if utterance.is_over_speech and self._is_own_voice(utterance, text):
-            return f"{CFG.LLM_ASSISTANT_NAME}'s own voice"
         return ""
 
+    def _is_wake_worded(self, text: str) -> bool:
+        """Whether *text* starts with a wake word; false with none set."""
+        return (
+            bool(self._wake_words)
+            and strip_wake_word(text, self._wake_words) is not None
+        )
+
     def _is_answer_or_stop(self, text: str) -> bool:
-        phrases = self._stop_words + self._approve_words + self._deny_words
-        return is_said_alone(text, phrases, self._polite_words)
+        """Whether *text* is only a stop, or only a yes or a no.
+
+        A stop is one only when it is said alone (`_get_barge_in_intent`); an
+        approval and a denial carry a polite word, as `_to_reply` reads them,
+        so "yes please" and "no thanks" count as answers here rather than being
+        dropped by the minimum word count before the approval they answer ever
+        sees them (PR #561 review).
+        """
+        if is_said_alone(text, self._stop_words):
+            return True
+        return is_answer(
+            text, self._approve_words, self._deny_words, self._polite_words
+        )
 
     def _get_why_too_short(self, utterance: Utterance, command: str) -> str:
         """Why *command* has too few words to reach the model, or ``""``.
@@ -380,16 +485,6 @@ class DictationSession:
         if ui is not None and ui.is_waiting_for_answer:
             return ""
         return why
-
-    def _is_own_voice(self, utterance: Utterance, text: str) -> bool:
-        """Whether *text* only repeats what zrb was saying while *utterance*
-        was heard: zrb's voice through the microphone, transcribed."""
-        said = spoken_log.get_text_said(
-            utterance.started_at,
-            utterance.ended_at,
-            tail=self._config.self_echo_tail or 0,
-        )
-        return is_said_back(text, said, self._config.self_echo_match or 0)
 
     def _get_command(self, utterance: Utterance, text: str) -> str | None:
         """*text* past its wake word; ``""`` for the wake word alone, and
@@ -427,8 +522,14 @@ class DictationSession:
         return reply
 
     def _handle_barge_in(self) -> None:
-        """The user may be talking over zrb: hold its voice at once, until
-        what they said turns out to be words or not."""
+        """The user may be talking over zrb: hold its voice at once, and let
+        the words decide whether it stays held.
+
+        Held on loudness, before anything is known: the microphone has heard
+        speech over zrb, and being talked over is worse than a pause that
+        turns out to be zrb's own voice — `_release_barge_in` gives that back
+        a moment later. Waiting for the words instead would leave zrb talking
+        through the whole sentence that interrupted it."""
         if not self._is_paused_by_barge_in:
             self._badge_before_pause = self._resting_badge
         self._is_paused_by_barge_in = True
@@ -438,8 +539,9 @@ class DictationSession:
     def _settle_barge_in(self, utterance: Utterance, is_meant_for_zrb: bool) -> None:
         """For *utterance* said over zrb: stop zrb for words meant for it
         (with wake words: starting with one); carry on after anything else
-        (a cough, leftover echo). Words too brief to have paused zrb (a
-        crisp "stop" is shorter than ``barge_in_min_speech``) stop it too."""
+        (a cough, leftover echo) — which is where a hold taken on loudness
+        alone is given back. Words too brief to have held zrb (a crisp "stop"
+        is shorter than ``barge_in_min_speech``) stop it too."""
         if not utterance.is_over_speech:
             return
         if not is_meant_for_zrb:
@@ -448,6 +550,8 @@ class DictationSession:
             self._stop_speech()
 
     def _confirm_barge_in(self) -> None:
+        """A wake word heard while zrb is still speaking: the hold taken on
+        loudness was the user's, so it becomes a stop."""
         if self._is_paused_by_barge_in:
             self._stop_speech()
 
@@ -473,24 +577,42 @@ class DictationSession:
         ui = get_session_ui() or self._ui
         return ui is not None and ui.is_thinking
 
-    async def _should_send_barge_in(self, command: str) -> bool:
-        """Act on what the user said over zrb, and say whether it still goes
-        on to be a turn or an answer. A stop word alone stops the turn and is sent
-        nowhere; with ``barge_in_action`` ``cancel``, anything else stops the
-        turn and starts a new one. An answer to the prompt being asked is
-        left alone: "no" there denies a tool call, not the turn."""
+    async def _should_send_barge_in(self, utterance: Utterance, command: str) -> bool:
+        """Act on what the user said over zrb, and say whether it still goes on
+        to be a turn or an answer.
+
+        A stop — a word-list phrase said alone, or what the judge reads as one —
+        stops zrb speaking and cancels the turn, and is sent nowhere. An answer
+        to the prompt being asked is left alone: "no" there denies a tool call,
+        not the turn."""
         ui = get_session_ui() or self._ui
         if ui is None or ui.is_waiting_for_answer:
             return True
-        if is_said_alone(command, self._stop_words, self._polite_words):
+        if await self._get_barge_in_intent(command) == "stop":
+            self._settle_barge_in(utterance, True)
             ui.cancel_current_turn("barge_in")
             self._rest("✋ stopped · listening")
             return False
-        action = (self._config.barge_in_action or "steer").strip().lower()
-        if action == "cancel" and ui.is_thinking:
-            ui.cancel_current_turn("barge_in")
-            await _wait_for_turn_end(ui, self._config.turn_end_timeout or 0)
         return True
+
+    async def _get_barge_in_intent(self, command: str) -> str:
+        """What *command*, said over zrb, asks of it: ``"stop"`` or ``"ask"``.
+
+        The word lists answer first, for free, and stand when the judge is off
+        or could not answer. What they miss — a stop word carrying an
+        expletive, the same stop said twice, a stop in another language — is
+        what the small model is for, and it is asked only when they miss it."""
+        if is_said_alone(command, self._stop_words):
+            return "stop"
+        if not self._config.interrupt_judge_enabled:
+            return "ask"
+        # lazy: heavy transitive (pydantic_ai) via zrb.llm.dictation.interrupt_judge
+        from zrb.llm.dictation.interrupt_judge import judge_barge_in
+
+        verdict = await judge_barge_in(
+            command, self._config.interrupt_judge_model or None
+        )
+        return verdict.intent if verdict is not None else "ask"
 
     def _show_partial(self, partial: str) -> None:
         """Show the end of what is being heard, while it is said. With wake
@@ -501,12 +623,9 @@ class DictationSession:
         if not partial:
             return
         self._show(f"👂 …{partial[-_MAX_QUOTED_CHARS:]}")
-        if (
-            self._wake_words
-            and self._is_paused_by_barge_in
-            and strip_wake_word(partial, self._wake_words) is not None
-        ):
-            self._confirm_barge_in()
+        if self._wake_words and self._is_paused_by_barge_in:
+            if strip_wake_word(partial, self._wake_words) is not None:
+                self._confirm_barge_in()
 
     def _show_mic_state(self, state: MicState) -> None:
         self._show(_MIC_STATE_BADGES.get(state, self._resting_badge))
@@ -571,22 +690,7 @@ class DictationSession:
             # failed, this task cancelled) is abandoned, and an abandoned
             # stream is closed: it may hold a connection or a decoder.
             if utterance.stream is not None and not is_finished:
-                await _close_quietly(utterance.stream)
-
-
-async def _close_quietly(stream: "AnyTranscriptionStream") -> None:
-    try:
-        await stream.close()
-    except Exception as exc:
-        logger.warning(f"Closing a transcription stream failed: {exc}")
-
-
-async def _wait_for_turn_end(ui: "AnyUI", timeout: float) -> None:
-    """Wait for a cancelled turn to unwind, so what the user said starts a
-    new turn instead of steering into the one being cancelled."""
-    deadline = asyncio.get_running_loop().time() + timeout
-    while ui.is_thinking and asyncio.get_running_loop().time() < deadline:
-        await asyncio.sleep(_TURN_END_POLL)
+                await close_quietly(utterance.stream.close, "a transcription stream")
 
 
 def _quote(text: str) -> str:

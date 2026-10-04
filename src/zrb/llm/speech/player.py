@@ -22,7 +22,6 @@ from zrb.llm.speech.backend.utterance import Utterance
 from zrb.llm.speech.config import SpeechConfig
 from zrb.llm.speech.pcm_player import PcmUtterance
 from zrb.llm.speech.pcm_player import is_available as is_in_process_available
-from zrb.llm.speech.spoken_log import SpokenEntry, spoken_log
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 
 logger = logging.getLogger(__name__)
@@ -108,7 +107,7 @@ class Speaker:
             queue.Queue()
         )
         # Made but not yet played: what the player thread takes next.
-        self._ready: "queue.Queue[tuple[Utterance, str, IsStale, int] | None]" = (
+        self._ready: "queue.Queue[tuple[Utterance, IsStale, int] | None]" = (
             queue.Queue(maxsize=1)
         )
         self._worker: threading.Thread | None = None
@@ -117,12 +116,6 @@ class Speaker:
         # tracking what it is playing, is guarded.
         self._lock = threading.Lock()
         self._playing: Utterance | None = None
-        # What `_playing` says, once it has the audio device, and its entry in
-        # `spoken_log` while it is heard: a pause ends the entry, a resume
-        # starts another, so dictation never takes the user, talking while
-        # zrb is silent, for zrb.
-        self._playing_text = ""
-        self._said: SpokenEntry | None = None
         # Set by `pause`, cleared by `resume` and `interrupt`: while set, the
         # next utterance waits to start, even one still being synthesized
         # when the pause came. Waiters are woken through `_unpaused`.
@@ -210,7 +203,6 @@ class Speaker:
         leaves the sentence held while the speaker is not."""
         with self._lock:
             self._is_paused = True
-            self._finish_said()
             playing = self._playing
             if playing is None:
                 return
@@ -226,8 +218,6 @@ class Speaker:
             self._unpaused.notify_all()
             if self._playing is not None:
                 self._playing.resume()
-            if self._playing_text and self._said is None:
-                self._said = spoken_log.start(self._playing_text, time.monotonic())
 
     def interrupt(self) -> None:
         """Drop queued speech and stop what is playing, for a user who started
@@ -250,7 +240,7 @@ class Speaker:
     def _speak(self, text: str, is_stale: "IsStale", generation: int) -> None:
         utterance = self._prepare(text, is_stale)
         if utterance is not None:
-            self._play_prepared(utterance, text, is_stale, generation)
+            self._play_prepared(utterance, is_stale, generation)
 
     def _prepare(self, text: str, is_stale: "IsStale") -> Utterance | None:
         if not text.strip() or (is_stale is not None and is_stale()):
@@ -258,7 +248,7 @@ class Speaker:
         return self._create_with_fallback(text)
 
     def _play_prepared(
-        self, utterance: Utterance, text: str, is_stale: "IsStale", generation: int
+        self, utterance: Utterance, is_stale: "IsStale", generation: int
     ) -> None:
         with self._lock:
             # Paused: wait to start until resumed, or until this utterance is
@@ -288,31 +278,12 @@ class Speaker:
                 daemon=True,
             ).start()
         try:
-            utterance.set_on_start(lambda: self._start_said(text))
             play(utterance, self._config)
         finally:
             played.set()
             with self._lock:
-                self._finish_said()
-                self._playing_text = ""
                 self._playing = None
             utterance.cleanup()
-
-    def _start_said(self, text: str) -> None:
-        """Log *text* as said from now, so dictation can tell zrb's own
-        voice from the user's. Called when playback starts: a sentence that
-        never plays, or is paused before it starts, was never heard."""
-        with self._lock:
-            self._playing_text = text
-            if not self._is_paused:
-                self._said = spoken_log.start(text, time.monotonic())
-
-    def _finish_said(self) -> None:
-        """End the spoken-log entry of what is playing; the caller holds
-        `_lock`."""
-        if self._said is not None:
-            spoken_log.finish(self._said, time.monotonic())
-            self._said = None
 
     def _create_with_fallback(self, text: str) -> Utterance | None:
         for backend in self._get_backends():
@@ -382,7 +353,7 @@ class Speaker:
                 logger.warning(f"Speech failed: {exc}")
                 continue
             if utterance is not None:
-                self._ready.put((utterance, text, is_stale, generation))
+                self._ready.put((utterance, is_stale, generation))
         self._ready.put(None)
 
     def _play_ready(self) -> None:

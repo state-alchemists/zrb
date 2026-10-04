@@ -22,24 +22,17 @@ from zrb.llm.speech.chunker import SpeechChunker
 class StreamedReply:
     """The part of one turn's reply already spoken, and what is left to cut.
 
-    *max_chars* caps what one turn speaks (``0``: no cap): the sentence that
-    crosses it is spoken whole, then nothing more that turn. *note* ("the
-    rest is on screen") is said once the next sentence arrives, since only
-    then is something known to be cut; a reply ending on the crossing
-    sentence lost nothing, so it gets no note.
+    Every sentence is spoken and the whole reply is read: nothing caps what one
+    turn says, so nothing is left unsaid and there is no note about what was.
     Events arrive on the event loop and the turn ends on a hook thread, so
     every method holds a lock.
     """
 
-    def __init__(self, say: Callable[[str], None], max_chars: int, note: str) -> None:
+    def __init__(self, say: Callable[[str], None]) -> None:
         self._say = say
-        self._max_chars = max(max_chars, 0)
-        self._note = note
         self._lock = threading.Lock()
         self._chunker = SpeechChunker()
-        self._spoken_chars = 0
         self._has_spoken = False
-        self._is_noted = False
         self._is_muted = False
         self._was_muted = False
 
@@ -79,8 +72,7 @@ class StreamedReply:
 
     def _reset(self) -> None:
         self._chunker.reset()
-        self._spoken_chars = 0
-        self._has_spoken = self._is_noted = False
+        self._has_spoken = False
         self._is_muted = self._was_muted = False
 
     def _read(self, event: Any) -> list[str]:
@@ -105,13 +97,7 @@ class StreamedReply:
 
     def _speak(self, chunks: list[str]) -> None:
         for chunk in chunks:
-            if self._max_chars and self._spoken_chars >= self._max_chars:
-                if not self._is_noted and self._note:
-                    self._say(self._note)
-                self._is_noted = True
-                return
             self._say(chunk)
-            self._spoken_chars += len(chunk)
             self._has_spoken = True
 
 

@@ -1,7 +1,8 @@
 """Tests for `zrb.llm.dictation.listen`.
 
 The microphone is a fake `sounddevice` whose `InputStream` hands its callback
-to the test, which then plays blocks into it.
+to the test, which then plays blocks into it. Opening that microphone, and
+recording from it, are `test_listen_microphone.py`'s.
 """
 
 import asyncio
@@ -10,17 +11,24 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from zrb.llm.dictation.config import DictationConfig
-from zrb.llm.dictation.listen import MicState, UtteranceCutter, listen, record
+from zrb.llm.dictation.listen import MicState, UtteranceCutter, listen
 
 np = pytest.importorskip("numpy")
 
 
 class FakeStream:
-    def __enter__(self):
-        return self
+    """A `sounddevice.InputStream`: started by `_open_microphone`, closed when
+    the listening stops."""
 
-    def __exit__(self, *exc):
-        return False
+    def __init__(self):
+        self.is_started = False
+        self.is_closed = False
+
+    def start(self):
+        self.is_started = True
+
+    def close(self):
+        self.is_closed = True
 
 
 def _fake_sounddevice(captured):
@@ -58,43 +66,6 @@ async def _play(captured, blocks):
         captured["callback"](block, len(block), None, None)
 
 
-# --- record -----------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_record_returns_captured_blocks_as_int16_pcm():
-    captured = {}
-    with patch.dict("sys.modules", {"sounddevice": _fake_sounddevice(captured)}):
-        task = asyncio.create_task(record(_holds_for(2)))
-        await _play(captured, [_block(0.5), _block(0.25)])
-        result = await task
-
-    assert result == _pcm(0.5, 0.5, 0.25, 0.25)
-    assert captured["samplerate"] == 16000
-    assert captured["channels"] == 1
-
-
-@pytest.mark.asyncio
-async def test_record_returns_empty_bytes_when_nothing_recorded():
-    with patch.dict("sys.modules", {"sounddevice": _fake_sounddevice({})}):
-        assert await record(lambda: False) == b""
-
-
-@pytest.mark.asyncio
-async def test_record_keeps_waiting_through_a_silent_microphone():
-    with patch.dict("sys.modules", {"sounddevice": _fake_sounddevice({})}):
-        assert await record(_holds_for(2)) == b""
-
-
-@pytest.mark.asyncio
-async def test_record_explains_a_microphone_that_will_not_open():
-    fake_sd = MagicMock()
-    fake_sd.InputStream.side_effect = OSError("no device")
-    with patch.dict("sys.modules", {"sounddevice": fake_sd}):
-        with pytest.raises(RuntimeError, match="Cannot open microphone: no device"):
-            await record(lambda: True)
-
-
 # --- listen -----------------------------------------------------------------
 
 
@@ -106,11 +77,12 @@ def _listen_config():
         min_speech=0.1,
         max_utterance=10,
         pre_roll=0.1,
-        echo_cooldown=0,
     )
 
 
-async def _collect(blocks, keep_partial=False, speaking=False, on_state=None):
+async def _collect(
+    blocks, keep_partial=False, speaking=False, on_state=None, on_captured=None
+):
     captured = {}
 
     async def consume():
@@ -120,6 +92,7 @@ async def _collect(blocks, keep_partial=False, speaking=False, on_state=None):
             should_listen,
             keep_partial=keep_partial,
             on_state=on_state,
+            on_captured=on_captured,
         )
         return [utterance async for utterance in stream]
 
@@ -157,6 +130,26 @@ async def test_listen_keep_partial_yields_speech_cut_off_by_stop():
     utterances, _ = await _collect([_block(0.5), _block(0.5)], keep_partial=True)
 
     assert [u.audio for u in utterances] == [_pcm(*[0.5] * 4)]
+
+
+@pytest.mark.asyncio
+async def test_listen_hands_every_captured_block_to_on_captured():
+    """The capture is handed over as it is captured, before it is cut.
+
+    This is the hand-off the Pipecat pipeline is fed from (ADR-0107, stage 1):
+    every block, the pre-roll and the trailing silence included, as 16 kHz mono
+    16-bit PCM — what `push_audio` takes.
+    """
+    blocks = [_block(0.0), _block(0.5), _block(0.5), _block(0.0), _block(0.0)]
+    seen: list[bytes] = []
+
+    async def on_captured(pcm: bytes) -> None:
+        seen.append(pcm)
+
+    utterances, _ = await _collect(blocks, on_captured=on_captured)
+
+    assert len(utterances) == 1
+    assert seen == [_pcm(*[value] * 2) for value in (0.0, 0.5, 0.5, 0.0, 0.0)]
 
 
 @pytest.mark.asyncio
@@ -199,7 +192,6 @@ def _cutter(**config):
         min_speech=0.2,
         max_utterance=1.0,
         pre_roll=0.2,
-        echo_cooldown=0.2,
     )
     return UtteranceCutter(DictationConfig(**{**fields, **config}).resolve())
 
@@ -256,12 +248,6 @@ def test_zero_silence_ends_speech_at_the_first_quiet_block():
     assert finished == [([0, 1, 2], -0.1, 0.2), ([3, 4, 5], 0.2, 0.5)]
 
 
-def test_negative_echo_cooldown_is_no_cooldown():
-    finished = _feed(_cutter(echo_cooldown=-1), [1, 1, 1, 1, 0, 0], echo_at={0})
-
-    assert finished == [([1, 2, 3, 4, 5], 0.0, 0.5)]
-
-
 def test_a_click_shorter_than_min_speech_is_dropped():
     assert _feed(_cutter(), [0, 1, 0, 0, 0]) == []
 
@@ -272,10 +258,11 @@ def test_speech_is_cut_at_max_utterance():
     assert len(blocks) == 5
 
 
-def test_blocks_while_zrb_speaks_and_the_cooldown_after_are_ignored():
+def test_blocks_while_zrb_speaks_are_ignored():
     levels = [1, 1, 1, 1, 0, 0, 0]
-    # Echo on block 1 resets the speech; blocks 2 and 3 fall in the cooldown.
-    assert _feed(_cutter(), levels, echo_at={1}) == []
+    # Echo on block 1 discards the speech so far; what follows is heard at
+    # once, since nothing is held back after zrb stops any more.
+    assert _feed(_cutter(), levels, echo_at={1}) == [([2, 3, 4, 5], 0.1, 0.5)]
 
 
 # --- the bar under ordinary speech --------------------------------------------
@@ -361,13 +348,18 @@ def test_flush_drops_too_little_speech():
 # --- listen: the backlog ----------------------------------------------------
 
 
-async def _collect_with(config, blocks):
+async def _collect_with(config, blocks, on_captured=None):
     """Feed every block before the listener reads any, as happens while the
     caller is busy transcribing."""
     captured = {}
 
     async def consume():
-        stream = listen(config, _holds_for(len(blocks)), keep_partial=True)
+        stream = listen(
+            config,
+            _holds_for(len(blocks)),
+            keep_partial=True,
+            on_captured=on_captured,
+        )
         return [utterance async for utterance in stream]
 
     with (
@@ -386,7 +378,6 @@ def _backlog_config(max_backlog):
         min_speech=0.1,
         max_utterance=10,
         pre_roll=0,
-        echo_cooldown=0,
         max_backlog=max_backlog,
     )
 
@@ -470,7 +461,6 @@ def test_the_block_duration_is_what_every_duration_is_counted_in():
             silence=0.4,
             min_speech=0.2,
             pre_roll=0,
-            echo_cooldown=0,
         ).resolve()
     )
     finished = [cutter.feed(i, level, i * 0.2, False) for i, level in enumerate([1, 0])]

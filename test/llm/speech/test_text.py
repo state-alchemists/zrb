@@ -1,8 +1,6 @@
 import pytest
 
-from zrb.llm.speech.text import clean_for_speech, fill_template, fit_for_speech
-
-NOTE = "The full answer is on screen."
+from zrb.llm.speech.text import clean_for_speech, fill_template
 
 
 def test_clean_drops_code_tables_urls_and_markup():
@@ -35,36 +33,6 @@ def test_clean_turns_arrows_and_dashes_into_words():
     assert clean_for_speech("a → b — c") == "a to b, c"
 
 
-def test_a_short_reply_is_spoken_in_full():
-    assert fit_for_speech("Short.", 30, NOTE) == "Short."
-    assert fit_for_speech("x" * 1000, 0, NOTE) == "x" * 1000
-
-
-@pytest.mark.parametrize(
-    "text, max_chars, opening",
-    [
-        # The last sentence end in the second half of the window.
-        (
-            "First one here. Second sentence. Third runs long past it.",
-            40,
-            "First one here. Second sentence.",
-        ),
-        # A dot inside a word, as in "main.py", is not a sentence end.
-        (
-            "Use main.py now and then keep going for a long time",
-            30,
-            "Use main.py now and then keep.",
-        ),
-        # No sentence end: the last clause break.
-        ("alpha beta gamma, delta epsilon zeta eta theta", 30, "alpha beta gamma."),
-        # No break at all: the last whole word, never half of one.
-        ("alphabetagammadelta epsilonzetaetatheta iota", 30, "alphabetagammadelta."),
-    ],
-)
-def test_a_long_reply_is_cut_at_a_boundary_and_says_so(text, max_chars, opening):
-    assert fit_for_speech(text, max_chars, NOTE) == f"{opening} {NOTE}"
-
-
 @pytest.mark.parametrize(
     "text, spoken",
     [
@@ -86,10 +54,6 @@ def test_identifiers_survive_but_emphasis_does_not(text, spoken):
     assert clean_for_speech(text) == spoken
 
 
-def test_an_empty_note_adds_nothing():
-    assert fit_for_speech("one two three four five six", 10, "") == "one two."
-
-
 @pytest.mark.parametrize(
     "text, spoken",
     [
@@ -106,32 +70,6 @@ def test_an_empty_note_adds_nothing():
 )
 def test_clean_handles_every_fence_link_and_paragraph_form(text, spoken):
     assert clean_for_speech(text) == spoken
-
-
-@pytest.mark.parametrize(
-    "text, max_chars, opening",
-    [
-        # The end of the window is not the end of a sentence.
-        (
-            "Open the config file main.py and change it now please.",
-            26,
-            "Open the config file.",
-        ),
-        # Nor is the dot after a lone letter.
-        (
-            "Use a tool, e.g. grep here, to find it. Then more words follow.",
-            22,
-            "Use a tool, e.g. grep.",
-        ),
-    ],
-)
-def test_a_cut_never_ends_on_a_false_sentence_end(text, max_chars, opening):
-    assert fit_for_speech(text, max_chars, "N") == f"{opening} N"
-
-
-def test_a_cut_may_end_after_a_one_letter_word():
-    text = "Should we go on? I. " + "More words follow here. " * 3
-    assert fit_for_speech(text, 30, "NOTE") == "Should we go on? I. NOTE"
 
 
 def test_fill_template_replaces_only_the_names_given():

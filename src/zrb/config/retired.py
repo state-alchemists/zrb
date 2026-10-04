@@ -11,6 +11,37 @@ prose.
 """
 
 RETIRED_SETTINGS: dict[str, str] = {
+    # 3.14.0: what a stop asks is answered from the word lists and a small
+    # model (ADR-0105), which made the transcript-level echo guards and the
+    # end-of-turn word list redundant.
+    "LLM_DICTATION_BARGE_IN_ACTION": (
+        "nothing: anything said over zrb steers the turn, and a stop cancels it"
+    ),
+    "LLM_DICTATION_TURN_END_TIMEOUT": (
+        "nothing: only barge_in_action=cancel waited for a cancelled turn"
+    ),
+    "LLM_DICTATION_ECHO_COOLDOWN": (
+        "nothing: the microphone no longer goes deaf after zrb stops speaking; "
+        "what it hears then is held by loudness instead, against the barge-in "
+        "margin"
+    ),
+    "LLM_DICTATION_SELF_ECHO_MATCH": (
+        "nothing: barge-in holds zrb's own voice by loudness instead"
+    ),
+    "LLM_DICTATION_SELF_ECHO_TAIL": (
+        "nothing: barge-in holds zrb's own voice by loudness instead"
+    ),
+    "LLM_DICTATION_TRAILING_WORDS": (
+        "nothing: an utterance now ends after LLM_DICTATION_MIN_SILENCE "
+        "once it has words"
+    ),
+    # 3.14.0: speech reads the whole reply, so the cut that shortened a long
+    # one, the summary that stood in for it, and the note that pointed at the
+    # screen are all gone (ADR-0103).
+    "LLM_SPEECH_MAX_CHARS": "nothing: the whole reply is read",
+    "LLM_SPEECH_SUMMARIZE": "nothing: the whole reply is read",
+    "LLM_SPEECH_SUMMARY_MODEL": "nothing: the whole reply is read",
+    "LLM_SPEECH_ON_SCREEN_NOTE": "nothing: the whole reply is read",
     # 3.10.0: voice became the dictation and camera features (ADR-0102).
     "LLM_VOICE_ENABLED": "/voice is always offered",
     "LLM_VOICE_MODE": "LLM_DICTATION_BACKEND",

@@ -13,8 +13,6 @@ from zrb.llm.speech import SpeechConfig, enable_speech
 from zrb.llm.speech.feature import SpeechSession
 from zrb.llm.util.feature_config import close_feature_sessions
 
-NOTE = "Rest on screen."
-
 
 class FakeSpeaker:
     def __init__(self):
@@ -50,7 +48,6 @@ class PersistentHookTask:
 
 
 def _session(**config) -> SpeechSession:
-    config.setdefault("on_screen_note", NOTE)
     config.setdefault("enabled", True)
     session = SpeechSession(SpeechConfig(**config).resolve())
     session.speaker = FakeSpeaker()
@@ -84,7 +81,7 @@ def _tool_call_start():
 
 @pytest.mark.asyncio
 async def test_a_streamed_reply_is_spoken_a_sentence_at_a_time():
-    session = _session(stream=True, max_chars=0)
+    session = _session(stream=True)
     reply = "I will check the test suite first. Then I will fix the failing case."
 
     session.handle_stream_event(_text_start(""))
@@ -110,27 +107,17 @@ async def test_text_before_a_tool_call_is_spoken_when_the_call_starts():
 
 
 @pytest.mark.asyncio
-async def test_a_streamed_turn_stops_speaking_at_max_chars_with_one_note():
-    session = _session(stream=True, max_chars=40)
+async def test_a_streamed_turn_is_spoken_whole_however_long_it_is():
+    """Nothing caps what one turn says: the whole reply is read, so nothing is
+    left unsaid and there is no note about what was."""
+    session = _session(stream=True)
     sentence = "This sentence is about forty characters. "
 
     for _ in range(4):
         session.handle_stream_event(_text_delta(sentence))
     await session.handle_stop(_stop(sentence * 4))
 
-    assert session.speaker.said == [sentence.strip(), NOTE]
-
-
-@pytest.mark.asyncio
-async def test_a_reply_ending_on_the_sentence_crossing_max_chars_gets_no_note():
-    session = _session(stream=True, max_chars=40)
-    sentence = "This sentence is about forty characters. "
-
-    session.handle_stream_event(_text_delta(sentence))
-    await session.handle_stop(_stop(sentence))
-
-    # Nothing was cut, so there is nothing on screen to point to.
-    assert session.speaker.said == [sentence.strip()]
+    assert session.speaker.said == [sentence.strip()] * 4
 
 
 @pytest.mark.asyncio

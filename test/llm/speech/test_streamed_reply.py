@@ -3,9 +3,9 @@ from types import SimpleNamespace
 from zrb.llm.speech.streamed_reply import StreamedReply
 
 
-def _reply(max_chars=0, note="On screen."):
+def _reply():
     said = []
-    return StreamedReply(said.append, max_chars, note), said
+    return StreamedReply(said.append), said
 
 
 def _event(kind, **fields):
@@ -50,7 +50,7 @@ def test_thinking_and_tool_argument_text_is_never_spoken():
 
 
 def test_reset_starts_the_next_turn_fresh():
-    reply, said = _reply(max_chars=5)
+    reply, said = _reply()
     reply.handle_event(_event("part_delta", delta=_delta("text", "Hello")))
     reply.flush()
     reply.reset()

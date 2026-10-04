@@ -2,10 +2,8 @@
 
 When enabled, replies are read aloud a sentence at a time as they stream
 (`LLM_SPEECH_STREAM`), along with tool approvals, questions, and a tool call
-that starts after a silence. With streaming off, the reply is read at the end
-of the turn: one longer than `LLM_SPEECH_MAX_CHARS` is cut at a sentence end,
-or summarized by the small model with `LLM_SPEECH_SUMMARIZE`, and followed by
-a note that the full answer is on screen.
+that starts after a silence. With streaming off, the reply is read once the
+turn ends. Either way it is read whole, however long it is.
 
 Read when a chat session starts, not at import, so `zrb_init.py` may change
 any of these after importing zrb.
@@ -43,8 +41,6 @@ class LLMSpeechMixin:
             "theatrical."
         )
         self.DEFAULT_LLM_SPEECH_RATE: str = "165"
-        self.DEFAULT_LLM_SPEECH_MAX_CHARS: str = "400"
-        self.DEFAULT_LLM_SPEECH_SUMMARIZE: str = "false"
         self.DEFAULT_LLM_SPEECH_STREAM: str = "true"
         self.DEFAULT_LLM_SPEECH_PROGRESS_INTERVAL: str = "8"
         self.DEFAULT_LLM_SPEECH_OPENAI_MODEL: str = "gpt-4o-mini-tts"
@@ -57,8 +53,6 @@ class LLMSpeechMixin:
         self.DEFAULT_LLM_SPEECH_TERMUX_RATE: str = "1.0"
         self.DEFAULT_LLM_SPEECH_TERMUX_PITCH: str = "1.0"
         self.DEFAULT_LLM_SPEECH_TERMUX_STREAM: str = ""
-        self.DEFAULT_LLM_SPEECH_SUMMARY_MODEL: str = ""
-        self.DEFAULT_LLM_SPEECH_ON_SCREEN_NOTE: str = "The full answer is on screen."
         self.DEFAULT_LLM_SPEECH_EVENTS: str = "reply, approval, question, progress"
         self.DEFAULT_LLM_SPEECH_WAV_PLAYER: str = ""
         self.DEFAULT_LLM_SPEECH_PLAYER: str = "auto"
@@ -153,36 +147,14 @@ class LLMSpeechMixin:
         doc="Words per minute for 'say' and 'espeak-ng'. Default: 165.",
     )
 
-    LLM_SPEECH_MAX_CHARS = EnvField(
-        int,
-        fallback=400,
-        doc=(
-            "Longest reply spoken in full, in characters; 0 means no limit. "
-            "A longer one is cut at a sentence end and followed by "
-            "{ENV_PREFIX}_LLM_SPEECH_ON_SCREEN_NOTE, only when something was "
-            "left unsaid. Default: 400."
-        ),
-    )
-
-    LLM_SPEECH_SUMMARIZE = EnvField(
-        to_boolean,
-        serialize=on_off,
-        doc=(
-            "Speak a small-model summary of a reply longer than "
-            "{ENV_PREFIX}_LLM_SPEECH_MAX_CHARS instead of its opening. Costs a "
-            "model call per long reply. Default: false."
-        ),
-    )
-
     LLM_SPEECH_STREAM = EnvField(
         to_boolean,
         serialize=on_off,
         doc=(
             "Speak a reply a sentence at a time while it is written, and the "
-            "text before a tool call when the call starts, instead of the "
-            "whole reply once the turn ends. {ENV_PREFIX}_LLM_SPEECH_MAX_CHARS "
-            "then caps what one turn speaks, and "
-            "{ENV_PREFIX}_LLM_SPEECH_SUMMARIZE does not apply. Default: true."
+            "text before a tool call when the call starts, instead of the whole "
+            "reply once the turn ends. Either way the whole reply is read. "
+            "Default: true."
         ),
     )
 
@@ -245,23 +217,6 @@ class LLMSpeechMixin:
         doc=(
             "Seconds a cloud backend may take before the local engine speaks "
             "instead; 0 means no limit."
-        ),
-    )
-
-    LLM_SPEECH_SUMMARY_MODEL = EnvField(
-        str,
-        doc=(
-            "Model that summarizes long replies when "
-            "{ENV_PREFIX}_LLM_SPEECH_SUMMARIZE is on. Empty uses the small model "
-            "({ENV_PREFIX}_LLM_SMALL_MODEL, else the main model)."
-        ),
-    )
-
-    LLM_SPEECH_ON_SCREEN_NOTE = EnvField(
-        str,
-        doc=(
-            "Said after a reply that was cut or summarized. "
-            "Default: The full answer is on screen."
         ),
     )
 

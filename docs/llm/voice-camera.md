@@ -47,23 +47,22 @@ By default zrb ignores the microphone while it is speaking, so its own voice is 
 **Talking over zrb (barge-in).** With `ZRB_LLM_DICTATION_BARGE_IN_ENABLED=on`, the microphone keeps listening while zrb speaks. About a third of a second of speech over it (`ZRB_LLM_DICTATION_BARGE_IN_MIN_SPEECH`) pauses zrb at once. If what you said turns out to be words meant for zrb, it stops and the rest of that reply is not read; if not, zrb carries on where it paused. Words too brief to pause it (a crisp "stop") stop it as soon as they are transcribed. Then:
 
 - A stop word said alone ("stop", "wait", "hold on", "cancel", "no"; `ZRB_LLM_DICTATION_STOP_WORDS`) cancels the turn, as Esc does, and is sent nowhere.
-- Anything else steers the running turn: the agent takes it into account at its next step (`ZRB_LLM_DICTATION_BARGE_IN_ACTION=steer`). With `cancel`, the turn stops and what you said starts a new one.
+- Anything else is put to the small model (`ZRB_LLM_DICTATION_INTERRUPT_JUDGE_ENABLED`), which reads what it asks: a stop in other words ("please stop", "shut up", a stop in another language) cancels the turn like a stop word, and anything else steers the running turn — the agent takes it into account at its next step. With the judge off, only the stop words cancel it and everything else steers.
 - While a tool approval is waiting, what you say answers it, as usual: "no" denies the tool call, not the turn.
 
-With wake words, zrb stops only once it has heard one; it pauses for talk in the room and carries on.
+With wake words, zrb stops only once it has heard one. Talk in the room holds its voice like anything else heard over it, on loudness alone, and the words give that hold back when they turn out not to be the user's.
 
-**zrb's own voice.** On speakers the microphone hears zrb too, and zrb does not try to subtract it: no echo canceller removes all of it on laptop speakers, and what is left, transcribed, would become turns zrb answers itself. Instead, what hands-free hears has to pass four checks before it reaches the model ([ADR-0105](../adr/adr-0105.md)). Push-to-talk keeps every word: its transcript lands in the input box for you to edit.
+**zrb's own voice.** On speakers the microphone hears zrb too, and zrb does not try to subtract it: no echo canceller removes all of it on laptop speakers, and what is left, transcribed, would become turns zrb answers itself. Instead, what hands-free hears has to pass the checks below before it reaches the model ([ADR-0105](../adr/adr-0105.md)). None of them compares the words heard against what zrb was saying, so a word of zrb's own reply, loud enough to clear the bar, can still open a turn — keep the volume down, or wear headphones. Push-to-talk keeps every word: its transcript lands in the input box for you to edit.
 
 | Check | What it keeps out | Setting |
 |---|---|---|
-| Louder than zrb: speech over zrb, and for `ZRB_LLM_DICTATION_ECHO_COOLDOWN` after, must be several times louder than zrb's voice reaches the microphone (measured as it speaks, so it follows the volume and the room) | zrb's voice and room noise starting an utterance at all | `ZRB_LLM_DICTATION_BARGE_IN_MARGIN` (3) |
+| Louder than zrb: speech over zrb must be several times louder than zrb's voice reaches the microphone (measured as it speaks, so it follows the volume and the room) | zrb's voice and room noise starting an utterance at all | `ZRB_LLM_DICTATION_BARGE_IN_MARGIN` (3) |
 | Not the transcriber guessing, in anything heard hands-free: Whisper's own scores for a segment that is likely silence or repeating itself, phrases Whisper writes for silence ("Thank you for watching."), and one phrase over and over ("and this and this") | Words made up from noise | — |
-| Not zrb's own words: over zrb's voice, mostly words zrb was saying while it was heard; what you say while zrb is silent is never taken for it | zrb's voice that got through, transcribed | `ZRB_LLM_DICTATION_SELF_ECHO_MATCH`, `_SELF_ECHO_TAIL` |
 | At least two words over zrb, or (with barge-in on) while a turn runs, unless a stop word or an answer to the prompt being asked | One-word leftovers ("sleep", "well") | `ZRB_LLM_DICTATION_BARGE_IN_MIN_WORDS` (2) |
 
 On headphones the microphone hears no zrb, so the bar stays at `ZRB_LLM_DICTATION_THRESHOLD`. Speak up a little over laptop speakers. zrb plays its speech itself when it can (`ZRB_LLM_SPEECH_PLAYER=auto`, the default with the `zrb[voice]` extra), so it can pause while you talk; speech a player program plays cannot pause, and only the sentence playing is stopped.
 
-**Transcribing while you speak.** vosk transcribes an utterance as you say it, and the status bar shows the last words heard. Once you pause for half a second (`ZRB_LLM_DICTATION_MIN_SILENCE`) after words that sound finished, the utterance ends; after "and", "the" or "um" (`ZRB_LLM_DICTATION_TRAILING_WORDS`, English by default) it waits the full second (`ZRB_LLM_DICTATION_SILENCE`), since you are still thinking. The other backends transcribe the whole utterance after it ends and always wait the full second.
+**Transcribing while you speak.** vosk transcribes an utterance as you say it, and the status bar shows the last words heard. Once you pause for half a second (`ZRB_LLM_DICTATION_MIN_SILENCE`) once words have been heard, the utterance ends. The other backends transcribe the whole utterance after it ends and always wait the full second.
 
 A line above the status bar shows what the microphone is doing, while hands-free is on:
 
@@ -79,7 +78,6 @@ A line above the status bar shows what the microphone is doing, while hands-free
 | `✋ interrupted · go on…` | It was words: zrb stopped (barge-in) |
 | `✋ stopped · listening` | You said "stop" over it; the turn was cancelled |
 | `🎤 ignored "…" (no wake word)` | Heard, but it did not start with a wake word |
-| `🎤 ignored "…" (Zrb's own voice)` | It was zrb, heard back through the speakers; zrb carries on. The name is `ZRB_LLM_ASSISTANT_NAME` |
 | `🎤 ignored "…" (the transcriber guessing at noise)` | Words the transcriber made up from noise |
 | `🎤 ignored "…" (too few words to interrupt)` | One word over zrb, or over a running turn, that was not a stop word or an answer |
 
@@ -96,9 +94,9 @@ Speech starts off. Turn it on with `ZRB_LLM_SPEECH_ENABLED=on`, or with `/speech
 - "I need to write a file /tmp/a.py. I need your approval." when a tool waits for approval — not read if you answer first, and cut off if you answer while it is being read,
 - a question the agent asks you.
 
-**Speaking as it writes.** A reply is read a sentence at a time while the model is still writing it, and what it writes before a tool call ("Let me run the tests.") is read when the call starts. Code, tables and links are not read. At most 400 characters (`ZRB_LLM_SPEECH_MAX_CHARS`) are read per turn: the sentence crossing the limit is finished, then, if anything is left unsaid, "The full answer is on screen." It is said when the next sentence arrives, since only then is something known to be cut; a reply that ends on the crossing sentence lost nothing and gets no note. The next sentence's audio is made while the current one plays, so a cloud voice has no gap between sentences.
+**Speaking as it writes.** A reply is read a sentence at a time while the model is still writing it, and what it writes before a tool call ("Let me run the tests.") is read when the call starts. Code, tables and links are not read. It is read whole, however long it is — nothing is shortened, so nothing is left for the screen to hold. The next sentence's audio is made while the current one plays, so a cloud voice has no gap between sentences.
 
-With `ZRB_LLM_SPEECH_STREAM=off`, the reply is read once the turn ends instead, cut at a sentence end past 400 characters; `ZRB_LLM_SPEECH_SUMMARIZE=on` then has the small model summarize a long reply, at the cost of one model call per long reply.
+With `ZRB_LLM_SPEECH_STREAM=off`, the reply is read once the turn ends instead, whole in one go.
 
 **Saying what it is doing.** A tool call that starts after 8 seconds of silence (`ZRB_LLM_SPEECH_PROGRESS_INTERVAL`) is announced: "Running a command.", "Searching the code." Nothing is announced while zrb is speaking, and an announcement still waiting when its tool finishes is dropped. Take `progress` out of `ZRB_LLM_SPEECH_EVENTS` to turn it off.
 
@@ -143,9 +141,9 @@ os.environ.setdefault(f"{CFG.ENV_PREFIX}_LLM_DICTATION_WAKE_WORDS", "hey zed")
 
 **Everything is a setting.** Every word zrb listens for and every phrase it says, apart from the status-bar badges, is a variable in [LLM configuration § Voice and Camera](../configuration/llm-config.md#23-voice-and-camera):
 
-- **Words it listens for:** wake words, approve and deny words, stop words, the polite words around them, and the words a sentence rarely ends on. The defaults are English; set them for your language.
+- **Words it listens for:** wake words, approve and deny words, stop words, and the polite words a yes or a no may carry. The defaults are English; set them for your language.
 - **What it says:** the approval request and each tool's action in it, every progress line and the tools it keeps quiet about, the question notice, and the note after a cut reply. The two per-tool tables are JSON objects of tool-name patterns (`{"Read": "Membaca berkas.", "*": "Memakai {tool}."}`).
-- **Prompts:** the transcription instruction for `google` and `multimodal`, Gemini's reading prompts, and the prompt files `speech_live`, `speech_summarizer` and `multimodal_audio` (through `ZRB_LLM_PROMPT_DIR`).
+- **Prompts:** the transcription instruction for `google` and `multimodal`, Gemini's reading prompts, and the prompt files `speech_live` and `multimodal_audio` (through `ZRB_LLM_PROMPT_DIR`).
 - **Timing:** every listening duration, the microphone block size, playback block and read-ahead, and timeouts.
 
 ## Your own backend

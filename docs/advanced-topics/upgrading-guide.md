@@ -6,11 +6,33 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ## Table of Contents
 
+- [Upgrading to 3.14.0](#upgrading-to-3140)
 - [Upgrading to 3.10.0](#upgrading-to-3100)
 - [Upgrading to 3.3.0](#upgrading-to-330)
 - [Upgrading to 3.0.0](#upgrading-to-300)
 - [Upgrading to 2.54.0](#upgrading-to-2540)
 - [Upgrading from 1.x.x to 2.x.x](#upgrading-from-1xx-to-2xx)
+
+---
+
+## Upgrading to 3.14.0
+
+3.14.0 retires dictation settings about holding zrb's voice and reading back what was heard over it ([ADR-0105](../adr/adr-0105.md), [ADR-0076](../adr/adr-0076.md)), and four speech settings, which existed to shorten a long reply ([ADR-0103](../adr/adr-0103.md)). Each is reported at startup when it is still set, naming what replaced it; setting one has no other effect.
+
+| Retired | What to do instead |
+|---|---|
+| `ZRB_LLM_DICTATION_BARGE_IN_ACTION` | Nothing: anything said over zrb steers the turn, and a stop cancels it, so there is no `cancel` left to choose. A stop word said alone (`ZRB_LLM_DICTATION_STOP_WORDS`) still cancels the turn. |
+| `ZRB_LLM_DICTATION_TURN_END_TIMEOUT` | Nothing: only `barge_in_action=cancel` waited for a cancelled turn. |
+| `ZRB_LLM_DICTATION_ECHO_COOLDOWN` | Nothing: the microphone no longer goes deaf after zrb stops speaking, because room echo outliving playback is what `ZRB_LLM_DICTATION_BARGE_IN_MARGIN` holds speech over zrb against. Speech heard in that moment is judged like any other. |
+| `ZRB_LLM_DICTATION_SELF_ECHO_MATCH` | Nothing, and this one is a real loss: the guard that dropped zrb's own words transcribed back is gone. Anything else said over zrb goes to the small model (`ZRB_LLM_DICTATION_INTERRUPT_JUDGE_ENABLED`), which reads what a stop asks but does not drop echo. Lower the playback volume, use headphones, or turn barge-in off. |
+| `ZRB_LLM_DICTATION_SELF_ECHO_TAIL` | Nothing — see `_SELF_ECHO_MATCH`. |
+| `ZRB_LLM_DICTATION_TRAILING_WORDS` | Nothing: an utterance fed to a streaming transcriber now ends after `ZRB_LLM_DICTATION_MIN_SILENCE` once it has words, without waiting for a word a sentence ends on. Raise `ZRB_LLM_DICTATION_MIN_SILENCE` if you are cut off mid-sentence. |
+| `ZRB_LLM_SPEECH_MAX_CHARS` | Nothing: the whole reply is read, so nothing is cut. |
+| `ZRB_LLM_SPEECH_SUMMARIZE` | Nothing: nothing is cut, so there is nothing for a summary to stand in for. |
+| `ZRB_LLM_SPEECH_SUMMARY_MODEL` | Nothing — see `_SUMMARIZE`. |
+| `ZRB_LLM_SPEECH_ON_SCREEN_NOTE` | Nothing: nothing is left unsaid, so there is nothing on screen to point at. |
+
+`ZRB_LLM_DICTATION_POLITE_WORDS` still exists but no longer applies to stop words: a yes or a no may carry one ("yes please", "no thanks"), a stop may not, so "stop please" is put to the small model instead of matching. Keep `ZRB_LLM_DICTATION_INTERRUPT_JUDGE_ENABLED` on if you relied on that.
 
 ---
 

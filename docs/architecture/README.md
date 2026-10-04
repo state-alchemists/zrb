@@ -47,7 +47,7 @@ The pages go from general to specific. Each tier is useful on its own, and each 
 | **0 · System** `0-system/` | What are the parts, and what must never break? | [The System](0-system/system.md) |
 | **1 · Spine** `1-spine/` | How does work flow, end to end? | [Task Execution](1-spine/task-execution.md), [The LLM Turn](1-spine/llm-turn.md) |
 | **2 · Extension surface** `2-extension-surface/` | How do I add or change behaviour? | [Tools](2-extension-surface/tools.md), [UI](2-extension-surface/ui.md), [Prompts](2-extension-surface/prompts.md), [Hooks](2-extension-surface/hooks.md), [Config](2-extension-surface/config.md), [Sub-agents](2-extension-surface/sub-agents.md) |
-| **3 · Peripheral flow** `3-peripheral-flow/` | How does this one feature work? | [Web Requests](3-peripheral-flow/web-requests.md), [Tool Call & Approval](3-peripheral-flow/tool-call-approval.md), [Sandbox Enforcement](3-peripheral-flow/sandbox-enforcement.md), [History & Compaction](3-peripheral-flow/history-and-compaction.md), [MCP & LSP Servers](3-peripheral-flow/mcp-and-lsp.md), [Dictation & Barge-in](3-peripheral-flow/dictation-barge-in.md) |
+| **3 · Peripheral flow** `3-peripheral-flow/` | How does this one feature work? | [Web Requests](3-peripheral-flow/web-requests.md), [Tool Call & Approval](3-peripheral-flow/tool-call-approval.md), [Sandbox Enforcement](3-peripheral-flow/sandbox-enforcement.md), [History & Compaction](3-peripheral-flow/history-and-compaction.md), [MCP & LSP Servers](3-peripheral-flow/mcp-and-lsp.md), [Dictation & Barge-in](3-peripheral-flow/dictation-barge-in.md), [Voice on Pipecat](3-peripheral-flow/voice-on-pipecat.md) |
 
 Tier 2 holds the parts that change most often. If you have one hour, spend it there.
 

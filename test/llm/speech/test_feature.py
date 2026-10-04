@@ -1,8 +1,6 @@
-import asyncio
 import logging
 import threading
 from contextlib import contextmanager
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -16,8 +14,6 @@ from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.speech import SpeechConfig, enable_speech
 from zrb.llm.speech.feature import SpeechSession, describe_tool_call, is_answered_since
 from zrb.llm.util.feature_config import close_feature_sessions
-
-NOTE = "Rest on screen."
 
 
 class PersistentHookTask:
@@ -95,7 +91,6 @@ class FakeSpeaker:
 
 
 def _session(**config) -> SpeechSession:
-    config.setdefault("on_screen_note", NOTE)
     config.setdefault("enabled", True)
     session = SpeechSession(SpeechConfig(**config).resolve())
     session.speaker = FakeSpeaker()
@@ -112,7 +107,7 @@ def _stop(message: str, nested: bool = False) -> HookContext:
 
 @pytest.mark.asyncio
 async def test_a_short_reply_is_spoken_clean_and_whole():
-    session = _session(max_chars=400)
+    session = _session()
 
     await session.handle_stop(_stop("**Done.** Tests pass: `pytest`."))
 
@@ -129,75 +124,15 @@ async def test_a_sub_agent_reply_is_not_spoken():
 
 
 @pytest.mark.asyncio
-async def test_a_long_reply_is_cut_and_says_the_rest_is_on_screen():
-    session = _session(max_chars=30, summarize=False)
+async def test_a_long_reply_is_read_whole():
+    """Nothing caps what one turn says, so nothing is left unsaid and there is
+    no note about what was."""
+    session = _session()
+    reply = "First part here. Second part is long. " * 3
 
-    await session.handle_stop(_stop("First part here. Second part is long. " * 3))
+    await session.handle_stop(_stop(reply))
 
-    assert session.speaker.said == [f"First part here. {NOTE}"]
-
-
-def _fake_summarizer(monkeypatch, output=None, error=None):
-    prompts = []
-
-    class Agent:
-        async def run(self, text):
-            prompts.append(text)
-            await asyncio.sleep(0.01)  # a model call awaits
-            if error:
-                raise error
-            return SimpleNamespace(output=output)
-
-    def create(model=None, system_prompt=None):
-        prompts.append(("model", model))
-        return Agent()
-
-    monkeypatch.setattr("zrb.llm.agent.summarizer.create_summarizer_agent", create)
-    return prompts
-
-
-async def _settle(session):
-    """Wait for the summary, which is spoken from a thread of its own."""
-    for _ in range(200):
-        if session.speaker.said:
-            return
-        await asyncio.sleep(0.01)
-
-
-@pytest.mark.asyncio
-async def test_a_long_reply_is_summarized_when_configured(monkeypatch):
-    prompts = _fake_summarizer(monkeypatch, output="All tests pass.")
-    session = _session(max_chars=30, summarize=True, summary_model="small")
-    reply = "The long reply. " * 10
-
-    session.say_reply(reply)
-    await _settle(session)
-
-    assert session.speaker.said == [f"All tests pass. {NOTE}"]
-    assert prompts == [("model", "small"), reply]
-
-
-@pytest.mark.asyncio
-async def test_a_long_summary_is_cut_with_one_note(monkeypatch):
-    _fake_summarizer(monkeypatch, output="Summary sentence one. " * 5)
-    session = _session(max_chars=30, summarize=True)
-
-    session.say_reply("The long reply. " * 10)
-    await _settle(session)
-
-    (said,) = session.speaker.said
-    assert said.count(NOTE) == 1
-
-
-@pytest.mark.asyncio
-async def test_a_failed_summary_speaks_the_opening(monkeypatch):
-    _fake_summarizer(monkeypatch, error=RuntimeError("rate limited"))
-    session = _session(max_chars=30, summarize=True)
-
-    session.say_reply("First part here. Second part is long. " * 3)
-    await _settle(session)
-
-    assert session.speaker.said == [f"First part here. {NOTE}"]
+    assert session.speaker.said == [reply.strip()]
 
 
 @pytest.mark.asyncio
@@ -430,23 +365,6 @@ def test_speech_says_so_when_the_hook_subsystem_is_off(caplog, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_a_summary_survives_the_hook_loop_closing(monkeypatch):
-    """Python hooks run on a loop of their own, closed when the hook returns;
-    a summary left as a task on it was cancelled and nothing was spoken."""
-    _fake_summarizer(monkeypatch, output="All tests pass.")
-    session = _session(max_chars=30, summarize=True)
-    manager = HookManager(search_dirs=[])
-    session.register_hooks(manager)
-
-    await manager.execute_hooks(
-        HookEvent.STOP, {}, last_assistant_message="The long reply. " * 10
-    )
-    await _settle(session)
-
-    assert session.speaker.said == [f"All tests pass. {NOTE}"]
-
-
-@pytest.mark.asyncio
 async def test_a_session_ignores_another_sessions_events_on_a_shared_manager():
     with _as_session("first"):
         first = _session()
@@ -466,8 +384,8 @@ async def test_a_session_ignores_another_sessions_events_on_a_shared_manager():
 
 
 @pytest.mark.asyncio
-async def test_a_question_is_spoken_clean_and_fitted():
-    session = _session(max_chars=30)
+async def test_a_question_is_spoken_clean_and_whole():
+    session = _session()
 
     await session.handle_notification(
         HookContext(
@@ -478,4 +396,4 @@ async def test_a_question_is_spoken_clean_and_fitted():
         )
     )
 
-    assert session.speaker.said == [f"Pick one. Very long detail. {NOTE}"]
+    assert session.speaker.said == [("Pick one. " + "Very long detail. " * 10).strip()]
