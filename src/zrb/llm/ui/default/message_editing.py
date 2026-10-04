@@ -1,4 +1,4 @@
-"""Queued-message editing for the default `UI`.
+"""Input recall and queued-message editing for the default `UI`.
 
 While a turn is running, a freshly submitted message sits in the message
 queue (`QueuedMessage`) instead of being processed. `UIMessageEditing` lets
@@ -11,8 +11,11 @@ Ctrl+X, which takes both the queue entry and its echoed line away.
 Where each piece lives:
 
 * `handle_up_arrow` / `handle_down_arrow` are the buffer-level handlers the
-  input field's Up/Down keybindings consult first (see `create_input_field`);
-  they return ``False`` to fall through to prompt-toolkit history recall.
+  input field's Up/Down keybindings consult first (see `create_input_field`).
+  They prefer a still-queued message; with none queued they walk the
+  previous-message history (`PreviousMessageHistory`) — the loaded
+  conversation, then the cross-session history, newest first — and only then
+  return ``False`` to fall through to prompt-toolkit history recall.
 * `handle_enter_queued_edit` is called from the Enter keybinding before the
   plain-submit path; it turns a queued message in the buffer into an edit.
 * `handle_delete_queued` is called from the Ctrl+X keybinding: it drops the
@@ -46,6 +49,7 @@ from zrb.llm.ui.base.user_echo import should_render_user_markdown
 if TYPE_CHECKING:
     from prompt_toolkit.key_binding import KeyPressEvent
 
+    from zrb.llm.ui.default.previous_message_history import PreviousMessageHistory
     from zrb.llm.ui.default.ui import UI
 
 
@@ -79,6 +83,8 @@ class UIMessageEditing:
         self._ui = ui
         self._queued_edit_entry: QueuedMessage | None = None
         self._queued_edit_draft: str = ""
+        self._previous_recall_index: int | None = None
+        self._previous_recall_draft: str = ""
 
     @property
     def queued_edit_entry(self) -> QueuedMessage | None:
@@ -107,13 +113,41 @@ class UIMessageEditing:
         buffer.text = text
         buffer.cursor_position = len(text)
 
-    def recall_navigation_active(self) -> bool:
-        """Whether Up should walk queued messages rather than move the cursor.
+    @property
+    def _previous_history(self) -> "PreviousMessageHistory | None":
+        """The previous-message history, or None when the owner has none."""
+        return getattr(self._ui, "previous_messages", None)
 
-        True while the input still holds the untouched recalled text with the
-        cursor at its end — needed because a multi-line recall leaves the
-        cursor off the first line, where Up would otherwise move the cursor.
+    def _previous_recall_active(self) -> bool:
+        """Whether the input still holds the untouched recalled previous message."""
+        index = self._previous_recall_index
+        if index is None:
+            return False
+        history = self._previous_history
+        if history is None:
+            return False
+        strings = history.recall_strings()
+        if index >= len(strings):
+            return False
+        buffer = self._ui.input_field.buffer
+        recalled = strings[index]
+        return buffer.text == recalled and buffer.cursor_position == len(buffer.text)
+
+    def reset_previous_recall(self) -> None:
+        """Forget any in-progress previous-message recall (called after /load)."""
+        self._previous_recall_index = None
+        self._previous_recall_draft = ""
+
+    def recall_navigation_active(self) -> bool:
+        """Whether Up should walk recalled messages rather than move the cursor.
+
+        True while the input still holds the untouched recalled text — a
+        queued message or a previous message — with the cursor at its end,
+        needed because a multi-line recall leaves the cursor off the first
+        line, where Up would otherwise move the cursor.
         """
+        if self._previous_recall_active():
+            return True
         entry = self._queued_edit_entry
         if entry is None:
             return False
@@ -121,10 +155,13 @@ class UIMessageEditing:
         return buffer.text == entry.text and buffer.cursor_position == len(buffer.text)
 
     def handle_up_arrow(self, event: Any) -> bool:
-        """Recall a still-queued message into the input field for editing.
+        """Recall a message into the input field for editing.
 
-        Returns ``True`` when the keypress was consumed by queued-message
-        navigation; ``False`` lets the input field's history recall run.
+        Prefers a still-queued message; with none queued it walks the
+        previous-message history (the loaded conversation, then the
+        cross-session history) newest first. Returns ``True`` when the
+        keypress was consumed; ``False`` lets the input field's history
+        recall run.
         """
         queue = self._ui.effective_message_queue
         buffer = event.current_buffer
@@ -147,7 +184,31 @@ class UIMessageEditing:
                 self._load_edit_text(buffer, older.text)
             return True
 
-        return self._recall_latest(buffer, save_draft=True)
+        if self._recall_latest(buffer, save_draft=True):
+            return True
+
+        history = self._previous_history
+        if history is None:
+            return False
+        strings = history.recall_strings()
+        if not strings:
+            return False
+        if self._previous_recall_index is None:
+            self._previous_recall_draft = buffer.text
+            self._previous_recall_index = 0
+            self._load_edit_text(buffer, strings[0])
+            return True
+        if not self._previous_recall_active():
+            # The user edited the recalled message; fall through rather than
+            # clobber the edit.
+            return False
+        if self._previous_recall_index >= len(strings) - 1:
+            # Already at the oldest previous message: swallow the key so the
+            # prompt-toolkit history does not re-walk the same entries.
+            return True
+        self._previous_recall_index += 1
+        self._load_edit_text(buffer, strings[self._previous_recall_index])
+        return True
 
     def _recall_latest(self, buffer: Any, save_draft: bool = False) -> bool:
         """Load the newest queued message into the input field.
@@ -170,8 +231,8 @@ class UIMessageEditing:
 
         Returns ``True`` when the keypress was consumed; ``False`` lets the
         input field's history recall run. With an empty input field and no
-        queued-message navigation in progress, Down Arrow opens the sub-agent
-        picker instead (consumed) when live sub-agent sessions exist.
+        recall navigation in progress, Down Arrow opens the sub-agent picker
+        instead (consumed) when live sub-agent sessions exist.
         """
         buffer = event.current_buffer
         if (
@@ -184,8 +245,25 @@ class UIMessageEditing:
         queue = self._ui.effective_message_queue
         entry = self._queued_edit_entry
 
+        if entry is None:
+            history = self._previous_history
+            if history is None or self._previous_recall_index is None:
+                return False
+            if not self._previous_recall_active():
+                # The user edited the recall; never restore the draft over it.
+                return False
+            strings = history.recall_strings()
+            if self._previous_recall_index > 0:
+                self._previous_recall_index -= 1
+                self._load_edit_text(buffer, strings[self._previous_recall_index])
+                return True
+            # Past the newest previous message: exit recall, restore the draft.
+            self._previous_recall_index = None
+            self._load_edit_text(buffer, self._previous_recall_draft)
+            return True
+
         # Same guard as Up: never restore the draft over an in-progress edit.
-        if entry is None or not self.recall_navigation_active():
+        if not self.recall_navigation_active():
             return False
         if not queue.contains(entry):
             self._queued_edit_entry = None

@@ -37,6 +37,30 @@ def extract_last_response_text(messages: "Sequence[ModelMessage]") -> str:
     return ""
 
 
+def extract_user_message_texts(messages: "Sequence[ModelMessage]") -> list[str]:
+    """Return the user-prompt texts of *messages*, newest first.
+
+    Recovers the user turns of a loaded conversation for the input box's
+    Up-arrow recall. Only ``user-prompt`` parts are included: tool returns,
+    retries and system prompts are the model's view of a turn, not a message
+    the user typed. Multimodal content renders through the same bracketed
+    labels ``format_history_as_text`` uses.
+    """
+    texts: list[str] = []
+    for msg in messages:
+        if getattr(msg, "kind", None) != "request":
+            continue
+        for part in getattr(msg, "parts", []) or []:
+            if getattr(part, "part_kind", None) != "user-prompt":
+                continue
+            content = getattr(part, "content", "") or ""
+            text = _render_user_content(content, full=True)
+            if text.strip():
+                texts.append(text)
+    texts.reverse()
+    return texts
+
+
 def format_history_as_text(
     messages: "Sequence[ModelMessage]",
     max_length: int | None = None,

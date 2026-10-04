@@ -47,7 +47,10 @@ FACADE_BUDGETS = {
     # init it reads during UIOutput construction.
     # +10 (671->681): `remove_echo`, the delete-side counterpart to the
     # `redraw_echo` override already here -- new surface.
-    "llm/ui/default/ui.py": 681,
+    # +16 (681->697): `replay_history` override seeds the input box's
+    # previous-message history from a loaded conversation, and the
+    # `PreviousMessageHistory` part is constructed in __init__ -- new surface.
+    "llm/ui/default/ui.py": 697,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.

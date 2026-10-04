@@ -25,8 +25,10 @@ from zrb.llm.ui.default.keybindings import UIKeybindings
 from zrb.llm.ui.default.lifecycle import UILifecycle
 from zrb.llm.ui.default.message_editing import UIMessageEditing
 from zrb.llm.ui.default.output import UIOutput
+from zrb.llm.ui.default.previous_message_history import PreviousMessageHistory
 from zrb.llm.ui.default.selection import UISelection
 from zrb.llm.ui.ui_config import UIConfig
+from zrb.llm.util.history_formatter import extract_user_message_texts
 from zrb.util.ascii_art.banner import get_ascii_art
 from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.terminal import get_terminal_size
@@ -138,10 +140,13 @@ class UI(BaseUI):
         self._capture = GlobalStreamCapture()
         self._style = create_style()
 
-        # lazy: heavy third-party
-        from prompt_toolkit.history import InMemoryHistory
-
-        self._input_history = InMemoryHistory()
+        # The input box's cross-session history: submitted messages persist
+        # here, and a loaded conversation's user messages are seeded ahead of
+        # them so Up walks the conversation before the cross-session history.
+        self.previous_messages = PreviousMessageHistory(
+            history_dir=CFG.LLM_PREVIOUS_MESSAGE_HISTORY_DIR,
+            max_entries=CFG.LLM_PREVIOUS_MESSAGE_HISTORY_MAX_ENTRIES,
+        )
         # `_ui_config` backs every `self.<x>_commands` property, so it holds
         # the current aliases. The completer offers all of them; a command
         # that cannot run reports that from its own handler (ADR-0093).
@@ -149,7 +154,7 @@ class UI(BaseUI):
             history_manager=self._history_manager,
             ui_config=self._ui_config,
             custom_commands=self._custom_commands,
-            history=self._input_history,
+            history=self.previous_messages,
             custom_model_names=custom_model_names,
             up_arrow_handler=self._message_editing.handle_up_arrow,
             down_arrow_handler=self._message_editing.handle_down_arrow,
@@ -227,6 +232,17 @@ class UI(BaseUI):
 
         with self._capture.pause():
             await run_in_terminal(run_subprocess)
+
+    def replay_history(self, messages: list) -> None:
+        """Replay *messages* and seed the input recall from their user turns.
+
+        Loading a conversation (`/load`, or `--session` at startup) should make
+        Up recall its previous user messages, so `PreviousMessageHistory` is
+        seeded here alongside the visual replay `BaseUI` performs.
+        """
+        super().replay_history(messages)
+        self.previous_messages.seed_conversation(extract_user_message_texts(messages))
+        self._message_editing.reset_previous_recall()
 
     @property
     def application(self) -> "Application":
