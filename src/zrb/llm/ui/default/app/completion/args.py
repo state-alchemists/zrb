@@ -12,7 +12,15 @@ from typing import Iterable
 
 from prompt_toolkit.completion import Completion
 
+from zrb.config.config import CFG
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+
+# `/set` names that switch the UI's live model slots rather than a CFG field.
+_LIVE_MODEL_SLOTS = frozenset({"model", "small_model", "multimodal_model"})
+# Fields whose value completion offers known model names.
+_MODEL_SETTINGS = frozenset(
+    {"LLM_MODEL", "LLM_SMALL_MODEL", "LLM_MULTIMODAL_MODEL"} | _LIVE_MODEL_SLOTS
+)
 
 
 def complete_save_arg(
@@ -100,3 +108,61 @@ def complete_exec_arg(
             start_position=-len(arg_prefix),
             display_meta="Shell Command",
         )
+
+
+def complete_set_name_arg(arg_prefix: str) -> Iterable[Completion]:
+    """Settable CFG field names, plus the three live model slots.
+
+    Case-insensitive prefix match, since CFG names are uppercase but a user
+    may type them lowercase.
+    """
+    lower = arg_prefix.lower()
+    for slot in sorted(_LIVE_MODEL_SLOTS):
+        if slot.lower().startswith(lower):
+            yield Completion(
+                slot, start_position=-len(arg_prefix), display_meta="Live model slot"
+            )
+    for name in CFG.get_settable_field_names():
+        if name.lower().startswith(lower):
+            yield Completion(
+                name, start_position=-len(arg_prefix), display_meta="Config setting"
+            )
+
+
+def complete_set_value_arg(
+    name: str, arg_prefix: str, model_names: list[str]
+) -> Iterable[Completion]:
+    """Value hints for `CFG.<name>`: known models, on/off for bools, current value."""
+    if name in _MODEL_SETTINGS:
+        yield from _prefix_completions(arg_prefix, model_names, "Model Name")
+
+    field = CFG.get_settable_field(name)
+    if field is not None and field.is_boolean:
+        yield from _prefix_completions(arg_prefix, ["on", "off"], "Boolean")
+
+    if field is None or not field.secret:
+        current = getattr(CFG, name, None)
+        if current is not None and str(current) != "":
+            shown = _display_value(field, current)
+            if shown.lower().startswith(arg_prefix.lower()):
+                yield Completion(
+                    shown,
+                    start_position=-len(arg_prefix),
+                    display_meta="Current value",
+                )
+
+
+def _prefix_completions(
+    prefix: str, values: Iterable[str], meta: str
+) -> Iterable[Completion]:
+    lower = prefix.lower()
+    for value in values:
+        if value.lower().startswith(lower):
+            yield Completion(value, start_position=-len(prefix), display_meta=meta)
+
+
+def _display_value(field, current) -> str:
+    """Render a CFG field's current value the way a user would type it."""
+    if field is not None and field.is_boolean:
+        return "on" if current else "off"
+    return str(current)

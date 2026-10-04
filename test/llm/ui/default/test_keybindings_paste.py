@@ -212,6 +212,7 @@ class IntegrationUI:
         self.attach_commands = ["/attach"]
         self.yolo_toggle_commands = ["/yolo"]
         self.set_model_commands = ["/model"]
+        self.set_commands = ["/set"]
         self.exec_commands = ["/exec"]
         self.btw_commands = ["/btw"]
         self.plan_commands = ["/plan"]

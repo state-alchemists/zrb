@@ -194,6 +194,7 @@ class TestBaseUICommandHandlers:
         ui.summarize_commands = []
         ui.yolo_toggle_commands = []
         ui.set_model_commands = []
+        ui.set_commands = []
         ui.exec_commands = []
         ui.plan_commands = []
         ui.copy_commands = []

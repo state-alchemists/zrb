@@ -39,7 +39,10 @@ FACADE_BUDGETS = {
     # `delete_queued_message` -- new surface (Ctrl+X) -- plus the module-level
     # `_broadcast_echo`, the best-effort child broadcast both it and
     # `edit_queued_message` now share instead of each carrying its own.
-    "llm/ui/base/ui.py": 1300,
+    # +4 (1300->1304): `set_commands` command-alias property plus its
+    # delegator, the `/set <name> <value>` slash command's new surface --
+    # the handler itself lives in the model-commands part.
+    "llm/ui/base/ui.py": 1304,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

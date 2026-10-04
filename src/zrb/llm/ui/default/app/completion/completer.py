@@ -19,6 +19,8 @@ from zrb.llm.ui.default.app.completion.args import (
     complete_load_arg,
     complete_redirect_arg,
     complete_save_arg,
+    complete_set_name_arg,
+    complete_set_value_arg,
 )
 from zrb.llm.ui.default.app.completion.caches import (
     load_cmd_history,
@@ -50,6 +52,7 @@ class InputCompleter(Completer):
         self._redirect_output_commands = list(ui_config.redirect_output_commands)
         self._summarize_commands = list(ui_config.summarize_commands)
         self._set_model_commands = list(ui_config.set_model_commands)
+        self._set_commands = list(ui_config.set_commands)
         self._exec_commands = list(ui_config.exec_commands)
         self._btw_commands = list(ui_config.btw_commands)
         self._plan_commands = list(ui_config.plan_commands)
@@ -139,6 +142,7 @@ class InputCompleter(Completer):
             + self._rewind_commands
             + self._redirect_output_commands
             + self._set_model_commands
+            + self._set_commands
             + self._exec_commands
             + self._btw_commands
             + self._plan_commands
@@ -206,6 +210,10 @@ class InputCompleter(Completer):
                 lambda cmd: f"Set Model (i.e., {cmd} <model-name>)",
             ),
             (
+                self._set_commands,
+                lambda cmd: f"Set a config value or live model (i.e., {cmd} <name> <value>)",
+            ),
+            (
                 self._exec_commands,
                 lambda cmd: f"Execute CLI command (i.e., {cmd} <command>)",
             ),
@@ -266,6 +274,10 @@ class InputCompleter(Completer):
 
         if self._is_command(cmd, self._set_model_commands):
             yield from self._get_model_argument_completions(text_before_cursor, parts)
+            return
+
+        if self._is_command(cmd, self._set_commands):
+            yield from self._get_set_argument_completions(text_before_cursor, parts)
             return
 
         single_arg = self._single_token_arg(parts, text_before_cursor)
@@ -348,6 +360,25 @@ class InputCompleter(Completer):
                     only_files=False,
                     display_meta="Model Name",
                 )
+
+    def _get_set_argument_completions(
+        self, text_before_cursor: str, parts: list[str]
+    ) -> Iterable[Completion]:
+        # /set <name> <value>: first arg is a settable CFG name (or a live
+        # model slot), second arg is a value hint for that name.
+        if len(parts) == 1:
+            # "/set " — complete the setting name.
+            yield from complete_set_name_arg("")
+            return
+        name = parts[1]
+        if len(parts) == 2 and not text_before_cursor.endswith(" "):
+            # "/set LLM_MOD" — still completing the setting name.
+            yield from complete_set_name_arg(parts[1])
+            return
+        arg_prefix = parts[2] if len(parts) >= 3 else ""
+        yield from complete_set_value_arg(
+            name, arg_prefix, self._resolve_set_model_options()
+        )
 
     def _single_token_arg(
         self, parts: list[str], text_before_cursor: str

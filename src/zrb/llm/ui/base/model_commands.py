@@ -14,10 +14,13 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.permission.state import AgentMode, set_current_agent_mode
-from zrb.util.cli.style import stylize_muted
+from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
 
 if TYPE_CHECKING:
     from zrb.llm.ui.base.ui import BaseUI
+
+# `/set` names that switch the UI's live model slots, exactly as `/model` does.
+_LIVE_MODEL_SLOTS = frozenset({"model", "small_model", "multimodal_model"})
 
 # Ordered modes cycled by Shift+Tab (mirrors Claude Code: normal → auto-accept
 # edits → plan → normal). Each maps onto zrb's two orthogonal stores — plan mode
@@ -139,31 +142,105 @@ class BaseUIModelCommands:
                     model_name = arg[6:].strip()
                     if not model_name:
                         continue
-                    # Bound by run_agent as `current_small_model`.
-                    self._base_ui.small_model = model_name
-                    self._base_ui.append_to_output(
-                        stylize_muted(f"\n  🤖 Small model switched to: {model_name}\n")
-                    )
+                    self._set_live_model("small_model", model_name)
                 elif arg.lower().startswith("multimodal "):
                     model_name = arg[11:].strip()
                     if not model_name:
                         continue
-                    # Bound by run_agent as `current_multimodal_model`.
-                    self._base_ui.multimodal_model = model_name
-                    self._base_ui.append_to_output(
-                        stylize_muted(
-                            f"\n  🤖 Multimodal model switched to: {model_name}\n"
-                        )
-                    )
+                    self._set_live_model("multimodal_model", model_name)
                 else:
-                    model_name = arg
-                    self._base_ui.model = model_name
-                    try:
-                        self._base_ui.llm_task.prompt_manager.model = model_name
-                    except Exception as e:
-                        CFG.LOGGER.debug(f"Failed to set prompt-manager model: {e}")
-                    self._base_ui.append_to_output(
-                        stylize_muted(f"\n  🤖 Model switched to: {model_name}\n")
-                    )
+                    self._set_live_model("model", arg)
                 return True
         return False
+
+    def _set_live_model(self, slot: str, model_name: str) -> None:
+        """Apply a model switch to one of the UI's live model slots.
+
+        Mirrors the three branches of `/model` so `/set` can drive the same
+        live switch. `slot` is one of `model`, `small_model`,
+        `multimodal_model`.
+        """
+        if slot == "small_model":
+            # Bound by run_agent as `current_small_model`.
+            self._base_ui.small_model = model_name
+            label = "Small model"
+        elif slot == "multimodal_model":
+            # Bound by run_agent as `current_multimodal_model`.
+            self._base_ui.multimodal_model = model_name
+            label = "Multimodal model"
+        else:
+            self._base_ui.model = model_name
+            try:
+                self._base_ui.llm_task.prompt_manager.model = model_name
+            except Exception as e:
+                CFG.LOGGER.debug(f"Failed to set prompt-manager model: {e}")
+            label = "Model"
+        self._base_ui.append_to_output(
+            stylize_muted(f"\n  🤖 {label} switched to: {model_name}\n")
+        )
+
+    def handle_set_command(self, text: str):
+        text = text.strip()
+        for cmd in self._base_ui.set_commands:
+            if text.lower() == cmd.lower():
+                self._base_ui.append_to_output(
+                    stylize_warning(
+                        f"\n  ❗ Setting name and value required — usage: "
+                        f"{cmd} <name> <value>\n"
+                    )
+                )
+                return True
+            prefix = f"{cmd} "
+            if not text.lower().startswith(prefix):
+                continue
+            if self._base_ui.is_thinking:
+                return False
+            rest = text[len(prefix) :].strip()
+            parts = rest.split(None, 1)
+            if not parts:
+                self._base_ui.append_to_output(
+                    stylize_warning(
+                        f"\n  ❗ Setting name and value required — usage: "
+                        f"{cmd} <name> <value>\n"
+                    )
+                )
+                return True
+            name = parts[0]
+            value = parts[1].strip() if len(parts) > 1 else ""
+            if not value:
+                self._base_ui.append_to_output(
+                    stylize_warning(
+                        f"\n  ❗ Value required for {name!r} — usage: "
+                        f"{cmd} {name} <value>\n"
+                    )
+                )
+                return True
+            slot = name.lower()
+            if slot in _LIVE_MODEL_SLOTS:
+                self._set_live_model(slot, value)
+                return True
+            self._set_cfg_setting(name.upper(), value)
+            return True
+        return False
+
+    def _set_cfg_setting(self, name: str, value: str) -> None:
+        """Assign `CFG.<name>` from a raw string, echoing a confirmation.
+
+        Unknown names and uncastable values raise before any write; both are
+        rendered as friendly errors (R1/R2/R10) rather than propagated.
+        """
+        field = CFG.get_settable_field(name)
+        try:
+            converted = CFG.convert_setting_value(name, value)
+        except AttributeError as error:
+            self._base_ui.append_to_output(stylize_error(f"\n  ❌ {error}\n"))
+            return
+        except ValueError as error:
+            self._base_ui.append_to_output(stylize_error(f"\n  ❌ {error}\n"))
+            return
+        setattr(CFG, name, converted)
+        shown = "[set]" if field is not None and field.secret else repr(converted)
+        self._base_ui.append_to_output(
+            stylize_muted(f"\n  🔧 Set {name} = {shown}\n")
+        )
+        self._base_ui.invalidate_ui()

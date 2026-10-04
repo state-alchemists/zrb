@@ -268,6 +268,70 @@ def test_known_models_fallback_on_exception(mock_history_manager, complete_event
     assert any(t.startswith("anthropic:") for t in texts)
 
 
+def test_set_command_name_completion_yields_cfg_names(
+    mock_history_manager, complete_event
+):
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        ui_config=_config(set_commands=["/set"]),
+    )
+    doc = Document(text="/set LLM_MOD", cursor_position=11)
+    completions = list(completer.get_completions(doc, complete_event))
+    texts = [c.text for c in completions]
+    assert "LLM_MODEL" in texts
+    assert all(
+        c.display_meta_text in ("Config setting", "Live model slot")
+        for c in completions
+    )
+
+
+def test_set_command_name_completion_includes_live_model_slots(
+    mock_history_manager, complete_event
+):
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        ui_config=_config(set_commands=["/set"]),
+    )
+    doc = Document(text="/set ", cursor_position=5)
+    completions = list(completer.get_completions(doc, complete_event))
+    texts = [c.text for c in completions]
+    assert "model" in texts
+    assert "small_model" in texts
+    assert "multimodal_model" in texts
+
+
+def test_set_command_value_completion_offers_boolean(
+    mock_history_manager, complete_event
+):
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        ui_config=_config(set_commands=["/set"]),
+    )
+    doc = Document(text="/set LLM_SHOW_OLLAMA_MODELS ", cursor_position=28)
+    completions = list(completer.get_completions(doc, complete_event))
+    texts = [c.text for c in completions]
+    assert "on" in texts
+    assert "off" in texts
+
+
+def test_set_command_value_completion_offers_model_names(
+    mock_history_manager, complete_event
+):
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        ui_config=_config(
+            set_commands=["/set"],
+            show_ollama_models=False,
+            show_pydantic_ai_models=False,
+        ),
+        custom_model_names=["openai:gpt-4o"],
+    )
+    doc = Document(text="/set model open", cursor_position=15)
+    completions = list(completer.get_completions(doc, complete_event))
+    texts = [c.text for c in completions]
+    assert "openai:gpt-4o" in texts
+
+
 class TestCaches:
     """Test cache-bearing IO helpers used by InputCompleter."""
 

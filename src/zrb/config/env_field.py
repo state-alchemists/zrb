@@ -200,6 +200,24 @@ class EnvField(Generic[T]):
         """Render *value* the way this field writes it to the environment."""
         return self._serialize(value)
 
+    def cast(self, raw: str) -> T:
+        """Convert a raw string to this field's value type (the read-side cast)."""
+        return self._cast(raw)
+
+    @property
+    def cast_name(self) -> str:
+        """Name of the callable that casts a raw string to this field's value."""
+        return self._cast.__name__
+
+    @property
+    def is_boolean(self) -> bool:
+        """Whether this field accepts an on/off-style boolean string.
+
+        ``True`` when writes serialize through :func:`on_off`, which by
+        convention pairs with a cast that reads on/off back to a bool.
+        """
+        return self._serialize is on_off
+
     def _read_raw(self, obj: Any) -> str:
         default = self._resolve_default(obj)
         if not self._no_prefix:

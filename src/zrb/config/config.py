@@ -61,6 +61,24 @@ from zrb.util.string.suggestion import suggest_name
 _TYPO_CUTOFF = 0.85
 
 
+def _is_assignable_field(cls: type, name: str) -> bool:
+    """Whether ``name`` on ``cls`` has a path for ``CFG.<name> = ...``."""
+    attr = getattr(cls, name, None)
+    if isinstance(attr, EnvField):
+        return True
+    # A read-write @property; a read-only one (e.g. LOGGER) has no setter.
+    return isinstance(attr, property) and attr.fset is not None
+
+
+def _uncastable_setting_message(
+    name: str, raw: str, field: EnvField, error: Exception
+) -> str:
+    accepted = (
+        "'on' or 'off'" if field.is_boolean else f"a value parseable by {field.cast_name}()"
+    )
+    return f"CFG.{name} = {raw!r} is not valid: expected {accepted}. ({error})"
+
+
 class Config(
     FoundationMixin,
     WebMixin,
@@ -116,19 +134,7 @@ class Config(
         super().__setattr__(name, value)
 
     def _unknown_knob_message(self, name: str) -> str:
-        def _is_assignable(n: str) -> bool:
-            attr = getattr(type(self), n, None)
-            if isinstance(attr, EnvField):
-                return True
-            # A read-write @property; a read-only one (e.g. LOGGER) has no setter
-            # and thus no path for `CFG.<n> = ...`, so it must not be suggested.
-            return isinstance(attr, property) and attr.fset is not None
-
-        known = sorted(
-            n
-            for n in dir(type(self))
-            if n.isupper() and not n.startswith("DEFAULT_") and _is_assignable(n)
-        )
+        known = self.get_settable_field_names()
         suggestions = suggest_name(name, known)
         message = f"CFG has no setting named {name!r}."
         if suggestions:
@@ -137,6 +143,53 @@ class Config(
             message
             + f" ({len(known)} settings; see `{self.ROOT_GROUP_NAME} config explain`.)"
         )
+
+    def get_settable_field_names(self) -> list[str]:
+        """Sorted names of every setting assignable via ``CFG.<name> = ...``.
+
+        The single enumeration of what counts as settable, shared by the
+        unknown-knob suggestion and the `/set` slash command, so the two
+        cannot drift on which fields a user may set.
+        """
+        return sorted(
+            n
+            for n in dir(type(self))
+            if n.isupper()
+            and not n.startswith("DEFAULT_")
+            and _is_assignable_field(type(self), n)
+        )
+
+    def get_settable_field(self, name: str) -> "EnvField | None":
+        """The `EnvField` descriptor behind settable field `name`, or None.
+
+        Returns None when `name` is not a settable UPPERCASE `EnvField` — it
+        may still be unknown, or a read-write `@property` (which has no cast).
+        """
+        if not name.isupper() or name.startswith("DEFAULT_"):
+            return None
+        attr = getattr(type(self), name, None)
+        return attr if isinstance(attr, EnvField) else None
+
+    def convert_setting_value(self, name: str, raw: str) -> object:
+        """Convert `raw` to the value type of settable field `name`.
+
+        Raises `AttributeError` (with the closest-real-knob suggestion) when
+        `name` is not settable, and `ValueError` naming the setting, the bad
+        value and the accepted values when `raw` cannot be cast to the
+        field's type. A read-write `@property` has no cast, so its string is
+        passed through unchanged.
+        """
+        if not _is_assignable_field(type(self), name):
+            raise AttributeError(self._unknown_knob_message(name))
+        field = getattr(type(self), name, None)
+        if not isinstance(field, EnvField):
+            return raw
+        try:
+            return field.cast(raw)
+        except (ValueError, TypeError) as error:
+            raise ValueError(
+                _uncastable_setting_message(name, raw, field, error)
+            ) from error
 
     def get_mistyped_env_keys(self) -> dict[str, str]:
         """Each set `<ENV_PREFIX>_*` variable no setting reads, mapped to the

@@ -63,6 +63,7 @@ class UIConfig:
     set_model_commands: list[str] = field(
         default_factory=_commands("LLM_UI_COMMAND_SET_MODEL")
     )
+    set_commands: list[str] = field(default_factory=_commands("LLM_UI_COMMAND_SET"))
     exec_commands: list[str] = field(default_factory=_commands("LLM_UI_COMMAND_EXEC"))
     btw_commands: list[str] = field(default_factory=_commands("LLM_UI_COMMAND_BTW"))
     plan_commands: list[str] = field(
