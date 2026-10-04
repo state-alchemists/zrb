@@ -15,6 +15,7 @@ from zrb.config.config import CFG
 from zrb.llm.ui.base.commands import BaseUICommands
 from zrb.llm.ui.base.persona_state import BaseUIPersonaState
 from zrb.llm.ui.base.usage import BaseUIUsage
+from zrb.llm.ui.ui_config import UIConfig
 
 
 class MockUI:
@@ -72,6 +73,10 @@ class MockUI:
 
         self.outputs = []
         self.exited = False
+
+        # A real `BaseUI` exposes its `UIConfig`; `/set` re-points it when a
+        # command-alias setting changes (see `BaseUIModelCommands`).
+        self.ui_config = UIConfig()
 
         self._cmds = BaseUICommands(self)
 

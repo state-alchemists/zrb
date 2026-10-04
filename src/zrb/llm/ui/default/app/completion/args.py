@@ -166,7 +166,17 @@ def _prefix_completions(
 
 
 def _display_value(field, current) -> str:
-    """Render a CFG field's current value the way a user would type it."""
+    """Render a CFG field's current value the way a user would type it.
+
+    Non-boolean values go through the field's own serializer, so the offered
+    text is exactly what the matching cast reads back. `str(current)` would
+    render a list-valued setting (e.g. a command-alias list) as Python-list
+    syntax — ``['/set']`` — which the field then parses as one bracketed entry
+    instead of restoring the list (round-3 review).
+    """
     if field is not None and field.is_boolean:
         return "on" if current else "off"
-    return str(current)
+    if field is None:
+        return str(current)
+    serialized = field.serialize(current)
+    return serialized if isinstance(serialized, str) else str(current)

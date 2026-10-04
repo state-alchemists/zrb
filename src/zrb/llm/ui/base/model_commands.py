@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.permission.state import AgentMode, set_current_agent_mode
+from zrb.llm.ui.ui_config import command_alias_field
 from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
 
 if TYPE_CHECKING:
@@ -186,6 +187,12 @@ class BaseUIModelCommands:
         text = text.strip()
         for cmd in self._base_ui.set_commands:
             if text.lower() == cmd.lower():
+                # Bare `/set` while a turn is running: report the same
+                # unavailability as `/set NAME VALUE`, so the command's
+                # run-while-thinking policy holds in both shapes instead of the
+                # bare form jumping ahead of the thinking guard (round-3 review).
+                if self._base_ui.is_thinking:
+                    return False
                 self._base_ui.append_to_output(
                     stylize_warning(
                         f"\n  ❗ Setting name and value required — usage: "
@@ -226,6 +233,26 @@ class BaseUIModelCommands:
             return True
         return False
 
+    def _refresh_live_command_aliases(self, name: str, value: object) -> None:
+        """Apply a changed `LLM_UI_COMMAND_*` alias to the running session.
+
+        `UIConfig` snapshots the alias lists when the session starts, and the
+        input completer copies them again, so a `/set` that changed one would
+        otherwise report success while the session kept matching and completing
+        the old aliases (round-3 review). Both copies are re-pointed here.
+        """
+        ui_config = self._base_ui.ui_config
+        field_name = command_alias_field(name)
+        if field_name is None:
+            return
+        setattr(ui_config, field_name, list(value))
+        completer = getattr(
+            getattr(self._base_ui, "input_field", None), "completer", None
+        )
+        refresh = getattr(completer, "refresh_command_aliases", None)
+        if refresh is not None:
+            refresh(ui_config)
+
     def _set_cfg_setting(self, name: str, value: str) -> None:
         """Assign `CFG.<name>` from a raw string, echoing a confirmation.
 
@@ -242,6 +269,7 @@ class BaseUIModelCommands:
             self._base_ui.append_to_output(stylize_error(f"\n  ❌ {error}\n"))
             return
         setattr(CFG, name, converted)
+        self._refresh_live_command_aliases(name, converted)
         shown = "[set]" if field is not None and field.secret else repr(converted)
         self._base_ui.append_to_output(
             stylize_muted(f"\n  🔧 Set {name} = {shown}\n")

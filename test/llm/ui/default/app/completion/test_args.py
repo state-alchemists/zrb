@@ -101,3 +101,18 @@ def test_complete_set_value_arg_normalizes_lowercase_name(monkeypatch):
     assert any(c.display_meta_text == "Model Name" for c in results)
     current = [c.text for c in results if c.display_meta_text == "Current value"]
     assert current == ["openai:current-model"]
+
+
+def test_complete_set_value_arg_serializes_a_list_value(monkeypatch):
+    """A list-valued setting is offered as the comma-separated text its cast
+    reads back, so selecting it round-trips to the same list -- not Python-list
+    syntax (``['/set']``) that the field would parse as one bracketed entry
+    (round-3 review)."""
+    from zrb.config.config import CFG
+
+    monkeypatch.setenv("ZRB_LLM_UI_COMMAND_SET", "/set, /configure")
+    results = list(complete_set_value_arg("LLM_UI_COMMAND_SET", "", []))
+    current = [c.text for c in results if c.display_meta_text == "Current value"]
+    assert current == ["/set,/configure"]
+    field = CFG.get_settable_field("LLM_UI_COMMAND_SET")
+    assert field.cast(current[0]) == CFG.LLM_UI_COMMAND_SET == ["/set", "/configure"]

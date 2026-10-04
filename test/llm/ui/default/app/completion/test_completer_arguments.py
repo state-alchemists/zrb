@@ -332,6 +332,26 @@ def test_set_command_value_completion_offers_model_names(
     assert "openai:gpt-4o" in texts
 
 
+def test_refresh_command_aliases_updates_completion_for_the_session(
+    mock_history_manager, complete_event
+):
+    """`/set LLM_UI_COMMAND_SET /configure` re-points `UIConfig`; the live
+    completer copies the aliases at construction, so it must be refreshed too or
+    the session keeps completing the old aliases (round-3 review)."""
+    completer = InputCompleter(
+        history_manager=mock_history_manager,
+        ui_config=_config(set_commands=["/set"]),
+    )
+    before = Document(text="/configure LLM_MOD", cursor_position=17)
+    texts = [c.text for c in completer.get_completions(before, complete_event)]
+    assert "LLM_MODEL" not in texts  # unknown command: no setting-name completion
+
+    completer.refresh_command_aliases(_config(set_commands=["/set", "/configure"]))
+    after = Document(text="/configure LLM_MOD", cursor_position=17)
+    texts = [c.text for c in completer.get_completions(after, complete_event)]
+    assert "LLM_MODEL" in texts
+
+
 class TestCaches:
     """Test cache-bearing IO helpers used by InputCompleter."""
 

@@ -32,17 +32,14 @@ from zrb.util.match import fuzzy_match
 
 
 class InputCompleter(Completer):
-    def __init__(
-        self,
-        history_manager: AnyHistoryManager,
-        ui_config: UIConfig,
-        custom_commands: list[AnyCustomCommand] | None = None,
-        custom_model_names: list[str] | None = None,
-    ):
-        # lazy: heavy third-party
-        from pydantic_ai.models import known_model_names
+    def refresh_command_aliases(self, ui_config: UIConfig) -> None:
+        """Re-read every command-alias list from `ui_config`.
 
-        self._history_manager = history_manager
+        The lists are copied out of `UIConfig` at construction for fast prefix
+        matching. A `/set` that changes an `LLM_UI_COMMAND_*` setting re-points
+        `UIConfig`; without this the running session would keep completing and
+        dispatching the old aliases (round-3 review).
+        """
         self._attach_commands = list(ui_config.attach_commands)
         self._exit_commands = list(ui_config.exit_commands)
         self._info_commands = list(ui_config.info_commands)
@@ -57,6 +54,19 @@ class InputCompleter(Completer):
         self._btw_commands = list(ui_config.btw_commands)
         self._plan_commands = list(ui_config.plan_commands)
         self._copy_commands = list(ui_config.copy_commands)
+
+    def __init__(
+        self,
+        history_manager: AnyHistoryManager,
+        ui_config: UIConfig,
+        custom_commands: list[AnyCustomCommand] | None = None,
+        custom_model_names: list[str] | None = None,
+    ):
+        # lazy: heavy third-party
+        from pydantic_ai.models import known_model_names
+
+        self._history_manager = history_manager
+        self.refresh_command_aliases(ui_config)
         self._custom_commands = list(custom_commands or [])
         self._custom_model_names = list(custom_model_names or [])
         self._show_ollama_models = ui_config.show_ollama_models

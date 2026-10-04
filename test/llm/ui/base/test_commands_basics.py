@@ -348,6 +348,27 @@ def test_handle_set_command_bare_warns_usage(ui):
     assert any("name and value required" in o.lower() for o in ui.outputs)
 
 
+def test_handle_set_command_bare_ignored_while_thinking(ui):
+    """`/set` is registered run-while-thinking=False, so the bare form must be
+    unavailable during a turn exactly like `NAME VALUE` -- it must not jump
+    ahead of the thinking guard and consume the input (round-3 review)."""
+    ui.is_thinking = True
+    assert ui.handle_set_command("/set") is False
+
+
+def test_handle_set_command_refreshes_live_command_aliases(ui, monkeypatch):
+    """A `/set` that changes an alias list must reach the running session.
+
+    `UIConfig` snapshots `LLM_UI_COMMAND_*` when the session is built, so without
+    a refresh the command reports success while the session keeps matching the
+    old aliases (round-3 review).
+    """
+    monkeypatch.setenv("ZRB_LLM_UI_COMMAND_SET", "/set")
+    assert ui.handle_set_command("/set LLM_UI_COMMAND_SET /set, /configure") is True
+    assert CFG.LLM_UI_COMMAND_SET == ["/set", "/configure"]
+    assert ui.ui_config.set_commands == ["/set", "/configure"]
+
+
 def test_handle_toggle_plan_command(ui):
     assert ui.handle_toggle_plan("/plan") is True
     assert ui.plan_mode_active is True

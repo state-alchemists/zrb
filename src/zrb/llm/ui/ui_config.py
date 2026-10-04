@@ -120,3 +120,34 @@ _COMMAND_FIELD_ALIASES = {"redirect": "redirect_output_commands"}
 _COMMAND_FIELDS = frozenset(
     f.name for f in fields(UIConfig) if f.name.endswith("_commands")
 )
+
+# The `CFG.LLM_UI_COMMAND_*` setting that feeds each command-list field, for
+# keeping a running session in sync after `/set` changes one. Two fields are not
+# the mechanical `<SLUG>_commands` spelling, so they are named explicitly.
+_COMMAND_FIELD_ENV_NAMES = {
+    "redirect_output_commands": "LLM_UI_COMMAND_REDIRECT_OUTPUT",
+    "plan_commands": "LLM_UI_COMMAND_PLAN_TOGGLE",
+}
+
+
+def command_env_name(field_name: str) -> str:
+    """The `CFG.LLM_UI_COMMAND_*` setting that feeds `UIConfig.<field_name>`."""
+    named = _COMMAND_FIELD_ENV_NAMES.get(field_name)
+    if named is not None:
+        return named
+    return f"LLM_UI_COMMAND_{field_name[: -len('_commands')].upper()}"
+
+
+def command_alias_field(env_name: str) -> str | None:
+    """The `UIConfig` command-list field fed by `env_name`, or None.
+
+    None means `env_name` is not a command-alias setting. `UIConfig` snapshots
+    every `LLM_UI_COMMAND_*` list when it is built, so a `/set` that changes one
+    must re-point the running session's copy — otherwise the session keeps
+    matching and completing the old aliases while reporting success (round-3
+    review).
+    """
+    for field_name in _COMMAND_FIELDS:
+        if command_env_name(field_name) == env_name:
+            return field_name
+    return None
