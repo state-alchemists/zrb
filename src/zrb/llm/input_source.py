@@ -20,6 +20,7 @@ class InputProvenance:
 
 
 KEYBOARD_INPUT = InputProvenance("keyboard")
+WEB_INPUT = InputProvenance("web")
 DICTATION_INPUT = InputProvenance(
     "microphone", modality="dictation", transcription=True
 )

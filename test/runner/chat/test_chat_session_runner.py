@@ -3,6 +3,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.llm.input_source import WEB_INPUT
+from zrb.llm.tool.ambient_state import get_input_provenance
 from zrb.runner.chat.chat_session_manager import ChatSession
 from zrb.runner.chat.chat_session_runner import run_chat_session
 
@@ -74,6 +76,30 @@ async def test_run_chat_session_success(mock_deps):
     # Verify cleanup occurred (using public properties)
     assert llm_chat_task.ui_factories == ["orig_ui"]
     assert llm_chat_task.include_default_ui is True
+
+
+@pytest.mark.asyncio
+async def test_run_chat_session_sets_web_input_provenance(mock_deps):
+    session, llm_chat_task, session_manager = mock_deps
+    observed = []
+
+    async def run_with_provenance(*args, **kwargs):
+        observed.append(get_input_provenance())
+
+    llm_chat_task.async_run.side_effect = run_with_provenance
+    session.input_queue.put_nowait(
+        {"message": "hello", "attachments": [], "source": WEB_INPUT}
+    )
+
+    task = asyncio.create_task(
+        run_chat_session(session, llm_chat_task, session_manager)
+    )
+    await _wait_for(lambda: observed)
+
+    assert observed == [WEB_INPUT]
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
 
 
 @pytest.mark.asyncio

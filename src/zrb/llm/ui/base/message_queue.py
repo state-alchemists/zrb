@@ -194,7 +194,7 @@ def submit_user_message_via_queue(
     user_message: str,
     marker: str,
     append_markdown: Callable[[str], Any] | None = None,
-    source: InputProvenance | None = None,
+    source: InputProvenance | None = KEYBOARD_INPUT,
 ) -> None:
     """Shared mechanics behind `BaseUI.submit_user_message` and
     `MultiUI.submit_user_message`: echo, collect attachments, then steer into a
@@ -228,7 +228,9 @@ def submit_user_message_via_queue(
             body=user_message.strip(),
         )
 
-    previous = _merge_candidate(queue, now)
+    # A non-keyboard source is a distinct input channel; never combine it with
+    # an adjacent keyboard burst whose provenance would otherwise win.
+    previous = _merge_candidate(queue, now) if source == KEYBOARD_INPUT else None
     if previous is None:
         echo = emit_echo()
         attachments = _collect_attachments(attachment_sources)
