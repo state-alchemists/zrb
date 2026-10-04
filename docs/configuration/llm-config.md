@@ -900,9 +900,11 @@ export ZRB_LLM_VOICE=conversation   # talk with zrb, and interrupt it
 | `ZRB_LLM_DICTATION_WAKE_WORDS` | Comma-separated; in hands-free mode only utterances starting with one count. Said alone, one accepts the next utterance within `ZRB_LLM_DICTATION_WAKE_WINDOW` seconds | (none) |
 | `ZRB_LLM_DICTATION_WAKE_WINDOW` | Seconds a lone wake word keeps listening | `8.0` |
 | `ZRB_LLM_DICTATION_THRESHOLD` | RMS microphone level that counts as speech (`zrb voice mic-test` in `examples/voice-interaction` measures yours) | `0.01` |
+| `ZRB_LLM_DICTATION_NOISE_MARGIN` | How many times louder than the room's own background speech must be to be heard at all, so a conversation going on around the microphone does not open a turn. It follows the room: it changes nothing in a quiet one, and lifts the bar over the noise in a loud one. `0` counts the room not at all | `2.0` |
 | `ZRB_LLM_DICTATION_SILENCE` | Seconds of silence that end an utterance; at least one block (`ZRB_LLM_DICTATION_BLOCK_DURATION`) | `1.0` |
 | `ZRB_LLM_DICTATION_MIN_SILENCE` | With a backend that transcribes while you speak (`vosk`), seconds of silence that end an utterance whose words sound finished, not trailing off on "and" or "the"; `0` always waits `ZRB_LLM_DICTATION_SILENCE` | `0.5` |
 | `ZRB_LLM_DICTATION_MIN_SPEECH` | Shortest speech kept, in seconds; shorter is a cough or a click | `0.25` |
+| `ZRB_LLM_DICTATION_MIN_WORDS` | Fewest words a hands-free utterance needs to reach the model when it is not interrupting zrb (`ZRB_LLM_DICTATION_BARGE_IN_MIN_WORDS` applies there); raise it in a public place, where a stranger's single word would otherwise open a turn. A stop word, a yes/no, or an answer to the prompt being asked always counts | `1` |
 | `ZRB_LLM_DICTATION_MAX_UTTERANCE` | Longest utterance, in seconds; `0` means no limit | `30.0` |
 | `ZRB_LLM_DICTATION_MAX_BACKLOG` | Seconds of hands-free audio kept while an utterance is being transcribed, so what you say meanwhile is not lost; older audio is dropped. `0` means no limit | `30.0` |
 | `ZRB_LLM_DICTATION_PRE_ROLL` | Seconds kept from before speech is detected, so the first word is not clipped; `0` keeps none | `0.3` |
@@ -937,6 +939,7 @@ Each backend uses only its own variables:
 | `vosk` | `ZRB_LLM_DICTATION_VOSK_MAX_UNCOMPRESSED_MB` | Megabytes the model may take once extracted, every file summed (bounds a decompression bomb); `0` means no limit | `8192` |
 | `vosk` | `ZRB_LLM_DICTATION_VOSK_MAX_FILE_MB` | Megabytes for any one file in the archive; `0` means no limit | `4096` |
 | `vosk` | `ZRB_LLM_DICTATION_VOSK_MAX_FILES` | Files the archive may hold; `0` means no limit | `10000` |
+| `vosk` | `ZRB_LLM_DICTATION_VOSK_CONFIDENCE` | Lowest average word confidence (0–1) a hands-free transcript may have and still reach the model; vosk scores the words it makes out of noise low. Push-to-talk keeps every word. `0` uses no floor | `0` |
 
 The `multimodal` backend's system prompt is the `multimodal_audio` prompt file, overridable like any prompt through `ZRB_LLM_PROMPT_DIR`.
 

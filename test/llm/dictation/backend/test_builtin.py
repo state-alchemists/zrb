@@ -55,10 +55,11 @@ def test_vosk_built_from_config():
         vosk_max_uncompressed_mb=20,
         vosk_max_file_mb=15,
         vosk_max_files=7,
+        vosk_confidence=0.6,
     )
     with patch(f"{MODULE}.VoskDictationBackend") as vosk:
         get_dictation_backend("vosk", config)
-    vosk.assert_called_once_with("m", "http://host", 5, 10, 20, 15, 7)
+    vosk.assert_called_once_with("m", "http://host", 5, 10, 20, 15, 7, confidence=0.6)
 
 
 def test_openai_built_from_config():

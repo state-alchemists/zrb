@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import threading
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
@@ -12,6 +13,14 @@ from zrb.llm.dictation.backend.vosk import (
 )
 
 MODULE = "zrb.llm.dictation.backend.vosk"
+
+
+def _payload(*words: tuple[str, float], text: str = "") -> str:
+    """A vosk result carrying the confidences given, as (word, conf) pairs."""
+    result = [{"word": word, "conf": conf} for word, conf in words]
+    if not text:
+        text = " ".join(word for word, _ in words)
+    return json.dumps({"text": text, "result": result})
 
 
 def _fake_vosk(accept=True, result='{"text": "hello world"}'):
@@ -56,6 +65,34 @@ class TestVoskBackend:
         backend = VoskDictationBackend("m", "http://host")
         with patch.dict("sys.modules", {"vosk": fake_vosk}), _local_model():
             assert await backend.transcribe(b"audio") == "final text"
+
+    @pytest.mark.asyncio
+    async def test_hands_free_drops_a_faintly_heard_transcript(self):
+        fake_vosk = _fake_vosk(result=_payload(("hello", 0.2), ("there", 0.3)))
+        backend = VoskDictationBackend("m", "http://host", confidence=0.5)
+        with patch.dict("sys.modules", {"vosk": fake_vosk}), _local_model():
+            assert await backend.transcribe_speech(b"audio") == ""
+
+    @pytest.mark.asyncio
+    async def test_hands_free_keeps_a_clearly_heard_transcript(self):
+        fake_vosk = _fake_vosk(result=_payload(("hello", 0.9), ("there", 0.8)))
+        backend = VoskDictationBackend("m", "http://host", confidence=0.5)
+        with patch.dict("sys.modules", {"vosk": fake_vosk}), _local_model():
+            assert await backend.transcribe_speech(b"audio") == "hello there"
+
+    @pytest.mark.asyncio
+    async def test_push_to_talk_keeps_every_word_however_faintly_heard(self):
+        fake_vosk = _fake_vosk(result=_payload(("hello", 0.1)))
+        backend = VoskDictationBackend("m", "http://host", confidence=0.9)
+        with patch.dict("sys.modules", {"vosk": fake_vosk}), _local_model():
+            assert await backend.transcribe(b"audio") == "hello"
+
+    @pytest.mark.asyncio
+    async def test_hands_free_without_a_floor_keeps_a_faint_transcript(self):
+        fake_vosk = _fake_vosk(result=_payload(("hello", 0.1)))
+        backend = VoskDictationBackend("m", "http://host")
+        with patch.dict("sys.modules", {"vosk": fake_vosk}), _local_model():
+            assert await backend.transcribe_speech(b"audio") == "hello"
 
     @pytest.mark.asyncio
     async def test_transcribe_decodes_off_the_event_loop_thread(self):
@@ -200,3 +237,48 @@ async def test_a_vosk_stream_transcribes_while_fed():
     await stream.feed(b"the file")
     assert stream.partial == "open the file"
     assert await stream.finish() == "open the file"
+
+
+class ConfidentRecognizer(FakeRecognizer):
+    """As `FakeRecognizer`, reporting a confidence for the words it heard."""
+
+    def __init__(self, conf=0.9):
+        super().__init__()
+        self._conf = conf
+
+    def Result(self):
+        phrase, self.heard = self.heard.rstrip(b".").decode(), b""
+        return _payload((phrase, self._conf), text=phrase)
+
+    def FinalResult(self):
+        phrase, self.heard = self.heard.decode(), b""
+        return _payload((phrase, self._conf), text=phrase)
+
+
+async def _confident_stream(conf, confidence_floor):
+    fake_vosk = MagicMock()
+    fake_vosk.KaldiRecognizer = MagicMock(return_value=ConfidentRecognizer(conf))
+    backend = VoskDictationBackend("m", "http://host", confidence=confidence_floor)
+    with patch.dict("sys.modules", {"vosk": fake_vosk}), _local_model():
+        return await backend.create_stream()
+
+
+@pytest.mark.asyncio
+async def test_a_faintly_heard_stream_is_dropped_at_the_end():
+    """The words are shown while they are heard; it is the finished transcript
+    that has to be words, not just sound."""
+    stream = await _confident_stream(conf=0.2, confidence_floor=0.5)
+
+    await stream.feed(b"open")
+
+    assert stream.partial == "open"
+    assert await stream.finish() == ""
+
+
+@pytest.mark.asyncio
+async def test_a_clearly_heard_stream_reaches_the_end():
+    stream = await _confident_stream(conf=0.9, confidence_floor=0.5)
+
+    await stream.feed(b"open")
+
+    assert await stream.finish() == "open"

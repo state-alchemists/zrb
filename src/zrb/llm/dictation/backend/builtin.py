@@ -29,6 +29,7 @@ def get_dictation_backend(
             config.vosk_max_uncompressed_mb,
             config.vosk_max_file_mb,
             config.vosk_max_files,
+            confidence=config.vosk_confidence,
         )
     if name == "openai":
         return OpenAIDictationBackend(

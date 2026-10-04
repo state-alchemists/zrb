@@ -433,6 +433,26 @@ def test_switching_hands_free_off_clears_the_badge(monkeypatch, session_ui):
 
 
 @pytest.mark.asyncio
+async def test_hands_free_says_it_takes_everything_it_hears(monkeypatch, session_ui):
+    """Without a wake word the room is taken for the user; say so when the
+    microphone opens."""
+    _fake_listen(monkeypatch, ("run the tests", 0, 1))
+
+    await _replies(_session(mode="hands_free"), 1)
+
+    assert any("WAKE_WORDS" in output for output in session_ui.outputs)
+
+
+@pytest.mark.asyncio
+async def test_hands_free_says_nothing_of_it_with_a_wake_word(monkeypatch, session_ui):
+    _fake_listen(monkeypatch, ("hey zrb run the tests", 0, 1))
+
+    await _replies(_session(mode="hands_free", wake_words=["hey zrb"]), 1)
+
+    assert not any("WAKE_WORDS" in output for output in session_ui.outputs)
+
+
+@pytest.mark.asyncio
 async def test_a_streamed_utterance_is_finished_by_its_stream(monkeypatch):
     class DoneStream:
         async def finish(self):

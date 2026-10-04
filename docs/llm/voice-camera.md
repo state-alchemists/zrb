@@ -38,6 +38,8 @@ To talk with zrb, `export ZRB_LLM_VOICE=conversation` (or `turns` to take turns 
 
 Set `ZRB_LLM_DICTATION_MODE=hands_free` to start every session this way. Set `ZRB_LLM_DICTATION_WAKE_WORDS` so that only utterances starting with a wake word count. Without one, anything the microphone hears becomes a turn, including a conversation in the room.
 
+**In a place with other people talking.** Speech has to be louder than the room's own background, measured over the couple of seconds before it (`ZRB_LLM_DICTATION_NOISE_MARGIN`, 2), so the room's conversation does not open a turn of its own; a room that never falls quiet is measured at its own level, which is what lifts the bar over it. `ZRB_LLM_DICTATION_MIN_WORDS` (1) is the fewest words an ordinary utterance needs, so raising it makes one stray word not enough. With the `vosk` backend, `ZRB_LLM_DICTATION_VOSK_CONFIDENCE` drops a transcript whose words vosk heard too faintly on average. None of these tells a stranger's request from yours — only a wake word does, which is why it is the answer in a public place.
+
 By default zrb ignores the microphone while it is speaking, so its own voice is not taken as yours, and anything you say over it is lost.
 
 **Talking over zrb (barge-in).** With `ZRB_LLM_DICTATION_BARGE_IN_ENABLED=on`, the microphone keeps listening while zrb speaks. About a third of a second of speech over it (`ZRB_LLM_DICTATION_BARGE_IN_MIN_SPEECH`) pauses zrb at once. If what you said turns out to be words meant for zrb, it stops and the rest of that reply is not read; if not, zrb carries on where it paused. Words too brief to pause it (a crisp "stop") stop it as soon as they are transcribed. Then:

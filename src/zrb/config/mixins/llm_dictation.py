@@ -30,10 +30,12 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_BACKEND: str = "vosk"
         self.DEFAULT_LLM_DICTATION_WAKE_WORDS: str = ""
         self.DEFAULT_LLM_DICTATION_THRESHOLD: str = "0.01"
+        self.DEFAULT_LLM_DICTATION_NOISE_MARGIN: str = "2.0"
         self.DEFAULT_LLM_DICTATION_SILENCE: str = "1.0"
         self.DEFAULT_LLM_DICTATION_MIN_SILENCE: str = "0.5"
         self.DEFAULT_LLM_DICTATION_WAKE_WINDOW: str = "8.0"
         self.DEFAULT_LLM_DICTATION_MIN_SPEECH: str = "0.25"
+        self.DEFAULT_LLM_DICTATION_MIN_WORDS: str = "1"
         self.DEFAULT_LLM_DICTATION_MAX_UTTERANCE: str = "30.0"
         self.DEFAULT_LLM_DICTATION_MAX_BACKLOG: str = "30.0"
         self.DEFAULT_LLM_DICTATION_PRE_ROLL: str = "0.3"
@@ -63,6 +65,7 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_VOSK_MAX_UNCOMPRESSED_MB: str = "8192"
         self.DEFAULT_LLM_DICTATION_VOSK_MAX_FILE_MB: str = "4096"
         self.DEFAULT_LLM_DICTATION_VOSK_MAX_FILES: str = "10000"
+        self.DEFAULT_LLM_DICTATION_VOSK_CONFIDENCE: str = "0.0"
         self.DEFAULT_LLM_DICTATION_STOP_WORDS: str = (
             "stop, wait, hold on, cancel, no, nope, deny, don't"
         )
@@ -129,7 +132,24 @@ class LLMDictationMixin:
     LLM_DICTATION_THRESHOLD = EnvField(
         float,
         fallback=0.01,
-        doc="RMS microphone level that counts as speech. Default: 0.01.",
+        doc=(
+            "RMS microphone level that counts as speech, and the lowest the "
+            "bar under speech ever goes. Default: 0.01."
+        ),
+    )
+
+    LLM_DICTATION_NOISE_MARGIN = EnvField(
+        float,
+        fallback=2.0,
+        doc=(
+            "How many times louder than the room's own background speech must "
+            "be to be heard as speech at all, so a conversation going on "
+            "around the microphone does not open a turn. It follows the room: "
+            "in a quiet one it changes nothing, and in one with no quiet "
+            "moment it lifts the bar over the noise itself. 0 counts the room "
+            "not at all, leaving {ENV_PREFIX}_LLM_DICTATION_THRESHOLD alone. "
+            "Default: 2."
+        ),
     )
 
     LLM_DICTATION_SILENCE = EnvField(
@@ -167,6 +187,19 @@ class LLMDictationMixin:
         doc=(
             "Shortest speech kept, in seconds; shorter bursts are coughs and "
             "clicks. Default: 0.25."
+        ),
+    )
+
+    LLM_DICTATION_MIN_WORDS = EnvField(
+        int,
+        fallback=1,
+        doc=(
+            "Fewest words a hands-free utterance needs to reach the model when "
+            "it is not interrupting zrb; over zrb or a running turn, "
+            "{ENV_PREFIX}_LLM_DICTATION_BARGE_IN_MIN_WORDS applies instead. "
+            "Raise it in a public place, where a stranger's single word would "
+            "otherwise open a turn. A stop word, or an answer to the prompt "
+            "being asked, always counts. Default: 1."
         ),
     )
 
@@ -461,5 +494,16 @@ class LLMDictationMixin:
         doc=(
             "Files a Vosk model archive may contain; 0 means no limit. Bounds "
             "the many-tiny-files shape of a decompression bomb. Default: 10000."
+        ),
+    )
+
+    LLM_DICTATION_VOSK_CONFIDENCE = EnvField(
+        float,
+        fallback=0.0,
+        doc=(
+            "With the 'vosk' backend, the lowest average word confidence (0-1) "
+            "a hands-free transcript may have and still reach the model; vosk "
+            "scores the words it makes out of noise low. Push-to-talk keeps "
+            "every word. 0 uses no confidence floor. Default: 0."
         ),
     )

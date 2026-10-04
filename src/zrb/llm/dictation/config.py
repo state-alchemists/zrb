@@ -26,9 +26,11 @@ class DictationConfig:
     wake_words: list[str] | None = None
     wake_window: float | None = None
     threshold: float | None = None
+    noise_margin: float | None = None
     silence: float | None = None
     min_silence: float | None = None
     min_speech: float | None = None
+    min_words: int | None = None
     max_utterance: float | None = None
     max_backlog: float | None = None
     pre_roll: float | None = None
@@ -58,6 +60,7 @@ class DictationConfig:
     vosk_max_uncompressed_mb: float | None = None
     vosk_max_file_mb: float | None = None
     vosk_max_files: float | None = None
+    vosk_confidence: float | None = None
 
     @property
     def is_barge_in_enabled(self) -> bool:
