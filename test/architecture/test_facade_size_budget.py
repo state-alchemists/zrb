@@ -56,7 +56,11 @@ FACADE_BUDGETS = {
     # `PreviousMessageHistory` part is constructed in __init__ -- new surface.
     # +7 (697->704): `record_submitted_message` override appends to the input
     # box's `PreviousMessageHistory` (PR #562 round-2) -- new surface.
-    "llm/ui/default/ui.py": 704,
+    # +4 (704->708): `reset_previous_recall`, the delegator the Enter keybinding
+    # calls after a submit or a command so a submitted recall does not leave the
+    # input unable to start a fresh Up-arrow recall (PR #562 round-3) -- new
+    # surface, not a delegator-only line.
+    "llm/ui/default/ui.py": 708,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.

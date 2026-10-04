@@ -461,6 +461,10 @@ class UI(BaseUI):
     def recall_navigation_active(self) -> bool:
         return self._message_editing.recall_navigation_active()
 
+    def reset_previous_recall(self) -> None:
+        """Drop in-progress previous-message recall after a submit or command."""
+        self._message_editing.reset_previous_recall()
+
     def handle_enter_queued_edit(self, event: Any) -> bool:
         return self._message_editing.handle_enter_queued_edit(event)
 

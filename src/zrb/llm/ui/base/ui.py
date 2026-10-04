@@ -1134,12 +1134,12 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         message is for this UI's own current task; this explicit form exists
         for callers (e.g. keybindings set up before a persona swap) holding a
         specific task reference that may differ from `self.llm_task` by then."""
-        self.record_submitted_message(user_message)
         parent_multi_ui = self.multi_ui_parent
         if parent_multi_ui is not None:
-            # The parent broadcasts to every child UI.
-            parent_multi_ui.submit_user_message(llm_task, user_message, source)
-            return
+            # The parent broadcasts to every child UI
+            # and records the message once, on its primary child.
+            return parent_multi_ui.submit_user_message(llm_task, user_message, source)
+        self.record_submitted_message(user_message)
         # Mid-turn the message only joins the queue; the marker says so.
         marker = "⏳" if self.is_thinking else "💬"
         submit_user_message_via_queue(

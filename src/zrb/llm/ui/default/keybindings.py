@@ -328,6 +328,7 @@ class UIKeybindings:
             agent_id = viewing_agent_id
             message = text
             buff.reset()
+            ui.reset_previous_recall()
 
             async def _send_to_sub_agent():
                 # lazy: transitively heavy via internal — live_session.py
@@ -360,6 +361,7 @@ class UIKeybindings:
             if ui.is_thinking:
                 return
             buff.reset()
+            ui.reset_previous_recall()
             ui.schedule_command(text)
             return
 
@@ -368,3 +370,4 @@ class UIKeybindings:
         # the buffer's own history is left alone here — no double record.
         ui.submit_user_message(llm_task, text)
         buff.reset()
+        ui.reset_previous_recall()

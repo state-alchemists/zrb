@@ -136,6 +136,18 @@ class TestPreviousMessageHistory:
 
         assert history.recall_strings() == []
 
+    def test_unencodable_message_is_recorded_without_raising(self, tmp_path):
+        """A message the UTF-8 write cannot encode (an unpaired surrogate) is
+        best-effort: persistence fails silently and the in-memory entry stays
+        recallable, so a chat turn never dies on a history write (PR #562
+        round-3)."""
+        history = PreviousMessageHistory(history_dir=str(tmp_path))
+        text = "bad \ud800 surrogate"
+
+        history.append_string(text)  # must not raise
+
+        assert text in history.recall_strings()
+
     def test_max_entries_trims_oversized_file_on_load(self, tmp_path):
         (tmp_path / "previous-messages.json").write_text(
             json.dumps(["newest", "older", "oldest", "ancient"])

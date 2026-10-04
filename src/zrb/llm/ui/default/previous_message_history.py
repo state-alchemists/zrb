@@ -146,8 +146,11 @@ class PreviousMessageHistory(History):
                 self._write_file(merged)
                 self._persistent = merged
                 self._session_new = []
-        except (OSError, FileLockTimeout):
+        except (OSError, UnicodeError, FileLockTimeout):
             # Keep `_session_new` so the messages are retried on a later write.
+            # `UnicodeError` covers a submitted string the UTF-8 write cannot
+            # encode (e.g. an unpaired surrogate): persistence is best-effort
+            # and must never abort the chat turn (round-3 review).
             pass
 
     def _write_file(self, entries: list[str]) -> None:
@@ -159,7 +162,7 @@ class PreviousMessageHistory(History):
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(entries, f, ensure_ascii=False)
             os.replace(tmp_path, self._history_file())
-        except OSError:
+        except (OSError, UnicodeError):
             try:
                 os.remove(tmp_path)
             except OSError:
