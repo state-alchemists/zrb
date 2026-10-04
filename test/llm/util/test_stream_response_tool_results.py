@@ -228,9 +228,7 @@ class TestStreamEventHandlerToolCallTimerCallbacks:
     def test_start_callback_receives_tool_name_and_id(self):
         print_fn = MagicMock()
         on_start = MagicMock()
-        handler = StreamEventHandler(
-            print_fn=print_fn, on_tool_call_start=on_start
-        )
+        handler = StreamEventHandler(print_fn=print_fn, on_tool_call_start=on_start)
         from pydantic_ai import ToolCallPart
 
         event = MagicMock()

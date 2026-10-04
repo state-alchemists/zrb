@@ -384,4 +384,3 @@ def test_an_unknown_player_is_logged_and_read_as_auto(lock_file, monkeypatch, ca
 
     assert "Unknown speech player 'commands'" in caplog.text
     assert made == ["hello"]
-

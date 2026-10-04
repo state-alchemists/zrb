@@ -270,7 +270,9 @@ async def test_a_stray_word_does_not_open_a_turn_when_more_are_asked_for(
 
 
 @pytest.mark.asyncio
-async def test_an_answer_is_never_too_short_to_be_a_message(monkeypatch, interrupted, ui):
+async def test_an_answer_is_never_too_short_to_be_a_message(
+    monkeypatch, interrupted, ui
+):
     _fake_listen(monkeypatch, "later", is_barge_in=False)
     ui.is_waiting_for_answer = True
 
@@ -278,7 +280,9 @@ async def test_an_answer_is_never_too_short_to_be_a_message(monkeypatch, interru
 
 
 @pytest.mark.asyncio
-async def test_a_stop_word_is_never_too_short_to_be_a_message(monkeypatch, interrupted, ui):
+async def test_a_stop_word_is_never_too_short_to_be_a_message(
+    monkeypatch, interrupted, ui
+):
     _fake_listen(monkeypatch, "wait", is_barge_in=False)
 
     assert await _replies(_session(min_words=3), 1) == ["wait"]

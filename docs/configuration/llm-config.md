@@ -345,6 +345,8 @@ How the journal works (storage layout, when the index is injected, how truncatio
 | `ZRB_LLM_HISTORY_RETENTION` | How long an auto-named conversation (like `bold-arch-1234`) is kept after its last save, backups included (`30d`, `2w`, …; `0` = keep all). A conversation you named — with `/save` or your own session name — is never pruned. Pruned on the first save of each session | `30d` |
 | `ZRB_LLM_HISTORY_BACKUP_RETAIN` | Number of timestamped history backups to keep per conversation (`-1` = keep all, `0` = disable) | `3` |
 | `ZRB_LLM_SUBAGENT_HISTORY_RETAIN` | Max sub-agent transcripts kept across all agent types (`-1` = keep all); oldest pruned on each new delegation. Transcripts live under `ZRB_LLM_HISTORY_DIR/subagent/<agent-type>/` | `50` |
+| `ZRB_LLM_PREVIOUS_MESSAGE_HISTORY_DIR` | Directory of the cross-session history of submitted messages that `↑`/`↓` recall in the chat input box | `~/.zrb/llm-previous-message-history/` |
+| `ZRB_LLM_PREVIOUS_MESSAGE_HISTORY_MAX_ENTRIES` | Most messages that history keeps; oldest dropped first (`0` = keep all) | `1000` |
 
 ---
 
@@ -421,6 +423,7 @@ flowchart LR
 |----------|-------------|---------|
 | `ZRB_LLM_SHOW_TOOL_CALL_DETAIL` | Print tool arguments before execution | `off` |
 | `ZRB_LLM_SHOW_TOOL_CALL_RESULT` | Print raw tool return values | `off` |
+| `ZRB_LLM_UI_SHOW_RUNTIME_TIMERS` | Show, in the status bar, how long the assistant has been working since it last went idle, and how long the running tool call has taken | `on` |
 
 ---
 
@@ -666,6 +669,7 @@ Customize the tokens that trigger built-in UI commands. Each value is a **comma-
 | `ZRB_LLM_UI_COMMAND_REDIRECT_OUTPUT` | Bare: copy the **last response** to the clipboard. `<cmd> <path>`: write that response to a file | `>, /redirect` |
 | `ZRB_LLM_UI_COMMAND_REWIND` | Rewind to a previous turn | `/rewind` |
 | `ZRB_LLM_UI_COMMAND_SAVE` | Save the current conversation | `/save` |
+| `ZRB_LLM_UI_COMMAND_SET` | `<cmd> <name> <value>` — set a config value for the rest of the process (`/set LLM_SHOW_TOOL_CALL_RESULT on`), or switch a model slot live (`/set model`, `/set small_model`, `/set multimodal_model`) | `/set` |
 | `ZRB_LLM_UI_COMMAND_SET_MODEL` | Switch the model mid-session | `/model` |
 | `ZRB_LLM_UI_COMMAND_SUMMARIZE` | Compact the conversation history | `/compress, /compact` |
 | `ZRB_LLM_UI_COMMAND_YOLO_TOGGLE` | Toggle auto-approval of tool calls | `/yolo` |

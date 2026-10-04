@@ -33,6 +33,8 @@ _EMPHASIS_RES = (
 _NON_SPEECH_RE = re.compile(
     "[\U0001f300-\U0001faff\U00002600-\U000027bf\U0001f1e6-\U0001f1ff]"
 )
+
+
 def clean_for_speech(text: str) -> str:
     """Reduce markdown to speakable prose: no code, tables, URLs or markup.
 

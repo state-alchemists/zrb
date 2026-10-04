@@ -80,11 +80,7 @@ class PreviousMessageHistory(History):
         yield from self._persistent
 
     def store_string(self, string: str) -> None:
-        """Persist one submitted message at the newest end.
-
-        Non-blocking: the write gives up at once if another session holds the
-        lock, leaving the message in `_session_new` to retry on a later write.
-        """
+        """Persist one submitted message at the newest end."""
         self._persistent.insert(0, string)
         self._session_new.insert(0, string)
         self._trim()
@@ -103,10 +99,8 @@ class PreviousMessageHistory(History):
             with open(self._history_file(), encoding="utf-8") as f:
                 data = json.load(f)
         except (OSError, ValueError):
-            # A missing/unreadable file, invalid JSON (`JSONDecodeError`), and
-            # invalid UTF-8 (`UnicodeDecodeError`) are all covered — the two
-            # decode errors are `ValueError` subclasses. A damaged history
-            # reads as empty rather than blocking the UI from starting.
+            # `JSONDecodeError` and `UnicodeDecodeError` are `ValueError`s. A
+            # damaged history reads as empty rather than blocking startup.
             return []
         if not isinstance(data, list):
             return []
@@ -121,19 +115,13 @@ class PreviousMessageHistory(History):
     def _trim(self) -> None:
         """Drop entries past `_max_entries` from the in-memory list."""
         if self._max_entries > 0 and len(self._persistent) > self._max_entries:
-            del self._persistent[self._max_entries:]
+            del self._persistent[self._max_entries :]
 
     def _write_persistent(self) -> None:
         """Persist the history, merging this session's new messages with disk.
 
-        Best-effort: never raises. The directory, lock file, and temporary
-        file are all opened inside the guards, so a missing, unwritable, or
-        busy history directory cannot break the chat turn. The lock wait is
-        non-blocking (zero timeout): when another session holds the lock the
-        write is skipped and `_session_new` keeps the entries for the next
-        write to retry. A write that runs holds the OS file lock around
-        re-reading, merging, and replacing the file, so two concurrent
-        sessions cannot clobber each other's entries.
+        Never raises. When another session holds the lock the write is
+        skipped and `_session_new` keeps the entries for the next write.
         """
         try:
             os.makedirs(self._history_dir, exist_ok=True)
@@ -150,7 +138,7 @@ class PreviousMessageHistory(History):
             # Keep `_session_new` so the messages are retried on a later write.
             # `UnicodeError` covers a submitted string the UTF-8 write cannot
             # encode (e.g. an unpaired surrogate): persistence is best-effort
-            # and must never abort the chat turn (round-3 review).
+            # and must never abort the chat turn.
             pass
 
     def _write_file(self, entries: list[str]) -> None:

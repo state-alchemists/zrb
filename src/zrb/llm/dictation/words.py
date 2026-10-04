@@ -85,11 +85,7 @@ def is_answer(
 ) -> bool:
     """Whether *text* is a yes or a no, as `to_answer` reads one: made only of
     approve or deny phrases and polite words ("Yes.", "no thanks").
-
-    This is the same reading `to_answer` makes, so a caller that must decide
-    whether a transcript is an answer — rather than which answer it is — agrees
-    with the approval it will carry. *polite_words* default to
-    `CFG.LLM_DICTATION_POLITE_WORDS`, as there.
+    *polite_words* default to `CFG.LLM_DICTATION_POLITE_WORDS`.
     """
     polite = _get_polite_words(polite_words)
     heard = _words_of(text)
@@ -128,10 +124,8 @@ def _is_one_phrase_repeated(words: list[str]) -> bool:
 
 def is_said_alone(text: str, phrases: list[list[str]]) -> bool:
     """Whether *text* is made only of *phrases*, at least one of them:
-    "Stop!", "stop". A polite word carries a yes or a no, not a stop: a stop
-    is taken as one only when it is said alone, so no polite word stands beside
-    it here — "stop please" is not a phrase said alone (`is_answer` is the
-    reading that allows one)."""
+    "Stop!", "stop". Unlike `is_answer`, no polite word may stand beside it:
+    "stop please" is not said alone."""
     return _is_made_of(_words_of(text), phrases, frozenset())
 
 

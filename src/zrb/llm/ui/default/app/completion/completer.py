@@ -36,9 +36,8 @@ class InputCompleter(Completer):
         """Re-read every command-alias list from `ui_config`.
 
         The lists are copied out of `UIConfig` at construction for fast prefix
-        matching. A `/set` that changes an `LLM_UI_COMMAND_*` setting re-points
-        `UIConfig`; without this the running session would keep completing and
-        dispatching the old aliases (round-3 review).
+        matching, so a `/set` that changes an `LLM_UI_COMMAND_*` setting calls
+        this to pick up the new aliases.
         """
         self._attach_commands = list(ui_config.attach_commands)
         self._exit_commands = list(ui_config.exit_commands)
@@ -58,11 +57,9 @@ class InputCompleter(Completer):
     def refresh_model_visibility(self, ui_config: UIConfig) -> None:
         """Re-read the model-source visibility flags from `ui_config`.
 
-        `UIConfig` snapshots `LLM_SHOW_OLLAMA_MODELS` and
-        `LLM_SHOW_PYDANTIC_AI_MODELS` when the session is built and this
-        completer copies them again, so a `/set` that changed one must reach
-        both copies — otherwise the command reports success while `/model`
-        keeps offering a source the user just turned off (round-4 review).
+        Called after a `/set` changes `LLM_SHOW_OLLAMA_MODELS` or
+        `LLM_SHOW_PYDANTIC_AI_MODELS`, which this completer copies at
+        construction.
         """
         self._show_ollama_models = ui_config.show_ollama_models
         self._show_pydantic_ai_models = ui_config.show_pydantic_ai_models

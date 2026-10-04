@@ -93,9 +93,7 @@ def test_complete_set_value_arg_normalizes_lowercase_name(monkeypatch):
     matching the handler's case-insensitive name acceptance."""
     monkeypatch.setenv("ZRB_LLM_MODEL", "openai:current-model")
     results = list(
-        complete_set_value_arg(
-            "llm_model", "", ["openai:gpt-4o", "openai:gpt-4o-mini"]
-        )
+        complete_set_value_arg("llm_model", "", ["openai:gpt-4o", "openai:gpt-4o-mini"])
     )
     assert any(c.text == "openai:gpt-4o" for c in results)
     assert any(c.display_meta_text == "Model Name" for c in results)

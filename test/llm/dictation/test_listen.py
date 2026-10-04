@@ -311,9 +311,7 @@ def test_a_room_with_no_quiet_moment_is_measured_at_its_own_level():
     """Babble that never drops below the threshold: the first utterance is
     heard against the threshold, and the room it taught is what everything
     after it has to clear."""
-    finished = _feed(
-        _cutter(pre_roll=0, max_utterance=1.0), [0.15] * 13 + [0.0] * 3
-    )
+    finished = _feed(_cutter(pre_roll=0, max_utterance=1.0), [0.15] * 13 + [0.0] * 3)
 
     assert len(finished) == 1
     assert len(finished[0][0]) == 10  # cut at max_utterance

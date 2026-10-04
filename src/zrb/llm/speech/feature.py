@@ -311,10 +311,7 @@ class SpeechSession:
         return current_session_key() == self._session_key
 
     def say_reply(self, reply: str) -> None:
-        """Speak *reply*, whole.
-
-        Nothing caps what one turn says, so nothing is left unsaid and there is
-        nothing to say about what was."""
+        """Speak *reply*, whole."""
         self._say(clean_for_speech(reply))
 
 
