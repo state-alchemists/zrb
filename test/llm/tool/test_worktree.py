@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.llm.prompt.live_context import render_live_context
+from zrb.llm.tool.ambient_state import get_active_worktree
 from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
 
 
@@ -60,8 +61,11 @@ async def test_enter_worktree_not_repo(mock_subprocess):
 @pytest.mark.asyncio
 async def test_enter_worktree_resumes_existing_linked_worktree(mock_subprocess):
     with tempfile.TemporaryDirectory() as tmpdir:
-        worktree_path = os.path.join(tmpdir, ".zrb", "worktree", "existing")
-        os.makedirs(worktree_path)
+        canonical_worktree_path = os.path.join(tmpdir, ".zrb", "worktree", "existing")
+        worktree_path = os.path.join(
+            tmpdir, ".zrb", "worktree", "existing", "..", "existing"
+        )
+        os.makedirs(canonical_worktree_path)
         mock_subprocess.side_effect = [
             create_mock_process(returncode=0, stdout=f"{tmpdir}\n".encode()),
             create_mock_process(
@@ -70,7 +74,7 @@ async def test_enter_worktree_resumes_existing_linked_worktree(mock_subprocess):
                     f"worktree {tmpdir}\n"
                     "HEAD 1111111\n"
                     "branch refs/heads/main\n\n"
-                    f"worktree {worktree_path}\n"
+                    f"worktree {canonical_worktree_path}\n"
                     "HEAD 2222222\n"
                     "branch refs/heads/existing\n"
                 ).encode(),
@@ -80,7 +84,9 @@ async def test_enter_worktree_resumes_existing_linked_worktree(mock_subprocess):
         res = await enter_worktree(worktree_path=worktree_path, cwd=tmpdir)
 
         assert f"Worktree resumed: {worktree_path}" in res
+        assert f"Worktree resumed: {canonical_worktree_path}\n" not in res
         assert "Branch: existing" in res
+        assert get_active_worktree() == os.path.realpath(canonical_worktree_path)
         assert mock_subprocess.call_count == 2
 
 

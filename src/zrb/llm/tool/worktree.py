@@ -192,7 +192,7 @@ async def _resume_worktree(
 
     active_worktree.set(requested_path)
     return _prepend_notes(
-        notes, f"Worktree resumed: {requested_path}\nBranch: {branch_name}"
+        notes, f"Worktree resumed: {worktree_path}\nBranch: {branch_name}"
     )
 
 
