@@ -484,12 +484,7 @@ class UI(BaseUI):
         return self._message_editing.redraw_echo(entry)
 
     def remove_echo(self, entry: "QueuedMessage") -> None:
-        """Override hook `BaseUI` invokes polymorphically (see its base no-op).
-
-        The delete-side counterpart to `redraw_echo`: the dropped message's
-        echoed line is spliced out of this UI's output buffer, so `Ctrl+X`
-        leaves no line behind for a turn that will never run.
-        """
+        """Override hook `BaseUI` invokes polymorphically (see its base no-op)."""
         self._message_editing.remove_echo(entry)
 
     # =========================================================================

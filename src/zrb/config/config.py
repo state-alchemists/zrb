@@ -74,7 +74,9 @@ def _uncastable_setting_message(
     name: str, raw: str, field: EnvField, error: Exception
 ) -> str:
     accepted = (
-        "'on' or 'off'" if field.is_boolean else f"a value parseable by {field.cast_name}()"
+        "'on' or 'off'"
+        if field.is_boolean
+        else f"a value parseable by {field.cast_name}()"
     )
     return f"CFG.{name} = {raw!r} is not valid: expected {accepted}. ({error})"
 

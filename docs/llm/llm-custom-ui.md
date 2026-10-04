@@ -380,6 +380,7 @@ Return `True` when consumed, `False` to let the next handler (and finally the LL
 | `cancel_current_turn(reason)` | Releases a pending confirmation, cancels `running_llm_task` and fires `Stop` with `reason`; with no turn of its own, a `MultiUI` child asks its parent to cancel the one it runs. With no turn at all, only the confirmation is released | Stop the running turn, as Esc does; a feature may call it too (hands-free dictation does, on a spoken "stop"). A class implementing `AnyUI` directly must define it |
 | `is_waiting_for_answer` / `is_prompt_answered_since(asked_at)` | `False` | Whether a tool approval or question is waiting, and whether the first prompt asked at or after a `time.monotonic()` time has been answered; dictation keeps a spoken "no" as an answer, and speech drops a stale approval prompt, by them. A class implementing `AnyUI` directly must define both |
 | `on_exit()` | No-op | Cleanup on shutdown |
+| `record_submitted_message(text)` | No-op | Called from `submit_user_message` with every message the user submits; the default TUI appends it to the history `↑` recalls across sessions |
 | `ask_user_choice(spec)` | Formats the spec as numbered text and delegates to `ask_user` | Override for an arrow-key-selectable widget |
 | `stream_to_parent()` | Calls `append_to_output` | For multiplexed UIs |
 | `track_echo_span(entry, echo)` / `redraw_echo(entry)` / `remove_echo(entry)` | No-ops (the default TUI splices its own output buffer) | Keep a queued message's echoed line in step with the message: record where it landed on submit, rewrite it after an edit, take it out when `Ctrl+X` drops the message. `BaseUI` fans all three out to every child of a `MultiUI`, since each child holds its own echo. A class implementing `AnyUI` directly must define all three |
@@ -576,6 +577,7 @@ llm_chat.ui_factories = [create_ui_factory(MyUI, ui_config=config)]
 | `redirect_output_commands` | `CFG.LLM_UI_COMMAND_REDIRECT_OUTPUT` | Copy/save the last response |
 | `yolo_toggle_commands` | `CFG.LLM_UI_COMMAND_YOLO_TOGGLE` | Toggle auto-approve |
 | `set_model_commands` | `CFG.LLM_UI_COMMAND_SET_MODEL` | Switch model |
+| `set_commands` | `CFG.LLM_UI_COMMAND_SET` | Set a config value or live model slot |
 | `exec_commands` | `CFG.LLM_UI_COMMAND_EXEC` | Run shell commands |
 | `btw_commands` | `CFG.LLM_UI_COMMAND_BTW` | Side-channel message |
 | `plan_commands` | `CFG.LLM_UI_COMMAND_PLAN_TOGGLE` | Toggle plan mode |

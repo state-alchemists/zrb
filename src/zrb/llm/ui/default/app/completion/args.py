@@ -148,9 +148,8 @@ def complete_set_value_arg(
         try:
             current = getattr(CFG, normalized_name, None)
         except (ValueError, TypeError):
-            # A value already in the environment that this field cannot read
-            # (e.g. an int setting holding "abc") has no current value to offer.
-            # Reading it here must not crash completion (round-5 review).
+            # A value in the environment this field cannot read (e.g. an int
+            # setting holding "abc") has no current value to offer.
             current = None
         if current is not None and str(current) != "":
             shown = _display_value(field, current)
@@ -175,10 +174,8 @@ def _display_value(field, current) -> str:
     """Render a CFG field's current value the way a user would type it.
 
     Non-boolean values go through the field's own serializer, so the offered
-    text is exactly what the matching cast reads back. `str(current)` would
-    render a list-valued setting (e.g. a command-alias list) as Python-list
-    syntax — ``['/set']`` — which the field then parses as one bracketed entry
-    instead of restoring the list (round-3 review).
+    text is exactly what the matching cast reads back; `str(current)` would
+    render a list as ``['/set']``, which parses back as one bracketed entry.
     """
     if field is not None and field.is_boolean:
         return "on" if current else "off"

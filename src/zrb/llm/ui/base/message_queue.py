@@ -122,9 +122,7 @@ class MessageQueue(asyncio.Queue):
     def pending(self) -> "tuple[QueuedMessage, ...]":
         """Every not-yet-started entry, oldest first.
 
-        The public read seam for the queue's contents: a display or a test
-        that lists what is waiting would otherwise have to reach for
-        ``_queue``. Nothing is popped, so this cannot race the consumer.
+        Nothing is popped, so this cannot race the consumer.
         """
         return tuple(self._queue)
 

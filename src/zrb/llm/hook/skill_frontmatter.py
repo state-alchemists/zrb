@@ -4,29 +4,24 @@ A skill's `hooks:` block is process-wide configuration — it belongs to the ski
 file, not to one session — but the scan that finds it runs once per process
 (`SkillManager._scanned`), so the parsed `HookConfig`s are recorded here and
 replayed by a factory seeded on every `HookManager` — the same seam the
-journal-compliance and self-review hooks use. Registering them on the module
-singleton alone, as the scan used to, put them out of reach of the fresh
-per-run manager an `LLMChatTask` builds, so they never fired under
-`zrb llm chat`.
+journal-compliance and self-review hooks use, so the fresh per-run manager an
+`LLMChatTask` builds gets them too.
 
-Three rules this store has to keep, each one a defect it used to have:
+Three rules this store keeps:
 
 * **A source replaces its entry, and an unseen source is dropped.** A re-scan
   re-parses the same file and mints fresh configs (a Claude-format hook gets a
-  generated name per parse), so appending would leave the previous parse's
-  hooks in place — firing the same rule twice, and keeping one alive after it
-  was edited out of the file. `start_skill_scan`/`finish_skill_scan` bound the
-  pass, so a hook whose skill is gone goes with it.
+  generated name per parse), so appending would fire the same rule twice and
+  keep one alive after it was edited out of the file.
+  `start_skill_scan`/`finish_skill_scan` bound the pass, so a hook whose skill
+  is gone goes with it.
 * **The factory replays by config identity, never by registry identity.** A
-  registry that is empty because `HookManager.reload()` just cleared it still
-  needs the replay; skipping on `manager.registry is hook_registry` skipped it
-  there too, so a reload silently dropped every skill hook.
+  registry that `HookManager.reload()` just cleared still needs the replay.
 * **A source is retired from every manager holding it, and no manager is kept
   alive by the record.** The factory installs a skill's hooks on *every*
-  `HookManager`, so removal has to reach all of them; sweeping only the manager a
-  scan last targeted left the rest firing a rule its skill file no longer
-  declares. The record is keyed by manager and held weakly, so a per-run manager
-  is swept while it lives and costs nothing once the caller lets it go.
+  `HookManager`, so removal has to reach all of them. The record is keyed by
+  manager and held weakly, so a per-run manager costs nothing once the caller
+  lets it go.
 
 The canonical manager is *passed in* rather than imported: `hook.manager`
 imports this module for the factory seed, so a module-level import of it here
@@ -186,11 +181,9 @@ def _record(
     """Remember *registered* as *source*'s hooks on *manager*.
 
     Every manager that ends up holding a source is recorded, not just the one a
-    scan targeted: the factory installs the same configs on all of them, so a
-    retirement that swept only the scan target left the others firing a rule the
-    skill file no longer declares. Overwriting is what keeps the record honest
-    across a `reload()`, whose replay registers the stored configs again as new
-    callables — the cleared ones it used to name would remove nothing.
+    scan targeted, since the factory installs the same configs on all of them.
+    Overwriting keeps the record correct across a `reload()`, whose replay
+    registers the stored configs again as new callables.
     """
     if not registered:
         return

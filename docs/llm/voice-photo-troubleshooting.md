@@ -18,7 +18,7 @@
 
 | Symptom | Solution |
 |---------|----------|
-| `/voice` or `/handsfree` says dictation needs the `zrb[voice]` extra | `pip install 'zrb[voice]'` (sounddevice, numpy, vosk) |
+| `/voice` or `/handsfree` says dictation needs the `zrb[voice]` extra | `pip install 'zrb[voice]'` (sounddevice, numpy, vosk, pipecat-ai) |
 | An error mentioning `vosk` | vosk is the default backend: install it, or switch `ZRB_LLM_DICTATION_BACKEND` to `openai`/`google`/`multimodal` |
 | Hands-free never submits anything | Run `zrb voice mic-test` from `examples/voice-interaction`; if your speech stays under the threshold, lower `ZRB_LLM_DICTATION_THRESHOLD`. With wake words set, only utterances starting with one count |
 | In a public place, the room's own conversation becomes turns | Set `ZRB_LLM_DICTATION_WAKE_WORDS`: nothing else tells a stranger's request from yours. `ZRB_LLM_DICTATION_NOISE_MARGIN` (raise it; `0` counts the room not at all) and `ZRB_LLM_DICTATION_MIN_WORDS` (2 or more) keep the room's background and a stray word out |

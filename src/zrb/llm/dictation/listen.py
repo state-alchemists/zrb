@@ -347,14 +347,11 @@ async def listen(
     *on_captured* is handed every block the microphone captures, as 16 kHz mono
     16-bit PCM, before it is cut into an utterance: this is the capture the
     Pipecat pipeline is fed from (ADR-0107, stage 1). It is handed over apart
-    from the reading loop, so it sees the blocks of an utterance that is dropped
-    or never yielded too — the capture is zrb's either way — and neither a slow
-    hand-over nor the reading loop stopping while an utterance is transcribed
-    and answered can delay it or let the backlog drop a block before it is handed
-    over (PR #561 review). It is never handed over twice, in order, and dropped
-    oldest-first if the tap itself falls `_TAP_MAX_SECONDS` behind; a hand-over
-    that fails ends the tap for the rest of the listening, since nothing
-    downstream of it decides anything.
+    from the reading loop, so it also sees blocks of utterances that are dropped,
+    and the reading loop pausing while an utterance is answered does not delay
+    it. Blocks arrive once, in order, dropped oldest-first if the tap falls
+    `_TAP_MAX_SECONDS` behind; a hand-over that fails ends the tap for the rest
+    of the listening.
 
     A caller that stops early must close this — `contextlib.aclosing` — or the
     microphone stays open until the generator is finalized.
@@ -406,8 +403,8 @@ async def listen(
         finally:
             await blocks.close()
     finally:
-        # A microphone that would not open leaves the tap behind otherwise, and
-        # it holds a task.
+        # Outside the `try` above, so a microphone that would not open still
+        # closes the tap.
         if tap is not None:
             await tap.close()
 
@@ -692,14 +689,10 @@ class _Backlog:
 class _CaptureTap:
     """Hands every captured block to *on_captured*, apart from the reading loop.
 
-    The reader stops while an utterance is transcribed and answered, and the
-    microphone keeps filling the backlog; a capture handed over from there
-    arrives a turn late, and a block the backlog drops on the way is never handed
-    over at all — where what `listen` promises is every captured block
-    (PR #561 review). So the tap reads a queue of its own, filled by the audio
-    callback as the backlog is, and it is bounded rather than unbounded: at most
-    *max_blocks*, whose oldest is dropped when the tap is further behind than
-    that, since a hand-over that cannot keep up must not grow into the process.
+    The reader stops while an utterance is transcribed and answered, so a tap
+    fed from the backlog would arrive a turn late and miss blocks the backlog
+    drops. The tap has its own queue, filled by the audio callback, bounded at
+    *max_blocks* with the oldest dropped first.
 
     Touched only from the event loop's thread: the audio callback hands blocks
     over with `call_soon_threadsafe`.
@@ -741,18 +734,13 @@ class _CaptureTap:
     async def close(self) -> None:
         """Stop the hand-off, delivering what is already queued, briefly.
 
-        The listening is over, but the blocks the microphone just captured are
-        still the capture, so the queue drains before the tap ends — with a
-        deadline, since a hand-over that does not finish must not hold the
-        teardown of the microphone that stopped feeding it. The cancel that
-        follows the deadline is bounded the same way, so a hand-over that swallows
-        it is named and left rather than waited on (PR #561 review).
+        The queue drains before the tap ends, with a deadline so a stuck
+        hand-over cannot hold up the microphone's teardown; the cancel after
+        the deadline is bounded the same way.
 
-        A hand-over that raised ended the tap early: nothing downstream of it
-        decides anything yet (ADR-0107, stage 1), so the failure is reported here,
-        once, rather than ending the listening that is still going on around it.
-        Reading the exception off is also what keeps the loop from later logging
-        it as one nobody retrieved.
+        A hand-over that raised ended the tap early; the failure is logged here
+        once rather than ending the listening (nothing downstream decides
+        anything yet, ADR-0107 stage 1).
         """
         self._is_stopped = True
         self._arrived.set()
@@ -807,11 +795,9 @@ def import_audio() -> tuple[Any, Any]:
 def to_device(device: "str | int | None") -> "int | str | None":
     """A device setting as `sounddevice` takes it: a digit string is an index.
 
-    `sounddevice` reads an `int` as a device index and a `str` as a name to match
-    among the devices it finds, so the index the setting documents — "2" — was
-    searched for as a name and matched nothing: it could only ever name a device,
-    never point at one (PR #561 review). A non-numeric value passes through as
-    the name it is, and empty or unset is PortAudio's own default.
+    `sounddevice` reads an `int` as a device index and a `str` as a name to
+    match, so "2" has to become ``2``. A non-numeric value passes through as a
+    name, and empty or unset is PortAudio's own default.
     """
     if device is None or isinstance(device, int):
         return device
@@ -833,14 +819,11 @@ async def _open_microphone(
     ``paTimedOut`` when it misses: a WSL2 VM stalling on I/O misses it, for
     reasons that have nothing to do with zrb, and the stall is over by the time
     the call returns. So a start that fails is tried again, and only the last
-    failure is raised. A stream that never started is closed first, best-effort
-    (PR #561 review): its own teardown may fail — sounddevice's ``ignore_errors``
-    default swallows PortAudio's errors, and this does not depend on that — and a
-    failure there must not lose the retry or the message below. Or the next try
-    would contend with it for a device it is not using.
+    failure is raised. A stream that never started is closed first, best-effort,
+    so the next try does not contend with it for the device.
 
-    Constructing is the other failure: a device that does not exist, or PortAudio
-    missing. Trying that again cannot help, so it is raised as it always was.
+    A failure to construct the stream (no such device, PortAudio missing) is
+    not retried.
     """
     device = to_device(device)
     attempt = 0

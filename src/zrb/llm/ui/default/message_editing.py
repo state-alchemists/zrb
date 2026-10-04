@@ -384,9 +384,7 @@ class UIMessageEditing:
             return None
         return getattr(self._ui, "saved_main_output", None)
 
-    def _refresh_echo_span(
-        self, entry: QueuedMessage, text: str
-    ) -> EchoSpan | None:
+    def _refresh_echo_span(self, entry: QueuedMessage, text: str) -> EchoSpan | None:
         """This UI's recorded span for `entry`, re-read off its tracked block.
 
         `text` is the buffer the offsets index — this UI's output, or the main

@@ -107,8 +107,8 @@ class Speaker:
             queue.Queue()
         )
         # Made but not yet played: what the player thread takes next.
-        self._ready: "queue.Queue[tuple[Utterance, IsStale, int] | None]" = (
-            queue.Queue(maxsize=1)
+        self._ready: "queue.Queue[tuple[Utterance, IsStale, int] | None]" = queue.Queue(
+            maxsize=1
         )
         self._worker: threading.Thread | None = None
         self._player: threading.Thread | None = None

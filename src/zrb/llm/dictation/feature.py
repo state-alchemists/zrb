@@ -127,10 +127,8 @@ class DictationSession:
         self._badge_before_pause = _LISTENING
         # A wake word said alone arms the utterances started before this.
         self._armed_until = 0.0
-        # The Pipecat pipeline the capture is handed to while the setting is on
-        # (ADR-0107, stage 1), and whether one has failed and been given up on
-        # for this session: it decides nothing, so it never takes the listening
-        # with it.
+        # The Pipecat pipeline the capture is handed to (ADR-0107, stage 1),
+        # and whether it failed and was given up on for this session.
         self._tap: AudioPipeline | None = None
         self._is_pipecat_given_up = False
         self.is_hands_free = (config.mode or "").strip().lower() == HANDS_FREE
@@ -307,13 +305,9 @@ class DictationSession:
         """`listen` while hands-free holds, with the Pipecat pipeline fed from
         the same capture when it is on.
 
-        The pipeline lives exactly as long as the listening: it decides nothing
-        yet (ADR-0107, stage 1), so what it proves is that zrb's own blocks reach
-        it — and feeding it is best-effort (`_feed_pipecat`), so a pipeline that
-        fails takes itself out of the way rather than the listening with it. The
-        capture is handed over by `listen`'s tap, apart from the loop that reads
-        the utterances (PR #561 review), so a pipeline that is slow to start or
-        to take a block delays neither the capture behind it nor the listening.
+        The pipeline lives exactly as long as the listening, and feeding it is
+        best-effort (`_feed_pipecat`), so a pipeline that fails never ends the
+        listening.
         """
         try:
             async with aclosing(
@@ -338,17 +332,11 @@ class DictationSession:
     async def _feed_pipecat(self, pcm: bytes) -> None:
         """Hand one captured block to the Pipecat pipeline, if it has one.
 
-        Best-effort by construction. The pipeline decides nothing (ADR-0107,
-        stage 1) and the hand-rolled path is doing the listening, so a pipeline
-        that cannot start, or that fails while a block is handed to it, is
-        reported and given up on for the session instead of ending hands-free.
-        A pipeline that failed is closed there and then (PR #561 review): the
-        listening can run for hours, and one left alive would hold its worker and
-        its transport for the rest of it. Closing it here cannot deadlock the
-        hand-over — `_close_audio_pipeline` closes the Pipecat pipeline, never the
-        tap this delivery belongs to. `listen` hands the capture over from a task
-        of its own, so a slow start holds up neither the microphone nor the
-        listening.
+        The pipeline decides nothing (ADR-0107, stage 1), so one that cannot
+        start or fails on a block is reported, closed at once, and given up on
+        for the session instead of ending hands-free. Closing it here cannot
+        deadlock the hand-over: it closes the Pipecat pipeline, never the tap
+        this delivery runs on.
         """
         if self._is_pipecat_given_up:
             return
@@ -369,9 +357,7 @@ class DictationSession:
         """A Pipecat pipeline to hand the capture to, or ``None`` when Pipecat
         is not installed.
 
-        Not installed is a setting that cannot work rather than a broken run:
-        it is said once and the listening goes on, since the hand-rolled path
-        decides everything anyway (ADR-0107, stage 1).
+        Not installed is reported once and the listening goes on.
         """
         if not is_pipecat_available():
             self._report(
@@ -384,10 +370,8 @@ class DictationSession:
     async def _close_audio_pipeline(self) -> None:
         """Stop the pipeline this listening was feeding, if it started one.
 
-        Contained here as well as inside `AudioPipeline.close` (PR #561 review):
-        the pipeline decides nothing (ADR-0107, stage 1), so no failure in its
-        teardown, however far it got, may end the listening still going on
-        around it.
+        Never raises: the pipeline decides nothing (ADR-0107, stage 1), so no
+        failure in its teardown may end the listening.
         """
         tap, self._tap = self._tap, None
         if tap is not None:
@@ -430,11 +414,7 @@ class DictationSession:
         word or yes/no is never set aside ("no no" is meant), and neither is
         anything with a wake word at the front: one phrase said twice reads as
         a transcriber guessing at noise, but saying stop twice is what someone
-        does when the first one went unheard.
-
-        Nothing here reads the utterance the words came on: the transcript-level
-        own-voice check that used to (it applied only over zrb's voice) was
-        retired in 3.14.0 (ADR-0105)."""
+        does when the first one went unheard."""
         if not text or self._is_answer_or_stop(text):
             return ""
         if is_transcriber_guess(text) and not self._is_wake_worded(text):
@@ -454,8 +434,7 @@ class DictationSession:
         A stop is one only when it is said alone (`_get_barge_in_intent`); an
         approval and a denial carry a polite word, as `_to_reply` reads them,
         so "yes please" and "no thanks" count as answers here rather than being
-        dropped by the minimum word count before the approval they answer ever
-        sees them (PR #561 review).
+        dropped by the minimum word count.
         """
         if is_said_alone(text, self._stop_words):
             return True

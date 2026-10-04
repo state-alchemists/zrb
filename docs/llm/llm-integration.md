@@ -43,6 +43,7 @@ This launches a full-screen chat application where you can have a conversation w
 | `/info`, `/help` | Show all available commands |
 | `/compress`, `/compact` | Summarize conversation to free context |
 | `/model <name>` | Switch LLM model (e.g., `/model openai:gpt-4o`) |
+| `/set <name> <value>` | Change a setting for the rest of the process, e.g. `/set LLM_SHOW_TOOL_CALL_RESULT on`. Any `CFG` field settable from Python is accepted (name without the `ZRB_` prefix, case-insensitive); Tab completes names, and values with model names, `on`/`off`, or the current value. `/set model`, `/set small_model` and `/set multimodal_model` switch that model live, like `/model`. Nothing is written to disk |
 | `/yolo` or `/yolo <tools>` | Toggle auto-execute mode. With tool names (e.g., `/yolo Write,Edit`), selectively auto-approve only those tools |
 | `/load <name>`, `/resume <name>` | Load a named session |
 | `/save <name>` | Save current session |
@@ -63,6 +64,12 @@ This launches a full-screen chat application where you can have a conversation w
 > 💡 **Tip:** Any `/command` that matches a loaded skill will be executed as a skill.
 >
 > The token(s) that trigger each command are configurable — see [Slash Command Aliases](../configuration/llm-config.md#17-slash-command-aliases). `/photo`, `/voice`, `/handsfree` and `/speech` come from [Voice and camera](voice-camera.md) and are configured there.
+
+### Recalling Previous Messages
+
+With nothing queued, `↑` in the input box walks back through messages you sent before, newest first: the user messages of the conversation you loaded (`/load`, or `--session` at startup), then every message you have submitted in any session. `↓` walks forward and finally restores what you were typing.
+
+The cross-session list is kept in `ZRB_LLM_PREVIOUS_MESSAGE_HISTORY_DIR` (default `~/.zrb/llm-previous-message-history/`), capped at `ZRB_LLM_PREVIOUS_MESSAGE_HISTORY_MAX_ENTRIES` (default 1000; `0` keeps all). Writing it is best-effort: an unwritable directory never breaks a turn.
 
 ### Queued Messages
 
@@ -98,6 +105,8 @@ When the provider reports them, cached input tokens (`· 1.2k cached`) and the c
 The counters reset whenever you switch conversations via `/load`, since past sessions' spend is not persisted. Tokens are tracked per-UI instance — in a `MultiUI` setup each child UI maintains its own totals.
 
 There are no configuration knobs for this feature; it always appears (non-zero after the first request) and uses the theme's `FAINT` style.
+
+While the assistant is working, the status bar also shows how long it has been working (`⏳ zrb is working (1m 12s)`) and, while a tool call runs, that tool and its elapsed time (`🧰 Shell 8s`). `ZRB_LLM_UI_SHOW_RUNTIME_TIMERS=off` hides both.
 
 ### Approval Policies
 

@@ -1,20 +1,15 @@
 """Feeding zrb's captured audio into a Pipecat pipeline.
 
-`listen` keeps the microphone (ADR-0107, principle 1): zrb captures as it does
-today and these frames are pushed in from outside, so a second audio client can
-never contend for the device.
+`listen` keeps the microphone (ADR-0107): frames are pushed in from outside, so
+a second audio client never contends for the device.
 
-Stage 1 of that migration is what lives here, and it is the input side only: the
-pipeline ends at an audio counter, so nothing downstream of the transport acts
-on the audio and turning it on cannot change what zrb hears or says. It proves
-the transport carries zrb's own blocks beside the hand-rolled path that still
-decides everything (`docs/architecture/3-peripheral-flow/voice-on-pipecat.md`).
+This is stage 1, the input side only: the pipeline ends at an audio counter, so
+nothing downstream of the transport acts on the audio and turning it on cannot
+change what zrb hears or says
+(`docs/architecture/3-peripheral-flow/voice-on-pipecat.md`).
 
-Pipecat is the `voice` extra and is imported inside each factory rather than at
-module level: every module under `src/zrb` has to import on its own
-(`test_every_module_imports_with_its_parents_stubbed`), and an install without the
-voice extra must not pay for the voice stack. The `TYPE_CHECKING` import is what
-lets the signatures name pipecat's real types without that cost.
+Pipecat is the `voice` extra, so it is imported inside each factory; the
+`TYPE_CHECKING` import lets signatures name its types without that cost.
 """
 
 from __future__ import annotations
@@ -69,12 +64,10 @@ def create_input_transport(
     The device is not needed, and PortAudio stays out of the picture: pipecat's
     own `BaseInputTransport.process_frame` feeds an `InputAudioRawFrame` pushed
     in from outside through the same VAD path as audio it captured itself. The
-    one gap is `start`, whose base implementation clears its paused flags and
-    stops — it never calls `set_transport_ready`, which is the call that creates
-    the queue a pushed frame is read from. Without it the pushed audio is never
-    drained, so this subclass adds exactly that call (ADR-0107; measured, not
-    assumed). *on_ready* is called once that queue exists, since a frame pushed
-    before then has nowhere to go.
+    one gap is `start`, whose base implementation never calls
+    `set_transport_ready`, the call that creates the queue a pushed frame is
+    read from; this subclass adds it (ADR-0107). *on_ready* is called once that
+    queue exists, since a frame pushed before then has nowhere to go.
     """
     # lazy: heavy third-party — pipecat is the `voice` extra, and this module is
     # reached from the pipeline wiring rather than from startup.
@@ -115,11 +108,8 @@ async def push_audio(transport: BaseInputTransport, chunk: bytes) -> None:
 def create_audio_counter() -> FrameProcessor:
     """A pipeline sink that counts the frames and audio handed to it.
 
-    Stage 1's exit criterion is a count — as many blocks have to come out as
-    went in — and this is where that count is read from: `frame_count` is every
-    frame that reached the sink, `bytes_received` the audio among them. Nothing
-    is held: a hands-free session runs for hours, so a sink that kept the frames
-    would grow without bound and take the process with it (PR #561 review).
+    `frame_count` is every frame that reached the sink, `bytes_received` the
+    audio among them. Frames are not kept: a hands-free session runs for hours.
     """
     # lazy: heavy third-party — pipecat is the `voice` extra.
     from pipecat.frames.frames import InputAudioRawFrame
@@ -147,12 +137,8 @@ def create_audio_counter() -> FrameProcessor:
 class AudioPipeline:
     """A running Pipecat pipeline that zrb's captured blocks are pushed into.
 
-    Stage 1 of the migration (ADR-0107). It ends at an `AudioCounter`, so nothing
-    downstream of the transport acts on the audio and what zrb hears and says is
-    still decided by the hand-rolled path; what it proves is that the transport
-    carries zrb's own blocks, in order and intact, which is what the turn
-    detection of stage 2 is built on. *counter* is that sink: `frame_count` is
-    every frame that came out, `bytes_received` how much of it was audio.
+    Stage 1 of ADR-0107: it ends at *counter*, an `AudioCounter`, so nothing
+    downstream of the transport acts on the audio.
     """
 
     worker: "PipelineWorker"
@@ -165,9 +151,8 @@ class AudioPipeline:
         """Start the pipeline on the running loop, ready for `push`.
 
         A worker does not start itself — `run` is the coroutine that drives it —
-        so its session owns that task, and `close` is what ends both. The device
-        is never opened, so `TaskManager` binds to the loop the caller already
-        runs in rather than to a second one (ADR-0107; measured, not assumed).
+        so this pipeline owns that task, and `close` ends both. `TaskManager`
+        binds to the caller's running loop (ADR-0107).
         """
         # lazy: heavy third-party — pipecat is the `voice` extra.
         from pipecat.frames.frames import StartFrame
@@ -185,14 +170,10 @@ class AudioPipeline:
         try:
             await worker.queue_frames([StartFrame()])
             # `queue_frames` only queues the frame: until the transport has
-            # processed it there is no queue for a pushed block, and the push
-            # fails, so a frame queued but never processed is a start that never
-            # finished.
+            # processed it there is no queue for a pushed block.
             await asyncio.wait_for(ready.wait(), timeout=_START_TIMEOUT_SECONDS)
         except BaseException:
-            # A pipeline that did not come up must not leave its worker running
-            # for the life of the event loop. A cancellation is stopped the same
-            # way, and re-raised either way.
+            # A pipeline that did not come up must not leave its worker running.
             await pipeline.close()
             raise
         return pipeline
@@ -204,18 +185,13 @@ class AudioPipeline:
     async def close(self) -> None:
         """Stop the pipeline and wait, briefly, for its task to unwind.
 
-        Never raises, and does not leave the task running where it can end it
-        (PR #561 review). The ask travels over the worker's own bus, and a
-        pipeline already in trouble can fail it: the failure is contained, and a
-        task still going after the wait below is cancelled outright — this runs
-        in the listening's `finally`, where an escaping failure would end
-        hands-free for the session, and a task left behind would outlive the
-        microphone it was fed from. A runner that will not stop even then cannot
-        be ended from here, only named: the deadline holds, and the log says what
-        was left behind. `asyncio.wait`, not `wait_for`, so the
-        worker's own failure is not reported a second time here — whoever pushed
-        its last frame has already seen it — and its exception is read off below
-        so the loop does not later log it as one nobody retrieved.
+        Never raises: this runs in the listening's `finally`, where an escaping
+        failure would end hands-free for the session. A runner still going after
+        the wait is cancelled; one that swallows that is logged and left.
+        `asyncio.wait`, not `wait_for`, so the worker's own failure is not raised
+        a second time here — whoever pushed its last frame has already seen it —
+        and its exception is read off below so the loop does not log it as
+        never retrieved.
         """
         await close_quietly(self.worker.cancel, "the Pipecat worker")
         done, _ = await asyncio.wait({self.runner}, timeout=_CLOSE_TIMEOUT_SECONDS)

@@ -1,6 +1,6 @@
 """Asking the small model what the words said over zrb ask of it.
 
-The word lists decide what is plain — "stop", "stop please", "wait" — and they
+The word lists decide what is plain — "stop", "wait", "hold on" — and they
 are free. Everything else ("please fucking stop", the same phrase said twice,
 another language, "shut up") reads as a request to anyone but a substring
 match, and reaches a small model instead, whose answer is a typed
@@ -8,7 +8,7 @@ match, and reaches a small model instead, whose answer is a typed
 
 A model that is slow, unavailable or unparseable costs nothing: the caller
 keeps the answer the word lists already gave (`DictationSession` and
-`words.is_said_alone`), which is what zrb did before there was a judge.
+`words.is_said_alone`).
 """
 
 from __future__ import annotations
@@ -70,10 +70,8 @@ async def judge_barge_in(
 ) -> BargeInVerdict | None:
     """What *command* — what was heard over zrb, past its wake word — asks of
     it, or ``None`` when the judge could not answer in time, is not configured
-    to work, or failed. Never raises: an interrupting utterance is not worth
-    ending a session's listening over, so every failure at all — a model zrb
-    cannot resolve, a provider that will not answer, a judge that is simply
-    wrong — leaves the word lists deciding."""
+    to work, or failed. Never raises: any failure leaves the word lists
+    deciding."""
     try:
         agent = create_interrupt_judge_agent(model)
         result = await asyncio.wait_for(agent.run(command), _JUDGE_TIMEOUT_SECONDS)

@@ -188,10 +188,8 @@ class BaseUIModelCommands:
         text = text.strip()
         for cmd in self._base_ui.set_commands:
             if text.lower() == cmd.lower():
-                # Bare `/set` while a turn is running: report the same
-                # unavailability as `/set NAME VALUE`, so the command's
-                # run-while-thinking policy holds in both shapes instead of the
-                # bare form jumping ahead of the thinking guard (round-3 review).
+                # Bare `/set` follows the same thinking guard as
+                # `/set NAME VALUE`.
                 if self._base_ui.is_thinking:
                     return False
                 self._base_ui.append_to_output(
@@ -239,9 +237,7 @@ class BaseUIModelCommands:
 
         `UIConfig` copies the `LLM_UI_COMMAND_*` alias lists and the two
         model-visibility flags when the session is built, and the completer
-        copies the aliases a second time. A `/set` that changed one would
-        otherwise report success while the session kept matching, completing or
-        offering the old value (round-3 and round-4 review).
+        copies them again, so both copies are re-pointed here.
         """
         ui_config = self._base_ui.ui_config
         visibility_field = model_visibility_field(name)
@@ -292,7 +288,5 @@ class BaseUIModelCommands:
         setattr(CFG, name, converted)
         self._refresh_live_session(name, converted)
         shown = "[set]" if field is not None and field.secret else repr(converted)
-        self._base_ui.append_to_output(
-            stylize_muted(f"\n  🔧 Set {name} = {shown}\n")
-        )
+        self._base_ui.append_to_output(stylize_muted(f"\n  🔧 Set {name} = {shown}\n"))
         self._base_ui.invalidate_ui()

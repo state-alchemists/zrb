@@ -57,6 +57,6 @@ A single run on synthetic speech: expect different timings and errors with a rea
 
 `auto` (default) picks `say`, else `espeak-ng`. If a cloud backend fails, the local engine speaks instead. `/speech` switches speech off and on during a session, dropping anything not yet said.
 
-A reply longer than `ZRB_LLM_SPEECH_MAX_CHARS` (default 400) is cut at a sentence end and followed by "The full answer is on screen." With `ZRB_LLM_SPEECH_SUMMARIZE=on`, the small model (`ZRB_LLM_SPEECH_SUMMARY_MODEL`, else `ZRB_LLM_SMALL_MODEL`) summarizes it instead: one model call per long reply.
+A reply is read whole, however long it is; code, tables and links are skipped.
 
 Two sessions on one machine take turns through a lock file, so they never talk over each other.

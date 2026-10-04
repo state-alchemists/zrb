@@ -143,9 +143,7 @@ def command_alias_field(env_name: str) -> str | None:
 
     None means `env_name` is not a command-alias setting. `UIConfig` snapshots
     every `LLM_UI_COMMAND_*` list when it is built, so a `/set` that changes one
-    must re-point the running session's copy — otherwise the session keeps
-    matching and completing the old aliases while reporting success (round-3
-    review).
+    uses this to re-point the running session's copy.
     """
     for field_name in _COMMAND_FIELDS:
         if command_env_name(field_name) == env_name:
@@ -165,9 +163,7 @@ def model_visibility_field(env_name: str) -> str | None:
     """The `UIConfig` field mirroring the `CFG.<env_name>` boolean, or None.
 
     None means `env_name` is not a model-visibility setting. `UIConfig` reads
-    both of these once, when the session is built, so a `/set` that changes one
-    must re-point the running session — otherwise the command reports success
-    while `/model` keeps offering, or keeps hiding, a source the user just
-    toggled (round-4 review).
+    both once, when the session is built, so a `/set` that changes one uses
+    this to re-point the running session.
     """
     return _MODEL_VISIBILITY_FIELDS.get(env_name)

@@ -49,6 +49,6 @@ class LLMUIRuntimeMixin:
     LLM_UI_SHOW_RUNTIME_TIMERS = EnvField(
         to_boolean,
         serialize=on_off,
-        doc="Show the chat session uptime and the in-flight tool-call duration "
-        "in the status bar.",
+        doc="Show how long zrb has been working on the current turn, and how "
+        "long the running tool call has taken, in the status bar.",
     )
