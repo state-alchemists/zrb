@@ -85,7 +85,7 @@ def test_the_installed_openai_sdk_accepts_what_pydantic_ai_sends():
     params = inspect.signature(AsyncCompletions.create).parameters
     assert "prompt_cache_options" in params, (
         "installed openai SDK predates the parameter pydantic-ai passes; "
-        "openai>=2.45.0 is required"
+        "the pyproject.toml floor openai>=3.19.0 is required"
     )
 
 

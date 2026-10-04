@@ -4,6 +4,7 @@ import pytest
 from pydantic_ai.messages import (
     AudioUrl,
     BinaryContent,
+    CachePoint,
     DocumentUrl,
     ImageUrl,
     ModelMessage,
@@ -99,7 +100,10 @@ def test_model_request_to_text_complex():
                 AudioUrl(url="http://audio"),
                 VideoUrl(url="http://video"),
                 DocumentUrl(url="http://doc"),
-                123,  # pyright: ignore[reportArgumentType]
+                # A valid UserContent item the converter doesn't special-case,
+                # exercising format_multimodal_item's fallback (pydantic-ai >=2.54
+                # rejects a non-UserContent item like `123` at construction).
+                CachePoint(),
             ]
         ),
     ]
@@ -114,6 +118,7 @@ def test_model_request_to_text_complex():
     assert "[Audio URL: http://audio]" in text
     assert "[Video URL: http://video]" in text
     assert "[Document URL: http://doc]" in text
+    assert "[Unknown User Content: CachePoint]" in text
 
 
 def test_model_response_to_text_complex():

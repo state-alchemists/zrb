@@ -20,7 +20,11 @@ dependencies = [
     # PyJWT and pyjwt normalize to the same distribution; consolidated to the
     # stricter pin so PEP-621 does not see a duplicate dependency.
     # Security fix: GHSA-xgmm-8j9v-c9wx (CVE-2026-48526) - JWT forgery via JWK-as-HMAC-secret confusion.
-    "PyJWT>=2.13.0,<3.0.0",
+    # Security fixes: GHSA-ffc3-869f-jxw9 (critical, asymmetric-PEM detection bypass), plus the
+    # high/medium HS-vs-asymmetric confusion and PyJWKClient issues (GHSA-9j54-fg26-wv3r,
+    # GHSA-9v7f-9g4p-ffgj, GHSA-r6x4-923q-g947, GHSA-w2cx-738m-mc7w, GHSA-p4g4-x82p-q773, ...)
+    # patched in 2.14.0, and GHSA-42vr-xj54-vc7v (RecursionError DoS) patched in 2.15.0.
+    "PyJWT>=2.15.0,<3.0.0",
     "ulid-py>=1.1.0,<2.0.0",
     "psutil>=7.0.0,<8.0.0",
     # NOTE: Look at https://github.com/pydantic/pydantic-ai/blob/main/pydantic_ai_slim/pyproject.toml
@@ -28,16 +32,16 @@ dependencies = [
     # Security fix: GHSA-4xgf-cpjx-pc3j - NestedSecretsSettingsSource follows symlinks outside secrets_dir.
     # pydantic-settings is transitive via pydantic-ai-slim → fastmcp-slim → mcp. Pin >=2.14.2.
     "pydantic-settings>=2.14.2",
-    "pydantic-ai-slim[mcp]>=2.41.0,<2.42.0",
+    "pydantic-ai-slim[mcp]>=2.54.0,<2.55.0",
     # NOTE: Make sure the following dependencies are not conflicting with pydantic-ai-slim
     # `openai` is a core dependency (not an extra) because every OpenAI-compatible
     # provider routes through it — OpenAI, Ollama, DeepSeek, OpenRouter, Z.ai,
     # Cerebras, Together, and the rest.
-    # >=3.8.0 is a hard floor, not a preference: it's pydantic-ai's own `openai`
-    # extra floor as of 2.41.0. An older SDK is untested against this pydantic-ai
-    # version and may miss parameters `OpenAIChatModel` now sends unconditionally
-    # (e.g. `prompt_cache_options=`, required since openai 2.45.0).
-    "openai>=3.8.0",
+    # >=3.19.0 is a hard floor, not a preference: it's pydantic-ai-slim's own
+    # `openai` extra floor as of 2.54.0 (was 3.8.0 as of 2.41.0). An older SDK is
+    # untested against this pydantic-ai version and may miss parameters
+    # `OpenAIChatModel` sends unconditionally (e.g. `prompt_cache_options=`).
+    "openai>=3.19.0",
     "prompt-toolkit>=3",
     "rich>=13",
     # Security fix: GHSA/CVE-2026-59950 - Cross-Site WebSocket Hijacking via unvalidated Host/Origin
@@ -77,8 +81,10 @@ dependencies = [
     # for application/x-www-form-urlencoded, enabling DoS. We pin >=1.3.1.
     "starlette>=1.3.1",
     # Security fix: CVE-2026-44432 - urllib3 does not strip cookies on HTTP redirect from HTTPS.
-    # urllib3 is transitive via requests and boto3. We pin >=2.7.0.
-    "urllib3>=2.7.0",
+    # Security fixes: GHSA-8988-9cw3-xx77 (HTTPS proxy TLS override), GHSA-vxq7-64xx-v4gw
+    # (unbounded chunk-size line buffering) and GHSA-gh4c-6fx4-qh6g (chunked-deflate infinite
+    # loop), patched in 2.8.0. urllib3 is transitive via requests and boto3. We pin >=2.8.0.
+    "urllib3>=2.8.0",
     # Security fix: GHSA-65pc-fj4g-8rjx (CVE-2026-45409) - DoS via crafted input to idna.encode().
     # idna is transitive via requests, httpx, anyio (pydantic-ai). We pin >=3.15.
     "idna>=3.15",
@@ -106,7 +112,14 @@ python = [
 #
 # NOTE: Make sure these dependencies do not conflict with pydantic-ai-slim. Security
 # pins on transitive packages are annotated inline on the dependency that carries them.
-rag = ["chromadb>=1.3.5,<2.0.0"]
+rag = [
+    "chromadb>=1.3.5,<2.0.0",
+    # Security fixes: GHSA-hj66-6f7g-4r5v (unsafe JSONP callback injection) and
+    # GHSA-xpv3-w29h-x7cv (timing attack in PKCE code_verifier comparison), patched
+    # in 4.0.0. oauthlib is transitive via chromadb → kubernetes → requests-oauthlib.
+    # No chromadb fix exists for its own advisories, so the pin is on oauthlib alone.
+    "oauthlib>=4.0.0",
+]
 playwright = ["playwright>=1.56.0,<2.0.0"]
 cohere = ["cohere>=5.20.6"]
 vertexai = [
@@ -115,10 +128,12 @@ vertexai = [
     # Security fix: CVE-2026-59886 - resource exhaustion via large exponents in univ.Real decoding. We pin >=0.6.4.
     "pyasn1>=0.6.4",
 ]
-google = ["google-genai>=2.18.0"]
-anthropic = ["anthropic>=1.3.0"]
+# >=2.25.0 matches pydantic-ai-slim's own `google` extra floor as of 2.54.0 (was 2.18.0).
+google = ["google-genai>=2.25.0"]
+# >=1.9.0 matches pydantic-ai-slim's own `anthropic` extra floor as of 2.54.0 (was 1.3.0).
+anthropic = ["anthropic>=1.9.0"]
 groq = ["groq>=0.25.0"]
-# >=2.9.2 is pydantic-ai-slim's own mistral extra floor as of 2.41.0. This also
+# >=2.9.2 is pydantic-ai-slim's own mistral extra floor as of 2.54.0. This also
 # clears the mistralai==2.4.6 PyPI quarantine (GHSA, see pydantic-ai #5382) that
 # an explicit `!=2.4.6` exclusion used to be needed for.
 mistral = ["mistralai>=2.9.2"]
