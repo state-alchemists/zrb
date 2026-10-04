@@ -101,7 +101,7 @@ Before and after the pipeline, `_detect_problems()` logs invariant violations at
 `filter_nil_content` fixes the problem at the `ModelMessage` level; `openai_patch.py` adds a complementary serialization-level fix by monkey-patching `OpenAIChatModel._MapModelResponseContext._into_message_param`. Upstream sets `content = None` whenever there is no text, which serializes to `"content": null`:
 
 ```python
-# pydantic-ai 2.41.0 (thinking-field handling elided)
+# pydantic-ai 2.54.0 (thinking-field handling elided)
 if not self.texts and not self.tool_calls:
     return None                       # nothing to send: emit no message at all
 ...
@@ -113,7 +113,7 @@ else:
 
 The patch drops the `else`, so `content` is omitted when tool calls are present — valid per the OpenAI spec and accepted by all known providers. The first-line empty-response guard is upstream's, reproduced verbatim; returning a message there would be the same 400 in a different disguise.
 
-No model profile flag disables the null, so the patch is still required as of 2.41.0. Upstream documents `_into_message_param` as an override hook, which makes the patch supportable even though its class is private. It is applied once per process (`run_agent()` in `runner.py` calls `patch_openai_model_response_serialization()` on its first call); if pydantic-ai renames the target, the miss is logged at WARNING and `filter_nil_content` remains the fallback.
+No model profile flag disables the null, so the patch is still required as of 2.54.0. Upstream documents `_into_message_param` as an override hook, which makes the patch supportable even though its class is private. It is applied once per process (`run_agent()` in `runner.py` calls `patch_openai_model_response_serialization()` on its first call); if pydantic-ai renames the target, the miss is logged at WARNING and `filter_nil_content` remains the fallback.
 
 ## The `strip_thinking_parts` Retry
 
@@ -159,7 +159,7 @@ On a hit, `_retry_empty_completion` regenerates the turn: `history_without_trail
 
 Each layer works around a *provider* bug, not a pydantic-ai one, so upgrades rarely retire any. Re-audit on a minor bump anyway: a dead layer keeps rewriting history for no reason.
 
-Audited against **2.41.0** (the version `pyproject.toml` pins); every layer is still load-bearing:
+Audited against **2.54.0** (the version `pyproject.toml` pins); every layer is still load-bearing:
 
 | Layer | Verdict |
 |---|---|
@@ -169,7 +169,7 @@ Audited against **2.41.0** (the version `pyproject.toml` pins); every layer is s
 | `ensure_alternating_roles` | Keep. Same origin as above. |
 | `strip_thinking_parts` retry | Keep. Error-triggered and free when it does not fire; the providers that reject echoed thinking still exist. |
 | Opaque-400 text-only fallback | Keep. Deliberately provider-agnostic; upstream classifies transport errors, not provider quirks. |
-| Deferred-mismatch recovery | Keep, and re-check the strings. It matches on `UserError` text raised by `_agent_graph`; both phrases are unchanged in 2.41.0. |
+| Deferred-mismatch recovery | Keep, and re-check the strings. It matches on `UserError` text raised by `_agent_graph`; both phrases are unchanged in 2.54.0. |
 | Empty-completion guard | Keep. Guards a *successful* stream with no content — not an error path upstream ever sees. |
 
 Two upstream changes were adopted: `ModelHTTPError` now carries `headers` and a parsed `retry_after`, which `get_retry_wait` reads before falling back to exponential backoff, and `known_model_names()` replaces unwrapping `KnownModelName.__value__` for `/model` completion.

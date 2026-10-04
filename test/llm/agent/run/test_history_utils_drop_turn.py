@@ -67,8 +67,10 @@ def test_drop_oldest_turn_min_turns():
 
 
 def test_filter_nil_content():
-    # `content=None` is illegal per the part types and deliberate here: it is
-    # what a misbehaving provider sends, and normalizing it is the whole point.
+    # Nil content is deliberate here: it is what a misbehaving provider sends,
+    # and normalizing it is the whole point. pydantic-ai >=2.54 rejects
+    # `UserPromptPart(content=None)` at construction, so an empty string stands
+    # in for its nil content; the other part types still accept `None`.
     # Test ModelRequest filtering
     msg1 = ModelRequest(
         parts=[
@@ -83,7 +85,7 @@ def test_filter_nil_content():
             ThinkingPart(content="think"),
             TextPart(content=None),  # pyright: ignore[reportArgumentType]
             TextPart(content="text"),
-            UserPromptPart(content=None),  # pyright: ignore[reportArgumentType]
+            UserPromptPart(content=""),  # nil content (see note above)
             UserPromptPart(content="prompt"),
             SystemPromptPart(content=None),  # pyright: ignore[reportArgumentType]
             SystemPromptPart(content="sys"),
@@ -241,11 +243,13 @@ def test_strip_to_text_only_converts_all_non_text_parts():
 
 
 def test_strip_to_text_only_normalizes_null_content():
-    """None/empty content becomes '.'; tool parts become descriptive TextPart."""
+    """None/empty content becomes "(empty)"; tool parts become descriptive TextPart."""
     history = [
         ModelRequest(
             parts=[
-                UserPromptPart(content=None),  # pyright: ignore[reportArgumentType]
+                # pydantic-ai >=2.54 rejects `UserPromptPart(content=None)` at
+                # construction; an empty string is its reachable nil content.
+                UserPromptPart(content=""),
                 ToolReturnPart(tool_name="t1", content=None, tool_call_id="c1"),
             ]
         ),

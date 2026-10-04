@@ -9,7 +9,7 @@ This module applies the fix once at import time by overriding
 ``_MapModelResponseContext._into_message_param`` to omit ``content`` entirely
 when ``tool_calls`` are present, which is valid per the OpenAI API spec.
 
-Verified still necessary against pydantic-ai 2.27.0: the upstream method sets
+Verified still necessary against pydantic-ai 2.54.0: the upstream method sets
 ``content = None`` whenever there is no text, tool calls or not, and no model
 profile flag turns that off. Upstream documents the method as an override hook,
 so the shape of the patch is supported even though the class it hangs off is
