@@ -3,6 +3,7 @@ import pytest
 from zrb.config.config import CFG
 from zrb.llm.dictation.words import (
     count_words,
+    is_answer,
     is_said_alone,
     is_transcriber_guess,
     split_phrases,
@@ -88,6 +89,35 @@ def test_is_said_alone_needs_one_of_the_phrases():
     assert not is_said_alone("Hold on, please.", stop)
     assert not is_said_alone("no", stop)
     assert not is_said_alone("please", stop)
+
+
+@pytest.mark.parametrize(
+    "said, answer",
+    [
+        ("Yes.", True),
+        ("yes please", True),
+        ("Go ahead!", True),
+        ("No thanks.", True),
+        ("Okay, go ahead, thanks", True),
+        ("", False),
+        ("open the file", False),
+        ("do it later", False),
+        ("run the tests", False),
+    ],
+)
+def test_is_answer_reads_a_polite_yes_or_no_as_an_answer(said, answer):
+    """Whether a transcript is an answer at all, not which one it is — the
+    reading `_is_answer_or_stop` needs (PR #561 review)."""
+    assert is_answer(said, APPROVE, DENY) == answer
+
+
+def test_is_answer_asks_the_question_to_answer_answers_with():
+    """Both read a transcript as a yes, a no, or neither, so a caller deciding
+    only whether something is an answer (`_is_answer_or_stop`) cannot disagree
+    with the approval that answer will carry. "Okay, no, stop" is neither: a
+    hedge of both families at once is a message, and stays one."""
+    assert not is_answer("Okay, no, stop.", APPROVE, DENY)
+    assert to_answer("Okay, no, stop.", APPROVE, DENY) == "Okay, no, stop."
 
 
 @pytest.mark.parametrize(

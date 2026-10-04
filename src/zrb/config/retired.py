@@ -20,6 +20,11 @@ RETIRED_SETTINGS: dict[str, str] = {
     "LLM_DICTATION_TURN_END_TIMEOUT": (
         "nothing: only barge_in_action=cancel waited for a cancelled turn"
     ),
+    "LLM_DICTATION_ECHO_COOLDOWN": (
+        "nothing: the microphone no longer goes deaf after zrb stops speaking; "
+        "what it hears then is held by loudness instead, against the barge-in "
+        "margin"
+    ),
     "LLM_DICTATION_SELF_ECHO_MATCH": (
         "nothing: barge-in holds zrb's own voice by loudness instead"
     ),

@@ -23,6 +23,7 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 |---|---|
 | `ZRB_LLM_DICTATION_BARGE_IN_ACTION` | Nothing: anything said over zrb steers the turn, and a stop cancels it, so there is no `cancel` left to choose. A stop word said alone (`ZRB_LLM_DICTATION_STOP_WORDS`) still cancels the turn. |
 | `ZRB_LLM_DICTATION_TURN_END_TIMEOUT` | Nothing: only `barge_in_action=cancel` waited for a cancelled turn. |
+| `ZRB_LLM_DICTATION_ECHO_COOLDOWN` | Nothing: the microphone no longer goes deaf after zrb stops speaking, because room echo outliving playback is what `ZRB_LLM_DICTATION_BARGE_IN_MARGIN` holds speech over zrb against. Speech heard in that moment is judged like any other. |
 | `ZRB_LLM_DICTATION_SELF_ECHO_MATCH` | Nothing, and this one is a real loss: the guard that dropped zrb's own words transcribed back is gone. Anything else said over zrb goes to the small model (`ZRB_LLM_DICTATION_INTERRUPT_JUDGE_ENABLED`), which reads what a stop asks but does not drop echo. Lower the playback volume, use headphones, or turn barge-in off. |
 | `ZRB_LLM_DICTATION_SELF_ECHO_TAIL` | Nothing — see `_SELF_ECHO_MATCH`. |
 | `ZRB_LLM_DICTATION_TRAILING_WORDS` | Nothing: an utterance fed to a streaming transcriber now ends after `ZRB_LLM_DICTATION_MIN_SILENCE` once it has words, without waiting for a word a sentence ends on. Raise `ZRB_LLM_DICTATION_MIN_SILENCE` if you are cut off mid-sentence. |

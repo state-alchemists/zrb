@@ -286,6 +286,23 @@ async def test_a_stop_word_is_never_too_short_to_be_a_message(monkeypatch, inter
 
 
 @pytest.mark.asyncio
+async def test_a_polite_answer_is_an_answer_and_is_never_too_short(
+    monkeypatch, interrupted, ui
+):
+    """PR #561 review: a yes or a no may carry a polite word, so `min_words`
+    cannot drop "yes please" before the approval it answers is read."""
+    _fake_listen(monkeypatch, "yes please", is_barge_in=False)
+    session = _session(min_words=3, approve_words=["yes"])
+
+    stream = session.listen_hands_free()
+    reply = await anext(stream)
+    await stream.aclose()
+
+    assert reply.text == "yes please"
+    assert reply.approval == "yes"
+
+
+@pytest.mark.asyncio
 async def test_a_single_word_answers_a_prompt_while_a_turn_runs(
     monkeypatch, interrupted, ui
 ):
