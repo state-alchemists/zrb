@@ -17,9 +17,8 @@ import re
 
 from zrb.llm.speech.text import clean_for_speech
 
-# A sentence end: as in `text._SENTENCE_END_RE`, punctuation followed by
-# space, so "main.py" and "e.g." do not end one but "I." does. A blank line
-# ends one too.
+# A sentence end: punctuation followed by space, so "main.py" and "e.g." do
+# not end one but "I." does. A blank line ends one too.
 _BOUNDARY_RE = re.compile(r"(?<!\.[a-zA-Z])[.!?](?=\s)|\n[ \t]*\n")
 _CLAUSE_END_RE = re.compile(r"[,;:](?=\s)")
 _FENCE_MARKERS = ("```", "~~~")

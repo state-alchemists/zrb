@@ -104,11 +104,12 @@ def _session(**config) -> DictationSession:
     )
 
 
-async def _first_reply(session: DictationSession) -> None:
+async def _first_reply(session: DictationSession) -> str:
     """Run hands-free until its first utterance became a reply, then stop."""
     stream = session.listen_hands_free()
-    await anext(stream)
+    reply = await anext(stream)
     await stream.aclose()
+    return reply.text
 
 
 @pytest.fixture(autouse=True)
@@ -122,7 +123,7 @@ async def test_the_capture_is_handed_to_the_pipeline_and_the_pipeline_closed(
     monkeypatch,
 ):
     monkeypatch.setattr("zrb.llm.dictation.feature.is_pipecat_available", lambda: True)
-    handed = _fakes(monkeypatch, b"hello")
+    _fakes(monkeypatch, b"hello")
     session = _session(pipecat_enabled=True)
 
     await _first_reply(session)
@@ -132,7 +133,6 @@ async def test_the_capture_is_handed_to_the_pipeline_and_the_pipeline_closed(
     assert pipeline.pushed == [BLOCK]
     # One for the listening that ended, not one per block.
     assert pipeline.closed == 1
-    assert handed == [pipeline.push]
 
 
 @pytest.mark.asyncio
@@ -155,13 +155,45 @@ async def test_without_the_extra_the_listening_goes_on_and_says_so(monkeypatch):
         monkeypatch.setattr(
             "zrb.llm.dictation.feature.is_pipecat_available", lambda: False
         )
-        handed = _fakes(monkeypatch, b"hello")
+        _fakes(monkeypatch, b"hello")
         session = _session(pipecat_enabled=True)
 
         await _first_reply(session)
     finally:
         reset_session_ui()
 
-    assert handed == [None]
     assert FakeAudioPipeline.made == []
     assert any("Pipecat is not installed" in text for text in ui.outputs)
+
+
+@pytest.mark.asyncio
+async def test_a_pipeline_that_will_not_start_leaves_the_listening_alone(monkeypatch):
+    """A pipeline that fails is given up on, and hands-free goes on (PR #561
+    review).
+
+    The pipeline decides nothing (stage 1), so its failure must not reach the
+    dictation loop's outer handler, which stops hands-free for the session.
+    """
+    ui = FakeUI()
+    set_session_ui(ui)
+    try:
+        monkeypatch.setattr(
+            "zrb.llm.dictation.feature.is_pipecat_available", lambda: True
+        )
+        _fakes(monkeypatch, b"hello")
+
+        class BrokenPipeline:
+            @classmethod
+            async def start(cls):
+                raise RuntimeError("Pipecat could not start")
+
+        monkeypatch.setattr("zrb.llm.dictation.feature.AudioPipeline", BrokenPipeline)
+        session = _session(pipecat_enabled=True)
+
+        reply = await _first_reply(session)
+    finally:
+        reset_session_ui()
+
+    assert reply == "hello"
+    assert session.is_hands_free
+    assert any("Pipecat input pipeline stopped" in text for text in ui.outputs)

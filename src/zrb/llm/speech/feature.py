@@ -1,14 +1,11 @@
 """`enable_speech`: read replies, tool approvals and questions aloud.
 
 Everything is spoken by one background thread per session, in order, so a hook
-only queues text and returns. A long reply is cut at a sentence end, or
-summarized by a model, and followed by a note that the rest is on screen.
+only queues text and returns. A reply is read whole, however long it is.
 """
 
 from __future__ import annotations
 
-import asyncio
-import contextvars
 import logging
 import time
 import weakref
@@ -27,7 +24,6 @@ from zrb.llm.speech.streamed_reply import StreamedReply
 from zrb.llm.speech.text import (
     clean_for_speech,
     fill_template,
-    fit_for_speech,
     match_tool_phrase,
 )
 from zrb.llm.util.feature_config import (
@@ -149,9 +145,7 @@ class SpeechSession:
         self.speaker = Speaker(config)
         self.speaker.is_enabled = bool(config.enabled)
         self._clock = SpeechClock()
-        self.streamed_reply = StreamedReply(
-            self._say, config.max_chars or 0, config.on_screen_note or ""
-        )
+        self.streamed_reply = StreamedReply(self._say)
         self.progress = ProgressNarrator(
             self._say,
             self._seconds_since_said,
@@ -309,7 +303,7 @@ class SpeechSession:
             self._is_own_session()
             and context.notification_type in _QUESTION_NOTIFICATIONS
         ):
-            question = self._fit(clean_for_speech(context.message or ""))
+            question = clean_for_speech(context.message or "")
             self._say(question or self._config.question_message or "")
         return HookResult(success=True)
 
@@ -317,49 +311,11 @@ class SpeechSession:
         return current_session_key() == self._session_key
 
     def say_reply(self, reply: str) -> None:
-        """Speak *reply* in full if it fits, else shortened: summarized in the
-        background when configured, cut at a sentence end otherwise."""
-        spoken = clean_for_speech(reply)
-        max_chars = self._config.max_chars or 0
-        if max_chars <= 0 or len(spoken) <= max_chars or not self._config.summarize:
-            self._say(self._fit(spoken))
-            return
-        # On the speaker's thread, not as a task on the running loop: a hook
-        # runs on a loop of its own that is closed once the hook returns,
-        # cancelling what is left on it.
-        context = contextvars.copy_context()
-        self.speaker.say_later(
-            lambda: context.run(asyncio.run, self._create_summary(reply, spoken))
-        )
+        """Speak *reply*, whole.
 
-    async def _create_summary(self, reply: str, spoken: str) -> str:
-        try:
-            summary = clean_for_speech(await self._summarize(reply))
-        except Exception as exc:
-            logger.warning(f"Speech summary failed, speaking the opening: {exc}")
-            summary = ""
-        if not summary:
-            return self._fit(spoken)
-        fitted = self._fit(summary)
-        if fitted == summary:
-            fitted = f"{summary} {self._config.on_screen_note or ''}".strip()
-        return fitted
-
-    async def _summarize(self, reply: str) -> str:
-        # lazy: heavy transitive (pydantic_ai) via zrb.llm.agent.summarizer
-        from zrb.llm.agent.summarizer import create_summarizer_agent
-
-        agent = create_summarizer_agent(
-            model=self._config.summary_model or None,
-            system_prompt=get_prompt("speech_summarizer"),
-        )
-        result = await agent.run(reply)
-        return str(result.output or "")
-
-    def _fit(self, text: str) -> str:
-        return fit_for_speech(
-            text, self._config.max_chars or 0, self._config.on_screen_note or ""
-        )
+        Nothing caps what one turn says, so nothing is left unsaid and there is
+        nothing to say about what was."""
+        self._say(clean_for_speech(reply))
 
 
 def is_answered_since(ui: "AnyUI | None", asked_at: float) -> Callable[[], bool]:

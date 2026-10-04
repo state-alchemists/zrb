@@ -182,24 +182,38 @@ class AudioPipeline:
         counter = create_audio_counter()
         worker = PipelineWorker(Pipeline([transport, counter]))
         runner = asyncio.create_task(worker.run(WorkerParams(TaskManager())))
-        await worker.queue_frames([StartFrame()])
-        # `queue_frames` only queues the frame: until the transport has processed
-        # it there is no queue for a pushed block, and the push fails.
-        await asyncio.wait_for(ready.wait(), timeout=_START_TIMEOUT_SECONDS)
-        return cls(worker, runner, transport, counter)
+        pipeline = cls(worker, runner, transport, counter)
+        try:
+            await worker.queue_frames([StartFrame()])
+            # `queue_frames` only queues the frame: until the transport has
+            # processed it there is no queue for a pushed block, and the push
+            # fails, so a frame queued but never processed is a start that never
+            # finished.
+            await asyncio.wait_for(ready.wait(), timeout=_START_TIMEOUT_SECONDS)
+        except BaseException:
+            # A pipeline that did not come up must not leave its worker running
+            # for the life of the event loop. A cancellation is stopped the same
+            # way, and re-raised either way.
+            await pipeline.close()
+            raise
+        return pipeline
 
     async def push(self, chunk: bytes) -> None:
         """Hand one captured block over, as `push_audio` takes it."""
         await push_audio(self.transport, chunk)
 
     async def close(self) -> None:
-        """Stop the pipeline and wait for its task to unwind.
+        """Stop the pipeline and wait, briefly, for its task to unwind.
 
-        Cancelling is the expected end here, and a pipeline that never unwinds
-        is left to the event loop rather than waited on forever.
+        Never raises: a worker that ended in failure has nothing left to stop,
+        and one that will not unwind is left to the event loop rather than waited
+        on forever. `asyncio.wait`, not `wait_for`, so the worker's own failure is
+        not reported a second time here — whoever pushed its last frame has
+        already seen it — and its exception is read off below so the loop does
+        not later log it as one nobody retrieved.
         """
         await self.worker.cancel()
-        try:
-            await asyncio.wait_for(self.runner, timeout=_CLOSE_TIMEOUT_SECONDS)
-        except (asyncio.CancelledError, asyncio.TimeoutError):
-            pass
+        done, _ = await asyncio.wait({self.runner}, timeout=_CLOSE_TIMEOUT_SECONDS)
+        for task in done:
+            if not task.cancelled():
+                task.exception()

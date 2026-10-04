@@ -128,6 +128,12 @@ class DictationSession:
         self._badge_before_pause = _LISTENING
         # A wake word said alone arms the utterances started before this.
         self._armed_until = 0.0
+        # The Pipecat pipeline the capture is handed to while the setting is on
+        # (ADR-0106, stage 1), and whether one has failed and been given up on
+        # for this session: it decides nothing, so it never takes the listening
+        # with it.
+        self._tap: AudioPipeline | None = None
+        self._is_pipecat_given_up = False
         self.is_hands_free = (config.mode or "").strip().lower() == HANDS_FREE
 
     @property
@@ -303,10 +309,10 @@ class DictationSession:
         the same capture when it is on.
 
         The pipeline lives exactly as long as the listening: it decides nothing
-        yet (ADR-0106, stage 1), so what it proves is that zrb's own blocks
-        reach it, and what zrb hears and says is the same either way.
+        yet (ADR-0106, stage 1), so what it proves is that zrb's own blocks reach
+        it — and feeding it is best-effort (`_feed_pipecat`), so a pipeline that
+        fails takes itself out of the way rather than the listening with it.
         """
-        pipeline = await self._open_audio_pipeline()
         try:
             async with aclosing(
                 listen(
@@ -317,25 +323,48 @@ class DictationSession:
                     create_stream=self.backend.create_stream,
                     on_partial=self._show_partial,
                     on_barge_in_dropped=self._release_barge_in,
-                    on_captured=pipeline.push if pipeline is not None else None,
+                    on_captured=(
+                        self._feed_pipecat if self._config.is_pipecat_enabled else None
+                    ),
                 )
             ) as mic:
                 async for utterance in mic:
                     yield utterance
         finally:
-            if pipeline is not None:
-                await pipeline.close()
+            await self._close_audio_pipeline()
+
+    async def _feed_pipecat(self, pcm: bytes) -> None:
+        """Hand one captured block to the Pipecat pipeline, if it has one.
+
+        Best-effort by construction. The pipeline decides nothing (ADR-0106,
+        stage 1) and the hand-rolled path is doing the listening, so a pipeline
+        that cannot start, or that fails while a block is handed to it, is
+        reported and given up on for the session instead of ending hands-free —
+        and, since `listen` awaits this, instead of blocking the microphone
+        behind it.
+        """
+        if self._is_pipecat_given_up:
+            return
+        try:
+            if self._tap is None:
+                self._tap = await self._open_audio_pipeline()
+            if self._tap is None:
+                # No pipeline to build: said once, and never asked again.
+                self._is_pipecat_given_up = True
+                return
+            await self._tap.push(pcm)
+        except Exception as exc:
+            self._is_pipecat_given_up = True
+            self._report(f"Pipecat input pipeline stopped: {exc}")
 
     async def _open_audio_pipeline(self) -> AudioPipeline | None:
-        """A Pipecat pipeline to hand the capture to, or ``None`` when the
-        setting is off, or Pipecat is not installed.
+        """A Pipecat pipeline to hand the capture to, or ``None`` when Pipecat
+        is not installed.
 
         Not installed is a setting that cannot work rather than a broken run:
         it is said once and the listening goes on, since the hand-rolled path
         decides everything anyway (ADR-0106, stage 1).
         """
-        if not self._config.is_pipecat_enabled:
-            return None
         if not is_pipecat_available():
             self._report(
                 "Pipecat is not installed, so the input pipeline stays off "
@@ -343,6 +372,12 @@ class DictationSession:
             )
             return None
         return await AudioPipeline.start()
+
+    async def _close_audio_pipeline(self) -> None:
+        """Stop the pipeline this listening was feeding, if it started one."""
+        tap, self._tap = self._tap, None
+        if tap is not None:
+            await tap.close()
 
     async def _to_command(self, utterance: Utterance, text: str) -> str | None:
         """What *utterance*, transcribed as *text*, asks zrb, or ``None``
@@ -354,6 +389,14 @@ class DictationSession:
             self._rest(f"🎤 ignored {_quote(text)} ({why_not})")
             return None
         command = self._get_command(utterance, text)
+        if command and self._is_interrupting(utterance):
+            # Asked before the minimum word count, not after it: a one-word stop
+            # the word lists do not know ("berhenti") is exactly what the judge
+            # is for, and the count would drop it before the judge ever saw it.
+            # A stop cancels the turn here; anything else leaves the count
+            # standing, and an ordinary short utterance is never asked at all.
+            if not await self._should_send_barge_in(utterance, command):
+                return None
         if command:
             why_short = self._get_why_too_short(utterance, command)
             if why_short:
@@ -365,10 +408,6 @@ class DictationSession:
             self._rest_without_command(utterance, text, command)
             return None
         self._armed_until = 0.0
-        if self._is_interrupting(utterance) and not await self._should_send_barge_in(
-            command
-        ):
-            return None
         self._rest(f"🎤 heard {_quote(command)} · listening")
         return command
 
@@ -509,15 +548,19 @@ class DictationSession:
         ui = get_session_ui() or self._ui
         return ui is not None and ui.is_thinking
 
-    async def _should_send_barge_in(self, command: str) -> bool:
-        """Act on what the user said over zrb, and say whether it still goes
-        on to be a turn or an answer. A stop word alone stops the turn and is
-        sent nowhere. An answer to the prompt being asked is left alone: "no"
-        there denies a tool call, not the turn."""
+    async def _should_send_barge_in(self, utterance: Utterance, command: str) -> bool:
+        """Act on what the user said over zrb, and say whether it still goes on
+        to be a turn or an answer.
+
+        A stop — a word-list phrase said alone, or what the judge reads as one —
+        stops zrb speaking and cancels the turn, and is sent nowhere. An answer
+        to the prompt being asked is left alone: "no" there denies a tool call,
+        not the turn."""
         ui = get_session_ui() or self._ui
         if ui is None or ui.is_waiting_for_answer:
             return True
         if await self._get_barge_in_intent(command) == "stop":
+            self._settle_barge_in(utterance, True)
             ui.cancel_current_turn("barge_in")
             self._rest("✋ stopped · listening")
             return False

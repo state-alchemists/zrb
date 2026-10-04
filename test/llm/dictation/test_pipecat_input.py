@@ -125,3 +125,30 @@ def test_pipecat_availability_follows_the_installed_extra(monkeypatch):
     monkeypatch.setattr("importlib.util.find_spec", lambda name: None)
 
     assert not is_pipecat_available()
+
+
+@pytest.mark.asyncio
+async def test_a_start_that_never_comes_up_leaves_no_task_running(monkeypatch):
+    """A start that fails stops the worker it had already created (PR #561
+    review).
+
+    The worker task is created before the pipeline is known to be up, so a start
+    that fails has to end it: otherwise it outlives the failure for the life of
+    the event loop, holding Pipecat's resources and logging an exception nobody
+    is left to read. The StartFrame is refused here, which is the shape of a
+    transport that never comes up: the wait that watches for it is what fails.
+    """
+    from pipecat.pipeline.task import PipelineWorker
+
+    async def refuse(*args, **kwargs):
+        raise RuntimeError("the worker will not take the StartFrame")
+
+    monkeypatch.setattr(PipelineWorker, "queue_frames", refuse)
+    before = asyncio.all_tasks()
+
+    with pytest.raises(RuntimeError, match="will not take the StartFrame"):
+        await AudioPipeline.start()
+
+    await asyncio.sleep(0)
+
+    assert asyncio.all_tasks() <= before

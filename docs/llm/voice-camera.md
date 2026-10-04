@@ -95,9 +95,9 @@ Speech starts off. Turn it on with `ZRB_LLM_SPEECH_ENABLED=on`, or with `/speech
 - "I need to write a file /tmp/a.py. I need your approval." when a tool waits for approval — not read if you answer first, and cut off if you answer while it is being read,
 - a question the agent asks you.
 
-**Speaking as it writes.** A reply is read a sentence at a time while the model is still writing it, and what it writes before a tool call ("Let me run the tests.") is read when the call starts. Code, tables and links are not read. At most 400 characters (`ZRB_LLM_SPEECH_MAX_CHARS`) are read per turn: the sentence crossing the limit is finished, then, if anything is left unsaid, "The full answer is on screen." It is said when the next sentence arrives, since only then is something known to be cut; a reply that ends on the crossing sentence lost nothing and gets no note. The next sentence's audio is made while the current one plays, so a cloud voice has no gap between sentences.
+**Speaking as it writes.** A reply is read a sentence at a time while the model is still writing it, and what it writes before a tool call ("Let me run the tests.") is read when the call starts. Code, tables and links are not read. It is read whole, however long it is — nothing is shortened, so nothing is left for the screen to hold. The next sentence's audio is made while the current one plays, so a cloud voice has no gap between sentences.
 
-With `ZRB_LLM_SPEECH_STREAM=off`, the reply is read once the turn ends instead, cut at a sentence end past 400 characters; `ZRB_LLM_SPEECH_SUMMARIZE=on` then has the small model summarize a long reply, at the cost of one model call per long reply.
+With `ZRB_LLM_SPEECH_STREAM=off`, the reply is read once the turn ends instead, whole in one go.
 
 **Saying what it is doing.** A tool call that starts after 8 seconds of silence (`ZRB_LLM_SPEECH_PROGRESS_INTERVAL`) is announced: "Running a command.", "Searching the code." Nothing is announced while zrb is speaking, and an announcement still waiting when its tool finishes is dropped. Take `progress` out of `ZRB_LLM_SPEECH_EVENTS` to turn it off.
 
@@ -144,7 +144,7 @@ os.environ.setdefault(f"{CFG.ENV_PREFIX}_LLM_DICTATION_WAKE_WORDS", "hey zed")
 
 - **Words it listens for:** wake words, approve and deny words, stop words, and the polite words a yes or a no may carry. The defaults are English; set them for your language.
 - **What it says:** the approval request and each tool's action in it, every progress line and the tools it keeps quiet about, the question notice, and the note after a cut reply. The two per-tool tables are JSON objects of tool-name patterns (`{"Read": "Membaca berkas.", "*": "Memakai {tool}."}`).
-- **Prompts:** the transcription instruction for `google` and `multimodal`, Gemini's reading prompts, and the prompt files `speech_live`, `speech_summarizer` and `multimodal_audio` (through `ZRB_LLM_PROMPT_DIR`).
+- **Prompts:** the transcription instruction for `google` and `multimodal`, Gemini's reading prompts, and the prompt files `speech_live` and `multimodal_audio` (through `ZRB_LLM_PROMPT_DIR`).
 - **Timing:** every listening duration, the microphone block size, playback block and read-ahead, and timeouts.
 
 ## Your own backend

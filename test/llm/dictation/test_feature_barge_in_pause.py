@@ -177,6 +177,38 @@ async def test_words_a_word_list_cannot_read_as_a_stop_stop_zrb_anyway(
 
 
 @pytest.mark.asyncio
+async def test_a_one_word_stop_the_word_lists_do_not_know_still_reaches_the_judge(
+    monkeypatch, speech
+):
+    """A one-word stop in another language is what the judge is for (PR #561
+    review).
+
+    `barge_in_min_words` (2) dropped "berhenti" as too short before the judge was
+    ever asked, so a stop the word lists miss could not be read at all — the
+    judge's whole reason to exist.
+    """
+    asked: list[str] = []
+
+    async def judge_stop(command, model=None):
+        asked.append(command)
+        if command == "berhenti":
+            return BargeInVerdict(intent="stop", reason="a stop in another language")
+        return None
+
+    monkeypatch.setattr("zrb.llm.dictation.interrupt_judge.judge_barge_in", judge_stop)
+    ui = FakeUI()
+    set_session_ui(ui)
+    _listen(monkeypatch, "berhenti", "carry on")
+
+    assert await _replies(_session(), 1) == ["carry on"]
+    # "berhenti" reached the judge — one word, and not in the word lists — and
+    # its "stop" cancelled the turn; "carry on" was judged the way any
+    # interrupting utterance is.
+    assert asked == ["berhenti", "carry on"]
+    assert ui.cancelled == ["barge_in"]
+
+
+@pytest.mark.asyncio
 async def test_a_stop_word_is_not_put_to_the_model(monkeypatch, speech):
     """The word lists answer first, for free: the model is asked about what
     they could not read, and about nothing else."""

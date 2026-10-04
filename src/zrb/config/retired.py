@@ -33,6 +33,13 @@ RETIRED_SETTINGS: dict[str, str] = {
         "nothing: an utterance now ends after LLM_DICTATION_MIN_SILENCE "
         "once it has words"
     ),
+    # 3.14.0: speech reads the whole reply, so the cut that shortened a long
+    # one, the summary that stood in for it, and the note that pointed at the
+    # screen are all gone (ADR-0103).
+    "LLM_SPEECH_MAX_CHARS": "nothing: the whole reply is read",
+    "LLM_SPEECH_SUMMARIZE": "nothing: the whole reply is read",
+    "LLM_SPEECH_SUMMARY_MODEL": "nothing: the whole reply is read",
+    "LLM_SPEECH_ON_SCREEN_NOTE": "nothing: the whole reply is read",
     # 3.10.0: voice became the dictation and camera features (ADR-0102).
     "LLM_VOICE_ENABLED": "/voice is always offered",
     "LLM_VOICE_MODE": "LLM_DICTATION_BACKEND",

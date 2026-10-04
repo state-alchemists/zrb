@@ -33,13 +33,6 @@ _EMPHASIS_RES = (
 _NON_SPEECH_RE = re.compile(
     "[\U0001f300-\U0001faff\U00002600-\U000027bf\U0001f1e6-\U0001f1ff]"
 )
-# A sentence ends at punctuation followed by space, so the dot in "main.py"
-# does not count, nor the last dot of a dotted abbreviation ("e.g.", "U.S.").
-# A one-letter word may still end a sentence: "I." does.
-_SENTENCE_END_RE = re.compile(r"(?<!\.[a-zA-Z])[.!?](?=\s)")
-_CLAUSE_END_RE = re.compile(r"[,;:](?=\s)")
-
-
 def clean_for_speech(text: str) -> str:
     """Reduce markdown to speakable prose: no code, tables, URLs or markup.
 
@@ -86,41 +79,6 @@ def _strip_tables(text: str) -> str:
         in_table = False
         kept.append(line)
     return "\n".join(kept)
-
-
-def fit_for_speech(text: str, max_chars: int, note: str) -> str:
-    """*text* if it fits in *max_chars* (0: no limit), else its opening
-    followed by *note*.
-
-    The opening ends at the last sentence end in the second half of the
-    window, else the last clause break there, else the last word, so speech
-    never stops mid-word.
-    """
-    if max_chars <= 0 or len(text) <= max_chars:
-        return text
-    return f"{_cut(text, max_chars)} {note}".strip()
-
-
-def _cut(text: str, max_chars: int) -> str:
-    window = text[:max_chars]
-    half = max_chars / 2
-    # One character past the window, so the lookahead sees what follows it.
-    sentence_ends = [
-        m.end()
-        for m in _SENTENCE_END_RE.finditer(text[: max_chars + 1])
-        if m.end() >= half
-    ]
-    if sentence_ends:
-        return window[: sentence_ends[-1]]
-    clause_ends = [
-        m.start() for m in _CLAUSE_END_RE.finditer(window) if m.start() >= half
-    ]
-    if clause_ends:
-        return window[: clause_ends[-1]] + "."
-    ends_mid_word = not text[max_chars : max_chars + 1].isspace()
-    if ends_mid_word and " " in window:
-        window = window[: window.rfind(" ")]
-    return window.rstrip(" ,;:") + "."
 
 
 def fill_template(template: str, **values: str) -> str:
