@@ -122,7 +122,7 @@ Registered only when zrb starts inside a git repository.
 | Tool | Function | Description |
 |------|----------|-------------|
 | `ListWorktrees` | `list_worktrees` | List all active git worktrees. Call before `EnterWorktree` to avoid duplicates. |
-| `EnterWorktree` | `enter_worktree` | Create an isolated git worktree for risky or experimental changes. |
+| `EnterWorktree` | `enter_worktree` | Create an isolated git worktree, or resume one by passing its `worktree_path`. |
 | `ExitWorktree` | `exit_worktree` | Finish work in a worktree and clean it up. |
 
 ### Zrb Task Execution

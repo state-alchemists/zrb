@@ -28,13 +28,31 @@ async def enter_worktree(
             )
         ),
     ] = "",
+    worktree_path: Annotated[
+        str,
+        Field(
+            description=(
+                "Path of an existing linked worktree to resume; when empty, "
+                "create a new worktree."
+            )
+        ),
+    ] = "",
     cwd: Annotated[
         str, Field(description="Repo root to operate in, if not the current directory.")
     ] = "",
 ) -> str:
     """
-    Creates an isolated git worktree on a new branch and returns its path.
+    Creates a new isolated git worktree, or resumes an existing linked worktree.
+
+    Pass ``worktree_path`` from ``ListWorktrees`` to continue work in place.
     """
+
+    if branch_name and worktree_path:
+        return (
+            "Error: branch_name and worktree_path cannot be used together. "
+            "Pass worktree_path to resume an existing worktree, or branch_name "
+            "to create one."
+        )
 
     cwd = cwd or os.getcwd()
     notes: list[str | None] = []
@@ -55,6 +73,8 @@ async def enter_worktree(
         )
 
     git_root = root_out.decode().strip()
+    if worktree_path:
+        return await _resume_worktree(worktree_path, git_root, cwd, notes)
 
     if not branch_name:
         branch_name = f"worktree-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
@@ -91,18 +111,116 @@ async def enter_worktree(
             return _prepend_notes(
                 notes,
                 f"Error: Worktree or branch '{branch_name}' already exists.\n"
-                f"[SYSTEM SUGGESTION]: Use a different branch_name or list existing worktrees with ListWorktrees.",
+                "[SYSTEM SUGGESTION]: Use a different branch_name or list existing "
+                "worktrees with ListWorktrees.",
             )
         return _prepend_notes(
             notes,
             f"Error: Failed to create worktree: {err_msg}\n"
-            f"[SYSTEM SUGGESTION]: Check if the branch name is valid and if you have permissions.",
+            "[SYSTEM SUGGESTION]: Check if the branch name is valid and if you "
+            "have permissions.",
         )
 
     active_worktree.set(worktree_path)
     _ensure_gitignore(git_root, f".{CFG.ROOT_GROUP_NAME}/worktree/")
     result = f"Worktree created: {worktree_path}\nBranch: {branch_name}"
     return _prepend_notes(notes, result)
+
+
+async def _resume_worktree(
+    worktree_path: str,
+    git_root: str,
+    cwd: str,
+    notes: list[str | None],
+) -> str:
+    """Select a registered linked worktree without creating or removing it."""
+    requested_path = os.path.realpath(worktree_path)
+    if not os.path.isdir(requested_path):
+        return (
+            f"Error: Existing worktree was not found: {worktree_path}\n"
+            "[SYSTEM SUGGESTION]: Use ListWorktrees to see active worktrees and "
+            "their exact paths."
+        )
+    if requested_path == os.path.realpath(git_root):
+        return (
+            "Error: The main working tree cannot be resumed as a linked worktree. "
+            "Pass a path from ListWorktrees that is a linked worktree."
+        )
+
+    policy = get_effective_sandbox_policy()
+    if policy.enabled:
+        error = check_write(requested_path, policy)
+        if error is not None:
+            return _prepend_notes(
+                notes,
+                f"Blocked by sandbox policy: {error}. "
+                "[SYSTEM SUGGESTION]: ask the user to add this worktree to "
+                f"{CFG.ENV_PREFIX}_LLM_SANDBOX_WRITABLE_PATHS.",
+            )
+
+    try:
+        list_rc, list_out, list_err, note = await _run_git(
+            ["git", "worktree", "list", "--porcelain"], cwd
+        )
+    except SandboxUnavailableError as e:
+        return _prepend_notes(notes, format_sandbox_denied_message(e))
+    notes.append(note)
+    if list_rc != 0:
+        return _prepend_notes(
+            notes,
+            f"Error: Failed to list worktrees: {list_err.decode().strip()}\n"
+            "[SYSTEM SUGGESTION]: Use ListWorktrees to inspect the repository's "
+            "active worktrees.",
+        )
+
+    worktree_list = list_out.decode()
+    if _find_main_worktree_path(worktree_list) == requested_path:
+        return _prepend_notes(
+            notes,
+            "Error: The main working tree cannot be resumed as a linked worktree. "
+            "Pass a path from ListWorktrees that is a linked worktree.",
+        )
+
+    branch_name = _find_worktree_branch(worktree_list, requested_path)
+    if branch_name is None:
+        return _prepend_notes(
+            notes,
+            f"Error: Existing worktree was not found: {worktree_path}\n"
+            "[SYSTEM SUGGESTION]: Use ListWorktrees to see active worktrees and "
+            "their exact paths.",
+        )
+
+    active_worktree.set(requested_path)
+    return _prepend_notes(
+        notes, f"Worktree resumed: {worktree_path}\nBranch: {branch_name}"
+    )
+
+
+def _find_main_worktree_path(worktree_list: str) -> str | None:
+    """Return the main worktree path, the first porcelain entry."""
+    for line in worktree_list.splitlines():
+        if line.startswith("worktree "):
+            return os.path.realpath(line.removeprefix("worktree "))
+    return None
+
+
+def _find_worktree_branch(worktree_list: str, requested_path: str) -> str | None:
+    """Return the branch for *requested_path* in porcelain worktree output."""
+    current_path = ""
+    current_branch = "HEAD (detached)"
+    for line in (*worktree_list.splitlines(), ""):
+        if line.startswith("worktree "):
+            current_path = os.path.realpath(line.removeprefix("worktree "))
+            current_branch = "HEAD (detached)"
+            continue
+        if line.startswith("branch "):
+            current_branch = line.removeprefix("branch refs/heads/")
+            continue
+        if not line and current_path:
+            if current_path == requested_path:
+                return current_branch
+            current_path = ""
+    return None
 
 
 async def exit_worktree(
@@ -135,7 +253,8 @@ async def exit_worktree(
     if not os.path.isdir(worktree_path):
         return (
             f"Error: Worktree path does not exist: {worktree_path}\n"
-            f"[SYSTEM SUGGESTION]: Use ListWorktrees to see active worktrees and their exact paths."
+            "[SYSTEM SUGGESTION]: Use ListWorktrees to see active worktrees and "
+            "their exact paths."
         )
 
     try:

@@ -238,6 +238,26 @@ async def test_gate_checks_exit_worktree_path(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_gate_checks_enter_worktree_path(tmp_path):
+    """EnterWorktree's resume path is write-checked like ExitWorktree's path."""
+    from zrb.llm.agent.common import create_safe_wrapper
+
+    def enter_worktree(worktree_path: str = ""):
+        return "resumed"
+
+    tag(enter_worktree, Capability.EDIT)
+    wrapped = create_safe_wrapper(enter_worktree)
+
+    token = current_sandbox_policy.set(_enabled_policy(tmp_path))
+    try:
+        result = await wrapped(worktree_path=_outside_path())
+    finally:
+        current_sandbox_policy.reset(token)
+
+    assert result.metadata.get("blocked") is True
+
+
+@pytest.mark.asyncio
 async def test_gate_move_checks_src_and_dst(tmp_path):
     from zrb.llm.agent.common import create_safe_wrapper
 
