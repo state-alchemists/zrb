@@ -131,7 +131,10 @@ class BaseUIModelCommands:
         text = text.strip()
         for cmd in self._base_ui.set_model_commands:
             prefix = f"{cmd} "
-            if text.lower().startswith(prefix):
+            # `classify_input` matched case-insensitively, so an alias like
+            # `/MODEL` reaches here; lowercasing the prefix keeps the two in
+            # lockstep (otherwise the token is recognized but never handled).
+            if text.lower().startswith(prefix.lower()):
                 if self._base_ui.is_thinking:
                     return False
                 arg = text[len(prefix) :].strip()
@@ -191,7 +194,7 @@ class BaseUIModelCommands:
                 )
                 return True
             prefix = f"{cmd} "
-            if not text.lower().startswith(prefix):
+            if not text.lower().startswith(prefix.lower()):
                 continue
             if self._base_ui.is_thinking:
                 return False

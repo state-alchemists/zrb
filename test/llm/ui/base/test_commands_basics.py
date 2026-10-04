@@ -299,6 +299,15 @@ def test_handle_set_command_cfg_name_is_case_insensitive(ui, monkeypatch):
     assert CFG.LLM_MODEL == "my-model"
 
 
+def test_handle_set_command_uppercase_alias_drives_setting(ui, monkeypatch):
+    """`/SET` is classified as a command case-insensitively, so the handler
+    must match the same alias instead of forwarding the input to the model."""
+    ui.set_commands = ["/SET"]
+    monkeypatch.delenv("ZRB_LLM_MODEL", raising=False)
+    assert ui.handle_set_command("/SET LLM_MODEL my-model") is True
+    assert CFG.LLM_MODEL == "my-model"
+
+
 def test_handle_set_command_unknown_name(ui):
     assert ui.handle_set_command("/set LLM_MODELL x") is True
     joined = "".join(ui.outputs)

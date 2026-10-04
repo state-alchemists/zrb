@@ -17,9 +17,12 @@ from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 
 # `/set` names that switch the UI's live model slots rather than a CFG field.
 _LIVE_MODEL_SLOTS = frozenset({"model", "small_model", "multimodal_model"})
-# Fields whose value completion offers known model names.
+# Names (CFG fields or live model slots) whose value completion offers known
+# model names. Normalized to uppercase so the case-insensitive `/set` name
+# lookup works for lowercase-typed names too.
 _MODEL_SETTINGS = frozenset(
-    {"LLM_MODEL", "LLM_SMALL_MODEL", "LLM_MULTIMODAL_MODEL"} | _LIVE_MODEL_SLOTS
+    {"LLM_MODEL", "LLM_SMALL_MODEL", "LLM_MULTIMODAL_MODEL"}
+    | {slot.upper() for slot in _LIVE_MODEL_SLOTS}
 )
 
 
@@ -133,15 +136,16 @@ def complete_set_value_arg(
     name: str, arg_prefix: str, model_names: list[str]
 ) -> Iterable[Completion]:
     """Value hints for `CFG.<name>`: known models, on/off for bools, current value."""
-    if name in _MODEL_SETTINGS:
+    normalized_name = name.upper()
+    if normalized_name in _MODEL_SETTINGS:
         yield from _prefix_completions(arg_prefix, model_names, "Model Name")
 
-    field = CFG.get_settable_field(name)
+    field = CFG.get_settable_field(normalized_name)
     if field is not None and field.is_boolean:
         yield from _prefix_completions(arg_prefix, ["on", "off"], "Boolean")
 
     if field is None or not field.secret:
-        current = getattr(CFG, name, None)
+        current = getattr(CFG, normalized_name, None)
         if current is not None and str(current) != "":
             shown = _display_value(field, current)
             if shown.lower().startswith(arg_prefix.lower()):
