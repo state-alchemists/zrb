@@ -98,6 +98,7 @@ class BaseUICommands:
             ),
             (base_ui.handle_attach_command, base_ui.attach_commands, True, False),
             (base_ui.handle_set_model_command, base_ui.set_model_commands, True, False),
+            (base_ui.handle_set_command, base_ui.set_commands, True, False),
             (base_ui.handle_exec_command, base_ui.exec_commands, True, False),
             (base_ui.handle_copy_command, base_ui.copy_commands, True, False),
         ]
@@ -313,6 +314,10 @@ class BaseUICommands:
         add_cmd_help(
             base_ui.set_model_commands,
             "Set model (usage: {cmd} <model-name>, {cmd} small <model-name>, {cmd} multimodal <model-name>)",
+        )
+        add_cmd_help(
+            base_ui.set_commands,
+            "Set a config value or live model (usage: {cmd} <name> <value>, e.g. {cmd} LLM_MODEL gpt-4o or {cmd} model gpt-4o)",
         )
         add_cmd_help(
             base_ui.exec_commands, "Execute shell command (usage: {cmd} <command>)"

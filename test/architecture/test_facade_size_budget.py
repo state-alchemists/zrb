@@ -50,11 +50,16 @@ FACADE_BUDGETS = {
     # by tool_call_id, so a newer call finishing first can't clear an older
     # still-running sibling -- the PR #564 round-2 review fix (no new method
     # surface).
+    # +4 (1360->1364): `set_commands` command-alias property plus its
+    # delegator, the `/set <name> <value>` slash command's new surface --
+    # the handler itself lives in the model-commands part.
     # +10 (1360->1370): `record_submitted_message`, the hook `submit_user_message`
     # calls so a UI with cross-session recall records every submitted message
     # (PR #562 round-2: keyboard, initial, and programmatic submissions) -- new
     # surface, not a delegator.
-    "llm/ui/base/ui.py": 1370,
+    # The two are independent additions to the same file, so merging them lands
+    # at 1360 + 4 + 10 (PR #563 meeting PR #562 after #562 reached main).
+    "llm/ui/base/ui.py": 1374,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

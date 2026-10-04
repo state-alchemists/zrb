@@ -63,6 +63,7 @@ class UIConfig:
     set_model_commands: list[str] = field(
         default_factory=_commands("LLM_UI_COMMAND_SET_MODEL")
     )
+    set_commands: list[str] = field(default_factory=_commands("LLM_UI_COMMAND_SET"))
     exec_commands: list[str] = field(default_factory=_commands("LLM_UI_COMMAND_EXEC"))
     btw_commands: list[str] = field(default_factory=_commands("LLM_UI_COMMAND_BTW"))
     plan_commands: list[str] = field(
@@ -119,3 +120,54 @@ _COMMAND_FIELD_ALIASES = {"redirect": "redirect_output_commands"}
 _COMMAND_FIELDS = frozenset(
     f.name for f in fields(UIConfig) if f.name.endswith("_commands")
 )
+
+# The `CFG.LLM_UI_COMMAND_*` setting that feeds each command-list field, for
+# keeping a running session in sync after `/set` changes one. Two fields are not
+# the mechanical `<SLUG>_commands` spelling, so they are named explicitly.
+_COMMAND_FIELD_ENV_NAMES = {
+    "redirect_output_commands": "LLM_UI_COMMAND_REDIRECT_OUTPUT",
+    "plan_commands": "LLM_UI_COMMAND_PLAN_TOGGLE",
+}
+
+
+def command_env_name(field_name: str) -> str:
+    """The `CFG.LLM_UI_COMMAND_*` setting that feeds `UIConfig.<field_name>`."""
+    named = _COMMAND_FIELD_ENV_NAMES.get(field_name)
+    if named is not None:
+        return named
+    return f"LLM_UI_COMMAND_{field_name[: -len('_commands')].upper()}"
+
+
+def command_alias_field(env_name: str) -> str | None:
+    """The `UIConfig` command-list field fed by `env_name`, or None.
+
+    None means `env_name` is not a command-alias setting. `UIConfig` snapshots
+    every `LLM_UI_COMMAND_*` list when it is built, so a `/set` that changes one
+    must re-point the running session's copy — otherwise the session keeps
+    matching and completing the old aliases while reporting success (round-3
+    review).
+    """
+    for field_name in _COMMAND_FIELDS:
+        if command_env_name(field_name) == env_name:
+            return field_name
+    return None
+
+
+# `UIConfig` fields that mirror a plain `CFG` boolean instead of a command list.
+# The two spellings do not follow from the field name, so they are named here.
+_MODEL_VISIBILITY_FIELDS = {
+    "LLM_SHOW_OLLAMA_MODELS": "show_ollama_models",
+    "LLM_SHOW_PYDANTIC_AI_MODELS": "show_pydantic_ai_models",
+}
+
+
+def model_visibility_field(env_name: str) -> str | None:
+    """The `UIConfig` field mirroring the `CFG.<env_name>` boolean, or None.
+
+    None means `env_name` is not a model-visibility setting. `UIConfig` reads
+    both of these once, when the session is built, so a `/set` that changes one
+    must re-point the running session — otherwise the command reports success
+    while `/model` keeps offering, or keeps hiding, a source the user just
+    toggled (round-4 review).
+    """
+    return _MODEL_VISIBILITY_FIELDS.get(env_name)

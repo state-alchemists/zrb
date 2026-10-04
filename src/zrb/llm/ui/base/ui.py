@@ -393,6 +393,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     )
     yolo_toggle_commands = _command_alias_property("yolo_toggle", "yolo toggle")
     set_model_commands = _command_alias_property("set_model", "set model")
+    set_commands = _command_alias_property("set", "set")
     exec_commands = _command_alias_property("exec", "exec")
 
     @property
@@ -655,6 +656,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
     def handle_set_model_command(self, text: str) -> bool:
         return self.models.handle_set_model_command(text)
+
+    def handle_set_command(self, text: str):
+        return self.models.handle_set_command(text)
 
     # --- exec commands ---
     def handle_exec_command(self, text: str) -> bool:

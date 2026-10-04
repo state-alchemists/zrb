@@ -19,6 +19,8 @@ from zrb.llm.ui.default.app.completion.args import (
     complete_load_arg,
     complete_redirect_arg,
     complete_save_arg,
+    complete_set_name_arg,
+    complete_set_value_arg,
 )
 from zrb.llm.ui.default.app.completion.caches import (
     load_cmd_history,
@@ -30,6 +32,41 @@ from zrb.util.match import fuzzy_match
 
 
 class InputCompleter(Completer):
+    def refresh_command_aliases(self, ui_config: UIConfig) -> None:
+        """Re-read every command-alias list from `ui_config`.
+
+        The lists are copied out of `UIConfig` at construction for fast prefix
+        matching. A `/set` that changes an `LLM_UI_COMMAND_*` setting re-points
+        `UIConfig`; without this the running session would keep completing and
+        dispatching the old aliases (round-3 review).
+        """
+        self._attach_commands = list(ui_config.attach_commands)
+        self._exit_commands = list(ui_config.exit_commands)
+        self._info_commands = list(ui_config.info_commands)
+        self._save_commands = list(ui_config.save_commands)
+        self._load_commands = list(ui_config.load_commands)
+        self._rewind_commands = list(ui_config.rewind_commands)
+        self._redirect_output_commands = list(ui_config.redirect_output_commands)
+        self._summarize_commands = list(ui_config.summarize_commands)
+        self._set_model_commands = list(ui_config.set_model_commands)
+        self._set_commands = list(ui_config.set_commands)
+        self._exec_commands = list(ui_config.exec_commands)
+        self._btw_commands = list(ui_config.btw_commands)
+        self._plan_commands = list(ui_config.plan_commands)
+        self._copy_commands = list(ui_config.copy_commands)
+
+    def refresh_model_visibility(self, ui_config: UIConfig) -> None:
+        """Re-read the model-source visibility flags from `ui_config`.
+
+        `UIConfig` snapshots `LLM_SHOW_OLLAMA_MODELS` and
+        `LLM_SHOW_PYDANTIC_AI_MODELS` when the session is built and this
+        completer copies them again, so a `/set` that changed one must reach
+        both copies — otherwise the command reports success while `/model`
+        keeps offering a source the user just turned off (round-4 review).
+        """
+        self._show_ollama_models = ui_config.show_ollama_models
+        self._show_pydantic_ai_models = ui_config.show_pydantic_ai_models
+
     def __init__(
         self,
         history_manager: AnyHistoryManager,
@@ -41,23 +78,10 @@ class InputCompleter(Completer):
         from pydantic_ai.models import known_model_names
 
         self._history_manager = history_manager
-        self._attach_commands = list(ui_config.attach_commands)
-        self._exit_commands = list(ui_config.exit_commands)
-        self._info_commands = list(ui_config.info_commands)
-        self._save_commands = list(ui_config.save_commands)
-        self._load_commands = list(ui_config.load_commands)
-        self._rewind_commands = list(ui_config.rewind_commands)
-        self._redirect_output_commands = list(ui_config.redirect_output_commands)
-        self._summarize_commands = list(ui_config.summarize_commands)
-        self._set_model_commands = list(ui_config.set_model_commands)
-        self._exec_commands = list(ui_config.exec_commands)
-        self._btw_commands = list(ui_config.btw_commands)
-        self._plan_commands = list(ui_config.plan_commands)
-        self._copy_commands = list(ui_config.copy_commands)
+        self.refresh_command_aliases(ui_config)
         self._custom_commands = list(custom_commands or [])
         self._custom_model_names = list(custom_model_names or [])
-        self._show_ollama_models = ui_config.show_ollama_models
-        self._show_pydantic_ai_models = ui_config.show_pydantic_ai_models
+        self.refresh_model_visibility(ui_config)
 
         try:
             self._known_models = list(known_model_names())
@@ -139,6 +163,7 @@ class InputCompleter(Completer):
             + self._rewind_commands
             + self._redirect_output_commands
             + self._set_model_commands
+            + self._set_commands
             + self._exec_commands
             + self._btw_commands
             + self._plan_commands
@@ -206,6 +231,10 @@ class InputCompleter(Completer):
                 lambda cmd: f"Set Model (i.e., {cmd} <model-name>)",
             ),
             (
+                self._set_commands,
+                lambda cmd: f"Set a config value or live model (i.e., {cmd} <name> <value>)",
+            ),
+            (
                 self._exec_commands,
                 lambda cmd: f"Execute CLI command (i.e., {cmd} <command>)",
             ),
@@ -266,6 +295,10 @@ class InputCompleter(Completer):
 
         if self._is_command(cmd, self._set_model_commands):
             yield from self._get_model_argument_completions(text_before_cursor, parts)
+            return
+
+        if self._is_command(cmd, self._set_commands):
+            yield from self._get_set_argument_completions(text_before_cursor, parts)
             return
 
         single_arg = self._single_token_arg(parts, text_before_cursor)
@@ -348,6 +381,25 @@ class InputCompleter(Completer):
                     only_files=False,
                     display_meta="Model Name",
                 )
+
+    def _get_set_argument_completions(
+        self, text_before_cursor: str, parts: list[str]
+    ) -> Iterable[Completion]:
+        # /set <name> <value>: first arg is a settable CFG name (or a live
+        # model slot), second arg is a value hint for that name.
+        if len(parts) == 1:
+            # "/set " — complete the setting name.
+            yield from complete_set_name_arg("")
+            return
+        name = parts[1]
+        if len(parts) == 2 and not text_before_cursor.endswith(" "):
+            # "/set LLM_MOD" — still completing the setting name.
+            yield from complete_set_name_arg(parts[1])
+            return
+        arg_prefix = parts[2] if len(parts) >= 3 else ""
+        yield from complete_set_value_arg(
+            name, arg_prefix, self._resolve_set_model_options()
+        )
 
     def _single_token_arg(
         self, parts: list[str], text_before_cursor: str
