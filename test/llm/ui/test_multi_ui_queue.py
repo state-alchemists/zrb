@@ -81,6 +81,18 @@ async def test_submit_user_message_broadcasts(mock_child_ui):
     multi_ui.append_to_output.assert_called()
 
 
+def test_submit_user_message_records_once_on_the_primary_child(
+    multi_ui, child_ui_1, child_ui_2
+):
+    """A direct `MultiUI.submit_message`/`submit_user_message` reaches no
+    child's own submit boundary, so the `MultiUI` records once, on its primary
+    child (PR #562 round-3)."""
+    multi_ui.submit_message("hello")
+
+    child_ui_1.record_submitted_message.assert_called_once_with("hello")
+    child_ui_2.record_submitted_message.assert_not_called()
+
+
 @pytest.mark.asyncio
 async def test_multi_ui_process_messages_loop_no_busy_wait(multi_ui, monkeypatch):
     # Regression: this loop used to busy-wait via `while ...: await

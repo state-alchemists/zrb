@@ -37,6 +37,58 @@ def extract_last_response_text(messages: "Sequence[ModelMessage]") -> str:
     return ""
 
 
+def extract_user_message_texts(messages: "Sequence[ModelMessage]") -> list[str]:
+    """Return the user-prompt texts of *messages*, newest first.
+
+    Recovers the user turns of a loaded conversation for the input box's
+    Up-arrow recall. Only ``user-prompt`` parts are included: tool returns,
+    retries and system prompts are the model's view of a turn, not a message
+    the user typed. Multimodal content renders through the same bracketed
+    labels ``format_history_as_text`` uses.
+    """
+    texts: list[str] = []
+    for msg in messages:
+        if getattr(msg, "kind", None) != "request":
+            continue
+        for part in getattr(msg, "parts", []) or []:
+            if getattr(part, "part_kind", None) != "user-prompt":
+                continue
+            content = getattr(part, "content", "") or ""
+            content = _strip_live_context(content)
+            text = _render_user_content(content, full=True)
+            if text.strip():
+                texts.append(text)
+    texts.reverse()
+    return texts
+
+
+def _strip_live_context(content):
+    """Strip a trailing ``<live-context>`` block off a user-prompt content value.
+
+    History persists the block inline — a string suffix on a text prompt, or a
+    trailing string item on a multimodal prompt — so recall must not present
+    volatile runtime state (time, git, todos) as text the user typed. The
+    string path uses ``split_live_context``, matching ``replay.py``; the
+    multimodal path drops a trailing item that is (or ends in) the block.
+    """
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.prompt.live_context import split_live_context
+
+    if isinstance(content, str):
+        return split_live_context(content)[0]
+    if isinstance(content, Sequence):
+        items = list(content)
+        if items and isinstance(items[-1], str):
+            message, live_context = split_live_context(items[-1])
+            if live_context is not None:
+                if message.strip():
+                    items[-1] = message
+                else:
+                    items.pop()
+        return items
+    return content
+
+
 def format_history_as_text(
     messages: "Sequence[ModelMessage]",
     max_length: int | None = None,

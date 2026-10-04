@@ -1170,6 +1170,15 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         no-op and their edits skip the redraw.
         """
 
+    def record_submitted_message(self, text: str) -> None:
+        """Record a submitted user message for cross-session recall.
+
+        Called from `submit_user_message`, the common boundary every user
+        message passes through (keyboard, initial, and programmatic). The
+        default TUI overrides this to append to its `PreviousMessageHistory`;
+        other UIs have no such history and record nothing.
+        """
+
     def submit_user_message(
         self,
         llm_task: AnyTask,
@@ -1183,9 +1192,10 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         specific task reference that may differ from `self.llm_task` by then."""
         parent_multi_ui = self.multi_ui_parent
         if parent_multi_ui is not None:
-            # The parent broadcasts to every child UI.
-            parent_multi_ui.submit_user_message(llm_task, user_message, source)
-            return
+            # The parent broadcasts to every child UI
+            # and records the message once, on its primary child.
+            return parent_multi_ui.submit_user_message(llm_task, user_message, source)
+        self.record_submitted_message(user_message)
         # Mid-turn the message only joins the queue; the marker says so.
         marker = "⏳" if self.is_thinking else "💬"
         submit_user_message_via_queue(
