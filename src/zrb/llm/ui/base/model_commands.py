@@ -245,6 +245,11 @@ class BaseUIModelCommands:
         field_name = command_alias_field(name)
         if field_name is None:
             return
+        # `convert_setting_value` is typed `-> object` because most settings are
+        # scalars; a `LLM_UI_COMMAND_*` alias is always a list, so narrow rather
+        # than trust the annotation.
+        if not isinstance(value, list):
+            return
         setattr(ui_config, field_name, list(value))
         completer = getattr(
             getattr(self._base_ui, "input_field", None), "completer", None
