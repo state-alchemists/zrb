@@ -35,6 +35,7 @@ class MockOutputUI:
         # real `UI`, which owns them directly — `UIOutput` just reads them
         # through the public properties below, one hop, no bounce back).
         self._is_thinking = False
+        self.working_started_at: float | None = None
         self._current_confirmation = None
         self._output = UIOutput(self)
         # Public aliases so tests can reach these without a leading-underscore
@@ -376,13 +377,24 @@ def test_format_elapsed():
     assert format_elapsed(-3) == "0s"
 
 
-def test_status_bar_includes_session_uptime():
+def test_status_bar_includes_current_working_duration():
     ui = MockOutputUI()
+    ui.set_thinking(True)
     with patch("zrb.llm.ui.default.output.time.monotonic", return_value=754.0):
-        ui.session_started_at = 0.0
+        ui.working_started_at = 0.0
         text = "".join(fragment[1] for fragment in ui.get_status_bar_text())
 
-    assert "12m 34s" in text
+    assert "Zrb is working (12m 34s)" in text
+
+
+def test_status_bar_resets_working_duration_when_idle():
+    ui = MockOutputUI()
+    ui.working_started_at = None
+
+    text = "".join(fragment[1] for fragment in ui.get_status_bar_text())
+
+    assert "working" not in text
+    assert "12m 34s" not in text
 
 
 def test_status_bar_includes_running_tool_duration():
@@ -401,7 +413,7 @@ def test_status_bar_hides_runtime_timers_when_disabled(monkeypatch):
     ui = MockOutputUI()
     ui.set_thinking(True)
     with patch("zrb.llm.ui.default.output.time.monotonic", return_value=1000.0):
-        ui.session_started_at = 0.0
+        ui.working_started_at = 0.0
         ui.running_tool = RunningTool("Shell", "call_1", 995.0)
         text = "".join(fragment[1] for fragment in ui.get_status_bar_text())
 
