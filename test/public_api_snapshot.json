@@ -550,8 +550,11 @@
       "init": [],
       "members": [
         "LOGGER",
+        "convert_setting_value",
         "get_mistyped_env_keys",
         "get_retired_env_keys",
+        "get_settable_field",
+        "get_settable_field_names",
         "is_env_set"
       ]
     },
