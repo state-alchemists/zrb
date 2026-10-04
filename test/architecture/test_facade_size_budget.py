@@ -33,7 +33,9 @@ FACADE_BUDGETS = {
     # +12 (1247->1259): `is_turn_running`, which `AnyUI` now declares, and a
     # `cancel_current_turn` that hands a child's cancel to its `MultiUI`
     # parent, so Esc stops the turn the parent runs -- new surface.
-    "llm/ui/base/ui.py": 1259,
+    # +12 (1259->1271): optional input provenance on UI submissions, so
+    # integrations can identify Telegram/dictation/web turns in live context.
+    "llm/ui/base/ui.py": 1271,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

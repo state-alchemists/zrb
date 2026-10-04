@@ -7,8 +7,9 @@ import pytest
 
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
+from zrb.llm.input_source import InputProvenance
 from zrb.llm.ui.base.ui import BaseUI
-from zrb.llm.ui.trigger import TriggerMessage, TriggerReply
+from zrb.llm.ui.trigger import TriggerInput, TriggerMessage, TriggerReply
 
 
 class ConcreteUI(BaseUI):
@@ -105,6 +106,23 @@ async def test_trigger_loop_attaches_trigger_message_attachments(base_ui, monkey
 
 
 @pytest.mark.asyncio
+async def test_trigger_message_preserves_input_provenance(base_ui, monkeypatch):
+    submitted = []
+
+    def submit(*args):
+        submitted.append(args)
+
+    monkeypatch.setattr(base_ui, "submit_user_message", submit)
+    source = InputProvenance("Telegram")
+
+    await base_ui.trigger_loop(
+        trigger_yielding(TriggerInput(text="hello", source=source))
+    )
+
+    assert submitted == [(base_ui.llm_task, "hello", source)]
+
+
+@pytest.mark.asyncio
 async def test_trigger_loop_accepts_a_bare_tuple(base_ui, monkeypatch):
     """A `(text, attachments)` tuple needs no `TriggerMessage` import."""
     submitted = collect_submitted(base_ui, monkeypatch)
@@ -175,17 +193,25 @@ async def test_trigger_loop_unstages_attachments_when_submission_fails(
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "item",
-    [("text", "one-path.png"), ("text", 3), ("a", ["x"], "extra"), ("only",)],
+    [
+        ("text", "one-path.png"),
+        ("text", 3),
+        ("a", ["x"], "extra"),
+        ("only",),
+        TriggerMessage("text", "one-path.png"),
+        TriggerInput("text", 3),
+    ],
 )
-async def test_trigger_loop_reports_a_malformed_tuple_and_keeps_going(
+async def test_trigger_loop_reports_malformed_attachments_and_keeps_going(
     base_ui, monkeypatch, item
 ):
     """One bad item must not end the loop.
 
     A trigger is a long-lived source — a button, a queue — so aborting on the
     first malformed item silently stops every later one. A bare string in the
-    attachments slot used to become a list of its characters, a 3-tuple lost
-    its third element, and a non-sequence raised out of `list()`.
+    attachments slot must not become a list of its characters, a 3-tuple must
+    not lose its third element, and a non-sequence must receive a controlled
+    validation error.
     """
     submitted = collect_submitted(base_ui, monkeypatch)
     reported: list[str] = []
@@ -202,11 +228,17 @@ async def test_trigger_loop_reports_a_malformed_tuple_and_keeps_going(
 
 
 @pytest.mark.asyncio
-async def test_trigger_loop_reads_none_attachments_as_none(base_ui, monkeypatch):
-    """`(text, None)` is text with no attachments, like `TriggerMessage`'s default."""
+@pytest.mark.parametrize(
+    "item",
+    [("hello", None), TriggerMessage("hello", None), TriggerInput("hello", None)],
+)
+async def test_trigger_loop_reads_none_attachments_as_none(
+    base_ui, monkeypatch, item
+):
+    """`None` means no attachments for every attachment-bearing trigger item."""
     submitted = collect_submitted(base_ui, monkeypatch)
 
-    await base_ui.trigger_loop(trigger_yielding(("hello", None)))
+    await base_ui.trigger_loop(trigger_yielding(item))
 
     assert submitted == [("hello", [])]
 

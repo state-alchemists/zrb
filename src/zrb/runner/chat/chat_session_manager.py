@@ -10,6 +10,7 @@ from zrb.llm.history_manager.file_history_manager import (
     FileHistoryManager,
     default_history_manager,
 )
+from zrb.llm.input_source import InputProvenance, WEB_INPUT
 from zrb.llm.prompt.live_context import split_live_context
 from zrb.llm.util.feature_config import close_feature_sessions
 
@@ -317,13 +318,17 @@ class ChatSessionManager:
         return True
 
     async def send_input(
-        self, session_id: str, text: str, attachments: "list[str] | None" = None
+        self,
+        session_id: str,
+        text: str,
+        attachments: "list[str] | None" = None,
+        source: InputProvenance | None = WEB_INPUT,
     ) -> bool:
         session = self._sessions.get(session_id)
         if session is None:
             return False
         session.input_queue.put_nowait(
-            {"message": text, "attachments": attachments or []}
+            {"message": text, "attachments": attachments or [], "source": source}
         )
         return True
 

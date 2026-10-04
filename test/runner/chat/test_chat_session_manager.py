@@ -4,6 +4,8 @@ from unittest.mock import patch
 
 import pytest
 
+from zrb.llm.input_source import WEB_INPUT
+
 
 @pytest.fixture(autouse=True)
 def mock_history_manager():
@@ -183,7 +185,11 @@ class TestChatSessionManager:
             "input-attach-test", "look at this", attachments=["/tmp/a.png"]
         )
         queued = session.input_queue.get_nowait()
-        assert queued == {"message": "look at this", "attachments": ["/tmp/a.png"]}
+        assert queued == {
+            "message": "look at this",
+            "attachments": ["/tmp/a.png"],
+            "source": WEB_INPUT,
+        }
 
     @pytest.mark.asyncio
     async def test_send_input_defaults_to_no_attachments(self):
@@ -193,7 +199,11 @@ class TestChatSessionManager:
         session = await manager.create_session(session_id="input-no-attach-test")
         await manager.send_input("input-no-attach-test", "hello")
         queued = session.input_queue.get_nowait()
-        assert queued == {"message": "hello", "attachments": []}
+        assert queued == {
+            "message": "hello",
+            "attachments": [],
+            "source": WEB_INPUT,
+        }
 
     @pytest.mark.asyncio
     async def test_set_processing(self):

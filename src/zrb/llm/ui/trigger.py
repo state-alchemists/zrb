@@ -15,8 +15,10 @@ next one.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, NamedTuple, Sequence
+
+from zrb.llm.input_source import InputProvenance
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import UserContent
@@ -34,6 +36,15 @@ class TriggerMessage(NamedTuple):
 
     text: str = ""
     attachments: "Sequence[UserContent]" = ()
+
+
+@dataclass(frozen=True)
+class TriggerInput:
+    """A trigger message with attachments and input provenance."""
+
+    text: str = ""
+    attachments: "Sequence[UserContent]" = ()
+    source: InputProvenance | None = None
 
 
 @dataclass(frozen=True)
@@ -58,3 +69,6 @@ class TriggerReply:
     text: str
     approval: str | None = None
     started_at: float | None = None
+    source: InputProvenance | None = field(
+        default=None, init=False, compare=False
+    )

@@ -17,7 +17,7 @@ from typing import Any
 
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
-from zrb.llm.tool.ambient_state import current_chat_session_id
+from zrb.llm.tool.ambient_state import current_chat_session_id, input_provenance
 from zrb.runner.chat.chat_session_manager import ChatSession, ChatSessionManager
 from zrb.runner.chat.http_ui import create_http_ui_factory
 from zrb.session.session import Session
@@ -64,14 +64,15 @@ async def run_chat_session(
                 )
             )
             try:
-                await _run_one_message(
-                    session,
-                    session_obj,
-                    llm_chat_task,
-                    session_manager,
-                    http_ui_factory,
-                    approval_channel,
-                )
+                with scoped(input_provenance, queued.get("source")):
+                    await _run_one_message(
+                        session,
+                        session_obj,
+                        llm_chat_task,
+                        session_manager,
+                        http_ui_factory,
+                        approval_channel,
+                    )
             except asyncio.CancelledError:
                 session_manager.set_processing(session.session_id, False)
                 raise

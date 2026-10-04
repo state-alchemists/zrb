@@ -33,6 +33,7 @@ from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.input_source import InputProvenance, KEYBOARD_INPUT
 from zrb.llm.permission.state import (
     AgentMode,
     get_current_agent_mode,
@@ -74,6 +75,8 @@ from zrb.util.exception import exception_summary
 from zrb.util.string.name import get_random_name
 from zrb.util.todo.duration import parse_duration
 from zrb.xcom.xcom import Xcom
+
+InputSource = InputProvenance | None
 
 if TYPE_CHECKING:
     from rich.theme import Theme
@@ -1079,7 +1082,10 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         no-op and their edits skip the redraw.
         """
 
-    def submit_user_message(self, llm_task: AnyTask, user_message: str) -> None:
+    def submit_user_message(
+        self, llm_task: AnyTask, user_message: str,
+        source: InputSource = KEYBOARD_INPUT,
+    ) -> None:
         """Queue *user_message* for `llm_task`, mirroring
         `MultiUI.submit_user_message`. Prefer `submit_message` when the
         message is for this UI's own current task; this explicit form exists
@@ -1088,7 +1094,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         parent_multi_ui = self.multi_ui_parent
         if parent_multi_ui is not None:
             # The parent broadcasts to every child UI.
-            parent_multi_ui.submit_user_message(llm_task, user_message)
+            parent_multi_ui.submit_user_message(llm_task, user_message, source)
             return
         # Mid-turn the message only joins the queue; the marker says so.
         marker = "⏳" if self.is_thinking else "💬"
@@ -1105,15 +1111,18 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             user_message=user_message,
             marker=marker,
             append_markdown=self.append_markdown,
+            source=source,
         )
 
-    def submit_message(self, user_message: str) -> None:
+    def submit_message(
+        self, user_message: str, source: InputSource = None
+    ) -> None:
         """Queue *user_message* for the agent, mirroring `MultiUI.submit_message`:
         steer into the live turn when one is in flight, otherwise
         enqueue it for the next turn. Uses the UI's own task — sub-agent
         continuation code calls this to hand the main agent a synthesized
         report without reaching into `_llm_task`."""
-        self.submit_user_message(self.llm_task, user_message)
+        self.submit_user_message(self.llm_task, user_message, source)
 
     def set_status_badge(self, key: str, text: str | None) -> None:
         if text is None:

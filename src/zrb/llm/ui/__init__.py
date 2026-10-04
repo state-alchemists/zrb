@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 from zrb.llm.ui.event_driven_ui import EventDrivenUI
 from zrb.llm.ui.multi_ui import MultiUI
 from zrb.llm.ui.simple_ui_base import SimpleUI
-from zrb.llm.ui.trigger import TriggerMessage, TriggerReply
+from zrb.llm.ui.trigger import TriggerInput, TriggerMessage, TriggerReply
 from zrb.llm.ui.ui_config import UIConfig
 from zrb.llm.ui.ui_factory import create_ui_factory
 
@@ -35,6 +35,7 @@ __all__ = [
     "SimpleUI",
     "EventDrivenUI",
     "UIConfig",
+    "TriggerInput",
     "TriggerMessage",
     "TriggerReply",
     "create_ui_factory",

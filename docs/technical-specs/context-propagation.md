@@ -2,7 +2,7 @@
 
 # Context Propagation (Technical Specification)
 
-Zrb threads execution state through async coroutines with `contextvars.ContextVar` instead of explicit parameters. Eighteen `ContextVar`s are indexed in `src/zrb/contextvars.py`, split into five layers. Update this page whenever you add, remove, or rename one.
+Zrb threads execution state through async coroutines with `contextvars.ContextVar` instead of explicit parameters. Nineteen `ContextVar`s are indexed in `src/zrb/contextvars.py`, split into five layers. Update this page whenever you add, remove, or rename one.
 
 For the design rationale in brief, see [Implicit State via ContextVars](../contributing/architecture.md#implicit-state-via-contextvars); for where the agent-run variables are bound during a chat request, see [LLM Chat Request Lifecycle](../llm/llm-chat-lifecycle.md).
 
@@ -66,6 +66,7 @@ The active `Context` for the executing task. Set at the start of `execute_task_a
 | `active_worktree` | `str` | Path of the worktree the agent is operating in (set by `EnterWorktree`, cleared by `ExitWorktree`) |
 | `_current_session` | `str` | The active conversation's *display* session name, defaulted by tools (todo tools, `DelegateToAgent`, `BufferedUI`) called without an explicit `session=` — a client-supplied label with no uniqueness guarantee, never a resource-ownership key |
 | `interactive_mode` | `bool` | Whether the chat session is interactive — gates `ask_user_question` so non-interactive runs short-circuit instead of blocking on stdin |
+| `input_provenance` | `InputProvenance \| None` | Source and transcription reliability of the current user turn, rendered in live context |
 | `current_chat_session_id` | `str` | `ChatSessionManager`'s own unique session_id, bound once per message drive in `chat_session_runner.py`. Unlike `_current_session`, it is unique: `shell_background.py` tags background processes with it so `ChatSessionManager.remove_session()` cleans up exactly that session's processes, never a same-named one's |
 
 ## The Scoping Pattern

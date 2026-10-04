@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic_ai.messages import UserContent
 
+from zrb.llm.input_source import InputProvenance, KEYBOARD_INPUT
 from zrb.llm.ui.base.message_queue import (
     MessageQueue,
     QueuedMessage,
@@ -282,6 +283,63 @@ def test_submit_user_message_via_queue_steers_into_live_run_instead_of_queuing()
 
     run_context.enqueue.assert_called_once_with("steer me", priority="asap")
     assert queue.qsize() == 0
+
+
+def test_known_input_source_is_queued_instead_of_steering():
+    run_context = MagicMock()
+    queue = MessageQueue()
+    source = InputProvenance("Telegram")
+
+    submit_user_message_via_queue(
+        append_to_output=lambda *_a, **_k: None,
+        active_run_context=run_context,
+        stream_ai_response=_stub_stream_ai_response,
+        queue=queue,
+        attachment_sources=[],
+        echo_targets=[],
+        llm_task=object(),
+        user_message="keep provenance",
+        marker="💬",
+        source=source,
+    )
+
+    run_context.enqueue.assert_not_called()
+    assert queue.peek_latest().source == source
+
+
+def test_non_keyboard_source_does_not_merge_with_keyboard_burst():
+    queue = MessageQueue()
+    target = MagicMock()
+    target.take_pending_attachments.return_value = []
+    submit_user_message_via_queue(
+        append_to_output=lambda *_a, **_k: None,
+        active_run_context=None,
+        stream_ai_response=_stub_stream_ai_response,
+        queue=queue,
+        attachment_sources=[target],
+        echo_targets=[],
+        llm_task=object(),
+        user_message="typed",
+        marker="💬",
+        source=KEYBOARD_INPUT,
+    )
+    source = InputProvenance("Telegram")
+    submit_user_message_via_queue(
+        append_to_output=lambda *_a, **_k: None,
+        active_run_context=None,
+        stream_ai_response=_stub_stream_ai_response,
+        queue=queue,
+        attachment_sources=[target],
+        echo_targets=[],
+        llm_task=object(),
+        user_message="remote",
+        marker="💬",
+        source=source,
+    )
+
+    assert queue.qsize() == 2
+    assert queue.peek_latest().source == source
+    assert queue.peek_latest().text == "remote"
 
 
 def test_submit_user_message_via_queue_ignores_sources_without_attachments():
