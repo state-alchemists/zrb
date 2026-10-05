@@ -135,6 +135,10 @@ worktree "/repo/.zrb/worktree/space quote\\\" slash\\\\ newline\\n control\\001"
 HEAD 111111
 branch refs/heads/quoted-path
 
+worktree "/repo/.zrb/worktree/\\303\\251/\\344\\270\\255"
+HEAD 222222
+branch refs/heads/non-ascii-path
+
 worktree /repo/.zrb/worktree/detached
 HEAD fedcba
 detached
@@ -155,6 +159,7 @@ detached
         "quoted-path": [
             "/repo/.zrb/worktree/space quote\" slash\\ newline\n control\x01"
         ],
+        "non-ascii-path": ["/repo/.zrb/worktree/é/中"],
     }
     mock_run.assert_called_with(
         cmd=[

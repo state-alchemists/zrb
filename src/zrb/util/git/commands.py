@@ -1,4 +1,3 @@
-import ast
 import os
 from collections.abc import Callable
 from typing import Any
@@ -139,10 +138,45 @@ def _parse_worktrees(output: str) -> dict[str, list[str]]:
 def _parse_git_path(path: str) -> str:
     if not path.startswith('"'):
         return path
-    parsed = ast.literal_eval(path)
-    if not isinstance(parsed, str):
+    if len(path) < 2 or not path.endswith('"'):
         raise ValueError(f"Invalid Git path: {path}")
-    return parsed
+
+    escaped = path[1:-1]
+    decoded = bytearray()
+    index = 0
+    escapes = {
+        "a": 0x07,
+        "b": 0x08,
+        "t": 0x09,
+        "n": 0x0A,
+        "v": 0x0B,
+        "f": 0x0C,
+        "r": 0x0D,
+        "\\": 0x5C,
+        '"': 0x22,
+    }
+    while index < len(escaped):
+        char = escaped[index]
+        if char != "\\":
+            decoded.extend(char.encode("utf-8"))
+            index += 1
+            continue
+        index += 1
+        if index >= len(escaped):
+            raise ValueError(f"Invalid Git path: {path}")
+        char = escaped[index]
+        if char in escapes:
+            decoded.append(escapes[char])
+            index += 1
+            continue
+        if char not in "01234567":
+            raise ValueError(f"Invalid Git path: {path}")
+        end = index
+        while end < len(escaped) and end < index + 3 and escaped[end] in "01234567":
+            end += 1
+        decoded.append(int(escaped[index:end], 8))
+        index = end
+    return decoded.decode("utf-8")
 
 
 async def remove_worktree(
