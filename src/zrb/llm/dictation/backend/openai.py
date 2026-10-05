@@ -16,10 +16,12 @@ class OpenAIDictationBackend(AnyDictationBackend):
         model: str = "whisper-1",
         api_key: str | None = None,
         base_url: str | None = None,
+        language: str | None = None,
     ) -> None:
         self._model = model
         self._api_key = api_key
         self._base_url = base_url
+        self._language = language
         self._client = None
 
     @property
@@ -29,7 +31,12 @@ class OpenAIDictationBackend(AnyDictationBackend):
     async def transcribe(self, audio: bytes) -> str:
         """*audio*'s words, unfiltered."""
         transcriptions = self._get_client().audio.transcriptions
-        result = await transcriptions.create(model=self._model, file=_to_wav(audio))
+        if self._language:
+            result = await transcriptions.create(
+                model=self._model, file=_to_wav(audio), language=self._language
+            )
+        else:
+            result = await transcriptions.create(model=self._model, file=_to_wav(audio))
         return result.text
 
     async def transcribe_speech(self, audio: bytes) -> str:
@@ -38,9 +45,17 @@ class OpenAIDictationBackend(AnyDictationBackend):
         if not self._model.startswith("whisper"):
             return await self.transcribe(audio)
         transcriptions = self._get_client().audio.transcriptions
-        result = await transcriptions.create(
-            model=self._model, file=_to_wav(audio), response_format="verbose_json"
-        )
+        if self._language:
+            result = await transcriptions.create(
+                model=self._model,
+                file=_to_wav(audio),
+                language=self._language,
+                response_format="verbose_json",
+            )
+        else:
+            result = await transcriptions.create(
+                model=self._model, file=_to_wav(audio), response_format="verbose_json"
+            )
         segments = getattr(result, "segments", None)
         # A compatible server may leave the segments out.
         if not isinstance(segments, list) or not segments:

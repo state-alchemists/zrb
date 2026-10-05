@@ -23,7 +23,9 @@ def test_name_is_openai():
 @pytest.mark.asyncio
 async def test_transcribe_sends_wav_to_the_transcription_api():
     fake_openai, client = _fake_openai()
-    backend = OpenAIDictationBackend("gpt-4o-transcribe", base_url="http://proxy")
+    backend = OpenAIDictationBackend(
+        "gpt-4o-transcribe", base_url="http://proxy", language="en"
+    )
     with (
         patch.dict("sys.modules", {"openai": fake_openai}),
         patch.dict(os.environ, {"OPENAI_API_KEY": "sk-fake"}),
@@ -36,6 +38,7 @@ async def test_transcribe_sends_wav_to_the_transcription_api():
     )
     kwargs = client.audio.transcriptions.create.call_args.kwargs
     assert kwargs["model"] == "gpt-4o-transcribe"
+    assert kwargs["language"] == "en"
     assert kwargs["file"].name == "audio.wav"
     with wave.open(BytesIO(kwargs["file"].getvalue()), "rb") as wav:
         assert wav.readframes(wav.getnframes()) == b"\x00\x01"
@@ -106,10 +109,13 @@ async def test_a_whisper_model_leaves_out_segments_that_are_not_speech():
         patch.dict("sys.modules", {"openai": fake_openai}),
         patch.dict(os.environ, {"OPENAI_API_KEY": "sk-fake"}),
     ):
-        result = await OpenAIDictationBackend().transcribe_speech(b"\x00\x01")
+        result = await OpenAIDictationBackend(language="id").transcribe_speech(
+            b"\x00\x01"
+        )
 
     assert result == "run the tests now"
     kwargs = client.audio.transcriptions.create.call_args.kwargs
+    assert kwargs["language"] == "id"
     assert kwargs["response_format"] == "verbose_json"
 
 

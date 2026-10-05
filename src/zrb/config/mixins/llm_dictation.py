@@ -72,8 +72,10 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_DEVICE: str = ""
         self.DEFAULT_LLM_DICTATION_PIPECAT_ENABLED: str = "off"
         self.DEFAULT_LLM_DICTATION_TRANSCRIBE_PROMPT: str = (
-            "Transcribe this audio to text. Return only the transcription."
+            "Transcribe exactly what is spoken. Do not translate or paraphrase. "
+            "Return only the transcription."
         )
+        self.DEFAULT_LLM_DICTATION_LANGUAGE: str = ""
         super().__init__()
 
     LLM_DICTATION_MODE = EnvField(
@@ -389,8 +391,16 @@ class LLMDictationMixin:
         str,
         doc=(
             "Instruction sent with the audio to the 'google' and "
-            "'multimodal' backends. Default: Transcribe this audio to text. "
-            "Return only the transcription."
+            "'multimodal' backends. Default: transcribe exactly what is spoken, "
+            "do not translate or paraphrase, and return only the transcription."
+        ),
+    )
+
+    LLM_DICTATION_LANGUAGE = EnvField(
+        str,
+        doc=(
+            "Optional language hint for transcription, using an ISO-639-1 code "
+            "such as 'en' or 'id'. Empty lets the backend detect the language."
         ),
     )
 
