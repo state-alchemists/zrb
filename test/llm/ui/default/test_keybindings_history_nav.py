@@ -397,18 +397,31 @@ def test_enter_empty_edit_cancels_and_restores_draft(mock_ui, setup_bindings):
     mock_ui.submit_user_message.assert_not_called()
 
 
-def test_enter_after_turn_started_submits_normally(mock_ui, setup_bindings):
-    # The recalled message's turn started before Enter; the edit is refused and
-    # the text falls through to the normal submit path as a new message.
+def test_turn_started_recall_requires_confirmation(mock_ui, setup_bindings):
     entry = _queued_entry("queued message")
     mock_ui.edit_queued_message.return_value = False
     mock_ui.queued_edit_entry = entry
     event = create_mock_event("edited text")
-
     trigger_binding(setup_bindings, "c-m", event)
-
-    mock_ui.submit_user_message.assert_called_once()
+    mock_ui.submit_user_message.assert_not_called()
     assert mock_ui.queued_edit_entry is None
+    assert any("press Enter again" in output for output in mock_ui.outputs)
+    trigger_binding(setup_bindings, "c-m", event)
+    mock_ui.submit_user_message.assert_called_once()
+
+
+def test_previous_recall_requires_confirmation(mock_ui, setup_bindings):
+    history = MagicMock(recall_strings=MagicMock(return_value=["sent message"]))
+    mock_ui.previous_messages = history
+    event = create_mock_event("draft")
+    assert mock_ui.handle_up_arrow(event) is True
+    event.current_buffer.text = "sent message edited"
+    event.current_buffer.cursor_position = len(event.current_buffer.text)
+    trigger_binding(setup_bindings, "c-m", event)
+    mock_ui.submit_user_message.assert_not_called()
+    assert any("already started or sent" in output for output in mock_ui.outputs)
+    trigger_binding(setup_bindings, "c-m", event)
+    mock_ui.submit_user_message.assert_called_once()
 
 
 def test_enter_submit_message(mock_ui, setup_bindings):
