@@ -151,6 +151,7 @@ async def run_shell_command(
         )
 
         timed_out = False
+        drain_notices: list[str] = []
         try:
             try:
                 # Fail-fast fan-out: a broken reader should abort
@@ -160,7 +161,9 @@ async def run_shell_command(
                     _read_stream(process.stderr, stderr_cap, on_chunk),
                 )
                 async with asyncio.timeout(timeout):
-                    await wait_for_exit_and_drain(process, readers)
+                    await wait_for_exit_and_drain(
+                        process, readers, reporter=drain_notices.append
+                    )
             except asyncio.TimeoutError:
                 timed_out = True
                 await terminate_process(
@@ -183,6 +186,7 @@ async def run_shell_command(
             bg_pids,
             timed_out,
             timeout,
+            drain_notices[0] if drain_notices else None,
         )
         if sandbox_note:
             result = f"{sandbox_note}\n{result}"
@@ -496,6 +500,7 @@ def _format_output(
     bg_pids: list[int],
     timed_out: bool,
     timeout: int,
+    drain_notice: str | None = None,
 ) -> str:
     """Formats the command execution result into a readable string."""
     exit_code_str = str(returncode) if returncode is not None else "(none)"
@@ -511,6 +516,8 @@ def _format_output(
         dump_path = _dump_full_output(
             command, cwd, stdout_cap, stderr_cap, exit_code_str
         )
+    if drain_notice:
+        stderr_str += f"\n{drain_notice}"
     stdout_cap.discard()
     stderr_cap.discard()
 

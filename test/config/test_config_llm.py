@@ -64,6 +64,20 @@ def test_llm_max_token_per_minute(monkeypatch):
     assert config.LLM_MAX_TOKEN_PER_MINUTE == 200000
 
 
+def test_llm_max_token_per_minute_assignment_takes_precedence_over_legacy_alias(
+    monkeypatch,
+):
+    monkeypatch.delenv("ZRB_LLM_MAX_TOKENS_PER_MINUTE", raising=False)
+    monkeypatch.setenv("ZRB_LLM_MAX_TOKEN_PER_MINUTE", "7")
+    config = Config()
+
+    assert config.LLM_MAX_TOKEN_PER_MINUTE == 7
+
+    config.LLM_MAX_TOKEN_PER_MINUTE = 11
+
+    assert config.LLM_MAX_TOKEN_PER_MINUTE == 11
+
+
 def test_llm_max_token_per_request(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_MAX_TOKEN_PER_REQUEST", "100000")
     config = Config()

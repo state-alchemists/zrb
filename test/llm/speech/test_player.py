@@ -1,4 +1,5 @@
 import atexit
+import queue
 import threading
 import time
 
@@ -410,6 +411,33 @@ def test_interrupt_stops_what_is_playing_and_drops_the_queue(lock_file):
     assert backend.utterances[0].stopped.is_set()
     # Made ahead while the first played, but never played.
     assert [u.is_played for u in backend.utterances] in ([True], [True, False])
+
+
+def test_interrupt_drops_an_item_dequeued_before_the_generation_bump(
+    lock_file, monkeypatch
+):
+    backend = FakeBackend()
+    speaker = Speaker(_config(backend, lock_file))
+    dequeued = threading.Event()
+    release = threading.Event()
+    original_get = queue.Queue.get
+
+    def get(queue_instance, block=True, timeout=None):
+        item = original_get(queue_instance, block, timeout)
+        if not dequeued.is_set():
+            dequeued.set()
+            release.wait(1)
+        return item
+
+    monkeypatch.setattr(queue.Queue, "get", get)
+    speaker.say("before interrupt")
+    assert dequeued.wait(1)
+
+    speaker.interrupt()
+    release.set()
+    speaker.drain()
+
+    assert backend.played == []
 
 
 def test_speech_being_made_when_interrupted_is_dropped(lock_file):

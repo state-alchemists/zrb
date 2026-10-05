@@ -91,7 +91,11 @@ class BaseUIExecCommands:
                 read_stream(process.stdout),
                 read_stream(process.stderr),
             )
-            return_code = await wait_for_exit_and_drain(process, readers)
+            return_code = await wait_for_exit_and_drain(
+                process,
+                readers,
+                reporter=self._base_ui.append_to_output,
+            )
             # `cmd &` is not left running: /exec ends with everything it started.
             await _stop_process(process)
 

@@ -103,7 +103,7 @@ class Speaker:
         self._lock_file_held = bool(self._lock_file)
         if self._lock_file_held:
             _register_lock_file(self._lock_file)
-        self._queue: "queue.Queue[tuple[str | Callable[[], str], IsStale] | None]" = (
+        self._queue: "queue.Queue[tuple[str | Callable[[], str], IsStale, int] | None]" = (
             queue.Queue()
         )
         # Made but not yet played: what the player thread takes next.
@@ -166,7 +166,7 @@ class Speaker:
                 self._worker.start()
                 self._player.start()
                 atexit.register(self._drain_at_exit)
-            self._queue.put((item, is_stale))
+            self._queue.put((item, is_stale, self._generation))
 
     def clear(self) -> None:
         """Drop everything not yet spoken, including what is being
@@ -344,8 +344,7 @@ class Speaker:
     def _prepare_queue(self) -> None:
         """Make each queued text's audio, handing it to the player thread."""
         while (entry := self._queue.get()) is not None:
-            item, is_stale = entry
-            generation = self._generation
+            item, is_stale, generation = entry
             try:
                 text = item() if callable(item) else item
                 utterance = self._prepare(text, is_stale)
