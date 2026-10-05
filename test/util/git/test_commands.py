@@ -99,7 +99,7 @@ async def test_get_current_branch():
 
 @pytest.mark.asyncio
 async def test_get_branches():
-    output = "  main\n* develop\n  feature"
+    output = "  main\n* develop\n+ feature-a\n  feature"
 
     def mock_run_command(*args, **kwargs):
         async def _coro():
@@ -114,6 +114,7 @@ async def test_get_branches():
         assert "main" in result
         assert "develop" in result
         assert "feature" in result
+        assert "feature-a" in result
 
 
 @pytest.mark.asyncio
@@ -129,6 +130,10 @@ branch refs/heads/feature-a
 worktree /repo/.zrb/worktree/feature-a-copy
 HEAD 654321
 branch refs/heads/feature-a
+
+worktree "/repo/.zrb/worktree/space quote\\\" slash\\\\ newline\\n control\\001"
+HEAD 111111
+branch refs/heads/quoted-path
 
 worktree /repo/.zrb/worktree/detached
 HEAD fedcba
@@ -147,9 +152,19 @@ detached
             "/repo/.zrb/worktree/feature-a",
             "/repo/.zrb/worktree/feature-a-copy",
         ],
+        "quoted-path": [
+            "/repo/.zrb/worktree/space quote\" slash\\ newline\n control\x01"
+        ],
     }
     mock_run.assert_called_with(
-        cmd=["git", "worktree", "list", "--porcelain"],
+        cmd=[
+            "git",
+            "-c",
+            "core.quotePath=true",
+            "worktree",
+            "list",
+            "--porcelain",
+        ],
         cwd="/repo",
         print_method=mock_print,
         max_output_line=0,
@@ -319,7 +334,7 @@ async def _coro(val=None):
 @pytest.mark.asyncio
 async def test_is_branch_merged_returns_true_when_merged(mock_print):
     """Test is_branch_merged returns True when branch is in merged list."""
-    merged_output = "  main\n* feature-a\n  feature-b\n"
+    merged_output = "  main\n* feature-a\n+ linked-feature\n  feature-b\n"
 
     with patch(
         "zrb.util.git.commands.run_command",
@@ -333,6 +348,11 @@ async def test_is_branch_merged_returns_true_when_merged(mock_print):
             "/fake/repo", "feature-a", print_method=mock_print
         )
         assert result is True
+
+        linked_result = await is_branch_merged(
+            "/fake/repo", "linked-feature", print_method=mock_print
+        )
+        assert linked_result is True
 
 
 @pytest.mark.asyncio

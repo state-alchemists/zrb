@@ -1,3 +1,4 @@
+import ast
 import os
 from collections.abc import Callable
 from typing import Any
@@ -89,8 +90,14 @@ async def get_branches(
     if exit_code != 0:
         raise RuntimeError(f"Non zero exit code: {exit_code}")
     return [
-        branch.lstrip("*").strip() for branch in cmd_result.output.strip().split("\n")
+        _parse_branch_name(branch)
+        for branch in cmd_result.output.strip().split("\n")
+        if branch.strip()
     ]
+
+
+def _parse_branch_name(branch: str) -> str:
+    return branch.lstrip("*+").strip()
 
 
 async def get_worktrees(
@@ -98,7 +105,14 @@ async def get_worktrees(
 ) -> dict[str, list[str]]:
     """Map each checked-out local branch to all its worktree paths."""
     cmd_result, exit_code = await run_command(
-        cmd=["git", "worktree", "list", "--porcelain"],
+        cmd=[
+            "git",
+            "-c",
+            "core.quotePath=true",
+            "worktree",
+            "list",
+            "--porcelain",
+        ],
         cwd=repo_dir,
         print_method=print_method,
         max_output_line=0,
@@ -113,13 +127,22 @@ def _parse_worktrees(output: str) -> dict[str, list[str]]:
     path = ""
     for line in (*output.splitlines(), ""):
         if line.startswith("worktree "):
-            path = line.removeprefix("worktree ")
+            path = _parse_git_path(line.removeprefix("worktree "))
         elif line.startswith("branch refs/heads/") and path:
             branch = line.removeprefix("branch refs/heads/")
             worktrees.setdefault(branch, []).append(path)
         elif not line:
             path = ""
     return worktrees
+
+
+def _parse_git_path(path: str) -> str:
+    if not path.startswith('"'):
+        return path
+    parsed = ast.literal_eval(path)
+    if not isinstance(parsed, str):
+        raise ValueError(f"Invalid Git path: {path}")
+    return parsed
 
 
 async def remove_worktree(
@@ -150,7 +173,7 @@ async def is_branch_merged(
     if exit_code != 0:
         raise RuntimeError(f"Non zero exit code: {exit_code}")
     merged_branches = [
-        branch.lstrip("*").strip()
+        _parse_branch_name(branch)
         for branch in cmd_result.output.strip().split("\n")
         if branch.strip()
     ]
