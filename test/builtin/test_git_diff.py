@@ -224,8 +224,11 @@ async def test_prune_local_branches_removes_merged_worktree(session, mock_print)
             new=mock.MagicMock(
                 side_effect=lambda *a, **k: _coro(
                     {
-                        "main": "/fake/repo",
-                        "feature-a": "/fake/repo/.zrb/worktree/feature-a",
+                        "main": ["/fake/repo"],
+                        "feature-a": [
+                            "/fake/repo/.zrb/worktree/feature-a",
+                            "/fake/repo/.zrb/worktree/feature-a-copy",
+                        ],
                     }
                 )
             ),
@@ -248,9 +251,16 @@ async def test_prune_local_branches_removes_merged_worktree(session, mock_print)
         )
 
     mock_get_worktrees.assert_called_once_with("/fake/repo", print_method=mock.ANY)
-    mock_remove_worktree.assert_called_once_with(
-        "/fake/repo", "/fake/repo/.zrb/worktree/feature-a", print_method=mock.ANY
-    )
+    assert mock_remove_worktree.call_args_list == [
+        mock.call(
+            "/fake/repo", "/fake/repo/.zrb/worktree/feature-a", print_method=mock.ANY
+        ),
+        mock.call(
+            "/fake/repo",
+            "/fake/repo/.zrb/worktree/feature-a-copy",
+            print_method=mock.ANY,
+        ),
+    ]
     mock_delete_branch.assert_called_once_with(
         "/fake/repo", "feature-a", print_method=mock.ANY
     )

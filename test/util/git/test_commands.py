@@ -126,6 +126,10 @@ worktree /repo/.zrb/worktree/feature-a
 HEAD def456
 branch refs/heads/feature-a
 
+worktree /repo/.zrb/worktree/feature-a-copy
+HEAD 654321
+branch refs/heads/feature-a
+
 worktree /repo/.zrb/worktree/detached
 HEAD fedcba
 detached
@@ -138,8 +142,11 @@ detached
         result = await get_worktrees("/repo", print_method=mock_print)
 
     assert result == {
-        "main": "/repo",
-        "feature-a": "/repo/.zrb/worktree/feature-a",
+        "main": ["/repo"],
+        "feature-a": [
+            "/repo/.zrb/worktree/feature-a",
+            "/repo/.zrb/worktree/feature-a-copy",
+        ],
     }
     mock_run.assert_called_with(
         cmd=["git", "worktree", "list", "--porcelain"],

@@ -124,8 +124,7 @@ async def prune_local_branches(ctx: AnyContext) -> None:
             ctx.print(stylize_warning(f"Skipping non-merged branch: {branch}"))
             continue
         try:
-            worktree_path = worktrees.get(branch)
-            if worktree_path:
+            for worktree_path in worktrees.get(branch, []):
                 ctx.print(stylize_muted(f"Removing worktree: {worktree_path}"))
                 await remove_worktree(
                     repo_dir, worktree_path, print_method=ctx.print

@@ -95,8 +95,8 @@ async def get_branches(
 
 async def get_worktrees(
     repo_dir: str, print_method: Callable[..., Any] = print
-) -> dict[str, str]:
-    """Map each checked-out local branch to its worktree path."""
+) -> dict[str, list[str]]:
+    """Map each checked-out local branch to all its worktree paths."""
     cmd_result, exit_code = await run_command(
         cmd=["git", "worktree", "list", "--porcelain"],
         cwd=repo_dir,
@@ -107,14 +107,15 @@ async def get_worktrees(
     return _parse_worktrees(cmd_result.output)
 
 
-def _parse_worktrees(output: str) -> dict[str, str]:
-    worktrees: dict[str, str] = {}
+def _parse_worktrees(output: str) -> dict[str, list[str]]:
+    worktrees: dict[str, list[str]] = {}
     path = ""
     for line in (*output.splitlines(), ""):
         if line.startswith("worktree "):
             path = line.removeprefix("worktree ")
         elif line.startswith("branch refs/heads/") and path:
-            worktrees[line.removeprefix("branch refs/heads/")] = path
+            branch = line.removeprefix("branch refs/heads/")
+            worktrees.setdefault(branch, []).append(path)
         elif not line:
             path = ""
     return worktrees
