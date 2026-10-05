@@ -44,6 +44,7 @@ class MockLifecycleUI:
         self.application.run_async = AsyncMock(return_value="test_run_async_result")
         self.capture = MagicMock()
         self.capture.get_buffered_output.return_value = "captured_output"
+        self.previous_messages = MagicMock()
         self.update_system_info = AsyncMock()
         self.snapshot_manager = AsyncMock()
         self.input_field = MagicMock()
@@ -232,7 +233,23 @@ async def test_run_async():
         ui.snapshot_manager.take_init_snapshot.assert_called_once()
         ui.application.run_async.assert_called_once()
         ui.capture.stop.assert_called_once()
+        ui.previous_messages.close.assert_called_once()
         mock_print.assert_called_with("captured_output", end="")
+
+
+@pytest.mark.asyncio
+async def test_teardown_cleans_up_even_when_the_capture_teardown_fails():
+    """Neither the background-task cleanup nor the flush may be skipped when an
+    earlier teardown step fails: a closed output pipe used to skip both
+    (review on #580)."""
+    ui = MockLifecycleUI()
+    ui.capture.stop.side_effect = BrokenPipeError("the output pipe is gone")
+
+    with pytest.raises(BrokenPipeError):
+        await ui.run_async()
+
+    ui.drain_hook_tasks.assert_called_once()
+    ui.previous_messages.close.assert_called_once()
 
 
 @pytest.mark.asyncio
