@@ -17,6 +17,15 @@ def mock_print():
     return mock.MagicMock()
 
 
+@pytest.fixture(autouse=True)
+def mock_worktrees():
+    with mock.patch(
+        "zrb.builtin.git.get_worktrees",
+        new=mock.MagicMock(side_effect=lambda *a, **k: _coro({})),
+    ):
+        yield
+
+
 @pytest.fixture
 def session(mock_print):
     shared_ctx = SharedContext(print_fn=mock_print)
@@ -194,6 +203,70 @@ async def test_prune_local_branches_deletes_merged_non_protected(session, mock_p
 
 
 @pytest.mark.asyncio
+async def test_prune_local_branches_removes_merged_worktree(session, mock_print):
+    branches = ["main", "feature-a"]
+
+    with (
+        mock.patch(
+            "zrb.builtin.git.get_repo_dir",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro("/fake/repo")),
+        ),
+        mock.patch(
+            "zrb.builtin.git.get_branches",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro(branches)),
+        ),
+        mock.patch(
+            "zrb.builtin.git.get_current_branch",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro("main")),
+        ),
+        mock.patch(
+            "zrb.builtin.git.get_worktrees",
+            new=mock.MagicMock(
+                side_effect=lambda *a, **k: _coro(
+                    {
+                        "main": ["/fake/repo"],
+                        "feature-a": [
+                            "/fake/repo/.zrb/worktree/feature-a",
+                            "/fake/repo/.zrb/worktree/feature-a-copy",
+                        ],
+                    }
+                )
+            ),
+        ) as mock_get_worktrees,
+        mock.patch(
+            "zrb.builtin.git.is_branch_merged",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro(True)),
+        ),
+        mock.patch(
+            "zrb.builtin.git.remove_worktree",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
+        ) as mock_remove_worktree,
+        mock.patch(
+            "zrb.builtin.git.delete_branch",
+            new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),
+        ) as mock_delete_branch,
+    ):
+        await git_module.prune_local_branches.async_run(
+            session=session, kwargs={"preserved_branch": "main"}
+        )
+
+    mock_get_worktrees.assert_called_once_with("/fake/repo", print_method=mock.ANY)
+    assert mock_remove_worktree.call_args_list == [
+        mock.call(
+            "/fake/repo", "/fake/repo/.zrb/worktree/feature-a", print_method=mock.ANY
+        ),
+        mock.call(
+            "/fake/repo",
+            "/fake/repo/.zrb/worktree/feature-a-copy",
+            print_method=mock.ANY,
+        ),
+    ]
+    mock_delete_branch.assert_called_once_with(
+        "/fake/repo", "feature-a", print_method=mock.ANY
+    )
+
+
+@pytest.mark.asyncio
 async def test_prune_local_branches_skips_non_merged(session, mock_print):
     """Test prune_local_branches skips branches not merged to HEAD."""
     branches = ["main", "feature-a", "feature-b"]
@@ -219,7 +292,7 @@ async def test_prune_local_branches_skips_non_merged(session, mock_print):
         mock.patch(
             "zrb.builtin.git.is_branch_merged",
             new=mock.MagicMock(side_effect=_is_merged_side_effect),
-        ) as mock_is_branch_merged,
+        ),
         mock.patch(
             "zrb.builtin.git.delete_branch",
             new=mock.MagicMock(side_effect=lambda *a, **k: _coro()),

@@ -18,9 +18,11 @@ from zrb.util.git.commands import (
     get_current_branch,
     get_diff,
     get_repo_dir,
+    get_worktrees,
     is_branch_merged,
     pull,
     push,
+    remove_worktree,
 )
 
 
@@ -106,6 +108,8 @@ async def prune_local_branches(ctx: AnyContext) -> None:
     branches = await get_branches(repo_dir, print_method=ctx.print)
     ctx.print(stylize_muted("Get current branch"))
     current_branch = await get_current_branch(repo_dir, print_method=ctx.print)
+    ctx.print(stylize_muted("Get existing worktrees"))
+    worktrees = await get_worktrees(repo_dir, print_method=ctx.print)
     preserved_branches = [
         branch.strip()
         for branch in ctx.input.preserved_branch.split(",")
@@ -119,8 +123,13 @@ async def prune_local_branches(ctx: AnyContext) -> None:
         if not is_merged:
             ctx.print(stylize_warning(f"Skipping non-merged branch: {branch}"))
             continue
-        ctx.print(stylize_muted(f"Removing local branch: {branch}"))
         try:
+            for worktree_path in worktrees.get(branch, []):
+                ctx.print(stylize_muted(f"Removing worktree: {worktree_path}"))
+                await remove_worktree(
+                    repo_dir, worktree_path, print_method=ctx.print
+                )
+            ctx.print(stylize_muted(f"Removing local branch: {branch}"))
             await delete_branch(repo_dir, branch, print_method=ctx.print)
         except Exception as e:
             ctx.log_error(e)
