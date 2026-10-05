@@ -10,14 +10,15 @@ from __future__ import annotations
 import asyncio
 import importlib
 import logging
-from typing import Any
 
 import pytest
 
 pytest.importorskip("pipecat", reason="pipecat ships with the `voice` extra")
 
+from zrb.llm.dictation.listen import SAMPLE_RATE  # noqa: E402
 from zrb.llm.dictation.pipecat_input import (  # noqa: E402
     AudioPipeline,
+    AudioTally,
     SpeechMetrics,
     SpeechMetricsRecorder,
     create_speech_metrics_stage,
@@ -34,15 +35,15 @@ CHUNK_COUNT = 50
 SILENCE = b"\x00\x00" * (CHUNK_BYTES // 2)
 
 
-def _sink(pipeline: AudioPipeline) -> Any:
-    """The pipeline's sink, with the count it keeps.
+def _sink(pipeline: AudioPipeline) -> AudioTally:
+    """The tally the pipeline's far end writes, which is what this file asserts.
 
     `AudioPipeline.counter` can only be typed as pipecat's `FrameProcessor`,
     because the sink's own class is built inside the factory — importing this
-    module must not import pipecat. Its `frame_count` and `bytes_received` are
-    what stage 1 counts on, and what this file asserts.
+    module must not import pipecat — so the counting it does is read off the
+    `AudioTally` it was handed instead.
     """
-    return pipeline.counter
+    return pipeline.tally
 
 
 async def _settle(predicate, timeout: float = 5.0) -> bool:
@@ -70,14 +71,44 @@ async def test_audio_pushed_from_outside_reaches_the_sink():
         for _ in range(CHUNK_COUNT):
             await pipeline.push(CHUNK)
 
-        counter = _sink(pipeline)
+        counted = _sink(pipeline)
         assert await _settle(
-            lambda: counter.bytes_received >= CHUNK_COUNT * CHUNK_BYTES
+            lambda: counted.bytes_received >= CHUNK_COUNT * CHUNK_BYTES
         ), (
-            f"only {counter.bytes_received} of the {CHUNK_COUNT * CHUNK_BYTES} "
+            f"only {counted.bytes_received} of the {CHUNK_COUNT * CHUNK_BYTES} "
             "pushed bytes reached the sink"
         )
-        assert counter.bytes_received == CHUNK_COUNT * CHUNK_BYTES
+        assert counted.bytes_received == CHUNK_COUNT * CHUNK_BYTES
+    finally:
+        await pipeline.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("sample_rate", [8000, SAMPLE_RATE])
+async def test_a_block_is_labeled_with_the_rate_the_pipeline_is_running_at(
+    sample_rate,
+):
+    """A block carries the rate it was captured at, and not this module's default.
+
+    The frame says what its samples mean, and the detector reads them at that
+    rate: a block labeled 16 kHz into a pipeline running at another rate is one
+    analysed at the wrong speed. `push_audio` labeled every block `SAMPLE_RATE`
+    whatever the transport took, so the label is pinned against the transport
+    the block goes into, at the default rate and at another.
+    """
+    pipeline = await AudioPipeline.start(sample_rate=sample_rate)
+    labels = []
+    hand_over = pipeline.transport.process_frame
+
+    async def remember(frame, direction):
+        labels.append(frame.sample_rate)
+        await hand_over(frame, direction)
+
+    pipeline.transport.process_frame = remember
+    try:
+        await pipeline.push(CHUNK)
+
+        assert labels == [sample_rate]
     finally:
         await pipeline.close()
 
@@ -94,6 +125,36 @@ async def test_closing_the_pipeline_leaves_no_task_running():
     await pipeline.close()
 
     assert pipeline.runner.done()
+
+
+@pytest.mark.asyncio
+async def test_closing_hands_every_block_over_before_it_stops_the_worker(monkeypatch):
+    """`close` does not stop the pipeline with a block still in flight.
+
+    `push` only queues a block and the transport takes it from there, so a close
+    that stops the worker first drops whatever is still queued: the last blocks
+    of a listening, the trailing silence among them, which is silence the
+    detector needs to report the end of the segment it closes. Where the stop is
+    asked for is the only moment that shows the order, so the far end is read
+    there — a burst is pushed with no wait in between, which is the state a
+    capture leaves behind when a listening ends.
+    """
+    pipeline = await AudioPipeline.start()
+    for _ in range(CHUNK_COUNT):
+        await pipeline.push(CHUNK)
+
+    arrived_at_the_ask = []
+    ask_the_worker_to_stop = pipeline.worker.cancel
+
+    async def cancel(*args, **kwargs):
+        arrived_at_the_ask.append(_sink(pipeline).bytes_received)
+        await ask_the_worker_to_stop(*args, **kwargs)
+
+    monkeypatch.setattr(pipeline.worker, "cancel", cancel)
+
+    await pipeline.close()
+
+    assert arrived_at_the_ask == [CHUNK_COUNT * CHUNK_BYTES]
 
 
 @pytest.mark.asyncio
