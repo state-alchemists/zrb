@@ -175,7 +175,10 @@ class SpeechSession:
         """
         self.unregister_hooks(manager)
         hooks: list[tuple[Any, list[HookEvent]]] = []
-        if "reply" in self._events:
+        if "reply" in self._events or "progress" in self._events:
+            # A `progress`-only session needs this hook too: it is where a
+            # turn's still-queued progress lines are invalidated, and a session
+            # can narrate tool calls without ever speaking the reply.
             hooks.append((self.handle_stop, [HookEvent.STOP]))
         if "approval" in self._events:
             hooks.append(
@@ -263,15 +266,22 @@ class SpeechSession:
         """Speak the reply, but not a sub-agent's: only the main turn is for
         the user. A streamed reply only needs its last words spoken; one
         cancelled (Esc, a barge-in: the payload names a ``reason``) is not
-        finished at all."""
+        finished at all.
+
+        Also drops the progress lines the turn still has queued, which is why a
+        `progress`-only session gets this hook even though it speaks no reply."""
         event_data = context.event_data if isinstance(context.event_data, dict) else {}
         if not self._is_own_session() or event_data.get("nested_run"):
             return HookResult(success=True)
         self.progress.reset()
         if event_data.get("reason"):
-            # Cancelled: stop the sentence playing too, not only the queue.
-            self.streamed_reply.reset()
-            self.speaker.interrupt()
+            if "reply" in self._events:
+                # Cancelled: stop the sentence playing too, not only the queue.
+                self.streamed_reply.reset()
+                self.speaker.interrupt()
+            return HookResult(success=True)
+        if "reply" not in self._events:
+            # Nothing to say here: a queued progress line is already stale.
             return HookResult(success=True)
         if self._config.stream:
             self.streamed_reply.flush()
