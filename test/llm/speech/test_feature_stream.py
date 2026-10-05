@@ -17,12 +17,15 @@ from zrb.llm.util.feature_config import close_feature_sessions
 class FakeSpeaker:
     def __init__(self):
         self.said: list[str] = []
+        self.stale_checks = []
         self.cleared = 0
         self.interrupted = 0
         self.is_enabled = True
 
     def say(self, text, is_stale=None):
         self.said.append(text)
+        if is_stale is not None:
+            self.stale_checks.append(is_stale)
 
     def clear(self):
         self.cleared += 1
@@ -197,6 +200,23 @@ def test_a_tool_call_after_a_silence_is_announced_with_progress(monkeypatch):
     session.handle_stream_event(_tool_call("Shell"))
 
     assert session.speaker.said == ["Running a command."]
+
+
+@pytest.mark.asyncio
+async def test_a_progress_announcement_is_dropped_when_turn_stops_without_result(
+    monkeypatch,
+):
+    monkeypatch.setattr("zrb.llm.speech.feature.is_speaking", lambda lock: False)
+    session = _session(stream=True, events=["reply", "progress"], progress_interval=5)
+
+    session.handle_stream_event(_tool_call("Shell"))
+    [is_stale] = session.speaker.stale_checks
+
+    await session.handle_stop(
+        HookContext(event=HookEvent.STOP, event_data={}, last_assistant_message=None)
+    )
+
+    assert is_stale() is True
 
 
 def test_a_tool_call_right_after_its_spoken_intro_is_not_announced(monkeypatch):

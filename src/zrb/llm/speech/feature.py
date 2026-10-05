@@ -267,6 +267,7 @@ class SpeechSession:
         event_data = context.event_data if isinstance(context.event_data, dict) else {}
         if not self._is_own_session() or event_data.get("nested_run"):
             return HookResult(success=True)
+        self.progress.reset()
         if event_data.get("reason"):
             # Cancelled: stop the sentence playing too, not only the queue.
             self.streamed_reply.reset()

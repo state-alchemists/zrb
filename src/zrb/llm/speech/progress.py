@@ -88,6 +88,11 @@ class ProgressNarrator:
         with self._lock:
             return call_id not in self._running
 
+    def reset(self) -> None:
+        """Drop progress lines still queued when the turn ends."""
+        with self._lock:
+            self._running.clear()
+
 
 def _result_call_id(event: Any) -> str:
     call_id = getattr(event, "tool_call_id", None)
