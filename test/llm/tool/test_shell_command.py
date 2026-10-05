@@ -167,6 +167,15 @@ async def test_run_shell_command_reports_background_pids():
             os.kill(pid, signal.SIGKILL)
 
 
+@pytest.mark.skipif(os.name != "posix", reason="background shell syntax is POSIX-only")
+@pytest.mark.asyncio
+async def test_run_shell_command_reports_discarded_background_output():
+    res = await run_shell_command("(sleep 1; echo LATE) &", timeout=4)
+
+    assert "[zrb] output not fully captured" in res
+    assert "Exit Code: 0" in res
+
+
 @pytest.mark.asyncio
 async def test_run_shell_command_stdin_does_not_hang():
     # stdin is DEVNULL, so a command reading stdin returns immediately at EOF

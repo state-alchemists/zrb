@@ -178,13 +178,15 @@ async def wait_for_exit_and_drain(
     process: asyncio.subprocess.Process,
     readers: "asyncio.Future[_T]",
     drain_grace: float = PIPE_DRAIN_GRACE_SECONDS,
+    reporter: "Callable[[str], None] | None" = None,
 ) -> int:
     """Wait for *process* to exit, then up to *drain_grace* for *readers*.
 
     Returns the exit code. Readers still going after the grace are reading a
     background child's output: they are cancelled and the pipes closed, so
     that child gets EPIPE on its next write unless its output is redirected.
-    A reader's failure is raised at once.
+    A reader's failure is raised at once. If output is discarded after the
+    grace, *reporter* receives a short notice.
     """
     exit_task = asyncio.ensure_future(wait_for_exit(process))
     try:
@@ -196,6 +198,11 @@ async def wait_for_exit_and_drain(
         if readers.done():
             readers.result()
         else:
+            if reporter is not None:
+                reporter(
+                    "[zrb] output not fully captured: a background child kept "
+                    "the pipe open past the drain grace."
+                )
             await _cancel_and_wait(readers)
             _close_transport(process)
         return await exit_task

@@ -47,6 +47,16 @@ async def test_run_shell_command_ends_with_everything_it_started(ui):
     assert await _wait_until_gone(child)
 
 
+@pytest.mark.skipif(os.name != "posix", reason="background shell syntax is POSIX-only")
+@pytest.mark.asyncio
+async def test_run_shell_command_reports_discarded_background_output(ui):
+    await ui.run_shell_command("(sleep 1; echo LATE) &")
+
+    output = "".join(ui.outputs)
+    assert "[zrb] output not fully captured" in output
+    assert "Command finished successfully" in output
+
+
 @pytest.mark.asyncio
 async def test_run_shell_command_reports_spawn_error(ui):
     with patch("asyncio.create_subprocess_shell", side_effect=OSError("no shell")):
