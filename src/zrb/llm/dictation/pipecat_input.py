@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -32,8 +33,12 @@ if TYPE_CHECKING:
 
 __all__ = [
     "AudioPipeline",
+    "SpeechMetrics",
+    "SpeechMetricsRecorder",
     "create_audio_counter",
     "create_input_transport",
+    "create_speech_metrics_stage",
+    "create_voice_activity_detector",
     "is_pipecat_available",
     "push_audio",
 ]
@@ -131,18 +136,124 @@ def create_audio_counter() -> FrameProcessor:
     return AudioCounter()
 
 
+@dataclass(frozen=True)
+class SpeechMetrics:
+    """What the pipeline's voice-activity detector reported about speech.
+
+    *speech_segments* is how many speech segments began; *speech_seconds* how
+    long the ones that also ended lasted. A segment still open when this is
+    read has no end yet, so its time is not in the total.
+    """
+
+    speech_segments: int
+    speech_seconds: float
+
+    def summary(self) -> str:
+        """One line saying what the pipeline heard while it was fed."""
+        return (
+            f"{self.speech_segments} speech segment(s), "
+            f"{self.speech_seconds:.1f}s of speech"
+        )
+
+
+class SpeechMetricsRecorder:
+    """Accumulates what the pipeline reports about speech, and nothing else.
+
+    The accounting is plain Python, so it is testable without a pipeline and
+    without audio: the stage built by `create_speech_metrics_stage` classifies
+    the frames and calls `record_speech_started`/`record_speech_stopped`. The
+    verb is *record* rather than one of ADR-0098's, because the method adds an
+    observation to a running total instead of handling an event or returning a
+    value. *clock* is read only to time a segment, and is injectable so a test
+    does not have to wait out real seconds.
+    """
+
+    def __init__(self, clock: Callable[[], float] = time.monotonic) -> None:
+        self._clock = clock
+        self._speech_segments = 0
+        self._speech_seconds = 0.0
+        self._started_at: float | None = None
+
+    def record_speech_started(self) -> None:
+        """Speech began. Counted even if it never ends; a second start does
+        not restart the clock of the segment already being timed."""
+        self._speech_segments += 1
+        if self._started_at is None:
+            self._started_at = self._clock()
+
+    def record_speech_stopped(self) -> None:
+        """Speech ended: add how long it lasted. A stop with no start heard
+        is not speech this pipeline saw begin, and adds nothing."""
+        if self._started_at is None:
+            return
+        self._speech_seconds += max(0.0, self._clock() - self._started_at)
+        self._started_at = None
+
+    def get_metrics(self) -> SpeechMetrics:
+        """What has been recorded so far."""
+        return SpeechMetrics(self._speech_segments, self._speech_seconds)
+
+
+def create_voice_activity_detector() -> FrameProcessor:
+    """A pipeline stage running Pipecat's voice-activity detection.
+
+    Without it the pipeline carries bytes and nothing else: the detector is
+    what tells speech from silence, and what the metrics stage counts. It
+    decides nothing — zrb's own cutting still decides where an utterance
+    begins and ends — so it cannot change what zrb hears or says. The model
+    ships inside Pipecat and runs offline; it is loaded when the pipeline
+    starts, which is why this is reached only with the flag on.
+    """
+    # lazy: heavy third-party — pipecat is the `voice` extra.
+    from pipecat.audio.vad.silero import SileroVADAnalyzer
+    from pipecat.processors.audio.vad_processor import VADProcessor
+
+    return VADProcessor(vad_analyzer=SileroVADAnalyzer())
+
+
+def create_speech_metrics_stage(recorder: SpeechMetricsRecorder) -> FrameProcessor:
+    """A pipeline stage that times the speech the detector reports.
+
+    It decides nothing: the segments it sees are handed to *recorder*, and
+    every frame goes on downstream unchanged. The frames are Pipecat's own —
+    `VADUserStartedSpeakingFrame` and `VADUserStoppedSpeakingFrame` — so this
+    reads the detector's verdict instead of analysing audio a second time.
+    """
+    # lazy: heavy third-party — pipecat is the `voice` extra.
+    from pipecat.frames.frames import (
+        VADUserStartedSpeakingFrame,
+        VADUserStoppedSpeakingFrame,
+    )
+    from pipecat.processors.frame_processor import FrameProcessor
+
+    class SpeechMetricsStage(FrameProcessor):
+        """Counts the speech the detector reports; forwards every frame."""
+
+        async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
+            await super().process_frame(frame, direction)
+            if isinstance(frame, VADUserStartedSpeakingFrame):
+                recorder.record_speech_started()
+            elif isinstance(frame, VADUserStoppedSpeakingFrame):
+                recorder.record_speech_stopped()
+            await self.push_frame(frame, direction)
+
+    return SpeechMetricsStage()
+
+
 @dataclass
 class AudioPipeline:
     """A running Pipecat pipeline that zrb's captured blocks are pushed into.
 
     It ends at *counter*, an `AudioCounter`, so nothing downstream of the
-    transport acts on the audio.
+    transport acts on the audio; the speech-activity detector and the metrics
+    stage in front of it observe the audio without deciding anything about it.
     """
 
     worker: "PipelineWorker"
     runner: "asyncio.Task[None]"
     transport: "BaseInputTransport"
     counter: "FrameProcessor"
+    recorder: SpeechMetricsRecorder
 
     @classmethod
     async def start(cls, sample_rate: int = SAMPLE_RATE) -> "AudioPipeline":
@@ -156,15 +267,29 @@ class AudioPipeline:
         from pipecat.frames.frames import StartFrame
         from pipecat.pipeline.pipeline import Pipeline
         from pipecat.pipeline.task import PipelineWorker
+        from pipecat.pipeline.worker import PipelineParams
         from pipecat.utils.asyncio.task_manager import TaskManager
         from pipecat.workers.base_worker import WorkerParams
 
         ready = asyncio.Event()
         transport = create_input_transport(sample_rate, ready.set)
+        recorder = SpeechMetricsRecorder()
         counter = create_audio_counter()
-        worker = PipelineWorker(Pipeline([transport, counter]))
+        worker = PipelineWorker(
+            Pipeline(
+                [
+                    transport,
+                    create_voice_activity_detector(),
+                    create_speech_metrics_stage(recorder),
+                    counter,
+                ]
+            ),
+            # The detector analyses at the transport's own rate, which reaches
+            # it through the worker's params and not through the transport's.
+            params=PipelineParams(audio_in_sample_rate=sample_rate),
+        )
         runner = asyncio.create_task(worker.run(WorkerParams(TaskManager())))
-        pipeline = cls(worker, runner, transport, counter)
+        pipeline = cls(worker, runner, transport, counter, recorder)
         ready_waiter = asyncio.create_task(ready.wait())
         try:
             await worker.queue_frames([StartFrame()])
@@ -200,6 +325,11 @@ class AudioPipeline:
     async def push(self, chunk: bytes) -> None:
         """Hand one captured block over, as `push_audio` takes it."""
         await push_audio(self.transport, chunk)
+
+    def get_speech_metrics(self) -> SpeechMetrics:
+        """What the pipeline heard while it was fed: the speech segments its
+        detector reported, and how long they lasted."""
+        return self.recorder.get_metrics()
 
     async def close(self) -> None:
         """Stop the pipeline and wait, briefly, for its task to unwind.

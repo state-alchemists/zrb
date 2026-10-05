@@ -163,7 +163,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0103** — [Speech reads a reply aloud as it streams or at the end, whole, and stops when talked over](adr-0103.md)
 - **ADR-0105** — [Barge-in guards against zrb's own voice instead of cancelling it](adr-0105.md)
 - **ADR-0106** — [A side question runs without tools, and its prompt says so](adr-0106.md)
-- **ADR-0107** — [Voice is built on Pipecat's pipeline](adr-0107.md)
+- **ADR-0107** — [Voice runs on Pipecat's pipeline, and the meaning stays zrb's](adr-0107.md)
 
 ### Sub-agent sessions
 

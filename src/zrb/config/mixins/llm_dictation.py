@@ -379,10 +379,11 @@ class LLMDictationMixin:
         serialize=on_off,
         doc=(
             "'on' also feeds every microphone block to a Pipecat pipeline, "
-            "which so far only counts them: nothing zrb hears or says changes, "
-            "and turning it on cannot break the voice. Experimental, and it "
-            "needs the zrb[voice] extra; without it the setting says so and "
-            "listening goes on. 'off' (default): the capture goes nowhere "
+            "which tells speech from silence with its own detector and says "
+            "what it heard when the listening ends: nothing zrb hears or says "
+            "changes, and turning it on cannot break the voice. Experimental, "
+            "and it needs the zrb[voice] extra; without it the setting says so "
+            "and listening goes on. 'off' (default): the capture goes nowhere "
             "else."
         ),
     )

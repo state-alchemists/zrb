@@ -924,7 +924,7 @@ export ZRB_LLM_VOICE=conversation   # talk with zrb, and interrupt it
 | `ZRB_LLM_DICTATION_POLITE_WORDS` | Words a yes or a no may carry without changing it ("yes please", "no thanks"). Approvals only: a stop word is taken as one only when it is said alone, so "stop please" goes to the small model | `please, thanks, thank, you` |
 | `ZRB_LLM_DICTATION_BLOCK_DURATION` | Seconds of audio per microphone block: the step every other listening duration is counted in, and how often speech is checked | `0.1` |
 | `ZRB_LLM_DICTATION_DEVICE` | Microphone PortAudio opens: a name, or the number `query_devices()` lists it under; `pulse` and `default` on a Linux or WSL machine are not the same microphone. Empty uses PortAudio's own default (`python -c "import sounddevice; sounddevice.query_devices()"` lists them) | (empty) |
-| `ZRB_LLM_DICTATION_PIPECAT_ENABLED` | `on` also feeds every microphone block to a Pipecat pipeline, which so far only counts them: nothing zrb hears or says changes, and turning it on cannot break the voice. Experimental, and it needs the `zrb[voice]` extra — without it the setting says so and listening goes on. `off`: the capture goes nowhere else | `off` |
+| `ZRB_LLM_DICTATION_PIPECAT_ENABLED` | `on` also feeds every microphone block to a Pipecat pipeline, which tells speech from silence with its own detector and says what it heard when the listening ends: nothing zrb hears or says changes, and turning it on cannot break the voice. Experimental, and it needs the `zrb[voice]` extra — without it the setting says so and listening goes on. `off`: the capture goes nowhere else | `off` |
 
 Each backend uses only its own variables:
 

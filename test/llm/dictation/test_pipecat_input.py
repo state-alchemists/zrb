@@ -18,6 +18,9 @@ pytest.importorskip("pipecat", reason="pipecat ships with the `voice` extra")
 
 from zrb.llm.dictation.pipecat_input import (  # noqa: E402
     AudioPipeline,
+    SpeechMetrics,
+    SpeechMetricsRecorder,
+    create_speech_metrics_stage,
     is_pipecat_available,
 )
 
@@ -25,6 +28,10 @@ from zrb.llm.dictation.pipecat_input import (  # noqa: E402
 CHUNK_BYTES = 1024
 CHUNK = b"\x00\x01" * (CHUNK_BYTES // 2)
 CHUNK_COUNT = 50
+
+# A block of silence: one 512-sample frame of it, which is what the detector
+# analyses at a time.
+SILENCE = b"\x00\x00" * (CHUNK_BYTES // 2)
 
 
 def _sink(pipeline: AudioPipeline) -> Any:
@@ -252,3 +259,127 @@ async def test_a_runner_that_will_not_stop_is_named_rather_than_left_silent(
     await asyncio.wait({pipeline.runner}, timeout=1)
     assert isinstance(pipeline.runner.exception(), RuntimeError)
     assert worker_task.done()
+
+
+def test_the_recorder_times_speech_between_its_start_and_its_stop():
+    """The number a conversation is tuned on: how long the user spoke."""
+    ticks = iter([100.0, 100.5])
+    recorder = SpeechMetricsRecorder(clock=lambda: next(ticks))
+
+    recorder.record_speech_started()
+    recorder.record_speech_stopped()
+
+    assert recorder.get_metrics() == SpeechMetrics(speech_segments=1, speech_seconds=0.5)
+
+
+def test_speech_still_open_is_counted_but_not_timed():
+    """A segment with no end yet has no length, so it is not in the total.
+
+    A snapshot is read while a listening ends, which can land mid-sentence:
+    counting the open segment as zero rather than guessing keeps the total
+    from overstating what was heard.
+    """
+    recorder = SpeechMetricsRecorder(clock=lambda: 5.0)
+
+    recorder.record_speech_started()
+
+    assert recorder.get_metrics() == SpeechMetrics(speech_segments=1, speech_seconds=0.0)
+
+
+def test_a_second_segment_adds_to_the_first():
+    ticks = iter([1.0, 1.5, 10.0, 10.25])
+    recorder = SpeechMetricsRecorder(clock=lambda: next(ticks))
+
+    recorder.record_speech_started()
+    recorder.record_speech_stopped()
+    recorder.record_speech_started()
+    recorder.record_speech_stopped()
+
+    assert recorder.get_metrics() == SpeechMetrics(speech_segments=2, speech_seconds=0.75)
+
+
+def test_a_stop_with_no_start_heard_adds_nothing():
+    """A stop the recorder never saw begin is not speech this pipeline saw."""
+    recorder = SpeechMetricsRecorder(clock=lambda: 1.0)
+
+    recorder.record_speech_stopped()
+
+    assert recorder.get_metrics() == SpeechMetrics(speech_segments=0, speech_seconds=0.0)
+
+
+def test_a_duplicate_start_does_not_restart_the_clock():
+    """The clock is read once per segment: a second start cannot lose the
+    first one's beginning, which would shorten what the user said."""
+    ticks = iter([1.0, 1.5])
+    recorder = SpeechMetricsRecorder(clock=lambda: next(ticks))
+
+    recorder.record_speech_started()
+    recorder.record_speech_started()
+    recorder.record_speech_stopped()
+
+    assert recorder.get_metrics() == SpeechMetrics(speech_segments=2, speech_seconds=0.5)
+
+
+def test_the_summary_reads_as_one_line_for_the_log():
+    assert SpeechMetrics(2, 1.5).summary() == "2 speech segment(s), 1.5s of speech"
+
+
+@pytest.mark.asyncio
+async def test_the_metrics_stage_times_the_frames_the_detector_reports():
+    """The stage reads the detector's own verdict, so it is driven by the
+    frames the detector emits rather than by audio of its own."""
+    from pipecat.frames.frames import (
+        VADUserStartedSpeakingFrame,
+        VADUserStoppedSpeakingFrame,
+    )
+    from pipecat.processors.frame_processor import FrameDirection
+
+    ticks = iter([2.0, 2.5])
+    recorder = SpeechMetricsRecorder(clock=lambda: next(ticks))
+    stage = create_speech_metrics_stage(recorder)
+
+    await stage.process_frame(VADUserStartedSpeakingFrame(), FrameDirection.DOWNSTREAM)
+    await stage.process_frame(VADUserStoppedSpeakingFrame(), FrameDirection.DOWNSTREAM)
+
+    assert recorder.get_metrics() == SpeechMetrics(speech_segments=1, speech_seconds=0.5)
+
+
+@pytest.mark.asyncio
+async def test_a_speech_frame_pushed_at_the_source_reaches_the_metrics_stage():
+    """The metrics stage has to sit downstream of the transport in the running
+    pipeline, or the detector's verdict never arrives and every session
+    reports silence it did not hear."""
+    from pipecat.frames.frames import (
+        VADUserStartedSpeakingFrame,
+        VADUserStoppedSpeakingFrame,
+    )
+
+    pipeline = await AudioPipeline.start()
+    try:
+        await pipeline.worker.queue_frames(
+            [VADUserStartedSpeakingFrame(), VADUserStoppedSpeakingFrame()]
+        )
+
+        assert await _settle(
+            lambda: pipeline.get_speech_metrics().speech_segments == 1
+        ), "a speech frame pushed at the source never reached the metrics stage"
+    finally:
+        await pipeline.close()
+
+
+@pytest.mark.asyncio
+async def test_a_pipeline_fed_silence_reports_no_speech_and_keeps_every_byte():
+    """The detector in the pipeline invents no speech out of silence, and
+    stands between the capture and the sink without dropping any of it."""
+    pipeline = await AudioPipeline.start()
+    try:
+        for _ in range(20):
+            await pipeline.push(SILENCE)
+
+        counter = _sink(pipeline)
+        expected = 20 * len(SILENCE)
+        assert await _settle(lambda: counter.bytes_received >= expected)
+        assert counter.bytes_received == expected
+        assert pipeline.get_speech_metrics() == SpeechMetrics(0, 0.0)
+    finally:
+        await pipeline.close()
