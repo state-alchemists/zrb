@@ -12,6 +12,7 @@ that really stores text.
 from types import SimpleNamespace
 
 from zrb.llm.ui.base.message_queue import EchoSpan, QueuedMessage
+from zrb.llm.ui.base.ui import BaseUI
 
 
 def make_entry(text="original", marker="💬", ts="10:00"):
@@ -30,6 +31,10 @@ class _Buffer:
     def __init__(self, text=""):
         self.text = text
         self.cursor_position = len(text)
+
+    def reset(self):
+        self.text = ""
+        self.cursor_position = 0
 
 
 def _event(buffer):
@@ -78,6 +83,31 @@ def test_the_message_up_arrow_recalled_is_marked(editing_ui):
 
     assert "▸2. second" in rendered
     assert " 1. first" in rendered
+
+
+def test_editing_a_recalled_message_rewrites_one_queue_entry_and_one_echo(
+    editing_ui,
+):
+    entry = make_entry()
+    echo = "\n💬 10:00 >> original\n"
+    editing_ui.output_field.text = echo
+    editing_ui.track_echo_span(entry, echo)
+    _queue(editing_ui, entry)
+    buffer = _Buffer("draft")
+
+    editing_ui.handle_up_arrow(_event(buffer))
+    buffer.text = "edited in place"
+    buffer.cursor_position = len(buffer.text)
+    editing_ui.edit_queued_message = BaseUI.edit_queued_message.__get__(
+        editing_ui, type(editing_ui)
+    )
+
+    assert editing_ui.handle_enter_queued_edit(_event(buffer)) is True
+
+    assert editing_ui.effective_message_queue.pending() == (entry,)
+    assert entry.text == "edited in place"
+    assert editing_ui.output_text == "\n💬 10:00 >> edited in place\n"
+    assert editing_ui.output_text.count(">> ") == 1
 
 
 def test_a_queue_longer_than_the_panel_is_summarized(editing_ui):

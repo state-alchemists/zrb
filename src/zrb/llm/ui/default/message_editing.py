@@ -17,7 +17,9 @@ Where each piece lives:
   conversation, then the cross-session history, newest first — and only then
   return ``False`` to fall through to prompt-toolkit history recall.
 * `handle_enter_queued_edit` is called from the Enter keybinding before the
-  plain-submit path; it turns a queued message in the buffer into an edit.
+  plain-submit path; it turns a queued message in the buffer into an edit, or
+  consumes the first Enter with a note when the message is already started or
+  sent so the next Enter is an intentional new submission.
 * `handle_delete_queued` is called from the Ctrl+X keybinding: it drops the
   recalled message through `delete_queued_message` (below) and splices its echo
   away (`remove_echo`, the delete path's counterpart to `redraw_echo`).
@@ -45,6 +47,7 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.llm.ui.base.message_queue import EchoSpan, QueuedMessage
 from zrb.llm.ui.base.user_echo import should_render_user_markdown
+from zrb.util.cli.style import stylize_warning
 
 if TYPE_CHECKING:
     from prompt_toolkit.key_binding import KeyPressEvent
@@ -278,17 +281,31 @@ class UIMessageEditing:
         self._load_edit_text(buffer, self._queued_edit_draft)
         return True
 
-    def handle_enter_queued_edit(self, event: Any) -> bool:
-        """Enter while a still-queued message is in the input buffer.
+    def _note_uneditable_recall(self) -> None:
+        """Explain why a recalled message needs a second Enter to submit."""
+        self._queued_edit_entry = None
+        self.reset_previous_recall()
+        self._ui.append_to_output(
+            stylize_warning(
+                "\n  ❗ Message is no longer waiting (already started or sent); "
+                "press Enter again to send it as a new message.\n"
+            )
+        )
 
-        Replaces the queued message's text in place instead of submitting a new
-        message. Returns ``True`` when the keypress was consumed (the message
-        was edited or the edit was cancelled); ``False`` falls through to the
-        plain-submit path (e.g. the message's turn already started).
+    def handle_enter_queued_edit(self, event: Any) -> bool:
+        """Handle Enter after recalling a queued or previous message.
+
+        Replaces a still-queued message's text in place. An empty edit cancels
+        back to the saved draft. If the recalled message already started or was
+        already sent, the first Enter explains that it is no longer waiting and
+        is consumed; the next Enter follows the plain-submit path.
         """
         entry = self._queued_edit_entry
         if entry is None:
-            return False
+            if self._previous_recall_index is None:
+                return False
+            self._note_uneditable_recall()
+            return True
         self._queued_edit_entry = None
         text = event.current_buffer.text
         if not text.strip():
@@ -298,8 +315,8 @@ class UIMessageEditing:
         if self._ui.edit_queued_message(entry, text):
             event.current_buffer.reset()
             return True
-        # The message already started — fall through and submit as a new one.
-        return False
+        self._note_uneditable_recall()
+        return True
 
     def handle_delete_queued(self, event: "KeyPressEvent") -> None:
         """Ctrl+X while a still-queued message is recalled: drop it from the
