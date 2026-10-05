@@ -1,11 +1,9 @@
 """Feeding zrb's captured audio into a Pipecat pipeline.
 
-`listen` keeps the microphone (ADR-0107): frames are pushed in from outside, so
-a second audio client never contends for the device.
-
-This is stage 1, the input side only: the pipeline ends at an audio counter, so
-nothing downstream of the transport acts on the audio and turning it on cannot
-change what zrb hears or says
+`listen` keeps the microphone: frames are pushed in from outside, so a second
+audio client never contends for the device. The pipeline ends at an audio
+counter, so nothing downstream of the transport acts on the audio, and turning
+it on cannot change what zrb hears or says
 (`docs/architecture/3-peripheral-flow/voice-on-pipecat.md`).
 
 Pipecat is the `voice` extra, so it is imported inside each factory; the
@@ -66,7 +64,7 @@ def create_input_transport(
     in from outside through the same VAD path as audio it captured itself. The
     one gap is `start`, whose base implementation never calls
     `set_transport_ready`, the call that creates the queue a pushed frame is
-    read from; this subclass adds it (ADR-0107). *on_ready* is called once that
+    read from; this subclass adds it. *on_ready* is called once that
     queue exists, since a frame pushed before then has nowhere to go.
     """
     # lazy: heavy third-party — pipecat is the `voice` extra, and this module is
@@ -137,8 +135,8 @@ def create_audio_counter() -> FrameProcessor:
 class AudioPipeline:
     """A running Pipecat pipeline that zrb's captured blocks are pushed into.
 
-    Stage 1 of ADR-0107: it ends at *counter*, an `AudioCounter`, so nothing
-    downstream of the transport acts on the audio.
+    It ends at *counter*, an `AudioCounter`, so nothing downstream of the
+    transport acts on the audio.
     """
 
     worker: "PipelineWorker"
@@ -152,7 +150,7 @@ class AudioPipeline:
 
         A worker does not start itself — `run` is the coroutine that drives it —
         so this pipeline owns that task, and `close` ends both. `TaskManager`
-        binds to the caller's running loop (ADR-0107).
+        binds to the caller's running loop.
         """
         # lazy: heavy third-party — pipecat is the `voice` extra.
         from pipecat.frames.frames import StartFrame

@@ -96,11 +96,11 @@ chat = LLMChatTask(
 
 ## Model, Model Settings & Capabilities
 
-`model`, `model_settings`, and `capabilities` are pydantic-ai's own types, passed straight through unchanged (ADR-0036) — zrb doesn't wrap or reinterpret them. For what `Model`/`ModelSettings` accept per provider, and the full catalogue of capability classes, see [pydantic-ai's documentation](https://ai.pydantic.dev).
+`model`, `model_settings`, and `capabilities` are pydantic-ai's own types, passed straight through unchanged — zrb doesn't wrap or reinterpret them. For what `Model`/`ModelSettings` accept per provider, and the full catalogue of capability classes, see [pydantic-ai's documentation](https://ai.pydantic.dev).
 
 - **`model`** — a model name string (`"openai:gpt-4o"`) or a pydantic-ai `Model` instance. See [LLM & Rate Limiter Configuration](../configuration/llm-config.md) for the supported-provider list, credentials, and the task's own `model_getter`/`model_renderer` hooks for tiering or A/B routing.
 - **`model_settings`** — a pydantic-ai `ModelSettings` (temperature, `openai_reasoning_effort`, …), or a callable taking the context for per-run values. See [Core LLM Routing](../configuration/llm-config.md#1-core-llm-routing) for the defaults zrb layers on top (`ZRB_LLM_THINKING`, `openai_reasoning_summary`, …).
-- **`capabilities`** — a list of pydantic-ai `AbstractCapability` instances (`ProcessHistory`, `Thinking`, `WebSearch`, `PrepareTools`, …), pydantic-ai's own agent-extension mechanism. It replaced the `Agent(history_processors=...)` constructor kwarg pydantic-ai itself carried before 2.36 (see [ADR-0041](../adr/adr-0041.md)). Do not confuse it with either of these zrb-specific things that share part of the name:
+- **`capabilities`** — a list of pydantic-ai `AbstractCapability` instances (`ProcessHistory`, `Thinking`, `WebSearch`, `PrepareTools`, …), pydantic-ai's own agent-extension mechanism. It replaced the `Agent(history_processors=...)` constructor kwarg pydantic-ai itself carried before 2.36. Do not confuse it with either of these zrb-specific things that share part of the name:
   - `history_processors` (below) — zrb's **own** history-rewriting pipeline (`append_history_processor`), which predates and is independent of pydantic-ai's `capabilities`/`ProcessHistory`.
   - the [Model Capabilities registry](../llm/extending-the-llm.md#model-capabilities) — zrb's per-model table of modality/parallel-tool-call support, unrelated to this constructor argument.
 
@@ -221,7 +221,7 @@ chat.append_hook_factory(lambda hm: hm.add_hook(my_hook, events=[HookEvent.SESSI
 chat.append_hook_factory(lambda hm: hm.add_hook(other_hook, events=[HookEvent.SESSION_END]))
 ```
 
-> **Isolation differs from `LLMTask`:** `LLMChatTask` replays every factory onto a fresh `HookManager` per execution, while `LLMTask` keeps a persistent one. The details are in [Hooks → Scoped to one task](../llm/hooks.md#scoped-to-one-task-append_hook_factory) and [ADR-0072](../adr/adr-0072.md).
+> **Isolation differs from `LLMTask`:** `LLMChatTask` replays every factory onto a fresh `HookManager` per execution, while `LLMTask` keeps a persistent one. The details are in [Hooks → Scoped to one task](../llm/hooks.md#scoped-to-one-task-append_hook_factory).
 
 ### Stream Observers
 
@@ -233,7 +233,7 @@ def on_event(event):
 chat.append_stream_observer(on_event)
 ```
 
-An observer is called with every event a run streams, after the UI, and may be async. It runs on the event loop for every delta, so it must return quickly; one that raises is logged and skipped. A delegated sub-agent's run does not reach it. Speech uses one to read a reply while it is written ([ADR-0104](../adr/adr-0104.md)).
+An observer is called with every event a run streams, after the UI, and may be async. It runs on the event loop for every delta, so it must return quickly; one that raises is logged and skipped. A delegated sub-agent's run does not reach it. Speech uses one to read a reply while it is written.
 
 ### Approval & Policy
 
@@ -354,7 +354,7 @@ chat.history_config.history_manager
 chat.history_config.conversation_name
 ```
 
-Same property, same fields, on both `LLMTask` and `LLMChatTask` (ADR-0072).
+Same property, same fields, on both `LLMTask` and `LLMChatTask`.
 
 ---
 
@@ -372,7 +372,7 @@ Same property, same fields, on both `LLMTask` and `LLMChatTask` (ADR-0072).
 | **Permission policy** | `permissions=` (arg + property) | Same |
 | **Filesystem sandbox** | `sandbox=` (arg + property) | Same |
 | **Shared tool APIs** | `append_tool`, `append_tool_factory`, `append_toolset` | Same |
-| **Hook system** | `append_hook_factory` onto a **fresh** manager per run | `append_hook_factory` onto a **persistent** manager ([ADR-0072](../adr/adr-0072.md)) |
+| **Hook system** | `append_hook_factory` onto a **fresh** manager per run | `append_hook_factory` onto a **persistent** manager |
 | **History processors** | `append_history_processor` | Same |
 | **Stream observers** | `append_stream_observer` | Same |
 | **System prompt** | Via `system_prompt` or `prompt_manager` | Same |

@@ -155,7 +155,7 @@ class BaseUIExecCommands:
         The response is never saved to conversation history.
 
         The side agent runs without tools, so it is prompted with
-        `side_question.md` rather than the main agent's prompt — see ADR-0106.
+        `side_question.md` rather than the main agent's prompt.
         """
         try:
             timestamp = datetime.now().strftime("%H:%M")

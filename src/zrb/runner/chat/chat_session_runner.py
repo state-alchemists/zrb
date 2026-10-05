@@ -159,7 +159,7 @@ async def _run_one_message(
         )
         try:
             # asyncio.create_task copies the current context, so the
-            # task keeps this value for its whole run (ADR-0069). Keyed
+            # task keeps this value for its whole run. Keyed
             # by session_id, never the non-unique session_name.
             with scoped(current_chat_session_id, session.session_id):
                 llm_task = asyncio.create_task(

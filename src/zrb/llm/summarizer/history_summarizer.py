@@ -303,7 +303,7 @@ async def _build_summary_text(
         )
     # Re-seed the journal index so it survives compaction; baking it into the
     # summary message adds no turn that could break role alternation or tool
-    # pairing (ADR-0042). Empty when the journal is disabled.
+    # pairing. Empty when the journal is disabled.
     journal_block = render_journal_index()
     if journal_block:
         return f"{summary_text}\n\n{journal_block}"

@@ -1,7 +1,7 @@
 """Closing a resource that is already on its way out.
 
 Used for a microphone stream that would not start, a transcription stream given
-up on, and the Pipecat pipeline the capture is pushed into (ADR-0107). None has
+up on, and the Pipecat pipeline the capture is pushed into. None has
 anyone left to report its failure to, and a failure must not reach the listening
 around it, so closing is best-effort.
 """

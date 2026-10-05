@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 # Short labels + styles for the status-bar Shift+Tab mode badge. Keys match
 # `BaseUIModelCommands.current_cycle_mode()` (cycle members plus the off-cycle
-# yolo/custom states). See ADR-0075.
+# yolo/custom states).
 _MODE_STATUS_LABELS = {
     "normal": "normal",
     "accept_edits": "accept-edits",
@@ -769,7 +769,7 @@ class UIOutput:
             ]
         # Persistent Shift+Tab mode indicator (mirrors Claude Code's mode badge
         # near the prompt). `current_cycle_mode` lives on BaseUIModelCommands;
-        # guard for lightweight UIs/mocks that don't compose it. See ADR-0075.
+        # guard for lightweight UIs/mocks that don't compose it.
         get_mode = getattr(self._ui, "current_cycle_mode", None)
         mode = cast(str, get_mode()) if callable(get_mode) else "normal"
         result: list = [

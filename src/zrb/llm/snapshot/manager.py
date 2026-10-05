@@ -27,8 +27,8 @@ then runs within one budget, ``CFG.LLM_SNAPSHOT_OPERATION_TIMEOUT``, across
 every command in it; it stops at once when its caller is cancelled. A history
 copy `/save` asks for is registered in memory at once and applied under the
 operation lock before anything else touches the store, so no snapshot of the
-new name can land first; it lives only as long as the session (ADR-0101 says
-why no record of it is kept on disk).
+new name can land first; it lives only as long as the session, so no record of it
+is kept on disk.
 
 Housekeeping, once per session with the first snapshot: conversations whose
 newest snapshot is older than *retention_seconds* lose their rewind history, and

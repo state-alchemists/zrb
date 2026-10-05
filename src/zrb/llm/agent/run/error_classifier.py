@@ -210,7 +210,7 @@ def add_credential_hint(e: Exception) -> Exception:
 
     pydantic-ai's message already names the vendor variable that would work;
     what it cannot know is zrb's own key, which applies only to the provider
-    `LLM_PROVIDER` or `LLM_MODEL`'s prefix names (ADR-0094). Anything else is
+    `LLM_PROVIDER` or `LLM_MODEL`'s prefix names. Anything else is
     returned unchanged.
     """
     # lazy: heavy third-party -- pydantic_ai, openai

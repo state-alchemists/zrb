@@ -1,6 +1,6 @@
 """zrb-shipped LLM tools — one module per tool family.
 
-Re-exports resolve through PEP 562 `__getattr__` (ADR-0096's pattern), so
+Re-exports resolve through PEP 562 `__getattr__`, so
 importing one submodule loads that module alone. Eager re-exports here cost
 every importer the whole family — 29 modules and ~94ms, paid by a `zrb --help`
 that never reaches an LLM, because importing any submodule runs this file.

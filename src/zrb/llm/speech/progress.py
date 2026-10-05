@@ -3,7 +3,7 @@
 `ProgressNarrator` watches the run's stream (through a stream observer) and,
 when a tool call starts after a stretch in which nothing was said, speaks a
 short template line: "Running a command." A template, not a model call, as
-for approvals (ADR-0103): the moment has passed by the time a model answers.
+for approvals: the moment has passed by the time a model answers.
 
 A line still queued when its tool finishes is dropped, and nothing is said
 while the model's own words are being spoken, so the narration only fills

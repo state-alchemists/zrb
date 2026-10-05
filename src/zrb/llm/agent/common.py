@@ -208,8 +208,8 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
             safe_result = safe_copy_result(result)
 
             # Output reduction belongs to SafeToolsetWrapper, after PostToolUse
-            # has made its final output decision (ADR-0089). Preserve the
-            # metadata-only oversize marker for direct wrapper callers (ADR-0043).
+            # has made its final output decision. Preserve the
+            # metadata-only oversize marker for direct wrapper callers.
             return tool_return(safe_result, **_oversize_metadata(safe_result))
         except ModelRetry:
             # pydantic-ai's retry protocol: the framework turns this into a
@@ -572,7 +572,7 @@ def create_agent(
             model_settings=effective_model_settings,
             # history_processors omitted (deprecated in pydantic-ai for
             # `ProcessHistory`): runner.py applies zrb's processors itself, where
-            # it owns and persists the history (ADR-0041).
+            # it owns and persists the history.
             capabilities=capabilities or [],
             retries={"tools": effective_retries},
         )

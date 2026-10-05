@@ -3,7 +3,7 @@
 Re-exports resolve through PEP 562 `__getattr__`, so importing any submodule
 of this package does not load `common.py`, `run/runner.py` or `summarizer.py`.
 First resolution of any exported name also imports `hook_agent`, which
-registers the `HookType.AGENT` builder (ADR-0086, ADR-0096).
+registers the `HookType.AGENT` builder.
 """
 
 from typing import TYPE_CHECKING

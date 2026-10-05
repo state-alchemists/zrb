@@ -12,7 +12,7 @@ prose.
 
 RETIRED_SETTINGS: dict[str, str] = {
     # 3.14.0: what a stop asks is answered from the word lists and a small
-    # model (ADR-0105), which made the transcript-level echo guards and the
+    # model, which made the transcript-level echo guards and the
     # end-of-turn word list redundant.
     "LLM_DICTATION_BARGE_IN_ACTION": (
         "nothing: anything said over zrb steers the turn, and a stop cancels it"
@@ -37,12 +37,12 @@ RETIRED_SETTINGS: dict[str, str] = {
     ),
     # 3.14.0: speech reads the whole reply, so the cut that shortened a long
     # one, the summary that stood in for it, and the note that pointed at the
-    # screen are all gone (ADR-0103).
+    # screen are all gone.
     "LLM_SPEECH_MAX_CHARS": "nothing: the whole reply is read",
     "LLM_SPEECH_SUMMARIZE": "nothing: the whole reply is read",
     "LLM_SPEECH_SUMMARY_MODEL": "nothing: the whole reply is read",
     "LLM_SPEECH_ON_SCREEN_NOTE": "nothing: the whole reply is read",
-    # 3.10.0: voice became the dictation and camera features (ADR-0102).
+    # 3.10.0: voice became the dictation and camera features.
     "LLM_VOICE_ENABLED": "/voice is always offered",
     "LLM_VOICE_MODE": "LLM_DICTATION_BACKEND",
     "LLM_VOICE_PUSH_TO_TALK_KEY": "/voice starts recording and a pause stops it",

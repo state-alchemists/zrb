@@ -316,7 +316,7 @@ For how it is wired end-to-end (the registration seam, the `HookType.AGENT` buil
 
 ### Built-in: the self-review gate
 
-Off by default; `ZRB_LLM_SELF_REVIEW_ENABLED=on` turns it on (ADR-0100). At the start of each turn it snapshots your working directory into a private temporary git store, and at Stop it snapshots it again and diffs the two. A snapshot holds every git repository under the directory, each by its own `.gitignore` — nested clones, submodules, and repositories the parent ignores, such as the worktrees `EnterWorktree` creates, included — and the files outside any repository (ADR-0101). So the review covers exactly what the turn changed — edits made through `Shell` and changes committed mid-turn included, your own earlier uncommitted work excluded — and a reviewer agent with a fresh context reads that diff, using read-only `Read`/`Grep`/`Glob` to check the code around it. It ends its report with `Request changes` or `LGTM`.
+Off by default; `ZRB_LLM_SELF_REVIEW_ENABLED=on` turns it on. At the start of each turn it snapshots your working directory into a private temporary git store, and at Stop it snapshots it again and diffs the two. A snapshot holds every git repository under the directory, each by its own `.gitignore` — nested clones, submodules, and repositories the parent ignores, such as the worktrees `EnterWorktree` creates, included — and the files outside any repository. So the review covers exactly what the turn changed — edits made through `Shell` and changes committed mid-turn included, your own earlier uncommitted work excluded — and a reviewer agent with a fresh context reads that diff, using read-only `Read`/`Grep`/`Glob` to check the code around it. It ends its report with `Request changes` or `LGTM`.
 
 A repository that appears during the turn — a worktree, a clone — is diffed against the commit it started from, so the review shows what the turn changed in it rather than its whole checkout.
 
@@ -652,7 +652,7 @@ def register_my_hooks(hm: HookManager) -> None:
 llm_chat.append_hook_factory(register_my_hooks)
 ```
 
-The two task classes isolate differently (ADR-0072):
+The two task classes isolate differently:
 
 - **`LLMChatTask`** builds a **fresh** `HookManager` per execution and replays every registered factory onto it each time, so one chat session's hooks never leak into the next.
 - **`LLMTask`** holds a **persistent** manager. The *first* `append_hook_factory` call swaps the process-wide default for a fresh task-local manager (later calls apply to that same manager) — unless a different manager was passed to the constructor's `hook_manager=` argument, which is never swapped. This keeps per-task hooks from silently mutating global state. The task-local manager still loads the filesystem hooks (every manager scans the [hook locations](#hook-locations)), but no longer sees hooks registered in code on the global `hook_manager`.

@@ -1,7 +1,7 @@
 # Monokai Theme Example
 
 Demonstrates registering a **custom style theme** and selecting it with a single
-env var, using zrb's `ZRB_THEME` system (ADR-0027).
+env var, using zrb's `ZRB_THEME` system.
 
 ## How it works
 

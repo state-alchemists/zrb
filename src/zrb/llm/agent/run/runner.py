@@ -232,7 +232,7 @@ async def run_agent(
         bind_contextvar(stack, current_permission_policy, effective_policy)
         bind_contextvar(stack, current_sandbox_policy, effective_sandbox)
         # Passed as `agent.run(deps=...)` so `sandbox_gate` reads it explicitly
-        # (ADR-0069). Safe to freeze for the run: unlike the permission policy,
+        # Safe to freeze for the run: unlike the permission policy,
         # nothing mutates the sandbox policy mid-run.
         sandbox_deps = get_effective_sandbox_policy()
         # Backstop: EnterWorktree/ExitWorktree own this per tool call; this
@@ -533,7 +533,7 @@ async def _do_agent_run(
         # pydantic-ai types `deps` against the Agent's own deps_type (`None`
         # here — see create_agent's comment on why it stays pinned to None
         # for the toolsets/model_settings overloads). `sandbox_gate` reads it
-        # via `ctx.deps` regardless of this static type (ADR-0069).
+        # via `ctx.deps` regardless of this static type.
         deps=cast(Any, sandbox_deps),
     )
 
@@ -751,7 +751,7 @@ def _commit_executed_deferred_results(
     """Commit a resumed round through its tool returns and drop the results.
 
     pydantic-ai runs approved tools before the model call that failed, so
-    resending the results would run them again (ADR-0040).
+    resending the results would run them again.
     """
     if cursor.results is None or partial_run.latest_history is None:
         return

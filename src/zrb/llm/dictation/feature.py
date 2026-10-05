@@ -127,8 +127,8 @@ class DictationSession:
         self._badge_before_pause = _LISTENING
         # A wake word said alone arms the utterances started before this.
         self._armed_until = 0.0
-        # The Pipecat pipeline the capture is handed to (ADR-0107, stage 1),
-        # and whether it failed and was given up on for this session.
+        # The Pipecat pipeline the capture is handed to, and whether it failed
+        # and was given up on for this session.
         self._tap: AudioPipeline | None = None
         self._is_pipecat_given_up = False
         self.is_hands_free = (config.mode or "").strip().lower() == HANDS_FREE
@@ -332,7 +332,7 @@ class DictationSession:
     async def _feed_pipecat(self, pcm: bytes) -> None:
         """Hand one captured block to the Pipecat pipeline, if it has one.
 
-        The pipeline decides nothing (ADR-0107, stage 1), so one that cannot
+        The pipeline decides nothing, so one that cannot
         start or fails on a block is reported, closed at once, and given up on
         for the session instead of ending hands-free. Closing it here cannot
         deadlock the hand-over: it closes the Pipecat pipeline, never the tap
@@ -370,7 +370,7 @@ class DictationSession:
     async def _close_audio_pipeline(self) -> None:
         """Stop the pipeline this listening was feeding, if it started one.
 
-        Never raises: the pipeline decides nothing (ADR-0107, stage 1), so no
+        Never raises: the pipeline decides nothing, so no
         failure in its teardown may end the listening.
         """
         tap, self._tap = self._tap, None

@@ -346,7 +346,7 @@ async def listen(
 
     *on_captured* is handed every block the microphone captures, as 16 kHz mono
     16-bit PCM, before it is cut into an utterance: this is the capture the
-    Pipecat pipeline is fed from (ADR-0107, stage 1). It is handed over apart
+    Pipecat pipeline is fed from. It is handed over apart
     from the reading loop, so it also sees blocks of utterances that are dropped,
     and the reading loop pausing while an utterance is answered does not delay
     it. Blocks arrive once, in order, dropped oldest-first if the tap falls
@@ -739,8 +739,7 @@ class _CaptureTap:
         the deadline is bounded the same way.
 
         A hand-over that raised ended the tap early; the failure is logged here
-        once rather than ending the listening (nothing downstream decides
-        anything yet, ADR-0107 stage 1).
+        once rather than ending the listening.
         """
         self._is_stopped = True
         self._arrived.set()

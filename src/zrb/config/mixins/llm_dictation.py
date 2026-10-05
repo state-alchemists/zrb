@@ -378,12 +378,12 @@ class LLMDictationMixin:
         to_boolean,
         serialize=on_off,
         doc=(
-            "'on' hands the microphone blocks to a Pipecat pipeline as well, "
-            "beside the hand-rolled one that still decides everything: the "
-            "pipeline ends at a counter, so nothing zrb hears or says changes. "
-            "Stage 1 of the migration (ADR-0107), and it wants the zrb[voice] "
-            "extra; without it the setting says so and listening goes on. "
-            "'off' (default): the capture goes nowhere else."
+            "'on' also feeds every microphone block to a Pipecat pipeline, "
+            "which so far only counts them: nothing zrb hears or says changes, "
+            "and turning it on cannot break the voice. Experimental, and it "
+            "needs the zrb[voice] extra; without it the setting says so and "
+            "listening goes on. 'off' (default): the capture goes nowhere "
+            "else."
         ),
     )
 

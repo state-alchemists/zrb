@@ -130,8 +130,7 @@ def create_input_field(  # noqa: C901 -- registration/factory fn; mccabe sums ne
 
     bind_choice_navigation(kb, choice, is_choice_active)
 
-    # Shift+Tab is deliberately unbound so the app level can cycle modes
-    # (ADR-0075).
+    # Shift+Tab is deliberately unbound so the app level can cycle modes.
     return text_area
 
 

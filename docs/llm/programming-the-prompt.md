@@ -200,17 +200,17 @@ flowchart LR
 Three things are **not** sections:
 
 - **The skill catalogue** (core skills, available skills, active-skill contents) is part of `workflow`, via the `{CORE_SKILLS}`/`{AVAILABLE_SKILLS}`/`{PREACTIVATED_SKILLS}` placeholders. Each list is capped by `LLM_MAX_SKILLS_IN_CATALOG`, with overflow pointing to the `SearchSkill` tool.
-- **Per-tool rules** live in each tool's docstring, which pydantic-ai ships with the schema on every request (ADR-0045).
+- **Per-tool rules** live in each tool's docstring, which pydantic-ai ships with the schema on every request.
 - **Volatile per-turn state** (time, git status, todos, worktree, interactivity) is injected into the latest user turn as a `<live-context>` block, so the cached system prompt stays byte-stable.
 
 A `PromptManager` lets you control that assembly. Two independent levers:
 
 - **`prompts=[...]`** — extra content appended after the built-ins. This is exactly what `system_prompt` populates.
-- **`include_sections=[...]`** — the full ordered list of section names to emit. Drop or reorder the built-ins; the built-in set itself is fixed (ADR-0044).
+- **`include_sections=[...]`** — the full ordered list of section names to emit. Drop or reorder the built-ins; the built-in set itself is fixed.
 
 Dropping a section is an intentional deployment trade-off: shipped prompt files
 are plain markdown and are not conditionally rewritten. Keep the sections that
-the remaining instructions depend on (ADR-0046).
+the remaining instructions depend on.
 
 ```python
 from zrb import cli, LLMChatTask
@@ -227,13 +227,13 @@ pm = PromptManager(
 cli.add_task(LLMChatTask(name="lean-chat", prompt_manager=pm))
 ```
 
-You can also set the order without touching code, via the `ZRB_LLM_INCLUDE_SECTIONS` env var (comma-separated, order-sensitive; see [LLM Configuration → Prompt Component Configuration](../configuration/llm-config.md#prompt-component-configuration)). A *new* name in `include_sections` resolves to nothing — it is ignored with a logged warning (ADR-0044).
+You can also set the order without touching code, via the `ZRB_LLM_INCLUDE_SECTIONS` env var (comma-separated, order-sensitive; see [LLM Configuration → Prompt Component Configuration](../configuration/llm-config.md#prompt-component-configuration)). A *new* name in `include_sections` resolves to nothing — it is ignored with a logged warning.
 
 **Task scope vs. registry scope.** Each task exposes its manager as `task.prompt_manager`. The same API exists at registry scope: `prompt_registry.set_prompts` / `append_prompt` in `zrb_init.py` changes the default **every** task starts from (`PromptManager(prompts=None)` defers there); a task's `prompts=` argument or mutation overrides just that task. Each layer's append/remove ops stack on the one below — see [LLM Component Collections](../configuration/llm-collections.md).
 
 ## Rung 6 — sections that reflect live state
 
-The built-in section set is fixed, so there are no user-defined system-prompt sections (ADR-0044). Two public hooks cover the same ground:
+The built-in section set is fixed, so there are no user-defined system-prompt sections. Two public hooks cover the same ground:
 
 - **`pm.append_prompt(...)`** — static, dynamic, or full-middleware content emitted **after** all built-in sections; part of the cached system prompt.
 - **`pm.add_live_context(name, provider)`** — inject volatile per-turn state into the `<live-context>` block appended to each user message, **without** invalidating the cacheable system-prompt prefix.
@@ -284,7 +284,7 @@ Independently, `ZRB_LLM_PROFILE` selects one of three **profiles** — `minimal`
 | `standard` | `profile.standard.md` — balance autonomy with clear communication | registered |
 | `capable` | `profile.capable.md` — strong ownership of substantial work | registered |
 
-A profile changes **only** the `profile` section and the `minimal` delegate restriction — not `persona` / `principle` / `workflow` / `example`, their wording, or the rest of the tool surface (ADR-0049). `minimal` targets very small models (~3B), which cannot use delegation well, so the delegate tools would be pure token cost (ADR-0058). Override a profile's wording by dropping a `profile.{name}.md` into `ZRB_LLM_PROMPT_DIR`; run `ZRB_LLM_PROFILE=minimal` for a session on a small local model. An explicit name never changes with the model; only `auto` does, and an unrecognized value falls back to `standard`.
+A profile changes **only** the `profile` section and the `minimal` delegate restriction — not `persona` / `principle` / `workflow` / `example`, their wording, or the rest of the tool surface. `minimal` targets very small models (~3B), which cannot use delegation well, so the delegate tools would be pure token cost. Override a profile's wording by dropping a `profile.{name}.md` into `ZRB_LLM_PROMPT_DIR`; run `ZRB_LLM_PROFILE=minimal` for a session on a small local model. An explicit name never changes with the model; only `auto` does, and an unrecognized value falls back to `standard`.
 
 `auto` (the default) derives the profile from the model id. It never guesses from a family name (`deepseek`, `qwen`, `llama` each span tiny→frontier); it reads a **stated size**:
 
@@ -299,7 +299,7 @@ A profile changes **only** the `profile` section and the `minimal` delegate rest
 - A count outranks a label: `some-mini-32b` stays `capable`.
 - A label **alone** never selects `minimal` — `nano`/`tiny` also name hosted models (`gpt-5-nano`) far stronger than a local 3B. It does with a **local provider prefix** (`ollama:`, `lmstudio:`, `llamacpp:`, `localai:`), e.g. `ollama:phi4-mini` (3.8B on a laptop). Ollama's hosted `:cloud` suffix is excluded, so `ollama:kimi-k2.6:cloud` stays `standard`.
 
-See `AGENTS.md` → *LLM Prompt System*, ADR-0049.
+See `AGENTS.md` → *LLM Prompt System*.
 
 ---
 
@@ -310,6 +310,6 @@ See `AGENTS.md` → *LLM Prompt System*, ADR-0049.
 - [LLMChatTask API Reference](../task-types/llmchat-task.md) — the full constructor and builder API
 - [LLM Assistant & AI Tasks](llm-integration.md) — TUI, `LLMTask`/`LLMChatTask` usage
 - [Extending the LLM](extending-the-llm.md) — tools, sub-agents, context management
-- `AGENTS.md` → *LLM Prompt System* and ADR-0044, ADR-0049 — section resolution, profiles and the auto ladder
+- `AGENTS.md` → *LLM Prompt System* — section resolution, profiles and the auto ladder
 
 🔖 [Documentation Home](../../README.md) > [LLM](./) > Programming the Prompt

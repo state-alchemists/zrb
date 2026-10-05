@@ -1,6 +1,6 @@
 """Builds a runnable sub-agent from a roster entry — the construction half
 of `SubAgentManager`, split out so the manager itself stays a roster
-resolver (ADR-0090: registry/manager shape, not registry-plus-factory).
+resolver, not a roster-plus-factory.
 """
 
 from __future__ import annotations
@@ -246,7 +246,7 @@ class SubAgentBuilding:
             # Sub-agents are single-turn, so prompt caching gives no reason to
             # keep volatile state out of the system prompt: fold <live-context>
             # and the journal index in here (the main chat puts them in the
-            # user turn). See ADR-0042.
+            # user turn).
             if "system_context" in sections:
                 live = pm.create_live_context(ctx, inject_journal_index=True)
                 if live:
