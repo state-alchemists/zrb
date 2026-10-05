@@ -18,31 +18,43 @@ def mock_session():
 @pytest.mark.asyncio
 @mock.patch("zrb.task.scheduler.match_cron", return_value=True)
 async def test_scheduler_triggers_on_match(mock_match_cron, mock_session):
+    import datetime
+
     # Create a task for the scheduler
     scheduler = Scheduler(name="test_scheduler", schedule="* * * * *")
     mock_session.register_task(scheduler)
 
     with mock.patch.object(scheduler, "push_exchange_xcom") as mock_push_exchange_xcom:
-        # Create a task that will run the scheduler
-        scheduler_task = asyncio.create_task(scheduler.exec(mock_session))
+        # Pin the clock inside one minute, as the dedup test below does: the loop
+        # sleeps to the next minute boundary, so on a real clock this window can
+        # straddle one and sample two minutes. Two matches is then correct for
+        # `* * * * *` (the dedup only holds within a minute) and the count
+        # assertions below flake — the Windows CI failure this guards against.
+        with mock.patch("zrb.task.scheduler.datetime") as mock_datetime:
+            mock_datetime.datetime.now.return_value = datetime.datetime(
+                2026, 1, 1, 10, 0, 30
+            )
 
-        # Wait a bit for the scheduler to run
-        await asyncio.sleep(0.01)
+            # Create a task that will run the scheduler
+            scheduler_task = asyncio.create_task(scheduler.exec(mock_session))
 
-        # Cancel the scheduler task
-        scheduler_task.cancel()
+            # Wait a bit for the scheduler to run
+            await asyncio.sleep(0.01)
 
-        # Wait for cancellation to complete
-        try:
-            await scheduler_task
-        except asyncio.CancelledError:
-            pass
+            # Cancel the scheduler task
+            scheduler_task.cancel()
 
-        # Give any background tasks time to clean up
-        await asyncio.sleep(0.01)
+            # Wait for cancellation to complete
+            try:
+                await scheduler_task
+            except asyncio.CancelledError:
+                pass
 
-        mock_match_cron.assert_called_once()
-        mock_push_exchange_xcom.assert_called_once()
+            # Give any background tasks time to clean up
+            await asyncio.sleep(0.01)
+
+            mock_match_cron.assert_called_once()
+            mock_push_exchange_xcom.assert_called_once()
 
 
 @pytest.mark.asyncio
