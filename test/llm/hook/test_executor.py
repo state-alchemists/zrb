@@ -23,13 +23,75 @@ from zrb.llm.ui.any_ui import AnyUI
 
 @pytest.mark.asyncio
 async def test_executor_lifecycle():
+    existing_worker_ids = {
+        thread.ident
+        for thread in threading.enumerate()
+        if thread.name.startswith("zrb-hook-")
+    }
     executor = ThreadPoolHookExecutor(max_workers=2)
     executor.start()
+    worker_ids = {
+        thread.ident
+        for thread in threading.enumerate()
+        if thread.name.startswith("zrb-hook-")
+    } - existing_worker_ids
 
     async with executor.execution_context() as ctx:
         assert ctx == executor
 
     executor.shutdown()
+    assert not any(
+        thread.ident in worker_ids and thread.is_alive()
+        for thread in threading.enumerate()
+    )
+
+
+@pytest.mark.parametrize("max_workers", [0, -1])
+def test_executor_rejects_non_positive_max_workers(max_workers):
+    with pytest.raises(ValueError, match="max_workers must be greater than 0"):
+        ThreadPoolHookExecutor(max_workers=max_workers)
+
+
+@pytest.mark.asyncio
+async def test_executor_uses_at_most_max_workers_threads_for_a_burst():
+    existing_hook_threads = {
+        thread.ident
+        for thread in threading.enumerate()
+        if thread.name.startswith("zrb-hook-")
+    }
+    executor = ThreadPoolHookExecutor(max_workers=2, default_timeout=10)
+    executor.start()
+    release = threading.Event()
+    started = threading.Event()
+    active_hooks = 0
+    active_lock = threading.Lock()
+
+    async def blocked(ctx):
+        nonlocal active_hooks
+        with active_lock:
+            active_hooks += 1
+            if active_hooks == 2:
+                started.set()
+        release.wait(5)
+        return HookResult(success=True)
+
+    calls = [
+        asyncio.create_task(executor.execute_hook(blocked, _start_context()))
+        for _ in range(10)
+    ]
+    assert await asyncio.to_thread(started.wait, 5)
+    await asyncio.sleep(0.05)
+    hook_threads = {
+        thread.ident
+        for thread in threading.enumerate()
+        if thread.name.startswith("zrb-hook-")
+    }
+    assert len(hook_threads - existing_hook_threads) == 2
+
+    release.set()
+    results = await asyncio.gather(*calls)
+    executor.shutdown()
+    assert all(result.success for result in results)
 
 
 @pytest.mark.asyncio
