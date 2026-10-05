@@ -7,11 +7,12 @@ import asyncio
 import atexit
 import contextvars
 import logging
+import queue
 import threading
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import Future
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable, TypeVar, cast
 
 from zrb.config.config import CFG
 from zrb.llm.agent_state import current_tool_confirmation, current_ui
@@ -19,6 +20,7 @@ from zrb.llm.approval.approval_channel import current_approval_channel
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 
 logger = logging.getLogger(__name__)
+T = TypeVar("T")
 
 
 @dataclass
@@ -79,6 +81,65 @@ class _HookRun:
                 pass  # its loop is closed: the hook already finished
 
 
+class _DaemonHookExecutor:
+    """Run submitted hooks on a bounded pool of daemon worker threads."""
+
+    def __init__(self, max_workers: int, thread_name_prefix: str) -> None:
+        self._thread_name_prefix = thread_name_prefix
+        self._lock = threading.Lock()
+        self._work_queue: queue.Queue[
+            tuple[Future[object], Callable[..., object], tuple[object, ...]] | None
+        ] = queue.Queue()
+        self._threads: list[threading.Thread] = []
+        self._shutting_down = False
+        for worker_id in range(max_workers):
+            worker = threading.Thread(
+                target=self._worker,
+                name=f"{self._thread_name_prefix}{worker_id}",
+                daemon=True,
+            )
+            self._threads.append(worker)
+            worker.start()
+
+    def submit(self, fn: Callable[..., T], *args: object) -> Future[T]:
+        future: Future[T] = Future()
+        with self._lock:
+            if self._shutting_down:
+                raise RuntimeError("cannot schedule new futures after shutdown")
+            self._work_queue.put(
+                (cast(Future[object], future), cast(Callable[..., object], fn), args)
+            )
+        return future
+
+    def _worker(self) -> None:
+        while True:
+            work = self._work_queue.get()
+            try:
+                if work is None:
+                    return
+                future, fn, args = work
+                if not future.set_running_or_notify_cancel():
+                    continue
+                try:
+                    future.set_result(fn(*args))
+                except BaseException as error:
+                    future.set_exception(error)
+                    if isinstance(error, (KeyboardInterrupt, SystemExit)):
+                        raise
+            finally:
+                self._work_queue.task_done()
+
+    def shutdown(self, wait: bool = True) -> None:
+        with self._lock:
+            self._shutting_down = True
+            for _ in self._threads:
+                self._work_queue.put(None)
+            threads = tuple(self._threads)
+        if wait:
+            for thread in threads:
+                thread.join()
+
+
 class ThreadPoolHookExecutor:
     """
     Thread-safe executor for hook execution with timeout controls.
@@ -97,13 +158,17 @@ class ThreadPoolHookExecutor:
         default_timeout: float | None = None,
         cancel_grace_seconds: float = 5.0,
     ):
+        if max_workers < 1:
+            raise ValueError(
+                "max_workers must be greater than 0; provide at least one worker"
+            )
         self.max_workers = max_workers
         self.default_timeout = (
             default_timeout if default_timeout is not None else CFG.HOOKS_TIMEOUT / 1000
         )
         #: How long a cancelled or timed-out hook gets to finish once cancelled.
         self.cancel_grace_seconds = cancel_grace_seconds
-        self._executor: ThreadPoolExecutor | None = None
+        self._executor: _DaemonHookExecutor | None = None
         self._lock = threading.RLock()
         self._shutdown_event = threading.Event()
 
@@ -111,7 +176,7 @@ class ThreadPoolHookExecutor:
         """Start the thread pool executor."""
         with self._lock:
             if self._executor is None:
-                self._executor = ThreadPoolExecutor(
+                self._executor = _DaemonHookExecutor(
                     max_workers=self.max_workers, thread_name_prefix="zrb-hook-"
                 )
                 self._shutdown_event.clear()
@@ -155,7 +220,7 @@ class ThreadPoolHookExecutor:
         try:
             self.start()
             assert self._executor is not None
-            job = self._executor.submit(
+            job: Future[HookExecutionResult] = self._executor.submit(
                 _copy_context_for_hook().run, self._run_hook_sync, hook, context, run
             )
         except RuntimeError as e:  # shut down by another thread meanwhile
