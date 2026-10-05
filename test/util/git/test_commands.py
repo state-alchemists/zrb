@@ -12,9 +12,11 @@ from zrb.util.git.commands import (
     get_current_branch,
     get_diff,
     get_repo_dir,
+    get_worktrees,
     is_branch_merged,
     pull,
     push,
+    remove_worktree,
 )
 
 
@@ -112,6 +114,55 @@ async def test_get_branches():
         assert "main" in result
         assert "develop" in result
         assert "feature" in result
+
+
+@pytest.mark.asyncio
+async def test_get_worktrees_maps_branches_to_paths(mock_print):
+    output = """worktree /repo
+HEAD abc123
+branch refs/heads/main
+
+worktree /repo/.zrb/worktree/feature-a
+HEAD def456
+branch refs/heads/feature-a
+
+worktree /repo/.zrb/worktree/detached
+HEAD fedcba
+detached
+"""
+
+    with patch(
+        "zrb.util.git.commands.run_command",
+        new=MagicMock(return_value=_coro((CmdResult(output, "", ""), 0))),
+    ) as mock_run:
+        result = await get_worktrees("/repo", print_method=mock_print)
+
+    assert result == {
+        "main": "/repo",
+        "feature-a": "/repo/.zrb/worktree/feature-a",
+    }
+    mock_run.assert_called_with(
+        cmd=["git", "worktree", "list", "--porcelain"],
+        cwd="/repo",
+        print_method=mock_print,
+    )
+
+
+@pytest.mark.asyncio
+async def test_remove_worktree(mock_print):
+    with patch(
+        "zrb.util.git.commands.run_command",
+        new=MagicMock(return_value=_coro((CmdResult("", "", ""), 0))),
+    ) as mock_run:
+        await remove_worktree(
+            "/repo", "/repo/.zrb/worktree/feature-a", print_method=mock_print
+        )
+
+    mock_run.assert_called_with(
+        cmd=["git", "worktree", "remove", "/repo/.zrb/worktree/feature-a"],
+        cwd="/repo",
+        print_method=mock_print,
+    )
 
 
 @pytest.mark.asyncio

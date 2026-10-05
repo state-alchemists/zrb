@@ -93,6 +93,46 @@ async def get_branches(
     ]
 
 
+async def get_worktrees(
+    repo_dir: str, print_method: Callable[..., Any] = print
+) -> dict[str, str]:
+    """Map each checked-out local branch to its worktree path."""
+    cmd_result, exit_code = await run_command(
+        cmd=["git", "worktree", "list", "--porcelain"],
+        cwd=repo_dir,
+        print_method=print_method,
+    )
+    if exit_code != 0:
+        raise RuntimeError(f"Non zero exit code: {exit_code}")
+    return _parse_worktrees(cmd_result.output)
+
+
+def _parse_worktrees(output: str) -> dict[str, str]:
+    worktrees: dict[str, str] = {}
+    path = ""
+    for line in (*output.splitlines(), ""):
+        if line.startswith("worktree "):
+            path = line.removeprefix("worktree ")
+        elif line.startswith("branch refs/heads/") and path:
+            worktrees[line.removeprefix("branch refs/heads/")] = path
+        elif not line:
+            path = ""
+    return worktrees
+
+
+async def remove_worktree(
+    repo_dir: str, worktree_path: str, print_method: Callable[..., Any] = print
+) -> None:
+    """Remove a clean linked worktree and its checked-out directory."""
+    _, exit_code = await run_command(
+        cmd=["git", "worktree", "remove", worktree_path],
+        cwd=repo_dir,
+        print_method=print_method,
+    )
+    if exit_code != 0:
+        raise RuntimeError(f"Non zero exit code: {exit_code}")
+
+
 async def is_branch_merged(
     repo_dir: str,
     branch_name: str,
