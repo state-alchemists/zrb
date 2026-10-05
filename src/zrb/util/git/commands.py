@@ -94,7 +94,7 @@ async def get_branches(
 
 
 async def get_worktrees(
-    repo_dir: str, print_method: Callable[..., Any] = print
+    repo_dir: str, print_method: Callable[..., None] = print
 ) -> dict[str, list[str]]:
     """Map each checked-out local branch to all its worktree paths."""
     cmd_result, exit_code = await run_command(
@@ -123,7 +123,7 @@ def _parse_worktrees(output: str) -> dict[str, list[str]]:
 
 
 async def remove_worktree(
-    repo_dir: str, worktree_path: str, print_method: Callable[..., Any] = print
+    repo_dir: str, worktree_path: str, print_method: Callable[..., None] = print
 ) -> None:
     """Remove a clean linked worktree and its checked-out directory."""
     _, exit_code = await run_command(
