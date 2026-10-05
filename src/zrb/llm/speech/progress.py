@@ -60,7 +60,13 @@ class ProgressNarrator:
         self._seconds_since_said = seconds_since_said
         self._interval = max(interval, 0.0)
         self._lock = threading.Lock()
-        self._running: set[str] = set()
+        # The current turn's live calls, by call id: the generation each was
+        # announced in.
+        self._running: dict[str, int] = {}
+        # Calls a stopped turn left running, by call id: their result is still
+        # to come, and it has to settle one of these rather than drop a live call
+        # a later turn started under the same id.
+        self._unsettled: dict[str, int] = {}
         # Bumped by `reset`. Every queued line carries the generation it was
         # queued in, so a line from an earlier turn stays stale even after the
         # same tool-call id is used again, and one still being decided on when
@@ -76,8 +82,25 @@ class ProgressNarrator:
                 generation = self._generation
             self._start(getattr(event, "part", None), generation)
         elif kind == "function_tool_result":
-            with self._lock:
-                self._running.discard(_result_call_id(event))
+            self._finish(_result_call_id(event))
+
+    def _finish(self, call_id: str) -> None:
+        """Book a tool result.
+
+        A result names only its call id, and it can arrive after that id has
+        been reused by a later turn. The call a stopped turn left running is
+        settled first, so a late result cannot drop the call the current turn
+        started under the same id.
+        """
+        with self._lock:
+            owed = self._unsettled.get(call_id, 0)
+            if owed:
+                if owed == 1:
+                    del self._unsettled[call_id]
+                else:
+                    self._unsettled[call_id] = owed - 1
+                return
+            self._running.pop(call_id, None)
 
     def _start(self, part: Any, generation: int) -> None:
         tool = getattr(part, "tool_name", None)
@@ -94,19 +117,27 @@ class ProgressNarrator:
                 # The turn stopped while this line was being decided on: it
                 # would be spoken after the turn, so it is not queued.
                 return
-            self._running.add(call_id)
+            self._running[call_id] = generation
         self._say(line, lambda: self._is_finished(call_id, generation))
 
     def _is_finished(self, call_id: str, generation: int) -> bool:
         """Whether the line queued for *call_id* in *generation* is stale: its
         tool call has ended, or its turn has."""
         with self._lock:
-            return generation != self._generation or call_id not in self._running
+            if generation != self._generation:
+                return True
+            return self._running.get(call_id) != generation
 
     def reset(self) -> None:
-        """Drop progress lines still queued when the turn ends."""
+        """Drop progress lines still queued when the turn ends.
+
+        A call still running becomes a result the narrator has to expect, so
+        that when it arrives it settles this turn instead of a later turn's
+        call of the same id."""
         with self._lock:
             self._generation += 1
+            for call_id in self._running:
+                self._unsettled[call_id] = self._unsettled.get(call_id, 0) + 1
             self._running.clear()
 
 

@@ -174,3 +174,24 @@ def test_a_reused_call_id_does_not_resurrect_a_line_from_an_earlier_turn():
 
     assert from_the_earlier_turn() is True
     assert from_this_turn() is False
+
+
+def test_a_late_result_from_an_earlier_turn_does_not_drop_the_new_turns_call():
+    """A result names only its call id, so one left over from a stopped turn
+    must not clear the call a later turn starts under the same id (review on
+    #579)."""
+    narrator, said = _narrator()
+
+    narrator.handle_event(_call("Shell", "c1"))  # turn one starts "c1"
+    narrator.reset()  # turn one stops with it still running
+    narrator.handle_event(_call("Shell", "c1"))  # turn two reuses "c1"
+    _, from_this_turn = said[1]
+    assert from_this_turn() is False
+
+    narrator.handle_event(_result("c1"))  # turn one's result, delivered late
+
+    assert from_this_turn() is False  # turn two's call is still running
+
+    narrator.handle_event(_result("c1"))  # turn two's own result
+
+    assert from_this_turn() is True
