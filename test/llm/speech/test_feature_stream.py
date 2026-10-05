@@ -155,6 +155,20 @@ async def test_a_turn_cancelled_with_escape_is_not_finished_aloud():
     assert session.speaker.interrupted == 1
 
 
+@pytest.mark.asyncio
+async def test_a_progress_only_turn_cancelled_with_escape_stops_what_is_playing():
+    """A cancel stops the speaker whatever it is saying. A `progress`-only
+    session speaks no reply, but a progress line may be playing when the turn is
+    cancelled (review on #579)."""
+    session = _session(events=["progress"])
+
+    await session.handle_stop(
+        HookContext(event=HookEvent.STOP, event_data={"reason": "escape"})
+    )
+
+    assert session.speaker.interrupted == 1
+
+
 def test_enable_speech_registers_a_stream_observer():
     task = PersistentHookTask()
     enable_speech(task, SpeechConfig(enabled=True, stream=True))

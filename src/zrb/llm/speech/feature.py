@@ -278,7 +278,9 @@ class SpeechSession:
             if "reply" in self._events:
                 # Cancelled: stop the sentence playing too, not only the queue.
                 self.streamed_reply.reset()
-                self.speaker.interrupt()
+            # Whatever was being said belongs to the cancelled turn, and with
+            # only `progress` on that is a progress line, not a reply.
+            self.speaker.interrupt()
             return HookResult(success=True)
         if "reply" not in self._events:
             # Nothing to say here: a queued progress line is already stale.
