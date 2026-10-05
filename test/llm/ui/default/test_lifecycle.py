@@ -238,15 +238,17 @@ async def test_run_async():
 
 
 @pytest.mark.asyncio
-async def test_the_history_is_flushed_when_the_capture_teardown_fails():
-    """Teardown that fails before the flush must not lose pending messages: a
-    closed output pipe used to skip both (review on #580)."""
+async def test_teardown_cleans_up_even_when_the_capture_teardown_fails():
+    """Neither the background-task cleanup nor the flush may be skipped when an
+    earlier teardown step fails: a closed output pipe used to skip both
+    (review on #580)."""
     ui = MockLifecycleUI()
     ui.capture.stop.side_effect = BrokenPipeError("the output pipe is gone")
 
     with pytest.raises(BrokenPipeError):
         await ui.run_async()
 
+    ui.drain_hook_tasks.assert_called_once()
     ui.previous_messages.close.assert_called_once()
 
 

@@ -101,15 +101,18 @@ class UILifecycle:
             await ui.update_system_info()
             return await ui.application.run_async()
         finally:
-            # One outer `finally`: the pending history must be flushed even when
-            # the capture teardown, the buffered output or printing it fails —
-            # a closed stdout pipe, for instance (review on #580).
+            # Nested `finally`s: the capture teardown, the buffered output and
+            # the background tasks each get their chance even when an earlier
+            # step fails — a closed stdout pipe, for instance — and the pending
+            # history is flushed last, whatever happened (review on #580).
             try:
-                ui.capture.stop()
-                buffered_output = ui.capture.get_buffered_output()
-                if buffered_output:
-                    print(buffered_output, end="")
-                await self.cleanup_background_tasks()
+                try:
+                    ui.capture.stop()
+                    buffered_output = ui.capture.get_buffered_output()
+                    if buffered_output:
+                        print(buffered_output, end="")
+                finally:
+                    await self.cleanup_background_tasks()
             finally:
                 ui.previous_messages.close()
 
