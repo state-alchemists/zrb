@@ -51,7 +51,7 @@ def build_sandboxed_argv(
 ) -> tuple[list[str], str | None]:
     """Wrap a subprocess invocation in the platform sandbox per ``policy``.
 
-    ``argv`` is exec'd as-is, shell-shaped or not — this only ever prepends a
+    ``argv`` is exec'd as-is, shell-shaped or not — this prepends only a
     sandbox-dispatch prefix in front of it.
 
     Returns ``(argv, note)``: ``argv`` to pass to ``create_subprocess_exec``

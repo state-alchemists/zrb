@@ -477,7 +477,7 @@ class UIMessageEditing:
         A sub-agent view is the one case where leaving the line behind is not
         acceptable: the pane shows that agent's transcript, so
         `_validated_echo_span` declines, but the echo also sits in the main
-        transcript parked behind the view — the very text restored, stale line
+        transcript parked behind the view — the text restored, stale line
         and all, when the view closes. `_parked_echo_span` covers it.
         """
         span = self._validated_echo_span(entry)

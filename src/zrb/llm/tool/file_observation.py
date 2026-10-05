@@ -54,7 +54,7 @@ _observed: OrderedDict[str, dict[str, str]] = OrderedDict()
 
 # run_scope -> {abs file paths shown in an LS/Glob result}, for RM's lighter
 # "has this path been named" bar (see `check_listed`) — a weaker guarantee
-# than `_observed`'s content hash, and deliberately so: RM's risk is picking
+# than `_observed`'s content hash: RM's risk is picking
 # the wrong path, not destroying unseen content.
 _listed_paths: OrderedDict[str, set[str]] = OrderedDict()
 
@@ -134,7 +134,7 @@ def record_listed(root_abs_path: str, shown_paths: list[str]) -> None:
     exist. See `check_listed` for how this backs RM.
 
     `root_abs_path`, and every directory between it and each shown path, are
-    recorded too, not just the files themselves: LS/Glob only ever return
+    recorded too, not just the files themselves: LS/Glob return only
     *files* (`walk_files` never yields directory paths, even for a listing
     up to 3 levels deep), so a subdirectory — empty, or non-empty and only
     known via the files shown inside it — would otherwise never satisfy

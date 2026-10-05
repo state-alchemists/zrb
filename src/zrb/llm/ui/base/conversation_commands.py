@@ -272,7 +272,7 @@ class BaseUIConversationCommands:
             ):
                 continue
             # Availability is checked after the token match so unrelated
-            # input still reaches the next handler (ADR-0093).
+            # input still reaches the next handler.
             if not self._base_ui.snapshot_manager:
                 self._base_ui.append_to_output(
                     stylize_warning(self._rewind_unavailable_message())

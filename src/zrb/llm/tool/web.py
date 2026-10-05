@@ -30,7 +30,7 @@ def run_blocking(func, *args, timeout: float):
 
     `asyncio.to_thread` schedules onto the loop's default executor, whose
     worker threads are NOT daemons: if the blocking call ignores its own
-    timeout (DNS resolution has none) or the call simply never returns, that
+    timeout (DNS resolution has none) or the call never returns, that
     thread outlives everything awaiting it, and process exit then hangs
     forever in `concurrent.futures.thread._python_exit` joining it -- the
     "several Ctrl+C, still won't die" hang. A daemon thread lets the process

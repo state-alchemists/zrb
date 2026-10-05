@@ -232,7 +232,7 @@ async def run_agent(
         bind_contextvar(stack, current_permission_policy, effective_policy)
         bind_contextvar(stack, current_sandbox_policy, effective_sandbox)
         # Passed as `agent.run(deps=...)` so `sandbox_gate` reads it explicitly
-        # (ADR-0069). Safe to freeze for the run: unlike the permission policy,
+        # Safe to freeze for the run: unlike the permission policy,
         # nothing mutates the sandbox policy mid-run.
         sandbox_deps = get_effective_sandbox_policy()
         # Backstop: EnterWorktree/ExitWorktree own this per tool call; this
@@ -533,7 +533,7 @@ async def _do_agent_run(
         # pydantic-ai types `deps` against the Agent's own deps_type (`None`
         # here — see create_agent's comment on why it stays pinned to None
         # for the toolsets/model_settings overloads). `sandbox_gate` reads it
-        # via `ctx.deps` regardless of this static type (ADR-0069).
+        # via `ctx.deps` regardless of this static type.
         deps=cast(Any, sandbox_deps),
     )
 
@@ -751,7 +751,7 @@ def _commit_executed_deferred_results(
     """Commit a resumed round through its tool returns and drop the results.
 
     pydantic-ai runs approved tools before the model call that failed, so
-    resending the results would run them again (ADR-0040).
+    resending the results would run them again.
     """
     if cursor.results is None or partial_run.latest_history is None:
         return
@@ -938,7 +938,7 @@ def _resolve_crash_history(
     """The best available history to attach to an unhandled run exception.
 
     `run_history` only updates when an `agent.run()` call returns, so on a
-    failure inside the very first call of this turn it's still the pre-turn
+    failure inside the first call of this turn it's still the pre-turn
     baseline. `partial_run.latest_history` is the live, ever-growing
     `ctx.messages` and reflects everything done this turn, including a
     dangling trailing tool call — closed by the caller via
@@ -952,7 +952,7 @@ def _resolve_crash_history(
 async def _await_pending_checkpoints(
     pending_checkpoint_tasks: list[asyncio.Task],
 ) -> None:
-    """Drain in-flight checkpoint writes before the run truly ends.
+    """Drain in-flight checkpoint writes before the run ends.
 
     Guarantees a lagging background save can never land after (and clobber)
     the caller's own end-of-turn save.

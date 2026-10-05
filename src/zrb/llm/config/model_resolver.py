@@ -219,7 +219,7 @@ class ModelResolver:
         variable — which is the only credential that could be right when zrb
         was given none. A `base_url` the native provider cannot accept falls
         through to the OpenAI-compatible path instead of being dropped: a
-        custom endpoint is the whole reason to set that knob, and every
+        a custom endpoint is why that knob is set, and every
         provider zrb reaches this way speaks the OpenAI wire format.
         """
         # lazy: heavy third-party
@@ -304,7 +304,7 @@ def _openai_compatible_key(
 
     Passing `None` is not "no key": `OpenAIProvider` forwards it to the OpenAI
     SDK, which reads `OPENAI_API_KEY` out of the environment. That is right
-    when the target really is OpenAI — an unprefixed name means exactly that —
+    when the target is OpenAI — which an unprefixed name denotes —
     and wrong the moment it is not. A `deepseek:`-prefixed model whose
     `LLM_BASE_URL` sends it down this compatibility path would otherwise
     attach the user's OpenAI secret, as a bearer token, to requests aimed at
@@ -399,7 +399,7 @@ def resolve_configured_multimodal_model(
     Precedence, highest first: the explicit *model* argument,
     `get_current_multimodal_model()` (this run's `/model multimodal <name>`),
     then `CFG.LLM_MULTIMODAL_MODEL`. There is no fall back to the main model:
-    a text-only model cannot read the attachment, which is the whole reason
+    a text-only model cannot read the attachment, which is why
     this tier exists."""
     target = model or get_current_multimodal_model() or CFG.LLM_MULTIMODAL_MODEL
     if not target:

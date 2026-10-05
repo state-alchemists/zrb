@@ -73,7 +73,7 @@ class UI(BaseUI):
 
     Composed parts, each in its own module under `default/`: `UILifecycle`,
     `UIOutput`, `UIConfirmation`, `UISelection`, `UIMessageEditing`,
-    `UIAgentPicker`, `UIKeybindings`. Per ADR-0035 this class re-exposes their
+    `UIAgentPicker`, `UIKeybindings`. This class re-exposes their
     public surface as one-line delegators, which is most of its length.
 
     Two wrappers take an `AnyUI` and return one, so they compose with this
@@ -149,7 +149,7 @@ class UI(BaseUI):
         )
         # `_ui_config` backs every `self.<x>_commands` property, so it holds
         # the current aliases. The completer offers all of them; a command
-        # that cannot run reports that from its own handler (ADR-0093).
+        # that cannot run reports that from its own handler.
         self._input_field = create_input_field(
             history_manager=self._history_manager,
             ui_config=self._ui_config,

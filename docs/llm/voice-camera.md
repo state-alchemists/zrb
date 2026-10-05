@@ -52,7 +52,7 @@ By default zrb ignores the microphone while it is speaking, so its own voice is 
 
 With wake words, zrb stops only once it has heard one. Talk in the room holds its voice like anything else heard over it, on loudness alone, and the words give that hold back when they turn out not to be the user's.
 
-**zrb's own voice.** On speakers the microphone hears zrb too, and zrb does not try to subtract it: no echo canceller removes all of it on laptop speakers, and what is left, transcribed, would become turns zrb answers itself. Instead, what hands-free hears has to pass the checks below before it reaches the model ([ADR-0105](../adr/adr-0105.md)). None of them compares the words heard against what zrb was saying, so a word of zrb's own reply, loud enough to clear the bar, can still open a turn — keep the volume down, or wear headphones. Push-to-talk keeps every word: its transcript lands in the input box for you to edit.
+**zrb's own voice.** On speakers the microphone hears zrb too, and zrb does not try to subtract it: no echo canceller removes all of it on laptop speakers, and what is left, transcribed, would become turns zrb answers itself. Instead, what hands-free hears has to pass the checks below before it reaches the model. None of them compares the words heard against what zrb was saying, so a word of zrb's own reply, loud enough to clear the bar, can still open a turn — keep the volume down, or wear headphones. Push-to-talk keeps every word: its transcript lands in the input box for you to edit.
 
 | Check | What it keeps out | Setting |
 |---|---|---|
@@ -203,6 +203,6 @@ enable_speech(chat)
 
 `enable_speech` also works on an `LLMTask`, which has no commands: it speaks the task's final reply.
 
-The three features are built only from `LLMChatTask`'s public extension points — `append_custom_command`, `append_trigger`, `append_hook_factory`, `append_stream_observer` — so the same shapes are open to your own features. A stream observer is called with every event a run streams, text deltas included, after the UI (ADR-0104). [LLMChatTask → Triggers & Custom Commands](../task-types/llmchat-task.md#triggers--custom-commands) describes them; ADR-0102 records the design.
+The three features are built only from `LLMChatTask`'s public extension points — `append_custom_command`, `append_trigger`, `append_hook_factory`, `append_stream_observer` — so the same shapes are open to your own features. A stream observer is called with every event a run streams, text deltas included, after the UI. [LLMChatTask → Triggers & Custom Commands](../task-types/llmchat-task.md#triggers--custom-commands) describes them.
 
 🔖 [Documentation Home](../../README.md) > [LLM Integration](llm-integration.md) > Voice and Camera

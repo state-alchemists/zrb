@@ -259,7 +259,7 @@ def _seed_tool_factories() -> tuple[list, list]:
     tag(ask_user_question, Capability.META)
     tag(read_tool_result, Capability.META)
     tag(search_journal, Capability.READ)
-    # The journal writers only ever touch CFG.LLM_JOURNAL_DIR, but they do
+    # The journal writers touch only CFG.LLM_JOURNAL_DIR, but they do
     # write, so plan mode must block them like any other edit.
     for _fn in (log_activity, write_journal_note, delete_journal_note):
         tag(_fn, Capability.EDIT)

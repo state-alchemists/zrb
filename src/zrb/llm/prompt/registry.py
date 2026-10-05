@@ -78,7 +78,7 @@ class PromptRegistry:
     into it. Item identity is the key — ``remove_prompt`` drops the exact
     middleware value handed to ``set_prompts`` / ``append_prompt``.
 
-    The layering model (ADR-0090): each registry keeps a ``_default``
+    The layering model: each registry keeps a ``_default``
     fallback (possibly callable/deferred) and an explicit ``_prompts``
     value set by ``set_prompts``. Delta ops (append/prepend/remove) are
     stored as ``PromptDelta`` ops and replayed over the resolved base
@@ -151,7 +151,7 @@ class PromptRegistry:
     def remove_prompt(self, middleware: Any) -> None:
         """Drop the first occurrence of the exact *middleware* value.
 
-        Removal is by identity — the caller names the very value it
+        Removal is by identity — the caller names the value it
         ``add``-ed, as the other registries' ``remove_<name>`` do for name-
         keyed entries.
         """

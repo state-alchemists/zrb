@@ -98,7 +98,7 @@ class PromptManager:
         self._prompt_registry = prompt_registry or default_prompt_registry
         self._middlewares: PromptSetValue = prompts
         # Ordered append/prepend/remove ops layered over the resolved base
-        # (own value, else the registry's) at query time (ADR-0090).
+        # (own value, else the registry's) at query time.
         self._deltas = PromptDelta()
         self._assistant_name = assistant_name
         self._include_sections = include_sections  # None means "use CFG default"
@@ -388,7 +388,7 @@ class PromptManager:
     ) -> list[PromptMiddleware | str]:
         sections = self.active_sections
 
-        # The profile axis (ADR-0049): the `profile` section resolves
+        # The profile axis: the `profile` section resolves
         # ``profile.{profile}.md`` with fallback to the base ``profile.md``;
         # the other sections are shared. ``active_profile`` resolves ``auto``
         # from the bound model.

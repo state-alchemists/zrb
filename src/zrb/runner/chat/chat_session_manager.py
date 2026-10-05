@@ -168,7 +168,7 @@ class ChatSessionManager:
         for base_name, _mtime, file_count in self.scan_sessions():
             seen.add(base_name)
             is_active = base_name in self._sessions
-            # Only ever classify a non-active (history-file-only) entry as a
+            # Classify only a non-active (history-file-only) entry as a
             # delegated sub-agent session — an active human ChatSession whose
             # name happens to match the shape is still a real root session.
             delegated = None if is_active else parse_delegated_session(base_name)
@@ -187,7 +187,7 @@ class ChatSessionManager:
             )
         # Active sessions with no history file yet are the newest → put on top.
         # Always a real (human-driven) session, never a delegated one — those
-        # only ever reach the listing through the history-file scan above.
+        # reach the listing only through the history-file scan above.
         extras = [
             {
                 "session_id": session_id,

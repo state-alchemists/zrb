@@ -618,7 +618,7 @@ async def _run_parallel(
             )
         finally:
             # Cleanup runs even when the sub-agent errored, so worktrees do not
-            # leak (ADR-0068); a cleanup failure must not escape into
+            # leak; a cleanup failure must not escape into
             # `asyncio.gather` and abort sibling tasks.
             if isolate and worktree_path:
                 try:

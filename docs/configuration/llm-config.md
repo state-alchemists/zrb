@@ -111,7 +111,7 @@ In the tables below, ✅ means set, — means unset, and *any* means the variabl
 
 > ⚠️ **A withheld key is not mentioned in the error.** Rows 4 and 5 above say "set `DEEPSEEK_API_KEY`" without noting `ZRB_LLM_API_KEY` was skipped as another provider's key. Set the second vendor's own variable, or set `ZRB_LLM_BASE_URL` if one endpoint serves both.
 
-See [ADR-0094](../adr/adr-0094.md) for why credentials are scoped this way rather than injected everywhere.
+A key is scoped to the provider it was configured for rather than injected into every request, so one vendor's key is never sent to another.
 
 ### Supported Providers
 
@@ -284,7 +284,7 @@ The system prompt is an **ordered list of sections**; what each section holds, w
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_LLM_INCLUDE_SECTIONS` | Comma-separated, order-sensitive list of sections to include. Remove a name to drop a section; rewrite the list to reorder. The set is fixed: an unknown (e.g. misspelled) name logs a warning at compose time and is skipped. Programmatic twin: `CFG.LLM_INCLUDE_SECTIONS` (a `list[str]`) | `persona,principle,workflow,example,profile,system_context,project_context` |
-| `ZRB_LLM_PROMPT` | Comma-separated extra prompts appended after every built-in section — the env twin of `prompt_registry` (ADR-0091). Empty means none. Content that won't fit a comma value (callables, structured middleware) belongs in `zrb_init.py` via `prompt_registry`. See [LLM Component Collections](./llm-collections.md). | (empty) |
+| `ZRB_LLM_PROMPT` | Comma-separated extra prompts appended after every built-in section — the env twin of `prompt_registry`. Empty means none. Content that won't fit a comma value (callables, structured middleware) belongs in `zrb_init.py` via `prompt_registry`. See [LLM Component Collections](./llm-collections.md). | (empty) |
 
 ```bash
 # Strip demonstrations and project context (e.g. for benchmark runners).
@@ -298,7 +298,7 @@ export ZRB_LLM_INCLUDE_SECTIONS="persona"
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_PROFILE` | Prompt profile: `minimal`, `standard`, `capable`, or `auto`. Swaps the `profile` section and, for `minimal` only, drops the delegate (sub-agent) tools (ADR-0049). An unrecognized value falls back to `standard` | `auto` |
+| `ZRB_LLM_PROFILE` | Prompt profile: `minimal`, `standard`, `capable`, or `auto`. Swaps the `profile` section and, for `minimal` only, drops the delegate (sub-agent) tools. An unrecognized value falls back to `standard` | `auto` |
 
 What each profile changes and how `auto` reads a model id: [Programming the Prompt → Rung 7](../llm/programming-the-prompt.md#rung-7--file-backed-sections-and-profiles).
 
@@ -308,11 +308,11 @@ Each task exposes its `PromptManager` as `task.prompt_manager`; `prompt_registry
 
 ### Telling the LLM about a custom tool
 
-A tool's usage guidance belongs in its **docstring**, which pydantic-ai ships with its schema on every request (ADR-0045). Cross-cutting policy goes through `append_prompt()`. Rarely-needed tools can use `Tool(fn, defer_loading=True)` so their schema loads only once the model searches for them. Worked example: [Telling the LLM how to use a tool](../llm/extending-the-llm.md#telling-the-llm-how-to-use-a-tool).
+A tool's usage guidance belongs in its **docstring**, which pydantic-ai ships with its schema on every request. Cross-cutting policy goes through `append_prompt()`. Rarely-needed tools can use `Tool(fn, defer_loading=True)` so their schema loads only once the model searches for them. Worked example: [Telling the LLM how to use a tool](../llm/extending-the-llm.md#telling-the-llm-how-to-use-a-tool).
 
 ### Restricting the toolbox (`ZRB_LLM_TOOLS`)
 
-`ZRB_LLM_TOOLS` is the env twin of `tool_registry` (ADR-0091): a **name allowlist** of static tools. Empty (default) means all built-in + registered tools.
+`ZRB_LLM_TOOLS` is the env twin of `tool_registry`: a **name allowlist** of static tools. Empty (default) means all built-in + registered tools.
 
 ```bash
 export ZRB_LLM_TOOLS="Shell,Read,Write,Grep,Glob,TodoWrite"
@@ -336,7 +336,7 @@ How the journal works (storage layout, when the index is injected, how truncatio
 | `ZRB_LLM_JOURNAL_AUTO_SEARCH_ENABLED` | On a session's first turn, run one `SearchJournal` against the opening message and fold hits into `<journal-index>` under an unverified "Possibly Related" section. Costs one search subprocess per session | `on` |
 | `ZRB_LLM_JOURNAL_AUTO_SEARCH_MAX_HITS` | Max `SearchJournal` hits folded into the first-turn auto-search | `3` |
 | `ZRB_LLM_JOURNAL_GIT_ENABLED` | Git-back the journal directory: `git init` on first use, commit after every `LogActivity`/`WriteJournalNote`/`DeleteJournalNote`. Gives unbounded, diffable history, so a human can recover a delete or bad overwrite (the in-file History block keeps only 3 revisions). Best-effort: a missing `git` or failed commit only skips the commit | `on` |
-| `ZRB_LLM_SELF_REVIEW_ENABLED` | Built-in self-review Stop hook (ADR-0100). On a turn that changed files, a fresh-context reviewer reads the working directory's diff since the turn started (every repository under it, nested ones and worktrees included; shell edits and mid-turn commits included; earlier uncommitted work excluded) plus read-only surrounding code. A `Request changes` verdict extends the turn so the agent fixes the findings. Snapshots go to a private temporary git store, never your `.git/objects`. Costs two snapshots per turn (start and Stop) and one reviewer run per turn that changed files | `off` |
+| `ZRB_LLM_SELF_REVIEW_ENABLED` | Built-in self-review Stop hook. On a turn that changed files, a fresh-context reviewer reads the working directory's diff since the turn started (every repository under it, nested ones and worktrees included; shell edits and mid-turn commits included; earlier uncommitted work excluded) plus read-only surrounding code. A `Request changes` verdict extends the turn so the agent fixes the findings. Snapshots go to a private temporary git store, never your `.git/objects`. Costs two snapshots per turn (start and Stop) and one reviewer run per turn that changed files | `off` |
 | `ZRB_LLM_SELF_REVIEW_MAX_ROUNDS` | Consecutive blocking reviews in one turn before it ends anyway; a non-blocking review resets the count | `2` |
 | `ZRB_LLM_SELF_REVIEW_MODEL` | Reviewer model. Empty uses the run's model; a different model shares fewer blind spots | (empty) |
 | `ZRB_LLM_SELF_REVIEW_TIMEOUT` | Seconds per review. On timeout the reviewer (and its model request) is cancelled and the turn ends unreviewed | `240` |
@@ -520,7 +520,7 @@ These knobs control the hook subsystem as a whole; each hook's own `enabled`/`ti
 | `ZRB_HOOKS_DIRS` | Additional directories to scan for hook files (colon-separated; semicolon on Windows) | (empty) |
 | `ZRB_HOOKS_TIMEOUT` | Default timeout for hook execution (ms) | `30000` |
 | `ZRB_HOOKS_EXIT_TIMEOUT` | How long the chat TUI waits, as it exits, for hooks still running (ms) | `10000` |
-| `ZRB_LLM_HOOKS` | Name allowlist for the hooks zrb dispatches — the env twin of `hook_registry` (ADR-0091). Empty means all registered hooks; non-empty restricts dispatch to the named hooks (e.g. `journal-compliance-judge`). Finer edits (a hook with a matcher, command config) live in `zrb_init.py` via `hook_registry`. See [LLM Component Collections](./llm-collections.md). | (empty) |
+| `ZRB_LLM_HOOKS` | Name allowlist for the hooks zrb dispatches — the env twin of `hook_registry`. Empty means all registered hooks; non-empty restricts dispatch to the named hooks (e.g. `journal-compliance-judge`). Finer edits (a hook with a matcher, command config) live in `zrb_init.py` via `hook_registry`. See [LLM Component Collections](./llm-collections.md). | (empty) |
 
 `ZRB_HOOKS_ENABLED=off` disables the subsystem regardless of any `hooks.json`. `ZRB_LLM_HOOKS` filters on top of it: with the subsystem off, nothing fires even if a hook's name is allowed.
 
@@ -536,8 +536,8 @@ Where Zrb looks for skills and agents, and whether built-in ones load.
 | `ZRB_LLM_SEARCH_HOME` | Search home directory (`~/.claude/`, `~/.zrb/`) | `on` |
 | `ZRB_LLM_ENABLE_BUILTIN_SKILLS` | Load the built-in utility skills (`llm_plugin/skills`). Core skills (`core_skills/`) are always on; user/project/plugin skills are unaffected | `on` |
 | `ZRB_LLM_ENABLE_BUILTIN_AGENTS` | Load optional built-in sub-agents (`llm_plugin/agents`). Core agents (`core_agents/`) are always on; user/project/plugin agents are unaffected | `on` |
-| `ZRB_LLM_SKILLS` | Name allowlist for the visible skill catalogue — the env twin of `skill_registry` (ADR-0091). Empty means all discovered + built-in skills; non-empty keeps only the named ones (`LLM_ENABLE_BUILTIN_SKILLS` still gates built-ins independently). See [LLM Component Collections](./llm-collections.md). | (empty) |
-| `ZRB_LLM_AGENTS` | Name allowlist for the sub-agent roster — the env twin of `sub_agent_registry` (ADR-0091). Empty means all discovered + built-in agents; non-empty keeps only the named ones. See [LLM Component Collections](./llm-collections.md). | (empty) |
+| `ZRB_LLM_SKILLS` | Name allowlist for the visible skill catalogue — the env twin of `skill_registry`. Empty means all discovered + built-in skills; non-empty keeps only the named ones (`LLM_ENABLE_BUILTIN_SKILLS` still gates built-ins independently). See [LLM Component Collections](./llm-collections.md). | (empty) |
+| `ZRB_LLM_AGENTS` | Name allowlist for the sub-agent roster — the env twin of `sub_agent_registry`. Empty means all discovered + built-in agents; non-empty keeps only the named ones. See [LLM Component Collections](./llm-collections.md). | (empty) |
 | `ZRB_LLM_CONFIG_DIR_NAMES` | Config subdirectory names to look for in each dir (colon-separated; semicolon on Windows) | `.claude:.zrb` |
 | `ZRB_LLM_BASE_SEARCH_DIRS` | Explicit base dirs containing `skills/`, `agents/`, `plugins/` | (empty) |
 | `ZRB_LLM_EXTRA_SKILL_DIRS` | Additional direct skill directories | (empty) |
@@ -924,7 +924,7 @@ export ZRB_LLM_VOICE=conversation   # talk with zrb, and interrupt it
 | `ZRB_LLM_DICTATION_POLITE_WORDS` | Words a yes or a no may carry without changing it ("yes please", "no thanks"). Approvals only: a stop word is taken as one only when it is said alone, so "stop please" goes to the small model | `please, thanks, thank, you` |
 | `ZRB_LLM_DICTATION_BLOCK_DURATION` | Seconds of audio per microphone block: the step every other listening duration is counted in, and how often speech is checked | `0.1` |
 | `ZRB_LLM_DICTATION_DEVICE` | Microphone PortAudio opens: a name, or the number `query_devices()` lists it under; `pulse` and `default` on a Linux or WSL machine are not the same microphone. Empty uses PortAudio's own default (`python -c "import sounddevice; sounddevice.query_devices()"` lists them) | (empty) |
-| `ZRB_LLM_DICTATION_PIPECAT_ENABLED` | `on` hands each captured block to a Pipecat pipeline as well, beside the hand-rolled path that still decides everything: the pipeline ends at a counter, so nothing zrb hears or says changes and turning it on cannot break the voice. Stage 1 of the voice migration ([ADR-0107](../adr/adr-0107.md)), and it wants `zrb[voice]`; without it the setting says so and listening goes on. `off`: the capture goes nowhere else | `off` |
+| `ZRB_LLM_DICTATION_PIPECAT_ENABLED` | `on` also feeds every microphone block to a Pipecat pipeline, which so far only counts them: nothing zrb hears or says changes, and turning it on cannot break the voice. Experimental, and it needs the `zrb[voice]` extra — without it the setting says so and listening goes on. `off`: the capture goes nowhere else | `off` |
 
 Each backend uses only its own variables:
 

@@ -265,9 +265,9 @@ _DOCUMENT_DENY = _IMAGE_DENY
 #      itself: OpenAI's o-series ("Unsupported parameter: 'parallel_tool_calls'
 #      is not supported with this model"), kimi-k2.5 via NVIDIA NIM ("This model
 #      only supports single tool-calls at once!"). Listing one of those here
-#      would make `_apply_capability_constraints` send the very parameter that
+#      would make `_apply_capability_constraints` send the parameter that
 #      breaks the request. Do not add them until that is split out.
-#   3. **Simply never emits more than one** — gpt-oss via Ollama, and most
+#   3. **Never emits more than one** — gpt-oss via Ollama, and most
 #      smaller local models. Harmless: encouragement to batch is a no-op, the
 #      model issues one call and the turn proceeds. Nothing to declare.
 _NO_PARALLEL_TOOL_CALLS = (

@@ -1,4 +1,4 @@
-"""`SubAgentRegistry` — the canonical collection of sub-agent definitions (ADR-0090).
+"""`SubAgentRegistry` — the canonical collection of sub-agent definitions.
 
 Discovered definitions plus everything registered in code; `SubAgentManager`
 does the scanning and owns the tool surface. Layer and allowlist semantics are

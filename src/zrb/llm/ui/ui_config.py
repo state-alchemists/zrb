@@ -8,7 +8,7 @@ def _commands(knob: str) -> Callable[[], list[str]]:
     """Default factory reading a `CFG.LLM_UI_COMMAND_*` twin at instantiation.
 
     Deferred on purpose: `zrb_init.py` may change the knob after this module
-    is imported (R3, ADR-0090 Part 3). `CFG`'s `EnvField` already parses the
+    is imported (R3). `CFG`'s `EnvField` already parses the
     comma-separated env value into a list, so this just reads it — `list(...)`
     hands back a fresh copy rather than a reference into `CFG`'s own list.
     """
@@ -113,7 +113,7 @@ class UIConfig:
         return replace(self, **overrides)
 
 
-# Command keys whose field name is not simply `<key>_commands`.
+# Command keys whose field name is not `<key>_commands`.
 _COMMAND_FIELD_ALIASES = {"redirect": "redirect_output_commands"}
 
 # Guards `merge_commands` against writing a key that is not a command list.

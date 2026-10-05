@@ -95,7 +95,7 @@ async def run_chat_session(
 async def _next_queued_message(
     session: ChatSession, current_task: "asyncio.Task"
 ) -> dict | None:
-    """The next queued message, or `None` when the poll simply timed out."""
+    """The next queued message, or `None` when the poll timed out."""
     try:
         return await asyncio.wait_for(
             session.input_queue.get(),
@@ -159,7 +159,7 @@ async def _run_one_message(
         )
         try:
             # asyncio.create_task copies the current context, so the
-            # task keeps this value for its whole run (ADR-0069). Keyed
+            # task keeps this value for its whole run. Keyed
             # by session_id, never the non-unique session_name.
             with scoped(current_chat_session_id, session.session_id):
                 llm_task = asyncio.create_task(

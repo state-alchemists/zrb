@@ -13,7 +13,7 @@ Bodies live here rather than on `AnyUI` because no `any_*.py` module in this
 codebase carries an implementation — `.coveragerc` excludes those paths on
 that basis, so a default written there would ship untested.
 
-Per ADR-0035 this is a genuine `Mixin`, and keeps the suffix: every value it
+This is a genuine `Mixin`, and keeps the suffix: every value it
 reads is a `_uidefaults_`-prefixed attribute it declares and sets itself, it
 defines no `__init__` a host must remember to call, and `background_tasks`
 builds its own set on first access — so any class can mix it in. A host that

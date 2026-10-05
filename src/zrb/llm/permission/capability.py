@@ -34,7 +34,7 @@ def capability_metadata(capability: Capability) -> dict[str, Capability]:
     """Build a ``ToolDefinition.metadata`` dict carrying ``capability``.
 
     pydantic-ai's per-call dispatch (``SafeToolsetWrapper.call_tool`` in
-    ``agent/common.py``) only ever sees a ``ToolsetTool``, which has no
+    ``agent/common.py``) sees only a ``ToolsetTool``, which has no
     ``.function`` and no arbitrary attributes — a ``tag()`` set on the
     original callable does not survive into that layer. ``ToolDefinition.metadata``
     does, so ``wrap_tool`` re-tags the capability here when it rebuilds the

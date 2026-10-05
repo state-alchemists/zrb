@@ -305,7 +305,7 @@ def render_journal_index(first_message: str | None = None) -> str | None:
     for them when they are not visible, since their docstrings — where the
     rules live — are deferred. When it does not, nothing says so: that
     happens only when ``LLM_JOURNAL_INDEX_MAX_CHARS`` is 0 while the journal
-    tools stay registered, a deliberate and unusual pairing not worth a caveat
+    tools stay registered, an unusual pairing not worth a caveat
     on every request.
     """
     # Callers pick the moment (first turn / summarization); this check is what

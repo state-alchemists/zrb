@@ -1,17 +1,16 @@
 """`LayeredRegistry` — the two-layer collection behind the skill and sub-agent
-registries (ADR-0090).
+registries.
 
 A registry is the *source of defaults*: it stores everything found by
 filesystem discovery plus everything registered in code, and answers queries.
 It does not scan — that is the owning manager's job.
 
 - *manual* — items registered from code; always wins a name collision and
-  survives a later scan. May be a deferred callable, resolved at query time
-  (ADR-0090 Part 3), so a value set during `zrb_init.py` honors later
+  survives a later scan. May be a deferred callable, resolved at query time, so a value set during `zrb_init.py` honors later
   `CFG`/registry changes.
 - *discovered* — items found on disk; a scan replaces this layer only.
 
-An allowlist (ADR-0091) filters only the discovered layer; manual
+An allowlist filters only the discovered layer; manual
 registrations are always visible ("env sets the baseline; `zrb_init.py`
 builds on it"). It is read at query time, so env changes apply on the next
 lookup.

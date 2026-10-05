@@ -1,4 +1,4 @@
-"""`SkillRegistry` — the canonical collection of skills (ADR-0090).
+"""`SkillRegistry` — the canonical collection of skills.
 
 Discovered skills plus everything registered in code; `SkillManager` does the
 scanning. Layer and allowlist semantics are `LayeredRegistry`'s; the allowlist

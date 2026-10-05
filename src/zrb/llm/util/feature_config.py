@@ -58,7 +58,7 @@ class FeatureSessions(Generic[T]):
     web chat connection — so state a feature carries between its own
     registrations is keyed by the session that owns it, not held in a closure
     over the task. Config is resolved per session for the same reason: a knob
-    changed between two sessions has to reach the second one (ADR-0102).
+    changed between two sessions has to reach the second one.
     """
 
     def __init__(self, create: Callable[[], T], close: Callable[[T], None]) -> None:

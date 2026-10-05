@@ -55,8 +55,8 @@ def make_task(
 
         # `greet` is now an AnyTask; `zrb greet --name you` runs it.
 
-    Passing `group=` registers the task in one step, which is the whole reason
-    to prefer this over building a `Task` and registering it separately.
+    Passing `group=` registers the task in one step, which is why it is preferable to building a `Task` and registering it
+    separately.
 
     Args:
         name: Task name, and the CLI sub-command name. Prefer kebab-case.

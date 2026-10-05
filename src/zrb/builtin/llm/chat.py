@@ -121,7 +121,7 @@ def _tool_factory(tool, defer_loading: bool = True):
 
 
 # Delegate tools, main agent only (sub-agents filter on
-# `zrb_is_delegate_tool`). The `minimal` profile drops delegation (ADR-0049).
+# `zrb_is_delegate_tool`). The `minimal` profile drops delegation.
 def _delegate_tool_factory(ctx):
     # Resolve from this run's model rather than CFG.LLM_MODEL: ``/model`` and
     # the task's ``model=`` override can select a small model while the global
@@ -184,7 +184,7 @@ llm_chat.prepend_tool_policy(
     auto_approve("WebFetch"),
     auto_approve("ActivateSkill"),
     auto_approve("SearchSkill"),
-    # AskUserQuestion auto-approves itself everywhere (ADR-0062).
+    # AskUserQuestion auto-approves itself everywhere.
     auto_approve("DelegateToAgent"),
     # Roster search is metadata — it finds delegation targets, it does not
     # delegate — so it prompts nothing; the sub-agent's own tool calls still

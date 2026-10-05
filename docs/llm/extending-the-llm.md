@@ -35,7 +35,7 @@ The built-in `zrb llm chat` task and its sub-agents get these. An `LLMTask` or `
 | `Glob` | `glob_files` | Find files matching a glob pattern (e.g., `**/*.py`). |
 | `Grep` | `search_files` | Search file contents by regex pattern. Supports `context_lines` (default 2), `files_only=True` to return only matching file paths, `case_sensitive=False` for case-insensitive search, and `file_pattern` to restrict to specific file types. |
 | `Read` | `read_file` | Read a UTF-8 text file from `start_line` to `end_line` (1-indexed, inclusive; default: whole file). Lines are numbered `cat -n`-style (six right-aligned columns, then a tab); strip through the first tab before passing text to `Edit`, which also strips it if one slips through. PDF text comes back unnumbered. Output past the char cap (measured before numbering) is truncated at the end — narrow the range or `Grep` first. Issue parallel `Read` calls to load several files in one turn. |
-| `Write` | `write_file` | Write a file. Overwriting an existing file with `mode="w"` requires that this session has already Read it (or Written/Edited it to its current content) — otherwise the call is refused with a pointer back to `Read` (ADR-0084). Appends (`mode="a"`) need no prior read. Binary (non-UTF-8) files are refused in every mode. |
+| `Write` | `write_file` | Write a file. Overwriting an existing file with `mode="w"` requires that this session has already Read it (or Written/Edited it to its current content) — otherwise the call is refused with a pointer back to `Read`. Appends (`mode="a"`) need no prior read. Binary (non-UTF-8) files are refused in every mode. |
 | `Edit` | `replace_in_file` | Make targeted string replacements in a single file. |
 | `RM` | `remove_file` | Delete a file or directory (irreversible). Refused unless this session has already `Read` the file or listed (`LS`/`Glob`) its parent directory. |
 | `MV` | `move_file` | Move or rename a file or directory. |
@@ -136,7 +136,7 @@ Registered only when zrb starts inside a git repository.
 
 ## Telling the LLM how to use a tool
 
-A tool describes itself. Its **docstring** and type annotations become the JSON schema pydantic-ai sends on every request, so whatever the model needs to know sits right next to the arguments it is filling in — that is the whole mechanism (ADR-0045).
+A tool describes itself. Its **docstring** and type annotations become the JSON schema pydantic-ai sends on every request, so whatever the model needs to know sits right next to the arguments it is filling in.
 
 ```python
 def check_stock(warehouse_id: str, sku: str) -> dict:

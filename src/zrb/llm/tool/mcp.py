@@ -159,7 +159,7 @@ def _cap_against_budget(result: Any, budget: int) -> tuple[Any, int]:
     The budget is threaded through the whole structure rather than applied per
     item: capping each item of a sequence independently bounds nothing, because
     N parts each just under the cap still add up to N times the budget — the
-    very overflow this exists to prevent.
+    overflow this exists to prevent.
     """
     if isinstance(result, str):
         capped, _ = truncate_text(result, max(budget, 0), keep="head")

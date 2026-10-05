@@ -17,7 +17,7 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ## Upgrading to 3.14.0
 
-3.14.0 retires dictation settings about holding zrb's voice and reading back what was heard over it ([ADR-0105](../adr/adr-0105.md), [ADR-0076](../adr/adr-0076.md)), and four speech settings, which existed to shorten a long reply ([ADR-0103](../adr/adr-0103.md)). Each is reported at startup when it is still set, naming what replaced it; setting one has no other effect.
+3.14.0 retires dictation settings about holding zrb's voice and reading back what was heard over it, and four speech settings, which existed to shorten a long reply. Each is reported at startup when it is still set, naming what replaced it; setting one has no other effect.
 
 | Retired | What to do instead |
 |---|---|
@@ -38,7 +38,7 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ## Upgrading to 3.10.0
 
-3.10.0 moves `/photo` and `/voice` out of the UI into three optional features — camera, dictation and speech — that `zrb llm chat` enables through its public extension points ([Voice and camera](../llm/voice-camera.md), ADR-0102). The commands work as before; configuration, and code that reached into the UI for them, changes.
+3.10.0 moves `/photo` and `/voice` out of the UI into three optional features — camera, dictation and speech — that `zrb llm chat` enables through its public extension points ([Voice and camera](../llm/voice-camera.md)). The commands work as before; configuration, and code that reached into the UI for them, changes.
 
 ### Settings
 
@@ -349,8 +349,6 @@ export ZRB_LLM_INCLUDE_SECTIONS="persona,principle,workflow,example,profile,syst
 `ZRB_LLM_INCLUDE_JOURNAL_REMINDER` is removed along with its hook; the journal tools make the reminder unnecessary. `ZRB_LLM_JOURNAL_ENABLED` still works and now unregisters the journal tools instead of dropping a prompt section.
 
 **Careful with overrides.** If you overrode a retired prompt file (`mandate.md`, `git_mandate.md`, `journal_mandate.md`) *and* you rely on the default section list, your override silently stops being read — the name is no longer in the defaults, so nothing resolves it. Either keep the name in an explicit `ZRB_LLM_INCLUDE_SECTIONS` (it then works as a custom section, see above) or move the content into a `workflow.md` override.
-
-See [ADR-0045](../adr/adr-0045.md) and [ADR-0055](../adr/adr-0055.md) for the reasoning.
 
 ---
 

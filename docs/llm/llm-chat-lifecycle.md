@@ -60,7 +60,7 @@ flowchart TD
 ```
 
 `LLMChatTask` (`src/zrb/llm/task/chat/task.py`) is a plain `BaseTask` subclass
-that composes its behavior as parts (ADR-0035): `ChatExecution`
+that composes its behavior as parts: `ChatExecution`
 (`execution.py`) owns `exec_action`, `ChatRunning` (`running.py`) resolves
 UIs/triggers/commands. Since 2.65.3 these are **composed attributes**
 (`self._execution`, `self._running`), not base classes.
@@ -105,7 +105,7 @@ flowchart TD
 This is the heart. Every round of the loop:
 
 1. **Sanitize history** before the model call. Three steps in fixed order (`_SANITIZE_STEPS`): `filter_nil_content` → `sanitize_orphaned_tool_calls` → `ensure_alternating_roles`; the first two also drop messages left with no parts, so there is no separate empty-message pass. Why each step exists, and which providers' bugs each one neutralises, is documented in [LLM History Sanitization](../technical-specs/llm-history-sanitization.md).
-2. **Stream events** from `pydantic_ai` via the `event_stream_handler` passed to `agent.run()` — the handler also registers the live `RunContext` on the UI, so a message sent mid-turn can be steered into this same run instead of queuing (ADR-0078). `result_output`/`run_history` come from `agent.run()`'s direct return value, not a stream-witnessed event; `_execution_loop` re-fires a synthetic `AgentRunResultEvent` through the per-event handler afterward so usage accounting keeps working. The OpenAI client also gets a runtime monkey-patch from `openai_patch.py` so it never serialises `"content": null` when there are tool calls.
+2. **Stream events** from `pydantic_ai` via the `event_stream_handler` passed to `agent.run()` — the handler also registers the live `RunContext` on the UI, so a message sent mid-turn can be steered into this same run instead of queuing. `result_output`/`run_history` come from `agent.run()`'s direct return value, not a stream-witnessed event; `_execution_loop` re-fires a synthetic `AgentRunResultEvent` through the per-event handler afterward so usage accounting keeps working. The OpenAI client also gets a runtime monkey-patch from `openai_patch.py` so it never serialises `"content": null` when there are tool calls.
 3. **Classify exceptions** (`error_classifier.py`) and decide whether to retry, strip thinking parts, or give up (`retry_loop.py`).
 4. **Sanitize the result history** after a successful turn so the next call sees a provider-clean message list.
 
@@ -129,7 +129,7 @@ flowchart LR
 ```
 
 Tool approval flow (the cascade in `agent/run/deferred_calls.py::_resolve_approval`; the first stage with a verdict wins):
-- If the tool is intrinsically interactive (e.g. `AskUserQuestion`, registered via `register_always_auto_approve`), it is auto-approved first — a separate prompt would render before the question itself (ADR-0062).
+- If the tool is intrinsically interactive (e.g. `AskUserQuestion`, registered via `register_always_auto_approve`), it is auto-approved first — a separate prompt would render before the question itself.
 - Tool policies (e.g. `auto_approve(...)`, the shell-safety policy) and then the permission policy may approve or deny.
 - If neither decided and `current_yolo` is `True` (or the tool is in the selective YOLO set), the tool runs.
 - A `PermissionRequest` hook may decide next.
@@ -146,7 +146,7 @@ The built-in journal-compliance judge (`llm/hook/journal_compliance.py`, see [ho
 1. `journal_compliance.py::register_journal_compliance_hook` — a hook factory, seeded into every fresh `HookManager`'s `_hook_factories` (`hook/manager.py.__init__`). Builds the `HookConfig`: system prompt, `LogActivity`/`WriteJournalNote`/`SearchJournal` tools, and the `event_data.journal_worthy` matcher.
 2. `agent/run/runner.py` fires `HookEvent.STOP`, computing `wrote_files` and `journal_worthy` (wrote files, or the turn states a preference) via `hook/turn_evidence.py`.
 3. `hook/manager.py::_select_inner_hook`, for `HookType.AGENT`, calls `get_agent_hook_builder()` (`hook/agent_hook_registry.py`) instead of importing the agent package directly — that's the circular-dependency seam.
-4. `agent/__init__.py` imports `agent/hook_agent.py` from its PEP 562 `__getattr__`, so the `register_agent_hook_builder(create_agent_hook)` call fires the first time anything resolves `create_agent`, `run_agent`, `AnyToolConfirmation` or `create_summarizer_agent`. This is *why* the registry already has a builder by the time step 3 runs in any real process (every entry point resolves one of those names while building its agent, before a hook manager ever scans). See ADR-0096 for why the barrel is lazy.
+4. `agent/__init__.py` imports `agent/hook_agent.py` from its PEP 562 `__getattr__`, so the `register_agent_hook_builder(create_agent_hook)` call fires the first time anything resolves `create_agent`, `run_agent`, `AnyToolConfirmation` or `create_summarizer_agent`. This is *why* the registry already has a builder by the time step 3 runs in any real process (every entry point resolves one of those names while building its agent, before a hook manager ever scans).
 5. `agent/hook_agent.py::create_agent_hook` resolves `tools` (config-gated on `LLM_JOURNAL_ENABLED`) and calls `run_llm_hook` (`hook/creator.py`) — the actual LLM round-trip.
 6. Back in `hook/manager.py`: matcher evaluation (`matcher.py`), priority sort, and — since journal-compliance is `async: true` — fire-and-forget dispatch and drain/timeout handling on shutdown.
 

@@ -40,7 +40,7 @@ def create_output_keybindings(
     def _(event):
         event.current_buffer.cursor_up(count=event.app.output.get_size().rows - 4)
 
-    # Shift+Tab is left unbound so the app level can cycle modes (ADR-0075).
+    # Shift+Tab is left unbound so the app level can cycle modes.
 
     # Typing in the output pane moves to the input field, unless text is
     # selected (so it can be copied).

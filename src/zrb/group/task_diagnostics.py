@@ -8,7 +8,7 @@ vanish, and zrb has nothing to say about it:
   name and no CLI word, so nothing ever runs it.
 - Two of the project's own tasks registered under the same alias in the same
   group. `Group.add_task` replaces the earlier one silently, by design, so the
-  first is simply gone.
+  first is gone.
 
 Collisions are read from the replacement log `Group.add_task` keeps, not by
 grouping declared tasks by `name`: an alias is a per-group word, and the same
@@ -256,7 +256,7 @@ def _callback_tasks(task: AnyTask) -> Iterator[AnyTask]:
     """
     # `callbacks` belongs to `BaseTrigger`, and `task` to `Callback`: neither is
     # on `AnyTask`, so both are read off the object, as the edge walk does. A
-    # third-party callback with no `task` simply has nothing to follow.
+    # third-party callback with no `task` has nothing to follow.
     callbacks = cast("list[AnyCallback]", getattr(task, "callbacks", None) or [])
     for callback in callbacks:
         wrapped = cast("AnyTask | None", getattr(callback, "task", None))

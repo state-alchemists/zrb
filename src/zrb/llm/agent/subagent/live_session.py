@@ -188,7 +188,7 @@ class LiveSubAgentSessionRegistry:
             had_work = True
         entry.state = "idle"
         if had_work:
-            # The main agent only ever heard "Cancelled by user" from this
+            # The main agent only heard "Cancelled by user" from this
             # delegation. If the session is continued, its final reply must be
             # pushed back so the main agent learns what it produced.
             entry.notify_parent_on_end = True
@@ -291,7 +291,7 @@ def _report_latest_response_to_parent(entry: LiveSubAgentSession) -> None:
     """Hand a cancelled-then-continued sub-agent's latest response to the main agent.
 
     The main agent last heard "Cancelled by user" from this delegation; the
-    continuation's output only ever streamed into the sub-agent's own live
+    continuation's output streamed only into the sub-agent's own live
     view. On the session's natural end, submit just the continuation's latest
     response (extracted from the accumulated history) through the parent UI,
     which steers it into the live main turn or queues it as the next one.

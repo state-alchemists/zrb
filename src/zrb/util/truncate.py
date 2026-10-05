@@ -59,7 +59,7 @@ def truncate_display(text: str, max_chars: int) -> str:
     The terse counterpart to :func:`truncate_chars`. That one appends
     ``...[TRUNCATED N chars]`` because it serves an audit trail, where knowing
     how much was dropped matters more than fitting a column; this one is for
-    screen output, where the budget is the whole point and the result must not
+    screen output, where fitting the budget is the point and the result must not
     exceed ``max_chars``.
 
     Shared by ``history_formatter`` and ``stream_response`` so the live stream

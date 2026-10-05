@@ -144,7 +144,7 @@ def is_termux() -> bool:
     As a fallback, ``ANDROID_ROOT`` (set to ``/system`` on every Android
     device) catches proot-based distros that lose ``TERMUX_VERSION`` and
     ``PREFIX``.
-    Used to special-case keybindings: on Termux, Tab and Shift+Tab both emit
+    Callers special-case keybindings on Termux: Tab and Shift+Tab both emit
     byte ``0x09``, so the terminal cannot tell them apart.
     """
     if os.getenv("TERMUX_VERSION"):

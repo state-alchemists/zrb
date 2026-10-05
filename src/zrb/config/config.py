@@ -125,7 +125,7 @@ class Config(
         did not apply". Names that are not all-uppercase (internal `_state`) are
         left alone. `DEFAULT_*` names are exempt too: each mixin's `__init__`
         sets its own as a fresh instance attribute (not a class attribute), so
-        checking them here would reject the very assignment that defines them.
+        checking them here would reject the assignment that defines them.
         """
         if (
             name.isupper()

@@ -67,6 +67,4 @@ The sandbox contains LLM-initiated filesystem damage: prompt injection, model mi
 - **Setuid binaries on macOS** — a Seatbelt-sandboxed process cannot exec set[ug]id binaries regardless of profile. Notably `/bin/ps` (setuid root) and `sudo` fail with `Operation not permitted`; `pgrep`/`pkill` keep working.
 - **zrb-internal writes** (session logs, journal, snapshots) bypass the gate — only LLM-initiated tool calls are constrained.
 
-See [ADR-0065](../adr/adr-0065.md) for the full design rationale.
-
 🔖 [Documentation Home](../../README.md) > [LLM](./) > Sandbox

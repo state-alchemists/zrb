@@ -1,12 +1,12 @@
 """Per-turn live-context providers, composed by `PromptManager`.
 
-Not a registry in the ADR-0090 sense: no `CFG` twin, no discovery layer, no
+Not a component-family registry: no `CFG` twin, no discovery layer, no
 layering over anything — just an ordered, name-keyed list of callables owned
 by one `PromptManager` instance. Promoting it to a public registry (a
 `CFG.LLM_LIVE_CONTEXT` twin, a module singleton) would serve a single call
 site (`PromptManager.add_live_context`) for no benefit. What it does need is
 the R6 verb set every keyed collection carries, and a public name — it is a
-part in the ADR-0035 sense (`PromptManager` composes it), so a leading
+part (`PromptManager` composes it), so a leading
 underscore is a false claim of module-privacy.
 """
 

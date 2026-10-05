@@ -75,7 +75,7 @@ class TurnCursor:
         unconditionally, so the summarizer is never reapplied mid-turn.
         `process_deferred_requests` already populated every resolved call's
         approval, so there is nothing left for a processor to do — reapplying
-        one risks dropping the very turn holding the approved call.
+        one risks dropping the turn holding the approved call.
         """
         self.history = self.run_history
 

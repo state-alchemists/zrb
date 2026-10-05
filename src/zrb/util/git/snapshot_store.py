@@ -250,7 +250,7 @@ class SnapshotStore:
         """Make the directory match *snapshot*, and return the paths it could
         not — empty when the directory now matches.
 
-        Each path is decided by its state now (ADR-0101 has the table):
+        Each path is decided by its state now:
 
         - listed and readable: rewritten to the snapshot's version, or, when
           the snapshot lacks it, removed only if the snapshot shows it did

@@ -2,7 +2,7 @@
 
 # LLM Component Collections: Registries, Managers & the Three Channels
 
-Skills, sub-agents, hooks, extra prompts, and tools are all **component families** of the same kind. Each family is built from the same three pieces, configured through the same three channels. Learn this page once and every family behaves predictably (ADR-0090, ADR-0091).
+Skills, sub-agents, hooks, extra prompts, and tools are all **component families** of the same kind. Each family is built from the same three pieces, configured through the same three channels. Learn this page once and every family behaves predictably.
 
 ---
 
@@ -215,7 +215,7 @@ export ZRB_LLM_PROMPT="Never quote stock without a warehouse."
 
 Two lookalikes with one letter of difference, resolved differently:
 
-- `zrb.llm.prompt.prompt.get_prompt(name)` — the **section resolver**: finds a *markdown file* (persona, principle, workflow, …) by name on the prompt lookup path (`ZRB_LLM_PROMPT_DIR` → env → base dir → package). Used by composition; sections are fixed (ADR-0044).
+- `zrb.llm.prompt.prompt.get_prompt(name)` — the **section resolver**: finds a *markdown file* (persona, principle, workflow, …) by name on the prompt lookup path (`ZRB_LLM_PROMPT_DIR` → env → base dir → package). Used by composition; sections are fixed.
 - `.get_prompts()` (plural) on `PromptRegistry` — the **registry accessor**: returns the ordered *extra middleware list* configured via `set_prompts`/`append_prompt`.
 
 `get_prompt` answers "what does the *persona* *section* read?"; `get_prompts` answers "what *extra* content is appended after the sections?". Plural spells the registry question.
