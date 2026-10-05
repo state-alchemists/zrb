@@ -120,9 +120,17 @@ class BaseTaskLifecycle:
         session.state_logger.write(session.as_state_log())
         ctx = task.get_ctx(session)
 
+        # Set the moment the session is terminated, so `log_session_state` stops
+        # waiting out its interval instead of sleeping through the rest of the
+        # current tick. Without it the happy path below awaits a logger parked in
+        # a 100 ms sleep, and pays the remainder of that tick on every run.
+        wakeup = asyncio.Event()
+
         log_state_task = None
         try:
-            log_state_task = asyncio.create_task(self.log_session_state(session))
+            log_state_task = asyncio.create_task(
+                self.log_session_state(session, wakeup)
+            )
 
             root_tasks = [
                 t for t in session.get_root_tasks(task) if session.is_allowed_to_run(t)
@@ -145,6 +153,7 @@ class BaseTaskLifecycle:
             ctx.log_info("Deferred actions complete.")
 
             session.terminate()
+            wakeup.set()
             if log_state_task and not log_state_task.done():
                 await log_state_task
             ctx.log_info("Session finished.")
@@ -172,15 +181,29 @@ class BaseTaskLifecycle:
 
             ctx.log_debug(f"Final session state: {session}")
 
-    async def log_session_state(self, session: AnySession):
+    async def log_session_state(
+        self, session: AnySession, wakeup: asyncio.Event | None = None
+    ):
         """
         Periodically logs the session state until the session is terminated.
+
+        *wakeup* is set by the caller the moment the session is terminated, so
+        the loop leaves its wait at once instead of sleeping out the rest of the
+        tick. The cadence is unchanged: a session terminated from somewhere else,
+        or a caller that passes no event, still gets the 10 Hz interval below.
         """
         task = self._task
         try:
             while not session.is_terminated:
                 session.state_logger.write(session.as_state_log())
-                await asyncio.sleep(0.1)  # ~10 state log writes per second
+                if wakeup is None:
+                    await asyncio.sleep(0.1)  # ~10 state log writes per second
+                else:
+                    try:
+                        async with asyncio.timeout(0.1):
+                            await wakeup.wait()
+                    except TimeoutError:
+                        pass  # The ordinary tick: the session is still running.
             session.state_logger.write(session.as_state_log())
         except (asyncio.CancelledError, KeyboardInterrupt):
             try:

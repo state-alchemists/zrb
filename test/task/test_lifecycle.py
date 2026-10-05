@@ -342,3 +342,87 @@ async def test_log_session_state_exception_logs_when_ctx_logging_fails(caplog):
             await lifecycle.log_session_state(session)
 
     assert "Session state logger cleanup failed: stream closed" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_log_session_state_with_wakeup_does_not_wait_out_the_tick():
+    """A wakeup the caller supplies must be what ends the interval wait.
+
+    The interval is 100 ms and the caller awaits this loop, so unless the
+    wakeup ends the wait the run pays whatever is left of the tick. The
+    `asyncio.sleep` fallback is for a caller that passes no wakeup; reaching
+    it here would mean the run is waiting the tick out again.
+    """
+    task = BaseTask(name="task")
+    task.get_ctx = MagicMock()
+    lifecycle = BaseTaskLifecycle(task, BaseTaskContext(task))
+
+    session = MagicMock(spec=Session)
+    session.is_terminated = False
+    session.state_logger = MagicMock()
+
+    wakeup = asyncio.Event()
+
+    def write_side_effect(_state):
+        # The session ends as soon as the first state is written, so from here
+        # on only the wakeup can end the wait.
+        session.is_terminated = True
+        wakeup.set()
+
+    session.state_logger.write.side_effect = write_side_effect
+
+    slept = []
+
+    async def recording_sleep(duration):
+        # Returning at once keeps the test fast, while recording the call still
+        # catches a fallback to the interval.
+        slept.append(duration)
+
+    with patch("asyncio.sleep", new=recording_sleep):
+        await lifecycle.log_session_state(session, wakeup)
+
+    assert slept == [], "the interval was awaited although a wakeup was given"
+    assert session.state_logger.write.call_count >= 1
+
+
+@pytest.mark.asyncio
+async def test_execute_root_tasks_wakes_the_state_logger_on_termination():
+    """Terminating the session must wake the state logger, not be awaited.
+
+    The happy path ends the session and then awaits the logger. Without a
+    wakeup that await lasts until the logger's interval expires, which is the
+    whole reason a no-op `Task.run()` used to cost ~100 ms.
+    """
+    task = BaseTask(name="task")
+    task.exec_chain = AsyncMock(return_value=None)
+    task.get_ctx = MagicMock()
+    lifecycle = BaseTaskLifecycle(task, BaseTaskContext(task))
+
+    session = MagicMock(spec=Session)
+    session.get_root_tasks.return_value = [task]
+    session.is_allowed_to_run.return_value = True
+    session.wait_deferred = AsyncMock()
+    session.final_result = "final"
+    session.is_terminated = False
+
+    def terminate():
+        session.is_terminated = True
+
+    session.terminate.side_effect = terminate
+
+    supplied: list[asyncio.Event | None] = []
+    spawn = lifecycle.log_session_state
+
+    async def recording_log_session_state(session_arg, wakeup=None):
+        supplied.append(wakeup)
+        return await spawn(session_arg, wakeup)
+
+    lifecycle.log_session_state = recording_log_session_state
+
+    assert await lifecycle.execute_root_tasks(session) == "final"
+
+    # The logger is handed a wakeup, and terminating the session sets it, so the
+    # await that follows cannot last until the interval expires.
+    assert len(supplied) == 1
+    assert supplied[0] is not None
+    assert supplied[0].is_set()
