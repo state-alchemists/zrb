@@ -191,6 +191,29 @@ def test_only_the_configured_events_get_hooks():
     assert call.kwargs["events"] == [HookEvent.STOP]
 
 
+def test_a_progress_only_session_gets_the_stop_hook_that_drops_its_lines():
+    """`handle_stop` is where a turn's queued progress lines are invalidated, so
+    a session that narrates without speaking the reply needs it too (review on
+    #579)."""
+    manager = MagicMock()
+
+    _session(events=["progress"]).register_hooks(manager)
+
+    (call,) = manager.add_hook.call_args_list
+    assert call.kwargs["events"] == [HookEvent.STOP]
+
+
+@pytest.mark.asyncio
+async def test_a_progress_only_session_does_not_speak_the_reply():
+    """The stop hook a `progress`-only session now gets must not make it start
+    speaking replies (review on #579)."""
+    session = _session(events=["progress"])
+
+    await session.handle_stop(_stop("the reply"))
+
+    assert session.speaker.said == []
+
+
 def test_the_speech_command_switches_speech_and_drops_the_queue():
     session = _session(commands=["/speech"])
     (command,) = session.create_commands()

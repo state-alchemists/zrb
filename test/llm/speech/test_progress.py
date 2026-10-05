@@ -137,3 +137,40 @@ def test_a_tool_no_pattern_matches_is_not_announced():
 def test_progress_lines_are_read_from_cfg_when_left_unset(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_SPEECH_PROGRESS_PHRASES", '{"*": "Sedang {tool}."}')
     assert describe_tool_progress("Read") == "Sedang Read."
+
+
+def test_a_turn_that_stops_while_the_line_is_being_decided_on_is_not_announced():
+    """A stop landing between the silence check and the queue wins: the line
+    would otherwise be spoken after the turn had stopped (review on #579)."""
+    said = []
+    holder = {}
+
+    def seconds_since_said():
+        holder["narrator"].reset()
+        return 100.0
+
+    narrator = ProgressNarrator(
+        lambda text, is_stale: said.append((text, is_stale)),
+        seconds_since_said,
+        8.0,
+    )
+    holder["narrator"] = narrator
+
+    narrator.handle_event(_call("Shell"))
+
+    assert said == []
+
+
+def test_a_reused_call_id_does_not_resurrect_a_line_from_an_earlier_turn():
+    """Clearing `_running` alone cannot invalidate a queued line: a later turn
+    may reuse the id, so the line carries its generation (review on #579)."""
+    narrator, said = _narrator()
+
+    narrator.handle_event(_call("Shell", "c1"))
+    [(_, from_the_earlier_turn)] = said
+    narrator.reset()
+    narrator.handle_event(_call("Shell", "c1"))
+    _, from_this_turn = said[1]
+
+    assert from_the_earlier_turn() is True
+    assert from_this_turn() is False

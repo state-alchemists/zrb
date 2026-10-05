@@ -60,17 +60,39 @@ class ProgressNarrator:
         self._seconds_since_said = seconds_since_said
         self._interval = max(interval, 0.0)
         self._lock = threading.Lock()
+        # The current turn's calls that have not finished yet, by call id.
+        #
+        # A result is matched on the id alone, and that is enough: a run streams
+        # its events through the observers inline and in order, and the Stop hook
+        # that ends the turn is awaited inside that same run (`run_agent` awaits
+        # `execute_hooks(HookEvent.STOP, ...)`), so a result belongs to the turn it
+        # arrives in and can only name a call of that turn. There is no turn token
+        # to match on in any case: `pydantic_ai`'s tool events carry a part, a kind
+        # and nothing about the run they came from.
         self._running: set[str] = set()
+        # Bumped by `reset`. Every queued line carries the generation it was
+        # queued in, so a line from an earlier turn stays stale even after the
+        # same tool-call id is used again, and one still being decided on when
+        # the turn stops is never queued at all.
+        self._generation = 0
 
     def handle_event(self, event: Any) -> None:
         kind = getattr(event, "event_kind", None)
         if kind == "function_tool_call":
-            self._start(getattr(event, "part", None))
-        elif kind == "function_tool_result":
+            # Read before deciding: the whole decision below belongs to this
+            # turn, so a stop landing part-way through must invalidate it.
             with self._lock:
-                self._running.discard(_result_call_id(event))
+                generation = self._generation
+            self._start(getattr(event, "part", None), generation)
+        elif kind == "function_tool_result":
+            self._finish(_result_call_id(event))
 
-    def _start(self, part: Any) -> None:
+    def _finish(self, call_id: str) -> None:
+        """Book a tool result: the call it names has ended."""
+        with self._lock:
+            self._running.discard(call_id)
+
+    def _start(self, part: Any, generation: int) -> None:
         tool = getattr(part, "tool_name", None)
         call_id = str(getattr(part, "tool_call_id", "") or "")
         if not self._interval or tool in self._silent_tools:
@@ -81,12 +103,24 @@ class ProgressNarrator:
         if not line:
             return
         with self._lock:
+            if generation != self._generation:
+                # The turn stopped while this line was being decided on: it
+                # would be spoken after the turn, so it is not queued.
+                return
             self._running.add(call_id)
-        self._say(line, lambda: self._is_finished(call_id))
+        self._say(line, lambda: self._is_finished(call_id, generation))
 
-    def _is_finished(self, call_id: str) -> bool:
+    def _is_finished(self, call_id: str, generation: int) -> bool:
+        """Whether the line queued for *call_id* in *generation* is stale: its
+        tool call has ended, or its turn has."""
         with self._lock:
-            return call_id not in self._running
+            return generation != self._generation or call_id not in self._running
+
+    def reset(self) -> None:
+        """Drop progress lines still queued when the turn ends."""
+        with self._lock:
+            self._generation += 1
+            self._running.clear()
 
 
 def _result_call_id(event: Any) -> str:
