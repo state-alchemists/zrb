@@ -152,6 +152,7 @@ detached
         cmd=["git", "worktree", "list", "--porcelain"],
         cwd="/repo",
         print_method=mock_print,
+        max_output_line=0,
     )
 
 

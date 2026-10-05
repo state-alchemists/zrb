@@ -101,6 +101,7 @@ async def get_worktrees(
         cmd=["git", "worktree", "list", "--porcelain"],
         cwd=repo_dir,
         print_method=print_method,
+        max_output_line=0,
     )
     if exit_code != 0:
         raise RuntimeError(f"Non zero exit code: {exit_code}")
