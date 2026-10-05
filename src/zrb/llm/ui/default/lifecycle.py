@@ -106,7 +106,10 @@ class UILifecycle:
             if buffered_output:
                 print(buffered_output, end="")
 
-            await self.cleanup_background_tasks()
+            try:
+                await self.cleanup_background_tasks()
+            finally:
+                ui.previous_messages.close()
 
     def _track_background(self, task: asyncio.Task | None) -> None:
         """Add a task to `background_tasks` to prevent premature GC."""
