@@ -37,7 +37,8 @@ class LLMLimitsMixin:
         self.DEFAULT_LLM_MAX_OUTPUT_CHARS: str = "100000"
         # 10x the model-facing cap: normal builds scroll in full, a runaway
         # command can't spend minutes printing.
-        self.DEFAULT_LLM_MAX_CONSOLE_OUTPUT_CHARS: str = "1000000"
+        # Reduced from 1,000,000 to 100,000 for faster performance in non-TTY contexts
+        self.DEFAULT_LLM_MAX_CONSOLE_OUTPUT_CHARS: str = "100000"
         self.DEFAULT_LLM_MAX_TOOL_RESULT_CHARS: str = "100000"
         self.DEFAULT_LLM_ENABLE_TOOL_SPILL: str = "off"
         self.DEFAULT_LLM_MAX_COMPLETION_FILES: str = "5000"

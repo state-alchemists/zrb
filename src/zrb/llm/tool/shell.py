@@ -24,7 +24,7 @@ from zrb.util.cmd.command import (
 
 # Minimum seconds between live shell-output repaints; see
 # `_make_live_shell_output_pusher`.
-_LIVE_UPDATE_INTERVAL = 0.1
+_LIVE_UPDATE_INTERVAL = 0.5
 
 
 async def run_shell_command(
