@@ -8,10 +8,10 @@ import atexit
 import contextvars
 import logging
 import threading
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import Future
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable, TypeVar
 
 from zrb.config.config import CFG
 from zrb.llm.agent_state import current_tool_confirmation, current_ui
@@ -19,6 +19,7 @@ from zrb.llm.approval.approval_channel import current_approval_channel
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 
 logger = logging.getLogger(__name__)
+T = TypeVar("T")
 
 
 @dataclass
@@ -79,6 +80,61 @@ class _HookRun:
                 pass  # its loop is closed: the hook already finished
 
 
+class _DaemonHookExecutor:
+    """Run submitted hooks on daemon threads behind a bounded semaphore."""
+
+    def __init__(self, max_workers: int, thread_name_prefix: str) -> None:
+        self._slots = threading.BoundedSemaphore(max_workers)
+        self._thread_name_prefix = thread_name_prefix
+        self._lock = threading.Lock()
+        self._threads: set[threading.Thread] = set()
+        self._next_thread_id = 0
+        self._shutting_down = False
+
+    def submit(self, fn: Callable[..., T], *args: object) -> Future[T]:
+        future: Future[T] = Future()
+        with self._lock:
+            if self._shutting_down:
+                raise RuntimeError("cannot schedule new futures after shutdown")
+            thread = threading.Thread(
+                target=self._run,
+                args=(future, fn, args),
+                name=f"{self._thread_name_prefix}{self._next_thread_id}",
+                daemon=True,
+            )
+            self._next_thread_id += 1
+            self._threads.add(thread)
+        thread.start()
+        return future
+
+    def _run(
+        self, future: Future[T], fn: Callable[..., T], args: tuple[object, ...]
+    ) -> None:
+        acquired = self._slots.acquire()
+        try:
+            if not future.set_running_or_notify_cancel():
+                return
+            try:
+                future.set_result(fn(*args))
+            except BaseException as error:
+                future.set_exception(error)
+                if isinstance(error, (KeyboardInterrupt, SystemExit)):
+                    raise
+        finally:
+            if acquired:
+                self._slots.release()
+            with self._lock:
+                self._threads.discard(threading.current_thread())
+
+    def shutdown(self, wait: bool = True) -> None:
+        with self._lock:
+            self._shutting_down = True
+            threads = tuple(self._threads)
+        if wait:
+            for thread in threads:
+                thread.join()
+
+
 class ThreadPoolHookExecutor:
     """
     Thread-safe executor for hook execution with timeout controls.
@@ -103,7 +159,7 @@ class ThreadPoolHookExecutor:
         )
         #: How long a cancelled or timed-out hook gets to finish once cancelled.
         self.cancel_grace_seconds = cancel_grace_seconds
-        self._executor: ThreadPoolExecutor | None = None
+        self._executor: _DaemonHookExecutor | None = None
         self._lock = threading.RLock()
         self._shutdown_event = threading.Event()
 
@@ -111,7 +167,7 @@ class ThreadPoolHookExecutor:
         """Start the thread pool executor."""
         with self._lock:
             if self._executor is None:
-                self._executor = ThreadPoolExecutor(
+                self._executor = _DaemonHookExecutor(
                     max_workers=self.max_workers, thread_name_prefix="zrb-hook-"
                 )
                 self._shutdown_event.clear()
@@ -155,7 +211,7 @@ class ThreadPoolHookExecutor:
         try:
             self.start()
             assert self._executor is not None
-            job = self._executor.submit(
+            job: Future[HookExecutionResult] = self._executor.submit(
                 _copy_context_for_hook().run, self._run_hook_sync, hook, context, run
             )
         except RuntimeError as e:  # shut down by another thread meanwhile

@@ -1,10 +1,16 @@
 import asyncio
 import contextvars
+import os
+import subprocess
+import sys
 import threading
 import time
+from pathlib import Path
+from typing import cast
 
 import pytest
 
+from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
 from zrb.llm.hook.executor import (
     ThreadPoolHookExecutor,
     get_hook_executor,
@@ -12,6 +18,7 @@ from zrb.llm.hook.executor import (
 )
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.ui.any_ui import AnyUI
 
 
 @pytest.mark.asyncio
@@ -188,10 +195,11 @@ async def test_a_hook_does_not_inherit_what_is_bound_to_the_callers_loop():
         )
         return HookResult(success=True)
 
-    ui = object()
+    ui = cast(AnyUI, object())
+    channel = cast(AnyApprovalChannel, object())
     tokens = [
         (current_ui, current_ui.set(ui)),
-        (current_approval_channel, current_approval_channel.set(object())),
+        (current_approval_channel, current_approval_channel.set(channel)),
         (current_model, current_model.set("the run's model")),
     ]
     try:
@@ -212,3 +220,43 @@ def test_executor_singleton():
     assert executor is not None
     shutdown_hook_executor()
     # After shutdown, it's None internally
+
+
+def test_a_cancelled_hook_cannot_hold_interpreter_exit():
+    script = """
+import asyncio
+import threading
+
+from zrb.llm.hook.executor import ThreadPoolHookExecutor
+from zrb.llm.hook.interface import HookResult
+
+started = threading.Event()
+release = threading.Event()
+
+async def slow_hook(context):
+    started.set()
+    release.wait()
+    return HookResult(success=True)
+
+async def main():
+    executor = ThreadPoolHookExecutor(cancel_grace_seconds=0)
+    task = asyncio.create_task(executor.execute_hook(slow_hook, None))
+    while not started.is_set():
+        await asyncio.sleep(0.01)
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+asyncio.run(main())
+"""
+    env = os.environ | {"PYTHONPATH": str(Path(__file__).parents[3] / "src")}
+    subprocess.run(
+        [sys.executable, "-c", script],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=5,
+        env=env,
+    )
