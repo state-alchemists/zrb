@@ -203,6 +203,24 @@ class TestPreviousMessageHistory:
         reloaded = PreviousMessageHistory(history_dir=str(tmp_path))
         assert set(reloaded.recall_strings()) >= {"held while locked", "later"}
 
+    def test_flushes_pending_message_when_session_ends_after_lock_contention(
+        self, tmp_path
+    ):
+        history = PreviousMessageHistory(history_dir=str(tmp_path))
+        lock_file = str(tmp_path / "previous-messages.json.lock")
+        thread, release = _hold_lock(lock_file)
+        try:
+            history.append_string("held while session ends")
+        finally:
+            release.set()
+            thread.join()
+
+        history.close()
+
+        assert json.loads(
+            (tmp_path / "previous-messages.json").read_text()
+        ) == ["held while session ends"]
+
 
 # --- recall navigation through UIMessageEditing ------------------------------
 

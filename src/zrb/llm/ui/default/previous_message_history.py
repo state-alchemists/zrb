@@ -16,9 +16,10 @@ Persistence is best-effort, non-blocking, and concurrency-safe: each write
 re-reads the file under an OS file lock, merges in the messages submitted this
 session, trims to the configured limit, and atomically replaces the file via a
 unique temporary name — so two concurrent sessions cannot clobber each other.
-The lock is taken without waiting: a write that finds it held defers its
-messages to a later submission, and a missing or unwritable history directory
-never breaks a chat turn.
+Submission writes take the lock without waiting: a write that finds it held
+defers its messages to a later submission. Session teardown makes one short,
+bounded retry, and a missing or unwritable history directory never breaks a
+chat turn.
 """
 
 from __future__ import annotations
@@ -35,6 +36,9 @@ from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 # history directory must never stall the turn, so a write that cannot take the
 # lock immediately leaves its entries in `_session_new` for the next write.
 _LOCK_TIMEOUT_SECONDS = 0.0
+# Session teardown may wait briefly for a contended lock so pending messages do
+# not disappear when there is no later submission to retry them.
+_TEARDOWN_LOCK_TIMEOUT_SECONDS = 0.25
 
 
 class PreviousMessageHistory(History):
@@ -117,7 +121,12 @@ class PreviousMessageHistory(History):
         if self._max_entries > 0 and len(self._persistent) > self._max_entries:
             del self._persistent[self._max_entries :]
 
-    def _write_persistent(self) -> None:
+    def close(self) -> None:
+        """Make one bounded attempt to persist messages pending at session end."""
+        if self._session_new:
+            self._write_persistent(timeout=_TEARDOWN_LOCK_TIMEOUT_SECONDS)
+
+    def _write_persistent(self, timeout: float = _LOCK_TIMEOUT_SECONDS) -> None:
         """Persist the history, merging this session's new messages with disk.
 
         Never raises. When another session holds the lock the write is
@@ -128,7 +137,7 @@ class PreviousMessageHistory(History):
         except OSError:
             return
         try:
-            with hold_file_lock(self._lock_file(), timeout=_LOCK_TIMEOUT_SECONDS):
+            with hold_file_lock(self._lock_file(), timeout=timeout):
                 disk = self._read_persistent()
                 merged = self._cap(self._session_new + disk)
                 self._write_file(merged)
