@@ -25,7 +25,7 @@ def serve_static_resources(app: "FastAPI", web_auth_config: WebAuthConfig) -> No
     @app.get("/refresh-token.js", include_in_schema=False)
     async def refresh_token_js():
         # With auth off there is no token to refresh and no cookie to send, so
-        # the script's immediate POST could only ever 401. Every page load logged
+        # the script's immediate POST could only 401. Every page load logged
         # one, which reads as a real auth failure in the server log. Serve an
         # inert script instead of dropping the <script> tag, so the URL keeps
         # answering 200 for a cached page that still requests it.

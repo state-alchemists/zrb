@@ -26,7 +26,7 @@ the full write-up, this is the short version for future maintainers:
    delivered. `FfmpegCameraBackend` works around this by requesting MJPEG
    (compressed on-camera) at 640x480 first -- tested as the largest size
    that lands reliably over USB/IP; 720p MJPEG still hangs, since this is an
-   isochronous-transfer reliability ceiling, not simply a bandwidth budget.
+   isochronous-transfer reliability ceiling, not merely a bandwidth budget.
    The capture timeout is the backstop for cameras/setups where even that
    still hangs.
 """

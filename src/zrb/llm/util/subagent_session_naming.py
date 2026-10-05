@@ -8,7 +8,7 @@ delegation, and for where those transcripts live on disk:
 main-agent conversations (which stay flat in the history root) so a history
 listing/backup/prune never mixes the two. Kept stdlib-only and
 dependency-free so both the delegate tool (which formats the name) and
-consumers that only ever *parse* it — the web session lister
+consumers that only *parse* it — the web session lister
 (`runner.chat.chat_session_manager`), the web resume router
 (`runner.chat.chat_api_route`), the CLI TUI's persona-swap-on-`/load`
 and `FileHistoryManager` (which resolves the layout) — can import

@@ -172,7 +172,7 @@ class UtteranceCutter:
         # What the two bars are measured from, each fed by what it describes:
         # zrb's voice by blocks heard over it, the room by the ones heard while
         # it was silent — the loud ones included, since a room that never drops
-        # below the threshold is the whole reason there is a floor. Once the
+        # below the threshold is why there is a floor. Once the
         # utterance is a barge-in, zrb is paused, so what follows is the user,
         # not zrb's level. A block never measures itself.
         if is_over_zrb and not self.is_barge_in:
@@ -215,7 +215,7 @@ class UtteranceCutter:
         ``noise_margin`` times its quietest recent level, or ``0`` before
         enough of it has been heard and with ``noise_margin`` of 0 or less.
 
-        The quietest block, not the typical one: a low estimate can only ever
+        The quietest block, not the typical one: a low estimate can only
         lower the bar, so the user's own speech in the window cannot cut off
         what they say next, where a median or a high percentile could. A block
         that heard nothing at all is not the room being quiet — a dropped

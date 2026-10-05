@@ -392,7 +392,7 @@ def _root_index_skeleton() -> str:
         f"[{name}]({name}/index.md)" for name in (*NOTE_CATEGORIES, ACTIVITY_DIR)
     )
     # Order is load-bearing: the injected snapshot is capped and overflows from
-    # the end, so the unbounded section goes last and only ever evicts itself.
+    # the end, so the unbounded section goes last and evicts only itself.
     return (
         "# Journal\n\n"
         "## User\n\n"
@@ -453,7 +453,7 @@ def _write_note_file(
       (a decision reversed, a root cause corrected) leaves no trace of what
       was believed before, or when it changed.
 
-    Merging is the conservative direction: a link is only ever added here, and
+    Merging is the conservative direction: a link is added here, never removed, and
     ``_resolve_links`` has already confirmed each new target exists on disk.
     """
     history = _merge_entries(

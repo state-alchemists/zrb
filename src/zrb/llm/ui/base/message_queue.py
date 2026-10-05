@@ -11,7 +11,7 @@ the consumer loop.
 `join()`), and adds the peek / ordering / removal operations the up-arrow
 editing of still-queued messages needs. Because the consumer is the only
 `get()` caller and pops entries, anything still in the queue is by definition
-not yet running — the added operations can only ever touch not-yet-started
+not yet running — the added operations touch only not-yet-started
 messages.
 """
 

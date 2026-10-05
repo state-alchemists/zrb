@@ -127,7 +127,7 @@ class StreamCapture:
         Needed by a long-lived caller (a background process, polled
         repeatedly) that reports ``spill_path`` while the file may still be
         open and default-buffered — unlike this class's original caller
-        (`shell.py`), which only ever reads the spill after `close()`, which
+        (`shell.py`), which reads the spill only after `close()`, which
         already flushes.
         """
         if self._spill is not None:
@@ -155,7 +155,7 @@ class StreamCapture:
             self.spill_path = None
 
     def _begin_spill(self) -> None:
-        """Start spilling. Best-effort: without a temp file the head is simply lost.
+        """Start spilling. Best-effort: without a temp file the head is lost.
 
         Called before the first drop, when ``_chunks`` still holds everything
         received so far — so writing the deque here captures the head exactly

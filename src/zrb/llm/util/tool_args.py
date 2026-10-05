@@ -1,5 +1,5 @@
 """Shared handling for tool-call `args` display: pydantic-ai gives it to us as
-either a dict, a JSON-encoded string, or (rarely) something else entirely.
+either a dict, a JSON-encoded string, or (rarely) something else.
 `stream_response.py` (live streaming) and `history_formatter.py` (exported
 history text) both need to detect "no meaningful args" and truncate long
 string values for display — this module is the one place that logic lives.

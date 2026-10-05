@@ -94,7 +94,7 @@ async def _cancel_and_settle(tasks: "list[asyncio.Task[Any]]") -> None:
 
     A still-cancelling task outliving the caller's frame is the orphan this
     exists to avoid. Capped: a sibling that shields its cleanup must not turn
-    the settle into the very hang the cancellation exists to prevent.
+    the settle into the hang the cancellation exists to prevent.
     """
     for task in tasks:
         task.cancel()

@@ -214,7 +214,7 @@ class BaseTaskLifecycle:
                 ctx = task.get_ctx(session)
                 ctx.log_debug("Session state logger cancelled.")
             except Exception as log_exc:
-                # Context lookup is normally exception-free; this is really
+                # Context lookup is normally exception-free; this is
                 # guarding ctx.log_debug's write to a stream that may already
                 # be closing during interpreter shutdown.
                 CFG.LOGGER.debug(f"Session state logger cleanup failed: {log_exc}")

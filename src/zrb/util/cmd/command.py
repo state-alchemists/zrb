@@ -67,7 +67,7 @@ def resolve_shell(shell: str = "") -> tuple[str, str]:
 
     An empty ``shell`` falls back to ``CFG.SHELL`` — the user's configured shell
     (``ZRB_SHELL`` / ``CFG.DEFAULT_SHELL``), or the detected current shell
-    (``get_current_shell()``, which only ever returns a shell that exists).
+    (``get_current_shell()``, which returns only a shell that exists).
 
     The flag is the "run this string" switch for the interpreter (``-c`` for
     POSIX shells, ``-Command`` for PowerShell, ``/c`` for cmd, ``-e``/``-r`` for
@@ -381,7 +381,7 @@ async def __spawn(
 
     NO_COLOR is deliberately NOT set: per the NO_COLOR convention any non-empty
     value (even "0") disables color, so there is no value that "explicitly
-    allows" it — absence simply inherits the user's choice.
+    allows" it — absence inherits the user's choice.
     """
     child_env = (env_map or os.environ).copy()
     child_env["TERM"] = "xterm-256color"  # A capable but standard terminal

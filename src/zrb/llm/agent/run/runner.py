@@ -938,7 +938,7 @@ def _resolve_crash_history(
     """The best available history to attach to an unhandled run exception.
 
     `run_history` only updates when an `agent.run()` call returns, so on a
-    failure inside the very first call of this turn it's still the pre-turn
+    failure inside the first call of this turn it's still the pre-turn
     baseline. `partial_run.latest_history` is the live, ever-growing
     `ctx.messages` and reflects everything done this turn, including a
     dangling trailing tool call — closed by the caller via
@@ -952,7 +952,7 @@ def _resolve_crash_history(
 async def _await_pending_checkpoints(
     pending_checkpoint_tasks: list[asyncio.Task],
 ) -> None:
-    """Drain in-flight checkpoint writes before the run truly ends.
+    """Drain in-flight checkpoint writes before the run ends.
 
     Guarantees a lagging background save can never land after (and clobber)
     the caller's own end-of-turn save.

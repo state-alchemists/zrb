@@ -5,7 +5,7 @@ subsystem directly: that subsystem (`agent/common.py`) already depends on
 `hook.manager` to fire PreToolUse/PostToolUse, so a direct import back would
 recreate the cycle this module exists to avoid. `zrb.llm.agent` installs the
 real builder here as a side effect of its own package import (see
-`agent/hook_agent.py`); `hook/manager.py` only ever reads it back through
+`agent/hook_agent.py`); `hook/manager.py` reads it back only through
 `get_agent_hook_builder`.
 
 Kept dependency-free (stdlib + TYPE_CHECKING-only hook types), the same

@@ -254,7 +254,7 @@ def is_split_safe(
     3. Keep an already-orphaned return that has no call anywhere.
 
     A call with no return yet that lands in the *kept* messages is safe: the
-    return may simply arrive in a later turn, so there's nothing lost by
+    return may arrive in a later turn, so there's nothing lost by
     keeping it as-is.
     """
     for indices in tool_pairs.values():

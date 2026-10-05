@@ -103,7 +103,7 @@ def kill_process_tree(process: subprocess.Popen, pgid: int | None = None) -> Non
             logger.debug(f"Failed to kill hook process tree {pid}: {e}")
     # Always signal the direct child too: it is the only handle that exists on
     # Windows, and the last resort if both tree kills failed. Safe regardless of
-    # the checks above — Popen.kill only ever targets its own child.
+    # the checks above — Popen.kill targets only its own child.
     try:
         process.kill()
     except Exception as e:

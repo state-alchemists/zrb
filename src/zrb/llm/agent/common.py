@@ -597,7 +597,7 @@ def _apply_request_timeout(
     wall-clock having produced no output, no history, and no file writes.
 
     ``LLM_REQUEST_TIMEOUT`` already existed and already documented itself as the
-    "default timeout for LLM requests" — it was simply never read outside the
+    "default timeout for LLM requests" — it was never read outside the
     web session runner. Applied here rather than at a call site so it covers the
     main agent, programmatic ``LLMTask``, and sub-agents alike. A caller that
     sets ``timeout`` itself wins; a non-positive value disables the deadline.

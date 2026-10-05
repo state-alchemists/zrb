@@ -113,7 +113,7 @@ class UIConfig:
         return replace(self, **overrides)
 
 
-# Command keys whose field name is not simply `<key>_commands`.
+# Command keys whose field name is not `<key>_commands`.
 _COMMAND_FIELD_ALIASES = {"redirect": "redirect_output_commands"}
 
 # Guards `merge_commands` against writing a key that is not a command list.

@@ -68,7 +68,7 @@ def _format_skill_list(skills: list[Skill]) -> str:
     """Bullet the *skills*, capped by ``LLM_MAX_SKILLS_IN_CATALOG``.
 
     A catalogue that outgrows the cap is truncated with a pointer to
-    ``SearchSkill``: the overflow is reachable on demand, so the cap only ever
+    ``SearchSkill``: the overflow is reachable on demand, so the cap only
     saves tokens, and the note keeps the truncated entries discoverable instead
     of silently dropped.
     """

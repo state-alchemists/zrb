@@ -37,7 +37,7 @@ _CLI_RESERVED_KWARGS = frozenset(("h", "help"))
 def _reject_unknown_kwargs(task: AnyTask, str_kwargs: dict[str, str]) -> None:
     """Fail on a `--flag` no input of `task` declares.
 
-    The loop below only ever *reads* keys matching an input name, so without
+    The loop below *reads* only keys matching an input name, so without
     this an unrecognized option is indistinguishable from an absent one: the
     input it was meant for silently falls back to its default or an
     interactive prompt, and the task runs with values nobody asked for.

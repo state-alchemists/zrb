@@ -304,7 +304,7 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
     ``_map_user_message`` (in ``models/openai.py``) hits ``assert_never``
     on anything in a ``ModelRequest`` that isn't ``SystemPromptPart``,
     ``UserPromptPart``, ``ToolReturnPart``, or ``RetryPromptPart`` — so we
-    can't simply drop a ``TextPart`` into a user-role message.
+    can't drop a ``TextPart`` into a user-role message.
 
     Conversions (all tool-shaped parts collapse to a ``(sanitized-history)``
     prose label — deliberately not shaped like a callable syntax so the

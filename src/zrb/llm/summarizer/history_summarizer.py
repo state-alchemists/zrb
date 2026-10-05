@@ -233,7 +233,7 @@ async def summarize_history(
 ) -> "list[ModelMessage]":
     """
     Summarizes the history, keeping the last `summary_window` messages intact.
-    Handles very large histories by summarizing in chunks.
+    Handles large histories by summarizing in chunks.
     Returns a new list of messages where older messages are replaced by a summary.
 
     When `force=True`, compression is performed even if the conversation is within

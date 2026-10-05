@@ -81,7 +81,7 @@ def resolve_real(path: str) -> str:
     """Canonicalize a tool-supplied path: ``~`` → abs → realpath.
 
     ``realpath`` resolves the existing prefix and keeps the non-existent tail,
-    which is exactly what write checks need for not-yet-created targets
+    which is what write checks need for not-yet-created targets
     (``write_file`` creates parent directories).
     """
     return os.path.realpath(os.path.abspath(os.path.expanduser(path)))

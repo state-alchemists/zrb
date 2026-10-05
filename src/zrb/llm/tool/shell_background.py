@@ -45,7 +45,7 @@ class _BackgroundProcess:
     # The owning chat session's unique `ChatSessionManager` session_id — NOT
     # the client-supplied, non-unique display `session_name` — so
     # `cancel_for_session` never touches another session's processes. "" outside
-    # a web chat run (the CLI only ever calls `cancel_all`).
+    # a web chat run (the CLI calls `cancel_all`).
     owner_session_id: str = ""
 
 
@@ -294,7 +294,7 @@ def _release_process(bp: _BackgroundProcess) -> None:
     alive, makes that ``__del__`` a no-op.
 
     ``stdout_cap``/``stderr_cap`` are closed (flushed, handle released) but
-    never discarded: a poll response can name a spill path in the very call
+    never discarded: a poll response can name a spill path in the call
     that triggers this release, so deleting the file here would make that
     just-reported path immediately dangling.
     """
