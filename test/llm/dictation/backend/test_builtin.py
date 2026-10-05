@@ -63,10 +63,14 @@ def test_vosk_built_from_config():
 
 
 def test_openai_built_from_config():
-    config = _config(openai_model="gpt-4o-transcribe", openai_base_url="")
+    config = _config(
+        openai_model="gpt-4o-transcribe", openai_base_url="", language="en"
+    )
     with patch(f"{MODULE}.OpenAIDictationBackend") as openai:
         get_dictation_backend("openai", config)
-    openai.assert_called_once_with("gpt-4o-transcribe", base_url=None)
+    openai.assert_called_once_with(
+        "gpt-4o-transcribe", base_url=None, language="en"
+    )
 
 
 def test_google_built_from_config():

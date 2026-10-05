@@ -48,6 +48,7 @@ class DictationConfig:
     block_duration: float | None = None
     pipecat_enabled: bool | None = None
     transcribe_prompt: str | None = None
+    language: str | None = None
     openai_model: str | None = None
     openai_base_url: str | None = None
     google_model: str | None = None

@@ -33,7 +33,9 @@ def get_dictation_backend(
         )
     if name == "openai":
         return OpenAIDictationBackend(
-            config.openai_model or "", base_url=config.openai_base_url or None
+            config.openai_model or "",
+            base_url=config.openai_base_url or None,
+            language=config.language or None,
         )
     if name == "google":
         return GoogleDictationBackend(
