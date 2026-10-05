@@ -170,6 +170,11 @@ class EnvField(Generic[T]):
         self._name = name
         self._read_names = self._aliases if self._aliases is not None else [name]
         self._write_name = self._write_key if self._write_key is not None else name
+        if self._write_name in self._read_names:
+            self._read_names = [
+                self._write_name,
+                *[alias for alias in self._read_names if alias != self._write_name],
+            ]
 
     @property
     def secret(self) -> bool:

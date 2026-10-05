@@ -158,6 +158,41 @@ async def test_a_start_that_never_comes_up_leaves_no_task_running(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_a_runner_failure_before_ready_is_reported_promptly(monkeypatch):
+    """A worker that dies before readiness must not look like a slow microphone."""
+    from pipecat.pipeline.task import PipelineWorker
+
+    async def fail(*args, **kwargs):
+        raise RuntimeError("the worker died before readiness")
+
+    monkeypatch.setattr(PipelineWorker, "run", fail)
+    started = asyncio.get_running_loop().time()
+
+    with pytest.raises(RuntimeError, match="died before readiness"):
+        await AudioPipeline.start()
+
+    assert asyncio.get_running_loop().time() - started < 1.0
+
+
+@pytest.mark.asyncio
+async def test_a_runner_that_exits_before_ready_does_not_hang(monkeypatch):
+    """A worker that exits cleanly still leaves readiness unreachable, so the
+    start must give up rather than wait on a readiness that can never come."""
+    from pipecat.pipeline.task import PipelineWorker
+
+    async def exit_at_once(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(PipelineWorker, "run", exit_at_once)
+    started = asyncio.get_running_loop().time()
+
+    with pytest.raises(RuntimeError, match="before the transport was ready"):
+        await AudioPipeline.start()
+
+    assert asyncio.get_running_loop().time() - started < 1.0
+
+
+@pytest.mark.asyncio
 async def test_a_worker_that_refuses_the_cancel_still_ends_the_pipeline(monkeypatch):
     """A teardown that fails still ends the pipeline, and raises nothing (PR #561
     review).

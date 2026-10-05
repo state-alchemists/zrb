@@ -165,15 +165,36 @@ class AudioPipeline:
         worker = PipelineWorker(Pipeline([transport, counter]))
         runner = asyncio.create_task(worker.run(WorkerParams(TaskManager())))
         pipeline = cls(worker, runner, transport, counter)
+        ready_waiter = asyncio.create_task(ready.wait())
         try:
             await worker.queue_frames([StartFrame()])
             # `queue_frames` only queues the frame: until the transport has
             # processed it there is no queue for a pushed block.
-            await asyncio.wait_for(ready.wait(), timeout=_START_TIMEOUT_SECONDS)
+            done, _ = await asyncio.wait(
+                {ready_waiter, runner},
+                timeout=_START_TIMEOUT_SECONDS,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if not done:
+                raise TimeoutError
+            if runner in done:
+                # The worker is gone for good: `await runner` raises when it
+                # failed, and a clean exit with the transport still unready
+                # means readiness can never come, so waiting on it would hang
+                # where the old timeout used to give up.
+                await runner
+                raise RuntimeError(
+                    "The Pipecat worker exited before the transport was ready"
+                )
+            await ready_waiter
         except BaseException:
             # A pipeline that did not come up must not leave its worker running.
             await pipeline.close()
             raise
+        finally:
+            if not ready_waiter.done():
+                ready_waiter.cancel()
+                await asyncio.gather(ready_waiter, return_exceptions=True)
         return pipeline
 
     async def push(self, chunk: bytes) -> None:
