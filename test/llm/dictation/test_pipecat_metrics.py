@@ -14,6 +14,7 @@ import pytest
 
 pytest.importorskip("pipecat", reason="pipecat ships with the `voice` extra")
 
+from pipecat.audio.vad.vad_analyzer import VADAnalyzer, VADParams  # noqa: E402
 from zrb.llm.dictation.listen import SAMPLE_RATE  # noqa: E402
 from zrb.llm.dictation.pipecat_input import (  # noqa: E402
     AudioPipeline,
@@ -30,6 +31,28 @@ CHUNK = b"\x00\x01" * (CHUNK_BYTES // 2)
 # little under a second of speech.
 BLOCK_SECONDS = (CHUNK_BYTES // 2) / SAMPLE_RATE
 SPEECH_BLOCKS = 31
+
+
+class _ScriptedAnalyzer(VADAnalyzer):
+    """Speech for the first *speech_frames* analysed frames, silence after.
+
+    A stand-in for the model, so a test can point at where the detector's
+    verdicts land. The volume bar is lifted: what is under test is the order
+    pipecat hands frames over in, not its loudness gate. One block is one
+    analysis at 16 kHz, which is what the pipeline runs at here.
+    """
+
+    def __init__(self, speech_frames: int) -> None:
+        super().__init__(params=VADParams(min_volume=0.0))
+        self._speech_frames = speech_frames
+        self._analysed = 0
+
+    def num_frames_required(self) -> int:
+        return 512
+
+    def voice_confidence(self, buffer: bytes) -> float:
+        self._analysed += 1
+        return 0.9 if self._analysed <= self._speech_frames else 0.0
 
 
 async def _settle(predicate, timeout: float = 5.0) -> bool:
@@ -240,3 +263,72 @@ async def test_a_listening_that_ended_mid_sentence_is_reported_with_its_audio():
     metrics = pipeline.get_speech_metrics()
     assert metrics.speech_segments == 1
     assert metrics.speech_seconds == pytest.approx(SPEECH_BLOCKS * BLOCK_SECONDS)
+
+
+@pytest.mark.asyncio
+async def test_the_block_that_ends_a_segment_is_counted_with_it(monkeypatch):
+    """The detector hands a block over before the verdict it decided from it.
+
+    `VADProcessor.process_frame` pushes the audio downstream first and runs the
+    detector afterwards, so the block that confirms the end of a segment reaches
+    the metrics stage while that segment is still open and is counted with it.
+    Read the other way round, every segment would lose the silence it ended on.
+
+    What the seconds have to agree with is the blocks the stage was handed
+    between the two verdicts, the terminating one included, so the order is read
+    at the stage instead of being assumed here.
+    """
+    from pipecat.processors.audio.vad_processor import VADProcessor
+    from pipecat.processors.frame_processor import FrameDirection
+
+    handed: list[str] = []
+    make_stage = create_speech_metrics_stage
+
+    def recording_stage(recorder):
+        stage = make_stage(recorder)
+        inner = stage.process_frame
+
+        async def remember(frame, direction):
+            if direction == FrameDirection.DOWNSTREAM:
+                handed.append(type(frame).__name__)
+            await inner(frame, direction)
+
+        stage.process_frame = remember
+        return stage
+
+    monkeypatch.setattr(
+        "zrb.llm.dictation.pipecat_input.create_voice_activity_detector",
+        lambda: VADProcessor(vad_analyzer=_ScriptedAnalyzer(SPEECH_BLOCKS)),
+    )
+    monkeypatch.setattr(
+        "zrb.llm.dictation.pipecat_input.create_speech_metrics_stage", recording_stage
+    )
+
+    pipeline = await AudioPipeline.start()
+    try:
+        # Enough blocks after the scripted speech for the detector to confirm the
+        # end: it wants 0.2s of silence, which is six blocks of this size.
+        for _ in range(SPEECH_BLOCKS + 12):
+            await pipeline.push(CHUNK)
+        assert await _settle(lambda: "VADUserStoppedSpeakingFrame" in handed), (
+            f"the scripted detector never ended its segment: {handed}"
+        )
+    finally:
+        await pipeline.close()
+
+    started = handed.index("VADUserStartedSpeakingFrame")
+    stopped = handed.index("VADUserStoppedSpeakingFrame")
+    counted = [
+        name for name in handed[started + 1 : stopped] if name == "InputAudioRawFrame"
+    ]
+
+    assert handed[stopped - 1] == "InputAudioRawFrame", (
+        "the block that ended the segment reached the stage after its verdict"
+    )
+    # The detector confirms a start after 0.2s of speech and an end after 0.2s of
+    # silence — six blocks each at its defaults — so the blocks it was speaking
+    # over are exactly the scripted ones, the block it ended on included.
+    assert len(counted) == SPEECH_BLOCKS
+    assert pipeline.get_speech_metrics().speech_seconds == pytest.approx(
+        SPEECH_BLOCKS * BLOCK_SECONDS
+    )
