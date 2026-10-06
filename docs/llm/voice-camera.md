@@ -8,7 +8,7 @@
 |---|---|---|
 | Camera | `/photo [device]` | `ffmpeg`, or Termux:API on Android |
 | Dictation | `/voice`, `/handsfree` | `pip install 'zrb[voice]'` |
-| Speech | `/speech` | nothing on macOS; Termux:API on Android; `espeak-ng` on Linux and Windows; or a cloud key |
+| Speech | `/speech` | nothing on macOS; Termux:API on Android; `espeak-ng` on Linux and Windows; a cloud key; or a local Pipecat voice |
 
 To talk with zrb, `export ZRB_LLM_VOICE=conversation` (or `turns` to take turns without interrupting, `speak` to only hear replies). Every setting is an environment variable, listed in [LLM Configuration § 23](../configuration/llm-config.md#23-voice-and-camera). Platform problems are covered in [Voice & Photo Troubleshooting](voice-photo-troubleshooting.md).
 
@@ -83,7 +83,7 @@ A line above the status bar shows what the microphone is doing, while hands-free
 
 Push-to-talk shows `🔴 recording…` and `📝 transcribing…` the same way.
 
-The default transcriber is vosk, which runs offline and downloads its model on first use, but mangles technical terms. With an OpenAI key, `ZRB_LLM_DICTATION_BACKEND=openai` and `ZRB_LLM_DICTATION_OPENAI_MODEL=gpt-4o-transcribe` are far more accurate. [`examples/voice-interaction`](../../examples/voice-interaction/README.md) compares the backends on one clip.
+The default transcriber is vosk, which runs offline and downloads its model on first use, but mangles technical terms. It is also the only one that transcribes while you speak. Three more run offline through Pipecat, each needing the package it ships in ([the installs](#your-own-backend)): `ZRB_LLM_DICTATION_BACKEND=whisper` runs Faster-Whisper, multilingual and the heaviest of the three, sized with `ZRB_LLM_DICTATION_STT_MODEL` (`tiny`, `base`, `small`, `medium`, `large-v3`); `moonshine` is the lightest and the only one with no GPU path at all; `funasr` is strongest on Chinese. With an OpenAI key, `ZRB_LLM_DICTATION_BACKEND=openai` and `ZRB_LLM_DICTATION_OPENAI_MODEL=gpt-4o-transcribe` are far more accurate. [`examples/voice-interaction`](../../examples/voice-interaction/README.md) compares the backends on one clip.
 
 ## Speech
 
@@ -107,6 +107,8 @@ Switching speech off with `/speech` drops whatever has not been said yet.
 **How it sounds.** The `openai` and `gemini` voices take a direction in plain words, `ZRB_LLM_SPEECH_STYLE`. By default it asks for a capable colleague talking you through the work: warm, clear, conversational, engaged but not theatrical. Change it to taste ("brisk and matter-of-fact", "calm and slow") or set it empty for the voice's default manner. The direction is never read aloud. The local engines (`say`, `espeak-ng`, Termux) ignore it; their `ZRB_LLM_SPEECH_RATE` and voice are what you can change.
 
 The `openai` backend starts playing as the audio arrives, through a player that reads standard input (`paplay`, `aplay` or `ffplay`), so a long reply starts as soon as a short one does. With `ZRB_LLM_SPEECH_WAV_PLAYER` set, or only `afplay`, it waits for the whole file.
+
+Three local voices run through Pipecat, each needing the package it ships in ([the installs](#your-own-backend)): `ZRB_LLM_SPEECH_BACKEND=piper` is the lightest and has the widest voice catalogue, `kokoro` is a fixed list of neural voices rather than a catalogue, and `pocket` is the one that clones a voice from a sample or a `.wav` you name. Their model downloads on first use and runs offline afterwards, and a service whose package is missing says which package to install instead of failing on a module import.
 
 Each chat session gets its own speaker, microphone and hands-free flag, so one session switching speech off does not silence the next. Two zrb processes still take turns rather than talk over each other, through a lock file that a session claims while it is speaking and releases when it is closed.
 
@@ -153,8 +155,8 @@ Each feature takes a backend name or an object implementing its interface:
 | Feature | Interface | Built-in names |
 |---|---|---|
 | Camera | `zrb.llm.camera.AnyCameraBackend` — `async capture(device) -> bytes \| None` | `auto`, `termux`, `ffmpeg` |
-| Dictation | `zrb.llm.dictation.AnyDictationBackend` — `async transcribe(audio) -> str`; optionally `async create_stream() -> AnyTranscriptionStream \| None` to transcribe while the user speaks | `vosk`, `openai`, `google`, `multimodal` |
-| Speech | `zrb.llm.speech.AnySpeechBackend` — `create_utterance(text) -> Utterance` (an `Utterance` subclass overriding `play` calls `report_started()` once sound starts, so dictation knows zrb is heard); optionally `create_audio(text) -> SpeechAudio \| None` so zrb plays it itself (and can pause it while you talk) | `auto`, `termux`, `say`, `espeak-ng`, `openai`, `gemini` |
+| Dictation | `zrb.llm.dictation.AnyDictationBackend` — `async transcribe(audio) -> str`; optionally `async create_stream() -> AnyTranscriptionStream \| None` to transcribe while the user speaks | `vosk`, `openai`, `google`, `multimodal`, and the local Pipecat services `whisper`, `moonshine`, `funasr` |
+| Speech | `zrb.llm.speech.AnySpeechBackend` — `create_utterance(text) -> Utterance` (an `Utterance` subclass overriding `play` calls `report_started()` once sound starts, so dictation knows zrb is heard); optionally `create_audio(text) -> SpeechAudio \| None` so zrb plays it itself (and can pause it while you talk) | `auto`, `termux`, `say`, `espeak-ng`, `openai`, `gemini`, and the local Pipecat services `kokoro`, `piper`, `pocket` |
 
 A speech backend that talks to a local TTS server and plays the WAV it returns:
 
@@ -184,6 +186,34 @@ enable_speech(llm_chat, SpeechConfig(backend=LocalTTS(), enabled=True))
 `llm_chat` already called `enable_speech` with the default config; calling it again replaces that call, so there is still one `/speech` per session and the earlier session's speaker is closed. The same holds for `enable_camera` and `enable_dictation`.
 
 If your backend fails, the local engine (`termux`, `say` or `espeak-ng`) speaks instead. zrb-extras adds a pyttsx3 backend. Audio passed to `transcribe` is 16 kHz mono 16-bit PCM; `zrb.llm.dictation.backend.wav.pcm16_to_wav_bytes` wraps it for an API that wants a file.
+
+**The local Pipecat services.** `whisper`, `moonshine`, `funasr`, `kokoro`, `piper` and `pocket` run their model on your machine. The `zrb[voice]` extra brings Pipecat itself but none of their model packages, and each is a Pipecat extra of its own:
+
+| Name | Named by | Install |
+|---|---|---|
+| `whisper` | `ZRB_LLM_DICTATION_BACKEND` | `pip install 'pipecat-ai[whisper]'` |
+| `moonshine` | `ZRB_LLM_DICTATION_BACKEND` | `pip install 'pipecat-ai[moonshine]'` |
+| `funasr` | `ZRB_LLM_DICTATION_BACKEND` | `pip install 'pipecat-ai[funasr]'`, and PyTorch |
+| `kokoro` | `ZRB_LLM_SPEECH_BACKEND` | `pip install 'pipecat-ai[kokoro]'`, on Python 3.13 or older |
+| `piper` | `ZRB_LLM_SPEECH_BACKEND` | `pip install 'pipecat-ai[piper]'` |
+| `pocket` | `ZRB_LLM_SPEECH_BACKEND` | `pip install 'pipecat-ai[pocket-tts]'`, and PyTorch |
+
+Each model downloads once on first use and runs offline afterwards. `piper` carries wheels for Linux on glibc 2.17 and newer, both macOS architectures, and Windows; `moonshine` has no x86-64 macOS wheel; and none of the six ships a native-Termux wheel, so Termux keeps `vosk` for dictation and `termux`/`say`/`espeak-ng` for speech. `kokoro` cannot be installed on Python 3.14 at all — `kokoro-onnx`, the package it runs on, declares `requires_python <3.14` — so name `piper` or `pocket` there.
+
+**A service of your own.** A name can also resolve to a service you register, which is how a vendor SDK goes in without zrb choosing anything for you. A registration replaces a built-in of the same name without giving up the built-ins beside it, from `zrb_init.py`:
+
+```python
+from zrb import tts_manager
+from zrb.llm.voice.spec import TTSServiceSpec
+
+tts_manager.register("my-voice", TTSServiceSpec(
+    name="my-voice",
+    provider="my_voice_sdk",
+    factory=lambda config: MyTTSService(api_key="...", voice=config.voice),
+))
+```
+
+then `ZRB_LLM_SPEECH_BACKEND=my-voice`. `provider` is the package the service imports, and is what tells zrb whether it can be built here. `stt_manager` and the two registries behind the managers come from `zrb.llm.voice`.
 
 ## On your own chat task
 

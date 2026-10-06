@@ -19,7 +19,9 @@
 | Symptom | Solution |
 |---------|----------|
 | `/voice` or `/handsfree` says dictation needs the `zrb[voice]` extra | `pip install 'zrb[voice]'` (sounddevice, numpy, vosk, pipecat-ai) |
-| An error mentioning `vosk` | vosk is the default backend: install it, or switch `ZRB_LLM_DICTATION_BACKEND` to `openai`/`google`/`multimodal` |
+| An error mentioning `vosk` | vosk is the default backend: install it, or switch `ZRB_LLM_DICTATION_BACKEND` to `openai`/`google`/`multimodal`, or to a local `whisper`/`moonshine`/`funasr` service |
+| A message naming a speech service and the package it needs | The `zrb[voice]` extra brings Pipecat but none of its model packages, so a local service needs its own: `pip install 'pipecat-ai[whisper]'`, `[moonshine]`, `[funasr]`, `[kokoro]`, `[piper]` or `[pocket-tts]` — see [Voice and camera § Your own backend](voice-camera.md#your-own-backend) |
+| `kokoro` will not install, on Python 3.14 | `kokoro-onnx` declares `requires_python <3.14`, so no release of it installs here. Name `piper` or `pocket` for speech instead |
 | Hands-free never submits anything | Run `zrb voice mic-test` from `examples/voice-interaction`; if your speech stays under the threshold, lower `ZRB_LLM_DICTATION_THRESHOLD`. With wake words set, only utterances starting with one count |
 | In a public place, the room's own conversation becomes turns | Set `ZRB_LLM_DICTATION_WAKE_WORDS`: nothing else tells a stranger's request from yours. `ZRB_LLM_DICTATION_NOISE_MARGIN` (raise it; `0` counts the room not at all) and `ZRB_LLM_DICTATION_MIN_WORDS` (2 or more) keep the room's background and a stray word out |
 | Hands-free ignores what you say in a loud room | The bar is over the room: lower `ZRB_LLM_DICTATION_NOISE_MARGIN` (default 2; `0` disables it), lower `ZRB_LLM_DICTATION_MIN_WORDS`, or speak up |
