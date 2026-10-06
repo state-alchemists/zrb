@@ -151,6 +151,50 @@ async def test_closing_the_backend_stops_its_pipeline_once(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_the_backend_names_the_loop_its_pipeline_runs_on(monkeypatch):
+    """The loop a session can be closed from is the one that owns the pipeline.
+
+    A synchronous teardown runs wherever the session was being served, which is
+    not necessarily this loop, and a pipeline can only be stopped from its own.
+    """
+    pipeline = FakePipeline()
+    _stub(monkeypatch, [], pipeline)
+    backend = PipecatDictationBackend("moonshine", _config())
+    assert backend.owner_loop is None  # nothing started yet
+
+    await backend.prepare(lambda _message: None)
+
+    assert backend.owner_loop is asyncio.get_running_loop()
+
+    await backend.aclose()
+
+    assert backend.owner_loop is None
+
+
+@pytest.mark.asyncio
+async def test_a_backend_that_was_let_go_is_not_started_again(monkeypatch):
+    """Nothing builds a second service for a session that is over.
+
+    A recording in flight when the session ends reaches its transcription after
+    the backend has been let go. Building a pipeline again for it would leave the
+    new one — and its model — running with no session left to close it.
+    """
+    pipeline = FakePipeline()
+    built: list[str] = []
+    _stub(monkeypatch, built, pipeline)
+    backend = PipecatDictationBackend("moonshine", _config())
+    await backend.prepare(lambda _message: None)
+    await backend.aclose()
+
+    with pytest.raises(RuntimeError, match="let go"):
+        await backend.transcribe(b"one")
+
+    assert built == ["moonshine"]
+    assert pipeline.closes == 1
+    assert pipeline.segments == []
+
+
+@pytest.mark.asyncio
 async def test_a_session_that_ends_lets_its_backend_go():
     """A backend holding a model is released when the session is over.
 

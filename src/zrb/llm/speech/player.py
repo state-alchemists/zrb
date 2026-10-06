@@ -464,15 +464,17 @@ class Speaker:
         with self._lock:
             worker, self._worker = self._worker, None
             player, self._player = self._player, None
-        if worker is None:
-            return
-        atexit.unregister(self._drain_at_exit)
-        self._queue.put(None)
-        deadline = None if join_timeout is None else time.monotonic() + join_timeout
-        worker.join(join_timeout)
-        if player is not None:
-            remaining = None if deadline is None else deadline - time.monotonic()
-            player.join(None if remaining is None else max(remaining, 0))
+        if worker is not None:
+            atexit.unregister(self._drain_at_exit)
+            self._queue.put(None)
+            deadline = None if join_timeout is None else time.monotonic() + join_timeout
+            worker.join(join_timeout)
+            if player is not None:
+                remaining = None if deadline is None else deadline - time.monotonic()
+                player.join(None if remaining is None else max(remaining, 0))
+        # Closed with or without a thread: `speak` plays on the calling thread and
+        # never starts one, and the backends it made hold a model and a pipeline
+        # all the same.
         self._close_backends()
 
     def _close_backends(self) -> None:

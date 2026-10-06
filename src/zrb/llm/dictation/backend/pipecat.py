@@ -48,6 +48,15 @@ class PipecatDictationBackend(AnyDictationBackend):
         self._service_name = service_name
         self._config = config
         self._pipeline: STTPipeline | None = None
+        # The loop the pipeline runs on, and the worker task inside it belongs to.
+        # The session that closes this backend is synchronous, so it may not be
+        # this one, and a pipeline can only be stopped from the loop that owns it.
+        self._loop: asyncio.AbstractEventLoop | None = None
+        # Set once this backend has let its pipeline go: a `transcribe` arriving
+        # after that — a recording the session ended in the middle of — would
+        # otherwise build a second service and a second pipeline for a session that
+        # is over, and leave both running.
+        self._is_closed = False
         # `prepare` is called again for every recording, not only the first, so
         # the look-then-build has to be one step: two callers that both found no
         # pipeline would build two models.
@@ -58,6 +67,11 @@ class PipecatDictationBackend(AnyDictationBackend):
         """How the backend is called in messages."""
         return f"Pipecat ({self._service_name})"
 
+    @property
+    def owner_loop(self) -> asyncio.AbstractEventLoop | None:
+        """The loop the pipeline runs on, or ``None`` before there is one."""
+        return self._loop
+
     async def prepare(self, report: "Callable[[str], None]") -> None:
         """Load the service and start its pipeline, at most once.
 
@@ -65,11 +79,18 @@ class PipecatDictationBackend(AnyDictationBackend):
         here, which on a first run is the longest wait in the session.
         """
         async with self._preparing:
+            if self._is_closed:
+                raise RuntimeError(
+                    f"the {self._service_name} speech service was let go, and is "
+                    "not started again for a session that is over"
+                )
             if self._pipeline is not None:
                 return
             report(f"Loading the {self._service_name} speech service…")
             service = await asyncio.to_thread(self._create_service)
-            self._pipeline = await STTPipeline.start(service)
+            loop = asyncio.get_running_loop()
+            pipeline = await STTPipeline.start(service)
+            self._loop, self._pipeline = loop, pipeline
 
     def _create_service(self) -> "STTService":
         """The service this backend is named after.
@@ -101,7 +122,12 @@ class PipecatDictationBackend(AnyDictationBackend):
         Named apart from `close` rather than overloading it, because this is a
         coroutine and its caller is not: `DictationSession.close` is synchronous,
         and a `close` it had to remember to schedule would be a trap.
+
+        Once let go, this backend stays let go: the session that owned it is over,
+        and starting a pipeline again for it would be starting one nothing closes.
         """
+        self._is_closed = True
         pipeline, self._pipeline = self._pipeline, None
+        self._loop = None
         if pipeline is not None:
             await pipeline.close()

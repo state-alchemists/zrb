@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from zrb.llm.dictation.backend.any_transcription_stream import AnyTranscriptionStream
+
+if TYPE_CHECKING:
+    import asyncio
 
 
 class AnyDictationBackend(ABC):
@@ -33,6 +37,18 @@ class AnyDictationBackend(ABC):
         for a backend that only transcribes a finished utterance (the
         default). Hands-free uses a stream when it gets one: the transcript is
         ready sooner, and the utterance can end sooner once it sounds done."""
+        return None
+
+    @property
+    def owner_loop(self) -> "asyncio.AbstractEventLoop | None":
+        """The loop this backend is bound to, or ``None`` when it holds nothing
+        a loop owns.
+
+        A backend that started a pipeline holds a worker task only the loop that
+        started it can await or cancel, and a session's teardown is synchronous,
+        so it may not be running there. `DictationSession.close` is what asks, to
+        let the backend go where letting go works rather than on a loop of its
+        own, where awaiting that task fails and the pipeline runs on."""
         return None
 
     async def aclose(self) -> None:

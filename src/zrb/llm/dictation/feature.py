@@ -102,6 +102,9 @@ class DictationSession:
     def __init__(self, config: DictationConfig) -> None:
         self._config = config
         self._backend: AnyDictationBackend | None = None
+        # Set by `close`, which is the session's own end: nothing new is built into
+        # it after that, and nothing is transcribed for it.
+        self._is_closed = False
         # Letting a backend go is asynchronous, so `close` schedules it rather
         # than awaiting it; this is the task, kept so nothing collects it early.
         self._backend_close: asyncio.Task[None] | None = None
@@ -144,6 +147,14 @@ class DictationSession:
 
     def _get_backend(self) -> AnyDictationBackend:
         if self._backend is None:
+            if self._is_closed:
+                # A recording or a transcription that outlived the session it was
+                # started for: building a backend here would build one nothing
+                # will ever let go.
+                raise RuntimeError(
+                    "this dictation session has ended, so it builds no backend and "
+                    "transcribes nothing more"
+                )
             self._backend = get_dictation_backend(
                 self._config.backend or "vosk", self._config
             )
@@ -156,6 +167,7 @@ class DictationSession:
     def close(self) -> None:
         """Switch hands-free off, release a recording in progress, and let the
         backend go."""
+        self._is_closed = True
         self._release_barge_in()
         self.is_hands_free = False
         self._hands_free_off.set()
@@ -165,28 +177,49 @@ class DictationSession:
         self._show(None)
 
     def _close_backend(self) -> None:
-        """Let the backend go, without waiting for it.
+        """Let the backend go, without this teardown waiting for it.
 
         A backend may hold a model or a running pipeline — a Pipecat service is
-        both — and letting one go is asynchronous where this teardown is not.
-        A failure is reported by nobody, which is what `close_quietly` is for,
-        and the task is kept so it is not collected before it has run.
+        both — and letting one go is asynchronous where this teardown is not. A
+        failure is reported by nobody, which is what `close_quietly` is for, and
+        the task is kept so it is not collected before it has run.
+
+        Where it runs is the backend's answer, not this teardown's. A Pipecat
+        pipeline's worker is a task on the loop that started it, and awaiting it
+        from another loop raises the cross-loop error `close_quietly` swallows —
+        a teardown reporting a closed backend while the worker, the model and the
+        pipeline keep running.
         """
         backend, self._backend = self._backend, None
         if backend is None:
             return
         try:
-            loop = asyncio.get_running_loop()
+            here = asyncio.get_running_loop()
         except RuntimeError:
-            # Nothing here can await the close, and a coroutine left unscheduled
-            # would only warn once it was collected — with the backend, and
-            # whatever model or pipeline it was holding, still alive. It is run
-            # to completion on a loop of its own instead: one whose close does
-            # not reach back into the loop it was built on is released, and one
-            # that does fails at once, bounded, and says so through
-            # `close_quietly` rather than going quiet.
-            asyncio.run(close_quietly(backend.aclose, "the dictation backend"))
+            here = None
+        owner = backend.owner_loop
+        if owner is not None and owner is not here:
+            if not owner.is_running():
+                logger.warning(
+                    "Could not let the dictation backend go: the loop it was built "
+                    "on is not running, so its pipeline is left as it is"
+                )
+                return
+            owner.call_soon_threadsafe(lambda: self._close_backend_on(owner, backend))
             return
+        if here is not None:
+            self._close_backend_on(here, backend)
+            return
+        # Nothing this backend holds is bound to a loop, so its close runs to
+        # completion on one of its own: a coroutine left unscheduled would only
+        # warn once it was collected — with the backend, and whatever model or
+        # pipeline it was holding, still alive.
+        asyncio.run(close_quietly(backend.aclose, "the dictation backend"))
+
+    def _close_backend_on(
+        self, loop: asyncio.AbstractEventLoop, backend: AnyDictationBackend
+    ) -> None:
+        """Close *backend* as a task on *loop*, kept so nothing collects it early."""
         self._backend_close = loop.create_task(
             close_quietly(backend.aclose, "the dictation backend")
         )
@@ -259,19 +292,36 @@ class DictationSession:
         return f"🎤 Hands-free {'on' if self.is_hands_free else 'off'}"
 
     async def _record_into(self, ui: "BaseUI", stop: asyncio.Event) -> str:
-        await self.backend.prepare(_to_output(ui))
+        # Taken once, and this one backend is what records and what transcribes:
+        # a session that ends in the middle of a recording must be the end of the
+        # backend that was started for it, not the start of another.
+        backend = self.backend
+        await backend.prepare(_to_output(ui))
         commands = ", ".join(self._config.commands or [])
         try:
             self._show(f"🔴 recording… ({commands} or a pause to stop)", ui)
             audio = await self._record_one(stop)
             self._show(_TRANSCRIBING, ui)
-            text = (await self.backend.transcribe(audio)).strip() if audio else ""
+            text = await self._transcribe_recording(backend, audio)
         finally:
             self._show(None, ui)
         if not text:
             return "🎤 Heard nothing."
         ui.insert_input_text(text)
         return "🎤 Transcribed: edit it or press Enter to send."
+
+    async def _transcribe_recording(
+        self, backend: AnyDictationBackend, audio: bytes
+    ) -> str:
+        """What *audio* came to, or ``""`` when there is nothing to transcribe.
+
+        Nothing is waiting for a transcript once the session is over — the input
+        box it would be edited in is gone — and the backend the teardown let go
+        must not be asked to start itself up again for one.
+        """
+        if not audio or self._is_closed:
+            return ""
+        return (await backend.transcribe(audio)).strip()
 
     async def _record_one(self, stop: asyncio.Event) -> bytes:
         def should_listen() -> bool:
@@ -335,13 +385,17 @@ class DictationSession:
         The microphone closes when hands-free stops; the caller must close the
         generator (or the microphone stays open until it is finalized).
         """
+        # Taken once, for the same reason a recording takes one: a stream is made
+        # per utterance, and a session that ends mid-utterance must not have a new
+        # backend built for the microphone it still has.
+        backend = self.backend
         async with aclosing(
             listen(
                 self._config,
                 lambda: self.is_hands_free,
                 on_state=self._show_mic_state,
                 on_barge_in=self._handle_barge_in,
-                create_stream=self.backend.create_stream,
+                create_stream=backend.create_stream,
                 on_partial=self._show_partial,
                 on_barge_in_dropped=self._release_barge_in,
             )
@@ -641,10 +695,16 @@ class DictationSession:
         or ``None`` when hands-free was switched off while it was being
         transcribed — the user said stop, so that utterance is theirs, not the
         model's."""
+        if self._is_closed:
+            # The session is over, so the utterance goes the way of one that was
+            # dropped, and the backend the teardown let go is left alone.
+            return None
+        # Taken once, for the same reason the other operations take one.
+        backend = self.backend
         if utterance.stream is not None:
             coroutine = utterance.stream.finish()
         else:
-            coroutine = self.backend.transcribe_speech(utterance.audio)
+            coroutine = backend.transcribe_speech(utterance.audio)
         transcribing = asyncio.ensure_future(coroutine)
         switched_off = asyncio.ensure_future(self._hands_free_off.wait())
         is_finished = False

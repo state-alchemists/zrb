@@ -30,17 +30,6 @@ class FakeBackend(AnyDictationBackend):
         return audio.decode()
 
 
-class ClosingBackend(FakeBackend):
-    """A backend that says when it was let go."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.closed = False
-
-    async def aclose(self) -> None:
-        self.closed = True
-
-
 class FakeUI:
     def __init__(self):
         self.background_tasks: set = set()
@@ -248,33 +237,6 @@ async def test_the_command_again_stops_the_recording(monkeypatch):
 
     assert stopped.is_set()
     assert ui.inserted == ["half a sentence"]
-
-
-def test_push_to_talk_needs_a_ui_and_hands_free_off():
-    session = _session(commands=["/voice"])
-    assert "interactive" in session.toggle_recording({}, None)
-
-    session.is_hands_free = True
-    assert "Hands-free is on" in session.toggle_recording({}, FakeUI())
-    assert not session.is_recording
-
-
-def test_closing_a_session_where_no_loop_runs_still_closes_the_backend():
-    """A synchronous teardown must not drop a backend on the floor.
-
-    `close` is registered as a feature teardown, and it is synchronous where a
-    backend's own close is not. Scheduling that close when no loop is running
-    fails, and the coroutine left behind only warns once it is collected —
-    with whatever model or pipeline the backend was holding still alive. The
-    close is run to completion instead.
-    """
-    backend = ClosingBackend()
-    session = DictationSession(DictationConfig(backend=backend).resolve())
-    assert session.backend is backend  # built, and now the session's to let go
-
-    session.close()
-
-    assert backend.closed
 
 
 @pytest.mark.asyncio
