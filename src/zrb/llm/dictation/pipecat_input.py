@@ -322,9 +322,9 @@ class AudioPipeline:
     It ends at *counter*, an `AudioCounter` writing *tally*, so nothing
     downstream of the transport acts on the audio; the speech-activity detector
     and the metrics stage in front of it observe the audio without deciding
-    anything about it. *pushed_bytes* is what `push` has handed over, which
-    *tally* is read against to know that a listening's last block has arrived
-    rather than being cut off by the teardown.
+    anything about it. *pushed_bytes* is the audio `push` has handed over and the
+    transport has taken, which *tally* is read against to know that a listening's
+    last block has arrived rather than being cut off by the teardown.
     """
 
     worker: "PipelineWorker"
@@ -407,11 +407,14 @@ class AudioPipeline:
     async def push(self, chunk: bytes) -> None:
         """Hand one captured block over, as `push_audio` takes it.
 
-        Only queued: the transport takes it from there, so what was handed over
-        is counted here and read against the far end by `close`.
+        Only queued: the transport takes it from there, so the block is counted
+        here once it has been taken, and read against the far end by `close`. A
+        hand-over that raises is one the transport never took, and counting it
+        would leave `close` waiting on a block that is not coming — the whole
+        drain timeout spent on the failure path that closes the pipeline.
         """
-        self.pushed_bytes += len(chunk)
         await push_audio(self.transport, chunk, self.sample_rate)
+        self.pushed_bytes += len(chunk)
 
     def get_speech_metrics(self) -> SpeechMetrics:
         """What the pipeline heard while it was fed: the speech segments its

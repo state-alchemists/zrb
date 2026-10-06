@@ -157,6 +157,34 @@ async def test_closing_hands_every_block_over_before_it_stops_the_worker(monkeyp
 
 
 @pytest.mark.asyncio
+async def test_a_handoff_that_fails_is_not_waited_for(monkeypatch):
+    """A close after a failed hand-over does not wait for the block that raised.
+
+    `_feed_pipecat` closes the pipeline from its own error path, so a teardown
+    that counts a block the transport never took as outstanding holds the
+    microphone teardown — and the hands-free recovery behind it — for the whole
+    drain timeout, on a pipeline that is already known bad and has nothing left
+    to wait for. What `close` waits on is what the transport has, so the count
+    follows a hand-over that went through.
+    """
+    pipeline = await AudioPipeline.start()
+
+    async def refuse(transport, chunk, sample_rate=SAMPLE_RATE):
+        raise RuntimeError("the transport is gone")
+
+    monkeypatch.setattr("zrb.llm.dictation.pipecat_input.push_audio", refuse)
+
+    with pytest.raises(RuntimeError, match="the transport is gone"):
+        await pipeline.push(CHUNK)
+
+    started = asyncio.get_running_loop().time()
+    await pipeline.close()
+
+    assert pipeline.pushed_bytes == 0
+    assert asyncio.get_running_loop().time() - started < 1.0
+
+
+@pytest.mark.asyncio
 async def test_the_pipeline_shares_the_already_running_loop():
     """The pipeline must not need an event loop of its own.
 
