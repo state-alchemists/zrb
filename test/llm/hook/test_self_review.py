@@ -1,6 +1,4 @@
-"""The built-in self-review gate: registered only while switched on, blocks the
-Stop on a `Request changes` verdict, never blocks on anything else, and caps
-its rounds per run."""
+'The built-in self-review gate: registered only while switched on, blocks the'
 
 import pytest
 
@@ -112,8 +110,8 @@ async def test_disabled_gate_is_not_registered(gate, stop, blocked):
 async def test_a_review_past_its_timeout_is_cancelled_and_never_blocks(
     tmp_path, monkeypatch, gate, stop, blocked
 ):
-    # No turn-start snapshot, so no git command runs and the deadline lands
-    # on the reviewer.
+
+
     monkeypatch.chdir(tmp_path)
     manager = HookManager(search_dirs=[])
     with gate(report=_FINDINGS, timeout=2, delay=30) as (seen, cancelled):
@@ -121,8 +119,8 @@ async def test_a_review_past_its_timeout_is_cancelled_and_never_blocks(
 
     assert blocked(results) == []
     assert len(seen) == 1
-    # Cancelled inside the hook's own event loop, so the model request stops
-    # instead of running on in an abandoned worker thread.
+
+
     assert cancelled == seen
 
 
@@ -140,14 +138,13 @@ async def test_a_delegated_sub_agent_run_is_not_reviewed(gate, stop, blocked):
 async def test_a_review_that_lets_the_turn_end_clears_its_run_count(
     gate, stop, blocked
 ):
-    """A run's count lives only while the gate holds its turn open, so a
-    passed review leaves nothing behind for a run that never returns."""
+    "A run's count lives only while the gate holds its turn open, so a"
     manager = HookManager(search_dirs=[])
     reports = [_FINDINGS, "LGTM", _FINDINGS, _FINDINGS]
     with gate(report=reports, max_rounds=2):
         await stop(manager)
-        await stop(manager, stop_hook_active=True)  # passes: the turn may end
-        # Another hook extends the turn: the next review starts a fresh count.
+        await stop(manager, stop_hook_active=True)
+
         again = await stop(manager, stop_hook_active=True)
         still = await stop(manager, stop_hook_active=True)
 
@@ -157,13 +154,12 @@ async def test_a_review_that_lets_the_turn_end_clears_its_run_count(
 
 @pytest.mark.asyncio
 async def test_rounds_are_counted_per_run(gate, stop, blocked):
-    """Concurrent sessions share one hook manager: one run's new turn must
-    not reset another run's round count."""
+    "Concurrent sessions share one hook manager: one run's new turn must"
     manager = HookManager(search_dirs=[])
     with gate(report=_FINDINGS, max_rounds=2) as (seen, _):
         await stop(manager, run_scope="a")
-        await stop(manager, run_scope="a", stop_hook_active=True)  # a at its cap
-        other = await stop(manager, run_scope="b")  # b's first Stop
+        await stop(manager, run_scope="a", stop_hook_active=True)
+        other = await stop(manager, run_scope="b")
         capped = await stop(manager, run_scope="a", stop_hook_active=True)
 
     assert len(blocked(other)) == 1
@@ -175,11 +171,10 @@ async def test_rounds_are_counted_per_run(gate, stop, blocked):
 async def test_rounds_are_counted_per_turn_even_under_one_conversation_name(
     gate, stop, blocked
 ):
-    """Two sessions under one conversation name share a run scope; the turn
-    id keeps their counts apart."""
+    'Two sessions under one conversation name share a run scope; the turn'
     manager = HookManager(search_dirs=[])
     with gate(report=_FINDINGS, max_rounds=1) as (seen, _):
-        await stop(manager, run_scope="shared", turn_id="a")  # a at its cap
+        await stop(manager, run_scope="shared", turn_id="a")
         other = await stop(manager, run_scope="shared", turn_id="b")
         capped = await stop(
             manager, run_scope="shared", turn_id="a", stop_hook_active=True
@@ -192,9 +187,7 @@ async def test_rounds_are_counted_per_turn_even_under_one_conversation_name(
 
 @pytest.mark.asyncio
 async def test_counts_of_turns_that_never_came_back_are_bounded(gate, stop, blocked):
-    """A turn cancelled mid-continuation never clears its count; past
-    `LLM_SELF_REVIEW_MAX_TRACKED_TURNS` the oldest are dropped, so the first
-    turn's is gone while the newest is kept."""
+    'A turn cancelled mid-continuation never clears its count; past'
     manager = HookManager(search_dirs=[])
     with gate(report=_FINDINGS, max_rounds=1, max_tracked_turns=3):
         for turn in range(4):
@@ -202,5 +195,5 @@ async def test_counts_of_turns_that_never_came_back_are_bounded(gate, stop, bloc
         first_again = await stop(manager, turn_id="t0", stop_hook_active=True)
         newest_again = await stop(manager, turn_id="t3", stop_hook_active=True)
 
-    assert len(blocked(first_again)) == 1  # dropped: counted afresh
-    assert blocked(newest_again) == []  # kept: at its cap
+    assert len(blocked(first_again)) == 1
+    assert blocked(newest_again) == []

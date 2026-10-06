@@ -18,7 +18,9 @@ REPO_ROOT = pathlib.Path(__file__).parents[2]
 SRC = REPO_ROOT / "src" / "zrb"
 
 # -2: message-queue provenance forwarding now uses object/Awaitable types.
-ANY_ANNOTATIONS = 1094
+# -1: the slop sweep dropped `_admits` in live_context, whose `model: "Any"`
+# was never read (it always returned True).
+ANY_ANNOTATIONS = 1093
 
 
 def _count_any(annotation: ast.expr | None) -> int:

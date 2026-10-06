@@ -25,7 +25,6 @@ async def test_rsync_task_local_to_remote(mock_session):
     )
     mock_session.register_task(rsync_task)
 
-    # Track call arguments
     call_args_list = []
 
     # Create a simple function that returns a coroutine instead of an async function
@@ -61,7 +60,6 @@ async def test_rsync_task_remote_to_local(mock_session):
     )
     mock_session.register_task(rsync_task)
 
-    # Track call arguments
     call_args_list = []
 
     # Create a simple function that returns a coroutine instead of an async function
@@ -98,7 +96,6 @@ async def test_rsync_task_with_key(mock_session):
     )
     mock_session.register_task(rsync_task)
 
-    # Track call arguments
     call_args_list = []
 
     # Create a simple function that returns a coroutine instead of an async function
@@ -133,7 +130,6 @@ async def test_rsync_task_with_password(mock_session):
     )
     mock_session.register_task(rsync_task)
 
-    # Track call arguments
     call_args_list = []
 
     # Create a simple function that returns a coroutine instead of an async function
@@ -169,7 +165,6 @@ async def test_rsync_task_with_key_and_password(mock_session):
     )
     mock_session.register_task(rsync_task)
 
-    # Track call arguments
     call_args_list = []
 
     # Create a simple function that returns a coroutine instead of an async function

@@ -1,12 +1,3 @@
-"""Queued-message echo tracking and redraw (`UIMessageEditing`).
-
-Where a submitted echo landed in the output buffer (`track_echo_span`) and how
-it is spliced back after an edit or a paste merge (`redraw_echo`). The Up/Down
-recall handlers around them are driven through the keybinding tests.
-
-The `editing_ui` stand-in comes from `conftest.py`.
-"""
-
 import gc
 import weakref
 from unittest.mock import patch
@@ -156,10 +147,7 @@ def test_redraw_echo_renders_a_message_whose_text_is_markdown(editing_ui):
 
 
 def test_redraw_echo_renders_markdown_an_edit_introduced(editing_ui):
-    """Editing a queued message into Markdown renders it — the redraw decides
-    from the entry's current text, so an edit and a paste merge draw the same
-    thing. Deciding once at merge time instead left a later edit replacing the
-    rendered block with raw text."""
+    """Render a queued message when an edit introduces Markdown."""
     echo = "\n💬 10:00 >> plain line\n"
     editing_ui.output_field.text = echo
     entry = make_entry(text="plain line")
@@ -177,9 +165,7 @@ def test_redraw_echo_renders_markdown_an_edit_introduced(editing_ui):
 
 
 def test_redraw_echo_returns_to_raw_text_when_an_edit_drops_the_markdown(editing_ui):
-    """The reverse direction: a rendered echo edited back to plain text is
-    drawn verbatim, and its tracked block re-renders to itself so a later
-    resize cannot splice stale Markdown back over it."""
+    """Return a rendered echo to raw text after editing."""
     echo = "\n💬 10:00 >> hello\n"
     editing_ui.output_field.text = echo
     entry = make_entry(text="hello\n- item")
@@ -201,11 +187,7 @@ def test_redraw_echo_returns_to_raw_text_when_an_edit_drops_the_markdown(editing
 
 
 def test_redraw_echo_tracks_the_whole_echo_for_rewrap(editing_ui):
-    """A redrawn Markdown echo is a tracked block, so a terminal resize
-    re-renders it at the new width instead of leaving it wrapped for the old
-    one. The block covers the whole echo — `rewrap_output` splices the
-    renderer's output over the recorded span, so a block covering only the
-    body would splice the body over its own header."""
+    """Track the whole rendered echo for resize reflow."""
     echo = "\n💬 10:00 >> hello\n"
     editing_ui.output_field.text = "head" + echo
     entry = make_entry(text="hello\n- item")
@@ -233,9 +215,7 @@ def test_redraw_echo_tracks_the_whole_echo_for_rewrap(editing_ui):
 
 
 def test_echo_span_follows_a_rewrap_that_changed_the_rendered_length(editing_ui):
-    """A resize re-renders the echo to a different length. The span is read
-    back off the tracked block, so the next edit still splices in place
-    instead of failing validation and leaving the edit invisible."""
+    """Keep the echo span valid after resize reflow."""
     echo = "\n💬 10:00 >> hello\n"
     editing_ui.output_field.text = echo
     entry = make_entry(text="hello\n- item")
@@ -264,10 +244,7 @@ def test_echo_span_follows_a_rewrap_that_changed_the_rendered_length(editing_ui)
 
 
 def test_echo_span_follows_an_in_place_edit_above_the_echo(editing_ui):
-    """Text above a queued echo changes length in place all the time — a
-    streamed shell span, a collapsing thinking block. The echo's block is
-    rebased by that rewrite, and the span is read back off it, so the edit
-    still lands on the echo instead of at a stale offset."""
+    """Rebase an echo after text above it changes length."""
     above = "tool output\n"
     echo = "\n💬 10:00 >> hello\n"
     editing_ui.output_field.text = above + echo
@@ -287,10 +264,7 @@ def test_echo_span_follows_an_in_place_edit_above_the_echo(editing_ui):
 
 
 def test_redraw_echo_is_parked_while_a_sub_agent_transcript_is_displayed(editing_ui):
-    """`UIAgentPicker` swaps the pane to a sub-agent's buffer and parks the
-    main text. Every recorded offset addresses the parked text, so a redraw
-    must not splice into what is on screen — it would overwrite unrelated
-    transcript. The span survives for when the main text comes back."""
+    """Defer redraw while the main transcript is parked."""
     echo = "\n💬 10:00 >> hello\n"
     editing_ui.output_field.text = echo
     entry = make_entry(text="hello")
@@ -313,10 +287,7 @@ def test_redraw_echo_is_parked_while_a_sub_agent_transcript_is_displayed(editing
 
 
 def test_redraw_echo_drops_a_block_whose_offsets_left_the_echo(editing_ui):
-    """A buffer replaced under the block (a rewind, a transcript swap that
-    never came back) leaves its offsets addressing unrelated text. The region
-    is checked for the message's own header, and a block that fails is
-    discarded instead of being spliced over."""
+    """Discard a block whose offsets no longer address its echo."""
     echo = "\n💬 10:00 >> hello\n"
     editing_ui.output_field.text = echo
     entry = make_entry(text="hello")
@@ -336,10 +307,7 @@ def test_redraw_echo_drops_a_block_whose_offsets_left_the_echo(editing_ui):
 
 
 def test_redraw_echo_rejects_a_block_that_drifted_onto_another_echo(editing_ui):
-    """Two user messages a minute apart carry the same marker and timestamp,
-    so a block whose offsets drifted onto a *different* echo still matches the
-    header. The whole region is compared against the text the block drew, or
-    the edit would overwrite that other message's line."""
+    """Reject a span that drifted onto another echo."""
     mine = "\n💬 10:00 >> hello\n"
     someone_elses = "\n💬 10:00 >> world\n"  # same length, same header
     editing_ui.output_field.text = mine
@@ -358,9 +326,7 @@ def test_redraw_echo_rejects_a_block_that_drifted_onto_another_echo(editing_ui):
 
 
 def test_echo_block_does_not_keep_its_queued_message_alive(editing_ui):
-    """The block outlives the queue entry — `rendered_blocks` is never pruned
-    — so it refers to the message weakly. A strong reference would pin the
-    entry's attachments and run coroutine for the life of the UI."""
+    """Rendered blocks must not keep queued messages alive."""
     entry = make_entry(text="hello")
     entry.attachments.append("a-large-pasted-image")
     echo = "\n💬 10:00 >> hello\n"
@@ -379,9 +345,7 @@ def test_echo_block_does_not_keep_its_queued_message_alive(editing_ui):
 
 
 def test_track_echo_span_registers_the_first_echo_as_a_block(editing_ui):
-    """The very first echo is tracked too — otherwise nothing keeps its
-    offsets current until the first redraw, which is exactly the window in
-    which a running turn is rewriting the text above it."""
+    """Track the first echo before any redraw."""
     entry = make_entry(text="hello")
     echo = "\n💬 10:00 >> hello\n"
     editing_ui.output_field.text = "head" + echo
@@ -395,9 +359,7 @@ def test_track_echo_span_registers_the_first_echo_as_a_block(editing_ui):
 
 
 def test_track_echo_span_skips_the_block_when_a_rerender_would_differ(editing_ui):
-    """The writer decides Markdown from the stripped body; the re-render
-    decides from `entry.text`. Where those disagree the echo is left
-    block-less rather than tracked against a render the user never saw."""
+    """Skip block tracking when the redraw would differ from the visible echo."""
     entry = make_entry(text="hello")
     echo = "\n💬 10:00 >> something else entirely\n"
     editing_ui.output_field.text = echo
@@ -410,9 +372,7 @@ def test_track_echo_span_skips_the_block_when_a_rerender_would_differ(editing_ui
 
 
 def test_redraw_echo_replaces_its_own_block_instead_of_stacking_them(editing_ui):
-    """Each redraw re-records the block at the same offset. Appending one per
-    redraw would leave `rendered_blocks` holding overlapping stale spans, and
-    `rewrap_output` walks that list accumulating a shift."""
+    """Replace a redraw's block instead of stacking stale spans."""
     echo = "\n💬 10:00 >> hello\n"
     editing_ui.output_field.text = echo
     entry = make_entry(text="hello\n- item")

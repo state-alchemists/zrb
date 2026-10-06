@@ -24,7 +24,6 @@ def normalize_attachments(
         if item is None:
             continue
         if isinstance(item, str):
-            # Treat as path
             path = os.path.abspath(os.path.expanduser(item))
             if not os.path.isfile(path):
                 print_fn(f"Attachment file not found: {path}")
@@ -46,7 +45,6 @@ def normalize_attachments(
                     if pdf_text is not None:
                         final_attachments.append(pdf_text)
                         continue
-                    # Fall through to binary if extraction failed
                     print_fn("Failed to extract text from PDF — attaching as binary")
                 data = Path(path).read_bytes()
                 mismatch = sniff_mismatch(data, media_type)
@@ -66,7 +64,6 @@ def normalize_attachments(
             except Exception as e:
                 print_fn(f"Failed to read attachment {path}: {e}")
         else:
-            # Assume it's already a suitable object (e.g. BinaryContent)
             final_attachments.append(item)
     return final_attachments
 
@@ -80,9 +77,8 @@ def get_oversized_by(path: str) -> "tuple[int, int] | None":
     return (size, limit) if size > limit else None
 
 
-# Magic-byte signatures for the formats we can cheaply and reliably verify.
-# Audio/video/office containers have too many valid variants to check with a
-# short prefix list, so those media types are intentionally left unverified.
+# Magic-byte signatures; audio/video/office containers have too many variants
+# to verify by prefix, so they are not checked.
 # ponytail: covers images + PDF only; extend the table if spoofing other
 # extensions becomes a real problem.
 _SIGNATURES: dict[str, tuple[bytes, ...]] = {
@@ -110,13 +106,7 @@ def sniff_mismatch(data: bytes, media_type: str) -> str | None:
 
 def check_attachment_bytes(data: bytes, media_type: str) -> str | None:
     """Reason string when in-memory *data* fails the size cap or signature
-    sniff, else None.
-
-    For entry points that already hold the bytes (web upload, Telegram) and
-    so can't check size against the file on disk first the way
-    `get_oversized_by` does for path-based callers (`normalize_attachments`,
-    the CLI's `/attach`).
-    """
+    sniff, else None. For callers that hold bytes, not a path."""
     limit = CFG.LLM_MAX_ATTACHMENT_BYTES
     if limit > 0 and len(data) > limit:
         return f"too large ({len(data)} bytes, limit {limit} bytes)"

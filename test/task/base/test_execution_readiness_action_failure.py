@@ -14,12 +14,7 @@ from zrb.task_status.task_status import TaskStatus
 
 @pytest.mark.asyncio
 async def test_action_failure_fails_task_without_waiting_out_readiness_timeout():
-    """An action that fails permanently ends the readiness wait at once.
-
-    A server that crashes on startup will never pass its readiness check, so
-    polling on until `readiness_timeout` only delays the inevitable failure
-    and buries the action's own error behind a timeout.
-    """
+    """An action that fails permanently ends the readiness wait at once."""
     never = asyncio.Event()
     polling_cancelled = asyncio.Event()
 
@@ -125,11 +120,10 @@ async def test_action_failing_as_its_checks_pass_is_never_marked_ready():
 async def test_a_check_failing_with_the_action_leaves_no_unretrieved_exception(
     ticks,
 ):
-    """The action's failure wins, and the check's own failure is still
-    consumed instead of surfacing as "Task exception was never retrieved".
+    """The action's failure wins, and the check's failure is still consumed.
 
-    `ticks` sweeps when the action fails relative to the check, covering both
-    finishing in the same round and the check failing as it is cancelled."""
+    `ticks` sweeps when the action fails relative to the check.
+    """
     import gc
 
     async def failing_check(_session):

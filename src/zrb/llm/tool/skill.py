@@ -62,12 +62,9 @@ def create_activate_skill_tool(skill_manager: SkillManager | None = None):
         return f"<ACTIVATED_SKILL>\n{header}\n\n{content}\n</ACTIVATED_SKILL>"
 
     activate_skill_impl.__name__ = "ActivateSkill"
-    # The roster is deliberately NOT embedded here: unlike DelegateToAgent's
-    # agent list, it is already spelled out in the prompt's skill catalogue, and
-    # duplicating it would pay for the same names twice on every request. The
-    # docstring must not point *at* that catalogue either — sections toggle
-    # independently, so a pointer dangles the moment one is trimmed. An unknown
-    # name therefore resolves itself: the error lists the valid ones.
+    # No roster here: the prompt's skill catalogue already lists the names, and
+    # a pointer to that section would dangle when it is toggled off. An unknown
+    # name gets the valid ones in its error instead.
     activate_skill_impl.__doc__ = (
         "Activates specialized expertise from a skill.\n\n"
         "Returns the skill's full content, its directory path, and a listing of any\n"
@@ -98,10 +95,7 @@ def create_search_skill_tool(skill_manager: SkillManager | None = None):
         return search_roster(skills, query) or _no_skill_match_message(query)
 
     search_skill.__name__ = "SearchSkill"
-    # The roster is deliberately NOT embedded here (mirrors ActivateSkill): the
-    # catalogue is spelled out in the prompt, and this tool is the on-demand
-    # window onto the part the prompt truncates. Naming the truncation cap here
-    # would pin a config value into a docstring that ships on every request.
+    # No roster or cap value here: the docstring ships on every request.
     search_skill.__doc__ = (
         "Searches the skill catalogue by name or description.\n\n"
         "Use it when the prompt's skill list is truncated, or a skill you need "
@@ -111,7 +105,7 @@ def create_search_skill_tool(skill_manager: SkillManager | None = None):
 
 
 def _no_skill_match_message(query: str) -> str:
-    """Text for an empty search result, naming the way back."""
+    """Text for an empty search result."""
     if query.strip():
         return (
             f"No skills match '{query.strip()}'. [SYSTEM SUGGESTION]: retry with "
@@ -121,12 +115,7 @@ def _no_skill_match_message(query: str) -> str:
 
 
 def _available_skills_hint(skill_manager: SkillManager) -> str:
-    """The valid `skill` values, for an error the model has to recover from.
-
-    Capped by ``LLM_MAX_SKILLS_IN_CATALOG``: the error names a working subset
-    and points at ``SearchSkill`` for the rest instead of dumping a huge
-    roster into every retry.
-    """
+    """The valid `skill` values, capped by ``LLM_MAX_SKILLS_IN_CATALOG``."""
     names = sorted(s.name for s in skill_manager.get_skills() if s.model_invocable)
     if not names:
         return "No activatable skills are registered."
@@ -138,12 +127,7 @@ def _available_skills_hint(skill_manager: SkillManager) -> str:
 
 
 def _skill_not_found_message(skill: str, skill_manager: SkillManager) -> str:
-    """Name the valid skills rather than telling the model to look them up.
-
-    Mirrors ``agent_not_found_message`` for delegation: the usual failure is a
-    misremembered name, so listing the real ones turns the retry into a
-    correction instead of another guess.
-    """
+    """Not-found error that lists the valid skills (mirrors ``agent_not_found_message``)."""
     return f"Skill '{skill}' not found. [SYSTEM SUGGESTION]: " + _available_skills_hint(
         skill_manager
     )

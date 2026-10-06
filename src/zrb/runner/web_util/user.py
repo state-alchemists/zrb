@@ -6,7 +6,6 @@ from zrb.config.web_auth_config import WebAuthConfig
 from zrb.runner.web_schema.user import User
 
 if TYPE_CHECKING:
-    # Import Request only for type checking to reduce runtime dependencies
     from fastapi import Request
 
 
@@ -27,7 +26,6 @@ async def get_user_from_request(
 
     if not web_auth_config.enable_auth:
         return web_auth_config.default_user
-    # Normally we use "Depends"
     get_bearer_token = OAuth2PasswordBearer(tokenUrl="/api/v1/login", auto_error=False)
     bearer_token = await get_bearer_token(request)
     token_user = _get_user_from_token(web_auth_config, bearer_token)
@@ -60,10 +58,7 @@ def _get_user_from_token(
             algorithms=["HS256"],
             options={"require": ["exp", "sub"]},
         )
-        # Only access tokens authenticate a request. Refresh tokens are signed
-        # with the same secret and also carry `sub`/`exp`, so without this check a
-        # refresh token would be accepted as an access token (privilege/lifetime
-        # confusion). `regenerate_tokens` enforces the symmetric `refresh` check.
+        # Refresh tokens share the secret and claims; reject them here.
         if payload.get("type") != "access":
             return None
         username: str | None = payload.get("sub")

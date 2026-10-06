@@ -23,12 +23,7 @@ from zrb.xcom.xcom import Xcom
 
 
 class CmdTaskError(RuntimeError):
-    """A shell command exited non-zero.
-
-    Carries `return_code` so `zrb <task>` can exit with the code the command
-    exited with instead of a flat 1 — a CmdTask wrapping a linter or a test
-    runner has an exit code that means something to whatever called zrb.
-    """
+    """A shell command exited non-zero; `return_code` becomes zrb's exit code."""
 
     def __init__(self, task_name: str, return_code: int) -> None:
         super().__init__(f"Process {task_name} exited ({return_code})")
@@ -81,20 +76,14 @@ class CmdTask(BaseTask):
                 each line with the task name and icon.
             warn_unrecommended_command: Whether to warn about patterns that are
                 risky in a non-interactive shell. Defaults to the config setting.
-            max_output_line: How many trailing stdout lines to retain in the
-                result. 0 (or any non-positive value) keeps every line —
-                the usual choice for CI, where a truncated log is worse than
-                a long one. Lines the cap drops are reported when the command
-                finishes, so the result is never quietly short.
-            max_error_line: How many trailing stderr lines to retain in the
-                result. Same 0-means-unlimited convention as
-                `max_output_line`.
+            max_output_line: Trailing stdout lines to retain in the result;
+                non-positive keeps every line. Dropped lines are reported.
+            max_error_line: Same as `max_output_line`, for stderr.
             execution_timeout: Seconds before the command is killed.
             is_interactive: When True, attach the command to the terminal so it can
                 prompt. Requires a TTY.
 
-        Every parameter `BaseTask` accepts is also accepted here and behaves
-        identically; see `BaseTask` for those.
+        Every other parameter is `BaseTask`'s.
         """
         super().__init__(
             name=name,
@@ -117,8 +106,7 @@ class CmdTask(BaseTask):
         self._is_interactive = is_interactive
 
     async def _exec_action(self, ctx: AnyContext) -> CmdResult:
-        """Run the configured command as a subprocess, returning its captured
-        stdout/stderr and exit code."""
+        """Run the command as a subprocess and return its captured output."""
         cmd_script = self._get_cmd_script(ctx)
         ctx.log_debug(f"Script: {self.__get_multiline_repr(cmd_script)}")
         shell = self._get_shell(ctx)
@@ -127,8 +115,7 @@ class CmdTask(BaseTask):
         cwd = self._get_cwd(ctx)
         ctx.log_debug(f"Working directory: {cwd}")
         env_map = self.__get_env_map(ctx)
-        # Names kept, credential-looking values masked: DEBUG output is what
-        # users paste into bug reports.
+        # DEBUG output ends up in bug reports, so mask credential values.
         ctx.log_debug(
             f"Environment map: {redact_env_map(env_map, CFG.SECRET_ENV_PATTERNS)}"
         )

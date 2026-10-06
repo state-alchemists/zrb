@@ -17,10 +17,10 @@ def mock_cfg():
 
 
 def test_get_default_prompt_traversal_to_home(mock_cfg, tmp_path):
-    # Setup:
-    # home: /tmp/home
-    # project: /tmp/home/project
-    # subdir: /tmp/home/project/subdir (CWD)
+
+
+
+
 
     home = tmp_path / "home"
     project = home / "project"
@@ -43,24 +43,24 @@ def test_get_default_prompt_traversal_to_home(mock_cfg, tmp_path):
         patch("os.path.expanduser", return_value=str(home)),
     ):
 
-        # 1. Should find project prompt by traversing up from subdir
+
         content = get_default_prompt("test_prompt")
         assert content == "Project Prompt Content"
 
-        # 2. Should find home prompt by traversing up from subdir to home
+
         content = get_default_prompt("home_prompt")
         assert content == "Home Prompt Content"
 
 
 def test_get_default_prompt_home_reachable_outside_project_tree(mock_cfg, tmp_path):
-    # Setup:
-    # home: /tmp/home
-    # other: /tmp/other (CWD, NOT nested under home)
-    #
-    # Mirrors SkillManager's home search: the home directory is always a
-    # candidate when LLM_SEARCH_HOME is on, regardless of where the project
-    # lives (unlike the project-ancestor walk, which only reaches directories
-    # between cwd and the filesystem root).
+
+
+
+
+
+
+
+
 
     home = tmp_path / "home"
     home.mkdir()
@@ -82,11 +82,11 @@ def test_get_default_prompt_home_reachable_outside_project_tree(mock_cfg, tmp_pa
         patch("os.path.expanduser", return_value=str(home)),
     ):
 
-        # 1. Should find other prompt in CWD
+
         content = get_default_prompt("other_prompt")
         assert content == "Other Prompt Content"
 
-        # 2. Should still find the home prompt via the home-dir layer
+
         content = get_default_prompt("home_prompt")
         assert content == "Home Prompt Content"
 
@@ -94,8 +94,8 @@ def test_get_default_prompt_home_reachable_outside_project_tree(mock_cfg, tmp_pa
 def test_get_default_prompt_home_layer_off_when_search_home_disabled(
     mock_cfg, tmp_path
 ):
-    # Same layout as above, but with LLM_SEARCH_HOME off: the home-dir layer
-    # must not be consulted, so an out-of-tree home prompt is not found.
+
+
     mock_cfg.LLM_SEARCH_HOME = False
 
     home = tmp_path / "home"
@@ -117,7 +117,7 @@ def test_get_default_prompt_home_layer_off_when_search_home_disabled(
 
 
 def test_get_default_prompt_fallback_to_package_default(mock_cfg):
-    # Persona is a built-in prompt (raw file contains {ASSISTANT_NAME} placeholder)
+
     with (
         patch("os.getcwd", return_value="/tmp/empty-dir"),
         patch("os.path.expanduser", return_value="/home/user"),
@@ -126,7 +126,7 @@ def test_get_default_prompt_fallback_to_package_default(mock_cfg):
         content = get_default_prompt("persona")
         assert isinstance(content, str)
         assert len(content) > 0
-        # Should contain placeholder (not replaced in get_default_prompt)
+
         assert "{ASSISTANT_NAME}" in content
 
 

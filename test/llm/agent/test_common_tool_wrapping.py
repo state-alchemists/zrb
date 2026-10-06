@@ -17,12 +17,7 @@ def _route_hooks(mapping):
 
 
 def test_wrap_tool_callable():
-    """A bare callable is wrapped into a ``Tool`` (not left bare) so its
-    capability tag survives into ``ToolDefinition.metadata``. The outer,
-    per-call gate (``SafeToolsetWrapper.call_tool``) only ever sees a
-    ``ToolsetTool``, which carries no ``.function`` and no arbitrary
-    attributes — metadata is the only channel capability can reach it
-    through (see ``zrb.llm.permission.capability_metadata``)."""
+    """Wrapping preserves callable capability metadata."""
     from pydantic_ai import Tool
 
     from zrb.llm.agent.common import wrap_tool
@@ -60,9 +55,7 @@ def test_wrap_tool_instance():
 
 
 def test_wrap_tool_duck_typed_instance():
-    """A tool object with ``.function`` that is not a pydantic-ai ``Tool``
-    must still be rebuilt around the safe wrapper — returning it unchanged
-    would drop error containment and the capability tag."""
+    """Duck-typed tools are rebuilt with the safe wrapper."""
     from pydantic_ai import Tool
 
     from zrb.llm.agent.common import wrap_tool
@@ -153,11 +146,7 @@ async def test_wrap_toolset_error():
 
 @pytest.mark.asyncio
 async def test_apply_tool_result_limit_survives_none_metadata():
-    """A raw ToolReturn with metadata=None (pydantic-ai's own default, e.g. from
-    an MCP toolset), rewritten by a PostToolUse hook, must not crash the
-    oversize/spill backstop. The rewritten content never went through a
-    tool's own cap, so it is still routed through _apply_tool_result_limit,
-    which merges new keys onto result.metadata."""
+    """Hook-rewritten results tolerate missing metadata."""
     from pydantic_ai import ToolReturn
     from pydantic_ai.toolsets import FunctionToolset
 
@@ -191,12 +180,7 @@ async def test_apply_tool_result_limit_survives_none_metadata():
 
 @pytest.mark.asyncio
 async def test_call_tool_skips_backstop_for_untouched_self_framed_result():
-    """A tool's own self-framed ToolReturn (e.g. Shell/Read after their own
-    LLM_MAX_OUTPUT_CHARS truncation) is respected as-is when no PostToolUse
-    hook rewrites it — even past LLM_MAX_TOOL_RESULT_CHARS. Re-running it
-    through the global backstop would re-truncate an already-truncated result
-    into a much smaller spill preview with no way to recover the true output.
-    """
+    """Untouched self-framed results bypass the global backstop."""
     from pydantic_ai import ToolReturn
     from pydantic_ai.toolsets import FunctionToolset
 

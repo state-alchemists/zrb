@@ -164,8 +164,7 @@ def test_get_log_level():
 def test_enable_builtin_tasks_old_env_name_is_inert(monkeypatch):
     # LOAD_BUILTIN was renamed to ENABLE_BUILTIN_TASKS (ADR-0026 verb-first
     # alignment) as a clean break in 2.64.0, pre-release — the old
-    # ZRB_LOAD_BUILTIN env var is no longer read; only ZRB_ENABLE_BUILTIN_TASKS
-    # is.
+    # The verb-first key is the only supported env name.
     monkeypatch.setenv("ZRB_LOAD_BUILTIN", "0")
     monkeypatch.delenv("ZRB_ENABLE_BUILTIN_TASKS", raising=False)
     config = Config()
@@ -174,8 +173,7 @@ def test_enable_builtin_tasks_old_env_name_is_inert(monkeypatch):
 
 def test_show_unrecommended_command_warning_old_env_name_is_inert(monkeypatch):
     # WARN_UNRECOMMENDED_COMMAND was renamed to SHOW_UNRECOMMENDED_COMMAND_WARNING
-    # (ADR-0026 verb-first alignment) as a clean break in 2.64.0, pre-release —
-    # the old env var is no longer read.
+    # The verb-first key is a clean break (ADR-0026).
     monkeypatch.setenv("ZRB_WARN_UNRECOMMENDED_COMMAND", "0")
     monkeypatch.delenv("ZRB_SHOW_UNRECOMMENDED_COMMAND_WARNING", raising=False)
     config = Config()

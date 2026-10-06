@@ -235,11 +235,7 @@ async def test_oversized_file_is_truncated_before_reaching_the_model(tmp_path):
 
 @pytest.mark.asyncio
 async def test_fitting_files_are_tokenized_once_each(tmp_path):
-    """Tokenizing is the expensive step; a file that fits is counted once.
-
-    Regression: the fit check counted the payload and the caller counted the
-    returned string again, doubling tokenizer work on every AnalyzeCode.
-    """
+    """Tokenizing is the expensive step; a file that fits is counted once."""
     d = tmp_path / "small_repo"
     d.mkdir()
     for i in range(5):

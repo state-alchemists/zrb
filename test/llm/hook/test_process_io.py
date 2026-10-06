@@ -1,10 +1,4 @@
-"""Direct tests for the hook pipe reader.
-
-The realistic paths — a chatty child, a disowned descendant holding the pipes,
-a timeout — are driven end-to-end through `create_command_hook` in
-`test_creator_subprocess.py`. What is left here is the handful of degenerate
-pipe states a real subprocess will not reliably produce on demand.
-"""
+'Direct tests for the hook pipe reader.'
 
 import os
 
@@ -14,8 +8,7 @@ from zrb.llm.hook.process_io import read_hook_output
 
 
 def _drain_fake_pipe(pipe: "_FakePipe | None") -> bytes:
-    """Read a `_FakePipe` to EOF and close it — the `communicate()` stand-in's
-    read side, mirroring what the selector loop does one chunk at a time."""
+    "Read a `_FakePipe` to EOF and close it — the `communicate()` stand-in's"
     if pipe is None:
         return b""
     chunks = []
@@ -32,7 +25,7 @@ def _drain_fake_pipe(pipe: "_FakePipe | None") -> bytes:
 
 
 class _FakePipe:
-    """A read/write end of a real OS pipe, with an optionally failing close()."""
+    'A read/write end of a real OS pipe, with an optionally failing close().'
 
     def __init__(self, fd, close_error=None):
         self._fd = fd
@@ -53,14 +46,14 @@ class _FakePipe:
 
 
 class _FakeProc:
-    """An already-exited process whose streams are real pipes."""
+    'An already-exited process whose streams are real pipes.'
 
     def __init__(self, stdout=b"", stderr=b"", stdin=False, close_error=None):
         self.stdout = self._readable(stdout)
         self.stderr = self._readable(stderr, close_error=close_error)
         self.stdin = None
         if stdin:
-            # Hold the read end open so a write cannot EPIPE.
+
             self.stdin_r, stdin_w = os.pipe()
             self.stdin = _FakePipe(stdin_w)
         self.returncode = 0
@@ -70,7 +63,7 @@ class _FakeProc:
         read_fd, write_fd = os.pipe()
         if data:
             os.write(write_fd, data)
-        os.close(write_fd)  # immediate EOF after any buffered data
+        os.close(write_fd)
         return _FakePipe(read_fd, close_error=close_error)
 
     def poll(self):
@@ -80,7 +73,7 @@ class _FakeProc:
         return self.returncode
 
     def communicate(self, input=None):
-        # The non-POSIX path in read_hook_output calls this directly.
+
         if input and self.stdin is not None:
             os.write(self.stdin.fileno(), input)
         if self.stdin is not None:
@@ -92,7 +85,7 @@ class _FakeProc:
 
 
 def test_read_hook_output_collects_both_streams_to_eof():
-    """Whatever the child wrote before exiting is returned in full."""
+    'Whatever the child wrote before exiting is returned in full.'
     process = _FakeProc(stdout=b"out-payload", stderr=b"err-payload")
 
     stdout, stderr = read_hook_output(process, b"")
@@ -102,11 +95,7 @@ def test_read_hook_output_collects_both_streams_to_eof():
 
 
 def test_read_hook_output_closes_stdin_when_there_is_nothing_to_send():
-    """An empty payload closes stdin immediately rather than registering it.
-
-    A hook reading stdin must see EOF, not block forever waiting on a write that
-    is never coming.
-    """
+    'An empty payload closes stdin immediately rather than registering it.'
     process = _FakeProc(stdout=b"ok", stdin=True)
 
     stdout, _ = read_hook_output(process, b"")
@@ -116,23 +105,18 @@ def test_read_hook_output_closes_stdin_when_there_is_nothing_to_send():
 
 
 def test_read_hook_output_delivers_the_stdin_payload():
-    """A non-empty payload is written to the child before the reader finishes."""
+    'A non-empty payload is written to the child before the reader finishes.'
     process = _FakeProc(stdout=b"ok", stdin=True)
 
     stdout, _ = read_hook_output(process, b'{"hook_event_name": "Notification"}')
 
     assert stdout == b"ok"
-    # The child's read end still holds what was written.
+
     assert b"Notification" in os.read(process.stdin_r, 4096)
 
 
 class _ProcThatExitsAfterTheFirstPoll:
-    """A child that finishes and flushes between the first select and the poll.
-
-    The shape of every fast hook: `echo hello` is spawned, the selector wakes
-    immediately because *stdin* is writable (it always is), and by the time
-    `poll()` is asked the child has already run, written, and exited.
-    """
+    'A child that finishes and flushes between the first select and the poll.'
 
     def __init__(self):
         stdout_r, self._stdout_w = os.pipe()
@@ -156,8 +140,8 @@ class _ProcThatExitsAfterTheFirstPoll:
         return self.returncode
 
     def communicate(self, input=None):
-        # The non-POSIX path in read_hook_output calls this directly, with no
-        # selector loop to trigger the child's exit -- poll() does that here.
+
+
         if input and self.stdin is not None:
             os.write(self.stdin.fileno(), input)
         if self.stdin is not None:
@@ -170,14 +154,7 @@ class _ProcThatExitsAfterTheFirstPoll:
 
 
 def test_read_hook_output_does_not_drop_a_child_that_exits_in_the_first_poll():
-    """A poll that only saw stdin writable is not a quiet interval.
-
-    The exit test used to be "this poll read nothing", and stdin is writable
-    from the moment the child is spawned — so a child that exited during the
-    first poll had its output discarded unread. `echo hello-context` lost its
-    line often enough to make the hook suite flaky, and a SessionStart hook
-    silently contributed no context at all.
-    """
+    'A child exiting during the first poll must not lose its output.'
     process = _ProcThatExitsAfterTheFirstPoll()
 
     stdout, _ = read_hook_output(process, b'{"hook_event_name": "SessionStart"}')
@@ -190,11 +167,7 @@ def test_read_hook_output_does_not_drop_a_child_that_exits_in_the_first_poll():
     reason="the close-error guard is in the selector loop; Windows uses communicate",
 )
 def test_read_hook_output_survives_a_pipe_that_fails_to_close():
-    """A close() that raises must not escape.
-
-    The reader runs on a detached thread whose exception becomes the hook's
-    result, so a failure here would turn a hook that ran fine into an error.
-    """
+    'A close() that raises must not escape.'
     process = _FakeProc(
         stdout=b"fine", stderr=b"", close_error=RuntimeError("close failed")
     )

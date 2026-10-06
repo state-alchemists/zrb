@@ -1,10 +1,4 @@
-"""create_output_keybindings() wires the output pane's navigation/redirect keys.
-
-Bindings are located by key (rather than driven through a live Application,
-which these plain KeyBindings objects aren't attached to) and invoked
-directly with a minimal fake event, matching how test_output_scroll.py
-exercises the sibling mouse-handler wiring in this same package.
-"""
+"""Verify output-pane keybinding wiring."""
 
 import string
 from unittest.mock import MagicMock, patch

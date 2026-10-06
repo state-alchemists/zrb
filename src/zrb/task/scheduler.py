@@ -26,8 +26,7 @@ class Scheduler(BaseTrigger):
             schedule: Cron expression describing when to fire. A literal, a
                 `Tpl` rendered against the context, or a callable taking it.
 
-        Every parameter `BaseTrigger` accepts is also accepted here and behaves
-        identically; see `BaseTrigger` for those.
+        Every other parameter is `BaseTrigger`'s.
         """
         super().__init__(
             name=name,
@@ -46,17 +45,14 @@ class Scheduler(BaseTrigger):
             now = datetime.datetime.now()
             ctx.print(f"Current time: {now}")
             minute = now.replace(second=0, microsecond=0)
-            # Dedup on the fired minute: a sub-minute tick would otherwise fire
-            # several times inside one matching minute.
+            # A sub-minute tick must fire once per matching minute.
             if minute != last_fired_minute and match_cron(cron_pattern, now):
                 last_fired_minute = minute
                 ctx.print(f"Matching {now} with pattern: {cron_pattern}")
                 if ctx.session is not None:
                     self.push_exchange_xcom(ctx.session, now)
-            # Never sleep past the next minute boundary: an unaligned 60s sleep
-            # accumulates loop overhead each tick, and once the sample point
-            # drifts across a boundary an entire minute is skipped — a
-            # `30 9 * * *` job silently not firing that day.
+            # Never sleep past the next minute boundary, or drift can skip a
+            # matching minute entirely.
             tick = CFG.SCHEDULER_TICK_INTERVAL / 1000
             to_next_minute = 60 - now.second - now.microsecond / 1_000_000
             await asyncio.sleep(min(tick, to_next_minute))

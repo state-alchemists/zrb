@@ -21,16 +21,10 @@ class BaseTaskOperators:
     def handle_rshift(
         self, right_operand: AnyTask | Sequence[AnyTask]
     ) -> AnyTask | Sequence[AnyTask]:
-        """
-        Implements the >> operator logic: this task becomes an upstream for
-        right_operand. Modifies the right_operand(s) by calling append_upstream.
-        Returns the right_operand.
-        """
+        """`self >> right_operand`: make this task an upstream of it; return it."""
         left_task = self._task
         try:
-            # Test the collection side, not `not isinstance(..., AnyTask)`: a stub
-            # or MagicMock standing in for a task is not an `AnyTask` subclass and
-            # must still take the single-task branch rather than be iterated.
+            # Check `Sequence`, not `AnyTask`, so duck-typed tasks count as one.
             if isinstance(right_operand, Sequence):
                 for task in right_operand:
                     task.append_upstream(left_task)
@@ -41,10 +35,7 @@ class BaseTaskOperators:
             raise ValueError(f"Invalid operation {left_task} >> {right_operand}: {e}")
 
     def handle_lshift(self, right_operand: AnyTask | Sequence[AnyTask]) -> AnyTask:
-        """
-        Implements the << operator logic: right_operand becomes an upstream for
-        this task. Modifies this task by calling append_upstream. Returns this task.
-        """
+        """`self << right_operand`: make it an upstream of this task; return self."""
         left_task = self._task
         try:
             left_task.append_upstream(right_operand)

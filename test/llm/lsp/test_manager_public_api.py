@@ -1,4 +1,4 @@
-"""Tests for LSP manager functionality."""
+'Tests for LSP manager functionality.'
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -12,16 +12,7 @@ from zrb.llm.lsp.server import LSPServer
 
 @pytest.fixture(autouse=True)
 def _cleanup_registry():
-    """Clear user-registered LSP server configs between tests.
-
-    Tests that call ``register_lsp_server`` write to the module-level
-    ``lsp_server_configs`` singleton. Clearing before each test prevents
-    cross-test pollution of the global config registry.
-
-    Cleared after as well: clearing only on the way in protects *these* tests
-    from everyone else while leaking their own registrations into whichever
-    unrelated test pytest-xdist runs next in this worker.
-    """
+    'Clear the shared ``lsp_server_configs`` before and after each test.'
     lsp_server_configs.clear()
     yield
     lsp_server_configs.clear()
@@ -29,13 +20,13 @@ def _cleanup_registry():
 
 @pytest.fixture
 def manager():
-    """Create a fresh LSPManager for each test by resetting the singleton."""
+    'Create a fresh LSPManager for each test by resetting the singleton.'
     LSPManager.reset_singleton()
     return LSPManager()
 
 
 class TestLspPublicAPI:
-    """Test high-level public API methods."""
+    'Test high-level public API methods.'
 
     def test_list_servers_returns_dict(self, manager):
         result = manager.list_available_servers()
@@ -43,14 +34,14 @@ class TestLspPublicAPI:
 
     @pytest.mark.asyncio
     async def test_get_document_symbols_formatting(self, manager, tmp_path):
-        """Test document symbols through the public API."""
+        'Test document symbols through the public API.'
         test_file = tmp_path / "test.py"
         test_file.touch()
 
         mock_server = MagicMock()
         mock_server.is_alive = True
         mock_server.start = AsyncMock(return_value=True)
-        # Mock raw LSP response
+
         mock_server.document_symbols = AsyncMock(
             return_value=[
                 {
@@ -101,7 +92,7 @@ class TestLspPublicAPI:
         ]
 
         with patch.object(manager, "get_server", return_value=mock_server):
-            # Filter for function
+
             result = await manager.find_definition(
                 "sym", "file.py", symbol_kind="function"
             )
@@ -110,13 +101,12 @@ class TestLspPublicAPI:
 
     @pytest.mark.asyncio
     async def test_find_definition_uses_goto_definition(self, manager, tmp_path):
-        """find_definition resolves via textDocument/definition at the identifier's
-        column (not workspace/symbol), which works on every LSP server."""
+        "find_definition resolves via textDocument/definition at the identifier's"
         f = tmp_path / "mod.py"
-        f.write_text("class Foo:\n    pass\n")  # 'Foo' is at line 0, char 6
+        f.write_text("class Foo:\n    pass\n")
 
         mock_server = AsyncMock(spec=LSPServer)
-        mock_server.document_symbols.return_value = []  # force regex column lookup
+        mock_server.document_symbols.return_value = []
         mock_server.goto_definition.return_value = [
             {"uri": "file:///x/foo_def.py", "range": {"start": {"line": 2}}}
         ]
@@ -126,7 +116,7 @@ class TestLspPublicAPI:
 
         assert result["found"] is True
         assert result["path"].endswith("foo_def.py")
-        # Position passed to goto_definition must sit ON the identifier (col 6).
+
         line, char = mock_server.goto_definition.call_args.args[1:3]
         assert (line, char) == (0, 6)
         mock_server.workspace_symbols.assert_not_called()
@@ -135,8 +125,7 @@ class TestLspPublicAPI:
     async def test_find_definition_falls_back_to_workspace_symbols(
         self, manager, tmp_path
     ):
-        """When textDocument/definition yields nothing, fall back to a
-        workspace/symbol search (servers that support it)."""
+        'When textDocument/definition yields nothing, fall back to a'
         f = tmp_path / "mod.py"
         f.write_text("Foo()\n")
 
@@ -159,13 +148,12 @@ class TestLspPublicAPI:
 
     @pytest.mark.asyncio
     async def test_get_workspace_symbols_file_fallback(self, manager, tmp_path):
-        """When the server can't do workspace/symbol (pylsp Method Not Found, or
-        pyright empty), fall back to the seed file's symbols filtered by query."""
+        "When the server can't do workspace/symbol (pylsp Method Not Found, or"
         f = tmp_path / "mod.py"
         f.write_text("class LLMTask:\n    pass\n")
 
         mock_server = AsyncMock(spec=LSPServer)
-        # Simulate an unsupported workspace/symbol.
+
         mock_server.workspace_symbols.side_effect = Exception("Method Not Found")
         mock_server.document_symbols.return_value = [
             {
@@ -221,7 +209,7 @@ class TestLspPublicAPI:
     @pytest.mark.asyncio
     async def test_get_hover_info_complex(self, manager):
         mock_server = AsyncMock(spec=LSPServer)
-        # Hover content as list of dicts
+
         mock_server.hover.return_value = {
             "contents": [{"value": "part1"}, {"value": "part2"}]
         }
@@ -268,7 +256,7 @@ class TestLspPublicAPI:
             result = await manager.rename_symbol(
                 "old", "new", "file.py", line=1, character=0, dry_run=False
             )
-            # Never claim success when nothing was written.
+
             assert result["success"] is False
             assert result["changes"] == "not_applied"
 

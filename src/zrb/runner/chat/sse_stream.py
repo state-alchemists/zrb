@@ -2,9 +2,8 @@ import asyncio
 import json
 from typing import Any
 
-# Eager fastapi import, unlike the rest of this package: this class is a
-# route's return annotation, and FastAPI must resolve it to a Response subclass
-# (not a factory function) to skip building a pydantic response model.
+# Eager: FastAPI must resolve this route return annotation to a Response
+# subclass to skip building a pydantic response model.
 from fastapi.responses import StreamingResponse
 
 from zrb.config.config import CFG

@@ -1,5 +1,4 @@
-"""LLM UI runtime knobs: status / refresh / flush intervals, buffer size, and
-the paste-burst merge window."""
+"""LLM UI runtime settings."""
 
 from __future__ import annotations
 

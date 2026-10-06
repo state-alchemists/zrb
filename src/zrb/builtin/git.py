@@ -126,9 +126,7 @@ async def prune_local_branches(ctx: AnyContext) -> None:
         try:
             for worktree_path in worktrees.get(branch, []):
                 ctx.print(stylize_muted(f"Removing worktree: {worktree_path}"))
-                await remove_worktree(
-                    repo_dir, worktree_path, print_method=ctx.print
-                )
+                await remove_worktree(repo_dir, worktree_path, print_method=ctx.print)
             ctx.print(stylize_muted(f"Removing local branch: {branch}"))
             await delete_branch(repo_dir, branch, print_method=ctx.print)
         except Exception as e:

@@ -2,9 +2,9 @@ from unittest.mock import MagicMock, patch
 
 from zrb.llm.prompt.claude import create_project_context_prompt
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+
+
+
 
 
 def _make_ctx():
@@ -17,13 +17,13 @@ def _identity_next(ctx, prompt):
     return prompt
 
 
-# ---------------------------------------------------------------------------
-# create_project_context_prompt tests
-# ---------------------------------------------------------------------------
+
+
+
 
 
 def test_create_project_context_prompt_no_doc_files(tmp_path):
-    """When no doc files exist, the original prompt is forwarded unchanged."""
+    'When no doc files exist, the original prompt is forwarded unchanged.'
     handler = create_project_context_prompt()
     ctx = _make_ctx()
     called_prompts = []
@@ -40,7 +40,7 @@ def test_create_project_context_prompt_no_doc_files(tmp_path):
 
 
 def test_create_project_context_prompt_lists_agents_md(tmp_path):
-    """AGENTS.md path is listed in All Documentation Files."""
+    'AGENTS.md path is listed in All Documentation Files.'
     agents_md = tmp_path / "AGENTS.md"
     agents_md.write_text("Some agent guidance here.")
 
@@ -55,7 +55,7 @@ def test_create_project_context_prompt_lists_agents_md(tmp_path):
 
 
 def test_create_project_context_prompt_lists_claude_md(tmp_path):
-    """CLAUDE.md path is listed in All Documentation Files."""
+    'CLAUDE.md path is listed in All Documentation Files.'
     claude_md = tmp_path / "CLAUDE.md"
     claude_md.write_text("Claude instructions")
 
@@ -69,7 +69,7 @@ def test_create_project_context_prompt_lists_claude_md(tmp_path):
 
 
 def test_create_project_context_prompt_with_empty_doc_file(tmp_path):
-    """An empty file is still listed."""
+    'An empty file is still listed.'
     readme = tmp_path / "README.md"
     readme.write_text("")
 
@@ -83,7 +83,7 @@ def test_create_project_context_prompt_with_empty_doc_file(tmp_path):
 
 
 def test_create_project_context_prompt_multiple_dirs(tmp_path):
-    """All occurrences across directories are listed."""
+    'All occurrences across directories are listed.'
     dir1 = tmp_path / "dir1"
     dir1.mkdir()
     (dir1 / "AGENTS.md").write_text("Content from dir1")
@@ -100,13 +100,13 @@ def test_create_project_context_prompt_multiple_dirs(tmp_path):
     ):
         result = handler(ctx, "base prompt", _identity_next)
 
-    # Both paths are listed
+
     assert str(dir1 / "AGENTS.md") in result
     assert str(dir2 / "AGENTS.md") in result
 
 
 def test_create_project_context_prompt_listed_files_section(tmp_path):
-    """Files appear in the 'Documentation Files Found' section."""
+    "Files appear in the 'Documentation Files Found' section."
     (tmp_path / "AGENTS.md").write_text("Agent content")
 
     handler = create_project_context_prompt()
@@ -116,13 +116,13 @@ def test_create_project_context_prompt_listed_files_section(tmp_path):
         result = handler(ctx, "base prompt", _identity_next)
 
     assert "Documentation Files Found" in result
-    # The listing carries its own reading rule; no section it could point to exists.
+
     assert "Before editing, read the ones" in result
     assert "See Project Documentation" not in result
 
 
 def test_create_project_context_prompt_all_doc_types_listed(tmp_path):
-    """All doc types are listed (no suppression)."""
+    'All doc types are listed (no suppression).'
     for name in ("AGENTS.md", "CLAUDE.md", "GEMINI.md", "README.md"):
         (tmp_path / name).write_text(f"Content of {name}")
 
@@ -137,7 +137,7 @@ def test_create_project_context_prompt_all_doc_types_listed(tmp_path):
 
 
 def test_create_project_context_prompt_home_docs_are_user_level(tmp_path):
-    """A doc in the home dir is listed as user-level, not as a project override."""
+    'A doc in the home dir is listed as user-level, not as a project override.'
     home = (tmp_path / "home").resolve()
     home.mkdir()
     (home / "CLAUDE.md").write_text("my cross-project habits")
@@ -157,7 +157,7 @@ def test_create_project_context_prompt_home_docs_are_user_level(tmp_path):
 
 
 def test_create_project_context_prompt_dot_claude_docs_are_user_level(tmp_path):
-    """``~/.claude`` docs land in the user-level bucket too."""
+    '``~/.claude`` docs land in the user-level bucket too.'
     home = (tmp_path / "home").resolve()
     claude_dir = home / ".claude"
     claude_dir.mkdir(parents=True)
@@ -179,7 +179,7 @@ def test_create_project_context_prompt_dot_claude_docs_are_user_level(tmp_path):
 
 
 def test_create_project_context_prompt_splits_project_and_user_docs(tmp_path):
-    """Both buckets appear, each holding only its own paths."""
+    'Both buckets appear, each holding only its own paths.'
     home = (tmp_path / "home").resolve()
     home.mkdir()
     (home / "CLAUDE.md").write_text("user level")
@@ -207,7 +207,7 @@ def test_create_project_context_prompt_splits_project_and_user_docs(tmp_path):
 
 
 def test_create_project_context_prompt_unresolvable_home_stays_project_level(tmp_path):
-    """When home can't be resolved, docs keep the pre-split (mandatory) bucket."""
+    "When home can't be resolved, docs keep the pre-split (mandatory) bucket."
     (tmp_path / "AGENTS.md").write_text("project level")
 
     handler = create_project_context_prompt()
@@ -224,7 +224,7 @@ def test_create_project_context_prompt_unresolvable_home_stays_project_level(tmp
 
 
 def test_create_project_context_prompt_calls_next_handler(tmp_path):
-    """next_handler must always be called exactly once."""
+    'next_handler must always be called exactly once.'
     handler = create_project_context_prompt()
     ctx = _make_ctx()
     call_count = []
@@ -240,7 +240,7 @@ def test_create_project_context_prompt_calls_next_handler(tmp_path):
 
 
 def test_create_project_context_prompt_base_prompt_preserved(tmp_path):
-    """The original base prompt is always present in the result."""
+    'The original base prompt is always present in the result.'
     (tmp_path / "AGENTS.md").write_text("Extra agent info")
 
     handler = create_project_context_prompt()
@@ -253,7 +253,7 @@ def test_create_project_context_prompt_base_prompt_preserved(tmp_path):
 
 
 def test_create_project_context_prompt_all_files_listed_without_read(tmp_path):
-    """All found files are listed; content is not loaded."""
+    'All found files are listed; content is not loaded.'
     for name in ("AGENTS.md", "CLAUDE.md"):
         (tmp_path / name).write_text("Some content here")
 
@@ -263,31 +263,24 @@ def test_create_project_context_prompt_all_files_listed_without_read(tmp_path):
     with patch("zrb.llm.prompt.claude.get_search_directories", return_value=[tmp_path]):
         result = handler(ctx, "base prompt", _identity_next)
 
-    # Content is not embedded
+
     assert "Some content here" not in result
-    # But both paths are listed
+
     assert "AGENTS.md" in result
     assert "CLAUDE.md" in result
 
 
-# ---------------------------------------------------------------------------
-# get_search_directories indirect tests (no patching — real filesystem)
-# ---------------------------------------------------------------------------
+
+
+
 
 
 def test_get_search_directories_includes_cwd(tmp_path):
-    """
-    get_search_directories is exercised indirectly: with a real AGENTS.md in
-    the CWD-like directory, create_project_context_prompt picks it up without
-    any patching.
-
-    We cannot easily control CWD in all environments, so we simply verify that
-    calling the handler without patching does not crash and returns a string.
-    """
+    'get_search_directories is exercised indirectly: with a real AGENTS.md in'
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    # No patch — uses real get_search_directories
+
     result = handler(ctx, "probe-prompt", _identity_next)
 
     assert isinstance(result, str)

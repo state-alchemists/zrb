@@ -126,7 +126,6 @@ class TestHTTPChatApprovalChannelWithData:
             tool_call_id="tool-123",
         )
 
-        # request_approval is public
         task = asyncio.create_task(channel.request_approval(ctx))
         await asyncio.sleep(0.01)
 
@@ -135,7 +134,6 @@ class TestHTTPChatApprovalChannelWithData:
         assert len(pending) == 1
         assert pending[0]["tool_name"] == "test_tool"
 
-        # handle_response is public
         channel.handle_response("y", "tool-123")
         result = await task
         assert result.approved is True
@@ -192,7 +190,6 @@ class TestHTTPChatApprovalChannelMore:
         channel.handle_response("e", "id1")
         assert channel.is_waiting_for_edit()
 
-        # handle_edit_response is public
         channel.handle_edit_response('{"a": 1}')
 
         res = await task
@@ -209,7 +206,6 @@ class TestHTTPChatApprovalChannelMore:
         await asyncio.sleep(0.01)
 
         channel.handle_response("e", "id1")
-        # handle_edit_response_obj is public
         channel.handle_edit_response_obj({"b": 2})
 
         res = await task
@@ -345,12 +341,7 @@ class TestHTTPChatApprovalChannelMore:
 
 
 class TestHTTPChatApprovalChannelEditModeRecovery:
-    """Cancelling an approval mid-edit must not strand the channel.
-
-    An edit slot surviving cancellation leaves is_waiting_for_edit() true
-    forever, so the next approval's answer routes to the dead tool call and is
-    silently dropped.
-    """
+    """Cancelling an approval mid-edit must not strand the channel."""
 
     @pytest.fixture
     def mock_session_manager(self):

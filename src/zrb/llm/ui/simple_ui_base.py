@@ -28,25 +28,8 @@ logger = logging.getLogger(__name__)
 class SimpleUI(BaseUI):
     """Simplified UI for basic request-response backends.
 
-    This class reduces boilerplate by providing:
-    - Default run_async() implementation
-    - Simplified abstract methods (print, get_input vs append_to_output, ask_user)
-    - Configuration via UIConfig dataclass
-    - Flexible __init__ that accepts **kwargs for easy subclassing
-
-    You only need to implement:
-    - print(text: str, kind: str) -> None  # Display output
-    - get_input(prompt: str) -> str        # Get user input (async)
-
-    Constructor Parameters:
-        ctx: Required context (AnyContext)
-        llm_task: Required LLM task (LLMTask)
-        history_manager: Required history manager (AnyHistoryManager)
-        ui_config: Optional UIConfig for customizing commands and behavior
-        initial_message: Optional initial message to send
-        initial_attachments: Optional file attachments
-        model: Optional model override
-        **kwargs: Additional kwargs passed through (for subclass use)
+    Subclasses implement only `print(text, kind)` and `get_input(prompt)`,
+    both async. Extra constructor keywords are accepted for subclass use.
 
     Example:
         class MyUI(SimpleUI):
@@ -95,17 +78,10 @@ class SimpleUI(BaseUI):
 
     @abstractmethod
     async def print(self, text: str, kind: str) -> None:
-        """Display output to user.
+        """Display output to the user.
 
-        This is a simplified version of append_to_output().
-        Just print/emit/send the text, using ``kind`` for visual distinction.
-
-        IMPORTANT: This MUST be an async method (use `async def print()`).
-        SimpleUI.append_to_output() uses asyncio.create_task() to schedule
-        this method, which requires a coroutine object.
-
-        If you need synchronous output during initialization (before the
-        event loop starts), override append_to_output() directly.
+        Must be async: `append_to_output` schedules it with `create_task`.
+        For output before the event loop starts, override `append_to_output`.
 
         Args:
             text: The text to display (already formatted).
@@ -117,17 +93,7 @@ class SimpleUI(BaseUI):
 
     @abstractmethod
     async def get_input(self, prompt: str) -> str:
-        """Get user input.
-
-        This is a simplified version of ask_user().
-        Display the prompt (if any) and return the user's input.
-
-        Args:
-            prompt: Prompt to display (may be empty string)
-
-        Returns:
-            User's input as a string
-        """
+        """Display `prompt` (may be empty) and return the user's input."""
         raise NotImplementedError(
             f"{self.__class__.__name__} must implement get_input()"
         )
@@ -141,18 +107,7 @@ class SimpleUI(BaseUI):
         flush: bool = False,
         kind: str = "text",
     ):
-        """Default implementation - calls simplified print().
-
-        This method is called synchronously by BaseUI during streaming.
-        It schedules the async print() method using create_task().
-
-        Sync Fallback: If no event loop is running (e.g., during initialization
-        or in tests), this falls back to writing directly to stdout. This
-        bypasses the subclass print() method entirely.
-
-        If you need to handle output before the event loop starts, override
-        this method directly instead of print().
-        """
+        """Schedule `print()`; with no running loop, write to stdout instead."""
         text = sep.join(str(v) for v in values) + end
         try:
             loop = asyncio.get_running_loop()
@@ -172,11 +127,11 @@ class SimpleUI(BaseUI):
         output_to_parent: str = "",
         agent_id: str | None = None,
     ) -> str:
-        """Default implementation - calls simplified get_input()."""
+        """Delegate to `get_input()`."""
         return await self.get_input(prompt)
 
     async def run_interactive_command(self, cmd: str | list[str], shell: bool = False):
-        """Default implementation - not supported in SimpleUI."""
+        """Not supported in SimpleUI."""
         await self.print(
             "\n❗ Interactive commands not supported in this UI\n", kind="text"
         )

@@ -20,22 +20,19 @@ class FileSessionStateLogger(AnySessionStateLogger):
         retention_seconds: int | Callable[[], int] = 0,
         prune_interval_seconds: int | Callable[[], int] = 86400,
     ):
-        """*retention_seconds* (or a callable giving it) is how long a
-        session's log is kept; older ones are pruned the first time a session
-        is written to a directory, at most once per *prune_interval_seconds*
-        (or a callable giving it) — 0 prunes on every process's first write.
-        A retention of 0 keeps every log."""
+        """Persist session logs as JSON files under *session_log_dir*.
+
+        Logs older than *retention_seconds* (0 keeps all) are pruned on a
+        process's first write to a directory, at most once per
+        *prune_interval_seconds*.
+        """
         self.session_log_dir_param = session_log_dir
         self._retention_seconds = retention_seconds
         self._prune_interval_seconds = prune_interval_seconds
         self._pruned_dirs: set[str] = set()
 
     def get_session_log_dir(self) -> str:
-        """Get the session log directory as a string.
-
-        If session_log_dir was provided as a callable, it will be called.
-        If it was provided as a string, it will be returned directly.
-        """
+        """The session log directory, calling `session_log_dir` if callable."""
         if callable(self.session_log_dir_param):
             return self.session_log_dir_param()
         return self.session_log_dir_param
@@ -95,15 +92,13 @@ class FileSessionStateLogger(AnySessionStateLogger):
         return _state_log_models().SessionStateLogList(total=total, data=data)
 
     def _prune_expired(self, session_log_dir: str, keep: str) -> None:
-        """Delete the logs, and their timeline entries, of sessions last
-        written longer ago than the retention — never *keep*, the session
-        being written. A timeline entry whose log is gone goes too: listing
-        would fail on it. Errors are swallowed: pruning must not break the
-        write that triggered it.
+        """Delete expired logs and their timeline entries, except *keep*.
 
-        At most once per prune interval per directory (`_PRUNE_MARKER`):
-        every `zrb` command is a process of its own, and each would otherwise
-        walk the whole timeline."""
+        A timeline entry whose log is gone is removed too, since listing would
+        fail on it. Errors are swallowed so pruning never breaks the write.
+        Rate-limited per directory by `_PRUNE_MARKER`, since each `zrb`
+        command is its own process.
+        """
         seconds = _resolve(self._retention_seconds)
         interval = _resolve(self._prune_interval_seconds)
         if seconds <= 0 or not _should_prune_now(session_log_dir, interval):

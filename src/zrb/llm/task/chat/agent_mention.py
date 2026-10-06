@@ -24,13 +24,10 @@ def resolve_agent_mention(
     message: str,
     sub_agent_manager: "SubAgentManager | None" = None,
 ) -> str | None:
-    """If *message* mentions one or more known sub-agents via `@name`, return
-    the message prefixed with a delegation nudge naming them.
+    """Prefix *message* with a delegation nudge naming the sub-agents it `@mentions`.
 
-    An `@word` that does not match a registered agent is left alone — it may
-    be an email address or someone's handle in prose, not an error. Returns
-    ``None`` when no known agent is mentioned, so callers can tell "no
-    mention" apart from "mentioned, nudge attached".
+    Unknown `@words` (emails, handles) are ignored. Returns ``None`` when no
+    known agent is mentioned.
     """
     if sub_agent_manager is None:
         sub_agent_manager = default_sub_agent_manager

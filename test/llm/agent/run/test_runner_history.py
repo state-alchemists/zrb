@@ -11,16 +11,7 @@ from zrb.llm.hook.types import HookEvent
 
 
 def _run_from(agen_func):
-    """Wrap an async generator function into an ``agent.run(event_stream_handler=...)`` mock.
-
-    ``agen_func`` keeps yielding the same events every test already
-    constructs, ending with ``AgentRunResultEvent(result=...)`` (the old
-    ``run_stream_events()`` shape). Real pydantic-ai's ``event_stream_handler``
-    never receives that trailing event -- it's ``run_stream_events()``'s own
-    addition, synthesized by its consumer-facing iterator after the
-    background run finishes. This strips it the same way ``_execution_loop``
-    does and returns its ``.result`` as ``agent.run()``'s return value.
-    """
+    """Mock ``agent.run`` from an async event generator."""
 
     async def fake_run(*args, **kwargs):
         handler = kwargs.pop("event_stream_handler", None)
@@ -44,11 +35,7 @@ def _run_from(agen_func):
 
 
 def _run_from_with_ctx(agen_func, ctx):
-    """Like ``_run_from``, but hands the given ``ctx`` (with a live
-    ``.messages`` list) to the event_stream_handler instead of a bare
-    ``MagicMock()`` — needed to exercise checkpoint-boundary detection, which
-    reads ``ctx.messages``.
-    """
+    """Mock ``agent.run`` with a context carrying live messages."""
 
     async def fake_run(*args, **kwargs):
         handler = kwargs.pop("event_stream_handler", None)
@@ -73,10 +60,7 @@ def _run_from_with_ctx(agen_func, ctx):
 
 @pytest.mark.asyncio
 async def test_run_agent_runs_history_processors_before_pruning():
-    """run_agent runs processors in order before fit_context_window, so
-    summarization compresses the history before any hard pruning can cut it.
-    (pydantic-ai re-runs them per-request inside run_stream_events; that's a
-    separate, idempotent pass.)"""
+    """History processors run before context-window pruning."""
     from zrb.llm.agent.common import create_agent
 
     calls = []
@@ -115,8 +99,7 @@ async def test_run_agent_runs_history_processors_before_pruning():
 
 @pytest.mark.asyncio
 async def test_run_agent_precompact_block_skips_history_processors():
-    """A PreCompact hook returning decision=block skips summarization (the
-    history processors) for the turn — Claude-compatible blocking PreCompact."""
+    """A blocking PreCompact hook skips history processors."""
     from zrb.llm.agent.common import create_agent
 
     calls = []
@@ -206,11 +189,7 @@ async def test_run_agent_passes_system_prompt_overhead_to_processors():
 
 @pytest.mark.asyncio
 async def test_run_agent_appends_live_context_to_user_turn():
-    """A non-empty live_context is appended to the end of the user turn.
-
-    This is what keeps the system prompt byte-stable for caching — the volatile
-    block rides in the user message, not the instructions.
-    """
+    """Live context is appended to keep the system prompt cacheable."""
     from zrb.llm.agent.common import create_agent
 
     agent = create_agent(
@@ -377,10 +356,7 @@ async def test_run_agent_merge_consecutive_model_requests():
 
 @pytest.mark.asyncio
 async def test_run_agent_error_preserves_live_history_over_stale_baseline():
-    """A crash inside the *first* `agent.run()` call of a turn used to lose
-    every message produced so far — `run_history` only updates once
-    `agent.run()` returns. `partial_run.latest_history` (the live
-    `ctx.messages`) preserves it instead, dangling tool call included."""
+    """Preserve live history when ``agent.run`` crashes."""
     from types import SimpleNamespace
 
     from pydantic_ai import PartStartEvent

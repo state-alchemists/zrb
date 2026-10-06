@@ -1,10 +1,7 @@
-"""Builder API for `LLMTask`.
+"""Builder API and agent/prompt assembly for `LLMTask`.
 
-The post-construction `set_*`/`append_*` methods, their properties, and the
-agent/prompt assembly helpers (tools/toolsets, system prompt, model).
-
-Composed into `LLMTask` as `self._building`. State is read through the owner on
-every access, never cached, because most of it has a public setter.
+State is read through the owner on every access, never cached, because most
+of it has a public setter.
 """
 
 from __future__ import annotations
@@ -61,11 +58,7 @@ class LLMTaskBuilding:
 
     @prompt_manager.setter
     def prompt_manager(self, value: PromptManager) -> None:
-        """Replace the `PromptManager` composing this task's system prompt.
-
-        Swaps a running task's persona wholesale, e.g. the TUI's `/load` of a
-        delegated sub-agent session.
-        """
+        """Replace the `PromptManager`, e.g. on the TUI's `/load` persona swap."""
         self._llm_task.prompt_manager_attr = value
 
     @property
@@ -93,11 +86,7 @@ class LLMTaskBuilding:
         self._llm_task.uis = [] if ui is None else [ui]
 
     def append_ui(self, ui: AnyUI) -> None:
-        """Attach one more UI, keeping those already attached.
-
-        Every attached UI receives the same stream of events, which is how
-        output is mirrored to a terminal and a web client at once.
-        """
+        """Attach one more UI; every attached UI receives the same event stream."""
         self._llm_task.uis.append(ui)
 
     def get_uis(self) -> list[AnyUI]:
@@ -116,11 +105,7 @@ class LLMTaskBuilding:
 
     @property
     def approval_channel(self) -> AnyApprovalChannel | None:
-        """Channel carrying approval requests to whoever answers them.
-
-        None when the task runs unattended, in which case a tool call needing
-        approval is denied rather than blocking.
-        """
+        """Channel carrying approval requests; None denies calls needing approval."""
         return self._llm_task.approval_channel
 
     @approval_channel.setter
@@ -130,10 +115,7 @@ class LLMTaskBuilding:
 
     @property
     def history_manager(self) -> AnyHistoryManager | None:
-        """Store that persists conversation history across runs.
-
-        None falls back to a default file-backed store under LLM_HISTORY_DIR.
-        """
+        """History store; None falls back to a file-backed one under LLM_HISTORY_DIR."""
         return self._llm_task.history_manager
 
     @history_manager.setter
@@ -153,11 +135,7 @@ class LLMTaskBuilding:
 
     @property
     def sandbox(self) -> SandboxInput | BoolAttr:
-        """Whether, and how, tool calls run inside a sandbox.
-
-        A bool or template toggles the default sandbox; a `SandboxInput`
-        configures it.
-        """
+        """Whether, and how, tool calls run inside a sandbox."""
         return self._llm_task.sandbox
 
     @sandbox.setter
@@ -166,16 +144,11 @@ class LLMTaskBuilding:
         self._llm_task.sandbox = value
 
     def append_hook_factory(self, *factory: Callable[[HookManager], None]):
-        """Register one or more hook factories on this task's hook manager.
+        """Apply hook factories to this task's hook manager immediately.
 
-        Each factory is applied immediately, receiving the `HookManager` so it
-        can call `manager.add_hook(hook, events=[...])`.
-
-        Isolation by default: a task starts on the shared global hook manager,
-        but the first call here swaps in a fresh per-task `HookManager` so these
-        hooks do not leak into other tasks. Pass `hook_manager=` at construction
-        to opt into a specific one — an explicitly provided manager is never
-        replaced.
+        If the task is still on the global manager, a fresh per-task one is
+        swapped in first so these hooks do not leak into other tasks. An
+        explicitly provided `hook_manager=` is never replaced.
         """
         for f in factory:
             self._ensure_task_local_hook_manager()
@@ -196,29 +169,19 @@ class LLMTaskBuilding:
         self._llm_task.custom_model_names = value
 
     def append_toolset(self, *toolset: AbstractToolset):
-        """Add pydantic-ai toolsets whose tools the agent may call.
-
-        Use a toolset to attach a group of related tools at once, such as an
-        MCP server's. For a single function, `append_tool` is simpler.
-        """
+        """Add pydantic-ai toolsets (e.g. an MCP server's) whose tools the agent may call."""
         self._llm_task.toolsets += list(toolset)
 
     def append_toolset_factory(
         self, *factory: Callable[[AnyContext], AbstractToolset[None]]
     ):
-        """Add factories building toolsets per run, from the task context.
-
-        Prefer this over `append_toolset` when the toolset depends on inputs or
-        env vars: a factory is called at run time, so it sees resolved values.
-        """
+        """Add factories building toolsets per run, from the resolved task context."""
         self._llm_task.toolset_factories += list(factory)
 
     def append_tool(self, *tool: Tool | ToolFuncEither):
-        """Add tools the agent may call.
+        """Add tools the agent may call: plain functions or pydantic-ai `Tool`s.
 
-        Accepts a plain function or a pydantic-ai `Tool`. A plain function's
-        name, type hints, and docstring become the tool schema the model sees,
-        so both are worth writing carefully.
+        A function's name, type hints and docstring become the tool schema.
         """
         self._llm_task.tools += list(tool)
 
@@ -226,20 +189,11 @@ class LLMTaskBuilding:
         self,
         *factory: "Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]",
     ):
-        """Add factories building tools per run, from the task context.
-
-        Prefer this over `append_tool` when the tool needs to close over
-        resolved inputs or env vars, which exist only once the task runs.
-        """
+        """Add factories building tools per run, from the resolved task context."""
         self._llm_task.tool_factories += list(factory)
 
     def append_history_processor(self, *processor: HistoryProcessor):
-        """Add processors that rewrite conversation history before each request.
-
-        Processors run in registration order, each receiving the previous one's
-        output. This is the seam summarization and trimming use to keep a long
-        conversation inside the context window.
-        """
+        """Add processors that rewrite history before each request, run in order."""
         self._llm_task.history_processors += list(processor)
 
     def get_all_tools(self, ctx: AnyContext) -> list[Tool | ToolFuncEither]:
@@ -267,14 +221,12 @@ class LLMTaskBuilding:
         inject_journal_index: bool = False,
         first_message: str | None = None,
     ) -> str:
-        """Render the per-turn ``<live-context>`` block injected into the user
-        turn. Empty string when there is no prompt manager (nothing to wire).
+        """Render the per-turn ``<live-context>`` block, or "" without a prompt manager.
 
-        ``inject_journal_index`` appends the journal index snapshot. Callers set
-        it only when the index is absent from history, so it is paid once per
-        context window and re-seeded after summarization drops it.
-        ``first_message`` feeds the journal's first-turn auto-search addendum
-        (ignored, harmlessly, on any other turn)."""
+        ``inject_journal_index`` appends the journal index snapshot; callers set
+        it only when the index is absent from history. ``first_message`` feeds
+        the journal's first-turn auto-search.
+        """
         if self._llm_task.prompt_manager_attr is None:
             return ""
         return self._llm_task.prompt_manager_attr.create_live_context(
@@ -289,8 +241,7 @@ class LLMTaskBuilding:
         inject_journal_index: bool = False,
         first_message: str | None = None,
     ) -> str:
-        """``get_live_context`` for async callers: git collection runs off-loop
-        so the per-turn render cannot freeze the TUI's event loop."""
+        """``get_live_context`` with git collection off-loop, for async callers."""
         if self._llm_task.prompt_manager_attr is None:
             return ""
         return await self._llm_task.prompt_manager_attr.create_live_context_async(
@@ -304,9 +255,5 @@ class LLMTaskBuilding:
         return get_attr(ctx, self._llm_task.model_settings_attr, None)
 
     def get_model(self, ctx: AnyContext) -> str | Model:
-        """The task's model, rendered against *ctx*, falling back to `CFG.LLM_MODEL`.
-
-        A blank result counts as unset, so an empty ``--model`` input does not
-        shadow the configured model with an empty string.
-        """
+        """The task's model, rendered against *ctx*, falling back to `CFG.LLM_MODEL`."""
         return resolve_model(ctx, self._llm_task.model_attr)

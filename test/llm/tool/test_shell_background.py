@@ -1,8 +1,4 @@
-"""Tests for background shell command execution.
-
-Background processes are launched through the ``Shell`` tool with
-``background=True``; the registry and ``MonitorProcess`` collect them.
-"""
+"""Tests for background shell execution."""
 
 import asyncio
 import os
@@ -96,8 +92,6 @@ async def test_monitor_process_kill(tmp_path):
 
 @pytest.mark.asyncio
 async def test_monitor_process_kill_unknown_handle_has_suggestion():
-    # Regression: kill() on an unknown handle used to omit the recovery hint
-    # that poll() gives for the identical condition.
     monitor = create_monitor_process_tool()
     result = await monitor("nonexistent-handle", kill=True)
     assert "Unknown handle" in result
@@ -115,10 +109,7 @@ async def test_cancel_all_clears(tmp_path):
 
 @pytest.mark.asyncio
 async def test_cancel_for_session_only_kills_that_sessions_processes(tmp_path):
-    """A web chat session ending must not touch another session's still-
-    running background process (unlike `cancel_all`, which is only safe when
-    every session is ending at once). Tagged by the unique
-    `current_chat_session_id`, never a display name."""
+    """Cancelling one session leaves another session's process running."""
     with scoped(current_chat_session_id, "session-a-id"):
         handle_a = await _start_bg("sleep 30", "a", str(tmp_path))
     with scoped(current_chat_session_id, "session-b-id"):
@@ -140,16 +131,7 @@ async def test_cancel_for_session_only_kills_that_sessions_processes(tmp_path):
     reason="`$$` under a Windows POSIX shell is an MSYS pid, not an OS one",
 )
 async def test_force_kill_all_kills_real_process(tmp_path):
-    """`force_kill_all` is the atexit backstop — it must actually terminate
-    the OS process, not just forget it in the registry. Reads the real OS pid
-    back from a file the process writes itself, rather than reaching into the
-    registry's internals.
-
-    POSIX-only for how it *observes* that, not for what it asserts: `$$` in a
-    POSIX shell on Windows reports the shell's MSYS pid, which names nothing
-    the Windows API can be asked about (`os.kill` answers WinError 87), and
-    that shell has no way to report its own Windows pid.
-    """
+    """The atexit backstop terminates the real process on POSIX."""
     pid_file = tmp_path / "pid"
     # `pid_file.as_posix()`, not str(): backslashes are escape characters to
     # the shell, and a POSIX shell on Windows accepts "C:/...".
@@ -170,11 +152,7 @@ async def test_force_kill_all_kills_real_process(tmp_path):
 
 
 def _extract_spill_path(poll_result: str, stream: str) -> str | None:
-    """Pull the path out of a "full {stream} saved to <path>" message.
-
-    ``rstrip(".")`` because the sentence's own trailing period sits right
-    against the path with no separating whitespace.
-    """
+    """Extract a spill path from a poll response."""
     match = re.search(rf"full {stream} saved to (\S+)", poll_result)
     if match is None:
         return None
@@ -204,12 +182,7 @@ async def test_poll_truncates_large_output_and_reports_recoverable_path(
 
 
 async def _poll_until(registry, handle: str, needle: str, timeout: float = 10.0) -> str:
-    """Poll until *needle* shows up in the response, and return that response.
-
-    Polling is the only way to observe a background process, and it is not
-    itself a wall-clock wait: `poll` consumes nothing while the process is
-    still running, so retrying is free.
-    """
+    """Poll until a response contains ``needle``."""
     deadline = asyncio.get_running_loop().time() + timeout
     result = ""
     while asyncio.get_running_loop().time() < deadline:

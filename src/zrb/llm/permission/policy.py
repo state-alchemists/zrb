@@ -1,13 +1,8 @@
 """Permission rulesets.
 
-A ``PermissionPolicy`` is an ordered list of ``Rule``s evaluated first-match-wins
-(opencode's model). Each rule keys on an exact tool name, a capability value, or
-``"*"``, optionally narrowed by a glob on a salient argument (path / command /
-url / agent_name). ``decide`` returns ``"allow"``, ``"ask"``, or ``"deny"``.
-
-A ``yolo`` value is a degenerate policy expressed as rules via the
-``check_yolo`` predicate — ``True`` allows everything, ``False`` asks,
-and a ``frozenset`` of tool names selectively auto-approves.
+Rules are evaluated first-match-wins (opencode's model). Each keys on a tool
+name, a capability value, or ``"*"``, optionally narrowed by a glob on a
+salient argument.
 """
 
 from __future__ import annotations
@@ -57,11 +52,7 @@ class PermissionPolicy:
     def decide(
         self, tool_name: str, capability: Capability, args: dict | None = None
     ) -> str | None:
-        """Resolve the action for a tool call. First matching rule wins.
-
-        Returns the action (``"allow"``, ``"ask"``, ``"deny"``) or ``None`` if
-        no rule matched.
-        """
+        """Return the first matching rule's action, or ``None`` if none match."""
         args = args or {}
         for rule in self.rules:
             if not _key_matches(rule.key, tool_name, capability):
@@ -89,9 +80,7 @@ def _arg_matches(pattern: str, args: dict) -> bool:
     return False
 
 
-# The shapes ``resolve_policy`` (and therefore the ``permissions=`` task
-# argument) accepts: an already-built policy, a shorthand/list string, a
-# sequence of ``Rule``s or rule dicts, or ``None`` (nothing constrained).
+# What the ``permissions=`` task argument accepts; see ``resolve_policy``.
 PermissionPolicyInput = PermissionPolicy | str | Sequence[Rule | dict] | None
 
 

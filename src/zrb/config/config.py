@@ -1,9 +1,7 @@
 """Composes the global `CFG` from category mixins.
 
-The Config class is intentionally a thin shell — every property and DEFAULT_*
-constant lives in a focused mixin under `_mixins/`. Public access stays flat:
-`CFG.LLM_MODEL`, `CFG.WEB_HTTP_PORT`, `CFG.HOOKS_ENABLED`, etc. — nothing
-external needs to change.
+Every setting and DEFAULT_* constant lives in a mixin under `mixins/`;
+access stays flat (`CFG.LLM_MODEL`).
 
 To find a setting:
 - foundation/env/shell/init/version/banner   -> mixins/foundation.py
@@ -103,29 +101,14 @@ class Config(
     ThemeMixin,
     CLIStyleMixin,
 ):
-    """Global runtime configuration.
-
-    Each mixin owns its DEFAULT_* constants and `@property` accessors. All
-    cooperating `__init__` methods chain via `super().__init__()`, so creating
-    a `Config()` populates every default in one pass.
-
-    Note: sibling parts `TYPE_CHECKING`-declare `ENV_PREFIX`/`ROOT_GROUP_*`
-    (`FoundationMixin`'s read-write properties) as plain attributes for
-    self-access; pyright flags the property-vs-attribute composition as an
-    incompatible override on this class. False positive — every mixin
-    exposes the same `str` type — so the class declaration is exempted
-    from line-length linting rather than reworded to hide it.
-    """
+    """Global runtime configuration; mixin `__init__`s chain via `super()`."""
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Reject an assignment to an UPPERCASE name this config does not define.
 
-        `zrb_init.py` is configured by assignment, so a typo (`CFG.LLM_MODELL`)
-        would otherwise be a silent no-op the user only notices as "my setting
-        did not apply". Names that are not all-uppercase (internal `_state`) are
-        left alone. `DEFAULT_*` names are exempt too: each mixin's `__init__`
-        sets its own as a fresh instance attribute (not a class attribute), so
-        checking them here would reject the assignment that defines them.
+        A typo (`CFG.LLM_MODELL`) would otherwise be a silent no-op.
+        `DEFAULT_*` names are exempt: mixin `__init__`s set them as instance
+        attributes.
         """
         if (
             name.isupper()
@@ -147,12 +130,7 @@ class Config(
         )
 
     def get_settable_field_names(self) -> list[str]:
-        """Sorted names of every setting assignable via ``CFG.<name> = ...``.
-
-        The single enumeration of what counts as settable, shared by the
-        unknown-knob suggestion and the `/set` slash command, so the two
-        cannot drift on which fields a user may set.
-        """
+        """Sorted names of every setting assignable via ``CFG.<name> = ...``."""
         return sorted(
             n
             for n in dir(type(self))
@@ -175,12 +153,9 @@ class Config(
     def convert_setting_value(self, name: str, raw: str) -> object:
         """Convert `raw` to the value type of settable field `name`.
 
-        Raises `AttributeError` (with the closest-real-knob suggestion) when
-        `name` is not settable, and `ValueError` naming the setting, the bad
-        value and the accepted values when `raw` cannot be cast to the
-        field's type. Conversion follows a read, `transform` included, so the
-        result is the effective value rather than the bare cast. A read-write
-        `@property` has no cast, so its string is passed through unchanged.
+        Raises `AttributeError` (with a suggestion) when `name` is not
+        settable, and `ValueError` when `raw` cannot be cast. `transform` is
+        applied; a read-write `@property` gets `raw` unchanged.
         """
         if not _is_assignable_field(type(self), name):
             raise AttributeError(self._unknown_knob_message(name))
@@ -198,10 +173,8 @@ class Config(
         """Each set `<ENV_PREFIX>_*` variable no setting reads, mapped to the
         setting it most likely meant.
 
-        A mistyped variable (`ZRB_LLM_MODELL`) is otherwise ignored without a
-        word. Only a close match is reported, because the prefix is shared:
-        a project's own `ZRB_DEPLOY_TARGET` read by its `zrb_init.py` is not
-        a typo and must stay quiet.
+        Only a close match is reported: the prefix is shared with a project's
+        own variables (`ZRB_DEPLOY_TARGET`).
         """
         known = sorted(
             key
@@ -231,17 +204,10 @@ class Config(
         return retired
 
     def is_env_set(self, name: str) -> bool:
-        """Whether the user set the environment variable behind `CFG.<name>`.
+        """Whether the user set the environment variable behind `CFG.<name>`,
+        as opposed to it falling back to its default.
 
-        A read never answers this: an unset field falls back to its default, so
-        the value alone cannot say whether the user chose it. Callers that must
-        distinguish "chosen" from "defaulted" — e.g. a caller that must keep a
-        user-pinned `ZRB_LLM_INCLUDE_SECTIONS` separate from the shipped default
-        order —
-        ask here rather than reconstructing the env key themselves.
-
-        Raises `AttributeError` for a name that is not an `EnvField` (hand-written
-        properties such as `LOGGER` have no env var to be set).
+        Raises `AttributeError` for a name that is not an `EnvField`.
         """
         field = getattr(type(self), name, None)
         if not isinstance(field, EnvField):

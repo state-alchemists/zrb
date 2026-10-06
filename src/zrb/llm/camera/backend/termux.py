@@ -1,13 +1,7 @@
 """Camera capture on Android via the Termux:API app.
 
-Termux from inside a `proot-distro` guest is not special-cased: the
-Termux:API app that actually captures the photo is a separate, non-prooted
-Android process with its own real filesystem view, so it can only write to a
-path that is valid there -- a proot guest's own `/tmp` or `$HOME` is not
-(the app reports a `FileUtils Error` when asked to). Writing to a fixed
-absolute path under Termux's *real* home directory works from both native
-Termux and a proot guest, since that path is the same real location either
-way -- no proot detection needed.
+The app runs outside any `proot-distro` guest, so it cannot write to a guest's
+`/tmp` or `$HOME`; a path under Termux's real home works from both.
 """
 
 from __future__ import annotations
@@ -26,8 +20,6 @@ from zrb.llm.camera.backend.deadline import (
     get_remaining,
 )
 
-# Termux's real home directory is always at this fixed location, regardless
-# of whether the caller is native Termux or a proot-distro guest.
 TERMUX_HOME = "/data/data/com.termux/files/home"
 
 

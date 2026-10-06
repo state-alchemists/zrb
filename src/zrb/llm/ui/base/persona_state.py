@@ -1,10 +1,5 @@
-"""Persona-swap-on-`/load` state for `BaseUI`.
-
-Self-contained like `BaseUIUsage`: the swap/restore logic lives entirely in
-`BaseUIConversationCommands` (`llm/ui/base/conversation_commands.py`), which
-reaches this state through `BaseUI.persona` — so this part needs no reference
-back to the owner.
-"""
+"""Persona-swap-on-`/load` state for `BaseUI`; the logic is in
+`conversation_commands.py`."""
 
 from __future__ import annotations
 

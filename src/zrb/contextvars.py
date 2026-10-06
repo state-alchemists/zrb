@@ -1,8 +1,7 @@
 """Index of every `ContextVar` in zrb.
 
-This is the one file to open when you want to know what ambient state the
-runtime propagates. It re-exports wrappers (and the underlying `ContextVar`s)
-from three homes that keep bounded-context ownership of their state:
+Re-exports wrappers (and the underlying `ContextVar`s) from the modules that
+own them:
 
 * `zrb.context.any_context`   - the per-task execution Context (`current_ctx`)
 * `zrb.llm.agent_state` - agent-run ambient state (UI, YOLO, approval, ...)
@@ -10,14 +9,10 @@ from three homes that keep bounded-context ownership of their state:
 * `zrb.llm.sandbox.state`     - sandbox policy (filesystem containment)
 * `zrb.llm.tool.ambient_state`  - tool-scoped ambient state (worktree, session)
 
-Nothing here owns state. This module exists purely as a discoverable registry
-so contributors can answer "what ContextVars exist?" without grepping.
-
-When you add, remove, or rename a `ContextVar`, also update:
+Nothing here owns state. When you add, remove, or rename a `ContextVar`, also
+update:
   - docs/technical-specs/context-propagation.md  (the count and per-layer table)
   - docs/contributing/architecture.md      (Implicit State via ContextVars — the count)
-
-(AGENTS.md just points here, so it doesn't need updating.)
 """
 
 from __future__ import annotations

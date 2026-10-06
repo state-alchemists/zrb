@@ -1,19 +1,11 @@
-"""`LLMChatTask` — the conversational task type that powers `zrb llm chat`.
+"""`LLMChatTask` — the conversational task type behind `zrb llm chat`.
 
-Wires together tools/skills/hooks resolution, UI selection (default TUI,
-stdout, HTTP, multi-UI), approval channels, history and snapshots, and the
-inner `LLMTask` execution.
-
-`__init__` and the configuration API (`set_*`/`append_*`/`prepend_*`/`remove_*`
-plus read accessors) live here; runtime behavior lives in two parts:
+`__init__` and the configuration API live here; runtime behavior lives in:
 
   execution.py - build the inner LLMTask per turn, run `exec_action`, teardown
   running.py   - resolve UIs/triggers/custom commands, run the loop
 
-For the public API and authoring patterns, see:
-  docs/task-types/llmchat-task.md
-For the end-to-end request lifecycle (CLI -> LLMChatTask -> agent run -> UI),
-see docs/llm/llm-chat-lifecycle.md.
+See docs/task-types/llmchat-task.md and docs/llm/llm-chat-lifecycle.md.
 """
 
 from __future__ import annotations
@@ -65,11 +57,7 @@ if TYPE_CHECKING:
 
 
 def _remove_first(items: list, item: Any) -> None:
-    """Drop the first entry of *items* equal (or identical) to *item*, in place.
-
-    A no-op when nothing matches — removal from an ordered collection never
-    errors on a not-present item.
-    """
+    """Drop the first entry of *items* equal or identical to *item*; no-op if absent."""
     for index, existing in enumerate(items):
         if existing is item or existing == item:
             del items[index]
@@ -204,11 +192,9 @@ class LLMChatTask(BaseTask):
             toolset_factories: Callables building toolsets per run from the
                 context.
             hook_manager: `HookManager` supplying lifecycle hooks. Unlike
-                `LLMTask`, this defaults to a *fresh* manager per run rather
-                than the global one, so one chat session's hooks cannot leak
-                into the next. Pass the global `hook_manager` (or any specific
-                one) to opt out of that isolation; `append_hook_factory` is the
-                lighter option when you only need to register hooks.
+                `LLMTask`, defaults to a fresh manager per run so one session's
+                hooks cannot leak into the next. Use `append_hook_factory` to
+                just register hooks.
             tool_confirmation: Policy deciding which tool calls need approval.
             tool_policies: Callables deciding whether a call is allowed, denied, or
                 needs confirmation. The first to return a verdict decides.
@@ -222,11 +208,9 @@ class LLMChatTask(BaseTask):
             sandbox: Whether, and how, tool calls run sandboxed.
             yolo: Skip tool confirmation. True for all tools, or a comma-separated
                 string or set naming the tools to auto-approve.
-            ui_config: Slash-command aliases and other UI-backend settings
-                (`UIConfig`) — the assistant's name, greeting, banner art and
-                tagline, the xcom key yolo mode toggles through, whether the
-                model picker lists Ollama/pydantic-ai models, and one field per
-                command family. Each field left unset keeps its `CFG` default.
+            ui_config: `UIConfig` with slash-command aliases, assistant identity
+                texts, the yolo xcom key and model-picker options. Unset
+                fields keep their `CFG` default.
             conversation_name: Name the conversation is stored under.
             history_manager: Store persisting conversation history across runs.
                 Without one, a default file-backed store under LLM_HISTORY_DIR
@@ -294,9 +278,8 @@ class LLMChatTask(BaseTask):
         self._permissions = permissions
         self._sandbox = sandbox
         self._yolo = yolo
-        # Materialized lazily by the `ui_config` property: UIConfig pulls in
-        # zrb.llm.ui (pydantic_ai, prompt_toolkit, ...), and the built-in
-        # `llm_chat` task is constructed on every `import zrb`.
+        # Materialized by the `ui_config` property: UIConfig is heavy and the
+        # built-in `llm_chat` task is constructed on every `import zrb`.
         self._ui_config = ui_config
         self._init_command_surface(
             custom_commands,
@@ -325,11 +308,7 @@ class LLMChatTask(BaseTask):
         self._stream_observers: list[StreamObserver] = []
 
     def _init_ui_surface(self, ui, ui_factory, approval_channel) -> None:
-        """Seed the UI, UI-factory and approval-channel lists.
-
-        Each is a list because more can be attached after construction; the
-        constructor's single-value parameters are just the first entry.
-        """
+        """Seed the UI, UI-factory and approval-channel lists from the single-value params."""
         self._uis: list["AnyUI"] = [ui] if ui is not None else []
         self._ui_factories: list[Callable[..., "AnyUI"]] = (
             [ui_factory] if ui_factory is not None else []
@@ -348,8 +327,7 @@ class LLMChatTask(BaseTask):
     ) -> None:
         """Seed the command, trigger and tool-call interception collections.
 
-        The two built-in argument formatters always run, after any the caller
-        supplied.
+        The built-in argument formatters always run after the caller's.
         """
         self._custom_commands = custom_commands or []
         self._triggers = triggers or []
@@ -364,10 +342,7 @@ class LLMChatTask(BaseTask):
 
     @property
     def prompt_manager(self) -> PromptManager:
-        """The `PromptManager` composing this task's system prompt.
-
-        The constructor always builds a default one when none is passed in.
-        """
+        """The `PromptManager` composing this task's system prompt."""
         return self._prompt_manager
 
     @prompt_manager.setter
@@ -565,8 +540,7 @@ class LLMChatTask(BaseTask):
     # Stream observers (ordered) ---------------------------------------------
 
     def append_stream_observer(self, *observer: StreamObserver) -> None:
-        """Add observers seeing every event a run streams, after those
-        already registered (`zrb.llm.stream_observer`)."""
+        """Add observers seeing every event a run streams."""
         self._stream_observers += list(observer)
 
     def prepend_stream_observer(self, *observer: StreamObserver) -> None:
@@ -695,9 +669,7 @@ class LLMChatTask(BaseTask):
     def model_getter(
         self,
     ) -> "Callable[[str | Model | None], str | Model | None] | None":
-        """Callable transforming the resolved base model into the active
-        model (e.g. tier switching, A/B testing) — applied before
-        `model_renderer`."""
+        """Callable mapping the base model to the active one; runs before `model_renderer`."""
         return self._model_getter
 
     @model_getter.setter
@@ -716,8 +688,7 @@ class LLMChatTask(BaseTask):
     def model_renderer(
         self,
     ) -> "Callable[[str | Model | None], str | Model | None] | None":
-        """Callable transforming the active model into the final
-        pydantic-ai model — applied after `model_getter`."""
+        """Callable mapping the active model to the final one; runs after `model_getter`."""
         return self._model_renderer
 
     @model_renderer.setter
@@ -754,11 +725,7 @@ class LLMChatTask(BaseTask):
 
     @permissions.setter
     def permissions(self, value: "PermissionPolicyInput") -> None:
-        """Replace the permission policy.
-
-        Unguarded: `PermissionPolicyInput` is a union of shapes
-        (`PermissionPolicy | str | Sequence[Rule | dict] | None`).
-        """
+        """Replace the permission policy (unguarded: the input is a union of shapes)."""
         self._permissions = value
 
     @property
@@ -768,10 +735,7 @@ class LLMChatTask(BaseTask):
 
     @sandbox.setter
     def sandbox(self, value: "SandboxInput | BoolAttr") -> None:
-        """Replace the sandbox configuration.
-
-        Unguarded: `SandboxInput` is a union (`SandboxPolicy | bool | None`).
-        """
+        """Replace the sandbox configuration (unguarded: the input is a union)."""
         self._sandbox = value
 
     @property
@@ -792,9 +756,7 @@ class LLMChatTask(BaseTask):
 
     @property
     def history_config(self) -> HistoryConfig:
-        """The history-manager/conversation-name knobs as one `HistoryConfig`.
-
-        Recomputed on each read so the `history_manager` setter is visible."""
+        """The history knobs as a `HistoryConfig`, recomputed on each read."""
         return HistoryConfig(
             history_manager=self._history_manager,
             conversation_name=self._conversation_name,
@@ -922,12 +884,10 @@ class LLMChatTask(BaseTask):
 
     @property
     def ui_config(self) -> "UIConfig":
-        """Slash-command aliases and other UI-backend settings for this task's
-        UI, materialized on first read to keep `import zrb` light."""
+        """UI-backend settings, materialized on first read to keep `import zrb` light."""
         if self._ui_config is None:
-            # lazy: zrb.llm.ui.ui_config transitively loads pydantic_ai,
-            # prompt_toolkit, pdfplumber and playwright, via its package
-            # __init__.
+            # lazy: zrb.llm.ui.ui_config transitively loads pydantic_ai and
+            # prompt_toolkit via its package __init__.
             from zrb.llm.ui.ui_config import UIConfig
 
             self._ui_config = UIConfig()
@@ -936,8 +896,8 @@ class LLMChatTask(BaseTask):
     @ui_config.setter
     def ui_config(self, value: "UIConfig") -> None:
         """Replace the UI config wholesale."""
-        # lazy: zrb.llm.ui.ui_config transitively loads pydantic_ai,
-        # prompt_toolkit, pdfplumber and playwright, via its package __init__.
+        # lazy: zrb.llm.ui.ui_config transitively loads pydantic_ai and
+        # prompt_toolkit via its package __init__.
         from zrb.llm.ui.ui_config import UIConfig
 
         if not isinstance(value, UIConfig):
@@ -956,8 +916,7 @@ class LLMChatTask(BaseTask):
     def markdown_theme(self, value: "Theme | None") -> None:
         """Replace the markdown theme, or None for the default.
 
-        Unguarded: checking against `rich.theme.Theme` would force an eager
-        `rich` import (~12ms) on every `import zrb`.
+        Unguarded: an isinstance check would import `rich` on every `import zrb`.
         """
         self._markdown_theme = value
 
@@ -1032,7 +991,7 @@ class LLMChatTask(BaseTask):
         """Extra slash commands available inside the chat session."""
         return self._custom_commands
 
-    # --- ChatRunning delegators (cross-part call sites only) -----------------
+    # --- ChatRunning delegators ----------------------------------------------
 
     async def run_non_interactive_session(self, *args: Any, **kwargs: Any) -> Any:
         """Run a non-interactive (one-shot) chat session."""

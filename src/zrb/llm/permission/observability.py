@@ -1,10 +1,4 @@
-"""Structured, non-sensitive diagnostics for policy decisions.
-
-Policy diagnostics are DEBUG-only and intentionally exclude tool arguments,
-credentials, prompts, and message content. They make the effective decision
-and fallback path inspectable without turning the audit logger into a secret
-store.
-"""
+"""DEBUG-only policy-decision diagnostics; never logs tool arguments or content."""
 
 from __future__ import annotations
 

@@ -1,6 +1,4 @@
-"""When SnapshotManager turns rewind off for the session, and how it says
-why: a snapshot directory that is the working directory itself, a store that
-cannot be set up, or more loose files than the listing's budget."""
+'When SnapshotManager turns rewind off for the session, and how it says'
 
 import os
 import subprocess
@@ -32,9 +30,9 @@ def manager(snapshot_dir, workdir):
 
 @pytest.mark.asyncio
 async def test_take_snapshot_returns_none_when_setup_fails(workdir):
-    """If the snapshot dir cannot be created, take_snapshot returns None."""
+    'If the snapshot dir cannot be created, take_snapshot returns None.'
     with tempfile.NamedTemporaryFile() as f:
-        # snapshot dir is a file — os.makedirs will raise NotADirectoryError
+
         mgr = SnapshotManager(f.name, "test-session", workdir)
         with open(os.path.join(workdir, "x.txt"), "w") as wf:
             wf.write("x")
@@ -43,7 +41,7 @@ async def test_take_snapshot_returns_none_when_setup_fails(workdir):
 
 
 def test_list_snapshots_returns_empty_when_setup_fails(workdir):
-    """If initialization fails, list_snapshots returns [] rather than raising."""
+    'If initialization fails, list_snapshots returns [] rather than raising.'
     with tempfile.NamedTemporaryFile() as f:
         mgr = SnapshotManager(f.name, "test-session", workdir)
         result = mgr.list_snapshots()
@@ -82,7 +80,7 @@ async def test_a_store_that_cannot_be_set_up_turns_rewind_off_with_its_reason(
 
     assert "is unusable" in manager.unavailable_reason
     assert events == [SnapshotProgress("error", reason=manager.unavailable_reason)]
-    blocker.unlink()  # fixing it mid-session does not bring rewind back
+    blocker.unlink()
     assert await manager.take_snapshot("later") is None
     assert manager.list_snapshots() == []
     assert not blocker.exists()
@@ -100,11 +98,11 @@ async def test_a_snapshot_dir_equal_to_the_workdir_turns_rewind_off_with_a_reaso
 
     assert "working directory itself" in manager.unavailable_reason
     assert events == [SnapshotProgress("error", reason=manager.unavailable_reason)]
-    assert os.listdir(workdir) == []  # no store written into it
+    assert os.listdir(workdir) == []
 
 
 def _count_git_and_time_out(monkeypatch) -> list:
-    """Every git command runs past its time limit; returns the call log."""
+    'Every git command runs past its time limit; returns the call log.'
     import subprocess
 
     calls: list = []
@@ -132,7 +130,7 @@ async def test_a_directory_too_large_to_snapshot_in_time_turns_rewind_off(
     assert "too large to snapshot in time" in manager.unavailable_reason
     tried = len(calls)
     assert await manager.take_snapshot("next turn") is None
-    assert len(calls) == tried  # not held up again
+    assert len(calls) == tried
 
 
 _SET_UP_AND_SNAPSHOT = """
@@ -141,8 +139,6 @@ from zrb.llm.snapshot import SnapshotManager
 while not os.path.exists(sys.argv[4]):  # every process starts at once
     time.sleep(0.005)
 manager = SnapshotManager(sys.argv[1], sys.argv[3], sys.argv[2])
-# The "error" event's reason is the failure's text even when rewind stays on,
-# where `unavailable_reason` is empty.
 errors = []
 sha = asyncio.run(manager.take_init_snapshot(
     lambda p: errors.append(p.reason) if p.stage == "error" else None
@@ -166,7 +162,7 @@ def test_processes_setting_up_one_store_at_once_all_get_rewind(tmp_path):
         )
         for i in range(16)
     ]
-    time.sleep(1)  # every process imported and waiting
+    time.sleep(1)
     go.touch()
     outputs = [process.communicate(timeout=60)[0].strip() for process in starts]
 
@@ -189,8 +185,7 @@ async def test_without_git_rewind_is_off_with_its_reason(tmp_path, monkeypatch):
 async def test_a_snapshot_cancelled_while_setting_the_store_up_leaves_rewind_on(
     tmp_path,
 ):
-    """Cancelling says nothing about the store: the setup is tried again by
-    the next operation, which succeeds."""
+    'Cancelling says nothing about the store: the setup is tried again by'
     import asyncio
     import threading
 
@@ -214,7 +209,7 @@ async def test_a_snapshot_cancelled_while_setting_the_store_up_leaves_rewind_on(
     mgr = SnapshotManager(snapshots, "s", workdir)
     try:
         task = asyncio.create_task(mgr.take_snapshot("turn"))
-        await asyncio.sleep(0.3)  # waiting for the store's lock, mid-setup
+        await asyncio.sleep(0.3)
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task

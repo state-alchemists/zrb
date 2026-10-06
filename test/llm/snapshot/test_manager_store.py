@@ -1,5 +1,4 @@
-"""Tests for SnapshotManager — where the git snapshot store lives and how
-projects, sessions and directories are kept apart inside it."""
+'Tests for SnapshotManager — where the git snapshot store lives and how'
 
 import os
 import subprocess
@@ -20,8 +19,8 @@ def workdir():
 
 @pytest.fixture
 def snapshot_dir():
-    # Git may finish writing repository metadata just as the fixture is torn
-    # down under xdist; cleanup should not turn a passing test into an error.
+
+
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
         yield d
 
@@ -71,7 +70,7 @@ async def test_sessions_of_one_directory_keep_separate_histories(snapshot_dir, w
 
     assert [s.label for s in a.list_snapshots()] == ["from a"]
     assert [s.label for s in b.list_snapshots()] == ["from b"]
-    assert len(os.listdir(snapshot_dir)) == 1  # one store for the directory
+    assert len(os.listdir(snapshot_dir)) == 1
 
 
 @pytest.mark.asyncio
@@ -130,7 +129,7 @@ async def test_session_names_that_sanitize_alike_keep_separate_histories(
 
 
 async def _rewind_twice_and_restore_first(snapshot_dir: str, workdir: str) -> None:
-    """Two snapshots, then restore the first; the store must survive it."""
+    'Two snapshots, then restore the first; the store must survive it.'
     file_path = os.path.join(workdir, "f.txt")
     with open(file_path, "w") as f:
         f.write("v1")
@@ -164,7 +163,7 @@ async def test_snapshot_dir_inside_a_repository_workdir_is_never_snapshotted(
     _git(tmp_path, "init", "-q")
     sub = tmp_path / "sub"
     sub.mkdir()
-    # Glob characters in the name: the exclusion must match it literally.
+
     await _rewind_twice_and_restore_first(str(sub / "st*re [x]"), str(sub))
 
 
@@ -208,7 +207,7 @@ async def test_switching_conversation_switches_rewind_history(snapshot_dir, work
     manager = SnapshotManager(snapshot_dir, "first", workdir)
     await manager.take_snapshot("in first", message_count=1)
 
-    manager.session_name = "loaded"  # `/load loaded`
+    manager.session_name = "loaded"
     await manager.take_snapshot("in loaded", message_count=7)
 
     assert [s.label for s in manager.list_snapshots()] == ["in loaded"]
@@ -225,28 +224,27 @@ async def test_a_saved_copy_keeps_the_conversations_rewind_history(
     manager.session_name = "draft"
     await manager.take_snapshot("turn", message_count=2)
 
-    await manager.copy_history("draft", "final")  # `/save final`
-    await manager.copy_history("empty", "stale")  # `/save stale` from a fresh chat
+    await manager.copy_history("draft", "final")
+    await manager.copy_history("empty", "stale")
     await manager.take_snapshot("next turn", message_count=2)
 
     manager.session_name = "final"
     assert [s.label for s in manager.list_snapshots()] == ["turn"]
     manager.session_name = "stale"
-    assert manager.list_snapshots() == []  # its old counts matched no chat history
+    assert manager.list_snapshots() == []
 
 
 @pytest.mark.asyncio
 async def test_a_snapshot_right_after_a_save_builds_on_the_copied_history(
     snapshot_dir, workdir
 ):
-    """The next turn's snapshot can run before anything else once `/save`
-    returns: the copy must still land first, not overwrite it."""
+    "The next turn's snapshot can run before anything else once `/save`"
     manager = SnapshotManager(snapshot_dir, "draft", workdir)
     with open(os.path.join(workdir, "f.txt"), "w") as f:
         f.write("one")
     await manager.take_snapshot("before save", message_count=1)
 
-    await manager.copy_history("draft", "final")  # `/save final`, then at once:
+    await manager.copy_history("draft", "final")
     manager.session_name = "final"
     assert [s.label for s in manager.list_snapshots()] == ["before save"]
     with open(os.path.join(workdir, "f.txt"), "w") as f:
@@ -266,8 +264,8 @@ async def test_a_copy_of_a_copy_takes_the_original_history(snapshot_dir, workdir
         f.write("x")
     await manager.take_snapshot("in a", message_count=1)
 
-    await manager.copy_history("a", "b")  # `/save b`
-    await manager.copy_history("b", "c")  # `/save c`, onto the copy just made
+    await manager.copy_history("a", "b")
+    await manager.copy_history("b", "c")
     manager.session_name = "a"
     await manager.take_snapshot("a moves on", message_count=2)
 
@@ -303,11 +301,11 @@ async def test_a_restore_that_cannot_move_the_history_back_still_counts(
 
 @pytest.mark.asyncio
 async def test_a_restore_reads_as_true_exactly_when_it_ran(snapshot_dir, workdir):
-    """`restore_snapshot` returned a bool; its outcome keeps that meaning."""
+    '`restore_snapshot` returned a bool; its outcome keeps that meaning.'
     mgr = SnapshotManager(snapshot_dir, "s", workdir)
     sha = await mgr.take_init_snapshot()
 
-    assert not await mgr.restore_snapshot("0" * 40)  # unknown: nothing touched
+    assert not await mgr.restore_snapshot("0" * 40)
     assert await mgr.restore_snapshot(sha)
     assert RestoreOutcome(restored=True, left_behind=("locked.txt",))
 
@@ -316,8 +314,7 @@ async def test_a_restore_reads_as_true_exactly_when_it_ran(snapshot_dir, workdir
 async def test_a_copy_git_refuses_is_dropped_rather_than_failing_every_operation(
     snapshot_dir, workdir, monkeypatch
 ):
-    """Kept, a copy that keeps failing would fail every later snapshot of
-    every session in the directory; it is dropped with a warning instead."""
+    'Kept, a copy that keeps failing would fail every later snapshot of'
     mgr = SnapshotManager(snapshot_dir, "draft", workdir)
     await mgr.take_snapshot("in draft", message_count=1)
     real_git = SnapshotStore.git

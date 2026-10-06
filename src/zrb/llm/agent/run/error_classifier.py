@@ -4,12 +4,9 @@ import re
 
 from zrb.config.config import CFG
 
-# pydantic-ai's wording when a provider finds no key: it names the vendor's own
-# variable (`OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, ...), which is correct as-is.
+# pydantic-ai's missing-key wording (names the vendor variable).
 _MISSING_KEY_MESSAGE = re.compile(r"Set the `\w+` environment variable")
-# The OpenAI SDK's own wording, raised as `openai.OpenAIError` when the client
-# is built before pydantic-ai checks for a key (`openai:` models, and every
-# OpenAI-compatible provider).
+# The OpenAI SDK's wording, raised when its client is built before pydantic-ai checks.
 _OPENAI_SDK_MISSING_KEY_MESSAGE = re.compile(r"Missing credentials")
 
 
@@ -40,12 +37,8 @@ def _get_body_message(e: Exception) -> str:
 def is_invalid_tool_call_error(e: Exception) -> bool:
     """Returns True if the exception is an HTTP 400 caused by an invalid/unknown tool name.
 
-    Some model APIs (e.g. Ollama) reject responses where the model referenced a tool
-    that was not in the registered tool list, returning HTTP 400 instead of handling
-    the unknown call gracefully.
-
-    Checks the body's *message* field (not the outer str(e)) to avoid false-positives
-    from wrapper metadata such as ``'type': 'invalid_request_error'``.
+    Reads the body's message, not str(e), to avoid matching wrapper metadata
+    such as ``'type': 'invalid_request_error'``.
     """
     status_code = getattr(e, "status_code", None)
     if status_code != 400:
@@ -59,14 +52,10 @@ def is_invalid_tool_call_error(e: Exception) -> bool:
 
 
 def is_missing_reasoning_content_error(e: Exception) -> bool:
-    """Returns True if the provider requires reasoning_content in a history message.
+    """Returns True if the provider rejects history over reasoning_content.
 
-    DeepSeek V3.2/V4 with tool calls requires the assistant's reasoning_content
-    to be echoed back in multi-turn conversations.
-
-    GLM-5 on Bedrock also rejects thinking parts in history, but returns a
-    ValidationException with an empty Message field — detected by matching
-    the error code pattern with no descriptive message.
+    DeepSeek demands it be echoed back; GLM-5 on Bedrock rejects thinking parts
+    with a message-less ValidationException.
     """
     status_code = getattr(e, "status_code", None)
     if status_code != 400:
@@ -113,17 +102,13 @@ _PERMANENT_ERROR_TYPES = frozenset(
 def is_permanent_error(e: BaseException) -> bool:
     """Returns True for failures a retry cannot fix.
 
-    The inverse of `is_retryable_error` is deliberately NOT this function: that
-    one answers "do we positively know this is transient?", and everything it
-    cannot identify (a connection blip, an unrecognized provider error) should
-    still be retried. This one answers "do we positively know this is
-    permanent?", so an unknown error keeps the retry it would have had.
+    Not the inverse of `is_retryable_error`: an unrecognized error is neither
+    known-transient nor known-permanent, and keeps its retry.
     """
     # lazy: heavy third-party -- pydantic_ai
     from pydantic_ai.exceptions import UserError
 
-    # UserError is pydantic-ai's "you configured this wrong" class: a missing
-    # API key, an unresolvable model string, a bad agent setup. Never transient.
+    # pydantic-ai's misconfiguration class (missing key, bad model string).
     if isinstance(e, UserError):
         return True
     if not isinstance(e, Exception):
@@ -132,33 +117,19 @@ def is_permanent_error(e: BaseException) -> bool:
 
 
 def retry_unless_permanent(e: BaseException) -> bool:
-    """Default `retry_if` for the LLM tasks: retry blips, not misconfiguration.
-
-    An LLM provider is intermittently flaky the way HTTP is -- a 429 or a 5xx
-    is exactly what retries exist for -- so this stays permissive and refuses
-    only what `is_permanent_error` positively identifies as unfixable.
-    """
+    """Default `retry_if` for the LLM tasks: retry blips, not misconfiguration."""
     return not is_permanent_error(e)
 
 
 def classify_error_type(e: Exception) -> str:
-    """Classify an exception into a coarse category token for StopFailure.
-
-    Mirrors Claude Code's StopFailure error-type matcher values where they map
-    cleanly onto provider errors. Best-effort — falls back to "unknown".
-    """
+    """Classify an exception into Claude Code's StopFailure error-type tokens, else "unknown"."""
     status_code = getattr(e, "status_code", None)
     if status_code is None:
         response = getattr(e, "response", None)
         status_code = getattr(response, "status_code", None)
     msg = str(e).lower()
-    # Transient statuses win over keyword guesses. A provider error with a
-    # retryable status whose flavor text happens to mention "context length" /
-    # "max tokens" (Ollama's 500 "Maximum context length exceeded") is still a
-    # transient blip, classified as such here AND by `handle_stream_error`
-    # (which checks `is_retryable_error` before `is_prompt_too_long_error`).
-    # Only a non-transient (or unknown) status falls through to the keyword
-    # match, so 400/status-less context errors stay permanent `context_length`.
+    # Transient statuses win over keywords (Ollama's 500 "Maximum context
+    # length exceeded" is transient), matching `handle_stream_error`'s order.
     if status_code == 429:
         return "rate_limit"
     if status_code is not None and status_code >= 500:
@@ -183,12 +154,8 @@ def classify_error_type(e: Exception) -> str:
 def get_retry_wait(e: Exception, attempt: int, max_wait: float) -> float:
     """Exponential backoff, honoring ``Retry-After`` when the provider sent one.
 
-    Two exception shapes carry it, and zrb sees both. pydantic-ai wraps a
-    provider error in ``ModelHTTPError``, whose ``retry_after`` parses the header
-    — including the HTTP-date form, which a bare ``float()`` cannot. A raw
-    provider-SDK exception (``openai.APIStatusError`` and friends) instead
-    carries an httpx ``response``, whose headers are read directly. Anything
-    unparseable falls through to exponential backoff.
+    Read from ``ModelHTTPError.retry_after`` (parses the HTTP-date form too) or
+    a raw SDK exception's httpx ``response`` headers.
     """
     retry_after = getattr(e, "retry_after", None)
     if isinstance(retry_after, (int, float)):
@@ -206,13 +173,7 @@ def get_retry_wait(e: Exception, attempt: int, max_wait: float) -> float:
 
 
 def add_credential_hint(e: Exception) -> Exception:
-    """Return *e* with zrb's key scoping appended when it is a missing-key error.
-
-    pydantic-ai's message already names the vendor variable that would work;
-    what it cannot know is zrb's own key, which applies only to the provider
-    `LLM_PROVIDER` or `LLM_MODEL`'s prefix names. Anything else is
-    returned unchanged.
-    """
+    """Return *e* with a hint about zrb's own API key when it is a missing-key error."""
     # lazy: heavy third-party -- pydantic_ai, openai
     from openai import OpenAIError
     from pydantic_ai.exceptions import UserError

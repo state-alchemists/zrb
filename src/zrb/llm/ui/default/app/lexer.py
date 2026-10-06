@@ -108,12 +108,7 @@ def _dispatch_code(
     fg: str,
     bg: str,
 ) -> tuple[tuple[str, str] | None, int]:
-    """Apply a single ANSI code.
-
-    Returns ((new_fg, new_bg) or None, params_consumed).
-    params_consumed is the number of extra integers beyond the code itself
-    that were consumed from int_codes[offset:].
-    """
+    """Apply one ANSI code and return the color update plus parameters consumed."""
     # Attribute codes mutate `attrs` in place.
     if code == 0:
         attrs.clear()

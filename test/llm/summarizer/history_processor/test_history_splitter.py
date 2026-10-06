@@ -35,10 +35,10 @@ def test_get_tool_pairs_complex():
         ),
         ModelRequest(
             parts=[ToolReturnPart(content="r2", tool_name="t2", tool_call_id="c2")]
-        ),  # Orphaned
+        ),
         ModelRequest(
             parts=[ToolCallPart(tool_name="t3", args={}, tool_call_id="c3")]
-        ),  # Unreturned
+        ),
     ]
     pairs = get_tool_pairs(messages)
     assert pairs["c1"]["call_idx"] == 0
@@ -57,9 +57,9 @@ def test_is_split_safe():
         ),
     ]
     pairs = get_tool_pairs(messages)
-    # Splitting between call and return is unsafe
+
     assert not is_split_safe(messages, 1, pairs)
-    # Splitting before call or after return is safe
+
     assert is_split_safe(messages, 0, pairs)
     assert is_split_safe(messages, 2, pairs)
 
@@ -74,9 +74,9 @@ async def test_split_history_token_limit_trigger():
         ModelRequest(parts=[UserPromptPart(content="m4")]),
     ]
 
-    # summary_window=10, so it tries to keep all.
-    # but 4 * 100 = 400 tokens > 100 * 0.7 = 70 threshold.
-    # It should search for a safe split.
+
+
+
     with patch("zrb.llm.summarizer.history_splitter.is_turn_start", return_value=True):
         to_sum, to_keep = split_history(
             messages,
@@ -85,13 +85,13 @@ async def test_split_history_token_limit_trigger():
             conversational_token_threshold=100,
         )
 
-    # PreciseLimiter-like logic in find_safe_split_index:
-    # keeps as many as possible < 80 tokens (0.8 * 100)
-    # with token_per_msg=100, it can only keep 0 messages to stay < 80?
-    # No, find_safe_split_index loop goes from len(messages)-1 down to 1.
-    # if it keeps 1 message, tokens=100. 100 > 80. Skip.
-    # So it won't find safe split and fallback to best effort.
-    # best effort tries to keep some.
+
+
+
+
+
+
+
     assert len(to_keep) < 4
 
 
@@ -102,8 +102,8 @@ async def test_split_history_fallback():
         ModelRequest(parts=[UserPromptPart(content="m1")]),
         ModelRequest(parts=[UserPromptPart(content="m2")]),
     ]
-    # No turn start found (mocked)
+
     with patch("zrb.llm.summarizer.history_splitter.is_turn_start", return_value=False):
         to_sum, to_keep = split_history(messages, 10, limiter, 100)
-        # Fallback protects last 2 messages if split_idx <= 0
+
         assert len(to_keep) == 2

@@ -1,11 +1,4 @@
-"""Tests for the startup diagnostics that catch unreachable tasks.
-
-The two problems are a task declared but never wired into the CLI, and two of
-the project's own tasks registered under the same alias in the same group (the
-later registration silently wins). Collisions are read from the replacement log
-`Group.add_task` keeps, so the tests drive the public functions with a real
-group tree and plain module objects.
-"""
+"""Tests for startup diagnostics covering unreachable tasks and alias collisions."""
 
 from types import ModuleType
 

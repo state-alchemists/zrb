@@ -23,12 +23,7 @@ def _combine_inputs(
     existing_inputs: list[AnyInput],
     new_inputs: Sequence[AnyInput | None] | AnyInput | None,
 ):
-    """
-    Combines new inputs into an existing list, avoiding duplicates by name.
-    Modifies the existing_inputs list in place.
-    """
-    # A set, not a list: this runs once per node in the closure, so an O(n)
-    # membership scan here makes the aggregate cost cubic in closure size.
+    """Append new inputs to `existing_inputs` in place, skipping duplicate names."""
     input_names = {task_input.name for task_input in existing_inputs}
     if isinstance(new_inputs, AnyInput):
         new_inputs_list = [new_inputs]
@@ -49,10 +44,7 @@ def _combine_envs(
     existing_envs: list[AnyEnv],
     new_envs: Sequence[AnyEnv | None] | AnyEnv | None,
 ):
-    """
-    Combines new envs into an existing list.
-    Modifies the existing_envs list in place.
-    """
+    """Append new envs to `existing_envs` in place."""
     if isinstance(new_envs, AnyEnv):
         existing_envs.append(new_envs)
     elif new_envs is None:
@@ -66,27 +58,16 @@ def _combine_envs(
 def _upstream_closure(task: "AnyTask") -> list["AnyTask"]:
     """`task` and every transitive upstream, upstream-first, each listed once.
 
-    Iterative and single-pass on purpose. Recursing through the `inputs`/`envs`
-    properties re-derived each node's whole closure once per incoming edge:
-    O(n^3) on a chain, O(2**depth) on a diamond (44 tasks took 13 seconds for
-    one read), and it blew the interpreter stack past ~450 levels of chaining.
-    Both aggregations below are pure functions of the graph, so they walk it
-    themselves rather than caching anything.
-
-    Upstream-first ordering is what gives override precedence its meaning: a
-    task's own envs are appended after every env it inherits, so a task always
-    wins over its upstreams. A recursive walk cannot guarantee that — in a
-    diamond, one branch's copy of a shared ancestor could land *after* the
-    other branch's own envs.
+    Iterative to stay linear and avoid recursion limits on long chains.
+    Upstream-first order lets a task's own envs override inherited ones.
 
     Raises:
         ValueError: if `task` is reachable from itself.
     """
     order: list["AnyTask"] = []
     done: set[int] = set()
-    # (task, expanded) — `expanded` marks the second visit, when every upstream
-    # has been emitted and the node itself can be. `on_path` is what separates
-    # a diamond (fine) from a cycle (not).
+    # `expanded` marks the post-order visit; `on_path` tells a cycle from a
+    # diamond.
     stack: list[tuple["AnyTask", bool]] = [(task, False)]
     on_path: set[int] = set()
     while stack:
@@ -118,10 +99,7 @@ class BaseTaskContext:
         self._task = task
 
     def build_context(self, session: AnySession) -> AnyContext:
-        """
-        Retrieves the context for the task from the session and enhances it
-        with the task's specific environment variables.
-        """
+        """Get the task's context from the session and apply its envs."""
         ctx = session.get_ctx(self._task)
         for env in self._task.envs:
             env.update_context(ctx)
@@ -133,9 +111,7 @@ class BaseTaskContext:
         str_kwargs: dict[str, str] | None = None,
         kwargs: dict[str, Any] | None = None,
     ):
-        """
-        Populates the shared context with input values provided via str_kwargs.
-        """
+        """Populate the shared context with input values not already set."""
         str_kwarg_dict = str_kwargs if str_kwargs is not None else {}
         kwarg_dict = kwargs if kwargs is not None else {}
         for task_input in self._task.inputs:
@@ -150,9 +126,7 @@ class BaseTaskContext:
                 )
 
     def fill_shared_context_envs(self, shared_ctx: AnySharedContext):
-        """
-        Injects OS environment variables into the shared context if they don't already exist.
-        """
+        """Copy OS environment variables missing from the shared context."""
         os_env_map = {
             key: val for key, val in os.environ.items() if key not in shared_ctx.env
         }
@@ -162,12 +136,7 @@ class BaseTaskContext:
         self,
         task_envs: Sequence[AnyEnv | None] | AnyEnv | None = None,
     ) -> list[AnyEnv]:
-        """
-        Aggregates environment variables from the task and its upstreams.
-
-        Later entries win (`update_context` assigns), and `_upstream_closure`
-        emits upstreams before their dependents, so a task's own envs override
-        the ones it inherits.
+        """Aggregate envs from the task and its upstreams; later entries win.
 
         Raises:
             ValueError: if the task appears in its own upstream chain.
@@ -187,10 +156,7 @@ class BaseTaskContext:
         self,
         task_inputs: Sequence[AnyInput | None] | AnyInput | None = None,
     ) -> list[AnyInput]:
-        """
-        Aggregates inputs from the task and its upstreams, avoiding duplicates.
-
-        First entry per name wins, matching the previous recursive form.
+        """Aggregate inputs from the task and its upstreams; first per name wins.
 
         Raises:
             ValueError: if the task appears in its own upstream chain.
@@ -203,6 +169,4 @@ class BaseTaskContext:
 
         if task_inputs is not None:
             _combine_inputs(inputs, task_inputs)
-
-        # Filter out None values (although _combine_inputs should handle this)
-        return [task_input for task_input in inputs if task_input is not None]
+        return inputs

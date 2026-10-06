@@ -1,19 +1,7 @@
-"""The self-review gate's snapshot of the working directory at turn start.
+"""Turn-start filesystem snapshots used by the self-review gate.
 
-The runner takes it before a top-level turn's first model request, and the
-Stop payload carries it as `turn_start_snapshot` for the gate to diff against
-(`hook/self_review.py`). It holds what `util/git/snapshot_listing.py` lists:
-every repository under the working directory, nested ones and linked worktrees
-included, and the loose files outside them up to a budget. A delegated
-sub-agent takes none: what it changes lands in the parent's working directory
-or in a worktree under it, so the parent's diff covers it.
-
-The snapshot lives in a temporary store that `close` deletes when the turn
-ends. A working directory that cannot be snapshotted at all — over the
-listing's budget, or too large for git to hash within its time limit — is
-reported once and not tried again for the rest of the process: every attempt
-would fail the same way, the slow one after holding the turn up.
-"""
+Snapshots use a temporary store and are skipped permanently for workdirs that
+exceed listing or hashing limits."""
 
 from __future__ import annotations
 

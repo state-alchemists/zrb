@@ -1,8 +1,4 @@
-"""Internal utilities for the skill package.
-
-Holds companion-file discovery and formatting logic shared across
-manager.py, tool/skill.py, and skill_command_factory.py.
-"""
+"""Companion-file discovery and formatting for skills."""
 
 from pathlib import Path
 
@@ -10,9 +6,7 @@ from pathlib import Path
 def discover_companion_files(skill_path: str) -> list[str]:
     """Discover companion files recursively for dedicated-directory skills.
 
-    Only applies when the skill file is named exactly SKILL.md or SKILL.py,
-    meaning it has a dedicated directory. Flat ``*.skill.md`` files share
-    a directory with other skills so companions are not reported for them.
+    Only for ``SKILL.md``/``SKILL.py``; flat ``*.skill.md`` files share a directory.
     """
     skill_file = Path(skill_path)
     if skill_file.name not in ("SKILL.md", "SKILL.py"):
@@ -28,13 +22,7 @@ def discover_companion_files(skill_path: str) -> list[str]:
 
 
 def format_companion_file_lines(companion_files: list[str]) -> list[str]:
-    """Format companion file paths into human-readable lines grouped by directory.
-
-    Returns lines ready to be appended to a header block (e.g. ``context_lines``
-    or ``header_lines``). Each line is a plain string without trailing newline.
-
-    Returns an empty list when *companion_files* is empty.
-    """
+    """Format companion file paths into lines grouped by directory (empty for none)."""
     if not companion_files:
         return []
     groups: dict[str, list[str]] = {}

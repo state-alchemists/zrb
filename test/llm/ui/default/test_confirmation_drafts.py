@@ -8,13 +8,7 @@ from zrb.llm.ui.default.confirmation import UIConfirmation
 
 
 class _ForwardsToConfirmation:
-    """Shared `__getattr__` shim: forwards to the composed `UIConfirmation`.
-
-    Every test double here used to subclass `UIConfirmation` directly; under
-    composition each instead builds `self._confirmation = UIConfirmation(self)`
-    and forwards unresolved attribute lookups (public API, plus the private
-    methods these tests call directly) to it.
-    """
+    """Forward unresolved attributes to the composed confirmation part."""
 
     def __getattr__(self, name):
         confirmation = self.__dict__.get("_confirmation")

@@ -53,11 +53,7 @@ class AnySharedContext(PydanticInstanceSchemaMixin, ABC):
     @property
     @abstractmethod
     def xcom(self) -> DotDict:
-        """Cross-task message queues, keyed by task name.
-
-        Each value is an `Xcom` queue: a task pushes results others pop. This
-        is the supported way to pass data between tasks.
-        """
+        """Cross-task `Xcom` queues, keyed by task name."""
 
     @property
     @abstractmethod
@@ -102,8 +98,5 @@ class AnySharedContext(PydanticInstanceSchemaMixin, ABC):
     ):
         """Print without any task prefix, and record the line in `shared_log`.
 
-        Session-level counterpart to `AnyContext.print`, which prefixes each
-        line with its task's name and icon. Signature mirrors the builtin
-        `print`, except output defaults to stderr so it never pollutes piped
-        stdout.
+        Like the builtin `print`, but defaults to stderr to keep stdout clean.
         """

@@ -27,14 +27,11 @@ if TYPE_CHECKING:
 
 
 def _ensure_private_dir(path: str) -> None:
-    """Create *path* 0700 and refuse it if someone else got there first.
+    """Create *path* 0700, refusing a symlink or a directory another user owns.
 
-    The upload root sits at a fixed name under the shared temp directory, so a
-    local user can pre-create it as a symlink and take delivery of every
-    attachment written through it. `makedirs` alone follows that symlink. The
-    checks mirror `llm/agent/spill.py::_ensure_root`: reject anything that is
-    not a real directory owned by this user, then restate the mode, since an
-    existing directory keeps whatever permissions it was made with.
+    The upload root has a fixed name under the shared temp dir, so another
+    local user could pre-create it as a symlink. Mirrors
+    `llm/agent/spill.py::_ensure_root`.
     """
     os.makedirs(path, mode=0o700, exist_ok=True)
     info = os.lstat(path)
@@ -48,27 +45,21 @@ def _ensure_private_dir(path: str) -> None:
 def save_uploaded_attachment(session_id: str, filename: str, data: bytes) -> str:
     """Persist an uploaded attachment to a per-session temp dir, return its path.
 
-    ponytail: uploads are never cleaned up (mirrors the CLI's own /attach,
-    which reads whatever the user already has on disk). Add a retention
-    sweep if the temp dir's growth becomes a real problem.
+    ponytail: uploads are never cleaned up. Add a retention sweep if the temp
+    dir's growth becomes a real problem.
     """
     upload_root = os.path.join(tempfile.gettempdir(), "zrb_web_chat_uploads")
     _ensure_private_dir(upload_root)
-    # `session_id` is an untrusted path component (`..` would make
-    # `_ensure_private_dir` chmod the shared temp dir). Generated ids are
-    # already alphanumerics, `-` and `_`.
+    # `session_id` is untrusted: `..` would chmod the shared temp dir.
     safe_session = to_safe_filename(session_id)
     if not safe_session:
         raise ValueError(f"Invalid session id: {session_id!r}")
     upload_dir = os.path.join(upload_root, safe_session)
-    # Belt and braces: `to_safe_filename` is a general-purpose helper, not
-    # owned by this boundary, so the containment it currently guarantees is
-    # asserted rather than assumed.
+    # Assert containment rather than rely on `to_safe_filename`'s behavior.
     if os.path.dirname(os.path.abspath(upload_dir)) != os.path.abspath(upload_root):
         raise ValueError(f"Invalid session id: {session_id!r}")
     _ensure_private_dir(upload_dir)
-    # The stored name is generated; the client filename contributes only its
-    # extension, already matched against the sniffed bytes.
+    # The client filename contributes only its (already sniff-checked) extension.
     extension = os.path.splitext(os.path.basename(filename))[1][:16]
     if not extension.isascii() or any(c in extension for c in '\\/:*?"<>|\0'):
         extension = ""
@@ -80,20 +71,10 @@ def save_uploaded_attachment(session_id: str, filename: str, data: bytes) -> str
 def _write_into_dir(directory: str, entry: str, data: bytes) -> None:
     """Write *data* to *entry* inside *directory*, resolving the name once.
 
-    Validating a directory by path and then opening a file inside it by path
-    leaves a window: on a shared host the validated directory can be replaced
-    with a symlink in between, and the write follows it out. Holding a
-    descriptor to the directory closes that window — the descriptor keeps
-    pointing at the inode that was checked, whatever happens to the name — so
-    the file is created relative to it, `O_EXCL` so an existing entry is never
-    followed or truncated and `O_NOFOLLOW` so a planted symlink is refused.
-
-    `dir_fd` and `O_NOFOLLOW` are POSIX. Windows has neither, so it cannot
-    close the directory-swap window; it still creates the file itself with
-    `O_EXCL`, so an entry planted at the destination is refused rather than
-    followed or truncated. Creating a symlink on Windows needs
-    SeCreateSymbolicLinkPrivilege, which is what keeps the residual window
-    narrow there.
+    Writing through a held directory descriptor closes the check-then-open
+    race where the directory is swapped for a symlink; `O_EXCL | O_NOFOLLOW`
+    refuses a planted entry. Windows lacks `dir_fd`/`O_NOFOLLOW` and falls
+    back to `O_EXCL` alone.
     """
     binary = getattr(os, "O_BINARY", 0)
     if os.open not in os.supports_dir_fd or not hasattr(os, "O_NOFOLLOW"):
@@ -128,13 +109,10 @@ async def get_llm_chat_task(root_group: AnyGroup) -> Any:
 async def resolve_llm_chat_task_for_session(
     session_id: str, root_group: AnyGroup
 ) -> "tuple[Any, str]":
-    """The task to drive *session_id* with, and the message to broadcast if
-    none could be built.
+    """Return the task to drive *session_id*, and the message to broadcast if none.
 
-    A session_id shaped like a delegated sub-agent transcript
-    (`{parent}-sub-{agent_name}-{agent_id}`) resumes driven by that
-    sub-agent's own persona via `create_llm_chat_task` — not the shared main
-    `llm chat` task every ordinary session uses.
+    A delegated sub-agent session id (`{parent}-sub-{agent_name}-{agent_id}`)
+    resumes with that sub-agent's own task instead of the shared `llm chat`.
     """
     delegated = parse_delegated_session(session_id)
     if delegated is not None:
@@ -159,15 +137,9 @@ async def _require_auth(
     root_group: AnyGroup,
     request: Any,
 ) -> "JSONResponse | None":
-    """Authorize the requester against the ``llm chat`` task.
+    """Return a 403 response unless the requester may access ``llm chat``.
 
-    The chat surface drives the single most powerful task (tool/shell
-    execution), so every route must gate on it — mirroring the
-    ``can_access_task`` check in ``task_session_api_route.py``. Returns a
-    403 response to short-circuit the route, or ``None`` when access is
-    allowed. When the chat task isn't registered there is nothing to
-    protect, so the request passes through (the route then surfaces the
-    missing-task condition itself).
+    Returns ``None`` when allowed, or when no chat task is registered.
     """
     # lazy: heavy third-party
     from fastapi.responses import JSONResponse
@@ -180,11 +152,7 @@ async def _require_auth(
 
 
 async def _read_json_body(request: Any) -> dict:
-    """Parse the request body as a JSON object.
-
-    An empty or malformed body yields ``{}`` instead of an unhandled
-    500; routes treat missing fields the same as absent ones.
-    """
+    """Parse the request body as a JSON object; an empty or malformed body yields ``{}``."""
     try:
         data = await request.json()
     except Exception:
@@ -286,8 +254,7 @@ async def _handle_upload_chat_attachment(
             content={"error": f"Unsupported file type: {filename}"},
             status_code=400,
         )
-    # Read one byte past the cap, so an oversized upload is never allocated
-    # in full.
+    # Read one byte past the cap so an oversized upload is never read in full.
     limit = CFG.LLM_MAX_ATTACHMENT_BYTES
     if limit > 0:
         data = await file.read(limit + 1)
@@ -306,8 +273,6 @@ async def _handle_upload_chat_attachment(
     except ValueError as invalid:
         return JSONResponse(content={"error": str(invalid)}, status_code=400)
     except OSError as failure:
-        # ENOSPC, EACCES, ENAMETOOLONG and friends: the request was
-        # well-formed, the server could not store it.
         CFG.LOGGER.warning(f"Attachment store failed: {failure}")
         return JSONResponse(
             content={"error": "Could not store attachment"}, status_code=507
@@ -326,9 +291,6 @@ async def _handle_post_chat_message(
 
     data = await _read_json_body(request)
     message = data.get("message", "")
-    # Only a string or a JSON object is a message. Anything else reaches
-    # `message[:100]` and `send_input` as-is and raises there, turning a
-    # malformed request into a 500.
     if not isinstance(message, (str, dict)):
         return JSONResponse(
             content={"error": "Field 'message' must be a string or an object"},
@@ -373,11 +335,8 @@ async def _handle_post_chat_message(
                     }
                 )
         # A dict never retries as is_json=False: handle_response would deny
-        # the pending approval. It falls to the pending-state checks below.
-
-        # Re-read: an unhandled claim above clears a stale edit slot, so the
-        # value captured before the call is out of date. Using it would tell
-        # a client that just sent JSON args to "send JSON args".
+        # the pending approval.
+        # Re-read: an unhandled claim above may have cleared a stale edit slot.
         is_waiting_edit = session_manager.is_waiting_for_edit(session_id)
         if is_waiting_edit:
             return JSONResponse(
@@ -391,7 +350,6 @@ async def _handle_post_chat_message(
                 status_code=400,
             )
 
-    # Regular user message (not an approval action)
     if isinstance(message, dict):
         message = json.dumps(message)
     CFG.LOGGER.info(f"Sending to input queue: {message[:100]}")

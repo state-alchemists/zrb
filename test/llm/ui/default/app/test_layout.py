@@ -1,8 +1,4 @@
-"""create_layout()/create_input_field() build the chat TUI's main containers.
-
-create_output_field() already has coverage in test_output_scroll.py; this
-file covers the two remaining uncovered functions in layout.py.
-"""
+"""Verify chat TUI layout construction."""
 
 from dataclasses import fields
 from unittest.mock import MagicMock

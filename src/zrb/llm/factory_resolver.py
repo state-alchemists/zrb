@@ -1,11 +1,4 @@
-"""Shared resolution of static items plus factory-produced ones.
-
-`LLMTask`, `LLMChatTask`, and `SubAgentManager` each hold a list of static
-tools/toolsets and a list of factories that produce more from a runtime
-context. This helper combines them, flattening factory results that return a
-list. Kept dependency-free (stdlib only) so any of those modules can import it
-without risking an import cycle.
-"""
+"""Combine static tools/toolsets with factory-produced ones (stdlib only, cycle-free)."""
 
 from __future__ import annotations
 

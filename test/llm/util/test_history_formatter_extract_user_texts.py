@@ -1,5 +1,4 @@
-"""`extract_user_message_texts`, the history-formatter helper the input box's
-previous-message recall uses to recover a loaded conversation's user turns."""
+"`extract_user_message_texts`, the history-formatter helper the input box's"
 
 from pydantic_ai.messages import (
     ModelRequest,

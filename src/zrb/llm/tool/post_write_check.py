@@ -1,22 +1,8 @@
-"""Shared post-write/post-edit diagnostic helper.
+"""Post-write/post-edit diagnostics for ``Write`` and ``Edit`` results.
 
-Called by ``write_file`` and ``replace_in_file`` so the tool result surfaces
-errors the edit may have introduced (missing imports, undefined names, syntax
-errors). Stays silent when no checker is available for the file's language so
-non-code edits (``.md``, ``.txt``, etc.) don't get spurious diagnostics.
-
-Two sources run, deduplicated by ``(line, message)``:
-
-1. **LSP** — :func:`lsp_manager.get_diagnostics` performs the didOpen/didChange
-   handshake and waits briefly for ``textDocument/publishDiagnostics``. Picks
-   up project-wide knowledge (type errors, unresolved imports, etc.) when an
-   LSP server is configured for the language.
-2. **Language-specific static check** — for Python, parse with :mod:`ast`
-   (catches ``SyntaxError``) and run :mod:`pyflakes` (catches ``UndefinedName``
-   etc.). Always runs for supported languages because LSP-error filtering is
-   not uniform across servers — pylsp may classify undefined names as
-   ``warning`` and we'd otherwise miss them. Other languages have no static
-   fallback.
+Merges LSP errors with a static check (Python: ``ast`` + ``pyflakes``),
+deduplicated by ``(line, message)``. The static check always runs because
+servers differ in severity (pylsp may report undefined names as warnings).
 """
 
 from __future__ import annotations
@@ -30,29 +16,10 @@ _MAX_ERRORS_SHOWN = 5
 
 
 async def format_post_write_diagnostics(abs_path: str) -> str:
-    """Return a ``[DIAGNOSTIC]`` block when the edit introduced errors.
+    """A ``[DIAGNOSTIC]`` block when the edit introduced errors, else ``""``.
 
-    Returns ``""`` when the file no longer exists, the language is not
-    supported by any available checker, or the file is error-free. Callers
-    pass the result to :func:`compose_write_result`, which decides where it
-    sits relative to the outcome line; an empty return leaves that outcome
-    line untouched.
-
-    The block opens with the verdict and carries a ``[SYSTEM SUGGESTION]``
-    naming the next action, per the convention in AGENTS.md: an error the
-    *model* has to recover from gets actionable guidance, not just a report.
-    Without it this block was the highest-traffic recovery-needed result in
-    the codebase with no instruction attached — one benchmark trial received
-    81 consecutive ``Successfully updated … [DIAGNOSTIC]`` results and
-    answered every one with another blind edit, because "fix these before
-    continuing" is satisfied by exactly that. The guidance therefore says
-    what to do *differently*: re-read before the next edit, and fix the named
-    target rather than patching blind.
-
-    The verdict sentence lives here and nowhere else. It reads as the opening
-    of the whole tool result because ``compose_write_result`` puts this block
-    first — see that function for why the position matters as much as the
-    words.
+    The ``[SYSTEM SUGGESTION]`` tells the model to re-read before editing
+    again: without it, models answered the diagnostic with blind edits.
     """
     if not os.path.isfile(abs_path):
         return ""
@@ -94,22 +61,8 @@ async def format_post_write_diagnostics(abs_path: str) -> str:
 def compose_write_result(outcome: str, diagnostics: str) -> str:
     """Join a write tool's *outcome* line to its post-write *diagnostics*.
 
-    A clean write returns *outcome* unchanged. A write that broke the file
-    returns a result that **opens** with the failure and demotes the outcome
-    line below it.
-
-    Position is the point. The first words of a tool result frame everything
-    after them, so ``Successfully updated foo.py … [DIAGNOSTIC] …`` reads as a
-    completed step no matter how firmly the body contradicts it — the result
-    asserts success and failure at once, and the model is free to believe the
-    half that lets it move on. That exact shape produced the 81 consecutive
-    blind edits recorded in :func:`format_post_write_diagnostics`; adding
-    guidance to the body fixed what the result *said* without fixing what it
-    *led with*.
-
-    The outcome line is kept rather than dropped: the replacement count and
-    any fuzzy-match note are real signal for choosing the next move. It is
-    demoted, not hidden.
+    Diagnostics lead: a result opening with "Successfully updated" reads as
+    success to the model however the body contradicts it.
     """
     if not diagnostics:
         return outcome
@@ -117,13 +70,7 @@ def compose_write_result(outcome: str, diagnostics: str) -> str:
 
 
 async def _query_lsp_errors(abs_path: str) -> list[tuple[int, str]]:
-    """Return LSP-reported errors for the file, or ``[]`` when LSP has nothing.
-
-    Returns an empty list whenever LSP is unavailable, the manager raised, the
-    response shape was unexpected, or the server authoritatively reported a
-    clean file — the caller merges this with the static-check result rather
-    than treating either source as authoritative.
-    """
+    """LSP-reported errors for the file, or ``[]`` when LSP has none or fails."""
     try:
         result = await lsp_manager.get_diagnostics(abs_path, severity="error")
     except Exception:
@@ -137,19 +84,13 @@ async def _query_lsp_errors(abs_path: str) -> list[tuple[int, str]]:
 
 
 def _static_check_errors(abs_path: str) -> list[tuple[int, str]]:
-    """Language-dispatch for the static-check fallback."""
     if abs_path.endswith(".py"):
         return _python_static_errors(abs_path)
     return []
 
 
 def _python_static_errors(abs_path: str) -> list[tuple[int, str]]:
-    """Run ``ast.parse`` then ``pyflakes`` against a Python file.
-
-    Reports only high-signal "you broke it" issues: syntax errors and
-    undefined names. Ignores unused-import / unused-variable warnings —
-    those are common in mid-edit states and would just nag the model.
-    """
+    """Syntax errors and undefined names only; unused-name warnings are mid-edit noise."""
     try:
         with open(abs_path, "r", encoding="utf-8") as f:
             content = f.read()
@@ -163,8 +104,7 @@ def _python_static_errors(abs_path: str) -> list[tuple[int, str]]:
         return [(line, f"SyntaxError: {e.msg}")]
 
     try:
-        # lazy: heavy third-party — pyflakes is an optional dependency; the
-        # surrounding try/except degrades gracefully when it is not installed.
+        # lazy: heavy third-party — pyflakes is optional
         from pyflakes import checker as _pyflakes_checker
         from pyflakes.messages import UndefinedExport, UndefinedLocal, UndefinedName
     except Exception:

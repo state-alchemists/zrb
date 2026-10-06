@@ -6,23 +6,13 @@ from typing import Any, SupportsIndex
 class Xcom(deque[Any]):
     """A cross-task message queue, reachable as `ctx.xcom[task_name]`.
 
-    One task pushes a value, another pops it. This is the supported way to move
-    data between tasks: a task's return value is pushed onto its own queue
-    automatically, so a downstream task reads it with
-    `ctx.xcom["upstream-task"].pop()`.
+    A task's return value is pushed onto its own queue, so a downstream task
+    reads it with `ctx.xcom["upstream-task"].pop()`.
 
-    Two usage styles share one object, which is worth keeping straight:
-
-    * **Queue** — `push`/`pop`/`peek`. `pop` takes the *oldest* value (FIFO),
-      matching `peek`.
-    * **Single variable** — `set`/`get`. `set` discards everything but the
-      newest value, and `get` returns that newest value.
-
-    Mixing them is what surprises people: after several `push` calls, `pop`
-    returns the first value while `get` returns the last.
-
-    Note `pop` is FIFO here, which deliberately differs from `deque.pop`. Use
-    `popright` for the LIFO behaviour `deque.pop` normally has.
+    * **Queue** — `push`/`pop`/`peek`. `pop` takes the *oldest* value (FIFO,
+      unlike `deque.pop`; use `popright` for LIFO).
+    * **Single variable** — `set`/`get`. `set` keeps only the new value, and
+      `get` returns the newest value.
     """
 
     def __repr__(self) -> str:
@@ -82,9 +72,6 @@ class Xcom(deque[Any]):
     def pop(self) -> Any:
         """Remove and return the oldest value. Alias of `popleft`.
 
-        Overrides `deque.pop`, which removes from the right. Use `popright` for
-        that behaviour.
-
         Raises:
             IndexError: If the queue is empty.
         """
@@ -101,16 +88,11 @@ class Xcom(deque[Any]):
         return value
 
     def peek(self) -> Any:
-        """Return the oldest value without removing it.
-
-        The non-destructive counterpart of `pop`, so both see the same element.
+        """Return the oldest value (what `pop` would return) without removing it.
 
         Raises:
             IndexError: If the queue is empty.
         """
-        # Queue semantics: non-destructive `pop`. `pop()`/`popleft()` remove
-        # from the left (oldest first), so `peek()` returns that same front
-        # element without removing it.
         if len(self) > 0:
             return self[0]
         else:
@@ -123,26 +105,15 @@ class Xcom(deque[Any]):
     def get(self, default_value: Any = None) -> Any:
         """Return the newest value without removing it, or `default_value`.
 
-        Pairs with `set` for single-variable use. Unlike `peek`, this never
-        raises on an empty queue, and it reads the *newest* value rather than
-        the oldest — so for a task that ran more than once (readiness
+        Pairs with `set`. For a task that ran more than once (readiness
         monitoring re-executes it), this is the latest result.
         """
-        # Single-variable semantics (paired with `set()`): return the current
-        # value, i.e. the most recently pushed one. `set()` keeps only the
-        # latest, so for set-based usage this is that single element; for a
-        # plain-push task that ran more than once (readiness-monitored re-exec)
-        # it is the latest result, not a stale earlier one.
         if len(self) > 0:
             return self[-1]
         return default_value
 
     def set(self, new_value: Any) -> None:
-        """Replace the contents with a single value.
-
-        Pairs with `get` for single-variable use: everything already queued is
-        discarded, so the queue holds exactly `new_value`.
-        """
+        """Replace the contents with a single value. Pairs with `get`."""
         self.push(new_value)
         while len(self) > 1:
             self.pop()
@@ -150,8 +121,7 @@ class Xcom(deque[Any]):
     def append_push_callback(self, callback: Callable[[], Any]) -> None:
         """Register a zero-argument callback fired after every push.
 
-        Callbacks run in registration order and receive nothing — read the
-        queue itself for the value. Used to wake tasks waiting on this queue.
+        Callbacks run in registration order; read the queue for the value.
         """
         if not hasattr(self, "push_callbacks"):
             self.push_callbacks: list[Callable[[], Any]] = []

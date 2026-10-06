@@ -1,10 +1,4 @@
-"""Matcher operator helpers and evaluator for hook config.
-
-The functions here are intentionally state-free so they can be unit-tested in
-isolation and reused outside `HookManager`. The dispatcher dict
-`MATCHER_OPERATORS` maps a `MatcherOperator` enum value to the predicate that
-implements it.
-"""
+"""Matcher operator predicates and the evaluator for hook config matchers."""
 
 from __future__ import annotations
 
@@ -20,42 +14,33 @@ from zrb.llm.hook.types import HookEvent, MatcherOperator
 logger = logging.getLogger(__name__)
 
 
-# --- Matcher operator predicates -----------------------------------------
-
-
 def _match_equals(value: Any, matcher_value: Any) -> bool:
-    """Check if value equals matcher value."""
     return value == matcher_value
 
 
 def _match_not_equals(value: Any, matcher_value: Any) -> bool:
-    """Check if value does not equal matcher value."""
     return value != matcher_value
 
 
 def _match_contains(value: Any, matcher_value: Any) -> bool:
-    """Check if value contains matcher value (string operation)."""
     if not isinstance(value, str) or not isinstance(matcher_value, str):
         return False
     return matcher_value in value
 
 
 def _match_starts_with(value: Any, matcher_value: Any) -> bool:
-    """Check if value starts with matcher value (string operation)."""
     if not isinstance(value, str) or not isinstance(matcher_value, str):
         return False
     return value.startswith(matcher_value)
 
 
 def _match_ends_with(value: Any, matcher_value: Any) -> bool:
-    """Check if value ends with matcher value (string operation)."""
     if not isinstance(value, str) or not isinstance(matcher_value, str):
         return False
     return value.endswith(matcher_value)
 
 
 def _match_regex(value: Any, matcher_value: Any) -> bool:
-    """Check if value matches regex pattern."""
     if not isinstance(value, str) or not isinstance(matcher_value, str):
         return False
     try:
@@ -66,7 +51,6 @@ def _match_regex(value: Any, matcher_value: Any) -> bool:
 
 
 def _match_glob(value: Any, matcher_value: Any) -> bool:
-    """Check if value matches glob pattern."""
     if not isinstance(value, str) or not isinstance(matcher_value, str):
         return False
     return fnmatch.fnmatch(value, matcher_value)
@@ -83,13 +67,8 @@ MATCHER_OPERATORS: dict[MatcherOperator, Callable[[Any, Any], bool]] = {
 }
 
 
-# zrb names its built-in tools with Claude-compatible names via ``func.__name__``
-# (e.g. ``read_file`` -> "Read", ``write_file`` -> "Write"), so most Claude hook
-# matchers keyed on a tool name already match. A few zrb tools keep a name that
-# differs from Claude's, so a matcher written for the Claude name would miss
-# them. This maps the zrb tool name to the extra Claude name(s) a tool-name
-# matcher should also accept, e.g. ``{"matcher": "Bash"}`` fires on zrb's "Shell"
-# tool, and ``{"matcher": "Task"}`` fires on the delegation tools.
+# Extra Claude Code tool names a tool-name matcher also accepts, for the zrb
+# tools whose names differ from Claude's.
 CLAUDE_TOOL_ALIASES: dict[str, list[str]] = {
     "Shell": ["Bash"],
     "DelegateToAgent": ["Task"],
@@ -144,7 +123,7 @@ def evaluate_matchers(matchers: list[MatcherConfig], context: HookContext) -> bo
     fields in the context using dot notation (e.g. "metadata.project").
     """
     if not matchers:
-        return True  # No matchers means always match
+        return True
 
     for matcher in matchers:
         value = get_field_value(context, matcher.field)
@@ -154,10 +133,7 @@ def evaluate_matchers(matchers: list[MatcherConfig], context: HookContext) -> bo
             logger.warning(f"Unknown matcher operator: {matcher.operator}")
             return False
 
-        # A tool may answer to a Claude-compatible alias (e.g. "Shell" also
-        # matches "Bash"); test the value and any aliases, passing if any match.
-        # NOT_EQUALS is an exclusion — expanding it would let an alias slip past
-        # the filter — so it stays 1:1 on the raw value.
+        # NOT_EQUALS is not alias-expanded: an alias would slip past the filter.
         if matcher.operator is MatcherOperator.NOT_EQUALS:
             candidates: list[Any] = [value]
         else:
@@ -176,11 +152,7 @@ def evaluate_matchers(matchers: list[MatcherConfig], context: HookContext) -> bo
 
 
 def _tool_name_candidates(field: str, value: Any) -> list[Any]:
-    """The matched value plus any Claude-compatible tool-name aliases for it.
-
-    Only the tool-name field is expanded; every other field yields just its own
-    value, so non-tool matchers are unaffected.
-    """
+    """*value* plus its Claude tool-name aliases when *field* is ``tool_name``."""
     candidates: list[Any] = [value]
     if field == "tool_name" and isinstance(value, str):
         candidates.extend(CLAUDE_TOOL_ALIASES.get(value, []))

@@ -1,15 +1,8 @@
 """Python-level filesystem checks for in-process file tools.
 
-These checks back the ``_sandbox_gate`` in ``zrb.llm.agent.common``. They are
-advisory-at-the-Python-layer by design: the target is realpath'd at check time
-(so symlink escapes are caught), but a race between check and ``open()``
-(TOCTOU) is accepted — kernel-enforced containment is the OS shell layer's
-job, while these tools run inside the agent process which cannot be jailed
-without losing the LLM network loop.
-
-Windows notes: comparisons are ``normcase``'d (case-insensitive filesystems),
-and cross-drive comparisons (``C:`` vs ``D:``) raise ``ValueError`` inside
-``commonpath`` — treated as "outside the root", i.e. blocked for writes.
+Targets are realpath'd (catching symlink escapes); the check/``open()``
+TOCTOU race is accepted, since the agent process itself cannot be jailed
+without losing its network loop.
 """
 
 from __future__ import annotations

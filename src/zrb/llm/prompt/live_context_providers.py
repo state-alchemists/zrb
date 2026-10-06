@@ -1,35 +1,17 @@
-"""Per-turn live-context providers, composed by `PromptManager`.
-
-Not a component-family registry: no `CFG` twin, no discovery layer, no
-layering over anything — just an ordered, name-keyed list of callables owned
-by one `PromptManager` instance. Promoting it to a public registry (a
-`CFG.LLM_LIVE_CONTEXT` twin, a module singleton) would serve a single call
-site (`PromptManager.add_live_context`) for no benefit. What it does need is
-the R6 verb set every keyed collection carries, and a public name — it is a
-part (`PromptManager` composes it), so a leading
-underscore is a false claim of module-privacy.
-"""
+"""Per-turn live-context providers: an ordered, name-keyed list owned by one `PromptManager`."""
 
 from typing import Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 
-# A per-turn provider: takes the active context, returns a string (or
-# None/"" to emit nothing). Defined here — not in `prompt/manager.py` — so
-# that module can import it without a circular import.
+# Returns a string, or None/"" to emit nothing. Lives here so
+# `prompt/manager.py` can import it without a cycle.
 SimplePrompt = Callable[[AnyContext], "str | None"]
 
 
 class LiveContextProviders:
-    """Named dynamic providers, composed in registration order.
-
-    Each provider is called every turn and its non-empty output is appended
-    to the ``<live-context>`` block. A provider that raises must never take
-    the prompt down with it, so each is called under a try/except and
-    skipped — these are downstream extension points, and one bad plugin must
-    not cost the whole prompt.
-    """
+    """Named providers called every turn; non-empty output goes into ``<live-context>``."""
 
     def __init__(self) -> None:
         self._providers: "list[tuple[str, SimplePrompt]]" = []
@@ -55,11 +37,7 @@ class LiveContextProviders:
         return list(self._providers)
 
     def render(self, ctx: AnyContext) -> "list[str]":
-        """Every provider's non-empty output, in registration order.
-
-        A provider that raises is logged and skipped: these are downstream
-        extension points, and one bad plugin must not cost the whole prompt.
-        """
+        """Every provider's non-empty output, in order; a provider that raises is skipped."""
         parts: list[str] = []
         for name, provider in self._providers:
             try:

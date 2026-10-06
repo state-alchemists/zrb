@@ -57,17 +57,11 @@ class FileHistoryManager(AnyHistoryManager):
         self._history_dir = os.path.expanduser(history_dir)
         # LRU-ordered: most recently used entries at the end (see _evict_lru).
         self._cache: "OrderedDict[str, list[ModelMessage]]" = OrderedDict()
-        # mtime of the on-disk file at the time the cache entry was last synced
-        # with disk. Used to invalidate the cache when the file changes out-of-band
-        # (a second manager instance, an external edit, a name that collides on one
-        # file). `None` means "no file on disk at sync time".
+        # Cache sync time; None means no file existed at sync.
         self._cache_mtime: dict[str, float | None] = {}
-        # Conversations updated in memory but not yet persisted by save().
-        # Dirty entries are never evicted — dropping them would lose data
-        # that exists only in RAM.
+        # Unsaved entries stay cached to avoid data loss.
         self._dirty: set[str] = set()
-        # Expired auto-named conversations are pruned once per manager, on
-        # its first save (`_prune_expired`).
+        # Prune expired auto-named conversations on the first save.
         self._has_pruned = False
         if not os.path.exists(self._history_dir):
             os.makedirs(self._history_dir, exist_ok=True)
@@ -146,12 +140,7 @@ class FileHistoryManager(AnyHistoryManager):
         self._evict_lru()
 
     def _evict_lru(self):
-        """Drop least-recently-used clean cache entries beyond the bound.
-
-        Dirty entries (updated but not yet saved) are skipped: their content
-        exists only in memory, so evicting them would lose data. Clean
-        entries reload losslessly from disk on next access.
-        """
+        """Drop clean least-recently-used entries beyond the cache bound."""
         while len(self._cache) > _MAX_CACHED_CONVERSATIONS:
             victim = next((k for k in self._cache if k not in self._dirty), None)
             if victim is None:
@@ -267,21 +256,10 @@ class FileHistoryManager(AnyHistoryManager):
         return [m[0] for m in matches]
 
     def _sanitize(self, data: Any) -> Any:
-        """Normalize raw message data on both load and save.
-
-        Non-string content (e.g. booleans pydantic-ai lets through) raises a
-        TypeError in Google's ``_map_user_prompt``, and responses with no parts
-        cause "invalid message content type: <nil>" on some models (GLM-5 via
-        Ollama).
-        """
+        """Normalize message data for provider validation on load and save."""
         return self._filter_empty_responses(self._clean_corrupted_content(data))
 
-    # Each cleaner starts from a copy of the original part and only normalizes
-    # the field(s) that can be corrupted (chiefly ``content``). Fields the
-    # cleaner does not understand are preserved verbatim — dropping them would
-    # silently strip structurally-significant data such as a ThinkingPart's
-    # ``signature`` (Anthropic uses it to validate replayed thinking blocks) or
-    # a RetryPromptPart's ``tool_name``/``tool_call_id`` (its tool linkage).
+    # Preserve unknown fields; provider replay may require them.
     def _clean_user_prompt_part(self, data: dict[str, Any]) -> dict[str, Any]:
         content = data.get("content")
         if content is None:
@@ -395,13 +373,7 @@ class FileHistoryManager(AnyHistoryManager):
         return data
 
     def _resolve_read_path(self, conversation_name: str) -> tuple[str, float | None]:
-        """The file to read *conversation_name* from, and its mtime.
-
-        Delegated transcripts live under ``subagent/{agent_type}/``; a name
-        that resolves to the new location but has no file there falls back to
-        the legacy flat history root (pre-layout files stay resumable, without
-        migrating them).
-        """
+        """Return the conversation path and its mtime, with legacy fallback."""
         file_path = self._get_file_path(conversation_name)
         mtime = self._file_mtime(file_path)
         if mtime is not None:
@@ -434,26 +406,11 @@ class FileHistoryManager(AnyHistoryManager):
         return os.path.join(self._history_dir, f"{safe_name}.json")
 
     def _extract_base_name(self, conversation_name: str) -> str:
-        """Extract base session name by removing timestamp suffix if present.
-
-        For example:
-        - "my-session-2024-03-18-10-30-00" -> "my-session"
-        - "my-session-2024-03-18-10-30" -> "my-session"
-        - "my-session" -> "my-session"
-        """
+        """Remove a timestamp suffix from a session name."""
         return _TIMESTAMP_PATTERN.sub("", conversation_name)
 
     def _get_backup_file_path(self, base_name: str, timestamp: datetime) -> str:
-        """Get a backup file path with timestamp, handling conflicts.
-
-        A backup lands next to the conversation's main file (the same
-        directory `_get_file_path` resolves — the `subagent/{agent_type}/`
-        dir for a delegated transcript, the history root otherwise).
-        Creates files like: <name>-2024-03-18-10-30-00.json
-        If that exists: <name>-2024-03-18-10-30-00-1.json
-        If that exists: <name>-2024-03-18-10-30-00-2.json
-        etc.
-        """
+        """Return a conflict-free timestamped backup path."""
         ts_str = timestamp.strftime("%Y-%m-%d-%H-%M-%S")
         base_path = os.path.join(
             os.path.dirname(self._get_file_path(base_name)), f"{base_name}-{ts_str}"
@@ -475,12 +432,7 @@ class FileHistoryManager(AnyHistoryManager):
                 return f"{base_path}-{ts_str_with_us}.json"
 
     def _save_data_to_file(self, file_path: str, data: Any) -> bool:
-        """Save filtered data to a file.
-
-        Returns True if successful, False otherwise. Writes to a sibling temp
-        file and renames into place — truncate-writing the live conversation
-        file directly means a crash mid-write corrupts the whole history.
-        """
+        """Atomically save filtered data; return whether the write succeeded."""
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         tmp_path = f"{file_path}.tmp"
         try:
@@ -497,16 +449,7 @@ class FileHistoryManager(AnyHistoryManager):
             return False
 
     def _prune_expired(self, current: str) -> None:
-        """Delete the histories, backups included, of auto-named
-        conversations last saved longer ago than `LLM_HISTORY_RETENTION`.
-
-        Run on the first save rather than at start-up, so a conversation
-        resumed after the cut-off has just been saved again and is not among
-        them; *current* is skipped regardless. Only the history root: a
-        delegated sub-agent's transcripts are capped by count
-        (`LLM_SUBAGENT_HISTORY_RETAIN`), and a conversation someone named is
-        never pruned. Errors are swallowed: pruning must not break the save
-        that triggered it."""
+        """Prune expired auto-named root histories; never fail the triggering save."""
         retention = parse_duration(CFG.LLM_HISTORY_RETENTION or "")
         if retention <= 0:
             return
@@ -532,18 +475,7 @@ class FileHistoryManager(AnyHistoryManager):
     def _rotate_backups(
         self, base_name: str, keep: int, main_file_name: str | None = None
     ) -> None:
-        """Delete older timestamped backups, keeping the *keep* most recent.
-
-        A no-op when *keep* is negative (unlimited retention) or zero (backups
-        disabled — no rotation needed because none are written). Errors during
-        cleanup are swallowed; backup hygiene must not break a successful save.
-
-        *main_file_name* (the live conversation file's basename) is always
-        excluded: when a conversation name itself carries a timestamp suffix
-        (e.g. ``session-2024-03-18-10-30``), the main file matches the backup
-        filename pattern with the same base, and rotation would otherwise sort
-        it oldest and delete the live history.
-        """
+        """Keep the *keep* newest backups, excluding the live file."""
         if keep < 0:
             return
         directory = os.path.dirname(self._get_file_path(base_name))

@@ -1,5 +1,3 @@
-"""Tests for chat_api_route.py's LLM-task resolution."""
-
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -39,8 +37,6 @@ async def test_ordinary_session_missing_main_task_reports_not_registered():
 
 @pytest.mark.asyncio
 async def test_delegated_session_resumes_via_the_subagent_persona():
-    """A session_id shaped like a persisted delegation transcript must be
-    driven by that sub-agent's own task, not the shared main chat task."""
     root_group = MagicMock()
     resumed_task = MagicMock()
 
@@ -56,8 +52,6 @@ async def test_delegated_session_resumes_via_the_subagent_persona():
 
 @pytest.mark.asyncio
 async def test_delegated_session_with_unresolvable_agent_reports_the_agent_name():
-    """create_llm_chat_task returns None for an unknown/agent_instance-backed
-    definition — the error must name the specific agent, not a generic one."""
     root_group = MagicMock()
 
     with patch("zrb.runner.chat.chat_api_route.sub_agent_manager") as mock_manager:
@@ -72,9 +66,6 @@ async def test_delegated_session_with_unresolvable_agent_reports_the_agent_name(
 
 @pytest.mark.asyncio
 async def test_delegated_session_never_falls_back_to_the_main_chat_task():
-    """A delegated session_id must not silently resume as the main agent even
-    when the shared task is available -- persona mismatch would be a real
-    surprise for whoever resumes it."""
     root_group = MagicMock()
     main_task = MagicMock()
 

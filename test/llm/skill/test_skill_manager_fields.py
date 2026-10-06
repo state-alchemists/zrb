@@ -66,7 +66,7 @@ def test_get_skills_scans_lazily(tmp_path):
     skill_dir.mkdir()
     (skill_dir / "SKILL.md").write_text("# Lazy Skill")
     manager = SkillManager(root_dir=str(tmp_path), search_dirs=[tmp_path])
-    # No explicit scan() called -> get_skills triggers it.
+
     names = [s.name for s in manager.get_skills()]
     assert "Lazy Skill" in names
 
@@ -162,7 +162,6 @@ agent: Explore
 disable-model-invocation: true
 user-invocable: false
 ---
-# Ignored
 """,
         encoding="utf-8",
     )
@@ -202,9 +201,9 @@ def test_scan_markdown_no_name_uses_dir_name(manager, tmp_path):
 
 
 def test_scan_markdown_invalid_frontmatter_logged(manager, tmp_path):
-    # Malformed YAML in frontmatter should be caught and logged, not raised.
+
     (tmp_path / "SKILL.md").write_text("---\nname: [unclosed\n---\n# Heading Name\n")
-    # Should not raise.
+
     manager.scan(search_dirs=[tmp_path])
 
 
@@ -219,7 +218,6 @@ hooks:
         - type: command
           command: echo hi
 ---
-# body
 """,
         encoding="utf-8",
     )
@@ -240,7 +238,6 @@ hooks:
     config:
       command: echo hi
 ---
-# body
 """,
         encoding="utf-8",
     )
@@ -253,9 +250,9 @@ hooks:
 def test_scan_markdown_read_error_logged(manager, tmp_path):
     (tmp_path / "SKILL.md").write_text("# Ok")
     with patch("builtins.open", side_effect=OSError("boom")):
-        # Read failure is swallowed and logged.
+
         manager.scan(search_dirs=[tmp_path])
-    # Nothing crashed; no skill loaded.
+
     assert manager.get_skill("Ok") is None
 
 
@@ -295,17 +292,17 @@ def test_scan_python_no_skill_object(manager, tmp_path):
 
 def test_scan_python_load_error_logged(manager, tmp_path):
     (tmp_path / "x.skill.py").write_text("this is = invalid python !!!")
-    # Import failure is swallowed and logged.
+
     skills = manager.scan(search_dirs=[tmp_path])
     assert isinstance(skills, list)
 
 
 def test_scan_python_factory_raises_logged(manager, tmp_path):
-    # The module loads fine, but get_skill() raises at call time.
+
     (tmp_path / "x.skill.py").write_text(
         "def get_skill():\n    raise RuntimeError('boom')\n"
     )
-    # Exception is swallowed and logged, not raised.
+
     skills = manager.scan(search_dirs=[tmp_path])
     assert isinstance(skills, list)
 
@@ -317,7 +314,7 @@ def test_scan_dir_permission_error_swallowed(manager, tmp_path):
 
 
 def test_scan_dir_scan_failure_logged(manager, tmp_path):
-    # A failure inside scan_files is caught and logged, returning no skills.
+
     with patch("zrb.llm.skill.manager.scan_files", side_effect=OSError("disk error")):
         skills = manager.scan(search_dirs=[tmp_path])
     assert skills == []
@@ -350,16 +347,14 @@ def test_ignore_dirs_skipped(manager, tmp_path):
 
 
 def test_search_dirs_property_override_and_default(tmp_path):
-    """`search_dirs` returns the explicit override when set, else the
-    computed defaults (R7 — the deleted `get_search_directories()` used to
-    be the only way to reach the latter)."""
+    '`search_dirs` returns the explicit override when set, else the'
     manager = SkillManager()
-    assert manager.search_dirs != []  # computed defaults, non-empty
+    assert manager.search_dirs != []
 
     manager.search_dirs = [str(tmp_path)]
     assert manager.search_dirs == [str(tmp_path)]
 
-    manager.search_dirs = None  # falls back to computed defaults again
+    manager.search_dirs = None
     assert manager.search_dirs != [str(tmp_path)]
 
 
@@ -369,9 +364,9 @@ def test_search_dirs_setter_invalidates_a_completed_scan(tmp_path):
     (skill_dir / "SKILL.md").write_text("# New Skill\nDescription")
 
     manager = SkillManager(search_dirs=[])
-    assert manager.get_skills() == []  # scanned with no dirs to look in
+    assert manager.get_skills() == []
 
-    manager.search_dirs = [str(tmp_path)]  # reassigning must trigger a rescan
+    manager.search_dirs = [str(tmp_path)]
     assert any(s.name == "New Skill" for s in manager.get_skills())
 
 

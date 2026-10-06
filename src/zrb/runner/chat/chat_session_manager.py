@@ -14,9 +14,7 @@ from zrb.llm.input_source import WEB_INPUT, InputProvenance
 from zrb.llm.prompt.live_context import split_live_context
 from zrb.llm.util.feature_config import close_feature_sessions
 
-# Re-exported for chat_api_route.py and tests. Defined in
-# subagent_session_naming.py so the web session lister avoids delegate.py's
-# heavy imports.
+# Re-exported for chat_api_route.py and tests.
 from zrb.llm.util.subagent_session_naming import (
     parse_delegated_session,
     subagent_history_directories,
@@ -47,11 +45,9 @@ class ChatSessionManager:
         self._sessions: dict[str, ChatSession] = {}
         self._history_manager = default_history_manager()
         self._init_coros: list[asyncio.Task] = []
-        # Serializes drives of the single shared LLMChatTask. Multiple SSE sessions
-        # share one task instance whose ui_factories/approval_channels/history_manager
-        # are read at run time; without this, a second session's config would clobber
-        # an in-flight run. Held per message (not per session) so sessions still
-        # coexist — they just don't drive the shared task simultaneously.
+        # All SSE sessions share one LLMChatTask whose UI/approval/history config
+        # is read at run time; held per message so one session cannot clobber
+        # another's in-flight run.
         self._task_lock = asyncio.Lock()
 
     @classmethod
@@ -70,10 +66,7 @@ class ChatSessionManager:
 
     @classmethod
     def reset_instance(cls) -> None:
-        """Drop the singleton so the next `get_instance*()` builds a fresh one.
-
-        Test-only seam: production never resets the shared singleton mid-run.
-        """
+        """Drop the singleton so the next `get_instance*()` builds a fresh one (test seam)."""
         cls._instance = None
 
     @property
@@ -83,24 +76,19 @@ class ChatSessionManager:
 
     @property
     def history_manager(self) -> FileHistoryManager:
-        """Get the history manager."""
         return self._history_manager
 
     def set_history_manager(self, history_manager: FileHistoryManager):
-        """Set the history manager."""
         self._history_manager = history_manager
 
     def has_session(self, session_id: str) -> bool:
-        """Check if a session exists."""
         return session_id in self._sessions
 
     @property
     def sessions(self) -> dict[str, ChatSession]:
-        """Get the active sessions."""
         return self._sessions
 
     def get_active_tasks(self) -> list[asyncio.Task]:
-        """Get all active task coroutines for cleanup."""
         tasks = []
         for session in self._sessions.values():
             if session.task_coroutine is not None and not session.task_coroutine.done():
@@ -108,7 +96,6 @@ class ChatSessionManager:
         return tasks
 
     async def cancel_all_sessions(self) -> None:
-        """Cancel all active session tasks."""
         for session in self._sessions.values():
             if session.task_coroutine is not None and not session.task_coroutine.done():
                 session.task_coroutine.cancel()
@@ -121,14 +108,10 @@ class ChatSessionManager:
         return _timestamp_pattern.sub("", session_name)
 
     def scan_sessions(self) -> list[tuple[str, float, int]]:
-        """Group history files by base session name in one directory scan.
+        """Group history files by base session name.
 
         Returns ``(base_name, newest_mtime, file_count)`` tuples, newest first.
-        The history dir holds a main file per session plus every timestamped
-        backup, so it grows fast — hence a single ``scandir`` pass with O(n)
-        grouping, which keeps listing cheap as the directory grows. Delegated
-        sub-agent transcripts live under ``subagent/{agent_type}/`` and are
-        scanned there (the history root still counts legacy flat ones).
+        Also scans delegated sub-agent transcripts under ``subagent/{agent_type}/``.
         """
         if not CFG.LLM_HISTORY_DIR:
             return []
@@ -168,9 +151,8 @@ class ChatSessionManager:
         for base_name, _mtime, file_count in self.scan_sessions():
             seen.add(base_name)
             is_active = base_name in self._sessions
-            # Classify only a non-active (history-file-only) entry as a
-            # delegated sub-agent session — an active human ChatSession whose
-            # name happens to match the shape is still a real root session.
+            # An active session is always a root session, even if its name
+            # matches the delegated-session shape.
             delegated = None if is_active else parse_delegated_session(base_name)
             listing.append(
                 {
@@ -185,9 +167,7 @@ class ChatSessionManager:
                     "agent_name": delegated[1] if delegated else None,
                 }
             )
-        # Active sessions with no history file yet are the newest → put on top.
-        # Always a real (human-driven) session, never a delegated one — those
-        # reach the listing only through the history-file scan above.
+        # Active sessions with no history file yet are the newest.
         extras = [
             {
                 "session_id": session_id,
@@ -254,25 +234,18 @@ class ChatSessionManager:
                 except asyncio.CancelledError:
                     pass
             del self._sessions[session_id]
-            # The registry is keyed by session id; without this, every
-            # session ever seen leaves an entry behind for the process's life.
             agent_activity_registry.clear(session_id=session_id)
-            # Where a web chat session ends: its voice and camera state goes too.
             close_feature_sessions(session_id)
             # lazy: transitively heavy via internal — live_session.py imports
-            # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai;
-            # deferring keeps that off chat_session_manager's module-load path.
+            # run_agent, which pulls in pydantic_ai.
             from zrb.llm.agent.subagent.live_session import (
                 live_subagent_session_registry,
             )
 
             live_subagent_session_registry.clear(session_id=session_id)
-            # Background shell processes survive across messages, so the
-            # per-message teardown skips them; this is their only cleanup path.
-            # Keyed by `session_id`, never `session_name`: the name is a
-            # client-supplied label with no uniqueness guarantee.
-            # lazy: zrb internal (heavy via transitive — shell_background.py
-            # is otherwise loaded lazily off this module's hot path)
+            # Background shells outlive a message; this is their only cleanup.
+            # Keyed by session_id: session_name is not unique.
+            # lazy: transitively heavy via internal — shell_background.py stays off load path
             from zrb.llm.tool.shell_background import get_shell_background_registry
 
             await get_shell_background_registry().cancel_for_session(session_id)
@@ -375,16 +348,11 @@ class ChatSessionManager:
                 handled = approval_channel.handle_edit_response_obj(response)
             else:
                 handled = approval_channel.handle_edit_response(response)
-            # The edit handlers report whether a pending call actually consumed
-            # the response. Reporting an unconditional True here made a dropped
-            # answer look successful while the tool call hung forever.
             if handled:
                 return {"handled": True, "type": "edit"}
             if is_json:
-                # Decoded args with no edit slot to consume them (the client
-                # raced edit-mode entry). Report the miss: falling through would
-                # hand a dict to handle_response, which cannot parse it and
-                # denies the pending approval outright.
+                # No edit slot consumed the args; handle_response cannot parse a
+                # dict and would deny the pending approval.
                 return {"handled": False, "error": "No pending edit request"}
         if approval_channel.has_pending_approvals():
             handled = approval_channel.handle_response(response)

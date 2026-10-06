@@ -12,13 +12,7 @@ from zrb.llm.ui.default.confirmation import UIConfirmation
 
 
 class _ForwardsToConfirmation:
-    """Shared `__getattr__` shim: forwards to the composed `UIConfirmation`.
-
-    Every test double here used to subclass `UIConfirmation` directly; under
-    composition each instead builds `self._confirmation = UIConfirmation(self)`
-    and forwards unresolved attribute lookups (public API, plus the private
-    methods these tests call directly) to it.
-    """
+    """Forward unresolved attributes to the composed confirmation part."""
 
     def __getattr__(self, name):
         confirmation = self.__dict__.get("_confirmation")
@@ -141,10 +135,7 @@ async def test_ask_user_queueing():
 
 @pytest.mark.asyncio
 async def test_resolve_current_echo_does_not_double_the_trailing_newline():
-    """Regression: `echo` already carries its own trailing "\\n"
-    (`submit_user_answer` builds it as `text + "\\n"`); `append_to_output`'s
-    default `end="\\n"` used to add a second one, printing a blank line
-    after every single confirmation answer."""
+    """Do not duplicate the echo's trailing newline."""
     ui = MockConfirmationUI()
     ui.append_to_output = MagicMock()
 
@@ -160,13 +151,7 @@ async def test_resolve_current_echo_does_not_double_the_trailing_newline():
 
 @pytest.mark.asyncio
 async def test_prompt_renders_while_thinking_not_swallowed_by_buffer():
-    """Regression: the confirmation prompt must render even mid-stream.
-
-    `ask_user` must append the prompt *before* marking the confirmation pending;
-    otherwise append_to_output's buffer guard (current_confirmation set + thinking)
-    swallows the prompt, leaving the user at "waiting for confirmation" with no
-    question shown — the AskUserQuestion symptom.
-    """
+    """Render the confirmation prompt before enabling output buffering."""
     ui = GuardedConfirmationUI(is_thinking=True)
 
     with patch("prompt_toolkit.application.get_app"):
@@ -207,14 +192,7 @@ async def test_queued_prompt_renders_when_activated_while_thinking():
 
 @pytest.mark.asyncio
 async def test_main_agent_output_buffers_during_confirmation_then_flushes():
-    """Background delegation: prompt shows, main-agent output buffers, then flushes.
-
-    When the main agent runs DelegateToAgentBackground and a sub-agent asks for
-    approval, the prompt must display immediately, the main agent's continued
-    output must be buffered (not interleaved with the prompt), and the buffered
-    output must flush all at once once the user answers. The ask_user reorder
-    must preserve this.
-    """
+    """Buffer main-agent output while a confirmation is pending."""
     ui = GuardedConfirmationUI(is_thinking=True)
 
     with patch("prompt_toolkit.application.get_app"):

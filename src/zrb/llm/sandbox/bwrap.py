@@ -1,14 +1,11 @@
 """Linux bubblewrap argument generation for sandboxed shell commands.
 
-bwrap is a single static binary, ubiquitous as flatpak's runtime dependency.
-Deliberately **no** ``--unshare-net`` (network stays open in v1) and **no**
-``--unshare-pid``: without a PID namespace bwrap execs the target in place,
-preserving the PID / process-group semantics the shell tool's timeout-kill and
-background-PID tracking rely on.
+No ``--unshare-net`` (network stays open) and no ``--unshare-pid``, so the
+target keeps the PID / process-group semantics the shell tool's timeout-kill
+relies on.
 
-Mount order matters (later binds override earlier ones): read-only root first,
-then dev/proc, then the writable binds, then the deny-read masks last — so a
-credential directory stays masked even when it sits inside a writable root.
+Later binds override earlier ones, so deny-read masks go last and stay masked
+even inside a writable root.
 """
 
 from __future__ import annotations

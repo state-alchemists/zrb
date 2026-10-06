@@ -1,5 +1,4 @@
-"""Tests for llm/util/subagent_session_naming.py — the single source of truth
-for the delegated sub-agent conversation-name shape."""
+'Tests for llm/util/subagent_session_naming.py — the single source of truth'
 
 import os
 
@@ -35,7 +34,7 @@ def test_ordinary_name_returns_none():
 
 
 def test_hyphenated_agent_name_still_parses():
-    """agent names like 'code-reviewer' must not confuse the greedy match."""
+    "agent names like 'code-reviewer' must not confuse the greedy match."
     result = parse_delegated_session("my-sess-sub-code-reviewer-0123abcd")
     assert result == ("my-sess", "code-reviewer")
 
@@ -52,10 +51,7 @@ def test_hyphenated_parent_session_still_parses():
 
 
 def test_subagent_only_directories_excludes_history_root(tmp_path):
-    """Unlike `subagent_history_directories`, the root itself — where
-    ordinary (non-delegated) sessions live — is never included. A caller
-    that deletes files past a retention count (pruning) needs this narrower
-    list; a caller that only reads/lists can afford the broader one."""
+    'Unlike `subagent_history_directories`, the root itself — where'
     (tmp_path / "subagent" / "researcher").mkdir(parents=True)
     (tmp_path / "subagent" / "code-reviewer").mkdir(parents=True)
 

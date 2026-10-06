@@ -44,8 +44,7 @@ class BufferedOutputMixin:
         )
         self._flush_task: asyncio.Task | None = None
         self._flush_lock = asyncio.Lock()
-        # Retained references to fire-and-forget flush tasks so they are not
-        # garbage-collected mid-flush (asyncio only holds weak references).
+        # asyncio holds tasks weakly; keep fire-and-forget flushes alive.
         self._pending_flushes: set[asyncio.Task] = set()
 
     @property
@@ -64,11 +63,7 @@ class BufferedOutputMixin:
         return self._flush_task is not None
 
     async def start_flush_loop(self):
-        """Start the periodic flush task. Call this in run_async().
-
-        Cancels any existing flush loop first so a second call does not orphan
-        the prior task (which would keep running and double-flush).
-        """
+        """Start (or restart) the periodic flush task. Call this in run_async()."""
         if self._flush_task is not None:
             self._flush_task.cancel()
             try:
@@ -89,46 +84,27 @@ class BufferedOutputMixin:
         await self._flush_buffer()
 
     def buffer_output(self, text: str):
-        """Add text to buffer. Automatically flushes when full.
-
-        Filters out redundant spinner/progress messages that would otherwise
-        be duplicated in event-driven UIs (Telegram, Discord, etc.).
-        """
-
-        # Progress characters for spinner animation
+        """Add text to buffer, dropping spinner/progress noise. Flushes when full."""
         progress_chars = "⠇⠏⠋⠙⠹⠸⠼⠴⠦⠧⠇⠁⠂⠃"
 
-        # Pattern 1: Pure spinner update - only \r and progress chars
         pure_spinner_pattern = re.compile(r"^\r[" + progress_chars + r"\s]*$")
 
         if pure_spinner_pattern.match(text):
             return
 
-        # Pattern 2: Spinner at end with message like "\r🔄 Prepare tool parameters ⠇"
-        if "\r" in text:
-            text = text.replace("\r", "")
-
-        # Pattern 3: Line ending with spinner (like "🔄 Prepare tool parameters ⠇")
+        text = text.replace("\r", "")
         if any(c in text for c in progress_chars):
             text = re.sub(r"[" + progress_chars + r"]+\s*$", "", text)
             text = text.rstrip()
 
-        text = text.replace("\r", "")
-
         if not text.strip():
             return
 
-        # Filter out redundant "Prepare tool parameters" messages
-        # These are progress indicators that get repeated in event-driven UIs
-        # We only want to show the actual tool call notification
         if "Prepare tool parameters" in text:
             return
 
         self._buffer.append(text)
 
-        # Auto-flush when buffer is large. Retain the task reference (asyncio
-        # only keeps a weak reference) so it cannot be GC'd mid-flush; the
-        # done-callback clears it once complete.
         total_size = sum(len(s) for s in self._buffer)
         if total_size > self._max_buffer_size:
             task = asyncio.create_task(self._flush_buffer())

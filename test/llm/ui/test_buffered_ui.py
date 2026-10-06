@@ -1,10 +1,3 @@
-"""Tests for `zrb.llm.ui.buffered_ui`.
-
-Split out of `test/llm/tool/test_delegate_tool.py` in 2.58.0, when `BufferedUI`
-moved out of the tool module it was embedded in. `delegate` is still its only
-caller, but the mirror rule puts a test at its source's path.
-"""
-
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -21,8 +14,6 @@ def test_buffered_ui_append_to_output():
     ui.append_to_output("Line 1")
     ui.append_to_output("Line 2")
 
-    # Output should be buffered, not written yet
-    # append_to_output adds end="\n" by default, so we get "Line 1\n" and "Line 2\n"
     buffered = ui.get_buffered_output()
     assert "Line 1" in buffered
     assert "Line 2" in buffered
@@ -90,8 +81,7 @@ async def test_buffered_ui_ask_user_no_prefix():
 
 @pytest.mark.asyncio
 async def test_buffered_ui_ask_user_does_not_flush_the_buffer():
-    """Only the approval prompt itself reaches main -- ask_user must not dump
-    the sub-agent's preceding buffered output alongside it."""
+    """Do not flush buffered output with the approval prompt."""
     mock_wrapped = MagicMock()
     mock_wrapped.ask_user = AsyncMock(return_value="user response")
     ui = BufferedUI(mock_wrapped, prefix="[AGENT] ")
@@ -106,10 +96,7 @@ async def test_buffered_ui_ask_user_does_not_flush_the_buffer():
 
 @pytest.mark.asyncio
 async def test_buffered_ui_ask_user_choice_forwards_without_flushing():
-    """ask_user_choice forwards the prompt to parent, but does NOT flush the
-    buffer first -- only the approval prompt itself reaches main; the
-    sub-agent's routine buffered output stays in its own buffer, visible only
-    by navigating into that sub-agent's live view."""
+    """Forward the approval prompt without flushing buffered output."""
     mock_wrapped = MagicMock()
     mock_wrapped.ask_user_choice = AsyncMock(return_value="option-a")
     ui = BufferedUI(mock_wrapped, prefix="[AGENT] ")
@@ -127,9 +114,7 @@ async def test_buffered_ui_ask_user_choice_forwards_without_flushing():
 
 @pytest.mark.asyncio
 async def test_buffered_ui_ask_user_stamps_own_agent_id():
-    """ask_user tags the request with this instance's own agent id, so the
-    root confirmation queue can route an answer back to whichever agent's
-    live view the user is looking at."""
+    """Pass this instance's agent id to the confirmation queue."""
     mock_wrapped = MagicMock()
     mock_wrapped.ask_user = AsyncMock(return_value="user response")
     ui = BufferedUI(mock_wrapped)
@@ -142,9 +127,7 @@ async def test_buffered_ui_ask_user_stamps_own_agent_id():
 
 @pytest.mark.asyncio
 async def test_buffered_ui_ask_user_preserves_nested_agent_id():
-    """A nested delegation (a sub-agent's own sub-agent) must not relabel the
-    request as belonging to the intermediate layer -- the originating agent's
-    id is preserved all the way to the root queue."""
+    """Preserve the originating agent id through nested delegation."""
     mock_wrapped = MagicMock()
     mock_wrapped.ask_user = AsyncMock(return_value="user response")
     ui = BufferedUI(mock_wrapped)
@@ -170,16 +153,11 @@ async def test_buffered_ui_ask_user_choice_stamps_own_agent_id():
 
 @pytest.mark.asyncio
 async def test_buffered_ui_shared_lock_does_not_block_sibling_enqueue():
-    """Regression: a shared lock across fan-out sibling agents (delegate.py's
-    `_run_parallel`) must not serialize the ENTIRE approval round-trip -- only
-    the synchronous parent-transcript write may briefly contend for it. Each
-    sibling's wait for the human's answer must happen outside the lock, so a
-    sibling whose own request arrives second can still reach the shared
-    confirmation queue (and be answered) while the first sibling's request is
-    still unresolved. Previously the lock wrapped the whole call, so the
-    second sibling never even reached `ask_user` on the wrapped UI until the
-    first was answered -- picking it via the sub-agent picker had nothing of
-    its own to resolve yet."""
+    """A shared lock must not serialize sibling approval round-trips.
+
+    Only the synchronous parent-transcript write may contend for the lock;
+    each sibling must reach the shared confirmation queue independently.
+    """
 
     class SlowWrappedUI:
         def __init__(self):
@@ -308,11 +286,7 @@ def test_buffered_ui_yolo_delegates_to_wrapped():
 
 
 def test_buffered_ui_yolo_reports_the_wrapped_uis_state():
-    """yolo is the wrapped parent's, not BufferedUI's own.
-
-    `yolo` is on the `AnyUI` contract, so every wrapped UI has one and
-    BufferedUI reads it straight through rather than defaulting.
-    """
+    """`yolo` reads the wrapped parent's value through the `AnyUI` contract."""
     parent = MagicMock()
     parent.yolo = False
     assert BufferedUI(parent).yolo is False
@@ -335,12 +309,7 @@ def test_buffered_ui_append_to_output_updates_activity_registry():
 
 
 def test_buffered_ui_stream_to_parent_routes_into_own_buffer():
-    """stream_to_parent no longer bypasses straight to the parent UI -- that
-    was the noise-in-main bug (interim status notices leaking sub-agent
-    chatter into the main transcript). It now lands in this sub-agent's own
-    buffer (visible on demand, via get_buffered_output/entering its live
-    view) and still feeds the activity registry, but must not touch the
-    wrapped parent UI at all."""
+    """`stream_to_parent` stays in the sub-agent buffer and skips the parent."""
     mock_wrapped = MagicMock()
     ui = BufferedUI(mock_wrapped, prefix="[AGENT] ")
     ui.set_activity_id("agent-xyz")

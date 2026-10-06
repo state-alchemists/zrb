@@ -35,9 +35,7 @@ def test_sub_agent_manager_scan():
 
 
 def test_sub_agent_manager_search_dirs_override_and_default():
-    """`search_dirs` returns the explicit override when set, else the
-    computed defaults (R7 — the deleted `get_search_directories()` used to
-    be the only way to reach the latter)."""
+    """Return the explicit search directories or computed defaults (R7)."""
     manager = SubAgentManager()
     assert manager.search_dirs != []  # computed defaults, non-empty
 

@@ -1,18 +1,7 @@
-"""`TurnCursor` — the state `_execution_loop` threads across its `while True`.
+"""State threaded through the agent run loop.
 
-Sibling to `RetryState`/`RetryOutcome` (`retry_loop.py`), `ExtensionState`
-(`session_extension.py`), and `PartialRunAccumulator` (`partial_run.py`) —
-this is the same "own the state in a small dataclass next to the loop, not
-as loose locals" pattern applied to the one part of the loop that never got
-it: `history`, `message`, `results`, `output`, `run_history`, and the
-per-turn message accumulator.
-
-Two transitions are named methods rather than plain field mutation, because
-getting either wrong silently corrupts turn state — a tool call recorded
-against the wrong round, or history carried forward before a round commits
-(see `commit_round` and `carry_forward`). Everything else is a plain field,
-mutated directly by `_execution_loop`.
-"""
+``commit_round`` and ``carry_forward`` centralize the transitions that protect
+multi-round history; other fields are mutated directly by the loop."""
 
 from __future__ import annotations
 

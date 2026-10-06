@@ -35,8 +35,7 @@ def test_arg_pattern_allow_matches_on_the_calls_own_arguments():
 
 
 def test_arg_pattern_ask_is_a_hard_ask_not_a_silent_fallthrough():
-    """Judged with no arguments this rule looks like no rule, and the caller
-    then lets yolo auto-approve the very call the rule meant to ask about."""
+    """Without arguments an `arg_pattern` rule cannot match."""
     policy = PermissionPolicy((Rule("Bash", ASK, arg_pattern="rm -rf*"),))
     with _with_policy(policy):
         assert (

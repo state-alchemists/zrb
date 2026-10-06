@@ -87,21 +87,9 @@ async def test_plan_mode_blocks_edit_and_execute_allows_read():
 
 @pytest.mark.asyncio
 async def test_plan_mode_allows_read_through_full_toolset_dispatch():
-    """Regression test for the outer ``SafeToolsetWrapper.call_tool`` gate.
-
-    ``create_safe_wrapper``'s own gate (exercised above) always resolved
-    capability correctly, but ``create_agent`` also wraps the whole
-    ``FunctionToolset`` so every call passes through
-    ``SafeToolsetWrapper.call_tool`` first. That layer only ever sees a
-    pydantic-ai ``ToolsetTool`` (no ``.function``, no arbitrary attributes),
-    so without ``wrap_tool`` re-tagging the capability into
-    ``ToolDefinition.metadata``, it resolved every free-function tool as
-    ``UNKNOWN`` and ``PLAN_MODE_POLICY``'s catch-all rule denied it — Read
-    included. This drives the real ``wrap_tool`` + ``FunctionToolset`` +
-    ``wrap_toolset`` dispatch chain end to end, unlike the unit test above
-    which calls ``create_safe_wrapper`` directly and never touches this
-    outer layer.
-    """
+    """The outer ``SafeToolsetWrapper.call_tool`` gate resolves capability from
+    ``ToolDefinition.metadata``, so plan mode allows Read through the real
+    ``wrap_tool`` + ``FunctionToolset`` + ``wrap_toolset`` chain."""
     from unittest.mock import MagicMock
 
     from pydantic_ai.tools import RunContext
@@ -143,36 +131,11 @@ async def test_plan_mode_allows_read_through_full_toolset_dispatch():
 @pytest.mark.asyncio
 async def test_exit_plan_mode_requires_approval_even_with_yolo():
     """Verify that YOLO=True cannot auto-approve ExitPlanMode in plan mode."""
-    from unittest.mock import MagicMock
-
-    from zrb.llm.task.chat.task import LLMChatTask
-
-    # Setup context and xcom for YOLO
-    ctx = MagicMock()
-    ctx.xcom = {"yolo": MagicMock()}
-    ctx.xcom["yolo"].get.return_value = True  # YOLO is ON
-
-    # Create a task and its check_yolo closure
-    task = LLMChatTask(name="test")
-    # We need to call _exec_action or simulate its setup for cap_by_name
-    # to be populated, or just test the logic directly if possible.
-    # Since we want to test the 'check_yolo' closure created in _create_llm_task_core:
-
-    # We'll use a more direct test of the check_yolo logic.
-    # The check_yolo closure captures 'cap_by_name'.
-    cap_by_name = {"ExitPlanMode": Capability.META}
-
-    # Instead of full task setup, we'll test the logic we just refactored.
     from zrb.llm.permission import ASK, get_effective_policy
 
-    await enter_plan_mode()  # Set mode to PLAN
+    await enter_plan_mode()
     try:
         policy = get_effective_policy()
         assert policy.decide("ExitPlanMode", Capability.META, {}) == ASK
-
-        # Now simulate the check_yolo logic
-        result = policy.decide("ExitPlanMode", Capability.META, {})
-        # if result == ASK: return False (the new logic)
-        assert (result == ASK) is True
     finally:
         await exit_plan_mode(plan="done")

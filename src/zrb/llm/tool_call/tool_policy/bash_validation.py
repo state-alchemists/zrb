@@ -7,16 +7,11 @@ if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart
     from zrb.llm.ui.any_agent_output import AnyAgentOutput
 
-# Shell metacharacters that could indicate state-changing operations.
-# Checked as plain substrings (conservative: even inside quotes triggers approval).
-# A bare "&" (covering "&&" too) catches command chaining/backgrounding such as
-# `ls & rm -rf x`, and newline/carriage-return catch multi-command payloads like
-# `ls\nrm x` — both would otherwise auto-approve.
+# Plain-substring check, so even quoted occurrences require approval. "&"
+# covers "&&"; "\n"/"\r" catch multi-command payloads.
 _DANGEROUS_SUBSTRINGS = (">", "|", ";", "&", "`", "$(", "\n", "\r")
 
-# Command prefixes that are always read-only (no state changes possible).
-# A command is safe only if it starts with one of these prefixes (case-insensitive,
-# followed by end-of-string, space, or tab) AND contains no dangerous metacharacters.
+# Read-only prefixes, matched case-insensitively and followed by end, space or tab.
 _SAFE_PREFIXES = (
     # Git: only universally read-only subcommands
     "git status",
@@ -56,8 +51,7 @@ _SAFE_PREFIXES = (
     "type",
     "whereis",
     "pwd",
-    # NOTE: bare "env" is intentionally NOT safe — `env FOO=1 rm -rf x` runs an
-    # arbitrary command. Only "printenv" (pure read) is allowlisted.
+    # Not bare "env": `env FOO=1 rm -rf x` runs an arbitrary command.
     "printenv",
     # Count / sort (safe without redirect)
     "wc",
@@ -85,14 +79,10 @@ _SAFE_PREFIXES = (
 def is_safe_command(command: str) -> bool:
     """Return True only when the command is known read-only with no dangerous metacharacters."""
     stripped = command.strip()
-
-    # Reject anything that contains a dangerous shell metacharacter.
-    # Conservative: "when in doubt, ask" — even quoted occurrences trigger approval.
     for dangerous in _DANGEROUS_SUBSTRINGS:
         if dangerous in stripped:
             return False
 
-    # Accept only commands beginning with a known-safe prefix.
     lower = stripped.lower()
     for prefix in _SAFE_PREFIXES:
         if (
@@ -106,13 +96,7 @@ def is_safe_command(command: str) -> bool:
 
 
 def bash_safe_command_policy() -> ToolPolicy:
-    """
-    Returns a ToolPolicy that auto-approves Shell tool calls whose command is
-    read-only and contains no state-changing shell metacharacters.
-
-    Uses an allowlist: only explicitly known-safe command prefixes are auto-approved.
-    Everything else falls through to the next policy (user prompt).
-    """
+    """ToolPolicy auto-approving Shell calls whose command is on the read-only allowlist."""
 
     async def _policy(
         ui: "AnyAgentOutput",
@@ -132,8 +116,7 @@ def bash_safe_command_policy() -> ToolPolicy:
         if not isinstance(command, str):
             return await next_handler(ui, call)
 
-        # A sandbox-escape request must always reach a human, no matter how
-        # read-only the command looks.
+        # A sandbox-escape request must always reach a human.
         if args.get("dangerously_skip_sandbox"):
             return await next_handler(ui, call)
 

@@ -69,22 +69,16 @@ class ToolCallHandler:
         # lazy: zrb internal (heavy via transitive)
         from zrb.llm.agent.types import ToolApproved, ToolDenied
 
-        # Tool Policies (Pre-confirmation)
         policy_result = await self.check_policies(ui, call)
         if policy_result is not None:
             return policy_result
 
         while True:
-            message = await self._get_confirm_user_message(ui, call)
-            # One leading "\n", not two: the confirmation panel is a normal
-            # block boundary like every other (tool call, tool result,
-            # thinking) — a deliberate extra blank line here doubled up
-            # with whatever the previous block already left behind.
+            message = await self.format_approval_message(ui, call)
             ui.append_to_output(f"\n{message}", end="")
             user_input = await ui.ask_user("", output_to_parent=f"\n{message}")
             user_response = user_input.strip()
 
-            # Response Handlers (Post-confirmation)
             async def _next_handler(
                 ui: AnyAgentOutput,
                 call: ToolCallPart,
@@ -92,7 +86,6 @@ class ToolCallHandler:
                 index: int,
             ) -> Any:
                 if index >= len(self._response_handlers):
-                    # Default behavior: simple y/n check
                     r = response.lower().strip()
                     if r in ("y", "yes", "ok", "accept", "✅", ""):
                         return ToolApproved()
@@ -127,22 +120,10 @@ class ToolCallHandler:
         call: ToolCallPart,
         approval_instruction: str | None = None,
     ) -> str:
-        """Format the approval request message for a tool call.
-
-        Args:
-            ui: The UI protocol for any async operations
-            call: The tool call being approved
-            approval_instruction: Custom approval instruction. If None, uses default.
-
-        This method is public so approval channels can use it to generate
-        consistent messages.
-        """
+        """Format the approval request message for a tool call."""
         args_section = ""
         if f"{call.args}" != "{}":
-            # Offload: _format_args runs yaml_dump + a Rich markdown render, pure
-            # blocking CPU. On the TUI format_approval_message is awaited on
-            # prompt_toolkit's event loop before the prompt shows, so an inline
-            # render freezes keystrokes (measured ~700ms on a large Write).
+            # Blocking CPU (~700ms on a large Write); inline it freezes the TUI.
             args_str = await asyncio.to_thread(self._format_args, call.args)
             args_section = f"{args_str}\n"
 
@@ -162,19 +143,8 @@ class ToolCallHandler:
         )
 
     def get_response_handlers(self) -> list[ResponseHandler]:
-        """Get the list of response handlers.
-
-        This is public so approval channels can delegate to these handlers
-        for advanced responses (like edit-in-place).
-        """
+        """Response handlers, for approval channels that delegate to them."""
         return self._response_handlers
-
-    async def _get_confirm_user_message(
-        self,
-        ui: AnyAgentOutput,
-        call: ToolCallPart,
-    ) -> str:
-        return await self.format_approval_message(ui, call)
 
     def _format_args(self, args: Any) -> str:
         indent = " " * 7
@@ -186,7 +156,6 @@ class ToolCallHandler:
                     pass
             args_str = yaml_dump(args)
             args_str = "\n".join([f"{indent}{line}" for line in args_str.splitlines()])
-            # Use width=None to let Rich handle markdown rendering
             return render_markdown(f"```yaml\n{args_str}\n```", width=None)
         except Exception:
             return f"{indent}{args}"

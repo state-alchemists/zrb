@@ -19,9 +19,7 @@ async def write_file_formatter(
     call: "ToolCallPart",
     args_section: str,
 ) -> str | None:
-    """
-    Shows a diff or content for write_file tool call.
-    """
+    """Show a diff for a `Write` tool call."""
     if call.tool_name != "Write":
         return None
 
@@ -37,9 +35,7 @@ async def write_file_formatter(
         if not path or content is None:
             return None
 
-        # Offload: file read + difflib + Rich markdown render is pure blocking
-        # CPU/IO. On the TUI it runs on prompt_toolkit's event loop before the
-        # approval prompt appears, so leaving it inline freezes keystrokes.
+        # Blocking IO/CPU; inline it would freeze the TUI event loop.
         return await asyncio.to_thread(format_single_write, path, content, mode, ui)
 
     except Exception:

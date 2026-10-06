@@ -1,8 +1,4 @@
-"""Main-agent output held while a confirmation is pending, and its replay.
-
-Composes the real `UIOutput` and `UIConfirmation` over a buffer that stores
-text, so the hold and the replay both run through the real append path.
-"""
+"""Verify held main-agent output replay after confirmation."""
 
 import asyncio
 from unittest.mock import patch

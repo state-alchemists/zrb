@@ -17,9 +17,7 @@ async def analyze_file(
     """
     Deep semantic analysis of a file via LLM sub-agent. Slow and resource-intensive.
     """
-    # lazy: zrb.llm.agent transitively loads pydantic_ai. Keeping these
-    # imports inside the function preserves cold-start latency for callers
-    # that import this module but never invoke analyze_file.
+    # lazy: transitively heavy via internal — zrb.llm.agent loads pydantic_ai
     from zrb.llm.agent import create_agent, run_agent
     from zrb.llm.config.limiter import get_run_llm_limiter
     from zrb.llm.config.model_resolver import resolve_configured_model
@@ -45,8 +43,6 @@ async def analyze_file(
     system_prompt = get_prompt("file_extractor")
 
     agent = create_agent(
-        # Already resolved here; resolve_model=False avoids resolving twice
-        # inside create_agent.
         model=resolve_configured_model(),
         system_prompt=system_prompt,
         tools=[
@@ -76,17 +72,10 @@ async def analyze_file(
 
 
 def _clip_numbered(text: str, max_chars: int) -> str:
-    """Clip ``Read``'s output to ``max_chars`` of *file* content.
+    """Clip ``Read``'s output to ``max_chars`` of file content.
 
-    ``read_file`` prefixes every line with ``cat -n`` numbering, which
-    ``file_extractor.md`` tells the sub-agent to read past. Clipping the
-    numbered text would bill ~13% of the analysis window to characters that
-    are not in the file, so the budget is measured on each line's payload and
-    the prefix rides along free. ``read_file`` makes the same distinction for
-    its own cap; this is the second place the numbered output gets budgeted.
-
-    A line with no tab — the ``[File: ...]`` header, or unnumbered PDF text —
-    counts at full length, since there is no prefix to discount.
+    The ``cat -n`` prefix is not counted against the budget; a line with no
+    tab counts at full length.
     """
     kept: list[str] = []
     total = 0

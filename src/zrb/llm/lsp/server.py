@@ -1,8 +1,4 @@
-"""
-LSP Server process management and communication.
-
-Handles starting, stopping, and communicating with Language Server Protocol servers.
-"""
+"""LSP server process management and communication."""
 
 import asyncio
 import json
@@ -96,9 +92,7 @@ class LSPServer(LSPServerOperations):
             self.writer = self.process.stdin
 
             self._read_task = asyncio.create_task(self._read_loop())
-            # Drain stderr so a server that logs verbosely (e.g. node/pyright)
-            # can't fill the pipe buffer and block on its own stderr writes,
-            # which would stall every request.
+            # A full stderr pipe would block a verbose server and stall requests.
             self._stderr_task = asyncio.create_task(self._drain_stderr())
 
             await self._initialize()
@@ -116,9 +110,7 @@ class LSPServer(LSPServerOperations):
             zrb_print(
                 f"  ✗ Failed to start LSP server '{self.config.name}': {e}", plain=True
             )
-            # The subprocess may already be spawned (e.g. _initialize() timed
-            # out or raised) — stop() tears down the reader/stderr tasks and
-            # terminates the process so a failed start never leaks it.
+            # _initialize() may fail after spawn; don't leak the process.
             if self.process is not None:
                 try:
                     await self.stop()
@@ -172,9 +164,8 @@ class LSPServer(LSPServerOperations):
                     )
                 except asyncio.TimeoutError:
                     self.process.kill()
-                    # Reap the killed process while the loop is still alive. A
-                    # child left un-reaped at loop close logs
-                    # "Loop <...> that handles pid N is closed" when it exits.
+                    # Reap while the loop is alive, or loop close logs
+                    # "Loop <...> that handles pid N is closed".
                     try:
                         await asyncio.wait_for(
                             self.process.wait(),
@@ -203,11 +194,8 @@ class LSPServer(LSPServerOperations):
         return False
 
     def _initialize_params(self) -> dict:
-        """The `initialize` params, carrying the config's `initializationOptions`.
-
-        Omitted when the config sets none, rather than sent as an explicit
-        null: servers that validate the field's shape reject null.
-        """
+        """The `initialize` params; `initializationOptions` is omitted, not null,
+        when unset, since some servers reject null."""
         params: dict = {
             "processId": None,
             "rootUri": self.path_to_uri(self.root_path),
@@ -224,14 +212,7 @@ class LSPServer(LSPServerOperations):
         return self.request_id
 
     def path_to_uri(self, path: str) -> str:
-        """Convert file path to URI.
-
-        Delegates to the canonical encoder in ``LSPProtocol`` so the URIs we
-        send in didOpen/didChange match the ones used for diagnostics lookups
-        and query results. A bespoke ``replace(" ", "%20")`` only handled
-        spaces and left ``#``/``?``/``%``/non-ASCII characters unescaped,
-        causing URI mismatches.
-        """
+        """Convert file path to URI, matching the encoding used for lookups."""
         return LSPProtocol.create_text_document_identifier(path)["uri"]
 
     async def _send_request_raw(self, message: str) -> dict | None:
@@ -271,17 +252,8 @@ class LSPServer(LSPServerOperations):
     async def _read_loop(self):
         """Background task to read responses from the server.
 
-        Works entirely in BYTES until a complete message body is sliced out,
-        then decodes that body. Two correctness requirements drove this:
-
-        * ``Content-Length`` is a **byte** count (LSP spec). Buffering a decoded
-          ``str`` and slicing by that count mis-frames any message containing
-          non-ASCII (e.g. an em-dash in a diagnostic) because byte length ≠
-          character length.
-        * Decoding each raw ``read()`` chunk individually raises
-          ``UnicodeDecodeError`` whenever a multi-byte sequence straddles a read
-          boundary — which killed the whole read loop, hanging every pending
-          request until timeout (the pyright symptom).
+        Buffers bytes and decodes only whole bodies: ``Content-Length`` is a byte
+        count, and a multi-byte character can straddle a ``read()`` boundary.
         """
         if not self.reader:
             return
@@ -367,9 +339,6 @@ class LSPServer(LSPServerOperations):
                             version,
                             params.get("diagnostics") or [],
                         )
-                elif method == "window/logMessage" and params.get("message"):
-                    # Don't spam, but could log at debug level
-                    pass
 
         except json.JSONDecodeError:
             pass

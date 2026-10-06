@@ -149,8 +149,7 @@ class UIOutput:
         return self.output_field.text
 
     def _get_main_text(self) -> str:
-        """The main transcript, which every tracked offset indexes: parked
-        while a sub-agent's view is shown, else the output pane's text."""
+        """Transcript indexed by tracked offsets, parked during a sub-agent view."""
         parked = self._parked_main_output()
         return self.output_text if parked is None else parked
 
@@ -267,14 +266,7 @@ class UIOutput:
         self.append_rendered(markdown_text, self._render_markdown_block)
 
     def render_markdown(self, markdown_text: str, width: int | None = None) -> str:
-        """Render `markdown_text` at `width` (public API).
-
-        Counterpart to `append_markdown` for a caller (the queued-message echo
-        splice) that needs the rendered text in hand rather than appended.
-        `width` defaults to the current output width, which is also what
-        `rewrap_output` passes when it re-renders a tracked block, so the same
-        call serves the first render and every re-render after a resize.
-        """
+        """Render `markdown_text` at `width`, defaulting to the output width."""
         if width is None:
             width = self.output_field_width
         return self._render_markdown_block(markdown_text, width)
@@ -290,13 +282,7 @@ class UIOutput:
     def append_rendered(
         self, source: Any, renderer: "Callable[[Any, int | None], str]"
     ) -> None:
-        """Append width-dependent output, remembering how to re-render it.
-
-        Rich hard-wraps at render time, so a resized terminal would keep the old
-        line breaks forever. Recording (start, end, source, renderer) lets
-        `rewrap_output` splice a fresh render in at the new width. The trailing
-        newline is appended separately so it stays outside the span.
-        """
+        """Append output with its source and renderer for resize-time re-rendering."""
         rendered = renderer(source, self.output_field_width)
         start = len(self._get_main_text())
         self.append_to_output(rendered, end="")
@@ -314,25 +300,7 @@ class UIOutput:
         source: Any,
         renderer: "Callable[[Any, int | None], str]",
     ) -> None:
-        """Record ``text[start:end]`` as a re-renderable block (public API).
-
-        The one way a block enters `rendered_blocks`, because two invariants
-        hold over that list and neither survives a plain `append`:
-
-        * **Position order.** `rewrap_output` walks the list back to front so
-          each splice leaves the earlier offsets valid, and
-          `toggle_collapsible_block_at_cursor` stops at the first block past
-          the cursor. A record appended out of order makes either walk address
-          the wrong text.
-          Appending is only in order when the block is at the buffer tail,
-          which a collapsed thinking/text block or `finish_shell_output`
-          and a re-registered echo are not — so the record is inserted at the
-          position its `start` puts it in.
-        * **No overlap.** Writing `text[start:end]` replaced whatever was
-          there, so any record still covering part of that region describes
-          text that no longer exists; re-rendering it would splice over this
-          one. Those records are dropped here rather than left to rot.
-        """
+        """Record a re-renderable block, preserving order and removing overlaps."""
         blocks = self._ui.rendered_blocks
         blocks[:] = [block for block in blocks if block[0] >= end or block[1] <= start]
         for index, block in enumerate(blocks):

@@ -1,9 +1,4 @@
-"""Shared stubs for the LSP config tests.
-
-Detection reads the real filesystem twice -- one listing per ``$PATH``
-entry, then ``shutil.which`` on the survivors -- so both test modules need
-the same executable stubs and the same probe counters.
-"""
+'Shared executable stubs and probe counters for the LSP config tests.'
 
 import os
 import shutil
@@ -15,18 +10,7 @@ from zrb.llm.lsp.configs import lsp_server_configs
 
 @pytest.fixture(autouse=True)
 def _cleanup_global_registry():
-    """Clear any user-registered entries from the global singleton.
-
-    Tests in other modules (e.g. ``test_lsp_manager.py``) may call
-    ``register_lsp_server`` on the shared singleton. Clearing before
-    each test here keeps delegation tests deterministic.
-
-    Cleared after as well, not just before: clearing only on the way in
-    protects *these* tests from everyone else while leaking their own
-    registrations -- and the ``_detected`` PATH scan they cache against a
-    temporary ``$PATH`` -- into whichever unrelated test pytest-xdist runs next
-    in this worker.
-    """
+    'Clear the shared registry (and its cached PATH scan) before and after each test.'
     lsp_server_configs.clear()
     yield
     lsp_server_configs.clear()
@@ -34,18 +18,7 @@ def _cleanup_global_registry():
 
 @pytest.fixture
 def lsp_on_path(tmp_path, monkeypatch):
-    """Install real executable stubs on a ``$PATH`` holding only them.
-
-    Detection probes the filesystem twice -- one listing per ``$PATH`` entry,
-    then ``shutil.which`` on the survivors -- and real files are what keep both
-    probes looking at the same world. Mocking only ``which`` would leave the
-    listing reading the developer's actual ``$PATH``.
-
-    Windows resolves a bare name only through ``PATHEXT``; ``.bat`` is in every
-    default ``PATHEXT``, so the stub carries it there and no suffix elsewhere.
-    Returned paths are ``normcase``-d, because the extension ``shutil.which``
-    appends carries ``PATHEXT``'s casing rather than the file's.
-    """
+    'Install real executable stubs on a ``$PATH`` holding only them.'
 
     def _install(*names: str) -> dict[str, str]:
         bin_dir = tmp_path / "bin"
@@ -65,12 +38,7 @@ def lsp_on_path(tmp_path, monkeypatch):
 
 @pytest.fixture
 def probe_counter(monkeypatch):
-    """Count how many ``$PATH`` directory listings detection has performed.
-
-    The listing is the part that scales with ``$PATH``, so it is what the cache
-    tests count. Counting ``shutil.which`` instead would be vacuous: a name
-    absent from ``$PATH`` never reaches it.
-    """
+    'Count the ``$PATH`` directory listings detection has performed.'
     calls = {"n": 0}
     real_listdir = os.listdir
 
@@ -84,12 +52,7 @@ def probe_counter(monkeypatch):
 
 @pytest.fixture
 def which_counter(monkeypatch):
-    """Count the resolver calls the prefilter did not avoid.
-
-    The listing count says how hard the prefilter worked; this says how much it
-    saved, which is the only observable difference between filtering and
-    passing everything through.
-    """
+    'Count the ``shutil.which`` calls the prefilter did not avoid.'
     calls = {"n": 0}
     real_which = shutil.which
 

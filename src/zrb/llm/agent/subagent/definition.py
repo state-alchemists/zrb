@@ -1,9 +1,4 @@
-"""A delegatable sub-agent's definition — pure data, no manager behavior.
-
-Kept in its own leaf module (not `manager.py`, which needs it) so
-`manager_loading.py` — a module `manager.py` imports at the top — can import
-it directly instead of reaching back into `manager.py` mid-load.
-"""
+"""Pure data model for a delegatable sub-agent."""
 
 from __future__ import annotations
 
@@ -12,11 +7,7 @@ from typing import Any
 
 
 class SubAgentDefinition:
-    """A delegatable sub-agent, as loaded from a `*.agent.md` file or built in code.
-
-    Register one with `sub_agent_manager.add_agent(SubAgentDefinition(...))`;
-    `DelegateToAgent` then lists it and can hand it work.
-    """
+    """A delegatable sub-agent definition."""
 
     def __init__(
         self,

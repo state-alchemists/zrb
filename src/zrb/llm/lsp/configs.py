@@ -1,10 +1,4 @@
-"""
-LSP server configuration registry and detection helpers.
-
-Owns the static catalogue of supported LSP servers, a user-extensible
-registry (``lsp_server_configs``), and stateless helpers for detecting
-which servers are installed and choosing one for a given file.
-"""
+"""LSP server configuration registry and detection helpers."""
 
 import os
 import shutil
@@ -13,23 +7,13 @@ from pathlib import Path
 
 
 def _names_on_path(wanted: set[str]) -> set[str]:
-    """Which bare names in *wanted* plausibly exist on ``$PATH``.
+    """Which bare names in *wanted* plausibly exist on ``$PATH`` (normcase-d).
 
-    A prefilter for ``shutil.which``, O($PATH) instead of O(names x $PATH).
-    Returns ``os.path.normcase``-d names (Windows matches ``GOPLS.EXE`` for
-    ``gopls``). Matching is deliberately loose (``gopls``, ``gopls.exe`` and
-    ``gopls.cmd`` all match): a false positive costs one ``which`` call, a
-    false negative hides an installed server.
-
-    It must search everywhere ``which`` would:
-
-    - Unset ``$PATH``: both ``CS_PATH`` and ``os.defpath``, since CPython
-      reads the former but documents only the latter.
-    - ``PATH=""``: nowhere (``which`` returns ``None``, bpo-35755). An empty
-      *entry* (``PATH=":"``) means the working directory.
-    - A missing directory or plain file is a negative. Any other listing
-      error (e.g. a searchable but unreadable directory, which ``which`` can
-      still stat into) disables the prefilter: every name is returned.
+    A loose prefilter for ``shutil.which`` (``gopls`` matches ``gopls.exe``):
+    a false positive costs one ``which`` call, a false negative hides a server.
+    Searches where ``which`` would: unset ``$PATH`` means ``CS_PATH`` plus
+    ``os.defpath``; ``PATH=""`` means nowhere (bpo-35755); an empty entry means
+    the cwd. A listing error other than missing/not-a-dir returns every name.
     """
     search_path = os.environ.get("PATH")
     if search_path is None:
@@ -85,16 +69,9 @@ class LSPServerConfig:
 
 
 class LSPServerConfigRegistry:
-    """User-extensible registry of LSP server configurations.
+    """LSP server configs: built-in ``LSP_SERVER_CONFIGS`` plus user overrides.
 
-    Seeded from the built-in ``LSP_SERVER_CONFIGS`` dict at module load.
-    User-registered entries (via :meth:`register`) override built-ins of
-    the same name. Callers usually go through
-    ``lsp_manager.register_lsp_server()`` rather than this class directly.
-
-    A single instance is exposed at module level as
-    :data:`lsp_server_configs` — import that, not the class. Construct
-    a fresh instance only in tests that need full isolation.
+    Use the module-level :data:`lsp_server_configs` instance.
     """
 
     def __init__(self) -> None:
@@ -131,22 +108,12 @@ class LSPServerConfigRegistry:
         self._detected = None
 
     def detect(self) -> dict[str, str]:
-        """Detect which LSP servers are available on the system.
+        """Map each installed LSP server's name to its executable path.
 
-        Returns:
-            Dict mapping server name to executable path.
-
-        ``shutil.which`` alone is O(servers x $PATH) because every *miss* walks
-        the whole of ``$PATH`` -- 21 servers against 53 entries is ~1100 stat
-        calls, and this sits on the ``zrb llm chat`` startup path. So each
-        directory is listed once to prefilter, and ``which`` is asked only about
-        the names that could match; it stays the authority on what counts as
-        executable (PATHEXT on Windows, the exec bit on POSIX).
-
-        ``get_for_file`` runs on every agent file edit via the post-write
-        diagnostics, so the result is cached for the process lifetime. A server
-        installed mid-session needs invalidate_detection(); registering a config
-        already invalidates.
+        Prefilters with one listing per ``$PATH`` directory (every ``which``
+        miss walks all of ``$PATH``; this is on chat startup), then lets
+        ``which`` decide executability. Cached until ``invalidate_detection()``
+        or ``register()``.
         """
         if self._detected is None:
             configs = self.all()
@@ -160,26 +127,20 @@ class LSPServerConfigRegistry:
             available = {}
             for name, config in configs.items():
                 cmd = config.command[0]
-                # A path-qualified command skips the prefilter: it names its own
-                # directory, which no $PATH listing covers.
+                # A path-qualified command is outside any $PATH listing.
                 if not os.path.dirname(cmd) and os.path.normcase(cmd) not in candidates:
                     continue
                 path = shutil.which(cmd)
                 if path:
                     available[name] = path
             self._detected = available
-        # Copy: callers get this as public API (detect_available_lsp_servers)
-        # and a mutation would corrupt the cache for everyone else.
+        # Copy so a caller's mutation cannot corrupt the cache.
         return dict(self._detected)
 
     def get_for_file(
         self, file_path: str, preferred_servers: list[str] | None = None
     ) -> LSPServerConfig | None:
-        """The LSP server config matching *file_path*'s language, or `None`.
-
-        When given, *preferred_servers* is tried first, in order, before
-        falling back to whatever else matches.
-        """
+        """The config matching *file_path*, trying *preferred_servers* first; else `None`."""
         available = self.detect()
 
         if preferred_servers:
@@ -205,7 +166,6 @@ class LSPServerConfigRegistry:
         return None
 
 
-# Pre-configured LSP servers with auto-detection
 LSP_SERVER_CONFIGS: dict[str, LSPServerConfig] = {
     # Python servers
     "pyright": LSPServerConfig(
@@ -355,33 +315,21 @@ LSP_SERVER_CONFIGS: dict[str, LSPServerConfig] = {
 }
 
 
-#: Module-level registry singleton. Import this from user code or
-#: call ``lsp_manager.register_lsp_server()`` as the preferred entry point.
 lsp_server_configs = LSPServerConfigRegistry()
 
 
 def detect_available_lsp_servers() -> dict[str, str]:
-    """Detect which LSP servers are available on the system.
-
-    Delegates to :data:`lsp_server_configs`.
-
-    Returns:
-        Dict mapping server name to the path/command where it's found.
-    """
+    """Map each installed LSP server's name to its executable path."""
     return lsp_server_configs.detect()
 
 
 def get_lsp_config_for_file(
     file_path: str, preferred_servers: list[str] | None = None
 ) -> LSPServerConfig | None:
-    """Module-level convenience for :meth:`LSPServerConfigRegistry.get_for_file`
-    on the shared :data:`lsp_server_configs`."""
+    """:meth:`LSPServerConfigRegistry.get_for_file` on :data:`lsp_server_configs`."""
     return lsp_server_configs.get_for_file(file_path, preferred_servers)
 
 
 def detect_language_from_file(file_path: str) -> str | None:
-    """Detect programming language from file extension.
-
-    Delegates to :data:`lsp_server_configs`.
-    """
+    """Detect programming language from file extension."""
     return lsp_server_configs.detect_language(file_path)

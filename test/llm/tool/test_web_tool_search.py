@@ -228,8 +228,7 @@ async def test_open_web_page_pdf_url_skips_playwright():
 
 @pytest.mark.asyncio
 async def test_open_web_page_pdf_url_falls_back_to_playwright_on_http_error():
-    # Regression: the .pdf shortcut was terminal, so a PDF behind a Cloudflare /
-    # cookie / JS wall failed outright even though the browser path handles it.
+    # A PDF behind a Cloudflare / cookie / JS wall must fall through to the browser.
     fake_page = MagicMock()
     fake_page.extract_text.return_value = "Guarded PDF text"
     fake_pdf = MagicMock()
@@ -371,9 +370,8 @@ async def test_open_web_page_error_has_suggestion():
 
 @pytest.mark.asyncio
 async def test_open_web_page_conversion_failure_is_not_mislabeled_as_fetch():
-    # A bug in HTML->Markdown conversion (or the summarizer) must not be
-    # reported as "Failed to fetch" — that mislabeling can send the agent
-    # into a futile retry loop against a URL that was never the problem.
+    # A conversion/summarizer failure must not be reported as "Failed to fetch",
+    # which would send the agent retrying a URL that was never the problem.
     with (
         patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
         patch(
@@ -404,10 +402,7 @@ async def test_open_web_page_with_summarization():
         patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
         patch("zrb.llm.agent.create_agent") as mock_create_agent,
         patch("zrb.llm.agent.run_agent", new_callable=AsyncMock) as mock_run_agent,
-        # The fallback must never be reached: with goto unstubbed, the
-        # content-type check exploded on an auto-AsyncMock (leaking a
-        # never-awaited coroutine) and the test silently fetched the real
-        # https://example.com through requests. Fail loudly instead.
+        # The HTTP fallback must never be reached; fail loudly on a network escape.
         patch("requests.get", side_effect=AssertionError("network escape")),
     ):
 

@@ -1,17 +1,8 @@
 """Per-model capability registry.
 
-Resolves a :class:`ModelCapabilities` for any model identifier or
-pydantic-ai ``Model`` instance, by:
-
-1. Consulting user-registered overrides (most-recently registered wins).
-2. Falling back to a built-in name-pattern table (image/audio/video input
-   support, parallel-tool-call support).
-3. Returning conservative defaults for unknown names.
-
-The registry is intentionally a static table (with a runtime override
-hook) — there's no standard API to discover capabilities at runtime
-across providers, so each new model gets a one-line table entry. Users
-extend the registry from their ``zrb_init.py``::
+Resolves a :class:`ModelCapabilities` for a model name or pydantic-ai
+``Model``: user overrides (most recent wins), then a built-in name-pattern
+table, then conservative defaults. Extend it from ``zrb_init.py``::
 
     from zrb.llm.util.capabilities import model_capabilities
 
@@ -21,8 +12,7 @@ extend the registry from their ``zrb_init.py``::
         supports_parallel_tool_calls=False,
     )
 
-Field names mirror LiteLLM's ``supports_*`` conventions so users coming
-from that ecosystem have familiar semantics.
+Field names mirror LiteLLM's ``supports_*`` conventions.
 """
 
 from __future__ import annotations
@@ -42,10 +32,8 @@ Modality = Literal["image", "audio", "video", "document"]
 class ModelCapabilities:
     """Per-model capability flags.
 
-    Default values are conservative: assume no input modality and unknown
-    parallel-tool-call support. ``supports_parallel_tool_calls`` is
-    tri-state — ``None`` means "we don't know, caller decides", ``False``
-    means "explicitly known to malform parallel calls".
+    ``supports_parallel_tool_calls`` is tri-state: ``None`` is unknown,
+    ``False`` is known to malform parallel calls.
     """
 
     supports_image_input: bool = False
@@ -58,20 +46,16 @@ class ModelCapabilities:
     # Maximum combined input/output tokens, when zrb knows the model's context
     # window. ``None`` preserves the configured budget for unknown models.
     context_window: int | None = None
-    # A model that always reasons but returns a readable summary only when
-    # asked (Gemini 2.5/3 need `thinking_config.include_thoughts`). Gates the
-    # `thinking=True` default in `_apply_reasoning_defaults`, which must not
-    # fire for every `supports_thinking` model (it would turn on Anthropic's
-    # paid extended thinking).
+    # Always reasons but summarizes only when asked (Gemini 2.5/3,
+    # `include_thoughts`). Gates the `thinking=True` default, which must not
+    # fire for every thinking model (Anthropic's extended thinking is paid).
     supports_thinking_summary: bool = False
 
 
 class ModelCapabilityRegistry:
     """User-extensible registry of per-model capabilities.
 
-    A single instance is exposed at module level as
-    :data:`model_capabilities` — import that, not the class. Construct
-    a fresh instance only in tests that need full isolation.
+    Import the module-level :data:`model_capabilities` instance.
     """
 
     def __init__(self) -> None:
@@ -80,11 +64,8 @@ class ModelCapabilityRegistry:
     def get(self, model: "str | Model | None") -> ModelCapabilities:
         """Resolve capabilities for *model*.
 
-        Returns the default :class:`ModelCapabilities` when *model* is
-        ``None`` or its name cannot be extracted (e.g. a ``MagicMock``
-        without a real ``model_name``). Callers should treat default
-        ``False``/``None`` as "unknown — pass through" rather than
-        "actively unsupported".
+        Returns defaults when *model* is ``None`` or has no extractable name;
+        treat those as unknown, not unsupported.
         """
         name = _bare_name(model)
         if not name:
@@ -98,21 +79,16 @@ class ModelCapabilityRegistry:
     def register(self, pattern: str, **overrides: Any) -> None:
         """Override capabilities for models whose bare name matches *pattern*.
 
-        *pattern* is a case-insensitive regex matched against the bare
-        model name (the part after ``provider:``). Pass only the fields
-        you want to override — unspecified fields keep their
-        pattern-resolved values. Most recently registered entries take
-        priority. Unknown field names raise :class:`TypeError`.
+        *pattern* is a case-insensitive regex on the bare model name (after
+        ``provider:``). Unspecified fields keep their pattern-resolved values;
+        the most recent registration wins. Unknown fields raise
+        :class:`TypeError`.
         """
         _validate_overrides(overrides)
         self._overrides.insert(0, (pattern, dict(overrides)))
 
     def clear(self) -> None:
-        """Drop all user-registered overrides.
-
-        Intended for tests; production code should never need this.
-        Built-in pattern entries are not affected.
-        """
+        """Drop all user-registered overrides (built-in patterns stay)."""
         self._overrides.clear()
 
     def supports_modality(
@@ -142,10 +118,8 @@ def is_known_model(model: "str | Model | None") -> bool:
     return bool(_bare_name(model))
 
 
-#: Opaque-binary document types a text-only model cannot read as bytes.
-#: Plain-text formats (txt/csv/html/md) are deliberately excluded — those
-#: are readable as text by any model regardless of vision capability, so
-#: gating them would drop attachments that actually work fine.
+#: Opaque-binary document types a text-only model cannot read. Plain-text
+#: formats are excluded since any model reads them.
 _DOCUMENT_BINARY_TYPES = frozenset(
     {
         "application/pdf",
@@ -169,11 +143,7 @@ def media_type_modality(media_type: str) -> Modality | None:
     return None
 
 
-# --- helpers below callers (per AGENTS.md convention) ----------------
-
-
-# Patterns that DO support image input. Matched case-insensitively
-# against the bare model name. Order does not matter — first match wins.
+# Patterns that support image input, matched case-insensitively.
 _IMAGE_PATTERNS = (
     r"gpt-?4o",
     r"gpt-?4\.1",
@@ -251,41 +221,27 @@ _VIDEO_PATTERNS = (
 _DOCUMENT_PATTERNS = _IMAGE_PATTERNS
 _DOCUMENT_DENY = _IMAGE_DENY
 
-# Models known to *malform* OpenAI-spec parallel tool calls: they emit a single
-# tool_call with concatenated `name` and concatenated `arguments` JSON, e.g.
-# ``name="ActivateSkillReadRead"``, and both calls are lost. The model cannot
-# follow text-level guidance to stop, so it is corrected in two places — the
-# System Context override line and ``parallel_tool_calls=False`` on the request.
+# Models that *malform* parallel tool calls: one tool_call with concatenated
+# names and arguments (``name="ActivateSkillReadRead"``), losing both calls.
+# Corrected via the System Context line and ``parallel_tool_calls=False``.
 #
-# This list is deliberately *only* that failure mode. "Does not support parallel
-# tool calls" covers three distinct behaviours, and only one belongs here:
-#
-#   1. **Malforms them** (this list). Actively destructive — the turn loses work.
-#   2. **Rejects the parameter.** The provider 400s on `parallel_tool_calls`
-#      itself: OpenAI's o-series ("Unsupported parameter: 'parallel_tool_calls'
-#      is not supported with this model"), kimi-k2.5 via NVIDIA NIM ("This model
-#      only supports single tool-calls at once!"). Listing one of those here
-#      would make `_apply_capability_constraints` send the parameter that
-#      breaks the request. Do not add them until that is split out.
-#   3. **Never emits more than one** — gpt-oss via Ollama, and most
-#      smaller local models. Harmless: encouragement to batch is a no-op, the
-#      model issues one call and the turn proceeds. Nothing to declare.
+# Only that failure mode belongs here. Models that 400 on the
+# `parallel_tool_calls` parameter itself (OpenAI o-series, kimi-k2.5 via NIM)
+# must NOT be listed: `_apply_capability_constraints` would send the parameter.
+# Models that simply never emit more than one call need nothing.
 _NO_PARALLEL_TOOL_CALLS = (
     r"minimax-m2\.7",
     r"glm-4\.7",
 )
 
-# Mirrors pydantic-ai's own `is_thinking_model` heuristic in
-# `pydantic_ai.profiles.google.google_model_profile` (`'gemini-2.5' in
-# model_name or 'gemini-3' in model_name`) — these are the Gemini generations
-# that think by default and support `thinking_config.include_thoughts`.
+# Mirrors pydantic-ai's `is_thinking_model` in
+# `pydantic_ai.profiles.google.google_model_profile`.
 _THINKING_SUMMARY_PATTERNS = (
     r"gemini-2\.5",
     r"gemini-3",
 )
 
-# Conservative, documented windows for model families zrb recognises. A missing
-# entry deliberately leaves the user's configured request limit unchanged.
+# A missing entry leaves the configured request limit unchanged.
 _CONTEXT_WINDOW_PATTERNS: tuple[tuple[str, int], ...] = (
     (r"gpt-?4\.1", 1_000_000),
     (r"gpt-?4o", 128_000),
@@ -295,11 +251,8 @@ _CONTEXT_WINDOW_PATTERNS: tuple[tuple[str, int], ...] = (
 
 
 def _bare_name(model: "str | Model | None") -> str:
-    """Extract a recognisable model identifier or ``""`` when undeterminable.
-
-    Returns ``""`` for ``None`` and for objects whose ``model_name`` /
-    ``name`` attribute is not a real string (e.g. ``MagicMock`` in tests).
-    """
+    """The bare lowercase model name, or ``""`` when there is no real string
+    ``model_name``/``name``."""
     if model is None:
         return ""
     if isinstance(model, str):
@@ -362,5 +315,4 @@ def _validate_overrides(overrides: dict[str, Any]) -> None:
         )
 
 
-#: Module-level singleton. Import this from user code.
 model_capabilities = ModelCapabilityRegistry()

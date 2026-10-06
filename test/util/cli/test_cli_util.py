@@ -1,7 +1,5 @@
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from zrb.util.cli.subcommand import SubCommand, get_group_subcommands
 from zrb.util.cli.text import edit_text
 

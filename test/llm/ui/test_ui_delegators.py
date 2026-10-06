@@ -1,11 +1,4 @@
-"""Delegator surface of the default `UI`.
-
-`UI` composes eight parts (`output_part`, `lifecycle_part`, ...) and forwards
-to them through a thin public delegator each. Those delegators are real
-surface user code and keybindings call, so they are pinned here: every arrow
-`UI.x(...) -> part.y(...)` is exercised and the forwarded call asserted on the
-part, which has its own dedicated tests for behavior.
-"""
+"""Verify the default UI's delegator surface."""
 
 import time
 from unittest.mock import AsyncMock, MagicMock, patch

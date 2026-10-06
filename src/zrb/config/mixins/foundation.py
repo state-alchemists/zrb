@@ -48,12 +48,7 @@ Coding Agent + Task Engine
 
 
 def _strict_init(raw: str) -> bool:
-    """Cast for `INIT_STRICT`, resolving `auto` against stderr.
-
-    The justification for continuing past a broken init source — "the user
-    can see the error and rerun" — holds only where someone is watching
-    stderr, so `auto` resolves against whether stderr is a terminal.
-    """
+    """Cast `INIT_STRICT`, resolving `auto` from stderr's TTY status."""
     if raw.strip().lower() in ("", "auto"):
         try:
             return not sys.stderr.isatty()

@@ -1,10 +1,3 @@
-"""Attachment upload handling for the web chat API.
-
-`save_uploaded_attachment` writes under the shared temp directory, so these
-cover where the bytes land and who is allowed to own the directory they land
-in, alongside the happy path.
-"""
-
 import os
 import stat
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -26,9 +19,7 @@ def testsave_uploaded_attachment_writes_file_and_returns_path():
     path = save_uploaded_attachment("some-session", "photo.png", b"data")
     try:
         assert os.path.isfile(path)
-        # The stored name is generated; only the extension comes from the
-        # client, so its control characters and reserved names never reach
-        # the filesystem.
+        # Only the extension comes from the client.
         assert os.path.basename(path).endswith(".png")
         assert "photo" not in os.path.basename(path)
         with open(path, "rb") as f:
@@ -83,13 +74,7 @@ def testsave_uploaded_attachment_creates_a_private_upload_dir(tmp_path, monkeypa
 def testsave_uploaded_attachment_keeps_traversal_inside_the_upload_root(
     tmp_path, monkeypatch, session_id
 ):
-    """`session_id` is a request path parameter, so it is untrusted input.
-
-    Unsanitised, `..` resolves the upload dir to the shared temp directory
-    itself — the write lands outside the root and the directory's mode is
-    restated to 0700, which on a shared machine locks every other user out of
-    it.
-    """
+    """An untrusted `session_id` cannot escape the upload root."""
     import tempfile as tempfile_module
 
     from zrb.runner.chat.chat_api_route import save_uploaded_attachment
@@ -106,11 +91,7 @@ def testsave_uploaded_attachment_keeps_traversal_inside_the_upload_root(
 
 @needs_posix_modes
 def testsave_uploaded_attachment_leaves_the_temp_dir_mode_alone(tmp_path, monkeypatch):
-    """`..` used to resolve the upload dir to the temp dir and chmod it 0700.
-
-    On a shared machine that locks every other user out of it, which is worse
-    than the stray write.
-    """
+    """A `..` session id must not chmod the shared temp dir to 0700."""
     import tempfile as tempfile_module
 
     from zrb.runner.chat.chat_api_route import save_uploaded_attachment
@@ -166,16 +147,7 @@ def testsave_uploaded_attachment_keeps_a_delegated_session_id_intact(
 def testsave_uploaded_attachment_refuses_a_dir_swapped_after_validation(
     tmp_path, monkeypatch
 ):
-    """Close the window between validating the directory and writing into it.
-
-    Validating by path and then opening by path lets a local attacker replace
-    the checked directory with a symlink in between. The write is done
-    relative to a descriptor taken on the validated directory, so the swap has
-    nothing left to redirect.
-
-    `uuid.uuid4` is the seam: it runs after validation and before the write,
-    so swapping the directory from inside it reproduces the race exactly.
-    """
+    """A post-validation symlink swap must not redirect the write."""
     import tempfile as tempfile_module
     import uuid as uuid_module
 

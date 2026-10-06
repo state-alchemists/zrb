@@ -1,7 +1,4 @@
-"""Server lifecycle for `LSPManager`: start, shut down, project-root detection.
-
-Tracks one server instance per `(language, root_path)` pair.
-"""
+"""Server lifecycle for `LSPManager`: start, shut down, project-root detection."""
 
 from __future__ import annotations
 
@@ -16,9 +13,7 @@ from zrb.llm.lsp.server import (
 )
 from zrb.util.cmd.command import kill_pid
 
-# Bound on the per-file project-root cache. The cache only saves a directory
-# walk, so a plain size cap (drop oldest insertion) is enough — precision
-# doesn't matter, unboundedness does.
+# The cache only saves a directory walk, so a FIFO size cap is enough.
 _MAX_PROJECT_ROOT_CACHE = 4096
 
 PROJECT_MARKERS = [
@@ -41,12 +36,7 @@ PROJECT_MARKERS = [
 
 
 class LSPManagerLifecycle:
-    """Server lifecycle methods for `LSPManager`.
-
-    Owns its own state (constructed once by `LSPManager.__new__`, inside the
-    singleton's first-instantiation guard, so it is never reset on a repeat
-    `LSPManager()` call).
-    """
+    """Server lifecycle part of `LSPManager`; one server per `(language, root_path)`."""
 
     def __init__(self) -> None:
         self._servers: dict[str, LSPServer] = {}  # key: "language:root_path"
@@ -106,9 +96,7 @@ class LSPManagerLifecycle:
     ) -> LSPServer | None:
         """Get or lazily start an LSP server for `file_path`. None if unavailable.
 
-        When `preferred_servers` is not given, fall back to the configured
-        `CFG.LLM_LSP_PREFERRED_SERVERS` so the agent path (whose LSP tools call this
-        without an explicit list) honors the user's preference.
+        `preferred_servers` defaults to `CFG.LLM_LSP_PREFERRED_SERVERS`.
         """
         if preferred_servers is None:
             preferred_servers = CFG.LLM_LSP_PREFERRED_SERVERS or None
@@ -145,22 +133,17 @@ class LSPManagerLifecycle:
             self._project_roots.clear()
 
     def force_kill_all(self) -> None:
-        """Synchronously SIGKILL any running LSP server processes.
+        """Synchronously SIGKILL any running LSP server processes; never raises.
 
-        A loop-free backstop for interpreter shutdown (``atexit``): by then the
-        event loop that owns the subprocess transports may already be closed, so
-        the async ``shutdown_all`` can no longer run and ``Process.terminate()``
-        would fail. ``os.kill`` on the pid is loop-independent. Best-effort —
-        never raises — so it is safe to register as an ``atexit`` handler.
+        Loop-free, for ``atexit``: the loop owning the transports may be closed.
         """
         for server in list(self._servers.values()):
             process = getattr(server, "process", None)
             if process is None or process.returncode is not None:
                 continue
             try:
-                # os.kill(pid, SIGKILL) raises ValueError on Windows — only a
-                # handful of signals are valid there. kill_pid is psutil-based,
-                # a SIGKILL-equivalent on both platforms.
+                # os.kill(pid, SIGKILL) raises ValueError on Windows; kill_pid
+                # is psutil-based and works on both.
                 kill_pid(process.pid, print_method=CFG.LOGGER.debug)
             except Exception:  # noqa: BLE001 - atexit backstop, must never raise
                 pass

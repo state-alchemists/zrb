@@ -35,8 +35,7 @@ async def add_subtree(
 ):
     """Add a subtree at `prefix` and record it under `name` in `subtrees.json`.
 
-    Rejects a `prefix` that already exists or a `name` already configured —
-    `git subtree add` itself would just as happily clobber either.
+    Rejects a `prefix` that already exists or a `name` already configured.
     """
     config = load_config(repo_dir)
     if os.path.isdir(prefix):

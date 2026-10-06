@@ -1,29 +1,13 @@
 """Keyword-parameter groups task constructors forward, as `TypedDict`s.
 
-A task subclass declares only the keywords it adds and takes the rest as
-`**kwargs: Unpack[BaseTaskParams]`, so a parameter shared with its parent is
-spelled out in exactly one place. The call site is unaffected —
-`CmdTask(name="build", cmd="make", retries=0)` binds as it reads, pyright
-completes every forwarded name and rejects `retrie=0` — and adding a keyword
-to `BaseTask` reaches every subclass by editing one `TypedDict` here.
+A subclass declares only the keywords it adds and takes the rest as
+`**kwargs: Unpack[BaseTaskParams]`. Parameters are documented in
+`BaseTask.__init__`.
 
-The hierarchy mirrors what the classes accept, which is not one flat set:
-
-- `CheckTaskParams` — what a readiness check takes. `HttpCheck` and `TcpCheck`
-  exclude the retry/readiness cluster: a check polls on its own `interval` and
-  is itself what a task waits on, so accepting a `readiness_check` would nest
-  a check inside itself.
-- `BaseTaskParams` — the above plus that cluster, i.e. `BaseTask`'s keywords
-  less `action`, which every subclass supplies itself.
-- `ActionTaskParams` — adds `action` back, for a subclass that forwards it.
-- `CmdTaskParams` / `BaseTriggerParams` — each adds its own class's keywords,
-  for the two classes that are themselves forwarded to (`RsyncTask` from
-  `CmdTask`, `Scheduler` from `BaseTrigger`).
-
-Prose for each parameter lives in the constructor docstring of the class that
-owns it: `BaseTask.__init__` documents this whole set, and a forwarding
-subclass names that class instead of restating it — enforced by
-`test_a_forwarding_constructor_names_the_set_it_forwards`.
+- `CheckTaskParams`: `HttpCheck`/`TcpCheck`, without the retry/readiness keys.
+- `BaseTaskParams`: `BaseTask`'s keywords except `action`.
+- `ActionTaskParams`: adds `action`.
+- `CmdTaskParams` / `BaseTriggerParams`: forwarded by `RsyncTask` / `Scheduler`.
 """
 
 from __future__ import annotations
@@ -41,10 +25,7 @@ from zrb.task.any_task import AnyTask
 
 
 class CheckTaskParams(TypedDict, total=False):
-    """`BaseTask` keywords a readiness check accepts.
-
-    Excludes the retry/readiness cluster — see this module's docstring.
-    """
+    """`BaseTask` keywords a readiness check accepts."""
 
     color: int | None
     icon: str | None
@@ -80,12 +61,7 @@ class ActionTaskParams(BaseTaskParams, total=False):
 
 
 class CmdTaskParams(BaseTaskParams, total=False):
-    """`CmdTask`'s own keywords, for the subclasses that copy them.
-
-    `cmd` and `warn_unrecommended_command` are excluded: `RsyncTask` generates
-    its command from the source/destination paths, so neither is meaningful
-    there, and it is the only class copying this set.
-    """
+    """`CmdTask`'s own keywords except `cmd`/`warn_unrecommended_command`."""
 
     shell: StrAttr | None
     shell_flag: StrAttr | None
@@ -109,27 +85,17 @@ class BaseTriggerParams(ActionTaskParams, total=False):
     callback: list[AnyCallback] | AnyCallback | None
 
 
-# What `BaseTask` accepts that a readiness check deliberately does not.
 _CHECK_EXCLUDED = frozenset(BaseTaskParams.__optional_keys__) - frozenset(
     CheckTaskParams.__optional_keys__
 )
 
-# What `CmdTask` accepts that `RsyncTask` does not: it builds its own command
-# by overriding `_get_cmd_script`, so `cmd` would be stored and then ignored.
 _RSYNC_EXCLUDED = frozenset({"cmd", "warn_unrecommended_command"})
 
 
 def reject_excluded_params(
     class_name: str, kwargs: dict[str, Any], excluded: frozenset[str], reason: str
 ) -> None:
-    """Enforce a narrowed parameter set for callers pyright never saw.
-
-    A subclass that accepts fewer keywords than its parent says so through a
-    narrower `TypedDict`, which the type checker enforces. A hand-written
-    `zrb_init.py` is not type-checked, so without this guard `**kwargs`
-    forwards an excluded keyword straight through to the parent, where it is
-    accepted and then ignored.
-    """
+    """Raise `TypeError` for excluded keywords; `zrb_init.py` is not type-checked."""
     passed = sorted(excluded & kwargs.keys())
     if passed:
         raise TypeError(f"{class_name} does not accept {', '.join(passed)}: {reason}")

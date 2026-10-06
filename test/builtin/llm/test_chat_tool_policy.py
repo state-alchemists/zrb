@@ -14,7 +14,6 @@ from zrb.builtin.llm.chat_tool_policy import (
 
 
 class TestPathInsideParent:
-    """Test path_inside_parent helper."""
 
     def test_path_inside_parent_returns_true(self, tmp_path):
         """Returns True when path is inside parent."""
@@ -41,7 +40,6 @@ class TestPathInsideParent:
 
 
 class TestApproveIfPathInsideParent:
-    """Test approve_if_path_inside_parent helper."""
 
     def test_with_path_key_inside(self, tmp_path):
         """Approves when 'path' is inside parent."""
@@ -61,7 +59,6 @@ class TestApproveIfPathInsideParent:
 
 
 class TestApproveIfPathInsideCwd:
-    """Test approve_if_path_inside_cwd function."""
 
     def test_path_inside_cwd(self, tmp_path, monkeypatch):
         """Approves when path is inside cwd."""
@@ -78,7 +75,6 @@ class TestApproveIfPathInsideCwd:
 
 
 class TestApproveIfPathInsideJournalDir:
-    """Test approve_if_path_inside_journal_dir function."""
 
     def test_path_inside_journal_dir(self, tmp_path, monkeypatch):
         """Approves when path is inside journal dir."""
@@ -92,7 +88,6 @@ class TestApproveIfPathInsideJournalDir:
 
 
 class TestApproveIfMvInsideJournalDir:
-    """Test approve_if_mv_inside_journal_dir — both src and dst must be inside."""
 
     def _patch_cfg(self, monkeypatch, journal_dir):
         monkeypatch.setattr(

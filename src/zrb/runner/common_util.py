@@ -28,23 +28,14 @@ def get_task_str_kwargs(
     return task_str_kwargs
 
 
-# Flags the CLI consumes before a task ever sees them. Listed here so a
-# `--help` that reaches this function (a caller other than `Cli.run`) is not
-# reported as an unknown option.
+# Flags the CLI consumes before a task sees them.
 _CLI_RESERVED_KWARGS = frozenset(("h", "help"))
 
 
 def _reject_unknown_kwargs(task: AnyTask, str_kwargs: dict[str, str]) -> None:
     """Fail on a `--flag` no input of `task` declares.
 
-    The loop below *reads* only keys matching an input name, so without
-    this an unrecognized option is indistinguishable from an absent one: the
-    input it was meant for silently falls back to its default or an
-    interactive prompt, and the task runs with values nobody asked for.
-
-    Only keyword arguments are checked. Leftover positionals are passed on to
-    the task as `ctx.args`, so an unconsumed one is legitimate input rather
-    than a typo.
+    Only keyword arguments are checked; leftover positionals become `ctx.args`.
     """
     known = {task_input.name for task_input in task.inputs}
     unknown = [

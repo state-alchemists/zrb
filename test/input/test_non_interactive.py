@@ -1,20 +1,4 @@
-"""How a non-interactive `zrb` run resolves its inputs — closed stdin, piped stdin, and a value that does not parse.
-
-These drive the real `zrb` CLI as a subprocess instead of calling
-``prompt_cli_str`` or ``update_shared_context`` directly, because the bugs they
-pin live in the gap between the unit and the real run. On a closed stdin
-``input()`` *raises* ``EOFError``; it never returns ``""``. A unit test that
-patches ``builtins.input`` therefore asserts a state that cannot occur, and
-stays green while the real CLI exits non-zero — which is exactly what happened
-before this file existed. The same gap hid a rejected `--flag` value behind the
-cast's own message: `BaseInput.update_shared_context` is reached through
-``runner/common_util.py``, one layer above any unit test of an input.
-
-Every case is bounded by a timeout: the first attempt at the stdin fix returned
-``""`` from the reader, which fed the empty-answer retry loop in
-``BaseInput.prompt_cli_str`` and spun, re-printing the prompt without end. A
-hang here is a regression, not a slow machine.
-"""
+"""End-to-end tests for non-interactive input resolution."""
 
 import os
 import pathlib

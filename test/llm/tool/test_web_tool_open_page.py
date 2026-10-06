@@ -18,9 +18,8 @@ def mock_google_rss():
 
 @pytest.mark.asyncio
 async def test_open_web_page_truncates_oversized_page():
-    """A page larger than LLM_MAX_OUTPUT_CHARS is capped before it becomes a
-    message, so the rate limiter never sees an un-admittable request (the
-    WebFetch livelock that froze the UI)."""
+    """A page larger than LLM_MAX_OUTPUT_CHARS is capped, so the rate limiter
+    never sees an un-admittable request."""
     huge_html = "<html><body>" + ("<p>spam paragraph</p>" * 5000) + "</body></html>"
     with (
         patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}),
@@ -80,24 +79,11 @@ async def test_open_web_page_summarizer_input_is_bounded():
 
 @pytest.mark.asyncio
 async def test_search_internet_does_not_block_the_event_loop(mock_google_rss):
-    """A slow synchronous backend must run off-loop *and* leave the loop free.
+    """A slow sync backend runs on another thread *and* a concurrent heartbeat
+    gets a turn while it runs (a worker joined synchronously would still block).
 
-    Two properties, asserted separately:
-
-    * **off-loop**: the backend executes on a different thread than the loop
-      (inline dispatch would freeze the loop directly);
-    * **responsive**: a concurrent heartbeat coroutine gets a turn *while* the
-      backend is still running. Dispatching to a worker thread but then
-      synchronously joining it from the loop would satisfy the thread check yet
-      still block the loop, so the heartbeat is the guard against that.
-
-    The heartbeat check uses an explicit "still running" flag instead of a
-    wall-clock duration: the backend holds the flag open until the heartbeat
-    releases it, so the signal does not depend on how early the heartbeat
-    happens to be scheduled (under a busy test run, scheduler preemption makes
-    a wall-clock reading look blocked even when the loop is responsive). For
-    the same reason the heartbeat waits for the flag to *appear* rather than
-    sleeping a fixed 50ms -- a worker thread that starts slowly is not a defect.
+    The backend holds a "running" flag until the heartbeat releases it, so the
+    check does not depend on wall-clock scheduling.
     """
     backend_running = threading.Event()
     backend_finished = threading.Event()
@@ -119,13 +105,8 @@ async def test_search_internet_does_not_block_the_event_loop(mock_google_rss):
     loop_thread_ident = threading.get_ident()
 
     async def heartbeat():
-        # Wait for the worker thread to actually enter the backend before
-        # reading the flag. A fixed sleep would race the thread's startup and
-        # read False on a perfectly responsive loop. Polling is safe as the
-        # signal here: every iteration awaits, so a loop that is *blocked* by
-        # the backend still cannot reach this point while the backend runs --
-        # it only gets here once the backend has already cleared the flag and
-        # set backend_finished, which ends the wait and records False.
+        # Poll until the worker enters the backend; a blocked loop only gets
+        # here after backend_finished is set, which records False.
         deadline = time.monotonic() + 2.0
         while not backend_running.is_set() and not backend_finished.is_set():
             if time.monotonic() >= deadline:
@@ -150,9 +131,7 @@ async def test_search_internet_does_not_block_the_event_loop(mock_google_rss):
 
 @pytest.mark.asyncio
 async def test_open_web_page_closes_browser_even_when_goto_fails():
-    """A launched browser must always close, even when page.goto raises --
-    otherwise every failed fetch leaks a headless Chromium process and its
-    disk-backed profile, unboundedly, across a long research session."""
+    """A launched browser closes even when page.goto raises."""
     with (
         patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
         patch("zrb.llm.tool.web.fetch_page_fallback", return_value=("f", [], False)),
@@ -172,8 +151,7 @@ async def test_open_web_page_closes_browser_even_when_goto_fails():
 
 @pytest.mark.asyncio
 async def test_open_web_page_closes_browser_on_success():
-    """Regression guard for the fix itself: the success path must still
-    close the browser exactly once (not skip it, not double-close)."""
+    """The success path closes the browser exactly once."""
     with patch("playwright.async_api.async_playwright") as mock_playwright_ctx:
         mock_p = AsyncMock()
         mock_browser = AsyncMock()
@@ -267,9 +245,7 @@ async def test_open_web_page_notifies_before_fetching():
 
 @pytest.mark.asyncio
 async def test_open_web_page_notifies_on_playwright_to_fallback_transition():
-    """Otherwise a Playwright failure is a second silent ~30s wait stacked
-    right after the first, with nothing telling the user zrb moved on to a
-    different attempt rather than being stuck on the same one."""
+    """The user is told when a Playwright failure falls back to plain HTTP."""
     mock_ui = MagicMock()
     with (
         patch("zrb.llm.tool.web.get_current_ui", return_value=mock_ui),
@@ -321,9 +297,7 @@ async def test_run_blocking_times_out_even_if_the_call_never_returns():
 
 @pytest.mark.asyncio
 async def test_run_blocking_runs_the_call_on_a_daemon_thread():
-    """A non-daemon thread that outlives its timeout blocks interpreter exit
-    forever (concurrent.futures' thread-exit hook joins it on shutdown) -- the
-    exact "won't die even with repeated Ctrl+C" symptom reported."""
+    """A non-daemon thread that outlives its timeout would block interpreter exit."""
     never_return = threading.Event()
     was_daemon = {}
 
@@ -350,9 +324,7 @@ async def test_run_blocking_runs_the_call_on_a_daemon_thread():
 async def test_search_internet_returns_promptly_even_if_backend_never_returns(
     mock_google_rss,
 ):
-    """The actual reported incident, reproduced directly: a stalled backend
-    call must not leave `search_internet` (and therefore the whole turn)
-    hanging indefinitely."""
+    """A stalled backend call does not hang `search_internet` indefinitely."""
     never_return = threading.Event()
     mock_google_rss.side_effect = lambda *a, **k: never_return.wait()
 

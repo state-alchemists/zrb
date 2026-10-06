@@ -1,9 +1,4 @@
-"""Filesystem scanning and agent-file parsing for ``SubAgentManager``.
-
-Loads agents from ``AGENT.py`` / ``*.agent.py`` (Python) and ``AGENT.md`` /
-``*.agent.md`` / plain ``*.md`` (Markdown with optional YAML frontmatter).
-Registers each parsed ``SubAgentDefinition`` on ``self._agents``.
-"""
+"""Filesystem scanning and agent-file parsing for ``SubAgentManager``."""
 
 from __future__ import annotations
 
@@ -23,13 +18,7 @@ _Default = TypeVar("_Default")
 
 
 def _as_str_list(raw: Any, default: _Default) -> "list[str] | _Default":
-    """Coerce a frontmatter field to a clean list of strings.
-
-    Accepts the canonical list form or a comma-separated string
-    (Claude-compatible), dropping blank entries either way. Anything else —
-    including a missing key — yields `default`, which lets a caller distinguish
-    "absent" (None) from "present but empty" ([]).
-    """
+    """Coerce a list or comma-separated frontmatter field to strings."""
     if isinstance(raw, list):
         return [str(item).strip() for item in raw if str(item).strip()]
     if isinstance(raw, str):
@@ -38,13 +27,7 @@ def _as_str_list(raw: Any, default: _Default) -> "list[str] | _Default":
 
 
 class SubAgentManagerLoading:
-    """Filesystem walker + agent-file parsers for ``SubAgentManager``.
-
-    `ignore_dirs` and `agents` are initialized by `SubAgentManager.__init__`
-    and handed in once here; `agents` is the *same* dict object held by
-    `SubAgentManager` (never reassigned wholesale — `SubAgentManager.reload`
-    clears it in place), so mutations made here stay visible to the manager.
-    """
+    """Filesystem walker and parsers for ``SubAgentManager``."""
 
     def __init__(self, ignore_dirs: list[str], agents: "dict[str, SubAgentDefinition]"):
         self._ignore_dirs = ignore_dirs

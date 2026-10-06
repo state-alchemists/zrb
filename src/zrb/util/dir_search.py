@@ -9,9 +9,7 @@ from pathlib import Path
 
 _LOGGER = logging.getLogger(__name__)
 
-# The shipped `zrb/llm_plugin/` tree (core skills, skills, agents, hooks).
-# Found by walking up to the `zrb` package, not by counting `.parent` hops,
-# so moving this module to another depth cannot retarget it.
+# The shipped `zrb/llm_plugin/` tree, found by walking up to the `zrb` package.
 BUILTIN_PLUGIN_DIR = (
     next(p for p in Path(__file__).resolve().parents if p.name == "zrb") / "llm_plugin"
 )
@@ -28,9 +26,7 @@ def get_upward_dirs(start_dir: str | Path) -> list[Path]:
         # parents[0] is the immediate parent, parents[-1] is filesystem root
         return list(cwd.parents)[::-1] + [cwd]
     except Exception:
-        # Path resolution failures are non-fatal — discovery just skips this root.
-        # Expected: OSError (broken symlinks, permission) and RuntimeError (loops),
-        # but stay broad so unusual filesystems can't take down discovery.
+        # Best-effort: skip a root that cannot be resolved.
         _LOGGER.warning(
             "Failed to resolve upward directories from %s", start_dir, exc_info=True
         )
@@ -50,8 +46,7 @@ def scan_plugin_dirs(plugins_root: Path) -> list[Path]:
                 if manifest.exists():
                     plugin_dirs.append(item)
     except Exception:
-        # Discovery is best-effort. Expected: PermissionError/OSError on iterdir(),
-        # but stay broad so a single bad plugin root can't take down the rest.
+        # Best-effort: a bad plugin root must not stop the rest.
         _LOGGER.warning(
             "Failed to scan plugin directories: %s", plugins_root, exc_info=True
         )

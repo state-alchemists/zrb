@@ -1,13 +1,7 @@
 """Background shell command execution.
 
-``Shell`` with ``background=True`` starts a command in the background
-and returns a handle immediately (the registry below does the launching).
-``MonitorProcess(handle)`` polls the status, shows captured stdout/stderr
-incrementally, optionally waits up to N seconds for exit, and optionally kills
-the process.
-
-The registry is process- and event-loop-scoped — results do not persist
-across restarts.
+``Shell(background=True)`` returns a handle; ``MonitorProcess(handle)`` polls,
+waits on or kills it. The registry is process-scoped.
 """
 
 from __future__ import annotations
@@ -42,10 +36,8 @@ class _BackgroundProcess:
     description: str = ""
     returncode: int | None = None
     tasks: list[asyncio.Task] = field(default_factory=list)
-    # The owning chat session's unique `ChatSessionManager` session_id — NOT
-    # the client-supplied, non-unique display `session_name` — so
-    # `cancel_for_session` never touches another session's processes. "" outside
-    # a web chat run (the CLI calls `cancel_all`).
+    # The unique `ChatSessionManager` session_id (not the display name); ""
+    # outside a web chat run.
     owner_session_id: str = ""
 
 
@@ -66,15 +58,13 @@ class _ShellBackgroundRegistry:
         handle = get_random_name(separator="-", add_random_digit=True)
         resolved_shell, shell_flag = resolve_shell(shell)
         effective_cwd = cwd or os.getcwd()
-        # Raises SandboxUnavailableError in fallback="deny" mode — surfaced by
-        # the tool as an explanatory error.
+        # Raises SandboxUnavailableError in fallback="deny" mode.
         argv, sandbox_note = build_sandboxed_argv(
             [resolved_shell, shell_flag, command],
             get_effective_sandbox_policy(),
             skip=dangerously_skip_sandbox,
         )
-        # start_new_session=True isolates the process group (setsid on POSIX,
-        # ignored on Windows). stdin=DEVNULL prevents hangs on stdin reads.
+        # Own process group; DEVNULL stdin prevents hangs on stdin reads.
         proc = await asyncio.create_subprocess_exec(
             *argv,
             stdout=asyncio.subprocess.PIPE,
@@ -91,8 +81,7 @@ class _ShellBackgroundRegistry:
         if sandbox_note:
             bp.stderr_cap.feed(f"{sandbox_note}\n")
         self._procs[handle] = bp
-        # Tracked so kill()/cancel_all() can stop them; they would otherwise
-        # leak past the process exit.
+        # Tracked so kill()/cancel_all() can stop them.
         bp.tasks = [
             asyncio.ensure_future(self._read_pipe(handle, proc.stdout, "stdout")),
             asyncio.ensure_future(self._read_pipe(handle, proc.stderr, "stderr")),
@@ -128,11 +117,9 @@ class _ShellBackgroundRegistry:
             bp.returncode = rc
 
     async def collect(self, handle: str, wait: float = 0.0) -> str:
-        """Poll a handle, optionally blocking up to ``wait`` seconds for exit.
+        """Poll a handle, blocking up to ``wait`` seconds for exit and full drain.
 
-        Waits until the process has exited AND its output is fully drained, or
-        the timeout elapses, then returns the synchronous ``poll``. The process
-        is not killed on timeout — it keeps running.
+        The process is not killed on timeout.
         """
         bp = self._procs.get(handle)
         if bp is not None and bp.returncode is None and wait > 0:
@@ -164,8 +151,7 @@ class _ShellBackgroundRegistry:
             lines.append(truncation_note)
         if bp.returncode is not None:
             if all(task.done() for task in bp.tasks):
-                # Output fully drained: release the entry so finished
-                # processes don't accumulate for the rest of the session.
+                # Fully drained: release the entry.
                 lines.append("The handle has been consumed — the process has finished.")
                 _release_process(bp)
                 self._procs.pop(handle, None)
@@ -189,27 +175,15 @@ class _ShellBackgroundRegistry:
         return f"Killed process '{handle}'."
 
     async def cancel_all(self) -> None:
-        """Kill every running background process and release its transport.
-
-        Session teardown calls this so no asyncio subprocess outlives the event
-        loop. ``terminate_process`` both kills and reaps: a child left running
-        when the loop closes logs "Loop <...> that handles pid N is closed"
-        when it eventually exits, because its exit event can no longer be
-        delivered.
-        """
+        """Kill and reap every background process, so none outlives the event loop."""
         for bp in list(self._procs.values()):
             await _stop_process(bp)
         self._procs.clear()
 
     async def cancel_for_session(self, session_id: str) -> None:
-        """Kill every running background process owned by *session_id*.
+        """Kill every background process owned by *session_id*.
 
-        Used by `ChatSessionManager.remove_session()`: a web chat session can
-        end while other sessions are still running, so — unlike `cancel_all`
-        — this must only touch processes this one session started, tagged by
-        `get_current_chat_session_id()` at `start()` time. `session_id` must
-        be `ChatSessionManager`'s unique dict key, never a display
-        `session_name`, which is not guaranteed unique.
+        *session_id* is `ChatSessionManager`'s unique key, not a display name.
         """
         for handle, bp in list(self._procs.items()):
             if bp.owner_session_id != session_id:
@@ -220,11 +194,8 @@ class _ShellBackgroundRegistry:
     def force_kill_all(self) -> None:
         """Synchronously SIGKILL any running background process.
 
-        A loop-free backstop for interpreter shutdown (`atexit`), mirroring
-        `LSPManager.force_kill_all`: by then the event loop that owns the
-        subprocess transports may already be closed, so the async
-        `cancel_all`/`cancel_for_session` can no longer run. Best-effort —
-        never raises — so it is safe to register as an `atexit` handler.
+        Loop-free `atexit` backstop, for when the event loop is already closed.
+        Never raises.
         """
         for bp in list(self._procs.values()):
             if bp.process.returncode is not None:
@@ -257,12 +228,9 @@ async def _stop_process(bp: _BackgroundProcess) -> None:
 
 
 def _truncation_note(stdout_cap: StreamCapture, stderr_cap: StreamCapture) -> str:
-    """A `[SYSTEM SUGGESTION]` line naming where the full output can still be
-    read, when either stream has dropped its head — or `""` when neither has.
+    """A `[SYSTEM SUGGESTION]` naming each truncated stream's spill file, or `""`.
 
-    Reuses each stream's own (already-open, stable-path) spill file directly
-    rather than dumping a fresh merged file per poll call, which would leak
-    one temp file per call for a long-lived, repeatedly-polled process.
+    Reuses the streams' spill files so repeated polls don't leak temp files.
     """
     if not (stdout_cap.truncated or stderr_cap.truncated):
         return ""
@@ -282,21 +250,12 @@ def _truncation_note(stdout_cap: StreamCapture, stderr_cap: StreamCapture) -> st
 
 
 def _release_process(bp: _BackgroundProcess) -> None:
-    """Cancel the detached reader/wait tasks and finalize the subprocess transport.
+    """Cancel the reader/wait tasks and close the subprocess transport.
 
-    A subprocess transport is only closed once the loop observes both the
-    process exit and the pipe EOFs. A background process dropped before that
-    (consume, kill, or cancel_all) gets its transport garbage-collected after
-    the loop has closed, where CPython < 3.13's ``BaseSubprocessTransport.__del__``
-    calls ``close()`` without the gh-114177 closed-loop guard and raises
-    ``RuntimeError('Event loop is closed')`` — surfaced by pytest as a
-    PytestUnraisableExceptionWarning. Closing explicitly here, while the loop is
-    alive, makes that ``__del__`` a no-op.
-
-    ``stdout_cap``/``stderr_cap`` are closed (flushed, handle released) but
-    never discarded: a poll response can name a spill path in the call
-    that triggers this release, so deleting the file here would make that
-    just-reported path immediately dangling.
+    Closing the transport while the loop is alive avoids CPython < 3.13's
+    ``BaseSubprocessTransport.__del__`` raising "Event loop is closed"
+    (gh-114177). Captures are closed but not discarded: the poll that
+    triggered this may have just reported their spill paths.
     """
     for task in bp.tasks:
         if not task.done():

@@ -1,8 +1,4 @@
-"""`UIStateDefaultsMixin` — the inert half of the `AnyUI` contract.
-
-Driven through a minimal host that implements only `AnyUI`'s six behavioral
-methods, which is exactly the shape the mixin exists for.
-"""
+"""Verify inert defaults for `UIStateDefaultsMixin`."""
 
 import asyncio
 

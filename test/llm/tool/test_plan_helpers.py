@@ -30,11 +30,8 @@ class TestUtilityFunctions:
         try:
             assert get_current_context_session() == unique
         finally:
-            # set_current_session has no scoped/reset counterpart (see
-            # zrb.util.contextvar_scope) — an unset value here leaks into
-            # every later test in this worker process, which once broke
-            # unrelated tests (e.g. test_delegate_tool.py) that assume the
-            # ambient session defaults to "default".
+            # set_current_session has no reset counterpart; restore the
+            # default so it does not leak into later tests.
             set_current_session("default")
 
     def test_set_current_session_ignores_empty_string(self):
@@ -70,11 +67,7 @@ class TestUtilityFunctions:
             set_current_session("default")
 
     def test_create_plan_tools(self):
-        """Agent-facing plan tools are TodoWrite + TodoRead.
-
-        TodoWrite replaces the list by default, so it subsumes the former
-        per-item update and clear operations.
-        """
+        """Agent-facing plan tools are TodoWrite + TodoRead."""
         tools = create_plan_tools()
 
         names = [t.__name__ for t in tools]

@@ -1,10 +1,5 @@
-"""Pending tool-call/ask-user confirmation state for `BaseUI`.
-
-Self-contained like `BaseUIUsage`: the actual queueing/resolution logic lives
-in `UIConfirmation` (`llm/ui/default/confirmation.py`), which reaches this
-state through `BaseUI.confirmation` — so this part, like that one, needs no
-reference back to the owner.
-"""
+"""Pending tool-call/ask-user confirmation state for `BaseUI`; the logic is
+in `UIConfirmation` (`llm/ui/default/confirmation.py`)."""
 
 from __future__ import annotations
 
@@ -29,11 +24,9 @@ class BaseUIConfirmationState:
         self._current: "asyncio.Future[str] | None" = None
         self._timed: "asyncio.Future[str] | None" = None
         self._current_since = 0.0
-        # (time asked, future) per request, oldest first. A finished request
-        # followed by a finished one is dropped: a lookup that would have
-        # found it finds the next one, just as finished. What is left is at
-        # most two entries per unfinished request, plus the newest. Read from
-        # other threads.
+        # (time asked, future) per request, oldest first. A finished entry
+        # followed by a finished one is pruned: lookups land on the next,
+        # equally finished. Read from other threads.
         self._asked: "list[tuple[float, asyncio.Future[str]]]" = []
         self._asked_lock = threading.Lock()
         # Main-agent output held while a confirmation is pending, as
@@ -71,9 +64,10 @@ class BaseUIConfirmationState:
             ] + [asked[-1]]
 
     def is_answered_since(self, asked_at: float) -> bool:
-        """Whether the first request asked at or after *asked_at* has been
-        answered or cancelled, in whatever order the requests were answered.
-        Safe to call from another thread."""
+        """Whether the first request asked at or after *asked_at* is done.
+
+        Thread-safe.
+        """
         with self._asked_lock:
             for since, future in self._asked:
                 if since >= asked_at:

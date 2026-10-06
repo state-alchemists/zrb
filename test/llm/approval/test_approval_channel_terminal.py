@@ -81,8 +81,7 @@ class TestTerminalApprovalChannelWithHandler:
     async def test_unknown_response_denies(self):
         """Test that unknown response denies the tool."""
         mock_ui = MagicMock(spec=AnyUI)
-        # `tool_call_handler` is on the AnyUI contract, so a spec'd mock
-        # auto-creates one; this case wants the no-handler path.
+        # A spec'd mock auto-creates the handler; exercise the no-handler path.
         mock_ui.tool_call_handler = None
         mock_ui.ask_user = AsyncMock(return_value="unknown")
         mock_ui.append_to_output = MagicMock()
@@ -103,8 +102,7 @@ class TestTerminalApprovalChannelWithHandler:
     async def test_notify_calls_ui_append_to_output(self):
         """Test that notify method uses UI's append_to_output."""
         mock_ui = MagicMock(spec=AnyUI)
-        # `tool_call_handler` is on the AnyUI contract, so a spec'd mock
-        # auto-creates one; this case wants the no-handler path.
+        # A spec'd mock auto-creates the handler; exercise the no-handler path.
         mock_ui.tool_call_handler = None
         mock_ui.append_to_output = MagicMock()
 
@@ -123,8 +121,7 @@ class TestTerminalApprovalChannelWithHandler:
     async def test_edit_response_falls_back_to_handle_edit(self):
         """Test that 'e' response falls back to _handle_edit when no handler."""
         mock_ui = MagicMock(spec=AnyUI)
-        # `tool_call_handler` is on the AnyUI contract, so a spec'd mock
-        # auto-creates one; this case wants the no-handler path.
+        # A spec'd mock auto-creates the handler; exercise the no-handler path.
         mock_ui.tool_call_handler = None
         mock_ui.ask_user = AsyncMock(return_value="e")
         mock_ui.append_to_output = MagicMock()

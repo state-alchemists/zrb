@@ -103,18 +103,10 @@ class SubAgentBuilding:
     def create_llm_chat_task(
         self, name: str, ctx: AnyContext | None = None
     ) -> "LLMChatTask | None":
-        """Build an `LLMChatTask` driven by this sub-agent's persona.
+        """Build an ``LLMChatTask`` from a prompt-based sub-agent definition.
 
-        Same system prompt / tool / model resolution as `create_agent`, but
-        wrapped in the zrb `Task` type the web chat runner needs (`.async_run`,
-        `.history_manager`, `.ui_factories`, ...) instead of a bare pydantic-ai
-        `Agent` — this is what lets a human resume/continue a delegated
-        session driven by the actual sub-agent, not the main agent.
-
-        A definition built from `agent_instance`/`agent_factory` (a pre-built
-        pydantic-ai `Agent`, not a system_prompt/tools/model triple) has
-        nothing to re-derive a task's config from, so this returns `None` for
-        those — the minority case among sub-agent definitions.
+        Returns ``None`` for definitions supplied as a pre-built agent or
+        factory, whose task configuration cannot be reconstructed.
         """
         definition = self._owner.get_agent_definition(name)
         if not definition or definition.agent_instance or definition.agent_factory:
@@ -151,12 +143,7 @@ class SubAgentBuilding:
         ctx: AnyContext | None,
         yolo: bool | None,
     ) -> "_ResolvedAgentBuild":
-        """Shared resolution logic behind `create_agent`/`create_llm_chat_task`:
-        tools (registry + factories, minus delegate tools and disallowed
-        names), toolsets, resolved model, and the effective system prompt
-        (inherited sections + the definition's own body). Public — the CLI
-        TUI's persona-swap-on-`/load` calls it directly,
-        outside this module, to mutate a running task's persona in place."""
+        """Resolve tools, toolsets, model, and system prompt for a definition."""
         if ctx is None:
             ctx = Context(
                 shared_ctx=SharedContext(),

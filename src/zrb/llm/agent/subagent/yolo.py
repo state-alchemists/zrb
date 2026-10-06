@@ -1,14 +1,4 @@
-"""YOLO-mode inheritance checker used when creating sub-agents.
-
-A sub-agent should honor a parent's YOLO toggle even if it changes mid-run,
-so we return a callable that reads the live state on each invocation rather
-than a captured boolean.  Resolution: current_yolo ContextVar → UI → False.
-
-The ContextVar can hold ``bool`` (full on/off) or ``frozenset[str]``
-(selective — only named tools bypass approval).  When it is a frozenset the
-checker consults ``tool_def.name`` just like the parent's ``check_yolo``
-closure in ``chat/task.py``.
-"""
+"""Build a live YOLO-mode inheritance checker for sub-agents."""
 
 from __future__ import annotations
 
@@ -21,13 +11,7 @@ from zrb.llm.permission import ALLOW, ASK, DENY, Capability
 def make_yolo_inheritance_checker() -> (
     Callable[..., bool]
 ):  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
-    """Return a callable that reports the current effective YOLO mode.
-
-    Resolution order:
-    1. ``current_yolo`` ContextVar (``bool | frozenset[str]``)
-    2. ``get_current_ui().yolo`` (live xcom read, covers live toggles)
-    3. ``False``
-    """
+    """Return a callable that reports the current effective YOLO mode."""
     # lazy: tests patch `zrb.llm.agent_state.get_current_*` and
     # rely on the patch taking effect inside the closure. Hoisting would
     # bind these names at module-load and bypass the mocks.

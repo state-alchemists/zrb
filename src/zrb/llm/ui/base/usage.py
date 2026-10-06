@@ -1,12 +1,4 @@
-"""Session token-usage counters for `BaseUI`.
-
-Self-contained: unlike `BaseUIReplay`/`BaseUISystemInfo`, this part reads and
-writes only its own counters — `accumulate`/`reset` take everything they need
-as arguments — so it holds no reference back to `BaseUI`. Reached as
-`BaseUI.usage`; `BaseUI.accumulate_usage` stays a named method because
-`docs/llm/llm-custom-ui.md` lists it as an enrichment hook that `MultiUI` and
-`BufferedUI` implement too.
-"""
+"""Session token-usage counters for `BaseUI`, reached as `BaseUI.usage`."""
 
 from __future__ import annotations
 
@@ -23,9 +15,7 @@ class BaseUIUsage:
         self._session_input_tokens = 0
         self._session_output_tokens = 0
         self._session_cache_read_tokens = 0
-        # Occupancy of the current context window = the last request's prompt
-        # size. Unlike the session totals it does not accumulate; it tracks the
-        # latest turn and drops after summarization.
+        # Current context-window occupancy; replaced each turn, not summed.
         self._context_tokens = 0
 
     @property
@@ -40,9 +30,7 @@ class BaseUIUsage:
 
     @property
     def context_tokens(self) -> int:
-        """Tokens occupying the current context window (last request's input +
-        output — the assistant's reply is now in history and re-sent next
-        turn)."""
+        """Tokens in the current context window (last request's input + output)."""
         return self._context_tokens
 
     def accumulate(
@@ -50,12 +38,8 @@ class BaseUIUsage:
     ) -> None:
         """Fold one run's usage into session totals and refresh context size.
 
-        `usage` is the whole-run `RunUsage` (accumulated, for billing). Session
-        input/output only grow. `context_usage` is the *last request's*
-        `RequestUsage`; current window occupancy is its `input_tokens` (the
-        prompt sent — already inclusive of cache reads and writes, per
-        pydantic-ai's `AbstractUsage` contract) plus its `output_tokens` (the
-        reply, now appended to history). This replaces, not accumulates.
+        `context_usage` is the last request's usage; its `input_tokens` already
+        include cache reads and writes (pydantic-ai `AbstractUsage`).
         """
         self._session_input_tokens += getattr(usage, "input_tokens", 0) or 0
         self._session_output_tokens += getattr(usage, "output_tokens", 0) or 0

@@ -20,34 +20,17 @@ def get_env(env_name: str | list[str], default: str = "", prefix: str = "ZRB") -
 def get_windows_posix_shell() -> str:
     """Absolute path to a real POSIX shell on Windows, or `""` when there is none.
 
-    Cached because it is on a hot path and its answer cannot change within a
-    run: `EnvField` re-evaluates `default_factory` on *every* `CFG.SHELL`
-    read, and `resolve_shell` calls this again for a bare `bash`/`sh`, so an
-    uncached lookup means a `shutil.which` PATH scan plus four `isfile` probes
-    per command executed. Tests that stub `shutil.which`/`os.path.isfile` must
-    call `get_windows_posix_shell.cache_clear()` first -- `conftest` does this
-    automatically.
+    `shutil.which("bash")` finds `System32\\bash.exe`, the WSL launcher,
+    which is not a usable shell here. Git for Windows' bash is located from
+    `git` on PATH, then the standard install roots, then PATH (rejecting hits
+    under the Windows directory). Returns "" on non-Windows platforms.
 
-    A bare `shutil.which("bash")` is not enough, which is what made this a
-    function. Windows ships `System32\\bash.exe` -- the WSL *launcher* -- and it
-    wins the PATH lookup on a stock install. It is not a shell: with no distro
-    installed it prints "Windows Subsystem for Linux has no installed
-    distributions" as UTF-16 on stdout and exits 1, so every command run
-    through it fails while looking like it produced output; and with a distro
-    installed it runs inside the WSL filesystem namespace, where the caller's
-    `D:\\...` working directory does not exist.
-
-    Git for Windows ships a genuine bash, so it is what "bash" should mean
-    here. It is located from `git` on PATH first (whatever prefix the user
-    installed into), then the standard install roots, and only then from PATH
-    -- and a PATH hit inside the Windows directory is rejected as the launcher
-    again. Returns "" on non-Windows platforms, which have no such ambiguity.
+    Cached: `CFG.SHELL` reads hit this on every command. Tests stubbing
+    `shutil.which`/`os.path.isfile` need `cache_clear()` (`conftest` does it).
     """
     if platform.system() != "Windows":
         return ""
-    # `ntpath`, not `os.path`: these are Windows paths, and on Windows the two
-    # are the same module anyway -- so building them this way costs nothing
-    # there and keeps the whole lookup testable from any platform.
+    # `ntpath` keeps the lookup testable from any platform.
     candidates = []
     git_path = shutil.which("git")
     if git_path:
@@ -74,14 +57,8 @@ def get_windows_posix_shell() -> str:
 
 
 def _is_in_windows_dir(path: str) -> bool:
-    """Whether *path* sits under the Windows directory -- where the only `bash`
-    is the WSL launcher.
-
-    Compared through `ntpath` rather than `os.path`: the paths are Windows
-    paths whichever platform is asking, and `ntpath.normcase` folds case and
-    slashes without consulting the running OS -- so this stays a pure string
-    question and the tests do not need a Windows host to ask it.
-    """
+    """Whether *path* sits under the Windows directory, where the only `bash`
+    is the WSL launcher."""
     system_root = os.getenv("SystemRoot") or "C:\\Windows"
     prefix = ntpath.normcase(system_root).rstrip("\\") + "\\"
     return ntpath.normcase(path).startswith(prefix)
@@ -94,13 +71,8 @@ def get_shell_name(shell: str) -> str:
     """The bare shell name behind a shell setting: `bash` for `bash`,
     `/bin/bash` and `C:\\Program Files\\Git\\bin\\bash.exe` alike.
 
-    Every name comparison against a shell setting has to go through here,
-    because a Windows setting is an absolute `.exe` path (see
-    `get_windows_posix_shell`, which `get_current_shell` returns directly):
-    `shell.endswith("bash")` answers False for `...\\bin\\bash.exe`, which is
-    the shell most likely to be configured on that platform. Both separators
-    are split on rather than using `os.path`, so the answer does not depend on
-    which platform is asking.
+    Compare shell settings through this: on Windows they are absolute `.exe`
+    paths. Both separators are split on, whatever the running platform.
     """
     return _EXE_SUFFIX.sub("", re.split(r"[\\/]", shell)[-1]).lower()
 
@@ -108,17 +80,11 @@ def get_shell_name(shell: str) -> str:
 def get_current_shell() -> str:
     """Return the name of a shell that actually exists on this system.
 
-    Every returned name is verified with ``shutil.which`` so callers never get a
-    shell that isn't installed (e.g. ``bash`` on a minimal Alpine image, or
-    PowerShell on a stripped-down Windows). Final fallbacks (``sh`` / ``cmd``)
-    are effectively always present on their respective platforms.
+    Names are verified with ``shutil.which``; the final fallbacks (``sh`` /
+    ``cmd``) are effectively always present.
     """
     if platform.system() == "Windows":
-        # Git Bash ships on GitHub's windows-latest runner (and is a common
-        # dev install), and most of zrb's own shell commands are written in
-        # POSIX syntax -- so a real POSIX shell is preferred over
-        # PowerShell/cmd, matching the POSIX branch below rather than assuming
-        # Windows means no POSIX shell is available.
+        # zrb's own shell commands are POSIX, so prefer Git Bash.
         posix_shell = get_windows_posix_shell()
         if posix_shell:
             return posix_shell
@@ -138,14 +104,8 @@ def get_current_shell() -> str:
 def is_termux() -> bool:
     """Best-effort detection of a Termux (Android) terminal.
 
-    Termux exports ``TERMUX_VERSION`` and installs everything under a
-    ``com.termux`` prefix. Either signal is enough; both are checked so the
-    detection survives a stripped environment that drops ``TERMUX_VERSION``.
-    As a fallback, ``ANDROID_ROOT`` (set to ``/system`` on every Android
-    device) catches proot-based distros that lose ``TERMUX_VERSION`` and
-    ``PREFIX``.
-    Callers special-case keybindings on Termux: Tab and Shift+Tab both emit
-    byte ``0x09``, so the terminal cannot tell them apart.
+    Checks ``TERMUX_VERSION``, a ``com.termux`` ``PREFIX``, then
+    ``ANDROID_ROOT=/system`` (proot distros lose the first two).
     """
     if os.getenv("TERMUX_VERSION"):
         return True
@@ -157,12 +117,7 @@ def is_termux() -> bool:
 
 
 def is_wsl() -> bool:
-    """Best-effort detection of Windows Subsystem for Linux.
-
-    WSL exports ``WSL_DISTRO_NAME`` (the distro name) on WSL2, and ``WSLENV``
-    (the cross-boundary env-var passlist) on both WSL1 and WSL2. Either
-    signal is enough.
-    """
+    """Best-effort detection of WSL (``WSL_DISTRO_NAME`` or ``WSLENV``)."""
     return bool(os.environ.get("WSL_DISTRO_NAME") or os.environ.get("WSLENV"))
 
 

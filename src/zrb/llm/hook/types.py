@@ -14,9 +14,7 @@ class HookEvent(str, Enum):
     PRE_TOOL_USE = "PreToolUse"
     POST_TOOL_USE = "PostToolUse"
     POST_TOOL_USE_FAILURE = "PostToolUseFailure"
-    # Fired when the agent blocks waiting for the user to approve a tool call
-    # (the approval cascade reached an interactive prompt). Consumers use it for
-    # "needs your attention" notifications/sounds (e.g. peon-ping).
+    # Fired when the agent waits for the user to approve a tool call.
     PERMISSION_REQUEST = "PermissionRequest"
     NOTIFICATION = "Notification"
     STOP = "Stop"
@@ -30,7 +28,6 @@ class HookEvent(str, Enum):
     SUBAGENT_START = "SubagentStart"
     SUBAGENT_STOP = "SubagentStop"
 
-    # Claude Code compatibility mapping
     @classmethod
     def from_claude_string(cls, value: str) -> "HookEvent":
         """Convert Claude Code string to HookEvent enum."""
@@ -44,10 +41,8 @@ class HookEvent(str, Enum):
             raise ValueError(f"Unknown hook event: {value}")
 
 
-# Events where an exit-2 / decision="block" result is meaningful and should halt
-# the remaining hooks for that event. For every other event a block is ignored
-# (Claude-compatible: exit 2 is only a blocking signal where the lifecycle can
-# actually be stopped), so the rest of the chain still runs.
+# Events where an exit-2 / decision="block" result halts the remaining hooks.
+# Elsewhere a block is ignored, as in Claude Code.
 BLOCKING_EVENTS: "frozenset[HookEvent]" = frozenset(
     {
         HookEvent.USER_PROMPT_SUBMIT,
@@ -76,12 +71,11 @@ class MatcherOperator(str, Enum):
     STARTS_WITH = "starts_with"
     ENDS_WITH = "ends_with"
 
-    # Claude Code compatibility - regex is the standard
     @classmethod
     def from_claude_pattern(cls, pattern: str) -> "MatcherOperator":
         """Determine matcher operator from Claude Code pattern."""
         if pattern == "*" or pattern == "":
-            return cls.GLOB  # Wildcard matches everything
+            return cls.GLOB
         elif "*" in pattern or "?" in pattern or "[" in pattern:
             return cls.GLOB
         elif pattern.startswith("^") or pattern.endswith("$") or ".*" in pattern:

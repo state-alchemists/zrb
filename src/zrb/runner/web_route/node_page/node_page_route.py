@@ -12,7 +12,6 @@ from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 
 if TYPE_CHECKING:
-    # We want fastapi to only be loaded when necessary to decrease footprint
     from fastapi import FastAPI
 
 

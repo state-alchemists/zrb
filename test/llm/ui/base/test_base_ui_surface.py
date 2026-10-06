@@ -1,10 +1,5 @@
-"""Public state-property surface of `BaseUI`.
-
-A wall of small getter/setter properties (model slots, task handles, cwd,
-plan mode, ...) sits in the middle of `BaseUI`. Keybindings and `MultiUI`
-write through them, so they are pinned here: each reads back what it was
-given, and the composed-part delegators forward to the part we assert on.
-"""
+"""Public state-property surface of `BaseUI`: properties round-trip, and
+part delegators forward."""
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch

@@ -1,21 +1,8 @@
 """LLM agent run loop: drives `pydantic_ai.Agent`, sanitizes history, retries.
 
-Binds the `current_ui`, `current_tool_confirmation`, `current_yolo`,
-`current_hook_manager`, `current_agent_run_scope`, and `current_approval_channel`
-`ContextVar`s on entry to `run_agent()`, resets them in `finally`. The vars
-are defined in `zrb.llm.agent_state`, since `setup.py` and code outside this
-package need them too; other modules read them through the wrappers there
-(re-exported from `zrb.contextvars`).
-
-Sibling files in this package each own one concern:
-  retry_loop.py       - decide-retry-or-not after a model exception
-  history_utils.py    - sanitize_history(), strip_thinking_parts(), etc.
-  error_classifier.py - is_invalid_tool_call_error / is_missing_reasoning_*
-  openai_patch.py     - monkey-patch for `content: null` serialization
-  deferred_calls.py   - resume after deferred tool requests
-
-For the *why* behind history sanitization and the OpenAI patch, see
-docs/technical-specs/llm-history-sanitization.md.
+`run_agent()` binds the run's `ContextVar`s (defined in `zrb.llm.agent_state`)
+on entry and resets them on exit. History sanitization and the OpenAI patch
+are explained in docs/technical-specs/llm-history-sanitization.md.
 """
 
 from __future__ import annotations
@@ -137,29 +124,17 @@ async def run_agent(
     nested: bool | None = None,
     stream_observers: "Sequence[StreamObserver] | None" = None,
 ) -> tuple[Any, list[Any]]:
-    """
-    Runs the agent with rate limiting, history management, and optional CLI confirmation loop.
+    """Run the agent with rate limiting, history management and confirmations.
+
     Returns (result_output, new_message_history).
 
-    `checkpoint_fn`, when given, is awaited in the background (never blocking
-    the run) each time the in-progress turn reaches a safe boundary — every
-    tool-call round trip, not just the end of the turn — so a caller that
-    persists history sees progress well before `agent.run()` returns. See
-    `_build_event_stream_handler` for the boundary rule.
-
-    `run_scope` identifies this run to nested tools that need conversation-scoped
-    state (see `current_agent_run_scope`'s docstring). Pass the session name for
-    a top-level conversation, a fresh per-delegation id for a sub-agent; empty
-    defaults to a fresh id so an unscoped caller stays isolated.
-
-    `nested` says whether this is a delegated sub-agent's run — no turn
-    snapshot, and the Stop payload's `nested_run` set. None infers it from
-    whether another run is bound; pass it when that inference cannot see the
-    parent, as a live sub-agent continued from the TUI cannot.
-
-    `stream_observers` see every streamed event after the event handler does
-    (`zrb.llm.stream_observer`). A delegated sub-agent's run does not inherit
-    them.
+    `checkpoint_fn` is fired in the background after every tool-call round
+    trip, so a caller persisting history sees progress mid-turn.
+    `run_scope` identifies the run to conversation-scoped tools (session name
+    for a top-level chat, a per-delegation id for a sub-agent); empty means a
+    fresh id. `nested` marks a delegated sub-agent's run; None infers it from
+    whether another run is bound. `stream_observers` see every streamed event
+    after the event handler; sub-agent runs do not inherit them.
     """
     global _openai_patched
     if not _openai_patched:
@@ -183,8 +158,7 @@ async def run_agent(
         effective_approval_channel,
     )
 
-    # Explicit arg wins, else inherit the parent run's policy (sub-agents),
-    # else None (nothing constrained).
+    # Explicit arg, else the parent run's policy (sub-agents), else None.
     effective_policy = (
         permission_policy
         if permission_policy is not None
@@ -195,10 +169,7 @@ async def run_agent(
         sandbox_policy if sandbox_policy is not None else current_sandbox_policy.get()
     )
 
-    # A run started while another is bound is nested — a delegated
-    # sub-agent. Read before this run binds its own scope below. A caller
-    # outside every run that still continues a sub-agent — a message sent to
-    # a finished one from the TUI — says so with `nested`.
+    # Read before this run binds its own scope below.
     nested_run = bool(get_current_agent_run_scope()) if nested is None else nested
 
     # ExitStack keeps set/reset symmetric: if a later bind raises, the vars
@@ -209,10 +180,8 @@ async def run_agent(
         bind_contextvar(stack, current_tool_confirmation, effective_tool_confirmation)
         bind_contextvar(stack, current_yolo, effective_yolo)
         bind_contextvar(stack, current_hook_manager, effective_hook_manager)
-        # The UI's own `small_model`/`multimodal_model` (set by `/model small
-        # ...` / `/model multimodal ...`) — None when the UI has neither, in
-        # which case a reader falls back to CFG. getattr, not an AnyUI
-        # method: most UIs (StdUI, a bare MultiUI) never set these.
+        # Set by `/model small|multimodal`; most UIs lack them, so readers
+        # fall back to CFG on None.
         bind_contextvar(
             stack, current_small_model, getattr(effective_ui, "small_model", None)
         )
@@ -221,27 +190,23 @@ async def run_agent(
             current_multimodal_model,
             getattr(effective_ui, "multimodal_model", None),
         )
-        # The main model this run actually uses, so a helper that needs a model
-        # of its own (the summarizer, the journal judge) can fall back to it
-        # rather than to `CFG.LLM_MODEL` — which after a `/model` switch is a
-        # different model, often on a provider whose credentials are unset.
+        # Helpers (summarizer, journal judge) fall back to this rather than
+        # `CFG.LLM_MODEL`, which after a `/model` switch may lack credentials.
         bind_contextvar(stack, current_model, getattr(agent, "model", None))
         bind_contextvar(stack, current_llm_limiter, limiter)
         bind_contextvar(stack, current_agent_run_scope, run_scope or uuid.uuid4().hex)
         bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         bind_contextvar(stack, current_permission_policy, effective_policy)
         bind_contextvar(stack, current_sandbox_policy, effective_sandbox)
-        # Passed as `agent.run(deps=...)` so `sandbox_gate` reads it explicitly
-        # Safe to freeze for the run: unlike the permission policy,
-        # nothing mutates the sandbox policy mid-run.
+        # Passed as `agent.run(deps=...)` for `sandbox_gate`; nothing mutates
+        # the sandbox policy mid-run, so freezing it is safe.
         sandbox_deps = get_effective_sandbox_policy()
         # Backstop: EnterWorktree/ExitWorktree own this per tool call; this
         # restores the run-start value so a missed ExitWorktree can't leak the
         # worktree past the run.
         bind_contextvar(stack, active_worktree, active_worktree.get())
-        # Isolate agent mode per run so concurrent runs don't share/clobber each
-        # other's plan/build state; the final mode is propagated back to the
-        # caller on close so an in-run mode switch persists (e.g. sticky /plan).
+        # Per-run agent mode so concurrent runs don't clobber each other; the
+        # final mode propagates back on close so an in-run switch persists.
         mode_token, mode_parent = enter_agent_mode_scope()
         stack.callback(exit_agent_mode_scope, mode_token, mode_parent)
 
@@ -262,18 +227,15 @@ async def run_agent(
             effective_message,
         )
         if block_reason is not None:
-            # A UserPromptSubmit hook blocked the prompt: end the turn before the
-            # model runs, surfacing the reason as the turn's output.
+            # A UserPromptSubmit hook blocked the prompt.
             return block_reason, message_history
 
         prompt_content = _get_prompt_content(effective_message, attachments, print_fn)
         prompt_content = await _apply_multimodal_fallback(
             prompt_content, agent, effective_print_fn
         )
-        # Append the volatile <live-context> block to the user turn. Injected
-        # here rather than into the system prompt so the system prompt stays
-        # byte-stable across turns and the cacheable prefix survives; the block
-        # is frozen into history once written (older turns are stale snapshots).
+        # On the user turn, not the system prompt, so the cacheable prefix
+        # stays byte-stable across turns.
         prompt_content = append_live_context(prompt_content, live_context)
 
         current_history = await _prepare_history(
@@ -316,8 +278,6 @@ async def _run_startup_hooks(
             "history": message_history,
             "attachments": attachments,
         },
-        # Claude's startup/resume matcher: an empty history is a fresh start, a
-        # populated one is a resumed/continued conversation.
         source="resume" if message_history else "startup",
     )
 
@@ -331,10 +291,8 @@ async def _run_startup_hooks(
 
         context_part = SystemPromptPart(content=session_start_context)
         if message_history and isinstance(message_history[0], ModelRequest):
-            # Rebuild the first request via replace() instead of mutating its
-            # parts in place — message_history is the history manager's cached
-            # list (returned by reference), so an in-place insert would graft the
-            # context onto the stored conversation and re-inject it every turn.
+            # Not in place: message_history is the history manager's cached
+            # list, so mutating it would re-inject the context every turn.
             first = message_history[0]
             new_first = replace(first, parts=[context_part, *first.parts])
             message_history = [new_first, *message_history[1:]]
@@ -348,15 +306,12 @@ async def _run_startup_hooks(
             "expanded_message": effective_message,
             "attachments": attachments,
         },
-        # Populate the `prompt` context field so UserPromptSubmit matchers (which
-        # map to `prompt`), the CLAUDE_PROMPT env var, and the stdin payload all
-        # see the submitted text — Claude-compatible.
+        # Feeds UserPromptSubmit matchers, CLAUDE_PROMPT and the stdin payload.
         prompt=effective_message if effective_message is not None else message,
     )
 
-    # Claude-compatible: a UserPromptSubmit hook may block the prompt (exit 2 /
-    # decision="block") or halt all processing (continue=false). Either way the
-    # turn ends before the model is called and the reason is surfaced to the user.
+    # Block (exit 2 / decision="block") or halt (continue=false) both end the
+    # turn before the model is called.
     block = extract_block_decision(user_prompt_results)
     if block.blocked:
         CFG.LOGGER.debug(f"USER_PROMPT_SUBMIT hook blocked the prompt: {block.reason}")
@@ -398,13 +353,10 @@ async def _prepare_history(
 ):
     history_processors = list(getattr(agent, "zrb_history_processors", None) or [])
 
-    # Count system prompt tokens BEFORE running processors so the summarizer
-    # can account for them in its threshold comparison (the "Total" shown in
-    # the usage indicator includes system prompt, not just message history).
+    # Counted before the processors so the summarizer's threshold includes it.
     reserved_tokens = limiter.count_tokens(system_prompt) if system_prompt else 0
     CFG.LOGGER.debug(f"System prompt reserved tokens: {reserved_tokens}")
 
-    # Count tokens once here so we can pass it to the hook without an extra O(n) call.
     pre_process_tokens = limiter.count_tokens(message_history)
 
     precompact_results = await effective_hook_manager.execute_hooks(
@@ -415,21 +367,14 @@ async def _prepare_history(
             "message_count": len(message_history),
             "has_history_processors": bool(history_processors),
         },
-        # zrb compaction is threshold-driven; Claude's manual/auto matcher reads
-        # this. "auto" is the only trigger today.
         trigger="auto",
     )
-    # Claude-compatible: a PreCompact hook may inject additionalContext (e.g.
-    # "preserve the deployment steps") ahead of summarization.
     precompact_context = extract_additional_context(precompact_results)
     if precompact_context:
         message_history = _prepend_system_context(message_history, precompact_context)
 
-    # Claude-compatible: a PreCompact hook may block compaction (exit 2 /
-    # decision="block"). When blocked we skip the history processors
-    # (summarization) entirely. The force-prune below is a separate context-window
-    # safety net — it still runs, since an over-limit request cannot be sent to
-    # the model regardless of the hook's preference.
+    # A blocking PreCompact skips summarization; the force-prune below still
+    # runs, since an over-limit request cannot be sent regardless.
     precompact_block = extract_block_decision(precompact_results)
     if precompact_block.blocked:
         CFG.LOGGER.debug(
@@ -443,10 +388,7 @@ async def _prepare_history(
 
     processed_history = ensure_alternating_roles(processed_history)
 
-    # PostCompact mirrors PreCompact, firing once the history processors have run.
-    # A hook may inject additionalContext (prepended to the processed history) the
-    # same way PreCompact does. Token count is reused from the pre-pass when no
-    # processors ran (they're the only thing that changes the content).
+    # Without processors the content is unchanged, so the count is reused.
     post_process_tokens = (
         limiter.count_tokens(processed_history)
         if history_processors
@@ -469,10 +411,8 @@ async def _prepare_history(
         )
 
     effective_limit = max(0, limiter.max_token_per_request - reserved_tokens)
-    # Reuse the token count from the hook when no processors ran — they are the only
-    # thing that can materially change the history content between the two points.
-    # ensure_alternating_roles only merges consecutive same-role messages, which is a
-    # no-op on well-formed history, so the slight approximation is safe.
+    # ensure_alternating_roles is a no-op on well-formed history, so reusing
+    # the pre-pass count when no processors ran is a safe approximation.
     current_tokens = (
         limiter.count_tokens(processed_history)
         if history_processors
@@ -514,12 +454,10 @@ async def _do_agent_run(
     handler: Callable[[Any, Any], Awaitable[None]],
     sandbox_deps: Any,
 ) -> Any:
-    """Isolates the `agent.run()` call as its own function, out of
-    `_execution_loop`'s `while True` loop.
+    """Call `agent.run()` outside `_execution_loop`'s loop.
 
-    A pyright-performance workaround: `Agent.run` is heavily overloaded, and
-    inlined in the loop pyright re-resolves its overloads on every narrowing
-    pass (~7 minutes to check, versus ~2 seconds here).
+    Pyright workaround: inlined in the loop, `Agent.run`'s overloads are
+    re-resolved on every narrowing pass (~7 minutes to check vs ~2 seconds).
     """
     # lazy: heavy third-party
     from pydantic_ai import UsageLimits
@@ -530,10 +468,8 @@ async def _do_agent_run(
         deferred_tool_results=cursor.results,
         usage_limits=UsageLimits(request_limit=_request_limit()),
         event_stream_handler=handler,
-        # pydantic-ai types `deps` against the Agent's own deps_type (`None`
-        # here — see create_agent's comment on why it stays pinned to None
-        # for the toolsets/model_settings overloads). `sandbox_gate` reads it
-        # via `ctx.deps` regardless of this static type.
+        # deps_type is pinned to None (see create_agent); `sandbox_gate` reads
+        # `ctx.deps` regardless.
         deps=cast(Any, sandbox_deps),
     )
 
@@ -564,9 +500,8 @@ async def _execution_loop(
     retry_state = RetryState()
     extension_state = ExtensionState()
     partial_run = PartialRunAccumulator()
-    # Background checkpoint-save tasks fired mid-turn (see `_build_event_stream_handler`).
-    # Gathered in the `finally` below so a lagging write can never race past the
-    # caller's own end-of-turn save.
+    # Gathered in `finally` so a lagging write cannot land after the caller's
+    # end-of-turn save.
     pending_checkpoint_tasks: list[asyncio.Task] = []
 
     try:
@@ -608,17 +543,13 @@ async def _execution_loop(
                     effective_hook_manager,
                     effective_approval_channel,
                 ):
-                    # Approval is pending out-of-band: the turn suspends and
-                    # control returns to the user. This is neither a turn end nor
-                    # a session end, so no STOP/SESSION_END fires here; the turn
-                    # resumes when the approval arrives.
+                    # Approval pending out-of-band: the turn suspends (no
+                    # STOP/SESSION_END) and resumes when the approval arrives.
                     return cursor.output, cursor.run_history
                 continue
 
-            # Empty/placeholder completion guard: a weak or overloaded provider
-            # sometimes returns no real text (and no tool call). Don't surface the
-            # "(tool call)" placeholder as the answer — regenerate the turn a
-            # bounded number of times, then raise a clear error.
+            # Weak or overloaded providers sometimes return no text and no
+            # tool call; regenerate a bounded number of times.
             if is_empty_completion(cursor.output):
                 _retry_empty_completion(retry_state, cursor, print_fn)
                 continue
@@ -688,11 +619,8 @@ async def _stream_one_round(
             result.all_messages(),
             allow_orphaned_tool_calls=isinstance(cursor.output, DeferredToolRequests),
         )
-        # `agent.run(event_stream_handler=...)`'s handler never receives
-        # a trailing result event — that's `run_stream_events()`'s own
-        # addition for its consumers, synthesized after the fact from
-        # the same result. Re-fire it here so usage accounting and the
-        # "Requests/Tool Calls/Total" summary line keep working.
+        # `agent.run()`'s stream handler never gets the trailing result event
+        # (`run_stream_events()` synthesizes it); usage accounting needs it.
         partial_run.record_event(AgentRunResultEvent(result=result))
         if effective_event_handler:
             await effective_event_handler(AgentRunResultEvent(result=result))
@@ -726,9 +654,7 @@ async def _recover_from_stream_error(
         min_turns=min_turns,
     )
     if not outcome.should_retry:
-        # StopFailure: the turn is ending on an unrecoverable API
-        # error. Observe-only; guarded so a hook can never mask the
-        # original exception.
+        # Observe-only; guarded so a hook cannot mask the original exception.
         try:
             await effective_hook_manager.execute_hooks(
                 HookEvent.STOP_FAILURE,
@@ -778,9 +704,7 @@ async def _resolve_deferred_requests(
     Returns False when approval is pending out-of-band, which suspends the
     turn rather than ending it.
     """
-    # Commit now, before `carry_forward` below makes the next
-    # iteration treat this tool call as pre-existing history
-    # rather than something this turn did.
+    # Before `carry_forward` makes this tool call look like prior history.
     cursor.commit_round()
     CFG.LOGGER.debug("Got DeferredToolRequests, calling process_deferred_requests")
     # Past the setup guards the UI is always resolved.
@@ -838,19 +762,14 @@ def _retry_empty_completion(
 
 
 def _create_turn_snapshot(nested_run: bool) -> TurnSnapshot | None:
-    """A turn-start snapshot for the self-review gate, while it is on. A
-    nested run takes none: the parent's snapshot covers what a sub-agent
-    changes."""
+    """A turn-start snapshot for self-review; nested runs rely on the parent's."""
     if not CFG.LLM_SELF_REVIEW_ENABLED or nested_run:
         return None
     return TurnSnapshot()
 
 
 async def _take_turn_snapshot(snapshot: TurnSnapshot | None) -> None:
-    """Snapshot the working directory. A cancelled turn waits for the
-    snapshot to stop before it deletes the store (`run_in_worker`). A
-    working directory that is gone leaves the turn without a snapshot: a
-    snapshot never fails a turn."""
+    """Snapshot the working directory; a missing cwd skips it, never failing the turn."""
     if snapshot is None:
         return
     try:
@@ -869,17 +788,9 @@ async def _finish_turn(
 ) -> tuple[Any, list[Any]] | None:
     """Fire STOP and settle the turn, or set up the round a hook asked for.
 
-    STOP is the per-turn "done" signal that Claude-Code-compatible consumers
-    listen on (completion sounds, desktop notifications, e.g. peon-ping). It is
-    ALSO the block-to-continue + systemMessage extension point: a blocking STOP
-    hook re-runs the agent with its reason injected; a systemMessage hook (e.g.
-    journaling) runs one more turn. SESSION_END is NOT fired here — it is
-    terminal, fired once when the chat session ends. Manual interrupts raise
-    CancelledError before reaching here, where the TUI fires its own Stop, so
-    the two paths never double-fire.
-
-    Returns the turn's `(output, history)`, or `None` when a hook asked for
-    another round.
+    A blocking STOP hook re-runs the agent with its reason; a systemMessage
+    hook runs one more turn. Manual interrupts never reach here (the TUI fires
+    its own Stop). Returns `(output, history)`, or `None` for another round.
     """
     wrote_files = turn_wrote_files(cursor.accumulated)
     stop_results = await effective_hook_manager.execute_hooks(
@@ -887,21 +798,12 @@ async def _finish_turn(
         {
             "output": cursor.output,
             "history": cursor.run_history,
-            # This turn's new messages alone, and a free (no-LLM)
-            # gate on whether they touched a file — lets an
-            # evidence-gated hook (e.g. a journal-compliance agent
-            # hook) act only on turns where it's actually warranted.
             "turn": cursor.accumulated,
             "wrote_files": wrote_files,
-            # Which files, and the working directory the turn started from,
-            # for a hook that reviews them (self_review.py).
             "changed_paths": turn_changed_paths(cursor.accumulated),
             "turn_start_snapshot": (
                 cursor.snapshot.payload() if cursor.snapshot else None
             ),
-            # Which run this Stop belongs to, so a hook keeping per-turn
-            # state (self_review.py's round counter) keeps it per run, and
-            # whether that run is a delegated sub-agent's.
             "run_scope": get_current_agent_run_scope(),
             "turn_id": cursor.turn_id,
             "nested_run": nested_run,
@@ -935,14 +837,11 @@ async def _finish_turn(
 def _resolve_crash_history(
     partial_run: PartialRunAccumulator, run_history: list[Any]
 ) -> list[Any]:
-    """The best available history to attach to an unhandled run exception.
+    """The best history to attach to an unhandled run exception.
 
-    `run_history` only updates when an `agent.run()` call returns, so on a
-    failure inside the first call of this turn it's still the pre-turn
-    baseline. `partial_run.latest_history` is the live, ever-growing
-    `ctx.messages` and reflects everything done this turn, including a
-    dangling trailing tool call — closed by the caller via
-    `close_dangling_tool_calls`.
+    `run_history` only updates when `agent.run()` returns; the live
+    `ctx.messages` covers the whole turn, dangling tool call included (the
+    caller closes it via `close_dangling_tool_calls`).
     """
     if partial_run.latest_history is not None:
         return list(partial_run.latest_history)
@@ -952,11 +851,7 @@ def _resolve_crash_history(
 async def _await_pending_checkpoints(
     pending_checkpoint_tasks: list[asyncio.Task],
 ) -> None:
-    """Drain in-flight checkpoint writes before the run ends.
-
-    Guarantees a lagging background save can never land after (and clobber)
-    the caller's own end-of-turn save.
-    """
+    """Drain in-flight checkpoint writes before the run ends."""
     if not pending_checkpoint_tasks:
         return
     checkpoint_results = await asyncio.gather(
@@ -977,20 +872,10 @@ def _build_event_stream_handler(
 ) -> Callable[[Any, Any], Awaitable[None]]:
     """Build the `event_stream_handler` for one `agent.run()` call.
 
-    Registers the live `RunContext` on `effective_ui` for the duration of the
-    call so `BaseUI`/`MultiUI._submit_user_message` can steer a mid-turn
-    message into this run via `ctx.enqueue(..., priority="asap")` instead of
-    queuing it. Registration is cleared by the caller once
-    `agent.run()` returns or raises, not from inside here — the handler fires
-    once per graph node (every model-request/tool-call round shares the same
-    underlying pending-message queue), so re-registering each time is
-    redundant.
-
-    When `checkpoint_fn` is set, also fires it (as a background task, never
-    awaited inline) every time `ctx.messages` grows and ends in a
-    `ModelRequest` — the point right after a tool-call round trip's results
-    have all landed, which is always a structurally complete history (no
-    dangling `ToolCallPart`), unlike mid-response-streaming states.
+    Registers the live `RunContext` on the UI so a mid-turn message can be
+    steered into this run; the caller clears it after `agent.run()`.
+    `checkpoint_fn` fires in the background whenever `ctx.messages` grows and
+    ends in a `ModelRequest` — a structurally complete history.
     """
     last_checkpoint_len = baseline_len
 
@@ -999,9 +884,7 @@ def _build_event_stream_handler(
         _set_active_run_context(effective_ui, ctx)
         async for event in events:
             partial_run.record_event(event)
-            # Live reference (same list pydantic-ai appends to in place), kept
-            # for the exception/cancellation fallback in `_execution_loop` —
-            # cheap, no copy needed just to hold a pointer.
+            # Live reference for the crash/cancel fallback in `_execution_loop`.
             partial_run.latest_history = ctx.messages
             if effective_event_handler:
                 await effective_event_handler(event)
@@ -1009,8 +892,7 @@ def _build_event_stream_handler(
                 ctx.messages, last_checkpoint_len
             ):
                 last_checkpoint_len = len(ctx.messages)
-                # Copy now, synchronously: the source list keeps growing, so the
-                # background task must not observe a moving target.
+                # Copy now: the source list keeps growing.
                 snapshot = list(ctx.messages)
                 assert pending_checkpoint_tasks is not None
                 pending_checkpoint_tasks.append(
@@ -1040,11 +922,7 @@ def _set_active_run_context(effective_ui: AnyUI | None, ctx: Any) -> None:
 
 
 def _request_limit() -> int | None:
-    """The per-run model-request cap, or ``None`` when disabled.
-
-    Enforces the prompt's Recovery rules: without a cap, a model that has
-    stopped converging can re-edit the same file until the wall clock runs out.
-    """
+    """The per-run model-request cap, or ``None`` when disabled."""
     limit = CFG.LLM_MAX_REQUEST_PER_RUN
     return limit if limit > 0 else None
 
@@ -1052,11 +930,8 @@ def _request_limit() -> int | None:
 def _explain_usage_limit(exc: Exception) -> Exception:
     """Turn pydantic-ai's request-limit error into an actionable halt.
 
-    Returned rather than raised so the caller keeps its existing error path:
-    the swap happens before ``handle_stream_error``, which does not treat a
-    ``RuntimeError`` as retryable, so the run halts instead of spending the
-    retry budget re-hitting a cap it cannot get under. The partial history is
-    still attached by the outer handler, so the work already done survives.
+    A ``RuntimeError`` is not retryable in ``handle_stream_error``, so the run
+    halts instead of re-hitting the cap.
     """
     # lazy: heavy third-party
     from pydantic_ai.exceptions import UsageLimitExceeded
@@ -1113,15 +988,10 @@ async def _apply_multimodal_fallback(
 ) -> Any:
     """Replace binaries the main model can't consume with text descriptions.
 
-    No-op when *prompt_content* is a string or has no binaries. When the
-    main model is text-only and a multimodal model is configured, image and
-    audio attachments are routed through a one-shot describe sub-agent and
-    their textual output is inlined; unsupported attachments are dropped
-    with a warning rather than silently sent to a provider that will reject
-    or ignore them.
+    Uses the multimodal model when configured; otherwise unsupported
+    attachments are dropped with a warning.
     """
-    # lazy: zrb.llm.util.multimodal_describe transitively loads pydantic_ai,
-    # pdfplumber and prompt_toolkit — deferred to keep the cold-start path cheap.
+    # lazy: transitively heavy — multimodal_describe loads pydantic_ai, pdfplumber, prompt_toolkit
     from zrb.llm.util.multimodal_describe import replace_unsupported_attachments
 
     main_model = getattr(agent, "model", None)

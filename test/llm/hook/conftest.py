@@ -1,5 +1,4 @@
-"""Fixtures shared by the self-review gate's tests: a switched-on gate with a
-replaced reviewer, a Stop event, and turn-start snapshots."""
+"Fixtures shared by the self-review gate's tests: a switched-on gate with a"
 
 import asyncio
 from contextlib import contextmanager
@@ -15,8 +14,7 @@ from zrb.llm.hook.types import HookEvent
 
 @pytest.fixture(autouse=True)
 def _clean_skill_hook_configs():
-    """Skill frontmatter hooks are process-wide state: a test that scans a skill
-    records them for every later manager, so each test starts and ends clean."""
+    'Skill frontmatter hooks are process-wide state: a test that scans a skill'
     reset_skill_hook_configs()
     yield
     reset_skill_hook_configs()
@@ -24,8 +22,7 @@ def _clean_skill_hook_configs():
 
 @pytest.fixture
 def start_snapshot():
-    """Take a turn-start snapshot of a directory, as the runner puts it in the
-    payload; every store it made is deleted after the test."""
+    'Take a turn-start snapshot of a directory, as the runner puts it in the'
     snapshots: list[TurnSnapshot] = []
 
     def take(workdir) -> dict:
@@ -43,20 +40,19 @@ def start_snapshot():
 
 @pytest.fixture
 def gate():
-    """Switch the gate on and replace the reviewer; the context yields the
-    inputs the reviewer saw and the inputs it was cancelled on."""
+    'Switch the gate on and replace the reviewer; the context yields the'
     return _gate
 
 
 @pytest.fixture
 def stop():
-    """Fire a Stop event with the gate's payload fields."""
+    "Fire a Stop event with the gate's payload fields."
     return _stop
 
 
 @pytest.fixture
 def blocked():
-    """The results among a Stop's that block it."""
+    "The results among a Stop's that block it."
     return _blocked
 
 

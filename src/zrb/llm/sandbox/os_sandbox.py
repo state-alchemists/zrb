@@ -1,18 +1,9 @@
 """OS-level sandbox dispatch for subprocesses.
 
-``build_sandboxed_argv`` is the single entry point tools call right before
-spawning a subprocess. It returns discrete argv elements for
-``asyncio.create_subprocess_exec`` — no shell quoting is ever involved,
-regardless of whether the caller's argv is itself a shell invocation.
-
-Platform matrix:
-
-* macOS  → ``sandbox-exec -p <SBPL>`` (see ``seatbelt``)
-* Linux  → ``bwrap`` when installed (see ``bwrap``)
-* Windows / Linux-without-bwrap → no OS mechanism; the policy's ``fallback``
-  mode decides: ``"warn"`` runs the command unsandboxed with a visible warning,
-  ``"deny"`` raises :class:`SandboxUnavailableError`. Never a silent
-  passthrough.
+macOS uses ``sandbox-exec`` (``seatbelt``), Linux uses ``bwrap`` when
+installed. Elsewhere the policy's ``fallback`` decides: ``"warn"`` runs
+unsandboxed with a visible warning, ``"deny"`` raises
+:class:`SandboxUnavailableError`.
 """
 
 from __future__ import annotations
@@ -34,9 +25,7 @@ class SandboxUnavailableError(Exception):
 
 
 def format_sandbox_denied_message(e: SandboxUnavailableError) -> str:
-    """Shared `[SYSTEM SUGGESTION]` text for a `fallback="deny"` refusal —
-    every subprocess-spawning tool (shell, worktree) surfaces the same
-    wording so a future change to it doesn't have to be repeated per tool."""
+    """Model-facing refusal text for a `fallback="deny"` sandbox error."""
     return (
         f"Command refused by sandbox policy: {e}. "
         "[SYSTEM SUGGESTION]: this deployment requires OS-level sandboxing "
@@ -49,14 +38,10 @@ def build_sandboxed_argv(
     policy: SandboxPolicy,
     skip: bool = False,
 ) -> tuple[list[str], str | None]:
-    """Wrap a subprocess invocation in the platform sandbox per ``policy``.
+    """Prefix ``argv`` with the platform sandbox per ``policy``.
 
-    ``argv`` is exec'd as-is, shell-shaped or not — this prepends only a
-    sandbox-dispatch prefix in front of it.
-
-    Returns ``(argv, note)``: ``argv`` to pass to ``create_subprocess_exec``
-    and an optional human/model-facing note (escape notice or fallback
-    warning) the caller prepends to the tool output.
+    Returns ``(argv, note)`` for ``create_subprocess_exec``; ``note`` is an
+    optional escape notice or fallback warning to prepend to tool output.
 
     Raises :class:`SandboxUnavailableError` when no mechanism exists and
     ``policy.fallback == "deny"``, or when an escape is requested while

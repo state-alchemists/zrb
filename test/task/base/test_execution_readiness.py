@@ -16,14 +16,7 @@ from zrb.task_status.task_status import TaskStatus
 
 @pytest.mark.asyncio
 async def test_readiness_check_exception_fails_fast_beside_a_polling_check():
-    """One failing check fails the task even when a sibling never returns.
-
-    Regression: gathering the checks with return_exceptions=True waited for all
-    of them. Readiness checks poll until they succeed (HttpCheck/TcpCheck never
-    return on their own), so the failure never surfaced and the run hung — the
-    exact hazard the fail-fast path below exists to avoid. The polling sibling
-    must be cancelled instead.
-    """
+    """One failing check fails the task even when a sibling check never returns."""
     never = asyncio.Event()
     polling_cancelled = asyncio.Event()
 
@@ -121,13 +114,7 @@ async def test_incomplete_readiness_check_fails_task_instead_of_hanging():
 
 @pytest.mark.asyncio
 async def test_readiness_failure_runs_fallbacks_and_skips_successors():
-    """Readiness failure is a permanent failure — fallbacks must fire.
-
-    The retry loop pairs mark_as_permanently_failed with skip_successors +
-    execute_fallbacks; the readiness fail-fast path must do the same, or a
-    `fallback=` on a server task silently never runs when the readiness check
-    (rather than the action) is what dies.
-    """
+    """Readiness failure is a permanent failure: fallbacks run, successors are skipped."""
     check_task = BaseTask(name="check_task")
     check_task.exec_chain = AsyncMock(side_effect=ValueError("port closed"))
 
@@ -178,13 +165,7 @@ async def test_readiness_failure_runs_fallbacks_and_skips_successors():
 
 @pytest.mark.asyncio
 async def test_readiness_failure_surfaces_action_error_without_rerunning_fallbacks():
-    """When the action itself crashed, its error is the root cause.
-
-    The retry loop's terminal path already marked the task permanently failed
-    and ran the fallbacks — the readiness fail-fast path must not run them a
-    second time, and must raise the action's exception (not the readiness
-    symptom).
-    """
+    """When the action itself crashed, its error is raised and fallbacks run once."""
     check_task = BaseTask(name="check_task")
     check_task.exec_chain = AsyncMock(side_effect=ValueError("port closed"))
 
@@ -230,13 +211,7 @@ async def test_readiness_failure_surfaces_action_error_without_rerunning_fallbac
 
 @pytest.mark.asyncio
 async def test_readiness_failure_after_completed_action_does_not_run_fallbacks():
-    """A completed action already ran its successors and skipped its fallbacks.
-
-    When readiness then fails (short action + broken check), stacking
-    mark_as_permanently_failed on a completed task and firing fallbacks AFTER
-    the successors would be contradictory. The readiness error still
-    propagates so the run fails visibly.
-    """
+    """A completed action keeps its outcome; the readiness error still propagates."""
     check_task = BaseTask(name="check_task")
     check_task.exec_chain = AsyncMock(side_effect=ValueError("port closed"))
 
@@ -288,12 +263,7 @@ async def test_readiness_failure_after_completed_action_does_not_run_fallbacks()
 
 @pytest.mark.asyncio
 async def test_diamond_upstreams_run_readiness_task_once():
-    """Two upstreams completing in the same tick must not double-run the task.
-
-    `is_started` must be set before the readiness path's first suspension
-    point. Set it only inside the created action task and both upstream chains
-    pass `is_allowed_to_run`, running the action twice concurrently.
-    """
+    """Two upstreams completing in the same tick must not double-run the task."""
     executions = []
 
     check = BaseTask(name="check", action=lambda ctx: "ok")
@@ -314,14 +284,7 @@ async def test_diamond_upstreams_run_readiness_task_once():
 
 @pytest.mark.asyncio
 async def test_initial_readiness_wait_is_bounded_by_task_readiness_timeout():
-    """A readiness check that never returns fails the task instead of hanging.
-
-    Regression: the initial wait read `CFG.TASK_READINESS_TIMEOUT`, which
-    defaulted to 0 ("no cap"), while the `readiness_timeout` constructor
-    parameter — defaulted to a reassuring 60 — was consumed *only* by the
-    monitoring re-check loop. So `zrb <task>` against a service that never came
-    up ran forever with no output. Both paths now read the same knob.
-    """
+    """A readiness check that never returns fails the task instead of hanging."""
     never = asyncio.Event()
 
     async def poll_forever(_session):
@@ -359,9 +322,6 @@ async def test_initial_readiness_wait_is_bounded_by_task_readiness_timeout():
             new=AsyncMock(return_value="result"),
         ):
             with pytest.raises(asyncio.TimeoutError):
-                # The outer 10s is the harness's own safety net: if the cap
-                # regressed, this fails on the wait_for below rather than
-                # hanging the suite. The task's own 1s cap is what should fire.
                 await asyncio.wait_for(
                     execution.execute_action_until_ready(session), timeout=10
                 )
@@ -371,11 +331,7 @@ async def test_initial_readiness_wait_is_bounded_by_task_readiness_timeout():
 
 @pytest.mark.asyncio
 async def test_unset_readiness_timeout_falls_back_to_cfg():
-    """`readiness_timeout=None` reads CFG.TASK_READINESS_TIMEOUT (ms -> s).
-
-    The fallback lives in the property so a single knob covers every task that
-    does not override it; pinning it here keeps the two units from drifting.
-    """
+    """`readiness_timeout=None` reads CFG.TASK_READINESS_TIMEOUT (ms -> s)."""
     task = BaseTask(name="task")
 
     with patch("zrb.task.base.base_task.CFG") as mock_cfg:
@@ -396,13 +352,7 @@ async def test_unset_readiness_timeout_falls_back_to_cfg():
     ],
 )
 def test_cfg_readiness_timeout_reaches_every_task_class(task_factory):
-    """`ZRB_TASK_READINESS_TIMEOUT` is a global default, not a BaseTask-only one.
-
-    Regression: `LLMTask` and `LLMChatTask` re-declared `readiness_timeout=60`
-    and forwarded that explicit value, so the base class never saw `None` and
-    the environment variable silently did nothing for them -- exactly the kind
-    of shadowed default this parameter was changed to `None` to avoid.
-    """
+    """`ZRB_TASK_READINESS_TIMEOUT` applies to every task class, not just BaseTask."""
     task = task_factory()
 
     with patch("zrb.task.base.base_task.CFG") as mock_cfg:
@@ -411,8 +361,5 @@ def test_cfg_readiness_timeout_reaches_every_task_class(task_factory):
 
 
 def test_default_readiness_timeout_is_finite():
-    """The shipped default must cap the wait, not disable it.
-
-    A 0 default means "no timeout": a hung health check holds a CI job forever.
-    """
+    """The shipped default caps the wait instead of disabling it."""
     assert CFG.TASK_READINESS_TIMEOUT > 0

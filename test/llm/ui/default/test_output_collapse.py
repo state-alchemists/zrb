@@ -110,8 +110,7 @@ class _RecordingBuffer:
 
 
 def test_collapse_thinking_block_consumes_the_mark_once():
-    """A second collapse call without a fresh mark must be a no-op, not
-    re-collapse (or corrupt) whatever now sits at the old offset."""
+    """A collapse call without a fresh mark is a no-op."""
     ui = MockMarkdownUI()
 
     with patch.object(ui.output_part, "schedule_invalidate"):
@@ -126,9 +125,7 @@ def test_collapse_thinking_block_consumes_the_mark_once():
 
 
 def test_mark_and_collapse_text_block_wraps_the_streamed_span():
-    """`mark_text_block_start`/`collapse_text_block` are the final-text
-    counterpart to the thinking pair — same retroactive-collapse mechanics,
-    reused via `_collapse_collapsible_block`."""
+    """Text blocks use the same retroactive-collapse mechanics as thinking blocks."""
     ui = MockMarkdownUI()
 
     with patch.object(ui.output_part, "schedule_invalidate"):
@@ -161,10 +158,7 @@ def test_collapse_text_block_without_a_mark_is_a_noop():
 
 
 def test_thinking_and_text_blocks_share_the_slot_without_interference():
-    """A real turn opens/collapses thinking, then opens/collapses text — the
-    two pairs share one slot (`StreamEventHandler` never has both open at
-    once). Verifies collapsing thinking first doesn't leave stale state that
-    breaks the text collapse right after."""
+    """Thinking and text blocks share one slot without stale state."""
     ui = MockMarkdownUI()
 
     with patch.object(ui.output_part, "schedule_invalidate"):
@@ -225,10 +219,7 @@ def test_update_tool_prepare_empty_text_erases_and_stops_tracking():
 
 
 def test_update_tool_prepare_keeps_each_tool_calls_own_line_independent():
-    """Regression: two tool calls preparing arguments concurrently (parallel
-    tool calls) must never corrupt each other's line — the bug the old
-    `\\r`-erase-last-line trick had. Erasing the first must not touch or
-    invalidate the second's still-open span."""
+    """Concurrent tool-call preparation keeps each call's line independent."""
     ui = MockMarkdownUI()
 
     with patch.object(ui.output_part, "schedule_invalidate"):
@@ -290,12 +281,7 @@ def test_finish_shell_output_collapses_and_registers_for_toggle():
 
 
 def test_finish_shell_output_keeps_rendered_blocks_in_position_order():
-    """A shell line opened before a later block collapses after it, so its
-    record enters the list at an offset that is already behind the tail.
-    Appending it would leave `rendered_blocks` out of position order, and
-    `rewrap_output` walks that list accumulating each re-render's length
-    delta — one record out of order makes every offset after it address the
-    wrong text."""
+    """A collapsed shell line is inserted in rendered-block position order."""
     ui = MockMarkdownUI()
 
     with patch.object(ui.output_part, "schedule_invalidate"):
@@ -313,9 +299,7 @@ def test_finish_shell_output_keeps_rendered_blocks_in_position_order():
 
 
 def test_set_rendered_block_drops_records_the_write_overlapped():
-    """The write replaced whatever was at those offsets, so a record still
-    covering part of the region describes text that no longer exists.
-    Re-rendering it would splice over the new block."""
+    """Overlapping rendered-block records are removed when a span is written."""
     ui = MockMarkdownUI()
     ui.rendered_blocks.append([0, 10, "stale", lambda s, w: s])
     ui.rendered_blocks.append([20, 30, "later", lambda s, w: s])
@@ -347,12 +331,7 @@ def test_finish_shell_output_consumes_the_span_once():
 
 
 def test_shell_output_keeps_each_commands_own_line_independent_while_growing():
-    """Regression: this is the actual bug reported — two shell commands
-    running in parallel had their interleaved live output collapse into
-    ONE block, silently swallowing one command's lines. Each `update_*`
-    call replaces exactly that command's own span (never the other's),
-    the same way `update_tool_prepare` already handles interleaved
-    argument streams."""
+    """Parallel shell commands retain independent growing output spans."""
     ui = MockMarkdownUI()
 
     with patch.object(ui.output_part, "schedule_invalidate"):

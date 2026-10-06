@@ -110,9 +110,8 @@ def convert_math_to_unicode(
 
     Fenced code blocks and inline code spans are masked out first, so a `$`
     inside code (shell vars, prices in a snippet, ...) is never touched.
-    Anything that can't be safely converted -- masked code, ambiguous "$5 and
-    $10" prose, or unparseable/unrecognized LaTeX -- is left exactly as
-    written, matching the pre-existing fallback (plain literal text).
+    Anything that can't be safely converted (ambiguous "$5 and $10" prose,
+    unparseable LaTeX) is left exactly as written.
     """
     try:
         LatexWalker, LatexWalkerParseError, converter = _get_latex_tools()
@@ -144,7 +143,7 @@ def convert_math_to_unicode(
             """Mask an ordinary fence unchanged, but a ```latex/```tex fence
             is treated as a math block: rendered and inlined as flowing text
             on success, or left as the original (syntax-highlighted) fence
-            when it can't be converted -- same per-span fallback as `$...$`.
+            when it can't be converted.
             """
             info = (
                 match.group(2).strip().split()[0].lower()

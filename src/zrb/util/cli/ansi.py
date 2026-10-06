@@ -10,22 +10,15 @@ _ANSI_ESCAPE = re.compile(
 
 
 def strip_ansi(text: str) -> str:
-    """Remove ANSI escape sequences (color/style codes, OSC, ...) from `text`.
-
-    For output that started as terminal-styled text but is about to be handed
-    to something that doesn't render escape codes — an LLM's context, a log
-    file, a plain-text export.
-    """
+    """Remove ANSI escape sequences (color/style codes, OSC, ...) from `text`."""
     return _ANSI_ESCAPE.sub("", text)
 
 
 def strip_trailing_padding(text: str) -> str:
     """Drop each line's trailing spaces while keeping its trailing ANSI codes.
 
-    Rich pads every rendered line out to the console width. A plain `rstrip()`
-    misses that padding whenever the line ends with a reset sequence, so the
-    trailing run of spaces and escape codes is matched as a whole and only the
-    whitespace inside it is removed.
+    Rich pads lines to the console width, and `rstrip()` misses the padding
+    when the line ends with a reset sequence.
     """
     return "\n".join(_strip_line(line) for line in text.splitlines())
 

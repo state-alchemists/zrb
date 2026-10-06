@@ -1,4 +1,4 @@
-"""Tests for the explicit prompt-profile adjustment."""
+'Tests for the explicit prompt-profile adjustment.'
 
 import pytest
 
@@ -57,7 +57,7 @@ def test_small_tier_label_is_not_enough_on_its_own():
 
 def test_small_tier_label_plus_local_provider_selects_minimal():
     assert builtin_profile("ollama:phi4-mini") == MINIMAL_PROFILE
-    # Ollama's hosted tier is not local: the label alone stays on `standard`.
+
     assert builtin_profile("ollama:phi4-mini:cloud") == STANDARD_PROFILE
 
 

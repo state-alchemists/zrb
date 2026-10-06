@@ -1,13 +1,4 @@
-"""
-LSP (Language Server Protocol) integration for zrb.
-
-Provides IDE-like code intelligence capabilities:
-- Go to definition
-- Find references
-- Get diagnostics
-- Document symbols
-- Rename symbols
-"""
+"""LSP (Language Server Protocol) integration for zrb."""
 
 from zrb.llm.lsp.manager import lsp_manager
 from zrb.llm.lsp.tools import (

@@ -1,18 +1,8 @@
 """Message queue shared by every chat UI.
 
-The queue holds `QueuedMessage` entries — each user message (or `/exec` job)
-waiting for its turn. Entries are mutable: the `run` job reads `entry.text`
-lazily at execution time, so *editing a queued message is just a field write on
-the entry* and removing one is a `remove(entry)` call. Neither needs to touch
-the consumer loop.
-
-`MessageQueue` subclasses `asyncio.Queue` so the existing consumers keep their
-`get` / `put_nowait` / `task_done` / `join` semantics (the HTTP chat UI awaits
-`join()`), and adds the peek / ordering / removal operations the up-arrow
-editing of still-queued messages needs. Because the consumer is the only
-`get()` caller and pops entries, anything still in the queue is by definition
-not yet running — the added operations touch only not-yet-started
-messages.
+Entries are mutable and `run` reads `entry.text` at execution time, so
+editing a queued message is a field write. Anything still in the queue has not
+started running.
 """
 
 from __future__ import annotations
@@ -42,9 +32,7 @@ if TYPE_CHECKING:
 class EchoSpan:
     """Where one UI's echo of a message landed in that UI's output buffer.
 
-    `start`/`end` delimit the echoed line and `text` is the line itself, so a
-    redraw can verify the span still holds it before splicing in place — it
-    may have been shifted or re-wrapped since (e.g. a terminal resize).
+    `text` lets a redraw verify the span still holds the line before splicing.
     """
 
     start: int
@@ -55,11 +43,8 @@ class EchoSpan:
 class QueuedMessage:
     """A user message (or exec job) waiting in the queue.
 
-    `run` is the async job that processes this entry; it must read `text` and
-    `attachments` at execution time rather than capturing them, so an edit made
-    while the entry is queued is picked up when the turn runs. It is a
-    coroutine function rather than any awaitable, because the consumer hands
-    it to `asyncio.create_task`, which accepts nothing else.
+    `run` must read `text` and `attachments` at execution time so edits made
+    while queued are picked up.
     """
 
     def __init__(
@@ -76,19 +61,12 @@ class QueuedMessage:
         self.kind = kind  # "message" | "exec"
         self.run = run
         self.source = source
-        # When submission reached the queue, so a paste whose lines arrived as
-        # separate Enter keystrokes can be coalesced back into one message.
-        # None for entries that never passed through `submit_user_message_via_queue`
-        # (e.g. `/exec` jobs) — they never merge.
+        # For paste-burst merging; None (e.g. `/exec` jobs) never merges.
         self.submitted_at: datetime | None = None
-        # Marker ("💬"/"⏳") and timestamp of the echoed line, kept so an edit
-        # can rebuild the line in the same style instead of re-deriving state.
+        # Kept so an edit can rebuild the echoed line in the same style.
         self.echo_marker: str = ""
         self.echo_timestamp: str = ""
-        # Each target UI's echo span in its own output buffer, keyed by that
-        # UI: a `MultiUI` echoes into every child, and each redraws against
-        # its own span. An entry with no echo (an `/exec` job, a rendered
-        # echo, a confirmation-buffered line) has no key.
+        # Keyed by target UI: a `MultiUI` echoes into every child.
         self.echo_spans: dict[Any, EchoSpan] = {}
 
     @property
@@ -98,18 +76,11 @@ class QueuedMessage:
 
 
 class MessageQueue(asyncio.Queue):
-    """A FIFO of `QueuedMessage` entries with edit/remove access.
-
-    Inherits `get` / `put_nowait` / `task_done` / `join` / `qsize` / `empty`
-    from `asyncio.Queue`; the added operations peek and remove entries without
-    disturbing that bookkeeping.
-    """
+    """An `asyncio.Queue` of `QueuedMessage` entries with peek/remove access."""
 
     def __init__(self, maxsize: int = 0):
         super().__init__(maxsize)
-        # asyncio.Queue's stubs expose none of `_queue`, `_finished`,
-        # `_putters` or `_wakeup_next`; declare them so the operations below
-        # type-check.
+        # Declared for the type checker; asyncio.Queue's stubs omit them.
         self._queue: deque[QueuedMessage] = deque()
         self._finished: asyncio.Event
         self._putters: deque[asyncio.Future[None]] = deque()
@@ -120,10 +91,7 @@ class MessageQueue(asyncio.Queue):
         return self._queue[-1] if self._queue else None
 
     def pending(self) -> "tuple[QueuedMessage, ...]":
-        """Every not-yet-started entry, oldest first.
-
-        Nothing is popped, so this cannot race the consumer.
-        """
+        """Every not-yet-started entry, oldest first."""
         return tuple(self._queue)
 
     def latest_editable(self) -> "QueuedMessage | None":
@@ -134,11 +102,8 @@ class MessageQueue(asyncio.Queue):
         return None
 
     def editable_before(self, entry: QueuedMessage) -> "QueuedMessage | None":
-        """The user message queued before `entry` (older), or None.
-
-        Returns None when `entry` is no longer queued (its turn started) — the
-        same "already submitted" boundary the editing UI needs.
-        """
+        """The user message queued before `entry`, or None (also when `entry`
+        is no longer queued)."""
         items = list(self._queue)
         try:
             index = items.index(entry)
@@ -168,14 +133,8 @@ class MessageQueue(asyncio.Queue):
     def remove(self, entry: QueuedMessage) -> None:
         """Remove `entry` from the queue without running it.
 
-        Identity-based: the consumer already popped any running entry, so a
-        message whose turn started is not reachable here. The unfinished-task
-        counter is decremented alongside the removal — `put_nowait` bumped it
-        and the entry will never reach `task_done` — so a `join()` still
-        resolves instead of waiting forever for the removed entry. Freeing a
-        slot also wakes the next producer blocked in `put()`, the way
-        `asyncio.Queue.get_nowait` does; a bounded queue whose only room came
-        from a removal would otherwise leave that producer waiting forever.
+        Keeps `join()` and blocked `put()` callers working: the entry never
+        reaches `task_done`, and the freed slot wakes the next producer.
         """
         self._queue.remove(entry)
         self._unfinished_tasks -= 1
@@ -215,20 +174,11 @@ def submit_user_message_via_queue(
     live run or queue a `QueuedMessage`.
 
     A standalone UI passes `[self]` as `attachment_sources` and `echo_targets`;
-    a `MultiUI` passes its children. A rendered (Markdown) echo claims no echo
-    span, so editing it cannot rewrite the line in place.
+    a `MultiUI` passes its children.
 
-    Paste merging: a terminal without bracketed paste submits a paste one line
-    per Enter within milliseconds. A line arriving within
-    `CFG.LLM_UI_PASTE_MERGE_WINDOW` of the newest queued entry (see
-    `_merge_candidate`) is appended to it, so the model gets one message. The
-    joined text is preserved exactly; stripping is left to display paths.
-    Steering into a live run outranks merging, and is attempted rather than
-    assumed: a run that finished meanwhile fails its enqueue, and the line
-    falls back to the queue and merges like any other.
-
-    A line is always made visible before an attachment-collection failure
-    propagates, so it is never silently swallowed.
+    A terminal without bracketed paste submits a paste one line per Enter; a
+    line arriving within `CFG.LLM_UI_PASTE_MERGE_WINDOW` of the newest queued
+    entry is appended to it. Steering into a live run outranks merging.
     """
     now = datetime.now()
     timestamp = now.strftime("%H:%M")
@@ -292,12 +242,8 @@ def submit_user_message_via_queue(
 
 
 def _merge_candidate(queue: MessageQueue, now: datetime) -> "QueuedMessage | None":
-    """The queued entry a submission made at `now` may fold into, or None.
-
-    Only the newest queue entry qualifies, and only while it is an editable
-    user message still inside the paste-burst window — a queued `/exec` job
-    bounds the merge rather than being reached past to an older message.
-    """
+    """The newest queued entry, if it is an editable message inside the
+    paste-burst window; a queued `/exec` job bounds the merge."""
     previous = queue.latest_editable()
     if previous is None or queue.peek_latest() is not previous:
         return None
@@ -316,11 +262,7 @@ def _merge_into(
     echo_targets: Sequence[AnyUI],
     append_markdown: Callable[[str], Any] | None,
 ) -> None:
-    """Append one paste line to `entry` and reflect it on every echo target.
-
-    The merge window rolls forward from this line, so a long paste's tail stays
-    in the same burst.
-    """
+    """Append one paste line to `entry` and reflect it on every echo target."""
     combined = f"{entry.text}\n{text}"
     entry.text = combined
     entry.attachments += attachments
@@ -348,11 +290,9 @@ def _reflect_merged(
 ) -> None:
     """Draw a merged paste line on one target.
 
-    A target that can splice redraws its echo from the whole merged `entry`.
-    Otherwise (including when `redraw_echo` raises) the line goes to that
-    target's own output path: an ordinary echo, or verbatim when the combined
-    message turned Markdown (`rendered`), since rendering one line of it
-    would show a meaningless fragment.
+    A target that cannot splice gets the line through its own output path,
+    verbatim when the combined message is Markdown (rendering a fragment is
+    meaningless).
     """
     try:
         if target.redraw_echo(entry) is not None:
@@ -394,12 +334,7 @@ def _emit_echo_verbatim_to(target: Any, header: str, body: str) -> None:
 def _is_paste_burst(
     previous: "QueuedMessage | None", now: datetime, window_ms: int
 ) -> bool:
-    """Whether `previous` arrived so recently it can only be part of a paste
-    split into Enter keystrokes, not a human re-submission.
-
-    Each merge refreshes `submitted_at`, so the window rolls forward over a
-    long paste. A non-positive `window_ms` disables merging.
-    """
+    """Whether `previous` arrived within `window_ms` (non-positive disables)."""
     if previous is None or previous.submitted_at is None:
         return False
     if window_ms <= 0:
@@ -412,11 +347,8 @@ def steer_into_live_run(
 ) -> bool:
     """Try to inject `text`/`attachments` into the turn `run_context` belongs to.
 
-    Returns True when delivered: pydantic-ai's `RunContext.enqueue`
-    (priority="asap") hands it to the next model request, so the caller skips
-    queuing. Returns False when there is no live run (none in flight, or one
-    suspended on a tool approval) or the enqueue failed because the run just
-    finished; the caller then queues normally.
+    Returns False when there is no live run or the enqueue failed (the run
+    just finished); the caller then queues normally.
     """
     if run_context is None:
         return False

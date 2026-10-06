@@ -1,11 +1,4 @@
-"""Tests for the `SkillRegistry` split-out (ADR-0090).
-
-A registry is the canonical skill collection: it stores manual registrations and
-discovered skills, merges them on query, and never scans files itself — that is
-`SkillManager`'s job. Since both layers are public only via `SkillManager`, most
-tests drive the registry through a manager that shares it (the public boundary),
-mirroring how `zrb_init.py` and the module singleton wire up.
-"""
+'Tests for the `SkillRegistry` split-out (ADR-0090).'
 
 import pytest
 
@@ -36,9 +29,9 @@ def _skill(name, **kwargs):
     return Skill(name=name, **kwargs)
 
 
-# ---------------------------------------------------------------------------
-# Construction
-# ---------------------------------------------------------------------------
+
+
+
 
 
 def test_registry_constructed_empty(registry):
@@ -61,9 +54,9 @@ def test_singleton_is_skill_registry():
     assert isinstance(skill_registry, SkillRegistry)
 
 
-# ---------------------------------------------------------------------------
-# add_skill / get_skill / get_skills
-# ---------------------------------------------------------------------------
+
+
+
 
 
 def test_add_then_get(manager, skill):
@@ -92,9 +85,9 @@ def test_get_unknown(manager):
     assert manager.get_skill("nope") is None
 
 
-# ---------------------------------------------------------------------------
-# remove_skill
-# ---------------------------------------------------------------------------
+
+
+
 
 
 def test_remove_skill(manager, skill):
@@ -118,9 +111,9 @@ def test_remove_then_scan_rediscovers_file(manager, skill, tmp_path):
     assert manager.get_skill("Gone") is not None
 
 
-# ---------------------------------------------------------------------------
-# set_skills (replacement, ADR-0090 Part 3)
-# ---------------------------------------------------------------------------
+
+
+
 
 
 def test_set_skills_replaces_whole_collection(manager, skill):
@@ -157,9 +150,9 @@ def test_manual_wins_name_collision_with_discovered(manager, skill, tmp_path):
     assert manager.get_skill("alpha") is skill
 
 
-# ---------------------------------------------------------------------------
-# clear_discovered
-# ---------------------------------------------------------------------------
+
+
+
 
 
 def test_reload_keeps_manual(manager, skill, tmp_path):
@@ -170,9 +163,9 @@ def test_reload_keeps_manual(manager, skill, tmp_path):
     assert manager.get_skill("alpha") is skill
 
 
-# ---------------------------------------------------------------------------
-# LLM_SKILLS twin
-# ---------------------------------------------------------------------------
+
+
+
 
 
 def test_llm_skills_allowlist_filters_only_discovered(registry, monkeypatch):

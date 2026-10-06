@@ -1,10 +1,4 @@
-"""High-level symbol-based LSP queries for `LSPManager`.
-
-Each method routes through `self._lsp_manager.get_server(...)` and returns a
-friendly dict with a `found`/`success` flag. The `find_symbol_position`
-helper bridges symbol names to `(line, character)` for callers that don't
-have the position handy.
-"""
+"""Symbol-based LSP queries for `LSPManager`; each returns a dict with a `found`/`success` flag."""
 
 from __future__ import annotations
 
@@ -21,13 +15,7 @@ if TYPE_CHECKING:
 
 
 class LSPManagerQuery:
-    """LSP query methods exposed on `LSPManager`.
-
-    Takes the `LSPManager` as `self._lsp_manager` (rather than the lifecycle
-    collaborator directly) so that patching `manager.get_server` /
-    `manager.find_symbol_position` at the instance level — as the test suite
-    does — is honored here too.
-    """
+    """LSP query part of `LSPManager`."""
 
     def __init__(self, lsp_manager: "LSPManager") -> None:
         self._lsp_manager = lsp_manager
@@ -38,11 +26,7 @@ class LSPManagerQuery:
         file_path: str,
         symbol_kind: str | None = None,
     ) -> dict:
-        """Find the definition of a symbol.
-
-        Combines workspace symbol search with kind filtering to handle the LLM's
-        approximate position knowledge.
-        """
+        """Find the definition of a symbol, falling back to workspace symbol search."""
         server = await self._lsp_manager.get_server(file_path)
         if server is None:
             return no_server_error(
@@ -51,11 +35,8 @@ class LSPManagerQuery:
                 extra_hint="[SYSTEM SUGGESTION]: Install an LSP server for this language.",
             )
 
-        # Primary path: textDocument/definition at an occurrence of the symbol in
-        # `file_path`. This is how editors implement "go to definition" and works
-        # on every LSP server. The previous workspace/symbol-only approach failed
-        # on pyright (returns nothing without indexing) and pylsp (doesn't
-        # implement workspace/symbol at all).
+        # textDocument/definition at an occurrence works on every server;
+        # workspace/symbol does not (pyright needs indexing, pylsp lacks it).
         try:
             position = await self._lsp_manager.find_symbol_position(
                 file_path, symbol_name
@@ -78,8 +59,6 @@ class LSPManagerQuery:
         except Exception as e:
             CFG.LOGGER.debug(f"LSP definition query failed: {e}")
 
-        # Fallback: workspace symbol search, for servers that support it well
-        # (gopls, rust-analyzer, typescript-language-server, clangd, jdtls).
         try:
             symbols = await server.workspace_symbols(symbol_name)
             if symbols:
@@ -264,12 +243,8 @@ class LSPManagerQuery:
     async def get_workspace_symbols(self, query: str, file_path: str) -> dict:
         """Search for symbols across the workspace.
 
-        ``workspace/symbol`` support varies wildly: gopls / rust-analyzer /
-        typescript-language-server / clangd / jdtls implement it well; pyright
-        returns nothing unless workspace indexing is enabled; pylsp does not
-        implement it at all (responds Method Not Found). When the server can't
-        satisfy a workspace search, we fall back to the symbols of ``file_path``
-        filtered by the query so the tool still returns something useful.
+        Falls back to ``file_path``'s symbols filtered by ``query`` when the server
+        lacks ``workspace/symbol`` (pylsp) or returns nothing (unindexed pyright).
         """
         server = await self._lsp_manager.get_server(file_path)
         if server is None:
@@ -278,7 +253,6 @@ class LSPManagerQuery:
         try:
             symbols = await server.workspace_symbols(query)
         except Exception as e:
-            # Server doesn't support workspace/symbol (e.g. pylsp).
             CFG.LOGGER.debug(f"LSP workspace-symbols query failed: {e}")
             symbols = None
 
@@ -302,7 +276,6 @@ class LSPManagerQuery:
                 "symbols": results,
             }
 
-        # Fallback: filter the seed file's document symbols by the query.
         if file_path and file_path != ".":
             doc = await self._lsp_manager.get_document_symbols(file_path)
             if doc.get("found"):
@@ -415,18 +388,13 @@ class LSPManagerQuery:
     async def find_symbol_position(
         self, file_path: str, symbol_name: str
     ) -> tuple[int, int] | None:
-        """Locate a symbol as ``(line, character)`` positioned ON the identifier.
+        """Locate a symbol as ``(line, character)`` on the identifier itself.
 
-        ``textDocument/definition`` / ``references`` require the cursor to sit on
-        the identifier itself. Document-symbol ranges are unreliable for this:
-        SymbolInformation (pylsp) reports the symbol's whole range starting at
-        column 0 (the ``class``/``def`` keyword or an import line), not the name.
-        So we use document symbols only to pick the best *line*, then resolve the
-        exact *column* by finding the identifier within the file text.
+        Document symbols pick the line only: SymbolInformation ranges (pylsp)
+        start at column 0, so the column comes from searching the line's text.
         """
         ident = re.compile(rf"\b{re.escape(symbol_name)}\b")
 
-        # 1. Prefer the line where the symbol is defined (from document symbols).
         candidate_line: int | None = None
         try:
             symbols = await self._lsp_manager.get_document_symbols(file_path)
@@ -438,8 +406,7 @@ class LSPManagerQuery:
         except Exception as e:
             CFG.LOGGER.debug(f"LSP symbol-line resolution failed: {e}")
 
-        # 2. Resolve the exact column on the identifier. Try the candidate line
-        #    first, then fall back to the first occurrence anywhere in the file.
+        # Candidate line first, then the first occurrence anywhere.
         try:
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                 lines = f.read().splitlines()
@@ -458,11 +425,7 @@ class LSPManagerQuery:
 
 
 def _count_rename_edits(result: dict) -> tuple[int, list[str]]:
-    """Total edits and affected paths in a `rename` response.
-
-    Counts both the `changes` (uri -> [TextEdit]) and the newer
-    `documentChanges` (list of TextDocumentEdit) shapes.
-    """
+    """Total edits and affected paths across `changes` and `documentChanges`."""
     total_edits = 0
     files_affected: list[str] = []
     for uri, edits in (result.get("changes") or {}).items():
@@ -483,13 +446,7 @@ def _count_rename_edits(result: dict) -> tuple[int, list[str]]:
 def _rename_result(
     result: dict, symbol_name: str, new_name: str, dry_run: bool
 ) -> dict:
-    """Summarize a `rename` response for the tool's caller.
-
-    On a real write this trusts the server's `applied` flag rather than
-    claiming success unconditionally: if edits were returned but not written,
-    reporting that honestly keeps a caller from believing a write happened
-    when nothing changed on disk.
-    """
+    """Summarize a `rename` response; a real write succeeds only if `applied`."""
     total_edits, files_affected = _count_rename_edits(result)
     summary = {
         "symbol": symbol_name,

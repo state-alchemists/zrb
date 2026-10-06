@@ -1,12 +1,3 @@
-"""Paste-burst merging under `CFG.LLM_UI_PASTE_MERGE_WINDOW`.
-
-Lines a terminal without bracketed paste splits into per-line Enter submits
-are coalesced back into one queued message. This file covers the merge
-decision — the burst window, its rolling refresh, `0` disabling it, and the
-queued `/exec` barrier. How a merged line is reflected on the echo targets
-lives in `test_message_queue_paste_reflect.py`.
-"""
-
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 

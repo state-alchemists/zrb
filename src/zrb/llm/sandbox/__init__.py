@@ -1,17 +1,8 @@
-"""Sandbox: filesystem containment for LLM-initiated tool calls.
+"""Sandbox: opt-in filesystem containment for LLM-initiated tool calls.
 
-Two enforcement layers behind one ``SandboxPolicy`` (opt-in, off by default):
-
-* ``fs_policy`` — Python-level path checks applied by the ``_sandbox_gate``
-  in ``zrb.llm.agent.common`` to in-process file tools (Write/Edit/RM/MV and
-  reads of credential directories).
-* ``os_sandbox`` — kernel-enforced wrapping of shell subprocesses (Seatbelt
-  on macOS, bubblewrap on Linux; Windows has no mechanism and follows the
-  policy's ``fallback`` mode).
-
-The approval layer (``zrb.llm.permission``) controls *intent* — what the user
-agrees to. The sandbox controls *blast radius* — what an approved call can
-actually touch. This package is a leaf (no ``zrb.llm.agent`` imports).
+``fs_policy`` checks paths for in-process file tools; ``os_sandbox`` wraps
+shell subprocesses (Seatbelt on macOS, bubblewrap on Linux). Leaf package:
+no ``zrb.llm.agent`` imports.
 """
 
 from __future__ import annotations

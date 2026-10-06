@@ -27,9 +27,7 @@ def create_mock_process(returncode=0, stdout=b"", stderr=b""):
 
 @pytest.mark.asyncio
 async def test_enter_worktree_routes_git_calls_through_sandbox(mock_subprocess):
-    """worktree git subprocesses now go through the same OS-level sandbox
-    `Shell` uses (ADR-0065), not a raw, unwrapped `create_subprocess_exec`.
-    """
+    """worktree git subprocesses go through the OS-level sandbox `Shell` uses (ADR-0065)."""
     with tempfile.TemporaryDirectory() as tmpdir:
         mock_subprocess.side_effect = [
             create_mock_process(returncode=0, stdout=tmpdir.encode()),
@@ -190,11 +188,8 @@ async def test_list_worktrees_prepends_sandbox_fallback_note(mock_subprocess):
 async def test_exit_worktree_keeps_success_when_branch_delete_sandbox_unavailable(
     mock_subprocess,
 ):
-    """The worktree is already gone (rm_rc == 0) by the time the branch
-    delete step runs — that success must survive even though the delete
-    itself hits SandboxUnavailableError, instead of the function returning
-    only the sandbox-refused error as if nothing had happened.
-    """
+    """A successful removal is still reported when the branch delete hits
+    SandboxUnavailableError."""
     with tempfile.TemporaryDirectory() as tmpdir:
         mock_subprocess.side_effect = [
             create_mock_process(returncode=0, stdout=b"test-branch\n"),
@@ -222,10 +217,7 @@ async def test_exit_worktree_keeps_success_when_branch_delete_sandbox_unavailabl
 async def test_enter_worktree_keeps_earlier_note_when_later_call_errors(
     mock_subprocess,
 ):
-    """A sandbox-fallback warning from the first git call must still reach
-    the model even when the second call fails outright — not only when the
-    whole operation succeeds.
-    """
+    """A first-call sandbox-fallback warning survives a later call's failure."""
     with tempfile.TemporaryDirectory() as tmpdir:
         mock_subprocess.side_effect = [
             create_mock_process(returncode=0, stdout=tmpdir.encode()),

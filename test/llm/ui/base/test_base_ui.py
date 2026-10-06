@@ -56,11 +56,6 @@ async def test_submit_user_message_processing(base_ui):
     """Test that submitting a message eventually calls the LLM task."""
     base_ui.llm_task.async_run = AsyncMock(return_value="AI Response")
 
-    # We use a mocked run_loop or just rely on the fact that submit_user_message
-    # adds to a queue that process_messages_loop drains, verified via the
-    # observable result after calling a public method that drives the loop.
-
-    # Mocking stream_ai_response to see if it gets called when we run the loop
     with patch.object(
         base_ui, "stream_ai_response", new_callable=AsyncMock
     ) as mock_stream:
@@ -101,15 +96,6 @@ async def test_confirm_tool_execution_delegation(base_ui):
     assert res == "Approved"
 
 
-@pytest.mark.asyncio
-async def test_update_system_info_observable(base_ui):
-    """Test system info update affects get_git_info (if we made it public) or logs."""
-    # Since _git_info is private, we check if it affects anything public.
-    # In this case, BaseUI doesn't expose it. We'll skip testing the private attribute
-    # and only test the behavior if it was exposed.
-    pass
-
-
 def test_execute_hook_observable(base_ui):
     """Test execute_hook by mocking the global hook manager."""
     from zrb.llm.hook.types import HookEvent
@@ -117,11 +103,7 @@ def test_execute_hook_observable(base_ui):
     with patch(
         "zrb.llm.hook.manager.hook_manager.execute_hooks", new_callable=AsyncMock
     ) as mock_exec:
-        # This is public
         base_ui.execute_hook(HookEvent.NOTIFICATION, {"msg": "hi"})
-        # We verify it was called (observable side effect)
-        # We can't easily check _background_tasks without violating the mandate
-        # but we can verify the manager was called.
         assert mock_exec.called
 
 
@@ -155,8 +137,6 @@ async def test_update_system_info_loop(base_ui):
 
         mock_cfg.LLM_UI_STATUS_INTERVAL = 1  # 1ms
         mock_cfg.LLM_UI_LONG_STATUS_INTERVAL = 1  # 1ms
-
-        # Start the loop
         task = asyncio.create_task(base_ui.update_system_info_loop())
 
         # Wait for a few iterations
@@ -187,8 +167,7 @@ def test_get_cwd_display_logic(base_ui):
 
 def test_submit_user_message_marks_queued_while_thinking(base_ui, monkeypatch):
     """A message typed while a turn is in flight is echoed as queued, not sent."""
-    # The paste-burst merge would coalesce the two rapid submits into one; the
-    # marker the echo carries is what this test covers, so disable it.
+    # Disable paste-burst merging so the two submits stay separate.
     monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_WINDOW", 0, raising=False)
     outputs: list[str] = []
     with patch.object(base_ui, "append_to_output", side_effect=outputs.append):
@@ -445,12 +424,7 @@ def test_end_tool_call_clears_the_running_tool(base_ui):
 
 
 def test_end_tool_call_keeps_a_still_running_different_call(base_ui):
-    """A completed call clears only its own timer, not a concurrent sibling's.
-
-    Regression: parallel tool calls share one running-tool slot, so the result
-    event for the first call to finish used to clear the still-running second
-    call's timer — the status bar then hid a tool that was still executing.
-    """
+    """A completed call clears only its own timer, not a concurrent sibling's."""
     base_ui.start_tool_call("Shell", "call_1")
     base_ui.start_tool_call("WebSearch", "call_2")
 
@@ -466,13 +440,7 @@ def test_end_tool_call_keeps_a_still_running_different_call(base_ui):
 
 
 def test_end_tool_call_keeps_an_older_call_when_a_newer_one_finishes_first(base_ui):
-    """A call that finishes out of order clears only itself, never an older one.
-
-    Regression: the single running-tool slot kept the *most recently started*
-    call, so when the newer call finished first the slot was cleared even
-    though the older call was still running — the status bar then hid a tool
-    that was still executing.
-    """
+    """A call that finishes out of order clears only itself, never an older one."""
     base_ui.start_tool_call("Shell", "call_1")
     base_ui.start_tool_call("WebSearch", "call_2")
 

@@ -1,4 +1,4 @@
-"""Tests for LSP manager functionality."""
+'Tests for LSP manager functionality.'
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -13,16 +13,7 @@ from zrb.llm.lsp.server import LSPServer
 
 @pytest.fixture(autouse=True)
 def _cleanup_registry():
-    """Clear user-registered LSP server configs between tests.
-
-    Tests that call ``register_lsp_server`` write to the module-level
-    ``lsp_server_configs`` singleton. Clearing before each test prevents
-    cross-test pollution of the global config registry.
-
-    Cleared after as well: clearing only on the way in protects *these* tests
-    from everyone else while leaking their own registrations into whichever
-    unrelated test pytest-xdist runs next in this worker.
-    """
+    'Clear the shared ``lsp_server_configs`` before and after each test.'
     lsp_server_configs.clear()
     yield
     lsp_server_configs.clear()
@@ -30,13 +21,13 @@ def _cleanup_registry():
 
 @pytest.fixture
 def manager():
-    """Create a fresh LSPManager for each test by resetting the singleton."""
+    'Create a fresh LSPManager for each test by resetting the singleton.'
     LSPManager.reset_singleton()
     return LSPManager()
 
 
 class TestLspManagerSingleton:
-    """Test singleton behavior."""
+    'Test singleton behavior.'
 
     def test_singleton_returns_same_instance(self):
         LSPManager.reset_singleton()
@@ -49,7 +40,7 @@ class TestLspManagerSingleton:
 
 
 class TestLspManagerInit:
-    """Test LSPManager initialization."""
+    'Test LSPManager initialization.'
 
     def test_lock_property_creates_lock(self, manager):
         lock = manager.lock
@@ -92,7 +83,7 @@ class TestLspManagerInit:
 
 
 class TestDetectProjectRoot:
-    """Test detect_project_root method."""
+    'Test detect_project_root method.'
 
     def test_detect_root_with_git(self, manager, tmp_path):
         git_dir = tmp_path / ".git"
@@ -132,9 +123,7 @@ class TestDetectProjectRoot:
     def test_detect_project_root_fallback(self, manager, tmp_path, monkeypatch):
         file_path = tmp_path / "standalone.py"
         file_path.write_text("print('hello')")
-        # An ancestor of tmp_path may hold a real marker (e.g. a stray .git in
-        # the system tmp dir), which would make the walk stop before the
-        # fallback. Empty the marker list so the fallback is exercised hermetically.
+
         monkeypatch.setattr("zrb.llm.lsp.manager_lifecycle.PROJECT_MARKERS", [])
         root = manager.detect_project_root(str(file_path))
         assert root == str(tmp_path)
@@ -159,7 +148,7 @@ class TestDetectProjectRoot:
 
 
 class TestLspManagerLifecycle:
-    """Test server lifecycle and shutdown methods."""
+    'Test server lifecycle and shutdown methods.'
 
     @pytest.mark.asyncio
     async def test_shutdown_all_empty(self, manager):
@@ -185,7 +174,7 @@ class TestLspManagerLifecycle:
             mock_server.stop.assert_called_once()
 
     async def _seed_server(self, manager, *, pid, returncode):
-        """Register one running mock server via the public get_server path."""
+        'Register one running mock server via the public get_server path.'
         mock_server = AsyncMock(spec=LSPServer)
         mock_server.is_alive = True
         mock_server.process = MagicMock(pid=pid, returncode=returncode)
@@ -214,7 +203,7 @@ class TestLspManagerLifecycle:
         with patch("zrb.llm.lsp.manager_lifecycle.kill_pid") as mock_kill:
             manager.force_kill_all()
             mock_kill.assert_called_once_with(4321, print_method=CFG.LOGGER.debug)
-        # Servers are forgotten, so a second pass (e.g. atexit) does nothing.
+
         with patch("zrb.llm.lsp.manager_lifecycle.kill_pid") as mock_kill2:
             manager.force_kill_all()
             mock_kill2.assert_not_called()
@@ -233,7 +222,7 @@ class TestLspManagerLifecycle:
             "zrb.llm.lsp.manager_lifecycle.kill_pid",
             side_effect=ProcessLookupError,
         ):
-            # Must not raise — it is an atexit handler.
+
             manager.force_kill_all()
 
     @pytest.mark.asyncio
@@ -258,7 +247,7 @@ class TestLspManagerLifecycle:
 
     @pytest.mark.asyncio
     async def test_get_server_explicit_preference_overrides_cfg(self, manager):
-        """An explicit preferred_servers list wins over the CFG default."""
+        'An explicit preferred_servers list wins over the CFG default.'
         mock_server = AsyncMock(spec=LSPServer)
         mock_server.is_alive = True
         mock_server.start.return_value = True
@@ -294,15 +283,15 @@ class TestLspManagerLifecycle:
 
             mock_get_cfg.return_value = MagicMock(language_ids=["python"])
 
-            # Test starting new server
+
             server = await manager.get_server("test.py")
             assert server == mock_server
 
-            # Test getting existing alive server
+
             server2 = await manager.get_server("test.py")
             assert server2 == mock_server
 
-            # Test cleaning up dead server
+
             mock_server.is_alive = False
             mock_server2 = AsyncMock(spec=LSPServer)
             mock_server2.is_alive = True

@@ -256,7 +256,6 @@ def copy_text(text: str) -> bool:
                 _write_osc52(text)
                 return True
             except Exception:
-                # OSC 52 unsupported by this terminal — report copy failure.
                 pass
         return False
 
@@ -285,13 +284,9 @@ def missing_tool_hint() -> str:
         return ""
 
     if is_wsl():
-        # powershell.exe should always be present in WSL2; if we got here it
-        # means even that failed — nothing more we can suggest.
         return ""
 
     if os.environ.get("WAYLAND_DISPLAY"):
-        # Only show the hint when wl-paste is actually missing.
-
         if shutil.which("wl-paste") is None:
             return "  Install wl-clipboard (wl-paste) for clipboard image support.\n"
         return ""

@@ -6,9 +6,7 @@ def parse_cron_field(field: str, min_value: int, max_value: int):
     """Parse one cron field (e.g. `"*"`, `"1-5"`, `"1,3,5"`, `"*/10"`, `"1-10/2"`)
     into the set of integer values it matches, bounded by `min_value`/`max_value`.
 
-    Raises `ValueError` on out-of-range values or non-positive steps — a
-    silently never-matching field (e.g. minute `70`) is a schedule that never
-    fires with no diagnostic.
+    Raises `ValueError` on out-of-range values or non-positive steps.
     """
     values: set[int] = set()
     # Parse per list item so a wildcard step inside a list ("1,*/5") works.
@@ -88,11 +86,8 @@ def match_cron(cron_pattern: str, dt: datetime.datetime):
     cron_dow = dt.isoweekday() % 7
     day_of_month_match = dt.day in days
     weekday_match = cron_dow in days_of_week or (cron_dow == 0 and 7 in days_of_week)
-    # Standard cron day semantics: when BOTH day-of-month and day-of-week are
-    # restricted, the task runs if EITHER matches (OR). When at least one field
-    # is the bare wildcard `*`, the fields are intersected (AND) — i.e. only the
-    # restricted field constrains the schedule. Using AND here is correct because
-    # a `*` field's membership test is always True, so it never narrows the match.
+    # Cron semantics: when both day-of-month and day-of-week are restricted,
+    # either may match (OR); otherwise AND, since a `*` field always matches.
     if day == "*" or day_of_week == "*":
         day_match = day_of_month_match and weekday_match
     else:

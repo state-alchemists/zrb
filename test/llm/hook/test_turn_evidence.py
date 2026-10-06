@@ -64,9 +64,7 @@ class TestTurnWroteFiles:
         assert turn_wrote_files([]) is False
 
     def test_ignores_tool_calls_in_requests(self):
-        """Only ModelResponse carries ToolCallPart; a stray one on a
-        ModelRequest (not how pydantic-ai shapes messages, but a defensive
-        check) must not be mistaken for a match."""
+        'Only ModelResponse carries ToolCallPart; a stray one on a'
         turn = [ModelRequest(parts=[UserPromptPart(content="hi")])]
         assert turn_wrote_files(turn) is False
 
@@ -97,13 +95,11 @@ class TestTurnStatesPreference:
         assert turn_states_preference([]) is False
 
     def test_ignores_non_string_content(self):
-        """Multimodal content (a list of parts) is not scanned — the
-        heuristic only ever looks at plain text."""
+        'Multimodal content (a list of parts) is not scanned — the'
         turn = [ModelRequest(parts=[UserPromptPart(content=["please remember this"])])]
         assert turn_states_preference(turn) is False
 
     def test_ignores_assistant_text(self):
-        """Only ModelRequest/UserPromptPart is scanned; a stray match in the
-        assistant's own output must not count."""
+        'Only ModelRequest/UserPromptPart is scanned; a stray match in the'
         turn = [ModelResponse(parts=[TextPart(content="I prefer terse replies")])]
         assert turn_states_preference(turn) is False

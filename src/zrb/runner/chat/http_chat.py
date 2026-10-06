@@ -76,10 +76,8 @@ class HTTPChatApprovalChannel(AnyApprovalChannel):
         except asyncio.CancelledError:
             self._pending.pop(context.tool_call_id, None)
             self._pending_context.pop(context.tool_call_id, None)
-            # Edit mode must be released too. Leaving it set strands the
-            # channel: is_waiting_for_edit() stays true forever, so the next
-            # approval gets routed down the edit path and its answer is
-            # swallowed against this now-dead tool call.
+            # Release edit mode too, or the next approval is routed down the
+            # edit path against this dead call.
             if self._waiting_for_edit_tool_call_id == context.tool_call_id:
                 self._waiting_for_edit_tool_call_id = None
             raise
@@ -91,11 +89,9 @@ class HTTPChatApprovalChannel(AnyApprovalChannel):
 
     def handle_response(self, response: str, tool_call_id: str | None = None) -> bool:
         if self._waiting_for_edit_tool_call_id:
-            if self._handle_edit_response(response):
+            if self.handle_edit_response(response):
                 return True
-            # The edit slot was stale (its run was cancelled) and has now been
-            # cleared. Fall through so this response can still answer whatever
-            # approval is genuinely pending, instead of being dropped.
+            # The stale edit slot was cleared; answer a pending approval instead.
         if tool_call_id and tool_call_id in self._pending:
             self._apply_response(tool_call_id, response)
             return True
@@ -110,8 +106,7 @@ class HTTPChatApprovalChannel(AnyApprovalChannel):
     ) -> bool:
         """Resolve a pending edit with args parsed from ``response`` text.
 
-        Returns True only when a pending tool call actually consumed the
-        response, so callers never report success for a dropped answer.
+        Returns True only when a pending tool call consumed the response.
         """
         claimed_id = self._claim_edit_tool_call_id(tool_call_id)
         if claimed_id is None:
@@ -148,11 +143,8 @@ class HTTPChatApprovalChannel(AnyApprovalChannel):
     def _claim_edit_tool_call_id(self, tool_call_id: str | None) -> str | None:
         """Take ownership of the awaiting edit slot, or return None.
 
-        Edit mode is a single slot, so a response aimed at a different call is
-        not an edit response and leaves the slot intact. A slot whose future is
-        already gone (the run was cancelled underneath us) is stale: it gets
-        cleared so the channel recovers, but None is still returned because
-        nothing consumed the response.
+        A response for a different call leaves the slot intact; a stale slot
+        (its future is gone) is cleared and still yields None.
         """
         waiting_id = self._waiting_for_edit_tool_call_id
         if waiting_id is None:
@@ -165,16 +157,11 @@ class HTTPChatApprovalChannel(AnyApprovalChannel):
         self._waiting_for_edit_tool_call_id = None
         return waiting_id
 
-    def _handle_edit_response(self, response: str) -> bool:
-        return self.handle_edit_response(response)
-
     def _schedule_broadcast(self, message: str) -> None:
         """Fire a broadcast from a synchronous callback.
 
-        The task is held in ``_broadcast_tasks`` until it finishes: with no
-        strong reference the loop is free to garbage-collect it mid-flight and
-        the client would silently never see the message. Failures are logged
-        here rather than surfacing as "Task exception was never retrieved".
+        The task is held in ``_broadcast_tasks`` so it is not garbage-collected
+        mid-flight; failures are logged by the done callback.
         """
         task = asyncio.create_task(
             self.session_manager.broadcast(self.session_id, message)

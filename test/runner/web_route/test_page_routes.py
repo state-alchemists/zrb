@@ -1,14 +1,4 @@
-"""Smoke tests for the page-rendering routes.
-
-`test/runner/web_route/` held only API-route tests, so every page module except
-login/logout was unexercised: a template renamed on one side of
-`get_template("home_page/view.html")` failed at request time and nothing caught
-it.
-
-These assert the two things a page route owes its caller — the status code, and
-that it reached for the template it claims — with the Jinja environment mocked,
-because rendering real templates would test Jinja rather than the routing.
-"""
+"""Smoke tests for page routes and their selected templates."""
 
 from unittest.mock import MagicMock, patch
 
@@ -90,13 +80,7 @@ def test_chat_page_renders_on_every_alias(path, rendered, auth_config):
 def test_404_serves_a_page_for_the_ui_and_json_for_the_api(
     path, expect_html_page, auth_config
 ):
-    """The handler branches on the `/api` prefix, and that branch is the point.
-
-    Asserting only "a missing route 404s" would pass without the handler
-    registered at all, since FastAPI 404s on its own. What is worth pinning is
-    that a browser gets the rendered error page while an API client keeps the
-    JSON body its caller can parse.
-    """
+    """UI paths get the rendered error page; API paths get JSON."""
     module = "zrb.runner.web_route.error_page.serve_default_404"
     app = FastAPI()
 
