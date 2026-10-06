@@ -8,7 +8,9 @@ from zrb.llm.speech.backend.any_speech_backend import AnySpeechBackend
 from zrb.llm.speech.backend.gemini import GeminiSpeechBackend
 from zrb.llm.speech.backend.local_command import LocalCommandBackend
 from zrb.llm.speech.backend.openai import OpenAISpeechBackend
+from zrb.llm.speech.backend.pipecat import PipecatSpeechBackend
 from zrb.llm.speech.backend.termux import TermuxSpeechBackend
+from zrb.llm.voice.registry import tts_registry
 
 if TYPE_CHECKING:
     from zrb.llm.speech.config import SpeechConfig
@@ -17,22 +19,28 @@ if TYPE_CHECKING:
 def get_speech_backend(
     backend: "str | AnySpeechBackend", config: "SpeechConfig"
 ) -> AnySpeechBackend:
-    """*backend* itself, or the built-in one it names, built from the
-    resolved *config*: ``auto`` (``termux`` on Termux, ``say`` on macOS,
-    else ``espeak-ng``), ``termux``, ``say``, ``espeak-ng``, ``openai`` or
-    ``gemini``."""
+    """*backend* itself, or the one it names, built from the resolved *config*:
+    ``auto`` (``termux`` on Termux, ``say`` on macOS, else ``espeak-ng``),
+    ``termux``, ``say``, ``espeak-ng``, ``openai``, ``gemini``, or a
+    text-to-speech service registered with ``tts_manager`` (``kokoro``,
+    ``piper``, ``pocket``, or one a project registered)."""
     if isinstance(backend, AnySpeechBackend):
         return backend
     name = backend.strip().lower() or "auto"
     if name == "auto":
         name = _get_local_backend_name()
     create = _BUILTIN_BACKENDS.get(name)
-    if create is None:
-        raise ValueError(
-            f"unknown speech backend {backend!r}: use auto, termux, say, "
-            "espeak-ng, openai, gemini, or an AnySpeechBackend"
-        )
-    return create(config)
+    if create is not None:
+        return create(config)
+    # A Pipecat text-to-speech service, built-in or registered in code. It
+    # renders audio for zrb to play rather than playing it through a program, so
+    # it is a backend here only where zrb can play it itself.
+    if tts_registry.get(name) is not None:
+        return PipecatSpeechBackend(name, config)
+    raise ValueError(
+        f"unknown speech backend {backend!r}: use auto, termux, say, espeak-ng, "
+        f"openai, gemini, {', '.join(tts_registry.names())}, or an AnySpeechBackend"
+    )
 
 
 def _get_local_backend_name() -> str:

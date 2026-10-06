@@ -22,7 +22,7 @@ from zrb.llm.dictation.backend.builtin import get_dictation_backend
 from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.listen import MicState, Utterance, import_audio, listen
 from zrb.llm.dictation.pipecat_input import AudioPipeline, is_pipecat_available
-from zrb.llm.dictation.teardown import close_quietly
+from zrb.llm.util.teardown import close_quietly
 from zrb.llm.dictation.words import (
     count_words,
     is_answer,
@@ -103,6 +103,9 @@ class DictationSession:
     def __init__(self, config: DictationConfig) -> None:
         self._config = config
         self._backend: AnyDictationBackend | None = None
+        # Letting a backend go is asynchronous, so `close` schedules it rather
+        # than awaiting it; this is the task, kept so nothing collects it early.
+        self._backend_close: asyncio.Task[None] | None = None
         self._stop_recording: asyncio.Event | None = None
         # Set when hands-free is switched off, so a transcription already under
         # way can be dropped instead of submitted after the user said stop.
@@ -116,15 +119,16 @@ class DictationSession:
         # to the session.
         self._ui: "AnyUI | None" = None
         # The badge shown while the mic is listening, which says what the last
-        # utterance came to.
-        self._resting_badge = _LISTENING
+        # utterance came to and, when it is not the default, whose ears it went
+        # through.
+        self._resting_badge = self._listening_badge()
         # The chat session this belongs to, whose speech a barge-in silences.
         self._session_key = current_session_key()
         # zrb's voice is held because the user may be talking over it, until
         # what they said is known to be words (stop) or not (resume).
         self._is_paused_by_barge_in = False
         # The resting badge a barge-in replaced, back once zrb resumes.
-        self._badge_before_pause = _LISTENING
+        self._badge_before_pause = self._resting_badge
         # A wake word said alone arms the utterances started before this.
         self._armed_until = 0.0
         # The Pipecat pipeline the capture is handed to, and whether it failed
@@ -155,13 +159,34 @@ class DictationSession:
         return self._stop_recording is not None
 
     def close(self) -> None:
-        """Switch hands-free off and release a recording in progress."""
+        """Switch hands-free off, release a recording in progress, and let the
+        backend go."""
         self._release_barge_in()
         self.is_hands_free = False
         self._hands_free_off.set()
         if self._stop_recording is not None:
             self._stop_recording.set()
+        self._close_backend()
         self._show(None)
+
+    def _close_backend(self) -> None:
+        """Let the backend go, without waiting for it.
+
+        A backend may hold a model or a running pipeline — a Pipecat service is
+        both — and letting one go is asynchronous where this teardown is not.
+        A failure is reported by nobody, which is what `close_quietly` is for,
+        and the task is kept so it is not collected before it has run.
+        """
+        backend, self._backend = self._backend, None
+        if backend is None:
+            return
+        try:
+            self._backend_close = asyncio.ensure_future(
+                close_quietly(backend.aclose, "the dictation backend")
+            )
+        except RuntimeError:
+            # No loop is running, so there is nothing left to close against.
+            pass
 
     def create_commands(self) -> "list[AnyCustomCommand]":
         push_to_talk: "list[AnyCustomCommand]" = [
@@ -268,7 +293,7 @@ class DictationSession:
             try:
                 await self.backend.prepare(self._report)
                 self._warn_without_wake_words()
-                self._rest(_LISTENING)
+                self._rest(self._listening_badge())
                 async with aclosing(self._replies()) as replies:
                     async for reply in replies:
                         yield reply
@@ -620,6 +645,30 @@ class DictationSession:
 
     def _show_mic_state(self, state: MicState) -> None:
         self._show(_MIC_STATE_BADGES.get(state, self._resting_badge))
+
+    def _listening_badge(self) -> str:
+        """What the badge says while the microphone is open.
+
+        A service the user named is shown; the default one is not, so a session
+        on vosk reads exactly as it did before there was a choice. This is where
+        that choice becomes visible: `prepare` announces the load into the
+        transcript before the UI paints, and that line is not what a user can
+        rely on to know whether naming a service took effect.
+        """
+        service = self._named_service()
+        if not service:
+            return _LISTENING
+        return f"{_LISTENING} · {service}"
+
+    def _named_service(self) -> str:
+        """The service `LLM_DICTATION_BACKEND` names, or ``""`` when it is the
+        default one — including when a session was handed a backend object
+        built in code, which has no name of its own to show."""
+        backend = self._config.backend
+        if not isinstance(backend, str):
+            return ""
+        name = backend.strip().lower()
+        return "" if name in ("", "vosk") else name
 
     def _rest(self, badge: str) -> None:
         """Show *badge*, and come back to it whenever the mic is listening."""

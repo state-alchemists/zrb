@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from zrb.llm.dictation.listen import SAMPLE_RATE
-from zrb.llm.dictation.teardown import cancel_and_wait, close_quietly
+from zrb.llm.util.teardown import cancel_and_wait, close_quietly
 
 if TYPE_CHECKING:
     # No `InputAudioRawFrame`: each factory imports it at call time, and naming

@@ -116,6 +116,10 @@ class Speaker:
         # tracking what it is playing, is guarded.
         self._lock = threading.Lock()
         self._playing: Utterance | None = None
+        # The backends this speaker speaks through, built once and kept: a
+        # backend may hold a model or a running pipeline — a Pipecat service is
+        # both — and the speaker asks for one per sentence.
+        self._backends: list[AnySpeechBackend] | None = None
         # Set by `pause`, cleared by `resume` and `interrupt`: while set, the
         # next utterance waits to start, even one still being synthesized
         # when the pause came. Waiters are woken through `_unpaused`.
@@ -333,13 +337,22 @@ class Speaker:
             )
 
     def _get_backends(self) -> list[AnySpeechBackend]:
-        config = self._config
-        requested = get_speech_backend(config.backend or "auto", config)
-        # The configured voice names one of the requested backend's voices.
-        local = get_speech_backend("auto", replace(config, voice=""))
-        if local.name == requested.name:
-            return [requested]
-        return [requested, local]
+        """The backends this speaker speaks through, built once and kept.
+
+        Kept, because a backend may hold a model or a running pipeline — a Pipecat
+        service is both — and this is asked for the next sentence, not for the
+        session: rebuilding one per sentence would load the model per sentence.
+        """
+        if self._backends is None:
+            config = self._config
+            requested = get_speech_backend(config.backend or "auto", config)
+            # The configured voice names one of the requested backend's voices.
+            local = get_speech_backend("auto", replace(config, voice=""))
+            if local.name == requested.name:
+                self._backends = [requested]
+            else:
+                self._backends = [requested, local]
+        return self._backends
 
     def _prepare_queue(self) -> None:
         """Make each queued text's audio, handing it to the player thread."""
@@ -418,6 +431,26 @@ class Speaker:
         if player is not None:
             remaining = None if deadline is None else deadline - time.monotonic()
             player.join(None if remaining is None else max(remaining, 0))
+        self._close_backends()
+
+    def _close_backends(self) -> None:
+        """Let the backends go, releasing whatever they were holding.
+
+        The last thing a finished speaker does: a session whose speech is over must
+        not leave a model loaded, or a pipeline running, for the next one. Closing
+        one that is still synthesizing a sentence the worker thread had already
+        dropped is a race the worker reports and moves on from.
+
+        Not wrapped in a handler of its own, because `close` is a backend's contract
+        to let go without raising (`AnySpeechBackend.close`) and the Pipecat backend
+        keeps it by catching, and reporting, the two ways its teardown can fail. A
+        backend that breaks that contract is a bug, and one that surfaces where a
+        session is being closed — which is where a feature session teardown already
+        reports failures — is a bug that gets fixed.
+        """
+        backends, self._backends = self._backends, None
+        for backend in backends or []:
+            backend.close()
 
 
 def _resolve_player(player: str | None) -> str:

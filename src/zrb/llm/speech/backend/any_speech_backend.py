@@ -31,3 +31,14 @@ class AnySpeechBackend(ABC):
         cancel zrb's voice out of the microphone and pause it. Raise when
         synthesis fails."""
         return None
+
+    def close(self) -> None:
+        """Let the backend go, when the session that spoke through it is over.
+
+        Does nothing by default. A backend that holds something — a Pipecat
+        service holds a model and a running pipeline — releases it here.
+
+        Must not raise, and is not a coroutine: it runs where a session is being
+        torn down, on the thread doing the tearing down, and there is nobody left
+        for a failure to reach but the log the caller keeps.
+        """

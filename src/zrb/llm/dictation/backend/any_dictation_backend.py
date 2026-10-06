@@ -34,3 +34,11 @@ class AnyDictationBackend(ABC):
         default). Hands-free uses a stream when it gets one: the transcript is
         ready sooner, and the utterance can end sooner once it sounds done."""
         return None
+
+    async def aclose(self) -> None:
+        """Release what this backend holds, for a session that is over.
+
+        Nothing to do by default. A backend that holds a model, a device or a
+        running pipeline is what this exists for, and it is asynchronous where
+        the session's own teardown is not, so it is named apart from `close`
+        rather than overloading it."""

@@ -119,7 +119,16 @@ class LLMSpeechMixin:
             "- 'espeak-ng': needs espeak-ng on PATH.\n"
             "- 'openai': needs OPENAI_API_KEY.\n"
             "- 'gemini': needs GEMINI_API_KEY or GOOGLE_API_KEY.\n"
-            "If a cloud backend fails, the local engine speaks instead."
+            "- 'kokoro', 'piper' or 'pocket': a local voice that runs in this "
+            "process, with its model and voice named by "
+            "{ENV_PREFIX}_LLM_SPEECH_VOICE. Needs the zrb[voice] extra for "
+            "Pipecat, and the service's own package beside it; naming one "
+            "without it says which package to install.\n"
+            "A project may register its own under a name of its choosing "
+            "(zrb.llm.voice).\n"
+            "If a cloud backend fails, the local engine speaks instead; one "
+            "that runs in process needs zrb to play its audio, so where zrb "
+            "cannot, the local engine speaks instead of it too."
         ),
     )
 

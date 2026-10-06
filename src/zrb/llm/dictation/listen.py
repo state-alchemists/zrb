@@ -14,14 +14,23 @@ from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import closing
 from dataclasses import dataclass, replace
 from enum import Enum
-from typing import Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from zrb.config.config import CFG
-from zrb.llm.dictation.backend.any_transcription_stream import AnyTranscriptionStream
 from zrb.llm.dictation.config import DictationConfig
-from zrb.llm.dictation.teardown import cancel_and_wait, close_quietly
+from zrb.llm.util.teardown import cancel_and_wait, close_quietly
 from zrb.llm.dictation.words import count_words
 from zrb.llm.speech.player import is_speaking
+
+if TYPE_CHECKING:
+    # Only ever named in an annotation here, so this is a type dependency and
+    # not a runtime one. That matters beyond tidiness: `zrb.llm.dictation.backend`
+    # re-exports every backend from its `__init__`, so importing this leaf at
+    # runtime would drag the whole backend package — and the audio it does not
+    # need — into the module that owns the capture, and back into itself.
+    from zrb.llm.dictation.backend.any_transcription_stream import (
+        AnyTranscriptionStream,
+    )
 
 logger = logging.getLogger(__name__)
 

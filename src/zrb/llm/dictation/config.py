@@ -16,7 +16,9 @@ class DictationConfig:
     session starts.
 
     *backend* names a built-in backend (``vosk``, ``openai``, ``google``,
-    ``multimodal``) or is an `AnyDictationBackend` of your own.
+    ``multimodal``), a speech service registered with ``stt_manager``
+    (``whisper``, ``moonshine``, ``funasr``), or is an `AnyDictationBackend` of
+    your own. *stt_model* picks the model of whichever service is named.
     """
 
     mode: str | None = None
@@ -49,6 +51,7 @@ class DictationConfig:
     pipecat_enabled: bool | None = None
     transcribe_prompt: str | None = None
     language: str | None = None
+    stt_model: str | None = None
     openai_model: str | None = None
     openai_base_url: str | None = None
     google_model: str | None = None

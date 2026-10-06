@@ -900,7 +900,8 @@ export ZRB_LLM_VOICE=conversation   # talk with zrb, and interrupt it
 | `ZRB_LLM_DICTATION_MODE` | Mode a session starts in: `ptt` or `hands_free` | `ptt`, or as `ZRB_LLM_VOICE` sets it |
 | `ZRB_LLM_DICTATION_COMMANDS` | Aliases that start and stop a push-to-talk recording | `/voice, /v` |
 | `ZRB_LLM_DICTATION_HANDS_FREE_COMMANDS` | Aliases that switch hands-free on and off | `/handsfree` |
-| `ZRB_LLM_DICTATION_BACKEND` | `vosk` (offline), `openai`, `google`, or `multimodal` (uses `ZRB_LLM_MULTIMODAL_MODEL`) | `vosk` |
+| `ZRB_LLM_DICTATION_BACKEND` | Speech-to-text service: `vosk` (offline, and the only one that transcribes while you speak), `whisper` / `moonshine` / `funasr` (local, on Pipecat), `openai`, `google`, or `multimodal` (uses `ZRB_LLM_MULTIMODAL_MODEL`) | `vosk` |
+| `ZRB_LLM_DICTATION_STT_MODEL` | Which model of the named local service to run, e.g. `small` for `whisper` or `medium-streaming` for `moonshine`; empty uses the service's own default. Ignored by `vosk`, `openai`, `google` and `multimodal` | (empty) |
 | `ZRB_LLM_DICTATION_WAKE_WORDS` | Comma-separated; in hands-free mode only utterances starting with one count. Said alone, one accepts the next utterance within `ZRB_LLM_DICTATION_WAKE_WINDOW` seconds | (none) |
 | `ZRB_LLM_DICTATION_WAKE_WINDOW` | Seconds a lone wake word keeps listening | `8.0` |
 | `ZRB_LLM_DICTATION_THRESHOLD` | RMS microphone level that counts as speech (`zrb voice mic-test` in `examples/voice-interaction` measures yours) | `0.01` |
@@ -955,8 +956,8 @@ Reads the reply a sentence at a time as it streams, tool approvals, questions, a
 | `ZRB_LLM_SPEECH_ENABLED` | Speak from the start of a session; `/speech` switches it either way | `off`, or as `ZRB_LLM_VOICE` sets it |
 | `ZRB_LLM_SPEECH_COMMANDS` | Aliases that switch speech off and on | `/speech` |
 | `ZRB_LLM_SPEECH_EVENTS` | What to speak: `reply`, `approval`, `question`, `progress` (a tool call starting after a silence: "Running a command.") | `reply, approval, question, progress` |
-| `ZRB_LLM_SPEECH_BACKEND` | `auto` (`termux` on Termux, `say` on macOS, else `espeak-ng`), `termux`, `say`, `espeak-ng`, `openai`, `gemini`. A failing backend falls back to the local engine | `auto` |
-| `ZRB_LLM_SPEECH_VOICE` | Voice name for the backend (for `termux`, the `-v` variant); empty uses its default (system voice, `en-us+m3`, `alloy`, `Sulafat`) | (none) |
+| `ZRB_LLM_SPEECH_BACKEND` | `auto` (`termux` on Termux, `say` on macOS, else `espeak-ng`), `termux`, `say`, `espeak-ng`, `openai`, `gemini`, or `kokoro` / `piper` / `pocket` (local, on Pipecat, with zrb playing the audio). A failing backend falls back to the local engine | `auto` |
+| `ZRB_LLM_SPEECH_VOICE` | Voice name for the backend (for `termux`, the `-v` variant); empty uses its default (system voice, `en-us+m3`, `alloy`, `Sulafat`, `af_heart` for `kokoro`, `en_US-ryan-high` for `piper`, `alba` for `pocket`) | (none) |
 | `ZRB_LLM_SPEECH_STYLE` | How `openai` and `gemini` should sound, in plain words (tone, pace, warmth); a direction, not read aloud. Empty uses the voice's default manner. The local engines ignore it | a warm, clear, conversational colleague |
 | `ZRB_LLM_SPEECH_RATE` | Words per minute for `say` and `espeak-ng` | `165` |
 | `ZRB_LLM_SPEECH_STREAM` | Speak a reply a sentence at a time while it is written, and the text before a tool call when the call starts. `off` reads the whole reply once the turn ends. Either way it is read whole, however long it is | `on` |

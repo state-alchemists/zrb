@@ -28,6 +28,7 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_COMMANDS: str = "/voice, /v"
         self.DEFAULT_LLM_DICTATION_HANDS_FREE_COMMANDS: str = "/handsfree"
         self.DEFAULT_LLM_DICTATION_BACKEND: str = "vosk"
+        self.DEFAULT_LLM_DICTATION_STT_MODEL: str = ""
         self.DEFAULT_LLM_DICTATION_WAKE_WORDS: str = ""
         self.DEFAULT_LLM_DICTATION_THRESHOLD: str = "0.01"
         self.DEFAULT_LLM_DICTATION_NOISE_MARGIN: str = "2.0"
@@ -106,12 +107,30 @@ class LLMDictationMixin:
     LLM_DICTATION_BACKEND = EnvField(
         str,
         doc=(
-            "Speech-to-text backend. One of:\n"
-            "- 'vosk' (default): offline, cross-platform.\n"
+            "Speech-to-text service. One of:\n"
+            "- 'vosk' (default): offline, cross-platform, and the only one that "
+            "transcribes while you speak.\n"
+            "- 'whisper': Faster-Whisper, local.\n"
+            "- 'moonshine': Moonshine, local and CPU-only.\n"
+            "- 'funasr': FunASR's SenseVoice, local.\n"
             "- 'openai': OpenAI transcription API.\n"
             "- 'google': Google Gemini.\n"
             "- 'multimodal': uses {ENV_PREFIX}_LLM_MULTIMODAL_MODEL "
-            "(slower / more expensive)."
+            "(slower / more expensive).\n"
+            "A project may register its own under a name of its choosing "
+            "(zrb.llm.voice); {ENV_PREFIX}_LLM_DICTATION_STT_MODEL picks the "
+            "model of whichever local one is named here."
+        ),
+    )
+
+    LLM_DICTATION_STT_MODEL = EnvField(
+        str,
+        doc=(
+            "Which model of the named local speech-to-text service to run "
+            "(e.g. 'small' for whisper, 'medium-streaming' for moonshine). Empty "
+            "(default) uses the service's own default, which is the one it was "
+            "tested with. Ignored by the 'vosk', 'openai', 'google' and "
+            "'multimodal' backends, which name their model elsewhere."
         ),
     )
 
