@@ -306,5 +306,5 @@ async def test_what_the_pipeline_heard_is_reported_when_the_listening_ends(monke
     finally:
         reset_session_ui()
 
-    assert any("2 speech segment(s), 1.5s of speech" in text for text in ui.outputs)
+    assert any("2 speech segment(s), 1.5s of detected speech" in text for text in ui.outputs)
 

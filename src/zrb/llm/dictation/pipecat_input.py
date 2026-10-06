@@ -171,9 +171,15 @@ class SpeechMetrics:
     """What the pipeline's voice-activity detector reported about speech.
 
     *speech_segments* is how many speech segments began; *speech_seconds* how
-    long the ones that also ended lasted, measured from the audio rather than
-    from the clock. A segment still open when this is read has no end yet, so its
-    time is not in the total.
+    long the ones that also ended lasted. What is timed is the detector's own
+    interval — the audio from the speech it confirmed to the silence it confirmed
+    the end on — so the trailing silence the stop is confirmed on, and any pause
+    it did not end the segment for, are part of the total. It is a measure of
+    what the detector heard, not of what a transcript would call the words.
+
+    A segment still open when this is read has no end yet, so its time is not in
+    the total; `AudioPipeline.close` ends the feed and closes it, which is what
+    makes a listening's last segment count.
     """
 
     speech_segments: int
@@ -183,7 +189,7 @@ class SpeechMetrics:
         """One line saying what the pipeline heard while it was fed."""
         return (
             f"{self.speech_segments} speech segment(s), "
-            f"{self.speech_seconds:.1f}s of speech"
+            f"{self.speech_seconds:.1f}s of detected speech"
         )
 
 
@@ -202,8 +208,10 @@ class SpeechMetricsRecorder:
     between two of them as the processor sees them is the pipeline's own
     latency: capture pushed as a burst is worked through in milliseconds, and a
     busy pipeline takes longer over the same speech than the user did. The
-    length the audio frames carry is the length the user spoke, however fast
-    they were worked through.
+    length the audio frames carry is the length of the segment the detector
+    reported, however fast it was worked through. Pipecat reports a segment's
+    ends and not a verdict per block, so that interval — its silence included —
+    is as close to what was said as the detector's events can say.
     """
 
     def __init__(self) -> None:
@@ -219,16 +227,29 @@ class SpeechMetricsRecorder:
         self._is_speaking = True
 
     def record_audio(self, seconds: float) -> None:
-        """Add the length of one block of audio, while speech is being heard.
+        """Add the length of one block of audio, while a segment is open.
 
         Audio that arrives with no segment open is audio the detector has not
-        called speech, and is not timed."""
+        called speech, and is not timed; audio arriving inside one is counted —
+        the detector is what decided where the segment was, so this does not
+        second-guess it over a pause."""
         if self._is_speaking:
             self._open_seconds += seconds
 
     def record_speech_stopped(self) -> None:
         """Speech ended: add the audio measured for the segment. A stop with no
         start heard is not speech this pipeline saw begin, and adds nothing."""
+        self.record_feed_ended()
+
+    def record_feed_ended(self) -> None:
+        """The feed is over: add the audio measured for a segment still open.
+
+        Nothing more arrives once a listening ends, so what an open segment was
+        measured over is all of it there will ever be. Dropping it would report a
+        user who spoke until the microphone stopped as having spoken for no time
+        at all — the detector reports a stop only when it hears the silence that
+        ends a segment, which a listening that stops mid-sentence never gives it.
+        An ended feed with no segment open adds nothing."""
         if not self._is_speaking:
             return
         self._speech_seconds += self._open_seconds
@@ -408,6 +429,11 @@ class AudioPipeline:
         measured on comes up short. Draining is bounded, so a pipeline that has
         stopped taking blocks is given up on rather than waited on.
 
+        The feed is then over, which the recorder is told: a segment the detector
+        never closed is added to the total for the audio it was heard over, every
+        block of which has just been drained, since a listening that stops while
+        the user is still speaking would otherwise be reported as no time at all.
+
         Never raises: this runs in the listening's `finally`, where an escaping
         failure would end hands-free for the session. A runner still going after
         the wait is cancelled; one that swallows that is logged and left.
@@ -417,6 +443,7 @@ class AudioPipeline:
         never retrieved.
         """
         await self._drain()
+        self.recorder.record_feed_ended()
         await close_quietly(self.worker.cancel, "the Pipecat worker")
         done, _ = await asyncio.wait({self.runner}, timeout=_CLOSE_TIMEOUT_SECONDS)
         if not done:
