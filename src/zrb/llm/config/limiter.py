@@ -23,10 +23,7 @@ def is_turn_start(msg: Any) -> bool:
 
 
 class LLMLimiter:
-    """
-    Manages LLM constraints: Context Window (Pruning) and Rate Limits (Throttling).
-    Designed as a singleton to share limits across tasks.
-    """
+    """Manage context-window and rate limits for LLM requests."""
 
     def __init__(self):
         # Sliding window logs
@@ -43,11 +40,7 @@ class LLMLimiter:
 
     @property
     def max_request_per_minute(self) -> int:
-        """Requests allowed per minute, from `LLM_MAX_REQUEST_PER_MINUTE` (default 60).
-
-        `0` blocks every request — checked with `is not None` so an explicit
-        zero isn't mistaken for "unset" and silently replaced by the default.
-        """
+        """Requests allowed per minute (default 60); zero blocks all requests."""
         if self._max_request_per_minute is not None:
             return self._max_request_per_minute
         cfg_value = getattr(CFG, "LLM_MAX_REQUEST_PER_MINUTE", None)
@@ -60,11 +53,7 @@ class LLMLimiter:
 
     @property
     def max_token_per_minute(self) -> int:
-        """Tokens allowed per minute, from `LLM_MAX_TOKEN_PER_MINUTE` (default 100k).
-
-        `0` blocks every request — checked with `is not None` so an explicit
-        zero isn't mistaken for "unset" and silently replaced by the default.
-        """
+        """Tokens allowed per minute (default 100,000); zero blocks all requests."""
         if self._max_token_per_minute is not None:
             return self._max_token_per_minute
         cfg_value = getattr(CFG, "LLM_MAX_TOKEN_PER_MINUTE", None)
@@ -77,12 +66,7 @@ class LLMLimiter:
 
     @property
     def max_token_per_request(self) -> int:
-        """Tokens allowed in one request, from `LLM_MAX_TOKEN_PER_REQUEST` (default 128k).
-
-        `fit_context_window` trims history to stay under this. `0` blocks
-        every request — checked with `is not None` so an explicit zero isn't
-        mistaken for "unset" and silently replaced by the default.
-        """
+        """Tokens allowed per request (default 128,000); zero blocks all requests."""
         if self._max_token_per_request is not None:
             return self._max_token_per_request
         cfg_value = getattr(CFG, "LLM_MAX_TOKEN_PER_REQUEST", None)
@@ -135,13 +119,7 @@ class LLMLimiter:
         reserved_tokens: int = 0,
         model: Any = None,
     ) -> list[Any]:
-        """
-        Prunes the history (removing oldest turns) so that 'history + new_message'
-        fits within 'max_tokens_per_request'.
-        Ensures strict tool call pairing by removing full conversation turns.
-
-        reserved_tokens: tokens already consumed by system prompt, tool schemas, etc.
-        """
+        """Trim complete oldest turns to fit the context limit."""
         if not history:
             return history
 
@@ -224,10 +202,7 @@ class LLMLimiter:
         return history[start:]
 
     async def acquire(self, content: Any, notifier: Callable[[str], Any] | None = None):
-        """
-        Acquires permission to proceed with the given content.
-        Calculates token count internally and waits if rate limits are exceeded.
-        """
+        """Wait until *content* fits the current rate limits, then record it."""
         estimated_tokens = self._count_tokens(content)
 
         self.prune_logs()

@@ -5,7 +5,6 @@ from zrb.config.web_auth_config import WebAuthConfig
 from zrb.runner.web_schema.token import Token
 
 if TYPE_CHECKING:
-    # We want fastapi to only be loaded when necessary to decrease footprint
     from fastapi import Response
 
 
@@ -13,8 +12,7 @@ def set_auth_cookie(web_auth_config: WebAuthConfig, response: "Response", token:
     access_token_max_age = web_auth_config.access_token_expire_minutes * 60
     refresh_token_max_age = web_auth_config.refresh_token_expire_minutes * 60
     now = datetime.now(timezone.utc)
-    # Configurable: an unconditional Secure flag makes cookie auth silently
-    # fail on plain-HTTP (non-localhost) deployments.
+    # Configurable: a forced Secure flag breaks plain-HTTP deployments.
     secure = web_auth_config.secure_cookies
     response.set_cookie(
         key=web_auth_config.access_token_cookie_name,

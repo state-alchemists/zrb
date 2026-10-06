@@ -13,12 +13,8 @@ if TYPE_CHECKING:
 
 
 class AnyTask(ABC):
-    """The task contract every task type (`BaseTask`, `CmdTask`, `LLMTask`, ...)
-    implements: identity (`name`/`color`/`icon`/`description`), the DAG edges
-    that decide execution order (`upstreams`/`fallbacks`/`successors`/
-    `readiness_checks`), input/env aggregation, and the `run`/`async_run`
-    entry points down to the per-node `exec` primitives.
-    """
+    """The contract every task type implements: identity, DAG edges,
+    input/env aggregation, and the run/exec entry points."""
 
     @overload
     def __rshift__(self, other: "AnyTask") -> "AnyTask": ...
@@ -69,12 +65,7 @@ class AnyTask(ABC):
     @property
     @abstractmethod
     def own_inputs(self) -> list[AnyInput]:
-        """Inputs this task declares itself, without its upstreams'.
-
-        The counterpart `inputs` needs: aggregating a closure means asking each
-        node what it contributes, and `inputs` cannot answer that (it re-answers
-        for the whole closure). See `BaseTaskContext.get_combined_inputs`.
-        """
+        """Inputs this task declares itself, without its upstreams'."""
         pass
 
     @property
@@ -141,11 +132,7 @@ class AnyTask(ABC):
 
     @abstractmethod
     def get_ctx(self, session: "AnySession") -> "AnyContext":
-        """Build this task's execution context within `session`.
-
-        The context carries resolved inputs, envs, and the logging helpers the
-        action uses.
-        """
+        """Build this task's execution context within `session`."""
 
     @abstractmethod
     def run(

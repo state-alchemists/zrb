@@ -1,16 +1,8 @@
 """Watching an agent run's stream of events from outside the UI.
 
-A stream observer is called with every event a run streams — each text
-delta, each tool call, the final result — alongside the UI's own event
-handler, so a feature can act on the reply while it is still being written
-(`enable_speech` speaks it a sentence at a time).
-
-Observers sit on the hot path: a run streams hundreds of events per turn.
-One must return quickly and hand slow work to a thread or task of its own.
-One that raises is logged and skipped, since a watcher must never break the
-run it watches.
-
-A leaf module, so registering an observer does not import the agent stack.
+An observer is called with every streamed event after the UI's handler (e.g.
+`enable_speech` speaks the reply a sentence at a time). Observers are on the hot
+path and must return quickly; one that raises is logged and skipped.
 """
 
 from __future__ import annotations

@@ -132,15 +132,14 @@ async def test_pid_tracking_wrapper_preserves_command_syntax(command, expected, 
 
 @pytest.mark.asyncio
 async def test_pid_tracking_wrapper_preserves_exit_code():
-    """The wrapper must report the command's status, not its own."""
+    """The wrapper reports the command's status."""
     res = await run_shell_command("exit 7")
     assert "Exit Code: 7" in res
 
 
 @pytest.mark.asyncio
 async def test_empty_command_is_a_no_op_not_a_syntax_error():
-    """`{ }` with no body is itself a syntax error, so an empty command must
-    skip the wrapper rather than be turned into a shell failure."""
+    """Empty commands skip the wrapper and succeed."""
     res = await run_shell_command("   ")
     assert "Exit Code: 0" in res
 
@@ -323,11 +322,7 @@ def test_timeout_docstring_states_seconds_not_milliseconds():
 
 
 def test_timeout_docstring_points_long_running_work_at_background():
-    """A large timeout is the wrong tool for a server; background=True is.
-
-    Checked against the `background` parameter's own schema description; see
-    the note on `test_timeout_docstring_states_seconds_not_milliseconds`.
-    """
+    """Large timeouts should point callers to background execution."""
     from pydantic_ai import Tool
 
     desc = Tool(run_shell_command).function_schema.json_schema["properties"][
@@ -339,12 +334,7 @@ def test_timeout_docstring_points_long_running_work_at_background():
 
 
 def test_docstring_points_unbounded_output_at_a_summarizing_form():
-    """The output hazard needs naming next to the interactive-hang hazard.
-
-    Three benchmarked trials ran an unscoped `git diff` in a dirty repo, each
-    producing ~139MB and timing out. The docstring covered stdin hangs but said
-    nothing about commands whose output has no ceiling.
-    """
+    """Unbounded output should point callers to bounded commands."""
     doc = run_shell_command.__doc__ or ""
 
     assert "--stat" in doc
@@ -353,11 +343,7 @@ def test_docstring_points_unbounded_output_at_a_summarizing_form():
 
 @pytest.mark.asyncio
 async def test_full_output_survives_bounded_memory_retention(monkeypatch):
-    """The head must stay recoverable even though it is never held in RAM.
-
-    Retention is tail-biased and bounded, so the dump file is the only place
-    the head still exists. If spilling regressed, this is where it shows.
-    """
+    """The spill file preserves output omitted from bounded memory."""
     monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 40)
     mock_proc = _make_mock_process(stdout_lines=[f"line-{i:04d}\n" for i in range(500)])
     monkeypatch.setattr(
@@ -377,11 +363,7 @@ async def test_full_output_survives_bounded_memory_retention(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_console_echo_stops_at_the_display_cap(monkeypatch):
-    """Echoing is per line and costs a regex plus a print; it needs a ceiling.
-
-    Spies on the module's own printer rather than capturing a stream: zrb_print
-    resolves its sink at call time, so fd-level capture does not see it.
-    """
+    """Console echo is capped independently from captured output."""
     printed: list[str] = []
     monkeypatch.setattr(CFG, "LLM_MAX_CONSOLE_OUTPUT_CHARS", 100)
     monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 100000)
@@ -450,9 +432,7 @@ async def test_shell_output_collapse_is_a_noop_with_no_current_ui(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_shell_output_collapse_is_a_noop_without_the_hooks(monkeypatch):
-    """A UI that doesn't implement the collapse hooks (std_ui, Telegram,
-    SSE, ...) must be unaffected — the command still runs and returns
-    normally."""
+    """UIs without collapse hooks remain unaffected."""
     mock_ui = MagicMock(spec=[])  # no attributes at all
     monkeypatch.setattr(shell_mod, "get_current_ui", lambda: mock_ui)
     mock_proc = _make_mock_process(stdout_lines=["hello\n"])

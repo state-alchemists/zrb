@@ -96,7 +96,6 @@ async def test_stream_btw_response_strips_system_prompt_from_history(ui):
         await ui.stream_btw_response(ui.llm_task, "quick question")
 
     cleaned = seen["history"]
-    # SystemPromptPart removed; the user part and non-ModelRequest items stay.
     request_entries = [m for m in cleaned if isinstance(m, ModelRequest)]
     assert len(request_entries) == 1
     assert all(not isinstance(p, SystemPromptPart) for p in request_entries[0].parts)
@@ -204,19 +203,13 @@ def test_classify_input_routes_action_command_without_running_it(ui):
 
 
 def test_classify_input_routes_by_recognition_not_prefix(ui):
-    # Toggles / argument commands / custom are recognized regardless of the
-    # token's prefix — a user-configured ">" redirect is a command, not a chat.
     ui.redirect_output_commands = [">"]
     assert ui.classify_input("> ~/out.txt") == "command"
-    # Run-while-thinking commands.
     assert ui.classify_input("/btw what's up") == "thinking_command"
     assert ui.classify_input("/yolo") == "thinking_command"
-    # Selective yolo (/yolo Write,Edit) must also route as a command, not chat.
     assert ui.classify_input("/yolo Write,Edit") == "thinking_command"
-    # Exact-match toggle and argument command.
     assert ui.classify_input("/help") == "command"
     assert ui.classify_input("/save my-session") == "command"
-    # Plain text — including text that merely starts with "/".
     assert ui.classify_input("hello world") == "message"
     assert ui.classify_input("/explain this code") == "message"
     assert ui.classify_input("   ") == "message"
@@ -260,7 +253,6 @@ def test_action_command_receives_the_ui(ui):
 
 @pytest.mark.asyncio
 async def test_dispatch_fires_pre_and_post_when_handled(ui):
-    # "/help" matches the info command, so a handler consumes it.
     await ui.dispatch_command("/help")
 
     pre_event = ui.execute_hook_blocking.call_args.args[0]
@@ -274,7 +266,6 @@ async def test_dispatch_fires_pre_and_post_when_handled(ui):
 
 @pytest.mark.asyncio
 async def test_dispatch_passes_command_name_and_args(ui):
-    # "/save my session" → name "/save", args "my session".
     await ui.dispatch_command("/save my session")
 
     kwargs = ui.execute_hook_blocking.call_args.kwargs
@@ -297,12 +288,10 @@ async def test_dispatch_passes_command_name_and_args(ui):
 async def test_dispatch_blocked_pre_cancels_command(
     ui, blocking_result, expected_reason
 ):
-    # Each blocking signal (block / deny / continue=false) cancels dispatch.
     ui.execute_hook_blocking.return_value = [blocking_result]
 
     await ui.dispatch_command("/help")
 
-    # Command never ran (help text absent), Post never fired, reason surfaced.
     assert not ui.execute_hook.called
     assert not any("Keyboard Shortcuts" in o for o in ui.outputs)
     assert any("⛔" in o and expected_reason in o for o in ui.outputs)
@@ -310,16 +299,13 @@ async def test_dispatch_blocked_pre_cancels_command(
 
 @pytest.mark.asyncio
 async def test_precommand_hook_rewrites_command_args(ui):
-    # A PreCommand hook overrides command_args → "/model opus" runs as
-    # "/model sonnet" (the token is preserved, the argument swapped).
     ui.execute_hook_blocking.return_value = [
         _hook_result(data={"command_args": "sonnet"})
     ]
 
     await ui.dispatch_command("/model opus")
 
-    assert ui.model == "sonnet"  # the rewritten model was applied
-    # PostCommand reflects the rewritten argument, not the original.
+    assert ui.model == "sonnet"
     assert ui.execute_hook.call_args.kwargs["command_args"] == "sonnet"
 
 
@@ -327,15 +313,12 @@ async def test_precommand_hook_rewrites_command_args(ui):
 async def test_dispatch_unhandled_forwards_to_llm(ui):
     await ui.dispatch_command("/notacommand here")
 
-    # Recognized-as-routed but no handler consumed it → forwarded; no Post.
     assert ui.submitted_prompt == "/notacommand here"
     assert not ui.execute_hook.called
 
 
 @pytest.mark.asyncio
 async def test_dispatch_thinking_gates_command(ui):
-    # While thinking, a non-thinking command (/help) is gated by the chain,
-    # treated as unhandled, and neither submitted nor Post-fired.
     ui.is_thinking = True
     ui.submitted_prompt = None
 
@@ -357,7 +340,6 @@ async def test_schedule_command_runs_dispatch_as_task(ui):
 
     ui.schedule_command("/help")
 
-    # A background task was registered; awaiting it runs the dispatch.
     assert len(ui.background_tasks) == 1
     await list(ui.background_tasks)[0]
     assert captured["text"] == "/help"
@@ -365,15 +347,12 @@ async def test_schedule_command_runs_dispatch_as_task(ui):
 
 @pytest.mark.asyncio
 async def test_schedule_rejects_concurrent_command(ui):
-    # First command is scheduled but has not run yet (still in sync code).
     ui.schedule_command("/help")
-    # A second command while the first is in flight is rejected, not raced.
     ui.schedule_command("/exit")
 
     assert len(ui.background_tasks) == 1
     assert any("already running" in o for o in ui.outputs)
 
-    # Once the first finishes, a new command is accepted again.
     await list(ui.background_tasks)[0]
     ui.outputs.clear()
     ui.schedule_command("/help")
@@ -391,8 +370,7 @@ async def test_thinking_command_bypasses_inflight_guard(ui):
 
     ui.dispatch_command = fake_dispatch
 
-    ui.schedule_command("/help")  # guarded → in flight
-    # A run-while-thinking command still schedules — not blocked by the guard.
+    ui.schedule_command("/help")
     ui.schedule_command("/btw hi", guarded=False)
 
     assert len(ui.background_tasks) == 2
@@ -405,8 +383,6 @@ async def test_thinking_command_bypasses_inflight_guard(ui):
 
 @pytest.mark.asyncio
 async def test_classify_and_dispatch_agree(ui):
-    # classify_input and the dispatch chain both derive from _command_table,
-    # so a token classified "command" is actually consumed (Post fires).
     assert ui.classify_input("/help") == "command"
     await ui.dispatch_command("/help")
     assert ui.execute_hook.call_args.args[0] == HookEvent.POST_COMMAND
@@ -420,11 +396,10 @@ async def test_command_dispatch_exception_is_logged(ui):
         ui.schedule_command("/help")
         task = list(ui.background_tasks)[0]
         await asyncio.gather(task, return_exceptions=True)
-        await asyncio.sleep(0)  # let the done-callback run
+        await asyncio.sleep(0)
 
     assert mock_logger.error.called
 
-    # The in-flight flag was cleared despite the exception — next command runs.
     ui.execute_hook_blocking = AsyncMock(return_value=[])
     ui.schedule_command("/help")
     assert len(ui.background_tasks) == 1

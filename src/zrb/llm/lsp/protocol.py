@@ -1,8 +1,4 @@
-"""
-LSP JSON-RPC Protocol implementation.
-
-Handles communication with Language Server Protocol servers using JSON-RPC 2.0.
-"""
+"""LSP JSON-RPC 2.0 protocol helpers."""
 
 import json
 import uuid
@@ -99,20 +95,13 @@ class JSONRPCMessage:
 
     @staticmethod
     def create_content_length_header(content: str) -> str:
-        """Create the content-length header for LSP communication.
-
-        LSP uses a simple protocol:
-        Content-Length: <length>\r\n
-        \r\n
-        <content>
-        """
+        """Prefix `content` with its LSP `Content-Length` header."""
         return f"Content-Length: {len(content)}\r\n\r\n{content}"
 
 
 class LSPProtocol:
     """Handles LSP protocol-level communication."""
 
-    # LSP Initialize parameters
     CLIENT_INFO = {"name": "zrb-lsp-client", "version": "1.0.0"}
 
     CAPABILITIES = {
@@ -137,7 +126,5 @@ class LSPProtocol:
     def create_text_document_identifier(cls, file_path: str) -> dict:
         """Create TextDocumentIdentifier for a file."""
         abs_path = Path(file_path).absolute()
-        # `as_uri()` yields "file:///D:/dir/file.py" on Windows; percent-quoting
-        # the string form would escape the drive colon and backslashes into a
-        # URI no language server can resolve.
+        # as_uri() keeps the Windows drive colon; percent-quoting would escape it.
         return {"uri": abs_path.as_uri()}

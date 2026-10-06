@@ -1,6 +1,4 @@
-"""Tests for SnapshotManager — what happens when something else is already
-using the store: another conversation's manager, another process, a slow
-directory, or a caller that gave up waiting."""
+'Tests for SnapshotManager — what happens when something else is already'
 
 import asyncio
 import os
@@ -24,8 +22,8 @@ def workdir():
 
 @pytest.fixture
 def snapshot_dir():
-    # Git may finish writing repository metadata just as the fixture is torn
-    # down under xdist; cleanup should not turn a passing test into an error.
+
+
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
         yield d
 
@@ -36,8 +34,7 @@ def _store_path(snapshot_dir):
 
 
 def _hold_the_store(store, held, release):
-    """Stand in for another process's operation, holding the store's lock
-    until *release* is set."""
+    "Stand in for another process's operation, holding the store's lock"
     with hold_file_lock(os.path.join(store, OPERATION_LOCK_NAME)):
         held.set()
         release.wait(5)
@@ -65,8 +62,7 @@ async def test_another_sessions_commit_in_the_same_store_is_refused(
 
 @pytest.mark.asyncio
 async def test_a_snapshot_waits_while_another_holds_the_store(snapshot_dir, workdir):
-    """Another conversation's manager, or another process, restoring in the
-    same directory: a snapshot must not catch it half-written."""
+    "Another conversation's manager, or another process, restoring in the"
     mgr = SnapshotManager(snapshot_dir, "s", workdir)
     await mgr.take_init_snapshot()
     held, release = threading.Event(), threading.Event()
@@ -111,9 +107,7 @@ async def test_a_store_busy_past_the_wait_fails_that_snapshot_not_rewind(
 async def test_waiting_for_the_store_does_not_spend_the_operation_budget(
     snapshot_dir, workdir, monkeypatch
 ):
-    """The budget starts once the store is held: a wait for a busy store is
-    contention, not a directory too slow to snapshot, so it neither fails the
-    operation on the budget nor turns rewind off."""
+    'The budget starts once the store is held: a wait for a busy store is'
     monkeypatch.setenv("ZRB_LLM_SNAPSHOT_OPERATION_TIMEOUT", "5")
     mgr = SnapshotManager(snapshot_dir, "s", workdir)
     await mgr.take_init_snapshot()
@@ -139,9 +133,7 @@ async def test_waiting_for_the_store_does_not_spend_the_operation_budget(
 async def test_an_operation_past_its_budget_turns_rewind_off(
     snapshot_dir, workdir, monkeypatch
 ):
-    """A directory too slow to hash within the budget fails every turn the
-    same way a single command running past its own cap already did — rather
-    than holding up each of them in turn."""
+    'A directory too slow to hash within the budget fails every turn the'
     mgr = SnapshotManager(snapshot_dir, "s", workdir)
     await mgr.take_init_snapshot()
     real_snapshot = SnapshotStore.snapshot
@@ -161,8 +153,7 @@ async def test_an_operation_past_its_budget_turns_rewind_off(
 async def test_cancelling_a_snapshot_waiting_for_the_store_gives_up_at_once(
     snapshot_dir, workdir
 ):
-    """The wait is not a git command, so nothing else would tell the worker
-    its caller was gone; it would sit there for the store's whole timeout."""
+    'The wait is not a git command, so nothing else would tell the worker'
     mgr = SnapshotManager(snapshot_dir, "s", workdir)
     await mgr.take_init_snapshot()
     held, release = threading.Event(), threading.Event()
@@ -190,10 +181,9 @@ async def test_cancelling_a_snapshot_waiting_for_the_store_gives_up_at_once(
 
 @pytest.mark.asyncio
 async def test_listing_never_waits_for_the_store(snapshot_dir, workdir):
-    """It runs on the UI's thread: another process restoring, or setting the
-    store up, must not freeze the UI."""
+    "It runs on the UI's thread: another process restoring, or setting the"
     await SnapshotManager(snapshot_dir, "s", workdir).take_init_snapshot()
-    fresh = SnapshotManager(snapshot_dir, "s", workdir)  # a new process's
+    fresh = SnapshotManager(snapshot_dir, "s", workdir)
     held, release = threading.Event(), threading.Event()
     thread = threading.Thread(
         target=_hold_the_store, args=(_store_path(snapshot_dir), held, release)

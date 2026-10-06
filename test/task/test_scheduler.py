@@ -20,37 +20,26 @@ def mock_session():
 async def test_scheduler_triggers_on_match(mock_match_cron, mock_session):
     import datetime
 
-    # Create a task for the scheduler
     scheduler = Scheduler(name="test_scheduler", schedule="* * * * *")
     mock_session.register_task(scheduler)
 
     with mock.patch.object(scheduler, "push_exchange_xcom") as mock_push_exchange_xcom:
-        # Pin the clock inside one minute, as the dedup test below does: the loop
-        # sleeps to the next minute boundary, so on a real clock this window can
-        # straddle one and sample two minutes. Two matches is then correct for
-        # `* * * * *` (the dedup only holds within a minute) and the count
-        # assertions below flake — the Windows CI failure this guards against.
         with mock.patch("zrb.task.scheduler.datetime") as mock_datetime:
             mock_datetime.datetime.now.return_value = datetime.datetime(
                 2026, 1, 1, 10, 0, 30
             )
 
-            # Create a task that will run the scheduler
             scheduler_task = asyncio.create_task(scheduler.exec(mock_session))
 
-            # Wait a bit for the scheduler to run
             await asyncio.sleep(0.01)
 
-            # Cancel the scheduler task
             scheduler_task.cancel()
 
-            # Wait for cancellation to complete
             try:
                 await scheduler_task
             except asyncio.CancelledError:
                 pass
 
-            # Give any background tasks time to clean up
             await asyncio.sleep(0.01)
 
             mock_match_cron.assert_called_once()
@@ -60,27 +49,21 @@ async def test_scheduler_triggers_on_match(mock_match_cron, mock_session):
 @pytest.mark.asyncio
 @mock.patch("zrb.task.scheduler.match_cron", return_value=False)
 async def test_scheduler_does_not_trigger_on_no_match(mock_match_cron, mock_session):
-    # Create a task for the scheduler
     scheduler = Scheduler(name="test_scheduler", schedule="* * * * *")
     mock_session.register_task(scheduler)
 
     with mock.patch.object(scheduler, "push_exchange_xcom") as mock_push_exchange_xcom:
-        # Create a task that will run the scheduler
         scheduler_task = asyncio.create_task(scheduler.exec(mock_session))
 
-        # Wait a bit for the scheduler to run
         await asyncio.sleep(0.01)
 
-        # Cancel the scheduler task
         scheduler_task.cancel()
 
-        # Wait for cancellation to complete
         try:
             await scheduler_task
         except asyncio.CancelledError:
             pass
 
-        # Give any background tasks time to clean up
         await asyncio.sleep(0.01)
 
         mock_match_cron.assert_called_once()
@@ -104,8 +87,6 @@ async def test_scheduler_fires_once_per_minute_with_subminute_tick(
         with mock.patch("zrb.task.scheduler.CFG") as mock_cfg:
             mock_cfg.SCHEDULER_TICK_INTERVAL = 1  # 1ms tick
             with mock.patch("zrb.task.scheduler.datetime") as mock_datetime:
-                # Pin the clock inside one minute so the test cannot flake
-                # across a real minute boundary.
                 mock_datetime.datetime.now.return_value = fixed_now
 
                 scheduler_task = asyncio.create_task(scheduler.exec(mock_session))
@@ -116,8 +97,6 @@ async def test_scheduler_fires_once_per_minute_with_subminute_tick(
                 except asyncio.CancelledError:
                     pass
 
-                # The loop kept sampling the clock...
                 assert mock_datetime.datetime.now.call_count > 1
 
-        # ...but the matching minute fired exactly once.
         mock_push.assert_called_once()

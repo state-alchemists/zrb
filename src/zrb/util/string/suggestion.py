@@ -1,9 +1,4 @@
-"""Close-match suggestions for mistyped CLI names.
-
-Used when the CLI rejects something the user typed — an unknown task name or
-an unrecognized `--flag` — so the error can point at what they probably meant
-instead of only saying no.
-"""
+"""Close-match suggestions for mistyped CLI names."""
 
 from difflib import get_close_matches
 
@@ -25,8 +20,7 @@ def suggest_name(
     """
     if not typo or not candidates:
         return []
-    # 0.6 is difflib's default and errs toward silence: a suggestion the user
-    # has to squint at is worse than none.
+    # difflib's default 0.6 errs toward silence.
     return get_close_matches(typo, candidates, n=limit, cutoff=cutoff)
 
 

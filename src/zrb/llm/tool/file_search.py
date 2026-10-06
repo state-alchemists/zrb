@@ -166,10 +166,7 @@ class _SearchTally:
 
 
 def _truncate_file_results(results: list[Any]) -> tuple[list[Any], str | None]:
-    """Keep leading result files within the output char budget (head-keep).
-
-    Returns (truncated_list, truncation_notice).
-    """
+    """Keep leading result files within the output budget."""
     kept, omitted = truncate_items(results, CFG.LLM_MAX_OUTPUT_CHARS)
     if omitted == 0:
         return results, None
@@ -215,11 +212,7 @@ def _build_search_output(
 
 
 def _merge_skipped_warning(warning: str | None, skipped_count: int) -> str | None:
-    """Fold a 'files skipped' notice into the existing warning, if any.
-
-    Surfaces silently-unreadable files so partial results are never presented
-    as complete.
-    """
+    """Add a notice when unreadable files make results incomplete."""
     if skipped_count <= 0:
         return warning
     notice = (

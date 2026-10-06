@@ -1,31 +1,13 @@
 """zrb-shipped LLM tools — one module per tool family.
 
-Re-exports resolve through PEP 562 `__getattr__`, so
-importing one submodule loads that module alone. Eager re-exports here cost
-every importer the whole family — 29 modules and ~94ms, paid by a `zrb --help`
-that never reaches an LLM, because importing any submodule runs this file.
+Re-exports resolve lazily through PEP 562 `__getattr__`, so importing one
+submodule does not load the whole family (~94ms).
 
-Two families are deliberately NOT re-exported here, because their tools
-genuinely need the agent run loop for more than one call path each:
+`code.py` and `delegate.py` are not re-exported: they need the agent run loop
+throughout, so import them from their own module.
 
-- `code.py` (`AnalyzeCode`) delegates to a sub-agent across several internal
-  helpers, not just one function — making that lazy would mean repeating the
-  same import at each call site for one tool, worse than just importing it
-  from its own module.
-- `delegate.py` (`DelegateToAgent`, `SearchAgent`) — delegation *is* what
-  these tools do; `zrb.llm.agent`/`SubAgentManager` aren't an occasional
-  side path, they're the whole function body.
-
-Import those two directly from their own module instead, e.g.
-`from zrb.llm.tool.code import analyze_code`. Every other tool here that
-*does* occasionally need the agent (e.g. `open_web_page`'s summarization
-step) keeps that import lazy, function-scoped, inside just the one path that
-needs it — see `web.py::_summarize_web_content` for the pattern.
-
-The file tools resolve through `file.py` rather than their own leaf modules
-(`file_read`, `file_write`, …) on purpose: `file.py` rewrites each one's
-`__name__` to the schema name the model sees (`Read`, `Write`, `Edit`, …),
-so reaching a leaf directly would register a tool under its Python name.
+File tools resolve through `file.py`, which sets each one's `__name__` to its
+schema name (`Read`, `Write`, ...).
 """
 
 from typing import TYPE_CHECKING
@@ -83,7 +65,6 @@ __all__ = [
     "create_list_zrb_task_tool",
     "create_run_zrb_task_tool",
     "create_monitor_process_tool",
-    # Planning tools
     "create_plan_tools",
     "write_todos",
     "get_todos",
@@ -125,9 +106,7 @@ def __getattr__(name: str):
     source = _SOURCES.get(name)
     if source is None:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-    # lazy: transitively heavy via internal — resolving one name eagerly
-    # re-exported all 29 tool modules (94ms on `import zrb`), and several of
-    # them reach pdfplumber, mcp and prompt_toolkit.
+    # lazy: transitively heavy via internal — tool modules reach pdfplumber, mcp, prompt_toolkit
     import importlib
 
     value = getattr(importlib.import_module(source), name)

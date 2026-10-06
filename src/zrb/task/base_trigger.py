@@ -25,17 +25,13 @@ class BaseTrigger(BaseTask):
         callback: list[AnyCallback] | AnyCallback | None = None,
         **kwargs: Unpack[ActionTaskParams],
     ):
-        """Define a trigger. Every parameter besides `queue_name` and
-        `callback` is `BaseTask`'s, with the same meaning; `color` and `icon`
-        default to a distinct cyan `✨` instead of `BaseTask`'s.
+        """Define a trigger. Other parameters are `BaseTask`'s; `color` and
+        `icon` default to cyan `✨`.
 
         Args:
-            queue_name: Name of the XCom queue callbacks watch — adding data
-                to `xcom[queue_name]` fires them. Read through the
-                `queue_name` property, which has no context, so it is a plain
-                `str`; build it eagerly if it needs to vary.
-            callback: Callback(s) run after the trigger action, once data is
-                on the queue.
+            queue_name: XCom queue whose pushes fire the callbacks. A plain
+                `str`, defaulting to the task name.
+            callback: Callback(s) run once data is on the queue.
         """
         if kwargs.get("color") is None:
             kwargs["color"] = CYAN
@@ -104,8 +100,6 @@ class BaseTrigger(BaseTask):
                     callback.async_run(parent_session=session, session=callback_session)
                 )
             )
-        # Fail-fast fan-out: a broken callback should surface immediately, not
-        # be masked by return_exceptions.
         await asyncio.gather(*coros)
 
     def _get_exchange_xcom(self, session: AnySession) -> Xcom:
@@ -115,11 +109,7 @@ class BaseTrigger(BaseTask):
         return shared_ctx.xcom[self.queue_name]
 
     def push_exchange_xcom(self, session: AnySession, data: Any):
-        """Publish an event, waking whatever this trigger drives.
-
-        Call this from a trigger implementation when the external condition it
-        watches fires.
-        """
+        """Publish an event to this trigger's queue, firing its callbacks."""
         exchange_xcom = self._get_exchange_xcom(session)
         exchange_xcom.push(data)
 

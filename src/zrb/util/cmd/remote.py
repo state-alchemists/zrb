@@ -11,14 +11,10 @@ def get_remote_cmd_script(
 ) -> str:
     """Build the `ssh`/`sshpass` invocation that runs `cmd_script` on `host`.
 
-    `use_password` authenticates via `sshpass -e`, which reads the password
-    from the `SSHPASS` environment variable — the caller must set that in the
-    subprocess environment; the password is never passed on the command line.
+    `use_password` uses `sshpass -e`: the caller must set `SSHPASS` in the
+    subprocess environment.
     """
-    # Quote user-supplied fields — a host, user, port, or key path
-    # containing `"`, `` ` `` or `$(…)` would otherwise break out of the
-    # double quotes and inject/execute shell. The password is passed via
-    # the SSHPASS env var (sshpass -e), not on the command line.
+    # Quoted to prevent shell injection through user-supplied fields.
     quoted_script = shlex.quote(cmd_script)
     quoted_port = shlex.quote(str(port))
     quoted_ssh_key = shlex.quote(ssh_key)

@@ -9,16 +9,9 @@ from zrb.util.string.conversion import to_snake_case
 def get_prompt(name: str, profile: str | None = None, **extra_replacements: str) -> str:
     """Load a prompt by name and apply all placeholder replacements.
 
-    This is the canonical function that replaces all individual
-    ``get_*_prompt()`` functions. Call it directly:
+        prompt = get_prompt("persona", profile="minimal", ASSISTANT_NAME="Zrb")
 
-        prompt = get_prompt("workflow")
-        prompt = get_prompt("persona", ASSISTANT_NAME="Zrb")
-        prompt = get_prompt("persona", profile="minimal")
-
-    Standard replacements (journal dir, root group name, etc.) are
-    always applied automatically.  Pass extra keyword arguments for
-    prompt-specific placeholders such as ``ASSISTANT_NAME``.
+    Standard ``{CFG_*}`` replacements are always applied.
 
     Args:
         name: Prompt file name (without ``.md`` suffix), e.g. ``"persona"``,
@@ -78,18 +71,14 @@ def get_default_prompt(name: str) -> str:
             except Exception as e:
                 CFG.LOGGER.debug(f"Failed to read prompt {base_prompt_path}: {e}")
 
-    # 4. Fallback to package default (cached — bundled files never change at runtime)
+    # 4. Fallback to package default
     return _read_package_prompt(name)
 
 
 def _find_custom_prompt(name: str, cwd: str, prompt_dir: str) -> str:
     """Return the first matching local override content, or empty string.
 
-    Deliberately not cached: unlike package-bundled prompts, project-local
-    overrides under LLM_PROMPT_DIR can be edited mid-session (env-var
-    overrides above are re-read live too), and pinning them until restart
-    would make freshness inconsistent. The lookup costs a handful of
-    ``os.path.exists`` calls per section per composition.
+    Not cached: local overrides may be edited mid-session.
     """
     for search_path in _get_default_prompt_search_path(cwd):
         local_prompt_path = os.path.abspath(
@@ -116,11 +105,8 @@ def _get_default_prompt_search_path_cached(
 ) -> tuple[str, ...]:
     """Directories to check for a ``{prompt_dir}/{name}.md`` override, in order.
 
-    Mirrors the project/home search toggles skills and agents already honor
-    (``SkillManager._get_project_search_dirs`` / ``_get_home_search_dirs``):
-    project ancestors are walked only when ``LLM_SEARCH_PROJECT`` is on, and
-    the home directory is always a candidate — regardless of where the
-    project lives — when ``LLM_SEARCH_HOME`` is on.
+    Honors ``LLM_SEARCH_PROJECT`` (cwd ancestors up to home) and
+    ``LLM_SEARCH_HOME``, as skill and agent discovery do.
     """
     home_path = os.path.abspath(os.path.expanduser("~"))
     search_paths: list[str] = []
@@ -144,7 +130,7 @@ def _get_default_prompt_search_path_cached(
 
 @lru_cache(maxsize=32)
 def _read_package_prompt(name: str) -> str:
-    """Read a bundled prompt .md file. Cached forever — these never change at runtime."""
+    """Read a bundled prompt .md file (cached; bundled files never change)."""
     file_path = Path(__file__).parent / "markdown" / f"{name}.md"
     if not file_path.is_file():
         return ""
@@ -175,10 +161,9 @@ def _get_prompt_replacements_cached(
 ) -> dict[str, str]:
     """Compute config-derived prompt replacements; cached on every input.
 
-    The journal index *content* is deliberately NOT included here. Embedding the
-    mutable index in this cached system-prompt section invalidated the cacheable
-    prefix every time the agent journaled mid-session; the snapshot is now
-    injected into the ``<live-context>`` block instead (see ``live_context.py``)."""
+    The mutable journal index content is injected via ``<live-context>``
+    instead, so journaling does not invalidate the cacheable prefix.
+    """
     replacements: dict[str, str] = {}
     cfg_values = {
         "LLM_JOURNAL_DIR": journal_dir,

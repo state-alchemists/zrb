@@ -56,10 +56,7 @@ def test_tpl_binds_loop_values_eagerly():
 
 
 def test_string_action_is_literal_and_tpl_action_renders():
-    """`BaseTask.action` resolves like every other attribute: a bare string is
-    returned verbatim, a `Tpl` is rendered. Regression — `run_default_action`
-    had its own `ctx.render(action)` call that bypassed `get_attr` entirely.
-    """
+    """Bare actions stay literal while `Tpl` actions render."""
     from zrb import Task
 
     literal = Task(name="literal-action", action="Hello {ctx.input.name}!")

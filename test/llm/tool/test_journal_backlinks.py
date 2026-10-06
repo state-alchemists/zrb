@@ -26,15 +26,7 @@ def _read(*parts) -> str:
 
 
 def test_rewriting_a_note_keeps_the_backlinks_other_notes_added(writable_journal):
-    """The missing-backlink invariant, broken by this module's own writer.
-
-    A note is re-written whenever its finding is refined, and the whole file is
-    composed from the arguments — so a plain truncate dropped the `## Backlinks`
-    entries that *other* notes had inserted. Linking second→first and then
-    updating `first` left `first` with no way back, while `second` kept its
-    forward link: exactly the half-edge the deleted `journal-lint.py` used to
-    catch.
-    """
+    """Preserve backlinks written by other notes when rewriting a note."""
     from zrb.llm.tool.journal_write import write_journal_note
 
     write_journal_note(
@@ -73,11 +65,7 @@ def test_rewriting_a_note_keeps_the_backlinks_other_notes_added(writable_journal
 
 
 def test_rewriting_a_note_keeps_its_own_forward_links(writable_journal):
-    """The same half-edge from the other end.
-
-    Dropping `## Related` while the target keeps its backlink leaves a backlink
-    pointing at a note that no longer claims the relationship.
-    """
+    """Preserve a note's forward links when rewriting it."""
     from zrb.llm.tool.journal_write import write_journal_note
 
     write_journal_note(

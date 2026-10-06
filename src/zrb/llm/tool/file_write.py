@@ -59,17 +59,13 @@ async def _write_file_locked(path: str, abs_path: str, content: str, mode: str) 
         if blocked is not None:
             return blocked
     elif existed_before:
-        # Append corrupts a binary just as surely as an overwrite would —
-        # same refusal, no observed-state requirement (nothing is destroyed).
+        # Append still refuses binaries, but needs no prior observation.
         blocked = check_writable_text(abs_path)
         if blocked is not None:
             return blocked
 
     parent = os.path.dirname(abs_path)
-    # Sampled before makedirs. Creating a directory is a change to the user's
-    # tree, and a silent one reads as "the path already existed" — which is how a
-    # path resolved against the wrong base lands a file where nothing reads it.
-    # Reported, not refused: writing a new tree is often exactly the intent.
+    # Reported (not refused) so a path resolved against the wrong base is noticed.
     created_dir = bool(parent) and not os.path.isdir(parent)
     try:
         os.makedirs(parent, exist_ok=True)
@@ -83,8 +79,7 @@ async def _write_file_locked(path: str, abs_path: str, content: str, mode: str) 
             "space, then retry."
         )
 
-    # Best-effort, since the write succeeded. The hash must be the file's full
-    # new state: `content` for mode="w", a re-read for mode="a".
+    # Best-effort; the hash must cover the file's full new state.
     try:
         if mode == "w":
             record_observed(abs_path, content)

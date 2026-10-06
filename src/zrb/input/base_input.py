@@ -11,9 +11,8 @@ from zrb.util.string.conversion import to_snake_case
 class BaseInput(AnyInput):
     """Default `AnyInput` implementation, treating every value as a string.
 
-    Subclass this and override `_parse_str_value` to add a type, plus
-    `_expected_value_description` to say what that type looks like. That pair is
-    all `IntInput`, `BoolInput`, and `FloatInput` do.
+    Subclass and override `_parse_str_value` and `_expected_value_description`
+    to add a type.
     """
 
     def __init__(
@@ -96,12 +95,7 @@ class BaseInput(AnyInput):
             try:
                 value = self._parse_str_value(str_value)
             except ValueError:
-                # A cast explains nothing on its own: `int("abc")` reports
-                # "invalid literal for int() with base 10: 'abc'", naming neither
-                # the flag the user typed nor a value that would work. Every CLI
-                # value passes through here — `runner/common_util.py` resolves each
-                # input against a dummy context before the task runs — so the
-                # explanation lives at this one point instead of in each cast.
+                # Every CLI value is parsed here, so one message names the input.
                 raise ValueError(
                     f"Invalid value for input '{self.name}': {str_value!r}. "
                     f"Expected {self._expected_value_description()}."
@@ -109,8 +103,7 @@ class BaseInput(AnyInput):
         if self.name in shared_ctx.input:
             raise ValueError(f"Input already defined in the context: {self.name}")
         shared_ctx.input[self.name] = value
-        # We want to be able to access ctx.input["project-name"] as
-        # ctx.input.project_name
+        # ctx.input["project-name"] is also ctx.input.project_name
         snake_key = to_snake_case(self.name)
         if snake_key == self.name:
             return
@@ -123,14 +116,7 @@ class BaseInput(AnyInput):
         return str_value
 
     def _expected_value_description(self) -> str:
-        """What `_parse_str_value` accepts, for the message `update_shared_context` raises.
-
-        Override this beside `_parse_str_value`: the subclass that adds a type is
-        the only thing that knows the shape of that type. A message naming neither
-        the flag nor the remedy leaves the user holding the value they just typed
-        with nothing to change it to. `BaseInput` accepts any string, so its own
-        answer never reaches a message.
-        """
+        """What `_parse_str_value` accepts, for the parse-error message."""
         return "a string"
 
     def prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
@@ -145,11 +131,7 @@ class BaseInput(AnyInput):
             while not self._allow_empty and value == "":
                 value = self._prompt_cli_str(shared_ctx)
         except EOFError:
-            # Stdin is exhausted — CI, cron, `< /dev/null`. No further read can
-            # ever succeed, so the retry loop above must never see this: take
-            # the default if there is one, accept empty where that is allowed,
-            # and otherwise fail naming the flag to pass. Returning "" into the
-            # loop instead would spin, re-printing the prompt without end.
+            # Stdin is exhausted (CI, cron); retrying would spin forever.
             value = self.get_default_str(shared_ctx)
             if value == "" and not self._allow_empty:
                 raise ValueError(

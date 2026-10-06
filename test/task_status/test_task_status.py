@@ -1,5 +1,3 @@
-"""Tests for task_status.py - Task status tracking."""
-
 import datetime
 
 import pytest
@@ -154,7 +152,6 @@ class TestTaskStatusMarking:
         status.mark_as_terminated()
 
         assert status.is_terminated is True
-        # Should only have one TERMINATED entry
         terminated_count = sum(1 for h in status.history if h[0] == TASK_TERMINATED)
         assert terminated_count == 1
 
@@ -258,12 +255,7 @@ class TestTaskStatusAllowRunDownstream:
         assert status.allow_run_downstream is False
 
     def test_allow_run_downstream_when_ready_with_transient_failure(self):
-        """A ready task with a failed attempt mid-retry still allows downstream.
-
-        `is_failed` is per-attempt and cleared by the next mark_as_started;
-        blocking downstream on it raced with the retry loop of
-        readiness-checked tasks and silently dropped downstream tasks.
-        """
+        """A transient failure does not block downstream when ready."""
         from zrb.task_status.task_status import TaskStatus
 
         status = TaskStatus()

@@ -90,7 +90,7 @@ def test_custom_jpeg_quality_changes_output_size():
     high = scale_image_bytes(src, jpeg_quality=95)
     low = scale_image_bytes(src, jpeg_quality=30)
 
-    # Lower quality must produce a smaller payload than higher quality.
+
     assert low.final_bytes < high.final_bytes
 
 

@@ -22,8 +22,7 @@ from zrb.util.cmd.command import (
     wait_for_exit_and_drain,
 )
 
-# Minimum seconds between live shell-output repaints; see
-# `_make_live_shell_output_pusher`.
+# Minimum seconds between live shell-output repaints.
 _LIVE_UPDATE_INTERVAL = 0.5
 
 
@@ -107,9 +106,7 @@ async def run_shell_command(
         max_chars = CFG.LLM_MAX_OUTPUT_CHARS
     cwd = cwd or os.getcwd()
     resolved_shell, shell_flag = resolve_shell(shell)
-    # Background-PID discovery relies on POSIX process groups + pgrep/ps, so it
-    # only applies to a POSIX `-c` shell on a POSIX OS. Windows and language
-    # runtimes (node/php/powershell) skip the wrapper.
+    # Background-PID discovery needs POSIX process groups + pgrep/ps.
     use_pid_tracking = platform.system() != "Windows" and shell_flag == "-c"
 
     wrapper_command, temp_pid_file = _prepare_command(command, use_pid_tracking)
@@ -134,8 +131,6 @@ async def run_shell_command(
     process = None
     try:
         process = await start_process(argv, cwd)
-        # start_process creates the subprocess with stdout/stderr=PIPE, so both
-        # readers are always present here (the type is StreamReader | None).
         assert process.stdout is not None and process.stderr is not None
 
         ui = get_current_ui()
@@ -154,8 +149,7 @@ async def run_shell_command(
         drain_notices: list[str] = []
         try:
             try:
-                # Fail-fast fan-out: a broken reader should abort
-                # immediately, not be masked by return_exceptions.
+                # No return_exceptions: a broken reader should abort immediately.
                 readers = asyncio.gather(
                     _read_stream(process.stdout, stdout_cap, on_chunk),
                     _read_stream(process.stderr, stderr_cap, on_chunk),
@@ -193,12 +187,9 @@ async def run_shell_command(
         return result
 
     except asyncio.CancelledError:
-        # Cancellation must not orphan the subprocess: ``asyncio.run`` closes
-        # the loop right after the chat ends, and a child still alive then logs
-        # "Loop <...> that handles pid N is closed" when it finally exits (its
-        # exit event can no longer be delivered). Kill + reap while the loop is
-        # still alive, then re-raise so cancellation propagates. BaseException,
-        # not Exception: a re-cancel landing on the reap must not skip the kill.
+        # Kill + reap while the loop is alive, else the orphan logs "Loop ...
+        # that handles pid N is closed" on exit. BaseException: a re-cancel
+        # landing on the reap must not skip the kill.
         _cleanup_temp_file(temp_pid_file)
         try:
             await _kill_if_still_running(process)
@@ -251,12 +242,7 @@ def _supports_live_collapse(ui: Any) -> bool:
 def _build_stream_captures(
     max_chars: int, supports_live_collapse: bool
 ) -> tuple[StreamCapture, StreamCapture]:
-    """A stdout/stderr capture pair.
-
-    `print_live=False` when the UI has a better mechanism: `StreamCapture`
-    would otherwise show the same output twice (its own `zrb_print` *and* the
-    collapsible live line).
-    """
+    """A stdout/stderr capture pair; no console echo when the UI shows a live line."""
     echo_cap = CFG.LLM_MAX_CONSOLE_OUTPUT_CHARS
     return (
         StreamCapture(max_chars, echo_cap, print_live=not supports_live_collapse),
@@ -265,11 +251,7 @@ def _build_stream_captures(
 
 
 async def _kill_if_still_running(process: "asyncio.subprocess.Process | None") -> None:
-    """Terminate *process* if it's still running (no-op otherwise).
-
-    Shared by the cancellation and error paths of `run_shell_command` — a
-    failure must not leave the command running detached with no handle to it.
-    """
+    """Terminate *process* if it's still running."""
     if process is not None and process.returncode is None:
         await terminate_process(
             process,
@@ -279,14 +261,8 @@ async def _kill_if_still_running(process: "asyncio.subprocess.Process | None") -
 
 
 def _combined_echo(stdout_cap: StreamCapture, stderr_cap: StreamCapture) -> str:
-    """The command's current combined echo, from each stream's own
-    `echoed_text` accumulator — not re-read from the buffer (see
-    `StreamCapture.echoed_text`), the same "don't trust the rendered
-    screen" contract `StreamEventHandler` uses for thinking/text. Stdout
-    and stderr are shown as separate sections since each only tracks its
-    own chronological order, not the interleaving between the two as they
-    actually printed.
-    """
+    """The command's echo so far, stdout then stderr as separate sections
+    (their interleaving is not tracked)."""
     sections = []
     if stdout_cap.echoed_text:
         sections.append(stdout_cap.echoed_text)
@@ -296,25 +272,17 @@ def _combined_echo(stdout_cap: StreamCapture, stderr_cap: StreamCapture) -> str:
 
 
 def _format_live_shell_output(text: str) -> str:
-    """Two-space indent per line, leading "\\n" for its own block
-    boundary — matches the convention every other mid-turn writer outside
-    `StreamEventHandler` follows (see `web.py`'s `_notify`)."""
+    """Two-space indent per line, with a leading newline."""
     return "\n  " + text.replace("\n", "\n  ")
 
 
 def _make_live_shell_output_pusher(
     ui: Any, key: str, stdout_cap: StreamCapture, stderr_cap: StreamCapture
 ) -> "Callable[[], None]":
-    """Build a throttled callback that pushes the current combined
-    stdout+stderr echo to `key`'s own live line via `ui.update_shell_output`.
-
-    Called after every new line from either stream; skips updates closer
-    together than `_LIVE_UPDATE_INTERVAL` (mirrors `stream_response.py`'s
-    spinner throttle — a chatty command can emit thousands of lines/sec,
-    and each update is an O(buffer size) string splice). Nothing is lost
-    by skipping: `_finish_shell_output` always uses the complete,
-    unthrottled accumulator. A missing/broken UI must never break the
-    actual command — same contract as `web.py`'s `_notify`.
+    """Build a callback pushing the combined echo to `key`'s live line,
+    throttled to `_LIVE_UPDATE_INTERVAL` (each update is an O(buffer) splice).
+    Skipped updates lose nothing: `_finish_shell_output` uses the full echo.
+    UI errors are swallowed.
     """
     last_update = 0.0
 
@@ -338,13 +306,9 @@ def _make_live_shell_output_pusher(
 def _finish_shell_output(
     ui: Any, key: str, stdout_cap: StreamCapture, stderr_cap: StreamCapture
 ) -> None:
-    """Collapse `key`'s live line (opened by
-    `_make_live_shell_output_pusher`'s updates) into a one-line summary,
-    Ctrl+O-expandable back to the full echo. Called unconditionally once
-    echoing may have started — including on cancellation or a stream
-    error — so a failed/aborted command never leaves its raw echo stuck
-    open on screen. A no-op if nothing was ever echoed, or if the UI's
-    hook raises.
+    """Collapse `key`'s live line into a one-line, expandable summary.
+
+    Runs on every exit path so an aborted command never leaves its echo open.
     """
     try:
         full = _combined_echo(stdout_cap, stderr_cap)
@@ -360,32 +324,20 @@ def _finish_shell_output(
 def _prepare_command(command: str, use_pid_tracking: bool) -> tuple[str, str | None]:
     """Wrap the command to capture background PIDs when on a POSIX shell.
 
-    **Every wrapper token gets its own line.** Splicing the wrapper on with `;`
-    separators — ``{ <command> ; }; __code=$?; …`` — corrupts any command whose
-    *last line* cannot tolerate a trailing `; }`: a heredoc (the `EOF` delimiter
-    stops being alone on its line, so the shell swallows the rest of the wrapper
-    hunting for it), a trailing comment (`# …` eats the rest of the line), a
-    trailing `;`, and — on bash/sh — a command merely ending in a newline.
-    Models write all four constantly, and the failure surfaces as an opaque
-    `parse error near '\\n'` pointing at a line number in a string the model
-    never wrote. Newline separators make the command a statement of its own, so
-    nothing the model writes can run into the wrapper.
+    Every wrapper token gets its own line: a `;`-spliced wrapper breaks a
+    command ending in a heredoc, a comment, a `;` or a newline.
     """
-    # An empty command has no body to wrap: `{ }` is itself a syntax error, so
-    # the wrapper would turn a harmless no-op into a shell failure.
+    # `{ }` is a syntax error, so an empty command is not wrapped.
     if not use_pid_tracking or not command.strip():
         return command, None
 
     fd, temp_pid_file = tempfile.mkstemp(prefix="zrb_pids_")
     os.close(fd)
 
-    # `pgrep -g` lists the shell's process group. `$(ps -o pgid= -p $$)` is
-    # that group's PGID; `|| echo $$` covers macOS Seatbelt, where /bin/ps is setuid root and a
-    # sandboxed shell cannot exec it — there the shell IS the group leader
-    # (start_new_session=True + the sandbox wrappers exec in place), so $$ is
-    # the PGID. The shell's own PID ($$) is written first so
-    # _collect_background_pids can exclude it even when a wrapper makes
-    # process.pid != $$.
+    # `|| echo $$`: under macOS Seatbelt a sandboxed shell cannot exec the
+    # setuid /bin/ps, but the shell is the group leader there, so $$ is the
+    # PGID. $$ is written first so it can be excluded even when a wrapper
+    # makes process.pid != $$.
     wrapper_command = (
         f"echo $$ > {temp_pid_file}\n"
         f"{{\n{command}\n}}\n"
@@ -400,13 +352,11 @@ def _prepare_command(command: str, use_pid_tracking: bool) -> tuple[str, str | N
 def _build_sandboxed_shell_argv(
     shell: str, shell_flag: str, command: str, skip: bool
 ) -> tuple[list[str], str | None]:
-    """Wrap the shell invocation per the in-force sandbox policy.
+    """Wrap the shell invocation per the sandbox policy; return ``(argv, note)``.
 
-    Returns ``(argv, note)``; with the sandbox disabled (the default) this is
-    a passthrough. Raises ``SandboxUnavailableError`` in fallback="deny" mode.
+    Raises ``SandboxUnavailableError`` in fallback="deny" mode.
     """
-    # lazy: tests patch zrb.llm.sandbox.build_sandboxed_argv; hoisting would
-    # bind the name at this module's load time and bypass the mock.
+    # lazy: tests patch zrb.llm.sandbox.build_sandboxed_argv; hoisting bypasses the mock
     from zrb.llm.sandbox import build_sandboxed_argv
 
     policy = get_effective_sandbox_policy()
@@ -437,14 +387,7 @@ async def _read_stream(
     capture: StreamCapture,
     on_chunk: "Callable[[], None] | None" = None,
 ) -> None:
-    """Reads from a stream line by line, echoing to console and capturing.
-
-    `on_chunk`, when given, is called after every line (a UI-side live
-    update — see `_make_live_shell_output_pusher`); `capture.echo` still
-    runs regardless, for its own budget tracking and `echoed_text`
-    accumulation (its `zrb_print` side effect is what `print_live=False`
-    suppresses, when `on_chunk` is the one actually driving the display).
-    """
+    """Read a stream line by line into *capture*, calling `on_chunk` after each line."""
     if not stream:
         return
     while True:
@@ -461,11 +404,9 @@ async def _read_stream(
 
 
 def _collect_background_pids(temp_pid_file: str | None, process_pid: int) -> list[int]:
-    """Reads background PIDs from the temp file and cleans it up.
+    """Read background PIDs from the temp file and remove it.
 
-    The first line is the wrapper shell's own ``$$`` (see ``_prepare_command``)
-    — excluded along with ``process_pid``, which can differ from ``$$`` when a
-    sandbox wrapper sits between the spawned process and the shell.
+    Excludes the first line (the shell's ``$$``) and ``process_pid``.
     """
     bg_pids = []
     if temp_pid_file and os.path.exists(temp_pid_file):
@@ -566,14 +507,7 @@ def _assemble_output(
 
 
 def _timeout_suggestion(timeout: int, flooded: bool, total_chars: int) -> str:
-    """Tell a hung process apart from one drowning in its own output.
-
-    A command killed after emitting megabytes was not waiting on stdin — it was
-    still writing. Sending that one off to ``ps aux | grep`` points the model at
-    a process that is already dead and says nothing about the actual remedy,
-    which is to bound the output. Both readings stay available because a slow
-    build can be genuinely long-running *and* verbose.
-    """
+    """Tell a hung process apart from one drowning in its own output."""
     if flooded:
         return (
             "[SYSTEM SUGGESTION]: The command timed out after "
@@ -661,14 +595,7 @@ def _dump_full_output(
     stderr_cap: StreamCapture,
     exit_code_str: str,
 ) -> str | None:
-    """Persist untruncated output so the elided head stays recoverable.
-
-    Streams each capture's spill file in rather than materializing it, so a
-    multi-gigabyte command costs one file copy instead of one resident string.
-
-    Best-effort: returns the temp-file path, or None if the write fails.
-    Cross-platform — tempfile targets %TEMP% on Windows, $TMPDIR/tmp elsewhere.
-    """
+    """Persist untruncated output to a temp file; return its path, or None on failure."""
     # ponytail: not auto-deleted; the OS reaps its temp dir. Add cleanup only if it bloats.
     try:
         fd, path = tempfile.mkstemp(prefix="zrb_shell_", suffix=".log")

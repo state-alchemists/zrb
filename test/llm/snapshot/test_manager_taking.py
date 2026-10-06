@@ -20,8 +20,8 @@ def workdir():
 
 @pytest.fixture
 def snapshot_dir():
-    # Git may finish writing repository metadata just as the fixture is torn
-    # down under xdist; cleanup should not turn a passing test into an error.
+
+
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
         yield d
 
@@ -35,8 +35,7 @@ _real_subprocess_run = subprocess.run
 
 
 def _run_records_timeout(*args, **kwargs):
-    """Delegate to the real (pre-patch) subprocess.run so git genuinely
-    runs, while recording whether a timeout was passed."""
+    'Delegate to the real (pre-patch) subprocess.run so git genuinely'
     _run_records_timeout.calls.append(kwargs.get("timeout"))
     return _real_subprocess_run(*args, **kwargs)
 
@@ -48,7 +47,7 @@ _run_records_timeout.calls = []
 async def test_take_init_snapshot_returns_existing_head_when_already_committed(
     snapshot_dir, workdir
 ):
-    """Calling take_init_snapshot twice returns the same SHA without a new commit (lines 111-112)."""
+    'Calling take_init_snapshot twice returns the same SHA without a new commit (lines 111-112).'
     with open(os.path.join(workdir, "f.txt"), "w") as f:
         f.write("data")
 
@@ -62,7 +61,7 @@ async def test_take_init_snapshot_returns_existing_head_when_already_committed(
 
 @pytest.mark.asyncio
 async def test_take_init_snapshot_returns_none_when_setup_fails(workdir):
-    """When snapshot_dir is a file, take_init_snapshot returns None gracefully (lines 120-122)."""
+    'When snapshot_dir is a file, take_init_snapshot returns None gracefully (lines 120-122).'
     with tempfile.NamedTemporaryFile() as f:
         mgr = SnapshotManager(f.name, "fail-session", workdir)
         result = await mgr.take_init_snapshot()
@@ -95,8 +94,7 @@ async def test_take_init_snapshot_reports_start_and_done(snapshot_dir, workdir):
 async def test_take_init_snapshot_says_nothing_extra_in_a_repository(
     snapshot_dir, workdir
 ):
-    """In a repository the snapshot reaches as far as the user expects, so
-    there is nothing to warn about."""
+    'In a repository the snapshot reaches as far as the user expects, so'
     subprocess.run(["git", "init", "-q"], cwd=workdir, check=True)
     with open(os.path.join(workdir, "f.txt"), "w") as f:
         f.write("data")
@@ -112,7 +110,7 @@ async def test_take_init_snapshot_says_nothing_extra_in_a_repository(
 async def test_take_init_snapshot_reports_up_to_date_when_repo_has_commits(
     snapshot_dir, workdir
 ):
-    """Resuming an existing session reports up-to-date instead of copying."""
+    'Resuming an existing session reports up-to-date instead of copying.'
     with open(os.path.join(workdir, "f.txt"), "w") as f:
         f.write("data")
 
@@ -129,7 +127,7 @@ async def test_take_init_snapshot_reports_up_to_date_when_repo_has_commits(
 async def test_take_init_snapshot_swallows_progress_callback_errors(
     snapshot_dir, workdir
 ):
-    """A broken progress callback must not fail the snapshot."""
+    'A broken progress callback must not fail the snapshot.'
     with open(os.path.join(workdir, "f.txt"), "w") as f:
         f.write("data")
 
@@ -148,7 +146,7 @@ async def test_take_init_snapshot_swallows_progress_callback_errors(
 async def test_take_init_snapshot_reports_error_when_commit_fails_after_start(
     snapshot_dir, workdir
 ):
-    """A failure after 'start' reports a terminal error event with reason."""
+    "A failure after 'start' reports a terminal error event with reason."
     real_run = subprocess.run
 
     def _fail_commit_run(cmd, *args, **kwargs):
@@ -176,8 +174,7 @@ async def test_take_init_snapshot_reports_error_when_commit_fails_after_start(
 async def test_take_init_snapshot_skips_unreadable_files_and_reports_them(
     snapshot_dir, workdir
 ):
-    """One unreadable file (root-owned volume mount, protected key, ...) must
-    not abort the snapshot: it's skipped, counted, and the rest is committed."""
+    'One unreadable file (root-owned volume mount, protected key, ...) must'
     with open(os.path.join(workdir, "normal.txt"), "w") as f:
         f.write("fine")
     secret = os.path.join(workdir, "secret.key")
@@ -198,7 +195,7 @@ async def test_take_init_snapshot_skips_unreadable_files_and_reports_them(
         ("notice", 0),
         ("done", 1),
     ]
-    assert len(mgr.list_snapshots()) == 1  # snapshot still usable for /rewind
+    assert len(mgr.list_snapshots()) == 1
 
 
 @pytest.mark.asyncio
@@ -227,8 +224,7 @@ async def test_nested_repository_without_commits_does_not_break_snapshot(
 async def test_take_snapshot_force_empty_commit_when_message_count_advances(
     snapshot_dir, workdir
 ):
-    """When files haven't changed but message_count increased, a new empty commit
-    is created so the correct mc is always stored at HEAD (lines 92-96)."""
+    "When files haven't changed but message_count increased, a new empty commit"
     with open(os.path.join(workdir, "f.txt"), "w") as f:
         f.write("same content")
 
@@ -236,11 +232,11 @@ async def test_take_snapshot_force_empty_commit_when_message_count_advances(
     sha1 = await mgr.take_snapshot("turn 1", message_count=1)
     assert sha1 is not None
 
-    # Same files, but message_count has advanced → must produce a NEW commit
+
     sha2 = await mgr.take_snapshot("turn 2", message_count=2)
     assert sha2 is not None
 
-    # The two SHAs must differ because a force-empty commit was made
+
     assert sha1 != sha2
 
     snapshots = mgr.list_snapshots()
@@ -261,12 +257,12 @@ async def test_every_git_subprocess_call_has_a_timeout(manager, workdir):
         sha = await manager.take_snapshot("first", message_count=1)
         snapshots = manager.list_snapshots()
 
-    # Confirm git actually ran end-to-end (not swallowed as a recursion
-    # error) -- a broken wrapper recursing into itself would still populate
-    # `calls`, just without ever producing a real commit.
+
+
+
     assert sha is not None
     assert len(snapshots) == 1
-    assert _run_records_timeout.calls  # sanity: at least one call recorded
+    assert _run_records_timeout.calls
     assert all(
         t is not None for t in _run_records_timeout.calls
     ), "every subprocess.run must pass timeout= -- found a call without one"
@@ -276,9 +272,7 @@ async def test_every_git_subprocess_call_has_a_timeout(manager, workdir):
 async def test_a_cancelled_snapshot_never_moves_history_after_it_returns(
     manager, workdir
 ):
-    """The git commands run in a worker thread cancelling cannot stop. The
-    cancellation must wait for it, and stop it before it records the commit —
-    otherwise a late `update-ref` could land after a later rewind."""
+    'The git commands run in a worker thread cancelling cannot stop. The'
     import asyncio
     import threading
 
@@ -307,13 +301,13 @@ async def test_a_cancelled_snapshot_never_moves_history_after_it_returns(
         with pytest.raises(asyncio.CancelledError):
             await task
 
-    assert release.is_set()  # the cancellation waited for the worker thread
+    assert release.is_set()
     assert [s.label for s in manager.list_snapshots()] == ["kept"]
 
 
 @pytest.mark.asyncio
 async def test_a_snapshot_message_of_any_length_is_committed(manager, workdir):
-    # Past a command-line argument's limit (128 KB on Linux).
+
     with open(os.path.join(workdir, "f.txt"), "w") as f:
         f.write("x")
     label = "x" * 200_000
@@ -328,11 +322,11 @@ async def test_a_snapshot_message_of_any_length_is_committed(manager, workdir):
 @pytest.mark.parametrize(
     "label",
     [
-        "zrb-snapshot: not-json",  # the record's prefix, with bad JSON
-        # a second line forging a record that would keep made.txt
+        "zrb-snapshot: not-json",
+
         'first\nzrb-snapshot: {"unreadable": ["made.txt"], "left_out": [], '
         '"repositories": []}',
-        "ends like a count [mc:5]",  # a count of its own
+        "ends like a count [mc:5]",
     ],
 )
 async def test_no_label_passes_for_snapshot_metadata(manager, workdir, label):
@@ -351,7 +345,7 @@ async def test_no_label_passes_for_snapshot_metadata(manager, workdir, label):
     assert outcome.restored and not outcome.left_behind
     with open(target) as f:
         assert f.read() == "original"
-    assert not os.path.exists(made)  # no forged record kept it
+    assert not os.path.exists(made)
     assert manager.list_snapshots()[0].message_count is None
 
 
@@ -364,7 +358,7 @@ async def test_a_turn_snapshot_that_beats_the_init_snapshot_still_rewinds_the_tu
         f.write("before")
 
     async def first_turn():
-        # As `stream_ai_response` does: the snapshot, then the model's edits.
+
         await manager.take_snapshot("first turn", message_count=0)
         with open(path, "w") as f:
             f.write("changed by the turn")
@@ -405,9 +399,9 @@ async def test_a_file_ignored_since_the_last_snapshot_gets_a_rewind_point(
 
     second = await manager.take_snapshot("second", message_count=1)
     with open(os.path.join(workdir, ".gitignore"), "w") as f:
-        f.write("")  # logs un-ignored since
+        f.write("")
 
-    assert second != first  # the same tree, but not the same record
+    assert second != first
     assert await manager.restore_snapshot(second) == RestoreOutcome(restored=True)
     assert os.path.exists(log)
 

@@ -68,17 +68,13 @@ async def test_llm_chat_task_tool_confirmation_forwarded():
     ) as mock_run_agent:
         mock_run_agent.return_value = ("Done", [])
 
-        # Run publicly
         await chat_task.async_run(session, kwargs={"prompt": "test"})
 
-        # The core task created by LLMChatTask should have forwarded the tool_confirmation
-        # Check all calls to run_agent to find the one with our tool_confirmation
         found = False
         for call in mock_run_agent.call_args_list:
             if call.kwargs.get("tool_confirmation") == tool_confirmation:
                 found = True
                 break
 
-        # In non-interactive mode with policies, it might be wrapped.
-        # But for this simple case without policies, it should be the same object.
+        # Without tool policies the confirmation is passed through unwrapped.
         assert found or call.kwargs.get("tool_confirmation") is not None

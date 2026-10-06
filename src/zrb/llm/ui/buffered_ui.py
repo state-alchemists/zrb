@@ -37,9 +37,7 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         self._prefix = prefix
         self._buffer: list[str] = []
         self._merged_output: str = ""
-        # Toggle-block tracking for Ctrl+O expand/collapse in this sub-agent's
-        # own live view — independently scoped from the main transcript's
-        # (UIOutput.rendered_blocks); see append_toggle_block below.
+        # Ctrl+O blocks of this sub-agent's own live view.
         self._rendered_blocks: list = []
         self._spans = TrackedSpans(
             get_text=lambda: self._merged_output,
@@ -50,11 +48,8 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         )
         # Set by run_agent_task so buffered output also feeds the activity panel.
         self._agent_id: str | None = None
-        # Scopes activity-panel updates to the session that started this
-        # delegation, so a process hosting multiple sessions doesn't bleed one
-        # session's sub-agent activity into another's.
+        # Scopes activity-panel updates so sessions don't bleed into each other.
         self._session_id = session_id
-        # Use provided shared lock (for parallel agents) or create own lock
         self._lock = shared_lock if shared_lock is not None else asyncio.Lock()
 
     def set_activity_id(self, agent_id: str) -> None:
@@ -72,12 +67,7 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
 
     @property
     def parent_ui(self) -> AnyUI:
-        """The UI this buffer flushes to (the parent agent's UI).
-
-        Public counterpart of the ``wrapped_ui`` constructor argument, so the
-        live-session continuation path can hand the parent UI a synthesized
-        message (``submit_message``) without reading ``_wrapped``.
-        """
+        """The UI this buffer flushes to (the parent agent's UI)."""
         return self._wrapped
 
     async def ask_user(
@@ -86,13 +76,9 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         output_to_parent: str = "",
         agent_id: str | None = None,
     ) -> str:
-        # The lock guards only the parent write, so sibling fan-out agents'
-        # writes don't interleave. It must not wrap the wait for the answer,
-        # or every sibling's approval would serialize behind the first and
-        # never reach the shared confirmation queue.
+        # Lock only the parent write: wrapping the wait would serialize every
+        # sibling's approval behind the first.
         async with self._lock:
-            # Shown on the parent so the user sees what is being approved
-            # without opening the sub-agent's live view.
             if output_to_parent:
                 self._wrapped.append_to_output(output_to_parent, end="")
             prefixed_prompt = (
@@ -117,8 +103,7 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         kind: str = "text",
     ):
         text = sep.join(str(v) for v in values) + end
-        # The activity panel renders plain text and would show raw ANSI, so
-        # it gets the unstyled line; only the buffer is styled.
+        # The activity panel renders plain text, so it gets the unstyled line.
         if self._agent_id:
             agent_activity_registry.update(
                 self._agent_id, text, session_id=self._session_id
@@ -128,9 +113,6 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         styled_text = (
             stylize_muted(text) if kind not in ("text", "todo_progress") else text
         )
-        # A chunk of an open thinking/final-text block merges at that
-        # block's own end, not the buffer tail, so a concurrent writer's
-        # line stays outside it — see `merge_into_block`.
         previous = self._merged_output
         self._merged_output, rebase_from = merge_into_block(
             previous, styled_text, self._spans.open_block, kind
@@ -151,13 +133,7 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         self.append_to_output(text, end="", kind="progress")
 
     def append_toggle_block(self, collapsed: str, full: str) -> None:
-        """Append a tool-call/result line that can later be expanded in
-        place — this sub-agent's own counterpart to
-        `UIOutput.append_toggle_block`. Styling is applied once here, same
-        as there: this inserts via `append_to_output(rendered, end="")` with
-        the default `kind="text"`, which skips the kind-based auto-styling
-        `append_to_output` otherwise applies.
-        """
+        """Append a tool-call/result line that can later be expanded in place."""
         if collapsed == full:
             self.append_to_output(collapsed, end="")
             return
@@ -173,15 +149,11 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         self._spans.mark_block_start("thinking")
 
     def collapse_thinking_block(self, collapsed: str, full: str) -> bool:
-        """Collapse the thinking block opened by `mark_thinking_block_start`.
-
-        See `TrackedSpans.collapse_block` for the mechanics.
-        """
+        """Collapse the thinking block opened by `mark_thinking_block_start`."""
         return self._spans.collapse_block(collapsed, full)
 
     def mark_text_block_start(self) -> None:
-        """Counterpart to `mark_thinking_block_start` for the assistant's
-        final-text reply instead of its reasoning."""
+        """Open the final-text reply block."""
         self._spans.mark_block_start("streaming")
 
     def collapse_text_block(self, collapsed: str, full: str) -> bool:
@@ -189,17 +161,11 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         return self._spans.collapse_block(collapsed, full)
 
     def update_shell_output(self, key: str, text: str) -> None:
-        """Grow or replace `key`'s own live shell-output line with `text`.
-
-        See `TrackedSpans.update_shell_output`.
-        """
+        """Grow or replace `key`'s own live shell-output line with `text`."""
         self._spans.update_shell_output(key, text)
 
     def finish_shell_output(self, key: str, collapsed: str, full: str) -> bool:
-        """Collapse `key`'s live line (opened via `update_shell_output`)
-        into `collapsed`, registering it as Ctrl+O-expandable holding
-        `full`. See `TrackedSpans.finish_shell_output`.
-        """
+        """Collapse `key`'s live line into Ctrl+O-expandable `collapsed`."""
         return self._spans.finish_shell_output(key, collapsed, full)
 
     def update_tool_prepare(self, key: str, text: str) -> None:
@@ -212,16 +178,14 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
     def toggle_collapsible_block_at_offset(self, offset: int) -> bool:
         """Expand/collapse the collapsible block at-or-before `offset`.
 
-        Counterpart of `UIOutput.toggle_collapsible_block_at_cursor`, but
-        takes the offset explicitly — this class has no real cursor of its
-        own; the caller (the sub-agent live view) supplies the shared output
-        pane's cursor position. Returns whether a block was found and toggled.
+        This class has no cursor, so the caller supplies the offset. Returns
+        whether a block was found and toggled.
         """
         return self._spans.toggle_at(offset)
 
     @property
     def rendered_blocks(self) -> list:
-        """[start, end, source] per tracked toggle block (public API)."""
+        """[start, end, source] per tracked toggle block."""
         return self._rendered_blocks
 
     async def ask_user_choice(
@@ -243,13 +207,10 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
     def accumulate_usage(
         self, usage: "RunUsage", context_usage: "RequestUsage | None" = None
     ) -> None:
-        """Forward this sub-agent's token usage to the parent UI's session
-        totals, so delegated runs count toward the displayed usage instead of
-        being silently dropped. `context_usage` is deliberately NOT forwarded:
-        it reports the *current context window's* occupancy, and this
-        sub-agent's window is not the parent's — forwarding it would make the
-        parent's context-window indicator show this sub-agent's size instead
-        of its own.
+        """Forward token usage to the parent UI's session totals.
+
+        `context_usage` is not forwarded: this sub-agent's context window is
+        not the parent's.
         """
         accumulate = getattr(self._wrapped, "accumulate_usage", None)
         if accumulate is not None:
@@ -293,16 +254,8 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         flush: bool = False,
         kind: str = "text",
     ) -> None:
-        """High-priority status messages (e.g. a tool-call notification mid
-        sub-agent execution). Buffered like everything else — same
-        destination as `append_to_output`.
-
-        Deliberately not a bypass to the parent UI: routing status straight to
-        main makes it visible sooner, at the cost of leaking routine
-        sub-agent chatter (search queries, fetch status) into the main
-        transcript. That chatter belongs in this sub-agent's own live view,
-        which reads the buffer via `get_buffered_output()`.
-        """
+        """Buffered like `append_to_output`, not bypassed to the parent, so
+        sub-agent chatter stays in its own live view."""
         self.append_to_output(
             *values, sep=sep, end=end, file=file, flush=flush, kind=kind
         )

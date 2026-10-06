@@ -211,17 +211,7 @@ async def _take_init_snapshot(snapshot_manager: "SnapshotManager", ui: "UI") -> 
 def _make_snapshot_progress_handler(
     ui: "UI",
 ) -> "Callable[[SnapshotProgress], None]":
-    """Render init-snapshot progress as two muted lines (start + terminal).
-
-    Every run ends in exactly one terminal line: done (with the unreadable
-    file count), up-to-date, or error (with the reason; "rewind is off" when
-    the directory cannot be snapshotted at all). A run may carry one notice
-    before that — a snapshot that reaches less far than a repository's would —
-    which is folded into the done line rather than printed on its own. A
-    missing git prints nothing: it is not news every session, and `/rewind`
-    says why rewind is off. Events arrive on the event loop thread, so a
-    direct append is safe.
-    """
+    """Create the progress handler for the initial workspace snapshot."""
     notices: list[str] = []
 
     def handler(event: "SnapshotProgress") -> None:

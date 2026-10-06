@@ -18,9 +18,7 @@ async def replace_in_file_formatter(
     call: "ToolCallPart",
     args_section: str,
 ) -> str | None:
-    """
-    Shows a git diff like UI for replace_in_file tool call.
-    """
+    """Show a git-style diff for an `Edit` tool call."""
     if call.tool_name != "Edit":
         return None
 
@@ -37,9 +35,7 @@ async def replace_in_file_formatter(
         if not path or old_text is None or new_text is None:
             return None
 
-        # Offload: file read + difflib + Rich markdown render is pure blocking
-        # CPU/IO. On the TUI it runs on prompt_toolkit's event loop before the
-        # approval prompt appears, so leaving it inline freezes keystrokes.
+        # Blocking IO/CPU; inline it would freeze the TUI event loop.
         return await asyncio.to_thread(
             _format_replace, path, old_text, new_text, count, ui
         )

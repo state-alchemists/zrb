@@ -1,16 +1,8 @@
 """Slash-command dispatch for `BaseUI`.
 
-Routes recognized commands to handlers and fires PreCommand/PostCommand
-hooks. The concrete `handle_*` handlers live in sibling collaborators this
-class composes (`self._conversation`, `self._models`, `self._exec`), each
-taking the same `BaseUI` reference in `self._base_ui`:
-
-  conversation_commands.py - exit/info/save/load/rewind/redirect/copy/attach
-  model_commands.py        - yolo/plan toggles + model switching
-  exec_commands.py         - shell exec, /btw side questions, custom cmds
-
-Each `handle_*` returns `True` if the input was consumed (a command matched),
-`False` otherwise.
+Routes recognized commands to the handlers in `conversation_commands.py`,
+`model_commands.py` and `exec_commands.py`, firing PreCommand/PostCommand
+hooks. Each `handle_*` returns whether it consumed the input.
 """
 
 from __future__ import annotations
@@ -58,10 +50,7 @@ class BaseUICommands:
 
     @property
     def exec(self) -> BaseUIExecCommands:
-        """Handlers for shell exec, `/btw` side questions, and custom commands.
-
-        Read by `command_table`, and by a subclass adding to it.
-        """
+        """Handlers for shell exec, `/btw` side questions, and custom commands."""
         return self._exec
 
     # --- command dispatch (with hooks) ------------------------------------
@@ -69,12 +58,9 @@ class BaseUICommands:
     def command_table(self) -> "list[tuple[Callable, list[str], bool, bool]]":
         """Single source of truth for command routing.
 
-        Ordered ``(handler, tokens, prefix, run_while_thinking)`` tuples shared
-        by :meth:`classify_input` (which matches ``tokens`` via :func:`_matches`)
-        and :meth:`_run_command_chain` (which calls ``handler``). Because both
-        derive from this one table, routing and execution cannot drift on which
-        tokens map to which command. Custom commands are matched separately via
-        ``get_custom_command_match`` (they have no fixed token list).
+        Ordered ``(handler, tokens, prefix, run_while_thinking)`` tuples used
+        by both :meth:`classify_input` and :meth:`_run_command_chain`. Custom
+        commands are matched separately.
 
         ``prefix=True`` → the token may be followed by ``" <args>"``;
         ``prefix=False`` → exact-match toggle.
@@ -112,9 +98,7 @@ class BaseUICommands:
             ``"command"`` — any other recognized command (fires hooks).
             ``"message"`` — plain text forwarded to the LLM (no hooks).
 
-        Routing never assumes a ``/`` prefix — command tokens are
-        user-configurable (e.g. ``>`` for redirect). Driven by
-        :meth:`command_table` so it stays in lockstep with the handler chain.
+        Never assumes a ``/`` prefix: command tokens are user-configurable.
         """
         stripped = text.strip()
         if not stripped:
@@ -130,17 +114,9 @@ class BaseUICommands:
     def schedule_command(self, text: str, *, guarded: bool = True) -> None:
         """Run the hook-wrapped command dispatch as a background task.
 
-        Called from the (synchronous) Enter keybinding for any recognized
-        command. Scheduling is required because the PreCommand hook is async and
-        may block the command.
-
-        Guarded dispatch is serialized: a second guarded command is rejected
-        while one is in flight, rather than racing a prior `/save`, `/load`, or
-        `/exit`. The flag is set before the task is created, so the event loop
-        cannot slip a second command through the gap.
-
+        A second guarded command is rejected while one is in flight.
         ``guarded=False`` is for run-while-thinking commands (`/btw`, YOLO
-        toggle), which neither wait for nor block an in-flight command.
+        toggle), which neither wait for nor block one.
         """
         base_ui = self._base_ui
         if guarded:
@@ -171,10 +147,8 @@ class BaseUICommands:
     async def dispatch_command(self, text: str, *, guarded: bool = True) -> None:
         """Fire PreCommand → run handlers → fire PostCommand.
 
-        A PreCommand hook that blocks (HookResult.block / exit code 2 / deny)
-        cancels the command. If no handler consumes the input (e.g. a command
-        typed without its required argument), it is forwarded to the LLM.
-        PostCommand fires only when a handler actually ran.
+        A blocking PreCommand hook cancels the command. Input no handler
+        consumes goes to the LLM. PostCommand fires only when a handler ran.
         """
         base_ui = self._base_ui
         try:
@@ -197,8 +171,7 @@ class BaseUICommands:
                 )
                 return
 
-            # A PreCommand hook may rewrite the argument (e.g. swap the model in
-            # `/model opus` → `sonnet`). The command token itself is preserved.
+            # A PreCommand hook may rewrite the argument, not the token.
             new_args = _command_arg_override(pre_results)
             if new_args is not None:
                 args = new_args
@@ -215,8 +188,6 @@ class BaseUICommands:
                     command_handled=True,
                 )
             elif base_ui.is_thinking:
-                # A non-thinking command arrived mid-turn. Dropping it
-                # silently would look like the TUI ate the input; say so.
                 base_ui.append_to_output(
                     stylize_muted(
                         f"\n  ⏳ `{name}` is not available while the model is "
@@ -231,12 +202,10 @@ class BaseUICommands:
                 self._command_in_flight = False
 
     def _run_command_chain(self, text: str) -> bool:
-        """Run the command handlers in priority order (see :meth:`command_table`).
+        """Run the command handlers in :meth:`command_table` order.
 
-        Returns ``True`` if a handler consumed the input. Run-while-thinking
-        commands (`/btw`, YOLO toggle) run first; everything else is gated
-        behind the thinking guard. Custom commands are tried last, and while
-        thinking only those that can run while thinking.
+        Returns ``True`` if a handler consumed the input. While thinking, only
+        run-while-thinking commands run; custom commands are tried last.
         """
         for handler, _tokens, _prefix, run_while_thinking in self.command_table():
             if not run_while_thinking and self._base_ui.is_thinking:
@@ -258,12 +227,7 @@ class BaseUICommands:
     def get_help_panel(
         self, art: str = "", header: str = "", max_commands: int | None = None
     ) -> "HelpPanel":
-        """The help content as data, ready to be rendered at any width.
-
-        Keeping the rows unformatted is what lets the panel be re-rendered on
-        every resize instead of being wrapped once and clipped to fit. Row
-        *count* is still capped by `max_commands` where screen space is tight.
-        """
+        """The help content as data, re-renderable at any width."""
         return HelpPanel(
             commands=self._get_command_help_entries(),
             shortcuts=list(_KEYBOARD_SHORTCUTS),
@@ -273,7 +237,7 @@ class BaseUICommands:
         )
 
     def print_help(self) -> None:
-        """Write the help panel to the output (public API; overridable)."""
+        """Write the help panel to the output."""
         self._base_ui.append_to_output(self.get_help_text())
 
     def get_help_text(self, width: int | None = None) -> str:
@@ -335,10 +299,7 @@ class BaseUICommands:
 
 _KEYBOARD_SHORTCUTS: list[tuple[str, str]] = [
     ("Ctrl+J", "Insert a newline (multi-line input)"),
-    # Both keys are bound to the same paste path: Ctrl+V where the terminal
-    # delivers it, Alt+V always. A terminal that claims Ctrl+V for its own
-    # text-only paste never delivers it, so Alt+V is named as the fallback
-    # rather than letting a missing image read as a zrb defect.
+    # Some terminals claim Ctrl+V for their own text-only paste.
     (
         "Ctrl+V / Alt+V",
         "Paste text or image from clipboard (Alt+V if your terminal captures Ctrl+V)",
@@ -363,11 +324,7 @@ def _get_default_help_width() -> int | None:
 
 
 def _matches(text: str, tokens: list[str], prefix: bool) -> bool:
-    """Pure command-token match: exact (case-insensitive), or ``"<token> "``.
-
-    ``prefix=False`` matches only an exact token (toggles like ``/exit``);
-    ``prefix=True`` also matches ``"<token> <args>"`` (argument commands).
-    """
+    """Case-insensitive exact token match, or ``"<token> <args>"`` when `prefix`."""
     t = text.strip().lower()
     for token in tokens:
         c = token.lower()
@@ -404,10 +361,7 @@ def _command_blocked(results: list) -> bool:
 def _command_arg_override(results: list) -> "str | None":
     """A `command_args` override returned by a PreCommand hook, if any.
 
-    Lets a hook rewrite a command's argument on the fly — e.g. swap the model
-    in ``/model opus`` to ``sonnet``. The value lands in each result's ``data``
-    (the executor merges hook ``modifications`` / command-hook JSON there). The
-    highest-priority hook that sets it wins; the command token is unchanged.
+    Read from each result's ``data``; the highest-priority hook wins.
     """
     for r in results or []:
         value = (getattr(r, "data", None) or {}).get("command_args")

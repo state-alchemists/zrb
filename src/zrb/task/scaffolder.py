@@ -43,8 +43,7 @@ class Scaffolder(BaseTask):
                 string to replacement, or a callable taking the context and a
                 file path.
 
-        Every parameter `BaseTask` accepts is also accepted here and behaves
-        identically; see `BaseTask` for those.
+        Every other parameter is `BaseTask`'s.
         """
         super().__init__(
             name=name,
@@ -100,9 +99,7 @@ class Scaffolder(BaseTask):
                         pass
 
     def _copy_path(self, ctx: AnyContext, source_path: str, destination_path: str):
-        """
-        Copies a directory or file from source_path to destination_path recursively.
-        """
+        """Recursively copy a file or directory, transforming paths."""
         if os.path.isdir(source_path):
             for root, dirs, files in os.walk(source_path):
                 rel_root = os.path.relpath(root, source_path)
@@ -132,9 +129,7 @@ class Scaffolder(BaseTask):
         return new_file_path
 
     def _get_all_file_paths(self, path):
-        """
-        Returns a list of absolute file paths for all files in the given path, recursively.
-        """
+        """Return absolute paths of every file under `path`."""
         if os.path.isfile(path):
             return [os.path.abspath(path)]
         file_paths = []

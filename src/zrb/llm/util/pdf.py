@@ -1,8 +1,4 @@
-"""PDF text extraction shared by the attachment pipeline and file_read tool.
-
-Callers add their own wrapping (error messages, line-range truncation,
-notifications). This module owns only the core extraction.
-"""
+"""PDF text extraction shared by the attachment pipeline and file_read tool."""
 
 from __future__ import annotations
 
@@ -19,8 +15,7 @@ def extract_pdf_text(path: str) -> str | None:
         ``None`` when pdfplumber is not installed or an unexpected error occurs.
     """
     try:
-        # lazy: pdfplumber is a core dependency but heavy to import at module
-        # top — it transitively loads pdfminer, PIL, and others.
+        # lazy: heavy third-party — pdfplumber loads pdfminer and PIL.
         import pdfplumber
     except ImportError:
         return None

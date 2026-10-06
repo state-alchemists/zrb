@@ -1,5 +1,3 @@
-"""Tests for terminal.py - Terminal size utilities."""
-
 import os
 import sys
 from unittest.mock import MagicMock, patch
@@ -8,10 +6,8 @@ import pytest
 
 
 class TestTerminalSize:
-    """Test TerminalSize NamedTuple."""
 
     def test_terminal_size_creation(self):
-        """Test creating TerminalSize."""
         from zrb.util.cli.terminal import TerminalSize
 
         size = TerminalSize(columns=80, lines=24)
@@ -19,7 +15,6 @@ class TestTerminalSize:
         assert size.lines == 24
 
     def test_terminal_size_immutable(self):
-        """Test TerminalSize is immutable."""
         from zrb.util.cli.terminal import TerminalSize
 
         size = TerminalSize(columns=80, lines=24)
@@ -27,7 +22,6 @@ class TestTerminalSize:
             size.columns = 100
 
     def test_terminal_size_unpack(self):
-        """Test TerminalSize can be unpacked."""
         from zrb.util.cli.terminal import TerminalSize
 
         size = TerminalSize(columns=100, lines=30)
@@ -37,10 +31,8 @@ class TestTerminalSize:
 
 
 class TestGetTerminalSize:
-    """Test get_terminal_size function."""
 
     def test_fallback_default(self):
-        """Test get_terminal_size with default fallback."""
         from zrb.util.cli.terminal import get_terminal_size
 
         # When streams are None or unavailable, should return fallback.
@@ -59,7 +51,6 @@ class TestGetTerminalSize:
                             assert size.lines == 24
 
     def test_custom_fallback(self):
-        """Test get_terminal_size with custom fallback."""
         from zrb.util.cli.terminal import get_terminal_size
 
         with patch.object(sys, "__stdout__", None):
@@ -74,7 +65,6 @@ class TestGetTerminalSize:
                             assert size.lines == 40
 
     def test_returns_terminal_size(self):
-        """Test that get_terminal_size returns TerminalSize."""
         from zrb.util.cli.terminal import TerminalSize, get_terminal_size
 
         # The function should return a TerminalSize
@@ -82,7 +72,6 @@ class TestGetTerminalSize:
         assert isinstance(size, TerminalSize)
 
     def test_with_mocked_stdout(self):
-        """Test get_terminal_size with mocked stdout."""
         from zrb.util.cli.terminal import get_terminal_size
 
         mock_stdout = MagicMock()
@@ -100,7 +89,6 @@ class TestGetTerminalSize:
                 assert size.lines == 50
 
     def test_handles_os_error(self):
-        """Test get_terminal_size handles OSError gracefully."""
         from zrb.util.cli.terminal import get_terminal_size
 
         mock_stdout = MagicMock()
@@ -117,7 +105,6 @@ class TestGetTerminalSize:
                             assert size.columns == 80
 
     def test_handles_value_error(self):
-        """Test get_terminal_size handles ValueError gracefully."""
         from zrb.util.cli.terminal import get_terminal_size
 
         mock_stdout = MagicMock()
@@ -136,7 +123,6 @@ class TestGetTerminalSize:
                             assert size.columns == 80
 
     def test_handles_attribute_error(self):
-        """Test get_terminal_size handles AttributeError gracefully."""
         from zrb.util.cli.terminal import get_terminal_size
 
         mock_stdout = MagicMock()
@@ -159,7 +145,6 @@ class TestGetTerminalSize:
             assert size.columns == 80
 
     def test_shutil_exception_fallback(self):
-        """Test get_terminal_size fallback when shutil raises exception."""
         from zrb.util.cli.terminal import get_terminal_size
 
         with (
@@ -175,7 +160,6 @@ class TestGetTerminalSize:
             assert size.lines == 30
 
     def test_stderr_stream_success(self):
-        """Test get_terminal_size uses stderr when stdout fails."""
         from zrb.util.cli.terminal import get_terminal_size
 
         mock_stdout = MagicMock()
@@ -197,7 +181,6 @@ class TestGetTerminalSize:
                         assert size.lines == 40
 
     def test_stdin_stream_success(self):
-        """Test get_terminal_size uses stdin when stdout and stderr fail."""
         from zrb.util.cli.terminal import get_terminal_size
 
         mock_stdout = MagicMock()
@@ -222,7 +205,6 @@ class TestGetTerminalSize:
                         assert size.lines == 35
 
     def test_windows_conout_path(self):
-        """Test get_terminal_size uses CONOUT$ on Windows."""
         from zrb.util.cli.terminal import get_terminal_size
 
         mock_stdout = MagicMock()
@@ -342,7 +324,6 @@ class TestIsRealConsole:
         return {"msvcrt": msvcrt, "ctypes": ctypes}
 
     def test_posix_is_always_a_real_console(self):
-        """POSIX `isatty()` already excludes /dev/null, so nothing to check."""
         from zrb.util.cli.terminal import is_real_console
 
         with patch.object(os, "name", "posix"):

@@ -1,10 +1,4 @@
-"""Run/cleanup entry points for `BaseTask`: `run`, `async_run`, `exec_root_tasks`.
-
-Composed into `BaseTask` as `self._base_lifecycle`. Holds a direct reference
-to the sibling `BaseTaskContext` part (constructed first, so it is available
-at `BaseTaskLifecycle.__init__` time) to seed the session's shared context
-before the root tasks execute.
-"""
+"""`BaseTask`'s run/cleanup entry points (`self._base_lifecycle`)."""
 
 import asyncio
 from typing import TYPE_CHECKING, Any
@@ -35,10 +29,7 @@ class BaseTaskLifecycle:
         str_kwargs: dict[str, str] | None = None,
         kwargs: dict[str, Any] | None = None,
     ) -> Any:
-        """
-        Wrapper for async_run that ensures session termination and cleanup of
-        other concurrent asyncio tasks. This is the main entry point for `task.run()`.
-        """
+        """Run the task, then terminate the session and cancel leftover tasks."""
         task = self._task
         if session is None:
             session = Session(shared_ctx=SharedContext(print_fn=print_fn))
@@ -60,7 +51,6 @@ class BaseTaskLifecycle:
                 ctx = task.get_ctx(session)
                 ctx.log_info("Terminating session after run completion/error.")
                 session.terminate()
-            # Be cautious with blanket cancellation if other background tasks are expected
             try:
                 pending = [
                     t
@@ -75,10 +65,8 @@ class BaseTaskLifecycle:
                     for t in pending:
                         t.cancel()
                     try:
-                        # Give cancelled tasks a moment to process cancellation
                         await asyncio.wait(pending, timeout=1.0)
                     except asyncio.CancelledError:
-                        # Expected if tasks handle cancellation promptly
                         pass
                     except Exception as cleanup_exc:
                         if ctx is not None:
@@ -94,10 +82,7 @@ class BaseTaskLifecycle:
         str_kwargs: dict[str, str] | None = None,
         kwargs: dict[str, Any] | None = None,
     ) -> Any:
-        """
-        Asynchronous entry point for running a task (`task.async_run()`).
-        Sets up the session and initiates the root task execution chain.
-        """
+        """Seed the session's shared context and execute the root tasks."""
         task = self._task
         if session is None:
             session = Session(shared_ctx=SharedContext(print_fn=print_fn))
@@ -111,19 +96,13 @@ class BaseTaskLifecycle:
         return result
 
     async def execute_root_tasks(self, session: AnySession):
-        """
-        Identifies and executes the root tasks required for the main task,
-        manages session state logging, and handles overall execution flow.
-        """
+        """Execute the main task's root tasks while logging session state."""
         task = self._task
         session.set_main_task(task)
         session.state_logger.write(session.as_state_log())
         ctx = task.get_ctx(session)
 
-        # Set the moment the session is terminated, so `log_session_state` stops
-        # waiting out its interval instead of sleeping through the rest of the
-        # current tick. Without it the happy path below awaits a logger parked in
-        # a 100 ms sleep, and pays the remainder of that tick on every run.
+        # Wakes `log_session_state` on termination instead of waiting out its tick.
         wakeup = asyncio.Event()
 
         log_state_task = None
@@ -161,9 +140,7 @@ class BaseTaskLifecycle:
 
         except (asyncio.CancelledError, KeyboardInterrupt):
             ctx.log_warning("Session execution cancelled or interrupted.")
-            # Propagate: swallowing cancellation here makes a cancelled session
-            # look like a successful run to every caller (`await llm_task` returns
-            # None instead of raising). Session termination happens in finally.
+            # Re-raise so callers never see a cancelled run as success.
             raise
         finally:
             if not session.is_terminated:
@@ -184,26 +161,22 @@ class BaseTaskLifecycle:
     async def log_session_state(
         self, session: AnySession, wakeup: asyncio.Event | None = None
     ):
-        """
-        Periodically logs the session state until the session is terminated.
+        """Write the session state at 10 Hz until the session is terminated.
 
-        *wakeup* is set by the caller the moment the session is terminated, so
-        the loop leaves its wait at once instead of sleeping out the rest of the
-        tick. The cadence is unchanged: a session terminated from somewhere else,
-        or a caller that passes no event, still gets the 10 Hz interval below.
+        Setting *wakeup* ends the current wait early.
         """
         task = self._task
         try:
             while not session.is_terminated:
                 session.state_logger.write(session.as_state_log())
                 if wakeup is None:
-                    await asyncio.sleep(0.1)  # ~10 state log writes per second
+                    await asyncio.sleep(0.1)
                 else:
                     try:
                         async with asyncio.timeout(0.1):
                             await wakeup.wait()
                     except TimeoutError:
-                        pass  # The ordinary tick: the session is still running.
+                        pass
             session.state_logger.write(session.as_state_log())
         except (asyncio.CancelledError, KeyboardInterrupt):
             try:
@@ -214,9 +187,7 @@ class BaseTaskLifecycle:
                 ctx = task.get_ctx(session)
                 ctx.log_debug("Session state logger cancelled.")
             except Exception as log_exc:
-                # Context lookup is normally exception-free; this is
-                # guarding ctx.log_debug's write to a stream that may already
-                # be closing during interpreter shutdown.
+                # The output stream may already be closing at shutdown.
                 CFG.LOGGER.debug(f"Session state logger cleanup failed: {log_exc}")
         except Exception as e:
             try:

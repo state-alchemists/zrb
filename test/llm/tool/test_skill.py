@@ -111,12 +111,7 @@ class TestActivateSkillSchema:
     """The parameter models actually reach for, exposed as strictly as before."""
 
     def test_parameter_is_named_skill_and_stays_the_only_one(self):
-        """Six of eight benchmarked models sent `skill`/`skill_name` to a
-        parameter named `name`, each miss costing a validation retry that
-        re-sent the whole conversation. The fix is the parameter name, not
-        aliases: aliasing would force every field optional and lose
-        ``additionalProperties: false``.
-        """
+        """Models guess `skill`; aliases would lose ``additionalProperties: false``."""
         from pydantic_ai import Tool
 
         from zrb.llm.tool.skill import create_activate_skill_tool
@@ -128,10 +123,7 @@ class TestActivateSkillSchema:
         assert schema["additionalProperties"] is False
 
     def test_description_states_what_skill_should_contain(self):
-        """`skill`'s own schema description states what it should contain —
-        bound per-parameter via `Annotated`/`Field` so it reaches the model
-        even where a provider surfaces per-field descriptions but truncates
-        or de-emphasizes the top-level tool description."""
+        """`skill`'s per-parameter description states what it should contain."""
         from pydantic_ai import Tool
 
         from zrb.llm.tool.skill import create_activate_skill_tool
@@ -141,11 +133,7 @@ class TestActivateSkillSchema:
         assert "core-coding" in schema["properties"]["skill"]["description"]
 
     def test_description_does_not_point_at_a_prompt_section(self):
-        """Prompt sections toggle independently (``LLM_INCLUDE_SECTIONS``), so a
-        docstring pointing at one dangles the moment that section is trimmed —
-        and unlike a prompt-internal cross-reference, no requires-guard can strip
-        it. The description must stand on its own.
-        """
+        """Sections toggle independently, so the description must not point at one."""
         from pydantic_ai import Tool
 
         from zrb.llm.tool.skill import create_activate_skill_tool
@@ -157,12 +145,7 @@ class TestActivateSkillSchema:
 
 
 class TestActivateSkillErrorsSelfCorrect:
-    """An unknown name must come back with the valid ones.
-
-    Mirrors ``agent_not_found_message`` for delegation: the usual failure is a
-    misremembered name, so listing the real ones turns the retry into a
-    correction rather than a second guess.
-    """
+    """An unknown name comes back with the valid ones."""
 
     @pytest.mark.asyncio
     async def test_unknown_skill_lists_the_activatable_ones(self, tmp_path):

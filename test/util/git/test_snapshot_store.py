@@ -19,8 +19,7 @@ def _git(repo, *args, check=True) -> subprocess.CompletedProcess:
 
 
 def _loose_objects(repo) -> set[str]:
-    """The repository's loose objects: `xx/<rest of the hash>` files. Other
-    files there — `maintenance.lock`, `info/` — are git's own bookkeeping."""
+    """Return hexadecimal loose-object paths."""
     objects = repo / ".git" / "objects"
     return {
         f"{path.parent.name}/{path.name}"

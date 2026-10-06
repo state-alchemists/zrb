@@ -1,11 +1,4 @@
-"""History / conversation lookup + error & cancellation recovery for `LLMTask`.
-
-Resolves the conversation name and history manager, decides what to re-send on
-a retry, and persists a meaningful history when a run errors or is cancelled.
-
-Composed into `LLMTask` as `self._history`; reads the owner's public
-`history_manager` on every access because it has a public setter.
-"""
+"""Conversation/history resolution and error & cancellation recovery for `LLMTask`."""
 
 from __future__ import annotations
 
@@ -26,9 +19,7 @@ if TYPE_CHECKING:
 class LLMTaskHistory:
     """Conversation/history resolution and error/cancellation recovery.
 
-    Every method here is part of the host's surface rather than an internal
-    detail: the host calls them by name, and a subclass overrides them to change
-    where history lives or what a failed run leaves behind.
+    Methods are public: the host calls them by name and subclasses override them.
     """
 
     def __init__(self, llm_task: "LLMTask") -> None:
@@ -127,10 +118,8 @@ class LLMTaskHistory:
         user_message: Any,
         partial_run: Any = None,
     ) -> None:
-        """Save partial history when a run is cancelled by the user (e.g. Escape).
+        """Save partial history plus a cancellation marker when the user cancels a run.
 
-        Records everything the interrupted turn actually did plus a
-        cancellation marker, so the next turn builds on real context.
         Best-effort: a failure is logged, never raised into the interrupt path.
         """
         try:
@@ -182,11 +171,7 @@ class LLMTaskHistory:
 
 
 def _is_last_user_turn(user_message: str, message_history: list[Any]) -> bool:
-    """Whether *user_message* is the most recent real user turn in history.
-
-    Only the latest turn is compared, so a recurring message ("continue") does
-    not match an old one. "[SYSTEM]" turns are recovery bookkeeping, skipped.
-    """
+    """Whether *user_message* is the latest non-"[SYSTEM]" user turn in history."""
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ModelRequest, UserPromptPart
 

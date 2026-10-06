@@ -145,13 +145,7 @@ class TestRunCommandEdgeCases:
 
     @pytest.mark.asyncio
     async def test_run_command_with_max_output_line_zero_keeps_everything(self):
-        """`max_*_line=0` disables the cap, so nothing is dropped.
-
-        This used to assert the opposite — that `0` captured nothing — which
-        is the same convention as every other numeric cap in the framework
-        (`readiness_timeout=0` removes the limit) read backwards, and turns a
-        normal call into a mysteriously empty log.
-        """
+        """Zero disables each output cap."""
         printed_lines = []
 
         def capture_print(msg, **kwargs):

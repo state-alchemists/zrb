@@ -1,9 +1,4 @@
-"""Tests for the journal-index snapshot injected into ``<live-context>``.
-
-The index is the HUD: it is the only journal file that reaches a session
-without anyone searching for it, so what survives truncation is what the
-session knows about the user.
-"""
+'Tests for the journal index injected into ``<live-context>``.'
 
 from unittest.mock import patch
 
@@ -41,7 +36,7 @@ def test_short_index_is_injected_whole(tmp_path):
 
 
 def test_overflow_is_cut_on_a_line_boundary(tmp_path):
-    """A raw slice lands mid-word, leaving a fact as an unreadable fragment."""
+    'A raw slice lands mid-word, leaving a fact as an unreadable fragment.'
     lines = [f"- preference number {i} stated by the user" for i in range(200)]
     journal_dir = _write_index(tmp_path, "# Journal\n" + "\n".join(lines) + "\n")
     with patch("zrb.llm.prompt.live_context.CFG") as cfg:
@@ -56,7 +51,7 @@ def test_overflow_is_cut_on_a_line_boundary(tmp_path):
     body = result.split("</journal-index>")[0]
     kept = [ln for ln in body.splitlines() if ln.startswith("- preference")]
     assert kept, "expected at least one surviving entry"
-    # Every surviving entry is a whole line, not a truncated fragment.
+
     for line in kept:
         assert line.endswith("stated by the user")
 
@@ -80,11 +75,7 @@ def test_head_survives_so_ordering_decides_what_is_kept(tmp_path):
 
 
 def test_zero_suppresses_the_injection(tmp_path):
-    """0 means "max 0 chars", not "unlimited".
-
-    ``EnvField`` falls back to 0 on an unparseable value, so reading 0 as
-    unlimited would let a typo'd env var silently uncap the injection.
-    """
+    'Zero suppresses injection rather than disabling the limit.'
     journal_dir = _write_index(tmp_path, "# Journal\n\n- Name: Go\n")
     with patch("zrb.llm.prompt.live_context.CFG") as cfg:
         cfg.LLM_JOURNAL_DIR = journal_dir
@@ -95,12 +86,7 @@ def test_zero_suppresses_the_injection(tmp_path):
 
 
 def test_journal_disabled_suppresses_the_injection(tmp_path, monkeypatch):
-    """`LLM_JOURNAL_ENABLED=false` wins over a present, non-empty index.
-
-    Callers gate on ``"journal_mandate" in active_sections``, which the switch
-    clears — but ``summarize_history`` reaches this directly, so the switch is
-    honoured here rather than trusting every call path.
-    """
+    'The disabled setting suppresses injection.'
     journal_dir = _write_index(tmp_path, "# Journal\n\n- Name: Go\n")
     monkeypatch.setenv("ZRB_LLM_JOURNAL_DIR", journal_dir)
     monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "false")
@@ -109,9 +95,7 @@ def test_journal_disabled_suppresses_the_injection(tmp_path, monkeypatch):
 
 
 def test_footer_points_at_the_uncapped_category_catalog(tmp_path):
-    """A category index.md is never truncated, unlike this injected copy —
-    the footer says so, so Read is a documented escape hatch, not something
-    the model has to infer from a markdown link."""
+    'The footer points to the uncapped category index.'
     journal_dir = _write_index(tmp_path, "# Journal\n\n- Name: Go\n")
     with patch("zrb.llm.prompt.live_context.CFG") as cfg:
         cfg.LLM_JOURNAL_DIR = journal_dir
@@ -126,9 +110,7 @@ def test_footer_points_at_the_uncapped_category_catalog(tmp_path):
 
 
 def test_header_routes_journal_changes_through_the_writer_tools(tmp_path):
-    """The writer tools are deferred, so their docstrings are invisible until
-    searched; this header is the one always-present place that says hand
-    edits break the journal and where the writers are."""
+    'The header directs journal changes through writer tools.'
     journal_dir = _write_index(tmp_path, "# Journal\n\n- Name: Go\n")
     with patch("zrb.llm.prompt.live_context.CFG") as cfg:
         cfg.LLM_JOURNAL_DIR = journal_dir
@@ -215,35 +197,30 @@ def test_negative_injects_the_whole_index_uncapped(tmp_path):
     assert "(...more)" not in result
 
 
-# ── Injected context is closed under the preset's tool surface (ADR-0049) ──
+
 
 
 def _ctx(interactive: bool) -> Context:
-    """A real task context carrying the interactivity flag the render reads."""
+    'A real task context carrying the interactivity flag the render reads.'
     shared_ctx = SharedContext(input={"interactive": interactive, "session": "t"})
     return Context(shared_ctx, "test", 0, "")
 
 
 def _live_context(model: str, *, interactive: bool = True) -> str:
-    """Render a live-context block as *model*'s preset would receive it."""
+    "Render a live-context block as *model*'s preset would receive it."
     from zrb.llm.prompt.live_context import render_live_context
 
     return render_live_context(_ctx(interactive), model, inject_journal_index=True)
 
 
 def test_the_non_interactive_line_forbids_no_tool_by_name():
-    """Those tools are unregistered in exactly this branch, so naming them is waste.
-
-    ``_resolve_interactive`` gates AskUserQuestion and both plan-mode tools off
-    for non-interactive runs, so the sentence spent ~55 tokens per turn warning
-    against three tools the model could not see.
-    """
+    'Those tools are unregistered in exactly this branch, so naming them is waste.'
     text = _live_context("anthropic:claude-opus-4-8", interactive=False)
 
     assert "Interactive: no" in text
-    # The invariant covers the guard line itself, not the whole blob: the git
-    # "Recent commits" block is free-form and legitimately mirrors commit
-    # subjects, which can carry any token.
+
+
+
     guard = next(
         line for line in text.splitlines() if line.startswith("- Interactive:")
     )

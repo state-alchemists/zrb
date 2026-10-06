@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.input.text_input import TextInput
 

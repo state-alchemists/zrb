@@ -1,4 +1,4 @@
-"""Tests for llm/lsp/manager/symbol_utils.py."""
+'Tests for llm/lsp/manager/symbol_utils.py.'
 
 from zrb.llm.lsp.symbol_utils import format_document_symbols, uri_to_path
 
@@ -20,7 +20,7 @@ def test_format_document_symbols_flattens_top_level():
     syms = [
         {
             "name": "foo",
-            "kind": 12,  # Function
+            "kind": 12,
             "range": {"end": {"line": 9}},
             "selectionRange": {"start": {"line": 0, "character": 4}},
             "detail": "(x: int) -> int",
@@ -29,7 +29,7 @@ def test_format_document_symbols_flattens_top_level():
     out = format_document_symbols(syms)
     assert len(out) == 1
     assert out[0]["name"] == "foo"
-    assert out[0]["line"] == 1  # 0-based → 1-based
+    assert out[0]["line"] == 1
     assert out[0]["end_line"] == 10
     assert out[0]["character"] == 4
     assert out[0]["depth"] == 0
@@ -37,13 +37,11 @@ def test_format_document_symbols_flattens_top_level():
 
 
 def test_format_document_symbols_handles_symbol_information():
-    """SymbolInformation (flat; pylsp) carries its position under
-    location.range, not range/selectionRange. Reading the wrong field gave
-    line=1/character=0 for every symbol and broke position lookups."""
+    'SymbolInformation (flat; pylsp) positions come from location.range.'
     syms = [
         {
             "name": "LLMTask",
-            "kind": 5,  # Class
+            "kind": 5,
             "location": {
                 "uri": "file:///x.py",
                 "range": {
@@ -57,8 +55,8 @@ def test_format_document_symbols_handles_symbol_information():
     out = format_document_symbols(syms)
     assert len(out) == 1
     assert out[0]["name"] == "LLMTask"
-    assert out[0]["line"] == 50  # 0-based 49 → 1-based
-    assert out[0]["character"] == 6  # the name column, not 0
+    assert out[0]["line"] == 50
+    assert out[0]["character"] == 6
     assert out[0]["end_line"] == 121
 
 
@@ -66,13 +64,13 @@ def test_format_document_symbols_recurses_into_children():
     syms = [
         {
             "name": "MyClass",
-            "kind": 5,  # Class
+            "kind": 5,
             "range": {"end": {"line": 20}},
             "selectionRange": {"start": {"line": 0, "character": 6}},
             "children": [
                 {
                     "name": "method",
-                    "kind": 6,  # Method
+                    "kind": 6,
                     "range": {"end": {"line": 10}},
                     "selectionRange": {"start": {"line": 2, "character": 4}},
                 }

@@ -1,19 +1,8 @@
 """Interactive user-question tool.
 
-`ask_user_question` lets the model pose structured multiple-choice questions
-to the user mid-turn. Renders through the active `AnyUI.ask_user`. In
-non-interactive mode (`zrb llm chat --interactive false`) the tool
-short-circuits with a `[SYSTEM SUGGESTION]` error so the model never blocks
-on stdin in a non-interactive run. That suggestion offers two terminal exits
-— decide-and-continue or stop-and-report — and forbids a retry, so an
-unanswerable question cannot become a re-ask loop.
-
-The interactive flag is propagated via the `interactive_mode` ContextVar --
-owned by `ambient_state.py` rather than this module, so reading it does not
-drag this module's `pydantic` import into every `import zrb`. It is set
-per turn by `live_context._wire_ambient_state` from `ctx.input.interactive`.
-Sub-agents inherit the parent's value through ContextVar's asyncio-task
-semantics.
+In non-interactive mode the tool returns a `[SYSTEM SUGGESTION]` that forbids
+a retry, so it never blocks on stdin or loops. The flag is the
+`interactive_mode` ContextVar in `ambient_state.py`.
 """
 
 from __future__ import annotations
@@ -101,10 +90,7 @@ async def ask_user_question(
                 "[SYSTEM SUGGESTION]: provide at least two options or do not ask."
             )
 
-    # Notify that the agent is now blocking on a user question so "needs your
-    # input" notifications/sounds (e.g. peon-ping) ring. AskUserQuestion is
-    # auto-approved, so it never reaches the PermissionRequest path
-    # in the approval cascade — this is its only attention signal.
+    # Auto-approved, so this is the only "needs your input" signal hooks get.
     await _notify_question_pending(questions)
 
     total = len(questions)
@@ -125,12 +111,9 @@ async def ask_user_question(
 
 
 async def _notify_question_pending(questions: list[dict[str, Any]]) -> None:
-    """Fire a Notification so input-required hooks ring while a question is open.
+    """Fire an ``elicitation_dialog`` Notification (best-effort).
 
-    Uses ``notification_type='elicitation_dialog'`` — the type Claude-compatible
-    consumers (peon-ping) map to "question pending" / input required; a generic
-    notification with no type is suppressed as unknown. Best-effort: a hook
-    failure must never break the prompt.
+    Claude-compatible consumers suppress a Notification with no type.
     """
     try:
         await get_run_hook_manager().execute_hooks(
@@ -191,9 +174,5 @@ def _resolve_answer(q: dict[str, Any], raw: str) -> str:
 
 ask_user_question.__name__ = "AskUserQuestion"
 
-# AskUserQuestion *is* the user interaction — gating it behind a separate
-# tool-approval prompt is meaningless and renders before the question itself.
-# Auto-approve intrinsically, in every path (main agent, sub-agents, web), so
-# the question surfaces directly. The non-interactive guard above already
-# prevents the tool from blocking on stdin when there is no user to answer.
+# The question itself is the user interaction; an approval prompt would be redundant.
 register_always_auto_approve("AskUserQuestion")

@@ -134,10 +134,7 @@ async def test_isolate_worktree_leaves_dirty_worktree_and_reports_path(
 async def test_isolate_worktree_leaves_worktree_with_new_commits_and_keeps_branch(
     mock_sub_agent_manager,
 ):
-    """A worktree with no uncommitted diff but commits beyond its fork point
-    must be left in place too — a clean `git status` alone must never be
-    treated as "safe to force-delete the branch" (the branch may hold a
-    sub-agent's committed deliverable)."""
+    """A clean worktree with new commits is left in place, branch kept."""
     mock_sub_agent_manager.create_agent.return_value = MagicMock()
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
 

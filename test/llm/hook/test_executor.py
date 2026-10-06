@@ -122,7 +122,7 @@ def _hook_that_waits(started: threading.Event, stopped: threading.Event):
     async def hook(ctx):
         started.set()
         try:
-            await asyncio.sleep(30)  # a reviewer's model request, say
+            await asyncio.sleep(30)
         finally:
             stopped.set()
         return HookResult(success=True)
@@ -142,7 +142,7 @@ async def test_a_timed_out_hook_is_cancelled_not_left_running():
 
     assert result.success is False
     assert result.exit_code == 124
-    assert stopped.is_set()  # stopped before the caller got its result
+    assert stopped.is_set()
     executor.shutdown()
 
 
@@ -160,7 +160,7 @@ async def test_cancelling_the_caller_cancels_the_hook():
 
     with pytest.raises(asyncio.CancelledError):
         await call
-    assert stopped.is_set()  # stopped before the cancellation reached the caller
+    assert stopped.is_set()
     executor.shutdown()
 
 
@@ -171,7 +171,7 @@ async def test_a_hook_cancellation_cannot_reach_holds_its_caller_only_briefly():
     release = threading.Event()
 
     async def blocked(ctx):
-        release.wait(5)  # a synchronous call: its loop never sees the cancel
+        release.wait(5)
         return HookResult(success=True)
 
     started = time.monotonic()
@@ -201,7 +201,7 @@ async def test_a_hook_cancelled_before_it_starts_never_runs():
 
     busy = asyncio.ensure_future(executor.execute_hook(occupy, _start_context()))
     waiting = asyncio.ensure_future(executor.execute_hook(queued, _start_context()))
-    await asyncio.sleep(0.1)  # both submitted; the only worker is busy
+    await asyncio.sleep(0.1)
 
     waiting.cancel()
     release.set()
@@ -239,9 +239,7 @@ async def test_a_hook_runs_in_the_callers_context():
 
 @pytest.mark.asyncio
 async def test_a_hook_does_not_inherit_what_is_bound_to_the_callers_loop():
-    """The hook runs in an event loop of its own, so the chat's UI, tool
-    confirmation and approval channel — all driven from the caller's loop —
-    are not passed on, while the rest of the caller's state is."""
+    "The hook runs in an event loop of its own, so the chat's UI, tool"
     from zrb.llm.agent_state import current_model, current_ui
     from zrb.llm.approval.approval_channel import current_approval_channel
 
@@ -273,7 +271,7 @@ async def test_a_hook_does_not_inherit_what_is_bound_to_the_callers_loop():
         executor.shutdown()
 
     assert seen == {"ui": None, "channel": None, "model": "the run's model"}
-    # The caller's own binding is untouched.
+
     assert callers_ui is ui
 
 
@@ -281,7 +279,7 @@ def test_executor_singleton():
     executor = get_hook_executor()
     assert executor is not None
     shutdown_hook_executor()
-    # After shutdown, it's None internally
+
 
 
 def test_a_cancelled_hook_cannot_hold_interpreter_exit():

@@ -65,8 +65,6 @@ class TestMonitorTaskReadinessSessionTerminated:
         check_status = _make_task_status(is_completed=True, is_ready=True)
         session.get_task_status.return_value = check_status
 
-        # Non-async mock: exec_chain's return value is just an argument
-        # to the mocked run_async, never awaited.
         check_task = BaseTask(name="check_task")
         check_task.exec_chain = MagicMock(return_value=None)
         task.append_readiness_check(check_task)

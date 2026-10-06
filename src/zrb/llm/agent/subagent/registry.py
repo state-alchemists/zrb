@@ -1,14 +1,4 @@
-"""`SubAgentRegistry` — the canonical collection of sub-agent definitions.
-
-Discovered definitions plus everything registered in code; `SubAgentManager`
-does the scanning and owns the tool surface. Layer and allowlist semantics are
-`LayeredRegistry`'s; the allowlist here is ``CFG.LLM_AGENTS``. Configure it
-from `zrb_init.py`:
-
-    from zrb.llm.agent.subagent.registry import sub_agent_registry
-    from zrb.llm.agent.subagent.definition import SubAgentDefinition
-    sub_agent_registry.add_agent(SubAgentDefinition(name="mine", path=".", ...))
-"""
+"""Registry for discovered and manually registered sub-agent definitions."""
 
 from __future__ import annotations
 

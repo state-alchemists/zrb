@@ -1,21 +1,15 @@
 """Deferred-evaluation attribute types.
 
-Every `*Attr` alias says the same thing: this parameter accepts the value
-itself, or a callable resolved at run time against the active context.
-`zrb.util.attr.get_*_attr` is what collapses the two into a concrete value.
+Each `*Attr` alias accepts the value itself or a callable resolved at run time
+against the active context; `zrb.util.attr.get_*_attr` resolves it.
 
-**A plain `str` is a literal, never a template.** Rendering is opt-in: wrap a
-template in `Tpl`, which every alias names explicitly. `Tpl` renders to *text*,
-so it is listed alongside `bool`/`int`/`float` rather than folded into their
-`Callable[..., bool | None]` arms — the typed getter coerces the rendered
-string (`get_bool_attr` via `to_boolean`, `get_int_attr` via `int`).
+A plain `str` is a literal, never a template; wrap a template in `Tpl`. `Tpl`
+renders to text, which the typed getters coerce (`to_boolean`, `int`, ...).
 
     CmdTask(cmd="echo {literal braces}")        # runs verbatim
     CmdTask(cmd=Tpl("echo {ctx.input.name}"))   # rendered against ctx
 
-There is deliberately no `AnyAttr`: `Any | Callable[..., Any]` collapses to
-plain `Any`, so it would constrain nothing while looking like it did. Use
-`Any` where anything goes, or the specific `*Attr` alias where it does not.
+There is no `AnyAttr`: `Any | Callable[..., Any]` collapses to `Any`.
 """
 
 from collections.abc import Sequence

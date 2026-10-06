@@ -1,13 +1,10 @@
-"""The built-in self-review gate — a synchronous Stop hook, registered only
-while `LLM_SELF_REVIEW_ENABLED` is on.
+"""The built-in self-review gate: a synchronous Stop hook, registered while
+`LLM_SELF_REVIEW_ENABLED` is on.
 
-On a turn that changed files, a reviewer agent reads what the turn changed —
-the working tree diffed against its state at turn start — with a fresh
-context (not the author's transcript) and read-only tools. A
-`Request changes` verdict blocks the Stop (`session_extension.py`'s
-block-to-continue), so the main agent checks the findings and fixes the real
-ones before answering; `LGTM`, a failed review, or an unclear verdict lets the
-turn end. `LLM_SELF_REVIEW_MAX_ROUNDS` caps consecutive blocking reviews.
+On a turn that changed files, a fresh-context reviewer with read-only tools
+reads the diff against the turn-start snapshot. A `Request changes` verdict
+blocks the Stop so the main agent addresses the findings; anything else lets
+the turn end. `LLM_SELF_REVIEW_MAX_ROUNDS` caps consecutive blocking reviews.
 """
 
 import asyncio
@@ -56,33 +53,19 @@ def register_self_review_hook(manager: "HookManager") -> None:
         config=AgentHookConfig(
             system_prompt=get_prompt("self_review"), tools=_REVIEWER_TOOLS
         ),
-        # The hook enforces `LLM_SELF_REVIEW_TIMEOUT` itself: its git
-        # commands are cut off at the deadline, and the reviewer is cancelled
-        # inside the hook's own event loop, where cancelling reaches its model
-        # request. The executor's timeout would cancel it too, but as a failed
-        # hook rather than a timed-out review, so it is set past that deadline
-        # and never fires first.
+        # The hook enforces `LLM_SELF_REVIEW_TIMEOUT` itself; the executor's
+        # timeout sits past it so a slow review reads as timed out, not failed.
         timeout=CFG.LLM_SELF_REVIEW_TIMEOUT + _EXECUTOR_GRACE_SECONDS,
     )
     manager.add_hook(create_self_review_hook(), [HookEvent.STOP], config)
 
 
 def create_self_review_hook() -> HookCallable:
-    """The gate itself. It counts a turn's consecutive blocking reviews,
-    keyed by the Stop payload's `turn_id` — unique per turn, so concurrent
-    sessions sharing one hook manager, even under one conversation name,
-    never share a count. A turn has an entry only while the gate is holding
-    it open: any review that lets it end removes it. A turn that ends some
-    other way mid-continuation — cancelled, capped, failed — never comes
-    back to clear its entry, so at most `CFG.LLM_SELF_REVIEW_MAX_TRACKED_TURNS`
-    are kept, the
-    oldest dropped first.
+    """The gate. Counts consecutive blocking reviews per Stop payload `turn_id`.
 
-    A delegated sub-agent's run is not reviewed: its changes land in the
-    parent's working directory, or in a worktree under it, which the parent's
-    own review diffs against a snapshot taken before it delegated. Reviewing each sub-agent too would
-    multiply reviewer runs, and a sub-agent's diff would include whatever its
-    parallel siblings changed."""
+    A turn that ends mid-continuation never clears its entry, so at most
+    `CFG.LLM_SELF_REVIEW_MAX_TRACKED_TURNS` are kept, oldest dropped first.
+    Sub-agent runs are skipped: the parent's review covers their changes."""
     rounds: OrderedDict[str, int] = OrderedDict()
 
     async def self_review(context: HookContext) -> HookResult:
@@ -111,12 +94,8 @@ def create_self_review_hook() -> HookCallable:
 
 
 async def _review(context: HookContext, payload: dict[str, Any]) -> HookResult:
-    """One review of the turn in *payload*: a block carrying the findings, or
-    a pass-through result saying why the turn may end."""
+    """Review the turn in *payload*: a block with findings, or a pass-through."""
     deadline = time.monotonic() + CFG.LLM_SELF_REVIEW_TIMEOUT
-    # Cancelled — the turn is, or the hook's timeout passes — it stops before
-    # its next git command and waits for the one running, which the deadline
-    # bounds, so its store is deleted before the review returns.
     scope = await run_in_worker(_resolve_scope, payload, deadline)
     if time.monotonic() >= deadline:
         return _timed_out()
@@ -146,23 +125,16 @@ def _timed_out() -> HookResult:
 class _Scope:
     paths: list[str]
     diff: str
-    #: Files the turn changed that git could not read at Stop: listed, but
-    #: not diffed, since an unread file would otherwise read as deleted.
+    #: Changed files git could not read at Stop: listed, not diffed.
     unreadable: list[str] = dataclasses.field(default_factory=list)
 
 
 def _resolve_scope(payload: dict[str, Any], deadline: float) -> _Scope:
-    """What the turn changed: the working directory diffed from its
-    turn-start snapshot to its state now — every repository under it, nested
-    ones and linked worktrees included (`util/git/snapshot_listing.py`). That
-    covers edits made through `Shell` and changes committed mid-turn, and
-    leaves out the user's earlier uncommitted work. Paths the file tools named
-    that the diff does not cover — ignored, or outside the working directory
-    — are listed too. Every git command stops at *deadline*.
+    """What the turn changed: the working directory diffed from its turn-start
+    snapshot, plus file-tool paths the diff does not cover.
 
-    When the snapshot failed there is no diff, only the file tools' paths:
-    diffing those against HEAD instead would hand the reviewer the user's
-    earlier uncommitted work."""
+    Without a snapshot there is no diff (not HEAD, which would include the
+    user's earlier uncommitted work)."""
     tool_paths = [p for p in payload.get("changed_paths") or [] if isinstance(p, str)]
     changes = _diff_turn(payload.get("turn_start_snapshot"), deadline)
     root, paths, diff, unreadable = changes or ("", [], "", [])
@@ -183,12 +155,9 @@ def _resolve_scope(payload: dict[str, Any], deadline: float) -> _Scope:
 def _diff_turn(
     start: Any, deadline: float
 ) -> tuple[str, list[str], str, list[str]] | None:
-    """The working directory's `(root, changed paths, diff, unreadable
-    paths)` since the turn-start snapshot *start*, or None when there is none
-    to diff. The unreadable paths are the files git cannot read now that it
-    could at the start, or that did not exist then: one unreadable at both
-    shows no sign of the turn — a root-owned volume, say — and counting it
-    would review every turn."""
+    """`(root, changed paths, diff, newly unreadable paths)` since *start*, or None.
+
+    Files unreadable at both ends are not counted, or every turn would review."""
     if not isinstance(start, dict):
         return None
     workdir, before, git_dir = (
@@ -202,10 +171,8 @@ def _diff_turn(
         and isinstance(git_dir, str)
     ):
         return None
-    # The turn-start store belongs to the runner, which deletes it when the
-    # turn ends — possibly while this review still runs, if the turn is
-    # cancelled. So the review only reads it, and writes into a store of its
-    # own that it deletes itself.
+    # The runner may delete the turn-start store while this runs, so only read
+    # it and write into a temporary store of our own.
     try:
         store = SnapshotStore.create_temporary(workdir, git_dir, deadline)
     except (SnapshotError, OSError) as e:
@@ -233,11 +200,8 @@ def _diff_turn(
 def _with_new_repositories(
     store: SnapshotStore, before: str, after: Snapshot, deadline: float
 ) -> str:
-    """*before*, with each nested repository that appeared during the turn —
-    a worktree `EnterWorktree` created, a clone — as it stood at the commit
-    it started from, so the diff shows what the turn changed in it rather
-    than its whole checkout. One with no commit yet stays out of *before*:
-    all of it is new."""
+    """*before*, with each repository that appeared during the turn added at its
+    fork point, so the diff shows only what the turn changed in it."""
     for repository in after.repositories:
         if not repository:
             continue
@@ -274,13 +238,7 @@ def _display(path: str) -> str:
 
 
 async def _run_reviewer(context: HookContext, scope: _Scope) -> str | None:
-    """The reviewer's report, or None when no review happened — a failed or
-    unavailable review must never hold the author's turn hostage.
-
-    The reviewer is an ordinary agent hook built through the registration
-    seam `hook.manager` uses too, handed the review request instead of the
-    author's transcript as its input.
-    """
+    """The reviewer's report, or None when no review happened (never blocks)."""
     builder = get_agent_hook_builder()
     if builder is None:
         CFG.LOGGER.warning(

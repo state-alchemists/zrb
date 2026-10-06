@@ -10,15 +10,7 @@ from zrb.llm.util.stream_response import (
 
 
 class TestStreamEventHandlerToolPrepareOffsetTracking:
-    """Regression suite for the offset-tracked `on_tool_prepare_update` path.
-
-    Before this, the "Prepare tool parameters" placeholder used `\\r` to
-    erase "whichever line is currently last" — correct only when tool calls
-    never overlap. The moment two tool calls' argument streams interleaved
-    (parallel tool calls), one's spinner tick erased the *other's* line,
-    leaving orphaned placeholder lines on screen permanently (this is the
-    literal bug reported: duplicate "🔄 Prepare tool parameters" lines).
-    """
+    'Test offset-tracked tool-parameter updates.'
 
     def test_placeholder_uses_offset_hook_when_provided(self):
         print_fn = MagicMock()
@@ -37,7 +29,7 @@ class TestStreamEventHandlerToolPrepareOffsetTracking:
         key, text = on_prepare.call_args[0]
         assert key == "call_1"
         assert "Prepare tool parameters" in text
-        print_fn.assert_not_called()  # went through the hook, not the raw \r print
+        print_fn.assert_not_called()
 
     def test_delta_updates_the_same_key_not_the_raw_r_print(self):
         print_fn = MagicMock()
@@ -59,7 +51,7 @@ class TestStreamEventHandlerToolPrepareOffsetTracking:
         delta_event.delta = ToolCallPartDelta(args_delta='{"a":')
         handler.handle_part_delta(delta_event)
 
-        assert on_prepare.call_count == 2  # initial placeholder + one spinner tick
+        assert on_prepare.call_count == 2
         assert on_prepare.call_args_list[-1].args[0] == "call_1"
         print_fn.assert_not_called()
 
@@ -85,9 +77,7 @@ class TestStreamEventHandlerToolPrepareOffsetTracking:
         on_prepare.assert_called_once_with("call_1", "")
 
     def test_parallel_tool_calls_each_get_their_own_key(self):
-        """The actual bug scenario: two tool calls' PartStartEvents fire, then
-        their argument deltas interleave. Each must resolve and erase
-        through its own key — never touching the other's."""
+        'Interleaved tool calls update and erase their own keys.'
         print_fn = MagicMock()
         on_prepare = MagicMock()
         handler = StreamEventHandler(
@@ -117,16 +107,14 @@ class TestStreamEventHandlerToolPrepareOffsetTracking:
         assert keys_touched == {"call_A", "call_B"}
         erase_calls = [c for c in on_prepare.call_args_list if c.args[1] == ""]
         assert {c.args[0] for c in erase_calls} == {"call_A", "call_B"}
-        # print_fn is still used for the tool calls' own resolved lines
-        # (no recorder set here) — but never for the old \r-based spinner,
-        # which the offset-tracked path replaces entirely.
+
+
+
         printed = [str(c.args[0]) for c in print_fn.call_args_list if c.args]
         assert not any("\r" in p or "Prepare tool parameters" in p for p in printed)
 
     def test_without_the_hook_falls_back_to_the_original_r_based_path(self):
-        """Regression guard: a UI that hasn't opted in (std_ui, Telegram, the
-        SSE web UI, ...) must see exactly the same behavior as before this
-        fix — single-line `\\r` animation via `print_fn`."""
+        'Without the hook, updates use the single-line ``\\r`` path.'
         print_fn = MagicMock()
         handler = StreamEventHandler(print_fn=print_fn)
         from pydantic_ai import ToolCallPart, ToolCallPartDelta
@@ -192,8 +180,7 @@ class TestStreamEventHandlerToolResult:
         assert "y" * 50 in full
 
     def test_handle_tool_result_show_result_ignores_recorder(self):
-        """show_tool_result=True already shows everything inline — no need to
-        make an already-expanded line collapsible."""
+        'show_tool_result=True already shows everything inline — no need to'
         print_fn = MagicMock()
         recorder = MagicMock()
         handler = StreamEventHandler(
@@ -210,7 +197,7 @@ class TestStreamEventHandlerToolResult:
         print_fn.assert_called_once()
 
     def test_handle_tool_result_has_no_trailing_newline(self):
-        """Same redundancy as `handle_tool_call` — see that test's docstring."""
+        'Tool-result output has no trailing newline.'
         print_fn = MagicMock()
         handler = StreamEventHandler(print_fn=print_fn, show_tool_result=False)
         mock_event = MagicMock()
@@ -285,9 +272,7 @@ class TestStreamEventHandlerRunResult:
         args = print_fn.call_args[0][0]
         assert "Requests: 5" in args
         assert "Total: 1000" in args
-        # Same redundancy as `handle_tool_call` — the caller's own explicit
-        # blank line before the rendered final answer already supplies
-        # separation; a baked-in one here doubled it.
+
         assert not args.endswith("\n")
 
     def test_handle_run_result_invokes_usage_callback(self):
@@ -297,7 +282,7 @@ class TestStreamEventHandlerRunResult:
         mock_usage = MagicMock()
         mock_event = MagicMock()
         mock_event.result.usage = mock_usage
-        # Last ModelResponse carries the per-request usage = current context size.
+
         request = MagicMock(spec=["usage"])
         request.usage = MagicMock()
         mock_event.result.all_messages.return_value = [MagicMock(spec=[]), request]
@@ -305,7 +290,7 @@ class TestStreamEventHandlerRunResult:
         usage_callback.assert_called_once_with(mock_usage, request.usage)
 
     def test_handle_run_result_no_usage_callback(self):
-        """Run result is still printed when usage_callback is None."""
+        'Run result is still printed when usage_callback is None.'
         print_fn = MagicMock()
         handler = create_event_handler(print_fn=print_fn, usage_callback=None)
         mock_usage = MagicMock()
@@ -354,9 +339,7 @@ class TestStreamEventHandlerCall:
 
     @pytest.mark.asyncio
     async def test_call_output_tool_call_and_result_events(self):
-        """OutputToolCallEvent/OutputToolResultEvent (final/deferred-output tool
-        calls) must dispatch through the same handlers as function tool calls,
-        since they share the ToolCallEvent/ToolResultEvent base."""
+        'OutputToolCallEvent/OutputToolResultEvent (final/deferred-output tool'
         print_fn = MagicMock()
         handler = StreamEventHandler(print_fn=print_fn, show_tool_result=True)
         from pydantic_ai import OutputToolCallEvent, OutputToolResultEvent

@@ -1,10 +1,4 @@
-"""Shared `BaseUI` stand-in for the `llm/ui/base` command tests.
-
-`MockUI` holds the state `BaseUICommands` and its conversation/model/exec
-parts read through `self._base_ui`, composes a real `BaseUICommands`, and
-forwards attribute lookups to it and its parts, so a test can call any
-handler as `ui.handle_<x>_command(...)`.
-"""
+"""Shared `BaseUI` stand-in for the `llm/ui/base` command tests."""
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
@@ -19,13 +13,8 @@ from zrb.llm.ui.ui_config import UIConfig
 
 
 class MockUI:
-    """Stand-in for `BaseUI`: owns the state `BaseUICommands` and its
-    conversation/model/exec collaborators read through `self._base_ui`,
-    plus the `BaseUI` methods they call (`append_to_output`, `on_exit`, ...).
-    Composes a real `BaseUICommands(self)` and forwards attribute
-    lookups to it (and its sub-collaborators) so the many existing
-    `ui.handle_*`/`ui.classify_input`/... call sites below keep working
-    unchanged."""
+    """Stand-in for `BaseUI` that composes a real `BaseUICommands(self)` and
+    forwards attribute lookups to it and its parts."""
 
     def __init__(self):
         self.exit_commands = ["/exit"]
@@ -74,8 +63,6 @@ class MockUI:
         self.outputs = []
         self.exited = False
 
-        # A real `BaseUI` exposes its `UIConfig`; `/set` re-points it when a
-        # command-alias setting changes (see `BaseUIModelCommands`).
         self.ui_config = UIConfig()
 
         self._cmds = BaseUICommands(self)

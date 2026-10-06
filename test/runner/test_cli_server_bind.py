@@ -1,10 +1,4 @@
-"""`zrb server start`: app wiring, and the security gate on the bind address.
-
-Split from `test_cli.py` by feature group: everything here drives the
-`server start` task, and the bulk of it pins `_refuse_insecure_bind` -- which
-combination of host, auth flag and credentials is allowed to serve, and which
-must exit non-zero before the app is even built.
-"""
+"""Tests for `zrb server start` and its bind-address security gate."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -61,9 +55,7 @@ def test_start_server_refuses_insecure_bind(monkeypatch, capsys):
 def test_start_server_refuses_default_credentials_when_auth_enabled(
     monkeypatch, capsys
 ):
-    """Auth being *on* is not enough: the default password/secret are public
-    knowledge (documented in the repo), so a non-loopback bind still using
-    them fails closed too, distinctly from the unauthenticated case."""
+    """Default credentials fail closed on a non-loopback bind."""
     from zrb.runner.cli import cli
 
     monkeypatch.setenv("ZRB_WEB_HTTP_HOST", "0.0.0.0")
@@ -89,11 +81,7 @@ def test_start_server_refuses_default_credentials_when_auth_enabled(
 
 
 def test_start_server_uses_programmatic_auth_config_for_refusal(monkeypatch, capsys):
-    """Refusal follows the auth object used by the web app, not only CFG.
-
-    CFG says auth is on here; the programmatic object says it is off. The
-    object wins, because it is what the running app will actually enforce.
-    """
+    """Refusal follows the auth object used by the web app."""
     from zrb.config.web_auth_config import WebAuthConfig
     from zrb.runner.cli import cli
 
@@ -120,11 +108,7 @@ def test_start_server_uses_programmatic_auth_config_for_refusal(monkeypatch, cap
 
 
 def test_start_server_allows_programmatic_custom_credentials(monkeypatch, capsys):
-    """Programmatic auth overrides are evaluated instead of CFG defaults.
-
-    CFG says auth is off, which would refuse; the programmatic object supplies
-    auth plus unique credentials, so the bind is allowed.
-    """
+    """Programmatic auth overrides are evaluated instead of CFG defaults."""
     from zrb.config.web_auth_config import WebAuthConfig
     from zrb.runner.cli import cli
 
@@ -196,14 +180,7 @@ def test_start_server_allows_auth_enabled_with_custom_credentials(monkeypatch, c
 def test_start_server_refuses_unusable_programmatic_credentials(
     monkeypatch, capsys, password, secret_key, expected_fragment
 ):
-    """Non-default is not the same as usable.
-
-    `WebAuthConfig` treats only `None` as "fall back to CFG", so an explicit
-    empty string is a real override that no longer equals the shipped default —
-    it would sail past a check that only asked whether the value had changed,
-    leaving a public server behind no password at all. Length floors apply for
-    the same reason: `"a"` is not the documented default either.
-    """
+    """Reject empty, short, or otherwise unusable credential overrides."""
     from zrb.config.web_auth_config import WebAuthConfig
     from zrb.runner.cli import cli
 

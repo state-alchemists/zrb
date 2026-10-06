@@ -17,7 +17,6 @@ def expand_prompt(prompt: str) -> str:
     if not matches:
         return prompt
     appendix_entries: list[str] = []
-    # We construct the new string by slicing.
     last_idx = 0
     parts = []
     for match in matches:
@@ -26,7 +25,6 @@ def expand_prompt(prompt: str) -> str:
         original_token = match.group(0)
         header, content, is_valid_ref = process_path_reference(path_ref)
         if not is_valid_ref:
-            # Fallback: leave original token if unreadable or not found
             parts.append(original_token)
             last_idx = match.end()
             continue
@@ -50,30 +48,14 @@ def get_path_references(prompt: str) -> list[re.Match]:
     """Every `@path` reference in *prompt*, as regex match objects."""
     if not prompt:
         return []
-    # Regex to capture @path.
-    # Matches @ followed by typical path chars.
-    # We'll allow alphanumeric, _, -, ., /, \, and ~ (home dir), plus an
-    # optional leading drive letter -- without it `@C:\\Users\\me\\notes.md`
-    # captured just "C" and every Windows absolute path silently failed to
-    # expand. The drive group is anchored and single-letter, so an ordinary
+    # Optional single-letter drive prefix for Windows paths (`@C:\notes.md`);
     # `@word:something` still captures only "word".
     pattern = re.compile(r"@(?P<path>(?:[A-Za-z]:)?[\w~\-\./\\]+)")
     return list(pattern.finditer(prompt))
 
 
 def process_path_reference(path_ref: str) -> tuple[str | None, str | None, bool]:
-    """Process a single path reference.
-
-    Args:
-        path_ref: The path reference (without @ prefix)
-
-    Returns:
-        Tuple of (header, content, is_valid_ref)
-        - header: Formatted header for the appendix entry
-        - content: The content of the file or directory listing
-        - is_valid_ref: Whether the path was successfully processed
-    """
-    # Check existence
+    """Resolve a path reference (without `@`) to ``(header, content, is_valid_ref)``."""
     expanded_path = os.path.expanduser(path_ref)
     abs_path = os.path.abspath(expanded_path)
     content = ""
@@ -88,7 +70,6 @@ def process_path_reference(path_ref: str) -> tuple[str | None, str | None, bool]
             CFG.LOGGER.debug(f"Failed to read referenced file {abs_path}: {e}")
     elif os.path.isdir(abs_path):
         try:
-            # Use list_files for directory structure
             file_list = list_files(abs_path, depth=2)
             content = "\n".join(file_list)
             if not content:

@@ -1,10 +1,6 @@
-"""Execution slash-commands for `BaseUI`.
+"""`/exec`, `/btw` and custom-command handlers for `BaseUI`.
 
-Shell exec (`/exec`), side questions (`/btw`), and user-defined custom
-commands. Composed into `BaseUICommands` as `self._exec`.
-
-Each `handle_*` returns ``True`` if the input was consumed, ``False``
-otherwise.
+Each `handle_*` returns ``True`` if the input was consumed.
 """
 
 from __future__ import annotations
@@ -66,10 +62,8 @@ class BaseUIExecCommands:
             self._base_ui.append_to_output(f"\n💻 {timestamp} >> {cmd}\n")
             self._base_ui.append_to_output(stylize_muted("\n  🔢 Executing...\n"))
 
-            # create_subprocess_shell is intentional here: cmd is raw text a
-            # human typed into the /exec prompt (pipes, redirects, globs are
-            # the point), never assembled from untrusted parts.
-            # Its own session, so whatever it backgrounds can be stopped with it.
+            # Shell on purpose: cmd is what the user typed into /exec. Own
+            # session so whatever it backgrounds is stopped with it.
             process = await asyncio.create_subprocess_shell(
                 cmd,
                 stdout=asyncio.subprocess.PIPE,
@@ -85,8 +79,6 @@ class BaseUIExecCommands:
                     decoded_line = line.decode("utf-8", errors="replace")
                     self._base_ui.append_to_output(decoded_line, end="")
 
-            # Fail-fast fan-out: a broken reader should abort immediately, not
-            # be masked by return_exceptions.
             readers = asyncio.gather(
                 read_stream(process.stdout),
                 read_stream(process.stderr),
@@ -128,10 +120,9 @@ class BaseUIExecCommands:
     # --- /btw side question -----------------------------------------------
 
     def handle_btw_command(self, text: str) -> bool:
-        """Handle /btw <question> — ask a side question without saving to history.
+        """Handle /btw <question>: a side question not saved to history.
 
-        Works while the LLM is thinking: it runs as an independent background
-        task, bypassing the serializing message queue.
+        Runs as a background task, bypassing the message queue.
         """
         text = text.strip()
         for cmd in self._base_ui.btw_commands:
@@ -152,15 +143,7 @@ class BaseUIExecCommands:
         return False
 
     async def stream_btw_response(self, llm_task: "LLMTask", question: str):
-        """Run an ephemeral LLM query that runs alongside the current conversation.
-
-        Uses a fresh, independent pydantic-ai Agent so there are no race conditions
-        with the possibly-running main LLM task (no shared state is mutated).
-        The response is never saved to conversation history.
-
-        The side agent runs without tools, so it is prompted with
-        `side_question.md` rather than the main agent's prompt.
-        """
+        """Answer *question* with a fresh tool-less agent, unsaved to history."""
         try:
             timestamp = datetime.now().strftime("%H:%M")
             self._base_ui.append_to_output(f"\n💭 {timestamp} >> {question.strip()}\n")
@@ -188,8 +171,7 @@ class BaseUIExecCommands:
                 else:
                     btw_history.append(msg)
 
-            # Never the main agent's prompt: it instructs tool use and carries
-            # the skill catalogue, and this agent has no tools at all.
+            # The main prompt instructs tool use; this agent has no tools.
             _sys_prompt = get_prompt("side_question")
             # `/model` stores the typed name, so resolve it against the
             # configured credentials (falling back to CFG's model).

@@ -53,19 +53,13 @@ def make_task(
         def greet(ctx):
             return f"Hello, {ctx.input.name}"
 
-        # `greet` is now an AnyTask; `zrb greet --name you` runs it.
-
-    Passing `group=` registers the task in one step, which is why it is preferable to building a `Task` and registering it
-    separately.
-
     Args:
         name: Task name, and the CLI sub-command name. Prefer kebab-case.
         group: Group to register the task under. When None the task is returned
             unregistered and is reachable only from Python.
         alias: CLI word addressing it inside *group*. Defaults to `name`.
 
-    Every other parameter is `BaseTask`'s and behaves identically, except
-    `action`, which is the decorated function.
+    Every other parameter is `BaseTask`'s; `action` is the decorated function.
 
     Returns:
         A decorator that replaces the function with the built task.

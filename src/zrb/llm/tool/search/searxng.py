@@ -66,7 +66,6 @@ def search_internet(
         return response.json()
 
     except requests.exceptions.ConnectionError as e:
-        # Check if this is a connection error to localhost (Searxng not running)
         searxng_url = CFG.SEARXNG_BASE_URL
         is_default_url = is_default_searxng_url(searxng_url)
         docker_installed = is_docker_installed()
@@ -75,7 +74,6 @@ def search_internet(
             f"Error: Unable to connect to Searxng at {searxng_url}. Connection refused."
         )
 
-        # Only provide suggestion if all conditions are met
         if is_default_url and docker_installed:
             root_group = CFG.ROOT_GROUP_NAME
             suggestion = f"[SYSTEM SUGGESTION]: Searxng appears to be not running. You can start it with: {root_group} searxng start"
@@ -99,7 +97,3 @@ def search_internet(
             error_msg += f"\n\n{suggestion}"
 
         raise SearchToolError(error_msg) from e
-
-    except Exception:
-        # Re-raise other exceptions without modification
-        raise

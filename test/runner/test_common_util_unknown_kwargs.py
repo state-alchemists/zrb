@@ -1,10 +1,4 @@
-"""Unknown `--flag` rejection in CLI mode.
-
-An unrecognized option is only visible by elimination: nothing reads it, so
-the input it was aimed at resolves to its default or a prompt exactly as if
-the flag had been absent. Web mode stays permissive because the input-preview
-API is handed arbitrary JSON rather than a parsed command line.
-"""
+"""Unknown CLI options are rejected; input-preview JSON remains permissive."""
 
 import pytest
 

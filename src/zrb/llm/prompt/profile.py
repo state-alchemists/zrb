@@ -29,10 +29,8 @@ SIZE_BANDS: tuple[tuple[float, str], ...] = (
     (14, STANDARD_PROFILE),
 )
 
-#: Vendor small-tier labels. A label alone is not enough to select ``minimal``:
-#: ``nano``/``tiny``/``micro`` sit on models (``gpt-5-nano``) far more capable
-#: than a 3B local one. A label on a locally served model (:data:`LOCAL_PROVIDERS`)
-#: selects ``minimal``; any other label selects ``standard``.
+#: Vendor small-tier labels. Selects ``minimal`` only on a locally served model
+#: (hosted ``gpt-5-nano`` is far more capable than a 3B local one), else ``standard``.
 SMALL_TIER_LABELS: tuple[str, ...] = (
     "mini",
     "micro",
@@ -44,26 +42,17 @@ SMALL_TIER_LABELS: tuple[str, ...] = (
 )
 
 #: Provider prefixes that mean "this model runs on the user's own machine".
-#: The one piece of context that changes what a small-tier label claims.
 LOCAL_PROVIDERS: tuple[str, ...] = ("ollama:", "lmstudio:", "llamacpp:", "localai:")
 #: Ollama's hosted tier carries this suffix, which disqualifies it as local.
 _HOSTED_TIER = ":cloud"
 
-# A parameter count as vendors write it: delimited, optionally fractional, and
-# closed by a `b`. The count is captured whole and compared numerically, so
-# `deepseek-r1:1.5b` reads as 1.5B rather than as its trailing `5b`.
+# Captured whole so `deepseek-r1:1.5b` reads as 1.5B, not its trailing `5b`.
 _DECLARED_SIZE = re.compile(r"(?<![a-z0-9.])(\d+(?:\.\d+)?)\s*b(?![a-z0-9])", re.I)
 _SMALL_TIER = re.compile(rf"(?<![a-z])({'|'.join(SMALL_TIER_LABELS)})(?![a-z])", re.I)
 
 
 def builtin_profile(model_id: str) -> str | None:
-    """Profile declared by *model_id* itself, or ``None`` if it declares none.
-
-    A stated parameter count is the vendor declaring the size; the first count
-    in the id wins. With no count, a small-tier label reaches ``minimal`` only
-    when the model is also locally served (:data:`LOCAL_PROVIDERS`), and
-    ``standard`` otherwise.
-    """
+    """Profile declared by *model_id* (size, then small-tier label), or ``None``."""
     size = _declared_size(model_id)
     if size is not None:
         return next(
@@ -90,14 +79,7 @@ def _declared_size(model_id: str) -> float | None:
 
 
 def resolve_profile(profile: str | None, model: Any | None = None) -> str:
-    """Return a supported profile, falling back to ``standard``.
-
-    An explicit name selects that profile. ``auto`` (or any unrecognized value)
-    consults :func:`builtin_profile` against *model*'s id, falling back to
-    ``standard`` when the id declares nothing. The fallback keeps a stale
-    environment value from breaking prompt construction while giving every
-    ordinary installation one stable default.
-    """
+    """Return a supported profile; ``auto`` consults :func:`builtin_profile`, else ``standard``."""
     value = (profile or DEFAULT_PROFILE).strip().lower()
     if value in PROFILES:
         return value
@@ -107,14 +89,7 @@ def resolve_profile(profile: str | None, model: Any | None = None) -> str:
 
 
 def active_profile(model: Any | None = None) -> str:
-    """Return the profile selected by ``LLM_PROFILE`` for *model*.
-
-    *model* is the model id (``str``) or a model object; when omitted it falls
-    back to ``CFG.LLM_MODEL``. The one call every consumer makes — the
-    ``PromptManager`` for the profile section, and tool registration for the
-    ``minimal`` delegate restriction — so the knob and the model are read in
-    one place.
-    """
+    """Return the profile ``LLM_PROFILE`` selects for *model* (default ``CFG.LLM_MODEL``)."""
     if model is None:
         model = CFG.LLM_MODEL
     return resolve_profile(CFG.LLM_PROFILE, model)

@@ -188,12 +188,7 @@ class TestChatSessionManagerApprovals:
 
     @pytest.mark.asyncio
     async def test_handle_approval_response_json_without_pending_edit(self):
-        """Decoded args with no edit slot must not reach the approval handler.
-
-        Regression: falling through handed the dict to handle_response, which
-        cannot parse it and denied the pending approval outright — a client that
-        raced edit-mode entry lost the tool call instead of retrying.
-        """
+        """Decoded args without an edit slot must not reach approval handling."""
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
         manager = await ChatSessionManager.get_instance()
@@ -232,11 +227,7 @@ class TestChatSessionManagerApprovals:
 
     @pytest.mark.asyncio
     async def test_unconsumed_edit_response_falls_through_to_approval(self):
-        """A stale edit slot must not report success for a dropped answer.
-
-        The edit handler returning False means nothing consumed the response, so
-        it has to reach the live pending approval instead of being swallowed.
-        """
+        """An unconsumed edit response falls through to approval handling."""
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
         manager = await ChatSessionManager.get_instance()

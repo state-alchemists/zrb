@@ -14,13 +14,7 @@ async def replace_in_file_validation_policy(
     call: "ToolCallPart",
     next_handler: Callable[["AnyAgentOutput", "ToolCallPart"], Awaitable[Any]],
 ) -> Any:
-    """
-    Validates 'Edit' (replace_in_file) tool calls.
-    Auto-rejects if:
-    1. old_text and new_text are identical.
-    2. File does not exist.
-    3. old_text is not found in the file.
-    """
+    """Deny an `Edit` call that is a no-op, targets a missing file, or whose old_text is absent."""
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ToolDenied
 
@@ -54,8 +48,7 @@ async def replace_in_file_validation_policy(
             "directory, not the project root. Use List to confirm the path."
         )
 
-    # Accept exact or fuzzy (whitespace-tolerant) matches, mirroring the
-    # replace_in_file tool, so no edit the tool could apply is denied.
+    # Accept fuzzy matches too, as the Edit tool does.
     try:
         with open(abs_path, "r", encoding="utf-8") as f:
             content = f.read()

@@ -130,10 +130,8 @@ def _format_results(raw_lines: list[str], abs_dir: str, query: str) -> dict[str,
 
 
 def _suggest_similar(query: str, abs_dir: str) -> list[str]:
-    """Fuzzy-match *query* against note titles across category directories,
-    for the zero-hit path — a regex miss otherwise looks identical to "never
-    documented", which just encourages an undiscoverable duplicate note.
-    Skips `activity-log` (dated filenames, not topics)."""
+    """Fuzzy-match *query* against note titles in the category directories,
+    so a zero-hit search doesn't read as "never documented"."""
     candidates: list[str] = []
     for name in NOTE_CATEGORIES:
         category_dir = os.path.join(abs_dir, name)

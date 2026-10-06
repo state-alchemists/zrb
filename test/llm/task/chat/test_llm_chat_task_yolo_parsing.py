@@ -273,10 +273,8 @@ def test_llm_chat_task_ui_factories_property():
 def test_ordered_collection_verbs_round_trip(stem, plural):
     """append_X/prepend_X/set_X/remove_X round-trip on every R5 collection.
 
-    `argument_formatters` starts with two built-in defaults already appended
-    at construction (`replace_in_file_formatter`, `write_file_formatter`), so
-    assertions are relative to whatever was already there rather than
-    assuming an empty list.
+    `argument_formatters` starts with two built-in defaults, so assertions
+    are relative to the initial contents.
     """
     task = LLMChatTask(name="t")
     before = list(getattr(task, plural))
@@ -294,9 +292,7 @@ def test_ordered_collection_verbs_round_trip(stem, plural):
     getattr(task, f"remove_{stem}")(b)  # not present: no-op, not an error
     assert list(getattr(task, plural)) == before + [a]
 
-    # ui_factories/approval_channels replace wholesale through their already
-    # settable property rather than a set_X() method (R7 — see
-    # framework-conventions.md's "Component slot vs. collection").
+    # ui_factories/approval_channels replace wholesale via their property (R7).
     c = object()
     if hasattr(task, f"set_{plural}"):
         getattr(task, f"set_{plural}")([c])

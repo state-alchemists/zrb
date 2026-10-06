@@ -24,9 +24,7 @@ class TestChatSessionManagerCleanup:
 
     @pytest.mark.asyncio
     async def test_remove_session_clears_its_activity_registry_bucket(self):
-        """Removing a session must not leave its (now-empty) activity bucket
-        behind in agent_activity_registry -- one dict entry per session_id
-        ever seen would otherwise accumulate for the process's life."""
+        """Removing a session drops its agent_activity_registry bucket."""
         from zrb.llm.agent.activity import agent_activity_registry
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
@@ -43,8 +41,7 @@ class TestChatSessionManagerCleanup:
 
     @pytest.mark.asyncio
     async def test_remove_session_closes_its_feature_state(self):
-        """A web session never fires SESSION_END, so its dictation and speech
-        state would otherwise stay open for the process's life."""
+        """A web session never fires SESSION_END, so removal closes feature state."""
         from zrb.contextvars import current_chat_session_id
         from zrb.llm.util.feature_config import FeatureSessions
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
@@ -65,9 +62,7 @@ class TestChatSessionManagerCleanup:
 
     @pytest.mark.asyncio
     async def test_remove_session_clears_its_live_subagent_session_bucket(self):
-        """Same leak, same fix, for the "talk to a running sub-agent
-        directly" registry (live_session.py) -- it must not outlive session
-        teardown either."""
+        """Removing a session drops its live sub-agent session bucket."""
         from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
@@ -87,10 +82,7 @@ class TestChatSessionManagerCleanup:
     async def test_remove_session_cleans_up_its_background_shell_processes(
         self, tmp_path
     ):
-        """A background Shell(background=True) process this session started
-        must not outlive session removal -- the per-message teardown
-        deliberately skips it (it must survive across messages in the same
-        session), and full-shutdown cancellation never reached it either."""
+        """A background shell process does not outlive session removal."""
         from zrb.llm.tool.ambient_state import current_chat_session_id
         from zrb.llm.tool.shell import run_shell_command
         from zrb.llm.tool.shell_background import get_shell_background_registry
@@ -115,11 +107,7 @@ class TestChatSessionManagerCleanup:
     async def test_remove_session_does_not_kill_another_sessions_process_with_the_same_name(
         self, tmp_path
     ):
-        """Regression: `session_name` is a client-supplied display label
-        `create_session` never enforces unique -- two different, concurrently
-        active sessions CAN share one. Cleanup must key off the unique
-        session_id, never that name, or removing one session could kill a
-        same-named session's still-running background process."""
+        """Cleanup keys off session_id, since `session_name` is not unique."""
         from zrb.llm.tool.ambient_state import current_chat_session_id
         from zrb.llm.tool.shell import run_shell_command
         from zrb.llm.tool.shell_background import get_shell_background_registry

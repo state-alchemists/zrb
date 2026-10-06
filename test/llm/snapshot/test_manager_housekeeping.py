@@ -1,6 +1,4 @@
-"""Tests for SnapshotManager housekeeping — what keeps a store from growing
-without end: dropping the rewind history of conversations past their
-retention, and letting git pack and prune the store."""
+'Tests for SnapshotManager housekeeping — what keeps a store from growing'
 
 import os
 import subprocess
@@ -67,7 +65,7 @@ async def test_a_history_past_its_retention_is_dropped_at_the_next_session(
 ):
     old = SnapshotManager(snapshot_dir, "old", workdir, retention_seconds=1)
     await old.take_init_snapshot()
-    time.sleep(2.1)  # commit dates have one-second resolution
+    time.sleep(2.1)
 
     new = SnapshotManager(snapshot_dir, "new", workdir, retention_seconds=1)
     await new.take_init_snapshot()

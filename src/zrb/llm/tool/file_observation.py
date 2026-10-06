@@ -1,36 +1,10 @@
 """Run-scoped tracking of which files' current content has been observed.
 
-`write_file(mode="w")` blindly truncates an existing file regardless of
-whether the current agent run has ever seen its current content. This module
-lets it refuse instead: `record_observed` is called after any Read, Write, or
-Edit that produces the file's full current content; `check_observed` compares
-that record against what's on disk right before a `mode="w"` overwrite.
-A target whose bytes aren't valid UTF-8 is refused outright (`check_observed`,
-and `check_writable_text` for appends): Write/Edit emit UTF-8 text only, so
-writing them would corrupt rather than modify — no observed state can lift
-that refusal.
-
-Keyed by `get_current_agent_run_scope()` — the session name for a top-level
-conversation (stable across its turns), but a fresh per-delegation id for a
-sub-agent (see that ContextVar's docstring in `agent/run/runner.py`). Not
-keyed by session alone: a delegated sub-agent starts with an empty
-`message_history` and hasn't seen what its parent or a sibling sub-agent
-observed, so sharing one bucket per session would let it blindly overwrite a
-file it never itself read. Not a raw `ContextVar` holding this dict either —
-a `ContextVar` only propagates within one asyncio task's context tree, so a
-value a sub-agent's task `.set()`s would never reach its parent or siblings;
-keying a plain dict by the (already correctly `ContextVar`-scoped) run id
-sidesteps that, mirroring `plan.py::TodoManager`'s own keyed-dict pattern for
-the same class of state.
-
-In-memory only, no disk persistence: a process restart forcing one fresh Read
-before the next overwrite is the safe default, not a gap worth engineering
-around. The map is an LRU capped at `MAX_OBSERVED_SCOPES` scopes: every
-delegation mints a fresh scope that outlives its run, so an uncapped map would
-grow one dead bucket per delegation for the process lifetime. Eviction fails
-safe — the next overwrite under an evicted scope is refused with a pointer
-back to `Read`, costing one extra round trip, never allowing an ungrounded
-overwrite.
+Lets Write/Edit/RM refuse to overwrite or remove what the current agent run
+has not seen. Keyed by `get_current_agent_run_scope()` (per session, fresh per
+delegation) in plain dicts, since a `ContextVar` value would not propagate
+back from a sub-agent's task. In-memory, LRU-capped at `MAX_OBSERVED_SCOPES`;
+eviction fails safe (the next overwrite asks for a fresh Read).
 """
 
 from __future__ import annotations
@@ -45,28 +19,19 @@ from zrb.llm.agent_state import get_current_agent_run_scope
 
 _BucketT = TypeVar("_BucketT")
 
-# Scopes kept in the observed-content LRU before the least-recently-used one
-# is evicted (see the module docstring for why eviction is safe here).
 MAX_OBSERVED_SCOPES = 256
 
 # run_scope -> {abs_path: content_hash}, least-recently-used scope first.
 _observed: OrderedDict[str, dict[str, str]] = OrderedDict()
 
-# run_scope -> {abs file paths shown in an LS/Glob result}, for RM's lighter
-# "has this path been named" bar (see `check_listed`) — a weaker guarantee
-# than `_observed`'s content hash: RM's risk is picking
-# the wrong path, not destroying unseen content.
+# run_scope -> {abs paths shown in an LS/Glob result}, for `check_listed`.
 _listed_paths: OrderedDict[str, set[str]] = OrderedDict()
 
-# run_scope -> {dir abs path: hash of a shallow os.listdir at record time},
-# for RM(recursive=True): detects drift between listing and removal,
-# independent of what LS/Glob displayed.
+# run_scope -> {dir abs path: hash of a shallow os.listdir}, for RM(recursive=True).
 _listed_dirs: OrderedDict[str, dict[str, str]] = OrderedDict()
 
-# One lock per path, held for a whole Write/Edit call, closing the
-# check-then-write race between concurrent writers (e.g. two sub-agents in one
-# worktree). Never evicted: that would void the exclusion, and the map is
-# bounded by distinct paths written.
+# Held for a whole Write/Edit call to close the check-then-write race. Never
+# evicted: that would void the exclusion.
 _path_locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 
@@ -84,16 +49,7 @@ def _bucket(
     scope: str,
     default_factory: Callable[[], _BucketT],
 ) -> _BucketT:
-    """Get-or-create *scope*'s bucket in *store*, marked most-recently-used.
-
-    Shared by every ledger in this module (`_observed`, `_listed_paths`,
-    `_listed_dirs`) — one eviction rule instead of three copies of it.
-    Creating a bucket counts as a use; so does every lookup under an existing
-    scope — an active conversation must not be evicted out from under itself
-    by chatty delegations sharing the process. Any eviction drops the
-    least-recently-used scope (never the caller's: it was just moved to the
-    MRU end).
-    """
+    """Get-or-create *scope*'s bucket, mark it MRU, and evict past the cap."""
     bucket = store.get(scope)
     if bucket is None:
         bucket = default_factory()
@@ -106,8 +62,7 @@ def _bucket(
 
 
 def _peek(store: "OrderedDict[str, _BucketT]", scope: str) -> "_BucketT | None":
-    """Read-only lookup of *scope*'s bucket in *store*, marked MRU if
-    present. Never creates a bucket — a check must not fabricate history."""
+    """Look up *scope*'s bucket without creating one, marking it MRU if present."""
     bucket = store.get(scope)
     if bucket is not None:
         store.move_to_end(scope)
@@ -115,31 +70,16 @@ def _peek(store: "OrderedDict[str, _BucketT]", scope: str) -> "_BucketT | None":
 
 
 def record_observed(abs_path: str, content: str) -> None:
-    """Record `content` as this agent run's current knowledge of `abs_path`.
-
-    Call after any operation that ends up knowing the file's full current
-    content: a successful Read, or a successful Write/Edit (using the
-    content as it now stands on disk, not just the part that changed) —
-    so an immediate follow-up Write/Edit on the same path never needs a
-    fresh Read in between.
-    """
+    """Record `content` as this run's knowledge of `abs_path`'s full current content."""
     scope = get_current_agent_run_scope()
     _bucket(_observed, scope, dict)[abs_path] = _hash(content)
 
 
 def record_listed(root_abs_path: str, shown_paths: list[str]) -> None:
-    """Record that `root_abs_path` was the root of an LS/Glob call this
-    session, and that `shown_paths` (absolute paths actually returned —
-    post-truncation, so a truncated listing never over-claims) were seen to
-    exist. See `check_listed` for how this backs RM.
+    """Record an LS/Glob of `root_abs_path` that showed `shown_paths` (post-truncation).
 
-    `root_abs_path`, and every directory between it and each shown path, are
-    recorded too, not just the files themselves: LS/Glob return only
-    *files* (`walk_files` never yields directory paths, even for a listing
-    up to 3 levels deep), so a subdirectory — empty, or non-empty and only
-    known via the files shown inside it — would otherwise never satisfy
-    `check_listed`, even though a file's path in the listing directly implies
-    every directory on the way to it was seen too.
+    Directories between the root and each shown file are recorded too, since
+    LS/Glob return only files.
     """
     scope = get_current_agent_run_scope()
     bucket = _bucket(_listed_paths, scope, set)
@@ -167,14 +107,7 @@ def _binary_refusal(abs_path: str) -> str:
 
 
 def check_writable_text(abs_path: str) -> str | None:
-    """Return a blocking error string if `abs_path` exists but its bytes are
-    not valid UTF-8; `None` if a text Write/Edit may proceed.
-
-    Shared by the overwrite and append paths: both emit UTF-8 only, so
-    non-decodable bytes would be corrupted rather than written. Denied
-    outright, regardless of observed state — even a fresh Read is no
-    grounding here (a PDF's extracted text is not its bytes).
-    """
+    """A blocking error if `abs_path` exists but is not valid UTF-8, else `None`."""
     try:
         with open(abs_path, "r", encoding="utf-8") as f:
             f.read()
@@ -192,14 +125,10 @@ def check_writable_text(abs_path: str) -> str | None:
 
 
 def check_observed(abs_path: str) -> str | None:
-    """Return a blocking error string if `abs_path` wasn't observed as its
-    current content in this agent run; `None` if the overwrite may proceed.
+    """A blocking error unless this run observed `abs_path`'s current content.
 
-    Only meaningful for a destructive overwrite of an *existing* file — the
-    caller should skip this for a new file or a non-destructive append.
+    For overwriting an existing file; binary files are refused first.
     """
-    # Binary refusal first, before the recorded-state check: it is the root
-    # cause and holds no matter what this run has or hasn't read.
     binary_block = check_writable_text(abs_path)
     if binary_block is not None:
         return binary_block
@@ -232,19 +161,10 @@ def check_observed(abs_path: str) -> str | None:
 
 
 def check_listed(abs_path: str, *, recursive: bool) -> str | None:
-    """Return a blocking error string if `abs_path` isn't sufficiently
-    confirmed for RM; `None` if the removal may proceed.
+    """A blocking error unless `abs_path` is confirmed for RM, else `None`.
 
-    `recursive=False` covers a plain file or an already-empty directory
-    (`os.rmdir`) — neither destroys unseen content, so the bar is only that
-    the path is confirmed to be the one intended: a prior Read (`_observed`)
-    or having appeared in an LS/Glob result (`_listed_paths`) both satisfy it.
-
-    `recursive=True` covers a directory about to be recursively removed
-    (`shutil.rmtree`) — satisfied only by having LS/Glob'd that exact
-    directory, re-verified against a fresh `os.listdir` snapshot so a
-    directory that gained or lost top-level entries since being listed is
-    still caught (mirrors `check_observed`'s own staleness re-check).
+    Non-recursive: a prior Read or LS/Glob appearance suffices. Recursive:
+    the directory itself must have been listed, and unchanged since.
     """
     scope = get_current_agent_run_scope()
     if not recursive:
@@ -285,19 +205,13 @@ def check_listed(abs_path: str, *, recursive: bool) -> str | None:
 
 
 def record_seen(abs_path: str) -> None:
-    """Record that `abs_path` was confirmed to exist at this location this
-    run — e.g. a Move's destination — satisfying `check_listed`'s
-    non-recursive bar without claiming a full LS/Glob of its parent.
-    """
+    """Record that `abs_path` (e.g. a Move's destination) was seen, for `check_listed`."""
     scope = get_current_agent_run_scope()
     _bucket(_listed_paths, scope, set).add(abs_path)
 
 
 def clear_observed() -> None:
-    """Clear all recorded state. A test-isolation seam — production code
-    never needs this; the LRU cap bounds the map's growth (see
-    `MAX_OBSERVED_SCOPES`), and a restart clears it wholesale anyway.
-    """
+    """Clear all recorded state (test-isolation seam)."""
     _observed.clear()
     _listed_paths.clear()
     _listed_dirs.clear()

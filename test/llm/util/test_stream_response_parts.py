@@ -13,19 +13,14 @@ class TestStreamEventHandlerInit:
         assert handler.progress_idx == 0
         assert handler.was_tool_call_delta is False
         assert handler.was_tool_call_start is False
-        # Same value `__call__` resets to after every event — a fresh handler
-        # always starts mid-turn (see the field's own comment), never at a
-        # true blank buffer.
+
+
+
         assert handler.event_prefix == "\n  "
         assert handler.printed_tool_ids == set()
 
     def test_fresh_handler_first_print_has_a_leading_newline(self):
-        """Regression: the tool-execution loop (runner.py) builds a brand new
-        `StreamEventHandler` on every re-entry (e.g. once per tool-approval
-        round-trip), never at a genuinely blank buffer. Without a leading
-        newline on the very first thing it prints, that first line landed
-        with no separation from whatever the *previous* handler had already
-        printed, while every later line in the same handler got one."""
+        'A fresh handler starts output on a new line.'
         print_fn = MagicMock()
         handler = StreamEventHandler(print_fn=print_fn)
         from pydantic_ai import ToolCallPart
@@ -181,11 +176,7 @@ class TestStreamEventHandlerPartDelta:
 
 class TestStreamEventHandlerThinkingCollapse:
     def test_consecutive_thinking_parts_merge_into_one_block(self):
-        """Regression: OpenAI reasoning models stream a single thought as
-        several separate ThinkingPart/PartStartEvents (one per summary_index)
-        rather than deltas of one part. Closing on every PartStartEvent
-        collapsed each fragment into its own near-empty block instead of one
-        block holding the whole thought — this is that bug, pinned."""
+        'Consecutive thinking parts collapse into one block.'
         print_fn = MagicMock()
         on_start = MagicMock()
         on_collapse = MagicMock()
@@ -209,7 +200,7 @@ class TestStreamEventHandlerThinkingCollapse:
         third.part = ThinkingPart(content="Third paragraph of reasoning.")
         handler.handle_part_start(third)
 
-        # Only one open/close pair across the whole streak — not one per part.
+
         on_start.assert_called_once_with()
         on_collapse.assert_not_called()
 
@@ -222,11 +213,11 @@ class TestStreamEventHandlerThinkingCollapse:
         assert "First paragraph" in printed
         assert "Second paragraph" in printed
         assert "Third paragraph" in printed
-        # Only the first chunk gets the 🧠 lead-in; later chunks continue it.
+
         assert printed.count("🧠") == 1
 
-        # The accumulated "full" text handed to the collapse hook must also
-        # hold all three paragraphs — this is what a later expand shows.
+
+
         _collapsed, full = on_collapse.call_args[0]
         assert "First paragraph" in full
         assert "Second paragraph" in full
@@ -243,7 +234,7 @@ class TestStreamEventHandlerThinkingCollapse:
         handler.handle_part_start(mock_event)
 
         on_start.assert_called_once_with()
-        print_fn.assert_called()  # thinking still streams live either way
+        print_fn.assert_called()
 
     def test_tool_call_after_thinking_closes_and_collapses_it(self):
         print_fn = MagicMock()
@@ -271,27 +262,20 @@ class TestStreamEventHandlerThinkingCollapse:
         assert "Let me think..." in full_text
 
     def test_none_content_delta_does_not_print_literal_none(self):
-        """Some providers deliver thinking text out-of-band (provider_details
-        rather than content_delta, e.g. gpt-oss raw CoT), leaving
-        content_delta as None. f"{None}" would print the literal word "None"
-        into the transcript — must not."""
+        'A missing thinking delta does not print ``None``.'
         print_fn = MagicMock()
         handler = StreamEventHandler(print_fn=print_fn)
         from pydantic_ai import ThinkingPartDelta
 
         mock_event = MagicMock()
         mock_event.delta = ThinkingPartDelta(content_delta=None)
-        handler.handle_part_delta(mock_event)  # must not raise
+        handler.handle_part_delta(mock_event)
 
         printed = "".join(str(c.args[0]) for c in print_fn.call_args_list if c.args)
         assert "None" not in printed
 
     def test_carriage_return_in_a_delta_does_not_truncate_the_full_text(self):
-        """Regression: `append_to_output`'s `\\r` handling (built for progress
-        spinners) rewrites/erases part of the *rendered* line whenever a
-        chunk contains `\\r`. A naive "read back what's on screen" full-text
-        reconstruction would inherit that erasure and silently lose most of
-        the thought. Accumulating chunks at the source (here) must not."""
+        'Carriage returns do not truncate accumulated thinking text.'
         print_fn = MagicMock()
         on_collapse = MagicMock()
         handler = StreamEventHandler(
@@ -304,9 +288,9 @@ class TestStreamEventHandlerThinkingCollapse:
         start_event.part = ThinkingPart(content="Reasoning about the problem")
         handler.handle_part_start(start_event)
 
-        # A stray \r inside a later delta — plausible raw-token noise from a
-        # reasoning stream, and exactly what append_to_output's spinner
-        # handling would otherwise erase back-to-line-start for.
+
+
+
         delta_event = MagicMock()
         delta_event.delta = ThinkingPartDelta(
             content_delta="\rmore reasoning after a stray CR"
@@ -355,8 +339,7 @@ class TestStreamEventHandlerThinkingCollapse:
         on_collapse.assert_not_called()
 
     def test_run_result_closes_a_still_open_thinking_block(self):
-        """Edge case: the run ends with thinking as the last streamed part
-        (no subsequent tool call or text)."""
+        'Edge case: the run ends with thinking as the last streamed part'
         print_fn = MagicMock()
         on_collapse = MagicMock()
         handler = StreamEventHandler(
@@ -375,8 +358,7 @@ class TestStreamEventHandlerThinkingCollapse:
         on_collapse.assert_called_once()
 
     def test_without_hooks_thinking_still_streams_and_nothing_raises(self):
-        """Regression guard: a UI that never opts in (std_ui, Telegram, ...)
-        behaves exactly as before — thinking just streams, nothing collapses."""
+        'Without hooks, thinking streams without collapsing.'
         print_fn = MagicMock()
         handler = StreamEventHandler(print_fn=print_fn)
         from pydantic_ai import ToolCallPart
@@ -388,4 +370,4 @@ class TestStreamEventHandlerThinkingCollapse:
 
         tool_event = MagicMock()
         tool_event.part = ToolCallPart(tool_name="t", args={}, tool_call_id="1")
-        handler.handle_part_start(tool_event)  # must not raise
+        handler.handle_part_start(tool_event)

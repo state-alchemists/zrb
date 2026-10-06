@@ -1,35 +1,21 @@
 """Snapshots of a working directory as git trees, kept in a private bare
-repository whose work tree is the directory.
+repository whose work tree is the directory. Nothing is written into the
+directory or into any repository under it.
 
-Nothing is copied, and nothing is written into the directory or into any git
-repository under it. `/rewind` (`llm/snapshot/manager.py`) commits these trees
-into a persistent store; the self-review gate diffs two of them from a
-per-turn temporary store.
+`/rewind` (`llm/snapshot/manager.py`) commits these trees into a persistent
+store; the self-review gate diffs two of them from a per-turn temporary store.
 
-A snapshot holds exactly what `snapshot_listing.py` lists — every repository
-under the directory by its own ignore rules, nested ones included, and the
-loose files outside them up to a budget — fed to `git update-index`. An entry
-the listing no longer returns, deleted or ignored since, is dropped from the
-index first.
+A snapshot holds exactly what `snapshot_listing.py` lists; index entries the
+listing no longer returns are dropped first.
 
-Each snapshot, restore and graft works on an index file of its own, named for
-that one operation. A lock a killed git command leaves behind is on that file,
-so deleting it can never take another process's lock. The store's named index
-is only a stat cache — an operation starts from a copy of it, so a file
-unchanged since the last snapshot is not hashed again, and replaces it when
-done — and any state of it is a valid start, since every operation first
-brings its copy to the current listing. A snapshot also:
+Each operation works on its own index file, so a lock a killed git command
+leaves behind can never be another process's. The store's named index is only
+a stat cache: an operation starts from a copy and replaces it when done.
 
-- stores bytes exactly: the store's `info/attributes`, which outranks the
-  project's `.gitattributes`, disables line-ending and encoding conversion and
-  clean/smudge filters, so a restore cannot rewrite a file or write git-lfs
-  pointer files into the directory;
-- leaves out a file git cannot read rather than failing, and reports how many
-  it left out;
-- leaves out a file larger than `CFG.LLM_SNAPSHOT_FILE_MAX_MB` as if it were ignored — a
-  dataset or build artifact nobody ignored would otherwise be copied into the
-  store in full, and hashed again for as long as it keeps changing;
-- never holds the store itself, wherever it lies.
+A snapshot stores bytes exactly (`info/attributes` outranks `.gitattributes`
+and disables eol conversion and filters, so a restore cannot write git-lfs
+pointers), leaves out unreadable files and files over
+`CFG.LLM_SNAPSHOT_FILE_MAX_MB`, and never holds the store itself.
 """
 
 from __future__ import annotations
@@ -177,20 +163,10 @@ class SnapshotStore:
     def delete(self) -> None:
         """Remove the store and every object its snapshots wrote.
 
-        Git writes object files read-only, which Windows refuses to delete, so
-        each one refused is made writable and removed again — a store left
-        behind would keep copies of untracked files, secrets included.
-
-        Safe to call more than once, and on a store that was never created:
-        cleanup paths race, and a second delete must not mask the error that
-        triggered the first. A store removed between the check below and
-        `rmtree` reaches the error handler as `FileNotFoundError`, which it
-        treats as done.
-
-        Never raises, for the same reason: every caller is a cleanup path. A
-        store it could not fully remove is logged as a warning naming its
-        path instead, so its copies of untracked files can be removed by
-        hand."""
+        Read-only object files (which Windows refuses to delete) are made
+        writable and retried. Idempotent and never raises, since every caller
+        is a cleanup path; a store it could not fully remove is logged with
+        its path, since it may hold copies of untracked files."""
         if not os.path.isdir(self._git_dir):
             return
         try:
@@ -219,9 +195,7 @@ class SnapshotStore:
             os.makedirs(self._git_dir, mode=0o700, exist_ok=True)
             get_git_output(["init", "-q", "--bare", self._git_dir], None, deadline)
         # Owner-only, whatever the umask: the store holds copies of untracked
-        # files. A closed top directory keeps other users out of everything
-        # under it. Applied on every open, so a store created with looser
-        # permissions is tightened too.
+        # files. Applied on every open to tighten an older store too.
         os.chmod(self._git_dir, 0o700)
         info = os.path.join(self._git_dir, "info")
         os.makedirs(info, exist_ok=True)
@@ -260,13 +234,11 @@ class SnapshotStore:
         - ignored or excluded: left alone;
         - absent: recreated from the snapshot.
 
-        A write the filesystem refuses — a file another program holds open,
-        a directory without write permission — does not stop the others: git
-        writes every file it can, and the paths left behind are returned, so
-        restoring again finishes once the cause is gone. A failure before the
-        write raises, with nothing changed; one during it — a timeout — returns
-        every path the restore meant to change, since the directory is then
-        partly restored and restoring again finishes it."""
+        A write the filesystem refuses does not stop the others; the paths
+        left behind are returned, so restoring again finishes once the cause
+        is gone. A failure before the write raises with nothing changed; one
+        during it (a timeout) returns every path the restore meant to
+        change."""
         with self._operation_index(from_cache=True) as index:
             listing, unreadable = self._index_directory(index, deadline)
             before = self.git(["write-tree"], index=index, deadline=deadline).strip()
@@ -713,15 +685,11 @@ class SnapshotStore:
         """Add *paths* to the index — `--remove` drops one deleted from disk —
         and return the ones left out because they cannot be read.
 
-        `update-index` stops at the first file it cannot read. Its message
-        naming the file is not relied on — its wording differs between git
-        versions and is translated into the user's language — so when a run
-        fails, the unreadable files are found by opening each one, and the
-        rest are fed again (a rerun re-stats the others rather than hashing
-        them). A failure no unreadable file explains is raised. An
-        unreadable file's entry is dropped too, should the cached index hold
-        an earlier version: the snapshot must hold nothing for it, not stale
-        content."""
+        `update-index` stops at the first file it cannot read, and its message
+        is version-dependent and translated, so on failure the unreadable
+        files are found by opening each one and the rest are fed again. A
+        failure no unreadable file explains is raised. An unreadable file's
+        cached entry is dropped too, so the snapshot holds no stale content."""
         unreadable: list[str] = []
         remaining = list(paths)
         while True:
@@ -915,11 +883,8 @@ def _find_created_since(
     did not list are kept instead: a worktree or clone made since, whose own
     history holds its work.
 
-    Left-out paths are matched ignoring case and Unicode normalization
-    (`_fold`): on a filesystem that ignores them, `Build/` then is `build/`
-    now, and elsewhere this keeps at most a file that differs from a
-    left-out one only so. Repositories are
-    matched exactly, which errs the same way — toward keeping."""
+    Left-out paths are matched with `_fold`; repositories exactly. Both err
+    toward keeping."""
     then = {_fold(repository) for repository in snapshot.repositories}
     files = {
         _fold(path)

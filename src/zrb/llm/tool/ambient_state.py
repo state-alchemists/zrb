@@ -1,13 +1,4 @@
-"""Ambient state for tool calls — active worktree, current tool session.
-
-These `ContextVar`s are set by tools like `EnterWorktree` or by the prompt
-middleware, and read by other tools (e.g. `Shell`, `DelegateToAgent`, the todo
-tools) that need to know "what worktree are we in" or "which session's todos".
-
-The underlying `ContextVar`s stay where their owning tools define them. This
-module gives callers one place to look up "what tool-scoped ambient state
-exists" without chasing imports across tool modules.
-"""
+"""Ambient state for tool calls — active worktree, current tool session."""
 
 from __future__ import annotations
 
@@ -15,11 +6,8 @@ from contextvars import ContextVar
 
 from zrb.llm.input_source import InputProvenance
 
-# `ask.py` and `worktree.py` set these, but neither owns them: both declare
-# tool signatures and so import `pydantic`, while `live_context.py` reads this
-# state on the eager `import zrb` path. Storing them in this module — which
-# imports nothing heavier than `contextvars` — keeps that read from pulling
-# pydantic's machinery (~55ms) into every CLI invocation.
+# Declared here, not in `ask.py`/`worktree.py`, so `live_context.py` can read
+# them on the `import zrb` path without loading pydantic (~55ms).
 active_worktree: ContextVar[str] = ContextVar("zrb_active_worktree", default="")
 
 interactive_mode: ContextVar[bool] = ContextVar("zrb_interactive_mode", default=True)
@@ -51,10 +39,8 @@ def set_input_provenance(value: InputProvenance | None) -> None:
 
 _current_session: ContextVar[str] = ContextVar("zrb_current_session", default="default")
 
-# The display session name is a client label and not unique, so it is never
-# an ownership key. This carries `ChatSessionManager`'s unique dict key, bound
-# per message in `chat_session_runner.py`; `shell_background.py` tags
-# background processes with it so removing one session can't touch another's.
+# `ChatSessionManager`'s unique session key (the display name is not unique),
+# bound per message in `chat_session_runner.py`.
 current_chat_session_id: ContextVar[str] = ContextVar(
     "zrb_current_chat_session_id", default=""
 )
@@ -66,12 +52,7 @@ def get_current_chat_session_id() -> str:
 
 
 def get_session_ownership_key(display_name: str = "") -> str:
-    """Return the stable resource key, falling back for standalone CLI UIs.
-
-    Web chat binds the opaque manager ID for the lifetime of its driver task.
-    The interactive CLI has no ``ChatSessionManager`` ID, so its display name
-    remains the compatible fallback there.
-    """
+    """The chat session ID, falling back to *display_name* outside web chat."""
     return get_current_chat_session_id() or display_name or "default"
 
 
@@ -102,10 +83,7 @@ def get_current_tool_session() -> str:
 
 
 def set_current_tool_session(session_name: str) -> None:
-    """Set the session name that tool calls should default to.
-
-    Preferred over the `set_current_session` alias for readability.
-    """
+    """Set the session name that tool calls should default to."""
     set_current_session(session_name)
 
 

@@ -25,11 +25,7 @@ def test_base_task_init():
 
 
 def test_base_task_explicit_zero_readiness_values_are_kept():
-    """Explicit 0 must survive: monitoring treats timeout <= 0 as "no cap".
-
-    Falsy-value coercion used to turn an explicit readiness_timeout=0 into
-    60, making the documented "disable the cap" value unreachable.
-    """
+    """Explicit 0 must survive: monitoring treats timeout <= 0 as "no cap"."""
     task = BaseTask(
         name="test_task",
         readiness_timeout=0,
@@ -115,11 +111,8 @@ def test_base_task_fallbacks_property():
 
 
 def test_base_task_rejects_a_task_name_where_a_task_belongs():
-    """`upstream=["build"]` used to survive construction and blow up later,
-    inside the dependency walk, as `AttributeError: 'str' object has no
-    attribute 'upstreams'`."""
-    # `Any`: a name string is what a hand-written `zrb_init.py` may pass, and
-    # what the type checker already forbids — the runtime has to refuse it too.
+    """A task name where a task belongs fails at construction."""
+    # `Any`: the type checker forbids this, but `zrb_init.py` is unchecked.
     name_strings: Any = ["build"]
     builders = (
         lambda: BaseTask(name="t", upstream=name_strings),
@@ -198,12 +191,7 @@ def test_base_task_run():
 
 
 def test_base_task_run_swallows_top_level_cancel():
-    """Ctrl+C / SIGINT at the sync entry exits quietly, no traceback.
-
-    The async layers re-raise CancelledError so a cancelled session never
-    looks successful to programmatic callers; run() (the asyncio.run boundary)
-    must absorb it and return None instead of dumping a traceback.
-    """
+    """Ctrl+C at the sync `run()` boundary returns None instead of raising."""
 
     def cancelling_action(ctx):
         raise asyncio.CancelledError()
@@ -284,12 +272,7 @@ async def test_base_task_execute_condition_skipped():
 
 @pytest.mark.asyncio
 async def test_exec_action_enriches_exceptions_from_overridden_exec_action():
-    """Regression: subclasses that override `_exec_action` wholesale (CmdTask,
-    HttpCheck, TcpCheck, Scaffolder, Scheduler, ...) used to lose the base
-    class's "Task: name (file:line)" exception-enrichment note, because it
-    lived inside `_exec_action` itself rather than around the call to it.
-    The enrichment must apply regardless of how `_exec_action` is overridden.
-    """
+    """The "Task: name (file:line)" note applies even when `_exec_action` is overridden."""
 
     class RaisingTask(BaseTask):
         async def _exec_action(self, ctx):
@@ -348,12 +331,7 @@ class TestBaseTaskToFunction:
         assert "my_param" in param_names
 
     def test_to_function_signature_is_keyword_only(self):
-        """The signature must match the wrapper, which accepts no positional.
-
-        `task_runner_fn(**kwargs)` is keyword-only; advertising the parameters
-        as `POSITIONAL_OR_KEYWORD` told `help()`, IDEs, and CLI builders that
-        `fn(value)` works, and it raises `TypeError` at the call.
-        """
+        """The signature matches the wrapper, which accepts no positional argument."""
         import inspect
 
         from zrb.input.str_input import StrInput
@@ -364,7 +342,7 @@ class TestBaseTaskToFunction:
         assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
 
     def test_to_function_rejects_a_positional_call(self):
-        """A positional call fails, exactly as the signature now advertises."""
+        """A positional call fails, as the signature advertises."""
         from zrb.input.str_input import StrInput
 
         task = BaseTask(name="test_task", input=[StrInput(name="target_env")])

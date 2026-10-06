@@ -41,11 +41,9 @@ def mock_deps():
 async def test_http_ui_print_and_input(mock_deps):
     ui, session_manager, _ = mock_deps
 
-    # Test print text (public API)
     await ui.print("hello", kind="text")
     session_manager.broadcast.assert_called_with("test-id", "hello", kind="text")
 
-    # Test input lifecycle using public methods
     ui.handle_incoming_message("user input")
     res = await ui.get_input("Please enter:")
 
@@ -76,7 +74,6 @@ async def test_http_ui_confirm_tool_execution(mock_deps):
 @pytest.mark.asyncio
 async def test_http_ui_run_async_logic(mock_deps):
     ui, _, _ = mock_deps
-    # last_output is public
     with patch(
         "zrb.llm.ui.base.ui.BaseUI.last_output", new_callable=PropertyMock
     ) as mock_last:
@@ -105,18 +102,12 @@ def test_create_http_ui_factory_with_commands():
         initial_attachments=None,
     )
 
-    # Check public yolo and commands indirectly if possible,
-    # but at least check that the factory returned a UI
     assert ui is not None
 
 
 @pytest.mark.asyncio
 async def test_print_streaming_then_text_both_broadcast(mock_deps):
-    """A `text` print right after a `streaming` print broadcasts too -- there
-    is no swallow-the-next-text-call hack. The non-interactive (web) loop
-    never re-emits streamed content as `text`, so nothing here needs
-    de-duplicating; the finalized answer arrives separately, as `markdown`
-    (see append_markdown)."""
+    """A `text` print right after a `streaming` print broadcasts too."""
     ui, session_manager, _ = mock_deps
     session_manager.broadcast.reset_mock()
     await ui.print("partial chunk", kind="streaming")
@@ -127,9 +118,7 @@ async def test_print_streaming_then_text_both_broadcast(mock_deps):
 
 @pytest.mark.asyncio
 async def test_append_markdown_broadcasts_raw_text_as_markdown_kind(mock_deps):
-    """append_markdown sends the raw markdown source, not ANSI/Unicode-art --
-    the browser renders it (marked + KaTeX + mermaid), unlike the CLI's
-    BaseUI.append_markdown, which would run it through render_markdown."""
+    """append_markdown sends the raw markdown source for the browser to render."""
     ui, session_manager, _ = mock_deps
     session_manager.broadcast.reset_mock()
 

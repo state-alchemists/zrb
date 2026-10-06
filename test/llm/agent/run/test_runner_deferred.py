@@ -272,16 +272,7 @@ async def test_stop_event_wrote_files_true_after_deferred_tool_approval():
     ],
 )
 async def test_run_agent_deferred_never_reapplies_processors(calls, approvals):
-    """History processors are never reapplied between deferred-tool iterations
-    (ADR-0040 Fix B), regardless of what current_results looks like.
-
-    This used to be a conditional guard (skip only when current_results had
-    pending calls/approvals), but process_deferred_requests always populates
-    current_results.approvals for every resolved call (approved, denied, or
-    hook-blocked alike), so the guard's condition was always true in
-    practice -- the dead reapplication branch and the now-always-true guard
-    were removed in favor of always feeding run_history through unchanged.
-    """
+    """History processors run only for the initial history preparation (ADR-0040)."""
     from pydantic_ai import DeferredToolRequests, DeferredToolResults
 
     processor_calls = []
@@ -338,13 +329,7 @@ async def test_run_agent_deferred_never_reapplies_processors(calls, approvals):
 
 @pytest.mark.asyncio
 async def test_run_agent_deferred_mismatch_recovers_without_crash():
-    """A deferred-mismatch UserError mid-stream is recovered, not raised.
-
-    Regression: the clear_results retry path used to leave new_history=None,
-    which the loop fed into sanitize_history(None) and crashed with TypeError.
-    With the fix the handler returns the intact run_history, so the loop
-    sanitizes a real list and the next iteration succeeds.
-    """
+    """Recover a deferred-mismatch ``UserError`` and continue the run."""
     from pydantic_ai.exceptions import UserError as PydanticUserError
 
     agent = MagicMock()

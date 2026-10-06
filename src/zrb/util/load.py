@@ -35,10 +35,8 @@ def load_module_with_result(
 ) -> tuple[ModuleType | None, Exception | None]:
     """Import *name* and return `(module, error)`.
 
-    The failing import is returned rather than raised, so `zrb_init.py`'s
-    loader can report it itself. A partially initialized module is included
-    when the import system kept it; CPython often drops a failed module from
-    `sys.modules`, in which case there is no state left to inspect.
+    The error is returned rather than raised. A partially initialized module
+    is included when `sys.modules` kept it.
     """
     error = _execute(lambda: load_module(name))
     return sys.modules.get(name), error
@@ -47,13 +45,7 @@ def load_module_with_result(
 def load_file(path: str, raise_on_error: bool = False) -> ModuleType | None:
     """Exec `path` as a module and return it.
 
-    A broken file is reported and yields `None` by default — the lenient
-    contract most callers (discovery of optional plugin/skill files) want.
-    Pass `raise_on_error=True` for a call site that needs the real exception
-    rather than a printed line and a `None` it may not even check — e.g.
-    `zrb_init.py`'s loader (`_load_or_warn`), which reports the file, line,
-    and exception type precisely rather than this function's own generic
-    "Error loading file X: e" fallback.
+    A broken file is reported and yields `None`, unless `raise_on_error=True`.
     """
     if not os.path.exists(path):
         return None
@@ -71,11 +63,8 @@ def load_file(path: str, raise_on_error: bool = False) -> ModuleType | None:
 def load_file_with_result(path: str) -> tuple[ModuleType | None, Exception | None]:
     """Exec *path* and return `(module, error)`.
 
-    Like `load_file(..., raise_on_error=True)`, but returns the failure
-    instead of raising, and returns the module even when exec raised: the
-    declarations that ran before the failure are already live in the CLI
-    tree, so startup diagnostics must still see them. `sys.modules` cannot
-    serve that, since every `zrb_init.py` registers under the same name.
+    The module is returned even when exec raised: declarations that ran
+    before the failure are already live in the CLI tree.
     """
     if not os.path.exists(path):
         return None, None

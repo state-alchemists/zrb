@@ -37,13 +37,8 @@ class RsyncTask(CmdTask):
             exclude_from: Path to a file listing rsync exclude patterns, passed
                 through as `--exclude-from`.
 
-        Every parameter `CmdTask` accepts is also accepted here **except
-        `cmd` and `warn_unrecommended_command`** — the command is generated
-        from the paths above, so neither is meaningful. The rest behaves
-        identically, except for the two that only make sense for a
-        user-supplied command: `cmd`, which is generated here from the paths
-        above, and `warn_unrecommended_command`, which screens a command you
-        wrote.
+        Every other parameter is `CmdTask`'s, except `cmd` and
+        `warn_unrecommended_command`, since the command is generated.
         """
         reject_non_rsync_params("RsyncTask", dict(kwargs))
         super().__init__(

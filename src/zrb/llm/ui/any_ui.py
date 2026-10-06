@@ -33,29 +33,11 @@ class ChoiceSpec(TypedDict, total=False):
 class AnyUI(ABC):
     """The UI contract every task's `ui` slot is typed against.
 
-    Every built-in implementer (`BaseUI`, `StdUI`, `MultiUI`, `BufferedUI`,
-    and everything `BaseUI` itself subclasses — `SimpleUI`/`EventDrivenUI`/
-    the default `UI`) explicitly inherits this class, so a
-    subclass missing a method fails at instantiation (`TypeError`) rather
-    than at first use, deep in a session. A custom UI written per
-    `docs/llm/llm-custom-ui.md` gets this for free by
-    subclassing `SimpleUI`/`EventDrivenUI`/`BaseUI` — none of
-    zrb's own docs show implementing this class directly.
-
-    The contract is in two halves: the eight behavioral methods below, which
-    every UI performs, and the twenty-two state members and side-effect hooks
-    after them, which describe what a *full* UI keeps. `BaseUI` implements all
-    twenty-two; a UI that keeps none of it mixes in `UIStateDefaultsMixin`
-    (`llm/ui/state_defaults.py`). `track_echo_span`/`redraw_echo` are declared
-    in the mixin too, with inert defaults, so a UI that never splices an echo
-    (any of the wrappers) constructs unchanged.
-
-    The state half is declared here, rather than left to `getattr` probes at
-    the call site, because `MultiUI` reads seven of these members off its
-    *primary* child (`main_ui`) to drive snapshots, rewind, the `/plan` badge
-    and the model display. A custom UI placed in that slot without them used
-    to lose those features silently, with no error and nothing in the type
-    checker; declaring them makes the omission a `TypeError` at construction.
+    Eight behavioral methods every UI performs, then the state members and
+    side-effect hooks a full UI keeps. `BaseUI` implements all of them; a UI
+    that keeps none mixes in `UIStateDefaultsMixin`. The state half is
+    abstract because `MultiUI` reads it off its primary child, so a custom UI
+    missing it fails with `TypeError` at construction.
     """
 
     @abstractmethod
@@ -109,34 +91,25 @@ class AnyUI(ABC):
 
     @abstractmethod
     def track_echo_span(self, entry: "QueuedMessage", echo: str) -> None:
-        """Record the output-buffer span of `echo` on `entry`.
+        """Record the output-buffer span of `echo` on `entry` for `redraw_echo`.
 
-        Called right after a submitted message's echo lands, so a later
-        `redraw_echo` can rewrite that exact region. A UI with no output buffer
-        to splice leaves the entry untouched (`UIStateDefaultsMixin` provides
-        that inert default); the default TUI overrides both hooks through
-        `UIMessageEditing`.
+        A UI with no output buffer leaves the entry untouched.
         """
 
     @abstractmethod
     def redraw_echo(self, entry: "QueuedMessage") -> str | None:
         """Rewrite `entry`'s echoed line from its current text.
 
-        Returns the rewritten line, or None when this UI could not splice it in
-        place (no buffer, or the recorded span no longer holds the echo) — the
-        caller then falls back to a fresh echo through the UI's own output
-        path.
+        Returns the rewritten line, or None when it could not be spliced in
+        place; the caller then echoes afresh.
         """
 
     @abstractmethod
     def remove_echo(self, entry: "QueuedMessage") -> None:
         """Take `entry`'s echoed line out of this UI's output.
 
-        The delete-side counterpart to `redraw_echo`, called once per target UI
-        when a still-queued message is dropped, so no transcript keeps a line
-        for a message that will never run. A UI with no output buffer to splice
-        leaves the entry alone (`UIStateDefaultsMixin` provides that inert
-        default); the default TUI overrides it through `UIMessageEditing`.
+        Called when a still-queued message is dropped. A UI with no output
+        buffer leaves the entry alone.
         """
 
     @property
@@ -188,10 +161,7 @@ class AnyUI(ABC):
     def yolo(self) -> bool | frozenset:
         """Auto-approval state: False, True, or the set of auto-approved tools.
 
-        Read-only in the contract. Every assignment in the codebase goes
-        through a `BaseUI`-typed receiver (`ui/base/model_commands.py`), which
-        adds its own setter; a UI that merely reports the state does not need
-        one.
+        Read-only here; `BaseUI` adds the setter.
         """
 
     @property
@@ -248,12 +218,7 @@ class AnyUI(ABC):
     @property
     @abstractmethod
     def last_output(self) -> str:
-        """The last answer this UI rendered, or "" when it has none.
-
-        Read-only in the contract: it reports what was rendered rather than
-        setting it. `UIStateDefaultsMixin` adds a setter for UIs that assign
-        it directly, which a caller typed against `AnyUI` cannot reach.
-        """
+        """The last answer this UI rendered, or "" when it has none."""
 
     @property
     @abstractmethod

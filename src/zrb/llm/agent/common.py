@@ -106,12 +106,7 @@ def wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
 
 
 def safe_copy_result(result: Any) -> Any:
-    """Create a safe copy of a tool result to prevent mutation.
-
-    Deep copies mutable objects (lists, dicts, sets) but returns immutable
-    objects (strings, numbers, None) as-is. This prevents pydantic-ai from
-    modifying the original tool results during processing.
-    """
+    """Copy tool results so downstream processing cannot mutate the original."""
     if result is None:
         return None
     if isinstance(result, (str, int, float, bool)):
@@ -147,18 +142,7 @@ def _apply_tool_result_limit(tool_name: str, result: Any) -> Any:
 
 
 def _oversize_metadata(value: Any) -> dict[str, Any]:
-    """Flag an oversized tool result in metadata, without rewriting it.
-
-    ``CFG.LLM_MAX_TOOL_RESULT_CHARS`` does not bound what the model reads:
-    the field that becomes the tool-result message goes through
-    whole. The size is recorded and the value is passed through untouched.
-
-    Metadata never reaches the model; it is there so a real cap can be decided
-    on evidence.
-
-    Multimodal content is not measured at all — its text rendering is a repr,
-    not the file, so a character count of it would be meaningless.
-    """
+    """Record oversized textual results without changing their content."""
     if has_multimodal(value):
         return {}
     rendered = value if isinstance(value, str) else to_string(value)
@@ -195,9 +179,7 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
             if inspect.iscoroutinefunction(func):
                 result = await func(*args, **kwargs)
             else:
-                # pydantic-ai's own sync-tool offload doesn't apply to this
-                # coroutine wrapper, so offload here. ContextVars propagate;
-                # no sync tool writes them.
+                        # Offload sync tools; ContextVars propagate to the worker.
                 result = await asyncio.to_thread(func, *args, **kwargs)
 
             # If result is already a ToolReturn, return it as-is. The tool framed

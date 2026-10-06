@@ -21,9 +21,7 @@ the safe-wrappers in ``agent/common.py``:
   call, redundant with the chokepoint above for real invocations) that has
   no `RunContext` to offer.
 
-Both return a blocked ``ToolReturn`` to short-circuit the call, or ``None`` to
-let it proceed. ``None`` is the zero-cost default path (no policy / sandbox
-disabled), so the common case is unaffected.
+Both return a blocked ``ToolReturn`` or ``None``; the default path is unchanged.
 """
 
 from __future__ import annotations
@@ -43,13 +41,7 @@ from zrb.llm.sandbox.policy import SandboxPolicy
 
 
 def permission_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> Any:
-    """Return a blocked ``ToolReturn`` if the in-force policy denies this call.
-
-    Returns ``None`` when nothing denies it (the default — no policy and
-    ``AgentMode.BUILD`` → always ``None``, so the synchronous path is
-    unchanged). Enforces the *deny* outcome that the approval layer (allow/ask)
-    cannot express, without touching the deferred-request machinery.
-    """
+    """Return a blocked ``ToolReturn`` when policy denies the call."""
     policy = get_effective_policy()
     if policy is None:
         return None
@@ -69,19 +61,7 @@ def permission_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> An
 def sandbox_gate(
     tool_name: str, capability: Any, args: dict[str, Any], ctx: Any = None
 ) -> Any:
-    """Return a blocked ``ToolReturn`` if the sandbox FS policy denies this call.
-
-    Returns ``None`` when the sandbox is disabled (the default — zero-cost
-    path) or no path argument violates the policy. EXECUTE tools are not
-    path-checked here: shell commands are contained by the OS-level sandbox
-    layer, not by argument inspection.
-
-    ``ctx`` is a pydantic-ai ``RunContext`` (or ``None``): when given and
-    ``ctx.deps`` is set, that's the policy `run_agent` resolved once for this
-    run — read instead of the ambient ``ContextVar``, since it's the same
-    value by construction and this is the one gate call site
-    (`SafeToolsetWrapper.call_tool`) every real tool call passes through.
-    """
+    """Return a blocked ``ToolReturn`` when the sandbox denies a path."""
     # Argument keys the sandbox gate treats as filesystem paths (subset of the
     # permission layer's _SALIENT_ARG_KEYS). Reads check every path-like arg;
     # writes additionally check them for EDIT/UNKNOWN tools ("src" is write-checked

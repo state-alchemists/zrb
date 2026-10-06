@@ -1,8 +1,7 @@
 """Journal writers that own the on-disk format.
 
-The model supplies *content*; this module supplies *structure*. Paths,
-timestamps, index registration, and reciprocal backlinks are derived here, which
-is what makes these five invariants unviolatable rather than merely checkable:
+The model supplies *content*; this module derives paths, timestamps, index
+entries and backlinks, which upholds these invariants by construction:
 
 - **broken-link** — a link is only written after its target is confirmed on disk.
 - **missing-backlink** — the reciprocal entry is inserted in the same call.
@@ -31,9 +30,7 @@ ACTIVITY_DIR = "activity-log"
 _HISTORY_HEADING = "## History"
 _HISTORY_MAX_ENTRIES = 3
 
-# Which HUD section a note's one-line summary lands in. `projects` and
-# `technical` carry situational facts rather than identity or taste, so they
-# share the constraints section.
+# Which HUD section a note's one-line summary lands in.
 _HUD_SECTION = {
     "user": "User",
     "preferences": "Preferences",
@@ -238,18 +235,13 @@ delete_journal_note.__name__ = "DeleteJournalNote"
 
 
 def _scrub_links_to(root: str, target_path: str) -> None:
-    """Drop every markdown link line elsewhere in *root* resolving to
-    *target_path* — a bare `- [title](path)` line, or a HUD line ending in
-    `([note](path))` — rewriting each changed file once.
+    """Drop every `- [title](path)` or HUD `([note](path))` line elsewhere in
+    *root* that resolves to *target_path*.
 
-    ponytail: the label is matched greedily because a title is free-form model
-    text and may itself contain `]`; the target is anchored at the end of the
-    line, so backtracking from the right always finds the *last* link — the one
-    a bullet points at.
+    ponytail: the label is matched greedily since a title may contain `]`;
+    the end-anchored target always finds the last link on the line.
 
-    ponytail: a full-tree scan per delete — the journal is personal notes,
-    not a corpus, so O(files) here is cheap; upgrade to an index if this
-    journal ever grows past a size where that stops being true.
+    ponytail: a full-tree scan per delete; add an index if the journal grows large.
     """
     link_re = re.compile(r"^- (?:\[.*\]\(([^)]+)\)|.*\(\[note\]\(([^)]+)\)\))\s*$")
     target_abs = os.path.abspath(target_path)
@@ -288,9 +280,7 @@ def _open_journal() -> Iterator[str]:
     """Yield the journal root with its tree in place, the lock held, and git
     initialized when `LLM_JOURNAL_GIT_ENABLED`."""
     root = ensure_journal_tree()
-    # One lock over the whole root makes the multi-file update (note,
-    # backlinks, two indexes) atomic against a concurrent writer — a sub-agent,
-    # the main session, or the compliance-judge hook.
+    # One root lock makes the multi-file update atomic against concurrent writers.
     with hold_file_lock(os.path.join(root, ".lock")):
         if CFG.LLM_JOURNAL_GIT_ENABLED:
             _ensure_journal_git(root)
@@ -326,13 +316,9 @@ def ensure_journal_tree() -> str:
 
 
 def _ensure_journal_git(root: str) -> None:
-    """Best-effort `git init` for the journal root, so writes/deletes become
-    real, unbounded commits instead of relying only on the in-file History
-    block (capped at `_HISTORY_MAX_ENTRIES`). Never raises: a missing `git`
-    binary or a failed init leaves an ungitted but fully working journal —
+    """Best-effort `git init` of the journal root. Never raises.
 
-    Callers must hold the journal lock — this races two first-time
-    writers' `git init`/initial commit against each other otherwise."""
+    Callers must hold the journal lock, or two first-time writers race."""
     if os.path.isdir(os.path.join(root, ".git")):
         return
     try:
@@ -349,11 +335,9 @@ def _ensure_journal_git(root: str) -> None:
 
 
 def _git_commit(root: str, message: str) -> None:
-    """Best-effort `git add -A && git commit`, scoped to *root*. Silent on any
-    failure (no git binary, nothing to commit, git not initialized here, a
-    timeout) — this is a durability backstop, never a new way for a journal
-    call to fail. Inline `-c user.*` flags so it never depends on the
-    environment's global git identity being configured."""
+    """Best-effort `git add -A && git commit` in *root*; silent on any failure.
+
+    Inline `-c user.*` so no global git identity is needed."""
     if not os.path.isdir(os.path.join(root, ".git")):
         return
     git_identity = ["-c", "user.name=zrb-journal", "-c", "user.email=journal@zrb.local"]
@@ -382,8 +366,7 @@ def _git_commit(root: str, message: str) -> None:
             timeout=timeout,
         )
     except (OSError, subprocess.SubprocessError):
-        # TimeoutExpired subclasses SubprocessError: a hung git (GPG-sign
-        # prompt, stale index.lock) is swallowed like a missing binary.
+        # Includes TimeoutExpired (GPG-sign prompt, stale index.lock).
         return
 
 
@@ -435,26 +418,9 @@ def _write_note_file(
     source: str,
     targets: list[str],
 ) -> None:
-    """Write the note, preserving the link graph an earlier revision accumulated.
-
-    A note gets re-written whenever its finding is refined, and the *whole* file
-    is composed from the arguments — which is why the two link blocks have to be
-    merged rather than rebuilt. Neither is the caller's to supply on an update:
-
-    * ``## Backlinks`` is written by *other* notes, via ``_add_backlink``.
-      Rebuilding it would leave B with no way back to A after linking A→B and
-      then updating B — a ``missing-backlink`` violation.
-    * ``## Related`` holds the forward links. Dropping those while the targets
-      keep their backlinks is the same break seen from the other end — a
-      backlink pointing at a note that no longer claims the relationship.
-    * ``## History`` holds prior Context/Finding pairs, capped at
-      ``_HISTORY_MAX_ENTRIES``. Populated from ``_prior_revision_entry``, read
-      before this function overwrites the file — otherwise a belief change
-      (a decision reversed, a root cause corrected) leaves no trace of what
-      was believed before, or when it changed.
-
-    Merging is the conservative direction: a link is added here, never removed, and
-    ``_resolve_links`` has already confirmed each new target exists on disk.
+    """Write the note, merging (never dropping) the existing ``## Backlinks``
+    and ``## Related`` links, and appending the superseded Context/Finding to
+    ``## History`` (capped at ``_HISTORY_MAX_ENTRIES``).
     """
     history = _merge_entries(
         _entries_under(note_path, _HISTORY_HEADING), _prior_revision_entry(note_path)
@@ -468,8 +434,7 @@ def _write_note_file(
             for target in targets
         ],
     )
-    # The directory index is what makes this note reachable from the root, so it
-    # is the note's first backlink by construction.
+    # The directory index is always the first backlink.
     backlinks = _merge_entries(
         _entries_under(note_path, _BACKLINKS_HEADING), ["- [index](index.md)"]
     )
@@ -502,16 +467,8 @@ def _write_note_file(
 
 
 def _entries_under(path: str, heading: str) -> list[str]:
-    """The `- […](…)` lines already listed under *heading* in an existing file.
-
-    Empty for a file that does not exist yet, or that has no such heading.
-    """
-    return _entries_under_text(_read_text(path), heading)
-
-
-def _entries_under_text(text: str, heading: str) -> list[str]:
-    """`_entries_under`, given the file's content directly (no re-read)."""
-    lines = text.splitlines()
+    """The `- ` lines under *heading* in *path*, or `[]`."""
+    lines = _read_text(path).splitlines()
     if heading not in lines:
         return []
     start, end = _section_bounds(lines, heading)
@@ -551,9 +508,7 @@ def _is_inside(path: str, parent: str) -> bool:
 
 
 def _posix_relpath(path: str, start: str) -> str:
-    """`os.path.relpath`, normalized to `/` so journal messages and the
-    markdown links written into index/backlink files stay portable across
-    the platform that wrote them and whatever platform later reads them."""
+    """`os.path.relpath` with `/` separators, for portable markdown links."""
     return os.path.relpath(path, start).replace(os.sep, "/")
 
 
@@ -580,9 +535,7 @@ def _register_link(
 ) -> None:
     """Append `- [label](rel_target)` to an index, under *heading* if given.
 
-    Exactly one entry per target survives: the first existing line for the
-    target is relabelled in place (keeping its position and section) and any
-    later duplicates are dropped.
+    An existing entry for the target is relabelled in place; duplicates are dropped.
     """
     entry = f"- [{label}]({rel_target})"
     text = _read_text(index_path)
@@ -631,12 +584,8 @@ def _section_bounds(lines: list[str], heading: str) -> tuple[int, int]:
 def _upsert_hud_line(root: str, section: str, line: str, note_rel: str) -> None:
     """Pin *line* under *section*, replacing any earlier line from the same note.
 
-    The trailing note link is the key: a revised note's HUD line supersedes
-    its old one instead of sitting beside it as a contradicting fact. A line
-    with no link — pinned before HUD lines carried one — cannot be attributed
-    without guessing, so it stays until the section cap evicts it; the one
-    exception is a line reading exactly as the new one does, which is the
-    same fact and would otherwise appear twice.
+    Lines are keyed by their trailing note link; an unlinked line is replaced
+    only when identical to the new one.
     """
     own = f" ([note]({note_rel}))"
     base = f"- {line.removeprefix('- ')}"
@@ -659,14 +608,9 @@ def _upsert_hud_line(root: str, section: str, line: str, note_rel: str) -> None:
 
 
 def _cap_section_entries(text: str, heading: str, max_entries: int) -> str:
-    """Keep only the newest *max_entries* bullet lines under *heading*,
-    dropping the oldest first (entries are always appended at the end).
-    `<= 0` means uncapped.
+    """Keep only the newest *max_entries* lines under *heading* (`<= 0` uncapped).
 
-    Scoped to HUD sections only (User/Preferences/Active Constraints) by
-    every caller — `Recent Insights` and category indexes must stay uncapped,
-    since their completeness is what makes them a trustworthy full catalog
-    for direct Read.
+    For HUD sections only; catalogs like `Recent Insights` stay complete.
     """
     if max_entries <= 0:
         return text
@@ -694,9 +638,7 @@ def _insert_before_backlinks(path: str, entry: str) -> None:
 
 
 def _prior_revision_entry(note_path: str) -> list[str]:
-    """The just-superseded Context/Finding as one dated `## History` bullet,
-    or `[]` for a brand-new note. Must be read before `_write_note_file`
-    overwrites *note_path* — this function only reads."""
+    """The current Context/Finding as a dated `## History` bullet, or `[]`."""
     text = _read_text(note_path)
     if not text:
         return []

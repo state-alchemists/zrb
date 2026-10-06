@@ -1,9 +1,4 @@
-"""Shared queue-based input handling for event-driven UI backends.
-
-Composed into `EventDrivenUI`, which needs "block on `get_input()` until a
-message arrives via `handle_incoming_message()`" — see that class for what
-it still owns.
-"""
+"""Queue-based input handling composed into `EventDrivenUI`."""
 
 from __future__ import annotations
 
@@ -19,14 +14,7 @@ if TYPE_CHECKING:
 
 
 class QueueBasedInput:
-    """`input_queue`/`get_input`/`handle_incoming_message`, shared verbatim.
-
-    Owns the queue and the waiting flag itself rather than reaching into
-    `EventDrivenUI` state: only `print()`, `submit_message()` and
-    `custom_commands` are read from `self._simple_ui`, and those are already
-    public. `_llm_task` is reassignable via the `llm_task` property after
-    construction on the owner, not this part.
-    """
+    """Blocks `get_input()` until `handle_incoming_message()` delivers."""
 
     def __init__(self, simple_ui: "SimpleUI") -> None:
         self._simple_ui = simple_ui
@@ -37,12 +25,8 @@ class QueueBasedInput:
 
     @property
     def input_queue(self) -> "asyncio.Queue[str]":
-        """The queue incoming messages land on.
-
-        The public read seam for the queue — without it a caller (or a test)
-        asserting on queue state has to reach for the private attribute. Prefer
-        `handle_incoming_message()` for *routing* a message in.
-        """
+        """The queue incoming messages land on; route via
+        `handle_incoming_message()`."""
         return self._input_queue
 
     @property
@@ -86,13 +70,8 @@ class QueueBasedInput:
             self._simple_ui.submit_message(text, source)
 
     def handle_incoming_message(self, text: str, source: InputProvenance | None = None):
-        """Call this when a message arrives from your backend.
-        Routes the message to the appropriate handler:
-        - If waiting for input (ask_user blocked), it goes to the queue
-        - If it matches a custom slash command, the resolved prompt is sent,
-          or the command runs in-process and its reply is printed
-        - Otherwise, it's submitted as a new user message to the LLM
-        """
+        """Route a message from your backend: to a blocked `ask_user`, to a
+        custom slash command, or else as a new user message."""
         if self.waiting_for_input:
             self.input_queue.put_nowait(text)
             return

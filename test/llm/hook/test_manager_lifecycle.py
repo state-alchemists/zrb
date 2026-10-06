@@ -1,4 +1,4 @@
-"""Tests for HookManager class using Public API."""
+'Tests for HookManager class using Public API.'
 
 import json
 import os
@@ -16,7 +16,7 @@ from zrb.llm.hook.types import HookEvent, HookType
 
 @pytest.fixture
 def manager():
-    """Create HookManager for tests."""
+    'Create HookManager for tests.'
     mock_cfg = MagicMock()
     mock_cfg.ROOT_GROUP_NAME = "zrb"
     mock_cfg.LLM_PLUGIN_DIRS = []
@@ -26,13 +26,13 @@ def manager():
 
 
 class TestHookManagerLifecycle:
-    """Test HookManager initialization, scanning, and reloading."""
+    'Test HookManager initialization, scanning, and reloading.'
 
     @pytest.mark.asyncio
     async def test_scan_default_paths(self, manager):
-        # The fixture already sets search_dirs=[] to avoid loading real hooks
+
         manager.scan()
-        # Calling twice should be fine
+
         manager.scan()
 
     @pytest.mark.asyncio
@@ -42,15 +42,15 @@ class TestHookManagerLifecycle:
 
         manager.add_hook(my_hook, events=[HookEvent.SESSION_START])
 
-        # Verify it's there
+
         results = await manager.execute_hooks(HookEvent.SESSION_START, {})
         assert len(results) == 1
 
-        # Reload should clear manually registered hooks. The fixture's
-        # search_dirs=[] override already keeps this hermetic.
+
+
         manager.reload()
         results = await manager.execute_hooks(HookEvent.SESSION_START, {})
-        # Journaling hook is disabled in test fixture
+
         assert len(results) == 0
 
     @pytest.mark.asyncio
@@ -61,7 +61,7 @@ class TestHookManagerLifecycle:
         (fake_home / ".claude" / "hooks.json").touch()
 
         with patch("pathlib.Path.home", return_value=fake_home):
-            # No search_dirs override, so this exercises the computed default.
+
             dirs = HookManager().search_dirs
             assert isinstance(dirs, list)
             assert any(".claude" in str(d) for d in dirs)
@@ -79,8 +79,8 @@ class TestHookManagerLifecycle:
             patch("pathlib.Path.cwd", return_value=leaf),
             patch.dict(os.environ, {"ZRB_ROOT_GROUP_NAME": "zrb"}),
         ):
-            # Forward slashes on every platform: the nested path is the point
-            # of the assertion, the separator is not.
+
+
             dirs = [Path(str(d)).as_posix() for d in HookManager().search_dirs]
             assert any("root/.zrb/hooks" in d for d in dirs)
             assert any("leaf/.claude/hooks" in d for d in dirs)
@@ -100,7 +100,7 @@ class TestHookManagerLifecycle:
 
     @pytest.mark.asyncio
     async def test_scan_recursive_depth_control(self, tmp_path):
-        # Create nested hooks
+
         d1 = tmp_path / "d1"
         d2 = d1 / "d2"
         d2.mkdir(parents=True)
@@ -117,12 +117,12 @@ class TestHookManagerLifecycle:
             )
         )
 
-        # Default depth is usually 1, so d1 is scanned, but d2 might not be if depth is small
+
         manager = HookManager(max_depth=1)
         manager.scan(search_dirs=[str(tmp_path)])
 
         results = await manager.execute_hooks(HookEvent.SESSION_START, {})
-        # depth 1: tmp_path (0) -> d1 (1). d2 is at depth 2 from tmp_path.
+
         assert len(results) == 0
 
         manager = HookManager(max_depth=2)
@@ -132,7 +132,7 @@ class TestHookManagerLifecycle:
 
 
 class TestHookManagerRegistration:
-    """Test manual hook registration behavior."""
+    'Test manual hook registration behavior.'
 
     @pytest.mark.asyncio
     async def test_priority_sorting(self, manager):
@@ -175,7 +175,7 @@ class TestHookManagerRegistration:
             executed.append(ctx.event)
             return HookResult(success=True)
 
-        manager.add_hook(global_hook)  # No events = global
+        manager.add_hook(global_hook)
 
         await manager.execute_hooks(HookEvent.SESSION_START, {})
         await manager.execute_hooks(HookEvent.NOTIFICATION, {})
@@ -184,7 +184,7 @@ class TestHookManagerRegistration:
 
 
 class TestHookManagerExecution:
-    """Test execution logic, error handling, and output formats."""
+    'Test execution logic, error handling, and output formats.'
 
     @pytest.mark.asyncio
     async def test_blocking_hook_stops_execution(self, manager):
@@ -198,7 +198,7 @@ class TestHookManagerExecution:
             executed.append("subsequent")
             return HookResult(success=True)
 
-        # PRE_TOOL_USE is a blocking-capable event, so a block halts the chain.
+
         manager.add_hook(blocking_hook, events=[HookEvent.PRE_TOOL_USE])
         manager.add_hook(subsequent_hook, events=[HookEvent.PRE_TOOL_USE])
 
@@ -209,9 +209,7 @@ class TestHookManagerExecution:
 
     @pytest.mark.asyncio
     async def test_block_on_non_blocking_event_continues_chain(self, manager):
-        """exit-2 / decision=block is meaningless for a non-blocking event
-        (e.g. Notification), so it must NOT suppress the remaining hooks
-        (Claude-compatible)."""
+        'exit-2 / decision=block is meaningless for a non-blocking event'
         executed = []
 
         async def blocking_hook(ctx):
@@ -301,7 +299,7 @@ class TestHookManagerExecution:
 
 
 class TestHookManagerFormats:
-    """Test loading hooks from various file formats."""
+    'Test loading hooks from various file formats.'
 
     @pytest.mark.asyncio
     async def test_load_json_list(self, manager, tmp_path):
@@ -365,7 +363,7 @@ class TestHookManagerFormats:
     def test_load_python_hook_error_handling(self, manager, tmp_path):
         f = tmp_path / "bad.hook.py"
         f.write_text("raise Exception('load fail')")
-        # Should not crash scan
+
         manager.scan(search_dirs=[str(tmp_path)])
 
     @pytest.mark.asyncio
@@ -378,7 +376,7 @@ class TestHookManagerFormats:
             }
         }
         f.write_text(json.dumps(data))
-        # Should not crash
+
         manager.scan(search_dirs=[str(tmp_path)])
         results = await manager.execute_hooks(HookEvent.SESSION_START, {})
         assert len(results) == 0

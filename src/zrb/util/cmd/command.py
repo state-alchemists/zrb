@@ -63,26 +63,11 @@ def check_unrecommended_commands(cmd_script: str) -> dict[str, str]:
 
 
 def resolve_shell(shell: str = "") -> tuple[str, str]:
-    """Resolve a shell name into a ``(shell, flag)`` pair.
+    """Resolve a shell name (empty means ``CFG.SHELL``) into ``(shell, flag)``.
 
-    An empty ``shell`` falls back to ``CFG.SHELL`` — the user's configured shell
-    (``ZRB_SHELL`` / ``CFG.DEFAULT_SHELL``), or the detected current shell
-    (``get_current_shell()``, which returns only a shell that exists).
-
-    The flag is the "run this string" switch for the interpreter (``-c`` for
-    POSIX shells, ``-Command`` for PowerShell, ``/c`` for cmd, ``-e``/``-r`` for
-    runtimes).
-
-    On Windows a bare ``bash``/``sh`` resolves to the absolute path of a real
-    POSIX shell rather than being handed to the PATH lookup, which finds
-    ``System32\\bash.exe`` -- the WSL launcher, not a shell. See
-    ``get_windows_posix_shell``. Every other name is returned as given.
-
-    Args:
-        shell (str): The shell/interpreter to use. Empty uses ``CFG.SHELL``.
-
-    Returns:
-        tuple[str, str]: The resolved shell and its command flag.
+    On Windows a bare ``bash``/``sh`` resolves to a real POSIX shell, since a
+    PATH lookup finds ``System32\\bash.exe``, the WSL launcher. See
+    ``get_windows_posix_shell``.
     """
     shell = shell or CFG.SHELL
     flag = get_shell_flag(shell)
@@ -125,19 +110,10 @@ async def terminate_process(
 ) -> None:
     """Gracefully terminate an asyncio subprocess tree, then force-kill survivors.
 
-    *process* must have been started with ``start_new_session=True``. On POSIX
-    its pid is then also its process-group id, and the group is signalled
-    along with the tree — the only handle left on a backgrounded child once
-    *process* itself has exited, since that child is reparented away from it.
-    The tree is snapshotted *before* signalling for the same reason. After a
-    SIGTERM-equivalent and a grace window, any snapshotted PID or group member
-    still alive is force-killed. Cross-platform via ``psutil``; the group
-    signal applies where ``os.killpg`` exists.
-
-    Args:
-        process (asyncio.subprocess.Process): The process to terminate.
-        grace_seconds (float): How long to wait for graceful exit before forcing.
-        print_method (Callable[..., None] | None): Status printer for kills.
+    *process* must have been started with ``start_new_session=True``. On
+    POSIX the process group is signalled too: it is the only handle left on a
+    backgrounded child once *process* has exited. The tree is snapshotted
+    before signalling for the same reason.
     """
     group = _get_session_group(process)
     is_running = process.returncode is None
@@ -290,15 +266,9 @@ async def _wait_for_tree_exit(
 
 
 def terminate_pid(pid: int, print_method: Callable[..., None] | None = None) -> None:
-    """Gracefully terminate a process and its children (SIGTERM-equivalent).
+    """Gracefully terminate a process and its children via ``psutil``.
 
-    Cross-platform via ``psutil`` — unlike ``os.killpg`` this works on Windows.
     Pair with ``kill_pid`` to force-kill survivors after a grace period.
-
-    Args:
-        pid (int): The parent process ID.
-        print_method (Callable[..., None] | None): Status printer. Defaults to
-            the built-in ``print``.
     """
     actual_print_method = print_method if print_method is not None else print
     try:
@@ -335,9 +305,8 @@ async def run_command(
     need user input.
 
     `max_output_line` / `max_error_line` cap how many *trailing* lines the
-    result retains; 0 (or any non-positive value) keeps every line. Dropping
-    lines is reported once the run ends rather than silently — see
-    `__report_dropped`.
+    result retains; a non-positive value keeps every line. Dropped lines are
+    reported once the run ends.
     """
     actual_print_method = print_method if print_method is not None else print
     if max_display_line is None:
@@ -386,9 +355,8 @@ async def __spawn(
 ) -> "asyncio.subprocess.Process":
     """Start the child with piped output and a terminal-shaped environment.
 
-    NO_COLOR is deliberately NOT set: per the NO_COLOR convention any non-empty
-    value (even "0") disables color, so there is no value that "explicitly
-    allows" it — absence inherits the user's choice.
+    NO_COLOR is not set: any non-empty value (even "0") disables color, so
+    absence is the only way to inherit the user's choice.
     """
     child_env = (env_map or os.environ).copy()
     child_env["TERM"] = "xterm-256color"  # A capable but standard terminal
@@ -425,13 +393,9 @@ async def __terminate_on_cancel(
 ) -> None:
     """Best-effort termination of *cmd_process* on interrupt/cancel/timeout.
 
-    Escalates to a forceful kill if graceful termination doesn't land within
-    `CFG.CMD_CLEANUP_TIMEOUT`, and swallows any secondary error so the
-    original interrupt/cancel/timeout always propagates from the caller.
-
-    A backgrounded child outlives the shell and, as an asynchronous command of
-    a non-interactive shell, ignores SIGINT; the process group is the one
-    handle left on it, so the group is killed once the shell is gone.
+    Escalates to a kill after `CFG.CMD_CLEANUP_TIMEOUT` and swallows secondary
+    errors so the original exception propagates. A backgrounded child ignores
+    SIGINT, so the process group is killed once the shell is gone.
     """
     cleanup_seconds = CFG.CMD_CLEANUP_TIMEOUT / 1000
     group = None if is_interactive else _get_session_group(cmd_process)
@@ -470,15 +434,10 @@ async def __read_streams(
 ) -> None:
     """Read stdout and stderr from one multiplexed loop into *states*.
 
-    One loop reacting to whichever stream has data keeps interleaved output
-    close to write order; two reader tasks could each drain a buffered burst
-    before yielding. Raw `read()` rather than `readline()` shows `\r`-driven
-    progress live and cannot raise on a chunk over the stream's buffer limit.
-    A line with no `\r`/`\n` is force-flushed past `CFG.CMD_BUFFER_LIMIT`.
-    A stream still open when reading is cancelled has its partial last line
-    flushed, so *states* holds everything read either way.
-
-    Writes to both pipes at the same instant have no recoverable order.
+    One loop keeps interleaved output close to write order. Raw `read()`
+    shows `\r`-driven progress live and cannot raise on an over-limit chunk;
+    a line with no `\r`/`\n` is force-flushed past `CFG.CMD_BUFFER_LIMIT`.
+    On cancel, each partial last line is flushed.
     """
     streams = {"stdout": stdout_stream, "stderr": stderr_stream}
     pending = {
@@ -508,15 +467,8 @@ async def __read_streams(
 class __StreamState:
     """Decode/line-buffer state for one subprocess stream.
 
-    `max_line` is how many *trailing* lines to retain. A non-positive value
-    means retain every line, which is the same convention
-    `BaseTask.readiness_timeout` and every other numeric cap in the framework
-    uses ("a non-positive value disables the cap"). It needs `maxlen=None`,
-    not `maxlen=0`: `collections.deque` treats `maxlen=0` as a zero-length
-    deque that discards every append, and rejects a negative one outright.
-    Counting dropped lines as they are dropped is what lets
-    `__finalize_stream` report the truncation instead of silently losing the
-    head of a long build log.
+    `max_line` is how many trailing lines to retain; non-positive keeps all
+    (`maxlen=None`, since `deque(maxlen=0)` discards every append).
     """
 
     def __init__(self, max_line: int) -> None:
@@ -549,10 +501,6 @@ def __emit_line(
         print_method(clean_part, end="\r\n")
     except Exception:
         print_method(clean_part)
-    # Unconditional: a non-positive `max_line` means "keep everything", and
-    # `captured` is already unbounded in that case. Guarding this on
-    # `max_line > 0` made `max_output_line=0` capture *nothing* — an empty
-    # result, silently, under the one value documented to mean "no limit".
     if state.max_line > 0 and len(state.captured) == state.max_line:
         state.dropped += 1
     state.captured.append(clean_part)
@@ -590,19 +538,7 @@ def __report_dropped(
     states: "dict[str, __StreamState]",
     print_method: Callable[..., None],
 ) -> None:
-    """Say how many lines the capture cap dropped, once the run is over.
-
-    A cap that silently discards output turns `zrb deploy > deploy.log` into
-    a confidently-successful, quietly-incomplete artifact: the exit code
-    says the command passed, and the log is missing the beginning — which is
-    the part that says what went wrong. One line per stream, on the same
-    stream the reader was printing to, and never fatal: the command's own
-    exit code stays the answer to "did this work?".
-
-    The stream names are mapped to the keyword that caps them rather than
-    interpolated, because `max_stdout_line` is not a parameter anything
-    accepts.
-    """
+    """Say how many lines the capture cap dropped, once the run is over."""
     for stream, keyword in (
         ("stdout", "max_output_line"),
         ("stderr", "max_error_line"),
@@ -617,13 +553,7 @@ def __report_dropped(
 
 
 def kill_pid(pid: int, print_method: Callable[..., None] | None = None):
-    """Kill a process and its children given the parent process ID.
-
-    Args:
-        pid (int): The process ID of the parent process.
-        print_method (Callable[..., None] | None): A method to print status messages.
-            Defaults to the built-in print function.
-    """
+    """Kill a process and its children given the parent process ID."""
     actual_print_method = print_method if print_method is not None else print
     try:
         parent = psutil.Process(pid)

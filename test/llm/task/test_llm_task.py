@@ -39,7 +39,6 @@ class TestLLMTaskExecution:
         task.append_tool(tool)
 
         # Act & Assert
-        # We mock create_agent to see if our tool was passed to it during execution
         with (
             patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent,
             patch(
@@ -50,19 +49,13 @@ class TestLLMTaskExecution:
             mock_run_agent.return_value = ("Response", [])
             await task.async_run(session)
 
-            # Verify the tool we added via public add_tool was passed to create_agent
             args, kwargs = mock_create_agent.call_args
             assert tool in kwargs["tools"]
 
     @pytest.mark.asyncio
     async def test_llm_task_resolves_toolset_factories_once(self, session):
-        """Toolset factories run once per execution and the SAME instances go
-        to the agent.
-
-        Resolving twice (once for the exit stack, once inside agent creation)
-        would fire factory side effects — e.g. an MCP server spawn — twice per
-        turn and hand the agent instances whose contexts were never entered.
-        """
+        """Toolset factories run once per execution and the same instances go
+        to the agent."""
         factory_calls = []
 
         def toolset_factory(ctx):
@@ -105,9 +98,7 @@ class TestLLMTaskExecution:
             mock_run_agent.return_value = ("Response", [])
             await task.async_run(session)
 
-            # Verify the UI set via public set_ui was passed to run_agent
             args, kwargs = mock_run_agent.call_args
-            # Now uis is passed as a list
             assert kwargs["ui"] == [ui]
 
     @pytest.mark.asyncio
@@ -245,7 +236,6 @@ class TestLLMTaskExecution:
             mock_summarize.return_value = []
             result = await task.async_run(session)
 
-            # Verify behavior: result indicates compression and helper was called
             assert "compressed" in result.lower()
             mock_summarize.assert_called_once()
 
@@ -294,9 +284,7 @@ def test_stream_observer_surface_matches_and_copies_the_given_list(task_class):
 
 @pytest.mark.asyncio
 async def test_compress_publishes_the_sessions_small_model(session):
-    """`/compress` is handled before the task starts an agent, so it publishes
-    the session's model overrides itself; without that the summarizer resolved
-    against `CFG` and a `/model small <name>` was silently ignored."""
+    """`/compress` publishes the session's model overrides for the summarizer."""
     ui = StdUI()
     ui.small_model = "openai:session-small"
     task = LLMTask(

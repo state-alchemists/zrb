@@ -35,11 +35,7 @@ def test_cap_mcp_result_caps_oversized_structured():
 
 
 def test_cap_mcp_result_passes_binary_through_intact():
-    """A large image must never be stringified into a truncated repr.
-
-    Regression: capping via str(result) turned MCP screenshot results into
-    "BinaryContent(data=b'\\x89PNG..." head text, losing the image entirely.
-    """
+    """A large image must never be stringified into a truncated repr."""
     from pydantic_ai.messages import BinaryContent
 
     image = BinaryContent(data=b"\x89PNG" * 100_000, media_type="image/png")
@@ -90,13 +86,7 @@ def test_cap_mcp_result_caps_text_items_but_keeps_binary_in_list():
 
 
 def test_cap_mcp_result_keeps_binary_after_the_budget_is_exhausted():
-    """Position must not decide whether an image survives.
-
-    Regression: once the shared budget hit zero the loop replaced every remaining
-    part with an omission marker, so an image behind a large text part was
-    dropped — the exact loss the binary pass-through exists to prevent. Binary
-    costs no text budget, so it is never dropped for lack of one.
-    """
+    """An image survives even after the text budget is exhausted."""
     from pydantic_ai.messages import BinaryContent
 
     image = BinaryContent(data=b"\x89PNG" * 100_000, media_type="image/png")
@@ -109,12 +99,7 @@ def test_cap_mcp_result_keeps_binary_after_the_budget_is_exhausted():
 
 
 def test_cap_mcp_result_bounds_a_list_in_aggregate():
-    """Regression: per-item capping bounded nothing.
-
-    Each of N parts sitting just under the cap passed through untouched, so the
-    total was N x the budget — the same per-request overflow the cap exists to
-    prevent. The budget is shared across the whole structure now.
-    """
+    """The budget is shared across a list, not applied per item."""
     with patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}):
         out = cap_mcp_result(["y" * 400] * 50)
     total = sum(len(item) for item in out)

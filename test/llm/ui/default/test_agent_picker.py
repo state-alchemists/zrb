@@ -1,12 +1,3 @@
-"""Tests for the sub-agent picker and live-view state (UIAgentPicker).
-
-The widget's interactive parts (focus, invalidate) are exercised through the
-public state-driver methods without a live terminal — `get_app()` calls inside
-the mixin are guarded and no-op when no app is running. The live sub-agent
-registry and the activity registry are replaced with lightweight fakes; the
-picker only ever reads the former and reads the latter for per-row status.
-"""
-
 from __future__ import annotations
 
 from types import SimpleNamespace

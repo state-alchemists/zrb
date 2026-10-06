@@ -62,7 +62,7 @@ def test_ordinal_resets_when_batch_drains():
     reg.start("a", "x")
     reg.start("b", "y")
     reg.finish("a")
-    reg.finish("b")  # registry now empty -> counter resets
+    reg.finish("b")
     assert reg.start("c", "z") == 1
 
 

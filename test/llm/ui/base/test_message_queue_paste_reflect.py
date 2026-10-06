@@ -1,13 +1,3 @@
-"""How a merged paste line is reflected on the echo targets.
-
-How a paste burst folds into one queued message is covered by
-`test_message_queue_paste_merge.py`; this file covers what each target sees:
-the line spliced in place where possible, echoed to a bufferless child alone,
-kept visible when a child's redraw fails, rendered whole when the combined
-text turns Markdown (with a verbatim fallback for targets that cannot splice),
-and never duplicated across a MultiUI's shared `QueuedMessage` echo-span state.
-"""
-
 from unittest.mock import MagicMock
 
 import pytest
@@ -27,14 +17,7 @@ def _stub_stream_ai_response(llm_task, text, attachments):
 
 
 class BurstTarget:
-    """Standalone-UI shape with attachments, an echo-span hook, a spy on the
-    merge redraw, and its own output sink.
-
-    `can_redraw=False` models a bufferless UI whose `redraw_echo` is a no-op,
-    so a merged line is echoed through the target's own `append_to_output`.
-    `redraw_error` makes `redraw_echo` raise, modelling a child whose buffer
-    went away mid-merge.
-    """
+    """Standalone target with attachment and echo-span hooks."""
 
     def __init__(self, can_redraw=True, redraw_error=None):
         self.outputs: list[str] = []
@@ -77,20 +60,7 @@ def submit_burst(queue, target, text):
 
 
 class SpliceableTarget:
-    """Spliceable shape mirroring the default TUI's per-buffer echo bookkeeping:
-    an own output buffer and an own echo span keyed by `self`, spliced in place.
-
-    `track_echo_span`/`redraw_echo` reproduce how `UIMessageEditing` records
-    and splices the echoed line in the real default UI, so this exercises the
-    shared-`QueuedMessage` span state instead of a spy that never reads it.
-    `append_to_output` matches the real writer's trailing newline — the echoed
-    line already ends with one, and the writer appends a separator after it —
-    so a span is only usable if its recording survives that extra blank line.
-    `redraw_echo` picks its body the way the real one does — a render of the
-    whole entry text when it carries a Markdown construct (stood in for by
-    uppercasing), the raw line otherwise — so a merge and a later edit draw
-    the same thing.
-    """
+    """Spliceable target with per-buffer echo bookkeeping."""
 
     def __init__(self):
         self.buffer = ""

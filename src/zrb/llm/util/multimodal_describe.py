@@ -1,15 +1,8 @@
 """Describe binary attachments via a multimodal sub-agent.
 
-Used as a fallback when the main agent's model is text-only but the user
-attached an image/audio/video. We spawn a one-shot agent with the
-configured multimodal model (`CFG.LLM_MULTIMODAL_MODEL`, resolved via
-`zrb.llm.config.model_resolver`), hand it the binary, and inline the
-resulting text into the user message in place of the attachment.
-
-Only images and audio are described — video is rejected here because most
-multimodal models reject video too, and ad-hoc frame extraction is out of
-scope. Callers receive `None` for unsupported modalities and should drop
-the attachment with a warning.
+Fallback for a text-only main model: a one-shot agent on the multimodal model
+describes the binary, and the text replaces the attachment. Only images and
+audio are described.
 """
 
 from __future__ import annotations
@@ -31,10 +24,7 @@ async def describe_binary_attachment(
 ) -> str | None:
     """Describe a `BinaryContent` via the supplied multimodal model.
 
-    The caller must pass an explicit *multimodal_model* — this function does
-    not consult `CFG.LLM_MULTIMODAL_MODEL` itself. That keeps the data flow
-    explicit (the runner resolves it once and forwards it) and makes tests
-    independent of environment state.
+    *multimodal_model* is never read from `CFG` here; the caller resolves it.
 
     Returns the description text on success, ``None`` when:
     - the modality cannot be described (e.g. video),
@@ -56,11 +46,8 @@ async def describe_binary_attachment(
         )
         return None
 
-    # lazy: zrb internal (heavy via transitive) — this util is imported
-    # (lazily) from the runner, and the runner is loaded by zrb.llm.agent's
-    # package __init__; hoisting this one side alone doesn't currently cycle
-    # (verified empirically), but would if the runner's own lazy import of
-    # this module were ever hoisted too, so both stay deferred.
+    # lazy: zrb internal (heavy via transitive) — zrb.llm.agent pulls in the
+    # runner, which lazily imports this module.
     from zrb.llm.agent import create_agent, run_agent
     from zrb.llm.config.limiter import get_run_llm_limiter
     from zrb.llm.config.model_resolver import resolve_configured_model
@@ -78,8 +65,6 @@ async def describe_binary_attachment(
 
     try:
         agent = create_agent(
-            # Already resolved here; resolve_model=False avoids resolving
-            # twice inside create_agent.
             model=resolve_configured_model(multimodal_model),
             system_prompt=system_prompt,
             yolo=True,  # no tools, no approvals needed
@@ -158,11 +143,8 @@ async def _replace_one_attachment(
 ) -> Any:
     """`item` itself, a text description of it, or `None` to drop it.
 
-    Anything that is not a `BinaryContent` of a recognized modality passes
-    through untouched — as does every attachment when the main model cannot be
-    identified (a MagicMock in tests, or a custom `Model` object without a
-    recognisable name), since second-guessing an unknown provider is worse
-    than letting it decide.
+    Non-binaries, unrecognized modalities, and every attachment for an
+    unidentifiable main model pass through untouched.
     """
     if not isinstance(item, binary_content_type):
         return item

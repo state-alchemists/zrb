@@ -1,10 +1,6 @@
-"""Session-invariant system context rendered into the cached system prompt.
+"""Session-invariant system context, kept byte-stable so the cacheable prompt prefix survives.
 
-``system_context`` renders only stable facts (OS, cwd, detected project
-markers, available tools, model identity) into the system prompt, so the
-composed prompt stays byte-identical across turns and the cacheable prefix
-survives. The live (volatile) counterpart lives in ``live_context`` and is
-injected into the user turn instead — see ``PromptManager.create_live_context``.
+Volatile per-turn state lives in ``live_context`` instead.
 """
 
 import glob
@@ -81,25 +77,15 @@ def system_context(
     next_handler: Callable[[AnyContext, str], str],
     model: "Any" = None,
 ) -> str:
-    """Render the *stable*, session-invariant facts into the system prompt.
-
-    Only content that does not change within a session lives here (OS, CWD,
-    detected project markers, available tools, the model identity line), so the
-    composed system prompt stays byte-identical across turns and the cacheable
-    prefix survives. Volatile per-turn state (time, git, todos, worktree, mode)
-    is rendered by ``render_live_context`` and injected into the latest user
-    turn instead — see ``PromptManager.create_live_context``.
-    """
+    """Render the session-invariant facts (OS, CWD, tools, project, model) into the system prompt."""
     cwd = os.getcwd()
     home = os.path.expanduser("~")
 
-    # --- Cached per CWD: project/tool detection ---
     project_types = _detect_project_types(cwd)
     infra_types = _detect_infra_types(cwd, home)
     found_markers = list(_detect_project_markers(cwd))
-    # `.get("PATH")` with no default on purpose: `None` (PATH unset) is a
-    # distinct state `shutil.which` resolves via `CS_PATH`/`os.defpath`, and
-    # passing "" instead would make it match nothing (bpo-35755).
+    # No default: `shutil.which(path=None)` falls back to os.defpath, while
+    # "" would match nothing (bpo-35755).
     found_tools = _resolve_available_tools(
         project_types, infra_types, os.environ.get("PATH")
     )
@@ -131,22 +117,8 @@ def system_context(
 def _format_sandbox_line() -> str | None:
     """State that tool calls reach the real machine, when they do.
 
-    Priority Order rank 1 tells the model to confirm anything destructive or
-    irreversible, and nothing else in the prompt says whether "irreversible" is
-    even true here — ``LLM_SANDBOX_ENABLED`` defaults to ``False``, so by
-    default both enforcement layers (the FS gate in ``agent.gates`` and the OS
-    shell wrapper) are off and every write lands on the user's disk. A rule
-    whose stakes the model cannot see is a rule it under-applies.
-
-    One branch on purpose, and the *opposite* one to
-    :func:`_format_parallel_tool_call_line`: that function announces the rare
-    exception, this one announces the risky state. A "you are sandboxed" line
-    would be a licence to relax, gated on a config the model cannot verify;
-    silence leaves the unconditional rank-1 rule in force, which is the safe
-    way to be wrong.
-
-    Session-invariant — the policy is bound once per run, so this belongs with
-    the other cached system facts rather than in ``live_context``.
+    Only the unsandboxed state is announced: a "you are sandboxed" line would
+    invite the model to relax its confirm-before-destructive rule.
     """
     if get_effective_sandbox_policy().enabled:
         return None
@@ -157,22 +129,11 @@ def _format_sandbox_line() -> str | None:
 
 
 def _format_parallel_tool_call_line(model: "Any") -> str | None:
-    """Announce only the *exception* to the prompt's batch-by-default rule.
+    """Withdraw the prompt's batch-by-default rule for models known to malform parallel calls.
 
-    There is no affirmative branch on purpose. The registry resolves
-    ``supports_parallel_tool_calls`` to ``True`` for no built-in model — it is a
-    deny-list — so an affirmative line gated on it could never render, while
-    ``workflow.md`` gated batching on that line appearing. Every model therefore
-    read the rule as unsatisfied and serialized its calls. Batching is now the
-    unconditional default in the prompt, and this line exists to withdraw it
-    from the models known to malform parallel calls.
-
-    Session-invariant (it only changes on ``/model``, which recomposes the
-    prompt anyway), so it belongs with the other system facts rather than in a
-    section of its own.
+    ``supports_parallel_tool_calls`` is a deny-list, so only ``False`` is acted on.
     """
-    # lazy: zrb internal (heavy via transitive) — not a cycle, verified
-    # empirically.
+    # lazy: zrb internal (heavy via transitive)
     from zrb.llm.util.capabilities import model_capabilities
 
     supports = model_capabilities.get(model).supports_parallel_tool_calls
@@ -193,8 +154,7 @@ def _format_model_line(model: "Any") -> str | None:
     Returns ``None`` when *model* is None or its identifier cannot be
     resolved (e.g. ``MagicMock`` without a real ``model_name``).
     """
-    # lazy: zrb internal (heavy via transitive) — not a cycle, verified
-    # empirically.
+    # lazy: zrb internal (heavy via transitive)
     from zrb.llm.util.capabilities import is_known_model
 
     if model is None or not is_known_model(model):
@@ -211,10 +171,7 @@ def _resolve_available_tools(
 ) -> tuple[str, ...]:
     """Resolve the available tool labels by checking project/infra types + PATH.
 
-    Cached here rather than around the individual `shutil.which` probe so the
-    key covers every input the answer depends on — including `$PATH`, which
-    `shutil.which` reads but a per-command key could not see. One entry per
-    (project, infra, PATH) shape replaces ~21 per-command entries.
+    Cached here, not per `shutil.which` probe, so `$PATH` is part of the key.
     """
     extra_tools: list[tuple[str, str]] = []
     for pt in project_types:
@@ -290,6 +247,5 @@ def _detect_infra_types(cwd: str, home: str) -> tuple[str, ...]:
         if os.path.isdir(os.path.join(home, ".azure")):
             found.append("Azure")
     except Exception as e:
-        # Best-effort tooling detection; skip silently if home is unreadable.
         CFG.LOGGER.debug(f"Infra-type detection failed: {e}")
     return tuple(found)

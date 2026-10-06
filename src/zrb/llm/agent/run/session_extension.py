@@ -1,19 +1,7 @@
-"""Turn-end (STOP) hook extension semantics for `run_agent`.
+"""STOP-hook extension semantics for ``run_agent``.
 
-When an agent turn completes, the STOP hook fires. A hook may extend the turn in
-one of two Claude-compatible ways:
-
-* **Block-to-continue** — a hook returns ``decision: "block"`` with a ``reason``
-  (optionally ``additionalContext``). The agent runs another turn with that text
-  injected as the next prompt, and the continued response becomes the answer. A
-  consecutive-block cap stops a hook that would block forever.
-* **systemMessage extension** — a hook returns a ``systemMessage`` (e.g. the
-  journaling reminder). The agent runs one more turn; ``replaceResponse`` controls
-  whether the continued response or the original is returned to the user.
-
-If multiple extensions occur, the *last* ``replace_response`` wins; the *first*
-original output/history is preserved as the candidate to return.
-"""
+Hooks can request a continuation by blocking or by returning ``systemMessage``;
+caps prevent either path from looping indefinitely."""
 
 from __future__ import annotations
 

@@ -1,19 +1,11 @@
 """`LayeredRegistry` — the two-layer collection behind the skill and sub-agent
 registries.
 
-A registry is the *source of defaults*: it stores everything found by
-filesystem discovery plus everything registered in code, and answers queries.
-It does not scan — that is the owning manager's job.
-
-- *manual* — items registered from code; always wins a name collision and
-  survives a later scan. May be a deferred callable, resolved at query time, so a value set during `zrb_init.py` honors later
-  `CFG`/registry changes.
+- *manual* — items registered from code; wins a name collision and survives a
+  scan. May be a callable, resolved at query time.
 - *discovered* — items found on disk; a scan replaces this layer only.
 
-An allowlist filters only the discovered layer; manual
-registrations are always visible ("env sets the baseline; `zrb_init.py`
-builds on it"). It is read at query time, so env changes apply on the next
-lookup.
+The allowlist, read at query time, filters only the discovered layer.
 """
 
 from __future__ import annotations
@@ -97,8 +89,7 @@ class LayeredRegistry(Generic[T]):
     def _resolved_view(self) -> tuple[dict[str, T], dict[str, T]]:
         """Resolve the manual layer once per query; return ``(manual, merged)``.
 
-        Merging and the visibility check must see the same resolution, or a
-        stateful supplier could be filtered against a different snapshot.
+        Merging and visibility must share one resolution of a stateful supplier.
         """
         manual = {item.name: item for item in self._resolve(self._manual)}
         return manual, {**self._discovered, **manual}

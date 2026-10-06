@@ -6,7 +6,6 @@ from zrb.group.any_group import AnyGroup
 from zrb.runner.web_route.jinja_env import get_jinja_env
 
 if TYPE_CHECKING:
-    # We want fastapi to only be loaded when necessary to decrease footprint
     from fastapi import FastAPI
 
 

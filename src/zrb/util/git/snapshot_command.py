@@ -63,11 +63,9 @@ def get_command_timeout(deadline: float | None) -> float:
 
 
 def get_time_left(deadline: float | None, label: str) -> float:
-    """Seconds the next step of an operation may take — a git command, or a
-    stretch of the listing's own directory walk. Raises SnapshotCancelledError
-    when the operation's caller was cancelled (`run_in_worker`) or SnapshotTimeoutError
-    when no time is left — the operation ran past its deadline, which is what
-    that error has always meant for a single command."""
+    """Seconds the next step of an operation may take. Raises
+    SnapshotCancelledError when the caller was cancelled (`run_in_worker`), or
+    SnapshotTimeoutError when the deadline has passed."""
     abort = get_worker_cancel()
     if abort is not None and abort.is_set():
         raise SnapshotCancelledError(f"Snapshot cancelled before running {label}")
@@ -95,10 +93,8 @@ async def run_in_worker(fn: Callable[..., _T], *args: Any) -> _T:
     before its next git command and wait for it before the cancellation
     propagates.
 
-    Cancelling cannot stop a thread. A caller holding a lock around a snapshot
-    would otherwise release it while git still runs, letting the next
-    operation race the same index; a caller deleting a store on cancellation
-    would delete it while git still writes to it."""
+    Cancelling cannot stop a thread, and a caller releasing a lock or
+    deleting a store while git still runs would race it."""
     abort = threading.Event()
 
     def work() -> _T:

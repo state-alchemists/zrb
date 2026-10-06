@@ -1,8 +1,4 @@
-"""
-LSP Tools for zrb LLM integration.
-
-These tools provide IDE-like code intelligence capabilities to the LLM assistant.
-"""
+"""LSP code-intelligence tools for the LLM agent."""
 
 from typing import Literal
 

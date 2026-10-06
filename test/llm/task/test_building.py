@@ -87,9 +87,7 @@ class TestProperties:
         assert task.sandbox is policy
 
     def test_prompt_manager_setter_replaces_wholesale(self):
-        """Swapping a running task's persona (e.g. the CLI
-        TUI's /load on a delegated sub-agent session) needs to replace the
-        whole PromptManager, not just mutate its model."""
+        """A persona swap (the TUI's /load) replaces the whole PromptManager."""
         from zrb.llm.prompt.manager import PromptManager
 
         task = LLMTask(name="test-task")
@@ -100,8 +98,7 @@ class TestProperties:
         assert task.prompt_manager is not original
 
     def test_tools_getter_and_setter_replace_wholesale(self):
-        """append_tool only grows the list; the setter is the reset a persona
-        swap needs so the previous persona's tools don't linger."""
+        """The tools setter replaces the list, so a swapped-out persona's tools go."""
         tool_a, tool_b = MagicMock(), MagicMock()
         task = LLMTask(name="test-task", tools=[tool_a])
         assert task.tools == [tool_a]
@@ -157,9 +154,7 @@ class TestRegistration:
 
     @pytest.mark.asyncio
     async def test_add_hook_factory_isolates_and_reaches_runner(self, session):
-        """add_hook_factory must (a) register the hook so it fires, and (b) NOT
-        mutate the shared global manager — the first registration swaps in a
-        task-local manager, which is the one handed to the runner."""
+        """append_hook_factory registers on a task-local manager, leaving the global one alone."""
         from zrb.llm.hook.interface import HookContext, HookResult
         from zrb.llm.hook.manager import hook_manager as global_manager
         from zrb.llm.hook.types import HookEvent
@@ -215,9 +210,7 @@ class TestAssembly:
     def test_get_model_resolves_explicit_model_with_configured_credentials(
         self, monkeypatch
     ):
-        """A mid-session `/model <name>` reaches the core task as
-        `ctx.input["model"]`; it must be resolved against LLM_API_KEY /
-        LLM_BASE_URL rather than handed to pydantic-ai as a bare string."""
+        """A `/model <name>` in `ctx.input["model"]` is resolved with the configured credentials."""
         from zrb.config.config import CFG
 
         monkeypatch.setattr(CFG, "LLM_API_KEY", "test-key")

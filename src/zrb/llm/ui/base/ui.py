@@ -98,13 +98,7 @@ logger = logging.getLogger(__name__)
 
 
 class RunningTool(NamedTuple):
-    """The tool call currently executing: its name, id, and when it started.
-
-    ``tool_call_id`` ties the timer to the specific call that started it, so a
-    result event for a *different* concurrent call cannot clear it early.
-    ``started_at`` is a ``time.monotonic()`` reading, so wall-clock jumps never
-    distort the elapsed time the status bar shows.
-    """
+    """A tool call currently executing; ``started_at`` is ``time.monotonic()``."""
 
     tool_name: str
     tool_call_id: str
@@ -112,17 +106,12 @@ class RunningTool(NamedTuple):
 
 
 def _default_list(value: "Any") -> list:
-    """`list(value or [])`, pulled out so `__init__`'s ~20 uses of the same
-    fallback don't each count as their own branch against the complexity
-    ratchet in zrb-test.sh."""
+    """`list(value or [])`; keeps `__init__` under the complexity ratchet."""
     return list(value or [])
 
 
 def _command_alias_property(key: str, label: str) -> property:
-    """A `list[str]` slash-command-alias property backed by
-    `self._ui_config.{key}_commands`, in place of one hand-written
-    getter/setter pair per command.
-    """
+    """A `list[str]` property backed by `self._ui_config.{key}_commands`."""
 
     def getter(self: "BaseUI") -> list[str]:
         return getattr(self._ui_config, f"{key}_commands")
@@ -135,13 +124,10 @@ def _command_alias_property(key: str, label: str) -> property:
 
 
 def _broadcast_echo(ui: AnyUI, call: Callable[[AnyUI], object]) -> None:
-    """Call `call` on every UI holding its own echo of the same queued message.
+    """Call `call` on every UI holding its own echo of a queued message.
 
-    A still-queued message is one shared entry, but every UI that displayed it
-    keeps its own echo span in its own buffer: all the children of a `MultiUI`,
-    or the UI alone. Best-effort — a child that cannot splice (a Telegram
-    channel updates nothing) or that raises must not take the update away from
-    the children after it.
+    That is every `MultiUI` child, or the UI alone. A child that raises does
+    not stop the rest.
     """
     parent = ui.multi_ui_parent
     for target in parent.children if parent else [ui]:
@@ -159,29 +145,11 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     one backend — a terminal, Telegram, a websocket, a test double — and
     inherits the rest.
 
-    Override to render and read:
-        `append_to_output` and `ask_user` are the pair every backend writes.
-        `run_interactive_command` hands a shell command a real terminal, and
-        `run_async` drives the session's own loop. All four ship with working
-        implementations, so a subclass overrides what its backend needs rather
-        than being forced to answer for the rest.
-
-    Prefer a smaller entry point when you can:
-        `SimpleUI` covers a backend that owns its event loop and can block on
-        input; `EventDrivenUI` covers one that delivers messages by callback.
-        Both leave `run_async` alone, which is most of the work here. Reach
-        for `BaseUI` when neither shape fits.
-
-    Registering one:
-        `create_ui_factory(MyUI)` adapts any of them to
-        `llm_chat.ui_factories`; pass `ui_config=UIConfig(...)` to set the
-        assistant's identity and slash-command aliases.
-
-    The method set each entry point actually requires is executable rather
-    than described here, in `test/llm/ui/test_extension_levels.py` — that file
-    builds a minimal subclass per level the way the guide says to, so a
-    changed requirement fails there instead of in a user's `zrb_init.py`.
-    The full walkthrough is `docs/llm/llm-custom-ui.md`.
+    Override `append_to_output` and `ask_user`; `run_interactive_command`
+    and `run_async` as the backend needs. `SimpleUI` (blocking input) and
+    `EventDrivenUI` (callback input) are smaller entry points that already
+    implement `run_async`. Register with `create_ui_factory(MyUI)`; see
+    `docs/llm/llm-custom-ui.md`.
 
     Example:
         A backend that reads and writes one line at a time::
@@ -236,9 +204,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     ):
         self._ui_config = ui_config or UIConfig()
         self._ctx = ctx
-        # Falls back to a per-instance key so ad-hoc UIs (SimpleUI and
-        # friends, built without an LLMChatTask-provided key) never collide
-        # on the same xcom slot.
+        # Per-instance fallback so ad-hoc UIs never share an xcom slot.
         self._yolo_xcom_key = self._ui_config.yolo_xcom_key or f"_yolo_{id(self)}"
         self._running_llm_task: asyncio.Task | None = None
         self.llm_task = llm_task
@@ -264,8 +230,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._active_run_context: Any = None
         self._process_messages_task: asyncio.Task | None = None
         self._last_result_data: str | None = None
-        # Runtime-timer state for the status bar: the current working period
-        # and the tool calls currently executing, keyed by their tool_call_id.
+        # Status-bar timers; running tools are keyed by tool_call_id.
         self._working_started_at: float | None = None
         self._running_tools: dict[str, RunningTool] = {}
 
@@ -295,10 +260,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         )
         self.confirmation = BaseUIConfirmationState()
 
-        # Strong references so fire-and-forget hook tasks aren't GC'd mid-run.
+        # Strong references so fire-and-forget tasks aren't GC'd mid-run.
         self._background_tasks: set[asyncio.Task] = set()
-        # The hook tasks among them, which teardown lets finish
-        # (`drain_hook_tasks`) instead of cancelling with the rest.
+        # Subset that teardown drains instead of cancelling.
         self._hook_tasks: set[asyncio.Task] = set()
 
         self._base_commands = BaseUICommands(self)
@@ -310,10 +274,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
         if self._ui_config.is_yolo:
             self.yolo = self._ui_config.is_yolo
-
-    # =========================================================================
-    # Construction-time / runtime state (own fields, read/written directly)
-    # =========================================================================
 
     @property
     def small_model(self) -> Any:
@@ -428,10 +388,10 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         return self._hook_tasks
 
     async def drain_hook_tasks(self, timeout: float) -> None:
-        """Give the hook tasks still running *timeout* seconds to finish,
-        then cancel the rest. A Stop hook fired as the chat exits (Ctrl+C) is
-        still running when the UI tears down, and a synchronous hook's
-        process is killed when its task is cancelled."""
+        """Give running hook tasks *timeout* seconds to finish, then cancel.
+
+        A Stop hook fired on exit is still running at teardown.
+        """
         pending = [task for task in self._hook_tasks if not task.done()]
         if not pending:
             return
@@ -512,13 +472,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
     @property
     def running_tool(self) -> "RunningTool | None":
-        """The most recently started tool call still executing, or None.
-
-        Several tools may run in parallel while the status bar shows one, so
-        this picks the most recent among those still active. When a newer call
-        finishes first, an older one that is still running takes over instead
-        of the bar dropping the timer.
-        """
+        """The most recently started tool call still executing, or None."""
         if not self._running_tools:
             return None
         return max(self._running_tools.values(), key=lambda item: item.started_at)
@@ -530,13 +484,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         )
 
     def end_tool_call(self, tool_call_id: str | None = None) -> None:
-        """Forget the tool call `tool_call_id` names once it finishes.
-
-        Each id removes only itself, so a concurrent call finishing early can
-        never clear a sibling that is still running. ``None`` clears every
-        active call — used at run end and turn start, where any leftover timer
-        is stale by definition.
-        """
+        """Forget the finished call `tool_call_id`; ``None`` clears all."""
         if tool_call_id is None:
             self._running_tools.clear()
             return
@@ -575,18 +523,12 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._system_info_task = value
 
     # =========================================================================
-    # BaseUICommands delegators (including its composed conversation/model/exec
-    # collaborators — flattened here because the `AnyUI` contract and existing
-    # callers reach these directly on `BaseUI`, not through `.commands`)
+    # BaseUICommands delegators (part of the `AnyUI` contract)
     # =========================================================================
 
     @property
     def commands(self) -> BaseUICommands:
-        """The slash-command dispatcher, and through it the handler parts.
-
-        A subclass reorders or extends the command set through
-        `commands.command_table()`.
-        """
+        """The slash-command dispatcher; extend via `commands.command_table()`."""
         return self._base_commands
 
     def classify_input(self, text: str) -> str:
@@ -731,11 +673,10 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
     @property
     def active_run_context(self) -> Any:
-        """The live pydantic-ai `RunContext` for the turn currently streaming
-        through this UI, or None between turns / while a turn is suspended
-        (e.g. a pending tool approval). Set by `_execution_loop` for the
-        duration of each `agent.run()` call; read by `submit_user_message`
-        to steer a new message into the live turn instead of queuing it."""
+        """The live pydantic-ai `RunContext` of the streaming turn, or None.
+
+        `submit_user_message` uses it to steer a message into the live turn.
+        """
         return self._active_run_context
 
     @active_run_context.setter
@@ -743,15 +684,14 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._active_run_context = ctx
 
     def take_pending_attachments(self) -> "list[UserContent]":
-        """Return and clear this UI's pending attachments (public accessor)."""
+        """Return and clear this UI's pending attachments."""
         attachments = list(self._pending_attachments)
         self._pending_attachments.clear()
         return attachments
 
     @property
     def is_turn_running(self) -> bool:
-        """Whether this UI runs a turn, or its `MultiUI` parent runs one for
-        it; `AnyUI.is_turn_running`."""
+        """Whether this UI, or its `MultiUI` parent, is running a turn."""
         running = self._running_llm_task
         if running is not None and not running.done():
             return True
@@ -759,10 +699,10 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         return parent is not None and parent.is_turn_running
 
     def cancel_current_turn(self, reason: str) -> None:
-        """Release a pending confirmation, cancel the running turn and fire
-        `Stop` with *reason*; `AnyUI.cancel_current_turn`. A child of a
-        `MultiUI` runs no turn of its own, so the parent cancels the one it
-        runs (releasing this UI's confirmation with its siblings')."""
+        """Release pending confirmations, cancel the turn and fire `Stop`.
+
+        A `MultiUI` child delegates to its parent, which runs the turn.
+        """
         running = self._running_llm_task
         if running is None or running.done():
             parent = self.multi_ui_parent
@@ -785,11 +725,8 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         manager: HookManager | None = None,
         **kwargs,
     ) -> None:
-        """
-        Safely execute hooks from either sync or async context, through
-        *manager* (default: the one this UI's turns run with).
-        Maintains strong references to tasks to prevent garbage collection.
-        """
+        """Fire hooks from a sync or async context, through *manager*
+        (default: the one this UI's turns run with)."""
         effective = manager or get_turn_hook_manager(self.llm_task)
         try:
             loop = asyncio.get_running_loop()
@@ -810,12 +747,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     async def execute_hook_blocking(
         self, event: HookEvent, event_data: Any, **kwargs
     ) -> list:
-        """Run hooks and await their results.
-
-        Unlike :meth:`execute_hook` (fire-and-forget), this awaits the manager
-        so callers can inspect results for a blocking decision — used by the
-        PreCommand path to cancel a command before it runs.
-        """
+        """Run hooks and await their results, for a blocking decision."""
         manager = get_turn_hook_manager(self.llm_task)
         return await manager.execute_hooks(event, event_data, **kwargs)
 
@@ -846,9 +778,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     ):
         """[REQUIRED] Render output to the user.
 
-        This method must be implemented by all UI subclasses to display
-        AI responses, system messages, and other output to the user.
-
         Args:
             *values: Objects to display (converted to string via str())
             sep: Separator between values (default: space)
@@ -876,23 +805,14 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         output_to_parent: str = "",
         agent_id: str | None = None,
     ) -> str:
-        """[REQUIRED] Block and wait for user input.
-
-        This method must be implemented by all UI subclasses to receive
-        user input. It should display the prompt (if provided) and block
-        until the user provides input.
+        """[REQUIRED] Show *prompt* (if any) and block until the user answers.
 
         Args:
-            prompt: Optional prompt to display before waiting for input.
-                   May be empty string if no prompt is needed.
-            output_to_parent: When set, written to the parent UI's output
-                   before the prompt is rendered.  Used by BufferedUI to
-                   relay approval messages from sub-agents to the main
-                   transcript.
-            agent_id: The originating sub-agent's id, propagated by
-                   BufferedUI so the confirmation queue can route an answer
-                   back to whichever agent's live view the user is looking
-                   at (see `UIConfirmation._resolve_for_agent`).
+            prompt: Prompt to display; may be empty.
+            output_to_parent: Written to the parent UI's output before the
+                   prompt (BufferedUI relays sub-agent approvals this way).
+            agent_id: The originating sub-agent's id, so the answer routes
+                   back to that agent's view.
 
         Returns:
             The user's input as a string.
@@ -910,15 +830,10 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     async def ask_user_choice(
         self, spec: "ChoiceSpec", agent_id: str | None = None
     ) -> str:
-        """[OPTIONAL] Ask a structured multiple-choice question.
+        """[OPTIONAL] Ask a multiple-choice question.
 
-        Default implementation formats the spec as numbered text and delegates
-        to `ask_user`, so any UI that only implements `ask_user` keeps working
-        (the user types a number or free text). Terminal UIs override this to
-        render an arrow-key-selectable widget.
-
-        Returns the chosen option label(s) — comma-joined for multi-select — or
-        the user's free-form text verbatim.
+        The default renders numbered text through `ask_user`. Returns the
+        chosen label(s), comma-joined for multi-select, or free-form text.
         """
         return await self.ask_user(format_choice_spec(spec), agent_id=agent_id)
 
@@ -927,9 +842,8 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     ) -> Any:
         """Execute an interactive shell command, handing it the real terminal.
 
-        Called by the diff and argument editors on an "edit" approval answer.
-        The default raises `NotImplementedError`: a UI with no terminal to
-        hand over fails that answer rather than editing.
+        Used by the diff and argument editors on an "edit" answer. The default
+        raises `NotImplementedError`.
 
         Args:
             cmd: Command to execute (string or list of arguments)
@@ -950,7 +864,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     async def run_async(self) -> str:
         """[REQUIRED] Run the UI event loop.
 
-        This method must be implemented by all UI subclasses. It should:
+        It should:
         1. Start the message processing loop (via process_messages_loop)
         2. Submit initial message if provided (_initial_message)
         3. Start any trigger loops if configured
@@ -993,14 +907,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         flush: bool = False,
         kind: str = "text",
     ):
-        """[OPTIONAL] Stream output immediately to parent UI.
+        """[OPTIONAL] Stream output immediately to the parent UI.
 
-        For main UIs, this is typically the same as append_to_output().
-        For child UIs in a multiplexer setup, this streams to the parent UI
-        instead of buffering locally.
-
-        Override this method if your UI needs to distinguish between
-        local output and output that should be immediately forwarded.
+        Defaults to `append_to_output`; child UIs forward instead of buffering.
 
         Args:
             *values: Objects to stream
@@ -1015,22 +924,12 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         )
 
     def on_exit(self):
-        """[OPTIONAL] Handle application exit.
-
-        Called when the user requests to exit the application. Override
-        this method to perform cleanup tasks (close connections, save state, etc.)
-
-        Default implementation does nothing.
-        """
+        """[OPTIONAL] Clean up when the user exits. Default: no-op."""
         pass
 
     @property
     def effective_message_queue(self) -> MessageQueue:
-        """The message queue submissions land on.
-
-        A child UI in a MultiUI routes its submissions (and edits) to the
-        parent's shared queue; a standalone UI uses its own.
-        """
+        """The queue submissions land on: the `MultiUI` parent's, else own."""
         parent = self.multi_ui_parent
         if parent is not None:
             return parent.message_queue
@@ -1042,14 +941,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         return self.effective_message_queue.qsize()
 
     def edit_queued_message(self, entry: QueuedMessage, new_text: str) -> bool:
-        """Replace a still-queued message's text in place.
+        """Replace a still-queued message's text and redraw its echoes.
 
-        Returns ``True`` when the message was still queued (its turn had not
-        started) and was edited; ``False`` when it already started and the edit
-        was refused. The entry is shared across every child UI in a MultiUI, so
-        editing from one child updates the message for all; the echo redraw is
-        broadcast the same way `submit_user_message` broadcasts the original
-        echo.
+        Returns ``False`` when its turn already started.
         """
         queue = self.effective_message_queue
         if not queue.contains(entry):
@@ -1059,14 +953,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         return True
 
     def delete_queued_message(self, entry: QueuedMessage) -> None:
-        """Drop a still-queued message and take its echoed line from every UI.
+        """Drop a still-queued message and remove its echo from every UI.
 
-        Nothing when the message's turn already started (its entry is no longer
-        queued), the same boundary `edit_queued_message` refuses on. The entry is
-        shared across every child UI in a MultiUI, so it leaves the one queue for
-        all of them and the echo removal is broadcast the way
-        `edit_queued_message` broadcasts the redraw — a sibling transcript that
-        kept its own echo would show a line for a message that never runs.
+        No-op when its turn already started.
         """
         queue = self.effective_message_queue
         if not queue.contains(entry):
@@ -1075,24 +964,14 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         _broadcast_echo(self, lambda ui: ui.remove_echo(entry))
 
     def redraw_echo(self, entry: QueuedMessage) -> str | None:
-        """Rewrite `entry`'s echoed line after an edit; the rewritten line or
-        None when it couldn't be redrawn — `AnyUI`'s echo contract. The default
-        TUI overrides this to splice into its output buffer; other UIs have no
-        buffer, so the base no-op returns None."""
+        """Rewrite `entry`'s echoed line; returns it, or None (no buffer)."""
         return None
 
     def remove_echo(self, entry: QueuedMessage) -> None:
-        """Take `entry`'s echoed line out after a delete; the delete-side
-        counterpart to `redraw_echo` — `AnyUI`'s echo contract. The default TUI
-        overrides this to splice into its output buffer; other UIs have no
-        buffer, so the base no-op does nothing."""
+        """Remove `entry`'s echoed line. No-op here (no buffer)."""
 
     def append_markdown(self, markdown_text: str) -> None:
-        """Render `markdown_text` at the current output width and append it.
-
-        The default TUI overrides this (in `UIOutput`) to remember the source so
-        a terminal resize can re-wrap it; every other UI just renders once.
-        """
+        """Render `markdown_text` at the current output width and append it."""
         self.append_to_output(
             render_markdown(
                 markdown_text,
@@ -1103,23 +982,11 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
     @property
     def output_field_width(self) -> int | None:
-        """Public width accessor — delegates to the `_get_output_field_width()`
-        override hook so callers (e.g. the diff formatter) read width through a
-        public name. Concrete UIs with their own terminal-derived width (the
-        default TUI via `UIOutput`) override this property directly, winning
-        by MRO; custom `BaseUI` subclasses just override `_get_output_field_width`.
-        """
+        """Output width, or None; subclasses override `_get_output_field_width`."""
         return self._get_output_field_width()
 
     def _get_output_field_width(self) -> int | None:
-        """[OPTIONAL] Get the width for text output formatting.
-
-        Override this method to provide a custom width for markdown
-        rendering and text wrapping. Return None for no width constraint.
-
-        Returns:
-            Width in characters, or None for no constraint.
-        """
+        """[OPTIONAL] Width in characters for wrapping, or None for none."""
         return None
 
     async def process_messages_loop(self):
@@ -1144,11 +1011,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
                     break
 
     async def _settle_previous_job(self) -> None:
-        """Await a still-running previous job, swallowing its outcome.
-
-        Awaited rather than polled, so there is no check-then-act race between
-        `done()` and the next assignment.
-        """
+        """Await a still-running previous job, swallowing its outcome."""
         if self._running_llm_task is None or self._running_llm_task.done():
             return
         try:
@@ -1157,9 +1020,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             # Process-level interrupts are not a job outcome.
             raise
         except BaseException:
-            # A cancel aimed at THIS loop must still land, or the queue becomes
-            # uncancellable while a previous job unwinds. `cancelling()` tells
-            # the two apart (same guard as monitoring._handle_threshold_reached).
+            # A cancel aimed at this loop must still propagate.
             current = asyncio.current_task()
             if current is not None and current.cancelling() > 0:
                 raise
@@ -1181,21 +1042,10 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             self._running_llm_task = None
 
     def track_echo_span(self, entry: QueuedMessage, echo: str) -> None:
-        """Record the output-buffer span of `echo` on `entry` (`AnyUI` hook).
-
-        The default UI overrides this so an edit can rewrite the echoed line in
-        place; other UIs have no buffer to splice into, so the default is a
-        no-op and their edits skip the redraw.
-        """
+        """Record the output-buffer span of `echo` on `entry`. No-op here."""
 
     def record_submitted_message(self, text: str) -> None:
-        """Record a submitted user message for cross-session recall.
-
-        Called from `submit_user_message`, the common boundary every user
-        message passes through (keyboard, initial, and programmatic). The
-        default TUI overrides this to append to its `PreviousMessageHistory`;
-        other UIs have no such history and record nothing.
-        """
+        """Record a submitted user message for cross-session recall. No-op here."""
 
     def submit_user_message(
         self,
@@ -1203,15 +1053,11 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         user_message: str,
         source: InputSource = KEYBOARD_INPUT,
     ) -> None:
-        """Queue *user_message* for `llm_task`, mirroring
-        `MultiUI.submit_user_message`. Prefer `submit_message` when the
-        message is for this UI's own current task; this explicit form exists
-        for callers (e.g. keybindings set up before a persona swap) holding a
-        specific task reference that may differ from `self.llm_task` by then."""
+        """Queue *user_message* for `llm_task`; prefer `submit_message` for
+        this UI's own current task."""
         parent_multi_ui = self.multi_ui_parent
         if parent_multi_ui is not None:
-            # The parent broadcasts to every child UI
-            # and records the message once, on its primary child.
+            # The parent broadcasts and records the message once.
             return parent_multi_ui.submit_user_message(llm_task, user_message, source)
         self.record_submitted_message(user_message)
         # Mid-turn the message only joins the queue; the marker says so.
@@ -1233,11 +1079,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         )
 
     def submit_message(self, user_message: str, source: InputSource = None) -> None:
-        """Queue *user_message* for the agent, mirroring `MultiUI.submit_message`:
-        steer into the live turn when one is in flight, otherwise
-        enqueue it for the next turn. Uses the UI's own task — sub-agent
-        continuation code calls this to hand the main agent a synthesized
-        report without reaching into `_llm_task`."""
+        """Steer *user_message* into the live turn, or queue it for the next."""
         self.submit_user_message(self.llm_task, user_message, source)
 
     def set_status_badge(self, key: str, text: str | None) -> None:
@@ -1254,28 +1096,17 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
     @property
     def is_waiting_for_answer(self) -> bool:
-        """Whether a tool approval or a question is waiting for the user.
-
-        ``False`` here; a UI that can hold one overrides it together with
-        `submit_answer`.
-        """
+        """Whether a tool approval or a question is waiting. ``False`` here."""
         return False
 
     @property
     def pending_answer_since(self) -> float | None:
-        """`time.monotonic()` when the prompt waiting for an answer appeared.
-
-        ``None`` with nothing pending, or when the UI cannot tell; a timed
-        `TriggerReply` then answers nothing.
-        """
+        """`time.monotonic()` when the pending prompt appeared, or None."""
         return None
 
     def is_prompt_answered_since(self, asked_at: float) -> bool:
-        """Whether the first prompt asked at or after *asked_at* (a
-        `time.monotonic()` value) has been answered or cancelled, however
-        briefly it was up. ``False`` before it is asked, or when the UI cannot
-        tell.
-        """
+        """Whether the first prompt asked at or after *asked_at* (monotonic)
+        has been answered or cancelled. ``False`` when unknown."""
         return False
 
     @property
@@ -1285,18 +1116,11 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         return False
 
     def submit_answer(self, text: str) -> None:
-        """Answer the pending approval or question with *text*, as if typed.
-
-        With nothing pending, *text* is submitted as a message instead.
-        """
+        """Answer the pending prompt with *text*, else submit it as a message."""
         self.submit_message(text)
 
     def insert_input_text(self, text: str) -> None:
-        """Insert *text* in the input box, at the cursor, for the user to edit
-        and send.
-
-        A UI with no input box to edit in submits it as a message instead.
-        """
+        """Insert *text* at the input cursor; without an input box, submit it."""
         self.submit_message(text)
 
     async def stream_ai_response(
@@ -1306,9 +1130,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         attachments: "list[UserContent] | None" = None,
     ):
         attachments = list(attachments or [])
-        # A cancelled turn can leave a stale running-tool timer behind; each
-        # turn starts clean so the status bar never shows a tool from a prior
-        # turn while this one streams only text.
+        # A cancelled turn can leave a stale running-tool timer behind.
         self.end_tool_call()
         self.is_thinking = True
         self.invalidate_ui()

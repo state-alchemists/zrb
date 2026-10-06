@@ -1,13 +1,4 @@
-"""The three hook-type factories: command, prompt, and agent.
-
-Each turns a `*HookConfig` into a `HookCallable` that `zrb.llm.hook.manager`
-invokes. The subprocess machinery a command hook needs lives in the siblings
-`zrb.llm.hook.process_io` (pipes, threads) and `zrb.llm.hook.process_kill`
-(tree kills).
-
-For the public hook authoring guide (formats, events, examples), see:
-  docs/llm/hooks.md
-"""
+"""Factories for command, prompt, and agent hooks."""
 
 import asyncio
 import json
@@ -138,13 +129,7 @@ def create_command_hook(
 def _build_hook_env(
     context: HookContext, plugin_root: str | None = None
 ) -> dict[str, str]:
-    """The child's environment: the ``CLAUDE_*`` view of *context*.
-
-    Values are size-bounded. event_data for SessionStart/Stop/SessionEnd carries
-    the whole message history; serialized into the environment that overflows
-    the OS exec arg+env limit (E2BIG: "Argument list too long"), so an oversized
-    value is dropped whole.
-    """
+    """Build the size-bounded ``CLAUDE_*`` environment for a hook child."""
     env = os.environ.copy()
     env["CLAUDE_HOOK_EVENT"] = str(context.event.value)
     env["CLAUDE_HOOK_EVENT_NAME"] = context.hook_event_name or str(context.event.value)
@@ -179,13 +164,7 @@ def _set_bounded_env(env: dict[str, str], key: str, value: str) -> None:
 
 
 def _encode_stdin_payload(context: HookContext) -> bytes:
-    """The Claude-shaped JSON payload fed to the hook on stdin.
-
-    Claude-Code-compatible hooks read their event payload from stdin as JSON
-    (e.g. peon-ping does ``json.load(sys.stdin)["hook_event_name"]``) and ignore
-    the env vars entirely. Feed them the same payload so those hooks fire; the
-    env vars from `_build_hook_env` remain for hooks that prefer them.
-    """
+    """Encode the Claude-shaped JSON payload sent to hook stdin."""
     claude_payload = context.to_claude_json()
     try:
         return json.dumps(claude_payload).encode()
@@ -218,12 +197,7 @@ def _interpret_exit(
     context: HookContext,
     command: str,
 ) -> HookResult:
-    """Turn a finished hook's exit code and streams into a HookResult.
-
-    Claude Code compatibility: exit code 2 means block, 0 means success. Other
-    non-zero codes are errors — except a negative one, which is a signal rather
-    than a hook bug.
-    """
+    """Convert a hook's exit code and streams into a `HookResult`."""
     if exit_code == 2:
         return _blocked_result(output, stderr_output)
     if exit_code == 0:
@@ -234,14 +208,7 @@ def _interpret_exit(
 
 
 def _blocked_result(output: str, stderr_output: str) -> HookResult:
-    """Exit 2 — the hook blocked the action.
-
-    Claude Code feeds the block reason back from STDERR on exit 2; zrb also
-    accepts it on stdout. Precedence: an explicit `reason` in a stdout JSON
-    control object > stderr (the Claude convention) > plain stdout text > a
-    default. So both a stdout-based hook and a Claude-style
-    ``echo "reason" >&2; exit 2`` carry their reason.
-    """
+    """Build the result for exit code 2, preserving the block reason."""
     modifications: dict = {}
     stdout_is_json = False
     try:
@@ -279,14 +246,7 @@ def _blocked_result(output: str, stderr_output: str) -> HookResult:
 
 
 def _success_result(output: str, context: HookContext) -> HookResult:
-    """Exit 0 — success, with stdout parsed for a JSON control object.
-
-    Claude-compatible stdout-as-context: for SessionStart / UserPromptSubmit,
-    unstructured stdout (the hook did not use the JSON control protocol) is
-    injected as additionalContext. When the hook DID emit a JSON object we
-    respect it verbatim — it may carry its own additionalContext or a decision —
-    and do not override.
-    """
+    """Build a success result, parsing JSON control output when present."""
     modifications: dict = {}
     try:
         data = json.loads(output)

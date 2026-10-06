@@ -10,9 +10,7 @@ from zrb.llm.tool.file_observation import clear_observed
 
 @pytest.fixture(autouse=True)
 def _reset_observed_state():
-    """The observed-content map is a run-scoped module singleton — reset it
-    so one test's Read/Write never leaks into another's assertions.
-    """
+    """Reset the run-scoped observation map between tests."""
     clear_observed()
     yield
     clear_observed()
@@ -35,17 +33,7 @@ def temp_dir(tmp_path):
 
 @pytest.fixture(autouse=True)
 def _no_real_lsp_server():
-    """Keep write/replace tests from spawning a real LSP server subprocess.
-
-    ``write_file``/``replace_in_file`` run post-write diagnostics on ``.py``
-    files, which asks ``lsp_manager`` for a server. ``lsp_manager`` is a
-    process-wide singleton, but each test here drives its coroutine through a
-    throwaway ``asyncio.run()``, so a server spawned on one test's loop is
-    reused after that loop is closed and never torn down — the child watcher
-    then logs "Loop <...> that handles pid N is closed" once the process
-    finally exits at interpreter shutdown. LSP integration itself is covered
-    by test_post_write_check.py and test_lsp_tools.py; here it is stubbed out.
-    """
+    """Stub post-write diagnostics to avoid cross-loop LSP subprocesses."""
     with patch(
         "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
         new=AsyncMock(return_value={"found": False, "diagnostics": []}),

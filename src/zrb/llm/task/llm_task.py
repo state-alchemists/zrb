@@ -1,12 +1,12 @@
 """`LLMTask` — single-shot task that creates a pydantic-ai agent and runs it.
 
-Decomposed into parts, mirroring `chat/task.py`:
+Parts:
 
   building.py - post-construction config API and agent/prompt assembly
   history.py  - conversation/history resolution, error & cancellation recovery
 
-The host keeps `__init__` and the execution core, which owns the `run_agent` /
-`create_agent` / `summarize_history` call sites tests patch at this module path.
+The execution core stays here because tests patch `run_agent`, `create_agent`
+and `summarize_history` at this module path.
 """
 
 from __future__ import annotations
@@ -157,12 +157,10 @@ class LLMTask(BaseTask):
             sandbox: Whether, and how, tool calls run sandboxed.
             yolo: Skip tool confirmation. True for all tools, or a comma-separated
                 string or set naming the tools to auto-approve.
-            dynamic_yolo: Callable re-evaluating `yolo` per tool call, for a
-                decision that depends on run-time state. Called with the tool
-                definition, plus the call's arguments when it accepts them
-                (`(tool_def, args)`) — a one-argument callable keeps working.
-                An `arg_pattern` permission rule needs those arguments to be
-                judged at all.
+            dynamic_yolo: Callable re-evaluating `yolo` per tool call, called
+                with the tool definition and, if it accepts them, the call's
+                arguments (`(tool_def, args)`). `arg_pattern` permission rules
+                need those arguments.
             conversation_name: Name the conversation is stored under.
             history_manager: Store persisting conversation history across runs.
                 Without one, a default file-backed store under LLM_HISTORY_DIR
@@ -444,8 +442,7 @@ class LLMTask(BaseTask):
         self._stream_observers[0:0] = observer
 
     def set_stream_observers(self, observers: "list[StreamObserver]") -> None:
-        """Replace the stream-observer list wholesale, with a copy of
-        *observers*, so the caller's list stays its own."""
+        """Replace the stream observers with a copy of *observers*."""
         self._stream_observers = list(observers)
 
     def remove_stream_observer(self, observer: "StreamObserver") -> None:
@@ -512,9 +509,7 @@ class LLMTask(BaseTask):
 
     @property
     def history_config(self) -> HistoryConfig:
-        """The history-manager/conversation-name knobs as one `HistoryConfig`.
-
-        Recomputed on each read so the `history_manager` setter is visible."""
+        """The history knobs as a `HistoryConfig`, recomputed on each read."""
         return HistoryConfig(
             history_manager=self._history_manager,
             conversation_name=self._conversation_name,
@@ -582,9 +577,7 @@ class LLMTask(BaseTask):
     def model_getter(
         self,
     ) -> "Callable[[str | Model | None], str | Model | None] | None":
-        """Callable transforming the resolved base model into the active
-        model (e.g. tier switching, A/B testing) — applied before
-        `model_renderer`."""
+        """Callable mapping the base model to the active one; runs before `model_renderer`."""
         return self._model_getter
 
     @model_getter.setter
@@ -603,8 +596,7 @@ class LLMTask(BaseTask):
     def model_renderer(
         self,
     ) -> "Callable[[str | Model | None], str | Model | None] | None":
-        """Callable transforming the active model into the final
-        pydantic-ai model — applied after `model_getter`."""
+        """Callable mapping the active model to the final one; runs after `model_getter`."""
         return self._model_renderer
 
     @model_renderer.setter
@@ -656,9 +648,9 @@ class LLMTask(BaseTask):
         # Composed once and shared by _create_agent and run_agent.
         system_prompt = self.get_system_prompt(ctx)
         # Volatile per-turn state goes into the user turn so the cacheable
-        # system prefix stays byte-stable. This also wires per-turn ambient
-        # state, so it must run every turn. The journal index is seeded on the
-        # first turn; summarize_history re-seeds it after compaction.
+        # system prefix stays byte-stable. Must run every turn: it also wires
+        # per-turn ambient state. summarize_history re-seeds the journal index
+        # after compaction.
         live_context = await self.get_live_context_async(
             ctx, inject_journal_index=not message_history, first_message=user_message
         )
@@ -668,11 +660,7 @@ class LLMTask(BaseTask):
         )
 
         async def _checkpoint(snapshot: list[Any]) -> None:
-            """Persist mid-turn progress so a crash/cancel can resume from it.
-
-            Fired in the background at each tool-call round-trip boundary.
-            Skips the timestamped backup, which the end-of-turn save writes.
-            """
+            """Persist mid-turn progress at each tool round-trip, without a backup."""
             history_manager.update(conversation_name, snapshot)
             await asyncio.to_thread(
                 history_manager.save, conversation_name, write_backup=False
@@ -760,9 +748,8 @@ class LLMTask(BaseTask):
         # lazy: heavy third-party (via zrb.llm.ui)
         from zrb.llm.agent.run.setup import session_model_scope
 
-        # `/compress` is handled before this task starts an agent, so the model
-        # bindings a run publishes do not exist yet; without them the summarizer
-        # resolves against `CFG` and ignores `/model small`.
+        # `/compress` runs before any agent publishes model bindings; without
+        # this scope the summarizer resolves against `CFG` and ignores `/model`.
         with session_model_scope(self._uis):
             new_history = await summarize_history(message_history, force=True)
         history_manager.update(conversation_name, new_history)

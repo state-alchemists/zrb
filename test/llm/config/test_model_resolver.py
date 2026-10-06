@@ -16,7 +16,7 @@ def resolver() -> ModelResolver:
     return ModelResolver()
 
 
-# --- ModelResolver.resolve --------------------------------------------------
+
 
 
 def test_resolve_non_string_model_passed_through(resolver: ModelResolver):
@@ -65,10 +65,7 @@ def test_resolve_unknown_provider_with_api_key_resolves_to_model_object(
 def test_resolve_unknown_provider_with_explicit_string_provider(
     resolver: ModelResolver,
 ):
-    """A provider name is not a provider: it carries no credentials. This used
-    to return the bare `"custom-provider:some-model"`, silently discarding the
-    `api_key` -- and a `base_url` with it, so traffic aimed at a private
-    gateway went to the vendor's public endpoint."""
+    'A provider name is not a provider: it carries no credentials. This used'
     from pydantic_ai.models.openai import OpenAIChatModel
 
     resolved = resolver.resolve(
@@ -85,9 +82,7 @@ def test_resolve_unknown_provider_with_explicit_string_provider(
 def test_resolve_unknown_provider_string_without_credentials_stays_a_name(
     resolver: ModelResolver,
 ):
-    """Nothing to attach means nothing to build, so the name passes through --
-    and the model's *own* prefix wins over the `provider` argument, being the
-    more specific statement of the two."""
+    'Nothing to attach means nothing to build, so the name passes through --'
     assert (
         resolver.resolve("totally-unknown-provider:some-model", provider="custom")
         == "totally-unknown-provider:some-model"
@@ -104,7 +99,7 @@ def test_resolve_model_without_provider_prefix_defaults_to_openai(
     assert isinstance(resolved, OpenAIChatModel)
 
 
-# --- resolve_configured_model -----------------------------------------------
+
 
 
 def test_resolve_configured_model_uses_cfg_default(monkeypatch):
@@ -125,7 +120,7 @@ def test_resolve_configured_model_explicit_override_wins(monkeypatch):
     assert resolve_configured_model("openai:gpt-4o") == "openai:gpt-4o"
 
 
-# --- resolve_configured_small_model -----------------------------------------
+
 
 
 def test_resolve_configured_small_model_uses_cfg_small_model(monkeypatch):
@@ -149,9 +144,7 @@ def test_resolve_configured_small_model_falls_back_to_main_model(monkeypatch):
 
 
 def test_resolve_configured_small_model_prefers_current_run_model(monkeypatch):
-    """A `/model deepseek:...` switch must carry the summarizer/journal with it:
-    falling back to CFG.LLM_MODEL would demand the default provider's
-    credentials on a run that never uses it."""
+    'A `/model deepseek:...` switch must carry the summarizer/journal with it:'
     from zrb.llm.agent_state import current_model
 
     monkeypatch.setattr(CFG, "LLM_MODEL", "openai:gpt-4o")
@@ -167,7 +160,7 @@ def test_resolve_configured_small_model_prefers_current_run_model(monkeypatch):
 
 
 def test_resolve_configured_small_model_cfg_small_model_beats_run_model(monkeypatch):
-    """An explicitly configured small model still outranks the run's model."""
+    "An explicitly configured small model still outranks the run's model."
     from zrb.llm.agent_state import current_model
 
     monkeypatch.setattr(CFG, "LLM_MODEL", "openai:gpt-4o")
@@ -192,11 +185,11 @@ def test_resolve_configured_small_model_explicit_override_wins(monkeypatch):
     assert resolve_configured_small_model("openai:gpt-4o-mini") == "openai:gpt-4o-mini"
 
 
-# --- resolve_configured_multimodal_model ------------------------------------
+
 
 
 def test_resolve_configured_multimodal_model_prefers_run_override(monkeypatch):
-    """`/model multimodal <name>` outranks `CFG.LLM_MULTIMODAL_MODEL`."""
+    '`/model multimodal <name>` outranks `CFG.LLM_MULTIMODAL_MODEL`.'
     from zrb.llm.agent_state import current_multimodal_model
 
     monkeypatch.setattr(CFG, "LLM_MULTIMODAL_MODEL", "openai:gpt-4o")
@@ -213,8 +206,7 @@ def test_resolve_configured_multimodal_model_prefers_run_override(monkeypatch):
 def test_resolve_configured_multimodal_model_never_falls_back_to_main_model(
     monkeypatch,
 ):
-    """No multimodal model configured stays `None` — a text-only main model
-    cannot read the attachment, which is why this tier exists at all."""
+    'No multimodal model configured stays `None` — a text-only main model'
     from zrb.llm.agent_state import current_model
 
     monkeypatch.setattr(CFG, "LLM_MULTIMODAL_MODEL", "")
@@ -259,7 +251,7 @@ def test_module_singleton_is_model_resolver_instance():
     assert isinstance(model_resolver, ModelResolver)
 
 
-# --- model_getter / model_renderer (global hooks) ---------------------------
+
 
 
 def test_hooks_default_to_none(resolver: ModelResolver):

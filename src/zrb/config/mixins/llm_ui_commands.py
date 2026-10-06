@@ -1,8 +1,4 @@
-"""LLM UI slash-command aliases (15 command-list properties).
-
-Each property reads a comma-separated env value and returns a parsed list.
-Setters serialize back to comma-separated form.
-"""
+"""LLM UI slash-command aliases."""
 
 from __future__ import annotations
 

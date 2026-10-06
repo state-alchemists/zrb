@@ -33,12 +33,7 @@ from zrb.util.match import fuzzy_match
 
 class InputCompleter(Completer):
     def refresh_command_aliases(self, ui_config: UIConfig) -> None:
-        """Re-read every command-alias list from `ui_config`.
-
-        The lists are copied out of `UIConfig` at construction for fast prefix
-        matching, so a `/set` that changes an `LLM_UI_COMMAND_*` setting calls
-        this to pick up the new aliases.
-        """
+        """Refresh cached command aliases from `ui_config`."""
         self._attach_commands = list(ui_config.attach_commands)
         self._exit_commands = list(ui_config.exit_commands)
         self._info_commands = list(ui_config.info_commands)
@@ -55,12 +50,7 @@ class InputCompleter(Completer):
         self._copy_commands = list(ui_config.copy_commands)
 
     def refresh_model_visibility(self, ui_config: UIConfig) -> None:
-        """Re-read the model-source visibility flags from `ui_config`.
-
-        Called after a `/set` changes `LLM_SHOW_OLLAMA_MODELS` or
-        `LLM_SHOW_PYDANTIC_AI_MODELS`, which this completer copies at
-        construction.
-        """
+        """Refresh cached model-source visibility flags from `ui_config`."""
         self._show_ollama_models = ui_config.show_ollama_models
         self._show_pydantic_ai_models = ui_config.show_pydantic_ai_models
 

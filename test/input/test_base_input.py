@@ -10,7 +10,7 @@ class ConcreteInput(BaseInput):
 
 
 class RejectingInput(BaseInput):
-    """An input whose type rejects some values, as `IntInput` and `BoolInput` do."""
+    """Input whose parser rejects some values."""
 
     def to_html(self, shared_ctx) -> str:
         return "<input>"
@@ -23,12 +23,7 @@ class RejectingInput(BaseInput):
 
 
 class UndescribedInput(BaseInput):
-    """A subclass that adds a type without saying what it accepts.
-
-    Overriding `_parse_str_value` is the documented way to add a type; the
-    description beside it is easy to forget, so the fallback has to carry the
-    part that matters — which flag was rejected.
-    """
+    """Input parser without an accepted-value description."""
 
     def to_html(self, shared_ctx) -> str:
         return "<input>"
@@ -190,14 +185,7 @@ def test_base_input_update_shared_context_same_name_no_duplicate():
 
 
 def test_base_input_rejected_value_names_the_flag_and_the_accepted_shape():
-    """A cast's own error names neither the flag the user typed nor a value that works.
-
-    `int("abc")` reports "invalid literal for int() with base 10: 'abc'": the user
-    learns their answer was rejected, not which `--flag` to retype or what would
-    be accepted. The wrapping lives in `update_shared_context`, so every input
-    that adds a type through `_parse_str_value` gets the naming for free instead
-    of each subclass having to remember it.
-    """
+    """Parser errors name the input and accepted value shape."""
     inp = RejectingInput("ticket-count")
     with pytest.raises(ValueError) as excinfo:
         inp.update_shared_context(SharedContext(), str_value="abc")
@@ -219,13 +207,7 @@ def test_base_input_rejected_value_is_not_stored():
 
 
 def test_base_input_a_forgotten_description_still_names_the_flag():
-    """The second override is optional, so the message must not depend on it.
-
-    Deliberately silent on the wording of the type description: that phrase is
-    `BaseInput`'s business, and this asserts only the half that has to hold for
-    any subclass — the user is told which flag was rejected, and is not shown the
-    cast's own text.
-    """
+    """A missing description still names the rejected flag, not cast details."""
     inp = UndescribedInput("ticket-count")
     with pytest.raises(ValueError) as excinfo:
         inp.update_shared_context(SharedContext(), str_value="abc")

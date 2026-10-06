@@ -42,8 +42,7 @@ def test_public_setters_and_getters_round_trip():
 
 
 def test_permission_policy_resets_on_exception():
-    """The whole point of `permission_policy`: an exception mid-block must
-    not leave the policy leaked into whatever runs next."""
+    """An exception mid-block must not leak the policy."""
     from zrb.llm.permission import get_current_permission_policy, permission_policy
 
     policy = PermissionPolicy((Rule("*", "deny"),))
@@ -65,12 +64,7 @@ def test_explicit_policy_is_returned():
 
 @pytest.mark.asyncio
 async def test_agent_mode_is_isolated_per_run():
-    """Concurrent runs must not share agent mode (regression for H11).
-
-    Each run binds its own ``AgentModeState`` via ``enter_agent_mode_scope`` and
-    mutates only that instance, so one conversation switching to BUILD cannot
-    flip another that is in PLAN.
-    """
+    """Concurrent runs must not share agent mode."""
     import asyncio
 
     from zrb.llm.permission.state import (

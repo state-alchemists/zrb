@@ -106,14 +106,7 @@ apply_common_tools(llm_chat)
 
 
 def _tool_factory(tool, defer_loading: bool = True):
-    """Wrap a tool, optionally hiding its schema until searched for by name.
-
-    Deferring removes the schema from every turn's token cost, not the model's
-    knowledge that the tool exists — native tool search still surfaces the
-    name on demand. ``DelegateToAgent`` is the exception that loads eagerly:
-    its schema carries the sub-agent roster, and a model that has to search
-    before it can see which agents exist mostly does not delegate at all.
-    """
+    """Wrap a tool and optionally defer loading its schema."""
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import Tool
 
@@ -144,10 +137,8 @@ llm_chat.prompt_manager.add_live_context(
     "background_delegations", background_delegation_live_context
 )
 
-# Add argument formatter (show arguments when asking for user confirmation)
 llm_chat.prepend_argument_formatter(replace_in_file_formatter, write_file_formatter)
 
-# Add response handler (update tool)
 llm_chat.prepend_response_handler(replace_in_file_response_handler)
 
 # Tool approval policies; sub-agents inherit them via the
@@ -186,21 +177,15 @@ llm_chat.prepend_tool_policy(
     auto_approve("SearchSkill"),
     # AskUserQuestion auto-approves itself everywhere.
     auto_approve("DelegateToAgent"),
-    # Roster search is metadata — it finds delegation targets, it does not
-    # delegate — so it prompts nothing; the sub-agent's own tool calls still
-    # route their approvals to the user.
+    # Sub-agents' own tool calls still route their approvals to the user.
     auto_approve("SearchAgent"),
-    # Starting a background delegation and polling its result are harmless; the
-    # sub-agent's own tool calls still route their approvals to the user.
     auto_approve("DelegateToAgentBackground"),
     auto_approve("GetDelegationResult"),
-    # EnterPlanMode only restricts the model further, safe to auto-approve.
     auto_approve("EnterPlanMode"),
     # ExitPlanMode is absent: PLAN_MODE_POLICY asks, so the user approves the
     # plan. MonitorProcess only polls/waits; kill still asks, and starting a
     # background command goes through Shell's policy.
     auto_approve("MonitorProcess"),
-    # LSP tools - read-only, safe to auto-approve
     auto_approve("LspFindDefinition"),
     auto_approve("LspFindReferences"),
     auto_approve("LspGetDiagnostics"),
@@ -208,15 +193,12 @@ llm_chat.prepend_tool_policy(
     auto_approve("LspGetWorkspaceSymbols"),
     auto_approve("LspGetHoverInfo"),
     auto_approve("LspListServers"),
-    # Planning tools - safe to auto-approve (just state management)
     auto_approve("TodoWrite"),
     auto_approve("TodoRead"),
-    # LspRenameSymbol is deliberately absent: dry_run=False edits files.
-    # Worktree tools - listing is safe; create/remove require approval
+    # LspRenameSymbol is absent: dry_run=False edits files.
     auto_approve("ListWorktrees"),
 )
 
-# Add custom command (slash commands)
 llm_chat.append_custom_command(get_skill_custom_command(skill_manager))
 
 # Each reads its settings when a session starts, so zrb_init.py may change

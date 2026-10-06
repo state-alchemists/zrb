@@ -1,20 +1,12 @@
 """Stream-error retry decisions for `run_agent`.
 
-Encapsulates the retry policies that share the main agent loop:
-- transient provider errors (429/5xx-style): exponential-ish wait, capped count
-- prompt-too-long errors: drop one history turn, capped count
-- invalid tool call: inject a single corrective system message, once
-- opaque 400: collapse history to text-only and retry once
-
-The opaque-400 handler is deliberately *not* provider-specific. When a model
-response can't round-trip through its own provider (GLM-5 on Bedrock, DeepSeek
-on third-party gateways, local models, …) the error is always a 400 with some
-provider-specific body shape. Rather than catalog every variant, the fallback
-collapses all messages to plain text — the least common denominator that every
-provider accepts.
-
-`handle_stream_error` mutates `RetryState` in place and sleeps internally
-for the transient case, returning whether the caller should retry.
+- transient provider errors (429/5xx): backoff, capped count
+- prompt-too-long: drop one history turn, capped count
+- invalid tool call: inject one corrective message
+- missing reasoning_content: strip thinking parts, once
+- opaque 400: collapse history to text-only, once (provider-agnostic: text is
+  what every provider accepts)
+- stale deferred results: clear them, once
 """
 
 from __future__ import annotations
@@ -57,9 +49,6 @@ class RetryState:
     max_transient_retries: int = field(
         default_factory=lambda: max(0, CFG.LLM_API_MAX_RETRIES - 1)
     )
-    # An empty/placeholder completion is usually a transient provider hiccup, so
-    # retry a couple of times; if it persists (e.g. context exceeds the model's
-    # window) the loop raises a clear error rather than surfacing the placeholder.
     max_empty_completion_retries: int = 2
 
 
@@ -84,10 +73,8 @@ async def handle_stream_error(
 ) -> RetryOutcome:
     """Decide whether/how to retry after a stream error. Sleeps for transient errors.
 
-    Each handler below owns one error class, consumes its own budget on
-    `state`, and returns `None` to pass the error to the next. Order matters:
-    a transient status wins over a keyword guess, and the opaque-400 collapse
-    is the last resort before giving up.
+    Each handler owns one error class and its budget on `state`, returning
+    `None` to pass. Order matters: a transient status wins over a keyword guess.
     """
     transient = await _retry_transient(
         state, exc, current_history, current_message, print_fn
@@ -152,13 +139,9 @@ def _retry_with_pruned_history(
 ) -> RetryOutcome | None:
     """Drop the oldest turn and retry a context-length error.
 
-    Only when pruning actually shrinks the request. `drop_oldest_turn` returns
-    the history unchanged when there is nothing left to drop (a single turn, or
-    `min_turns` already reached); retrying with an identical history reproduces
-    the same error and — when deferred tool results are pending (min_turns=1) —
-    re-executes the approved, side-effecting tool on every attempt. When
-    pruning can make no progress this returns `None`, so the text-only collapse
-    further down truncates oversized tool results instead of looping uselessly.
+    Passes when pruning cannot shrink the history: an identical retry fails
+    the same way (and re-runs a pending approved tool), so the text-only
+    collapse gets to truncate oversized tool results instead.
     """
     if not (
         is_prompt_too_long_error(exc)
@@ -169,11 +152,7 @@ def _retry_with_pruned_history(
     if len(new_history) >= len(current_history):
         return None
     state.context_retry_count += 1
-    # transient_retry_count is intentionally NOT reset here: the transient
-    # (429/5xx) budget derived from LLM_API_MAX_RETRIES is a global cap for
-    # the whole run. A context-length prune is a different failure class and
-    # must not refresh that budget, or a session alternating between the two
-    # error types could retry transiently far more than configured.
+    # transient_retry_count is not reset: it is a per-run cap.
     print_fn(
         f"\n[SYSTEM] Context too long, retrying with reduced history"
         f" (attempt {state.context_retry_count}/{state.max_context_retries})..."
@@ -226,7 +205,7 @@ def _retry_with_tool_call_correction(
     min_turns: TurnPruneFloor,
 ) -> RetryOutcome | None:
     """Tell the model its tool name does not exist, and how to call one properly."""
-    # lazy: heavy third-party — pydantic_ai pulls in OpenAI/Anthropic SDKs.
+    # lazy: heavy third-party
     from pydantic_ai.messages import ModelRequest, UserPromptPart
 
     if not (is_invalid_tool_call_error(exc) and not state.invalid_tool_retry_done):
@@ -293,16 +272,12 @@ def _retry_with_text_only_history(
 ) -> RetryOutcome | None:
     """Collapse history to text and retry once, for an unclassified 400.
 
-    Catches any 400 the handlers above did not classify — most commonly a model
-    response that cannot round-trip through its own provider (GLM-5 on Bedrock,
-    DeepSeek, local models). Text is the lowest common denominator every
-    provider accepts. An explainer `UserPromptPart` is always appended after
-    the strip so the model knows the `(sanitized-history)` markers are a
-    record, not a tool-calling format to imitate — and that tool use is still
-    expected on the next turn. Pending deferred results are dropped: the
-    stripped history has no tool call left for them to answer.
+    Typically a response that cannot round-trip through its own provider. An
+    explainer tells the model the `(sanitized-history)` markers are a record,
+    not a format to imitate. Pending deferred results are dropped: no tool
+    call is left for them to answer.
     """
-    # lazy: heavy third-party — pydantic_ai pulls in OpenAI/Anthropic SDKs.
+    # lazy: heavy third-party
     from pydantic_ai.messages import ModelRequest, UserPromptPart
 
     if state.opaque_retry_done or getattr(exc, "status_code", None) != 400:
@@ -345,16 +320,11 @@ def _retry_without_stale_deferred_results(
 ) -> RetryOutcome | None:
     """Clear pending tool results the summarizer orphaned, and retry.
 
-    The history summarizer ran between deferred tool iterations and removed the
-    `ModelResponse` whose tool_calls matched `current_results`, so pydantic-ai's
-    `_handle_deferred_tool_results` raises `UserError` because the last
-    `ModelResponse` no longer has any `ToolCallPart`s. Clearing the results lets
-    the model generate fresh tool calls on the next iteration. The intact
-    `run_history` is handed back (not `None`): the runner assigns `new_history`
-    to `current_history` unconditionally, and the next loop iteration feeds it
-    straight into `sanitize_history`, which raises on `None`.
+    The summarizer removed the `ModelResponse` holding the deferred calls, so
+    pydantic-ai raises `UserError`. `run_history` is returned rather than
+    `None` because the next round sanitizes it unconditionally.
     """
-    # lazy: heavy third-party — pydantic_ai pulls in OpenAI/Anthropic SDKs.
+    # lazy: heavy third-party
     from pydantic_ai.exceptions import UserError as PydanticUserError
 
     if state.deferred_mismatch_retry_done or not isinstance(exc, PydanticUserError):
@@ -387,16 +357,10 @@ _INVALID_TOOL_NAME_PATTERNS = (
 def _extract_invalid_tool_name(
     exc: Exception, current_history: list[Any]
 ) -> str | None:
-    """Return the bad tool name when discoverable, else ``None``.
+    """Return the bad tool name from the error body or recent history, else ``None``.
 
-    Looks at two sources in order:
-
-    1. The exception body (some providers include "Unknown tool: X").
-    2. The recent history — zrb's ``SafeToolsetWrapper`` writes
-       ``Unknown tool name: 'X'`` into a tool-return part when it
-       rejects a malformed call, which is the most reliable signal
-       for Ollama-cloud (whose body is the generic
-       ``invalid tool call arguments``).
+    History matters for Ollama-cloud, whose body is generic: ``SafeToolsetWrapper``
+    writes ``Unknown tool name: 'X'`` into a tool return.
     """
     body = getattr(exc, "body", None)
     body_text = body.get("message") if isinstance(body, dict) else str(exc)

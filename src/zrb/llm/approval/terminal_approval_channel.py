@@ -43,16 +43,14 @@ class TerminalApprovalChannel(AnyApprovalChannel):
             tool_call_id=context.tool_call_id,
         )
 
-        # Use the UI's handler when it has one (it carries the formatters and
-        # policies); `None` is the AnyUI contract's own "this UI has none".
+        # The UI's handler carries its formatters and policies.
         handler = self._ui.tool_call_handler or ToolCallHandler()
 
         message = await handler.format_approval_message(self._ui, call)
         CFG.LOGGER.debug(
             "TerminalApprovalChannel Got confirmation message, about to display to user"
         )
-        # One leading "\n", not two — see the matching note in
-        # `ToolCallHandler.handle`.
+        # One leading "\n"; see `ToolCallHandler.handle`.
         self._ui.append_to_output(f"\n{message}", end="")
 
         CFG.LOGGER.debug("TerminalApprovalChannel Waiting for user input via CLI...")
@@ -118,8 +116,7 @@ class TerminalApprovalChannel(AnyApprovalChannel):
         """Handle edit mode - open editor for new arguments."""
         current_args = context.tool_args or {}
 
-        # Two-space indent matches the other mid-turn status lines printed
-        # outside `StreamEventHandler` (see `web.py::_notify`).
+        # Two-space indent matches other mid-turn status lines.
         args_str = json.dumps(current_args, indent=2, default=str)
         self._ui.append_to_output(f"\n  📝 Current arguments:\n```\n{args_str}\n```\n")
         self._ui.append_to_output("  Opening editor...\n")

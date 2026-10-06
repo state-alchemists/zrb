@@ -46,7 +46,7 @@ def test_normalize_attachments_string_path(tmp_path):
     f = tmp_path / "test.txt"
     f.write_text("hello")
 
-    # We need to mock BinaryContent because pydantic_ai might not be fully available or needed for simple check
+
     from pydantic_ai import BinaryContent
 
     normalized = normalize_attachments([str(f)])
@@ -63,35 +63,35 @@ def test_normalize_attachments_already_normalized():
 
 
 def test_get_attachments_callable_returns_none():
-    """Line 55: callable returning None should return empty list."""
+    'Line 55: callable returning None should return empty list.'
     ctx = MagicMock()
     callback = lambda c: None
     assert get_attachments(ctx, callback) == []
 
 
 def test_get_attachments_callable_returns_single_item():
-    """Line 58: callable returning single non-list item should wrap it."""
+    'Line 58: callable returning single non-list item should wrap it.'
     ctx = MagicMock()
     callback = lambda c: "single_item"
     assert get_attachments(ctx, callback) == ["single_item"]
 
 
 def test_normalize_attachments_none_item():
-    """Line 22: None items in the list should be skipped."""
+    'Line 22: None items in the list should be skipped.'
     result = normalize_attachments([None, "not_a_real_file.txt"])
-    # None is skipped, file path doesn't exist so nothing added
+
     assert result == []
 
 
 def test_normalize_attachments_file_not_found(capsys):
-    """Line 34: File not found should print warning."""
+    'Line 34: File not found should print warning.'
     normalize_attachments(["/nonexistent/path/file.txt"])
     captured = capsys.readouterr()
     assert "not found" in captured.out
 
 
 def test_normalize_attachments_unknown_media_type(tmp_path, capsys):
-    """Line 37-38: Unknown media type should print warning."""
+    'Line 37-38: Unknown media type should print warning.'
     f = tmp_path / "test.xyz"
     f.write_text("data")
     normalize_attachments([str(f)], print_fn=lambda msg: print(msg, end=""))
@@ -100,7 +100,7 @@ def test_normalize_attachments_unknown_media_type(tmp_path, capsys):
 
 
 def test_normalize_attachments_read_error(tmp_path, capsys):
-    """Line 31-32: File read error should be caught and printed."""
+    'Line 31-32: File read error should be caught and printed.'
     from unittest.mock import patch
 
     f = tmp_path / "test.txt"
@@ -117,7 +117,7 @@ def test_normalize_attachments_read_error(tmp_path, capsys):
 
 
 def test_normalize_attachments_non_string_item():
-    """Line 39-40: Non-string, already valid items are passed through."""
+    'Line 39-40: Non-string, already valid items are passed through.'
     from pydantic_ai import BinaryContent
 
     item = BinaryContent(data=b"test", media_type="text/plain")
@@ -181,7 +181,7 @@ def test_sniff_mismatch_webp_bad():
 
 
 def test_sniff_mismatch_no_signature_for_type():
-    """Types without a known signature (e.g. audio) are never flagged."""
+    'Types without a known signature (e.g. audio) are never flagged.'
     assert sniff_mismatch(b"anything", "audio/mpeg") is None
 
 

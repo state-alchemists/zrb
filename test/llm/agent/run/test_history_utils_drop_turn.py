@@ -45,7 +45,6 @@ def test_drop_oldest_turn_multiple():
     req2 = ModelRequest(parts=[UserPromptPart(content="3")])
     res2 = ModelResponse(parts=[TextPart(content="4")])
 
-    # is_turn_start checks if it is ModelRequest with UserPromptPart or SystemPromptPart
     history = [req1, res1, req2, res2]
     new_hist = drop_oldest_turn(history)
     assert new_hist == [req2, res2]
@@ -145,8 +144,7 @@ def test_filter_nil_content():
 
 
 def test_filter_nil_content_injects_placeholder_when_no_text_and_no_tool_call():
-    """A response with neither text nor tool calls (e.g. thinking-only) still
-    gets the "(tool call)" placeholder — providers reject a truly empty turn."""
+    """Empty responses receive the tool-call placeholder."""
     msg = ModelResponse(parts=[ThinkingPart(content="reasoning only")])
 
     filtered = filter_nil_content([msg])
@@ -185,9 +183,7 @@ def test_filter_nil_content_preserves_builtin_tool_call_part():
 
 
 def test_strip_to_text_only_converts_all_non_text_parts():
-    """ToolCallPart, ToolReturnPart → ``(sanitized-history) …`` prose,
-    ThinkingPart → its text content.
-    """
+    """Tool parts become sanitized text; thinking text is preserved."""
     history = [
         ModelRequest(parts=[UserPromptPart(content="deploy to prod")]),
         ModelResponse(
@@ -297,8 +293,7 @@ def test_strip_to_text_only_empty_result_returns_original():
 
 
 def test_strip_to_text_only_keeps_conversation_flow():
-    """Multi-turn tool-using conversation: tool call/return parts are converted
-    to descriptive text, preserving semantic context."""
+    """Tool calls and returns become descriptive text across turns."""
     history = [
         ModelRequest(parts=[UserPromptPart(content="weather in Boston?")]),
         ModelResponse(
@@ -411,12 +406,7 @@ def test_filter_nil_content_uses_null_for_builtin_tool_return():
 
 
 def test_strip_to_text_only_never_puts_textpart_in_modelrequest():
-    """Regression: pydantic-ai's _map_user_message asserts_never on any non
-    {System,User,ToolReturn,Retry}PromptPart inside a ModelRequest. A
-    ToolReturnPart converted to TextPart used to crash the OpenAI mapper
-    with ``AssertionError: Expected code to be unreachable, but got:
-    TextPart(content='[Result (...): ...]')``.
-    """
+    """ModelRequests contain only parts accepted by the OpenAI mapper."""
     from pydantic_ai.messages import RetryPromptPart, SystemPromptPart
 
     history = [

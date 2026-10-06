@@ -8,27 +8,21 @@ repository. The listing is built here instead, repository by repository:
   `git ls-files --cached --others --exclude-standard` — so its `.gitignore`
   files, above the directory too, its `info/exclude` and the user's global
   excludes all apply.
-- Each nested repository is listed the same way, by itself, recursively:
-  one the listing reports — an untracked one as `dir/`, a submodule as a
-  gitlink — and one inside a directory the repository ignores, which is
-  searched for repositories and nothing else. A repository is often ignored
-  by its parent only so the parent stops reporting it — a folder of cloned
-  child repositories, or the worktrees `EnterWorktree` creates under
-  `.zrb/worktree/` — and its files are no less the user's.
-- A directory outside every repository is walked, and a repository found
-  there is listed by itself. So is a working directory its own repository
-  ignores, such as a scratch folder: it is still what the user works on. Outside a repository `DEFAULT_IGNORE_DIRS` is the
-  only rule, so those loose files count toward `CFG.LLM_SNAPSHOT_LOOSE_MAX_FILES`
-  and `CFG.LLM_SNAPSHOT_LOOSE_MAX_MB`, read when the listing starts; past
-  either, the listing raises `SnapshotBudgetError`.
+- Each nested repository is listed the same way, by itself, recursively —
+  including one inside a directory its parent ignores (cloned child repos,
+  worktrees under `.zrb/worktree/`), which is searched for repositories and
+  nothing else.
+- A directory outside every repository (or a working directory its own
+  repository ignores) is walked. Its loose files count toward
+  `CFG.LLM_SNAPSHOT_LOOSE_MAX_FILES` and `CFG.LLM_SNAPSHOT_LOOSE_MAX_MB`;
+  past either, the listing raises `SnapshotBudgetError`.
 
 `DEFAULT_IGNORE_DIRS` and the excluded paths apply everywhere, tracked files
 included, and are never searched for repositories.
 
-The listing also records what exists but it leaves out — each repository's
-ignored paths, and every directory it cannot look into, which git skips
-without a machine-readable word — so a restore can tell a file that did not
-exist then from one it never saw.
+The listing also records what exists but is left out (ignored paths,
+unreadable directories) so a restore can tell a file that did not exist then
+from one it never saw.
 """
 
 from __future__ import annotations
@@ -236,9 +230,7 @@ class _Lister:
 
     def _is_listed_by_a_repository(self) -> bool:
         """Whether the working directory is in a repository that does not
-        ignore it. One its repository ignores — a scratch folder — is still
-        what the user works on, so it is walked like a directory outside
-        every repository, rather than listed as empty."""
+        ignore it (an ignored one is walked instead of listed as empty)."""
         workdir = self._scope.workdir
         inside = run_git_command(
             ["git", "rev-parse", "--is-inside-work-tree"], workdir, self._deadline

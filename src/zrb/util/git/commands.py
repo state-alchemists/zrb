@@ -244,9 +244,7 @@ async def commit(
 ) -> None:
     """Commit staged changes with `message`.
 
-    A "nothing to commit, working tree clean" failure is swallowed rather than
-    raised — callers that commit opportunistically (e.g. after a step that may
-    or may not have changed anything) shouldn't have to special-case it.
+    A "nothing to commit, working tree clean" failure is swallowed.
     """
     cmd_result, exit_code = await run_command(
         cmd=["git", "commit", "-m", message],

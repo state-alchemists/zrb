@@ -1,7 +1,4 @@
-"""
-Thread-safe hook executor with timeout controls and proper error handling.
-Implements Claude Code compatible execution patterns.
-"""
+"""Thread-safe hook executor with per-hook timeouts."""
 
 import asyncio
 import atexit
@@ -25,7 +22,7 @@ T = TypeVar("T")
 
 @dataclass
 class HookExecutionResult:
-    """Enhanced result with Claude Code compatibility fields."""
+    """A hook's outcome, with Claude Code compatible fields."""
 
     success: bool
     blocked: bool = False
@@ -40,18 +37,17 @@ class HookExecutionResult:
     additional_context: str | None = None
     updated_input: dict[str, Any] | None = None
     system_message: str | None = None
-    replace_response: bool = False  # If True, extended response replaces original
+    replace_response: bool = False  # extended response replaces the original
     continue_execution: bool = True
     suppress_output: bool = False
     hook_specific_output: dict[str, Any] | None = None
 
 
 class _HookRun:
-    """One synchronous hook's run, in an event loop of its own on a pool
-    thread. `cancel` reaches into that loop from the caller's: cancelling the
-    caller's future only abandons the thread, and a hook left running there —
-    a reviewer's model request, a command's process — would run on to the
-    end with nothing waiting for its result."""
+    """One hook's run in its own event loop on a pool thread.
+
+    `cancel` reaches into that loop; cancelling the caller's future alone would
+    leave the hook running."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -60,8 +56,7 @@ class _HookRun:
         self._cancelled = False
 
     def can_start(self) -> bool:
-        """Called first inside the hook's loop, which it records so `cancel`
-        can reach it. False when the caller already cancelled."""
+        """Record the hook's loop for `cancel`; False if already cancelled."""
         with self._lock:
             if self._cancelled:
                 return False
@@ -141,16 +136,7 @@ class _DaemonHookExecutor:
 
 
 class ThreadPoolHookExecutor:
-    """
-    Thread-safe executor for hook execution with timeout controls.
-
-    Implements Claude Code compatible execution patterns:
-    - Thread pool with size limits
-    - Timeout controls per hook
-    - Graceful shutdown
-    - Proper error propagation
-    - Exit code handling (0=success, 2=block)
-    """
+    """Thread-safe hook executor with per-hook timeouts (exit 0=success, 2=block)."""
 
     def __init__(
         self,
@@ -207,8 +193,8 @@ class ThreadPoolHookExecutor:
         context: HookContext,
         timeout: float | None = None,
     ) -> HookExecutionResult:
-        """Run *hook* under *timeout* (falling back to `self.default_timeout`),
-        returning a Claude-Code-compatible result instead of raising."""
+        """Run *hook* under *timeout* (default `self.default_timeout`); never raises
+        except to propagate cancellation."""
         if self._shutdown_event.is_set():
             return HookExecutionResult(
                 success=False, error="Hook executor is shutting down", exit_code=1
@@ -241,17 +227,16 @@ class ThreadPoolHookExecutor:
             return HookExecutionResult(
                 success=False,
                 error=f"Hook execution timed out after {timeout}s",
-                exit_code=124,  # Standard timeout exit code
+                exit_code=124,
             )
         except Exception as e:
             logger.error(f"Error executing hook: {e}", exc_info=True)
             return HookExecutionResult(success=False, error=str(e), exit_code=1)
 
     async def _stop(self, run: "_HookRun", job: Future[HookExecutionResult]) -> None:
-        """Cancel the hook and wait for it to finish, up to
-        `cancel_grace_seconds`. One not started yet never starts; one blocked
-        where cancellation cannot reach it — a synchronous call — is left to
-        finish, with a warning, rather than holding its caller."""
+        """Cancel the hook and wait up to `cancel_grace_seconds` for it to finish.
+
+        A hook blocked in a synchronous call is left running, with a warning."""
         run.cancel()
         if job.cancel():
             return
@@ -267,16 +252,9 @@ class ThreadPoolHookExecutor:
     def _run_hook_sync(
         self, hook: HookCallable, context: HookContext, run: "_HookRun"
     ) -> HookExecutionResult:
-        """
-        Run hook synchronously in thread pool.
-        This method handles the actual execution and result parsing.
-
-        Uses asyncio.run() for proper event loop lifecycle management
-        to avoid "Event loop is closed" errors during subprocess transport cleanup.
-        """
+        """Run *hook* in a fresh event loop on the calling pool thread."""
 
         async def run_hook_async():
-            """Wrapper to run the hook and handle exceptions."""
             if not run.can_start():
                 return HookResult(success=False, output="Hook cancelled")
             try:
@@ -288,10 +266,8 @@ class ThreadPoolHookExecutor:
                 return HookResult(success=False, output=str(e), should_stop=False)
 
         try:
-            # Use asyncio.run() which properly handles event loop lifecycle
-            # including cleanup of subprocess transports
+            # asyncio.run() cleans up subprocess transports before closing the loop.
             hook_result = asyncio.run(run_hook_async())
-
             return self._parse_hook_result(hook_result)
 
         except Exception as e:
@@ -314,14 +290,7 @@ class ThreadPoolHookExecutor:
     }
 
     def _parse_hook_result(self, result: HookResult) -> HookExecutionResult:
-        """
-        Parse Zrb HookResult into Claude Code compatible HookExecutionResult.
-
-        Claude Code uses:
-        - exit_code: 0=success, 2=block
-        - decision: "block" for blocking decisions
-        - hook_specific_output for event-specific control
-        """
+        """Convert a `HookResult` into a `HookExecutionResult`."""
         exec_result = HookExecutionResult(
             success=result.success, message=result.output, data=result.data or {}
         )
@@ -355,7 +324,6 @@ class ThreadPoolHookExecutor:
         exec_result.exit_code = 2
 
 
-# Singleton instance and lock for free-threaded Python (no-GIL) safety
 _hook_executor: ThreadPoolHookExecutor | None = None
 _executor_lock = threading.Lock()
 
@@ -365,7 +333,6 @@ def get_hook_executor() -> ThreadPoolHookExecutor:
     global _hook_executor
     if _hook_executor is None:
         with _executor_lock:
-            # Double-checked locking for free-threaded Python safety
             if _hook_executor is None:
                 _hook_executor = ThreadPoolHookExecutor()
                 _hook_executor.start()
@@ -381,20 +348,15 @@ def shutdown_hook_executor(wait: bool = True):
             _hook_executor = None
 
 
-# Release the worker pool at interpreter shutdown so its non-daemon worker
-# threads can't keep the process alive. ``wait=False`` — never block exit
-# waiting on an in-flight hook. No-op when the executor was never started.
+# Never block interpreter exit on an in-flight hook.
 atexit.register(shutdown_hook_executor, False)
 
 
 def _copy_context_for_hook() -> contextvars.Context:
-    """The caller's context for a hook run on a pool thread, which otherwise
-    starts with none of it: the run's model, its scope, its policies.
+    """A copy of the caller's context for a pool-thread hook run.
 
-    Less what is bound to the caller's event loop — the UI, the tool
-    confirmation and the approval channel. The hook runs in a loop of its
-    own, where driving the chat's UI would cross threads; a hook tool that
-    wants one falls back as it did when the context was not copied."""
+    The UI, tool confirmation and approval channel are cleared: they are bound
+    to the caller's event loop, and the hook runs in its own."""
     context = contextvars.copy_context()
     context.run(current_ui.set, None)
     context.run(current_tool_confirmation.set, None)

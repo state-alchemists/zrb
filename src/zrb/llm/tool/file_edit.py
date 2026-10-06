@@ -61,9 +61,7 @@ async def replace_in_file(
     requested change is not complete until those errors are gone.
     """
     if old_text == "":
-        # `"" in content` is always True, so an empty old_text would make
-        # str.replace insert new_text between every character and corrupt the
-        # file. Reject it outright — there is no sensible "replace nothing".
+        # str.replace("", x) would insert x between every character.
         return (
             f"Error: old_text is empty for {path}. "
             "[SYSTEM SUGGESTION]: old_text must be a non-empty snippet copied "
@@ -132,11 +130,8 @@ def _describe_missing_file(path: str, abs_path: str) -> str | None:
         return None
     parent = os.path.dirname(abs_path)
     if parent and not os.path.isdir(parent):
-        # A missing *directory* means the path resolved against the wrong base,
-        # not that the file is yet to be created — so the advice below is
-        # actively wrong here. Write creates missing parents, so following it
-        # turns a wrong-directory guess into a new tree and leaves the edit
-        # somewhere nothing reads.
+        # A missing directory means a wrong base path; suggesting Write would
+        # create a new tree where nothing reads it.
         return (
             f"Error: File not found: {path} — its directory does not exist "
             f"either ({parent}). "
@@ -155,15 +150,10 @@ def _describe_missing_file(path: str, abs_path: str) -> str | None:
 def _locate_match(
     content: str, old_text: str, new_text: str
 ) -> tuple[str | None, str, str, str]:
-    """Find the region `old_text` refers to, trying three strategies in order.
+    """Locate `old_text`: exact, then fuzzy, then with Read's line prefix stripped.
 
-    Exact match first, then a whitespace-tolerant fuzzy match, then a retry with
-    Read's line-number prefix stripped off. The last strategy rewrites both
-    `old_text` and `new_text`, so they are returned alongside the match.
-
-    Returns:
-        `(actual_old, old_text, new_text, note)`, where `actual_old` is None if
-        nothing matched and `note` describes any non-exact match for the user.
+    Returns `(actual_old, old_text, new_text, note)`; `actual_old` is None when
+    nothing matched. The prefix-strip strategy rewrites `old_text`/`new_text`.
     """
     if old_text in content:
         return old_text, old_text, new_text, ""
@@ -180,7 +170,6 @@ def _locate_match(
             "indentation is correct before moving on.",
         )
 
-    # Last resort: old_text copied verbatim out of Read's numbered output.
     stripped_old = _strip_read_line_numbers(old_text)
     if stripped_old is not None:
         matched = (
@@ -202,9 +191,6 @@ def _locate_match(
 def _describe_missing_match(content: str, old_text: str, path: str) -> str:
     """Explain a failed match, pointing at near-misses when there are any."""
     lines = content.splitlines()
-    # Compare on the un-prefixed text: with the prefix still attached, the first
-    # line matches nothing and this whole hint goes silent exactly when it is
-    # most useful.
     old_lines = (_strip_read_line_numbers(old_text) or old_text).splitlines()
     if old_lines:
         first_line = old_lines[0]
@@ -232,13 +218,7 @@ def _describe_missing_match(content: str, old_text: str, path: str) -> str:
 
 
 def _describe_noop(path: str, old_text: str, new_text: str, count: int) -> str:
-    """Explain why a located match still changed nothing.
-
-    Reaching here means `old_text` *was* found, so this is never the "not found"
-    case — and each of its three causes needs different advice. Retrying is
-    futile in all three, and models do retry a bare status, so each says which
-    one it is instead of hedging between them.
-    """
+    """Explain which of three causes made a located match change nothing."""
     if old_text == new_text:
         return (
             f"No changes made to {path}: old_text and new_text are "
@@ -256,9 +236,7 @@ def _describe_noop(path: str, old_text: str, new_text: str, count: int) -> str:
             "count to replace every occurrence, or pass count=1 to replace "
             "only the first."
         )
-    # old_text differs from new_text, yet the matched region equals it, so the
-    # match was fuzzy: the file already reads as new_text and only whitespace
-    # told old_text apart from it.
+    # A fuzzy match whose region already equals new_text.
     return (
         f"No changes made to {path}: the matched region already reads "
         "exactly as new_text, so this edit is already applied — only "
@@ -288,7 +266,7 @@ def _match_indentation_flexible(content: str, old_text: str) -> str | None:
     """Return actual content substring matching old_text after removing common indentation."""
     old_lines = old_text.splitlines()
     if len(old_lines) < 2:
-        return None  # Single-line indent shifts are too ambiguous to fuzzy-match
+        return None  # single-line indent shifts are too ambiguous
 
     def _min_indent(lines: list[str]) -> int:
         non_empty = [line for line in lines if line.strip()]
@@ -309,18 +287,7 @@ def _match_indentation_flexible(content: str, old_text: str) -> str | None:
 
 
 def _strip_read_line_numbers(text: str) -> str | None:
-    """Undo ``Read``'s ``cat -n`` prefix when it was copied into an edit argument.
-
-    ``Read`` numbers every line, so text copied straight out of its output
-    cannot match the file. That is the likeliest reason an otherwise-verbatim
-    ``old_text`` fails, and it is invisible in the model's own transcript: the
-    prefix looks like the leading whitespace of the line it precedes.
-
-    Returns ``None`` unless *every* line carries the prefix, so a partial copy
-    is never silently mangled. Callers reach this only after an exact and a
-    fuzzy match have both failed, so a file that genuinely contains ``cat -n``
-    text — a fixture, a pasted diff — still edits through the exact path.
-    """
+    """Undo ``Read``'s ``cat -n`` prefix, or ``None`` unless every line carries it."""
     lines = text.splitlines(keepends=True)
     if not lines or not all(_READ_LINE_NUMBER.match(line) for line in lines):
         return None
@@ -328,22 +295,10 @@ def _strip_read_line_numbers(text: str) -> str | None:
 
 
 def _strip_prefix_per_line(text: str) -> str:
-    """Drop ``Read``'s prefix from whichever lines carry it, leaving the rest.
+    """Drop ``Read``'s prefix from whichever lines carry it.
 
-    The all-or-nothing rule in ``_strip_read_line_numbers`` is right for
-    ``old_text``: a partial match there means the guess was wrong, and mangling
-    it would edit the wrong region. For ``new_text`` the same rule inverts into
-    data loss. We only reach this function once ``old_text`` has *proved* the
-    model was copying out of ``Read``, and the usual edit changes one line — so
-    the replacement arrives with prefixes on the lines that were copied and none
-    on the line that was rewritten. All-or-nothing then declines to strip and
-    writes ``     3\\tsome text`` into the file, reported as a success. On a
-    ``.py`` file the post-write diagnostics catch it; on markdown or YAML
-    nothing does.
-
-    Per-line is safe here for the same reason the caller is: a file that
-    genuinely contains ``cat -n`` text matched on the exact path and never got
-    this far.
+    Per-line (not all-or-nothing) for ``new_text``: a rewritten line has no
+    prefix while the copied ones do.
     """
     return "".join(
         _READ_LINE_NUMBER.sub("", line, count=1)

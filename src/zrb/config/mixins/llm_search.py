@@ -1,5 +1,4 @@
-"""LLM discovery/search: plugin/skill/agent dirs, project & home search toggles,
-config dir names, and LSP server preference."""
+"""LLM plugin, skill, agent, and LSP discovery settings."""
 
 from __future__ import annotations
 

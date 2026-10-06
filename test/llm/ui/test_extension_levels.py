@@ -1,19 +1,4 @@
-"""Every documented custom-UI extension level, built the documented way.
-
-`docs/llm/llm-custom-ui.md` promises three levels, each defined by the exact
-set of methods a subclass has to write: `SimpleUI` (`print`, `get_input`),
-`EventDrivenUI` (`print`, `start_event_loop`), and `BaseUI` (`append_to_output`,
-`ask_user`, `run_interactive_command`, `run_async`). Prose cannot check itself,
-and it drifted twice before this file existed — `BaseUI`'s own docstring
-advertised a level whose method count was two short, and `create_ui_factory`
-passed a `config=` keyword no `BaseUI` subclass accepted, so the documented
-one-line registration raised `TypeError` for two of the three levels.
-
-So the promise is written as code here: each class below implements *only* what
-its level's docs say to implement, and is registered the documented one-line
-way. A method that becomes required, or a constructor keyword that gets
-renamed, fails here rather than in a user's `zrb_init.py`.
-"""
+"""Verify the documented custom-UI extension levels."""
 
 from unittest.mock import MagicMock
 

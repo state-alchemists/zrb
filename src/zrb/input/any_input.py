@@ -1,8 +1,6 @@
 """Interface every Zrb task input implements.
 
-Docstrings here are the contract. `inspect.getdoc` walks the MRO, so concrete
-inputs (`StrInput`, `BoolInput`, ...) inherit these descriptions and only need
-their own docstring where behaviour actually differs.
+Concrete inputs inherit these docstrings via `inspect.getdoc`.
 """
 
 from abc import ABC, abstractmethod

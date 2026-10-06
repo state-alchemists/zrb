@@ -43,12 +43,7 @@ def resolve_custom_command(
     message: str,
     custom_commands: list[AnyCustomCommand],
 ) -> str | None:
-    """If *message* starts with a registered custom command, resolve its prompt.
-
-    Returns the transformed prompt string on match, or ``None`` if no
-    registered command matched. Never runs ``handle``; see
-    `run_custom_command` for callers that should.
-    """
+    """Resolve the prompt for the command named by *message*, if any."""
     match = get_custom_command_match(message, custom_commands)
     if match is None:
         return None
@@ -61,11 +56,7 @@ def run_custom_command(
     custom_commands: list[AnyCustomCommand],
     ui: "BaseUI | None",
 ) -> CustomCommandOutcome | None:
-    """Run the custom command *message* names, or return ``None`` if none matches.
-
-    The command's ``handle`` runs first, given *ui*; only when it declines
-    (returns ``None``) is ``get_prompt`` resolved for the LLM.
-    """
+    """Run the command named by *message* and return its outcome."""
     match = get_custom_command_match(message, custom_commands)
     if match is None:
         return None
@@ -84,14 +75,7 @@ def run_custom_command(
 
 
 def _can_take_ui(handle: "Callable[..., Any]") -> bool:
-    """Whether *handle* can take the ``ui`` argument.
-
-    `handle(kwargs)` is part of the published extension surface — the
-    signature gained ``ui`` in 3.10.0 — and a command written against it
-    raises ``TypeError`` if called with two arguments. The arity is read from
-    the signature rather than discovered from a ``TypeError``, which a real
-    failure inside the handler looks exactly like.
-    """
+    """Whether *handle* accepts the optional ``ui`` argument."""
     try:
         parameters = inspect.signature(handle).parameters
     except (TypeError, ValueError):

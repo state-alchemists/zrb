@@ -85,7 +85,6 @@ async def test_run_default_action_callable():
     async def mock_action(ctx):
         return "result"
 
-    # Set __name__ attribute on the function
     mock_action.__name__ = "mock_action"
 
     task = BaseTask(name="task", action=mock_action)
@@ -243,8 +242,6 @@ async def test_execute_action_until_ready_with_readiness_checks():
 
     session.get_task_status.side_effect = get_status
 
-    # Use real asyncio.create_task and asyncio.gather — they properly await
-    # coroutines, avoiding "never awaited" warnings from closed coroutines.
     mock_exec = AsyncMock(return_value="result")
 
     with patch.object(task, "get_ctx", return_value=ctx):
@@ -259,12 +256,7 @@ async def test_execute_action_until_ready_with_readiness_checks():
 
 @pytest.mark.asyncio
 async def test_readiness_marks_ready_despite_transient_attempt_failure():
-    """Readiness completing between a failed attempt and its retry still marks ready.
-
-    `is_failed` is per-attempt (cleared by the next mark_as_started); gating
-    readiness on it silently dropped all downstream tasks whenever the checks
-    finished mid-retry. Only a PERMANENT failure may block mark_as_ready.
-    """
+    """Readiness completing between a failed attempt and its retry still marks ready."""
     check_task = BaseTask(name="check_task")
     check_task.exec_chain = AsyncMock(return_value=None)
 
@@ -348,12 +340,7 @@ async def test_readiness_does_not_mark_ready_when_permanently_failed():
 
 @pytest.mark.asyncio
 async def test_readiness_check_exception_fails_task_instead_of_hanging():
-    """A permanently failed readiness check fails the run instead of hanging.
-
-    Logging and dropping the exception while the (possibly never-ending)
-    action is still deferred leaves the whole run blocked in wait_deferred with
-    no error exit.
-    """
+    """A permanently failed readiness check fails the run instead of hanging."""
     check_task = BaseTask(name="check_task")
     check_task.exec_chain = AsyncMock(side_effect=ValueError("port closed"))
 

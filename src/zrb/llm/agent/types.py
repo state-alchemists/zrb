@@ -1,30 +1,9 @@
-"""Re-exported pydantic-ai types for use elsewhere in zrb.
+"""Runtime pydantic-ai type re-exports.
 
-`create_agent()` (`agent/common.py`) is the one place that constructs a real
-`pydantic_ai.Agent`. This module is its companion for the far more
-common case: a file that only needs a pydantic-ai *type* — for an annotation,
-an `isinstance` check, or building a message part — with no `Agent`
-construction or run-loop logic of its own. Importing from here instead of
-`pydantic_ai` directly collapses those call sites onto one import path.
-
-Deliberately excluded: concrete model/provider classes and the `Agent` class
-itself (`OpenAIChatModel`, `Provider`, `known_model_names`, `Agent`, ...).
-Re-exporting the former would start to look like the "bespoke provider
-abstraction" that is deliberately rejected; `Agent` construction stays
-exclusively at `create_agent()` so there is one place, not two, that builds a
-real agent. `Model` itself is re-exported below because it's used purely as an
-annotation everywhere it appears in zrb — actual provider/model
-*resolution* stays exactly where it is, in `llm/config/model_resolver.py`,
-importing `pydantic_ai` directly.
-
-Every name here is a plain re-export — zero logic, zero behavior change.
-These are real (not `TYPE_CHECKING`-guarded) imports: this module pays
-pydantic-ai's import cost when *it* is first imported, same as the direct
-`pydantic_ai` imports it replaces — nothing in zrb imports this module
-eagerly at start-up, so callers must still guard their own import of it the
-same way they guarded the `pydantic_ai` import it replaces: inside
-`if TYPE_CHECKING:` for annotation-only use, or behind a justified
-in-function import for runtime use (the lazy-import categories).
+Agent construction remains in ``agent/common.py``; model/provider resolution
+remains in ``llm/config/model_resolver.py``. Imports are intentionally eager
+when this module is imported, so callers retain their existing lazy-import
+or ``TYPE_CHECKING`` guards.
 """
 
 from __future__ import annotations

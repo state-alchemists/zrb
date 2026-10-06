@@ -1,4 +1,4 @@
-"""Public PromptManager behavior."""
+'Public PromptManager behavior.'
 
 from zrb.context.any_context import AnyContext
 from zrb.context.context import Context
@@ -25,8 +25,8 @@ def test_profile_section_uses_the_active_profile(monkeypatch):
     prompt = PromptManager(
         include_sections=["profile"], skill_manager=None
     ).compose_prompt()(_ctx())
-    # A phrase only profile.capable.md carries, so this fails if the section
-    # silently falls back to the default (standard) profile.
+
+
     assert "batch independent investigation" in prompt
 
 

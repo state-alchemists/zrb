@@ -1,11 +1,4 @@
-"""System-info (cwd + git) status for `BaseUI`.
-
-Maintains the working-directory and git-branch indicators shown in the chat
-UI, refreshed on a periodic loop. Split out of `ui.py` to keep that file
-focused; composed into `BaseUI` as `self._base_system_info`, keeping the `BaseUI`
-reference in `self._base_ui` for the state/methods it needs (`cwd`,
-`git_info`, `invalidate_ui`).
-"""
+"""Periodically refreshed cwd and git-branch indicators for `BaseUI`."""
 
 from __future__ import annotations
 
@@ -22,10 +15,8 @@ if TYPE_CHECKING:
 async def communicate_or_reap(proc) -> tuple[bytes, bytes]:
     """``proc.communicate()`` that kills + reaps the child on cancellation.
 
-    The system-info loop is cancelled at session teardown, which can land while
-    a ``git`` subprocess is mid-flight. An un-reaped child at loop close logs
-    "Loop <...> that handles pid N is closed" when it exits, so unwind by
-    terminating the child before propagating the cancellation.
+    An un-reaped child at loop close logs "Loop <...> that handles pid N is
+    closed" when it exits.
     """
     try:
         return await proc.communicate()
@@ -38,8 +29,7 @@ async def communicate_or_reap(proc) -> tuple[bytes, bytes]:
                 try:
                     proc.kill()
                 except OSError:
-                    # The child is gone, or the OS refused the kill: either
-                    # way there is nothing left to reap.
+                    # Already gone, or the kill was refused.
                     pass
         raise
 
@@ -103,15 +93,11 @@ class BaseUISystemInfo:
         """Periodically update CWD and Git info."""
         while True:
             try:
-                # Through `self._base_ui` (not bare `self`):
-                # `update_system_info` is also a `BaseUI` delegator, and tests
-                # patch it at that level.
+                # Via the owner: tests patch `BaseUI.update_system_info`.
                 await self._base_ui.update_system_info()
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                # Best-effort periodic refresh; keep the loop alive on transient
-                # errors without spamming logs each tick.
                 CFG.LOGGER.debug(f"System-info refresh failed: {e}")
             try:
                 await asyncio.sleep(CFG.LLM_UI_LONG_STATUS_INTERVAL / 1000)

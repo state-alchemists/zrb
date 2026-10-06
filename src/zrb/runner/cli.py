@@ -23,19 +23,10 @@ from zrb.util.string.conversion import double_quote
 
 
 class Cli(Group):
-    """The root command group, and the entry point `zrb` dispatches through.
-
-    Import the ready-made `cli` singleton rather than constructing this — a
-    second instance holds a separate task tree that nothing runs.
-    """
+    """The root command group `zrb` dispatches through. Use the `cli` singleton."""
 
     def __init__(self):
-        """Build the root group.
-
-        Takes no arguments: `name`, `description`, and `banner` are read from
-        config on each access rather than fixed at construction, so changing
-        `ROOT_GROUP_NAME` is reflected without rebuilding the tree.
-        """
+        """Build the root group; `name`, `description` and `banner` are read from CFG."""
         super().__init__(name="_zrb")
 
     @property
@@ -83,7 +74,6 @@ class Cli(Group):
         finally:
             run_command = self._get_run_command(node, node_path, task_str_kwargs)
             self._print_run_command(run_command)
-            # Print conversation name at the end (for LLM chat tasks)
             self.print_conversation_name(node, session)
 
     def _print_run_command(self, run_command: str):
@@ -249,8 +239,7 @@ async def start_server(_: AnyContext):
     # lazy: heavy third-party
     from uvicorn import Config, Server
 
-    # lazy: zrb internal (heavy via transitive) — pulls in fastapi + the full
-    # web route tree; keep it off the CLI-only import path.
+    # lazy: transitively heavy via internal — pulls in fastapi + the web routes
     from zrb.runner.web_app import configure_uvicorn_logging, create_web_app
 
     configure_uvicorn_logging()
@@ -268,27 +257,16 @@ async def start_server(_: AnyContext):
     await server.serve()
 
 
-# Hostnames that resolve to loopback and nothing else. Literal IP addresses are
-# not listed here -- they are parsed, so every spelling of loopback is accepted
-# (`::1` and its expanded `0:0:0:0:0:0:0:1` form, anything in `127.0.0.0/8`).
+# Literal IP addresses are parsed instead of listed.
 _LOOPBACK_HOSTNAMES = {"localhost"}
 
-# Floors for a network-exposed bind, enforced only there. A LAN/public server is
-# reachable by anyone who can route to it, so the admin password and the JWT
-# signing key have to be more than non-default -- "a" is not the documented
-# default either. These are minimums, not recommendations.
+# Credential minimums, enforced only for a network-exposed bind.
 _MIN_PUBLIC_PASSWORD_LENGTH = 12
 _MIN_PUBLIC_SECRET_KEY_LENGTH = 32
 
 
 def _is_loopback_bind(host: str) -> bool:
-    """True when `host` provably binds to loopback only.
-
-    Literal addresses are parsed rather than string-matched, so `::1`,
-    `0:0:0:0:0:0:0:1` and `127.0.0.2` are all recognised. A name that is not a
-    known loopback alias is treated as exposed: it may resolve anywhere, and
-    guessing wrong here fails open.
-    """
+    """True when `host` provably binds to loopback only; unknown names count as exposed."""
     try:
         return ipaddress.ip_address(host).is_loopback
     except ValueError:
@@ -296,20 +274,10 @@ def _is_loopback_bind(host: str) -> bool:
 
 
 def _refuse_insecure_bind(host: str, auth_config: WebAuthConfig) -> None:
-    """Refuse to start a network-exposed server that is not actually secured.
+    """Exit unless a non-loopback bind has auth enabled with usable credentials.
 
-    A non-loopback bind publishes task execution -- arbitrary command
-    execution -- to everyone who can route to this host, so the unsafe
-    combinations fail closed rather than printing a warning the operator
-    scrolls past. There is deliberately no override flag: the two supported
-    ways to run exposed are to enable auth with real credentials, or to bind
-    loopback and put your own proxy in front.
-
-    Inspect the effective auth object rather than CFG alone, because callers
-    may override the CFG-backed defaults programmatically -- including with an
-    empty string, which `WebAuthConfig` treats as a deliberate override (only
-    `None` falls back to CFG) and which would otherwise sail past a check that
-    asked merely whether the value still equalled the shipped default.
+    There is no override flag. Checks the effective `auth_config`, not CFG,
+    since callers may override it programmatically (including with "").
     """
     if _is_loopback_bind(host):
         return
@@ -334,11 +302,7 @@ def _refuse_insecure_bind(host: str, auth_config: WebAuthConfig) -> None:
 
 
 def _credential_problems(auth_config: WebAuthConfig) -> list[str]:
-    """Every reason the effective credentials cannot protect a public bind.
-
-    Returns all of them at once: fixing one only to be refused for the next is
-    a worse experience than being told both up front.
-    """
+    """Every reason the effective credentials cannot protect a public bind."""
     return [
         problem
         for problem in (

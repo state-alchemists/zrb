@@ -1,9 +1,7 @@
 """Per-tool capability tags.
 
-A tool optionally carries a ``zrb_capability`` tag describing what kind of
-side effect it has. Untagged tools resolve to ``UNKNOWN`` and are treated conservatively by
-each consumer (e.g. denied in read-only plan mode), so leaving a third-party or
-MCP tool untagged is safe-by-default.
+Untagged tools resolve to ``UNKNOWN``, which consumers treat conservatively
+(e.g. denied in plan mode).
 """
 
 from __future__ import annotations
@@ -33,12 +31,8 @@ def tag(fn: Any, capability: Capability) -> Any:
 def capability_metadata(capability: Capability) -> dict[str, Capability]:
     """Build a ``ToolDefinition.metadata`` dict carrying ``capability``.
 
-    pydantic-ai's per-call dispatch (``SafeToolsetWrapper.call_tool`` in
-    ``agent/common.py``) sees only a ``ToolsetTool``, which has no
-    ``.function`` and no arbitrary attributes — a ``tag()`` set on the
-    original callable does not survive into that layer. ``ToolDefinition.metadata``
-    does, so ``wrap_tool`` re-tags the capability here when it rebuilds the
-    ``Tool``.
+    pydantic-ai's toolset dispatch sees only a ``ToolsetTool``, where a
+    ``tag()`` on the original callable is lost but ``metadata`` survives.
     """
     return {CAPABILITY_ATTR: capability}
 
@@ -46,13 +40,9 @@ def capability_metadata(capability: Capability) -> dict[str, Capability]:
 def tool_capability(tool: Any) -> Capability:
     """Best-effort capability of a tool.
 
-    Resolution order:
-    1. explicit ``zrb_capability`` tag (on the tool or its underlying function),
-    2. the same tag carried as ``ToolDefinition.metadata`` (the shape a
-       ``ToolsetTool`` — e.g. what pydantic-ai's toolset dispatch hands the
-       outer gate — exposes it in),
-    3. ``DELEGATE`` if the tool carries ``zrb_is_delegate_tool``,
-    4. ``UNKNOWN``.
+    Order: ``zrb_capability`` tag on the tool or its function, the tag in
+    ``tool_def.metadata``, ``DELEGATE`` for ``zrb_is_delegate_tool``, else
+    ``UNKNOWN``.
     """
     cap = getattr(tool, CAPABILITY_ATTR, None)
     if isinstance(cap, Capability):

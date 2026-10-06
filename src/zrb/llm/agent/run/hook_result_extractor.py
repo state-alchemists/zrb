@@ -62,13 +62,7 @@ class BlockDecision:
 
 
 def extract_block_decision(hook_results: list[HookExecutionResult]) -> BlockDecision:
-    """Extract a Claude-style block decision from turn-level hook results.
-
-    A hook blocks via exit code 2 (``blocked``) or ``decision == "block"``.
-    Returns the first decisive block (zrb runs hooks sequentially by priority,
-    first-block-wins). ``additionalContext`` is also surfaced for the non-blocking
-    feedback case.
-    """
+    """Return the first block decision and preserve non-blocking context."""
     additional_context: str | None = None
     for result in hook_results:
         hso = _hook_specific(result)
@@ -103,13 +97,7 @@ class ContinueDecision:
 def extract_continue_decision(
     hook_results: list[HookExecutionResult],
 ) -> ContinueDecision:
-    """Detect a hook requesting the run halt entirely via ``continue: false``.
-
-    Claude-compatible: ``continue: false`` stops all further processing regardless
-    of event, and ``stopReason`` is the message surfaced to the user. zrb runs
-    hooks sequentially by priority; the first halt wins. This is distinct from a
-    per-event ``decision: "block"`` — ``continue: false`` is unconditional.
-    """
+    """Return the first unconditional halt requested by ``continue: false``."""
     for result in hook_results:
         if not result.continue_execution:
             reason = (
@@ -124,13 +112,7 @@ def extract_continue_decision(
 def extract_permission_decision(
     hook_results: list[HookExecutionResult],
 ) -> str | None:
-    """Extract a PermissionRequest hook's auto-resolution, if any.
-
-    Claude's PermissionRequest hook nests its verdict as
-    ``hookSpecificOutput.decision.behavior`` ("allow" | "deny"). A flatter
-    ``permissionDecision`` is also accepted. Returns the first "allow"/"deny", or
-    None to leave the approval cascade to decide (the observe-only case).
-    """
+    """Return the first nested or flat ``allow``/``deny`` decision."""
     for result in hook_results:
         hso = _hook_specific(result)
         decision = hso.get("decision")
@@ -160,19 +142,7 @@ class PreToolDecision:
 def extract_pre_tool_decision(
     hook_results: list[HookExecutionResult],
 ) -> PreToolDecision:
-    """Interpret PreToolUse hook results per Claude's protocol.
-
-    Honors (top level or nested in ``hookSpecificOutput``):
-    - ``permissionDecision: "deny"`` / exit-2 / ``decision: "block"`` → deny.
-    - ``permissionDecision: "allow"`` → allow (auto-approve, skip the prompt).
-    - ``permissionDecision: "ask"`` → force the interactive approval prompt,
-      overriding any lower-priority auto-approve.
-    - ``permissionDecision: "defer"`` → no opinion (explicit no-op; the normal
-      approval flow decides).
-    - ``updatedInput`` → argument rewrite (first non-empty wins).
-
-    zrb runs hooks sequentially by priority; the first decisive deny/allow/ask wins.
-    """
+    """Interpret PreToolUse decisions, including input rewrites and context."""
     updated_input: dict | None = None
     additional_context: str | None = None
     for result in hook_results:
@@ -230,12 +200,7 @@ class PostToolDecision:
 def extract_post_tool_decision(
     hook_results: list[HookExecutionResult],
 ) -> PostToolDecision:
-    """Interpret PostToolUse hook results per Claude's protocol.
-
-    Honors ``decision: "block"`` (discard the result, feed the reason back to the
-    model) and ``updatedToolOutput`` (replace the model-facing content). The first
-    block wins; the first non-empty ``updatedToolOutput`` wins otherwise.
-    """
+    """Interpret PostToolUse blocks, output replacements, and context."""
     updated_output: str | None = None
     additional_context: str | None = None
     for result in hook_results:

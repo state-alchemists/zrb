@@ -32,16 +32,11 @@ class ContentTransformer(AnyContentTransformer):
                 `Tpl` or a callable taking the context — or a single callable
                 taking the context and a file path, which rewrites the file
                 itself instead of substituting.
-            match_mode: How string pattern(s) in `match` are interpreted.
-                `"auto"` (default) tries each pattern as a regex first, falling
-                back to a glob when the pattern isn't valid regex or doesn't
-                match as one — this means a glob-shaped pattern that also
-                happens to parse as valid regex is matched with regex
-                semantics, e.g. `"config.json"` also matches `"configXjson"`
-                because `.` is a regex wildcard. Pass `"glob"` to skip the
-                regex attempt entirely (only `fnmatch` semantics), or
-                `"regex"` to skip the glob fallback entirely (only
-                `re.fullmatch` semantics). Ignored when `match` is callable.
+            match_mode: How string patterns are interpreted. `"auto"` tries
+                `re.fullmatch` first, then falls back to a glob (so
+                `"config.json"` also matches `"configXjson"`). `"glob"` uses
+                only `fnmatch`; `"regex"` only `re.fullmatch`. Ignored when
+                `match` is callable.
         """
         self._name = name
         self._match = match
@@ -71,11 +66,10 @@ class ContentTransformer(AnyContentTransformer):
             if os.sep not in pattern and (
                 os.altsep is None or os.altsep not in pattern
             ):
-                # Pattern like "*.txt" – match against the basename only.
+                # No separator: match the basename only.
                 if fnmatch.fnmatch(os.path.basename(file_path), pattern):
                     return True
             elif fnmatch.fnmatch(file_path, pattern):
-                # Pattern carries a path separator – match the full path.
                 return True
         return False
 

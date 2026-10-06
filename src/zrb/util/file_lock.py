@@ -68,12 +68,8 @@ def hold_file_lock(
     An error other than the lock being held is raised at once rather than
     waited out.
 
-    *cancel* is for a wait nobody is waiting on any more: a caller cancelled
-    mid-wait, so holding the lock for it afterwards would do work whose
-    result has no reader. It is checked before every attempt, the first
-    included, so a caller cancelled already never holds the lock — not even
-    one that was free. A cancel landing after the lock is taken is the
-    caller's to check."""
+    *cancel* is checked before every attempt, the first included; a cancel
+    landing after the lock is taken is the caller's to check."""
     with open(path, "ab") as handle:
         give_up = None if timeout is None else time.monotonic() + timeout
         while True:

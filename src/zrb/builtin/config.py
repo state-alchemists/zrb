@@ -24,15 +24,8 @@ def _render_entries(entries: list[tuple[str, str, str]]) -> str:
         ZRB_LLM_MODEL = openai:gpt-5.6-luna
             Primary LLM model identifier.
 
-    A definition list rather than columns because names run to 52 characters:
-    a column wide enough to hold one unwrapped leaves roughly ten for the
-    description on an 80-column terminal. Stacking gives every field the full
-    width, and the name — the thing being looked up — never wraps.
-
-    Descriptions carry intentional newlines (a knob with several options
-    documents them as a bulleted list), so each line wraps independently;
-    reflowing the whole description as one paragraph would run the bullets
-    together.
+    Names run to 52 characters, too wide for columns. Each description line
+    wraps independently, preserving bulleted lists.
     """
     width = _terminal_width()
     truncated_any = False
@@ -58,10 +51,8 @@ def _render_entries(entries: list[tuple[str, str, str]]) -> str:
 def _render_detail(env_var: str, value: str, description: str) -> str:
     """Full, untruncated view of a single knob.
 
-    Reached when a filter narrows to one entry, which makes it the escape
-    hatch for the list view's shortening. Value lines are emitted verbatim
-    under their own heading, so a multi-line value such as ``ZRB_BANNER``
-    keeps its shape instead of being flattened to fit beside a name.
+    Shown when a filter narrows to one entry; value lines are verbatim, so a
+    multi-line value such as ``ZRB_BANNER`` keeps its shape.
     """
     lines = [stylize_cyan(env_var), ""]
     lines.append(stylize_muted("Value:"))
@@ -154,9 +145,7 @@ def explain_config(ctx: AnyContext) -> None:
     if not entries:
         ctx.print("No matching configuration entries found.")
         return
-    # A filter that narrows to exactly one knob is a request to see that knob,
-    # so nothing is elided — this is how a shortened value in the list view is
-    # recovered in full.
+    # One match: show it in full, nothing elided.
     if len(entries) == 1:
         ctx.print(_render_detail(*entries[0]), plain=True)
         return

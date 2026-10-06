@@ -47,9 +47,7 @@ async def _fan_out_tracking_concurrency(count: int):
 async def test_delegate_fan_out_cap_disabled_by_zero(
     mock_sub_agent_manager, monkeypatch
 ):
-    """0 disables the cap, matching LLM_MAX_REQUEST_PER_RUN's convention —
-    all tasks run concurrently, as before this fix.
-    """
+    """0 disables the cap, so all tasks run concurrently."""
     monkeypatch.setenv("ZRB_LLM_MAX_PARALLEL_DELEGATIONS", "0")
     mock_sub_agent_manager.create_agent.return_value = MagicMock()
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
@@ -176,12 +174,7 @@ async def test_delegate_swallows_hook_manager_errors(mock_sub_agent_manager):
 
 @pytest.mark.asyncio
 async def test_fire_subagent_hook_swallows_cancelled_error():
-    """`fire_subagent_hook` documents "Never raises" -- `asyncio.CancelledError`
-    is a `BaseException`, not caught by a plain `except Exception`, so it must
-    be caught explicitly. This call site fires from inside `run_agent_task`'s
-    `finally` block (after its result is already decided) and from the top of
-    its `try` block -- a stray cancel landing in either window must not
-    override an already-settled return or escape uncaught."""
+    """`fire_subagent_hook` must swallow `CancelledError` (a BaseException) too."""
     from zrb.llm.agent.run.runner import current_hook_manager
     from zrb.llm.hook.types import HookEvent
     from zrb.llm.tool.delegate import fire_subagent_hook

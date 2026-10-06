@@ -1,5 +1,3 @@
-"""Tests for task/base/operators.py - BaseTaskOperators."""
-
 from unittest.mock import MagicMock
 
 import pytest

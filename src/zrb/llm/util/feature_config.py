@@ -40,13 +40,8 @@ def resolve_from_cfg(config: T, prefix: str) -> T:
 
 
 def current_session_key() -> str:
-    """The chat session a feature registration belongs to.
-
-    `get_session_ownership_key` is what the rest of the chat names a session's
-    resources with. Called with no display name it reads the ambient chat
-    session id, which the web runner scopes per connection and which the
-    interactive CLI leaves empty because it serves one session per process.
-    """
+    """The chat session a feature registration belongs to (the ambient chat
+    session id; empty in the single-session CLI)."""
     return get_session_ownership_key()
 
 
@@ -54,11 +49,7 @@ class FeatureSessions(Generic[T]):
     """One value per chat session, created on first use and closed with the
     session.
 
-    A task outlives the sessions it serves — one `LLMChatTask` answers every
-    web chat connection — so state a feature carries between its own
-    registrations is keyed by the session that owns it, not held in a closure
-    over the task. Config is resolved per session for the same reason: a knob
-    changed between two sessions has to reach the second one.
+    Keyed by session because one `LLMChatTask` serves every web connection.
     """
 
     def __init__(self, create: Callable[[], T], close: Callable[[T], None]) -> None:
@@ -78,14 +69,8 @@ class FeatureSessions(Generic[T]):
         """Build every later session with *create*, closing the rest with
         *close*.
 
-        A second `enable_*` call on the same task brings a new config, so the
-        factory has to be the new one: keeping the old would leave the
-        replacement half-done, with every session after this point built by the
-        call being replaced.
-
-        The sessions already running are closed with the callback that was
-        installed for them, before the new one takes over — a `close` for the
-        new config may not fit what is on its way out.
+        Running sessions are closed with their original *close* first, since
+        the new one may not fit them.
         """
         self.close_all()
         self._create = create
@@ -174,10 +159,8 @@ def replace_feature_sessions(
     """The one `FeatureSessions` *task* uses for *feature*, building every
     later session with *create*.
 
-    Keyed by *feature*, the same key `replace_registration` uses, so a second
-    `enable_*` call finds the registry its first call made, adopts the new
-    config and closes what the earlier one left running rather than leaving a
-    second speaker or microphone.
+    A second `enable_*` call reuses the registry, closing what the first left
+    running.
     """
     per_task = _session_values.setdefault(task, {})
     sessions = per_task.get(feature)

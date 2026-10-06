@@ -30,11 +30,8 @@ class TcpCheck(BaseTask):
             interval: Seconds between attempts. Defaults to
                 `CFG.TCP_CHECK_INTERVAL`.
 
-        Every parameter `BaseTask` accepts is also accepted here **except the
-        retry and readiness settings** (`retries`, `retry_period`, `retry_if`,
-        `readiness_*`, `monitor_readiness`): a check polls on its own
-        `interval` and is itself what a task waits on, so those would nest a
-        check inside itself. Set them on the task being checked.
+        Every other parameter is `BaseTask`'s, except the retry and readiness
+        settings, which belong on the task being checked.
         """
         reject_non_check_params("TcpCheck", dict(kwargs))
         super().__init__(
@@ -44,7 +41,7 @@ class TcpCheck(BaseTask):
         )
         self._host = host
         self._port = port
-        # None resolves CFG at run time, so a later env change takes effect.
+        # None resolves CFG at run time.
         self._interval = interval
 
     def _get_interval(self) -> float:

@@ -74,8 +74,6 @@ async def test_http_check_exception(mock_session):
         mock_sleep = MagicMock()
 
         async def mock_sleep_coro(delay):
-            # Create a future that never completes
-            # This allows wait_for to timeout naturally
             loop = asyncio.get_running_loop()
             fut = loop.create_future()
             try:

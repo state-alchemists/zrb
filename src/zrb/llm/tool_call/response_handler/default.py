@@ -21,22 +21,13 @@ async def default_response_handler(
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ToolApproved, ToolDenied
 
-    # lazy: tests patch `zrb.llm.tool_call.edit_util.edit_content_via_editor`
-    # at the source path and rely on the patch taking effect inside this
-    # function. Hoisting would bind the name at module-load.
+    # lazy: tests patch zrb.llm.tool_call.edit_util.edit_content_via_editor; hoisting bypasses the mock
     from zrb.llm.tool_call.edit_util import edit_content_via_editor
 
-    # end="": this also writes to the shared audit log (can't drop it), but
-    # its default trailing "\n" stacked with `resolve_current`'s own echo of
-    # the same answer, adding a full blank line after every confirmation —
-    # worst for the common empty-answer case (hit Enter to approve), where
-    # this contributed a bare "\n" with no text to justify it.
+    # end="": `resolve_current` already echoes the answer's newline.
     zrb_print(user_response, end="", plain=True)
 
-    # Two-space indent on every line here, matching `StreamEventHandler`'s own
-    # `indentation` (the only value zrb ever constructs it with) — these print
-    # outside that handler entirely, so without it they land at column 0 while
-    # everything else in the trace (thinking, tool-call, usage) is indented.
+    # Two-space indent matches `StreamEventHandler`'s indentation.
     if user_response.lower().strip() in ("y", "yes", "ok", "okay", ""):
         ui.append_to_output("\n  ✅ Execution approved.")
         return ToolApproved()
@@ -51,7 +42,7 @@ async def default_response_handler(
 
             if new_args is None:
                 ui.append_to_output("\n  ❌ Invalid format. ", end="")
-                return None  # Signal loop retry
+                return None  # retry
 
             if new_args == args:
                 ui.append_to_output("\n  🔹 No changes made.")

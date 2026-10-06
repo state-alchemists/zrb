@@ -13,12 +13,9 @@ def auto_approve(  # noqa: C901 -- registration/factory fn; mccabe sums nested h
     tool_name: str,
     kwargs_patterns: dict[str, str] | Callable[[dict[str, Any]], bool] | None = None,
 ) -> ToolPolicy:
-    """
-    Returns a ToolPolicy that automatically approves tool execution
-    if it matches the given tool name and keyword argument patterns.
-    - tool_name: The name of the tool to match.
-    - kwargs_patterns: A dictionary mapping argument names to regex patterns.
-    :return: A ToolPolicy function.
+    """ToolPolicy approving `tool_name` calls whose args match `kwargs_patterns`.
+
+    `kwargs_patterns` maps arg names to regexes, or is a predicate over the args.
     """
     if kwargs_patterns is None:
         kwargs_patterns = {}
@@ -34,12 +31,8 @@ def auto_approve(  # noqa: C901 -- registration/factory fn; mccabe sums nested h
         if call.tool_name != tool_name:
             return await next_handler(ui, call)
 
-        # Parse arguments (best effort) — needed for the sandbox-escape check
-        # even when no kwargs_patterns are configured.
         args = parse_tool_args(call)
-
-        # A sandbox-escape request must always reach a human, regardless of
-        # any auto-approval configuration.
+        # A sandbox-escape request must always reach a human.
         if isinstance(args, dict) and args.get("dangerously_skip_sandbox"):
             return await next_handler(ui, call)
 
@@ -47,13 +40,9 @@ def auto_approve(  # noqa: C901 -- registration/factory fn; mccabe sums nested h
             return ToolApproved()
 
         if not isinstance(args, dict):
-            # If args is not a dict (e.g. primitive), and kwargs_patterns is not empty,
-            # we assume it doesn't match complex constraints (or we can't check keys).
-            # So we delegate to the next handler.
             return await next_handler(ui, call)
 
-        # "all parameter in the call parameter has to match the ones in kwargs_patterns
-        # (if that parameter defined in the kwargs_patterns)"
+        # Every call arg named in kwargs_patterns must match its pattern.
         if callable(kwargs_patterns):
             if kwargs_patterns(args):
                 return ToolApproved()

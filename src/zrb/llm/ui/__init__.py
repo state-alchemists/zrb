@@ -49,8 +49,7 @@ __all__ = [
 
 def __getattr__(name):
     if name == "UI":
-        # lazy: default UI pulls prompt_toolkit (~25ms cold load); resolve
-        # only when a caller actually does `from zrb.llm.ui import UI`.
+        # lazy: heavy third-party — the default UI pulls prompt_toolkit.
         from zrb.llm.ui.default.ui import UI as _UI
 
         return _UI

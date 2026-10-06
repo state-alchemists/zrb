@@ -1,9 +1,4 @@
-"""Shared stand-in for the default UI's queued-message echo tests.
-
-`MockEditingUI` composes the real `UIOutput` and `UIMessageEditing` over a
-buffer that really stores text, so the offset bookkeeping those two keep is
-exercised rather than mocked.
-"""
+"""Shared stand-in for queued-message echo tests."""
 
 from unittest.mock import MagicMock
 

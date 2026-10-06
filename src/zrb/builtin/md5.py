@@ -1,10 +1,4 @@
-"""MD5-only hash/sum/validate tasks.
-
-`hash.py`'s `hash`/`sum` tasks cover the same ground for MD5 plus five other
-algorithms via `--algorithm`; this group is kept for its `validate` task
-(checking a string looks like an MD5 hex digest), which `hash.py` has no
-equivalent for.
-"""
+"""MD5 hash, sum, and digest-validation tasks."""
 
 import hashlib
 import re

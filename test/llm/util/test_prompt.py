@@ -4,7 +4,7 @@ from zrb.util.markdown import (
 )
 
 
-# Test cases for _demote_markdown_headers
+
 def test_demote_markdown_headers_simple():
     content = "# Header 1\n## Header 2"
     expected = "## Header 1\n### Header 2"
@@ -51,7 +51,7 @@ def test_demote_markdown_headers_mixed_content():
     assert demote_markdown_headers(content) == expected
 
 
-# Test cases for make_prompt_section
+
 def test_make_prompt_section_empty_content():
     result = make_markdown_section("Empty", "   ")
     assert result == ""
@@ -102,7 +102,7 @@ def test_make_prompt_section_as_code_with_four_backticks():
 def test_make_prompt_section_as_code_with_mixed_backticks():
     header = "Code with Mixed Ticks"
     content = "Block 1: ```\nCode\n```\nBlock 2: `````\nMore Code\n`````"
-    # The longest sequence is 5, so the fence should be 6
+
     expected_fence = "`" * 6
     expected = (
         f"# {header}\n"

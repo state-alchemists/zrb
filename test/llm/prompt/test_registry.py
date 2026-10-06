@@ -1,4 +1,4 @@
-"""Public PromptRegistry behavior (ADR-0090 split from PromptManager)."""
+'Public PromptRegistry behavior (ADR-0090 split from PromptManager).'
 
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext

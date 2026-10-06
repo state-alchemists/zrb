@@ -1,5 +1,3 @@
-"""Tests for sse_stream.py."""
-
 import asyncio
 import json
 from unittest.mock import MagicMock, patch
@@ -75,7 +73,6 @@ class TestSSEStreamResponse:
 
     @pytest.mark.asyncio
     async def test_event_generator_connected_event(self):
-        """Test that the generator yields a connected event first."""
         from zrb.runner.chat.sse_stream import SSEStreamResponse
 
         mock_queue = asyncio.Queue()
@@ -89,7 +86,6 @@ class TestSSEStreamResponse:
             session_manager=mock_manager,
         )
 
-        # Get the generator from the response body
         generator = response.body_iterator
         try:
             first_event = await generator.__anext__()
@@ -105,7 +101,6 @@ class TestSSEStreamResponse:
 
     @pytest.mark.asyncio
     async def test_event_generator_dict_item(self):
-        """Test processing a dict item from the queue."""
         from zrb.runner.chat.sse_stream import SSEStreamResponse
 
         mock_queue = asyncio.Queue()
@@ -137,7 +132,6 @@ class TestSSEStreamResponse:
 
     @pytest.mark.asyncio
     async def test_event_generator_string_item(self):
-        """Test processing a string item from the queue."""
         from zrb.runner.chat.sse_stream import SSEStreamResponse
 
         mock_queue = asyncio.Queue()
@@ -168,7 +162,6 @@ class TestSSEStreamResponse:
 
     @pytest.mark.asyncio
     async def test_event_generator_timeout_keepalive(self):
-        """Test that a timeout yields a keepalive message."""
         from zrb.runner.chat.sse_stream import SSEStreamResponse
 
         mock_queue = asyncio.Queue()
@@ -197,7 +190,6 @@ class TestSSEStreamResponse:
 
     @pytest.mark.asyncio
     async def test_event_generator_cancelled_error(self):
-        """Test that CancelledError breaks the generator loop."""
         from zrb.runner.chat.sse_stream import SSEStreamResponse
 
         mock_queue = asyncio.Queue()

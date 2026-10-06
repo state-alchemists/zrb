@@ -1,27 +1,8 @@
 """Inert implementations of `AnyUI`'s state members and side-effect hooks.
 
-`AnyUI` splits in two: eight behavioral methods every UI performs, and
-twenty-two members describing what a *full* UI keeps — the model it talks to,
-whether the assistant is mid-turn, which background tasks it owns, what the
-primary child exposes to `MultiUI`. `BaseUI` implements all twenty-two;
-`StdUI`, `BufferedUI` and `MultiUI` track almost none of it, so they mix this
-in instead of each writing twenty-two stubs. The mixin also carries the two
-echo hooks (`track_echo_span`/`redraw_echo`) as inert defaults — those three
-wrappers have no output buffer to record a span against or splice into.
-
-Bodies live here rather than on `AnyUI` because no `any_*.py` module in this
-codebase carries an implementation — `.coveragerc` excludes those paths on
-that basis, so a default written there would ship untested.
-
-This is a genuine `Mixin`, and keeps the suffix: every value it
-reads is a `_uidefaults_`-prefixed attribute it declares and sets itself, it
-defines no `__init__` a host must remember to call, and `background_tasks`
-builds its own set on first access — so any class can mix it in. A host that
-implements a member for real declares it and wins on MRO (`MultiUI` does this
-for `is_thinking` and `tool_call_handler`).
-
-Not to be confused with `UIConfig`, which holds the *user-facing* defaults
-(assistant name, greeting, slash-command aliases).
+For UIs that track none of that state (`StdUI`, `BufferedUI`, `MultiUI`).
+Bodies live here, not on `AnyUI`, because `any_*.py` is excluded from coverage.
+A host that implements a member for real wins on MRO.
 """
 
 from __future__ import annotations
@@ -34,27 +15,15 @@ if TYPE_CHECKING:
 
 
 class UIStateDefaultsMixin:
-    """Default `AnyUI` state members for UIs that do not track them.
+    """Default `AnyUI` state members for UIs that do not track them."""
 
-    Every default is the honest answer to "this UI has no such thing": `None`
-    for the objects, `False` for the flags, a no-op for the side-effect hooks.
-    """
-
-    # Class-level defaults. An instance assignment through the setters below
-    # shadows them per instance, so these behave like ordinary attributes
-    # without this mixin having to define an `__init__` its hosts would then
-    # have to remember to call.
-    #
-    # `_uidefaults_`-prefixed because a host may keep its own field of the
-    # obvious name for a member it implements for real — `BaseUI.__init__`
-    # sets `_background_tasks` — and a bare name would collide with it.
+    # Class-level defaults so no `__init__` is needed; setters shadow them per
+    # instance. Prefixed so they cannot collide with a host's own fields.
     _uidefaults_is_thinking: bool = False
     _uidefaults_llm_task: Any = None
     _uidefaults_model: Any = None
     _uidefaults_multi_ui_parent: Any = None
-    # Deliberately a `None` sentinel rather than `set()`: a mutable class
-    # attribute is shared by every instance, so one UI's background tasks
-    # would land in every other UI's set.
+    # None, not set(): a mutable class attribute would be shared by instances.
     _uidefaults_background_tasks: "set[asyncio.Task] | None" = None
     _uidefaults_small_model: Any = None
     _uidefaults_multimodal_model: Any = None
@@ -88,7 +57,7 @@ class UIStateDefaultsMixin:
 
     @property
     def yolo(self) -> bool | frozenset:
-        """Never auto-approve. Read-only, matching the `AnyUI` contract."""
+        """Never auto-approve."""
         return False
 
     @property
@@ -138,8 +107,7 @@ class UIStateDefaultsMixin:
 
     @property
     def last_output(self) -> str:
-        """Nothing rendered, so nothing to report. Read-only, matching the
-        `AnyUI` contract; a UI that tracks it declares its own setter."""
+        """Nothing rendered."""
         return self._uidefaults_last_output
 
     @property
@@ -154,12 +122,7 @@ class UIStateDefaultsMixin:
 
     @property
     def background_tasks(self) -> "set[asyncio.Task]":
-        """One mutable set per instance, created on first access.
-
-        Callers mutate the returned set directly (`default/lifecycle.py`
-        `.add()`s and `.discard()`s on it), so every call must hand back the
-        same object rather than a fresh one.
-        """
+        """One mutable set per instance, created on first access."""
         if self._uidefaults_background_tasks is None:
             self._uidefaults_background_tasks = set()
         return self._uidefaults_background_tasks
@@ -179,20 +142,20 @@ class UIStateDefaultsMixin:
         return False
 
     def invalidate_ui(self) -> None:
-        """Repaint hook. A UI with no addressable surface has nothing to do."""
+        """No surface to repaint."""
 
     def set_status_badge(self, key: str, text: str | None) -> None:
         """No status bar to show a badge in."""
 
     def track_echo_span(self, entry: "QueuedMessage", echo: str) -> None:
-        """No output buffer to record an echo span against (echo contract)."""
+        """No output buffer to record an echo span against."""
 
     def redraw_echo(self, entry: "QueuedMessage") -> str | None:
-        """No output buffer to splice a rewritten echo into (echo contract)."""
+        """No output buffer to splice a rewritten echo into."""
         return None
 
     def remove_echo(self, entry: "QueuedMessage") -> None:
-        """No output buffer to take a dropped echo out of (echo contract)."""
+        """No output buffer to take a dropped echo out of."""
 
     def cancel_pending_confirmations(self, flush: bool = True) -> None:
         """No confirmations of its own to release."""

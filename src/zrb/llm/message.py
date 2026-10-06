@@ -2,11 +2,8 @@ from collections.abc import Generator
 from dataclasses import replace
 from typing import Any
 
-# Self-describing placeholders injected when a part would otherwise be empty or
-# text-less. Centralised here (the lowest-level history module) so every layer
-# that has to patch history for provider compatibility uses the same literals.
-# They are deliberately human-readable so the model can tell a missing payload
-# from a real terse response and not imitate a literal "." in its next turn.
+# Placeholders for parts that would otherwise be empty or text-less. Readable so
+# the model can tell a missing payload from a terse reply and not imitate it.
 TOOL_CALL_PLACEHOLDER = "(tool call)"
 EMPTY_CONTENT_PLACEHOLDER = "(empty)"
 # ToolReturnParts use "null" (not "(empty)") because some providers special-case
@@ -233,28 +230,15 @@ def _iter_tool_events(
     """Yield ``(msg_index, tool_call_id, kind)`` for every tool part in *messages*.
 
     *kind* is ``"call"`` for ``ToolCallPart`` and ``"return"`` for
-    ``ToolReturnPart`` — or for a tool-linked ``RetryPromptPart``: pydantic-ai
-    answers a failed tool call with a retry part that providers serialize as a
-    ``role='tool'`` message, so for pairing purposes it *is* the return
-    (mirrors ``history_utils``).  Tool-less retries (``tool_name is None``)
-    are skipped: they map to user messages despite their auto-generated
-    ``tool_call_id``.  Messages and parts that lack a ``tool_call_id`` (or
-    the ``.parts`` attribute entirely) are silently skipped — this is deliberate:
-    the caller expects a best-effort traversal, not an exception.
-
-    This is the single traversal helper behind ``sanitize_orphaned_tool_calls``,
-    ``get_tool_pairs`` and ``validate_tool_pair_integrity``, so the for-loop /
-    try-except / isinstance pattern exists once.
+    ``ToolReturnPart`` or a tool-linked ``RetryPromptPart`` (providers serialize
+    it as a ``role='tool'`` message). Tool-less retries map to user messages and
+    are skipped, as are parts without a ``tool_call_id``.
     """
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import RetryPromptPart, ToolCallPart, ToolReturnPart
 
     for msg_idx, msg in enumerate(messages):
-        try:
-            parts = getattr(msg, "parts", [])
-        except AttributeError:
-            continue
-        for part in parts:
+        for part in getattr(msg, "parts", []):
             tool_call_id = getattr(part, "tool_call_id", None)
             if not tool_call_id:
                 continue

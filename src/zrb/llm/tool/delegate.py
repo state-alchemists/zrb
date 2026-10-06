@@ -13,10 +13,6 @@ from zrb.config.config import CFG
 from zrb.llm.agent.activity import HasActivityTracking, agent_activity_registry
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
-
-# Import directly from the inner module (not the `subagent` package's
-# __init__): the package's own __init__ just re-exports `.manager`, so going
-# through it here would gain nothing but an extra frame.
 from zrb.llm.agent.subagent.manager import (
     SubAgentManager,
 )
@@ -68,12 +64,7 @@ def _format_envelope(
     task: str,
     additional_context: str,
 ) -> str:
-    """Assemble a scope-clamped envelope the sub-agent reads first.
-
-    The DELIVERABLE / NON-GOALS / TASK / CONTEXT / BEFORE RETURNING delimiters
-    are intentionally uppercase and structural so a sub-agent cannot miss the
-    fence while parsing free-form prose.
-    """
+    """Assemble the scope-clamped envelope the sub-agent reads first."""
     if isinstance(non_goals, list) and non_goals:
         non_goals_block = "\n".join(f"  - {item}" for item in non_goals)
     elif isinstance(non_goals, str) and non_goals.strip():
@@ -110,11 +101,7 @@ async def run_agent_task(
     flush_ui: bool = False,
     yolo: bool | None = None,
 ) -> AgentTaskResult:
-    """Run a single agent task and return structured result.
-
-    Args:
-        yolo: Override yolo for the sub-agent. None = inherit from parent.
-    """
+    """Run one sub-agent task. `yolo=None` inherits the parent's setting."""
     sub_agent = sub_agent_manager.create_agent(agent_name, yolo=yolo)
     if not sub_agent:
         return AgentTaskResult(
@@ -125,26 +112,17 @@ async def run_agent_task(
 
     full_message = _format_envelope(deliverable, non_goals, task, additional_context)
 
-    # SubagentStart/Stop fire on the parent run's hook manager (Claude semantics:
-    # the parent observes its subagents). agent_type is the delegated agent's name.
     agent_id = uuid.uuid4().hex[:8]
-    # Scopes the activity-panel entry to this run's own session, so a process
-    # hosting multiple sessions (the web runner) doesn't bleed one session's
-    # running sub-agents into another's panel/listing.
+    # Per-session scope so the web runner's sessions don't share an activity panel.
     activity_session_id = get_session_ownership_key(get_current_tool_session())
     _tracks_activity = _start_activity_tracking(
         ui, agent_id, agent_name, deliverable or task, activity_session_id
     )
-    # Registered here because all three delegate paths (single, fan-out,
-    # background) share this code. live_session.py needs the concrete
-    # BufferedUI, not just the HasActivityTracking protocol.
     session = _register_live_session(
         ui, activity_session_id, agent_id, agent_name, sub_agent_manager, yolo
     )
     try:
-        # Inside the try so a cancel landing during this await goes through
-        # `consume_cancelled_flag` below; in the single-delegate path an
-        # uncaught cancel would kill the whole main turn.
+        # Inside the try so a cancel here goes through `consume_cancelled_flag`.
         await fire_subagent_hook(HookEvent.SUBAGENT_START, agent_name, agent_id)
         result, history = await run_agent(
             agent=sub_agent,
@@ -153,12 +131,8 @@ async def run_agent_task(
             limiter=get_run_llm_limiter(),
             ui=ui,
             yolo=bool(yolo) if yolo is not None else yolo,
-            # A fresh scope so file_observation.py's read-before-overwrite
-            # tracking does not credit the parent's or a sibling's reads to
-            # this run. Not agent_id: that is 32-bit truncated and would
-            # collide over a long process lifetime. Passing the live
-            # session's scope lets its continuation turns reuse it; "" makes
-            # `run_agent` mint one.
+            # Own scope so read-before-overwrite tracking doesn't credit the
+            # parent's reads; not agent_id (32-bit, collides). "" mints one.
             run_scope=session.run_scope if session is not None else "",
         )
 
@@ -175,12 +149,8 @@ async def run_agent_task(
         return AgentTaskResult(agent_name, result, None)
 
     except asyncio.CancelledError:
-        # The human pressed Esc while viewing this sub-agent (TUI) and
-        # `cancel()` flagged it. Kill only this sub-agent's turn: return a
-        # cancelled result so the main agent (which may be awaiting this
-        # delegation — e.g. in a fan-out's `asyncio.gather`) continues with a
-        # normal result instead of being cancelled too. A cancellation not
-        # initiated by `cancel()` (the main run's own Esc) re-raises.
+        # Esc on this sub-agent's view cancels only its turn; any other
+        # cancellation (the main run's own Esc) re-raises.
         if session is not None and session.consume_cancelled_flag():
             return AgentTaskResult(agent_name, None, "Cancelled by user")
         raise
@@ -192,8 +162,7 @@ async def run_agent_task(
             "simplify the task or break it into smaller steps.",
         )
     except Exception as e:  # noqa: BLE001
-        # No [SYSTEM SUGGESTION]: unlike RecursionError, an arbitrary failure
-        # has no known fix, and guessed advice would mislead the parent.
+        # No [SYSTEM SUGGESTION]: there is no known fix to suggest.
         return AgentTaskResult(agent_name, None, str(e))
     finally:
         if session is not None and session.active_task is asyncio.current_task():
@@ -210,11 +179,7 @@ def _start_activity_tracking(
     task_label: str,
     activity_session_id: str,
 ) -> bool:
-    """Register this run in the activity panel, if the UI has one.
-
-    Returns whether tracking was started, so the caller's `finally` knows
-    whether to finish the entry.
-    """
+    """Register this run in the activity panel, if the UI has one; return whether it did."""
     if not isinstance(ui, HasActivityTracking):
         return False
     ui.set_activity_id(agent_id)
@@ -238,13 +203,8 @@ def _register_live_session(
 ):
     """Register this run so a human can talk to it while it works.
 
-    The "talk to a running sub-agent directly" feature (live_session.py) needs
-    the concrete `BufferedUI` (its buffer + active_run_context), not just the
-    `HasActivityTracking` protocol — registered unconditionally here since this
-    is the one place all three delegate paths (single, fan-out, background)
-    construct their `BufferedUI` and share this code. `active_task` lets the
-    TUI's Esc (while viewing this sub-agent) cancel exactly this turn; see
-    `LiveSubAgentSessionRegistry.cancel`.
+    Needs the concrete `BufferedUI`. `active_task` lets the TUI's Esc cancel
+    exactly this turn; see `LiveSubAgentSessionRegistry.cancel`.
     """
     if not isinstance(ui, BufferedUI):
         return None
@@ -271,24 +231,14 @@ def _finalize_successful_run(
     history: list,
     result: Any,
 ) -> Any:
-    """Close out a delegation that finished, and note where its transcript went.
-
-    Every completed delegation persists its transcript under a derived
-    conversation name, bounded by `LLM_SUBAGENT_HISTORY_RETAIN`. No knob gates
-    it: unlike ordinary sessions (re-saved under one name) each delegation is
-    written exactly once, so the bounded pruning is the only thing that keeps
-    it from filling the disk.
-    """
+    """Close out a finished delegation and note where its transcript was saved."""
     if flush_ui:
         ui.flush_to_parent()
     live_subagent_session_registry.mark_turn_finished(
         activity_session_id, agent_id, history
     )
     if session is not None:
-        # End-of-session marker for the sub-agent's live view, appended
-        # after the turn went idle so the transcript visibly ends. Cancel
-        # and error paths never reach here — those show "<Esc> Canceled"
-        # (written by the TUI's cancel_viewed_agent) or the error instead.
+        # Cancel/error paths never reach here; they show their own marker.
         session.buffered_ui.append_to_output("<Done>")
     conversation_name = format_delegated_session_name(
         get_current_tool_session(), agent_name, agent_id
@@ -300,21 +250,10 @@ def _finalize_successful_run(
 
 
 def persist_subagent_history(conversation_name: str, history: list) -> None:
-    """Save a delegated sub-agent's transcript under its own conversation name,
-    always — there is no opt-out knob.
+    """Save a sub-agent's transcript under its own conversation name (best-effort).
 
-    Best-effort: persisting the transcript is not this tool's primary job, so
-    a failure here (disk full, permissions) must not surface as a delegation
-    failure — same posture as ``fire_subagent_hook``.
-
-    Unlike an ordinary conversation (one name, re-saved across turns, where
-    ``LLM_HISTORY_BACKUP_RETAIN`` bounds its backups), every delegation mints
-    a brand-new, never-reused ``conversation_name`` — so nothing bounds these
-    files on its own. Two things keep that from filling the disk on a
-    long-running or heavily-delegating session: no backup is written for a
-    session that's never resaved (``write_backup=False``), and
-    ``_prune_old_subagent_history`` deletes the oldest ones past
-    ``CFG.LLM_SUBAGENT_HISTORY_RETAIN`` right after every write.
+    Each delegation mints a new name, so files are bounded by pruning to
+    ``CFG.LLM_SUBAGENT_HISTORY_RETAIN`` after every write; no backup is kept.
     """
     try:
         # lazy: zrb.llm.history_manager transitively loads pydantic_ai.
@@ -333,19 +272,16 @@ def persist_subagent_history(conversation_name: str, history: list) -> None:
 
 
 def _prune_old_subagent_history() -> None:
-    """Delete the oldest delegated-session history files beyond
-    ``CFG.LLM_SUBAGENT_HISTORY_RETAIN``, keeping always-on persistence safe.
-    ``-1`` opts out (keep every one, at the caller's own risk); errors are
-    swallowed (best-effort, see ``persist_subagent_history``)."""
+    """Delete delegated-session history beyond ``CFG.LLM_SUBAGENT_HISTORY_RETAIN``
+    (negative keeps all). Best-effort."""
     retain = CFG.LLM_SUBAGENT_HISTORY_RETAIN
     if retain < 0:
         return
     history_dir = os.path.expanduser(CFG.LLM_HISTORY_DIR)
     if not os.path.isdir(history_dir):
         return
-    # Only `subagent/{agent_type}/`, never the flat history root: a user
-    # session whose name merely looks delegated must never be deleted.
-    # Delegated files sitting flat in the root are therefore never pruned.
+    # Only `subagent/{agent_type}/`, never the root: a user session whose name
+    # merely looks delegated must never be deleted.
     entries: list[tuple[float, str]] = []
     try:
         for directory in subagent_only_directories(history_dir):
@@ -383,23 +319,16 @@ async def fire_subagent_hook(event: HookEvent, agent_name: str, agent_id: str) -
             agent_id=agent_id,
         )
     except asyncio.CancelledError:
-        # Swallowed: this also fires from `run_agent_task`'s `finally`, and a
-        # stray cancel here must not override an already-settled result. The
-        # sub-agent's own cancellation goes through `consume_cancelled_flag`.
+        # Swallowed: this also fires from a `finally`, where a stray cancel
+        # must not override an already-settled result.
         CFG.LOGGER.debug(f"Delegation hook '{event}' cancelled")
     except Exception as e:
         CFG.LOGGER.debug(f"Delegation hook '{event}' failed: {e}")
 
 
 def _delegatable_agents(sub_agent_manager: SubAgentManager) -> list:
-    """Agents the current permission policy permits delegating to.
-
-    With no policy in force (the default), every scanned agent is returned.
-    When a policy denies delegation to a specific agent, it is omitted from the
-    advertised roster so the model isn't offered an option it cannot use.
-    """
-    # lazy: tests patch zrb.llm.permission.get_effective_policy; hoisting
-    # would bind the name at this module's load time and bypass the mock.
+    """Agents the current permission policy permits delegating to."""
+    # lazy: tests patch zrb.llm.permission.get_effective_policy; hoisting bypasses the mock
     from zrb.llm.permission import DENY, get_effective_policy
 
     agents = sub_agent_manager.scan()
@@ -428,17 +357,11 @@ def _sort_agents(agents: list) -> list:
 def agent_roster_doc(sub_agent_manager: SubAgentManager) -> str:
     """The `AVAILABLE AGENTS` block for a delegation tool's docstring.
 
-    Every tool that takes an `agent_name` embeds this, so the valid names are
-    in each tool's own schema rather than recalled from a sibling's. The roster
-    is capped by ``LLM_MAX_AGENTS_IN_ROSTER`` with a pointer to ``SearchAgent``:
-    a huge sub-agent fleet must not inflate every request's docstrings, and the
-    overflow stays reachable on demand.
+    Capped by ``LLM_MAX_AGENTS_IN_ROSTER``; the overflow points to ``SearchAgent``.
     """
     agents = _delegatable_agents(sub_agent_manager)
     if not agents:
         return "- No sub-agents found."
-    # Keep core agents at the front, then sort by name so the roster (and its
-    # truncation boundary) is deterministic.
     agents = _sort_agents(agents)
     shown, hidden = cap_items(agents, CFG.LLM_MAX_AGENTS_IN_ROSTER)
     lines = "\n".join(f"- `{a.name}`: {a.description}" for a in shown)
@@ -448,13 +371,7 @@ def agent_roster_doc(sub_agent_manager: SubAgentManager) -> str:
 
 
 def agent_not_found_message(agent_name: str, sub_agent_manager: SubAgentManager) -> str:
-    """Error text for an unknown `agent_name`, naming the valid ones.
-
-    Spelling out the names turns the retry into a correction rather than
-    another guess. The closest match comes first because the usual failure is
-    a near-miss (`research` for `researcher`, or a name from another
-    harness's roster).
-    """
+    """Error text for an unknown `agent_name`, with the closest match and the valid names."""
     names = [a.name for a in _sort_agents(_delegatable_agents(sub_agent_manager))]
     if not names:
         return (
@@ -506,17 +423,10 @@ async def current_head_sha(cwd: str) -> str:
 async def worktree_has_new_commits(worktree_path: str, base_sha: str) -> bool:
     """Whether *worktree_path*'s branch has any commit beyond *base_sha*.
 
-    ``worktree_has_changes`` alone only sees uncommitted changes — a
-    sub-agent that *commits* its deliverable makes the tree clean, which
-    would otherwise let cleanup force-delete the branch (and its commits)
-    via `exit_worktree`'s default `keep_branch=False`. This closes that gap:
-    a non-empty ``base_sha..HEAD`` range means real work exists on the
-    branch, regardless of working-tree cleanliness.
+    A sub-agent that commits its work leaves a clean tree; this keeps cleanup
+    from force-deleting those commits. Unknown answers return True (fail safe).
     """
     if not base_sha:
-        # Couldn't determine the fork point (e.g. `rev-parse` failed before
-        # entering the worktree) — fail safe and assume there might be
-        # commits rather than risk deleting real work.
         return True
     proc = await asyncio.create_subprocess_exec(
         "git",
@@ -529,7 +439,7 @@ async def worktree_has_new_commits(worktree_path: str, base_sha: str) -> bool:
     )
     stdout, _ = await proc.communicate()
     if proc.returncode != 0:
-        return True  # fail safe: can't confirm "no new commits", so assume there are
+        return True
     count = stdout.decode().strip()
     return count.isdigit() and int(count) > 0
 
@@ -540,17 +450,9 @@ async def _run_parallel(
 ) -> str:
     """Run several sub-agent tasks concurrently and return combined results.
 
-    A single atomic call — useful for models that cannot reliably sequence N
-    tool-call rounds. Each task gets its own scope clamp and runs blind to the
-    others; a shared lock serializes any approval prompts back to the parent UI.
-
-    A task with ``isolate_worktree: true`` runs inside its own git worktree
-    instead of the shared working tree — opt-in, since fanning out
-    concurrent *writes* onto one tree corrupts them into each other. `asyncio.gather`
-    schedules each `run_single_agent` coroutine as its own `Task`, which copies
-    `contextvars` at creation time, so each task's `active_worktree` is isolated
-    from its siblings' — the same guarantee `enter_worktree`/`exit_worktree`
-    already rely on for the single-agent path.
+    A shared lock serializes approval prompts. ``isolate_worktree: true`` gives
+    a task its own git worktree; each gathered `Task` copies `contextvars`, so
+    `active_worktree` stays isolated per task.
     """
     required = ("agent_name", "deliverable", "task", "non_goals")
     for idx, spec in enumerate(tasks):
@@ -564,10 +466,7 @@ async def _run_parallel(
 
     parent_ui = get_current_ui() or StdUI()
     ui_lock = asyncio.Lock()
-    # Bounds how many sub-agent runs (each its own LLM call against the shared
-    # rate limiter, and possibly its own git worktree) launch at once — a
-    # model-requested `tasks` list has no other size limit. 0/negative
-    # disables the cap, matching LLM_MAX_REQUEST_PER_RUN's convention.
+    # Caps concurrent runs; 0/negative disables the cap.
     _max_parallel = CFG.LLM_MAX_PARALLEL_DELEGATIONS
     _fan_out_semaphore = asyncio.Semaphore(_max_parallel) if _max_parallel > 0 else None
 
@@ -588,13 +487,9 @@ async def _run_parallel(
         worktree_path = ""
         base_sha = ""
         if isolate:
-            # Captured before creating the worktree so cleanup can tell "clean
-            # working tree" apart from "clean working tree but new commits
-            # exist" — see `worktree_has_new_commits`.
             base_sha = await current_head_sha(os.getcwd())
-            # A distinct name per task: enter_worktree's own default branch name
-            # is second-granularity, which concurrent fan-out tasks can collide
-            # on within the same second.
+            # enter_worktree's default name is second-granular; concurrent
+            # tasks would collide.
             branch_name = f"delegate-{agent_name}-{get_random_name(separator='-', add_random_digit=True)}"
             enter_msg = await enter_worktree(branch_name=branch_name)
             worktree_path = get_active_worktree()
@@ -617,9 +512,7 @@ async def _run_parallel(
                 yolo=None,
             )
         finally:
-            # Cleanup runs even when the sub-agent errored, so worktrees do not
-            # leak; a cleanup failure must not escape into
-            # `asyncio.gather` and abort sibling tasks.
+            # A cleanup failure must not escape into `gather` and abort siblings.
             if isolate and worktree_path:
                 try:
                     dirty = await worktree_has_changes(worktree_path)
@@ -627,9 +520,6 @@ async def _run_parallel(
                         worktree_path, base_sha
                     )
                     if dirty or has_new_commits:
-                        # Real work exists (uncommitted or committed) — never
-                        # force-delete it via exit_worktree's default
-                        # keep_branch=False.
                         if result is not None and result.success and result.result:
                             result.result += f"\n\n(Worktree left in place for review: {worktree_path})"
                     else:
@@ -644,8 +534,6 @@ async def _run_parallel(
                             f"manual review: {worktree_path}: {e})"
                         )
 
-        # Reached only if the try block returned normally (an exception would
-        # have propagated past this point after the finally block ran).
         assert result is not None
         return AgentTaskResult(
             buffered_ui.label or f"[{agent_name}]",
@@ -659,8 +547,7 @@ async def _run_parallel(
         async with _fan_out_semaphore:
             return await _run_single_agent_inner(task_spec)
 
-    # Defense in depth (cleanup failures are already caught above): an
-    # unanticipated raise fails one task, not every sibling.
+    # An unanticipated raise fails one task, not every sibling.
     raw_results = await asyncio.gather(
         *[run_single_agent(t) for t in tasks], return_exceptions=True
     )
@@ -717,11 +604,8 @@ def create_delegate_to_agent_tool(
                 )
             ),
         ] = "",
-        # Mutable defaults are intentional here: pydantic-ai builds a Pydantic v2
-        # model from this signature and internally converts mutable defaults to
-        # default_factory, so each tool call gets a fresh list. Using `= []`
-        # instead of `list[str] | None = None` keeps the JSON schema compact
-        # (avoids anyOf + null union that bloats every tool description sent to the LLM).
+        # `= []` is safe (pydantic copies mutable defaults) and keeps the
+        # schema free of an anyOf-null union.
         non_goals: Annotated[
             list[str],
             Field(
@@ -752,9 +636,6 @@ def create_delegate_to_agent_tool(
         ] = [],  # noqa: B006
     ) -> str:
         """See module docstring; required-arg signature is the scope clamp."""
-        # FAN OUT: a non-empty `tasks` list runs several sub-agents concurrently
-        # and returns their results together (one atomic call). Flat args are
-        # ignored in that case.
         if tasks:
             return await _run_parallel(tasks, sub_agent_manager)
         missing = [
@@ -773,8 +654,7 @@ def create_delegate_to_agent_tool(
                 "(non_goals defaults to []), or pass tasks=[...] to fan out."
             )
         parent_ui = get_current_ui() or StdUI()
-        # run_agent_task assigns the [agent_name #ordinal] label (the panel
-        # is the legend); no opaque per-instance id is shown to the user.
+        # run_agent_task assigns the [agent_name #ordinal] label.
         buffered_ui = BufferedUI(
             parent_ui,
             session_id=get_session_ownership_key(get_current_tool_session()),
@@ -841,10 +721,8 @@ def create_search_agent_tool(
 
     setattr(search_agent, "zrb_is_delegate_tool", True)
     search_agent.__name__ = "SearchAgent"
-    # The roster is deliberately NOT embedded here: it is spelled out in the
-    # delegation tools' docstrings, and this tool is the on-demand window onto
-    # the part those docstrings truncate. Naming the truncation cap here would
-    # pin a config value into a docstring that ships on every request.
+    # No roster here: this tool is the window onto what the delegation
+    # tools' rosters truncate.
     search_agent.__doc__ = (
         "Searches the sub-agent roster by name or description.\n\n"
         "Use it when the AVAILABLE AGENTS roster in a delegation tool is "

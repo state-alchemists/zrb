@@ -13,11 +13,10 @@ from zrb.xcom.xcom import Xcom
 
 
 class Callback(AnyCallback):
-    """
-    Represents a callback that runs a task after a trigger or scheduler event.
+    """Run a task after a trigger or scheduler event.
 
-    It handles input mapping and can publish results and session names
-    back to the parent session via XCom.
+    Maps inputs in, and can publish the result, error and session name back to
+    the parent session's xcom.
     """
 
     def __init__(
@@ -29,8 +28,7 @@ class Callback(AnyCallback):
         error_queue: str | None = None,
         session_name_queue: str | None = None,
     ):
-        """
-        Initializes a new instance of the Callback class.
+        """Define a callback.
 
         Args:
             task: The task to be executed by the callback.
@@ -57,9 +55,7 @@ class Callback(AnyCallback):
 
     @property
     def task(self) -> AnyTask:
-        """The task this callback runs — what a caller needs to follow the
-        reference it holds (startup diagnostics do, to see that a task reached
-        only through a trigger's callback is not orphaned)."""
+        """The task this callback runs."""
         return self._task
 
     async def async_run(self, parent_session: AnySession, session: AnySession) -> Any:
@@ -82,17 +78,13 @@ class Callback(AnyCallback):
             self._maybe_publish_result_to_parent_session(parent_session, result)
             return result
         except (asyncio.CancelledError, KeyboardInterrupt):
-            # Cancellation is not a task error to publish — swallowing it here
-            # would make cancelled callbacks "complete" and block shutdown.
+            # Swallowing cancellation would block shutdown.
             raise
         except BaseException as e:
             ctx = session.get_ctx(self._task)
             ctx.print(traceback.format_exc())
             self._maybe_publish_error_to_parent_session(parent_session, e)
-            # Swallowed on purpose (a raised error here fail-fasts the whole
-            # trigger fan-out, cancelling sibling callbacks), but never
-            # silently: make the failure visible in the log even when no
-            # error_queue was configured.
+            # Not re-raised: that would cancel sibling callbacks in the fan-out.
             CFG.LOGGER.error(f"Callback task '{self._task.name}' failed: {e!r}")
 
     def _maybe_publish_session_name_to_parent_session(

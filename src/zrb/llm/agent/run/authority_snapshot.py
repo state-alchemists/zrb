@@ -1,19 +1,7 @@
-"""Capture ambient authority (permission policy, yolo, sandbox, hook manager).
+"""Capture run-scoped authority for delayed sub-agent continuations.
 
-`run_agent`'s inheritance model ("a sub-agent must not exceed its parent")
-relies on `asyncio.create_task`/`ensure_future` copying the current
-`ContextVar` context — correct whenever the detached task is spawned *while
-the originating scope is still bound*. A continuation spawned later, after
-that scope has already exited (`live_session.py`'s `_continue_live_session`,
-which runs long after the original delegation's `run_agent()` call already
-returned and reset its `ExitStack`-bound ContextVars), sees whatever is
-ambient at that later, unrelated point instead — which can be broader than
-what was originally granted.
-
-Capture an `AuthoritySnapshot` once, while the originating scope is still
-bound, and pass its fields explicitly to the later `run_agent()` call instead
-of relying on ambient inheritance at that point.
-"""
+Continuations run after the originating ``ContextVar`` scope exits, so they
+must receive the original permission, sandbox, yolo, and hook settings."""
 
 from __future__ import annotations
 

@@ -18,11 +18,8 @@ _T = TypeVar("_T", bound=AnyTask)
 class TaskReplacement(NamedTuple):
     """A registration that overwrote an earlier task under the same alias.
 
-    `Group.add_task` records one of these per replacement. Registering over an
-    alias is silent by design (see `add_task`); the record exists so a startup
-    diagnostic can tell a project shadowing a built-in (intended) from two of
-    the project's own tasks colliding (a mistake), without `add_task` itself
-    having to decide which it is.
+    Recorded by `Group.add_task` so startup diagnostics can tell an intended
+    built-in shadow from two project tasks colliding.
     """
 
     alias: str
@@ -42,8 +39,7 @@ class Group(AnyGroup):
         db.add_task(Task(name="migrate", action=lambda ctx: ...))
         # -> zrb db migrate
 
-    `subgroups` and `subtasks` are returned alphabetically by alias, which is
-    what makes `--help` output stable rather than insertion-ordered.
+    `subgroups` and `subtasks` are sorted by alias so `--help` output is stable.
     """
 
     def __init__(
@@ -61,10 +57,7 @@ class Group(AnyGroup):
         self._description = description
         self._groups: dict[str, AnyGroup] = {}
         self._tasks: dict[str, AnyTask] = {}
-        # Append-only log of the aliases this group's add_task overwrote, so
-        # startup diagnostics can explain a silent replacement. Never read by
-        # dispatch; `reset_task_replacements` clears it at the top of each
-        # startup.
+        # Aliases add_task overwrote; read only by startup diagnostics.
         self.replacements: list[TaskReplacement] = []
 
     def __repr__(self):
@@ -117,9 +110,7 @@ class Group(AnyGroup):
         Raises:
             TypeError: *group* is neither an `AnyGroup` nor a string.
         """
-        # The annotation says this cannot happen. A hand-written
-        # `zrb_init.py` is not type-checked, and this is where that
-        # mistake surfaces.
+        # zrb_init.py is not type-checked.
         if not isinstance(
             group, (AnyGroup, str)
         ):  # pyright: ignore[reportUnnecessaryIsInstance]
@@ -136,15 +127,9 @@ class Group(AnyGroup):
     def add_task(self, task: _T, alias: str | None = None) -> _T:
         """Register *task* under this group and return it, so calls can chain.
 
-        Registering a second task under an alias already in use **replaces**
-        the first, silently and by design: it is how a project shadows a
-        built-in, as [CI/CD](../../docs/advanced-topics/ci-cd.md) describes for
-        `zrb test` and `zrb lint`. The flip side is that two of your own tasks
-        under one alias mean the later one wins with no warning — if a task
-        seems to have vanished, look for a duplicate name before anything
-        else. Each replacement is logged on `replacements`, which startup
-        reads to warn about exactly that case while leaving a built-in shadow
-        quiet.
+        A second task under an alias already in use silently replaces the
+        first; that is how a project shadows a built-in. Each replacement is
+        logged on `replacements` for startup diagnostics.
 
         Args:
             task: The task to expose.
@@ -157,7 +142,7 @@ class Group(AnyGroup):
         Raises:
             TypeError: *task* is not an `AnyTask`.
         """
-        # See add_group — the check exists for untyped callers.
+        # zrb_init.py is not type-checked.
         if not isinstance(
             task, AnyTask
         ):  # pyright: ignore[reportUnnecessaryIsInstance]
@@ -172,15 +157,7 @@ class Group(AnyGroup):
     def _remove_registered(
         self, items: dict[str, Any], target: Any, item_type: type, label: str
     ) -> dict[str, Any]:
-        """Shared object/alias/name removal logic for remove_group/remove_task.
-
-        A string `target` is matched against aliases first and against
-        registered-item *names* second, so an alias always wins when the two
-        disagree.
-
-        Raises:
-            ValueError: Nothing matched, so the call would silently do nothing.
-        """
+        """Remove *target* by object, else by alias, else by name."""
         original_len = len(items)
         if isinstance(target, item_type):
             new_items = {
@@ -191,13 +168,11 @@ class Group(AnyGroup):
             if len(new_items) == original_len:
                 raise ValueError(f"Cannot remove {label} {target} from {self}")
             return new_items
-        # target is string, try to remove by alias
         new_items = {
             alias: existing for alias, existing in items.items() if alias != target
         }
         if len(new_items) < original_len:
             return new_items
-        # if alias removal didn't work, try to remove by name
         new_items = {
             alias: existing
             for alias, existing in items.items()
@@ -210,22 +185,20 @@ class Group(AnyGroup):
     def remove_group(self, group: "AnyGroup | str"):
         """Unregister a subgroup, by object, by alias, or by name.
 
-        A string is matched against aliases first and against group *names*
-        second, so an alias always wins when the two disagree.
+        A string matches aliases before names.
 
         Raises:
-            ValueError: Nothing matched, so the call would silently do nothing.
+            ValueError: Nothing matched.
         """
         self._groups = self._remove_registered(self._groups, group, AnyGroup, "group")
 
     def remove_task(self, task: "AnyTask | str"):
         """Unregister a task, by object, by alias, or by name.
 
-        A string is matched against aliases first and against task *names*
-        second, so an alias always wins when the two disagree.
+        A string matches aliases before names.
 
         Raises:
-            ValueError: Nothing matched, so the call would silently do nothing.
+            ValueError: Nothing matched.
         """
         self._tasks = self._remove_registered(self._tasks, task, AnyTask, "task")
 
@@ -300,7 +273,6 @@ class Group(AnyGroup):
             if web_only and task is not None and task.is_cli_only:
                 task = None
             group = node.get_group_by_alias(name)
-            # Only ignore empty groups if web_only is True
             if (
                 group is not None
                 and web_only
@@ -308,9 +280,6 @@ class Group(AnyGroup):
             ):
                 group = None
             if task is None and group is None:
-                # `node` is always a group here: the loop breaks as soon as
-                # it resolves to a task, so the type checker narrows it to
-                # AnyGroup on its own.
                 candidates: list[str] = sorted([*node.subtasks, *node.subgroups])
                 raise NodeNotFoundError(
                     f"Invalid subcommand: {self.name} {' '.join(args)}."

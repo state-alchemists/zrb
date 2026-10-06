@@ -13,7 +13,7 @@ from zrb.llm.util.capabilities import (
 
 @pytest.fixture(autouse=True)
 def _reset_singleton():
-    """Ensure user-registered overrides don't leak between tests."""
+    "Ensure user-registered overrides don't leak between tests."
     model_capabilities.clear()
     yield
     model_capabilities.clear()
@@ -96,7 +96,7 @@ def test_context_window_is_known_for_documented_model_families():
 
 
 def test_parallel_tool_calls_unknown_for_general_models():
-    # Most models have no explicit entry → tri-state ``None`` ("unknown").
+
     assert model_capabilities.get("openai:gpt-4o").supports_parallel_tool_calls is None
     assert (
         model_capabilities.get(
@@ -149,7 +149,7 @@ def test_get_returns_defaults_for_none_and_empty():
 
 
 def test_supports_modality_returns_false_for_unknown_modality_string():
-    # An unknown modality argument returns False (defensive).
+
     assert model_capabilities.supports_modality("openai:gpt-4o", "lidar") is False
 
 
@@ -169,7 +169,7 @@ def test_pydantic_ai_model_instance_resolved_via_model_name():
 
 
 def test_magic_mock_without_real_string_name_treated_as_unknown():
-    mock = MagicMock()  # both .model_name and .name return MagicMock
+    mock = MagicMock()
     assert is_known_model(mock) is False
     assert model_capabilities.get(mock) == ModelCapabilities()
 
@@ -194,8 +194,8 @@ def test_is_known_model_truthiness():
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "document",
         ),
-        # Plain-text formats are readable by any model regardless of vision
-        # capability, so they are deliberately NOT gated as "document".
+
+
         ("text/plain", None),
         ("text/csv", None),
         ("", None),
@@ -232,14 +232,14 @@ def test_supports_modality_dispatches_document():
 
 
 def test_register_override_takes_priority_over_pattern_table():
-    # gpt-4o normally supports image input — pretend the user knows their
-    # deployment doesn't expose that and disables it locally.
+
+
     model_capabilities.register("gpt-4o", supports_image_input=False)
     assert model_capabilities.get("openai:gpt-4o").supports_image_input is False
 
 
 def test_register_override_is_partial():
-    # Overriding one field must not reset the others to dataclass defaults.
+
     model_capabilities.register("gpt-4o", supports_parallel_tool_calls=False)
     caps = model_capabilities.get("openai:gpt-4o")
     assert caps.supports_parallel_tool_calls is False
@@ -261,13 +261,13 @@ def test_register_most_recent_wins():
 def test_clear_drops_overrides_but_preserves_builtins():
     model_capabilities.register("gpt-4o", supports_image_input=False)
     model_capabilities.clear()
-    # built-in pattern still applies after clear()
+
     assert model_capabilities.get("openai:gpt-4o").supports_image_input is True
 
 
 def test_override_can_force_parallel_tool_calls_back_on():
-    # A user can opt minimax back into parallel calls if they know better
-    # than the built-in deny entry.
+
+
     model_capabilities.register("minimax-m2\\.7", supports_parallel_tool_calls=None)
     caps = model_capabilities.get("ollama:minimax-m2.7:cloud")
     assert caps.supports_parallel_tool_calls is None
@@ -279,11 +279,11 @@ def test_override_pattern_is_case_insensitive():
 
 
 def test_separate_registry_instances_have_independent_state():
-    # Constructing a fresh registry is the recommended pattern for
-    # tests that need full isolation from the module-level singleton.
+
+
     isolated = ModelCapabilityRegistry()
     isolated.register("gpt-4o", supports_image_input=False)
 
     assert isolated.get("openai:gpt-4o").supports_image_input is False
-    # The module-level singleton is unaffected.
+
     assert model_capabilities.get("openai:gpt-4o").supports_image_input is True

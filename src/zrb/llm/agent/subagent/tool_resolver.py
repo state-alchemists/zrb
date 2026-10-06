@@ -1,19 +1,10 @@
-"""Resolve tool names (Claude-compatible aliases honored) into tool objects.
-
-Kept dependency-free (no ``zrb.llm.tool``/``zrb.llm.common_tools`` imports) so
-it can be called from both `SubAgentManager` and hook code without pulling in
-the whole tool package (and, transitively, `pydantic_ai`) just to resolve a
-name.
-"""
+"""Resolve tool names without importing the tool package."""
 
 from __future__ import annotations
 
 from typing import Any, Callable, Sequence
 
-# Claude Code names its shell tool ``Bash``; zrb ships a single ``Shell`` tool.
-# A sub-agent file (or hook config) written for Claude that lists ``Bash``
-# maps onto ``Shell``, so a `tools:`/`disallowedTools:` list keeps working
-# unmodified (case-insensitive, e.g. ``Bash`` or ``bash``).
+# Accept Claude's case-insensitive ``Bash`` alias for zrb's ``Shell``.
 _TOOL_NAME_ALIASES = {"bash": "Shell"}
 
 

@@ -16,9 +16,7 @@ from zrb.llm.tool.file_observation import clear_observed
 
 @pytest.fixture(autouse=True)
 def _reset_observed_state():
-    """The observed-content map is a run-scoped module singleton — reset it
-    so one test's Read/Write never leaks into another's assertions.
-    """
+    """Reset the run-scoped observation map between tests."""
     clear_observed()
     yield
     clear_observed()
@@ -45,17 +43,7 @@ def _r(*a, **kw):
 
 @pytest.fixture(autouse=True)
 def _no_real_lsp_server():
-    """Keep write/replace tests from spawning a real LSP server subprocess.
-
-    ``write_file``/``replace_in_file`` run post-write diagnostics on ``.py``
-    files, which asks ``lsp_manager`` for a server. ``lsp_manager`` is a
-    process-wide singleton, but each test here drives its coroutine through a
-    throwaway ``asyncio.run()``, so a server spawned on one test's loop is
-    reused after that loop is closed and never torn down — the child watcher
-    then logs "Loop <...> that handles pid N is closed" once the process
-    finally exits at interpreter shutdown. LSP integration itself is covered
-    by test_post_write_check.py and test_lsp_tools.py; here it is stubbed out.
-    """
+    """Stub post-write diagnostics to avoid cross-loop LSP subprocesses."""
     with patch(
         "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
         new=AsyncMock(return_value={"found": False, "diagnostics": []}),
@@ -157,9 +145,7 @@ def test_write_file_allows_overwrite_of_new_file_without_reading_first(tmp_path)
 
 
 def test_write_file_allows_second_write_without_an_intervening_read(tmp_path):
-    """Write itself counts as observation — no special-casing "last tool
-    used" needed, the recorded hash is just refreshed after every write.
-    """
+    """Each write refreshes the observed hash."""
     file_path = tmp_path / "f.txt"
 
     _w(str(file_path), "first")
@@ -170,9 +156,7 @@ def test_write_file_allows_second_write_without_an_intervening_read(tmp_path):
 
 
 def test_write_file_chunked_append_then_rewrite_is_allowed(tmp_path):
-    """The documented mode="w" then mode="a" workflow must not leave a stale
-    hash that blocks a later legitimate mode="w" rewrite by the same run.
-    """
+    """Append mode must not stale the later overwrite hash."""
     file_path = tmp_path / "f.txt"
 
     _w(str(file_path), "part1")
@@ -184,9 +168,7 @@ def test_write_file_chunked_append_then_rewrite_is_allowed(tmp_path):
 
 
 def test_write_file_append_to_existing_unread_file_is_not_blocked(tmp_path):
-    """mode="a" is non-destructive to existing content, so it skips the gate
-    entirely — only mode="w" against a pre-existing file is checked.
-    """
+    """Append mode bypasses the overwrite gate."""
     file_path = tmp_path / "f.txt"
     file_path.write_text("original, never read by this run")
 
@@ -197,9 +179,7 @@ def test_write_file_append_to_existing_unread_file_is_not_blocked(tmp_path):
 
 
 def test_replace_in_file_does_not_require_a_prior_read(tmp_path):
-    """Edit is not gated by the observed-hash check — it already verifies
-    old_text against live on-disk content at call time.
-    """
+    """Edit verifies live content instead of the observed hash."""
     file_path = tmp_path / "f.txt"
     file_path.write_text("hello world")
 
@@ -212,10 +192,7 @@ def test_replace_in_file_does_not_require_a_prior_read(tmp_path):
 def test_observed_map_evicts_the_least_recently_used_scope(
     tmp_path, run_scope, monkeypatch
 ):
-    """Every delegation mints a fresh scope that outlives its run, so the
-    map is LRU-capped. Eviction fails safe: the evicted scope's next
-    overwrite is refused with a pointer back to Read, never allowed.
-    """
+    """Evicted run scopes fail closed on overwrite."""
     from zrb.llm.tool.file_observation import record_observed
 
     monkeypatch.setattr(file_observation, "MAX_OBSERVED_SCOPES", 2)
@@ -252,10 +229,7 @@ def test_observed_map_evicts_the_least_recently_used_scope(
 def test_observed_map_treats_a_check_as_a_use_of_its_scope(
     tmp_path, run_scope, monkeypatch
 ):
-    """An active conversation must not be evicted out from under itself by
-    delegations sharing the process: a blocked-write check under a scope
-    refreshes its recency just like a recording does.
-    """
+    """A check refreshes the active scope's recency."""
     from zrb.llm.tool.file_observation import (
         check_observed,
         record_observed,
@@ -355,8 +329,7 @@ def test_check_listed_allows_a_listed_directory_recursively(tmp_path):
 
 
 def test_check_listed_refuses_a_directory_that_changed_since_listing(tmp_path):
-    """The staleness re-check: a top-level entry added after listing must
-    still be caught, mirroring check_observed's own drift detection."""
+    """Listing detects entries added after the snapshot."""
     from zrb.llm.tool.file_observation import check_listed
 
     sub = tmp_path / "sub"
@@ -370,9 +343,7 @@ def test_check_listed_refuses_a_directory_that_changed_since_listing(tmp_path):
 
 
 def test_replace_in_file_does_not_require_a_prior_read(tmp_path):
-    """Edit is not gated by the observed-hash check — it already verifies
-    old_text against live on-disk content at call time.
-    """
+    """Edit verifies live content instead of the observed hash."""
     file_path = tmp_path / "f.txt"
     file_path.write_text("hello world")
 
@@ -397,11 +368,7 @@ def test_replace_in_file_then_write_overwrite_is_allowed(tmp_path):
 
 
 def test_replace_in_file_already_applied_edit_says_so(tmp_path):
-    """A fuzzy match onto text that already equals new_text is a landed edit.
-
-    old_text differs from new_text only in trailing whitespace, so the fuzzy
-    matcher lands on a region that already reads exactly as new_text.
-    """
+    """A fuzzy match can detect an already-applied edit."""
     file_path = tmp_path / "test.txt"
     file_path.write_text("foo bar\n")
 

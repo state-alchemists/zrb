@@ -1,9 +1,4 @@
-"""Resolution logic shared by `LLMTask` and `LLMChatTask`'s parts.
-
-Both resolve tools, toolsets, system prompt, model, conversation name and the
-permission-policy approval verdict from equivalent per-task attributes; one
-implementation here keeps the two task types from drifting apart.
-"""
+"""Resolution logic shared by `LLMTask` and `LLMChatTask`'s parts."""
 
 from __future__ import annotations
 
@@ -58,14 +53,9 @@ def resolve_model(
 ) -> str | Model:
     """The task's model, resolved against *ctx*, falling back to `CFG.LLM_MODEL`.
 
-    A blank result counts as unset, so an empty ``--model`` input does not
-    shadow the configured model.
-
-    This is the single resolution point for a task's main model: an explicit
-    name is resolved against `CFG.LLM_API_KEY`/`LLM_BASE_URL`/`LLM_PROVIDER`
-    like the fallback, so a mid-session `/model <name>` (arriving as
-    `ctx.input["model"]`) behaves like a configured one. Resolution is
-    idempotent — an already-resolved `Model` passes through unchanged.
+    A blank value counts as unset. An explicit name (e.g. from `/model`) is
+    resolved against the configured provider credentials like the fallback; a
+    `Model` passes through unchanged.
     """
     rendered_model = get_attr(ctx, model, None)
     if isinstance(rendered_model, str) and rendered_model.strip() == "":
@@ -78,10 +68,7 @@ def apply_model_hooks(
     model_getter: "Callable[[str | Model | None], str | Model | None] | None",
     model_renderer: "Callable[[str | Model | None], str | Model | None] | None",
 ) -> "str | Model | None":
-    """Apply *model_getter* then *model_renderer* to *model*.
-
-    Either hook may return `None` (deferring to pydantic-ai's default), so the
-    result is optional."""
+    """Apply *model_getter* then *model_renderer* to *model*; either may return None."""
     active = model_getter(model) if model_getter else model
     return model_renderer(active) if model_renderer else active
 
@@ -108,10 +95,8 @@ def get_policy_skip_decision(
     ASK is a hard ask. `None` means no policy or no matching rule, leaving the
     decision to yolo.
 
-    *args* is the call's own arguments, when the caller has them. A rule
-    carrying an `arg_pattern` can only match against those: judged with none,
-    such a rule reads as no rule at all and yolo decides what the rule meant to
-    decide — which is how an `arg_pattern` ASK was auto-approved under yolo.
+    *args* is the call's arguments; without them an `arg_pattern` rule cannot
+    match and yolo would decide in its place.
     """
     policy = get_effective_policy()
     if policy is None:

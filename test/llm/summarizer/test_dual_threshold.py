@@ -29,7 +29,7 @@ async def test_process_tool_return_part_dual_thresholds():
     limiter = MockLimiter()
     agent = MagicMock()
 
-    # 1. Below message threshold -> No change
+
     part = ToolReturnPart(content="12345")
     res, modified = await process_tool_return_part(
         part, agent, limiter, message_threshold=10, insanity_threshold=20
@@ -37,10 +37,10 @@ async def test_process_tool_return_part_dual_thresholds():
     assert not modified
     assert res.content == "12345"
 
-    # 2. Above message threshold, below insanity threshold -> Summarize
+
     msg_threshold = 50
     insanity_threshold = 100
-    fat_content = "A" * 75  # 75 > 50 (msg) but < 100 (insanity)
+    fat_content = "A" * 75
     part = ToolReturnPart(content=fat_content)
 
     with patch(
@@ -57,13 +57,13 @@ async def test_process_tool_return_part_dual_thresholds():
         )
         assert modified
         assert res.content == "SUMMARY OF TOOL RESULT:\nShort Summary"
-        # Verify it was NOT truncated before summarization (passed 75 chars)
+
         called_content = mock_sum.call_args[0][0]
         assert len(called_content) == 75
         assert called_content == fat_content
 
-    # 3. Above insanity threshold -> Truncate BEFORE summarize
-    insane_content = "B" * 150  # 150 > 100 (insanity)
+
+    insane_content = "B" * 150
     part = ToolReturnPart(content=insane_content)
 
     with patch(
@@ -79,7 +79,7 @@ async def test_process_tool_return_part_dual_thresholds():
             insanity_threshold=insanity_threshold,
         )
         assert modified
-        # Verify it WAS truncated to insanity_threshold (100) before summarization
+
         called_content = mock_sum.call_args[0][0]
         assert len(called_content) == 100
         assert called_content == "B" * 100
@@ -87,7 +87,7 @@ async def test_process_tool_return_part_dual_thresholds():
 
 @pytest.mark.asyncio
 async def test_process_tool_return_part_strips_ansi_before_summarize():
-    """ANSI escapes are removed from the text the summarizer receives."""
+    'ANSI escapes are removed from the text the summarizer receives.'
     limiter = MockLimiter()
     agent = MagicMock()
 
@@ -114,11 +114,11 @@ async def test_process_tool_return_part_strips_ansi_before_summarize():
 
 @pytest.mark.asyncio
 async def test_process_tool_return_part_ansi_does_not_inflate_measurement():
-    """Measurement runs on stripped text: ANSI padding does not force a summary."""
+    'Measurement runs on stripped text: ANSI padding does not force a summary.'
     limiter = MockLimiter()
     agent = MagicMock()
 
-    # 5 real characters, ~20 characters of ANSI padding. Measured size is 5.
+
     styled = "\x1b[1;32m" + "hello" + "\x1b[0m"
     part = ToolReturnPart(content=styled)
 
@@ -134,5 +134,5 @@ async def test_process_tool_return_part_ansi_does_not_inflate_measurement():
             insanity_threshold=20,
         )
         assert not modified
-        assert res.content == styled  # unchanged — never summarized
+        assert res.content == styled
         mock_sum.assert_not_awaited()

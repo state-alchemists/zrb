@@ -1,11 +1,7 @@
 """Width-aware rendering of the TUI help panel (ASCII art + command table).
 
-The panel is re-rendered from this data on every terminal resize, so no *row*
-is ever clipped to fit: a description wraps inside its column instead, and the
-art keeps its own column until the remaining width stops being usable, at which
-point it moves above the table rather than being dropped. Row *count* is
-capped separately (`max_commands`), which is a choice about screen real estate
-rather than a consequence of the width.
+Re-rendered on every resize: descriptions wrap rather than clip, and the art
+moves above the table once the width is too narrow to share a row.
 """
 
 from __future__ import annotations
@@ -99,13 +95,9 @@ def _cap_rows(rows: list[tuple[str, str]], limit: int | None) -> list[tuple[str,
 def _build_table(sections: list[tuple[str, list[tuple[str, str]]]]) -> "RenderableType":
     """One table for every section, keys sharing a single column.
 
-    A section caption spans the full width, so it cannot live in a column of
-    its own: rich has no column-spanning cell, and a caption placed in the key
-    column is cropped to that column's width. Each key/description pair is
-    therefore a nested grid inside one full-width column, which is what lets
-    the caption run edge to edge while every section's keys still line up --
-    the grids share an explicitly measured key width instead of each table
-    sizing its own.
+    rich has no column-spanning cell, so each key/description pair is a
+    nested grid in one full-width column, sharing a measured key width, which
+    lets captions span the full width while keys line up.
     """
     # lazy: heavy third-party
     from rich.table import Table

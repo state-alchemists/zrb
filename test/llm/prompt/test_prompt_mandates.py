@@ -1,4 +1,4 @@
-"""Tests for the shipped markdown prompt files."""
+'Tests for the shipped markdown prompt files.'
 
 import pytest
 
@@ -49,7 +49,7 @@ def test_side_question_prompt_denies_the_tools_it_does_not_have():
     prompt = get_prompt("side_question").lower()
     assert "no tools" in prompt
     assert "never emit a tool call" in prompt
-    # The main agent's tool rules and skill catalogue never reach the side agent.
+
     assert "activeskill" not in prompt
     assert "batch independent tool calls" not in prompt
 

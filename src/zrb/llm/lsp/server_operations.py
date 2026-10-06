@@ -1,13 +1,4 @@
-"""
-LSP document and query operations.
-
-The document-synchronization and query half of ``LSPServer`` (definition,
-references, diagnostics, symbols, hover, rename, and the workspace-edit
-application helpers), split out to keep ``server.py`` on transport and
-lifecycle. Not a reusable mixin — it reads host state it never sets
-(``self._send_request_raw``, ``self._next_id``, ``self.path_to_uri``,
-``self.initialized``), so ``LSPServer`` is its only possible host.
-"""
+"""Document-sync and query operations of ``LSPServer`` (its only host)."""
 
 import asyncio
 from typing import TYPE_CHECKING, Any
@@ -22,8 +13,7 @@ class LSPServerOperations:
     """Document/query operations for an LSP server."""
 
     if TYPE_CHECKING:
-        # Transport/state provided by the host class (LSPServer). Declared so
-        # pyright can resolve them when LSPServerOperations is checked in isolation.
+        # Provided by LSPServer.
         config: Any
         writer: "asyncio.StreamWriter | None"
         initialized: bool
@@ -34,8 +24,6 @@ class LSPServerOperations:
         path_to_uri: Any
         _send_request_raw: Any
         _send_notification_raw: Any
-
-    # --- LSP API Methods ---
 
     async def goto_definition(
         self, file_path: str, line: int, character: int
@@ -90,14 +78,7 @@ class LSPServerOperations:
         return result if isinstance(result, list) else None
 
     async def did_open_text_document(self, file_path: str) -> None:
-        """Send ``textDocument/didOpen`` so the server analyzes this file.
-
-        Idempotent — a no-op if the file is already open in this session.
-        Reads the current on-disk contents and sends them along with the
-        language id from the server config (falling back to extension-based
-        detection). LSP servers won't analyze files they haven't been told
-        about, so this is the prerequisite for receiving push diagnostics.
-        """
+        """Send ``textDocument/didOpen`` with the on-disk contents; idempotent."""
         if not self.initialized:
             return
         uri = self.path_to_uri(file_path)
@@ -129,15 +110,9 @@ class LSPServerOperations:
         self._open_files.add(uri)
 
     async def did_change_text_document(self, file_path: str) -> None:
-        """Send ``textDocument/didChange`` with the current on-disk contents.
+        """Send ``textDocument/didChange`` as a full-document replacement.
 
-        Uses a full-document replacement (``contentChanges = [{"text": ...}]``)
-        rather than incremental edits — simpler, and the canonical source is
-        the file on disk anyway. The LSP spec permits a single ``text``-only
-        change in both Full and Incremental sync modes, and pylsp / pyright /
-        gopls / rust-analyzer all accept it. Servers that declared
-        ``textDocumentSync: None`` are not supported here. If the document was
-        never opened, delegates to :meth:`did_open_text_document`.
+        Opens the document instead if it was never opened.
         """
         if not self.initialized:
             return
@@ -161,18 +136,11 @@ class LSPServerOperations:
         await self._send_notification_raw(notif)
 
     async def _ensure_open(self, file_path: str, *, wait_ready: float = 2.0) -> None:
-        """Make sure the server has analyzed ``file_path`` before a query.
+        """Sync ``file_path`` to the server before a query.
 
-        Most servers (pyright, gopls, rust-analyzer, …) serve ``textDocument/*``
-        requests ONLY for documents opened via ``didOpen`` — a request for an
-        unopened file returns null/empty. So every file-scoped query syncs the
-        document first (``didOpen`` on first contact, ``didChange`` thereafter).
-
-        On first open we also wait briefly for the server to finish its initial
-        analysis, using the first ``publishDiagnostics`` for this URI as a
-        readiness proxy (definition/hover/references return empty until analysis
-        completes). Bounded by ``wait_ready`` so servers that never publish
-        (or files with no diagnostics) don't stall the call.
+        Most servers answer ``textDocument/*`` only for opened documents. On first
+        open, wait up to ``wait_ready`` seconds for a ``publishDiagnostics`` as a
+        proxy for the initial analysis finishing.
         """
         if not self.initialized or not self.writer:
             return
@@ -198,18 +166,13 @@ class LSPServerOperations:
     ) -> list[dict] | None:
         """Get diagnostics for a file.
 
-        Synchronizes the file with the server (``didOpen`` on first contact,
-        ``didChange`` on subsequent calls) then waits up to ``wait_for_publish``
-        seconds for the resulting ``textDocument/publishDiagnostics`` push
-        notification. Falls back to LSP 3.17 pull-diagnostics if no push
-        arrived (servers that support pull are happy; the rest just return
-        whatever the cache has).
+        Syncs the file, waits up to ``wait_for_publish`` seconds for a push
+        ``publishDiagnostics``, then falls back to LSP 3.17 pull diagnostics.
         """
         if not self.initialized:
             return None
 
         uri = self.path_to_uri(file_path)
-        # Drop the cached entry so we can detect the fresh publish.
         self._diagnostics.pop(uri, None)
 
         if uri in self._open_files:
@@ -217,22 +180,14 @@ class LSPServerOperations:
         else:
             await self.did_open_text_document(file_path)
 
-        # Version to gate against: any cached entry from a publish for an
-        # older version is stale and should be ignored. Read after the
-        # didOpen/didChange call so we see the version we just sent.
+        # Read after the sync so a publish for an older version is rejected.
         expected_version = self._versions.get(uri)
 
-        # Wait for the server to publish diagnostics. Single-threaded asyncio
-        # means _handle_message can only run between our awaits, so poll on
-        # short sleeps. 50ms is fine: pylsp/pyright typically publish in
-        # 50–500ms after didChange.
         deadline = asyncio.get_event_loop().time() + wait_for_publish
         while True:
             entry = self._diagnostics.get(uri)
             if entry is not None:
                 published_version, diagnostics = entry
-                # Accept when the server didn't report a version (best effort)
-                # or when the publish is for our version or newer.
                 if (
                     published_version is None
                     or expected_version is None
@@ -243,7 +198,6 @@ class LSPServerOperations:
                 break
             await asyncio.sleep(0.05)
 
-        # Push never arrived — try pull-diagnostics as a last resort.
         request = JSONRPCMessage.create_request(
             "textDocument/diagnostic",
             {"textDocument": {"uri": uri}},
@@ -317,7 +271,6 @@ class LSPServerOperations:
             return None
         await self._ensure_open(file_path)
 
-        # Some servers support prepareRename
         try:
             prepare_request = JSONRPCMessage.create_request(
                 "textDocument/prepareRename",
@@ -348,21 +301,12 @@ class LSPServerOperations:
             workspace_edit = result
             if dry_run:
                 return workspace_edit
-            # Option (a): actually apply the WorkspaceEdit to disk. We parse
-            # the LSP ``changes`` / ``documentChanges`` payload and write the
-            # text edits ourselves. ``applied`` flags whether every edit
-            # landed so callers never report success for an unwritten edit.
             applied = self._apply_workspace_edit(workspace_edit)
             return {**workspace_edit, "applied": applied}
         return None
 
     def _apply_workspace_edit(self, workspace_edit: dict) -> bool:
-        """Apply an LSP ``WorkspaceEdit`` to the files on disk.
-
-        Handles both the ``changes`` map ({uri: [TextEdit]}) and the newer
-        ``documentChanges`` list of ``TextDocumentEdit`` objects. Returns True
-        only if every file edit was written successfully.
-        """
+        """Apply an LSP ``WorkspaceEdit`` to disk; True only if every file was written."""
         edits_by_uri = self._collect_text_edits(workspace_edit)
         if not edits_by_uri:
             return False

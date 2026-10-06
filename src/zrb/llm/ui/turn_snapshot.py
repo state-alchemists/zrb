@@ -18,8 +18,7 @@ async def take_pre_turn_snapshot(
     timestamp: str,
 ) -> None:
     """Snapshot the filesystem, recording the message count so a rewind can
-    restore history to a consistent state. Failures are logged, never raised:
-    the turn must proceed regardless."""
+    restore history consistently. Failures are logged, never raised."""
     if snapshot_manager is None:
         return
     try:

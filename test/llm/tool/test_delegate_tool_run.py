@@ -180,10 +180,7 @@ async def test_delegate_tool_exception(mock_sub_agent_manager):
 
 @pytest.mark.asyncio
 async def test_delegate_human_cancel_returns_gracefully(mock_sub_agent_manager):
-    """Esc while viewing a running sub-agent (TUI) cancels only that sub-agent:
-    the delegate swallows the human-flagged CancelledError and reports a
-    cancelled result, so a main agent awaiting the delegation (e.g. a fan-out's
-    `asyncio.gather`) is NOT itself cancelled."""
+    """A human-flagged cancel ends only the sub-agent; the delegate returns a cancelled result."""
     from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
 
     live_subagent_session_registry.clear()  # earlier tests may have left sessions

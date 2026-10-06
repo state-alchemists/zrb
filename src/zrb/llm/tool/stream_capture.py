@@ -1,14 +1,4 @@
-"""Bounded capture of one subprocess stream, spilling the overflow to disk.
-
-`run_shell_command` needs three things from a stream at once: a head-bounded
-slice to hand the model, a live echo to the terminal that stops after its own
-budget, and the *whole* output kept somewhere so `DumpFullOutput` can retrieve
-it after the fact. Doing all three in one pass is why this is a class rather
-than a helper.
-
-Lived inside `llm/tool/shell.py` until 2.58.0, where it was 145 lines of a
-620-line module and could not be tested without driving a subprocess.
-"""
+"""Bounded capture of one subprocess stream, spilling the overflow to disk."""
 
 import os
 import shutil
@@ -24,20 +14,13 @@ from zrb.util.cli.style import stylize_muted
 class StreamCapture:
     """Bounded capture of one output stream.
 
-    Three budgets, deliberately separate:
-
-    * ``retain`` — characters held in memory, tail-biased. Only the tail ever
-      reaches the model, so holding the head resident buys nothing.
-    * ``echo`` — characters mirrored to the console. Echoing costs a regex
-      substitution and a print *per line*; an unscoped ``git diff`` in a dirty
-      monorepo spent longer being displayed than being computed and was killed
-      by its own timeout as a result.
-    * the spill file — the complete stream, written as it arrives, so the
-      elided head stays recoverable without being resident.
-
-    The spill opens exactly when the first character would be dropped, which
-    keeps the invariant that ``text`` is the whole stream whenever
-    ``spill_path`` is ``None``.
+    * ``retain`` — characters held in memory, tail-biased (only the tail
+      reaches the model).
+    * ``echo`` — characters mirrored to the console; echo is per-line costly,
+      so it has its own, smaller budget.
+    * the spill file — the complete stream, opened when the first character
+      would be dropped, so ``text`` is the whole stream while ``spill_path``
+      is ``None``.
     """
 
     def __init__(self, retain: int, echo: int, print_live: bool = True) -> None:
@@ -49,9 +32,7 @@ class StreamCapture:
         self._chunks: "deque[str]" = deque()
         self._held = 0
         self._echoed = 0
-        # Plain copy of what `echo()` printed (bounded by `_echo_budget`), so
-        # a caller can collapse the echo without re-reading a rendered buffer
-        # a stray `\r` may have mangled.
+        # Unstyled copy of what `echo()` printed.
         self._echoed_chunks: list[str] = []
         self._spill: TextIO | None = None
         self._spill_failed = False
@@ -83,12 +64,7 @@ class StreamCapture:
             self._trim()
 
     def echo(self, chunk: str) -> None:
-        """Mirror to the console until the display budget is spent.
-
-        Budget tracking and `echoed_text` accumulation always happen;
-        the `zrb_print` side effect is skipped when `print_live` is False
-        (see `__init__`).
-        """
+        """Mirror to the console (if `print_live`) until the display budget is spent."""
         remaining = self._echo_budget - self._echoed
         if remaining <= 0:
             return
@@ -122,14 +98,7 @@ class StreamCapture:
             shutil.copyfileobj(src, dest)
 
     def flush(self) -> None:
-        """Flush the open spill file to disk, if one is open. No-op otherwise.
-
-        Needed by a long-lived caller (a background process, polled
-        repeatedly) that reports ``spill_path`` while the file may still be
-        open and default-buffered — unlike this class's original caller
-        (`shell.py`), which reads the spill only after `close()`, which
-        already flushes.
-        """
+        """Flush the open spill file, for callers that read it before `close()`."""
         if self._spill is not None:
             try:
                 self._spill.flush()
@@ -155,12 +124,7 @@ class StreamCapture:
             self.spill_path = None
 
     def _begin_spill(self) -> None:
-        """Start spilling. Best-effort: without a temp file the head is lost.
-
-        Called before the first drop, when ``_chunks`` still holds everything
-        received so far — so writing the deque here captures the head exactly
-        once, and ``feed`` writes every later chunk directly.
-        """
+        """Start spilling (best-effort), writing everything received so far."""
         if self._spill is not None or self._spill_failed:
             return
         try:

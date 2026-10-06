@@ -1,5 +1,3 @@
-"""Tests for runner/web_schema/user.py User model."""
-
 from unittest.mock import MagicMock
 
 import pytest
@@ -11,7 +9,6 @@ from zrb.task.base.base_task import BaseTask
 
 
 class TestUserModel:
-    """Test User Pydantic model."""
 
     def test_default_user(self):
         """Test default user creation."""
@@ -30,7 +27,6 @@ class TestUserModel:
 
 
 class TestUserCanAccessTask:
-    """Test User.can_access_task method."""
 
     def test_super_admin_can_access_any_task(self):
         """Super admin can access any task."""
@@ -62,7 +58,6 @@ class TestUserCanAccessTask:
 
 
 class TestUserCanAccessGroup:
-    """Test User.can_access_group method."""
 
     def test_super_admin_can_access_any_group(self):
         """Super admin can access any group."""

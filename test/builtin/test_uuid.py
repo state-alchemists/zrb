@@ -55,7 +55,7 @@ async def test_validate_uuid():
 
 @pytest.mark.asyncio
 async def test_validate_uuid_v1():
-    """Test validate_uuid_v1 function."""
+    """Validate UUID version 1 values."""
     # Valid UUID v1
     u1 = str(uuid.uuid1())
     res1 = await validate_uuid_v1.async_run(session=get_session(), kwargs={"id": u1})
@@ -70,7 +70,7 @@ async def test_validate_uuid_v1():
 
 @pytest.mark.asyncio
 async def test_validate_uuid_v3():
-    """Test validate_uuid_v3 function."""
+    """Validate UUID version 3 values."""
     # Valid UUID v3
     u3 = str(uuid.uuid3(uuid.NAMESPACE_DNS, "example.com"))
     res1 = await validate_uuid_v3.async_run(session=get_session(), kwargs={"id": u3})

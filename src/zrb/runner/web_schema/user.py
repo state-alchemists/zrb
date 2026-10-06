@@ -16,10 +16,7 @@ class User(BaseModel):
 
     def is_password_match(self, password: str) -> bool:
         """Check a plaintext password against this user's, in constant time."""
-        # Constant-time compare to avoid a timing side-channel on the password.
-        # Encode to bytes so non-ASCII passwords compare safely (secrets.compare_digest
-        # rejects non-ASCII str). Passwords are still configured in plaintext by the
-        # host app — hashing them at rest would change that public config contract.
+        # compare_digest rejects non-ASCII str, so compare bytes.
         return secrets.compare_digest(self.password.encode(), password.encode())
 
     def can_access_group(self, group: AnyGroup) -> bool:

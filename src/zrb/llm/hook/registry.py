@@ -1,15 +1,7 @@
-"""`HookRegistry` — the canonical collection of lifecycle hooks.
+"""`HookRegistry`: the event-keyed collection of lifecycle hooks.
 
-A registry is the *source of defaults*: it stores the full set of
-hooks found by filesystem discovery *plus* everything registered in code, and
-answers queries. It does not scan the filesystem or run hooks — that is
+It stores hooks and answers queries; scanning and running them is
 `HookManager`'s job.
-
-Unlike skills/agents, hooks are **event-keyed accumulations**, not a name-keyed
-replacement surface: many sources co-register onto the same event, and hooks are
-never wholesale-replaced by a scan. So this registry's mutations are
-append/remove oriented (`register`, `remove_hook`, `remove_event_hooks`), with
-`set_hooks` available for a deliberate clean-slate swap of one event.
 """
 
 from __future__ import annotations
@@ -27,13 +19,7 @@ from zrb.llm.hook.types import HookEvent
 
 
 class HookRegistry:
-    """The canonical collection of registered hooks.
-
-    Owns the event→hooks map (`_hooks`), the global hook list (`_global_hooks`),
-    and the bookkeeping maps a manager needs to resolve a hook's config by
-    identity (`_hook_to_config`) and to surface configs for debugging
-    (`_hook_configs`). A manager composes this and delegates every read or write.
-    """
+    """The collection of registered hooks and their configs."""
 
     def __init__(self):
         self._hooks: dict[HookEvent, list[HookCallable]] = defaultdict(list)
@@ -41,20 +27,13 @@ class HookRegistry:
         self._hook_configs: dict[str, HookConfig] = {}
         self._hook_to_config: dict[HookCallable, HookConfig] = {}
 
-    # --- Registration ------------------------------------------------------
-
     def add_hook(
         self,
         hook: HookCallable,
         events: list[HookEvent] | None = None,
         config: HookConfig | None = None,
     ) -> None:
-        """Register *hook*, optionally with its *events* and *config*.
-
-        An empty/`None` *events* makes it a global hook (runs on every event);
-        otherwise it is registered for each named event. *config* is kept for
-        priority sorting and timeout lookup, keyed by hook identity.
-        """
+        """Register *hook* for *events*, or globally when *events* is empty."""
         if config:
             self._hook_to_config[hook] = config
 
@@ -82,26 +61,14 @@ class HookRegistry:
         hooks: list[HookCallable],
         configs: dict[HookCallable, HookConfig] | None = None,
     ) -> None:
-        """Replace the hook list for *event* — a deliberate clean-slate swap.
-
-        *configs* maps each hook to its `HookConfig`, repopulating
-        `_hook_to_config` for the new set. Configs for hooks no longer
-        registered anywhere are pruned, so a stale identity never shadows
-        a later registration.
-        """
+        """Replace the hook list for *event*; configs of unregistered hooks are pruned."""
         self._hooks[event] = list(hooks)
         if configs:
             self._hook_to_config.update(configs)
         self._prune_hook_configs()
 
     def _prune_hook_configs(self) -> None:
-        """Drop `_hook_to_config` entries whose hook is no longer registered.
-
-        A hook remembered only by a pre-swap `set_hooks`/`remove_event_hooks`
-        must not keep (or shadow) a config once it is out of every event and
-        the global list; re-registering it later restores whatever config the
-        new registration carries (or none).
-        """
+        """Drop config entries whose hook is no longer registered anywhere."""
         registered = set(self._global_hooks)
         for event_hooks in self._hooks.values():
             registered.update(event_hooks)
@@ -122,29 +89,23 @@ class HookRegistry:
         """Remember *config* by *name* for debugging (e.g. when hydrating)."""
         self._hook_configs[name] = config
 
-    # --- Queries -----------------------------------------------------------
-
     def get_hooks(self, event: HookEvent) -> list[HookCallable]:
-        """All hooks registered for *event*, filtered by the ``LLM_HOOKS``
-        name allowlist twin: non-empty ``CFG.LLM_HOOKS`` keeps only
-        the named hooks."""
+        """Hooks for *event*, filtered by the ``CFG.LLM_HOOKS`` allowlist."""
         return self._filter(self._hooks[event])
 
     def get_global_hooks(self) -> list[HookCallable]:
-        """All global hooks (run on every event), filtered by the ``LLM_HOOKS``
-        name allowlist twin when it is set."""
+        """Global hooks, filtered by the ``CFG.LLM_HOOKS`` allowlist."""
         return self._filter(self._global_hooks)
 
     def _filter(self, hooks: list[HookCallable]) -> list[HookCallable]:
-        """Drop hooks hidden by the ``LLM_HOOKS`` allowlist (read lazily)."""
+        """Drop hooks hidden by the ``LLM_HOOKS`` allowlist."""
         allowed = list(CFG.LLM_HOOKS or [])
         if not allowed:
             return list(hooks)
         return [h for h in hooks if self._hook_name(h) in allowed]
 
     def _hook_name(self, hook: HookCallable) -> str:
-        """Dispatch name for *hook*: config name when hydrated, else the
-        callable's own ``__name__``/``name``."""
+        """The config name for *hook*, else its ``__name__``/``name``."""
         config = self._hook_to_config.get(hook)
         if config is not None:
             return config.name
@@ -171,13 +132,9 @@ class HookRegistry:
         return dict(self._hook_configs)
 
     def has_hook_config(self, config: HookConfig) -> bool:
-        """Whether *config* itself is already registered on a hook here.
+        """Whether this exact *config* object is registered here.
 
-        By identity, not equality: a re-parse mints a fresh `HookConfig` for the
-        same rule, and that one has to be registered rather than mistaken for
-        the copy already in place. Lets a replayer tell "this manager already has
-        it" from "this manager's registry was just cleared", which name-keyed
-        bookkeeping cannot: the generated names differ per parse.
+        By identity: a re-parse mints a fresh `HookConfig` that must still register.
         """
         return any(existing is config for existing in self._hook_to_config.values())
 

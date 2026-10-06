@@ -1,6 +1,4 @@
-"""Retention for FileHistoryManager: auto-named conversations past
-`LLM_HISTORY_RETENTION` are pruned, with their backups, on the first save of
-a session; conversations someone named are kept forever."""
+'Retention for FileHistoryManager: auto-named conversations past'
 
 import os
 import time

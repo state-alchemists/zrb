@@ -1,9 +1,4 @@
-"""The output pane follows the tail until the wheel scrolls it up.
-
-Scrolling is implemented as moving the (cursor-pinned) output cursor, and
-auto-follow in `append_to_output` is gated on the cursor sitting on the last
-line. These tests cover that contract through the public widget.
-"""
+"""Verify output-pane tail following and scrolling."""
 
 from prompt_toolkit.data_structures import Point
 from prompt_toolkit.lexers import SimpleLexer

@@ -56,10 +56,8 @@ def create_run_zrb_task_tool():
             str,
             Field(description="Space-separated task path to run, e.g. 'foo bar-task'."),
         ],
-        # Mutable default is intentional: pydantic-ai converts it to
-        # default_factory internally, so each LLM call gets a fresh dict.
-        # Using `= {}` instead of `dict[str, str] | None` keeps the JSON
-        # schema compact (no anyOf + null bloat in the LLM tool description).
+        # `= {}` is safe (pydantic-ai copies defaults) and keeps the schema
+        # free of the anyOf/null that `| None` would add.
         args: Annotated[
             dict[str, str],
             Field(
@@ -77,8 +75,7 @@ def create_run_zrb_task_tool():
         ] = 30,
     ) -> str:
         """Run an automation task by name with optional --key value args."""
-        # Construct command, quoting every part so values containing spaces
-        # or shell metacharacters cannot be word-split or injected.
+        # Quote every part so values cannot be word-split or injected.
         zrb_cmd = CFG.ROOT_GROUP_NAME
         cmd_parts = [zrb_cmd] + task_name.split()
 

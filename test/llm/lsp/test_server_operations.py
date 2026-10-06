@@ -1,10 +1,4 @@
-"""Response-shape and document-sync tests for ``LSPServerOperations``.
-
-Runs through the public query API against a mocked subprocess transport
-(``asyncio.create_subprocess_exec``) fed from an ``asyncio.Queue``, so every
-JSON-RPC response shape arrives over the real read loop instead of being
-short-circuited past the framing/parse layer.
-"""
+'Response-shape and document-sync tests for ``LSPServerOperations``.'
 
 import asyncio
 import json

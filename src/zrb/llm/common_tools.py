@@ -6,19 +6,10 @@ toolset factories and shell-safety policy, so ``LLMChatTask``, ``LLMTask`` and
 ``tool_registry`` (``registry.py``); this module owns its lazy seed
 (``tool_registry.set_seed``) and the host glue.
 
-Application is storage-only: it appends per-run providers through the host's
-public append API. Nothing resolves until the host's build-time resolution
-(`get_all_tools` / `resolve_agent_build`), which keeps ``pydantic_ai`` off
-``import zrb``. ``SubAgentManager`` resolves tools by name from sub-agent
-definitions (read-only agents are name-gated) instead of a flat list.
-
-Tool guidance lives with the tool, not in the prompt. A parameter's
-``Field(description=...)`` owns that argument (``Edit``'s ``count`` documents
-``-1``); the docstring owns the tool — what it does, when to prefer a sibling,
-how to read its result — and never restates a parameter, since both ship in
-every request. The only lever on definition weight is the number of tools:
-LSP, worktree, plan-mode and journal tools register conditionally, rare ones
-use ``defer_loading``.
+Application only appends per-run providers; nothing resolves until the host's
+first agent build, which keeps ``pydantic_ai`` off ``import zrb``. LSP,
+worktree, plan-mode and journal tools register conditionally, rare ones use
+``defer_loading``.
 
 Not registered here: delegate tools (main-agent-only; sub-agents filter them
 via ``zrb_is_delegate_tool``), argument formatters and response handlers
@@ -37,10 +28,6 @@ from zrb.llm.tool_call.tool_policy.bash_validation import bash_safe_command_poli
 from zrb.llm.util.git import is_inside_git_dir
 from zrb.util.string.conversion import to_boolean
 
-# `zrb.llm.tool` and `zrb.llm.lsp.tools` are imported inside the seed function
-# because both transitively load `pydantic_ai`; that keeps the cost off
-# `import zrb` for callers that never build an agent.
-
 if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext
     from zrb.llm.agent.types import Tool
@@ -48,10 +35,7 @@ if TYPE_CHECKING:
 
 @runtime_checkable
 class CommonToolHost(Protocol):
-    """Minimal interface `apply_common_tools` needs from a host.
-
-    Satisfied by ``LLMChatTask``, ``LLMTask``, and ``SubAgentManager``.
-    """
+    """Minimal interface `apply_common_tools` needs from a host."""
 
     def append_tool(self, *tool: "Callable | Tool") -> None: ...
     def append_tool_factory(self, *factory: "Callable[[AnyContext], Any]") -> None: ...
@@ -64,25 +48,13 @@ class CommonToolHost(Protocol):
 def apply_common_tools(host: CommonToolHost) -> None:
     """Give *host* the zrb-shipped tools, factories, and shell-safety policy.
 
-    Storage only: appends per-run providers, never resolves the registry seed,
-    so calling it at construction (as the ``llm_chat`` / ``sub_agent_manager``
-    singletons do) keeps ``pydantic_ai`` off ``import zrb``. The host's
-    build-time resolution runs the providers against a fresh per-run list each
-    run, materializing the seed (and with it the heavy import) on the first
-    agent build. Call once per host, when you construct it.
-
-    ``LLMChatTask`` / ``LLMTask`` resolve the providers as a flat list.
-    ``SubAgentManager`` resolves the same providers against each sub-agent's
-    ``tools:`` list, so a read-only agent that omits ``Write``/``Edit``/``Shell``
-    keeps them out.
+    Storage only (safe at construction, no heavy import); call once per host.
+    ``SubAgentManager`` filters the result by each sub-agent's ``tools:`` list.
     """
     host.append_tool_factory(_common_tools_provider)
     host.append_toolset_factory(_common_toolsets_provider)
-    # Shell safety travels with the shell tools: bash_safe_command_policy's
-    # allowlist is the git approval rule (read-only subcommands auto-approve),
-    # which keeps that rule out of the prompt. Hosts without an approval
-    # channel (programmatic LLMTask, SubAgentManager) have no
-    # prepend_tool_policy.
+    # Read-only git subcommands auto-approve. Hosts without an approval channel
+    # (LLMTask, SubAgentManager) have no prepend_tool_policy.
     add_policy = getattr(host, "prepend_tool_policy", None)
     if callable(add_policy):
         add_policy(bash_safe_command_policy())
@@ -91,14 +63,7 @@ def apply_common_tools(host: CommonToolHost) -> None:
 def _common_tools_provider(
     ctx: "AnyContext",
 ) -> "list[Callable | Tool]":
-    """Per-run provider: the full common tool surface (statics + factories).
-
-    Appended by `apply_common_tools` to every host. Runs at every agent build
-    against a fresh list, so env gates (``LLM_JOURNAL_ENABLED``,
-    interactivity) and the ``LLM_TOOLS`` allowlist are re-evaluated per run
-    rather than frozen at apply time. ``SubAgentManager`` name-gates the
-    output against each sub-agent's ``tools:`` list, same as its registry.
-    """
+    """Per-run provider: the full common tool surface, re-evaluating env gates each build."""
     tools = list(tool_registry.get_tools())
     for factory in tool_registry.get_tool_factories():
         produced = factory(ctx)
@@ -116,37 +81,26 @@ def _common_toolsets_provider(ctx: "AnyContext") -> list:
 
 
 def _seed_default_tool_registry() -> None:
-    """Wire the built-in tool content into ``tool_registry`` as its lazy seed.
-
-    Idempotent and side-effect-light: installs a callable the registry
-    withholds until its first resolution, so the heavy ``pydantic_ai`` imports
-    inside ``_seed_default_tools`` run on the first agent build, not on
-    ``import zrb``.
-    """
+    """Install ``_seed_default_tools`` as ``tool_registry``'s lazy seed."""
     tool_registry.set_seed(_seed_default_tools)
 
 
 def _seed_default_tools() -> tuple[list, list, list]:
     """The built-in tool content: (tools, tool_factories, toolset_factories).
 
-    Runs only on the seed's first resolution (first agent build). A new tool
-    under `llm/tool/` must be imported here, `tag()`-ed with a `Capability`
-    (below), and appended to the `tools` list — or it silently resolves to
-    `Capability.UNKNOWN` (denied in plan mode) with no error.
+    A new tool under `llm/tool/` must be imported, `tag()`-ed with a
+    `Capability`, and appended here, or it resolves to `Capability.UNKNOWN`.
     """
-    # Imported from the source modules: the ``zrb.llm.tool`` re-export loads
-    # ``delegate.py`` -> ``SubAgentManager``, which re-enters this function
-    # before the re-exported names are bound.
+    # Imported from source modules, not the ``zrb.llm.tool`` re-export: that
+    # loads ``delegate.py`` -> ``SubAgentManager``, which re-enters this function.
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import Tool
 
-    # lazy: zrb internal (heavy via transitive) — lsp.tools transitively
-    # loads the LSP client stack; not a cycle, verified empirically.
+    # lazy: zrb internal (heavy via transitive) — the LSP client stack
     from zrb.llm.lsp.configs import detect_available_lsp_servers
     from zrb.llm.lsp.tools import create_lsp_tools
 
-    # lazy: zrb.llm.tool.* transitively load pydantic_ai; deferring keeps cold-start
-    # latency off the import path for callers that never apply common tools.
+    # lazy: zrb.llm.tool.* transitively load pydantic_ai
     from zrb.llm.tool.code import analyze_code
     from zrb.llm.tool.file import (
         analyze_file,
@@ -164,21 +118,15 @@ def _seed_default_tools() -> tuple[list, list, list]:
     from zrb.llm.tool.web import open_web_page, search_internet
     from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
 
-    # LSP tools only when a language server is installed; otherwise they are
-    # pure prompt weight. The check scans $PATH but starts no server.
+    # Only when a language server is on $PATH (no server is started).
     lsp_tools = create_lsp_tools() if detect_available_lsp_servers() else []
-    # Worktree tools only inside a git repo (judged from the startup cwd),
-    # trading away their `cwd`-points-elsewhere use for the token saving.
+    # Only inside a git repo (judged from the startup cwd).
     worktree_tools = (
         [enter_worktree, exit_worktree, list_worktrees] if is_inside_git_dir() else []
     )
-    # TodoWrite replaces the whole list by default, so it subsumes the former
-    # UpdateTodo (rewrite with one status changed) and ClearTodos (write []).
     plan_tools = [write_todos, get_todos]
 
-    # Tag each tool with its capability so the permission policy / plan mode can
-    # reason about it. Untagged tools resolve to UNKNOWN (denied in plan mode),
-    # so tagging the read-only ones explicitly keeps discovery working.
+    # Untagged tools resolve to UNKNOWN (denied in plan mode).
     for _fn in (
         list_files,
         glob_files,
@@ -190,8 +138,7 @@ def _seed_default_tools() -> tuple[list, list, list]:
         tag(_fn, Capability.READ)
     for _fn in (write_file, replace_in_file, remove_file, move_file):
         tag(_fn, Capability.EDIT)
-    # Tag worktree tools only when registered (git dir): list is read-only,
-    # enter/exit mutate the tree. Mirrors the lsp_tools tagging loop below.
+    # list is read-only; enter/exit mutate the tree.
     for _fn in worktree_tools:
         tag(_fn, Capability.READ if _fn is list_worktrees else Capability.EDIT)
     tag(run_shell_command, Capability.EXECUTE)
@@ -214,8 +161,7 @@ def _seed_default_tools() -> tuple[list, list, list]:
         move_file,
         search_internet,
         open_web_page,
-        # Rarely needed, so deferred: the name stays visible and the schema
-        # materializes through native tool search only when the model asks.
+        # Rarely needed: the schema loads only through native tool search.
         Tool(analyze_code, defer_loading=True),
         Tool(analyze_file, defer_loading=True),
         *(Tool(_fn, defer_loading=True) for _fn in worktree_tools),
@@ -227,18 +173,12 @@ def _seed_default_tools() -> tuple[list, list, list]:
 
 
 def _seed_tool_factories() -> tuple[list, list]:
-    """The per-run tool factories + toolset factories of the built-in seed.
-
-    A factory is re-evaluated against the resolved context on every run, which
-    is what lets interactivity and ``LLM_JOURNAL_ENABLED`` gate a tool without
-    a second registration path.
-    """
+    """The per-run tool factories + toolset factories of the built-in seed."""
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.spill import read_tool_result
     from zrb.llm.agent.types import Tool
 
-    # lazy: zrb.llm.tool.* transitively load pydantic_ai — same reason as the
-    # import block in _seed_default_tools.
+    # lazy: zrb.llm.tool.* transitively load pydantic_ai
     from zrb.llm.permission import Capability, tag
     from zrb.llm.tool.ask import ask_user_question
     from zrb.llm.tool.journal import search_journal
@@ -259,14 +199,12 @@ def _seed_tool_factories() -> tuple[list, list]:
     tag(ask_user_question, Capability.META)
     tag(read_tool_result, Capability.META)
     tag(search_journal, Capability.READ)
-    # The journal writers touch only CFG.LLM_JOURNAL_DIR, but they do
-    # write, so plan mode must block them like any other edit.
+    # Journal writers touch only CFG.LLM_JOURNAL_DIR, but plan mode still blocks them.
     for _fn in (log_activity, write_journal_note, delete_journal_note):
         tag(_fn, Capability.EDIT)
 
     factories: list["Callable[[AnyContext], Any]"] = [
-        # Plan-mode and AskUserQuestion need a human, so only interactive
-        # sessions get them (~350-450 tokens saved elsewhere).
+        # Plan-mode and AskUserQuestion need a human: interactive sessions only.
         lambda ctx: (
             [
                 Tool(enter_plan_mode, defer_loading=True),
@@ -276,14 +214,11 @@ def _seed_tool_factories() -> tuple[list, list]:
             else []
         ),
         lambda ctx: [ask_user_question] if _resolve_interactive(ctx) else [],
-        # ReadToolResult only with spill enabled. A factory, re-evaluated per
-        # run, so toggling LLM_ENABLE_TOOL_SPILL via /config applies next run.
+        # A factory so toggling LLM_ENABLE_TOOL_SPILL via /config applies next run.
         lambda ctx: [read_tool_result] if CFG.LLM_ENABLE_TOOL_SPILL else [],
-        # The journal tools are the journal's only writers: their docstrings
-        # carry the protocol (the `<journal-index>` header just names them), so
-        # LLM_JOURNAL_ENABLED=false is enforced by their absence. Deferred, since few turns use them; the journal-compliance
-        # hook names them explicitly, so `resolve_agent_hook_tools` strips
-        # defer_loading there.
+        # LLM_JOURNAL_ENABLED=false is enforced by these tools' absence. The
+        # journal-compliance hook names them, so `resolve_agent_hook_tools`
+        # strips defer_loading there.
         lambda ctx: (
             [
                 Tool(search_journal, defer_loading=True),
@@ -303,17 +238,13 @@ def _seed_tool_factories() -> tuple[list, list]:
             defer_loading=True,
         ),
         lambda ctx: tag(create_activate_skill_tool(), Capability.META),
-        # SearchSkill is the on-demand window onto the part of the skill
-        # catalogue the prompt truncates, so it ships alongside the activator.
+        # SearchSkill reaches the part of the catalogue the prompt truncates.
         lambda ctx: tag(create_search_skill_tool(), Capability.META),
-        # Deferred loading: only needed after monitoring a background process —
-        # see the rationale on analyze_code/analyze_file in _seed_default_tools.
         lambda ctx: Tool(
             tag(create_monitor_process_tool(), Capability.EXECUTE),
             defer_loading=True,
         ),
     ]
-    # MCP servers vary widely in tool count, so they remain deferred.
     toolset_factories: list["Callable[[AnyContext], Any]"] = [
         lambda ctx: [toolset.defer_loading() for toolset in load_mcp_config()]
     ]
@@ -321,15 +252,7 @@ def _seed_tool_factories() -> tuple[list, list]:
 
 
 def _resolve_interactive(ctx: "AnyContext") -> bool:
-    """Interactivity as seen when tool factories resolve.
-
-    The main chat task carries the flag on ``ctx.input.interactive`` (already
-    resolved by the time factories run). Sub-agents and programmatic
-    ``LLMTask`` don't expose it, so fall back to the ``interactive_mode``
-    ContextVar (set by live_context once a session is running, hence reliable
-    by the time a sub-agent's tools resolve). Absent both, default True so no
-    host silently loses tools it had before.
-    """
+    """Interactivity from ``ctx.input.interactive``, else the ``interactive_mode`` ContextVar."""
     from zrb.llm.tool.ambient_state import get_interactive_mode
 
     val = getattr(getattr(ctx, "input", None), "interactive", None)
@@ -340,7 +263,4 @@ def _resolve_interactive(ctx: "AnyContext") -> bool:
     return get_interactive_mode()
 
 
-# Wire the built-in tool content into the global registry as a lazy seed at
-# module load — stored, not resolved, so the heavy imports stay deferred until
-# the first agent build (the first ``apply_common_tools`` call).
 _seed_default_tool_registry()

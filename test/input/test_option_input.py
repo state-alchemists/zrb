@@ -5,7 +5,7 @@ from zrb.input.option_input import OptionInput
 
 
 def test_option_input_initialization():
-    """Test that OptionInput can be instantiated with basic parameters."""
+    """OptionInput accepts its basic parameters."""
     option_input = OptionInput(
         name="test_option",
         description="Test option description",
@@ -130,7 +130,7 @@ def test_option_input_update_shared_context_with_default():
 
 
 def test_option_input_option_completer():
-    """Test option completer functionality through public API."""
+    """Options are exposed through the public HTML API."""
     option_input = OptionInput(
         name="test",
         options=["apple", "banana", "cherry"],
@@ -176,7 +176,7 @@ def test_option_input_options_resolution():
 
     with patch("zrb.input.option_input.get_str_list_attr") as mock_get_list:
         mock_get_list.return_value = ["a", "b"]
-        html = option_input.to_html(shared_ctx)
+        option_input.to_html(shared_ctx)
 
         mock_get_list.assert_called_once()
 
@@ -301,10 +301,7 @@ class TestOptionInputPromptCli:
         mock_session = MagicMock()
         mock_session.prompt.return_value = "blue"
 
-        # Both halves of `SharedContext.is_tty` have to say yes. On Windows the
-        # second one is a real GetConsoleMode probe against stdin, which pytest
-        # has replaced with a capture object -- so patching isatty alone leaves
-        # is_tty False there and the code falls through to `input()`.
+        # Patch both console checks so the prompt-toolkit path is used.
         with (
             patch("sys.stdin.isatty", return_value=True),
             patch("zrb.context.shared_context.is_real_console", return_value=True),

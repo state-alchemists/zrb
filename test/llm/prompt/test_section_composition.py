@@ -1,4 +1,4 @@
-"""The shipped system prompt has a small, fixed section vocabulary."""
+'The shipped system prompt has a small, fixed section vocabulary.'
 
 import pytest
 

@@ -1,54 +1,26 @@
 """Git-backed snapshot manager for LLM rewind functionality.
 
-Snapshots are commits of `SnapshotStore` trees (`util/git/snapshot_store.py`)
-— the working directory is the store's work tree, so nothing is copied, and
-the store's listing, byte-exactness and self-exclusion rules apply: every
-repository under the directory by its own ignore rules, nested ones included,
-and the loose files outside them up to a budget.
+Snapshots are commits of `SnapshotStore` trees (`util/git/snapshot_store.py`),
+with the working directory as the store's work tree.
 
-Layout: one store per working directory, at ``<snapshot_dir>/<name>-<hash of
-its path>.git``, so unchanged files are stored once and one stat cache serves
-every conversation there; one ref per conversation, ``refs/zrb/<name>-<hash>``,
-keyed by the conversation's name — the identity its chat history is saved and
-resumed under — since a snapshot records that conversation's message count.
-The manager follows the conversation the UI is on: `/load` switches to that
-conversation's history, and `/save` copies the current one to the new name.
-The hashes keep two paths or names that sanitize alike from sharing a store
-or a history. The store keeps its own objects — rewind history outlives the
-session, and borrowing a repository's could lose a blob to a `git gc` there.
+Layout: one store per working directory, ``<snapshot_dir>/<name>-<hash>.git``,
+with its own objects (borrowing a repository's could lose a blob to its
+`git gc`); one ref per conversation, ``refs/zrb/<name>-<hash>``, keyed by the
+conversation name its chat history is saved under. The hashes keep names that
+sanitize alike apart.
 
-Snapshot flow: snapshot the directory, ``commit-tree``, ``update-ref``. A
-commit's message records what the snapshot knows that its tree cannot hold —
-the files it could not read, the paths it left out, the repositories it
-listed — and a restore rebuilds the snapshot from it.
+A commit's message records what its tree cannot hold (unreadable files, paths
+left out, repositories listed); restore rebuilds the snapshot from it.
 
 Every operation waits at most ``CFG.LLM_SNAPSHOT_LOCK_TIMEOUT`` for the store,
-then runs within one budget, ``CFG.LLM_SNAPSHOT_OPERATION_TIMEOUT``, across
-every command in it; it stops at once when its caller is cancelled. A history
-copy `/save` asks for is registered in memory at once and applied under the
-operation lock before anything else touches the store, so no snapshot of the
-new name can land first; it lives only as long as the session, so no record of it
-is kept on disk.
+then runs within ``CFG.LLM_SNAPSHOT_OPERATION_TIMEOUT``, stopping at once when
+its caller is cancelled. Housekeeping runs once per session: stale
+conversations lose their history and ``git gc --auto`` packs the store.
 
-Housekeeping, once per session with the first snapshot: conversations whose
-newest snapshot is older than *retention_seconds* lose their rewind history, and
-``git gc --auto`` packs the store and, in the background, prunes what no
-history holds any more.
-
-Restore flow: refuse a commit outside this conversation's history, then
-`SnapshotStore.restore` — which rewrites changed files, recreates deleted
-ones and removes only the files the snapshot shows did not exist then, never
-a repository made since, and never writing over a file it cannot read now —
-then move the conversation's ref back to ``<sha>``. The outcome names every
-path a refused write left behind.
-
-Rewind turns itself off for the session, with a reason the first snapshot
-and `/rewind` show, when the directory cannot be snapshotted at all: a
-snapshot directory that is the working directory itself, a store that cannot
-be set up — its directory not writable, git not installed (said only by
-`/rewind`: a missing git is not news every session) — or more loose
-files outside any repository than the listing's budget. Later operations do
-not retry.
+Rewind turns itself off for the session when the directory cannot be
+snapshotted at all: the snapshot directory is the working directory, the store
+cannot be set up (not writable, git missing), or there are more loose files
+than the listing's budget. Later operations do not retry.
 """
 
 from __future__ import annotations
@@ -99,12 +71,10 @@ _T = TypeVar("_T")
 #   "error"      the snapshot failed, with or without a "start" before it;
 #                reason is `unavailable_reason` when rewind is off for the
 #                session, else the failure's text
-# Every invocation ends with exactly one of the last three, and fires at most
-# one "notice" before it. All events fire on the event-loop thread: each report
-# happens in coroutine context, before or after an awaited worker returns.
+# Every invocation ends with exactly one of the last three, with at most one
+# "notice" before it. All events fire on the event-loop thread.
 class SnapshotProgress(NamedTuple):
-    """Progress event for `take_init_snapshot` (see `SnapshotProgressFn`).
-    Read its fields by name: which ones it has is not fixed."""
+    """Progress event for `take_init_snapshot`; read fields by name."""
 
     stage: str
     skipped: int = 0
@@ -113,9 +83,7 @@ class SnapshotProgress(NamedTuple):
 
 SnapshotProgressFn = Callable[[SnapshotProgress], None]
 
-#: Said once, when the directory is not in a git repository: the store lists
-#: the loose files then, up to its own budget, and a `.gitignore` has nothing
-#: to say — a rewind that reaches less far than a repository's would.
+#: Said once when the directory is not in a git repository.
 LOOSE_SNAPSHOT_REASON = (
     "no git repository here, so rewind covers the files in this directory and "
     "ignores .gitignore"
@@ -141,17 +109,13 @@ class Snapshot(NamedTuple):
 
 
 class RestoreOutcome(NamedTuple):
-    """What `restore_snapshot` did. True when the restore ran, as the bool
-    `restore_snapshot` once returned was — a tuple is otherwise always true,
-    and `if await manager.restore_snapshot(sha):` would pass on a failure."""
+    """What `restore_snapshot` did; truthy only when the restore ran."""
 
     #: Whether the restore ran. False: nothing was touched — an unknown
     #: commit, one outside this conversation's history, or rewind is off.
     restored: bool
-    #: Paths the restore could not bring back although it ran — a file
-    #: another program holds open, a directory without write permission.
-    #: Every other file is restored; restoring again finishes the job once
-    #: the cause is gone.
+    #: Paths the restore could not bring back (held open, no write permission).
+    #: Restoring again finishes the job once the cause is gone.
     left_behind: tuple[str, ...] = ()
 
     def __bool__(self) -> bool:
@@ -161,11 +125,9 @@ class RestoreOutcome(NamedTuple):
 class SnapshotManager:
     """Manages filesystem snapshots in a private git directory.
 
-    Rewind history belongs to a conversation. *session_name* names the one
-    the manager is on, or is a callable returning the current name — a UI
-    passes one, so rewind follows `/load` and `/save`. Each operation reads
-    the name once, when it starts, so a switch never lands half an operation
-    in the wrong conversation."""
+    *session_name* is the conversation's name or a callable returning it (so
+    rewind follows `/load` and `/save`); each operation reads it once, at start.
+    """
 
     #: Never snapshotted, never touched by restore, even inside a repository.
     DEFAULT_IGNORE_DIRS: frozenset[str] = DEFAULT_IGNORE_DIRS
@@ -192,8 +154,7 @@ class SnapshotManager:
         # Guards `_pending_copies`: registered from the caller's thread,
         # applied from a worker's.
         self._pending_lock = threading.Lock()
-        # Conversations untouched this long lose their rewind history; 0 keeps
-        # every one.
+        # 0 keeps every conversation's history.
         self._retention_seconds = retention_seconds
         self._unavailable = (
             _check_location(self._snapshot_dir, self._workdir) or _check_git()
@@ -213,20 +174,15 @@ class SnapshotManager:
 
     @property
     def unavailable_reason(self) -> str:
-        """Why rewind is off for this session, or empty (see the module
-        docstring for when)."""
+        """Why rewind is off for this session, or empty."""
         return self._unavailable
 
     async def take_snapshot(
         self, label: str, message_count: int | None = None
     ) -> str | None:
-        """Snapshot the workdir and commit.  Returns commit SHA or None on error.
+        """Snapshot the workdir and commit. Returns commit SHA or None on error.
 
-        Args:
-            label: Human-readable label (typically the user message).
-            message_count: Number of conversation messages at this point.  When
-                provided it is embedded in the commit message so that restore can
-                also rewind the conversation history to a consistent state.
+        *message_count* is recorded so restore can rewind the conversation too.
         """
         if self._unavailable:
             return None
@@ -245,15 +201,10 @@ class SnapshotManager:
     async def take_init_snapshot(
         self, on_progress: SnapshotProgressFn | None = None
     ) -> str | None:
-        """Take a baseline snapshot at session start.
+        """Take a baseline snapshot at session start (even of an empty workdir).
 
-        Always creates a commit (even if workdir is empty) so that
-        list_snapshots() always has at least one entry to rewind to.
-
-        Args:
-            on_progress: Optional callback; see `SnapshotProgressFn` for the
-                event contract. Every invocation ends with exactly one
-                terminal event ("done", "up-to-date", or "error").
+        *on_progress* receives `SnapshotProgress` events, ending with exactly one
+        of "done", "up-to-date" or "error".
         """
         if self._unavailable:
             _report_progress(
@@ -276,8 +227,6 @@ class SnapshotManager:
                 )
                 await run_in_worker(self._run_locked, self._tidy, session)
             if "" not in commit.repositories:
-                # Said once per conversation: a resumed session never gets
-                # here, and the shallow listing is worth knowing about.
                 _report_progress(
                     on_progress,
                     SnapshotProgress("notice", reason=LOOSE_SNAPSHOT_REASON),
@@ -297,9 +246,8 @@ class SnapshotManager:
             return []
         deadline = _create_deadline()
         try:
-            # Unlocked, and never setting a store up: either would hold the UI
-            # up behind another operation. It needs no lock — the ref is read
-            # once, and the commits it names never change.
+            # Unlocked and never setting a store up, so the UI never waits on
+            # another operation; the ref is read once and commits are immutable.
             store = self._find_store_to_read()
             session = self._visible_history(self.session_name)
             head = None if store is None else _read_head(store, session, deadline)
@@ -342,26 +290,14 @@ class SnapshotManager:
             return RestoreOutcome(restored=False)
 
     def copy_history(self, source: str, target: str) -> Coroutine[Any, Any, None]:
-        """Give conversation *target* the rewind history *source* has now —
-        what saving a conversation under a new name does to its chat history
-        — replacing any it had. A *source* with no snapshots leaves *target*
-        with none: its old ones would carry message counts of a chat history
-        that no longer exists.
+        """Replace *target*'s rewind history with *source*'s (empty if *source* has none).
 
-        The copy is registered when this is called, before it returns: every
-        later operation of this manager applies it before anything of its
-        own, so no snapshot of *target* can land first and be overwritten —
-        not even one the caller starts in the same task without yielding.
-        The returned coroutine applies it now; left unawaited, the next
-        operation does. A copy of a copy not applied yet takes that copy's
-        source, so a later copy to the name in between cannot change it.
-        Until it lands, `list_snapshots` shows *target* the history it is
-        about to receive.
-
-        The copy is kept in memory only: a session that ends before it lands
-        — only possible while another process holds the store — leaves
-        *target* with no rewind history, while its chat history is saved
-        either way."""
+        Registered synchronously, so every later operation applies it first and
+        no snapshot of *target* can land before it. The returned coroutine
+        applies it now; left unawaited, the next operation does. A copy of a
+        pending copy takes that copy's source. Pending copies live in memory
+        only, and `list_snapshots` shows *target* the history it will receive.
+        """
         if self._unavailable or source == target:
             return _do_nothing()
         with self._pending_lock:
@@ -381,11 +317,7 @@ class SnapshotManager:
             logger.warning(f"copy_history({source} -> {target}) failed: {e}")
 
     def _note_unavailable(self, error: Exception) -> None:
-        """Turn rewind off for the session when *error* will not pass by
-        itself: the directory is over the listing's budget, or too large for
-        a git command to hash within its time limit — retrying would hold
-        every turn up for that long again. (A store that cannot be set up
-        turns it off in `_get_store`.)"""
+        """Turn rewind off when *error* is permanent (over budget, or too slow to hash)."""
         if isinstance(error, SnapshotBudgetError):
             self._unavailable = str(error)
         elif isinstance(error, SnapshotTimeoutError):
@@ -394,14 +326,11 @@ class SnapshotManager:
             )
 
     def _get_store(self, deadline: float) -> SnapshotStore:
-        """The working directory's store, set up on first use. A failure to
-        set it up — its directory not writable, git not installed, a location
-        the store refuses — will not pass by itself, so it turns rewind off
-        for the session with its reason — but a busy store or a cancelled
-        caller says nothing about the store, and the next operation tries the
-        setup again. It is set up holding the operation lock: two processes
-        running `git init` on one directory at once fail on each other's
-        config lock."""
+        """The working directory's store, set up on first use.
+
+        A setup failure turns rewind off; a busy store or a cancelled caller
+        does not. Setup holds the operation lock, since two concurrent
+        `git init`s fail on each other's config lock."""
         with self._store_lock:
             if self._store is not None:
                 return self._store
@@ -423,9 +352,7 @@ class SnapshotManager:
         return os.path.join(self._snapshot_dir, f"{self._store_key()}.git")
 
     def _store_key(self) -> str:
-        """*workdir*'s store name. One store per directory, so the files it
-        did not change are stored once and one stat cache serves every
-        conversation there."""
+        """*workdir*'s store name."""
         return _readable_key(os.path.basename(self._workdir), self._workdir)
 
     def _create_store_object(self, git_dir: str) -> SnapshotStore:
@@ -440,8 +367,7 @@ class SnapshotManager:
         )
 
     def _find_store_to_read(self) -> SnapshotStore | None:
-        """The store as it is, set up or not, or None when there is none —
-        so listing never sets one up, which waits for the operation lock."""
+        """The existing store, without setting one up, or None."""
         if self._store is not None:
             return self._store
         git_dir = self._store_git_dir()
@@ -450,17 +376,11 @@ class SnapshotManager:
         return self._create_store_object(git_dir)
 
     def _apply_pending_copies(self, deadline: float) -> None:
-        """Apply the copies `copy_history` registered, in the order it
-        registered them. Called first by every locked operation
-        (`_run_locked`), so each copy lands before anything that could build
-        on either side.
+        """Apply the copies `copy_history` registered, in registration order.
 
-        Each copy is forgotten as it lands, rather than at the end: a later
-        one that fails must not replay an earlier one over a snapshot
-        *target* took in between. A copy git refuses is forgotten too, with a
-        warning: kept, it would fail every later operation. A timeout or a
-        cancelled caller stops the operation instead — neither says anything
-        about the copy."""
+        Each copy is forgotten as it lands, so a later failure cannot replay it.
+        A copy git refuses is dropped with a warning; a timeout or cancellation
+        stops the operation and keeps the copy."""
         with self._pending_lock:
             pending = list(self._pending_copies.items())
         for target, source in pending:
@@ -486,24 +406,11 @@ class SnapshotManager:
             return self._pending_copies.get(session, session)
 
     def _run_locked(self, operation: Callable[..., _T], *args: Any) -> _T:
-        """Run *operation* on the store holding its operation lock, after the
-        copies `copy_history` recorded. `self._lock` orders this manager's
-        operations; the lock on a file in the store keeps every other one off
-        it too — another conversation's manager in this process, another
-        process — so a restore never interleaves with another restore, and a
-        snapshot never catches one half-written. The OS releases it when its
-        holder dies.
+        """Run *operation* holding the store's file lock, after pending copies.
 
-        The lock is waited for at most `CFG.LLM_SNAPSHOT_LOCK_TIMEOUT`, and a
-        caller cancelled meanwhile stops waiting at once — see
-        `_hold_operation_lock`. Then the sequence runs within
-        `CFG.LLM_SNAPSHOT_OPERATION_TIMEOUT`, however many commands it runs.
-        Each command has its own shorter cap, so this is what bounds a
-        sequence of them.
-        The budget starts after the wait, so a wait for a busy store never
-        spends it: running out means this directory is too slow to snapshot,
-        which turns rewind off (`_note_unavailable`), and contention is not
-        that.
+        The file lock excludes other managers and processes. The operation
+        budget starts after the lock wait, so contention never spends it (running
+        out turns rewind off).
         """
         store = self._get_store(_create_deadline())
         with _hold_operation_lock(store):
@@ -514,19 +421,15 @@ class SnapshotManager:
     def _commit(
         self, deadline: float, session: str, label: str, message_count: int | None
     ) -> _Commit:
-        """Commit the workdir unless it matches HEAD; return what the commit
-        came to."""
+        """Commit the workdir unless it matches HEAD."""
         store = self._get_store(deadline)
         snapshot = store.snapshot(deadline)
         head = self._head_sha(deadline, session)
         if head is not None:
             head_snapshot, head_subject = self._read_commit(deadline, head)
-            # A new commit is still needed when only message_count advanced
-            # (e.g. after a rewind followed by turns that don't touch the FS):
-            # restore reads mc from the commit, so a stale one would truncate
-            # conversation history to the wrong point. So is one when only the
-            # record changed — a file ignored since HEAD was taken — or a
-            # rewind to this point could remove that file.
+            # Commit anyway when only message_count advanced (restore reads it)
+            # or only the record changed (a newly ignored file could otherwise
+            # be removed by a rewind to this point).
             _, head_mc = _parse_commit_message(head_subject)
             if head_snapshot == snapshot and (
                 message_count is None or head_mc == message_count
@@ -534,8 +437,7 @@ class SnapshotManager:
                 return _Commit(head, len(snapshot.unreadable), snapshot.repositories)
         parent = ["-p", head] if head else []
         message = _build_commit_message(label, message_count, snapshot)
-        # The message on stdin: it names every path the snapshot left out,
-        # which could exceed a command-line argument's limit.
+        # On stdin: the message may exceed a command-line argument's limit.
         sha = store.git(
             ["commit-tree", "--no-gpg-sign", snapshot.tree, *parent],
             stdin=message,
@@ -549,9 +451,7 @@ class SnapshotManager:
         the paths left behind."""
         store = self._get_store(deadline)
         store.git(["cat-file", "-e", f"{sha}^{{commit}}"], deadline=deadline)
-        # Only this conversation's own snapshots: another conversation's
-        # commit in the same store is not in this one's list, so restoring it
-        # would rewind the files without rewinding the conversation to match.
+        # Only this conversation's own snapshots, so files and history stay in step.
         ancestry = store.run_git(
             ["merge-base", "--is-ancestor", sha, _ref(session)], deadline=deadline
         )
@@ -559,15 +459,13 @@ class SnapshotManager:
             raise SnapshotError(f"{sha} is not one of this conversation's snapshots")
         snapshot, _ = self._read_commit(deadline, sha)
         if snapshot is None:
-            # Without it a restore cannot tell a file that did not exist then
-            # from one the snapshot never saw.
+            # Without it, a file that did not exist is indistinguishable from one never seen.
             raise SnapshotError(f"{sha} has no readable record of what it left out")
         left_behind = store.restore(snapshot, deadline)
         try:
             store.git(["update-ref", _ref(session), sha], deadline=deadline)
         except SnapshotError as e:
-            # The files are restored either way; the list just keeps the
-            # snapshots taken after *sha*.
+            # Files are restored; the list just keeps the later snapshots.
             logger.warning(f"Could not move {session}'s rewind history back: {e}")
         return left_behind
 
@@ -595,11 +493,8 @@ class SnapshotManager:
         return _read_head(self._get_store(deadline), session, deadline)
 
     def _tidy(self, deadline: float, session: str) -> None:
-        """Keep the store from growing without end: drop the rewind history of
-        conversations older than *retention_seconds* — never *session*'s — then let
-        `git gc --auto` pack it and, detached, prune what no history holds any
-        more, a timed-out snapshot's objects included. Best effort: nothing
-        here fails the snapshot it follows."""
+        """Best-effort housekeeping: drop stale conversations' refs (never
+        *session*'s), then `git gc --auto` detached."""
         store = self._get_store(deadline)
         try:
             if self._retention_seconds > 0:
@@ -618,10 +513,10 @@ class SnapshotManager:
 
 
 def _check_location(snapshot_dir: str, workdir: str) -> str:
-    """Why *snapshot_dir* cannot serve *workdir*, or empty. Stores are
-    direct children of *snapshot_dir*, so they lie inside *workdir* only when
-    *snapshot_dir* does. Inside it, the whole snapshot directory is left out
-    of every snapshot; equal to it, that would leave out everything."""
+    """Why *snapshot_dir* cannot serve *workdir*, or empty.
+
+    A snapshot dir inside *workdir* is excluded from snapshots; equal to it,
+    that would exclude everything."""
     if snapshot_dir == workdir:
         return (
             f"the snapshot directory is the working directory itself "
@@ -631,8 +526,7 @@ def _check_location(snapshot_dir: str, workdir: str) -> str:
 
 
 def _create_deadline() -> float:
-    """When an operation starting now must be done: `CFG` is read here, at
-    each operation, so `zrb_init.py` can change the budget."""
+    """When an operation starting now must be done (CFG read per operation)."""
     return time.monotonic() + CFG.LLM_SNAPSHOT_OPERATION_TIMEOUT
 
 
@@ -701,11 +595,6 @@ def _ref(session: str) -> str:
     return f"refs/zrb/{_readable_key(session, session)}"
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
 # A snapshot's commit message. The label is the user's text, so the format
 # gives it no way to pass for metadata:
 #
@@ -713,10 +602,8 @@ def _ref(session: str) -> str:
 #
 #     zrb-snapshot: {"unreadable": [...], "left_out": [...], "repositories": [...]}
 #
-# The subject is one line, so no label can start a body line; the count tag
-# is always written, so no label can end with one of its own; and the record
-# is read from the body alone. It is written again with every commit: tens of
-# KB for a repository with thousands of scattered ignored files.
+# The subject is one line and always ends with the count tag, and the record is
+# read from the body alone, so no label can pass for metadata.
 _RECORD_TAG = "zrb-snapshot: "
 _RECORD_FIELDS = ("unreadable", "left_out", "repositories")
 _COUNT_TAG = re.compile(r" \[mc:(\d+|-)\]$")
@@ -741,8 +628,7 @@ def _parse_commit_message(subject: str) -> tuple[str, int | None]:
 
 
 def _parse_record(tree: str, message: str) -> StoreSnapshot | None:
-    """The snapshot of *tree* a commit message records — read from its body,
-    never its subject — or None when the record is missing or malformed."""
+    """The snapshot of *tree* recorded in a commit body, or None if missing/malformed."""
     _, _, body = message.partition("\n")
     line = next(
         (line for line in body.splitlines() if line.startswith(_RECORD_TAG)), ""
@@ -763,8 +649,7 @@ def _parse_record(tree: str, message: str) -> StoreSnapshot | None:
 
 
 def _readable_key(name: str, identity: str) -> str:
-    """*name* made filename- and ref-safe, plus a hash of *identity*: the
-    sanitized name alone collides (`a:b` and `a?b` both become `a_b`)."""
+    """*name* made filename- and ref-safe, plus a hash of *identity* to avoid collisions."""
     digest = hashlib.sha256(identity.encode("utf-8", "surrogateescape")).hexdigest()
     return f"{to_safe_filename(name)[:40]}-{digest[:16]}"
 

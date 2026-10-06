@@ -1,13 +1,7 @@
-"""Confirmation-queue handling for the default `UI`.
+"""Confirmation queue for the default `UI`.
 
-Concurrent callers (e.g. delegate sub-agents) of `ask_user`/`ask_user_choice`
-are queued; each prompt is shown only when its request becomes current.
-
-Each entry is `(future, prompt, spec, agent_id)`. `spec` is `None` for plain
-text, else a `ChoiceSpec` rendered by `UISelection`. `agent_id` (`None` for the
-main agent) lets an answer typed in a sub-agent's live view resolve that
-agent's own request rather than the FIFO head (`_resolve_for_agent`). Text
-and choice requests share one active slot so they never contend for input.
+Concurrent text and choice requests share one FIFO active slot; sub-agent
+answers can resolve the matching request by `agent_id`.
 """
 
 from __future__ import annotations
@@ -25,12 +19,7 @@ if TYPE_CHECKING:
 
 
 class UIConfirmation:
-    """Per-request confirmation queue used by `ask_user`/`ask_user_choice`.
-
-    `begin_choice`/`end_choice`/`resolve_current` go through `self._ui`,
-    which routes them to `UISelection`; a UI composing only this part must
-    supply its own no-op `begin_choice`/`end_choice`.
-    """
+    """Per-request confirmation queue used by `ask_user` and `ask_user_choice`."""
 
     def __init__(self, ui: "UI") -> None:
         self._ui = ui
@@ -88,11 +77,7 @@ class UIConfirmation:
             self._ui.append_to_output(prompt, end="")
 
     def _save_and_clear_input_draft(self) -> None:
-        """Stash the half-typed message and clear the field for the answer.
-
-        The answer is read from the input buffer, so a draft would otherwise
-        be taken as a free-text denial. Restored once the queue drains.
-        """
+        """Save and clear the input draft while awaiting an answer."""
         if self._saved_draft is not None:
             return
         input_field = getattr(self._ui, "input_field", None)
@@ -117,12 +102,7 @@ class UIConfirmation:
         buffer.cursor_position = cursor
 
     def submit_user_answer(self, text: str) -> bool:
-        """Resolve the current confirmation prompt with the given answer (public API).
-
-        For a multiple-choice request, an answer naming an option — its label
-        in any case, or its 1-based number — resolves to that label; anything
-        else is kept as the free-text answer.
-        """
+        """Resolve the current prompt, normalizing matching choice labels."""
         spec = self._ui.confirmation.current_spec
         answer = _match_choice_label(spec, text) if spec is not None else text
         return self._ui.resolve_current(answer, echo=answer + "\n")
@@ -183,12 +163,7 @@ class UIConfirmation:
         get_app().invalidate()
 
     def cancel_pending_confirmations(self, flush: bool = True):
-        """Cancel pending confirmations so blocked `ask_user` calls release (public API).
-
-        Args:
-            flush: Whether to flush the confirmation output buffer first;
-                ``False`` on exit, where the write is wasted latency.
-        """
+        """Cancel pending confirmations; optionally flush buffered output first."""
         if flush:
             self._flush_confirmation_buffer()
         for future, _, _, _ in self._ui.confirmation.queue:

@@ -1,10 +1,3 @@
-"""Tests for `zrb.llm.ui.buffered_ui`.
-
-Split out of `test/llm/tool/test_delegate_tool.py` in 2.58.0, when `BufferedUI`
-moved out of the tool module it was embedded in. `delegate` is still its only
-caller, but the mirror rule puts a test at its source's path.
-"""
-
 from unittest.mock import MagicMock
 
 from zrb.llm.ui.buffered_ui import BufferedUI
@@ -72,9 +65,7 @@ def test_toggle_collapsible_block_at_offset_shifts_later_blocks():
 
 
 def test_mark_and_collapse_thinking_block_wraps_the_streamed_span():
-    """Thinking streams live (nothing withheld); collapse_thinking_block
-    retroactively wraps that already-printed span, using the caller-supplied
-    `full` text — same contract as UIOutput.collapse_thinking_block."""
+    """Collapse the already-printed thinking span."""
     ui = BufferedUI(MagicMock())
     ui.append_to_output("before ", end="")
     ui.mark_thinking_block_start()
@@ -95,9 +86,7 @@ def test_mark_and_collapse_thinking_block_wraps_the_streamed_span():
 
 
 def test_collapse_thinking_block_ignores_buffer_mangled_by_carriage_return():
-    """Regression: the passed-in `full` must win even when the *rendered*
-    span no longer matches it (a stray \\r rewrote part of the live line via
-    merge_output_chunk, the same function UIOutput.append_to_output uses)."""
+    """Use the supplied full text when the live span was rewritten."""
     ui = BufferedUI(MagicMock())
     ui.mark_thinking_block_start()
     ui.append_to_output("first part\rsecond part", end="", kind="thinking")
@@ -127,9 +116,7 @@ def test_collapse_thinking_block_without_full_text_is_a_noop():
 
 
 def test_toggle_collapsible_block_at_offset_leaves_state_unchanged_on_stale_span():
-    """A stale recorded span must not flip `expanded` or move the tracked
-    offsets — a later toggle should retry cleanly, not work from corrupted
-    bookkeeping."""
+    """A stale span leaves state unchanged."""
     ui = BufferedUI(MagicMock())
     ui.append_toggle_block("short", "much longer full text")
 
@@ -151,15 +138,11 @@ def test_clear_buffer_resets_toggle_state():
     ui.clear_buffer()
 
     assert ui.rendered_blocks == []
-    # No leftover mark survives the clear: collapsing without a fresh
-    # mark_thinking_block_start() call afterward must be a no-op.
     assert ui.collapse_thinking_block("🧠 Thought\n", "some text") is False
 
 
 def test_mark_and_collapse_text_block_wraps_the_streamed_span():
-    """mark_text_block_start/collapse_text_block are the final-text
-    counterpart to the thinking pair — same mechanics, reused via
-    _collapse_collapsible_block."""
+    """Collapse a streamed final-text span."""
     ui = BufferedUI(MagicMock())
     ui.append_to_output("before ", end="")
     ui.mark_text_block_start()
@@ -221,9 +204,7 @@ def test_update_tool_prepare_empty_text_erases_and_stops_tracking():
 
 
 def test_update_tool_prepare_keeps_each_tool_calls_own_line_independent():
-    """Regression: two tool calls preparing arguments concurrently must never
-    corrupt each other's line — the bug the old `\\r`-erase-last-line trick
-    had. Erasing the first must shift, not invalidate, the second's span."""
+    """Keep concurrent tool-prepare spans independent."""
     ui = BufferedUI(MagicMock())
 
     ui.update_tool_prepare("call_A", "🔄 Prepare tool parameters...")
@@ -242,9 +223,6 @@ def test_clear_buffer_resets_tool_prepare_spans():
 
     ui.clear_buffer()
 
-    # No leftover span survives the clear: a stray update for the same key
-    # must start fresh (append) rather than try to replace a now-meaningless
-    # offset into the cleared buffer.
     ui.update_tool_prepare("call_1", "🔄 Prepare tool parameters ⠋")
     assert ui.get_buffered_output().count("Prepare tool parameters") == 1
 
@@ -285,11 +263,7 @@ def test_finish_shell_output_without_any_update_is_a_noop():
 
 
 def test_shell_output_keeps_each_commands_own_line_independent_while_growing():
-    """Regression, the actual bug reported: two shell commands running in
-    parallel had their interleaved live output collapse into ONE block,
-    silently swallowing one command's lines. Each `update_shell_output`
-    call replaces exactly that command's own span, the same way
-    `update_tool_prepare` already handles interleaved argument streams."""
+    """Keep interleaved shell-output spans independent."""
     ui = BufferedUI(MagicMock())
 
     ui.update_shell_output("cmd_A", "dog 1")
@@ -320,8 +294,7 @@ def test_clear_buffer_resets_shell_output_spans():
 
 
 def test_concurrent_writer_survives_an_open_block():
-    """Mirrors `UIOutput`'s counterpart: a foreign line appended during a live
-    thinking block stays outside the collapsed span."""
+    """Keep foreign output outside the collapsed span."""
     ui = BufferedUI(MagicMock())
     ui.mark_thinking_block_start()
     ui.append_to_output("reasoning part one", end="", kind="thinking")
@@ -339,8 +312,7 @@ def test_concurrent_writer_survives_an_open_block():
 
 
 def test_keyed_span_after_an_open_block_survives_later_block_chunks():
-    """Mirrors `UIOutput`'s counterpart: a keyed live line started after an
-    open block is rebased when the block absorbs a later chunk."""
+    """Rebase a keyed line when an open block grows."""
     ui = BufferedUI(MagicMock())
     ui.mark_thinking_block_start()
     ui.append_to_output("thinking one.", end="", kind="thinking")
