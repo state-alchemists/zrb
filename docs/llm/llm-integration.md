@@ -2,7 +2,7 @@
 
 # LLM Integration (AI Assistant)
 
-Zrb comes with a powerful, built-in AI assistant that can understand your codebase, perform actions on your behalf, and automate complex software engineering tasks.
+Zrb comes with a built-in AI assistant that can read your codebase, perform actions on your behalf, and carry out multi-step software engineering tasks.
 
 This page covers the end-user surface: the interactive TUI and embedding `LLMTask`/`LLMChatTask` in your own project. To register custom tools, delegate to sub-agents, override model capabilities, or tune context management, see [Extending the LLM](extending-the-llm.md). Deciding between zrb and a standalone coding agent (Claude Code, opencode, DeepSeek Harness, Pi)? See [Choosing Between Agent Harnesses](harness-comparison.md).
 

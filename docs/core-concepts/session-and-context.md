@@ -124,7 +124,7 @@ create_magic_number = cli.add_task(
 show_magic_number = cli.add_task(
     CmdTask(
         name="show-magic-number",
-        upstream=[create_magic_number], # Dependency is required!
+        upstream=[create_magic_number], # Dependency is required.
         cmd=Tpl("echo 'The magic number is: {ctx.xcom['create-magic-number'].pop()}'")
     )
 )

@@ -65,7 +65,7 @@ zrb docker run
 
 ### Deep Nesting
 
-Groups can be nested infinitely. You can add a group inside another group!
+Groups nest without limit: a group may hold another group.
 
 ```python
 from zrb import cli, Group, CmdTask

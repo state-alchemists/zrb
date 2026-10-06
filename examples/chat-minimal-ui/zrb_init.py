@@ -41,7 +41,7 @@ LOG_FILE = os.environ.get("ZRB_CHAT_LOG_FILE", None)
 
 
 # =============================================================================
-# MinimalUI - Just 2 methods to implement!
+# MinimalUI: two methods to implement
 # =============================================================================
 
 
@@ -77,7 +77,7 @@ class MinimalUI(SimpleUI):
 
 
 # =============================================================================
-# Integration with zrb - Just 1 line!
+# Integration with zrb: one line
 # =============================================================================
 
 # The simplest way: use create_ui_factory

@@ -1,6 +1,6 @@
 # SSE Chat Example
 
-Server-Sent Events (SSE) + CLI dual mode for real-time LLM chat. No polling, no missed messages!
+Server-Sent Events (SSE) + CLI dual mode for real-time LLM chat. No polling, no missed messages.
 
 This example provides **CLI + SSE dual mode** chat with full tool approval support (approve/deny/edit).
 

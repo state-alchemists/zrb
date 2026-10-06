@@ -15,7 +15,7 @@ EventDrivenUI handles the queue pattern automatically:
 Server-Sent Events provide real-time streaming:
 - Client connects to GET /stream and receives all output in real-time
 - Client sends messages via POST /chat
-- No polling, no missed messages!
+- No polling, no missed messages.
 
 ══════════════════════════════════════════════════════════════════════════════
 
@@ -66,6 +66,7 @@ from aiohttp import web
 
 from zrb.builtin.llm.chat import llm_chat
 from zrb.llm.approval import AnyApprovalChannel, ApprovalContext, ApprovalResult
+from zrb.llm.input_source import InputProvenance
 from zrb.llm.ui import EventDrivenUI
 from zrb.llm.util.history_formatter import format_history_as_text
 from zrb.util.cli.style import remove_style
@@ -582,9 +583,11 @@ class SSEUI(EventDrivenUI):
         self._streaming_started = False
         server.set_ui(self)
 
-    def handle_incoming_message(self, text: str) -> None:
+    def handle_incoming_message(
+        self, text: str, source: InputProvenance | None = None
+    ) -> None:
         self._streaming_started = False
-        super().handle_incoming_message(text)
+        super().handle_incoming_message(text, source)
 
     async def print(self, text: str, kind: str = "text") -> None:
         """Broadcast each event with its kind for visual distinction."""
