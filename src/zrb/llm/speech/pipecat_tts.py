@@ -346,7 +346,14 @@ class TTSPipeline:
             _call(self._loop, self._say(text))
             first = sentence.wait_for_chunk(timeout)
         except BaseException:
-            self._release(sentence)
+            # Not `_release`: the service may still be making this sentence, and
+            # the sentence after it would be handed whatever arrives late for
+            # this one, because `start_sentence` moves the sink onto it. Dropping
+            # is what closes the sentence and tells the service to stop before
+            # the claim is given up — the same cleanup a sentence already being
+            # read gets — so the next one is asked of a service that has been
+            # told, and nothing can still be fed into it.
+            self._drop(sentence)
             raise
         return SpeechAudio(
             sentence.sample_rate,
@@ -424,9 +431,9 @@ class TTSPipeline:
     def _release(self, sentence: SpokenSentence) -> None:
         """Give up this pipeline's claim on speaking, if it is still this sentence's.
 
-        Called when a sentence's audio has all been read, and when a sentence fails
-        while being prepared: whichever of that and `_drop` comes first lets the
-        next sentence start, and every later one finds nothing of its own to give up.
+        Called when a sentence's audio has all been read: whichever of that and
+        `_drop` comes first lets the next sentence start, and every later one
+        finds nothing of its own to give up.
         """
         with self._claim:
             if self._speaking is not sentence:

@@ -32,6 +32,19 @@ class AnySpeechBackend(ABC):
         synthesis fails."""
         return None
 
+    @property
+    def needs_zrb_playback(self) -> bool:
+        """Whether this backend's speech can only be heard through zrb's own
+        playback, leaving `create_utterance` nothing to offer.
+
+        ``False`` by default: a backend that renders audio is also asked to say
+        the text through a program of its own when zrb cannot play it. One that
+        can do no such thing — a Pipecat speech service is a model and a
+        pipeline, and plays nothing — says so here, so the speaker moves the
+        sentence to a backend that can instead of asking a question whose only
+        answer is a failure."""
+        return False
+
     def close(self) -> None:
         """Let the backend go, when the session that spoke through it is over.
 

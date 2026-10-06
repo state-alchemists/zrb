@@ -51,6 +51,16 @@ class PipecatSpeechBackend(AnySpeechBackend):
         """How the backend is called in logs."""
         return f"Pipecat ({self._service_name})"
 
+    @property
+    def needs_zrb_playback(self) -> bool:
+        """True: this service renders audio and plays nothing itself.
+
+        `create_utterance` raises, which is what puts a sentence zrb cannot play
+        in process — no output device, or a player program configured — onto the
+        local voice instead of leaving it unsaid.
+        """
+        return True
+
     def create_utterance(self, text: str) -> "Utterance":
         """Refused: this service renders audio, and plays nothing itself.
 

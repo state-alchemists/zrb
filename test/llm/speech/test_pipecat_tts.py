@@ -99,6 +99,30 @@ class RaisingSpeechService(FakeSpeechService):
         )
 
 
+class TaggedSpeechService(FakeSpeechService):
+    """A service whose audio says which text it was made for.
+
+    `FakeSpeechService`'s shape, with the one difference these tests need: the
+    chunk can be traced back to the sentence it was made for, so audio left over
+    from one sentence cannot pass for the next one's.
+    """
+
+    async def run_tts(self, text: str, context_id: str):
+        self.said.append(text)
+        interruptions = self.interruptions
+        for _ in range(self.chunks):
+            if self.delay:
+                await asyncio.sleep(self.delay)
+            if self.interruptions != interruptions:
+                return
+            yield TTSAudioRawFrame(
+                audio=text.encode(),
+                sample_rate=RATE,
+                num_channels=1,
+                context_id=context_id,
+            )
+
+
 def _tts_threads() -> list[threading.Thread]:
     """The pipeline threads of this process, by the name they are given."""
     prefix = f"{CFG.ROOT_GROUP_NAME}-speech-tts"
@@ -232,6 +256,47 @@ def test_a_service_that_cannot_say_the_sentence_is_reported_before_it_is_played(
         pipeline.close()
 
     assert service.said == [SENTENCE]
+
+
+def test_a_sentence_that_never_arrives_tells_the_service_to_stop():
+    """A sentence that timed out is dropped, not merely let go of.
+
+    The service may still be making it: giving up the claim alone leaves it
+    synthesizing audio nobody will hear, and leaves the sink about to hand
+    whatever comes out to whichever sentence replaces this one.
+    """
+    service = FakeSpeechService(chunks=1, delay=0.5)
+    pipeline = TTSPipeline.start(service)
+    try:
+        with pytest.raises(RuntimeError, match="said nothing"):
+            pipeline.speak(SENTENCE, timeout=0.05)
+        assert _wait_until(lambda: service.interruptions == 1)
+    finally:
+        pipeline.close()
+
+
+def test_audio_from_a_sentence_that_timed_out_is_not_played_as_the_next_one():
+    """What one sentence never delivered is not heard as the sentence after it.
+
+    A first chunk that does not arrive in time leaves the service still making
+    that sentence, and the sentence after it takes over the sink that the audio
+    would be written to — so the previous text is played under this one's turn.
+    The words are the test: a chunk carrying the earlier text failing to arrive
+    as the later sentence's own is the difference the interrupt makes.
+    """
+    service = TaggedSpeechService(chunks=2, delay=0.5)
+    pipeline = TTSPipeline.start(service)
+    try:
+        with pytest.raises(RuntimeError, match="said nothing"):
+            pipeline.speak("first", timeout=0.05)
+        second = pipeline.speak("second", timeout=5)
+        first_chunk = next(iter(second.chunks))
+        second.close()
+    finally:
+        pipeline.close()
+
+    assert first_chunk == b"second"
+    assert service.said == ["first", "second"]
 
 
 def test_a_pipeline_that_has_been_closed_fails_the_next_sentence_at_once():

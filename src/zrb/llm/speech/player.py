@@ -290,14 +290,32 @@ class Speaker:
             utterance.cleanup()
 
     def _create_with_fallback(self, text: str) -> Utterance | None:
-        for backend in self._get_backends():
+        """Make *text* to play, trying each backend this speaker holds.
+
+        In process first, where zrb plays it itself, and the next backend after
+        that one when this one has nothing else to offer: a Pipecat service
+        renders audio and plays nothing, so an output device that will not open
+        would leave the sentence to silence.
+        """
+        backends = self._get_backends()
+        for index, backend in enumerate(backends):
+            if backend.needs_zrb_playback and not self._is_in_process_wanted():
+                # Asked anyway, this one can only fail: it has audio and nowhere
+                # to put it. The warning would name Pipecat for a device that is
+                # the thing at fault.
+                continue
             try:
-                return self._create_utterance(backend, text)
+                return self._create_utterance(backend, text, backends[index + 1 :])
             except Exception as exc:
                 logger.warning(f"Speech backend {backend.name} failed: {exc}")
         return None
 
-    def _create_utterance(self, backend: AnySpeechBackend, text: str) -> Utterance:
+    def _create_utterance(
+        self,
+        backend: AnySpeechBackend,
+        text: str,
+        later: "list[AnySpeechBackend]",
+    ) -> Utterance:
         """Played by zrb itself when it can be, else by a player program:
         audio *backend* fails to render is still spoken its usual way."""
         if self._is_in_process_wanted():
@@ -314,10 +332,34 @@ class Speaker:
                     audio,
                     block_frames=self._config.player_block_frames,
                     read_ahead=self._config.player_read_ahead,
-                    fallback=lambda: backend.create_utterance(text),
+                    fallback=self._program_fallback(backend, later, text),
                     on_device_error=self._handle_device_error,
                 )
         return backend.create_utterance(text)
+
+    def _program_fallback(
+        self,
+        backend: AnySpeechBackend,
+        later: "list[AnySpeechBackend]",
+        text: str,
+    ) -> Callable[[], Utterance] | None:
+        """How a player program says *text*, for a device that will not play it.
+
+        *backend* is asked first, because its own program is the voice the
+        sentence was already going to be said in. One with no program of its own
+        has none to give, so the sentence moves on to the next backend this
+        speaker holds — the local voice it would have fallen back to anyway,
+        rather than a fallback that raises where nobody can catch it. ``None``
+        when neither exists, which leaves the device error raised and reported
+        instead of the sentence disappearing.
+        """
+        if not backend.needs_zrb_playback:
+            return lambda: backend.create_utterance(text)
+        alternatives = [other for other in later if not other.needs_zrb_playback]
+        if not alternatives:
+            return None
+        spoken_by = alternatives[0]
+        return lambda: spoken_by.create_utterance(text)
 
     def _is_in_process_wanted(self) -> bool:
         return (
