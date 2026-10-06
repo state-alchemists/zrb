@@ -19,7 +19,6 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 import logging
-import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -172,8 +171,9 @@ class SpeechMetrics:
     """What the pipeline's voice-activity detector reported about speech.
 
     *speech_segments* is how many speech segments began; *speech_seconds* how
-    long the ones that also ended lasted. A segment still open when this is
-    read has no end yet, so its time is not in the total.
+    long the ones that also ended lasted, measured from the audio rather than
+    from the clock. A segment still open when this is read has no end yet, so its
+    time is not in the total.
     """
 
     speech_segments: int
@@ -192,33 +192,48 @@ class SpeechMetricsRecorder:
 
     The accounting is plain Python, so it is testable without a pipeline and
     without audio: the stage built by `create_speech_metrics_stage` classifies
-    the frames and calls `record_speech_started`/`record_speech_stopped`. The
-    verb is *record* rather than one of ADR-0098's, because the method adds an
-    observation to a running total instead of handling an event or returning a
-    value. *clock* is read only to time a segment, and is injectable so a test
-    does not have to wait out real seconds.
+    the frames, hands each block of sound over with `record_audio`, and calls
+    `record_speech_started`/`record_speech_stopped`. The verb is *record* rather
+    than one of ADR-0098's, because the method adds an observation to a running
+    total instead of handling an event or returning a value.
+
+    What is measured is the audio, not the clock. The detector's frames arrive
+    while the pipeline works through what was pushed into it, so the interval
+    between two of them as the processor sees them is the pipeline's own
+    latency: capture pushed as a burst is worked through in milliseconds, and a
+    busy pipeline takes longer over the same speech than the user did. The
+    length the audio frames carry is the length the user spoke, however fast
+    they were worked through.
     """
 
-    def __init__(self, clock: Callable[[], float] = time.monotonic) -> None:
-        self._clock = clock
+    def __init__(self) -> None:
         self._speech_segments = 0
         self._speech_seconds = 0.0
-        self._started_at: float | None = None
+        self._open_seconds = 0.0
+        self._is_speaking = False
 
     def record_speech_started(self) -> None:
-        """Speech began. Counted even if it never ends; a second start does
-        not restart the clock of the segment already being timed."""
+        """Speech began. Counted even if it never ends; a second start leaves
+        the audio already measured for the segment being timed where it is."""
         self._speech_segments += 1
-        if self._started_at is None:
-            self._started_at = self._clock()
+        self._is_speaking = True
+
+    def record_audio(self, seconds: float) -> None:
+        """Add the length of one block of audio, while speech is being heard.
+
+        Audio that arrives with no segment open is audio the detector has not
+        called speech, and is not timed."""
+        if self._is_speaking:
+            self._open_seconds += seconds
 
     def record_speech_stopped(self) -> None:
-        """Speech ended: add how long it lasted. A stop with no start heard
-        is not speech this pipeline saw begin, and adds nothing."""
-        if self._started_at is None:
+        """Speech ended: add the audio measured for the segment. A stop with no
+        start heard is not speech this pipeline saw begin, and adds nothing."""
+        if not self._is_speaking:
             return
-        self._speech_seconds += max(0.0, self._clock() - self._started_at)
-        self._started_at = None
+        self._speech_seconds += self._open_seconds
+        self._open_seconds = 0.0
+        self._is_speaking = False
 
     def get_metrics(self) -> SpeechMetrics:
         """What has been recorded so far."""
@@ -245,24 +260,32 @@ def create_voice_activity_detector() -> FrameProcessor:
 def create_speech_metrics_stage(recorder: SpeechMetricsRecorder) -> FrameProcessor:
     """A pipeline stage that times the speech the detector reports.
 
-    It decides nothing: the segments it sees are handed to *recorder*, and
-    every frame goes on downstream unchanged. The frames are Pipecat's own —
-    `VADUserStartedSpeakingFrame` and `VADUserStoppedSpeakingFrame` — so this
-    reads the detector's verdict instead of analysing audio a second time.
+    It decides nothing: the segments and the audio it sees are handed to
+    *recorder*, and every frame goes on downstream unchanged. The frames are
+    Pipecat's own — `InputAudioRawFrame` carries the sound and
+    `VADUserStartedSpeakingFrame`/`VADUserStoppedSpeakingFrame` the detector's
+    verdict — so this reads the detector rather than analysing audio a second
+    time, and takes its length from the frame's own sample count and rate rather
+    than from the clock it happens to run on (`SpeechMetricsRecorder`).
     """
     # lazy: heavy third-party — pipecat is the `voice` extra.
     from pipecat.frames.frames import (
+        InputAudioRawFrame,
         VADUserStartedSpeakingFrame,
         VADUserStoppedSpeakingFrame,
     )
     from pipecat.processors.frame_processor import FrameProcessor
 
     class SpeechMetricsStage(FrameProcessor):
-        """Counts the speech the detector reports; forwards every frame."""
+        """Times the speech the detector reports; forwards every frame."""
 
         async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
             await super().process_frame(frame, direction)
-            if isinstance(frame, VADUserStartedSpeakingFrame):
+            # A frame with no rate has no length to take: the transport would
+            # not have started on one, so this is a pipeline already wrong.
+            if isinstance(frame, InputAudioRawFrame) and frame.sample_rate > 0:
+                recorder.record_audio(frame.num_frames / frame.sample_rate)
+            elif isinstance(frame, VADUserStartedSpeakingFrame):
                 recorder.record_speech_started()
             elif isinstance(frame, VADUserStoppedSpeakingFrame):
                 recorder.record_speech_stopped()
