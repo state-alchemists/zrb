@@ -14,6 +14,7 @@ import pytest
 from zrb.llm.dictation import AnyDictationBackend, DictationConfig
 from zrb.llm.dictation.feature import DictationSession
 from zrb.llm.dictation.listen import MicState, Utterance
+from zrb.llm.dictation.pipecat_input import SpeechMetrics
 from zrb.llm.util.feature_config import reset_session_ui, set_session_ui
 
 # One captured block, as `on_captured` receives it: 16 kHz mono 16-bit PCM.
@@ -51,6 +52,7 @@ class FakeAudioPipeline:
     def __init__(self) -> None:
         self.pushed: list[bytes] = []
         self.closed = 0
+        self.heard = SpeechMetrics(0, 0.0)
 
     @classmethod
     async def start(cls) -> "FakeAudioPipeline":
@@ -63,6 +65,9 @@ class FakeAudioPipeline:
 
     async def close(self) -> None:
         self.closed += 1
+
+    def get_speech_metrics(self) -> SpeechMetrics:
+        return self.heard
 
 
 def _fakes(monkeypatch, *said: bytes) -> list[bytes | None]:
@@ -274,3 +279,32 @@ async def test_a_pipeline_that_fails_mid_capture_is_closed_and_not_retried(monke
     assert len(PushFailsPipeline.made) == 1
     assert PushFailsPipeline.made[0].closed == 1
     assert any("Pipecat input pipeline stopped" in text for text in ui.outputs)
+
+
+@pytest.mark.asyncio
+async def test_what_the_pipeline_heard_is_reported_when_the_listening_ends(monkeypatch):
+    """The one thing the pipeline is turned on for: what it heard.
+
+    The pipeline decides nothing yet, so its speech metrics are the only
+    thing a session gets from it — and they are read once, when the listening
+    that fed it ends, not per block. A detector that never fired while zrb
+    cut turns anyway is the mismatch this line is read for.
+    """
+    ui = FakeUI()
+    set_session_ui(ui)
+    try:
+        monkeypatch.setattr("zrb.llm.dictation.feature.is_pipecat_available", lambda: True)
+        _fakes(monkeypatch, b"hello")
+        session = _session(pipecat_enabled=True)
+
+        stream = session.listen_hands_free()
+        await anext(stream)
+        # While the listening is still running: what is read is the value at
+        # the moment it ends.
+        FakeAudioPipeline.made[0].heard = SpeechMetrics(2, 1.5)
+        await stream.aclose()
+    finally:
+        reset_session_ui()
+
+    assert any("2 speech segment(s), 1.5s of detected speech" in text for text in ui.outputs)
+

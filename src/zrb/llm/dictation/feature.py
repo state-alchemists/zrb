@@ -368,7 +368,8 @@ class DictationSession:
         return await AudioPipeline.start()
 
     async def _close_audio_pipeline(self) -> None:
-        """Stop the pipeline this listening was feeding, if it started one.
+        """Stop the pipeline this listening was feeding, if it started one, and
+        say what it heard.
 
         Never raises: the pipeline decides nothing, so no
         failure in its teardown may end the listening.
@@ -376,6 +377,17 @@ class DictationSession:
         tap, self._tap = self._tap, None
         if tap is not None:
             await close_quietly(tap.close, "the Pipecat pipeline")
+            self._report_speech_metrics(tap)
+
+    def _report_speech_metrics(self, tap: AudioPipeline) -> None:
+        """Say what the pipeline heard, once the listening that fed it ended.
+
+        Read against the utterances zrb itself cut: speech segments the
+        detector reported and no turn to show for them is a detector that never
+        fired — a muted microphone, or a device zrb and the pipeline read
+        differently — which is the failure this line exists to make visible.
+        """
+        self._report(f"Pipecat input pipeline: {tap.get_speech_metrics().summary()}")
 
     async def _to_command(self, utterance: Utterance, text: str) -> str | None:
         """What *utterance*, transcribed as *text*, asks zrb, or ``None``

@@ -6,6 +6,10 @@ counter, so nothing downstream of the transport acts on the audio, and turning
 it on cannot change what zrb hears or says
 (`docs/architecture/3-peripheral-flow/voice-on-pipecat.md`).
 
+`push` only queues a block, so `AudioPipeline.close` catches the far end up
+before it stops the worker: the last blocks of a listening are the ones a
+teardown would otherwise drop, the trailing silence among them.
+
 Pipecat is the `voice` extra, so it is imported inside each factory; the
 `TYPE_CHECKING` import lets signatures name its types without that cost.
 """
@@ -14,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -30,10 +35,17 @@ if TYPE_CHECKING:
     from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
     from pipecat.transports.base_input import BaseInputTransport
 
+logger = logging.getLogger(__name__)
+
 __all__ = [
     "AudioPipeline",
+    "AudioTally",
+    "SpeechMetrics",
+    "SpeechMetricsRecorder",
     "create_audio_counter",
     "create_input_transport",
+    "create_speech_metrics_stage",
+    "create_voice_activity_detector",
     "is_pipecat_available",
     "push_audio",
 ]
@@ -42,6 +54,14 @@ __all__ = [
 #: pipeline is given up on, and how long closing it may take to unwind.
 _START_TIMEOUT_SECONDS = 10.0
 _CLOSE_TIMEOUT_SECONDS = 5.0
+
+#: How long the blocks already handed over may take to reach the far end before
+#: a teardown gives up on them, and how often that end is read while it catches
+#: up. A block is a few milliseconds of audio, so the wait is short; the timeout
+#: is what stops a pipeline that has stopped taking blocks from holding up the
+#: listening around it.
+_DRAIN_TIMEOUT_SECONDS = 5.0
+_DRAIN_POLL_SECONDS = 0.01
 
 
 def is_pipecat_available() -> bool:
@@ -86,28 +106,48 @@ def create_input_transport(
     )
 
 
-async def push_audio(transport: BaseInputTransport, chunk: bytes) -> None:
-    """Push one block of 16 kHz mono 16-bit PCM into *transport*.
+async def push_audio(
+    transport: BaseInputTransport, chunk: bytes, sample_rate: int = SAMPLE_RATE
+) -> None:
+    """Push one block of mono 16-bit PCM into *transport*, at *sample_rate*.
 
     The frame carries its own sample rate and channel count, so a block goes in
-    exactly as `listen` produced it. The transport has to have started first:
-    until its `StartFrame` is processed there is no queue to put a block on.
+    exactly as `listen` produced it and is analysed at the rate it was captured
+    at: `SAMPLE_RATE` is the right label only for a transport started at it, and
+    a block labeled otherwise is one the detector reads at the wrong speed. The
+    transport has to have started first: until its `StartFrame` is processed
+    there is no queue to put a block on.
     """
     # lazy: heavy third-party — pipecat is the `voice` extra.
     from pipecat.frames.frames import InputAudioRawFrame
     from pipecat.processors.frame_processor import FrameDirection
 
     await transport.process_frame(
-        InputAudioRawFrame(audio=chunk, sample_rate=SAMPLE_RATE, num_channels=1),
+        InputAudioRawFrame(audio=chunk, sample_rate=sample_rate, num_channels=1),
         FrameDirection.DOWNSTREAM,
     )
 
 
-def create_audio_counter() -> FrameProcessor:
-    """A pipeline sink that counts the frames and audio handed to it.
+@dataclass
+class AudioTally:
+    """What the pipeline's far end has been handed, counted as it arrives.
 
-    `frame_count` is every frame that reached the sink, `bytes_received` the
-    audio among them. Frames are not kept: a hands-free session runs for hours.
+    Plain Python, so it is testable without a pipeline and readable from outside
+    the sink that writes it: *frame_count* is every frame that reached the sink,
+    *bytes_received* the audio among them. `AudioPipeline.close` reads the byte
+    count to tell whether the blocks it pushed have arrived, which is the one
+    thing a stage that decides nothing is there to prove.
+    """
+
+    frame_count: int = 0
+    bytes_received: int = 0
+
+
+def create_audio_counter(tally: AudioTally) -> FrameProcessor:
+    """A pipeline sink that counts the frames and audio handed to *tally*.
+
+    Nothing is kept: a hands-free session runs for hours, and the count is all
+    this end is read for.
     """
     # lazy: heavy third-party — pipecat is the `voice` extra.
     from pipecat.frames.frames import InputAudioRawFrame
@@ -116,33 +156,185 @@ def create_audio_counter() -> FrameProcessor:
     class AudioCounter(FrameProcessor):
         """Counts the frames it has seen, and the audio bytes among them."""
 
-        def __init__(self) -> None:
-            super().__init__()
-            self.frame_count = 0
-            self.bytes_received = 0
-
         async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
             await super().process_frame(frame, direction)
-            self.frame_count += 1
+            tally.frame_count += 1
             if isinstance(frame, InputAudioRawFrame):
-                self.bytes_received += len(frame.audio)
+                tally.bytes_received += len(frame.audio)
             await self.push_frame(frame, direction)
 
     return AudioCounter()
+
+
+@dataclass(frozen=True)
+class SpeechMetrics:
+    """What the pipeline's voice-activity detector reported about speech.
+
+    *speech_segments* is how many speech segments began; *speech_seconds* how
+    long the ones that also ended lasted. What is timed is the detector's own
+    interval — the audio from the speech it confirmed to the silence it confirmed
+    the end on — so the trailing silence the stop is confirmed on, and any pause
+    it did not end the segment for, are part of the total. It is a measure of
+    what the detector heard, not of what a transcript would call the words.
+
+    A segment still open when this is read has no end yet, so its time is not in
+    the total; `AudioPipeline.close` ends the feed and closes it, which is what
+    makes a listening's last segment count.
+    """
+
+    speech_segments: int
+    speech_seconds: float
+
+    def summary(self) -> str:
+        """One line saying what the pipeline heard while it was fed."""
+        return (
+            f"{self.speech_segments} speech segment(s), "
+            f"{self.speech_seconds:.1f}s of detected speech"
+        )
+
+
+class SpeechMetricsRecorder:
+    """Accumulates what the pipeline reports about speech, and nothing else.
+
+    The accounting is plain Python, so it is testable without a pipeline and
+    without audio: the stage built by `create_speech_metrics_stage` classifies
+    the frames, hands each block of sound over with `record_audio`, and calls
+    `record_speech_started`/`record_speech_stopped`. The verb is *record* rather
+    than one of ADR-0098's, because the method adds an observation to a running
+    total instead of handling an event or returning a value.
+
+    What is measured is the audio, not the clock. The detector's frames arrive
+    while the pipeline works through what was pushed into it, so the interval
+    between two of them as the processor sees them is the pipeline's own
+    latency: capture pushed as a burst is worked through in milliseconds, and a
+    busy pipeline takes longer over the same speech than the user did. The
+    length the audio frames carry is the length of the segment the detector
+    reported, however fast it was worked through. Pipecat reports a segment's
+    ends and not a verdict per block, so that interval — its silence included —
+    is as close to what was said as the detector's events can say.
+    """
+
+    def __init__(self) -> None:
+        self._speech_segments = 0
+        self._speech_seconds = 0.0
+        self._open_seconds = 0.0
+        self._is_speaking = False
+
+    def record_speech_started(self) -> None:
+        """Speech began. Counted even if it never ends; a second start leaves
+        the audio already measured for the segment being timed where it is."""
+        self._speech_segments += 1
+        self._is_speaking = True
+
+    def record_audio(self, seconds: float) -> None:
+        """Add the length of one block of audio, while a segment is open.
+
+        Audio that arrives with no segment open is audio the detector has not
+        called speech, and is not timed; audio arriving inside one is counted —
+        the detector is what decided where the segment was, so this does not
+        second-guess it over a pause."""
+        if self._is_speaking:
+            self._open_seconds += seconds
+
+    def record_speech_stopped(self) -> None:
+        """Speech ended: add the audio measured for the segment. A stop with no
+        start heard is not speech this pipeline saw begin, and adds nothing."""
+        self.record_feed_ended()
+
+    def record_feed_ended(self) -> None:
+        """The feed is over: add the audio measured for a segment still open.
+
+        Nothing more arrives once a listening ends, so what an open segment was
+        measured over is all of it there will ever be. Dropping it would report a
+        user who spoke until the microphone stopped as having spoken for no time
+        at all — the detector reports a stop only when it hears the silence that
+        ends a segment, which a listening that stops mid-sentence never gives it.
+        An ended feed with no segment open adds nothing."""
+        if not self._is_speaking:
+            return
+        self._speech_seconds += self._open_seconds
+        self._open_seconds = 0.0
+        self._is_speaking = False
+
+    def get_metrics(self) -> SpeechMetrics:
+        """What has been recorded so far."""
+        return SpeechMetrics(self._speech_segments, self._speech_seconds)
+
+
+def create_voice_activity_detector() -> FrameProcessor:
+    """A pipeline stage running Pipecat's voice-activity detection.
+
+    Without it the pipeline carries bytes and nothing else: the detector is
+    what tells speech from silence, and what the metrics stage counts. It
+    decides nothing — zrb's own cutting still decides where an utterance
+    begins and ends — so it cannot change what zrb hears or says. The model
+    ships inside Pipecat and runs offline; it is loaded when the pipeline
+    starts, which is why this is reached only with the flag on.
+    """
+    # lazy: heavy third-party — pipecat is the `voice` extra.
+    from pipecat.audio.vad.silero import SileroVADAnalyzer
+    from pipecat.processors.audio.vad_processor import VADProcessor
+
+    return VADProcessor(vad_analyzer=SileroVADAnalyzer())
+
+
+def create_speech_metrics_stage(recorder: SpeechMetricsRecorder) -> FrameProcessor:
+    """A pipeline stage that times the speech the detector reports.
+
+    It decides nothing: the segments and the audio it sees are handed to
+    *recorder*, and every frame goes on downstream unchanged. The frames are
+    Pipecat's own — `InputAudioRawFrame` carries the sound and
+    `VADUserStartedSpeakingFrame`/`VADUserStoppedSpeakingFrame` the detector's
+    verdict — so this reads the detector rather than analysing audio a second
+    time, and takes its length from the frame's own sample count and rate rather
+    than from the clock it happens to run on (`SpeechMetricsRecorder`).
+    """
+    # lazy: heavy third-party — pipecat is the `voice` extra.
+    from pipecat.frames.frames import (
+        InputAudioRawFrame,
+        VADUserStartedSpeakingFrame,
+        VADUserStoppedSpeakingFrame,
+    )
+    from pipecat.processors.frame_processor import FrameProcessor
+
+    class SpeechMetricsStage(FrameProcessor):
+        """Times the speech the detector reports; forwards every frame."""
+
+        async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
+            await super().process_frame(frame, direction)
+            # A frame with no rate has no length to take: the transport would
+            # not have started on one, so this is a pipeline already wrong.
+            if isinstance(frame, InputAudioRawFrame) and frame.sample_rate > 0:
+                recorder.record_audio(frame.num_frames / frame.sample_rate)
+            elif isinstance(frame, VADUserStartedSpeakingFrame):
+                recorder.record_speech_started()
+            elif isinstance(frame, VADUserStoppedSpeakingFrame):
+                recorder.record_speech_stopped()
+            await self.push_frame(frame, direction)
+
+    return SpeechMetricsStage()
 
 
 @dataclass
 class AudioPipeline:
     """A running Pipecat pipeline that zrb's captured blocks are pushed into.
 
-    It ends at *counter*, an `AudioCounter`, so nothing downstream of the
-    transport acts on the audio.
+    It ends at *counter*, an `AudioCounter` writing *tally*, so nothing
+    downstream of the transport acts on the audio; the speech-activity detector
+    and the metrics stage in front of it observe the audio without deciding
+    anything about it. *pushed_bytes* is the audio `push` has handed over and the
+    transport has taken, which *tally* is read against to know that a listening's
+    last block has arrived rather than being cut off by the teardown.
     """
 
     worker: "PipelineWorker"
     runner: "asyncio.Task[None]"
     transport: "BaseInputTransport"
     counter: "FrameProcessor"
+    tally: AudioTally
+    recorder: SpeechMetricsRecorder
+    sample_rate: int = SAMPLE_RATE
+    pushed_bytes: int = 0
 
     @classmethod
     async def start(cls, sample_rate: int = SAMPLE_RATE) -> "AudioPipeline":
@@ -156,15 +348,30 @@ class AudioPipeline:
         from pipecat.frames.frames import StartFrame
         from pipecat.pipeline.pipeline import Pipeline
         from pipecat.pipeline.task import PipelineWorker
+        from pipecat.pipeline.worker import PipelineParams
         from pipecat.utils.asyncio.task_manager import TaskManager
         from pipecat.workers.base_worker import WorkerParams
 
         ready = asyncio.Event()
         transport = create_input_transport(sample_rate, ready.set)
-        counter = create_audio_counter()
-        worker = PipelineWorker(Pipeline([transport, counter]))
+        recorder = SpeechMetricsRecorder()
+        tally = AudioTally()
+        counter = create_audio_counter(tally)
+        worker = PipelineWorker(
+            Pipeline(
+                [
+                    transport,
+                    create_voice_activity_detector(),
+                    create_speech_metrics_stage(recorder),
+                    counter,
+                ]
+            ),
+            # The detector analyses at the transport's own rate, which reaches
+            # it through the worker's params and not through the transport's.
+            params=PipelineParams(audio_in_sample_rate=sample_rate),
+        )
         runner = asyncio.create_task(worker.run(WorkerParams(TaskManager())))
-        pipeline = cls(worker, runner, transport, counter)
+        pipeline = cls(worker, runner, transport, counter, tally, recorder, sample_rate)
         ready_waiter = asyncio.create_task(ready.wait())
         try:
             await worker.queue_frames([StartFrame()])
@@ -198,11 +405,37 @@ class AudioPipeline:
         return pipeline
 
     async def push(self, chunk: bytes) -> None:
-        """Hand one captured block over, as `push_audio` takes it."""
-        await push_audio(self.transport, chunk)
+        """Hand one captured block over, as `push_audio` takes it.
+
+        Only queued: the transport takes it from there, so the block is counted
+        here once it has been taken, and read against the far end by `close`. A
+        hand-over that raises is one the transport never took, and counting it
+        would leave `close` waiting on a block that is not coming — the whole
+        drain timeout spent on the failure path that closes the pipeline.
+        """
+        await push_audio(self.transport, chunk, self.sample_rate)
+        self.pushed_bytes += len(chunk)
+
+    def get_speech_metrics(self) -> SpeechMetrics:
+        """What the pipeline heard while it was fed: the speech segments its
+        detector reported, and how long they lasted."""
+        return self.recorder.get_metrics()
 
     async def close(self) -> None:
         """Stop the pipeline and wait, briefly, for its task to unwind.
+
+        The blocks already handed over are drained first, so the worker is not
+        stopped while one of them is still on its way: `push` only queues a
+        block, and a teardown that stops first drops whatever is queued — the
+        trailing silence included, which is the silence the detector needs to
+        report the end of the segment it closes, and the count this stage is
+        measured on comes up short. Draining is bounded, so a pipeline that has
+        stopped taking blocks is given up on rather than waited on.
+
+        The feed is then over, which the recorder is told: a segment the detector
+        never closed is added to the total for the audio it was heard over, every
+        block of which has just been drained, since a listening that stops while
+        the user is still speaking would otherwise be reported as no time at all.
 
         Never raises: this runs in the listening's `finally`, where an escaping
         failure would end hands-free for the session. A runner still going after
@@ -212,6 +445,8 @@ class AudioPipeline:
         and its exception is read off below so the loop does not log it as
         never retrieved.
         """
+        await self._drain()
+        self.recorder.record_feed_ended()
         await close_quietly(self.worker.cancel, "the Pipecat worker")
         done, _ = await asyncio.wait({self.runner}, timeout=_CLOSE_TIMEOUT_SECONDS)
         if not done:
@@ -221,3 +456,39 @@ class AudioPipeline:
         for task in done:
             if not task.cancelled():
                 task.exception()
+
+    async def _drain(self) -> None:
+        """Wait, at most `_DRAIN_TIMEOUT_SECONDS`, for the blocks handed over to
+        arrive at the far end.
+
+        The far end's byte count is the whole of what this stage is turned on to
+        prove — a block that never arrives is a block the detector never heard —
+        so a teardown reads it rather than trusting that a queued block was
+        taken. A runner that is already done can deliver nothing, so the wait
+        ends with it instead of standing the whole timeout; a pipeline that is
+        still up and still empty-handed is given up on at the deadline, and what
+        did not arrive is named, once, rather than raising.
+
+        A verdict the detector has not pushed yet is not waited for as well. The
+        block one is decided from is forwarded before the model runs on it, so
+        the count can catch up with a verdict still coming — and the verdict
+        arrives anyway: it is a system frame pushed while that block is still
+        being processed, and a cancel is a system frame behind it, of the tier
+        that keeps its arrival order. Waiting would buy no number this does not
+        give, since a start read after the feed ended opens a segment whose audio
+        was recorded before it, and a stop lands on a segment already closed.
+        """
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + _DRAIN_TIMEOUT_SECONDS
+        while (
+            self.tally.bytes_received < self.pushed_bytes
+            and not self.runner.done()
+            and loop.time() < deadline
+        ):
+            await asyncio.sleep(_DRAIN_POLL_SECONDS)
+        missing = self.pushed_bytes - self.tally.bytes_received
+        if missing > 0:
+            logger.warning(
+                f"{missing} byte(s) of captured audio never reached the Pipecat "
+                "pipeline and were not analysed"
+            )
